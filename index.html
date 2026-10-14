@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NBA Coach Sim · 教练模拟</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">NBA</span>
+        <span class="brand-name">Coach Sim</span>
+      </div>
+      <p class="tagline">选人 · 模拟 · 临场指挥</p>
+    </header>
+
+    <main id="screen-home" class="screen active">
+      <section class="hero">
+        <h1>组建你的传奇阵容</h1>
+        <p>按赛季属性抽卡组队，观看模拟比赛，以教练身份暂停、换人、布置战术。</p>
+        <div class="mode-grid">
+          <button class="mode-card" data-mode="draft">
+            <strong>选秀建队</strong>
+            <span>抽球员与教练，打一场完整模拟赛</span>
+          </button>
+          <button class="mode-card" data-mode="duel">
+            <strong>双人对抗</strong>
+            <span>双方随机抽签组队，本地轮流选人</span>
+          </button>
+          <button class="mode-card" data-mode="tournament">
+            <strong>多人淘汰赛</strong>
+            <span>每轮多一次选人，一路打到总决赛</span>
+          </button>
+          <button class="mode-card" data-mode="quick">
+            <strong>快速演示</strong>
+            <span>系统自动组两队，立刻开打看指挥</span>
+          </button>
+        </div>
+      </section>
+      <section class="hint-panel">
+        <h2>设计要点</h2>
+        <ul>
+          <li>球员带赛季年份：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。</li>
+          <li>命中率贴近真实：空位也会打铁，恩比德篮下、库里空位三分都可能不进。</li>
+          <li>隐藏抽卡等级不会显示；巨星抱团不一定赢，化学反应与战术适配更重要。</li>
+          <li>教练可加 Buff，并有特殊战术（三角进攻、小球、铁血防守等）。</li>
+        </ul>
+      </section>
+    </main>
+
+    <main id="screen-draft" class="screen">
+      <div class="panel-head">
+        <h2 id="draft-title">选秀</h2>
+        <button class="btn ghost" id="btn-draft-back">返回</button>
+      </div>
+      <div class="draft-meta">
+        <div>当前：<strong id="draft-turn">你</strong></div>
+        <div>剩余选人：<strong id="draft-left">5</strong></div>
+        <div>轮次：<strong id="draft-round">1</strong></div>
+      </div>
+      <div class="draft-teams">
+        <div class="roster-box">
+          <h3 id="roster-a-title">你的阵容</h3>
+          <ul id="roster-a"></ul>
+          <div id="coach-a" class="coach-slot">未选教练</div>
+        </div>
+        <div class="roster-box">
+          <h3 id="roster-b-title">对手阵容</h3>
+          <ul id="roster-b"></ul>
+          <div id="coach-b" class="coach-slot">未选教练</div>
+        </div>
+      </div>
+      <div class="pack-area">
+        <h3>本轮卡包（点选一名）</h3>
+        <div id="pack-cards" class="card-row"></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-start-game" disabled>开始比赛</button>
+      </div>
+    </main>
+
+    <main id="screen-game" class="screen">
+      <div class="scoreboard">
+        <div class="team-score">
+          <span id="game-team-a">主队</span>
+          <strong id="score-a">0</strong>
+        </div>
+        <div class="clock">
+          <div id="quarter">Q1</div>
+          <div id="game-clock">12:00</div>
+          <div id="poss-label">进攻</div>
+        </div>
+        <div class="team-score right">
+          <span id="game-team-b">客队</span>
+          <strong id="score-b">0</strong>
+        </div>
+      </div>
+
+      <div class="court-wrap">
+        <div class="court">
+          <div id="play-feed" class="play-feed"></div>
+        </div>
+        <aside class="coach-panel">
+          <h3>教练席</h3>
+          <p class="tiny">你指挥：<strong id="you-side">主队</strong></p>
+          <div class="tactic-row">
+            <label>战术</label>
+            <select id="tactic-select"></select>
+            <button class="btn small" id="btn-set-tactic">布置</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn warn" id="btn-timeout">暂停</button>
+            <button class="btn" id="btn-shout">大喊</button>
+            <button class="btn" id="btn-talk">沟通</button>
+          </div>
+          <div class="sub-box">
+            <label>换人</label>
+            <select id="sub-out"></select>
+            <select id="sub-in"></select>
+            <button class="btn small" id="btn-sub">换上</button>
+          </div>
+          <div class="meter">
+            <div>士气 <span id="morale">50</span></div>
+            <div class="bar"><i id="morale-bar"></i></div>
+            <div>化学反应 <span id="chem">50</span></div>
+            <div class="bar"><i id="chem-bar"></i></div>
+            <div>适配度 <span id="fit">50</span></div>
+            <div class="bar"><i id="fit-bar"></i></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn ghost" id="btn-speed">速度 x1</button>
+            <button class="btn ghost" id="btn-pause-sim">暂停模拟</button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="lineups">
+        <div>
+          <h4>主队场上</h4>
+          <ul id="oncourt-a"></ul>
+        </div>
+        <div>
+          <h4>客队场上</h4>
+          <ul id="oncourt-b"></ul>
+        </div>
+      </div>
+    </main>
+
+    <main id="screen-result" class="screen">
+      <section class="result-card">
+        <h2 id="result-title">比赛结束</h2>
+        <p id="result-score" class="big-score">0 - 0</p>
+        <p id="result-summary"></p>
+        <div class="box-score" id="box-score"></div>
+        <div class="actions">
+          <button class="btn primary" id="btn-again">再来一局</button>
+          <button class="btn ghost" id="btn-home">回主页</button>
+        </div>
+      </section>
+    </main>
+
+    <main id="screen-tournament" class="screen">
+      <div class="panel-head">
+        <h2>多人淘汰赛</h2>
+        <button class="btn ghost" id="btn-tour-back">返回</button>
+      </div>
+      <p class="tiny">设置 2–8 名本地玩家。每过一轮每人多一次选人机会，直到总决赛。</p>
+      <div class="form-row">
+        <label>玩家数</label>
+        <input id="player-count" type="number" min="2" max="8" value="4" />
+        <button class="btn primary" id="btn-tour-setup">生成席位</button>
+      </div>
+      <div id="tour-slots" class="tour-slots"></div>
+      <div id="bracket" class="bracket"></div>
+      <div class="actions">
+        <button class="btn primary" id="btn-tour-next" disabled>进入下一轮选人 / 比赛</button>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
