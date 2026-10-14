@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NBA Coach Sim · 教练模拟</title>
+  <title>场边传奇 · Courtside Legends</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -13,8 +13,8 @@
   <div id="app">
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark">NBA</span>
-        <span class="brand-name">Coach Sim</span>
+        <span class="brand-mark">场边传奇</span>
+        <span class="brand-name">Courtside Legends</span>
       </div>
       <p class="tagline">选人 · 模拟 · 临场指挥</p>
     </header>
@@ -22,7 +22,7 @@
     <main id="screen-home" class="screen active">
       <section class="hero">
         <h1>组建你的传奇阵容</h1>
-        <p>按赛季属性抽卡组队，观看模拟比赛，以教练身份暂停、换人、布置战术。</p>
+        <p>按赛季抽卡组队，临场叫暂停、大喊、换人。空位也会打铁——巨星抱团不无敌。</p>
         <div class="mode-grid">
           <button class="mode-card" data-mode="draft">
             <strong>选秀建队</strong>
@@ -114,10 +114,12 @@
             <button class="btn small" id="btn-set-tactic">布置</button>
           </div>
           <div class="btn-row">
-            <button class="btn warn" id="btn-timeout">暂停</button>
+            <button class="btn warn" id="btn-timeout">叫暂停</button>
+            <button class="btn primary" id="btn-resume" hidden>继续比赛</button>
             <button class="btn" id="btn-shout">大喊</button>
             <button class="btn" id="btn-talk">沟通</button>
           </div>
+          <p class="tiny" id="pause-hint" hidden>比赛已暂停——布置完战术/换人后，点「继续比赛」。</p>
           <div class="sub-box">
             <label>换人</label>
             <select id="sub-out"></select>
