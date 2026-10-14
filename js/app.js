@@ -1,5 +1,6 @@
 import { COACHES, coachTactics } from "./data/coaches.js";
-import { overall } from "./data/players.js";
+import { photoImg } from "./data/photo.js";
+import { overall, PLAYERS } from "./data/players.js";
 import { autoFillTeam, drawPack, teamPowerLabel } from "./engine/draft.js";
 import { GameSim } from "./engine/sim.js";
 
@@ -102,11 +103,18 @@ function renderPack() {
     if (card.kind === "player") {
       const p = card.data;
       el.innerHTML = `
-        <div class="name">${p.name}</div>
-        <div class="meta">${p.season} · ${p.team} · ${p.pos} · OVR ${overall(p)}</div>
+        <div class="card-head">
+          ${photoImg(p, "headshot lg")}
+          <div>
+            <div class="name">${p.name}</div>
+            <div class="meta">${p.season} · ${p.team} · ${p.pos} · OVR ${overall(p)}</div>
+          </div>
+        </div>
         <div class="stat-chips">
           <span class="chip">得分 ${p.scoring}</span>
           <span class="chip">防守 ${p.defense}</span>
+          <span class="chip">抢断 ${p.steal ?? "-"}</span>
+          <span class="chip">盖帽 ${p.block ?? "-"}</span>
           <span class="chip">速度 ${p.speed}</span>
           <span class="chip">力量 ${p.strength}</span>
           ${p.growth >= 70 ? `<span class="chip growth">成长 ${p.growth}</span>` : ""}
@@ -230,7 +238,10 @@ function refreshDraftUI() {
 function renderRoster(key, team) {
   const ul = $(`#roster-${key}`);
   ul.innerHTML = team.players
-    .map((p) => `<li>${p.name} <span class="tiny">(${p.season} ${p.pos})</span></li>`)
+    .map(
+      (p) =>
+        `<li class="roster-line">${photoImg(p)} <span>${p.name} <span class="tiny">(${p.season} ${p.pos})</span></span></li>`
+    )
     .join("");
   $(`#coach-${key}`).textContent = team.coach
     ? `教练：${team.coach.name}（${team.coach.season}）· ${team.coach.style}`
@@ -304,12 +315,10 @@ function paintScore(snap) {
 }
 
 function paintLineups(snap) {
-  $("#oncourt-a").innerHTML = snap.home.onCourt
-    .map((p) => `<li>${p.pos} ${p.name} · ${p.stats.pts}分 · 疲劳${p.fatigue}</li>`)
-    .join("");
-  $("#oncourt-b").innerHTML = snap.away.onCourt
-    .map((p) => `<li>${p.pos} ${p.name} · ${p.stats.pts}分 · 疲劳${p.fatigue}</li>`)
-    .join("");
+  const line = (p) =>
+    `<li class="roster-line">${photoImg(p)} <span>${p.pos} ${p.name} · ${p.stats.pts}分 ${p.stats.reb}板 ${p.stats.ast}助 ${p.stats.stl}断 ${p.stats.blk}帽 · 疲劳${p.fatigue}</span></li>`;
+  $("#oncourt-a").innerHTML = snap.home.onCourt.map(line).join("");
+  $("#oncourt-b").innerHTML = snap.away.onCourt.map(line).join("");
 }
 
 function paintMeters(snap) {
@@ -399,14 +408,26 @@ function showResult(snap) {
 function boxTable(team) {
   const rows = [...team.roster]
     .sort((a, b) => b.stats.pts - a.stats.pts)
-    .map(
-      (p) =>
-        `<tr><td>${p.name}</td><td>${p.stats.pts}</td><td>${p.stats.reb}</td><td>${p.stats.ast}</td><td>${p.stats.fgm}/${p.stats.fga}</td><td>${p.stats.tpm}/${p.stats.tpa}</td></tr>`
-    )
+    .map((p) => {
+      const s = p.stats;
+      return `<tr>
+        <td class="player-cell">${photoImg(p, "headshot sm")} ${p.name}<div class="tiny">${p.season}</div></td>
+        <td>${s.min}</td><td>${s.pts}</td><td>${s.reb}</td><td>${s.oreb}</td><td>${s.dreb}</td>
+        <td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.tov}</td><td>${s.pf}</td>
+        <td>${s.fgm}/${s.fga}</td><td>${s.tpm}/${s.tpa}</td><td>${s.ftm}/${s.fta}</td>
+        <td>${s.pm >= 0 ? "+" : ""}${s.pm}</td>
+      </tr>`;
+    })
     .join("");
-  return `<div><strong>${team.name}</strong>
-    <table><thead><tr><th>球员</th><th>分</th><th>板</th><th>助</th><th>命中</th><th>三分</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>`;
+  return `<div class="box-wrap"><strong>${team.name}</strong>
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>球员</th><th>MIN</th><th>PTS</th><th>REB</th><th>OREB</th><th>DREB</th>
+        <th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>PF</th>
+        <th>FGM-A</th><th>3PM-A</th><th>FTM-A</th><th>+/-</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
 }
 
 // —— Tournament ——
@@ -549,4 +570,12 @@ function applyTournamentResult(snap) {
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+// Home hint: card pool size
+const poolNote = document.querySelector(".hint-panel ul");
+if (poolNote) {
+  const li = document.createElement("li");
+  li.textContent = `当前卡池 ${PLAYERS.length} 张赛季球员卡（1950s 起上古神兽与各时代巅峰/新秀卡），头像取自当季 NBA 形象（缺失则回落头像）。`;
+  poolNote.appendChild(li);
 }

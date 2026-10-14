@@ -3,10 +3,9 @@ import { overall } from "../data/players.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
 
 const QUARTER_SEC = 12 * 60;
-const SHOT_CLOCK = 24;
 
 /**
- * Possession-based NBA sim with realistic make rates.
+ * Possession-based NBA sim with full box-score stats.
  * Open look ≠ automatic make. Coach actions apply temporary modifiers.
  */
 export class GameSim {
@@ -26,7 +25,6 @@ export class GameSim {
     this.paused = false;
     this.speed = 1;
     this._timer = null;
-    this.shotClock = SHOT_CLOCK;
     this.timeouts = { home: 7, away: 7 };
   }
 
@@ -86,13 +84,11 @@ export class GameSim {
     this.quarter += 1;
     this.clock = this.quarter > 4 ? 5 * 60 : QUARTER_SEC;
     this.possession = this.quarter % 2 === 1 ? "home" : "away";
-    // Stamina recovery on the bench between quarters
     for (const side of [this.home, this.away]) {
       for (const p of side.roster) {
         if (!side.onCourt.includes(p)) p.fatigue = Math.max(0, p.fatigue - 12);
         else p.fatigue = Math.max(0, p.fatigue - 4);
       }
-      // Thibs-style coaches keep stars on floor / more fatigue
       if (side.coach?.style?.includes("防守") || side.coach?.id?.includes("thibs")) {
         for (const p of side.onCourt) p.fatigue += 3;
       }
@@ -109,28 +105,68 @@ export class GameSim {
     const pace = off.tactic.pace * (1 + (off.temp.pace || 0));
     const used = clamp(rand(8, 20) / pace, 6, 24);
     this.clock = Math.max(0, this.clock - used);
-    this.shotClock = SHOT_CLOCK;
+    addMinutes(off, def, used);
 
-    // Turnover
-    const tovChance =
-      0.1 +
-      (100 - baller.pass) * 0.0012 +
-      baller.fatigue * 0.0015 -
-      off.chem * 0.0004 +
-      (def.tactic.defense - 1) * 0.04;
-    if (Math.random() < tovChance) {
-      this.emit("miss", `${baller.name} 失误，被 ${defender.name} 切断`);
-      baller.stats.to += 1;
+    // Steal / turnover package
+    const stlChance =
+      0.04 +
+      (defender.steal || 50) * 0.00055 +
+      (100 - baller.pass) * 0.0005 +
+      baller.fatigue * 0.0008 -
+      off.chem * 0.00025 +
+      (def.tactic.defense - 1) * 0.03;
+    if (Math.random() < stlChance) {
+      baller.stats.tov += 1;
+      defender.stats.stl += 1;
+      this.emit("miss", `${defender.name} 抢断 ${baller.name}！`);
       this.possession = flip(this.possession);
       return;
     }
 
+    const tovChance =
+      0.06 +
+      (100 - baller.pass) * 0.0009 +
+      baller.fatigue * 0.001 -
+      off.chem * 0.0003;
+    if (Math.random() < tovChance) {
+      baller.stats.tov += 1;
+      // loose-ball foul chance
+      if (Math.random() < 0.12) {
+        defender.stats.pf += 1;
+        this.emit("miss", `${baller.name} 失误，${defender.name} 防守犯规`);
+        shootFts(baller, off, this, 2);
+        return;
+      }
+      this.emit("miss", `${baller.name} 失误`);
+      this.possession = flip(this.possession);
+      return;
+    }
+
+    // Block attempt before shot resolves
     const shot = chooseShot(baller, off);
     const open = calcOpenness(baller, defender, off, def);
+    const blkChance =
+      shot.zone !== "three"
+        ? 0.02 + (defender.block || 40) * 0.0007 + (100 - open * 100) * 0.0004
+        : 0.005 + (defender.block || 40) * 0.00015;
+    if (Math.random() < blkChance) {
+      baller.stats.fga += 1;
+      if (shot.pts === 3) baller.stats.tpa += 1;
+      defender.stats.blk += 1;
+      this.emit("miss", `${defender.name} 盖帽 ${baller.name}！`);
+      // often stays live → rebound
+      resolveRebound(off, def, this, true);
+      return;
+    }
+
     const makeP = calcMakeProb(baller, shot, open, off, def);
     const made = Math.random() < makeP;
-
     const label = shotLabel(shot, open);
+
+    // Shooting foul (non-and-one path when miss, and-one when make)
+    const foulChance = 0.08 + (shot.zone === "paint" ? 0.06 : 0) - open * 0.04;
+    const fouled = Math.random() < foulChance;
+
     if (made) {
       const pts = shot.pts;
       this.score[off.side] += pts;
@@ -141,47 +177,39 @@ export class GameSim {
         baller.stats.tpm += 1;
         baller.stats.tpa += 1;
       }
-      // assist
+      applyPlusMinus(off, def, pts);
       if (Math.random() < 0.55 + off.chem * 0.002) {
         const ast = pickPasser(off, baller);
         if (ast) ast.stats.ast += 1;
       }
-      this.emit("score", `${baller.name} ${label} 命中！（${pct(makeP)} 预期） ${this.score.home}-${this.score.away}`);
-      // and-one rare
-      if (shot.zone === "paint" && Math.random() < 0.12) {
-        if (Math.random() < baller.ft) {
-          this.score[off.side] += 1;
-          baller.stats.pts += 1;
-          this.emit("score", `${baller.name} 加罚命中`);
-        } else {
-          this.emit("miss", `${baller.name} 加罚不中`);
-        }
+      this.emit(
+        "score",
+        `${baller.name} ${label} 命中！（${pct(makeP)}） ${this.score.home}-${this.score.away}`
+      );
+      if (fouled) {
+        defender.stats.pf += 1;
+        this.emit("coach", `${defender.name} 打手犯规，加罚`);
+        shootFts(baller, off, this, 1);
+        return;
       }
       this.possession = flip(this.possession);
     } else {
       baller.stats.fga += 1;
       if (shot.pts === 3) baller.stats.tpa += 1;
-      this.emit("miss", `${baller.name} ${label} 不中（${pct(makeP)}）—— 空位也会打铁`);
-      // rebound
-      const offReb = 0.22 + avg(off.onCourt.map((p) => p.rebound)) * 0.0015 - avg(def.onCourt.map((p) => p.rebound)) * 0.001;
-      if (Math.random() < offReb) {
-        const reb = weighted(off.onCourt, (p) => p.rebound);
-        reb.stats.reb += 1;
-        this.emit("event", `${reb.name} 前场篮板，二次进攻`);
-        // keep possession, burn a bit more
-        this.clock = Math.max(0, this.clock - 3);
-      } else {
-        const reb = weighted(def.onCourt, (p) => p.rebound + p.defense * 0.3);
-        reb.stats.reb += 1;
-        this.possession = flip(this.possession);
+      if (fouled) {
+        defender.stats.pf += 1;
+        this.emit("miss", `${baller.name} ${label} 出手被侵（${pct(makeP)}）`);
+        shootFts(baller, off, this, shot.pts === 3 ? 3 : 2);
+        return;
       }
+      this.emit("miss", `${baller.name} ${label} 不中（${pct(makeP)}）—— 空位也会打铁`);
+      resolveRebound(off, def, this, false);
     }
 
     baller.fatigue = Math.min(100, baller.fatigue + 2.2 + (off.coach?.buffs?.stamina < 0 ? 1.2 : 0));
     defender.fatigue = Math.min(100, defender.fatigue + 1.4);
   }
 
-  // —— Coach actions ——
   callTimeout() {
     const t = this.you();
     if (this.timeouts[t.side] <= 0) {
@@ -205,7 +233,6 @@ export class GameSim {
     t.morale = clamp(t.morale + delta, 0, 100);
     t.temp.offense = (t.temp.offense || 0) + 0.05;
     t.temp.ttl = 5;
-    // risk of ego backlash
     if (avg(t.onCourt.map((p) => p.personality.ego)) > 75 && Math.random() < 0.25) {
       t.morale = clamp(t.morale - 8, 0, 100);
       this.emit("coach", "大喊加压——球星不买账，士气反而下滑");
@@ -229,7 +256,6 @@ export class GameSim {
     const tactic = TACTICS[tacticId] || TACTICS.balanced;
     t.tactic = tactic;
     t.fit = lineupFit(t.onCourt, t.coach, t.tactic);
-    // Doc Rivers morale tactic
     if (tactic.morale) t.morale = clamp(t.morale + tactic.morale, 0, 100);
     this.emit("coach", `战术切换为「${tactic.name}」适配度 ${t.fit}`);
     this.refreshMeters();
@@ -271,6 +297,10 @@ export class GameSim {
 
   finish() {
     this.stop();
+    // plus/minus already tracked live; finalize minutes rounding
+    for (const side of [this.home, this.away]) {
+      for (const p of side.roster) p.stats.min = Math.round(p.stats.min);
+    }
     this.emit("coach", "终场哨响！");
     this.onEnd(this.snapshot());
   }
@@ -293,23 +323,41 @@ export class GameSim {
   }
 }
 
+function emptyStats() {
+  return {
+    min: 0,
+    pts: 0,
+    reb: 0,
+    oreb: 0,
+    dreb: 0,
+    ast: 0,
+    stl: 0,
+    blk: 0,
+    tov: 0,
+    pf: 0,
+    fgm: 0,
+    fga: 0,
+    tpm: 0,
+    tpa: 0,
+    ftm: 0,
+    fta: 0,
+    pm: 0,
+  };
+}
+
 function wrapTeam(team, side) {
   const roster = team.players.map((p) => ({
     ...structuredClone(p),
     fatigue: 0,
     tempFocus: 0,
-    stats: { pts: 0, reb: 0, ast: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, to: 0 },
+    stats: emptyStats(),
   }));
-  // sort by overall, top 5 start
   roster.sort((a, b) => overall(b) - overall(a));
   const onCourt = roster.slice(0, 5);
   const bench = roster.slice(5);
   const coach = team.coach ? structuredClone(team.coach) : null;
   const tactics = coach ? coachTactics(coach) : [TACTICS.balanced];
   const tactic = tactics[0];
-  const chem = teamChemistry(onCourt);
-  const fit = lineupFit(onCourt, coach, tactic);
-  let morale = 55 + (coach?.buffs?.morale || 0);
   return {
     side,
     name: team.name,
@@ -318,9 +366,9 @@ function wrapTeam(team, side) {
     bench,
     coach,
     tactic,
-    chem,
-    fit,
-    morale: clamp(morale, 20, 90),
+    chem: teamChemistry(onCourt),
+    fit: lineupFit(onCourt, coach, tactic),
+    morale: clamp(55 + (coach?.buffs?.morale || 0), 20, 90),
     temp: { ttl: 0 },
   };
 }
@@ -346,10 +394,67 @@ function slim(p) {
     season: p.season,
     pos: p.pos,
     team: p.team,
+    photo: p.photo,
+    nbaId: p.nbaId,
     fatigue: Math.round(p.fatigue),
-    stats: { ...p.stats },
+    stats: { ...p.stats, min: Math.round(p.stats.min) },
     overall: overall(p),
   };
+}
+
+function addMinutes(off, def, used) {
+  const mins = used / 60;
+  for (const p of off.onCourt) {
+    p.stats.min += mins;
+    p.stats.pm += 0; // updated on scores
+  }
+  for (const p of def.onCourt) p.stats.min += mins;
+}
+
+function applyPlusMinus(scoringSide, other, pts) {
+  for (const p of scoringSide.onCourt) p.stats.pm += pts;
+  for (const p of other.onCourt) p.stats.pm -= pts;
+}
+
+function shootFts(baller, off, sim, n) {
+  const def = off.side === "home" ? sim.away : sim.home;
+  for (let i = 0; i < n; i++) {
+    baller.stats.fta += 1;
+    if (Math.random() < baller.ft) {
+      baller.stats.ftm += 1;
+      baller.stats.pts += 1;
+      sim.score[off.side] += 1;
+      applyPlusMinus(off, def, 1);
+      sim.emit("score", `${baller.name} 罚球命中 ${sim.score.home}-${sim.score.away}`);
+    } else {
+      sim.emit("miss", `${baller.name} 罚球不中`);
+      if (i === n - 1) {
+        resolveRebound(off, def, sim, false);
+        return;
+      }
+    }
+  }
+  sim.possession = flip(off.side);
+}
+
+function resolveRebound(off, def, sim, afterBlock) {
+  const offReb =
+    (afterBlock ? 0.18 : 0.22) +
+    avg(off.onCourt.map((p) => p.rebound)) * 0.0015 -
+    avg(def.onCourt.map((p) => p.rebound)) * 0.001;
+  if (Math.random() < offReb) {
+    const reb = weighted(off.onCourt, (p) => p.rebound);
+    reb.stats.reb += 1;
+    reb.stats.oreb += 1;
+    sim.emit("event", `${reb.name} 前场篮板`);
+    sim.clock = Math.max(0, sim.clock - 3);
+    // keep possession
+  } else {
+    const reb = weighted(def.onCourt, (p) => p.rebound + p.defense * 0.3);
+    reb.stats.reb += 1;
+    reb.stats.dreb += 1;
+    sim.possession = flip(off.side);
+  }
 }
 
 function pickBallHandler(off) {
@@ -366,7 +471,7 @@ function pickBallHandler(off) {
 function pickDefender(def, baller) {
   return weighted(def.onCourt, (p) => {
     const posBonus = p.pos === baller.pos ? 20 : 0;
-    return p.defense + posBonus - p.fatigue * 0.3;
+    return p.defense + (p.steal || 50) * 0.25 + posBonus - p.fatigue * 0.3;
   });
 }
 
@@ -379,7 +484,6 @@ function pickPasser(off, scorer) {
 function chooseShot(p, off) {
   const threeBias = (p.three / 100) * off.tactic.threeRate;
   const paintBias = p.paint / 100;
-  const midBias = p.mid / 100;
   const r = Math.random();
   const threeCut = 0.2 + threeBias * 0.35;
   const paintCut = threeCut + 0.25 + paintBias * 0.25;
@@ -389,7 +493,6 @@ function chooseShot(p, off) {
 }
 
 function calcOpenness(baller, defender, off, def) {
-  // 0 contest .. 1 wide open
   let open =
     0.45 +
     (baller.speed - defender.speed) * 0.002 +
@@ -405,21 +508,12 @@ function calcOpenness(baller, defender, off, def) {
 function calcMakeProb(baller, shot, open, off, def) {
   let base =
     shot.zone === "three" ? baller.threeFg : shot.zone === "paint" ? baller.paintFg : baller.midFg;
-
-  // Openness moves probability but NEVER guarantees a make
-  // Wide open: ~+12% absolute; heavily contested: ~-18%
   base += (open - 0.45) * 0.28;
-
-  // Attribute skill soft factor (small)
   const skill =
     shot.zone === "three" ? baller.three : shot.zone === "paint" ? baller.paint : baller.mid;
   base += (skill - 75) * 0.0008;
-
-  // Fatigue & clutch late
   base -= baller.fatigue * 0.0018;
   base *= personalityOnPlay(baller, off.chem);
-
-  // Team context
   base *= 1 + (off.tactic.offense - 1) * 0.5;
   base *= 1 - (def.tactic.defense - 1) * 0.35;
   base *= 1 + (off.morale - 50) * 0.0015;
@@ -427,22 +521,13 @@ function calcMakeProb(baller, shot, open, off, def) {
   base *= 1 + (off.chem - 50) * 0.001;
   base *= 1 + (off.temp.offense || 0);
   base *= 1 - (def.temp.defense || 0) * 0.8;
-
-  // Coach buffs
   if (off.coach) base += off.coach.buffs.offense * 0.001;
   if (def.coach) base -= def.coach.buffs.defense * 0.0012;
-
-  // Strength helps paint finishes but misses still happen (Embiid empty)
   if (shot.zone === "paint") {
     base += (baller.strength - 70) * 0.0007;
-    // Explicit "empty miss" floor: even great finishers brick sometimes
     base = Math.min(base, 0.78);
   }
-  if (shot.zone === "three") {
-    // Curry open three can miss — cap around career-ish open looks
-    base = Math.min(base, 0.55);
-  }
-
+  if (shot.zone === "three") base = Math.min(base, 0.55);
   return clamp(base, 0.12, 0.78);
 }
 

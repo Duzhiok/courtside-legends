@@ -149,6 +149,36 @@ html, body {
   transform: translateY(-2px);
   box-shadow: var(--shadow);
 }
+.card-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.headshot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1a3a2a;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255,255,255,.55);
+}
+.headshot.lg { width: 56px; height: 56px; }
+.headshot.sm { width: 28px; height: 28px; }
+.roster-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.player-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+.table-scroll { overflow-x: auto; }
+.box-wrap { margin-bottom: 14px; }
 .player-card .name, .coach-card .name {
   font-weight: 700;
   font-size: 1.05rem;
