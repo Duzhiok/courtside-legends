@@ -282,6 +282,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
   paintLineups(sim.snapshot());
   paintMeters(sim.snapshot());
   fillSubSelects(sim.snapshot());
+  syncPauseUI();
   sim.start();
 }
 
@@ -334,16 +335,40 @@ function fmtClock(sec) {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
-$("#btn-timeout").onclick = () => state.sim?.callTimeout();
+function syncPauseUI() {
+  const paused = !!state.sim?.paused;
+  const resume = $("#btn-resume");
+  const hint = $("#pause-hint");
+  const pauseSim = $("#btn-pause-sim");
+  if (resume) resume.hidden = !paused;
+  if (hint) hint.hidden = !paused;
+  if (pauseSim) pauseSim.textContent = paused ? "继续模拟" : "暂停模拟";
+}
+
+function resumeGame() {
+  if (!state.sim) return;
+  state.sim.setPaused(false);
+  syncPauseUI();
+  pushFeed("coach", "继续比赛！");
+}
+
+$("#btn-timeout").onclick = () => {
+  state.sim?.callTimeout();
+  syncPauseUI();
+};
+$("#btn-resume").onclick = () => resumeGame();
 $("#btn-shout").onclick = () => state.sim?.shout();
 $("#btn-talk").onclick = () => state.sim?.talk();
 $("#btn-set-tactic").onclick = () => state.sim?.setTactic($("#tactic-select").value);
 $("#btn-sub").onclick = () => state.sim?.substitute($("#sub-out").value, $("#sub-in").value);
 $("#btn-pause-sim").onclick = () => {
   if (!state.sim) return;
-  const next = !state.sim.paused;
-  state.sim.setPaused(next);
-  $("#btn-pause-sim").textContent = next ? "继续模拟" : "暂停模拟";
+  if (state.sim.paused) resumeGame();
+  else {
+    state.sim.setPaused(true);
+    syncPauseUI();
+    pushFeed("coach", "模拟已暂停");
+  }
 };
 $("#btn-speed").onclick = () => {
   if (!state.sim) return;
