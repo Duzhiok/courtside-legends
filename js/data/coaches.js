@@ -162,3 +162,36 @@ export function coachTactics(coach) {
   const ids = new Set(["balanced", ...(coach.specialTactics || [])]);
   return [...ids].map((id) => TACTICS[id]).filter(Boolean);
 }
+
+/** Build / override a coach with custom philosophy sliders. */
+export function applyCoachPhilosophy(coach, philosophy = {}) {
+  const c = structuredClone(coach || {
+    id: "custom-coach",
+    name: "自定义教头",
+    season: 2025,
+    team: "自由身",
+    style: "自定义",
+    buffs: { offense: 5, defense: 5, morale: 5, stamina: 3 },
+    specialTactics: ["balanced"],
+    preferred: [],
+    note: "玩家自定义执教方针",
+    hiddenTier: "starter",
+    customizable: true,
+  });
+  const off = clamp(Number(philosophy.offense ?? c.buffs.offense), 0, 18);
+  const def = clamp(Number(philosophy.defense ?? c.buffs.defense), 0, 18);
+  const morale = clamp(Number(philosophy.morale ?? c.buffs.morale), 0, 18);
+  const stamina = clamp(Number(philosophy.stamina ?? c.buffs.stamina), -10, 12);
+  c.buffs = { offense: off, defense: def, morale, stamina };
+  c.style = philosophy.styleName || c.style || "自定义方针";
+  if (Array.isArray(philosophy.tactics) && philosophy.tactics.length) {
+    c.specialTactics = philosophy.tactics.filter((id) => TACTICS[id]);
+  }
+  if (philosophy.note) c.note = philosophy.note;
+  c.philosophy = { offense: off, defense: def, morale, stamina, tactics: c.specialTactics };
+  return c;
+}
+
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
+}
