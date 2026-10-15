@@ -1,11 +1,12 @@
 import { COACHES, coachTactics } from "./data/coaches.js";
 import { photoImg } from "./data/photo.js";
-import { overall, PLAYERS } from "./data/players.js";
+import { loadPlayers, overall, PLAYERS } from "./data/players.js";
 import { autoFillTeam, drawPack, teamPowerLabel } from "./engine/draft.js";
 import { GameSim } from "./engine/sim.js";
 
 const $ = (sel) => document.querySelector(sel);
 const screens = {
+  loading: $("#screen-loading"),
   home: $("#screen-home"),
   draft: $("#screen-draft"),
   game: $("#screen-game"),
@@ -572,10 +573,23 @@ function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
 }
 
-// Home hint: card pool size
-const poolNote = document.querySelector(".hint-panel ul");
-if (poolNote) {
-  const li = document.createElement("li");
-  li.textContent = `当前卡池 ${PLAYERS.length} 张赛季球员卡（1950s 起上古神兽与各时代巅峰/新秀卡），头像取自当季 NBA 形象（缺失则回落头像）。`;
-  poolNote.appendChild(li);
+async function boot() {
+  try {
+    $("#load-status").textContent = "下载 / 解析全历史赛季卡…";
+    $("#load-bar").style.width = "45%";
+    await loadPlayers();
+    $("#load-bar").style.width = "100%";
+    $("#load-status").textContent = `已加载 ${PLAYERS.length} 张赛季卡`;
+    const poolNote = document.querySelector(".hint-panel ul");
+    if (poolNote) {
+      const li = document.createElement("li");
+      li.textContent = `当前卡池 ${PLAYERS.length} 张赛季球员卡（1950 年起全历史名册，GP≥5），头像优先 Basketball-Reference / NBA CDN。`;
+      poolNote.appendChild(li);
+    }
+    setTimeout(() => show("home"), 200);
+  } catch (e) {
+    $("#load-status").textContent = `名册加载失败：${e.message}。请用本地服务器打开（python3 -m http.server）。`;
+  }
 }
+
+boot();
