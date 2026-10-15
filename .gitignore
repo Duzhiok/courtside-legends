@@ -4,3 +4,6 @@ node_modules/
 .vscode/
 *.log
 .venv/
+data/raw/
+__pycache__/
+*.pyc
