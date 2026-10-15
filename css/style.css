@@ -381,6 +381,8 @@ select, input[type="number"] {
   font: inherit;
   width: 100%;
 }
+.market-row.unaffordable { opacity: .55; background: #f3f3f3; }
+.market-row .btn:disabled { opacity: .4; cursor: not-allowed; }
 .setup-player.selected {
   border-color: var(--accent);
   background: #fff4eb;
