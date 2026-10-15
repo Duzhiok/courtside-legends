@@ -410,9 +410,19 @@ function slim(p) {
     name: p.name,
     season: p.season,
     pos: p.pos,
+    playPos: p.playPos || p.pos,
     team: p.team,
+    franchiseId: p.franchiseId || null,
     photo: p.photo,
     nbaId: p.nbaId,
+    scoring: p.scoring,
+    defense: p.defense,
+    pass: p.pass,
+    rebound: p.rebound,
+    steal: p.steal,
+    block: p.block,
+    speed: p.speed,
+    intangibles: p.intangibles,
     fatigue: Math.round(p.fatigue),
     stats: { ...p.stats, min: Math.round(p.stats.min) },
     overall: overall(p),
@@ -487,7 +497,9 @@ function pickBallHandler(off) {
 
 function pickDefender(def, baller) {
   return weighted(def.onCourt, (p) => {
-    const posBonus = p.pos === baller.pos ? 20 : 0;
+    const bp = baller.playPos || baller.pos;
+    const dp = p.playPos || p.pos;
+    const posBonus = dp === bp ? 20 : 0;
     return p.defense + (p.steal || 50) * 0.25 + posBonus - p.fatigue * 0.3;
   });
 }

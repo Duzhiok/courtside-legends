@@ -1,4 +1,9 @@
+import { positionFitScore } from "../data/franchises.js";
 import { overall } from "../data/players.js";
+
+function effPos(p) {
+  return p.playPos || p.pos;
+}
 
 /** Chemistry, fit, and personality modifiers for on-court performance. */
 export function teamChemistry(players) {
@@ -18,9 +23,14 @@ export function teamChemistry(players) {
   if (creators >= 4) chem -= 10;
 
   // Shared era / franchise slight bonus
-  const teamsCount = countBy(players, (p) => p.team);
+  const teamsCount = countBy(players, (p) => p.franchiseId || p.team);
   const maxSame = Math.max(...Object.values(teamsCount));
   if (maxSame >= 3) chem += 8;
+
+  // Same-era bonus
+  const eras = players.map((p) => Math.floor((p.season || 2000) / 10));
+  const eraCount = countBy(eras, (x) => x);
+  if (Math.max(...Object.values(eraCount)) >= 3) chem += 5;
 
   // Calm + fiery mix can work if team-first present
   const fiery = avg(players.map((p) => p.personality.fiery));
@@ -31,6 +41,10 @@ export function teamChemistry(players) {
   chem += (magnets - 50) * 0.22;
   const leaders = avg(players.map((p) => p.intangibles?.leadership || 50));
   chem += (leaders - 50) * 0.1;
+
+  // Position mismatch hurts chemistry a bit (James at C etc.)
+  const posFit = avg(players.map((p) => positionFitScore(p.pos, p.playPos || p.pos)));
+  chem += (posFit - 80) * 0.15;
 
   return clamp(Math.round(chem), 15, 95);
 }
@@ -47,9 +61,9 @@ export function lineupFit(players, coach, tactic) {
   const needHits = arches.filter((a) => needs.includes(a)).length;
   fit += needHits * 5;
 
-  // Spacing vs paint balance
+  // Spacing vs paint balance (use assigned playPos when set)
   const shooters = players.filter((p) => p.three >= 75).length;
-  const bigs = players.filter((p) => ["C", "PF"].includes(p.pos)).length;
+  const bigs = players.filter((p) => ["C", "PF"].includes(effPos(p))).length;
   if (tactic?.id === "smallball") {
     fit += shooters * 4;
     if (bigs >= 3) fit -= 10;
@@ -61,6 +75,14 @@ export function lineupFit(players, coach, tactic) {
   if (tactic?.id === "grind") {
     fit += avg(players.map((p) => p.defense)) * 0.15 - 8;
   }
+
+  // Assigned position vs natural position
+  const posFit = avg(players.map((p) => positionFitScore(p.pos, p.playPos || p.pos)));
+  fit += (posFit - 70) * 0.25;
+
+  // Lineup needs one of each roughly
+  const posSet = new Set(players.map(effPos));
+  fit += Math.min(posSet.size, 5) * 2;
 
   // Star stacking without connectors
   const ovr = players.map(overall);

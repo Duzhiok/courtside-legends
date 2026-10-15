@@ -383,6 +383,57 @@ select, input[type="number"] {
 }
 .market-row.unaffordable { opacity: .55; background: #f3f3f3; }
 .market-row .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.sub-panel { display: grid; gap: 8px; margin: 8px 0; }
+.sub-col h4 { margin: 0 0 6px; font-size: .88rem; }
+.sub-card-list {
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.sub-card {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 10px;
+  padding: 7px;
+  cursor: pointer;
+  font: inherit;
+}
+.sub-card.selected {
+  border-color: var(--accent);
+  background: #fff4eb;
+  box-shadow: 0 0 0 1px rgba(232,93,4,.25);
+}
+.sub-card-body { min-width: 0; }
+.sub-card-body strong { font-size: .9rem; }
+
+.legend-franchises {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px;
+}
+.franchise-chip {
+  padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.75);
+  border: 1px solid var(--line); font-size: .85rem;
+}
+.franchise-chip.active {
+  background: var(--ink); color: #fff; border-color: var(--ink);
+}
+.franchise-chip small { opacity: .7; margin-left: 4px; }
+.legend-progress { margin-bottom: 10px; font-size: .92rem; }
+.legend-body {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 800px) {
+  .legend-body { grid-template-columns: 1fr; }
+}
 .setup-player.selected {
   border-color: var(--accent);
   background: #fff4eb;
