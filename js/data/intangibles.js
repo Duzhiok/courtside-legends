@@ -82,10 +82,19 @@ export function topIntangibles(player, n = 3) {
     .map(([k, v]) => ({ key: k, value: v, ...(INTANGIBLE_DEFS[k] || { name: k, desc: "" }) }));
 }
 
-/** Market price in gold. */
+/** Market price in gold — tuned so early ¤500 can buy several role players. */
 export function playerPrice(p) {
   const ovr = (p.scoring + p.defense + p.pass + p.rebound) / 4;
   const aura =
     ((p.intangibles?.leadership || 50) + (p.intangibles?.killerInstinct || 50) + (p.intangibles?.gravity || 50)) / 3;
-  return Math.round(80 + ovr * 6 + aura * 1.2);
+  // Bench/role ~60–140, solid starters ~150–240, stars 280–420, superstars higher
+  let price = 25 + ovr * 2.2 + aura * 0.35;
+  const tier = p.hiddenTier || "bench";
+  if (tier === "water_cooler" || tier === "undrafted_gleague") price *= 0.55;
+  else if (tier === "bench") price *= 0.7;
+  else if (tier === "starter") price *= 0.9;
+  else if (tier === "star") price *= 1.15;
+  else if (tier === "allstar") price *= 1.35;
+  else if (tier === "hof" || tier === "nba50" || tier === "superstar") price *= 1.7;
+  return Math.max(35, Math.round(price));
 }

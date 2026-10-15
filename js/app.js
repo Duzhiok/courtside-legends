@@ -256,19 +256,22 @@ $("#btn-start-game").onclick = () => {
       teamA: d.teams.A,
       teamB: d.teams.B,
       used: new Set([...d.teams.A.players, ...d.teams.B.players].map((p) => p.id)),
+      shop: null,
       finals: false,
       series: null,
     };
-    openMarket({ duel: true });
+    openMarket({ duel: true, refillShop: true });
     return;
   }
   openSetup(d.teams.A, d.teams.B, "home");
 };
 
 // —— Career progression ——
+const MARKET_REFRESH_COST = 50;
+
 function startCareer() {
   const you = autoFillTeam("你的球队", 8);
-  you.gold = 500;
+  you.gold = 600;
   const used = new Set(you.players.map((p) => p.id));
   state.career = {
     kind: "career",
@@ -277,30 +280,79 @@ function startCareer() {
     gold: you.gold,
     team: you,
     used,
+    shop: null, // persist until manual refresh
     finals: false,
-    series: null, // { youWins, oppWins, opp }
+    series: null,
   };
-  openMarket({ career: true });
+  openMarket({ career: true, refillShop: true });
 }
 
-function openMarket({ career = false, duel = false, afterWin = false } = {}) {
+function budgetGold(c) {
+  if (c.kind === "duel") return Math.max(c.goldA || 0, c.goldB || 0);
+  return c.gold || 0;
+}
+
+/** Build a shop skewed toward what you can afford now. */
+function buildAffordableShop(c, size = 12) {
+  const exclude = c.used || new Set();
+  const budget = Math.max(80, budgetGold(c));
+  const pool = PLAYERS.filter((p) => !exclude.has(p.id) && !(c.shop || []).some((s) => s.id === p.id));
+  const priced = pool.map((p) => ({ p, price: playerPrice(p) }));
+  const cheap = priced.filter((x) => x.price <= budget * 0.55);
+  const mid = priced.filter((x) => x.price > budget * 0.55 && x.price <= budget);
+  const stretch = priced.filter((x) => x.price > budget && x.price <= budget * 1.35);
+
+  const pick = (arr, n) => {
+    const copy = [...arr];
+    const out = [];
+    while (copy.length && out.length < n) {
+      const i = Math.floor(Math.random() * copy.length);
+      out.push(copy.splice(i, 1)[0].p);
+    }
+    return out;
+  };
+
+  // Mostly buyable: 7 cheap + 4 mid + 1 stretch tease
+  let shop = [...pick(cheap, 7), ...pick(mid, 4), ...pick(stretch, 1)];
+  if (shop.length < size) {
+    shop = shop.concat(pick(priced, size - shop.length));
+  }
+  // de-dupe
+  const seen = new Set();
+  shop = shop.filter((p) => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+  return shop.slice(0, size).map(clonePlayer);
+}
+
+function openMarket({ career = false, duel = false, afterWin = false, refillShop = false } = {}) {
   show("market");
   const c = state.career;
-  $("#bid-panel").hidden = !duel;
-  if (career || c?.kind === "career") {
+  const isDuel = duel || c?.kind === "duel";
+  $("#bid-panel").hidden = !isDuel;
+
+  if (refillShop || !c.shop || !c.shop.length) {
+    c.shop = buildAffordableShop(c, 12);
+  }
+
+  if (!isDuel) {
     $("#market-hint").textContent = afterWin
-      ? `第 ${c.round} 轮胜利！赚取金币后调整名单（最多12人），再迎战下一轮。`
-      : `金币晋级：赢球赚钱，输球淘汰。总决赛七场四胜，每场后都可买卖。`;
-    $("#market-right-title").textContent = "自由市场";
+      ? `胜利奖金已入账。可连续买入多人；刷新市场需花 ¤${MARKET_REFRESH_COST}。`
+      : `开局约 ¤600。列表按预算偏向便宜球员，可连买多个；不会买一个就自动刷新。`;
+    $("#market-right-title").textContent = "自由市场（可连买）";
     $("#gold-amt").textContent = String(c.gold);
+    $("#shop-budget-hint").textContent = `当前可负担约 ¤${c.gold} 以内 · 列表 ${c.shop.length} 人`;
     renderMarketRoster(c.team, true);
-    renderFreeAgents(c);
-  } else if (duel || c?.kind === "duel") {
-    $("#market-hint").textContent = "双人模式：可用金币买人，或对自由球员竞价。名单上限 12。";
+    paintFreeAgentList(c, false);
+  } else {
+    $("#market-hint").textContent = `双人市场可连买/竞价；手动刷新花 ¤${MARKET_REFRESH_COST}（从双方各扣，余额不足则跳过该侧）。`;
     $("#market-right-title").textContent = "自由市场 / 竞价池";
     $("#gold-amt").textContent = `A ${c.goldA} / B ${c.goldB}`;
+    $("#shop-budget-hint").textContent = `列表 ${c.shop.length} 人（不会因买一人而整页刷新）`;
     renderMarketRoster(c.teamA, true, "A");
-    renderFreeAgents(c, true);
+    paintFreeAgentList(c, true);
     renderBidCard(c);
   }
   $("#roster-cap").textContent = String((c.team || c.teamA).players.length);
@@ -327,24 +379,29 @@ function renderMarketRoster(team, canSell, label = "") {
   });
 }
 
-function renderFreeAgents(c, duel = false) {
-  const exclude = c.used || new Set();
-  const pack = drawPack(8, { excludeIds: exclude }).filter((x) => x.kind === "player");
-  c.shop = pack.map((x) => x.data);
+function paintFreeAgentList(c, duel = false) {
   const box = $("#free-agent-list");
+  const budget = c.kind === "duel" ? Math.max(c.goldA, c.goldB) : c.gold;
+  if (!c.shop?.length) {
+    box.innerHTML = `<p class="tiny">市场空了。点「刷新自由市场」花 ¤${MARKET_REFRESH_COST} 换一批。</p>`;
+    return;
+  }
   box.innerHTML = c.shop
     .map((p) => {
       const price = playerPrice(p);
-      return `<div class="market-row">
+      const afford = price <= budget;
+      return `<div class="market-row ${afford ? "" : "unaffordable"}">
         ${photoImg(p)}
         <div style="flex:1">
           <strong>${p.name}</strong>
-          <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · ¤${price}</div>
+          <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · <strong>¤${price}</strong>${
+            afford ? "" : " · 超出预算"
+          }</div>
         </div>
         ${
           duel
             ? `<button class="btn small" data-bid="${p.id}">加入竞价</button>`
-            : `<button class="btn small" data-buy="${p.id}">买入</button>`
+            : `<button class="btn small" data-buy="${p.id}" ${afford ? "" : "disabled"}>买入</button>`
         }
       </div>`;
     })
@@ -359,6 +416,37 @@ function renderFreeAgents(c, duel = false) {
     };
   });
 }
+
+$("#btn-refresh-market").onclick = () => {
+  const c = state.career;
+  if (!c) return;
+  if (c.kind === "career") {
+    if (c.gold < MARKET_REFRESH_COST) {
+      alert(`刷新需要 ¤${MARKET_REFRESH_COST}，当前不够`);
+      return;
+    }
+    c.gold -= MARKET_REFRESH_COST;
+    c.shop = buildAffordableShop(c, 12);
+    openMarket({ career: true });
+    return;
+  }
+  // duel: charge whoever can pay; prefer charging both if both can
+  let charged = false;
+  if (c.goldA >= MARKET_REFRESH_COST) {
+    c.goldA -= MARKET_REFRESH_COST;
+    charged = true;
+  }
+  if (c.goldB >= MARKET_REFRESH_COST) {
+    c.goldB -= MARKET_REFRESH_COST;
+    charged = true;
+  }
+  if (!charged) {
+    alert(`刷新需要至少一方有 ¤${MARKET_REFRESH_COST}`);
+    return;
+  }
+  c.shop = buildAffordableShop(c, 12);
+  openMarket({ duel: true });
+};
 
 function renderBidCard(c) {
   const p = c.bidTarget || c.shop?.[0];
@@ -382,7 +470,8 @@ function sellPlayer(id, side = "") {
     const idx = c.team.players.findIndex((p) => p.id === id);
     if (idx < 0) return;
     const [p] = c.team.players.splice(idx, 1);
-    c.gold += Math.round(playerPrice(p) * 0.7);
+    c.gold += Math.round(playerPrice(p) * 0.65);
+    // keep same shop; just re-paint
     openMarket({ career: true });
   } else {
     const team = side === "B" ? c.teamB : c.teamA;
@@ -393,8 +482,8 @@ function sellPlayer(id, side = "") {
     const idx = team.players.findIndex((p) => p.id === id);
     if (idx < 0) return;
     const [p] = team.players.splice(idx, 1);
-    if (side === "B") c.goldB += Math.round(playerPrice(p) * 0.7);
-    else c.goldA += Math.round(playerPrice(p) * 0.7);
+    if (side === "B") c.goldB += Math.round(playerPrice(p) * 0.65);
+    else c.goldA += Math.round(playerPrice(p) * 0.65);
     openMarket({ duel: true });
   }
 }
@@ -415,6 +504,8 @@ function buyPlayer(id) {
   c.gold -= price;
   c.team.players.push(clonePlayer(p));
   c.used.add(p.id);
+  // Remove bought player only — do NOT refresh whole list
+  c.shop = c.shop.filter((x) => x.id !== id);
   openMarket({ career: true });
 }
 
@@ -796,7 +887,10 @@ function handleCareerResult(youWin, snap) {
     // earn gold each finals game
     c.gold += youWin ? 280 : 80;
     cont.textContent = "场间市场调整";
-    cont.onclick = () => openMarket({ career: true, afterWin: youWin });
+    cont.onclick = () => {
+      c.shop = null;
+      openMarket({ career: true, afterWin: youWin, refillShop: true });
+    };
     return;
   }
 
@@ -819,10 +913,16 @@ function handleCareerResult(youWin, snap) {
     c.finals = true;
     c.series = { youWins: 0, oppWins: 0, opp: autoFillTeam("总决赛对手", 12) };
     cont.textContent = "进入总决赛市场";
-    cont.onclick = () => openMarket({ career: true, afterWin: true });
+    cont.onclick = () => {
+      c.shop = null;
+      openMarket({ career: true, afterWin: true, refillShop: true });
+    };
   } else {
     cont.textContent = "进入转会市场";
-    cont.onclick = () => openMarket({ career: true, afterWin: true });
+    cont.onclick = () => {
+      c.shop = null;
+      openMarket({ career: true, afterWin: true, refillShop: true });
+    };
   }
 }
 
