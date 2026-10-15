@@ -127,7 +127,8 @@ export class GameSim {
       0.06 +
       (100 - baller.pass) * 0.0009 +
       baller.fatigue * 0.001 -
-      off.chem * 0.0003;
+      off.chem * 0.0003 -
+      ((baller.intangibles?.composure || 50) - 50) * 0.00035;
     if (Math.random() < tovChance) {
       baller.stats.tov += 1;
       // loose-ball foul chance
@@ -352,9 +353,25 @@ function wrapTeam(team, side) {
     tempFocus: 0,
     stats: emptyStats(),
   }));
-  roster.sort((a, b) => overall(b) - overall(a));
-  const onCourt = roster.slice(0, 5);
-  const bench = roster.slice(5);
+  let onCourt;
+  let bench;
+  const starterIds = team.starterIds || [];
+  if (starterIds.length >= 5) {
+    const pick = starterIds
+      .map((id) => roster.find((p) => p.id === id))
+      .filter(Boolean)
+      .slice(0, 5);
+    if (pick.length === 5) {
+      onCourt = pick;
+      const onIds = new Set(pick.map((p) => p.id));
+      bench = roster.filter((p) => !onIds.has(p.id));
+    }
+  }
+  if (!onCourt) {
+    roster.sort((a, b) => overall(b) - overall(a));
+    onCourt = roster.slice(0, 5);
+    bench = roster.slice(5);
+  }
   const coach = team.coach ? structuredClone(team.coach) : null;
   const tactics = coach ? coachTactics(coach) : [TACTICS.balanced];
   const tactic = tactics[0];
@@ -501,6 +518,10 @@ function calcOpenness(baller, defender, off, def) {
     defender.defense * 0.0025 -
     (def.tactic.defense - 1) * 0.15 +
     (off.chem - 50) * 0.001;
+  // Teammate gravity opens looks; defender switchability closes them
+  const gravity = avg(off.onCourt.map((p) => p.intangibles?.gravity || 50));
+  open += (gravity - 50) * 0.0012;
+  open -= ((defender.intangibles?.switchability || 50) - 50) * 0.001;
   open += (off.temp.offense || 0) - (def.temp.defense || 0);
   return clamp(open, 0.08, 0.92);
 }
@@ -512,7 +533,12 @@ function calcMakeProb(baller, shot, open, off, def) {
   const skill =
     shot.zone === "three" ? baller.three : shot.zone === "paint" ? baller.paint : baller.mid;
   base += (skill - 75) * 0.0008;
-  base -= baller.fatigue * 0.0018;
+  const tough = baller.intangibles?.toughness || 50;
+  base -= baller.fatigue * (0.0022 - tough * 0.000012);
+  const create = baller.intangibles?.shotCreation || 50;
+  if (open < 0.4) base += (create - 50) * 0.0009;
+  const kill = baller.intangibles?.killerInstinct || 50;
+  base += (kill - 50) * 0.00025;
   base *= personalityOnPlay(baller, off.chem);
   base *= 1 + (off.tactic.offense - 1) * 0.5;
   base *= 1 - (def.tactic.defense - 1) * 0.35;

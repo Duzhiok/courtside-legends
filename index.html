@@ -40,6 +40,10 @@
             <strong>双人对抗</strong>
             <span>双方随机抽签组队，本地轮流选人</span>
           </button>
+          <button class="mode-card" data-mode="career">
+            <strong>金币晋级赛</strong>
+            <span>赢球赚金币买卖球员（最多12人），输了淘汰；总决赛七场</span>
+          </button>
           <button class="mode-card" data-mode="tournament">
             <strong>多人淘汰赛</strong>
             <span>每轮多一次选人，一路打到总决赛</span>
@@ -89,7 +93,67 @@
         <div id="pack-cards" class="card-row"></div>
       </div>
       <div class="actions">
-        <button class="btn primary" id="btn-start-game" disabled>开始比赛</button>
+        <button class="btn primary" id="btn-start-game" disabled>进入赛前设置</button>
+      </div>
+    </main>
+
+    <main id="screen-setup" class="screen">
+      <div class="panel-head">
+        <h2>赛前设置 · 首发与执教方针</h2>
+        <button class="btn ghost" id="btn-setup-back">返回</button>
+      </div>
+      <p class="tiny">点选正好 5 名首发。下方可自定义教练方针与可用战术。</p>
+      <div class="setup-grid">
+        <div class="roster-box">
+          <h3>选择首发（<span id="starter-count">0</span>/5）</h3>
+          <div id="setup-roster" class="setup-roster"></div>
+        </div>
+        <div class="roster-box">
+          <h3>执教方针</h3>
+          <label class="tiny">方针名称 <input id="phil-name" type="text" value="我的体系" /></label>
+          <div class="phil-sliders">
+            <label>进攻倾向 <input id="phil-off" type="range" min="0" max="18" value="8" /> <span id="phil-off-v">8</span></label>
+            <label>防守倾向 <input id="phil-def" type="range" min="0" max="18" value="8" /> <span id="phil-def-v">8</span></label>
+            <label>士气管理 <input id="phil-morale" type="range" min="0" max="18" value="8" /> <span id="phil-morale-v">8</span></label>
+            <label>负荷管理 <input id="phil-stam" type="range" min="-8" max="10" value="2" /> <span id="phil-stam-v">2</span></label>
+          </div>
+          <div id="phil-tactics" class="tactic-checks"></div>
+          <p class="tiny" id="setup-coach-base">基础教练：—</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-setup-confirm" disabled>确认并开打</button>
+      </div>
+    </main>
+
+    <main id="screen-market" class="screen">
+      <div class="panel-head">
+        <h2>转会市场</h2>
+        <div>金币 <strong id="gold-amt">0</strong> · 名单 <strong id="roster-cap">0</strong>/12</div>
+      </div>
+      <p class="tiny" id="market-hint">买卖调整阵容。最多 12 人。确认后进入下一轮。</p>
+      <div class="market-grid">
+        <div class="roster-box">
+          <h3>我的球队</h3>
+          <div id="my-market-roster"></div>
+        </div>
+        <div class="roster-box">
+          <h3 id="market-right-title">自由市场</h3>
+          <div id="free-agent-list"></div>
+        </div>
+      </div>
+      <div id="bid-panel" class="bid-panel" hidden>
+        <h3>双人竞价</h3>
+        <p class="tiny">对同一名球员出价，价高者得。</p>
+        <div id="bid-card"></div>
+        <div class="form-row">
+          <label>玩家A出价 <input id="bid-a" type="number" min="0" value="100" /></label>
+          <label>玩家B出价 <input id="bid-b" type="number" min="0" value="100" /></label>
+          <button class="btn primary" id="btn-bid-resolve">结算本轮竞价</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-market-done">完成调整，继续赛程</button>
       </div>
     </main>
 
@@ -111,7 +175,7 @@
       </div>
 
       <div class="court-wrap">
-        <div class="court">
+        <div class="court" id="court-root">
           <div id="play-feed" class="play-feed"></div>
         </div>
         <aside class="coach-panel">
@@ -170,6 +234,7 @@
         <div class="box-score" id="box-score"></div>
         <div class="actions">
           <button class="btn primary" id="btn-again">再来一局</button>
+          <button class="btn" id="btn-result-continue" hidden>继续赛程</button>
           <button class="btn ghost" id="btn-home">回主页</button>
         </div>
       </section>

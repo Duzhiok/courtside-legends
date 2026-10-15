@@ -1,3 +1,4 @@
+import { attachIntangibles } from "./intangibles.js";
 import { avatarFallback, brefPhoto, nbaPhoto } from "./photo.js";
 
 export const HIDDEN_TIERS = {
@@ -79,7 +80,7 @@ export function seasonToCard(r) {
   const displayName = r.nameZh || r.name;
   const photo = r.nbaId ? nbaPhoto(r.nbaId) : r.bref ? brefPhoto(r.bref) : avatarFallback(displayName);
 
-  return {
+  const card = {
     id: r.id,
     name: displayName,
     nameEn: r.name,
@@ -120,6 +121,7 @@ export function seasonToCard(r) {
     tags: buildTags(r, hiddenTier),
     raw: { ppg, rpg, apg, spg, bpg, tpg, mpg, gp },
   };
+  return attachIntangibles(card);
 }
 
 function inferArchetype(r, a) {

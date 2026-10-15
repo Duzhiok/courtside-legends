@@ -26,6 +26,12 @@ export function teamChemistry(players) {
   const fiery = avg(players.map((p) => p.personality.fiery));
   if (fiery > 70 && avgTeam < 60) chem -= 8;
 
+  // 化学反应核：暗属性，能力值看不出来
+  const magnets = avg(players.map((p) => p.intangibles?.chemistryMagnet || 50));
+  chem += (magnets - 50) * 0.22;
+  const leaders = avg(players.map((p) => p.intangibles?.leadership || 50));
+  chem += (leaders - 50) * 0.1;
+
   return clamp(Math.round(chem), 15, 95);
 }
 
