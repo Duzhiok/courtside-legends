@@ -1,4 +1,5 @@
 import { COACHES, TACTICS, applyCoachPhilosophy, coachTactics } from "./data/coaches.js";
+import { FRANCHISES, POS_SLOTS, playersForFranchise } from "./data/franchises.js";
 import { playerPrice, topIntangibles } from "./data/intangibles.js";
 import { photoImg } from "./data/photo.js";
 import { loadPlayers, overall, PLAYERS, clonePlayer } from "./data/players.js";
@@ -11,6 +12,7 @@ const screens = {
   loading: $("#screen-loading"),
   home: $("#screen-home"),
   draft: $("#screen-draft"),
+  legend: $("#screen-legend"),
   setup: $("#screen-setup"),
   market: $("#screen-market"),
   game: $("#screen-game"),
@@ -27,9 +29,12 @@ let state = {
   sim: null,
   speed: 1,
   tournament: null,
+  legend: null,
   lastMode: null,
   lineupSig: "",
   court: null,
+  subOutId: null,
+  subInId: null,
 };
 
 function show(name) {
@@ -46,10 +51,15 @@ function startMode(mode) {
   state.lastMode = mode;
   state.career = null;
   state.tournament = null;
+  state.legend = null;
   if (mode === "quick") {
     const home = autoFillTeam("主队传奇", 10);
     const away = autoFillTeam("客队传奇", 10);
     openSetup(home, away, "home");
+    return;
+  }
+  if (mode === "legend") {
+    startLegendMode();
     return;
   }
   if (mode === "career") {
@@ -66,6 +76,7 @@ function startMode(mode) {
 
 $("#btn-draft-back").onclick = () => show("home");
 $("#btn-tour-back").onclick = () => show("home");
+$("#btn-legend-back").onclick = () => show("home");
 $("#btn-setup-back").onclick = () => show("home");
 $("#btn-home").onclick = () => show("home");
 $("#btn-again").onclick = () => startMode(state.lastMode || "quick");
@@ -267,6 +278,158 @@ $("#btn-start-game").onclick = () => {
 };
 
 // —— Career progression ——
+// —— Legend Mode ——
+function shuffleCopy(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startLegendMode() {
+  const eight = shuffleCopy(FRANCHISES).slice(0, 8);
+  state.legend = {
+    franchises: eight,
+    roster: [],
+    usedIds: new Set(),
+    current: null,
+    pickId: null,
+    pickPos: "SF",
+    targetSize: 10,
+  };
+  $("#legend-franchises").innerHTML = eight
+    .map((f) => `<span class="franchise-chip" data-id="${f.id}">${f.name} <small>${f.id}</small></span>`)
+    .join("");
+  $("#legend-pos").innerHTML = POS_SLOTS.map(
+    (s) =>
+      `<label><input type="radio" name="legend-pos" value="${s.id}" ${s.id === "SF" ? "checked" : ""}/> ${s.label}</label>`
+  ).join("");
+  $("#legend-pos").onchange = () => {
+    const v = $("#legend-pos").querySelector("input:checked")?.value;
+    if (v) state.legend.pickPos = v;
+  };
+  renderLegendRoster();
+  rollLegendTeam();
+  show("legend");
+}
+
+function rollLegendTeam() {
+  const L = state.legend;
+  const f = L.franchises[Math.floor(Math.random() * L.franchises.length)];
+  L.current = f;
+  L.pickId = null;
+  $("#legend-round-team").textContent = `${f.name}（${f.id}）`;
+  $("#legend-franchises").querySelectorAll(".franchise-chip").forEach((el) => {
+    el.classList.toggle("active", el.dataset.id === f.id);
+  });
+
+  // Unique players by bref (best season by overall), exclude already used cards
+  const pool = playersForFranchise(PLAYERS, f).filter((p) => !L.usedIds.has(p.id));
+  const byBref = new Map();
+  for (const p of pool) {
+    const key = p.bref || p.nameEn || p.name;
+    const prev = byBref.get(key);
+    if (!prev || overall(p) > overall(prev)) byBref.set(key, p);
+  }
+  let list = [...byBref.values()].sort((a, b) => overall(b) - overall(a));
+  // Show top stars + some random depth
+  const top = list.slice(0, 16);
+  const rest = shuffleCopy(list.slice(16)).slice(0, 10);
+  list = shuffleCopy([...top, ...rest]).slice(0, 18);
+
+  const box = $("#legend-pool");
+  if (!list.length) {
+    box.innerHTML = `<p class="tiny">该队可用历史球员已抽空，请点「换下一队」。</p>`;
+  } else {
+    box.innerHTML = list
+      .map((p) => {
+        const tips = topIntangibles(p, 2)
+          .map((t) => `${t.name}${t.value}`)
+          .join(" · ");
+        return `<button class="setup-player" data-id="${p.id}">
+          ${photoImg(p)}
+          <div>
+            <strong>${p.name}</strong>
+            <div class="tiny">${p.season} · 原位置 ${p.pos} · OVR ${overall(p)} · ${p.team}</div>
+            <div class="tiny">攻${p.scoring} 防${p.defense} 传${p.pass} 板${p.rebound} 断${p.steal} 帽${p.block}</div>
+            <div class="tiny">暗属性 ${tips}</div>
+          </div>
+        </button>`;
+      })
+      .join("");
+    box.querySelectorAll(".setup-player").forEach((btn) => {
+      btn.onclick = () => {
+        L.pickId = btn.dataset.id;
+        box.querySelectorAll(".setup-player").forEach((b) => b.classList.toggle("selected", b.dataset.id === L.pickId));
+        const p = list.find((x) => x.id === L.pickId);
+        $("#legend-picked").textContent = p
+          ? `已选：${p.name}（${p.season}）· 将放入你指定的位置`
+          : "未选球员";
+        $("#btn-legend-confirm").disabled = !L.pickId;
+      };
+    });
+  }
+  $("#btn-legend-confirm").disabled = true;
+  $("#legend-picked").textContent = "未选球员";
+  $("#legend-count").textContent = String(L.roster.length);
+  $("#btn-legend-finish").disabled = L.roster.length < L.targetSize;
+}
+
+function renderLegendRoster() {
+  const L = state.legend;
+  $("#legend-roster").innerHTML = L.roster
+    .map(
+      (p) =>
+        `<li class="roster-line">${photoImg(p, "headshot sm")} <span>${p.playPos} ${p.name} <span class="tiny">(${p.season} 原${p.pos} · ${p.franchiseId || p.team})</span></span></li>`
+    )
+    .join("") || `<li class="tiny">还没有人选</li>`;
+  $("#legend-count").textContent = String(L.roster.length);
+  $("#btn-legend-finish").disabled = L.roster.length < L.targetSize;
+}
+
+$("#btn-legend-confirm").onclick = () => {
+  const L = state.legend;
+  if (!L?.pickId || !L.current) return;
+  const pos = $("#legend-pos").querySelector("input:checked")?.value || L.pickPos || "SF";
+  const src = PLAYERS.find((p) => p.id === L.pickId);
+  if (!src) return;
+  const card = clonePlayer(src);
+  card.playPos = pos;
+  card.franchiseId = L.current.id;
+  card.tags = [...(card.tags || []), `${L.current.name}传奇`, `改打${pos}`].slice(0, 4);
+  L.roster.push(card);
+  L.usedIds.add(card.id);
+  renderLegendRoster();
+  // auto roll next team (can repeat)
+  if (L.roster.length >= L.targetSize) {
+    $("#legend-picked").textContent = "已满 10 人，可去赛前设置；也可继续抽人到 12。";
+    $("#btn-legend-finish").disabled = false;
+    if (L.roster.length >= 12) {
+      $("#btn-legend-confirm").disabled = true;
+      return;
+    }
+  }
+  rollLegendTeam();
+};
+
+$("#btn-legend-next-team").onclick = () => rollLegendTeam();
+
+$("#btn-legend-finish").onclick = () => {
+  const L = state.legend;
+  if (!L || L.roster.length < L.targetSize) return;
+  const coach = structuredClone(COACHES[Math.floor(Math.random() * COACHES.length)]);
+  const home = {
+    name: "传奇联军",
+    players: L.roster.slice(0, 12),
+    coach,
+    starterIds: L.roster.slice(0, 5).map((p) => p.id),
+  };
+  const away = autoFillTeam("挑战者", 10);
+  openSetup(home, away, "home");
+};
+
 const MARKET_REFRESH_COST = 50;
 
 function startCareer() {
@@ -752,25 +915,60 @@ function paintMeters(snap) {
   $("#fit-bar").style.width = `${you.fit}%`;
 }
 
+function playerSubCard(p, selected) {
+  const slot = p.playPos || p.pos;
+  const tips = topIntangibles(p, 2)
+    .map((t) => `${t.name}${t.value}`)
+    .join(" ");
+  return `<button type="button" class="sub-card ${selected ? "selected" : ""}" data-id="${p.id}">
+    ${photoImg(p, "headshot")}
+    <div class="sub-card-body">
+      <strong>${p.name}</strong>
+      <div class="tiny">${slot}（原${p.pos}）· ${p.season} · OVR ${p.overall ?? overall(p)} · 疲劳${p.fatigue ?? 0}</div>
+      <div class="tiny">攻${p.scoring} 防${p.defense} 传${p.pass} 板${p.rebound} 断${p.steal ?? "-"} 帽${p.block ?? "-"} 速${p.speed}</div>
+      <div class="tiny">${tips}</div>
+      <div class="tiny">${p.stats ? `${p.stats.pts}分 ${p.stats.reb}板 ${p.stats.ast}助` : ""}</div>
+    </div>
+  </button>`;
+}
+
 function fillSubSelects(snap, force = false) {
-  const out = $("#sub-out");
-  const inn = $("#sub-in");
-  // Don't rebuild while user is interacting — this was the flicker bug
-  if (!force && (document.activeElement === out || document.activeElement === inn)) return;
-
+  const outBox = $("#sub-out-list");
+  const inBox = $("#sub-in-list");
+  if (!outBox || !inBox) return;
   const you = snap.youSide === "home" ? snap.home : snap.away;
-  const outIds = you.onCourt.map((p) => p.id).join(",");
-  const inIds = you.bench.map((p) => p.id).join(",");
-  if (!force && out.dataset.sig === outIds && inn.dataset.sig === inIds) return;
+  const sig = [...you.onCourt.map((p) => p.id), "|", ...you.bench.map((p) => p.id)].join(",");
+  if (!force && outBox.dataset.sig === sig) {
+    // still refresh fatigue/pts text lightly via full rebuild only when forced / lineup change
+    return;
+  }
+  outBox.dataset.sig = sig;
+  // keep selection if still valid
+  if (!you.onCourt.some((p) => p.id === state.subOutId)) state.subOutId = null;
+  if (!you.bench.some((p) => p.id === state.subInId)) state.subInId = null;
 
-  const keepOut = out.value;
-  const keepIn = inn.value;
-  out.innerHTML = you.onCourt.map((p) => `<option value="${p.id}">下 ${p.name}</option>`).join("");
-  inn.innerHTML = you.bench.map((p) => `<option value="${p.id}">上 ${p.name}</option>`).join("");
-  out.dataset.sig = outIds;
-  inn.dataset.sig = inIds;
-  if ([...out.options].some((o) => o.value === keepOut)) out.value = keepOut;
-  if ([...inn.options].some((o) => o.value === keepIn)) inn.value = keepIn;
+  outBox.innerHTML = you.onCourt.map((p) => playerSubCard(p, p.id === state.subOutId)).join("");
+  inBox.innerHTML = you.bench.length
+    ? you.bench.map((p) => playerSubCard(p, p.id === state.subInId)).join("")
+    : `<p class="tiny">板凳无人</p>`;
+
+  outBox.querySelectorAll(".sub-card").forEach((btn) => {
+    btn.onclick = () => {
+      state.subOutId = btn.dataset.id;
+      fillSubSelects(state.sim.snapshot(), true);
+    };
+  });
+  inBox.querySelectorAll(".sub-card").forEach((btn) => {
+    btn.onclick = () => {
+      state.subInId = btn.dataset.id;
+      fillSubSelects(state.sim.snapshot(), true);
+    };
+  });
+  const ready = !!(state.subOutId && state.subInId);
+  $("#btn-sub").disabled = !ready;
+  $("#sub-pick-hint").textContent = ready
+    ? "已选好，可确认换人"
+    : "点选一名场上球员 + 一名板凳球员（含头像与属性）";
 }
 
 function fmtClock(sec) {
@@ -806,9 +1004,12 @@ $("#btn-set-tactic").onclick = () => {
   fillSubSelects(state.sim.snapshot(), true);
 };
 $("#btn-sub").onclick = () => {
-  state.sim?.substitute($("#sub-out").value, $("#sub-in").value);
-  fillSubSelects(state.sim.snapshot(), true);
+  if (!state.subOutId || !state.subInId) return;
+  state.sim?.substitute(state.subOutId, state.subInId);
+  state.subOutId = null;
+  state.subInId = null;
   state.lineupSig = "";
+  fillSubSelects(state.sim.snapshot(), true);
 };
 $("#btn-pause-sim").onclick = () => {
   if (!state.sim) return;
@@ -1091,7 +1292,7 @@ async function boot() {
     const poolNote = document.querySelector(".hint-panel ul");
     if (poolNote) {
       const li = document.createElement("li");
-      li.textContent = `卡池 ${PLAYERS.length} 张；含暗属性（引力/硬气/领袖等）；可自选首发与执教方针；金币晋级赛支持买卖与双人竞价。`;
+      li.textContent = `卡池 ${PLAYERS.length} 张；换人面板显示板凳头像与属性；传奇模式可从八队历史球员自选位置组队。`;
       poolNote.appendChild(li);
     }
     setTimeout(() => show("home"), 200);

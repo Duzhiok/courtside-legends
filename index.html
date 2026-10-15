@@ -40,6 +40,10 @@
             <strong>双人对抗</strong>
             <span>双方随机抽签组队，本地轮流选人</span>
           </button>
+          <button class="mode-card" data-mode="legend">
+            <strong>传奇模式</strong>
+            <span>随机八队轮抽历史球员，自选1–5号位置充实阵容</span>
+          </button>
           <button class="mode-card" data-mode="career">
             <strong>金币晋级赛</strong>
             <span>赢球赚金币买卖球员（最多12人），输了淘汰；总决赛七场</span>
@@ -94,6 +98,35 @@
       </div>
       <div class="actions">
         <button class="btn primary" id="btn-start-game" disabled>进入赛前设置</button>
+      </div>
+    </main>
+
+    <main id="screen-legend" class="screen">
+      <div class="panel-head">
+        <h2>传奇模式</h2>
+        <button class="btn ghost" id="btn-legend-back">返回</button>
+      </div>
+      <p class="tiny" id="legend-status">本局八支传奇球队如下。每轮随机抽出一队，从该队历史球员中选一人，并指定场上位置。</p>
+      <div id="legend-franchises" class="legend-franchises"></div>
+      <div class="legend-progress">
+        已选 <strong id="legend-count">0</strong>/10 · 本轮球队：<strong id="legend-round-team">—</strong>
+      </div>
+      <div class="legend-body">
+        <div class="roster-box">
+          <h3>本轮可选历史球员</h3>
+          <div id="legend-pool" class="setup-roster"></div>
+        </div>
+        <div class="roster-box">
+          <h3>指定位置</h3>
+          <div id="legend-pos" class="tactic-checks"></div>
+          <div id="legend-picked" class="tiny" style="margin:10px 0">未选球员</div>
+          <button class="btn primary" id="btn-legend-confirm" disabled>加入阵容</button>
+          <hr style="border:none;border-top:1px solid var(--line);margin:14px 0" />
+          <h3>我的传奇阵容</h3>
+          <ul id="legend-roster"></ul>
+          <button class="btn" id="btn-legend-next-team">换下一队（再抽）</button>
+          <button class="btn primary" id="btn-legend-finish" disabled>选够人了，去赛前设置</button>
+        </div>
       </div>
     </main>
 
@@ -198,11 +231,17 @@
             <button class="btn" id="btn-talk">沟通</button>
           </div>
           <p class="tiny" id="pause-hint" hidden>比赛已暂停——布置完战术/换人后，点「继续比赛」。</p>
-          <div class="sub-box">
-            <label>换人</label>
-            <select id="sub-out"></select>
-            <select id="sub-in"></select>
-            <button class="btn small" id="btn-sub">换上</button>
+          <div class="sub-panel">
+            <div class="sub-col">
+              <h4>下场（场上）</h4>
+              <div id="sub-out-list" class="sub-card-list"></div>
+            </div>
+            <div class="sub-col">
+              <h4>上场（板凳）</h4>
+              <div id="sub-in-list" class="sub-card-list"></div>
+            </div>
+            <button class="btn small primary" id="btn-sub" disabled>确认换人</button>
+            <p class="tiny" id="sub-pick-hint">点选一名场上 + 一名板凳球员</p>
           </div>
           <div class="meter">
             <div>士气 <span id="morale">50</span></div>
