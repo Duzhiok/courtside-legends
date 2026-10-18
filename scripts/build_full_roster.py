@@ -50,6 +50,13 @@ def load_master():
     return names, pos
 
 
+# Career identity overrides when talldata/BRef primary pos is misleading.
+POS_OVERRIDES = {
+    "nowitdi01": "PF",  # Dirk Nowitzki — often tagged C early; natural PF
+    "willija02": "PG",  # Jason Williams (White Chocolate)
+}
+
+
 def normalize_pos(p):
     p = (p or "G").upper().strip()
     mapping = {
@@ -163,17 +170,21 @@ def parse_br_html(html: str, season_end: int):
             continue
         bref = bref_m.group(1)
         name = name_m.group(1).strip()
-        team_m = re.search(r'data-stat="team_name_abbr"[^>]*>\s*(?:<a[^>]*>)?([A-Z]{2,3})', row)
-        team = team_m.group(1) if team_m else "NBA"
+        def cell_text(key, default=""):
+            # BRef wraps league-leading values in <strong>/<a>; strip tags first.
+            mm = re.search(rf'data-stat="{key}"[^>]*>([\s\S]*?)</t[dh]>', row)
+            if not mm:
+                return default
+            return re.sub(r"<[^>]+>", "", mm.group(1)).strip().replace(",", "")
+
+        def stat(key, default=0.0):
+            return fnum(cell_text(key), default)
+
+        team_raw = cell_text("team_name_abbr").upper()
+        team = team_raw if re.fullmatch(r"[A-Z]{2,3}", team_raw or "") else "NBA"
         if team == "TOT":
             # keep TOT as combined season; drop other team splits later via seen
             pass
-
-        def stat(key, default=0.0):
-            mm = re.search(rf'data-stat="{key}"[^>]*>([^<]*)', row)
-            if not mm:
-                return default
-            return fnum(mm.group(1).strip().replace(",", ""), default)
 
         gp = stat("games")
         if gp < 5:
@@ -183,8 +194,10 @@ def parse_br_html(html: str, season_end: int):
         if key in seen and team != "TOT":
             continue
         seen.add(key)
-        pos_m = re.search(r'data-stat="pos"[^>]*>([^<]*)', row)
-        pos = normalize_pos(pos_m.group(1) if pos_m else "F")
+        pos = normalize_pos(cell_text("pos") or "F")
+        fg_raw = cell_text("fg_pct")
+        tp_raw = cell_text("fg3_pct")
+        ft_raw = cell_text("ft_pct")
         out.append(
             {
                 "bref": bref,
@@ -200,9 +213,9 @@ def parse_br_html(html: str, season_end: int):
                 "spg": round(stat("stl_per_g"), 1),
                 "bpg": round(stat("blk_per_g"), 1),
                 "tpg": round(stat("tov_per_g"), 1),
-                "fg": round(stat("fg_pct"), 3),
-                "tp": round(stat("fg3_pct"), 3),
-                "ft": round(stat("ft_pct"), 3),
+                "fg": round(stat("fg_pct"), 3) if fg_raw else 0.42,
+                "tp": round(stat("fg3_pct"), 3) if tp_raw else 0.0,
+                "ft": round(stat("ft_pct"), 3) if ft_raw else 0.75,
                 "fga": round(stat("fga_per_g"), 1),
                 "tpa": round(stat("fg3a_per_g"), 1),
                 "src": "bref",
@@ -269,11 +282,14 @@ def main():
     rows = list(uniq.values())
     rows.sort(key=lambda x: (x["season"], -x["ppg"], x["name"]))
 
-    # Attach stable id
+    # Attach stable id + career-pos overrides
     for r in rows:
         slug = re.sub(r"[^a-z0-9]+", "", r["name"].lower())[:16] or r["bref"]
         r["id"] = f"{r['bref']}-{r['season']}-{r['team']}".lower()
         r["slug"] = slug
+        ov = POS_OVERRIDES.get(str(r.get("bref") or "").lower())
+        if ov:
+            r["pos"] = ov
 
     zh = load_zh_names()
     for r in rows:
@@ -284,13 +300,27 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": 1,
-        "generated": time.strftime("%Y-%m-%d"),
+        "generated": time.strftime("%Y-%m-%d") + "d",
         "count": len(rows),
-        "note": "Full NBA player-seasons since 1950 (GP>=5). Attributes derived at runtime.",
+        "note": "Full NBA player-seasons since 1950 (GP>=5). BRef cell parse strips nested tags (league-lead stats).",
         "players": rows,
     }
     OUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    meta_path = OUT.with_name("roster.meta.json")
+    meta_path.write_text(
+        json.dumps(
+            {
+                "version": payload["version"],
+                "generated": payload["generated"],
+                "count": payload["count"],
+                "note": "bref nested-tag parse fix",
+            },
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
     print(f"Wrote {len(rows)} seasons -> {OUT} ({OUT.stat().st_size/1e6:.2f} MB)")
+    print(f"Wrote meta -> {meta_path}")
 
     # uniqueness
     people = {r["bref"] for r in rows}

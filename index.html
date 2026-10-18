@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>场边传奇 · Courtside Legends</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=20261017matchup1" />
 </head>
 <body>
   <div id="app">
@@ -16,14 +19,22 @@
         <span class="brand-mark">场边传奇</span>
         <span class="brand-name">Courtside Legends</span>
       </div>
-      <p class="tagline">选人 · 模拟 · 临场指挥</p>
+      <div class="topbar-right">
+        <div class="bgm-controls" title="背景音乐 · Kurtis Blow — Basketball（需自备合法音源）">
+          <button type="button" class="btn small ghost bgm-btn" id="btn-bgm" aria-pressed="false">♪ 音乐</button>
+          <button type="button" class="btn small ghost bgm-pick" id="btn-bgm-pick" title="从本机选择音源">选曲</button>
+        </div>
+        <button type="button" class="account-chip" id="btn-account-chip" title="我的球员卡">未登录</button>
+        <p class="tagline">选人 · 模拟 · 临场指挥</p>
+      </div>
     </header>
 
     <main id="screen-loading" class="screen active">
       <section class="hero">
         <h1>正在加载全历史名册…</h1>
-        <p id="load-status">读取 1950 年起 NBA 球员赛季卡</p>
-        <div class="bar" style="max-width:320px;height:10px;margin-top:16px"><i id="load-bar" style="width:15%"></i></div>
+        <p id="load-status">启动脚本中…若长时间停在这里，请强制刷新（Cmd+Shift+R）</p>
+        <div class="bar" style="max-width:320px;height:10px;margin-top:16px"><i id="load-bar" style="width:3%"></i></div>
+        <p class="tiny" id="load-watchdog" hidden style="margin-top:12px"></p>
       </section>
     </main>
 
@@ -31,22 +42,47 @@
       <section class="hero">
         <h1>组建你的传奇阵容</h1>
         <p>按赛季抽卡组队，临场叫暂停、大喊、换人。空位也会打铁——巨星抱团不无敌。</p>
+        <div class="account-home-bar" id="account-home-bar">
+          <div class="account-home-text">
+            <strong id="account-home-name">尚未创建账号</strong>
+            <span class="tiny" id="account-home-meta">开局随机选 12 名赛季卡，每天可抽 1 张；班底永久保存，用于排位赛。</span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-open-collection">我的球员卡</button>
+            <button type="button" class="btn" id="btn-daily-draw" disabled>每日抽卡</button>
+            <button type="button" class="btn ghost" id="btn-switch-account">切换账号</button>
+          </div>
+        </div>
+        <div class="account-home-bar save-home-bar" id="save-home-bar" hidden>
+          <div class="account-home-text">
+            <strong>有未完成的进度</strong>
+            <span class="tiny" id="save-home-meta">—</span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn primary" id="btn-continue-save">继续进度</button>
+            <button type="button" class="btn ghost" id="btn-clear-save">丢弃存档</button>
+          </div>
+        </div>
         <div class="mode-grid">
+          <button class="mode-card mode-card-feature" data-mode="custom">
+            <strong>自定义对战</strong>
+            <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队淘汰赛 · 另含双人/传奇</span>
+          </button>
+          <button class="mode-card" data-mode="ranked">
+            <strong>排位赛</strong>
+            <span>用账号班底 + 教练/战术出战；胜负计入战绩，卡组不下线消失</span>
+          </button>
           <button class="mode-card" data-mode="draft">
             <strong>选秀建队</strong>
             <span>抽球员与教练，打一场完整模拟赛</span>
           </button>
-          <button class="mode-card" data-mode="duel">
-            <strong>双人对抗</strong>
-            <span>双方随机抽签组队，本地轮流选人</span>
-          </button>
-          <button class="mode-card" data-mode="legend">
-            <strong>传奇模式</strong>
-            <span>随机八队轮抽历史球员，自选1–5号位置充实阵容</span>
+          <button class="mode-card mode-card-feature" data-mode="season">
+            <strong>常规赛征程</strong>
+            <span>32 队或穿越历史整年（如 1991：当年全联盟常规赛→季后赛，总决赛才可能遇乔丹）· 自命名拉斯维加斯队 · 评奖</span>
           </button>
           <button class="mode-card" data-mode="career">
             <strong>金币晋级赛</strong>
-            <span>赢球赚金币买卖球员（最多12人），输了淘汰；总决赛七场</span>
+            <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
           </button>
           <button class="mode-card" data-mode="tournament">
             <strong>多人淘汰赛</strong>
@@ -64,36 +100,135 @@
           <li>球员带赛季年份与当季头像：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。</li>
           <li>命中率贴近真实：空位也会打铁；完整统计含盖帽、抢断、失误、罚球、前后场篮板、+/- 等。</li>
           <li>隐藏抽卡等级不会显示；巨星抱团不一定赢，化学反应与战术适配更重要。</li>
+          <li>晋级/淘汰赛有伤病风险暗属性（如波尔津吉斯类「玻璃人」），连续作战可能伤停缺阵。</li>
+          <li>金币晋级赛：32 支<strong>随机联队</strong>（不绑历史球队）淘汰（32→16→8→4→2→1）；四人一组含复活赛、两败出局。越往后 CPU 用奖金多轮换血，对手阵容持续迭代。</li>
+          <li>活球时只能大喊或叫暂停；对方暂停、节间与中场时双方都可调整。普通球员约 8 分钟连场疲劳到 60（铁肺/永动机明显更耐）；节间只回 25 疲劳，中场只回 50；暂停只回一点点。</li>
+          <li>自定义·预算轮抽：15 块买 5→1 价巅峰卡并补 0 块板凳后，带着名单挑战 <strong>32 支历史球队</strong>淘汰赛（同晋级赛赛制）。</li>
+          <li>选秀模式比赛锁定真实节奏；其他模式可切换 1x真实 / 2x / 3x最快。</li>
           <li>教练可加 Buff，并有特殊战术（三角进攻、小球、铁血防守等）。</li>
           <li>卡池为 1950 年起全历史名册（每名球员每个达标赛季一张卡）。</li>
+          <li>势头条显示连续得分；暂停可打断对方高潮。赛前可设阵容包、对位方案、角色与目标分钟。</li>
+          <li>按成名技术挂技能包：超巨/名人堂可有招牌绝技；另有组合技（空接之城、水花兄弟等，搭档同场才触发）与光环（潜能激发抬队友、防守统领抬全队防守）。</li>
+          <li>出手按 2K 逻辑：投篮/三分倾向决定会不会投，能力值决定投得准不准；进攻方式（低位/定点/突破等）与强弱侧共同影响选择。</li>
+          <li>本地账号班底：开局先发 7 张系统卡，看完后再自选 5 张；开局只有菜鸟教头。战术板已扩充（牛角/普林斯顿/五外/挡拆轰炸/换防等），每位教练擅长体系不同；名帅与超巨一样靠抽卡。</li>
+          <li>重复球员卡自动合并：该卡全部能力 +1（上限 100），并随机领悟技能（火锅大师 / 四分卫长传 / 场上指挥家 / 大心脏等）。单卡最多合并 20 次。</li>
+          <li>球员能力按 NBA 2K 历年标尺从当季数据推算（得分/三分/中投/内线/防守等）；乔丹 91、詹皇巅峰等关键赛季用公开 2K 锚点校正。改完后若数值异常可点「清除名册本地缓存」重建。</li>
+          <li>同一球员不同赛季卡会随年龄变化：新秀更快更有弹速，老将判断力/力量/传球/投篮手感与领袖气场、大心脏更强。</li>
+          <li>技能≠能力：巨星也可能没有技能包；托尼·阿伦「缠绕盯防」、巴蒂尔「持球克星·3D」、慈世平/考辛斯「火爆脾气」等角色特质可挂在非巨星身上，并影响抢断、空位与技术犯规。</li>
         </ul>
+        <p class="tiny"><button type="button" class="btn small ghost" id="btn-clear-roster-cache" title="清除 Cache Storage + IndexedDB 名册缓存">清除名册本地缓存</button></p>
       </section>
+    </main>
+
+    <main id="screen-account" class="screen">
+      <div class="panel-head">
+        <h2>账号</h2>
+        <button class="btn ghost" id="btn-account-back">返回</button>
+      </div>
+      <p class="tiny">本地多账号；球员卡与教练存在本机浏览器，刷新/下线不丢。换设备需自行备份（后续可加云同步）。</p>
+      <div class="form-row" style="margin:14px 0">
+        <input id="account-new-name" type="text" maxlength="24" placeholder="新账号昵称" />
+        <button class="btn primary" id="btn-account-create">创建并开局</button>
+      </div>
+      <div id="account-list" class="account-list"></div>
+    </main>
+
+    <main id="screen-onboard" class="screen">
+      <div class="panel-head">
+        <h2>开局建队</h2>
+        <span class="tiny" id="onboard-step-label">1/4 系统先给 7 人</span>
+      </div>
+      <p class="tiny" id="onboard-hint">开局先发 7 张系统卡供你查看；看完后再从候选池自选 5 人，凑满 12 人班底。</p>
+      <div id="onboard-pool" class="card-row onboard-pool"></div>
+      <div class="actions">
+        <button class="btn primary" id="btn-onboard-next" disabled>下一步</button>
+      </div>
+    </main>
+
+    <main id="screen-collection" class="screen">
+      <div class="panel-head">
+        <h2>我的球员卡</h2>
+        <button class="btn ghost" id="btn-collection-back">返回</button>
+      </div>
+      <div class="collection-summary" id="collection-summary"></div>
+      <div class="collection-staff" id="collection-staff"></div>
+      <h3 class="tiny" style="margin:16px 0 8px">赛季卡收藏</h3>
+      <div id="collection-grid" class="card-row collection-grid"></div>
+      <div class="actions" style="margin-top:16px">
+        <button class="btn primary" id="btn-collection-draw">每日抽卡</button>
+        <button class="btn" id="btn-collection-ranked">用班底打排位</button>
+      </div>
+    </main>
+
+    <main id="screen-draw" class="screen">
+      <div class="panel-head">
+        <h2>每日抽卡</h2>
+        <button class="btn ghost" id="btn-draw-back">返回</button>
+      </div>
+      <p class="tiny">每天免费 1 抽（约 20% 出教练卡）。球员按稀有度概率档抽取（全明星约 14%、超巨约 8%、传奇约 4%、神话约 2%），不因名册里垃圾卡多而额外压低好卡。重复折合金币。</p>
+      <div class="draw-stage" id="draw-stage">
+        <p class="tiny">点击下方按钮开包</p>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-draw-pull">抽取今日卡</button>
+      </div>
+    </main>
+
+    <main id="screen-custom-hub" class="screen">
+      <div class="panel-head">
+        <h2>自定义对战</h2>
+        <button class="btn ghost" id="btn-custom-hub-back">返回</button>
+      </div>
+      <p class="tiny">预算轮抽：列出全部 <strong>5→1 块</strong>巅峰卡，轮流点选直到双方 <strong>15 块花光</strong>；再补 <strong>0 块</strong>板凳。完成后进入 <strong>32 支历史球队</strong>淘汰赛（NPC 对战）。</p>
+      <div class="mode-grid custom-hub-grid">
+        <button class="mode-card" id="btn-custom-budget" type="button">
+          <strong>预算轮抽 · NPC（推荐）</strong>
+          <span>15 块组队 → 挑战 32 支历史球队淘汰赛</span>
+        </button>
+        <button class="mode-card" id="btn-custom-duel" type="button">
+          <strong>双人对抗</strong>
+          <span>经典轮抽；金币用来买球员，也能刷新卡包</span>
+        </button>
+        <button class="mode-card" id="btn-custom-legend" type="button">
+          <strong>传奇八队</strong>
+          <span>八支传奇球队历史球员轮抽组队</span>
+        </button>
+      </div>
     </main>
 
     <main id="screen-draft" class="screen">
       <div class="panel-head">
         <h2 id="draft-title">选秀</h2>
         <button class="btn ghost" id="btn-draft-back">返回</button>
+        <button class="btn small" id="btn-save-draft" type="button" title="保存选秀进度">保存进度</button>
       </div>
       <div class="draft-meta">
         <div>当前：<strong id="draft-turn">你</strong></div>
         <div>剩余选人：<strong id="draft-left">5</strong></div>
         <div>轮次：<strong id="draft-round">1</strong></div>
+        <div id="draft-money-label">预算：<strong id="draft-gold">15</strong></div>
       </div>
       <div class="draft-teams">
         <div class="roster-box">
           <h3 id="roster-a-title">你的阵容</h3>
-          <ul id="roster-a"></ul>
+          <div id="roster-a" class="pos-board"></div>
           <div id="coach-a" class="coach-slot">未选教练</div>
+          <div id="asst-a" class="coach-slot asst-slot">未选助教</div>
         </div>
         <div class="roster-box">
           <h3 id="roster-b-title">对手阵容</h3>
-          <ul id="roster-b"></ul>
+          <div id="roster-b" class="pos-board"></div>
           <div id="coach-b" class="coach-slot">未选教练</div>
+          <div id="asst-b" class="coach-slot asst-slot">未选助教</div>
         </div>
       </div>
       <div class="pack-area">
-        <h3>本轮卡包（点选一名）</h3>
+        <div class="pack-head">
+          <h3 id="pack-title">本轮卡包（点选一名）</h3>
+          <button class="btn small" id="btn-refresh-pack" type="button">刷新列表（免费 3）</button>
+        </div>
+        <div id="custom-price-filters" class="btn-row custom-price-filters" hidden></div>
+        <p class="tiny" id="pack-hint">可抽到球员、主教练或助教。新人/边缘教练放权更高，常激发潜力。</p>
         <div id="pack-cards" class="card-row"></div>
       </div>
       <div class="actions">
@@ -105,8 +240,9 @@
       <div class="panel-head">
         <h2>传奇模式</h2>
         <button class="btn ghost" id="btn-legend-back">返回</button>
+        <button class="btn small" id="btn-save-legend" type="button">保存进度</button>
       </div>
-      <p class="tiny" id="legend-status">本局八支传奇球队如下。每轮随机抽出一队，从该队历史球员中选一人，并指定场上位置。</p>
+      <p class="tiny" id="legend-status">本局八支传奇球队如下。每轮抽出一支尚未抽过的球队（八队各一轮后再洗牌），从该队历史球员中选一人并指定位置。已选球员不会再出现。</p>
       <div id="legend-franchises" class="legend-franchises"></div>
       <div class="legend-progress">
         已选 <strong id="legend-count">0</strong>/10 · 本轮球队：<strong id="legend-round-team">—</strong>
@@ -117,14 +253,15 @@
           <div id="legend-pool" class="setup-roster"></div>
         </div>
         <div class="roster-box">
-          <h3>指定位置</h3>
+          <h3>先选个位置（加入后还能改）</h3>
           <div id="legend-pos" class="tactic-checks"></div>
           <div id="legend-picked" class="tiny" style="margin:10px 0">未选球员</div>
           <button class="btn primary" id="btn-legend-confirm" disabled>加入阵容</button>
           <hr style="border:none;border-top:1px solid var(--line);margin:14px 0" />
           <h3>我的传奇阵容</h3>
-          <ul id="legend-roster"></ul>
-          <button class="btn" id="btn-legend-next-team">换下一队（再抽）</button>
+          <p class="tiny">拖拽球员到其他号位，或用下拉改位；适配与暗属性会即时刷新。</p>
+          <div id="legend-roster" class="pos-board"></div>
+          <button class="btn" id="btn-legend-next-team">换下一队（不重复）</button>
           <button class="btn primary" id="btn-legend-finish" disabled>选够人了，去赛前设置</button>
         </div>
       </div>
@@ -132,50 +269,175 @@
 
     <main id="screen-setup" class="screen">
       <div class="panel-head">
-        <h2>赛前设置 · 首发与执教方针</h2>
-        <button class="btn ghost" id="btn-setup-back">返回</button>
+        <h2>选首发</h2>
+        <button class="btn ghost" id="btn-setup-back" title="返回上一页（市场可继续装技能）">返回市场</button>
+        <button class="btn small" id="btn-save-setup" type="button" title="保存赛前设置">保存进度</button>
       </div>
-      <p class="tiny">点选正好 5 名首发。下方可自定义教练方针与可用战术。</p>
-      <div class="setup-grid">
-        <div class="roster-box">
-          <h3>选择首发（<span id="starter-count">0</span>/5）</h3>
+      <p class="setup-how">怎么排：把球员<strong>拖到</strong>上面的 PG–C 格子里上场，拖回<strong>替补席</strong>下场；两个首发互拖可换位。也可以直接点一下上下场。满 5 人开打。</p>
+      <div id="setup-skill-panel" class="setup-skill-panel" hidden>
+        <h3>技能包（随时可装）</h3>
+        <p class="tiny" id="setup-skill-hint">已购技能可在此直接装到名单球员，装完再排首发开打。</p>
+        <div id="setup-skill-shop" class="career-skill-shop"></div>
+        <h4 class="career-skill-heading">已购技能库</h4>
+        <div id="setup-skill-inventory" class="career-skill-shop"></div>
+      </div>
+      <div class="setup-grid setup-grid-simple">
+        <div class="roster-box setup-roster-box">
+          <h3>首发 <span id="starter-count">0</span>/5</h3>
+          <p class="tiny" id="setup-pos-note">还差 5 人</p>
+          <p class="tiny setup-fit-line" id="setup-ball-note" hidden></p>
           <div id="setup-roster" class="setup-roster"></div>
         </div>
-        <div class="roster-box">
-          <h3>执教方针</h3>
-          <label class="tiny">方针名称 <input id="phil-name" type="text" value="我的体系" /></label>
-          <div class="phil-sliders">
-            <label>进攻倾向 <input id="phil-off" type="range" min="0" max="18" value="8" /> <span id="phil-off-v">8</span></label>
-            <label>防守倾向 <input id="phil-def" type="range" min="0" max="18" value="8" /> <span id="phil-def-v">8</span></label>
-            <label>士气管理 <input id="phil-morale" type="range" min="0" max="18" value="8" /> <span id="phil-morale-v">8</span></label>
-            <label>负荷管理 <input id="phil-stam" type="range" min="-8" max="10" value="2" /> <span id="phil-stam-v">2</span></label>
-          </div>
-          <div id="phil-tactics" class="tactic-checks"></div>
-          <p class="tiny" id="setup-coach-base">基础教练：—</p>
+        <div class="roster-box scout-box" id="setup-scout-wrap">
+          <h3>对手一眼看</h3>
+          <p class="tiny" id="scout-round-label">—</p>
+          <div id="scout-board" class="scout-board"></div>
         </div>
       </div>
+      <details class="setup-advanced" id="setup-advanced">
+        <summary>进阶设置（可跳过，比赛里也能改）</summary>
+        <div class="setup-advanced-body">
+          <div class="roster-box">
+            <h3>开场执教</h3>
+            <p class="tiny help-line" id="setup-coach-base">基础教练：—</p>
+            <label class="tiny">方针名称 <input id="phil-name" type="text" value="我的体系" /></label>
+            <div class="phil-sliders" id="phil-sliders">
+              <label title="抓机会倾向：见空档就攻；过高时弱攻球员也会乱出手。">
+                <span>进攻倾向</span>
+                <input id="phil-off" type="range" min="0" max="18" value="8" />
+                <span id="phil-off-v">8</span>
+              </label>
+              <label title="防守压迫：越强越吃体力。">
+                <span>防守倾向</span>
+                <input id="phil-def" type="range" min="0" max="18" value="8" />
+                <span id="phil-def-v">8</span>
+              </label>
+              <label title="开场士气与抗压。">
+                <span>士气管理</span>
+                <input id="phil-morale" type="range" min="0" max="18" value="8" />
+                <span id="phil-morale-v">8</span>
+              </label>
+              <label title="正值保护体力；负值铁血连场。">
+                <span>负荷管理</span>
+                <input id="phil-stam" type="range" min="-8" max="10" value="2" />
+                <span id="phil-stam-v">2</span>
+              </label>
+            </div>
+            <p class="tiny">可用战术（可多选；灰色为未解锁——双组织/优质中锋/双塔可阵容解锁）：</p>
+            <div id="phil-tactics" class="tactic-checks"></div>
+            <p class="tiny" id="phil-tactics-hint"></p>
+            <hr class="soft-hr" />
+            <h3>阵容包</h3>
+            <p class="tiny">一键五人组，暂停时可切换。</p>
+            <div id="setup-packs" class="pack-row"></div>
+            <hr class="soft-hr" />
+            <h3>比赛节奏</h3>
+            <p class="tiny">领先可降速打成功率；落后可提速提高回合数。开场后也可在暂停/节间改。</p>
+            <label class="tiny">节奏
+              <select id="setup-tempo-select" title="降速成功率 / 正常 / 提速抢回合"></select>
+            </label>
+            <p class="tiny" id="setup-tempo-help"></p>
+            <hr class="soft-hr" />
+            <h3>对位</h3>
+            <p class="tiny">默认同位置互防（PG↔PG…）；可手动改。下方可选重点策略（盯防/包夹/顶防）。</p>
+            <div id="setup-matchup-board" class="matchup-board"></div>
+            <div class="form-row wrap" style="margin-top:8px">
+              <label class="tiny">重点·我方
+                <select id="gp-defender"></select>
+              </label>
+              <label class="tiny">重点·盯防
+                <select id="gp-target"></select>
+              </label>
+              <label class="tiny">策略
+                <select id="gp-scheme">
+                  <option value="focus">重点盯防</option>
+                  <option value="double">包夹</option>
+                  <option value="bump">下盘顶防</option>
+                </select>
+              </label>
+            </div>
+            <hr class="soft-hr" />
+            <h3>角色与分钟</h3>
+            <p class="tiny">按体能分配出场时间：低体不宜长期 35+，铁肺可接近 48。赛季模式可保存为默认轮换。</p>
+            <div id="setup-roles" class="setup-roles"></div>
+            <hr class="soft-hr" />
+            <h3>球员指令</h3>
+            <div class="ball-handler-row" id="setup-ball-handler">
+              <label class="tiny">持球发起人
+                <select id="setup-offense-focus" title="指定谁来持球发动进攻"></select>
+              </label>
+              <label class="tiny">持球打法
+                <select id="setup-ball-action" title="持球人的阵地发动方式：挡拆 / 分球 / 单打等"></select>
+              </label>
+            </div>
+            <p class="tiny" id="setup-ball-action-desc">先选持球人与打法；其余人可在下方设成「无球定点」配合。不指定则按本能抢球。</p>
+            <div id="setup-orders" class="player-orders-list setup-orders"></div>
+          </div>
+        </div>
+      </details>
       <div class="actions">
-        <button class="btn primary" id="btn-setup-confirm" disabled>确认并开打</button>
+        <button class="btn primary" id="btn-setup-confirm" disabled>选满 5 人后开打</button>
       </div>
     </main>
 
     <main id="screen-market" class="screen">
       <div class="panel-head">
         <h2>转会市场</h2>
-        <div>金币 <strong id="gold-amt">0</strong> · 名单 <strong id="roster-cap">0</strong>/12</div>
+        <div class="btn-row">
+          <span>金币 <strong id="gold-amt">0</strong> · 名单 <strong id="roster-cap">0</strong>/12</span>
+          <button class="btn small" id="btn-save-market" type="button">保存进度</button>
+        </div>
       </div>
-      <p class="tiny" id="market-hint">买卖调整阵容。最多 12 人。确认后进入下一轮。</p>
+      <p class="tiny" id="market-hint">买卖调整阵容，备战下一轮。左侧球员会列出近几场表现与状态，方便决定卖谁。最多 12 人。</p>
       <div class="btn-row" style="margin-bottom:10px">
         <button class="btn" id="btn-refresh-market">刷新自由市场（¤50）</button>
         <span class="tiny" id="shop-budget-hint"></span>
       </div>
+      <div id="career-coach-panel" class="career-coach-panel" hidden>
+        <div class="career-coach-head">
+          <div>
+            <h3>执教席 · 技能包</h3>
+            <p class="tiny" id="career-coach-current">当前教练：—</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn small" id="btn-refresh-coaches">刷新教练（¤30）</button>
+            <button type="button" class="btn small" id="btn-refresh-skills">刷新技能包（¤25）</button>
+          </div>
+        </div>
+        <div id="career-coach-shop" class="career-coach-shop"></div>
+        <h4 class="career-skill-heading">技能包货架</h4>
+        <p class="tiny" id="career-skill-hint">可先买入入库，稍后再装到球员身上。组合技（如詹韦连线）不可购买，须搭档同队才显示。</p>
+        <div id="career-skill-shop" class="career-skill-shop"></div>
+        <h4 class="career-skill-heading">已购技能库</h4>
+        <p class="tiny">入库技能可随时装给名单球员（每卡约 6–7 格）。</p>
+        <div id="career-skill-inventory" class="career-skill-shop"></div>
+      </div>
+      <div id="scout-pack-offer" class="scout-pack-offer" hidden></div>
+      <div id="market-scout" class="scout-board market-scout" hidden></div>
       <div class="market-grid">
         <div class="roster-box">
-          <h3>我的球队</h3>
+          <h3 id="market-left-title">我的球队（点开可对比身价）</h3>
+          <p class="tiny" id="my-roster-summary"></p>
           <div id="my-market-roster"></div>
         </div>
         <div class="roster-box">
-          <h3 id="market-right-title">自由市场</h3>
+          <div class="market-right-head">
+            <h3 id="market-right-title">自由市场</h3>
+            <label class="tiny market-sort-wrap">排序
+              <select id="market-sort" title="按能力值等排序">
+                <option value="ovr">能力值 OVR</option>
+                <option value="scoring">进攻</option>
+                <option value="defense">防守</option>
+                <option value="pass">传球</option>
+                <option value="rebound">篮板</option>
+                <option value="speed">速度</option>
+                <option value="strength">力量</option>
+                <option value="height">身高</option>
+                <option value="price">身价</option>
+                <option value="price_asc">身价↑便宜</option>
+              </select>
+            </label>
+          </div>
           <div id="free-agent-list"></div>
         </div>
       </div>
@@ -190,7 +452,8 @@
         </div>
       </div>
       <div class="actions">
-        <button class="btn primary" id="btn-market-done">完成调整，继续赛程</button>
+        <button class="btn primary" id="btn-market-done">完成备战，进入下一轮</button>
+        <p class="tiny">进去选首发后仍可点「返回市场」回来装技能；选首发页与比赛暂停时也能装。</p>
       </div>
     </main>
 
@@ -214,57 +477,156 @@
       <div class="court-wrap">
         <div class="court-column">
           <div class="court" id="court-root"></div>
+          <div class="dunk-flash" id="dunk-flash" hidden aria-live="polite"></div>
           <div class="play-feed" id="play-feed"></div>
         </div>
         <aside class="coach-panel">
           <h3>教练席</h3>
           <p class="tiny">你指挥：<strong id="you-side">主队</strong></p>
-          <div class="tactic-row">
-            <label>战术</label>
-            <select id="tactic-select"></select>
-            <button class="btn small" id="btn-set-tactic">布置</button>
+          <div class="momentum-meter" id="momentum-meter" title="连续得分势头；叫暂停可打断对方高潮">
+            <span>势头</span>
+            <div class="bar"><i id="momentum-bar"></i></div>
+            <span id="momentum-label">—</span>
           </div>
-          <div class="btn-row">
-            <button class="btn warn" id="btn-timeout">叫暂停</button>
+          <div class="btn-row live-only-row">
+            <button class="btn warn" id="btn-timeout" title="活球时可叫暂停：双方停表，可调整战术与阵容；可打断对方高潮">叫暂停</button>
+            <button class="btn" id="btn-shout" title="活球手段：让脱离体系的球员重新集中执行战术；球星自负时可能反噬">大喊</button>
             <button class="btn primary" id="btn-resume" hidden>继续比赛</button>
-            <button class="btn" id="btn-shout">大喊</button>
-            <button class="btn" id="btn-talk">沟通</button>
           </div>
-          <p class="tiny" id="pause-hint" hidden>比赛已暂停——布置完战术/换人后，点「继续比赛」。</p>
-          <div class="sub-panel">
-            <div class="sub-col">
-              <h4>下场（场上）</h4>
-              <div id="sub-out-list" class="sub-card-list"></div>
+          <p class="tiny" id="live-action-hint">活球中：只能「大喊」或「叫暂停」。战术 / 沟通 / 换人请在暂停或节间进行。</p>
+          <p class="tiny" id="pause-hint" hidden>死球窗口——可改战术、沟通、换人、站位与方针，然后点「继续比赛」。</p>
+          <div id="deadball-panel" class="deadball-panel locked">
+            <div class="tactic-row">
+              <label title="切换进攻体系（仅暂停/节间）">战术</label>
+              <select id="tactic-select"></select>
+              <button class="btn small" id="btn-set-tactic">布置</button>
             </div>
-            <div class="sub-col">
-              <h4>上场（板凳）</h4>
-              <div id="sub-in-list" class="sub-card-list"></div>
+            <p class="tiny" id="tactic-help">暂停或节间才可布置战术。</p>
+            <div class="focus-row">
+              <label class="tiny">比赛节奏
+                <select id="tempo-select" title="领先可降速打成功率；落后可提速抢回合"></select>
+              </label>
+              <button class="btn small" id="btn-set-tempo" type="button">应用节奏</button>
             </div>
-            <button class="btn small primary" id="btn-sub" disabled>确认换人</button>
-            <p class="tiny" id="sub-pick-hint">点选一名场上 + 一名板凳球员</p>
+            <p class="tiny" id="tempo-help">领先倾向降速保命中；落后可提速提高回合数。暂停/节间可改。</p>
+            <div class="focus-row">
+              <label class="tiny">回合重点
+                <select id="focus-play-select"></select>
+              </label>
+              <button class="btn small" id="btn-set-focus" type="button">执行</button>
+            </div>
+            <p class="tiny" id="focus-help">暂停后设定未来数个进攻回合的重点。</p>
+            <details class="live-skill-panel" id="live-skill-panel" hidden>
+              <summary>技能包（随时可装）</summary>
+              <p class="tiny" id="live-skill-hint">暂停/节间可买入或安装技能到名单球员。</p>
+              <div id="live-skill-shop" class="career-skill-shop"></div>
+              <h4 class="career-skill-heading">已购技能库</h4>
+              <div id="live-skill-inventory" class="career-skill-shop"></div>
+            </details>
+            <div class="pack-row" id="live-packs"></div>
+            <div class="btn-row">
+              <button class="btn" id="btn-talk" title="暂停/节间：沟通抬士气，并打开每人进攻与防守指令">沟通</button>
+            </div>
+            <details class="live-phil" id="live-phil-panel">
+              <summary>临场调整执教方针</summary>
+              <p class="tiny help-line">仅在暂停或节间可改攻防重心与负荷。</p>
+              <div class="phil-sliders compact">
+                <label title="进攻倾向＝抓机会：过高时弱攻球员也会乱出手">攻 <input id="live-phil-off" type="range" min="0" max="18" value="8" /> <span id="live-phil-off-v">8</span></label>
+                <label title="防守倾向＝压迫强度：吃体力，体力好几乎无感">防 <input id="live-phil-def" type="range" min="0" max="18" value="8" /> <span id="live-phil-def-v">8</span></label>
+                <label title="士气管理：抗压与胆气">气 <input id="live-phil-morale" type="range" min="0" max="18" value="8" /> <span id="live-phil-morale-v">8</span></label>
+                <label title="负荷管理：正值省力，负值铁血">荷 <input id="live-phil-stam" type="range" min="-8" max="10" value="2" /> <span id="live-phil-stam-v">2</span></label>
+              </div>
+              <button class="btn small primary" id="btn-live-phil" type="button">应用方针</button>
+            </details>
+            <div class="pos-live-panel">
+              <h4>场上站位</h4>
+              <p class="tiny">暂停/节间点 PG–C 改位（与占位者互换）；下方「场上」卡也可改。</p>
+              <div id="pos-live-list" class="pos-live-list"></div>
+            </div>
+            <details class="player-orders-panel" id="player-orders-panel">
+              <summary>个人攻防指令（点「沟通」展开）</summary>
+              <p class="tiny" id="talk-orders-hint">先指定持球人与打法，再为其他人设无球/防守。例：保罗持球挡拆 · 希罗无球定点。</p>
+              <div class="ball-handler-row">
+                <label class="tiny">持球发起人
+                  <select id="offense-focus-select" title="指定谁来持球发动"></select>
+                </label>
+                <label class="tiny">持球打法
+                  <select id="offense-ball-action" title="挡拆 / 突破分球 / 单打 / 低位等"></select>
+                </label>
+                <button class="btn small primary" id="btn-set-offense-focus" type="button">确认持球布置</button>
+              </div>
+              <p class="tiny" id="offense-ball-action-desc"></p>
+              <div id="player-orders-list" class="player-orders-list"></div>
+            </details>
+            <div class="defense-panel" id="defense-panel">
+              <h4>对位 / 防守布置</h4>
+              <p class="tiny">先为对方每人选盯防人；再可设重点策略（盯防/包夹/顶防）。活球中需暂停或节间。</p>
+              <div id="live-matchup-board" class="matchup-board"></div>
+              <div class="form-row wrap" style="margin-top:8px">
+                <label class="tiny">重点·我方对位人
+                  <select id="defend-defender"></select>
+                </label>
+                <label class="tiny">重点·对方
+                  <select id="defend-target"></select>
+                </label>
+              </div>
+              <div class="btn-row">
+                <button class="btn small" id="btn-defend-focus" type="button">重点盯防</button>
+                <button class="btn small" id="btn-defend-double" type="button">包夹</button>
+                <button class="btn small" id="btn-defend-bump" type="button">下盘顶防</button>
+                <button class="btn small ghost" id="btn-defend-clear" type="button">取消重点</button>
+              </div>
+              <p class="tiny" id="defend-hint">未布置对位策略</p>
+            </div>
+            <div class="sub-panel">
+              <div class="sub-cols">
+                <div class="sub-col">
+                  <h4>场上 · 下场 / 改位</h4>
+                  <div id="sub-out-list" class="sub-card-list"></div>
+                </div>
+                <div class="sub-col">
+                  <h4>板凳 · 上场（按能力）</h4>
+                  <div id="sub-in-list" class="sub-card-list"></div>
+                </div>
+              </div>
+              <button class="btn small primary" id="btn-sub" disabled>确认换人</button>
+              <p class="tiny" id="sub-pick-hint">点选场上 + 板凳换人；场上卡可点 PG–C 改打位置</p>
+            </div>
           </div>
           <div class="meter">
-            <div>士气 <span id="morale">50</span></div>
+            <div title="影响出手胆量与抗压；大喊/沟通/暂停可抬升">我方士气 <span id="morale">50</span></div>
             <div class="bar"><i id="morale-bar"></i></div>
-            <div>化学反应 <span id="chem">50</span></div>
+            <div title="球星自负、两人仍抢球才算持球冲突会拉低；设无球可化解；化学反应核可抬升">我方化学反应 <span id="chem">50</span></div>
             <div class="bar"><i id="chem-bar"></i></div>
-            <div>适配度 <span id="fit">50</span></div>
+            <div title="战术需求、站位、持球/无球搭配是否合拍">我方适配度 <span id="fit">50</span></div>
             <div class="bar"><i id="fit-bar"></i></div>
+            <p class="tiny" id="ball-fit-note" title="持球依赖冲突时双方大核效率都会打折"></p>
+            <div>对方化学反应 <span id="opp-chem">50</span></div>
+            <div class="bar opp"><i id="opp-chem-bar"></i></div>
+            <div>对方士气 <span id="opp-morale">50</span></div>
+            <div class="bar opp"><i id="opp-morale-bar"></i></div>
           </div>
           <div class="btn-row">
             <button class="btn ghost" id="btn-speed">速度 x1</button>
             <button class="btn ghost" id="btn-pause-sim">暂停模拟</button>
+            <button class="btn" id="btn-managed" type="button" title="FIFA 式智能托管：累了自动换人，状态差叫暂停，按对面调整基本攻防；节间自动处理并继续">智能托管：关</button>
+            <button class="btn warn" id="btn-quick-sim" type="button" title="用当前阵容与战术立刻打完剩余比赛（双方自动轮换）">快速模拟整场</button>
+            <button class="btn primary" id="btn-save-game" type="button" title="保存比分、阵容与进度到本机，可关机离开后再继续">保存进度</button>
+            <button class="btn ghost" id="btn-save-leave" type="button" title="保存后返回首页">保存并离开</button>
           </div>
+          <p class="tiny" id="managed-hint">托管关闭时由你亲自指挥。</p>
         </aside>
       </div>
 
       <div class="lineups">
         <div>
-          <h4>主队场上</h4>
+          <h4 id="lineup-a-title">主队场上</h4>
+          <p class="tiny lineup-chem" id="lineup-a-chem">化学反应 —</p>
           <ul id="oncourt-a"></ul>
         </div>
         <div>
-          <h4>客队场上</h4>
+          <h4 id="lineup-b-title">客队场上</h4>
+          <p class="tiny lineup-chem" id="lineup-b-chem">化学反应 —</p>
           <ul id="oncourt-b"></ul>
         </div>
       </div>
@@ -275,10 +637,11 @@
         <h2 id="result-title">比赛结束</h2>
         <p id="result-score" class="big-score">0 - 0</p>
         <p id="result-summary"></p>
+        <div id="result-all-team" class="result-all-team" hidden></div>
         <div class="box-score" id="box-score"></div>
         <div class="actions">
+          <button class="btn primary" id="btn-result-continue" hidden>备战下一轮</button>
           <button class="btn primary" id="btn-again">再来一局</button>
-          <button class="btn" id="btn-result-continue" hidden>继续赛程</button>
           <button class="btn ghost" id="btn-home">回主页</button>
         </div>
       </section>
@@ -301,8 +664,143 @@
         <button class="btn primary" id="btn-tour-next" disabled>进入下一轮选人 / 比赛</button>
       </div>
     </main>
+
+    <main id="screen-season" class="screen">
+      <div class="panel-head">
+        <h2>常规赛征程</h2>
+        <button class="btn ghost" id="btn-season-back">返回</button>
+      </div>
+
+      <section id="season-setup-panel" class="season-setup-panel">
+        <p class="tiny" id="season-setup-intro">联盟扩军至 32 队：你执教可命名的<strong>拉斯维加斯</strong>扩军队，西雅图<strong>超音速</strong>回归西部。打满 82 场后评奖，再进季后赛。也可选过去五十年任一赛季，对阵当年真实阵容（如 1991 乔丹公牛）。</p>
+        <div class="form-row season-mode-pick">
+          <span class="tiny">赛季模式</span>
+          <div class="btn-row">
+            <button type="button" class="btn small primary" id="btn-season-mode-modern" data-season-mode="modern">模拟新赛季（32 队）</button>
+            <button type="button" class="btn small" id="btn-season-mode-hist" data-season-mode="historical">历史赛季</button>
+          </div>
+        </div>
+        <div class="form-row" id="season-year-row" hidden>
+          <label for="season-year-select">历史年份</label>
+          <select id="season-year-select"></select>
+          <p class="tiny" id="season-year-blurb">—</p>
+        </div>
+        <div class="form-row">
+          <label for="season-team-name">球队名</label>
+          <input id="season-team-name" type="text" maxlength="24" placeholder="拉斯维加斯 ***" value="拉斯维加斯 ***" />
+        </div>
+        <div class="form-row season-roster-pick">
+          <span class="tiny">阵容来源</span>
+          <div class="btn-row">
+            <button type="button" class="btn small primary" id="btn-season-roster-franchise">随机球队选人</button>
+            <button type="button" class="btn small" id="btn-season-roster-account">用账号班底</button>
+          </div>
+        </div>
+        <p class="tiny" id="season-roster-hint">随机一支球队给出 10 名队史卡 → 选 1 人或「跳过」免费随机一人 → 换下一队。年轻低 OVR 卡（如乔治 2012）值得签：打完赛季会按史实下一季成长。软帽 ¤2000。</p>
+        <div id="season-roster-preview" class="season-roster-preview"></div>
+        <div id="season-pick-panel" class="season-pick-panel" hidden>
+          <div class="season-pick-franchise-bar">
+            <strong id="season-pick-franchise-name">—</strong>
+            <button type="button" class="btn small ghost" id="btn-season-pick-skip" title="本批无人看中：随机一人免费加入，再换下一队">跳过（随机免费一人）</button>
+          </div>
+          <p class="tiny" id="season-pick-cap">薪资 ¤0 / ¤2000</p>
+          <div id="season-pick-results" class="season-pick-results"></div>
+          <h4 class="tiny" style="margin:8px 0 4px">已选入扩军队</h4>
+          <div id="season-pick-selected" class="season-pick-selected"></div>
+          <button type="button" class="btn primary" id="btn-season-pick-confirm" disabled>确认这份阵容</button>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn primary" id="btn-season-start" disabled>开启完整赛季征程</button>
+          <button type="button" class="btn ghost" id="btn-season-resume" hidden>继续已有赛季</button>
+        </div>
+      </section>
+
+      <section id="season-hub-panel" class="season-hub-panel" hidden>
+        <div class="season-hub-head">
+          <div>
+            <h3 id="season-hub-title">—</h3>
+            <p class="tiny" id="season-hub-meta">—</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn small ghost" id="btn-season-save">保存赛季</button>
+            <button type="button" class="btn small ghost" id="btn-season-abandon">放弃赛季</button>
+          </div>
+        </div>
+
+        <div class="season-next-card" id="season-next-card">
+          <h4>下一场</h4>
+          <p id="season-next-match">—</p>
+          <div class="btn-row">
+            <button type="button" class="btn primary" id="btn-season-play">亲自指挥</button>
+            <button type="button" class="btn" id="btn-season-sim-one">快速模拟本场</button>
+            <button type="button" class="btn ghost" id="btn-season-sim-week">模拟 5 场</button>
+          </div>
+        </div>
+
+        <div class="season-tabs btn-row">
+          <button type="button" class="btn small" data-season-tab="standings">积分榜</button>
+          <button type="button" class="btn small" data-season-tab="rotation">排兵布阵</button>
+          <button type="button" class="btn small" data-season-tab="market">自由市场</button>
+          <button type="button" class="btn small" data-season-tab="schedule">赛程</button>
+          <button type="button" class="btn small" data-season-tab="awards">评奖</button>
+          <button type="button" class="btn small" data-season-tab="playoffs">季后赛</button>
+        </div>
+        <div id="season-standings" class="season-standings"></div>
+        <div id="season-rotation" class="season-rotation" hidden></div>
+        <div id="season-market" class="season-market" hidden></div>
+        <div id="season-schedule" class="season-schedule" hidden></div>
+        <div id="season-awards" class="season-awards" hidden></div>
+        <div id="season-playoffs" class="season-playoffs" hidden></div>
+      </section>
+    </main>
   </div>
 
-  <script type="module" src="js/app.js"></script>
+  <script>
+    // Inline watchdog: catches module failures / frozen boots before app.js runs.
+    (function () {
+      var status = document.getElementById("load-status");
+      var bar = document.getElementById("load-bar");
+      var tip = document.getElementById("load-watchdog");
+      var started = Date.now();
+      window.__rosterBootOk = false;
+      window.addEventListener("error", function (e) {
+        if (window.__rosterBootOk) return;
+        if (status) status.textContent = "脚本错误：" + (e.message || "unknown");
+        if (tip) {
+          tip.hidden = false;
+          tip.innerHTML = "请强制刷新（Cmd+Shift+R）。若仍失败，打开控制台查看报错。";
+        }
+      });
+      window.addEventListener("unhandledrejection", function (e) {
+        if (window.__rosterBootOk) return;
+        var msg = (e.reason && (e.reason.message || e.reason)) || "promise rejected";
+        if (status) status.textContent = "加载失败：" + msg;
+      });
+      setTimeout(function () {
+        if (window.__rosterBootOk) return;
+        if (tip) {
+          tip.hidden = false;
+          tip.innerHTML =
+            "已等待 " +
+            Math.round((Date.now() - started) / 1000) +
+            " 秒仍未进入主界面。" +
+            '<br/><button type="button" class="btn small" id="btn-force-reload">强制刷新并清缓存标记</button>';
+          var btn = document.getElementById("btn-force-reload");
+          if (btn)
+            btn.onclick = function () {
+              try {
+                localStorage.removeItem("courtside-roster-cache-key");
+              } catch (err) {}
+              location.reload(true);
+            };
+        }
+        if (status && /启动脚本|1950|本地缓存/.test(status.textContent || "")) {
+          status.textContent = "加载仍在进行或已卡住——可点下方强制刷新";
+        }
+        if (bar && parseFloat(bar.style.width) < 10) bar.style.width = "12%";
+      }, 15000);
+    })();
+  </script>
+  <script type="module" src="js/app.js?v=20261017matchup1"></script>
 </body>
 </html>

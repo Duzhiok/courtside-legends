@@ -1,0 +1,219 @@
+/**
+ * 总决赛后最佳阵容（PG → C）：按位置各选一人。
+ */
+import { overall } from "../data/players.js";
+
+export const ALL_TEAM_POS = ["PG", "SG", "SF", "PF", "C"];
+
+export function normAllTeamPos(pos) {
+  const p = String(pos || "SF").toUpperCase();
+  if (ALL_TEAM_POS.includes(p)) return p;
+  if (p === "G" || p === "PG-SG") return "PG";
+  if (p === "F" || p === "SF-PF") return "SF";
+  if (p === "F-C" || p === "PF-C") return "PF";
+  return "SF";
+}
+
+/** 把一场 box 累进评选板（按球员 id）。 */
+export function accumulateGameToAllTeamBoard(board, snap, homeMeta, awayMeta) {
+  if (!board || !snap) return board;
+  for (const side of ["home", "away"]) {
+    const meta = side === "home" ? homeMeta : awayMeta;
+    const team = snap[side];
+    const won =
+      (side === "home" && snap.score.home > snap.score.away) ||
+      (side === "away" && snap.score.away > snap.score.home);
+    for (const p of team?.roster || []) {
+      const s = p.stats || {};
+      const id = p.id;
+      if (!id) continue;
+      if (!board[id]) {
+        board[id] = {
+          id,
+          name: p.name,
+          bref: p.bref,
+          nbaId: p.nbaId,
+          photo: p.photo,
+          photoCareerDefault: p.photoCareerDefault,
+          season: p.season,
+          pos: normAllTeamPos(p.playPos || p.pos),
+          playPos: p.playPos || p.pos,
+          teamName: meta?.name || team?.name || "",
+          teamId: meta?.bracketId || meta?.id || "",
+          ovr: overall(p),
+          gp: 0,
+          pts: 0,
+          reb: 0,
+          ast: 0,
+          stl: 0,
+          blk: 0,
+          min: 0,
+          wins: 0,
+          gradeSum: 0,
+        };
+      }
+      const row = board[id];
+      row.pos = normAllTeamPos(p.playPos || p.pos || row.pos);
+      row.playPos = p.playPos || p.pos || row.playPos;
+      row.teamName = meta?.name || row.teamName;
+      row.ovr = Math.max(row.ovr || 0, overall(p));
+      row.gp += 1;
+      row.pts += s.pts || 0;
+      row.reb += s.reb || 0;
+      row.ast += s.ast || 0;
+      row.stl += s.stl || 0;
+      row.blk += s.blk || 0;
+      row.min += s.min || 0;
+      if (won) row.wins += 1;
+      if (typeof p.gradeScore === "number") row.gradeSum += p.gradeScore;
+    }
+  }
+  return board;
+}
+
+function entryScore(row) {
+  if (!row) return -1;
+  const gp = Math.max(1, row.gp || 1);
+  const ppg = (row.pts || 0) / gp;
+  const rpg = (row.reb || 0) / gp;
+  const apg = (row.ast || 0) / gp;
+  const spg = (row.stl || 0) / gp;
+  const bpg = (row.blk || 0) / gp;
+  const mpg = (row.min || 0) / gp;
+  const grade = (row.gradeSum || 0) / gp;
+  const ovr = row.ovr || 70;
+  // 有出场数据时以场均表现为主；无数据则退回 OVR
+  if ((row.gp || 0) <= 0) return ovr * 1.1;
+  return (
+    ovr * 0.55 +
+    ppg * 1.15 +
+    rpg * 0.85 +
+    apg * 1.2 +
+    spg * 2.4 +
+    bpg * 2.2 +
+    Math.min(36, mpg) * 0.15 +
+    (row.wins || 0) * 2.5 +
+    grade * 0.08
+  );
+}
+
+/**
+ * 从评选板 / 候选列选出 PG→C 各一人。
+ * @param {object[]|Record<string,object>} pool board values or candidate list
+ * @returns {{ slot: string, player: object }[]}
+ */
+export function selectAllTeamByPos(pool) {
+  const list = Array.isArray(pool) ? pool : Object.values(pool || {});
+  const scored = list
+    .map((row) => ({
+      ...row,
+      pos: normAllTeamPos(row.playPos || row.pos),
+      _score: entryScore(row),
+    }))
+    .filter((r) => r.id && r.name)
+    .sort((a, b) => b._score - a._score);
+
+  const used = new Set();
+  const out = [];
+  for (const slot of ALL_TEAM_POS) {
+    let pick =
+      scored.find((r) => !used.has(r.id) && r.pos === slot) ||
+      scored.find((r) => {
+        if (used.has(r.id)) return false;
+        // 相邻位置兜底
+        const i = ALL_TEAM_POS.indexOf(r.pos);
+        const j = ALL_TEAM_POS.indexOf(slot);
+        return Math.abs(i - j) <= 1;
+      }) ||
+      scored.find((r) => !used.has(r.id));
+    if (pick) {
+      used.add(pick.id);
+      out.push({
+        slot,
+        id: pick.id,
+        name: pick.name,
+        pos: slot,
+        naturalPos: pick.pos,
+        teamName: pick.teamName || "",
+        teamId: pick.teamId || "",
+        ovr: pick.ovr,
+        gp: pick.gp || 0,
+        pts: pick.pts || 0,
+        reb: pick.reb || 0,
+        ast: pick.ast || 0,
+        ppg: pick.gp ? +(pick.pts / pick.gp).toFixed(1) : 0,
+        rpg: pick.gp ? +(pick.reb / pick.gp).toFixed(1) : 0,
+        apg: pick.gp ? +(pick.ast / pick.gp).toFixed(1) : 0,
+        score: +pick._score.toFixed(1),
+        bref: pick.bref,
+        nbaId: pick.nbaId,
+        photo: pick.photo,
+        photoCareerDefault: pick.photoCareerDefault,
+        season: pick.season,
+      });
+    }
+  }
+  return out;
+}
+
+/** 用两支决赛球队阵容（无累计数据时）按 OVR 评一阵。 */
+export function allTeamFromRosters(teams = []) {
+  const board = {};
+  for (const t of teams) {
+    if (!t?.players?.length) continue;
+    for (const p of t.players) {
+      board[p.id] = {
+        id: p.id,
+        name: p.name,
+        bref: p.bref,
+        nbaId: p.nbaId,
+        photo: p.photo,
+        photoCareerDefault: p.photoCareerDefault,
+        season: p.season,
+        pos: normAllTeamPos(p.playPos || p.pos),
+        playPos: p.playPos || p.pos,
+        teamName: t.name || "",
+        teamId: t.bracketId || t.id || "",
+        ovr: overall(p),
+        gp: 0,
+        pts: 0,
+        reb: 0,
+        ast: 0,
+        stl: 0,
+        blk: 0,
+        min: 0,
+        wins: 0,
+        gradeSum: 0,
+      };
+    }
+  }
+  return selectAllTeamByPos(board);
+}
+
+/** 从赛季 playerSeason 行里，按决赛两队筛最佳阵容。 */
+export function allTeamFromSeasonRows(rows, teamIds) {
+  const idSet = new Set(teamIds || []);
+  const pool = (rows || [])
+    .filter((r) => !idSet.size || idSet.has(r.teamId))
+    .map((r) => ({
+      id: r.playerId,
+      name: r.name,
+      pos: normAllTeamPos(r.pos),
+      playPos: r.pos,
+      teamName: r.teamName || "",
+      teamId: r.teamId,
+      ovr: r.ovr || 70,
+      gp: r.stats?.gp || 0,
+      pts: r.stats?.pts || 0,
+      reb: r.stats?.reb || 0,
+      ast: r.stats?.ast || 0,
+      stl: r.stats?.stl || 0,
+      blk: r.stats?.blk || 0,
+      min: r.stats?.min || 0,
+      wins: 0,
+      gradeSum: 0,
+      bref: r.bref,
+      season: r.season,
+    }));
+  return selectAllTeamByPos(pool);
+}

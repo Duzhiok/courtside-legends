@@ -1,0 +1,297 @@
+/**
+ * Local cache for the full roster:
+ * 1) IndexedDB — processed season cards in chunks (skip seasonToCard rebuild)
+ * 2) Cache Storage — raw roster.json (skip network on rebuild)
+ * 3) roster.meta.json — tiny file to validate cache without parsing 6MB JSON
+ *
+ * Cards are stored in CHUNKS so reading/writing does not freeze the tab for minutes.
+ * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
+ */
+export const ROSTER_SCHEMA = 42; // bump: Yao Ming soft_touch / dream_shake / high_tower
+const DB_NAME = "courtside-legends";
+const STORE = "roster";
+const DB_VERSION = 2;
+const CACHE_NAME = "courtside-roster-raw";
+const META_URL = "./js/data/roster.meta.json";
+const LS_KEY = "courtside-roster-cache-key";
+const CHUNK = 1500;
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("no indexedDB"));
+      return;
+    }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("idb open failed"));
+  });
+}
+
+function idbGet(key) {
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readonly");
+        const req = tx.objectStore(STORE).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+      })
+  );
+}
+
+function idbPut(key, value) {
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        tx.objectStore(STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      })
+  );
+}
+
+function idbDelete(key) {
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        tx.objectStore(STORE).delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      })
+  );
+}
+
+function yieldPaint() {
+  return new Promise((r) => setTimeout(r, 0));
+}
+
+export function rosterCacheKey(meta) {
+  return `v${ROSTER_SCHEMA}|${meta.version ?? "?"}|${meta.generated ?? "?"}|${meta.count ?? 0}`;
+}
+
+function rememberKey(meta, key) {
+  try {
+    localStorage.setItem(LS_KEY, key);
+  } catch (_) {
+    /* private mode / quota */
+  }
+}
+
+function rememberedKey() {
+  try {
+    return localStorage.getItem(LS_KEY) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function chunkKey(base, i) {
+  return `${base}::c${i}`;
+}
+
+function manifestKey(base) {
+  return `${base}::manifest`;
+}
+
+/** Tiny metadata fetch (~100 bytes). */
+export async function fetchRosterMeta() {
+  const res = await fetch(META_URL, { cache: "no-cache" });
+  if (!res.ok) throw new Error(`roster.meta.json HTTP ${res.status}`);
+  return res.json();
+}
+
+/** Load chunked players for a cache key; yields between chunks for UI. */
+async function loadChunks(baseKey, onProgress) {
+  const man = await idbGet(manifestKey(baseKey));
+  if (!man?.chunks || !man.count) {
+    // Legacy single-blob format (schema ≤4)
+    const legacy = await idbGet(baseKey);
+    if (legacy?.players?.length) return legacy.players;
+    return null;
+  }
+  const out = new Array(man.count);
+  let filled = 0;
+  for (let i = 0; i < man.chunks; i++) {
+    const part = await idbGet(chunkKey(baseKey, i));
+    const arr = part?.players;
+    if (!arr?.length) return null;
+    for (let j = 0; j < arr.length; j++) out[filled++] = arr[j];
+    onProgress?.(0.1 + 0.75 * ((i + 1) / man.chunks), "cache");
+    await yieldPaint();
+  }
+  if (filled !== man.count) return null;
+  return out;
+}
+
+/**
+ * Fast path: IndexedDB processed cards without parsing roster.json.
+ */
+export async function loadCachedPlayersFast(onProgress) {
+  onProgress?.(0.04, "cache");
+  await yieldPaint();
+
+  try {
+    const tryLoad = async (key) => {
+      if (!key) return null;
+      onProgress?.(0.08, "cache");
+      await yieldPaint();
+      return loadChunks(key, onProgress);
+    };
+
+    const hit = await tryLoad(rememberedKey());
+    if (hit?.length) {
+      revalidateMetaInBackground(rememberedKey());
+      onProgress?.(0.92, "cache");
+      return hit;
+    }
+
+    onProgress?.(0.1, "cache");
+    const meta = await fetchRosterMeta();
+    const key = rosterCacheKey(meta);
+    const hit2 = await tryLoad(key);
+    if (hit2?.length) {
+      rememberKey(meta, key);
+      onProgress?.(0.92, "cache");
+      return hit2;
+    }
+  } catch (e) {
+    console.warn("[rosterCache] fast path failed", e);
+  }
+  return null;
+}
+
+function revalidateMetaInBackground(cachedKey) {
+  if (!cachedKey) return;
+  fetchRosterMeta()
+    .then((meta) => {
+      const next = rosterCacheKey(meta);
+      if (next !== cachedKey) {
+        console.info("[rosterCache] meta changed — next reload will rebuild", { cachedKey, next });
+        try {
+          localStorage.removeItem(LS_KEY);
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+export async function loadCachedPlayers(meta) {
+  try {
+    const key = rosterCacheKey(meta);
+    const players = await loadChunks(key, null);
+    if (players?.length && players.length === (meta.count || players.length)) {
+      rememberKey(meta, key);
+      return players;
+    }
+  } catch (e) {
+    console.warn("[rosterCache] read failed", e);
+  }
+  return null;
+}
+
+/** Persist processed cards in chunks (background OK). */
+export async function saveCachedPlayers(meta, players) {
+  const key = rosterCacheKey(meta);
+  try {
+    const chunks = Math.ceil(players.length / CHUNK);
+    await idbPut(manifestKey(key), {
+      key,
+      meta,
+      schema: ROSTER_SCHEMA,
+      count: players.length,
+      chunks,
+      chunkSize: CHUNK,
+      savedAt: Date.now(),
+    });
+    for (let i = 0; i < chunks; i++) {
+      const slice = players.slice(i * CHUNK, (i + 1) * CHUNK);
+      await idbPut(chunkKey(key, i), { i, players: slice });
+      await yieldPaint();
+    }
+    // Drop legacy blob if present
+    try {
+      await idbDelete(key);
+    } catch (_) {
+      /* ignore */
+    }
+    rememberKey(meta, key);
+    console.info(`[rosterCache] saved ${players.length} cards in ${chunks} chunks → ${key}`);
+  } catch (e) {
+    console.warn("[rosterCache] write failed (quota?). Rebuild will run every visit until this works.", e);
+    try {
+      localStorage.removeItem(LS_KEY);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
+/** Fetch roster.json via Cache Storage when possible. */
+export async function fetchRosterJson(url = "./js/data/roster.json", onProgress) {
+  onProgress?.(0.05, "download");
+  if (typeof caches !== "undefined") {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const hit = await cache.match(url);
+      if (hit) {
+        onProgress?.(0.1, "cache");
+        await yieldPaint();
+        const data = await hit.json();
+        onProgress?.(0.2, "download");
+        return { data, fromCache: true };
+      }
+    } catch (e) {
+      console.warn("[rosterCache] cache read", e);
+    }
+  }
+
+  onProgress?.(0.08, "download");
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`roster.json HTTP ${res.status}`);
+  if (typeof caches !== "undefined") {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(url, res.clone());
+    } catch (e) {
+      console.warn("[rosterCache] cache write", e);
+    }
+  }
+  onProgress?.(0.12, "download");
+  await yieldPaint();
+  const data = await res.json();
+  onProgress?.(0.2, "download");
+  return { data, fromCache: false };
+}
+
+export async function clearRosterCache() {
+  try {
+    localStorage.removeItem(LS_KEY);
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    if (typeof caches !== "undefined") await caches.delete(CACHE_NAME);
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    const db = await openDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (_) {
+    /* ignore */
+  }
+}

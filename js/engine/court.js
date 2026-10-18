@@ -4,73 +4,131 @@
  * Possession advances the whole 5 into the attacking half — not static matchup dots.
  */
 
-/** Frontcourt slots: y=0 near rim, y=100 near half-court. */
+/**
+ * Frontcourt slots: y=0 near rim, y=100 near half-court.
+ * Index order is always C → PF → SF → SG → PG (rim to perimeter),
+ * so point guards never sit under the basket.
+ */
+const SLOT_POS = ["C", "PF", "SF", "SG", "PG"];
+
 const SETS = {
   balanced: [
-    { x: 50, y: 22 },
-    { x: 18, y: 48 },
-    { x: 82, y: 48 },
-    { x: 32, y: 68 },
-    { x: 68, y: 72 },
+    { x: 50, y: 20 }, // C paint
+    { x: 22, y: 42 }, // PF elbow/weak
+    { x: 78, y: 44 }, // SF wing
+    { x: 16, y: 68 }, // SG wing
+    { x: 50, y: 78 }, // PG top
   ],
   triangle: [
-    { x: 50, y: 18 },
-    { x: 28, y: 42 },
-    { x: 72, y: 42 },
-    { x: 50, y: 58 },
-    { x: 16, y: 70 },
+    { x: 50, y: 16 },
+    { x: 28, y: 40 },
+    { x: 72, y: 40 },
+    { x: 18, y: 62 },
+    { x: 50, y: 72 },
   ],
   smallball: [
-    { x: 50, y: 28 },
-    { x: 10, y: 55 },
-    { x: 90, y: 55 },
-    { x: 30, y: 78 },
-    { x: 70, y: 78 },
+    { x: 50, y: 26 },
+    { x: 14, y: 50 },
+    { x: 86, y: 50 },
+    { x: 28, y: 74 },
+    { x: 72, y: 78 },
   ],
   iso_heavy: [
-    { x: 58, y: 35 },
-    { x: 16, y: 62 },
-    { x: 84, y: 62 },
-    { x: 28, y: 82 },
-    { x: 78, y: 84 },
+    { x: 50, y: 24 },
+    { x: 18, y: 48 },
+    { x: 82, y: 50 },
+    { x: 30, y: 72 },
+    { x: 62, y: 70 }, // PG / iso handler high
   ],
   grind: [
-    { x: 50, y: 26 },
-    { x: 34, y: 46 },
-    { x: 66, y: 46 },
-    { x: 40, y: 66 },
-    { x: 60, y: 66 },
+    { x: 50, y: 22 },
+    { x: 34, y: 44 },
+    { x: 66, y: 44 },
+    { x: 28, y: 66 },
+    { x: 55, y: 70 },
   ],
   motion: [
-    { x: 46, y: 30 },
-    { x: 18, y: 52 },
-    { x: 82, y: 52 },
-    { x: 34, y: 74 },
-    { x: 66, y: 76 },
+    { x: 50, y: 26 },
+    { x: 18, y: 48 },
+    { x: 82, y: 48 },
+    { x: 30, y: 72 },
+    { x: 70, y: 76 },
   ],
   pace_space: [
-    { x: 50, y: 32 },
-    { x: 8, y: 58 },
-    { x: 92, y: 58 },
-    { x: 26, y: 80 },
-    { x: 74, y: 80 },
+    { x: 50, y: 28 },
+    { x: 10, y: 54 },
+    { x: 90, y: 54 },
+    { x: 24, y: 76 },
+    { x: 76, y: 80 },
   ],
   morale_boost: [
-    { x: 50, y: 24 },
-    { x: 22, y: 50 },
-    { x: 78, y: 50 },
-    { x: 36, y: 70 },
-    { x: 64, y: 70 },
+    { x: 50, y: 22 },
+    { x: 22, y: 46 },
+    { x: 78, y: 46 },
+    { x: 34, y: 68 },
+    { x: 66, y: 72 },
   ],
 };
 
 const DEF_GAP = [
-  { dx: 0, dy: -14 },
-  { dx: 8, dy: -11 },
-  { dx: -8, dy: -11 },
-  { dx: 10, dy: -8 },
-  { dx: -10, dy: -8 },
+  { dx: 0, dy: -12 }, // on C
+  { dx: 7, dy: -10 },
+  { dx: -7, dy: -10 },
+  { dx: 9, dy: -8 },
+  { dx: 0, dy: -9 }, // on PG — stay between ball and rim, not under
 ];
+
+/** Place on-court players onto C→PG slots by playPos / natural pos. */
+function lineupForSlots(onCourt) {
+  const list = [...(onCourt || [])];
+  const used = new Set();
+  const out = [];
+  for (const want of SLOT_POS) {
+    const hit =
+      list.find((p) => !used.has(p.id) && normPos(p.playPos || p.pos) === want) ||
+      list.find((p) => !used.has(p.id) && nearPos(normPos(p.playPos || p.pos), want));
+    if (hit) {
+      out.push(hit);
+      used.add(hit.id);
+    } else {
+      out.push(null);
+    }
+  }
+  for (let i = 0; i < out.length; i++) {
+    if (out[i]) continue;
+    const fill = list.find((p) => !used.has(p.id));
+    if (fill) {
+      out[i] = fill;
+      used.add(fill.id);
+    }
+  }
+  return out.filter(Boolean);
+}
+
+function normPos(pos) {
+  const p = String(pos || "SF").toUpperCase();
+  if (SLOT_POS.includes(p)) return p;
+  if (p.includes("G") && p.startsWith("P")) return "PG";
+  if (p.includes("G")) return "SG";
+  if (p.includes("C")) return "C";
+  if (p.includes("F") && p.startsWith("P")) return "PF";
+  return "SF";
+}
+
+function nearPos(have, want) {
+  const order = SLOT_POS;
+  const a = order.indexOf(have);
+  const b = order.indexOf(want);
+  return a >= 0 && b >= 0 && Math.abs(a - b) === 1;
+}
+
+function handlerSlotIndex(ordered) {
+  const pg = ordered.findIndex((p) => normPos(p.playPos || p.pos) === "PG");
+  if (pg >= 0) return pg;
+  const sg = ordered.findIndex((p) => normPos(p.playPos || p.pos) === "SG");
+  if (sg >= 0) return sg;
+  return Math.max(0, ordered.length - 1);
+}
 
 export class CourtView {
   constructor(rootEl) {
@@ -140,10 +198,13 @@ export class CourtView {
     const tacticId = off.tactic?.id || "balanced";
     const slots = SETS[tacticId] || SETS.balanced;
 
+    const offOrdered = lineupForSlots(off.onCourt);
+    const defOrdered = lineupForSlots(def.onCourt);
+
     if (this._possession !== offSide) {
       this._possession = offSide;
       this._phaseStart = performance.now();
-      this._handlerIdx = Math.floor(Math.random() * Math.min(3, off.onCourt.length || 1));
+      this._handlerIdx = handlerSlotIndex(offOrdered);
     }
 
     const elapsed = performance.now() - this._phaseStart;
@@ -157,21 +218,22 @@ export class CourtView {
     } · ${phaseName}`;
 
     const lineup = [
-      ...off.onCourt.map((p) => p.id),
-      ...def.onCourt.map((p) => p.id),
+      ...offOrdered.map((p) => `${p.id}:${normPos(p.playPos || p.pos)}`),
+      ...defOrdered.map((p) => `${p.id}:${normPos(p.playPos || p.pos)}`),
       offSide,
       tacticId,
     ].join("|");
     if (lineup !== this._lastLineup) {
       this._lastLineup = lineup;
       this.rebuildTokens(off, def, attackingUp);
+      this._handlerIdx = handlerSlotIndex(offOrdered);
     }
 
     const t = performance.now() / 1000;
     const offPos = [];
 
-    off.onCourt.forEach((p, i) => {
-      const slot = slots[i] || slots[0];
+    offOrdered.forEach((p, i) => {
+      const slot = slots[i] || slots[slots.length - 1];
       const base = this.toCourt(slot, attackingUp, phase);
       // slight live drift once set
       const drift = phase > 0.7 ? 1 : 0.35;
@@ -182,9 +244,9 @@ export class CourtView {
       this.moveToken(`${side}-${p.id}`, x, y, p, true, shortName(p.name));
     });
 
-    def.onCourt.forEach((p, i) => {
-      const slot = slots[i] || slots[0];
-      const gap = DEF_GAP[i] || DEF_GAP[0];
+    defOrdered.forEach((p, i) => {
+      const slot = slots[i] || slots[slots.length - 1];
+      const gap = DEF_GAP[i] || DEF_GAP[DEF_GAP.length - 1];
       // Defense also transitions, staying between ball and their own basket
       const base = this.toCourt(
         { x: clamp(slot.x + gap.dx, 10, 90), y: clamp(slot.y + gap.dy, 5, 95) },
@@ -197,9 +259,9 @@ export class CourtView {
       this.moveToken(`${side}-${p.id}`, x, y, p, false, shortName(p.name));
     });
 
-    // Ball travels with push: handler index
-    const hi = clamp(this._handlerIdx, 0, Math.max(0, off.onCourt.length - 1));
-    const hp = offPos[hi] || offPos[0];
+    // Ball with the PG / primary handler slot (not whoever happened to be index 0)
+    const hi = clamp(this._handlerIdx, 0, Math.max(0, offOrdered.length - 1));
+    const hp = offPos[hi] || offPos[offPos.length - 1];
     if (this.ball && hp) {
       this.ball.style.left = `${hp.x}%`;
       this.ball.style.top = `${hp.y}%`;
