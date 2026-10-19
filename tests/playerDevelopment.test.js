@@ -296,6 +296,93 @@ test("development modifiers are deterministic, bounded, and skip capped attribut
   assert.equal(first.moraleDelta, 3);
 });
 
+test("applied plans persist role, morale, and injury risk effects", async () => {
+  const { developLeagueRosters } = await import("../js/engine/develop.js");
+  const season = {
+    year: 2030,
+    userTeamId: "USER",
+    teams: {
+      USER: {
+        players: [player("alpha", {
+          morale: undefined,
+          intangibles: { injuryRisk: 97 },
+        })],
+      },
+    },
+    playerSeason: {
+      "USER:alpha-2030": { stats: { gp: 82, min: 82 * 30 } },
+    },
+  };
+
+  developLeagueRosters(season, {
+    rng: () => 0.5,
+    developmentPlans: {
+      alpha: plan({ role: "sixth", load: "high" }),
+    },
+  });
+
+  const evolved = season.teams.USER.players[0];
+  assert.equal(evolved.roleExpectation, "sixth");
+  assert.equal(evolved.morale, 50);
+  assert.equal(evolved.intangibles.injuryRisk, 100);
+});
+
+test("automatic plans preserve manually edited rotation roles and use injury-risk default 40", async () => {
+  const { developLeagueRosters } = await import("../js/engine/develop.js");
+  const season = {
+    year: 2030,
+    userTeamId: "USER",
+    teams: {
+      USER: {
+        players: [player("alpha", {
+          roleExpectation: "alpha",
+          _roleManual: true,
+          intangibles: {},
+        })],
+      },
+    },
+    playerSeason: {},
+  };
+
+  developLeagueRosters(season, {
+    rng: () => 0.5,
+    developmentPlans: {
+      alpha: plan({ role: "bench", load: "low", source: "automatic" }),
+    },
+  });
+
+  const evolved = season.teams.USER.players[0];
+  assert.equal(evolved.roleExpectation, "alpha");
+  assert.equal(evolved._roleManual, true);
+  assert.equal(evolved.intangibles.injuryRisk, 32);
+});
+
+test("manual development plan role overrides a manually edited rotation role", async () => {
+  const { developLeagueRosters } = await import("../js/engine/develop.js");
+  const season = {
+    year: 2030,
+    userTeamId: "USER",
+    teams: {
+      USER: {
+        players: [player("alpha", {
+          roleExpectation: "alpha",
+          _roleManual: true,
+        })],
+      },
+    },
+    playerSeason: {},
+  };
+
+  developLeagueRosters(season, {
+    rng: () => 0.5,
+    developmentPlans: {
+      alpha: plan({ role: "sixth", source: "manual" }),
+    },
+  });
+
+  assert.equal(season.teams.USER.players[0].roleExpectation, "sixth");
+});
+
 test("load, stability, low minutes, morale, mentor, and injury affect modifiers", () => {
   const athlete = player("alpha");
   const baseContext = {

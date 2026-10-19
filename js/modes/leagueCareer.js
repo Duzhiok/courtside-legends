@@ -17,6 +17,10 @@ export function isSeasonProgressMode(mode) {
   return SEASON_PROGRESS_MODES.has(mode);
 }
 
+export function hasExistingCareerRoot(root) {
+  return Boolean(root?.leagueCareer);
+}
+
 export function resolveRootLiveGame(mode, includedLiveGame, cachedLiveGame) {
   if (mode === "include") return includedLiveGame ?? null;
   if (mode === "clear") return null;
@@ -70,8 +74,23 @@ export function createLeagueCareer({ kind, season, storyId, careerId } = {}) {
       draft: null,
       draftHistory: [],
       seasonHistory: [],
+      developmentPlans: {},
     },
   };
+}
+
+export function upgradeLeagueCareerManagement(career) {
+  requireCareer(career);
+  requireSeason(career.season);
+  const upgraded = {
+    ...career,
+    phase: career.season.phase,
+    history: [...(career.history || [])],
+    manualOverrides: { ...(career.manualOverrides || {}) },
+    recommendations: { ...(career.recommendations || {}) },
+    management: careerManagement(career),
+  };
+  return recoverCareerPhase(upgraded);
 }
 
 export function setManualOverride(career, category, key, value) {
@@ -185,11 +204,26 @@ export function advanceCareerOffseason(career) {
   return { career: syncCareerPhase(career), result };
 }
 
+function compactCompletedDraft(draft) {
+  if (!draft || draft.status !== "complete") return draft || null;
+  return {
+    year: draft.year,
+    seed: draft.seed,
+    order: [...(draft.order || [])],
+    currentPick: draft.currentPick,
+    selections: structuredClone(draft.selections || []),
+    status: draft.status,
+    prospects: [],
+  };
+}
+
 function careerManagement(career) {
   return {
     ...(career.management || {}),
-    draft: career.management?.draft || null,
-    draftHistory: [...(career.management?.draftHistory || [])],
+    draft: compactCompletedDraft(career.management?.draft),
+    draftHistory: (career.management?.draftHistory || []).map(
+      compactCompletedDraft,
+    ),
     seasonHistory: [...(career.management?.seasonHistory || [])],
     developmentPlans: { ...(career.management?.developmentPlans || {}) },
   };
@@ -415,12 +449,13 @@ function withCompletedDraft(career, draft, management, history) {
   ) {
     return { ...career, management: { ...management, draft }, history };
   }
+  const compactDraft = compactCompletedDraft(draft);
   return {
     ...career,
     management: {
       ...management,
-      draft,
-      draftHistory: [...management.draftHistory, structuredClone(draft)],
+      draft: compactDraft,
+      draftHistory: [...management.draftHistory, structuredClone(compactDraft)],
     },
     history: [
       ...history,
@@ -470,7 +505,7 @@ export function beginCareerDraft(career) {
   return withCompletedDraft(career, draft, management, history);
 }
 
-export function makeCareerDraftPick(career, prospectId) {
+export function makeCareerDraftPick(career, prospectId, options = {}) {
   requireCareer(career);
   requireSeason(career.season);
   const draft = career.management?.draft;
@@ -481,7 +516,12 @@ export function makeCareerDraftPick(career, prospectId) {
     throw new Error("draft pick is not the user's turn");
   }
 
-  const selected = selectDraftProspect(draft, career.season, prospectId);
+  const selected = selectDraftProspect(
+    draft,
+    career.season,
+    prospectId,
+    options,
+  );
   const advanced = advanceDraftToUserPick(selected, career.season);
   const management = careerManagement(career);
   return withCompletedDraft(

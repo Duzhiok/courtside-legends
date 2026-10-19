@@ -125,9 +125,11 @@ function finishDraft(career) {
       next.management.draft.order[next.management.draft.currentPick],
       next.season.userTeamId,
     );
+    const roster = next.season.teams[next.season.userTeamId].players;
     next = makeCareerDraftPick(
       next,
       next.management.draft.prospects[0].prospectId,
+      roster.length >= 15 ? { waivePlayerId: roster[0].id } : {},
     );
   }
   return next;
@@ -203,7 +205,7 @@ test("preparation is atomic on invalid draft state and cannot repeat a year", ()
   assert.deepEqual(duplicate, duplicateBefore);
 });
 
-test("preparation remains atomic after an earlier CPU draft pick mutates its clone", () => {
+test("CPU fallback waiver keeps preparation immutable and prevents dead-ends", () => {
   let original;
   let order;
   for (let index = 0; index < 100; index++) {
@@ -232,7 +234,9 @@ test("preparation remains atomic after an earlier CPU draft pick mutates its clo
   );
   const before = structuredClone(original);
 
-  assert.throws(() => prepareCareerOffseason(original), /all-rookie|waive/i);
+  const prepared = prepareCareerOffseason(original);
+  assert.equal(prepared.phase, "draft");
+  assert.ok(prepared.management.draft.selections.length >= 2);
   assert.deepEqual(original, before);
 });
 
@@ -303,6 +307,44 @@ test("rookie debut card and four-year contract are not skipped during draft comp
   assert.equal(rookieYearTwo.age, debutBefore.age + 1);
   assert.equal(rookieYearTwo.contract.yearsRemaining, 3);
   assert.equal(rookieYearTwo.salary, rookieYearTwo.contract.salary);
+  assert.equal(rookieYearTwo._rookie, undefined);
+});
+
+test("players without future cards retire deterministically after development", () => {
+  const season = doneSeason();
+  season.teams.B.players = [
+    player("old-40", { age: 39 }),
+    player("low-36", {
+      age: 35,
+      scoring: 30,
+      three: 30,
+      mid: 30,
+      paint: 30,
+      pass: 30,
+      defense: 30,
+      rebound: 30,
+      steal: 30,
+      block: 30,
+      speed: 30,
+      strength: 30,
+      stamina: 30,
+      iq: 30,
+      clutch: 30,
+    }),
+    player("still-active", { age: 35 }),
+  ];
+
+  const result = advanceLeagueOffseason(season, { seed: 9 });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(
+    season.teams.B.players.map((entry) => entry.bref),
+    ["still-active"],
+  );
+  assert.deepEqual(
+    result.log.filter((entry) => entry.retired).map((entry) => entry.bref).sort(),
+    ["low-36", "old-40"],
+  );
 });
 
 test("drafted next-season rookie keeps its plan without immediate development", () => {
@@ -504,18 +546,26 @@ test("successful career completion prunes only plans for players no longer roste
   );
 });
 
-test("a full user roster waives one veteran when its rookie is drafted", () => {
+test("a full user roster waives the explicitly selected veteran", () => {
   const original = managedCareer();
   original.season.teams.B.players = Array.from(
     { length: 15 },
     (_, index) => player(`veteran-${index}`, { age: 24 + index }),
   );
-  const drafted = finishDraft(prepareCareerOffseason(original));
+  let prepared = prepareCareerOffseason(original);
+  const explicit = prepared.season.teams.B.players[9];
+  prepared = makeCareerDraftPick(
+    prepared,
+    prepared.management.draft.prospects[0].prospectId,
+    { waivePlayerId: explicit.id },
+  );
+  const drafted = prepared;
   const userSelection = drafted.management.draft.selections.find(
     (entry) => entry.teamId === "B",
   );
 
   assert.ok(userSelection.waived);
+  assert.equal(userSelection.waived.bref, explicit.bref);
   assert.equal(drafted.season.teams.B.players.length, 15);
   assert.equal(
     drafted.season.freeAgents.some(
@@ -642,3 +692,37 @@ test("fifteen generated-rookie cycles preserve league continuity", () => {
   assert.equal(root.savedAt, savedAtBefore);
   assert.deepEqual(roundTripped, root);
 });
+
+for (const initialRosterSize of [12, 15]) {
+  test(`twenty-five cycles from a ${initialRosterSize}-player roster never dead-end`, () => {
+    let career = managedCareer();
+    for (const team of Object.values(career.season.teams)) {
+      team.players = Array.from(
+        { length: initialRosterSize },
+        (_, index) => player(`${team.id}-${index}`, {
+          age: 20 + (index % 24),
+          scoring: 35 + index,
+          defense: 35 + index,
+        }),
+      );
+    }
+
+    for (let index = 0; index < 25; index++) {
+      career = finishDraft(prepareCareerOffseason(career));
+      assert.equal(career.management.draft.prospects.length, 0);
+      assert.equal(career.management.draftHistory.at(-1).prospects.length, 0);
+      career = completeCareerOffseason(career).career;
+      const brefs = Object.values(career.season.teams)
+        .flatMap((team) => team.players.map((entry) => entry.bref));
+      assert.equal(new Set(brefs).size, brefs.length);
+      assert.ok(Object.values(career.season.teams).every((team) => team.players.length <= 15));
+      if (index < 24) career = markSeasonDone(career);
+    }
+
+    const serialized = JSON.stringify(createRootState({
+      activeMode: "franchise",
+      leagueCareer: career,
+    }));
+    assert.ok(Buffer.byteLength(serialized) < 500_000, Buffer.byteLength(serialized));
+  });
+}

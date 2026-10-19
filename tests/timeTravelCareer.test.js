@@ -119,12 +119,13 @@ test("time-travel prologue accepts an offer into a historical career", () => {
     { id: "first-year-goal", text: offer.firstYearGoal, status: "active" },
   ]);
   assert.deepEqual(root.story.eventLog, [
-    { type: "accepted-offer", year: 1991, teamId: offer.teamId },
+    { type: "accepted-offer", year: 1991, teamId: offer.teamId, teamName: offer.teamName },
   ]);
   assert.equal(root.leagueCareer.history.length, 1);
   assert.equal(root.leagueCareer.history[0].type, "accepted-offer");
   assert.equal(root.leagueCareer.history[0].year, 1991);
   assert.equal(root.leagueCareer.history[0].teamId, offer.teamId);
+  assert.equal(root.leagueCareer.history[0].teamName, offer.teamName);
 });
 
 test("offer acceptance rejects unknown offers and preserves the prologue", () => {

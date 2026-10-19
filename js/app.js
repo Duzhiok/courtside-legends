@@ -163,11 +163,14 @@ import {
 import {
   advanceCareerOffseason,
   completeCareerOffseason,
+  createLeagueCareer,
+  hasExistingCareerRoot,
   isSeasonProgressMode,
   makeCareerDraftPick,
   prepareCareerOffseason,
   recoverCareerPhase,
   resolveRootLiveGame,
+  upgradeLeagueCareerManagement,
 } from "./modes/leagueCareer.js";
 import {
   careerForPersistence,
@@ -445,7 +448,18 @@ function restoreLongCareerCheckpoint(root) {
 function resumeLongCareer(root = readRootSave()) {
   if (!root?.leagueCareer?.season) return false;
   const active = clonePersistedState(root);
-  active.leagueCareer = recoverCareerPhase(active.leagueCareer);
+  const beforeManagement = JSON.stringify(active.leagueCareer.management);
+  active.leagueCareer = recoverCareerPhase(
+    upgradeLeagueCareerManagement(active.leagueCareer),
+  );
+  if (JSON.stringify(active.leagueCareer.management) !== beforeManagement) {
+    try {
+      writeRootSave(active);
+    } catch (error) {
+      console.warn("[long-career-upgrade-save]", error);
+      alert("旧存档已在内存中升级，但暂时无法写回浏览器存储；你仍可继续游玩，请稍后手动保存。");
+    }
+  }
   state.mode = active.activeMode;
   state.leagueCareer = active.leagueCareer;
   state.story = active.story;
@@ -619,6 +633,11 @@ function renderTimeTravelOffers() {
       </div>`;
     button.addEventListener("click", () => {
       if (state.leagueCareer?.kind === "timeTravel") return;
+      const existingRoot = state.longCareerRoot || readRootSave();
+      if (
+        hasExistingCareerRoot(existingRoot)
+        && !confirm("接受新邀请将替换当前长期生涯存档，确定继续？")
+      ) return;
       const previous = {
         mode: state.mode,
         leagueCareer: state.leagueCareer,
@@ -1158,7 +1177,7 @@ function startMode(mode) {
   state.career = null;
   state.tournament = null;
   state.legend = null;
-  if (mode !== "season") state.seasonPendingGame = null;
+  if (!["season", "franchise"].includes(mode)) state.seasonPendingGame = null;
   if (mode === "ranked") {
     startRankedMatch();
     return;
@@ -1167,7 +1186,8 @@ function startMode(mode) {
     show("customHub");
     return;
   }
-  if (mode === "season") {
+  if (mode === "season" || mode === "franchise") {
+    seasonSetupKind = mode;
     state.leagueCareer = null;
     state.story = null;
     state.season = null;
@@ -5251,6 +5271,7 @@ function renderSetupRoles() {
     if (!p) return;
     row.querySelector(".role-select").onchange = (e) => {
       p.roleExpectation = e.target.value;
+      p._roleManual = true;
       p.targetMinutes = suggestTargetMinutes(p);
       renderSetupRoles();
     };
@@ -5281,6 +5302,7 @@ function persistSeasonRotationFromTeam(youTeam, starterIds = null) {
     if (!src) continue;
     if (src.playPos) p.playPos = src.playPos;
     if (src.roleExpectation) p.roleExpectation = src.roleExpectation;
+    if (src._roleManual) p._roleManual = true;
     if (src.targetMinutes != null) p.targetMinutes = src.targetMinutes;
     if (src.orders) p.orders = structuredClone(src.orders);
   }
@@ -7421,6 +7443,7 @@ function showResult(snap, { formNotes = [] } = {}) {
 /** @type {'modern'|'historical'} */
 let seasonSetupMode = "modern";
 let seasonSetupYear = 1991;
+let seasonSetupKind = "season";
 
 function syncSeasonModeUi() {
   const yearRow = $("#season-year-row");
@@ -7602,6 +7625,12 @@ function renderSeasonHub({ persist = true } = {}) {
   renderSeasonAwards();
   renderSeasonPlayoffs();
   renderLeagueManagement();
+  const managed = isManagedCareer(state.leagueCareer);
+  document.querySelectorAll(
+    '[data-season-tab="draftBoard"], [data-season-tab="development"], [data-season-tab="history"]',
+  ).forEach((button) => {
+    button.hidden = !managed;
+  });
   if (persist && !saveSeasonAndCareer(st)) return;
 }
 
@@ -7626,13 +7655,13 @@ function renderLeagueManagement() {
           alert(error?.message || "无法进入休赛期选秀");
         }
       },
-      pickProspect(prospectId) {
+      pickProspect(prospectId, options) {
         try {
           const next = runCareerTransition(
             state.leagueCareer,
             (working) =>
               reconcileDevelopmentPlans(
-                makeCareerDraftPick(working, prospectId),
+                makeCareerDraftPick(working, prospectId, options),
               ),
           );
           commitManagedCareer(next, "draftBoard");
@@ -7647,12 +7676,18 @@ function renderLeagueManagement() {
           const highlights = (completed.result?.log || [])
             .filter((entry) => entry.delta > 0 || (entry.salaryAfter || 0) > (entry.salaryBefore || 0) + 10)
             .slice(0, 8);
+          const retirements = (completed.result?.log || [])
+            .filter((entry) => entry.retired)
+            .map((entry) => `${entry.name} 退役`);
           const summary = highlights.length
             ? highlights
                 .map((entry) => `${entry.name} OVR ${entry.before}→${entry.after}`)
                 .join("\n")
             : "本队本轮成长与续约变化较小。";
-          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}`);
+          const retiredSummary = retirements.length
+            ? `\n\n本队退役：\n${retirements.join("\n")}`
+            : "";
+          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}`);
         } catch (error) {
           alert(error?.message || "无法开始新赛季");
         }
@@ -7803,6 +7838,7 @@ function renderSeasonRotation() {
     };
     row.querySelector(".rot-role").onchange = (e) => {
       p.roleExpectation = e.target.value;
+      p._roleManual = true;
       p.targetMinutes = suggestTargetMinutes(p);
       renderSeasonRotation();
     };
@@ -8063,7 +8099,7 @@ function renderSeasonMarket() {
         alert(res.reason);
         return;
       }
-      if (state.leagueCareer) {
+      if (isManagedCareer(state.leagueCareer)) {
         state.leagueCareer = reconcileDevelopmentPlans(state.leagueCareer);
         state.season = state.leagueCareer.season;
       }
@@ -8154,7 +8190,7 @@ function renderSeasonMarket() {
       return;
     }
     if (hint) hint.textContent = res.message;
-    if (state.leagueCareer) {
+    if (isManagedCareer(state.leagueCareer)) {
       state.leagueCareer = reconcileDevelopmentPlans(state.leagueCareer);
       state.season = state.leagueCareer.season;
     }
@@ -8587,6 +8623,12 @@ function renderSeasonPlayoffs() {
 }
 
 function showSeasonTab(tab) {
+  if (
+    !isManagedCareer(state.leagueCareer) &&
+    ["draftBoard", "development", "history"].includes(tab)
+  ) {
+    tab = "standings";
+  }
   const map = {
     standings: $("#season-standings"),
     rotation: $("#season-rotation"),
@@ -9075,6 +9117,11 @@ $("#btn-season-start")?.addEventListener("click", () => {
   const draft = state.seasonRosterDraft;
   if (!draft || draft.players.length < 8) return;
   const name = ($("#season-team-name")?.value || "").trim() || "拉斯维加斯 ***";
+  if (
+    seasonSetupKind === "franchise"
+    && hasExistingCareerRoot(state.longCareerRoot || readRootSave())
+    && !confirm("开始新联盟经理生涯将替换当前长期生涯存档，确定继续？")
+  ) return;
   draft.name = name;
   if (state.season && !confirm("将覆盖当前赛季进度，确定开新赛季？")) return;
   clearSeasonSave();
@@ -9087,11 +9134,20 @@ $("#btn-season-start")?.addEventListener("click", () => {
       mode: seasonSetupMode,
       year: seasonSetupMode === "historical" ? yearSel : new Date().getFullYear(),
     });
+    if (seasonSetupKind === "franchise") {
+      state.leagueCareer = createLeagueCareer({
+        kind: "franchise",
+        season: state.season,
+      });
+      state.mode = "franchise";
+    } else {
+      state.leagueCareer = null;
+      state.mode = "season";
+    }
   } catch (err) {
     alert(err?.message || "无法创建赛季");
     return;
   }
-  state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
   if (!saveSeasonAndCareer(state.season)) return;
   renderSeasonHub();
   showSeasonTab("standings");

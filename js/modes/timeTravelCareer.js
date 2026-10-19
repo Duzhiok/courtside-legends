@@ -194,6 +194,7 @@ export function acceptInterviewOffer(prologue, offerId) {
       type: "accepted-offer",
       year: prologue.year,
       teamId: offer.teamId,
+      teamName: offer.teamName,
     },
     0,
   );
@@ -217,7 +218,12 @@ export function acceptInterviewOffer(prologue, offerId) {
       ],
       flags: {},
       eventLog: [
-        { type: "accepted-offer", year: prologue.year, teamId: offer.teamId },
+        {
+          type: "accepted-offer",
+          year: prologue.year,
+          teamId: offer.teamId,
+          teamName: offer.teamName,
+        },
       ],
       pendingDecision: "future-knowledge-intro",
       ending: null,

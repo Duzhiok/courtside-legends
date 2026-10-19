@@ -324,8 +324,8 @@ test("selection rejects duplicate available bref identities atomically", () => {
   assert.deepEqual(draft, draftBefore);
 });
 
-test("full rosters waive the deterministic lowest-value non-rookie", () => {
-  const firstSeason = playableSeason({ rosterSize: 15 });
+test("full CPU rosters waive the deterministic lowest-value player", () => {
+  const firstSeason = playableSeason({ userTeamId: "not-in-league", rosterSize: 15 });
   const secondSeason = structuredClone(firstSeason);
   const draft = createDraftState({ season: firstSeason, seed: "waiver", players: [] });
   const teamId = draft.order[0];
@@ -345,19 +345,50 @@ test("full rosters waive the deterministic lowest-value non-rookie", () => {
   assert.equal(firstSeason.freeAgents.filter((player) => player.bref === expected.bref).length, 1);
 });
 
-test("an all-rookie full roster rejects atomically", () => {
-  const season = playableSeason({ rosterSize: 15 });
+test("CPU waiver protects only active-year rookies and never dead-ends", () => {
+  const season = playableSeason({ userTeamId: "not-in-league", rosterSize: 15 });
   const draft = createDraftState({ season, seed: "all-rookie", players: [] });
   const teamId = draft.order[0];
   season.teams[teamId].players.forEach((player) => {
     player._rookie = true;
+    player._draftYear = draft.year - 1;
   });
-  const seasonBefore = structuredClone(season);
-  const draftBefore = structuredClone(draft);
 
-  assert.throws(() => selectDraftProspect(draft, season, draft.prospects[0].prospectId), /rookie|waive|roster/i);
-  assert.deepEqual(season, seasonBefore);
-  assert.deepEqual(draft, draftBefore);
+  const selected = selectDraftProspect(draft, season, draft.prospects[0].prospectId);
+
+  assert.ok(selected.selections[0].waived);
+  assert.equal(season.teams[teamId].players.length, 15);
+});
+
+test("a full user roster requires and atomically applies an explicit waiver", () => {
+  const season = playableSeason({ rosterSize: 15 });
+  const draft = createDraftState({ season, seed: "user-waiver", players: [] });
+  const userIndex = draft.order.indexOf(season.userTeamId);
+  draft.currentPick = userIndex;
+  const prospectId = draft.prospects[0].prospectId;
+  const waivePlayer = season.teams[season.userTeamId].players[7];
+  const before = structuredClone(season);
+
+  assert.throws(
+    () => selectDraftProspect(draft, season, prospectId),
+    /waivePlayerId|waive|腾位置/i,
+  );
+  assert.deepEqual(season, before);
+  assert.throws(
+    () => selectDraftProspect(draft, season, prospectId, { waivePlayerId: "missing" }),
+    /roster|waive/i,
+  );
+  assert.deepEqual(season, before);
+
+  const selected = selectDraftProspect(draft, season, prospectId, {
+    waivePlayerId: waivePlayer.id,
+  });
+  assert.equal(selected.selections[0].waived.bref, waivePlayer.bref);
+  assert.equal(season.teams[season.userTeamId].players.length, 15);
+  assert.equal(
+    season.teams[season.userTeamId].players.some((player) => player.id === waivePlayer.id),
+    false,
+  );
 });
 
 test("CPU advancement is deterministic, stops for the user, and can finish a draft", () => {

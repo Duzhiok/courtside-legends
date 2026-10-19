@@ -146,11 +146,11 @@ test("timeline merges compact history by year and uses that year's team", () => 
   assert.equal(timeline[2].userDraftPick.name, "Current Pick");
   assert.deepEqual(
     timeline[0].events.map((event) => event.type),
-    ["season-completed", "draft-completed", "story-choice"],
+    ["story-choice"],
   );
   assert.deepEqual(
     timeline[0].events.map((event) => event.label),
-    ["赛季结束", "选秀完成", "生涯事件"],
+    ["生涯事件"],
   );
   assert.equal(JSON.stringify(timeline).match(/schedule|box|playerSeason|prospects/g), null);
   assert.deepEqual(career, before);
@@ -340,6 +340,7 @@ test("real accepted-offer events use a Chinese label with team context", () => {
       type: "accepted-offer",
       year: 1991,
       teamId: "POR",
+      teamName: "不可变的旧队名",
       at: 0,
     }],
   };
@@ -348,11 +349,11 @@ test("real accepted-offer events use a Chinese label with team context", () => {
 
   assert.equal(event.type, "accepted-offer");
   assert.equal(event.teamId, "POR");
-  assert.equal(event.label, "接受 波特兰开拓者 邀请");
+  assert.equal(event.label, "接受 不可变的旧队名 邀请");
   assert.doesNotMatch(event.label, /accepted-offer/);
 });
 
-test("all current career event types have deterministic Chinese labels", () => {
+test("timeline hides redundant lifecycle detail events", () => {
   const career = {
     season: {
       year: 2030,
@@ -375,10 +376,6 @@ test("all current career event types have deterministic Chinese labels", () => {
   assert.deepEqual(events.map((event) => event.label), [
     "接受 Team B 邀请",
     "完成未来知识抉择",
-    "赛季结束",
-    "选秀开启",
-    "选秀完成",
-    "休赛期完成",
     "生涯事件",
   ]);
   assert.equal(events[0].teamId, "B");
