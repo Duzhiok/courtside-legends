@@ -364,7 +364,12 @@ test("history view escapes content, renders newest first, and stays immutable", 
       source: "historical-debut",
     }],
   }];
-  model.history = [{ type: "story-choice", year: 2030, label: "Choice <A>", at: 1 }];
+  model.history = [{
+    type: "accepted-offer",
+    year: 2030,
+    teamId: "USER",
+    at: 1,
+  }];
   const before = structuredClone(model);
   const box = container();
 
@@ -374,6 +379,8 @@ test("history view escapes content, renders newest first, and stays immutable", 
   assert.match(box.innerHTML, /MVP &lt;script&gt;&quot;/);
   assert.match(box.innerHTML, /Rookie &lt;One&gt;/);
   assert.match(box.innerHTML, /Sign &lt;Player&gt; &amp; &quot;friend&quot;/);
+  assert.match(box.innerHTML, /接受 User &lt;Team&gt; 邀请/);
+  assert.doesNotMatch(box.innerHTML, /accepted-offer/);
   assert.match(box.innerHTML, /<details>/);
   assert.doesNotMatch(box.innerHTML, /<details open/);
   assert.equal(box.dataset.historyFilter, "all");

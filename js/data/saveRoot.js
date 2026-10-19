@@ -53,6 +53,10 @@ function validateSeasonSummary(summary) {
     || !Number.isFinite(summary.record.l)
     || summary.record.l < 0
     || typeof summary.finish !== "string"
+    || (
+      summary.teamName !== undefined
+      && !isNonEmptyString(summary.teamName)
+    )
   ) {
     throw new Error("invalid root save");
   }
@@ -66,18 +70,21 @@ function validateSeasonSummary(summary) {
     "fire_coach",
     "fire_assistant",
   ]);
+  const transactionKeys = ["day", "description", "type", "year"];
   if (
     !Array.isArray(summary.transactions)
     || summary.transactions.length > 20
     || summary.transactions.some(
       (entry) =>
         !isObject(entry)
+        || Object.keys(entry).sort().join(",") !== transactionKeys.join(",")
         || !transactionTypes.has(entry.type)
         || !Number.isInteger(entry.year)
         || entry.year !== summary.year
         || !Number.isInteger(entry.day)
         || entry.day < 0
-        || !isNonEmptyString(entry.description),
+        || !isNonEmptyString(entry.description)
+        || entry.description.length > 200,
     )
   ) {
     throw new Error("invalid root save");

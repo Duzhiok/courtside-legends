@@ -238,12 +238,15 @@ function compactTransactions(season, includeLegacy) {
         (includeLegacy && entry?.year === undefined),
     )
     .slice(-20)
-    .map((entry) => ({
-      type: String(entry.type),
-      year: season.year,
-      day: Number.isInteger(entry.day) ? entry.day : 0,
-      description: transactionDescription(entry),
-    }));
+    .map((entry) => {
+      const description = transactionDescription(entry).slice(0, 200);
+      return {
+        type: String(entry.type),
+        year: season.year,
+        day: Number.isInteger(entry.day) ? entry.day : 0,
+        description,
+      };
+    });
 }
 
 function annualSummary(season, { includeLegacyTransactions = false } = {}) {
@@ -271,6 +274,10 @@ function annualSummary(season, { includeLegacyTransactions = false } = {}) {
   const summary = {
     year: season.year,
     teamId,
+    teamName:
+      season.teams?.[teamId]?.name
+      || season.league?.labels?.[teamId]
+      || teamId,
     record: { w: record.w, l: record.l },
     championId,
     finish,
@@ -279,15 +286,8 @@ function annualSummary(season, { includeLegacyTransactions = false } = {}) {
       dpoy: compactAward(season.awards?.dpoy),
       roy: compactAward(season.awards?.roy),
     },
+    transactions: compactTransactions(season, includeLegacyTransactions),
   };
-  const transactions = compactTransactions(season, includeLegacyTransactions);
-  // Keep empty summaries byte-compatible with older schema-v3 snapshots.
-  Object.defineProperty(summary, "transactions", {
-    value: transactions,
-    enumerable: transactions.length > 0,
-    writable: true,
-    configurable: true,
-  });
   return summary;
 }
 
