@@ -104,6 +104,22 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
     } else {
       const currentTeamId = draft.order?.[draft.currentPick];
       const userTurn = currentTeamId === career.season?.userTeamId;
+      const userRoster =
+        career.season?.teams?.[career.season?.userTeamId]?.players || [];
+      const waiverControl =
+        userTurn && userRoster.length >= 15
+          ? `<label class="draft-waiver-control">为新秀腾位置
+              <select class="draft-waiver-select">
+                <option value="" disabled selected>选择要裁掉的球员</option>${userRoster
+                .map(
+                  (player) =>
+                    `<option value="${escapeHtml(player.id)}">${escapeHtml(player.name || player.bref || player.id)}</option>`,
+                )
+                .join("")}</select>
+              <span class="draft-waiver-error" hidden></span>
+            </label>`
+          : "";
+      const waiverRequired = userTurn && userRoster.length >= 15;
       const prospects = [...(draft.prospects || [])].sort(
         (left, right) =>
           Number(right.scoutingRange?.max || 0) - Number(left.scoutingRange?.max || 0) ||
@@ -112,7 +128,7 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
       );
       const cards = userTurn
         ? prospects
-            .map((prospect) => `<button type="button" class="draft-board-prospect" data-action="pick" data-prospect-id="${escapeHtml(prospect.prospectId)}">
+            .map((prospect) => `<button type="button" class="draft-board-prospect" data-action="pick" data-prospect-id="${escapeHtml(prospect.prospectId)}"${waiverRequired ? " disabled" : ""}>
               <strong>${escapeHtml(prospect.name)}</strong>
               <span>${escapeHtml(prospect.pos || prospect.player?.pos || "—")} · ${escapeHtml(sourceLabel(prospect.source))}</span>
               <span>球探区间 ${escapeHtml(prospect.scoutingRange?.min ?? "—")}–${escapeHtml(prospect.scoutingRange?.max ?? "—")}</span>
@@ -123,6 +139,7 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
       container.innerHTML = `<section class="draft-board-panel">
         <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀</h4>
         <p>当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择</p></div></header>
+        ${waiverControl}
         <div class="draft-board-prospects">${cards}</div>
         <h4>已完成选择</h4>
         <div class="draft-board-selections">${selections || "<p class=\"tiny\">尚无选择</p>"}</div>
@@ -137,12 +154,40 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
       return invoke(handlers.prepareDraft, button);
     }
     if (button.dataset.action === "pick") {
-      return invoke(handlers.pickProspect, button, button.dataset.prospectId);
+      const waivePlayerId =
+        container.querySelector?.(".draft-waiver-select")?.value || null;
+      const waiverError = container.querySelector?.(".draft-waiver-error");
+      if (container.querySelector?.(".draft-waiver-select") && !waivePlayerId) {
+        if (waiverError) {
+          waiverError.textContent = "请先选择要裁掉的球员。";
+          waiverError.hidden = false;
+        }
+        return undefined;
+      }
+      return invoke(
+        handlers.pickProspect,
+        button,
+        button.dataset.prospectId,
+        waivePlayerId ? { waivePlayerId } : {},
+      );
     }
     if (button.dataset.action === "complete-offseason") {
       return invoke(handlers.completeOffseason, button);
     }
     return undefined;
+  };
+  container.onchange = (event) => {
+    if (!event?.target?.matches?.(".draft-waiver-select")
+      && event?.target !== container.querySelector?.(".draft-waiver-select")) return;
+    const selected = Boolean(container.querySelector?.(".draft-waiver-select")?.value);
+    container.querySelectorAll?.('[data-action="pick"]').forEach((button) => {
+      button.disabled = !selected;
+    });
+    const waiverError = container.querySelector?.(".draft-waiver-error");
+    if (waiverError) {
+      waiverError.textContent = selected ? "" : "请先选择要裁掉的球员。";
+      waiverError.hidden = selected;
+    }
   };
   return container;
 }

@@ -387,21 +387,30 @@ function waiverValue(player) {
   return overall(player) - Math.min(Number(player?.age) || 0, 40) * 0.25;
 }
 
-function waiverCandidate(players) {
-  return players
-    .filter((player) => player?._rookie !== true)
+function waiverCandidate(players, draftYear) {
+  const ranked = (pool) => [...pool]
     .sort(
       (left, right) =>
         waiverValue(left) - waiverValue(right) ||
         stablePlayerId(left).localeCompare(stablePlayerId(right)),
     )[0];
+  const unprotected = players.filter(
+    (player) =>
+      !(player?._rookie === true && Number(player?._draftYear) === Number(draftYear)),
+  );
+  return ranked(unprotected.length ? unprotected : players);
 }
 
 /**
  * Returns an immutable draft wrapper while intentionally mutating the nested
  * season roster for compatibility with the existing season engines.
  */
-export function selectDraftProspect(draft, season, prospectId) {
+export function selectDraftProspect(
+  draft,
+  season,
+  prospectId,
+  { waivePlayerId } = {},
+) {
   const { teamId, team } = activePick(draft, season);
   if (typeof prospectId !== "string" || !prospectId) {
     throw new TypeError("prospectId must be a non-empty string");
@@ -443,11 +452,19 @@ export function selectDraftProspect(draft, season, prospectId) {
   if (!prospect.player || typeof prospect.player !== "object") {
     throw new Error(`prospect "${prospectId}" must contain a player`);
   }
-  const waivedPlayer = team.players.length === 15
-    ? waiverCandidate(team.players)
-    : null;
-  if (team.players.length === 15 && !waivedPlayer) {
-    throw new Error("full all-rookie roster has no eligible player to waive");
+  let waivedPlayer = null;
+  if (team.players.length === 15 && teamId === season.userTeamId) {
+    if (typeof waivePlayerId !== "string" || !waivePlayerId) {
+      throw new Error("full user roster requires waivePlayerId to make room");
+    }
+    waivedPlayer = team.players.find(
+      (player) => String(player?.id) === waivePlayerId,
+    );
+    if (!waivedPlayer) {
+      throw new Error("waivePlayerId must belong to the current user roster");
+    }
+  } else if (team.players.length === 15) {
+    waivedPlayer = waiverCandidate(team.players, draft.year);
   }
   if (
     waivedPlayer &&

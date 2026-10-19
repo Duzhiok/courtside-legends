@@ -1,11 +1,13 @@
 const FILTERS = new Set(["all", "seasons", "drafts", "transactions"]);
 const EVENT_LABELS = {
   "future-knowledge-intro": "完成未来知识抉择",
-  "season-completed": "赛季结束",
-  "draft-opened": "选秀开启",
-  "draft-completed": "选秀完成",
-  "offseason-completed": "休赛期完成",
 };
+const HIDDEN_LIFECYCLE_EVENTS = new Set([
+  "season-completed",
+  "draft-opened",
+  "draft-completed",
+  "offseason-completed",
+]);
 
 function eventTeamName(career, teamId) {
   return career.season?.teams?.[teamId]?.name
@@ -20,7 +22,7 @@ function compactEvent(event, career) {
     type,
     label:
       type === "accepted-offer"
-        ? `接受 ${eventTeamName(career, event.teamId)} 邀请`
+        ? `接受 ${event.teamName || eventTeamName(career, event.teamId)} 邀请`
         : EVENT_LABELS[type] || "生涯事件",
   };
   if (typeof event.teamId === "string" && event.teamId) {
@@ -97,7 +99,8 @@ export function buildCareerTimeline(career) {
           .filter(
             (event) =>
               event?.year === year &&
-              typeof event.type === "string",
+              typeof event.type === "string" &&
+              !HIDDEN_LIFECYCLE_EVENTS.has(event.type),
           )
           .sort(
             (left, right) =>

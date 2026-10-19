@@ -335,6 +335,9 @@ export function developLeagueRosters(
       const statsKey = `${tid}:${p.id}`;
       const stats = st.playerSeason?.[statsKey]?.stats || null;
       let evolved = advancePlayerOneYear(p, { rng });
+      if (Number(p._draftYear) < Number(st.year)) {
+        delete evolved._rookie;
+      }
       if (p.contract && typeof p.contract === "object") {
         evolved.contract = structuredClone(p.contract);
         const signedThisOffseason =
@@ -399,16 +402,29 @@ export function developLeagueRosters(
         }
         evolved._developmentPlan = appliedPlan;
         evolved._developmentEffects = structuredClone(developmentEffects);
-        if (
+        if (appliedPlan.source === "manual" || !p._roleManual) {
+          evolved.roleExpectation = appliedPlan.role;
+        }
+        const morale =
           p.morale !== null &&
           p.morale !== "" &&
           Number.isFinite(Number(p.morale))
-        ) {
-          evolved.morale = Math.max(
-            0,
-            Math.min(100, Number(p.morale) + developmentEffects.moraleDelta),
-          );
-        }
+            ? Number(p.morale)
+            : 50;
+        evolved.morale = Math.max(
+          0,
+          Math.min(100, morale + developmentEffects.moraleDelta),
+        );
+        evolved.intangibles = { ...(evolved.intangibles || {}) };
+        const injuryRisk = Number(evolved.intangibles.injuryRisk);
+        evolved.intangibles.injuryRisk = Math.max(
+          0,
+          Math.min(
+            100,
+            (Number.isFinite(injuryRisk) ? injuryRisk : 40)
+              + developmentEffects.injuryRiskDelta,
+          ),
+        );
         evolved._developNote = `${evolved._developNote || ""} · 训练 +${developmentEffects.totalPoints}`;
       }
       const after = overall(evolved);
@@ -419,7 +435,16 @@ export function developLeagueRosters(
           `OVR $1→${after}`,
         );
       }
-      nextPlayers.push(evolved);
+      const hasFutureCard = historicalLadder(p.bref).some(
+        (card) => Number(card.season) > Number(p.season),
+      );
+      const retired =
+        !hasFutureCard &&
+        (
+          Number(evolved.age) >= 40 ||
+          (Number(evolved.age) >= 36 && overall(evolved) < 45)
+        );
+      if (!retired) nextPlayers.push(evolved);
       if (tid === st.userTeamId) {
         log.push({
           id: evolved.id,
@@ -436,6 +461,7 @@ export function developLeagueRosters(
           note: evolved._developNote || "",
           plan: appliedPlan,
           effects: developmentEffects,
+          retired,
         });
       }
     }

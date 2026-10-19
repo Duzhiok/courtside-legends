@@ -15,6 +15,9 @@ function container(controls = {}) {
     querySelector(selector) {
       return controls[selector] || null;
     },
+    querySelectorAll(selector) {
+      return controls[selector] || [];
+    },
   };
 }
 
@@ -146,6 +149,46 @@ test("draft picking is available only on the user's turn", () => {
   renderDraftBoard(cpuBox, { career: model, teamNames: {} }, {});
   assert.doesNotMatch(cpuBox.innerHTML, /data-action="pick"/);
   assert.match(cpuBox.innerHTML, /恢复|电脑球队/);
+});
+
+test("full user roster requires an explicit waiver before picking", () => {
+  const model = career();
+  model.season.teams.USER.players = Array.from(
+    { length: 15 },
+    (_, index) => player(`roster-${index}`, { name: `Roster ${index}` }),
+  );
+  let picked = null;
+  const waiverSelect = { value: "" };
+  const error = { textContent: "", hidden: true };
+  const pickButtons = [{ disabled: true }, { disabled: true }];
+  const box = container({
+    ".draft-waiver-select": waiverSelect,
+    ".draft-waiver-error": error,
+    '[data-action="pick"]': pickButtons,
+  });
+  renderDraftBoard(box, { career: model, teamNames: {} }, {
+    pickProspect(prospectId, options) {
+      picked = { prospectId, options };
+    },
+  });
+
+  assert.match(box.innerHTML, /为新秀腾位置/);
+  assert.match(box.innerHTML, /<option value="" disabled selected>选择要裁掉的球员<\/option>/);
+  assert.match(box.innerHTML, /data-action="pick"[^>]*disabled/);
+  box.onclick({ target: target("pick", { prospectId: "generated" }) });
+  assert.equal(picked, null);
+  assert.equal(error.hidden, false);
+  assert.match(error.textContent, /选择要裁掉的球员/);
+
+  waiverSelect.value = "roster-9-2030";
+  box.onchange({ target: waiverSelect });
+  assert.deepEqual(pickButtons.map((button) => button.disabled), [false, false]);
+  assert.equal(error.hidden, true);
+  box.onclick({ target: target("pick", { prospectId: "generated" }) });
+  assert.deepEqual(picked, {
+    prospectId: "generated",
+    options: { waivePlayerId: "roster-9-2030" },
+  });
 });
 
 test("completed draft exposes next-season callback and selection details", async () => {

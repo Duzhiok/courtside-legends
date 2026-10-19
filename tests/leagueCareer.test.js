@@ -7,6 +7,7 @@ import {
   clearManualOverride,
   completeCareerOffseason,
   createLeagueCareer,
+  hasExistingCareerRoot,
   isSeasonProgressMode,
   makeCareerDraftPick,
   recoverCareerPhase,
@@ -14,6 +15,7 @@ import {
   resolveRootLiveGame,
   setManualOverride,
   syncCareerPhase,
+  upgradeLeagueCareerManagement,
 } from "../js/modes/leagueCareer.js";
 
 function careerWith(overrides = {}) {
@@ -32,6 +34,13 @@ test("season progress modes include standalone and both long-career kinds", () =
   for (const mode of ["career", "ranked", "draft"]) {
     assert.equal(isSeasonProgressMode(mode), false);
   }
+});
+
+test("career replacement confirmation is required only for an existing root career", () => {
+  assert.equal(hasExistingCareerRoot(null), false);
+  assert.equal(hasExistingCareerRoot({}), false);
+  assert.equal(hasExistingCareerRoot({ leagueCareer: null }), false);
+  assert.equal(hasExistingCareerRoot({ leagueCareer: { careerId: "kept" } }), true);
 });
 
 test("clearing root live game cannot preserve a cached finished sim", () => {
@@ -66,8 +75,69 @@ test("league career creation initializes the shared wrapper", () => {
       draft: null,
       draftHistory: [],
       seasonHistory: [],
+      developmentPlans: {},
     },
   });
+});
+
+test("legacy managed career upgrade is immutable and preserves wrapper data", () => {
+  const legacy = {
+    careerId: "legacy",
+    kind: "franchise",
+    storyId: "story",
+    phase: "season_complete",
+    season: { phase: "done", year: 1991 },
+    history: [{ type: "accepted-offer" }],
+    manualOverrides: { rotation: { PG: "one" } },
+    recommendations: { rotation: { PG: "two" } },
+  };
+
+  const upgraded = upgradeLeagueCareerManagement(legacy);
+
+  assert.notEqual(upgraded, legacy);
+  assert.deepEqual(upgraded.management, {
+    draft: null,
+    draftHistory: [],
+    seasonHistory: [],
+    developmentPlans: {},
+  });
+  assert.equal(upgraded.phase, "done");
+  assert.deepEqual(upgraded.history, legacy.history);
+  assert.deepEqual(upgraded.manualOverrides, legacy.manualOverrides);
+  assert.deepEqual(upgraded.recommendations, legacy.recommendations);
+  assert.equal(legacy.management, undefined);
+});
+
+test("upgrade compacts legacy completed draft prospect cards", () => {
+  const legacy = {
+    ...careerWith({ season: { phase: "done", year: 1991 } }),
+    management: {
+      draft: {
+        year: 1991,
+        seed: "legacy",
+        order: ["A"],
+        currentPick: 1,
+        selections: [{ teamId: "A", bref: "rookie" }],
+        status: "complete",
+        prospects: [{ player: { large: true } }],
+      },
+      draftHistory: [{
+        year: 1990,
+        seed: "older",
+        order: ["A"],
+        currentPick: 1,
+        selections: [],
+        status: "complete",
+        prospects: [{ player: { large: true } }],
+      }],
+    },
+  };
+
+  const upgraded = upgradeLeagueCareerManagement(legacy);
+
+  assert.deepEqual(upgraded.management.draft.prospects, []);
+  assert.deepEqual(upgraded.management.draftHistory[0].prospects, []);
+  assert.equal(legacy.management.draft.prospects.length, 1);
 });
 
 test("manual PG matchup survives automatic recommendation while SG is applied", () => {
