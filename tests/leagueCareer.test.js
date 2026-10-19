@@ -5,7 +5,9 @@ import {
   applyRecommendation,
   clearManualOverride,
   createLeagueCareer,
+  isSeasonProgressMode,
   recordCareerEvent,
+  resolveRootLiveGame,
   setManualOverride,
   syncCareerPhase,
 } from "../js/modes/leagueCareer.js";
@@ -18,6 +20,25 @@ function careerWith(overrides = {}) {
     ...overrides,
   });
 }
+
+test("season progress modes include standalone and both long-career kinds", () => {
+  assert.equal(isSeasonProgressMode("season"), true);
+  assert.equal(isSeasonProgressMode("franchise"), true);
+  assert.equal(isSeasonProgressMode("timeTravel"), true);
+  for (const mode of ["career", "ranked", "draft"]) {
+    assert.equal(isSeasonProgressMode(mode), false);
+  }
+});
+
+test("clearing root live game cannot preserve a cached finished sim", () => {
+  const cached = { sim: { quarter: 4 }, seasonPendingGame: { homeId: "A", awayId: "B" } };
+
+  assert.equal(resolveRootLiveGame("clear", { sim: {} }, cached), null);
+  assert.deepEqual(resolveRootLiveGame("preserve", null, cached), cached);
+  assert.deepEqual(resolveRootLiveGame("include", { sim: { quarter: 2 } }, cached), {
+    sim: { quarter: 2 },
+  });
+});
 
 test("league career creation initializes the shared wrapper", () => {
   const season = { phase: "regular" };
@@ -143,4 +164,34 @@ test("league career offseason validates input and delegates season result", () =
     ok: false,
     reason: "需先打完总决赛才能进入休赛期",
   });
+});
+
+test("successful offseason synchronizes the career wrapper", () => {
+  const season = {
+    phase: "done",
+    year: 2000,
+    mode: "modern",
+    seed: 1,
+    userTeamId: "A",
+    league: {
+      teamIds: ["A", "B"],
+      eastIds: ["A"],
+      westIds: ["B"],
+      confById: { A: "East", B: "West" },
+    },
+    teams: {
+      A: { id: "A", players: [] },
+      B: { id: "B", players: [] },
+    },
+    playerSeason: {},
+    tradeLog: [],
+  };
+  const original = careerWith({ season });
+
+  const advanced = advanceCareerOffseason(original);
+
+  assert.equal(advanced.result.ok, true);
+  assert.equal(advanced.career.phase, "regular");
+  assert.equal(advanced.career.season.phase, "regular");
+  assert.equal(advanced.career.season.year, 2001);
 });

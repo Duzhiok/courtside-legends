@@ -18,6 +18,77 @@ function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function validateLeagueCareer(career) {
+  const season = career.season;
+  if (
+    !isNonEmptyString(career.careerId)
+    || !["franchise", "timeTravel"].includes(career.kind)
+    || !isNonEmptyString(career.phase)
+    || !isObject(season)
+    || !isNonEmptyString(season.phase)
+    || !Number.isInteger(season.year)
+    || !isNonEmptyString(season.userTeamId)
+    || !isObject(season.teams)
+    || !isObject(season.teams[season.userTeamId])
+    || !Array.isArray(season.schedule)
+    || !Array.isArray(career.history)
+    || !isObject(career.manualOverrides)
+    || !isObject(career.recommendations)
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
+function validateTimeTravelStory(root) {
+  const { leagueCareer: career, story } = root;
+  if (
+    !isObject(story)
+    || !isNonEmptyString(story.storyId)
+    || !isNonEmptyString(career.storyId)
+    || story.storyId !== career.storyId
+    || !isNonEmptyString(story.currentChapter)
+    || !isNonEmptyString(story.employer)
+    || !Number.isFinite(story.futureKnowledge)
+    || !Number.isFinite(story.frontOfficeTrust)
+    || !Number.isFinite(story.mediaPressure)
+    || !Number.isFinite(story.timelineDivergence)
+    || !isObject(story.relationships)
+    || !Array.isArray(story.promises)
+    || !Array.isArray(story.eventLog)
+    || !isObject(story.flags)
+    || (story.pendingDecision !== null && typeof story.pendingDecision !== "string")
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
+function validateLiveGame(liveGame) {
+  if (isObject(liveGame.legacySession)) {
+    return;
+  }
+  if (
+    !isObject(liveGame.sim)
+    || !Array.isArray(liveGame.feed)
+    || !isObject(liveGame.manualOverrides)
+    || (
+      liveGame.context !== undefined
+      && liveGame.context !== null
+      && !isObject(liveGame.context)
+    )
+    || (
+      liveGame.seasonPendingGame !== undefined
+      && liveGame.seasonPendingGame !== null
+      && !isObject(liveGame.seasonPendingGame)
+    )
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
 function validateRoot(root) {
   if (!isObject(root)) {
     throw new Error("invalid root save");
@@ -33,7 +104,7 @@ function validateRoot(root) {
   }
   if (
     !Number.isFinite(root.savedAt)
-    || (root.activeMode !== null && typeof root.activeMode !== "string")
+    || ![null, "franchise", "timeTravel"].includes(root.activeMode)
     || !isObject(root.profile)
     || !isObject(root.profile.settings)
     || !isObject(root.profile.accessibility)
@@ -43,6 +114,15 @@ function validateRoot(root) {
     || (root.liveGame !== null && !isObject(root.liveGame))
   ) {
     throw new Error("invalid root save");
+  }
+  if (root.leagueCareer) {
+    validateLeagueCareer(root.leagueCareer);
+    if (root.leagueCareer.kind === "timeTravel") {
+      validateTimeTravelStory(root);
+    }
+  }
+  if (root.liveGame) {
+    validateLiveGame(root.liveGame);
   }
   return root;
 }
@@ -157,9 +237,9 @@ export function importRootSave(text) {
 
 export function migrateLegacySaves(storage) {
   const target = getStorage(storage);
-  const existingRoot = readRootSave(target);
-  if (existingRoot) {
-    return { root: existingRoot, source: ROOT_SAVE_KEY };
+  if (target.getItem(ROOT_SAVE_KEY) !== null) {
+    const existingRoot = readRootSave(target);
+    return existingRoot ? { root: existingRoot, source: ROOT_SAVE_KEY } : null;
   }
 
   const season = parseLegacy(target, LEGACY_SEASON_KEY, [1, 2]);
@@ -172,6 +252,8 @@ export function migrateLegacySaves(storage) {
         phase: season.phase,
         season,
         history: [],
+        manualOverrides: {},
+        recommendations: {},
       },
     });
     validateRoot(root);
