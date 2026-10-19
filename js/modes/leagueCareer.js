@@ -1,6 +1,18 @@
 import { advanceLeagueOffseason } from "../engine/season.js";
 
 const CAREER_KINDS = new Set(["franchise", "timeTravel"]);
+const SEASON_PROGRESS_MODES = new Set(["season", "franchise", "timeTravel"]);
+
+export function isSeasonProgressMode(mode) {
+  return SEASON_PROGRESS_MODES.has(mode);
+}
+
+export function resolveRootLiveGame(mode, includedLiveGame, cachedLiveGame) {
+  if (mode === "include") return includedLiveGame ?? null;
+  if (mode === "clear") return null;
+  if (mode === "preserve") return cachedLiveGame ?? null;
+  throw new TypeError("live game mode must be include, clear, or preserve");
+}
 
 function requireCareer(career) {
   if (!career || typeof career !== "object") {

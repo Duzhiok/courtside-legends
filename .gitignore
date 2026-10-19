@@ -3,6 +3,7 @@ node_modules/
 .idea/
 .vscode/
 .worktrees/
+.superpowers/
 *.log
 .venv/
 data/raw/

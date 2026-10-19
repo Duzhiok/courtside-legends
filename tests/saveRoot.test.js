@@ -16,6 +16,45 @@ const TEMP_ROOT_SAVE_KEY = "cls_root_v3_tmp";
 const LEGACY_GAME_KEY = "cls_savegame_v1";
 const LEGACY_SEASON_KEY = "cls_season_v1";
 
+function validSeason(overrides = {}) {
+  return {
+    v: 2,
+    year: 1991,
+    phase: "regular",
+    userTeamId: "POR",
+    teams: { POR: { id: "POR", players: [] } },
+    schedule: [],
+    ...overrides,
+  };
+}
+
+function validStory(overrides = {}) {
+  return {
+    storyId: "tt-1991-42",
+    currentChapter: "prologue",
+    employer: "POR",
+    futureKnowledge: 3,
+    frontOfficeTrust: 52,
+    mediaPressure: 20,
+    timelineDivergence: 0,
+    relationships: {},
+    promises: [],
+    pendingDecision: "future-knowledge-intro",
+    eventLog: [],
+    flags: {},
+    ...overrides,
+  };
+}
+
+function exportEnvelope(root) {
+  return JSON.stringify({
+    format: "courtside-legends-save",
+    schemaVersion: 3,
+    exportedAt: new Date().toISOString(),
+    root,
+  });
+}
+
 test("time-travel root saves round-trip through storage", () => {
   const storage = createMemoryStorage();
   const root = createRootState({
@@ -37,17 +76,14 @@ test("time-travel resume preserves career story and pending decision", () => {
     leagueCareer: {
       careerId: "tt-1991-42",
       kind: "timeTravel",
+      storyId: "tt-1991-42",
       phase: "regular",
-      season: { v: 2, year: 1991, phase: "regular" },
+      season: validSeason(),
       history: [],
       manualOverrides: { matchups: { PG: "player-1" } },
       recommendations: {},
     },
-    story: {
-      storyId: "tt-1991-42",
-      pendingDecision: "future-knowledge-intro",
-      eventLog: [],
-    },
+    story: validStory(),
     liveGame: {
       context: {
         gameId: "1991-LAL-POR-1",
@@ -55,6 +91,7 @@ test("time-travel resume preserves career story and pending decision", () => {
         awayId: "POR",
         youSide: "away",
       },
+      seasonPendingGame: { homeId: "LAL", awayId: "POR", played: false },
       sim: {
         v: 1,
         quarter: 3,
@@ -76,13 +113,22 @@ test("time-travel resume preserves career story and pending decision", () => {
   assert.equal(resumed.story.pendingDecision, "future-knowledge-intro");
   assert.equal(resumed.leagueCareer.manualOverrides.matchups.PG, "player-1");
   assert.equal(resumed.liveGame.sim.clock, 421);
+  assert.deepEqual(resumed.liveGame.seasonPendingGame, root.liveGame.seasonPendingGame);
 });
 
 test("exported root save imports to the same state", () => {
   const root = createRootState({
     savedAt: 123,
     activeMode: "franchise",
-    leagueCareer: { careerId: "career-1" },
+    leagueCareer: {
+      careerId: "career-1",
+      kind: "franchise",
+      phase: "regular",
+      season: validSeason(),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
   });
 
   assert.deepEqual(importRootSave(exportRootSave(root)), root);
@@ -90,7 +136,7 @@ test("exported root save imports to the same state", () => {
 
 for (const version of [1, 2]) {
   test(`legacy season v${version} becomes a franchise career and remains stored`, () => {
-    const legacy = { v: version, phase: "playoffs", seasonNumber: 4 };
+    const legacy = validSeason({ v: version, phase: "playoffs", seasonNumber: 4 });
     const storage = createMemoryStorage({
       [LEGACY_SEASON_KEY]: JSON.stringify(legacy),
     });
@@ -105,6 +151,8 @@ for (const version of [1, 2]) {
       phase: legacy.phase,
       season: legacy,
       history: [],
+      manualOverrides: {},
+      recommendations: {},
     });
     assert.deepEqual(readRootSave(storage), migrated.root);
     assert.equal(storage.getItem(LEGACY_SEASON_KEY), JSON.stringify(legacy));
@@ -159,6 +207,91 @@ test("import rejects roots without a schema version", () => {
   assert.throws(() => importRootSave(text), /invalid save file/);
 });
 
+test("import rejects an unsupported root active mode", () => {
+  const root = createRootState({ activeMode: "season" });
+
+  assert.throws(() => importRootSave(exportEnvelope(root)), /invalid save file/);
+});
+
+test("import rejects malformed root live-game structure", () => {
+  const root = createRootState({
+    liveGame: {
+      sim: { v: 1 },
+      feed: {},
+      manualOverrides: {},
+      context: null,
+      seasonPendingGame: null,
+    },
+  });
+
+  assert.throws(() => importRootSave(exportEnvelope(root)), /invalid save file/);
+});
+
+test("import rejects an empty league career before stored state changes", () => {
+  const stored = createRootState({ savedAt: 17 });
+  const storage = createMemoryStorage({
+    [ROOT_SAVE_KEY]: JSON.stringify(stored),
+  });
+  const malformed = createRootState({ leagueCareer: {} });
+  const text = JSON.stringify({
+    format: "courtside-legends-save",
+    schemaVersion: 3,
+    exportedAt: new Date().toISOString(),
+    root: malformed,
+  });
+
+  assert.throws(() => importRootSave(text), /invalid save file/);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), JSON.stringify(stored));
+});
+
+test("import rejects malformed league season structure before writing", () => {
+  const stored = createRootState({ savedAt: 18 });
+  const storage = createMemoryStorage({
+    [ROOT_SAVE_KEY]: JSON.stringify(stored),
+  });
+  const season = validSeason();
+  delete season.schedule;
+  const malformed = createRootState({
+    activeMode: "franchise",
+    leagueCareer: {
+      careerId: "career-1",
+      kind: "franchise",
+      phase: "regular",
+      season,
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+  });
+
+  assert.throws(() => importRootSave(exportEnvelope(malformed)), /invalid save file/);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), JSON.stringify(stored));
+});
+
+test("import rejects invalid time-travel story resources before writing", () => {
+  const stored = createRootState({ savedAt: 19 });
+  const storage = createMemoryStorage({
+    [ROOT_SAVE_KEY]: JSON.stringify(stored),
+  });
+  const malformed = createRootState({
+    activeMode: "timeTravel",
+    leagueCareer: {
+      careerId: "tt-1991-42",
+      kind: "timeTravel",
+      storyId: "tt-1991-42",
+      phase: "regular",
+      season: validSeason(),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+    story: validStory({ futureKnowledge: "three" }),
+  });
+
+  assert.throws(() => importRootSave(exportEnvelope(malformed)), /invalid save file/);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), JSON.stringify(stored));
+});
+
 test("corrupt stored JSON is ignored without changing storage", () => {
   const storage = createMemoryStorage({
     [ROOT_SAVE_KEY]: "{corrupt",
@@ -182,6 +315,34 @@ test("migration returns an existing valid root without replacing it", () => {
 
   assert.deepEqual(result, { root, source: ROOT_SAVE_KEY });
   assert.equal(storage.getItem(ROOT_SAVE_KEY), JSON.stringify(root));
+});
+
+test("future root prevents legacy migration and leaves all bytes unchanged", () => {
+  const future = JSON.stringify({ ...createRootState(), schemaVersion: 999 });
+  const legacy = JSON.stringify({ v: 2, phase: "regular", marker: "legacy" });
+  const storage = createMemoryStorage({
+    [ROOT_SAVE_KEY]: future,
+    [LEGACY_SEASON_KEY]: legacy,
+  });
+  const before = storage.dump();
+
+  assert.equal(migrateLegacySaves(storage), null);
+  assert.deepEqual(storage.dump(), before);
+});
+
+test("failed temporary root write leaves the official root unchanged", () => {
+  const original = JSON.stringify(createRootState({ savedAt: 23 }));
+  const base = createMemoryStorage({ [ROOT_SAVE_KEY]: original });
+  const storage = {
+    ...base,
+    setItem(key, value) {
+      if (key === TEMP_ROOT_SAVE_KEY) throw new Error("quota");
+      base.setItem(key, value);
+    },
+  };
+
+  assert.throws(() => writeRootSave(createRootState(), storage), /quota/);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), original);
 });
 
 test("clear removes root and temporary saves but preserves legacy saves", () => {
