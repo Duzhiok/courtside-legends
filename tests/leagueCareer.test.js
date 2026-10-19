@@ -5,9 +5,11 @@ import {
   applyRecommendation,
   beginCareerDraft,
   clearManualOverride,
+  completeCareerOffseason,
   createLeagueCareer,
   isSeasonProgressMode,
   makeCareerDraftPick,
+  recoverCareerPhase,
   recordCareerEvent,
   resolveRootLiveGame,
   setManualOverride,
@@ -281,4 +283,158 @@ test("career draft cannot reopen a completed draft for the same season", () => {
 
   assert.throws(() => beginCareerDraft(completed), /already.*complete|complete.*already/i);
   assert.deepEqual(completed, before);
+});
+
+test("draft phase recovery repairs current-year in-progress and unadvanced completed saves", () => {
+  const started = beginCareerDraft(careerWith({ season: completedCareerSeason("B") }));
+  const badStarted = { ...started, phase: "done" };
+  const recoveredStarted = recoverCareerPhase(badStarted);
+  assert.equal(recoveredStarted.phase, "draft");
+  assert.equal(badStarted.phase, "done");
+
+  const completed = makeCareerDraftPick(
+    started,
+    started.management.draft.prospects[0].prospectId,
+  );
+  const recoveredComplete = recoverCareerPhase({ ...completed, phase: "done" });
+  assert.equal(recoveredComplete.phase, "draft");
+
+  const alreadyAdvanced = {
+    ...completed,
+    phase: "done",
+    history: [
+      ...completed.history,
+      { type: "offseason-completed", year: completed.season.year },
+    ],
+  };
+  assert.equal(recoverCareerPhase(alreadyAdvanced).phase, "done");
+});
+
+test("draft phase recovery ignores prior-year drafts and unmanaged careers", () => {
+  const started = beginCareerDraft(careerWith({ season: completedCareerSeason("B") }));
+  const priorYear = structuredClone(started);
+  priorYear.phase = "done";
+  priorYear.season.year += 1;
+  assert.equal(recoverCareerPhase(priorYear).phase, "done");
+
+  const unmanaged = { ...priorYear };
+  delete unmanaged.management;
+  assert.equal(recoverCareerPhase(unmanaged), unmanaged);
+});
+
+function developmentPlayer(bref, overrides = {}) {
+  return {
+    id: `${bref}-2024`,
+    bref,
+    name: bref,
+    season: 2024,
+    age: 25,
+    pos: "PG",
+    scoring: 70,
+    three: 70,
+    mid: 70,
+    paint: 70,
+    pass: 70,
+    defense: 70,
+    rebound: 70,
+    steal: 70,
+    block: 70,
+    speed: 70,
+    strength: 70,
+    stamina: 70,
+    iq: 70,
+    clutch: 70,
+    ...overrides,
+  };
+}
+
+function manualPlan(overrides = {}) {
+  return {
+    focus: "defense",
+    role: "starter",
+    mentorBref: null,
+    load: "normal",
+    source: "manual",
+    ...overrides,
+  };
+}
+
+function completedManagedCareerWithRoster() {
+  const season = completedCareerSeason("B");
+  season.mode = "modern";
+  season.seed = 7;
+  season.playerSeason = {};
+  season.tradeLog = [];
+  season.teams.B.players = [
+    developmentPlayer("alpha"),
+    developmentPlayer("mentor", { age: 31, iq: 85 }),
+  ];
+  let career = beginCareerDraft(careerWith({ season }));
+  career = makeCareerDraftPick(
+    career,
+    career.management.draft.prospects[0].prospectId,
+  );
+  career.management.seasonHistory = [{ year: season.year }];
+  career.phase = "draft";
+  return career;
+}
+
+test("direct offseason completion reconciles departed players and mentors before validation", () => {
+  const career = completedManagedCareerWithRoster();
+  const mentored = manualPlan({ mentorBref: "mentor" });
+  career.management.developmentPlans = {
+    alpha: structuredClone(mentored),
+    departed: manualPlan(),
+  };
+  career.manualOverrides = {
+    training: {
+      alpha: structuredClone(mentored),
+      departed: manualPlan(),
+    },
+  };
+  career.recommendations = {
+    training: {
+      alpha: structuredClone(mentored),
+      departed: { ...manualPlan(), source: "automatic" },
+    },
+  };
+  career.season.teams.B.players = career.season.teams.B.players.filter(
+    (player) => player.bref !== "mentor",
+  );
+
+  const completed = completeCareerOffseason(career);
+
+  assert.equal(completed.career.management.developmentPlans.alpha.mentorBref, null);
+  assert.equal(completed.career.manualOverrides.training.alpha.mentorBref, null);
+  assert.equal(completed.career.recommendations.training.alpha.mentorBref, null);
+  assert.equal(completed.career.management.developmentPlans.departed, undefined);
+  assert.equal(completed.career.recommendations.training.departed, undefined);
+  assert.ok(Object.hasOwn(completed.career.manualOverrides.training, "departed"));
+});
+
+test("direct completion promotes valid manual plans and suppresses invalid legacy manual values", () => {
+  const career = completedManagedCareerWithRoster();
+  career.manualOverrides = {
+    training: {
+      alpha: manualPlan({ focus: "shooting" }),
+      mentor: "legacy-manual",
+    },
+  };
+  career.management.developmentPlans = {
+    alpha: { ...manualPlan(), source: "automatic" },
+    mentor: { ...manualPlan(), source: "automatic" },
+  };
+  career.recommendations = {
+    training: {
+      mentor: { ...manualPlan(), source: "automatic" },
+    },
+  };
+
+  const completed = completeCareerOffseason(career);
+
+  assert.equal(completed.career.management.developmentPlans.alpha.focus, "shooting");
+  assert.equal(completed.career.management.developmentPlans.alpha.source, "manual");
+  assert.equal(completed.career.management.developmentPlans.mentor, undefined);
+  assert.equal(completed.career.recommendations.training.mentor, undefined);
+  assert.equal(completed.career.manualOverrides.training.mentor, "legacy-manual");
 });
