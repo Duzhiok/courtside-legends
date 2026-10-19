@@ -6,6 +6,7 @@ import { careerPhase, estimateAge, PHASE_LABEL } from "../data/careerArc.js";
 import { clonePlayer, overall, PLAYERS } from "../data/players.js";
 import { playerPrice } from "../data/intangibles.js";
 import { pruneAgedSkills } from "../data/skills.js";
+import { developmentModifier } from "../modes/playerDevelopment.js";
 
 const ATTR_KEYS = [
   "scoring",
@@ -297,7 +298,24 @@ export function advancePlayerOneYear(player, { rng = Math.random } = {}) {
  * Develop every roster in the league; renews salaries (stars who played well cost more).
  * Returns change log for user team.
  */
-export function developLeagueRosters(st, { rng = Math.random } = {}) {
+export function developLeagueRosters(
+  st,
+  { rng = Math.random, developmentPlans = {} } = {},
+) {
+  if (
+    !developmentPlans ||
+    typeof developmentPlans !== "object" ||
+    Array.isArray(developmentPlans)
+  ) {
+    throw new TypeError("developmentPlans must be an object");
+  }
+  const userRoster = st?.teams?.[st.userTeamId]?.players || [];
+  const rosterByBref = new Map(userRoster.map((player) => [player.bref, player]));
+  const rosterBrefs = [...rosterByBref.keys()];
+  for (const [bref, plan] of Object.entries(developmentPlans)) {
+    developmentModifier(rosterByBref.get(bref) || {}, plan, {});
+  }
+
   const log = [];
   const teams = st?.teams || {};
   for (const tid of Object.keys(teams)) {
@@ -341,6 +359,36 @@ export function developLeagueRosters(st, { rng = Math.random } = {}) {
       } else {
         evolved = applyRenewal(evolved, p, stats);
       }
+      let appliedPlan = null;
+      let developmentEffects = null;
+      if (tid === st.userTeamId && developmentPlans[p.bref]) {
+        appliedPlan = structuredClone(developmentPlans[p.bref]);
+        const mentor = appliedPlan.mentorBref
+          ? rosterByBref.get(appliedPlan.mentorBref) || null
+          : null;
+        developmentEffects = developmentModifier(evolved, appliedPlan, {
+          averageMinutes:
+            stats?.gp > 0 && Number.isFinite(Number(stats.min))
+              ? Number(stats.min) / Number(stats.gp)
+              : undefined,
+          morale: Number.isFinite(Number(p.morale)) ? Number(p.morale) : 50,
+          injured: Number(p.injuredGames) > 0 || Boolean(p.injuryStatus),
+          roleStable: p._developmentPlan?.role === appliedPlan.role,
+          mentor,
+          rosterBrefs,
+        });
+        for (const [attribute, delta] of Object.entries(
+          developmentEffects.attributeDeltas,
+        )) {
+          evolved[attribute] = Math.max(
+            10,
+            Math.min(99, Number(evolved[attribute] ?? 10) + Number(delta)),
+          );
+        }
+        evolved._developmentPlan = appliedPlan;
+        evolved._developmentEffects = structuredClone(developmentEffects);
+        evolved._developNote = `${evolved._developNote || ""} · 训练 +${developmentEffects.totalPoints}`;
+      }
       const after = overall(evolved);
       nextPlayers.push(evolved);
       if (tid === st.userTeamId) {
@@ -357,6 +405,8 @@ export function developLeagueRosters(st, { rng = Math.random } = {}) {
           salaryAfter: evolved.salary ?? 0,
           renewal: evolved._renewal?.reason || "",
           note: evolved._developNote || "",
+          plan: appliedPlan,
+          effects: developmentEffects,
         });
       }
     }

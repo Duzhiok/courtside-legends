@@ -4,6 +4,7 @@ import {
   createDraftState,
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
+import { pruneDevelopmentPlans } from "./playerDevelopment.js";
 
 const CAREER_KINDS = new Set(["franchise", "timeTravel"]);
 const SEASON_PROGRESS_MODES = new Set(["season", "franchise", "timeTravel"]);
@@ -166,6 +167,7 @@ function careerManagement(career) {
     draft: career.management?.draft || null,
     draftHistory: [...(career.management?.draftHistory || [])],
     seasonHistory: [...(career.management?.seasonHistory || [])],
+    developmentPlans: { ...(career.management?.developmentPlans || {}) },
   };
 }
 
@@ -308,17 +310,20 @@ export function completeCareerOffseason(career) {
   }
 
   const working = structuredClone(career);
-  const result = advanceLeagueOffseason(working.season);
+  const result = advanceLeagueOffseason(working.season, {
+    developmentPlans: working.management.developmentPlans || {},
+  });
   if (!result.ok) {
     throw new Error(result.reason || "failed to complete offseason");
   }
+  const pruned = pruneDevelopmentPlans(working);
   return {
     result,
     career: {
-      ...working,
+      ...pruned,
       phase: "regular",
       history: [
-        ...(working.history || []),
+        ...(pruned.history || []),
         {
           type: "offseason-completed",
           year,

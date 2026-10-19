@@ -1410,6 +1410,8 @@ export function advanceLeagueOffseason(st, options = {}) {
       : Number(options.seed) >>> 0;
   const developLog = developLeagueRosters(st, {
     rng: mulberry32(nextSeed ^ 0x243f6a88),
+    developmentPlans:
+      options.developmentPlans === undefined ? {} : options.developmentPlans,
   });
   st.year = Number(st.year) + 1;
   if (st.mode === "historical") {
