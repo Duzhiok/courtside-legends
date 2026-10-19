@@ -1,0 +1,265 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  renderDevelopmentPlans,
+  renderDraftBoard,
+} from "../js/ui/leagueManagementView.js";
+
+function container(controls = {}) {
+  return {
+    innerHTML: "",
+    onclick: null,
+    onchange: null,
+    querySelector(selector) {
+      return controls[selector] || null;
+    },
+  };
+}
+
+function player(bref, overrides = {}) {
+  return {
+    id: `${bref}-2030`,
+    bref,
+    name: bref,
+    pos: "PG",
+    age: 24,
+    season: 2030,
+    overall: 70,
+    scoring: 70,
+    three: 70,
+    mid: 70,
+    paint: 70,
+    pass: 70,
+    defense: 70,
+    rebound: 70,
+    steal: 70,
+    block: 70,
+    speed: 70,
+    strength: 70,
+    stamina: 70,
+    iq: 70,
+    clutch: 70,
+    ...overrides,
+  };
+}
+
+function career() {
+  const players = [
+    player('alpha"><img src=x onerror=1>', {
+      name: 'A <script>"',
+      overall: 82,
+      roleExpectation: "starter",
+      targetMinutes: 31,
+    }),
+    player("mentor", { name: "Mentor & Co", age: 31, overall: 75 }),
+  ];
+  return {
+    kind: "franchise",
+    phase: "draft",
+    season: {
+      phase: "done",
+      year: 2030,
+      userTeamId: "USER",
+      teams: {
+        USER: { name: 'User <Team>', players },
+        CPU: { name: 'CPU "Team"', players: [] },
+      },
+    },
+    management: {
+      draft: {
+        year: 2030,
+        status: "in_progress",
+        currentPick: 0,
+        order: ["USER", "CPU"],
+        selections: [],
+        prospects: [
+          {
+            prospectId: 'hist"><bad>',
+            bref: "hist",
+            name: "History <One>",
+            pos: "SF",
+            source: "historical-debut",
+            scoutingRange: { min: 77, max: 91 },
+            potential: 94,
+            player: { age: 20, season: 2031 },
+          },
+          {
+            prospectId: "generated",
+            bref: "generated",
+            name: "Generated & Two",
+            pos: "C",
+            source: "generated",
+            scoutingRange: { min: 70, max: 88 },
+            potential: 90,
+            player: { age: 21, season: 2031 },
+          },
+        ],
+      },
+      developmentPlans: {},
+    },
+    manualOverrides: {},
+    recommendations: {},
+  };
+}
+
+function target(action, data = {}) {
+  const button = { dataset: { action, ...data }, disabled: false };
+  return {
+    closest(selector) {
+      return selector === "[data-action]" ? button : null;
+    },
+  };
+}
+
+test("draft view escapes names/data, labels sources, and hides exact potential", () => {
+  const model = career();
+  const before = structuredClone(model);
+  const box = container();
+  renderDraftBoard(box, { career: model, teamNames: {} }, {});
+
+  assert.match(box.innerHTML, /History &lt;One&gt;/);
+  assert.match(box.innerHTML, /User &lt;Team&gt;/);
+  assert.match(box.innerHTML, /hist&quot;&gt;&lt;bad&gt;/);
+  assert.match(box.innerHTML, /历史首秀班（非精确选秀史）/);
+  assert.match(box.innerHTML, /架空新秀/);
+  assert.match(box.innerHTML, /77–91/);
+  assert.doesNotMatch(box.innerHTML, /potential|94|90/);
+  assert.deepEqual(model, before);
+});
+
+test("draft picking is available only on the user's turn", () => {
+  const model = career();
+  let picked = null;
+  const box = container();
+  renderDraftBoard(box, { career: model, teamNames: {} }, {
+    pickProspect(id) {
+      picked = id;
+    },
+  });
+  box.onclick({ target: target("pick", { prospectId: "generated" }) });
+  assert.equal(picked, "generated");
+
+  model.management.draft.order[0] = "CPU";
+  const cpuBox = container();
+  renderDraftBoard(cpuBox, { career: model, teamNames: {} }, {});
+  assert.doesNotMatch(cpuBox.innerHTML, /data-action="pick"/);
+  assert.match(cpuBox.innerHTML, /恢复|电脑球队/);
+});
+
+test("completed draft exposes next-season callback and selection details", async () => {
+  const model = career();
+  model.management.draft.status = "complete";
+  model.management.draft.currentPick = 2;
+  model.management.draft.selections = [{
+    pickNumber: 1,
+    teamId: "USER",
+    prospectId: "generated",
+    bref: "generated",
+    name: "Generated & Two",
+    source: "generated",
+    contract: { years: 4, salary: 120 },
+    waived: { name: "Waived <Player>" },
+  }];
+  let completed = 0;
+  const box = container();
+  renderDraftBoard(box, { career: model, teamNames: {} }, {
+    async completeOffseason() {
+      completed += 1;
+    },
+  });
+
+  assert.match(box.innerHTML, /四年合同|¤120|Waived &lt;Player&gt;/);
+  const eventTarget = target("complete-offseason");
+  const pending = box.onclick({ target: eventTarget });
+  assert.equal(eventTarget.closest("[data-action]").disabled, true);
+  await pending;
+  assert.equal(completed, 1);
+});
+
+test("a prior-year completed draft does not block the current season", () => {
+  const model = career();
+  model.phase = "regular";
+  model.season.phase = "regular";
+  model.season.year = 2031;
+  model.management.draft.status = "complete";
+  const box = container();
+
+  renderDraftBoard(box, { career: model, teamNames: {} }, {});
+
+  assert.match(box.innerHTML, /下一届选秀：2031 年/);
+  assert.doesNotMatch(box.innerHTML, /开始新赛季/);
+});
+
+test("development view renders markers, selected plans, and does not mutate", () => {
+  const model = career();
+  const alpha = model.season.teams.USER.players[0].bref;
+  model.management.developmentPlans[alpha] = {
+    focus: "defense",
+    role: "bench",
+    mentorBref: "mentor",
+    load: "low",
+    source: "manual",
+  };
+  model.manualOverrides = { training: { [alpha]: structuredClone(model.management.developmentPlans[alpha]) } };
+  model.recommendations = {
+    training: {
+      mentor: {
+        focus: "conditioning",
+        role: "starter",
+        mentorBref: null,
+        load: "normal",
+        source: "automatic",
+      },
+    },
+  };
+  const before = structuredClone(model);
+  const box = container();
+  renderDevelopmentPlans(box, { career: model }, {});
+
+  assert.match(box.innerHTML, /手动/);
+  assert.match(box.innerHTML, /自动建议/);
+  assert.match(box.innerHTML, /value="defense" selected/);
+  assert.match(box.innerHTML, /value="mentor" selected/);
+  assert.deepEqual(model, before);
+});
+
+test("delegated development save returns exact bref and selected values", () => {
+  const model = career();
+  const bref = model.season.teams.USER.players[0].bref;
+  let saved;
+  const row = {
+    querySelector(selector) {
+      return {
+        ".development-plan-focus": { value: "playmaking" },
+        ".development-plan-role": { value: "sixth" },
+        ".development-plan-mentor": { value: "mentor" },
+        ".development-plan-load": { value: "high" },
+      }[selector];
+    },
+  };
+  const button = { dataset: { action: "save-plan", bref } };
+  const eventTarget = {
+    closest(selector) {
+      if (selector === "[data-action]") return button;
+      if (selector === "[data-plan-row]") return row;
+      return null;
+    },
+  };
+  const box = container();
+  renderDevelopmentPlans(box, { career: model }, {
+    savePlan(savedBref, plan) {
+      saved = { bref: savedBref, plan };
+    },
+  });
+  box.onclick({ target: eventTarget });
+
+  assert.deepEqual(saved, {
+    bref,
+    plan: {
+      focus: "playmaking",
+      role: "sixth",
+      mentorBref: "mentor",
+      load: "high",
+    },
+  });
+});

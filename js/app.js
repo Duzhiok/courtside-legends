@@ -161,10 +161,21 @@ import {
   resolveFutureKnowledgeChoice,
 } from "./modes/timeTravelCareer.js";
 import {
-  advanceCareerOffseason,
+  completeCareerOffseason,
   isSeasonProgressMode,
+  makeCareerDraftPick,
+  prepareCareerOffseason,
   resolveRootLiveGame,
 } from "./modes/leagueCareer.js";
+import {
+  recommendDevelopmentPlans,
+  reconcileDevelopmentPlans,
+  setDevelopmentPlan,
+} from "./modes/playerDevelopment.js";
+import {
+  renderDevelopmentPlans,
+  renderDraftBoard,
+} from "./ui/leagueManagementView.js";
 import {
   SEASON_APRON,
   SEASON_MAX_ROSTER,
@@ -490,7 +501,7 @@ function resumeLongCareer(root = readRootSave()) {
   } else {
     show("season");
     renderSeasonHub();
-    showSeasonTab("standings");
+    showSeasonTab(state.leagueCareer?.phase === "draft" ? "draftBoard" : "standings");
   }
   return true;
 }
@@ -774,7 +785,7 @@ function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) 
     const checkpoint = clonePersistedState(state.longCareerRoot);
     state.leagueCareer = {
       ...state.leagueCareer,
-      phase: st.phase,
+      phase: state.leagueCareer.phase === "draft" ? "draft" : st.phase,
       season: st,
     };
     if (!saveLongCareer({ liveGame })) {
@@ -792,6 +803,28 @@ function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) 
     alert("赛季保存失败：可能是存档太大或浏览器存储空间不足。");
   }
   return seasonSaved;
+}
+
+function commitManagedCareer(career, activeTab) {
+  if (!career?.season) return false;
+  const previous = {
+    leagueCareer: state.leagueCareer,
+    season: state.season,
+    longCareerRoot: state.longCareerRoot,
+  };
+  state.leagueCareer = career;
+  state.season = career.season;
+  if (!saveSeasonAndCareer(state.season)) {
+    if (!state.longCareerRoot) {
+      state.leagueCareer = previous.leagueCareer;
+      state.season = previous.season;
+      state.longCareerRoot = previous.longCareerRoot;
+    }
+    return false;
+  }
+  renderSeasonHub();
+  showSeasonTab(activeTab);
+  return true;
 }
 
 /** 保存当前进度到本机（可中途离开，回来继续）。 */
@@ -7563,7 +7596,78 @@ function renderSeasonHub() {
   renderSeasonSchedule();
   renderSeasonAwards();
   renderSeasonPlayoffs();
+  renderLeagueManagement();
   if (!saveSeasonAndCareer(st)) return;
+}
+
+function renderLeagueManagement() {
+  const career = state.leagueCareer;
+  const teamNames = Object.fromEntries(
+    Object.entries(state.season?.teams || {}).map(([id, team]) => [id, team.name || id]),
+  );
+  renderDraftBoard(
+    $("#season-draft-board"),
+    { career, teamNames },
+    {
+      prepareDraft() {
+        if (!career || !confirm("确认结束本赛季并进入休赛期选秀？")) return;
+        try {
+          commitManagedCareer(prepareCareerOffseason(career), "draftBoard");
+        } catch (error) {
+          alert(error?.message || "无法进入休赛期选秀");
+        }
+      },
+      pickProspect(prospectId) {
+        try {
+          commitManagedCareer(makeCareerDraftPick(career, prospectId), "draftBoard");
+        } catch (error) {
+          alert(error?.message || "无法完成这次选秀");
+        }
+      },
+      completeOffseason() {
+        try {
+          const reconciled = reconcileDevelopmentPlans(career);
+          const completed = completeCareerOffseason(reconciled);
+          if (!commitManagedCareer(completed.career, "standings")) return;
+          const highlights = (completed.result?.log || [])
+            .filter((entry) => entry.delta > 0 || (entry.salaryAfter || 0) > (entry.salaryBefore || 0) + 10)
+            .slice(0, 8);
+          const summary = highlights.length
+            ? highlights
+                .map((entry) => `${entry.name} OVR ${entry.before}→${entry.after}`)
+                .join("\n")
+            : "本队本轮成长与续约变化较小。";
+          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}`);
+        } catch (error) {
+          alert(error?.message || "无法开始新赛季");
+        }
+      },
+    },
+  );
+  renderDevelopmentPlans(
+    $("#season-development"),
+    { career },
+    {
+      savePlan(bref, plan) {
+        try {
+          const next = setDevelopmentPlan(career, bref, {
+            ...plan,
+            source: "manual",
+          });
+          commitManagedCareer(next, "development");
+        } catch (error) {
+          alert(error?.message || "无法保存发展方案");
+        }
+      },
+      recommendPlans() {
+        try {
+          commitManagedCareer(recommendDevelopmentPlans(career), "development");
+        } catch (error) {
+          alert(error?.message || "无法生成发展建议");
+        }
+      },
+    },
+  );
 }
 
 function renderSeasonRotation() {
@@ -7940,6 +8044,10 @@ function renderSeasonMarket() {
         alert(res.reason);
         return;
       }
+      if (state.leagueCareer) {
+        state.leagueCareer = reconcileDevelopmentPlans(state.leagueCareer);
+        state.season = state.leagueCareer.season;
+      }
       if (!saveSeasonAndCareer(st)) return;
       renderSeasonHub();
       showSeasonTab("market");
@@ -8027,6 +8135,10 @@ function renderSeasonMarket() {
       return;
     }
     if (hint) hint.textContent = res.message;
+    if (state.leagueCareer) {
+      state.leagueCareer = reconcileDevelopmentPlans(state.leagueCareer);
+      state.season = state.leagueCareer.season;
+    }
     if (!saveSeasonAndCareer(st)) return;
     renderSeasonHub();
     showSeasonTab("market");
@@ -8283,6 +8395,10 @@ function renderSeasonPlayoffs() {
   const st = state.season;
   const box = $("#season-playoffs");
   if (!st || !box) return;
+  const currentCareerDraft =
+    state.leagueCareer?.management?.draft?.year === st.year
+      ? state.leagueCareer.management.draft
+      : null;
   if (!st.playoffs) {
     box.innerHTML = `<p class="tiny">常规赛结束后从评奖页进入季后赛（东西部各八强，七场四胜）。</p>
       <button type="button" class="btn" id="btn-season-sim-playoffs" ${
@@ -8349,9 +8465,13 @@ function renderSeasonPlayoffs() {
       }>一键打完季后赛</button>
       ${
         st.phase === "done"
-          ? `<button type="button" class="btn primary" id="btn-season-offseason">休赛期成长 · 开启 ${
-              Number(st.year) + 1
-            } 赛季</button>`
+          ? `<button type="button" class="btn primary" id="btn-season-offseason">${
+              currentCareerDraft
+                ? "继续选秀"
+                : state.leagueCareer
+                  ? "进入休赛期选秀"
+                  : `休赛期成长 · 开启 ${Number(st.year) + 1} 赛季`
+            }</button>`
           : ""
       }
     </div>
@@ -8387,24 +8507,30 @@ function renderSeasonPlayoffs() {
     showSeasonTab("playoffs");
   });
   $("#btn-season-offseason")?.addEventListener("click", () => {
+    if (currentCareerDraft) {
+      showSeasonTab("draftBoard");
+      return;
+    }
     if (
       !confirm(
-        `确认进入休赛期？\n全联盟球员按史实生涯成长/衰退，并按本季表现续约（打出来会更贵）。然后开启 ${
-          Number(st.year) + 1
-        } 赛季。`
+        state.leagueCareer
+          ? "确认结束本赛季并进入休赛期选秀？"
+          : `确认进入休赛期？\n全联盟球员按史实生涯成长/衰退，并按本季表现续约（打出来会更贵）。然后开启 ${
+              Number(st.year) + 1
+            } 赛季。`
       )
     ) {
       return;
     }
-    let res;
     if (state.leagueCareer) {
-      const advanced = advanceCareerOffseason(state.leagueCareer);
-      state.leagueCareer = advanced.career;
-      state.season = advanced.career.season;
-      res = advanced.result;
-    } else {
-      res = advanceLeagueOffseason(st);
+      try {
+        commitManagedCareer(prepareCareerOffseason(state.leagueCareer), "draftBoard");
+      } catch (error) {
+        alert(error?.message || "无法进入休赛期选秀");
+      }
+      return;
     }
+    const res = advanceLeagueOffseason(st);
     if (!res.ok) {
       alert(res.reason || "无法进入休赛期");
       return;
@@ -8437,6 +8563,8 @@ function showSeasonTab(tab) {
     schedule: $("#season-schedule"),
     awards: $("#season-awards"),
     playoffs: $("#season-playoffs"),
+    draftBoard: $("#season-draft-board"),
+    development: $("#season-development"),
   };
   for (const [k, el] of Object.entries(map)) {
     if (el) el.hidden = k !== tab;
