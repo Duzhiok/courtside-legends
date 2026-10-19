@@ -259,6 +259,7 @@ export function hireCoach(st, coachId) {
   team.coach = next;
   st.tradeLog.push({
     type: "hire_coach",
+    year: st.year,
     day: st.dayIndex,
     coachId: next.id,
     name: next.name,
@@ -292,6 +293,7 @@ export function hireAssistant(st, assistantId) {
   team.assistant = next;
   st.tradeLog.push({
     type: "hire_assistant",
+    year: st.year,
     day: st.dayIndex,
     assistantId: next.id,
     name: next.name,
@@ -314,7 +316,13 @@ export function fireCoach(st) {
   st.staffMarket = st.staffMarket || { coaches: [], assistants: [] };
   st.staffMarket.coaches = st.staffMarket.coaches || [];
   if (!st.staffMarket.coaches.some((c) => c.id === old.id)) st.staffMarket.coaches.unshift(old);
-  st.tradeLog.push({ type: "fire_coach", day: st.dayIndex, name: old.name, salary: staffSalary(old) });
+  st.tradeLog.push({
+    type: "fire_coach",
+    year: st.year,
+    day: st.dayIndex,
+    name: old.name,
+    salary: staffSalary(old),
+  });
   return { ok: true, coach: old, payroll: payrollSummary(team) };
 }
 
@@ -332,6 +340,7 @@ export function fireAssistant(st) {
   if (!st.staffMarket.assistants.some((a) => a.id === old.id)) st.staffMarket.assistants.unshift(old);
   st.tradeLog.push({
     type: "fire_assistant",
+    year: st.year,
     day: st.dayIndex,
     name: old.name,
     salary: staffSalary(old),
@@ -369,6 +378,7 @@ export function cutPlayer(st, playerId) {
   if (!st.freeAgents.some((p) => p.id === cut.id)) st.freeAgents.unshift(cut);
   st.tradeLog.push({
     type: "cut",
+    year: st.year,
     day: st.dayIndex,
     playerId: cut.id,
     name: cut.name,
@@ -408,6 +418,7 @@ export function signFreeAgent(st, playerId) {
   team.players.push(player);
   st.tradeLog.push({
     type: "sign",
+    year: st.year,
     day: st.dayIndex,
     playerId: player.id,
     name: player.name,
@@ -485,6 +496,7 @@ export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId } = {})
 
   st.tradeLog.push({
     type: "trade",
+    year: st.year,
     day: st.dayIndex,
     with: cpuTeamId,
     withName: cpu.name,

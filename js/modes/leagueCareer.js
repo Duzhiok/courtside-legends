@@ -213,7 +213,40 @@ function userReachedPlayoffs(season, teamId) {
   );
 }
 
-function annualSummary(season) {
+function transactionDescription(entry) {
+  if (entry.type === "sign" || entry.type === "cut") {
+    return String(entry.name || entry.playerId || "未知球员");
+  }
+  if (entry.type === "trade") {
+    const outgoing = (entry.give || []).map((player) => player?.name).filter(Boolean).join("、") || "—";
+    const incoming = (entry.get || []).map((player) => player?.name).filter(Boolean).join("、") || "—";
+    return `${entry.withName || entry.with || "对手球队"}：送出 ${outgoing}，得到 ${incoming}`;
+  }
+  if (entry.type === "hire_coach" || entry.type === "hire_assistant") {
+    return entry.replaced
+      ? `${entry.name || "未知职员"}（替换 ${entry.replaced}）`
+      : String(entry.name || "未知职员");
+  }
+  return String(entry.name || "未知职员");
+}
+
+function compactTransactions(season, includeLegacy) {
+  return (season.tradeLog || [])
+    .filter(
+      (entry) =>
+        entry?.year === season.year ||
+        (includeLegacy && entry?.year === undefined),
+    )
+    .slice(-20)
+    .map((entry) => ({
+      type: String(entry.type),
+      year: season.year,
+      day: Number.isInteger(entry.day) ? entry.day : 0,
+      description: transactionDescription(entry),
+    }));
+}
+
+function annualSummary(season, { includeLegacyTransactions = false } = {}) {
   const teamId = season.userTeamId;
   const record = season.standings?.[teamId];
   if (
@@ -235,7 +268,7 @@ function annualSummary(season) {
         : userReachedPlayoffs(season, teamId)
           ? "playoffs"
           : "lottery";
-  return {
+  const summary = {
     year: season.year,
     teamId,
     record: { w: record.w, l: record.l },
@@ -247,6 +280,15 @@ function annualSummary(season) {
       roy: compactAward(season.awards?.roy),
     },
   };
+  const transactions = compactTransactions(season, includeLegacyTransactions);
+  // Keep empty summaries byte-compatible with older schema-v3 snapshots.
+  Object.defineProperty(summary, "transactions", {
+    value: transactions,
+    enumerable: transactions.length > 0,
+    writable: true,
+    configurable: true,
+  });
+  return summary;
 }
 
 function appendSeasonCompletedEvent(history, year) {
@@ -294,7 +336,10 @@ export function prepareCareerOffseason(career) {
   }
 
   const working = structuredClone(career);
-  const summary = annualSummary(working.season);
+  const summary = annualSummary(working.season, {
+    includeLegacyTransactions:
+      (working.management?.seasonHistory || []).length === 0,
+  });
   working.management = careerManagement(working);
   working.management.seasonHistory.push(summary);
   working.history = appendSeasonCompletedEvent(working.history, year);

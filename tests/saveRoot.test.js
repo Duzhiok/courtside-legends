@@ -454,3 +454,45 @@ test("old schema-v3 careers without management still round-trip", () => {
   });
   assert.deepEqual(importRootSave(exportRootSave(oldRoot)), oldRoot);
 });
+
+test("season summary transactions are optional, compact, and validated", () => {
+  const transaction = {
+    type: "trade",
+    year: 1991,
+    day: 12,
+    description: "Portland: Outgoing for Incoming",
+  };
+  const valid = managedRoot({
+    draft: null,
+    draftHistory: [],
+    seasonHistory: [{
+      year: 1991,
+      teamId: "POR",
+      record: { w: 50, l: 32 },
+      championId: "CHI",
+      finish: "playoffs",
+      awards: {},
+      transactions: [transaction],
+    }],
+  });
+  assert.deepEqual(importRootSave(exportEnvelope(valid)), valid);
+
+  const legacy = structuredClone(valid);
+  delete legacy.leagueCareer.management.seasonHistory[0].transactions;
+  assert.deepEqual(importRootSave(exportEnvelope(legacy)), legacy);
+
+  const invalidTransactions = [
+    "not-an-array",
+    Array.from({ length: 21 }, () => transaction),
+    [{ ...transaction, type: "" }],
+    [{ ...transaction, year: 1991.5 }],
+    [{ ...transaction, year: 1992 }],
+    [{ ...transaction, description: "" }],
+    [{ ...transaction, day: "one" }],
+  ];
+  for (const transactions of invalidTransactions) {
+    const malformed = structuredClone(valid);
+    malformed.leagueCareer.management.seasonHistory[0].transactions = transactions;
+    assert.throws(() => importRootSave(exportEnvelope(malformed)), /invalid save file/);
+  }
+});

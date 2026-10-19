@@ -180,6 +180,7 @@ import {
   setDevelopmentPlan,
 } from "./modes/playerDevelopment.js";
 import {
+  renderCareerHistory,
   renderDevelopmentPlans,
   renderDraftBoard,
 } from "./ui/leagueManagementView.js";
@@ -7685,6 +7686,7 @@ function renderLeagueManagement() {
       },
     },
   );
+  renderCareerHistory($("#season-history"), { career });
 }
 
 function renderSeasonRotation() {
@@ -8594,6 +8596,7 @@ function showSeasonTab(tab) {
     playoffs: $("#season-playoffs"),
     draftBoard: $("#season-draft-board"),
     development: $("#season-development"),
+    history: $("#season-history"),
   };
   for (const [k, el] of Object.entries(map)) {
     if (el) el.hidden = k !== tab;

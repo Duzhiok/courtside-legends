@@ -2486,7 +2486,8 @@ select, input[type="number"] {
   font-size: .82rem;
 }
 .draft-board,
-.development-plan {
+.development-plan,
+.career-history {
   margin-top: 4px;
   min-width: 0;
 }
@@ -2592,6 +2593,66 @@ select, input[type="number"] {
   .development-plan-row {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+.career-history-head,
+.career-history-card > header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.career-history-head {
+  margin-bottom: 12px;
+}
+.career-history-head h4,
+.career-history-card h4,
+.career-history-card p {
+  margin: 0 0 4px;
+}
+.career-history-filters {
+  flex-wrap: wrap;
+}
+.career-history-filters .active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.career-history-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.career-history-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+.career-history-card details {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.career-history-card summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.career-history-card h5 {
+  margin: 10px 0 4px;
+}
+.career-history-card ul {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.career-history-empty {
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
 }
 .result-all-team {
   margin: 14px 0 18px;

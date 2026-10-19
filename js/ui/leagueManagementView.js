@@ -1,4 +1,8 @@
 import { overall } from "../data/players.js";
+import {
+  buildCareerTimeline,
+  filterCareerTimeline,
+} from "../modes/careerTimeline.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -286,5 +290,104 @@ export function renderDevelopmentPlans(container, { career } = {}, handlers = {}
     };
     return invoke(handlers.savePlan, button, button.dataset.bref, plan);
   };
+  return container;
+}
+
+const HISTORY_FILTERS = [
+  ["all", "全部"],
+  ["seasons", "赛季"],
+  ["drafts", "选秀"],
+  ["transactions", "交易"],
+];
+
+const FINISH_LABELS = {
+  champion: "总冠军",
+  finals: "总决赛",
+  playoffs: "季后赛",
+  lottery: "乐透区",
+};
+
+function historyCard(entry, career) {
+  const awards = [
+    ["MVP", entry.awards?.mvp],
+    ["DPOY", entry.awards?.dpoy],
+    ["ROY", entry.awards?.roy],
+  ]
+    .filter(([, award]) => award?.name)
+    .map(([label, award]) => `<li>${label}：${escapeHtml(award.name)}</li>`)
+    .join("");
+  const transactions = entry.transactions
+    .map(
+      (transaction) =>
+        `<li>第 ${escapeHtml(Number(transaction.day) + 1)} 日 · ${escapeHtml(transaction.description)}</li>`,
+    )
+    .join("");
+  const events = entry.events
+    .map(
+      (event) =>
+        `<li>${escapeHtml(event.label || event.description || event.choice || event.type)}</li>`,
+    )
+    .join("");
+  const pick = entry.userDraftPick
+    ? `<p><strong>本队选秀：</strong>#${escapeHtml(entry.userDraftPick.pickNumber)} ${escapeHtml(entry.userDraftPick.name || entry.userDraftPick.bref || "—")} · ${escapeHtml(sourceLabel(entry.userDraftPick.source))}</p>`
+    : "";
+  const champion = entry.championId
+    ? teamName(career, {}, entry.championId)
+    : "—";
+  return `<article class="career-history-card" data-history-year="${escapeHtml(entry.year)}">
+    <header><div><h4>${escapeHtml(entry.year)} · ${escapeHtml(entry.teamName)}</h4>
+      <p>${entry.record ? `${escapeHtml(entry.record.w)} 胜 ${escapeHtml(entry.record.l)} 负` : "无赛季总结"} · ${escapeHtml(FINISH_LABELS[entry.finish] || entry.finish || "—")}</p></div>
+      <span>冠军：${escapeHtml(champion)}</span></header>
+    ${pick}
+    <details><summary>奖项、交易与大事记</summary>
+      ${awards ? `<h5>奖项</h5><ul>${awards}</ul>` : ""}
+      ${transactions ? `<h5>交易记录</h5><ul>${transactions}</ul>` : ""}
+      ${events ? `<h5>生涯事件</h5><ul>${events}</ul>` : ""}
+      ${!awards && !transactions && !events ? "<p class=\"tiny\">本年暂无更多记录。</p>" : ""}
+    </details>
+  </article>`;
+}
+
+export function renderCareerHistory(container, { career } = {}) {
+  if (!container) return container;
+  if (!career?.management) {
+    container.onclick = null;
+    container.innerHTML = "<p class=\"tiny\">生涯历史属于长期生涯模式，请先创建或载入长期生涯。</p>";
+    return container;
+  }
+  const timeline = buildCareerTimeline(career);
+  if (!HISTORY_FILTERS.some(([value]) => value === container.dataset.historyFilter)) {
+    container.dataset.historyFilter = "all";
+  }
+
+  const render = () => {
+    const activeFilter = container.dataset.historyFilter;
+    const entries = filterCareerTimeline(timeline, activeFilter).reverse();
+    const filterLabel =
+      HISTORY_FILTERS.find(([value]) => value === activeFilter)?.[1] || "历史";
+    const buttons = HISTORY_FILTERS.map(
+      ([value, label]) =>
+        `<button type="button" class="btn small${value === activeFilter ? " active" : ""}" data-history-filter="${value}">${label}</button>`,
+    ).join("");
+    container.innerHTML = `<section class="career-history-panel">
+      <header class="career-history-head"><div><h4>长期生涯历史</h4><p class="tiny">仅保留紧凑赛季、选秀、交易和大事记。</p></div>
+        <div class="btn-row career-history-filters">${buttons}</div></header>
+      <div class="career-history-list">${
+        entries.length
+          ? entries.map((entry) => historyCard(entry, career)).join("")
+          : `<p class="career-history-empty">暂无${escapeHtml(filterLabel)}记录。</p>`
+      }</div>
+    </section>`;
+  };
+
+  container.onclick = (event) => {
+    const button = event?.target?.closest?.("[data-history-filter]");
+    if (!button || !HISTORY_FILTERS.some(([value]) => value === button.dataset.historyFilter)) {
+      return;
+    }
+    container.dataset.historyFilter = button.dataset.historyFilter;
+    render();
+  };
+  render();
   return container;
 }
