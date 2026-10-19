@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   developmentModifier,
   pruneDevelopmentPlans,
+  reconcileDevelopmentPlans,
   recommendDevelopmentPlans,
   setDevelopmentPlan,
 } from "../js/modes/playerDevelopment.js";
@@ -359,4 +360,59 @@ test("pruning removes departed brefs but survives card-id replacement", () => {
 
   assert.deepEqual(next.management.developmentPlans, { alpha: plan() });
   assert.equal(original.management.developmentPlans.departed.focus, "defense");
+});
+
+test("reconciliation removes departed players and clears departed mentors consistently", () => {
+  const original = career([player("alpha"), player("mentor")]);
+  const selected = plan({ mentorBref: "mentor" });
+  original.management.developmentPlans = {
+    alpha: structuredClone(selected),
+    departed: plan(),
+  };
+  original.manualOverrides = {
+    training: {
+      alpha: structuredClone(selected),
+      departed: plan(),
+    },
+  };
+  original.recommendations = {
+    training: {
+      alpha: structuredClone(selected),
+      departed: plan({ source: "automatic" }),
+    },
+  };
+  const changed = structuredClone(original);
+  changed.season.teams.USER.players = [player("alpha")];
+
+  const next = reconcileDevelopmentPlans(changed);
+
+  assert.deepEqual(next.management.developmentPlans, {
+    alpha: { ...selected, mentorBref: null },
+  });
+  assert.equal(next.manualOverrides.training.alpha.mentorBref, null);
+  assert.equal(next.recommendations.training.alpha.mentorBref, null);
+  assert.ok(Object.hasOwn(next.manualOverrides.training, "departed"));
+  assert.ok(Object.hasOwn(next.recommendations.training, "departed"));
+  assert.deepEqual(original.management.developmentPlans.alpha, selected);
+});
+
+test("reconciliation restores valid manual authority and suppresses invalid legacy values", () => {
+  const original = career();
+  const selected = plan({ focus: "defense", mentorBref: "mentor" });
+  original.manualOverrides = {
+    training: {
+      alpha: structuredClone(selected),
+      mentor: "legacy-manual-value",
+    },
+  };
+  original.management.developmentPlans = {
+    alpha: plan({ source: "automatic" }),
+    mentor: plan({ source: "automatic" }),
+  };
+
+  const next = reconcileDevelopmentPlans(original);
+
+  assert.deepEqual(next.management.developmentPlans.alpha, selected);
+  assert.equal(next.management.developmentPlans.mentor, undefined);
+  assert.equal(next.manualOverrides.training.mentor, "legacy-manual-value");
 });

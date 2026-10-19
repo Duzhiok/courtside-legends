@@ -342,18 +342,60 @@ export function developmentModifier(player, plan, context = {}) {
 }
 
 export function pruneDevelopmentPlans(career) {
+  return reconcileDevelopmentPlans(career);
+}
+
+function reconciledPlan(value, bref, roster) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const active = new Set(roster.map((player) => player.bref));
+  const candidate = structuredClone(value);
+  if (candidate.mentorBref !== null && !active.has(candidate.mentorBref)) {
+    candidate.mentorBref = null;
+  }
+  try {
+    validatePlanForRoster(candidate, bref, roster);
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
+export function reconcileDevelopmentPlans(career) {
   const roster = requireCareerRoster(career);
   const active = new Set(roster.map((player) => player.bref));
-  const developmentPlans = Object.fromEntries(
-    Object.entries(career.management?.developmentPlans || {}).filter(([bref]) =>
-      active.has(bref),
-    ),
-  );
+  const { manualOverrides, recommendations } = cloneTrainingMaps(career);
+  const developmentPlans = {};
+
+  for (const [bref, value] of Object.entries(manualOverrides.training)) {
+    if (!active.has(bref)) continue;
+    const reconciled = reconciledPlan(value, bref, roster);
+    if (reconciled) {
+      manualOverrides.training[bref] = structuredClone(reconciled);
+      developmentPlans[bref] = structuredClone(reconciled);
+    }
+  }
+
+  for (const [bref, value] of Object.entries(recommendations.training)) {
+    if (!active.has(bref)) continue;
+    const reconciled = reconciledPlan(value, bref, roster);
+    if (reconciled) recommendations.training[bref] = reconciled;
+  }
+
+  for (const [bref, value] of Object.entries(
+    career.management?.developmentPlans || {},
+  )) {
+    if (!active.has(bref) || Object.hasOwn(manualOverrides.training, bref)) continue;
+    const reconciled = reconciledPlan(value, bref, roster);
+    if (reconciled) developmentPlans[bref] = reconciled;
+  }
+
   return {
     ...career,
     management: {
       ...(career.management || {}),
       developmentPlans,
     },
+    manualOverrides,
+    recommendations,
   };
 }

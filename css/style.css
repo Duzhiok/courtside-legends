@@ -2485,6 +2485,114 @@ select, input[type="number"] {
   gap: 6px 12px;
   font-size: .82rem;
 }
+.draft-board,
+.development-plan {
+  margin-top: 4px;
+  min-width: 0;
+}
+.draft-board-head,
+.development-plan-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.draft-board-head h4,
+.development-plan-head h4 {
+  margin: 0 0 4px;
+}
+.draft-board-prospects {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.draft-board-prospect {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.draft-board-prospect:hover {
+  border-color: var(--accent);
+}
+.draft-board-prospect span {
+  color: var(--muted);
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+.draft-board-selections {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+.draft-board-selection {
+  min-width: 0;
+}
+.draft-board-recovery {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+}
+.development-plan-list {
+  display: grid;
+  gap: 8px;
+}
+.development-plan-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(4, minmax(100px, .75fr)) auto;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.development-plan-player {
+  min-width: 0;
+  align-self: center;
+}
+.development-plan-row label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: .75rem;
+}
+.development-plan-row select,
+.development-plan-row .btn {
+  min-width: 0;
+  max-width: 100%;
+}
+.development-plan-marker {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+.development-plan-effects {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .development-plan-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .result-all-team {
   margin: 14px 0 18px;
   padding: 14px 16px;
