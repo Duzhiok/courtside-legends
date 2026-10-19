@@ -223,6 +223,61 @@ test("development view renders markers, selected plans, and does not mutate", ()
   assert.deepEqual(model, before);
 });
 
+test("invalid legacy manual values are marked invalid and do not borrow automatic-looking values", () => {
+  const model = career();
+  const alpha = model.season.teams.USER.players[0].bref;
+  model.manualOverrides = { training: { [alpha]: "legacy-value" } };
+  model.recommendations = {
+    training: {
+      [alpha]: {
+        focus: "defense",
+        role: "alpha",
+        mentorBref: "mentor",
+        load: "high",
+        source: "automatic",
+      },
+    },
+  };
+  const box = container();
+
+  renderDevelopmentPlans(box, { career: model }, {});
+
+  assert.match(box.innerHTML, /手动（无效）/);
+  assert.match(box.innerHTML, /value="balanced" selected/);
+  assert.match(box.innerHTML, /value="role" selected/);
+  assert.match(box.innerHTML, /value="normal" selected/);
+  assert.doesNotMatch(box.innerHTML, /value="defense" selected/);
+});
+
+test("delegated actions keep a synchronous pending guard through the current turn", async () => {
+  const model = career();
+  let calls = 0;
+  const box = container();
+  renderDraftBoard(box, { career: model, teamNames: {} }, {
+    pickProspect() {
+      calls += 1;
+    },
+  });
+  const button = {
+    dataset: { action: "pick", prospectId: "generated" },
+    disabled: false,
+  };
+  const event = {
+    target: {
+      closest(selector) {
+        return selector === "[data-action]" ? button : null;
+      },
+    },
+  };
+
+  box.onclick(event);
+  box.onclick(event);
+  assert.equal(calls, 1);
+  assert.equal(button.disabled, true);
+  await Promise.resolve();
+  assert.equal(button.disabled, false);
+});
+
 test("delegated development save returns exact bref and selected values", () => {
   const model = career();
   const bref = model.season.teams.USER.players[0].bref;

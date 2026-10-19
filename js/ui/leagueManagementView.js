@@ -38,7 +38,9 @@ function invoke(handler, button, ...args) {
       button.disabled = false;
     });
   }
-  button.disabled = false;
+  queueMicrotask(() => {
+    button.disabled = false;
+  });
   return result;
 }
 
@@ -160,6 +162,22 @@ const LOAD_OPTIONS = [
   ["normal", "正常"],
   ["high", "高"],
 ];
+const FOCUS_VALUES = new Set(FOCUS_OPTIONS.map(([value]) => value));
+const ROLE_VALUES = new Set(ROLE_OPTIONS.map(([value]) => value));
+const LOAD_VALUES = new Set(LOAD_OPTIONS.map(([value]) => value));
+
+function isDisplayPlan(value, source = null) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      FOCUS_VALUES.has(value.focus) &&
+      ROLE_VALUES.has(value.role) &&
+      LOAD_VALUES.has(value.load) &&
+      (value.mentorBref === null || typeof value.mentorBref === "string") &&
+      (!source || value.source === source),
+  );
+}
 
 function options(entries, selected) {
   return entries
@@ -193,15 +211,31 @@ export function renderDevelopmentPlans(container, { career } = {}, handlers = {}
     .sort((left, right) => overall(right) - overall(left) || String(left.name || "").localeCompare(String(right.name || "")))
     .map((player) => {
       const ownsManual = Object.prototype.hasOwnProperty.call(manual, player.bref);
-      const plan = executable[player.bref] || recommendations[player.bref] || {
+      const validManual = isDisplayPlan(manual[player.bref], "manual");
+      const executablePlan = isDisplayPlan(executable[player.bref])
+        ? executable[player.bref]
+        : null;
+      const recommendedPlan = isDisplayPlan(recommendations[player.bref])
+        ? recommendations[player.bref]
+        : null;
+      const plan = ownsManual && !validManual
+        ? {
+            focus: "balanced",
+            role: "role",
+            mentorBref: null,
+            load: "normal",
+          }
+        : executablePlan || recommendedPlan || {
         focus: "balanced",
         role: "role",
         mentorBref: null,
         load: "normal",
       };
       const marker = ownsManual
-        ? "手动"
-        : recommendations[player.bref]
+        ? validManual
+          ? "手动"
+          : "手动（无效）"
+        : recommendedPlan
           ? "自动建议"
           : "未设置";
       const mentors = [

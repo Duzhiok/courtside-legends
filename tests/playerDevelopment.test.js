@@ -392,7 +392,7 @@ test("reconciliation removes departed players and clears departed mentors consis
   assert.equal(next.manualOverrides.training.alpha.mentorBref, null);
   assert.equal(next.recommendations.training.alpha.mentorBref, null);
   assert.ok(Object.hasOwn(next.manualOverrides.training, "departed"));
-  assert.ok(Object.hasOwn(next.recommendations.training, "departed"));
+  assert.equal(next.recommendations.training.departed, undefined);
   assert.deepEqual(original.management.developmentPlans.alpha, selected);
 });
 

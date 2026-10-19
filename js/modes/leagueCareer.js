@@ -6,6 +6,7 @@ import {
 } from "../engine/leagueDraft.js";
 import {
   pruneDevelopmentPlans,
+  reconcileDevelopmentPlans,
   validateDevelopmentPlans,
 } from "./playerDevelopment.js";
 
@@ -140,6 +141,26 @@ export function syncCareerPhase(career) {
   requireCareer(career);
   requireSeason(career.season);
   return { ...career, phase: career.season.phase };
+}
+
+export function recoverCareerPhase(career) {
+  if (!career?.management || career.season?.phase !== "done") return career;
+  const draft = career.management.draft;
+  if (
+    !draft ||
+    draft.year !== career.season.year ||
+    !["in_progress", "complete"].includes(draft.status)
+  ) {
+    return career;
+  }
+  const offseasonCompleted = (career.history || []).some(
+    (event) =>
+      event?.type === "offseason-completed" &&
+      Number(event.year) >= Number(draft.year),
+  );
+  if (draft.status === "complete" && offseasonCompleted) return career;
+  if (career.phase === "draft") return career;
+  return { ...career, phase: "draft" };
 }
 
 /**
@@ -311,9 +332,10 @@ export function completeCareerOffseason(career) {
   ) {
     throw new Error("current-year season summary is required");
   }
-  validateDevelopmentPlans(career);
+  const reconciled = reconcileDevelopmentPlans(career);
+  validateDevelopmentPlans(reconciled);
 
-  const working = structuredClone(career);
+  const working = structuredClone(reconciled);
   const result = advanceLeagueOffseason(working.season, {
     developmentPlans: working.management.developmentPlans || {},
   });
