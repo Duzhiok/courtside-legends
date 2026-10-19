@@ -308,6 +308,22 @@ test("invalid and duplicate selections reject without partial mutation", () => {
   assert.deepEqual(season, afterSelection);
 });
 
+test("selection rejects duplicate available bref identities atomically", () => {
+  const season = playableSeason();
+  const draft = createDraftState({ season, seed: "duplicate-bref", players: [] });
+  draft.prospects[1].bref = draft.prospects[0].bref;
+  draft.prospects[1].player.bref = draft.prospects[0].bref;
+  const seasonBefore = structuredClone(season);
+  const draftBefore = structuredClone(draft);
+
+  assert.throws(
+    () => selectDraftProspect(draft, season, draft.prospects[0].prospectId),
+    /bref|identity|unique|duplicate/i,
+  );
+  assert.deepEqual(season, seasonBefore);
+  assert.deepEqual(draft, draftBefore);
+});
+
 test("full rosters waive the deterministic lowest-value non-rookie", () => {
   const firstSeason = playableSeason({ rosterSize: 15 });
   const secondSeason = structuredClone(firstSeason);

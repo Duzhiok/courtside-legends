@@ -416,17 +416,30 @@ export function selectDraftProspect(draft, season, prospectId) {
     throw new Error(`prospect "${prospectId}" must be unique`);
   }
   const prospectIndex = prospectIndexes[0];
+  const prospect = draft.prospects[prospectIndex];
+  const stableBref =
+    typeof prospect?.bref === "string" ? prospect.bref.trim() : "";
+  if (
+    stableBref &&
+    draft.prospects.some(
+      (available, index) =>
+        index !== prospectIndex &&
+        typeof available?.bref === "string" &&
+        available.bref.trim() === stableBref,
+    )
+  ) {
+    throw new Error(`prospect bref "${stableBref}" must be unique`);
+  }
   if (
     draft.selections?.some(
       (selection) =>
         selection.prospectId === prospectId ||
-        (selection.bref && selection.bref === draft.prospects[prospectIndex].bref),
+        (selection.bref && selection.bref === prospect.bref),
     )
   ) {
     throw new Error(`prospect "${prospectId}" has already been selected`);
   }
 
-  const prospect = draft.prospects[prospectIndex];
   if (!prospect.player || typeof prospect.player !== "object") {
     throw new Error(`prospect "${prospectId}" must contain a player`);
   }
