@@ -1,16 +1,35 @@
 const FILTERS = new Set(["all", "seasons", "drafts", "transactions"]);
-const DUPLICATE_EVENT_TYPES = new Set([
-  "season-completed",
-  "draft-opened",
-  "draft-completed",
-  "offseason-completed",
-]);
+const EVENT_LABELS = {
+  "future-knowledge-intro": "完成未来知识抉择",
+  "season-completed": "赛季结束",
+  "draft-opened": "选秀开启",
+  "draft-completed": "选秀完成",
+  "offseason-completed": "休赛期完成",
+};
 
-function compactEvent(event) {
-  const compact = { type: String(event.type) };
-  if (typeof event.label === "string") compact.label = event.label;
-  if (typeof event.description === "string") compact.description = event.description;
-  if (typeof event.choice === "string") compact.choice = event.choice;
+function eventTeamName(career, teamId) {
+  return career.season?.teams?.[teamId]?.name
+    || career.season?.league?.labels?.[teamId]
+    || teamId
+    || "球队";
+}
+
+function compactEvent(event, career) {
+  const type = String(event.type);
+  const compact = {
+    type,
+    label:
+      type === "accepted-offer"
+        ? `接受 ${eventTeamName(career, event.teamId)} 邀请`
+        : EVENT_LABELS[type] || "生涯事件",
+  };
+  if (typeof event.teamId === "string" && event.teamId) {
+    compact.teamId = event.teamId;
+  }
+  if (typeof event.choiceId === "string" && event.choiceId) {
+    compact.choiceId = event.choiceId;
+  }
+  if (Number.isInteger(event.nextYear)) compact.nextYear = event.nextYear;
   if (Number.isFinite(event.at)) compact.at = event.at;
   return compact;
 }
@@ -78,15 +97,14 @@ export function buildCareerTimeline(career) {
           .filter(
             (event) =>
               event?.year === year &&
-              typeof event.type === "string" &&
-              !DUPLICATE_EVENT_TYPES.has(event.type),
+              typeof event.type === "string",
           )
           .sort(
             (left, right) =>
               Number(left.at || 0) - Number(right.at || 0) ||
               String(left.type).localeCompare(String(right.type)),
           )
-          .map(compactEvent),
+          .map((event) => compactEvent(event, career)),
       };
     });
 }

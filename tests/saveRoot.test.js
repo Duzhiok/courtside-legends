@@ -397,6 +397,7 @@ test("managed root saves validate draft and season history shapes", () => {
     seasonHistory: [{
       year: 1991,
       teamId: "POR",
+      teamName: "Portland Trail Blazers",
       record: { w: 50, l: 32 },
       championId: "CHI",
       finish: "playoffs",
@@ -488,11 +489,20 @@ test("season summary transactions are optional, compact, and validated", () => {
     [{ ...transaction, year: 1991.5 }],
     [{ ...transaction, year: 1992 }],
     [{ ...transaction, description: "" }],
+    [{ ...transaction, description: "x".repeat(201) }],
     [{ ...transaction, day: "one" }],
+    [{ ...transaction, extra: true }],
+    [{ year: 1991, day: 12, description: "missing type" }],
   ];
   for (const transactions of invalidTransactions) {
     const malformed = structuredClone(valid);
     malformed.leagueCareer.management.seasonHistory[0].transactions = transactions;
+    assert.throws(() => importRootSave(exportEnvelope(malformed)), /invalid save file/);
+  }
+
+  for (const teamName of ["", "   ", 42]) {
+    const malformed = structuredClone(valid);
+    malformed.leagueCareer.management.seasonHistory[0].teamName = teamName;
     assert.throws(() => importRootSave(exportEnvelope(malformed)), /invalid save file/);
   }
 });

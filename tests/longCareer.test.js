@@ -19,6 +19,10 @@ import {
 import { advanceLeagueOffseason } from "../js/engine/season.js";
 import { invalidateDevelopLadder } from "../js/engine/develop.js";
 import { overall, PLAYERS } from "../js/data/players.js";
+import {
+  buildCareerTimeline,
+  filterCareerTimeline,
+} from "../js/modes/careerTimeline.js";
 
 function player(id, overrides = {}) {
   return {
@@ -162,6 +166,7 @@ test("preparation snapshots a compact summary and opens the same-year draft", ()
   assert.deepEqual(prepared.management.seasonHistory, [{
     year: 2030,
     teamId: "B",
+    teamName: "B",
     record: { w: 21, l: 61 },
     championId: "D",
     finish: "finals",
@@ -170,6 +175,7 @@ test("preparation snapshots a compact summary and opens the same-year draft", ()
       dpoy: null,
       roy: { playerId: "A-0", name: "A-0", teamId: "A" },
     },
+    transactions: [],
   }]);
   assert.equal(JSON.stringify(prepared.management.seasonHistory).includes("box"), false);
   assert.equal(prepared.history.filter((event) => event.type === "season-completed").length, 1);
@@ -613,6 +619,19 @@ test("fifteen generated-rookie cycles preserve league continuity", () => {
   assert.equal(career.management.seasonHistory.length, 15);
   assert.equal(career.management.draftHistory.length, 15);
   assert.equal(career.season.year, 2045);
+  assert.equal(
+    career.management.seasonHistory.every(
+      (summary) =>
+        summary.teamName === "B"
+        && Array.isArray(summary.transactions)
+        && summary.transactions.length === 0,
+    ),
+    true,
+  );
+  const timeline = buildCareerTimeline(career);
+  assert.equal(timeline.length, 15);
+  assert.equal(timeline.every((entry) => entry.teamName === "B"), true);
+  assert.deepEqual(filterCareerTimeline(timeline, "transactions"), []);
 
   const root = createRootState({
     activeMode: "franchise",
