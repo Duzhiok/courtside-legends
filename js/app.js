@@ -81,6 +81,15 @@ import {
   writeSave,
 } from "./data/savegame.js";
 import {
+  ROOT_SAVE_VERSION,
+  createRootState,
+  exportRootSave,
+  importRootSave,
+  migrateLegacySaves,
+  readRootSave,
+  writeRootSave,
+} from "./data/saveRoot.js";
+import {
   grantSkillToPlayer,
   listAwardSkillCatalog,
   markPurchasedSkill,
@@ -251,6 +260,7 @@ const screens = {
   result: $("#screen-result"),
   tournament: $("#screen-tournament"),
   season: $("#screen-season"),
+  timeTravel: $("#screen-time-travel"),
 };
 
 let state = {
@@ -264,6 +274,9 @@ let state = {
   tournament: null,
   legend: null,
   season: null,
+  leagueCareer: null,
+  story: null,
+  longCareerRoot: null,
   seasonPendingGame: null,
   seasonRosterDraft: null,
   lastMode: null,
@@ -341,6 +354,74 @@ function collectFeedLines() {
             : "event",
       text: el.textContent || "",
     }));
+}
+
+function currentRootState() {
+  const leagueCareer = state.leagueCareer
+    ? {
+        ...state.leagueCareer,
+        phase: state.season?.phase ?? state.leagueCareer.phase,
+        season: state.season ?? state.leagueCareer.season,
+      }
+    : null;
+  return createRootState({
+    activeMode: state.mode === "timeTravel" ? "timeTravel" : "franchise",
+    profile: {
+      accountId: getActiveAccountId() || null,
+      settings: {},
+      accessibility: {},
+    },
+    leagueCareer,
+    story: state.story,
+    liveGame: state.sim
+      ? {
+          context: state.pendingMatch,
+          sim: state.sim.exportState(),
+          feed: collectFeedLines(),
+          manualOverrides: state.leagueCareer?.manualOverrides || {},
+        }
+      : state.longCareerRoot?.liveGame ?? null,
+  });
+}
+
+function saveLongCareer() {
+  if (!state.leagueCareer) return false;
+  try {
+    state.longCareerRoot = writeRootSave(currentRootState());
+    return true;
+  } catch (error) {
+    console.error("[long-career-save]", error);
+    return false;
+  }
+}
+
+function resumeLongCareer(root = readRootSave()) {
+  if (!root?.leagueCareer?.season) return false;
+  state.mode = root.activeMode;
+  state.leagueCareer = root.leagueCareer;
+  state.story = root.story;
+  state.longCareerRoot = root;
+  state.season = root.leagueCareer.season;
+  if (state.story?.pendingDecision && screens.timeTravel) {
+    show("timeTravel");
+  } else {
+    show("season");
+    renderSeasonHub();
+  }
+  return true;
+}
+
+function saveSeasonAndCareer(st = state.season) {
+  const seasonSaved = saveSeason(st);
+  if (state.leagueCareer && st === state.season) {
+    state.leagueCareer = {
+      ...state.leagueCareer,
+      phase: st.phase,
+      season: st,
+    };
+    saveLongCareer();
+  }
+  return seasonSaved;
 }
 
 /** 保存当前进度到本机（可中途离开，回来继续）。 */
@@ -4752,7 +4833,7 @@ function persistSeasonRotationFromTeam(youTeam, starterIds = null) {
   if (youTeam.coach) team.coach = structuredClone(youTeam.coach);
   if (youTeam.lineupPacks) team.lineupPacks = structuredClone(youTeam.lineupPacks);
   team.rotation = captureRotationPlan(team, team.starterIds);
-  saveSeason(st);
+  saveSeasonAndCareer(st);
   return true;
 }
 
@@ -7059,7 +7140,7 @@ function renderSeasonHub() {
   renderSeasonSchedule();
   renderSeasonAwards();
   renderSeasonPlayoffs();
-  saveSeason(st);
+  saveSeasonAndCareer(st);
 }
 
 function renderSeasonRotation() {
@@ -7207,7 +7288,7 @@ function renderSeasonRotation() {
       if (!confirm(`当前标记了 ${you.starterIds.length} 名首发（建议 5 人）。仍保存？`)) return;
     }
     you.rotation = captureRotationPlan(you, you.starterIds);
-    saveSeason(st);
+    saveSeasonAndCareer(st);
     alert("默认轮换已保存。下场「亲自指挥」会自动套用首发/分钟/位置/核心。");
     renderSeasonRotation();
   });
@@ -7436,7 +7517,7 @@ function renderSeasonMarket() {
         alert(res.reason);
         return;
       }
-      saveSeason(st);
+      saveSeasonAndCareer(st);
       renderSeasonHub();
       showSeasonTab("market");
     };
@@ -7448,20 +7529,20 @@ function renderSeasonMarket() {
         alert(res.reason);
         return;
       }
-      saveSeason(st);
+      saveSeasonAndCareer(st);
       renderSeasonHub();
       showSeasonTab("market");
     };
   });
   $("#btn-sm-refresh-fa")?.addEventListener("click", () => {
     refreshFreeAgency(st, { force: true });
-    saveSeason(st);
+    saveSeasonAndCareer(st);
     renderSeasonMarket();
     showSeasonTab("market");
   });
   $("#btn-sm-refresh-staff")?.addEventListener("click", () => {
     refreshStaffMarket(st, { force: true });
-    saveSeason(st);
+    saveSeasonAndCareer(st);
     renderSeasonMarket();
     showSeasonTab("market");
   });
@@ -7472,7 +7553,7 @@ function renderSeasonMarket() {
       alert(res.reason);
       return;
     }
-    saveSeason(st);
+    saveSeasonAndCareer(st);
     renderSeasonHub();
     showSeasonTab("market");
   });
@@ -7483,7 +7564,7 @@ function renderSeasonMarket() {
       alert(res.reason);
       return;
     }
-    saveSeason(st);
+    saveSeasonAndCareer(st);
     renderSeasonHub();
     showSeasonTab("market");
   });
@@ -7494,7 +7575,7 @@ function renderSeasonMarket() {
         alert(res.reason);
         return;
       }
-      saveSeason(st);
+      saveSeasonAndCareer(st);
       renderSeasonHub();
       showSeasonTab("market");
     };
@@ -7506,7 +7587,7 @@ function renderSeasonMarket() {
         alert(res.reason);
         return;
       }
-      saveSeason(st);
+      saveSeasonAndCareer(st);
       renderSeasonHub();
       showSeasonTab("market");
     };
@@ -7523,7 +7604,7 @@ function renderSeasonMarket() {
       return;
     }
     if (hint) hint.textContent = res.message;
-    saveSeason(st);
+    saveSeasonAndCareer(st);
     renderSeasonHub();
     showSeasonTab("market");
   });
@@ -7756,7 +7837,7 @@ function renderSeasonAwards() {
         alert(res.reason || "领取失败");
         return;
       }
-      saveSeason(st);
+      saveSeasonAndCareer(st);
       alert(`${res.player.name} 学会了「${res.skillName}」！`);
       renderSeasonAwards();
     };
@@ -7909,7 +7990,7 @@ function renderSeasonPlayoffs() {
           .join("\n")
       : "本队本轮成长/涨薪幅度不大。";
     alert(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}`);
-    saveSeason(st);
+    saveSeasonAndCareer(st);
     renderSeasonHub();
     showSeasonTab("standings");
   });
@@ -7960,7 +8041,7 @@ function playSeasonUserGame() {
     preferStarter: true,
     excludeIds: [home?.coach?.id, home?.assistant?.id],
   });
-  saveSeason(st);
+  saveSeasonAndCareer(st);
   const cloneSide = (t) => ({
     name: t.name,
     players: t.players.map((p) => clonePlayer(p)),
@@ -7997,7 +8078,7 @@ function handleSeasonResult(snap) {
         }
       }
     }
-    saveSeason(st);
+    saveSeasonAndCareer(st);
   }
   wireSeasonResultContinue(st, snap);
 }
@@ -8035,7 +8116,7 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
   $("#result-summary").textContent = summaryExtra ? `${summaryExtra} ${base}` : base;
   cont.textContent = viewingHistory ? "返回赛程" : "回到赛季主页";
   cont.onclick = () => {
-    state.mode = "season";
+    state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
     renderSeasonHub();
     show("season");
     if (viewingHistory) showSeasonTab("schedule");
@@ -8059,7 +8140,7 @@ function simSeasonGames(count = 1) {
     last = r;
     n += 1;
   }
-  saveSeason(st);
+  saveSeasonAndCareer(st);
   if (last?.snap) {
     const extra =
       n > 1
@@ -8084,7 +8165,7 @@ $("#btn-season-resume")?.addEventListener("click", () => {
   const st = prepareSeasonState(state.season || loadSeason());
   if (!st) return;
   state.season = st;
-  state.mode = "season";
+  state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
   renderSeasonHub();
   showSeasonTab("standings");
 });
@@ -8414,8 +8495,8 @@ $("#btn-season-start")?.addEventListener("click", () => {
     alert(err?.message || "无法创建赛季");
     return;
   }
-  state.mode = "season";
-  saveSeason(state.season);
+  state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
+  saveSeasonAndCareer(state.season);
   renderSeasonHub();
   showSeasonTab("standings");
 });
@@ -8424,7 +8505,7 @@ $("#btn-season-sim-one")?.addEventListener("click", () => simSeasonGames(1));
 $("#btn-season-sim-week")?.addEventListener("click", () => simSeasonGames(5));
 $("#btn-season-save")?.addEventListener("click", () => {
   if (state.season) {
-    saveSeason(state.season);
+    saveSeasonAndCareer(state.season);
     alert("赛季进度已保存到本机。");
   }
 });
@@ -8811,6 +8892,8 @@ async function boot() {
       li.textContent = `卡池 ${PLAYERS.length} 张；换人面板显示板凳头像与属性；传奇模式可从八队历史球员自选位置组队。`;
       poolNote.appendChild(li);
     }
+    const discovered = readRootSave() || migrateLegacySaves()?.root || null;
+    state.longCareerRoot = discovered;
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
   } catch (e) {

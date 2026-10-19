@@ -30,6 +30,54 @@ test("time-travel root saves round-trip through storage", () => {
   assert.equal(storage.getItem(TEMP_ROOT_SAVE_KEY), null);
 });
 
+test("time-travel resume preserves career story and pending decision", () => {
+  const storage = createMemoryStorage();
+  const root = createRootState({
+    activeMode: "timeTravel",
+    leagueCareer: {
+      careerId: "tt-1991-42",
+      kind: "timeTravel",
+      phase: "regular",
+      season: { v: 2, year: 1991, phase: "regular" },
+      history: [],
+      manualOverrides: { matchups: { PG: "player-1" } },
+      recommendations: {},
+    },
+    story: {
+      storyId: "tt-1991-42",
+      pendingDecision: "future-knowledge-intro",
+      eventLog: [],
+    },
+    liveGame: {
+      context: {
+        gameId: "1991-LAL-POR-1",
+        homeId: "LAL",
+        awayId: "POR",
+        youSide: "away",
+      },
+      sim: {
+        v: 1,
+        quarter: 3,
+        clock: 421,
+        score: { home: 71, away: 74 },
+      },
+      feed: [{ type: "score", text: "POR 74-71 LAL" }],
+      manualOverrides: { matchups: { PG: "player-1" } },
+    },
+  });
+
+  writeRootSave(root, storage);
+  const resumed = readRootSave(storage);
+
+  assert.equal(resumed.activeMode, "timeTravel");
+  assert.deepEqual(resumed.leagueCareer, root.leagueCareer);
+  assert.deepEqual(resumed.story, root.story);
+  assert.deepEqual(resumed.liveGame, root.liveGame);
+  assert.equal(resumed.story.pendingDecision, "future-knowledge-intro");
+  assert.equal(resumed.leagueCareer.manualOverrides.matchups.PG, "player-1");
+  assert.equal(resumed.liveGame.sim.clock, 421);
+});
+
 test("exported root save imports to the same state", () => {
   const root = createRootState({
     savedAt: 123,
