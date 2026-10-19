@@ -63,6 +63,7 @@ test("league career creation initializes the shared wrapper", () => {
     management: {
       draft: null,
       draftHistory: [],
+      seasonHistory: [],
     },
   });
 });
@@ -157,22 +158,20 @@ test("league career phase sync copies the nested season phase immutably", () => 
   assert.equal(synced.phase, "playoffs");
 });
 
-test("league career offseason validates input and delegates season result", () => {
+test("league career offseason validates input and blocks managed direct progression", () => {
   assert.throws(() => advanceCareerOffseason(null), /career.*season/i);
   assert.throws(() => advanceCareerOffseason({}), /career.*season/i);
 
   const original = careerWith();
   const advanced = advanceCareerOffseason(original);
 
-  assert.notEqual(advanced.career, original);
+  assert.equal(advanced.career, original);
   assert.equal(advanced.career.phase, "regular");
-  assert.deepEqual(advanced.result, {
-    ok: false,
-    reason: "需先打完总决赛才能进入休赛期",
-  });
+  assert.equal(advanced.result.ok, false);
+  assert.match(advanced.result.reason, /staged|prepare|draft/i);
 });
 
-test("successful offseason synchronizes the career wrapper", () => {
+test("legacy direct offseason synchronizes the career wrapper", () => {
   const season = {
     phase: "done",
     year: 2000,
@@ -193,6 +192,7 @@ test("successful offseason synchronizes the career wrapper", () => {
     tradeLog: [],
   };
   const original = careerWith({ season });
+  delete original.management;
 
   const advanced = advanceCareerOffseason(original);
 

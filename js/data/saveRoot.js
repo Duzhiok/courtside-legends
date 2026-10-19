@@ -22,6 +22,75 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim() !== "";
 }
 
+function validateDraft(draft, { completed = false } = {}) {
+  const validSeed =
+    (typeof draft?.seed === "number" && Number.isFinite(draft.seed))
+    || isNonEmptyString(draft?.seed);
+  if (
+    !isObject(draft)
+    || !Number.isInteger(draft.year)
+    || !validSeed
+    || !Array.isArray(draft.order)
+    || !Array.isArray(draft.prospects)
+    || !Array.isArray(draft.selections)
+    || !Number.isInteger(draft.currentPick)
+    || draft.currentPick < 0
+    || !["in_progress", "complete"].includes(draft.status)
+    || (completed && draft.status !== "complete")
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
+function validateSeasonSummary(summary) {
+  if (
+    !isObject(summary)
+    || !Number.isInteger(summary.year)
+    || !isNonEmptyString(summary.teamId)
+    || !isObject(summary.record)
+    || !Number.isFinite(summary.record.w)
+    || summary.record.w < 0
+    || !Number.isFinite(summary.record.l)
+    || summary.record.l < 0
+    || typeof summary.finish !== "string"
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
+function validateManagement(management) {
+  if (!isObject(management)) {
+    throw new Error("invalid root save");
+  }
+  if (management.draft !== undefined && management.draft !== null) {
+    validateDraft(management.draft);
+  }
+  if (
+    management.draftHistory !== undefined
+    && !Array.isArray(management.draftHistory)
+  ) {
+    throw new Error("invalid root save");
+  }
+  for (const draft of management.draftHistory || []) {
+    validateDraft(draft, { completed: true });
+  }
+  if (
+    management.seasonHistory !== undefined
+    && !Array.isArray(management.seasonHistory)
+  ) {
+    throw new Error("invalid root save");
+  }
+  for (const summary of management.seasonHistory || []) {
+    validateSeasonSummary(summary);
+  }
+  if (
+    management.developmentPlans !== undefined
+    && !isObject(management.developmentPlans)
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
 function validateLeagueCareer(career) {
   const season = career.season;
   if (
@@ -40,6 +109,9 @@ function validateLeagueCareer(career) {
     || !isObject(career.recommendations)
   ) {
     throw new Error("invalid root save");
+  }
+  if (career.management !== undefined) {
+    validateManagement(career.management);
   }
 }
 

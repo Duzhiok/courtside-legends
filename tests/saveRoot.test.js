@@ -55,6 +55,35 @@ function exportEnvelope(root) {
   });
 }
 
+function managedRoot(management) {
+  return createRootState({
+    activeMode: "franchise",
+    leagueCareer: {
+      careerId: "career-1",
+      kind: "franchise",
+      phase: "draft",
+      season: validSeason({ phase: "done" }),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+      management,
+    },
+  });
+}
+
+function validDraft(overrides = {}) {
+  return {
+    year: 1991,
+    seed: "career-1:1991:draft",
+    order: ["POR"],
+    prospects: [],
+    selections: [],
+    currentPick: 1,
+    status: "complete",
+    ...overrides,
+  };
+}
+
 test("time-travel root saves round-trip through storage", () => {
   const storage = createMemoryStorage();
   const root = createRootState({
@@ -359,4 +388,60 @@ test("clear removes root and temporary saves but preserves legacy saves", () => 
     [LEGACY_SEASON_KEY]: "season",
     [LEGACY_GAME_KEY]: "game",
   });
+});
+
+test("managed root saves validate draft and season history shapes", () => {
+  const valid = managedRoot({
+    draft: validDraft(),
+    draftHistory: [validDraft()],
+    seasonHistory: [{
+      year: 1991,
+      teamId: "POR",
+      record: { w: 50, l: 32 },
+      championId: "CHI",
+      finish: "playoffs",
+      awards: { mvp: null, dpoy: null, roy: null },
+    }],
+    developmentPlans: {},
+  });
+  assert.deepEqual(importRootSave(exportEnvelope(valid)), valid);
+
+  const malformed = [
+    managedRoot({ draft: validDraft({ currentPick: -1 }), draftHistory: [], seasonHistory: [] }),
+    managedRoot({ draft: null, draftHistory: [validDraft({ status: "in_progress" })], seasonHistory: [] }),
+    managedRoot({ draft: null, draftHistory: [], seasonHistory: [{ year: 1991, teamId: "", record: { w: 1, l: 1 }, finish: "lottery" }] }),
+    managedRoot({ draft: null, draftHistory: [], seasonHistory: [], developmentPlans: [] }),
+  ];
+  for (const root of malformed) {
+    assert.throws(() => importRootSave(exportEnvelope(root)), /invalid save file/);
+  }
+});
+
+test("malformed managed saves do not change storage", () => {
+  const stored = createRootState({ savedAt: 91 });
+  const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: JSON.stringify(stored) });
+  const malformed = managedRoot({
+    draft: validDraft({ seed: "" }),
+    draftHistory: [],
+    seasonHistory: [],
+  });
+  assert.throws(() => importRootSave(exportEnvelope(malformed)), /invalid save file/);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), JSON.stringify(stored));
+});
+
+test("old schema-v3 careers without management still round-trip", () => {
+  const oldRoot = createRootState({
+    savedAt: 33,
+    activeMode: "franchise",
+    leagueCareer: {
+      careerId: "old-career",
+      kind: "franchise",
+      phase: "regular",
+      season: validSeason(),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+  });
+  assert.deepEqual(importRootSave(exportRootSave(oldRoot)), oldRoot);
 });

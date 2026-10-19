@@ -64,6 +64,7 @@ export function createLeagueCareer({ kind, season, storyId, careerId } = {}) {
     management: {
       draft: null,
       draftHistory: [],
+      seasonHistory: [],
     },
   };
 }
@@ -145,6 +146,15 @@ export function advanceCareerOffseason(career) {
   if (!career?.season) {
     throw new TypeError("career with a season is required");
   }
+  if (career.management !== undefined) {
+    return {
+      career,
+      result: {
+        ok: false,
+        reason: "managed careers use staged prepareCareerOffseason and completeCareerOffseason",
+      },
+    };
+  }
 
   const result = advanceLeagueOffseason(career.season);
   return { career: syncCareerPhase(career), result };
@@ -155,6 +165,140 @@ function careerManagement(career) {
     ...(career.management || {}),
     draft: career.management?.draft || null,
     draftHistory: [...(career.management?.draftHistory || [])],
+    seasonHistory: [...(career.management?.seasonHistory || [])],
+  };
+}
+
+function compactAward(entry) {
+  if (!entry) return null;
+  return {
+    playerId: entry.playerId,
+    name: entry.name,
+    teamId: entry.teamId,
+  };
+}
+
+function userReachedPlayoffs(season, teamId) {
+  const conferences = [season.playoffs?.east, season.playoffs?.west];
+  return conferences.some((conference) =>
+    (conference?.series || []).some(
+      (series) => series?.high?.id === teamId || series?.low?.id === teamId,
+    ),
+  );
+}
+
+function annualSummary(season) {
+  const teamId = season.userTeamId;
+  const record = season.standings?.[teamId];
+  if (
+    !record ||
+    !Number.isFinite(record.w) ||
+    !Number.isFinite(record.l)
+  ) {
+    throw new TypeError("completed season requires a valid user-team record");
+  }
+  const championId = season.playoffs?.championId || null;
+  const finals = season.playoffs?.finals;
+  const finalist =
+    finals?.high?.id === teamId || finals?.low?.id === teamId;
+  const finish =
+    championId === teamId
+      ? "champion"
+      : finalist
+        ? "finals"
+        : userReachedPlayoffs(season, teamId)
+          ? "playoffs"
+          : "lottery";
+  return {
+    year: season.year,
+    teamId,
+    record: { w: record.w, l: record.l },
+    championId,
+    finish,
+    awards: {
+      mvp: compactAward(season.awards?.mvp),
+      dpoy: compactAward(season.awards?.dpoy),
+      roy: compactAward(season.awards?.roy),
+    },
+  };
+}
+
+export function prepareCareerOffseason(career) {
+  requireCareer(career);
+  requireSeason(career.season);
+  if (career.season.phase !== "done") {
+    throw new Error("career season must be done before preparing the offseason");
+  }
+  if (!career.management || typeof career.management !== "object") {
+    throw new Error("managed career data is required for staged offseason preparation");
+  }
+  const year = career.season.year;
+  if (
+    (career.management.seasonHistory || []).some(
+      (summary) => summary.year === year,
+    )
+  ) {
+    throw new Error(`season summary for ${year} already exists`);
+  }
+
+  const working = structuredClone(career);
+  const summary = annualSummary(working.season);
+  working.management = careerManagement(working);
+  working.management.seasonHistory.push(summary);
+  const drafted = beginCareerDraft(working);
+  return {
+    ...drafted,
+    phase: "draft",
+    history: [
+      ...drafted.history,
+      {
+        type: "season-completed",
+        year,
+        at: year * 10000 + 2,
+      },
+    ],
+  };
+}
+
+export function completeCareerOffseason(career) {
+  requireCareer(career);
+  requireSeason(career.season);
+  const draft = career.management?.draft;
+  const year = career.season.year;
+  if (career.phase !== "draft") {
+    throw new Error("career must be in the draft phase before completing the offseason");
+  }
+  if (!draft || draft.status !== "complete" || draft.year !== year) {
+    throw new Error("current-year draft must be complete before completing the offseason");
+  }
+  if (
+    !(career.management?.seasonHistory || []).some(
+      (summary) => summary.year === year,
+    )
+  ) {
+    throw new Error("current-year season summary is required");
+  }
+
+  const working = structuredClone(career);
+  const result = advanceLeagueOffseason(working.season);
+  if (!result.ok) {
+    throw new Error(result.reason || "failed to complete offseason");
+  }
+  return {
+    result,
+    career: {
+      ...working,
+      phase: "regular",
+      history: [
+        ...(working.history || []),
+        {
+          type: "offseason-completed",
+          year,
+          nextYear: working.season.year,
+          at: year * 10000 + 3,
+        },
+      ],
+    },
   };
 }
 
