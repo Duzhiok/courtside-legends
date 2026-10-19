@@ -313,6 +313,9 @@ export function developLeagueRosters(
   const rosterByBref = new Map(userRoster.map((player) => [player.bref, player]));
   const rosterBrefs = [...rosterByBref.keys()];
   for (const [bref, plan] of Object.entries(developmentPlans)) {
+    if (typeof bref !== "string" || bref.trim() === "") {
+      throw new TypeError("development plan bref must be a non-empty string");
+    }
     developmentModifier(rosterByBref.get(bref) || {}, plan, {});
   }
 
@@ -359,6 +362,8 @@ export function developLeagueRosters(
       } else {
         evolved = applyRenewal(evolved, p, stats);
       }
+      delete evolved._developmentPlan;
+      delete evolved._developmentEffects;
       let appliedPlan = null;
       let developmentEffects = null;
       if (tid === st.userTeamId && developmentPlans[p.bref]) {
@@ -370,10 +375,17 @@ export function developLeagueRosters(
           averageMinutes:
             stats?.gp > 0 && Number.isFinite(Number(stats.min))
               ? Number(stats.min) / Number(stats.gp)
-              : undefined,
-          morale: Number.isFinite(Number(p.morale)) ? Number(p.morale) : 50,
+              : 0,
+          morale:
+            p.morale !== null &&
+            p.morale !== "" &&
+            Number.isFinite(Number(p.morale))
+              ? Number(p.morale)
+              : 50,
           injured: Number(p.injuredGames) > 0 || Boolean(p.injuryStatus),
-          roleStable: p._developmentPlan?.role === appliedPlan.role,
+          roleStable:
+            p._developmentPlan?.role === appliedPlan.role ||
+            p.roleExpectation === appliedPlan.role,
           mentor,
           rosterBrefs,
         });
@@ -387,9 +399,26 @@ export function developLeagueRosters(
         }
         evolved._developmentPlan = appliedPlan;
         evolved._developmentEffects = structuredClone(developmentEffects);
+        if (
+          p.morale !== null &&
+          p.morale !== "" &&
+          Number.isFinite(Number(p.morale))
+        ) {
+          evolved.morale = Math.max(
+            0,
+            Math.min(100, Number(p.morale) + developmentEffects.moraleDelta),
+          );
+        }
         evolved._developNote = `${evolved._developNote || ""} · 训练 +${developmentEffects.totalPoints}`;
       }
       const after = overall(evolved);
+      if (evolved._developAfterOvr !== undefined) {
+        evolved._developAfterOvr = after;
+        evolved._developNote = String(evolved._developNote || "").replace(
+          /OVR (\d+)→(\d+)/,
+          `OVR $1→${after}`,
+        );
+      }
       nextPlayers.push(evolved);
       if (tid === st.userTeamId) {
         log.push({
