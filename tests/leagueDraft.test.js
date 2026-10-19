@@ -1,9 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { overall } from "../js/data/players.js";
 import {
+  advanceDraftToUserPick,
   createDraftState,
   generateDraftOrder,
+  rookieContractForPick,
   rookieClassForYear,
+  selectDraftProspect,
 } from "../js/engine/leagueDraft.js";
 
 function card(bref, season, overrides = {}) {
@@ -232,4 +236,130 @@ test("draft domain validates malformed inputs descriptively", () => {
     /unique|duplicate/i,
   );
   assert.throws(() => createDraftState({ season: seasonFixture() }), /seed/i);
+});
+
+function playableSeason({ userTeamId = "B", rosterSize = 0 } = {}) {
+  const season = seasonFixture();
+  season.userTeamId = userTeamId;
+  season.freeAgents = [];
+  for (const id of season.league.teamIds) {
+    season.teams[id].players = Array.from({ length: rosterSize }, (_, index) =>
+      card(`${id.toLowerCase()}-veteran-${index}`, 2024, {
+        age: 24 + index,
+        scoring: 50 + index,
+        defense: 50 + index,
+      }),
+    );
+  }
+  return season;
+}
+
+test("rookie contracts use the four-year salary scale", () => {
+  assert.deepEqual(rookieContractForPick(1, 2024), {
+    kind: "rookie-scale",
+    signedYear: 2024,
+    pickNumber: 1,
+    salary: 190,
+    yearsRemaining: 4,
+    rookieScale: true,
+  });
+  assert.equal(rookieContractForPick(30, 2024).salary, 45);
+  assert.throws(() => rookieContractForPick(0, 2024), /pick/i);
+  assert.throws(() => rookieContractForPick(1.5, 2024), /pick/i);
+  assert.throws(() => rookieContractForPick(1, "2024"), /year/i);
+});
+
+test("selection immutably advances the draft and adds one contracted rookie", () => {
+  const season = playableSeason();
+  const draft = createDraftState({ season, seed: "selection", players: [] });
+  const prospect = draft.prospects[0];
+  prospect.player.photo = "transient";
+  prospect.player.nbaId = 77;
+  const before = structuredClone(draft);
+
+  const next = selectDraftProspect(draft, season, prospect.prospectId);
+
+  assert.notEqual(next, draft);
+  assert.deepEqual(draft, before);
+  assert.equal(next.prospects.some((entry) => entry.prospectId === prospect.prospectId), false);
+  assert.equal(next.selections.length, 1);
+  assert.equal(next.selections[0].source, "generated");
+  assert.equal(next.selections[0].contract.yearsRemaining, 4);
+  const rookie = season.teams[draft.order[0]].players[0];
+  assert.equal(rookie._rookie, true);
+  assert.equal(rookie._draftPick, 1);
+  assert.equal(rookie.team, draft.order[0]);
+  assert.equal(rookie.salary, rookie.contract.salary);
+  assert.equal("photo" in rookie, false);
+  assert.equal("nbaId" in rookie, false);
+});
+
+test("invalid and duplicate selections reject without partial mutation", () => {
+  const season = playableSeason();
+  const draft = createDraftState({ season, seed: "atomic", players: [] });
+  const seasonBefore = structuredClone(season);
+  assert.throws(() => selectDraftProspect({ ...draft, status: "complete" }, season, draft.prospects[0].prospectId), /active|progress/i);
+  assert.throws(() => selectDraftProspect(draft, season, "missing"), /available|prospect/i);
+  assert.deepEqual(season, seasonBefore);
+
+  const selected = selectDraftProspect(draft, season, draft.prospects[0].prospectId);
+  const afterSelection = structuredClone(season);
+  assert.throws(() => selectDraftProspect(selected, season, draft.prospects[0].prospectId), /available|prospect/i);
+  assert.deepEqual(season, afterSelection);
+});
+
+test("full rosters waive the deterministic lowest-value non-rookie", () => {
+  const firstSeason = playableSeason({ rosterSize: 15 });
+  const secondSeason = structuredClone(firstSeason);
+  const draft = createDraftState({ season: firstSeason, seed: "waiver", players: [] });
+  const teamId = draft.order[0];
+  const expected = [...firstSeason.teams[teamId].players].sort((a, b) => {
+    const value = (player) =>
+      overall(player) - Math.min(Number(player.age) || 0, 40) * 0.25;
+    return value(a) - value(b) || String(a.bref || a.id).localeCompare(String(b.bref || b.id));
+  })[0];
+
+  const first = selectDraftProspect(draft, firstSeason, draft.prospects[0].prospectId);
+  const secondDraft = createDraftState({ season: secondSeason, seed: "waiver", players: [] });
+  const second = selectDraftProspect(secondDraft, secondSeason, secondDraft.prospects[0].prospectId);
+
+  assert.equal(firstSeason.teams[teamId].players.length, 15);
+  assert.equal(first.selections[0].waived.bref, expected.bref);
+  assert.equal(second.selections[0].waived.bref, expected.bref);
+  assert.equal(firstSeason.freeAgents.filter((player) => player.bref === expected.bref).length, 1);
+});
+
+test("an all-rookie full roster rejects atomically", () => {
+  const season = playableSeason({ rosterSize: 15 });
+  const draft = createDraftState({ season, seed: "all-rookie", players: [] });
+  const teamId = draft.order[0];
+  season.teams[teamId].players.forEach((player) => {
+    player._rookie = true;
+  });
+  const seasonBefore = structuredClone(season);
+  const draftBefore = structuredClone(draft);
+
+  assert.throws(() => selectDraftProspect(draft, season, draft.prospects[0].prospectId), /rookie|waive|roster/i);
+  assert.deepEqual(season, seasonBefore);
+  assert.deepEqual(draft, draftBefore);
+});
+
+test("CPU advancement is deterministic, stops for the user, and can finish a draft", () => {
+  const firstSeason = playableSeason({ userTeamId: "H" });
+  const secondSeason = structuredClone(firstSeason);
+  const firstDraft = createDraftState({ season: firstSeason, seed: "cpu", players: [] });
+  const secondDraft = createDraftState({ season: secondSeason, seed: "cpu", players: [] });
+  const first = advanceDraftToUserPick(firstDraft, firstSeason);
+  const second = advanceDraftToUserPick(secondDraft, secondSeason);
+
+  assert.deepEqual(first, second);
+  assert.equal(first.order[first.currentPick], "H");
+  assert.ok(first.selections.every((selection) => selection.teamId !== "H"));
+
+  firstSeason.userTeamId = "not-in-league";
+  const complete = advanceDraftToUserPick(first, firstSeason);
+  assert.equal(complete.status, "complete");
+  assert.equal(new Set(complete.selections.map((selection) => selection.prospectId)).size, complete.order.length);
+  assert.equal(new Set(complete.selections.map((selection) => selection.teamId)).size, complete.order.length);
+  assert.ok(Object.values(firstSeason.teams).every((team) => team.players.length <= 15));
 });

@@ -1,4 +1,4 @@
-import { PLAYERS } from "../data/players.js";
+import { overall, PLAYERS } from "../data/players.js";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
 const ATTRIBUTES = [
@@ -328,4 +328,213 @@ export function createDraftState({ season, seed, players = PLAYERS } = {}) {
     selections: [],
     status: "in_progress",
   };
+}
+
+export function rookieContractForPick(pickNumber, year) {
+  if (!Number.isInteger(pickNumber) || pickNumber <= 0) {
+    throw new TypeError("pickNumber must be a positive integer");
+  }
+  requireYear(year);
+  return {
+    kind: "rookie-scale",
+    signedYear: year,
+    pickNumber,
+    salary: Math.max(45, 190 - (pickNumber - 1) * 5),
+    yearsRemaining: 4,
+    rookieScale: true,
+  };
+}
+
+function activePick(draft, season) {
+  if (!draft || typeof draft !== "object" || Array.isArray(draft)) {
+    throw new TypeError("draft must be an object");
+  }
+  if (draft.status !== "in_progress") {
+    throw new Error("draft must be active and in progress");
+  }
+  if (!season || typeof season !== "object" || Array.isArray(season)) {
+    throw new TypeError("season must be a non-null object");
+  }
+  if (!Array.isArray(draft.order) || !draft.order.length) {
+    throw new Error("draft order must be a non-empty array");
+  }
+  if (!Array.isArray(draft.prospects) || !Array.isArray(draft.selections)) {
+    throw new Error("draft prospects and selections must be arrays");
+  }
+  if (
+    !Number.isInteger(draft.currentPick) ||
+    draft.currentPick < 0 ||
+    draft.currentPick >= draft.order?.length
+  ) {
+    throw new Error("draft current pick is invalid");
+  }
+  const teamId = draft.order[draft.currentPick];
+  const team = season?.teams?.[teamId];
+  if (!team || !Array.isArray(team.players)) {
+    throw new Error(`draft team "${teamId}" must have a players roster`);
+  }
+  if (team.players.length > 15) {
+    throw new Error(`draft team "${teamId}" roster exceeds 15 players`);
+  }
+  return { teamId, team };
+}
+
+function stablePlayerId(player) {
+  return String(player?.bref || player?.id || "");
+}
+
+function waiverValue(player) {
+  return overall(player) - Math.min(Number(player?.age) || 0, 40) * 0.25;
+}
+
+function waiverCandidate(players) {
+  return players
+    .filter((player) => player?._rookie !== true)
+    .sort(
+      (left, right) =>
+        waiverValue(left) - waiverValue(right) ||
+        stablePlayerId(left).localeCompare(stablePlayerId(right)),
+    )[0];
+}
+
+/**
+ * Returns an immutable draft wrapper while intentionally mutating the nested
+ * season roster for compatibility with the existing season engines.
+ */
+export function selectDraftProspect(draft, season, prospectId) {
+  const { teamId, team } = activePick(draft, season);
+  if (typeof prospectId !== "string" || !prospectId) {
+    throw new TypeError("prospectId must be a non-empty string");
+  }
+  const prospectIndexes = draft.prospects
+    .map((prospect, index) => prospect?.prospectId === prospectId ? index : -1)
+    .filter((index) => index >= 0);
+  if (prospectIndexes.length === 0) {
+    throw new Error(`prospect "${prospectId}" is not available`);
+  }
+  if (prospectIndexes.length > 1) {
+    throw new Error(`prospect "${prospectId}" must be unique`);
+  }
+  const prospectIndex = prospectIndexes[0];
+  if (
+    draft.selections?.some(
+      (selection) =>
+        selection.prospectId === prospectId ||
+        (selection.bref && selection.bref === draft.prospects[prospectIndex].bref),
+    )
+  ) {
+    throw new Error(`prospect "${prospectId}" has already been selected`);
+  }
+
+  const prospect = draft.prospects[prospectIndex];
+  if (!prospect.player || typeof prospect.player !== "object") {
+    throw new Error(`prospect "${prospectId}" must contain a player`);
+  }
+  const waivedPlayer = team.players.length === 15
+    ? waiverCandidate(team.players)
+    : null;
+  if (team.players.length === 15 && !waivedPlayer) {
+    throw new Error("full all-rookie roster has no eligible player to waive");
+  }
+  if (
+    waivedPlayer &&
+    season.freeAgents != null &&
+    !Array.isArray(season.freeAgents)
+  ) {
+    throw new TypeError("season.freeAgents must be an array");
+  }
+
+  const pickNumber = draft.currentPick + 1;
+  const contract = rookieContractForPick(pickNumber, draft.year);
+  const rookie = clone(prospect.player);
+  if (prospect.source === "generated") {
+    delete rookie.photo;
+    delete rookie.nbaId;
+  }
+  Object.assign(rookie, {
+    contract: clone(contract),
+    salary: contract.salary,
+    _rookie: true,
+    _draftYear: draft.year,
+    _draftPick: pickNumber,
+    team: teamId,
+  });
+
+  let waived = null;
+  if (waivedPlayer) {
+    const waiverIndex = team.players.indexOf(waivedPlayer);
+    team.players.splice(waiverIndex, 1);
+    season.freeAgents ||= [];
+    const waivedId = stablePlayerId(waivedPlayer);
+    if (!season.freeAgents.some((player) => stablePlayerId(player) === waivedId)) {
+      season.freeAgents.push(waivedPlayer);
+    }
+    waived = {
+      id: waivedPlayer.id,
+      bref: waivedPlayer.bref,
+      name: waivedPlayer.name || waivedPlayer.nameEn || waivedId,
+    };
+  }
+  team.players.push(rookie);
+
+  const nextPick = draft.currentPick + 1;
+  return {
+    ...draft,
+    prospects: draft.prospects.filter((_, index) => index !== prospectIndex),
+    selections: [
+      ...(draft.selections || []),
+      {
+        pickNumber,
+        teamId,
+        prospectId,
+        bref: prospect.bref,
+        name: prospect.name,
+        source: prospect.source,
+        contract: clone(contract),
+        waived,
+      },
+    ],
+    currentPick: nextPick,
+    status: nextPick >= draft.order.length ? "complete" : "in_progress",
+  };
+}
+
+function positionCount(team, position) {
+  return team.players.filter(
+    (player) => (player.pos || player.playPos) === position,
+  ).length;
+}
+
+function cpuScore(draft, season, prospect) {
+  const teamId = draft.order[draft.currentPick];
+  const count = positionCount(season.teams[teamId], prospect.pos);
+  const need = count < 2 ? 80 : count < 3 ? 35 : 0;
+  return {
+    score: overall(prospect.player) * 10 + prospect.potential * 2 + need,
+    tie: hash32(`${draft.seed}|${teamId}|${draft.currentPick + 1}|${prospect.prospectId}`),
+  };
+}
+
+export function advanceDraftToUserPick(draft, season) {
+  let next = draft;
+  while (
+    next?.status === "in_progress" &&
+    next.order[next.currentPick] !== season?.userTeamId
+  ) {
+    activePick(next, season);
+    if (!Array.isArray(next.prospects) || next.prospects.length === 0) {
+      throw new Error("active draft has no available prospects");
+    }
+    const selected = [...next.prospects].sort((left, right) => {
+      const a = cpuScore(next, season, left);
+      const b = cpuScore(next, season, right);
+      return (
+        b.score - a.score ||
+        b.tie - a.tie ||
+        left.prospectId.localeCompare(right.prospectId)
+      );
+    })[0];
+    next = selectDraftProspect(next, season, selected.prospectId);
+  }
+  return next;
 }

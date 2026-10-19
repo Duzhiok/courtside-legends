@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   advanceCareerOffseason,
   applyRecommendation,
+  beginCareerDraft,
   clearManualOverride,
   createLeagueCareer,
   isSeasonProgressMode,
+  makeCareerDraftPick,
   recordCareerEvent,
   resolveRootLiveGame,
   setManualOverride,
@@ -58,6 +60,10 @@ test("league career creation initializes the shared wrapper", () => {
     history: [],
     manualOverrides: {},
     recommendations: {},
+    management: {
+      draft: null,
+      draftHistory: [],
+    },
   });
 });
 
@@ -194,4 +200,72 @@ test("successful offseason synchronizes the career wrapper", () => {
   assert.equal(advanced.career.phase, "regular");
   assert.equal(advanced.career.season.phase, "regular");
   assert.equal(advanced.career.season.year, 2001);
+});
+
+function completedCareerSeason(userTeamId = "B") {
+  const ids = ["A", "B", "C", "D"];
+  return {
+    phase: "done",
+    year: 2024,
+    userTeamId,
+    league: { teamIds: ids },
+    teams: Object.fromEntries(ids.map((id) => [id, { id, players: [] }])),
+    standings: Object.fromEntries(
+      ids.map((id, index) => [id, { w: 20 + index, l: 62 - index, pf: 8000, pa: 8100 }]),
+    ),
+    freeAgents: [],
+  };
+}
+
+test("career draft requires a completed season and persists CPU advancement", () => {
+  const unfinished = careerWith({
+    season: { ...completedCareerSeason(), phase: "regular" },
+  });
+  assert.throws(() => beginCareerDraft(unfinished), /done|complete|season/i);
+
+  const original = careerWith({ season: completedCareerSeason("B") });
+  const started = beginCareerDraft(original);
+
+  assert.notEqual(started, original);
+  assert.equal(original.management.draft, null);
+  assert.equal(started.management.draft.seed, "test-career:2024:draft");
+  assert.equal(started.management.draft.order[started.management.draft.currentPick], "B");
+  assert.equal(started.history.filter((event) => event.type === "draft-opened").length, 1);
+  assert.equal(started.history.at(-1).at, 20240000);
+  assert.deepEqual(started.manualOverrides, original.manualOverrides);
+  assert.deepEqual(started.recommendations, original.recommendations);
+});
+
+test("career draft rejects picks outside the user's turn without mutation", () => {
+  const original = careerWith({ season: completedCareerSeason("B") });
+  const started = beginCareerDraft(original);
+  started.management.draft.order[started.management.draft.currentPick] = "A";
+  const before = structuredClone(started);
+
+  assert.throws(
+    () => makeCareerDraftPick(started, started.management.draft.prospects[0].prospectId),
+    /user|turn/i,
+  );
+  assert.deepEqual(started, before);
+});
+
+test("career draft user picks auto-advance and completion records one summary", () => {
+  const original = careerWith({ season: completedCareerSeason("B") });
+  const started = beginCareerDraft(original);
+  const prospectId = started.management.draft.prospects[0].prospectId;
+  const prospectSource = started.management.draft.prospects[0].source;
+  const picked = makeCareerDraftPick(started, prospectId);
+
+  assert.notEqual(picked, started);
+  assert.equal(started.management.draft.prospects.some((p) => p.prospectId === prospectId), true);
+  assert.equal(picked.management.draft.status, "complete");
+  assert.equal(picked.management.draftHistory.length, 1);
+  assert.notEqual(picked.management.draftHistory[0], picked.management.draft);
+  assert.equal(picked.history.filter((event) => event.type === "draft-completed").length, 1);
+  assert.equal(picked.management.draft.selections.find((selection) => selection.prospectId === prospectId).teamId, "B");
+  assert.equal(picked.management.draft.selections.find((selection) => selection.prospectId === prospectId).source, prospectSource);
+
+  assert.throws(() => makeCareerDraftPick(picked, prospectId), /active|progress|user|turn/i);
+  assert.equal(picked.management.draftHistory.length, 1);
+  assert.equal(picked.history.filter((event) => event.type === "draft-completed").length, 1);
 });
