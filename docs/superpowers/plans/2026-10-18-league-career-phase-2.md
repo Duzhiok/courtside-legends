@@ -68,7 +68,7 @@ Run: `node --test tests/leagueDraft.test.js`
 
 - [ ] **Step 3: Implement debut-class indexing and generated fallback**
 
-Build a lazy `bref → earliest card` index from `PLAYERS`. For draft year `Y`, use cards whose first season is `Y + 1`, because the season model stores ending years. Clone cards before returning them. Generate missing prospects with a local seeded PRNG, stable IDs `generated-${year}-${index}`, age 19–22, bounded attributes, `bref` equal to the generated ID, and no NBA photo metadata.
+Build a lazy `bref → earliest card` index from `PLAYERS`. For draft year `Y`, use cards whose first season is `Y + 1`, because the season model stores ending years. A completed season ending in `Y` therefore opens the `Y` draft before the new `Y + 1` season. Clone cards before returning them. Generate missing prospects with a local seeded PRNG, stable IDs `generated-${year}-${index}`, age 19–22, bounded attributes, `bref` equal to the generated ID, and no NBA photo metadata.
 
 - [ ] **Step 4: Write and implement inverse-standings draft-order tests**
 
@@ -87,7 +87,7 @@ Use a seeded weighted lottery for the bottom teams, then inverse record with det
 
 - [ ] **Step 5: Implement `createDraftState` and verify**
 
-The class year is `season.year + 1`; the class must contain at least one prospect per team. Set `status: "in_progress"` and `currentPick: 0`.
+The draft year is the completed `season.year`; the selected debut cards belong to `season.year + 1`. The class must contain at least one prospect per team. Set `status: "in_progress"` and `currentPick: 0`.
 
 - [ ] **Step 6: Run tests and commit**
 

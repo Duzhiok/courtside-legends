@@ -310,13 +310,14 @@ export function generateDraftOrder(season, { seed } = {}) {
   return [...order, ...ranked.slice(lotterySize)];
 }
 
-export function createDraftState({ season, seed } = {}) {
+export function createDraftState({ season, seed, players = PLAYERS } = {}) {
   requireSeed(seed);
   const order = generateDraftOrder(season, { seed });
-  const year = requireYear(season.year, "season.year") + 1;
+  const year = requireYear(season.year, "season.year");
   const prospects = rookieClassForYear(year, {
     seed,
     minimumSize: order.length,
+    players,
   });
   return {
     year,

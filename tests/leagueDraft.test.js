@@ -172,14 +172,29 @@ test("weighted lottery favors bottom records across stable seeds", () => {
   assert.ok(bottomAverage < topAverage, `${bottomAverage} should be below ${topAverage}`);
 });
 
-test("draft state uses the next class year and initializes progress", () => {
+test("draft state uses the completed season as draft year and selects next-season debuts", () => {
   const season = seasonFixture();
-  const state = createDraftState({ season, seed: "state-seed" });
+  const nextSeasonDebut = card("future-rookie", 2025, {
+    name: "Future Rookie",
+  });
+  const laterCard = card("future-rookie", 2026, {
+    name: "Future Veteran",
+  });
+  const state = createDraftState({
+    season,
+    seed: "state-seed",
+    players: [laterCard, nextSeasonDebut],
+  });
 
-  assert.equal(state.year, 2025);
+  assert.equal(state.year, 2024);
   assert.equal(state.seed, "state-seed");
   assert.equal(state.order.length, season.league.teamIds.length);
   assert.ok(state.prospects.length >= season.league.teamIds.length);
+  const historical = state.prospects.filter((prospect) => prospect.source === "historical-debut");
+  assert.equal(historical.length, 1);
+  assert.equal(historical[0].bref, "future-rookie");
+  assert.equal(historical[0].player.season, 2025);
+  assert.equal(historical[0].player.name, "Future Rookie");
   assert.equal(state.currentPick, 0);
   assert.deepEqual(state.selections, []);
   assert.equal(state.status, "in_progress");
