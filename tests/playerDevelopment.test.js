@@ -79,6 +79,18 @@ test("manual plans are stored immutably in all three persistent maps", () => {
   assert.deepEqual(next.management.developmentPlans.alpha, selected);
   assert.deepEqual(next.manualOverrides.training.alpha, selected);
   assert.deepEqual(next.recommendations.training.alpha, selected);
+  assert.notEqual(
+    next.management.developmentPlans.alpha,
+    next.manualOverrides.training.alpha,
+  );
+  assert.notEqual(
+    next.management.developmentPlans.alpha,
+    next.recommendations.training.alpha,
+  );
+  assert.notEqual(
+    next.manualOverrides.training.alpha,
+    next.recommendations.training.alpha,
+  );
   assert.deepEqual(original, career());
 });
 
@@ -180,6 +192,7 @@ test("automatic recommendations follow rank, focus, load, and mentor rules", () 
   assert.equal(plans.tenth.mentorBref, "sixth");
   assert.ok(Object.values(plans).every((entry) => entry.source === "automatic"));
   assert.deepEqual(next.recommendations.training, plans);
+  assert.notEqual(plans.top, next.recommendations.training.top);
 });
 
 test("automatic recommendations preserve manual plans byte-for-byte", () => {
@@ -194,6 +207,71 @@ test("automatic recommendations preserve manual plans byte-for-byte", () => {
   assert.equal(JSON.stringify(next.management.developmentPlans.alpha), serialized);
   assert.equal(JSON.stringify(next.recommendations.training.alpha), serialized);
   assert.equal(JSON.stringify(next.manualOverrides.training.alpha), serialized);
+});
+
+test("valid manual overrides replace stale automatic executable plans", () => {
+  const original = career();
+  const manual = plan({
+    focus: "defense",
+    role: "bench",
+    mentorBref: "mentor",
+    load: "low",
+  });
+  original.manualOverrides = { training: { alpha: manual } };
+  original.recommendations = { training: { alpha: structuredClone(manual) } };
+  original.management.developmentPlans = {
+    alpha: { ...plan(), source: "automatic" },
+  };
+
+  const next = recommendDevelopmentPlans(original);
+
+  assert.deepEqual(next.management.developmentPlans.alpha, manual);
+  assert.equal(
+    JSON.stringify(next.management.developmentPlans.alpha),
+    JSON.stringify(manual),
+  );
+  assert.notEqual(next.management.developmentPlans.alpha, manual);
+  assert.notEqual(
+    next.management.developmentPlans.alpha,
+    next.manualOverrides.training.alpha,
+  );
+  assert.notEqual(
+    next.management.developmentPlans.alpha,
+    next.recommendations.training.alpha,
+  );
+});
+
+test("legacy generic manual overrides block automatic executable plans", () => {
+  const original = career();
+  original.manualOverrides = { training: { alpha: "manual-value" } };
+  original.recommendations = { training: { alpha: "manual-value" } };
+  original.management.developmentPlans = {
+    alpha: { ...plan(), source: "automatic" },
+  };
+
+  const next = recommendDevelopmentPlans(original);
+
+  assert.equal(next.manualOverrides.training.alpha, "manual-value");
+  assert.equal(next.recommendations.training.alpha, "manual-value");
+  assert.equal(next.management.developmentPlans.alpha, undefined);
+  assert.ok(next.management.developmentPlans.mentor);
+});
+
+test("missing ages use a finite estimate instead of age zero", () => {
+  const original = career([
+    player("unknown-age", {
+      age: null,
+      season: 2030,
+      pos: "C",
+      stamina: 90,
+      defense: 80,
+    }),
+  ]);
+
+  const next = recommendDevelopmentPlans(original);
+
+  assert.equal(next.management.developmentPlans["unknown-age"].focus, "balanced");
+  assert.equal(next.management.developmentPlans["unknown-age"].load, "normal");
 });
 
 test("development modifiers are deterministic, bounded, and skip capped attributes", () => {

@@ -4,7 +4,10 @@ import {
   createDraftState,
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
-import { pruneDevelopmentPlans } from "./playerDevelopment.js";
+import {
+  pruneDevelopmentPlans,
+  validateDevelopmentPlans,
+} from "./playerDevelopment.js";
 
 const CAREER_KINDS = new Set(["franchise", "timeTravel"]);
 const SEASON_PROGRESS_MODES = new Set(["season", "franchise", "timeTravel"]);
@@ -308,6 +311,7 @@ export function completeCareerOffseason(career) {
   ) {
     throw new Error("current-year season summary is required");
   }
+  validateDevelopmentPlans(career);
 
   const working = structuredClone(career);
   const result = advanceLeagueOffseason(working.season, {

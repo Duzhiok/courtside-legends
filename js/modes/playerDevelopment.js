@@ -1,4 +1,5 @@
 import { overall } from "../data/players.js";
+import { estimateAge } from "../data/careerArc.js";
 
 const FOCUS_ATTRIBUTES = {
   shooting: ["three", "mid", "scoring"],
@@ -80,6 +81,44 @@ function validatePlan(plan, { source = null } = {}) {
   return plan;
 }
 
+function resolvedAge(player) {
+  const age = Number(player?.age);
+  return Number.isFinite(age) && player?.age !== null ? age : estimateAge(player);
+}
+
+function validatePlanForRoster(plan, bref, roster, { source = null } = {}) {
+  validatePlan(plan, { source });
+  if (plan.mentorBref === bref) {
+    throw new TypeError("a player cannot mentor themself");
+  }
+  if (
+    plan.mentorBref !== null &&
+    !roster.some((entry) => entry.bref === plan.mentorBref)
+  ) {
+    throw new TypeError("development plan mentor must be on the user roster");
+  }
+  return plan;
+}
+
+export function validateDevelopmentPlans(career) {
+  const roster = requireCareerRoster(career);
+  const plans = career.management?.developmentPlans ?? {};
+  if (!plans || typeof plans !== "object" || Array.isArray(plans)) {
+    throw new TypeError("developmentPlans must be an object");
+  }
+  const rosterBrefs = new Set(roster.map((player) => player.bref));
+  for (const [bref, plan] of Object.entries(plans)) {
+    if (typeof bref !== "string" || bref.trim() === "") {
+      throw new TypeError("development plan bref must be a non-empty string");
+    }
+    validatePlan(plan);
+    if (rosterBrefs.has(bref)) {
+      validatePlanForRoster(plan, bref, roster);
+    }
+  }
+  return true;
+}
+
 function cloneTrainingMaps(career) {
   return {
     manualOverrides: {
@@ -102,28 +141,18 @@ export function setDevelopmentPlan(career, bref, plan) {
   if (!player) {
     throw new TypeError("development plan player must be on the user roster");
   }
-  validatePlan(plan, { source: "manual" });
-  if (plan.mentorBref === bref) {
-    throw new TypeError("a player cannot mentor themself");
-  }
-  if (
-    plan.mentorBref !== null &&
-    !roster.some((entry) => entry.bref === plan.mentorBref)
-  ) {
-    throw new TypeError("development plan mentor must be on the user roster");
-  }
+  validatePlanForRoster(plan, bref, roster, { source: "manual" });
 
-  const stored = structuredClone(plan);
   const { manualOverrides, recommendations } = cloneTrainingMaps(career);
-  manualOverrides.training[bref] = stored;
-  recommendations.training[bref] = stored;
+  manualOverrides.training[bref] = structuredClone(plan);
+  recommendations.training[bref] = structuredClone(plan);
   return {
     ...career,
     management: {
       ...(career.management || {}),
       developmentPlans: {
         ...(career.management?.developmentPlans || {}),
-        [bref]: stored,
+        [bref]: structuredClone(plan),
       },
     },
     manualOverrides,
@@ -140,7 +169,7 @@ function suggestedRole(rank) {
 }
 
 function suggestedFocus(player) {
-  const age = Number(player.age);
+  const age = resolvedAge(player);
   const position = String(player.playPos || player.pos || "").toUpperCase();
   if (age <= 22) return "conditioning";
   if (position === "PG" && Number(player.pass) < 75) return "playmaking";
@@ -158,7 +187,7 @@ function isInjured(player) {
 }
 
 function suggestedLoad(player) {
-  const age = Number(player.age);
+  const age = resolvedAge(player);
   if (age <= 24 && Number(player.stamina) >= 70) return "high";
   if (age >= 31 || isInjured(player)) return "low";
   return "normal";
@@ -166,7 +195,7 @@ function suggestedLoad(player) {
 
 function suggestedMentor(roster, player) {
   const candidates = roster
-    .filter((entry) => entry.bref !== player.bref && Number(entry.age) >= 27)
+    .filter((entry) => entry.bref !== player.bref && resolvedAge(entry) >= 27)
     .sort(
       (left, right) =>
         Number(right.iq || 0) +
@@ -190,9 +219,17 @@ export function recommendDevelopmentPlans(career) {
 
   ranked.forEach((player, rank) => {
     if (Object.prototype.hasOwnProperty.call(manual, player.bref)) {
-      const preserved = existingPlans[player.bref] ?? manual[player.bref];
-      nextPlans[player.bref] = preserved;
-      recommendations.training[player.bref] = preserved;
+      try {
+        validatePlanForRoster(manual[player.bref], player.bref, roster, {
+          source: "manual",
+        });
+        nextPlans[player.bref] = structuredClone(manual[player.bref]);
+        recommendations.training[player.bref] = structuredClone(
+          manual[player.bref],
+        );
+      } catch {
+        delete nextPlans[player.bref];
+      }
       return;
     }
     const recommended = {
@@ -203,7 +240,7 @@ export function recommendDevelopmentPlans(career) {
       source: "automatic",
     };
     nextPlans[player.bref] = recommended;
-    recommendations.training[player.bref] = recommended;
+    recommendations.training[player.bref] = structuredClone(recommended);
   });
 
   return {

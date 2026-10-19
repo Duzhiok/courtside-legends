@@ -7,13 +7,18 @@ import {
   makeCareerDraftPick,
   prepareCareerOffseason,
 } from "../js/modes/leagueCareer.js";
-import { setDevelopmentPlan } from "../js/modes/playerDevelopment.js";
+import {
+  setDevelopmentPlan,
+  validateDevelopmentPlans,
+} from "../js/modes/playerDevelopment.js";
 import {
   createRootState,
   exportRootSave,
   importRootSave,
 } from "../js/data/saveRoot.js";
 import { advanceLeagueOffseason } from "../js/engine/season.js";
+import { invalidateDevelopLadder } from "../js/engine/develop.js";
+import { overall, PLAYERS } from "../js/data/players.js";
 
 function player(id, overrides = {}) {
   return {
@@ -317,13 +322,22 @@ test("drafted next-season rookie keeps its plan without immediate development", 
     completed.management.developmentPlans[selection.bref],
     developmentPlan({ focus: "conditioning" }),
   );
+
+  const secondDraft = finishDraft(prepareCareerOffseason(markSeasonDone(completed)));
+  const secondSeason = completeCareerOffseason(secondDraft).career;
+  const rookieYearTwo = secondSeason.season.teams.B.players.find(
+    (entry) => entry.bref === selection.bref,
+  );
+  assert.ok(rookieYearTwo._developmentEffects.totalPoints > 0);
+  assert.ok(rookieYearTwo._developmentEffects.totalPoints <= 3);
+  assert.deepEqual(
+    secondSeason.management.developmentPlans[selection.bref],
+    developmentPlan({ focus: "conditioning" }),
+  );
 });
 
 test("offseason plans apply bounded growth after base evolution and enrich the log", () => {
   const baselineSeason = doneSeason();
-  baselineSeason.playerSeason["B:B-1"] = {
-    stats: { gp: 82, min: 82 * 30 },
-  };
   const plannedSeason = structuredClone(baselineSeason);
   const selected = developmentPlan();
 
@@ -340,7 +354,8 @@ test("offseason plans apply bounded growth after base evolution and enrich the l
   const developed = plannedSeason.teams.B.players.find((entry) => entry.bref === "B-1");
   const applied = Object.values(developed._developmentEffects.attributeDeltas)
     .reduce((sum, value) => sum + value, 0);
-  assert.ok(applied > 0 && applied <= 3);
+  assert.equal(applied, 1);
+  assert.ok(developed._developmentEffects.reasons.includes("low minutes"));
   assert.equal(developed.three, baseline.three + (developed._developmentEffects.attributeDeltas.three || 0));
   assert.equal(developed.mid, baseline.mid + (developed._developmentEffects.attributeDeltas.mid || 0));
   assert.equal(developed.scoring, baseline.scoring + (developed._developmentEffects.attributeDeltas.scoring || 0));
@@ -350,6 +365,91 @@ test("offseason plans apply bounded growth after base evolution and enrich the l
   assert.deepEqual(log.plan, selected);
   assert.deepEqual(log.effects, developed._developmentEffects);
   assert.equal(plannedSeason.teams.A.players[0]._developmentEffects, undefined);
+});
+
+test("historical development keeps the next ladder card and plan across id replacement", () => {
+  const originalLength = PLAYERS.length;
+  const base = player("ladder-2030", {
+    id: "ladder-card-2030",
+    bref: "ladder-player",
+    season: 2030,
+    age: 24,
+    three: 60,
+    mid: 61,
+    scoring: 62,
+  });
+  const nextCard = player("ladder-2031", {
+    id: "ladder-card-2031",
+    bref: "ladder-player",
+    season: 2031,
+    age: 25,
+    three: 80,
+    mid: 81,
+    scoring: 82,
+  });
+  PLAYERS.push(structuredClone(base), structuredClone(nextCard));
+  invalidateDevelopLadder();
+
+  try {
+    const original = managedCareer();
+    original.season.teams.B.players = [structuredClone(base)];
+    original.season.playerSeason["B:ladder-card-2030"] = {
+      stats: { gp: 82, min: 82 * 30 },
+    };
+    const planned = setDevelopmentPlan(original, "ladder-player", developmentPlan());
+    const drafted = finishDraft(prepareCareerOffseason(planned));
+    const completed = completeCareerOffseason(drafted).career;
+    const developed = completed.season.teams.B.players.find(
+      (entry) => entry.bref === "ladder-player",
+    );
+
+    assert.equal(developed.id, nextCard.id);
+    assert.ok(developed._developmentEffects.totalPoints <= 3);
+    for (const attribute of ["three", "mid", "scoring"]) {
+      assert.equal(
+        developed[attribute],
+        nextCard[attribute] +
+          (developed._developmentEffects.attributeDeltas[attribute] || 0),
+      );
+    }
+    assert.equal(developed._developAfterOvr, overall(developed));
+    assert.match(developed._developNote, new RegExp(`→${overall(developed)}`));
+    assert.deepEqual(
+      completed.management.developmentPlans["ladder-player"],
+      developmentPlan(),
+    );
+  } finally {
+    PLAYERS.splice(originalLength);
+    invalidateDevelopLadder();
+  }
+});
+
+test("role expectations, morale, and stale development metadata are handled", () => {
+  const plannedSeason = doneSeason();
+  plannedSeason.teams.B.players[0].roleExpectation = "starter";
+  plannedSeason.teams.B.players[0].morale = 50;
+  plannedSeason.playerSeason["B:B-1"] = { stats: { gp: 82, min: 82 * 30 } };
+  assert.equal(
+    advanceLeagueOffseason(plannedSeason, {
+      seed: 123,
+      developmentPlans: { "B-1": developmentPlan({ load: "normal" }) },
+    }).ok,
+    true,
+  );
+  const developed = plannedSeason.teams.B.players[0];
+  assert.ok(developed._developmentEffects.reasons.includes("stable role"));
+  assert.equal(developed.morale, 52);
+  assert.equal(
+    developed._developmentEffects.injuryRiskDelta,
+    0,
+  );
+
+  const unplannedSeason = doneSeason();
+  unplannedSeason.teams.B.players[0]._developmentPlan = developmentPlan();
+  unplannedSeason.teams.B.players[0]._developmentEffects = { totalPoints: 3 };
+  assert.equal(advanceLeagueOffseason(unplannedSeason, { seed: 123 }).ok, true);
+  assert.equal(unplannedSeason.teams.B.players[0]._developmentPlan, undefined);
+  assert.equal(unplannedSeason.teams.B.players[0]._developmentEffects, undefined);
 });
 
 test("malformed offseason plans reject before mutating season state", () => {
@@ -365,6 +465,18 @@ test("malformed offseason plans reject before mutating season state", () => {
     );
     assert.deepEqual(season, before);
   }
+});
+
+test("managed completion validates every executable plan before mutation", () => {
+  const drafted = finishDraft(prepareCareerOffseason(managedCareer()));
+  drafted.management.developmentPlans = {
+    "B-1": { ...developmentPlan(), focus: "invalid" },
+  };
+  const before = structuredClone(drafted);
+
+  assert.throws(() => validateDevelopmentPlans(drafted), /focus|plan/i);
+  assert.throws(() => completeCareerOffseason(drafted), /focus|plan/i);
+  assert.deepEqual(drafted, before);
 });
 
 test("successful career completion prunes only plans for players no longer rostered", () => {
@@ -436,7 +548,12 @@ test("expired rookie contracts renew once, synchronize salary, and never go nega
 });
 
 test("completion is deterministic for development, markets, seed, and schedule", () => {
-  const drafted = finishDraft(prepareCareerOffseason(managedCareer()));
+  const planned = setDevelopmentPlan(
+    managedCareer(),
+    "B-1",
+    developmentPlan({ focus: "defense" }),
+  );
+  const drafted = finishDraft(prepareCareerOffseason(planned));
   const left = completeCareerOffseason(structuredClone(drafted)).career;
   const right = completeCareerOffseason(structuredClone(drafted)).career;
 
@@ -446,6 +563,10 @@ test("completion is deterministic for development, markets, seed, and schedule",
   assert.deepEqual(left.season.offseasonLog, right.season.offseasonLog);
   assert.deepEqual(left.season.freeAgents, right.season.freeAgents);
   assert.deepEqual(left.season.staffMarket, right.season.staffMarket);
+  assert.deepEqual(
+    left.management.developmentPlans,
+    right.management.developmentPlans,
+  );
 });
 
 test("explicit offseason seeds are normalized to uint32", () => {
