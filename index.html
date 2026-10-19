@@ -63,7 +63,23 @@
             <button type="button" class="btn ghost" id="btn-clear-save">丢弃存档</button>
           </div>
         </div>
+        <div class="account-home-bar save-home-bar" id="long-career-home-bar" hidden>
+          <div class="account-home-text">
+            <strong>长期生涯存档</strong>
+            <span class="tiny" id="long-career-home-meta">—</span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn primary" id="btn-long-career-resume">继续生涯</button>
+            <button type="button" class="btn ghost" id="btn-long-career-export">导出</button>
+            <button type="button" class="btn ghost" id="btn-long-career-import">导入</button>
+            <input type="file" id="long-career-import-file" accept=".json" hidden />
+          </div>
+        </div>
         <div class="mode-grid">
+          <button class="mode-card mode-card-feature" data-mode="timeTravel">
+            <strong>穿越生涯</strong>
+            <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
+          </button>
           <button class="mode-card mode-card-feature" data-mode="custom">
             <strong>自定义对战</strong>
             <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队淘汰赛 · 另含双人/传奇</span>
@@ -662,6 +678,55 @@
       <div id="bracket" class="bracket"></div>
       <div class="actions">
         <button class="btn primary" id="btn-tour-next" disabled>进入下一轮选人 / 比赛</button>
+      </div>
+    </main>
+
+    <main id="screen-time-travel" class="screen">
+      <div class="panel-head">
+        <h2>穿越生涯 · 五年篇章</h2>
+        <button type="button" class="btn ghost" id="btn-time-travel-back">返回</button>
+      </div>
+      <section id="time-travel-create" class="time-travel-create">
+        <h3>选择历史起点</h3>
+        <p class="tiny">带着有限的未来知识参加面试；不同理念会影响你与管理层共事的方式。</p>
+        <div class="time-travel-form">
+          <label>穿越年份
+            <select id="time-travel-year"></select>
+          </label>
+          <label>执教理念
+            <select id="time-travel-philosophy">
+              <option value="analytics">数据分析</option>
+              <option value="relationships">关系管理</option>
+              <option value="tactics">临场战术</option>
+              <option value="scouting">球探眼光</option>
+            </select>
+          </label>
+          <button type="button" class="btn primary" id="btn-time-travel-interview">参加球队面试</button>
+        </div>
+      </section>
+      <p id="time-travel-status" class="tiny" role="status" aria-live="polite"></p>
+      <section id="time-travel-offers" class="interview-grid" aria-label="球队面试邀请" hidden></section>
+      <section id="time-travel-decision" class="story-decision" hidden>
+        <h3>第一次使用未来知识</h3>
+        <p>新工作刚开始，你必须决定是否提前透露一些超越时代的判断。每次干预都会消耗筹码，也可能改变管理层与媒体的态度。</p>
+        <div id="time-travel-resources" class="time-travel-resources"></div>
+        <div class="story-choice-list">
+          <button type="button" class="btn" data-story-choice="share-draft-sleeper">
+            <strong>分享一名选秀遗珠</strong>
+            <span>可能快速赢得管理层信任，但越精准的预言越会推动时间线偏离。</span>
+          </button>
+          <button type="button" class="btn" data-story-choice="introduce-load-management">
+            <strong>引入负荷管理</strong>
+            <span>有望保护核心球员并建立信任，却可能被媒体质疑你在回避竞争。</span>
+          </button>
+          <button type="button" class="btn" data-story-choice="keep-quiet">
+            <strong>暂时保持沉默</strong>
+            <span>保留未来知识且不扰动历史，但管理层可能怀疑你缺少明确主张。</span>
+          </button>
+        </div>
+      </section>
+      <div class="actions">
+        <button type="button" class="btn primary" id="btn-time-travel-continue" hidden>进入赛季中心</button>
       </div>
     </main>
 

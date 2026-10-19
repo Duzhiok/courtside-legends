@@ -155,6 +155,11 @@ import {
   listHistoricalYears,
 } from "./data/historicalSeasons.js";
 import {
+  acceptInterviewOffer,
+  createTimeTravelPrologue,
+  resolveFutureKnowledgeChoice,
+} from "./modes/timeTravelCareer.js";
+import {
   SEASON_APRON,
   SEASON_MAX_ROSTER,
   SEASON_MIN_ROSTER,
@@ -287,6 +292,7 @@ let state = {
   onboard: null,
   managed: false,
 };
+let timeTravelPrologue = null;
 
 function show(name) {
   Object.values(screens).forEach((el) => el && el.classList.remove("active"));
@@ -294,6 +300,7 @@ function show(name) {
   if (name === "home") {
     refreshAccountHomeBar();
     refreshSaveHomeBar();
+    refreshLongCareerHomeBar();
   }
 }
 
@@ -388,6 +395,7 @@ function saveLongCareer() {
   if (!state.leagueCareer) return false;
   try {
     state.longCareerRoot = writeRootSave(currentRootState());
+    refreshLongCareerHomeBar();
     return true;
   } catch (error) {
     console.error("[long-career-save]", error);
@@ -403,13 +411,290 @@ function resumeLongCareer(root = readRootSave()) {
   state.longCareerRoot = root;
   state.season = root.leagueCareer.season;
   if (state.story?.pendingDecision && screens.timeTravel) {
+    timeTravelPrologue = null;
+    renderTimeTravelStoryState();
     show("timeTravel");
   } else {
     show("season");
     renderSeasonHub();
+    showSeasonTab("standings");
   }
   return true;
 }
+
+function refreshLongCareerHomeBar() {
+  const bar = $("#long-career-home-bar");
+  const meta = $("#long-career-home-meta");
+  if (!bar || !meta) return;
+  const root = state.longCareerRoot || readRootSave();
+  const career = root?.leagueCareer;
+  if (!career) {
+    bar.hidden = true;
+    return;
+  }
+  const season = career.season;
+  const team = season?.teams?.[season.userTeamId];
+  const story = root.story;
+  const details = [
+    team?.name || "未命名球队",
+    `${story?.startYear ?? season?.year ?? "—"} → ${season?.year ?? "—"}`,
+    `阶段：${career.phase || season?.phase || "—"}`,
+  ];
+  if (story && Number.isFinite(story.futureKnowledge)) {
+    details.push(`未来知识 ${story.futureKnowledge}`);
+  }
+  if (story && Number.isFinite(story.frontOfficeTrust)) {
+    details.push(`管理层信任 ${story.frontOfficeTrust}`);
+  }
+  meta.textContent = details.join(" · ");
+  bar.hidden = false;
+}
+
+function setTimeTravelStatus(message, isError = false) {
+  const status = $("#time-travel-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.style.color = isError ? "var(--bad)" : "";
+}
+
+function ensureTimeTravelYears() {
+  const select = $("#time-travel-year");
+  if (!select || select.options.length) return;
+  const years = listHistoricalYears().sort((a, b) => b - a);
+  for (const year of years) {
+    const option = document.createElement("option");
+    option.value = String(year);
+    option.textContent = String(year);
+    select.appendChild(option);
+  }
+  select.value = years.includes(1991) ? "1991" : String(years[0] || "");
+}
+
+function renderTimeTravelResources() {
+  const story = state.story;
+  const resources = $("#time-travel-resources");
+  if (!resources || !story) return;
+  resources.innerHTML = [
+    `未来知识 <strong>${story.futureKnowledge ?? 0}</strong>`,
+    `管理层信任 <strong>${story.frontOfficeTrust ?? 0}</strong>`,
+    `媒体压力 <strong>${story.mediaPressure ?? 0}</strong>`,
+    `时间线偏离 <strong>${story.timelineDivergence ?? 0}</strong>`,
+  ]
+    .map((item) => `<span>${item}</span>`)
+    .join("");
+}
+
+function renderTimeTravelStoryState({ showResolved = false } = {}) {
+  const create = $("#time-travel-create");
+  const offers = $("#time-travel-offers");
+  const decision = $("#time-travel-decision");
+  const continueButton = $("#btn-time-travel-continue");
+  const pending = state.story?.pendingDecision === "future-knowledge-intro";
+  const resolved = !!state.story?.flags?.futureKnowledgeIntroResolved;
+  if (create) create.hidden = !!state.leagueCareer;
+  if (offers && !timeTravelPrologue) offers.hidden = true;
+  if (decision) decision.hidden = !(pending || (showResolved && resolved));
+  if (continueButton) continueButton.hidden = !state.leagueCareer || pending;
+  renderTimeTravelResources();
+  document.querySelectorAll("[data-story-choice]").forEach((button) => {
+    button.disabled = !pending;
+  });
+}
+
+function renderTimeTravelOffers() {
+  const box = $("#time-travel-offers");
+  if (!box || !timeTravelPrologue) return;
+  const labels = {
+    rebuild: "重建队",
+    middle: "中游队",
+    contender: "争冠队",
+  };
+  box.innerHTML = "";
+  for (const offer of timeTravelPrologue.offers.slice(0, 3)) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "interview-offer";
+    button.dataset.offerId = offer.id;
+    button.setAttribute("aria-pressed", "false");
+    button.setAttribute(
+      "aria-label",
+      `${offer.teamName}，${labels[offer.archetype]}面试邀请。${offer.summary}。首年目标：${offer.firstYearGoal}。权限 ${offer.authority}，信任 ${offer.trust}，压力 ${offer.pressure}`
+    );
+    button.innerHTML = `
+      <span>${labels[offer.archetype]}</span>
+      <strong>${offer.teamName}</strong>
+      <span>${offer.summary}</span>
+      <span>首年目标：${offer.firstYearGoal}</span>
+      <div class="interview-metrics">
+        <span>权限 ${offer.authority}</span>
+        <span>信任 ${offer.trust}</span>
+        <span>压力 ${offer.pressure}</span>
+      </div>`;
+    button.addEventListener("click", () => {
+      if (state.leagueCareer?.kind === "timeTravel") return;
+      const previous = {
+        mode: state.mode,
+        leagueCareer: state.leagueCareer,
+        story: state.story,
+        season: state.season,
+        longCareerRoot: state.longCareerRoot,
+        selectedOfferId: timeTravelPrologue.selectedOfferId,
+      };
+      try {
+        const root = acceptInterviewOffer(timeTravelPrologue, offer.id);
+        state.mode = root.activeMode;
+        state.leagueCareer = root.leagueCareer;
+        state.story = root.story;
+        state.season = root.leagueCareer.season;
+        state.longCareerRoot = root;
+        timeTravelPrologue.selectedOfferId = offer.id;
+        if (!saveLongCareer()) {
+          state.mode = previous.mode;
+          state.leagueCareer = previous.leagueCareer;
+          state.story = previous.story;
+          state.season = previous.season;
+          state.longCareerRoot = previous.longCareerRoot;
+          timeTravelPrologue.selectedOfferId = previous.selectedOfferId;
+          throw new Error("存档写入失败，尚未接受球队邀请");
+        }
+        box.querySelectorAll(".interview-offer").forEach((candidate) => {
+          const selected = candidate.dataset.offerId === offer.id;
+          candidate.classList.toggle("selected", selected);
+          candidate.setAttribute("aria-pressed", String(selected));
+          candidate.disabled = true;
+        });
+        setTimeTravelStatus(`已接受 ${offer.teamName} 的邀请，先决定如何使用未来知识。`);
+        renderTimeTravelStoryState();
+      } catch (error) {
+        setTimeTravelStatus(error?.message || "无法接受球队邀请", true);
+      }
+    });
+    box.appendChild(button);
+  }
+  box.hidden = false;
+}
+
+function openTimeTravelScreen() {
+  ensureTimeTravelYears();
+  const hasCareer = state.leagueCareer?.kind === "timeTravel";
+  if (hasCareer) {
+    if (state.story?.pendingDecision) {
+      renderTimeTravelStoryState();
+      setTimeTravelStatus("继续完成序章决定。");
+    } else {
+      $("#time-travel-create").hidden = true;
+      $("#time-travel-offers").hidden = true;
+      $("#time-travel-decision").hidden = true;
+      $("#btn-time-travel-continue").hidden = false;
+      setTimeTravelStatus("生涯已经建立，可以继续进入赛季中心。");
+    }
+  } else {
+    timeTravelPrologue = null;
+    $("#time-travel-create").hidden = false;
+    $("#time-travel-offers").hidden = true;
+    $("#time-travel-offers").innerHTML = "";
+    $("#time-travel-decision").hidden = true;
+    $("#btn-time-travel-continue").hidden = true;
+    setTimeTravelStatus("");
+  }
+  show("timeTravel");
+}
+
+$("#btn-time-travel-back")?.addEventListener("click", () => show("home"));
+$("#btn-time-travel-interview")?.addEventListener("click", () => {
+  try {
+    const year = Number($("#time-travel-year")?.value);
+    const philosophy = $("#time-travel-philosophy")?.value;
+    const seed = Date.now() >>> 0;
+    timeTravelPrologue = createTimeTravelPrologue({ year, philosophy, seed });
+    renderTimeTravelOffers();
+    setTimeTravelStatus("收到三份面试邀请，请选择你的历史起点。");
+  } catch (error) {
+    setTimeTravelStatus(error?.message || "无法生成面试邀请", true);
+  }
+});
+document.querySelectorAll("[data-story-choice]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (state.story?.pendingDecision !== "future-knowledge-intro") return;
+    const previous = {
+      mode: state.mode,
+      leagueCareer: state.leagueCareer,
+      story: state.story,
+      season: state.season,
+      longCareerRoot: state.longCareerRoot,
+    };
+    document.querySelectorAll("[data-story-choice]").forEach((choice) => {
+      choice.disabled = true;
+    });
+    try {
+      const root = resolveFutureKnowledgeChoice(currentRootState(), button.dataset.storyChoice);
+      state.mode = root.activeMode;
+      state.leagueCareer = root.leagueCareer;
+      state.story = root.story;
+      state.season = root.leagueCareer.season;
+      state.longCareerRoot = root;
+      if (!saveLongCareer()) {
+        state.mode = previous.mode;
+        state.leagueCareer = previous.leagueCareer;
+        state.story = previous.story;
+        state.season = previous.season;
+        state.longCareerRoot = previous.longCareerRoot;
+        throw new Error("存档写入失败，这次决定尚未生效");
+      }
+      setTimeTravelStatus("决定已保存。资源与时间线已更新。");
+      renderTimeTravelStoryState({ showResolved: true });
+    } catch (error) {
+      setTimeTravelStatus(error?.message || "无法处理这个决定", true);
+      renderTimeTravelStoryState();
+    }
+  });
+});
+$("#btn-time-travel-continue")?.addEventListener("click", () => {
+  if (!state.leagueCareer?.season) return;
+  state.season = state.leagueCareer.season;
+  renderSeasonHub();
+  show("season");
+  showSeasonTab("standings");
+});
+
+$("#btn-long-career-resume")?.addEventListener("click", () => {
+  resumeLongCareer(state.longCareerRoot || readRootSave());
+});
+$("#btn-long-career-export")?.addEventListener("click", () => {
+  const root = state.longCareerRoot || readRootSave();
+  if (!root?.leagueCareer) return;
+  try {
+    const blob = new Blob([exportRootSave(root)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "courtside-legends-save.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    alert(error?.message || "导出存档失败");
+  }
+});
+$("#btn-long-career-import")?.addEventListener("click", () => {
+  $("#long-career-import-file")?.click();
+});
+$("#long-career-import-file")?.addEventListener("change", async (event) => {
+  const input = event.currentTarget;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const imported = importRootSave(await file.text());
+    if (!confirm("导入将替换当前长期生涯存档，确定继续？")) return;
+    const persisted = writeRootSave(imported);
+    state.longCareerRoot = persisted;
+    refreshLongCareerHomeBar();
+    resumeLongCareer(persisted);
+  } catch (error) {
+    alert(error?.message || "导入存档失败");
+  } finally {
+    input.value = "";
+  }
+});
 
 function saveSeasonAndCareer(st = state.season) {
   const seasonSaved = saveSeason(st);
@@ -700,6 +985,12 @@ document.querySelectorAll(".mode-card[data-mode]").forEach((btn) => {
 
 function startMode(mode) {
   if (!mode) return;
+  if (mode === "timeTravel") {
+    state.mode = mode;
+    state.lastMode = mode;
+    openTimeTravelScreen();
+    return;
+  }
   state.mode = mode;
   state.lastMode = mode;
   state.career = null;
