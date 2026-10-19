@@ -269,3 +269,16 @@ test("career draft user picks auto-advance and completion records one summary", 
   assert.equal(picked.management.draftHistory.length, 1);
   assert.equal(picked.history.filter((event) => event.type === "draft-completed").length, 1);
 });
+
+test("career draft cannot reopen a completed draft for the same season", () => {
+  const original = careerWith({ season: completedCareerSeason("B") });
+  const started = beginCareerDraft(original);
+  const completed = makeCareerDraftPick(
+    started,
+    started.management.draft.prospects[0].prospectId,
+  );
+  const before = structuredClone(completed);
+
+  assert.throws(() => beginCareerDraft(completed), /already.*complete|complete.*already/i);
+  assert.deepEqual(completed, before);
+});

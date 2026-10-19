@@ -199,6 +199,12 @@ export function beginCareerDraft(career) {
   if (career.management?.draft?.status === "in_progress") {
     throw new Error("career already has an active incomplete draft");
   }
+  if (
+    career.management?.draft?.status === "complete" &&
+    career.management.draft.year === career.season.year
+  ) {
+    throw new Error("career draft for this season is already completed");
+  }
 
   const seed = `${career.careerId}:${career.season.year}:draft`;
   const created = createDraftState({ season: career.season, seed });
