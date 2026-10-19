@@ -409,7 +409,16 @@ test("managed root saves validate draft and season history shapes", () => {
   const malformed = [
     managedRoot({ draft: validDraft({ currentPick: -1 }), draftHistory: [], seasonHistory: [] }),
     managedRoot({ draft: null, draftHistory: [validDraft({ status: "in_progress" })], seasonHistory: [] }),
+    managedRoot({ draft: null, draftHistory: [validDraft(), validDraft()], seasonHistory: [] }),
     managedRoot({ draft: null, draftHistory: [], seasonHistory: [{ year: 1991, teamId: "", record: { w: 1, l: 1 }, finish: "lottery" }] }),
+    managedRoot({
+      draft: null,
+      draftHistory: [],
+      seasonHistory: [
+        { year: 1991, teamId: "POR", record: { w: 1, l: 1 }, finish: "lottery" },
+        { year: 1991, teamId: "POR", record: { w: 2, l: 0 }, finish: "playoffs" },
+      ],
+    }),
     managedRoot({ draft: null, draftHistory: [], seasonHistory: [], developmentPlans: [] }),
   ];
   for (const root of malformed) {

@@ -74,6 +74,10 @@ function validateManagement(management) {
   for (const draft of management.draftHistory || []) {
     validateDraft(draft, { completed: true });
   }
+  const draftYears = (management.draftHistory || []).map((draft) => draft.year);
+  if (new Set(draftYears).size !== draftYears.length) {
+    throw new Error("invalid root save");
+  }
   if (
     management.seasonHistory !== undefined
     && !Array.isArray(management.seasonHistory)
@@ -82,6 +86,12 @@ function validateManagement(management) {
   }
   for (const summary of management.seasonHistory || []) {
     validateSeasonSummary(summary);
+  }
+  const seasonYears = (management.seasonHistory || []).map(
+    (summary) => summary.year,
+  );
+  if (new Set(seasonYears).size !== seasonYears.length) {
+    throw new Error("invalid root save");
   }
   if (
     management.developmentPlans !== undefined

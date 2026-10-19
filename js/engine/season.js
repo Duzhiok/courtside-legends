@@ -1400,15 +1400,17 @@ export function advanceLeagueOffseason(st, options = {}) {
   }
   if (
     options.seed !== undefined &&
-    (!Number.isFinite(options.seed) || !Number.isInteger(options.seed))
+    !Number.isInteger(options.seed)
   ) {
     return { ok: false, reason: "offseason seed must be a finite integer" };
   }
   const nextSeed =
     options.seed === undefined
       ? nextOffseasonSeed(st.seed, st.year)
-      : Number(options.seed);
-  const developLog = developLeagueRosters(st, { rng: mulberry32(nextSeed) });
+      : Number(options.seed) >>> 0;
+  const developLog = developLeagueRosters(st, {
+    rng: mulberry32(nextSeed ^ 0x243f6a88),
+  });
   st.year = Number(st.year) + 1;
   if (st.mode === "historical") {
     const hist = historicalSeason(st.year);
@@ -1448,8 +1450,14 @@ export function advanceLeagueOffseason(st, options = {}) {
     ])
   );
   hydrateSeasonSalaries(st);
-  refreshFreeAgency(st, { force: true });
-  refreshStaffMarket(st, { force: true });
+  refreshFreeAgency(st, {
+    force: true,
+    rng: mulberry32(nextSeed ^ 0x85a308d3),
+  });
+  refreshStaffMarket(st, {
+    force: true,
+    rng: mulberry32(nextSeed ^ 0x13198a2e),
+  });
   st.offseasonLog = developLog;
   return { ok: true, log: developLog, year: st.year };
 }
