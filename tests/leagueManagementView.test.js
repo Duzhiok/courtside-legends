@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  renderCareerHistory,
   renderDevelopmentPlans,
   renderDraftBoard,
 } from "../js/ui/leagueManagementView.js";
@@ -10,6 +11,7 @@ function container(controls = {}) {
     innerHTML: "",
     onclick: null,
     onchange: null,
+    dataset: {},
     querySelector(selector) {
       return controls[selector] || null;
     },
@@ -317,4 +319,99 @@ test("delegated development save returns exact bref and selected values", () => 
       load: "high",
     },
   });
+});
+
+test("history view escapes content, renders newest first, and stays immutable", () => {
+  const model = career();
+  model.management.seasonHistory = [
+    {
+      year: 2030,
+      teamId: "USER",
+      teamName: "User <Team>",
+      record: { w: 45, l: 37 },
+      finish: "playoffs",
+      championId: "CPU",
+      awards: {
+        mvp: { name: 'MVP <script>"' },
+        dpoy: null,
+        roy: null,
+      },
+      transactions: [{
+        type: "sign",
+        year: 2030,
+        day: 4,
+        description: 'Sign <Player> & "friend"',
+      }],
+    },
+    {
+      year: 2031,
+      teamId: "USER",
+      teamName: "User <Team>",
+      record: { w: 50, l: 32 },
+      finish: "champion",
+      championId: "USER",
+      awards: { mvp: null, dpoy: null, roy: null },
+      transactions: [],
+    },
+  ];
+  model.management.draftHistory = [{
+    year: 2030,
+    selections: [{
+      pickNumber: 7,
+      teamId: "USER",
+      name: "Rookie <One>",
+      bref: "rookie",
+      source: "historical-debut",
+    }],
+  }];
+  model.history = [{ type: "story-choice", year: 2030, label: "Choice <A>", at: 1 }];
+  const before = structuredClone(model);
+  const box = container();
+
+  renderCareerHistory(box, { career: model });
+
+  assert.ok(box.innerHTML.indexOf("2031") < box.innerHTML.indexOf("2030"));
+  assert.match(box.innerHTML, /MVP &lt;script&gt;&quot;/);
+  assert.match(box.innerHTML, /Rookie &lt;One&gt;/);
+  assert.match(box.innerHTML, /Sign &lt;Player&gt; &amp; &quot;friend&quot;/);
+  assert.match(box.innerHTML, /<details>/);
+  assert.doesNotMatch(box.innerHTML, /<details open/);
+  assert.equal(box.dataset.historyFilter, "all");
+  assert.deepEqual(model, before);
+});
+
+test("history view uses one delegated filter handler and clear empty states", () => {
+  const model = career();
+  model.management.seasonHistory = [{
+    year: 2030,
+    teamId: "USER",
+    record: { w: 40, l: 42 },
+    finish: "lottery",
+    championId: "CPU",
+    awards: {},
+    transactions: [],
+  }];
+  model.management.draftHistory = [];
+  model.history = [];
+  const box = container();
+  box.dataset = {};
+  renderCareerHistory(box, { career: model });
+  const delegated = box.onclick;
+  const filterButton = {
+    dataset: { historyFilter: "drafts" },
+    closest(selector) {
+      return selector === "[data-history-filter]" ? this : null;
+    },
+  };
+
+  delegated({ target: filterButton });
+
+  assert.equal(box.onclick, delegated);
+  assert.equal(box.dataset.historyFilter, "drafts");
+  assert.match(box.innerHTML, /暂无.*选秀|没有.*选秀/);
+  assert.deepEqual(model.management.seasonHistory[0].record, { w: 40, l: 42 });
+
+  const unmanaged = container();
+  renderCareerHistory(unmanaged, { career: { season: {} } });
+  assert.match(unmanaged.innerHTML, /长期生涯|载入/);
 });

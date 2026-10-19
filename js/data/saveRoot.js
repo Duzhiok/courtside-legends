@@ -56,6 +56,32 @@ function validateSeasonSummary(summary) {
   ) {
     throw new Error("invalid root save");
   }
+  if (summary.transactions === undefined) return;
+  const transactionTypes = new Set([
+    "sign",
+    "cut",
+    "trade",
+    "hire_coach",
+    "hire_assistant",
+    "fire_coach",
+    "fire_assistant",
+  ]);
+  if (
+    !Array.isArray(summary.transactions)
+    || summary.transactions.length > 20
+    || summary.transactions.some(
+      (entry) =>
+        !isObject(entry)
+        || !transactionTypes.has(entry.type)
+        || !Number.isInteger(entry.year)
+        || entry.year !== summary.year
+        || !Number.isInteger(entry.day)
+        || entry.day < 0
+        || !isNonEmptyString(entry.description),
+    )
+  ) {
+    throw new Error("invalid root save");
+  }
 }
 
 function validateManagement(management) {

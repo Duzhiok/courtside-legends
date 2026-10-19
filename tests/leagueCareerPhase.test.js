@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  attemptCareerTransition,
   careerForPersistence,
   isManagedCareer,
   runCareerTransition,
@@ -61,28 +60,4 @@ test("career transitions clone current state so failed attempts are retry-safe",
 
   const retry = runCareerTransition(current, mutate);
   assert.deepEqual(retry, first);
-});
-
-test("failed pure commits return the original checkpoint and retry deterministically", () => {
-  const current = {
-    phase: "draft",
-    season: { teams: { USER: { players: [] } } },
-    management: { draft: { currentPick: 0 } },
-  };
-  const pick = (working) => {
-    working.management.draft.currentPick += 1;
-    working.season.teams.USER.players.push({ id: "rookie" });
-    return working;
-  };
-  const failed = attemptCareerTransition(current, pick, () => false);
-
-  assert.equal(failed.ok, false);
-  assert.equal(failed.career, current);
-  assert.equal(current.management.draft.currentPick, 0);
-  assert.deepEqual(current.season.teams.USER.players, []);
-
-  const retry = attemptCareerTransition(current, pick, () => true);
-  assert.equal(retry.ok, true);
-  assert.equal(retry.career.management.draft.currentPick, 1);
-  assert.deepEqual(retry.career.season.teams.USER.players, [{ id: "rookie" }]);
 });

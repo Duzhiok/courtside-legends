@@ -27,13 +27,3 @@ export function runCareerTransition(currentCareer, transition) {
   }
   return transition(structuredClone(currentCareer));
 }
-
-export function attemptCareerTransition(currentCareer, transition, persist) {
-  if (typeof persist !== "function") {
-    throw new TypeError("persist function is required");
-  }
-  const nextCareer = runCareerTransition(currentCareer, transition);
-  return persist(nextCareer)
-    ? { ok: true, career: nextCareer }
-    : { ok: false, career: currentCareer };
-}
