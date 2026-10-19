@@ -7,6 +7,7 @@ import {
   makeCareerDraftPick,
   prepareCareerOffseason,
 } from "../js/modes/leagueCareer.js";
+import { setDevelopmentPlan } from "../js/modes/playerDevelopment.js";
 import {
   createRootState,
   exportRootSave,
@@ -95,6 +96,17 @@ function managedCareer(year = 2030) {
     careerId: "long-career",
     season: doneSeason(year),
   });
+}
+
+function developmentPlan(overrides = {}) {
+  return {
+    focus: "shooting",
+    role: "starter",
+    mentorBref: null,
+    load: "high",
+    source: "manual",
+    ...overrides,
+  };
 }
 
 function finishDraft(career) {
@@ -280,6 +292,98 @@ test("rookie debut card and four-year contract are not skipped during draft comp
   assert.equal(rookieYearTwo.age, debutBefore.age + 1);
   assert.equal(rookieYearTwo.contract.yearsRemaining, 3);
   assert.equal(rookieYearTwo.salary, rookieYearTwo.contract.salary);
+});
+
+test("drafted next-season rookie keeps its plan without immediate development", () => {
+  const drafted = finishDraft(prepareCareerOffseason(managedCareer()));
+  const selection = drafted.management.draft.selections.find((entry) => entry.teamId === "B");
+  const rookieBefore = drafted.season.teams.B.players.find(
+    (entry) => entry.bref === selection.bref,
+  );
+  const planned = setDevelopmentPlan(
+    drafted,
+    selection.bref,
+    developmentPlan({ focus: "conditioning" }),
+  );
+
+  const completed = completeCareerOffseason(planned).career;
+  const rookieAfter = completed.season.teams.B.players.find(
+    (entry) => entry.bref === selection.bref,
+  );
+
+  assert.equal(rookieAfter.id, rookieBefore.id);
+  assert.equal(rookieAfter._developmentEffects, undefined);
+  assert.deepEqual(
+    completed.management.developmentPlans[selection.bref],
+    developmentPlan({ focus: "conditioning" }),
+  );
+});
+
+test("offseason plans apply bounded growth after base evolution and enrich the log", () => {
+  const baselineSeason = doneSeason();
+  baselineSeason.playerSeason["B:B-1"] = {
+    stats: { gp: 82, min: 82 * 30 },
+  };
+  const plannedSeason = structuredClone(baselineSeason);
+  const selected = developmentPlan();
+
+  assert.equal(advanceLeagueOffseason(baselineSeason, { seed: 123 }).ok, true);
+  assert.equal(
+    advanceLeagueOffseason(plannedSeason, {
+      seed: 123,
+      developmentPlans: { "B-1": selected },
+    }).ok,
+    true,
+  );
+
+  const baseline = baselineSeason.teams.B.players.find((entry) => entry.bref === "B-1");
+  const developed = plannedSeason.teams.B.players.find((entry) => entry.bref === "B-1");
+  const applied = Object.values(developed._developmentEffects.attributeDeltas)
+    .reduce((sum, value) => sum + value, 0);
+  assert.ok(applied > 0 && applied <= 3);
+  assert.equal(developed.three, baseline.three + (developed._developmentEffects.attributeDeltas.three || 0));
+  assert.equal(developed.mid, baseline.mid + (developed._developmentEffects.attributeDeltas.mid || 0));
+  assert.equal(developed.scoring, baseline.scoring + (developed._developmentEffects.attributeDeltas.scoring || 0));
+  assert.deepEqual(developed._developmentPlan, selected);
+  assert.match(developed._developNote, /training|训练/i);
+  const log = plannedSeason.offseasonLog.find((entry) => entry.bref === "B-1");
+  assert.deepEqual(log.plan, selected);
+  assert.deepEqual(log.effects, developed._developmentEffects);
+  assert.equal(plannedSeason.teams.A.players[0]._developmentEffects, undefined);
+});
+
+test("malformed offseason plans reject before mutating season state", () => {
+  for (const developmentPlans of [
+    null,
+    [],
+    { "B-1": { ...developmentPlan(), load: "extreme" } },
+  ]) {
+    const season = doneSeason();
+    const before = structuredClone(season);
+    assert.throws(() =>
+      advanceLeagueOffseason(season, { seed: 123, developmentPlans }),
+    );
+    assert.deepEqual(season, before);
+  }
+});
+
+test("successful career completion prunes only plans for players no longer rostered", () => {
+  const original = managedCareer();
+  original.season.teams.B.players.push(player("stay"));
+  let planned = setDevelopmentPlan(original, "B-1", developmentPlan());
+  planned = setDevelopmentPlan(planned, "stay", developmentPlan({ focus: "defense" }));
+  const prepared = finishDraft(prepareCareerOffseason(planned));
+  prepared.season.teams.B.players = prepared.season.teams.B.players.filter(
+    (entry) => entry.bref !== "stay",
+  );
+
+  const completed = completeCareerOffseason(prepared).career;
+  assert.ok(completed.management.developmentPlans["B-1"]);
+  assert.equal(completed.management.developmentPlans.stay, undefined);
+  assert.equal(
+    completed.season.teams.B.players.find((entry) => entry.bref === "B-1").bref,
+    "B-1",
+  );
 });
 
 test("a full user roster waives one veteran when its rookie is drafted", () => {
