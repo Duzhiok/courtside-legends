@@ -305,15 +305,22 @@ export function developLeagueRosters(st, { rng = Math.random } = {}) {
     if (!team?.players?.length) continue;
     const nextPlayers = [];
     for (const p of team.players) {
+      if (Number(p.season) > Number(st.year)) {
+        nextPlayers.push(p);
+        continue;
+      }
       const before = overall(p);
       const beforeSal = priorSalary(p);
       const statsKey = `${tid}:${p.id}`;
       const stats = st.playerSeason?.[statsKey]?.stats || null;
       let evolved = advancePlayerOneYear(p, { rng });
-      evolved = applyRenewal(evolved, p, stats);
       if (p.contract && typeof p.contract === "object") {
         evolved.contract = structuredClone(p.contract);
+        const signedThisOffseason =
+          Number.isInteger(evolved.contract.signedYear) &&
+          evolved.contract.signedYear === Number(st.year);
         if (
+          !signedThisOffseason &&
           Number.isFinite(evolved.contract.yearsRemaining) &&
           evolved.contract.yearsRemaining > 0
         ) {
@@ -322,9 +329,17 @@ export function developLeagueRosters(st, { rng = Math.random } = {}) {
             evolved.contract.yearsRemaining - 1,
           );
         }
-        if (Number.isFinite(evolved.contract.salary)) {
+        if (
+          Number.isFinite(evolved.contract.yearsRemaining) &&
+          evolved.contract.yearsRemaining === 0
+        ) {
+          evolved = applyRenewal(evolved, p, stats);
+          evolved.contract.salary = evolved.salary;
+        } else if (Number.isFinite(evolved.contract.salary)) {
           evolved.salary = evolved.contract.salary;
         }
+      } else {
+        evolved = applyRenewal(evolved, p, stats);
       }
       const after = overall(evolved);
       nextPlayers.push(evolved);

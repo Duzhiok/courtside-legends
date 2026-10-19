@@ -223,6 +223,32 @@ function annualSummary(season) {
   };
 }
 
+function appendSeasonCompletedEvent(history, year) {
+  const existing = (history || []).find(
+    (event) => event?.type === "season-completed" && event.year === year,
+  );
+  const events = (history || []).filter(
+    (event) => !(event?.type === "season-completed" && event.year === year),
+  );
+  const event = {
+    ...(existing || {}),
+    type: "season-completed",
+    year,
+    at: year * 10000 - 1,
+  };
+  const draftIndex = events.findIndex(
+    (entry) =>
+      entry?.year === year &&
+      (entry.type === "draft-opened" || entry.type === "draft-completed"),
+  );
+  if (draftIndex < 0) return [...events, event];
+  return [
+    ...events.slice(0, draftIndex),
+    event,
+    ...events.slice(draftIndex),
+  ];
+}
+
 export function prepareCareerOffseason(career) {
   requireCareer(career);
   requireSeason(career.season);
@@ -245,18 +271,20 @@ export function prepareCareerOffseason(career) {
   const summary = annualSummary(working.season);
   working.management = careerManagement(working);
   working.management.seasonHistory.push(summary);
+  working.history = appendSeasonCompletedEvent(working.history, year);
+  if (
+    working.management.draft?.status === "complete" &&
+    working.management.draft.year === year
+  ) {
+    return {
+      ...working,
+      phase: "draft",
+    };
+  }
   const drafted = beginCareerDraft(working);
   return {
     ...drafted,
     phase: "draft",
-    history: [
-      ...drafted.history,
-      {
-        type: "season-completed",
-        year,
-        at: year * 10000 + 2,
-      },
-    ],
   };
 }
 
@@ -295,7 +323,7 @@ export function completeCareerOffseason(career) {
           type: "offseason-completed",
           year,
           nextYear: working.season.year,
-          at: year * 10000 + 3,
+          at: year * 10000 + 2,
         },
       ],
     },

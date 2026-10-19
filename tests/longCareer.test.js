@@ -12,6 +12,7 @@ import {
   exportRootSave,
   importRootSave,
 } from "../js/data/saveRoot.js";
+import { advanceLeagueOffseason } from "../js/engine/season.js";
 
 function player(id, overrides = {}) {
   return {
@@ -111,6 +112,28 @@ function finishDraft(career) {
   return next;
 }
 
+function markSeasonDone(career, championId = "A") {
+  const next = structuredClone(career);
+  next.phase = "season_complete";
+  next.season.phase = "done";
+  next.season.awards = null;
+  next.season.playoffs = {
+    championId,
+    east: { series: [] },
+    west: { series: [] },
+    finals: { high: { id: "A" }, low: { id: "C" } },
+  };
+  for (const [index, id] of next.season.league.teamIds.entries()) {
+    next.season.standings[id] = {
+      w: 20 + index,
+      l: 62 - index,
+      pf: 8000,
+      pa: 8000,
+    };
+  }
+  return next;
+}
+
 test("preparation snapshots a compact summary and opens the same-year draft", () => {
   const original = managedCareer();
   const prepared = prepareCareerOffseason(original);
@@ -133,6 +156,11 @@ test("preparation snapshots a compact summary and opens the same-year draft", ()
   }]);
   assert.equal(JSON.stringify(prepared.management.seasonHistory).includes("box"), false);
   assert.equal(prepared.history.filter((event) => event.type === "season-completed").length, 1);
+  assert.deepEqual(
+    prepared.history.map((event) => event.type),
+    ["season-completed", "draft-opened"],
+  );
+  assert.ok(prepared.history[0].at < prepared.history[1].at);
   assert.deepEqual(original, managedCareer());
 });
 
@@ -152,6 +180,61 @@ test("preparation is atomic on invalid draft state and cannot repeat a year", ()
   assert.deepEqual(duplicate, duplicateBefore);
 });
 
+test("preparation remains atomic after an earlier CPU draft pick mutates its clone", () => {
+  let original;
+  let order;
+  for (let index = 0; index < 100; index++) {
+    const candidate = createLeagueCareer({
+      kind: "franchise",
+      careerId: `atomic-${index}`,
+      season: doneSeason(),
+    });
+    candidate.season.standings.B = { w: 80, l: 2, pf: 9000, pa: 7000 };
+    const probe = prepareCareerOffseason(candidate);
+    const userIndex = probe.management.draft.order.indexOf(candidate.season.userTeamId);
+    if (userIndex >= 2) {
+      original = candidate;
+      order = probe.management.draft.order;
+      break;
+    }
+  }
+  assert.ok(original, "expected a deterministic seed with two CPU picks before the user");
+  original.season.teams[order[0]].players = Array.from(
+    { length: 14 },
+    (_, index) => player(`first-${index}`),
+  );
+  original.season.teams[order[1]].players = Array.from(
+    { length: 15 },
+    (_, index) => player(`blocked-${index}`, { _rookie: true }),
+  );
+  const before = structuredClone(original);
+
+  assert.throws(() => prepareCareerOffseason(original), /all-rookie|waive/i);
+  assert.deepEqual(original, before);
+});
+
+test("Task-2 completed draft gains its missing summary without drafting twice", () => {
+  const drafted = finishDraft(prepareCareerOffseason(managedCareer()));
+  const legacy = structuredClone(drafted);
+  legacy.management.seasonHistory = [];
+  legacy.history = legacy.history.filter((event) => event.type !== "season-completed");
+  const rostersBefore = structuredClone(legacy.season.teams);
+  const selectionsBefore = structuredClone(legacy.management.draft.selections);
+
+  const prepared = prepareCareerOffseason(legacy);
+
+  assert.equal(prepared.management.seasonHistory.length, 1);
+  assert.deepEqual(prepared.management.draft.selections, selectionsBefore);
+  assert.deepEqual(prepared.season.teams, rostersBefore);
+  assert.deepEqual(
+    prepared.history.map((event) => event.type),
+    ["season-completed", "draft-opened", "draft-completed"],
+  );
+  assert.ok(prepared.history[0].at < prepared.history[1].at);
+  assert.ok(prepared.history[1].at < prepared.history[2].at);
+  assert.equal(completeCareerOffseason(prepared).career.season.year, 2031);
+});
+
 test("completion requires a completed draft and advances exactly one year", () => {
   const prepared = prepareCareerOffseason(managedCareer());
   const before = structuredClone(prepared);
@@ -168,21 +251,87 @@ test("completion requires a completed draft and advances exactly one year", () =
   assert.equal(completed.career.management.seasonHistory.length, 1);
   assert.equal(completed.career.history.filter((event) => event.type === "offseason-completed").length, 1);
   assert.throws(() => completeCareerOffseason(completed.career));
+
+  const malformed = structuredClone(drafted);
+  malformed.season.phase = "regular";
+  const malformedBefore = structuredClone(malformed);
+  assert.throws(() => completeCareerOffseason(malformed), /finals|done|offseason|休赛期/i);
+  assert.deepEqual(malformed, malformedBefore);
 });
 
-test("rookie contracts survive development and decrement once", () => {
+test("rookie debut card and four-year contract are not skipped during draft completion", () => {
   const drafted = finishDraft(prepareCareerOffseason(managedCareer()));
   const selection = drafted.management.draft.selections.find((entry) => entry.teamId === "B");
   const rookieBefore = drafted.season.teams.B.players.find((entry) => entry.bref === selection.bref);
+  const debutBefore = structuredClone(rookieBefore);
   assert.equal(rookieBefore.contract.yearsRemaining, 4);
 
-  const { career } = completeCareerOffseason(drafted);
-  const rookieAfter = career.season.teams.B.players.find((entry) => entry.bref === selection.bref);
-  assert.equal(rookieAfter.contract.yearsRemaining, 3);
-  assert.equal(rookieAfter.salary, rookieAfter.contract.salary);
+  const firstSeason = completeCareerOffseason(drafted).career;
+  const rookieAfter = firstSeason.season.teams.B.players.find((entry) => entry.bref === selection.bref);
+  assert.equal(rookieAfter.season, debutBefore.season);
+  assert.equal(rookieAfter.age, debutBefore.age);
+  assert.equal(rookieAfter.scoring, debutBefore.scoring);
+  assert.equal(rookieAfter.contract.yearsRemaining, 4);
+
+  const secondDraft = finishDraft(prepareCareerOffseason(markSeasonDone(firstSeason)));
+  const secondSeason = completeCareerOffseason(secondDraft).career;
+  const rookieYearTwo = secondSeason.season.teams.B.players.find((entry) => entry.bref === selection.bref);
+  assert.equal(rookieYearTwo.season, debutBefore.season + 1);
+  assert.equal(rookieYearTwo.age, debutBefore.age + 1);
+  assert.equal(rookieYearTwo.contract.yearsRemaining, 3);
+  assert.equal(rookieYearTwo.salary, rookieYearTwo.contract.salary);
 });
 
-test("completion is deterministic for development, seed, and schedule", () => {
+test("a full user roster waives one veteran when its rookie is drafted", () => {
+  const original = managedCareer();
+  original.season.teams.B.players = Array.from(
+    { length: 15 },
+    (_, index) => player(`veteran-${index}`, { age: 24 + index }),
+  );
+  const drafted = finishDraft(prepareCareerOffseason(original));
+  const userSelection = drafted.management.draft.selections.find(
+    (entry) => entry.teamId === "B",
+  );
+
+  assert.ok(userSelection.waived);
+  assert.equal(drafted.season.teams.B.players.length, 15);
+  assert.equal(
+    drafted.season.freeAgents.some(
+      (entry) => entry.bref === userSelection.waived.bref,
+    ),
+    true,
+  );
+});
+
+test("expired rookie contracts renew once, synchronize salary, and never go negative", () => {
+  const season = doneSeason();
+  season.teams.B.players = [player("expiring", {
+    contract: {
+      kind: "rookie-scale",
+      signedYear: 2026,
+      pickNumber: 1,
+      salary: 45,
+      yearsRemaining: 1,
+      rookieScale: true,
+    },
+    salary: 45,
+  })];
+
+  assert.equal(advanceLeagueOffseason(season).ok, true);
+  let expiring = season.teams.B.players[0];
+  assert.equal(expiring.contract.yearsRemaining, 0);
+  assert.equal(expiring.salary, expiring.contract.salary);
+  assert.equal(expiring._renewal.after, expiring.salary);
+  assert.match(expiring._developNote, new RegExp(`¤${expiring.salary}`));
+
+  season.phase = "done";
+  assert.equal(advanceLeagueOffseason(season).ok, true);
+  expiring = season.teams.B.players[0];
+  assert.equal(expiring.contract.yearsRemaining, 0);
+  assert.equal(expiring.salary, expiring.contract.salary);
+});
+
+test("completion is deterministic for development, markets, seed, and schedule", () => {
   const drafted = finishDraft(prepareCareerOffseason(managedCareer()));
   const left = completeCareerOffseason(structuredClone(drafted)).career;
   const right = completeCareerOffseason(structuredClone(drafted)).career;
@@ -191,6 +340,16 @@ test("completion is deterministic for development, seed, and schedule", () => {
   assert.deepEqual(left.season.teams, right.season.teams);
   assert.deepEqual(left.season.schedule, right.season.schedule);
   assert.deepEqual(left.season.offseasonLog, right.season.offseasonLog);
+  assert.deepEqual(left.season.freeAgents, right.season.freeAgents);
+  assert.deepEqual(left.season.staffMarket, right.season.staffMarket);
+});
+
+test("explicit offseason seeds are normalized to uint32", () => {
+  const season = doneSeason();
+  const result = advanceLeagueOffseason(season, { seed: -1 });
+  assert.equal(result.ok, true);
+  assert.equal(season.seed, 0xffffffff);
+  assert.equal(advanceLeagueOffseason({ ...doneSeason(), phase: "done" }, { seed: 1.5 }).ok, false);
 });
 
 test("managed direct offseason cannot bypass draft while legacy remains compatible", () => {
@@ -218,23 +377,7 @@ test("fifteen generated-rookie cycles preserve league continuity", () => {
     );
     career = completeCareerOffseason(career).career;
     if (index < 14) {
-      career.season.phase = "done";
-      career.phase = "season_complete";
-      career.season.awards = null;
-      career.season.playoffs = {
-        championId: "A",
-        east: { series: [] },
-        west: { series: [] },
-        finals: { high: { id: "A" }, low: { id: "C" } },
-      };
-      for (const [teamIndex, id] of career.season.league.teamIds.entries()) {
-        career.season.standings[id] = {
-          w: 20 + teamIndex,
-          l: 62 - teamIndex,
-          pf: 8000,
-          pa: 8000,
-        };
-      }
+      career = markSeasonDone(career);
     }
   }
 

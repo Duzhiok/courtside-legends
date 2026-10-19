@@ -104,13 +104,13 @@ export function hydrateSeasonSalaries(st) {
   return st;
 }
 
-function weightedPickStaff(pool, n, weightFn) {
+function weightedPickStaff(pool, n, weightFn, rng = Math.random) {
   const bag = pool.map((x) => structuredClone(x));
   const out = [];
   while (out.length < n && bag.length) {
     const weights = bag.map((x) => Math.max(1, weightFn(x)));
     const total = weights.reduce((s, w) => s + w, 0);
-    let r = Math.random() * total;
+    let r = rng() * total;
     let idx = 0;
     for (; idx < bag.length; idx++) {
       r -= weights[idx];
@@ -125,7 +125,7 @@ function weightedPickStaff(pool, n, weightFn) {
 }
 
 /** Coaches / assistants available to hire (not currently on your staff). */
-export function refreshStaffMarket(st, { force = false } = {}) {
+export function refreshStaffMarket(st, { force = false, rng = Math.random } = {}) {
   hydrateSeasonSalaries(st);
   if (
     !force &&
@@ -148,13 +148,18 @@ export function refreshStaffMarket(st, { force = false } = {}) {
 
   const coachPool = COACHES.filter((c) => c?.id && !block.has(c.id));
   const asstPool = ASSISTANTS.filter((a) => a?.id && !block.has(a.id));
-  const coaches = weightedPickStaff(coachPool, STAFF_COACH_POOL, (c) => coachDrawWeight(c));
+  const coaches = weightedPickStaff(
+    coachPool,
+    STAFF_COACH_POOL,
+    (c) => coachDrawWeight(c),
+    rng,
+  );
   const assistants = weightedPickStaff(asstPool, STAFF_ASST_POOL, (a) => {
     const fame = a.fame ?? 40;
     if (fame >= 55) return 8;
     if (fame >= 35) return 20;
     return 40;
-  });
+  }, rng);
   for (const c of coaches) c.staffKind = "coach";
   for (const a of assistants) a.staffKind = "assistant";
   st.staffMarket = { coaches, assistants, refreshedAt: st.dayIndex ?? 0 };
@@ -165,7 +170,7 @@ export function refreshStaffMarket(st, { force = false } = {}) {
  * Build / refresh free-agent pool from unused season cards.
  * Prefers mid-tier OVRs so FA isn't all superstars.
  */
-export function refreshFreeAgency(st, { force = false } = {}) {
+export function refreshFreeAgency(st, { force = false, rng = Math.random } = {}) {
   hydrateSeasonSalaries(st);
   if (!force && Array.isArray(st.freeAgents) && st.freeAgents.length >= 12) {
     return st.freeAgents;
@@ -195,13 +200,13 @@ export function refreshFreeAgency(st, { force = false } = {}) {
   const seenBref = new Set();
   for (const p of pool) {
     if (picks.length >= FA_POOL_SIZE) break;
-    if (seenBref.has(p.bref) && Math.random() < 0.7) continue;
+    if (seenBref.has(p.bref) && rng() < 0.7) continue;
     seenBref.add(p.bref);
     picks.push(p);
   }
   // Shuffle display
   for (let i = picks.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [picks[i], picks[j]] = [picks[j], picks[i]];
   }
   st.freeAgents = picks;
