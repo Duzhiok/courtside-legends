@@ -209,7 +209,14 @@ function applyRenewal(evolved, prev, stats) {
   return evolved;
 }
 
-function declineWithoutHistory(player) {
+function preserveSeasonFlags(target, source) {
+  for (const key of ["_seasonFree", "_seasonSkip", "_seasonAuto"]) {
+    if (source[key] === undefined) delete target[key];
+    else target[key] = source[key];
+  }
+}
+
+function declineWithoutHistory(player, rng) {
   const p = clonePlayer(player);
   const age0 = Number(p.age) || estimateAge(p) || 28;
   const age = age0 + 1;
@@ -222,24 +229,22 @@ function declineWithoutHistory(player) {
     if (p[k] == null) continue;
     let d = 0;
     if (phase === "prospect" || phase === "ascending") {
-      if (["scoring", "three", "mid", "paint", "defense", "iq", "pass"].includes(k)) d = 1 + Math.random() * 2;
+      if (["scoring", "three", "mid", "paint", "defense", "iq", "pass"].includes(k)) d = 1 + rng() * 2;
       if (k === "speed" || k === "stamina") d = 0.5;
     } else if (phase === "prime") {
-      d = (Math.random() - 0.45) * 1.5;
+      d = (rng() - 0.45) * 1.5;
     } else if (phase === "veteran") {
-      if (["speed", "stamina", "steal"].includes(k)) d = -2 - Math.random() * 2;
-      if (["iq", "pass", "clutch", "mid"].includes(k)) d = 0.5 + Math.random();
+      if (["speed", "stamina", "steal"].includes(k)) d = -2 - rng() * 2;
+      if (["iq", "pass", "clutch", "mid"].includes(k)) d = 0.5 + rng();
     } else {
-      if (["speed", "stamina", "steal", "paint", "scoring"].includes(k)) d = -3 - Math.random() * 2;
+      if (["speed", "stamina", "steal", "paint", "scoring"].includes(k)) d = -3 - rng() * 2;
       if (["iq", "clutch"].includes(k)) d = 0.5;
     }
     p[k] = Math.max(10, Math.min(99, Math.round(Number(p[k]) + d)));
   }
   p._developedFrom = player.season;
   p._developNote = "无后续史实赛季 · 按年龄曲线调整";
-  p._seasonFree = player._seasonFree;
-  p._seasonSkip = player._seasonSkip;
-  p._seasonAuto = player._seasonAuto;
+  preserveSeasonFlags(p, player);
   pruneAgedSkills(p);
   if (p.skillsLost?.length) {
     p._developNote += ` · 失去技能 ${p.skillsLost.slice(-3).join("/")}`;
@@ -251,18 +256,20 @@ function declineWithoutHistory(player) {
  * Advance one roster player by one year along historical career when possible.
  * Keeps free-agent / skip flags; merges award skills with next card's skills.
  */
-export function advancePlayerOneYear(player) {
+export function advancePlayerOneYear(player, { rng = Math.random } = {}) {
   if (!player) return player;
   const ladder = historicalLadder(player.bref);
   const curSeason = Number(player.season) || 0;
   const nextCard = ladder.find((c) => Number(c.season) > curSeason);
-  if (!nextCard) return declineWithoutHistory(player);
+  if (!nextCard) return declineWithoutHistory(player, rng);
 
   const evolved = clonePlayer(nextCard);
   const beforeOvr = overall(player);
-  evolved._seasonFree = player._seasonFree;
-  evolved._seasonSkip = player._seasonSkip;
-  evolved._seasonAuto = player._seasonAuto;
+  preserveSeasonFlags(evolved, player);
+  if (player.contract && typeof player.contract === "object") {
+    evolved.contract = structuredClone(player.contract);
+    evolved.salary = evolved.contract.salary;
+  }
   // 只保留下一年卡自带技能 + 上一年仍达标的非运动技能，避免老年卡被巅峰技能“粘回去”
   const merged = new Set([...(evolved.skills || [])]);
   for (const id of player.skills || []) {
@@ -290,7 +297,7 @@ export function advancePlayerOneYear(player) {
  * Develop every roster in the league; renews salaries (stars who played well cost more).
  * Returns change log for user team.
  */
-export function developLeagueRosters(st) {
+export function developLeagueRosters(st, { rng = Math.random } = {}) {
   const log = [];
   const teams = st?.teams || {};
   for (const tid of Object.keys(teams)) {
@@ -302,8 +309,23 @@ export function developLeagueRosters(st) {
       const beforeSal = priorSalary(p);
       const statsKey = `${tid}:${p.id}`;
       const stats = st.playerSeason?.[statsKey]?.stats || null;
-      let evolved = advancePlayerOneYear(p);
+      let evolved = advancePlayerOneYear(p, { rng });
       evolved = applyRenewal(evolved, p, stats);
+      if (p.contract && typeof p.contract === "object") {
+        evolved.contract = structuredClone(p.contract);
+        if (
+          Number.isFinite(evolved.contract.yearsRemaining) &&
+          evolved.contract.yearsRemaining > 0
+        ) {
+          evolved.contract.yearsRemaining = Math.max(
+            0,
+            evolved.contract.yearsRemaining - 1,
+          );
+        }
+        if (Number.isFinite(evolved.contract.salary)) {
+          evolved.salary = evolved.contract.salary;
+        }
+      }
       const after = overall(evolved);
       nextPlayers.push(evolved);
       if (tid === st.userTeamId) {

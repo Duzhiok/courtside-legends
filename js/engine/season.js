@@ -76,6 +76,23 @@ function mulberry32(seed) {
   };
 }
 
+function numericSeed(value) {
+  if (Number.isFinite(value)) return Number(value) >>> 0;
+  let hash = 2166136261;
+  for (const character of String(value ?? "")) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function nextOffseasonSeed(seed, year) {
+  return (
+    Math.imul(numericSeed(seed) ^ (Number(year) >>> 0), 1664525) +
+    1013904223
+  ) >>> 0;
+}
+
 /** Build opponent lists so each team has exactly 82 games (H/A roughly even). */
 function buildMatchupPairs(east, west, rng, confOf = conferenceOf) {
   const pairs = []; // { a, b } unordered intent; home decided later
@@ -1377,11 +1394,21 @@ export function seasonProgressLabel(st) {
 /**
  * After Finals: age every roster along historical career curves, then open a new 82-game year.
  */
-export function advanceLeagueOffseason(st) {
+export function advanceLeagueOffseason(st, options = {}) {
   if (!st || st.phase !== "done") {
     return { ok: false, reason: "需先打完总决赛才能进入休赛期" };
   }
-  const developLog = developLeagueRosters(st);
+  if (
+    options.seed !== undefined &&
+    (!Number.isFinite(options.seed) || !Number.isInteger(options.seed))
+  ) {
+    return { ok: false, reason: "offseason seed must be a finite integer" };
+  }
+  const nextSeed =
+    options.seed === undefined
+      ? nextOffseasonSeed(st.seed, st.year)
+      : Number(options.seed);
+  const developLog = developLeagueRosters(st, { rng: mulberry32(nextSeed) });
   st.year = Number(st.year) + 1;
   if (st.mode === "historical") {
     const hist = historicalSeason(st.year);
@@ -1392,7 +1419,7 @@ export function advanceLeagueOffseason(st) {
       st.league.blurb = hist.blurb;
     }
   }
-  st.seed = (Date.now() ^ (st.seed || 0)) >>> 0;
+  st.seed = nextSeed;
   st.phase = "regular";
   st.dayIndex = 0;
   st.awards = null;
@@ -1424,7 +1451,6 @@ export function advanceLeagueOffseason(st) {
   refreshFreeAgency(st, { force: true });
   refreshStaffMarket(st, { force: true });
   st.offseasonLog = developLog;
-  st.offseasonAt = Date.now();
   return { ok: true, log: developLog, year: st.year };
 }
 
