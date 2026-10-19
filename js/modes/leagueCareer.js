@@ -1,4 +1,9 @@
 import { advanceLeagueOffseason } from "../engine/season.js";
+import {
+  advanceDraftToUserPick,
+  createDraftState,
+  selectDraftProspect,
+} from "../engine/leagueDraft.js";
 
 const CAREER_KINDS = new Set(["franchise", "timeTravel"]);
 const SEASON_PROGRESS_MODES = new Set(["season", "franchise", "timeTravel"]);
@@ -56,6 +61,10 @@ export function createLeagueCareer({ kind, season, storyId, careerId } = {}) {
     history: [],
     manualOverrides: {},
     recommendations: {},
+    management: {
+      draft: null,
+      draftHistory: [],
+    },
   };
 }
 
@@ -139,4 +148,92 @@ export function advanceCareerOffseason(career) {
 
   const result = advanceLeagueOffseason(career.season);
   return { career: syncCareerPhase(career), result };
+}
+
+function careerManagement(career) {
+  return {
+    ...(career.management || {}),
+    draft: career.management?.draft || null,
+    draftHistory: [...(career.management?.draftHistory || [])],
+  };
+}
+
+function withCompletedDraft(career, draft, management, history) {
+  if (
+    draft.status !== "complete" ||
+    management.draftHistory.some(
+      (entry) => entry.year === draft.year && entry.seed === draft.seed,
+    )
+  ) {
+    return { ...career, management: { ...management, draft }, history };
+  }
+  return {
+    ...career,
+    management: {
+      ...management,
+      draft,
+      draftHistory: [...management.draftHistory, structuredClone(draft)],
+    },
+    history: [
+      ...history,
+      {
+        type: "draft-completed",
+        year: draft.year,
+        selections: draft.selections.length,
+        at: draft.year * 10000 + 1,
+      },
+    ],
+  };
+}
+
+/**
+ * Career wrappers are immutable. Draft selections intentionally mutate the
+ * nested season rosters for compatibility with the existing season engines.
+ */
+export function beginCareerDraft(career) {
+  requireCareer(career);
+  requireSeason(career.season);
+  if (career.season.phase !== "done") {
+    throw new Error("career season must be done before beginning the draft");
+  }
+  if (career.management?.draft?.status === "in_progress") {
+    throw new Error("career already has an active incomplete draft");
+  }
+
+  const seed = `${career.careerId}:${career.season.year}:draft`;
+  const created = createDraftState({ season: career.season, seed });
+  const draft = advanceDraftToUserPick(created, career.season);
+  const management = careerManagement(career);
+  const history = [
+    ...(career.history || []),
+    {
+      type: "draft-opened",
+      year: draft.year,
+      order: [...draft.order],
+      at: draft.year * 10000,
+    },
+  ];
+  return withCompletedDraft(career, draft, management, history);
+}
+
+export function makeCareerDraftPick(career, prospectId) {
+  requireCareer(career);
+  requireSeason(career.season);
+  const draft = career.management?.draft;
+  if (!draft || draft.status !== "in_progress") {
+    throw new Error("career requires an active draft in progress");
+  }
+  if (draft.order[draft.currentPick] !== career.season.userTeamId) {
+    throw new Error("draft pick is not the user's turn");
+  }
+
+  const selected = selectDraftProspect(draft, career.season, prospectId);
+  const advanced = advanceDraftToUserPick(selected, career.season);
+  const management = careerManagement(career);
+  return withCompletedDraft(
+    career,
+    advanced,
+    management,
+    [...(career.history || [])],
+  );
 }
