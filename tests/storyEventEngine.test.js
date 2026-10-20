@@ -36,7 +36,7 @@ function rootFixture(overrides = {}) {
 
 test("story catalog exposes choices without leaking mutable definitions", () => {
   const catalog = listStoryEvents();
-  assert.equal(catalog.length, 2);
+  assert.equal(catalog.length, 4);
   assert.equal(catalog[0].choices.length, 3);
   const event = getStoryEvent(catalog[0].id);
   event.choices[0].label = "tampered";
@@ -69,7 +69,15 @@ test("story events advance in order and stop after the chapter chain", () => {
   const second = queueNextStoryEvent(afterFirst, { year: 1992 });
   assert.equal(second.story.pendingDecision.eventId, "core-player-commitment");
   const afterSecond = resolveStoryEvent(second, "share-the-ball");
-  assert.equal(queueNextStoryEvent(afterSecond).story.pendingDecision, null);
+  const third = queueNextStoryEvent(afterSecond, { year: 1992 });
+  assert.equal(third.story.pendingDecision.eventId, "second-year-trade-pressure");
+  const afterThird = resolveStoryEvent(third, "keep-the-core");
+  const fourth = queueNextStoryEvent(afterThird, { year: 1992 });
+  assert.equal(fourth.story.pendingDecision, null);
+  const fifth = queueNextStoryEvent(afterThird, { year: 1993 });
+  assert.equal(fifth.story.pendingDecision.eventId, "third-year-butterfly");
+  const afterFourth = resolveStoryEvent(fifth, "hide-the-edge");
+  assert.equal(queueNextStoryEvent(afterFourth, { year: 1995 }).story.pendingDecision, null);
 });
 
 test("event engine rejects duplicate events and invalid choices", () => {

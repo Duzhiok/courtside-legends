@@ -632,6 +632,16 @@ function renderPendingStoryEvent() {
   }
 }
 
+function queueNextTimeTravelEvent() {
+  if (state.leagueCareer?.kind !== "timeTravel" || !state.story) return;
+  const root = state.longCareerRoot || currentRootState();
+  const next = queueNextStoryEvent(root, { year: state.season?.year });
+  if (next === root) return;
+  state.story = next.story;
+  state.longCareerRoot = next;
+  saveLongCareer();
+}
+
 function resolvePendingStoryEvent(choiceId) {
   try {
     const resolved = resolveStoryEvent(currentRootState(), choiceId);
@@ -7746,6 +7756,7 @@ function renderLeagueManagement() {
         try {
           const completed = completeCareerOffseason(state.leagueCareer);
           if (!commitManagedCareer(completed.career, "standings")) return;
+          queueNextTimeTravelEvent();
           const highlights = (completed.result?.log || [])
             .filter((entry) => entry.delta > 0 || (entry.salaryAfter || 0) > (entry.salaryBefore || 0) + 10)
             .slice(0, 8);
