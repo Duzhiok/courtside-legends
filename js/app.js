@@ -163,6 +163,7 @@ import {
 import {
   buildCareerReport,
   getStoryEvent,
+  queueNextStoryEvent,
   queueStoryEvent,
   resolveStoryEvent,
 } from "./story/eventEngine.js";
@@ -633,7 +634,10 @@ function renderPendingStoryEvent() {
 
 function resolvePendingStoryEvent(choiceId) {
   try {
-    const root = resolveStoryEvent(currentRootState(), choiceId);
+    const resolved = resolveStoryEvent(currentRootState(), choiceId);
+    const root = queueNextStoryEvent(resolved, {
+      year: resolved.leagueCareer?.season?.year,
+    });
     state.mode = root.activeMode;
     state.leagueCareer = root.leagueCareer;
     state.story = root.story;

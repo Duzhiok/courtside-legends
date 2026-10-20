@@ -163,6 +163,16 @@ export function resolveStoryEvent(root, choiceId) {
   };
 }
 
+export function queueNextStoryEvent(root, { year } = {}) {
+  requireStory(root);
+  if (root.story.pendingDecision) return root;
+  const next = EVENT_DEFINITIONS.find((event) => !isEventResolved(root.story, event.id));
+  if (!next) return root;
+  return queueStoryEvent(root, next.id, {
+    year: Number.isInteger(year) ? year : root.leagueCareer?.season?.year,
+  });
+}
+
 export function buildCareerReport(root) {
   requireStory(root);
   const career = root.leagueCareer;

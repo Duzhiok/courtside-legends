@@ -5,6 +5,7 @@ import {
   deriveEnding,
   getStoryEvent,
   listStoryEvents,
+  queueNextStoryEvent,
   queueStoryEvent,
   resolveStoryEvent,
 } from "../js/story/eventEngine.js";
@@ -58,6 +59,17 @@ test("queue and resolve story event preserve immutable root and record consequen
   assert.equal(resolved.story.flags.longPlanProtected, true);
   assert.equal(resolved.story.eventLog[0].eventId, "first-year-owner-test");
   assert.throws(() => resolveStoryEvent(resolved, "protect-the-plan"), /pending/);
+});
+
+test("story events advance in order and stop after the chapter chain", () => {
+  const root = rootFixture();
+  const first = queueNextStoryEvent(root, { year: 1992 });
+  assert.equal(first.story.pendingDecision.eventId, "first-year-owner-test");
+  const afterFirst = resolveStoryEvent(first, "protect-the-plan");
+  const second = queueNextStoryEvent(afterFirst, { year: 1992 });
+  assert.equal(second.story.pendingDecision.eventId, "core-player-commitment");
+  const afterSecond = resolveStoryEvent(second, "share-the-ball");
+  assert.equal(queueNextStoryEvent(afterSecond).story.pendingDecision, null);
 });
 
 test("event engine rejects duplicate events and invalid choices", () => {
