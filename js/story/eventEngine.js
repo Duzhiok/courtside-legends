@@ -257,10 +257,17 @@ export function buildCareerReport(root) {
     }];
   });
   const ending = root.story.ending || (history.length >= 5 ? deriveEnding(root) : null);
+  const rankedSeasons = seasons
+    .filter((season) => season.record)
+    .sort((left, right) => (right.record.w - right.record.l) - (left.record.w - left.record.l));
   return {
     startYear: root.story.startYear,
     currentYear: career?.season?.year ?? root.story.startYear,
     seasons,
+    seasonCount: seasons.length,
+    maxSeasons: 5,
+    finished: seasons.length >= 5,
+    bestSeason: rankedSeasons[0] || null,
     championships,
     choices,
     historyChanges,

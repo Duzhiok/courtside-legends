@@ -115,6 +115,9 @@ test("career report summarizes history and derives a meaningful ending", () => {
   const report = buildCareerReport(root);
   assert.equal(report.championships, 2);
   assert.equal(report.seasons.length, 5);
+  assert.equal(report.seasonCount, 5);
+  assert.equal(report.finished, true);
+  assert.equal(report.bestSeason.year, 1995);
   assert.deepEqual(report.historyChanges, [
     { year: 1991, historicalChampion: "公牛", currentChampion: "Lakers" },
   ]);

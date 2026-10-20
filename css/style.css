@@ -3025,6 +3025,12 @@ select, input[type="number"] {
   border-left: 3px solid var(--good);
   background: rgba(42, 157, 143, .08);
 }
+.story-report-status {
+  margin: 8px 0 0;
+  color: var(--accent);
+  font-size: .82rem;
+  font-weight: 700;
+}
 .story-report-list {
   display: grid;
   gap: 5px;

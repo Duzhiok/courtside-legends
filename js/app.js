@@ -595,6 +595,8 @@ function renderTimeTravelResources() {
 function renderTimeTravelReport() {
   const card = $("#time-travel-report");
   const text = $("#time-travel-report-text");
+  const status = $("#time-travel-report-status");
+  const seasons = $("#time-travel-report-seasons");
   const list = $("#time-travel-report-list");
   if (!card || !text || !state.leagueCareer || !state.story) return;
   const report = buildCareerReport(currentRootState());
@@ -604,6 +606,20 @@ function renderTimeTravelReport() {
   const record = latest?.record ? `${latest.record.w}胜${latest.record.l}负` : "赛季尚未结算";
   const ending = report.ending ? ` · 当前结局倾向：${report.ending.label}` : "";
   text.textContent = `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}${ending}`;
+  if (status) {
+    status.textContent = report.finished
+      ? `五年篇章已完成 · 冠军 ${report.championships} 次${report.ending ? ` · 结局：${report.ending.label}` : ""}`
+      : `五年篇章进度：${report.seasonCount}/${report.maxSeasons}`;
+  }
+  if (seasons) {
+    seasons.innerHTML = "";
+    for (const season of report.seasons) {
+      const item = document.createElement("li");
+      const score = season.record ? `${season.record.w}胜${season.record.l}负` : "无战绩";
+      item.textContent = `${season.year} · ${score} · ${season.champion ? "夺冠" : season.finish || "赛季进行中"}`;
+      seasons.appendChild(item);
+    }
+  }
   if (list) {
     list.innerHTML = "";
     for (const change of report.historyChanges) {
