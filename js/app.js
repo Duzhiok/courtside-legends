@@ -167,6 +167,7 @@ import {
   queueStoryEvent,
   resolveStoryEvent,
 } from "./story/eventEngine.js";
+import { summarizeMatchResult } from "./engine/matchExplain.js";
 import {
   advanceCareerOffseason,
   completeCareerOffseason,
@@ -7499,6 +7500,38 @@ function setResultActionMode(mode, { showContinue = false, continuePrimary = fal
   again.classList.toggle("primary", !useContinuePrimary);
 }
 
+function renderResultExplain(snap) {
+  const box = $("#result-explain");
+  if (!box) return;
+  let summary;
+  try {
+    summary = summarizeMatchResult(snap);
+  } catch {
+    box.hidden = true;
+    return;
+  }
+  const pctText = (value) => `${(value * 100).toFixed(0)}%`;
+  const sideLabel = (side) => (side === "home" ? snap.home.name : snap.away.name);
+  const rows = ["home", "away"].map((side) => {
+    const totals = summary.teamTotals[side];
+    const shoot = summary.shooting[side];
+    const top = summary.topPerformers[side];
+    const pm = summary.plusMinus[side];
+    return `<div class="result-explain-team">
+      <strong>${sideLabel(side)}</strong>
+      <span>命中率 ${pctText(shoot.fg)} · 三分 ${pctText(shoot.tp)} · 罚球 ${pctText(shoot.ft)}</span>
+      <span>失误 ${totals.tov} · 前场篮板 ${totals.oreb}</span>
+      ${top ? `<span>最佳表现：${top.name}（${top.pts}分 ${top.reb}板 ${top.ast}助攻）</span>` : ""}
+      ${pm.best ? `<span>+/- 最高：${pm.best.name} ${pm.best.pm >= 0 ? "+" : ""}${pm.best.pm}</span>` : ""}
+    </div>`;
+  }).join("");
+  const factors = summary.factors.length
+    ? `<ul>${summary.factors.map((line) => `<li>${line}</li>`).join("")}</ul>`
+    : `<p class="tiny">比赛各项数据较为接近，胜负更多取决于关键回合的质量。</p>`;
+  box.innerHTML = `<h3>赛后解析</h3><div class="result-explain-grid">${rows}</div>${factors}`;
+  box.hidden = false;
+}
+
 function showResult(snap, { formNotes = [] } = {}) {
   show("result");
   const hs = snap.score.home;
@@ -7516,6 +7549,7 @@ function showResult(snap, { formNotes = [] } = {}) {
       }`
     : "本场表现会带入下一场：打得好更敢投、队友更愿意喂球。";
   $("#result-summary").textContent = `化学反应 / 适配度 / 暗属性影响了回合效率。${formBit}`;
+  renderResultExplain(snap);
   renderResultAllTeam(null);
   $("#box-score").innerHTML = `${boxTable(snap.home)}${boxTable(snap.away)}`;
 
