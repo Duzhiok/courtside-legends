@@ -595,13 +595,28 @@ function renderTimeTravelResources() {
 function renderTimeTravelReport() {
   const card = $("#time-travel-report");
   const text = $("#time-travel-report-text");
+  const list = $("#time-travel-report-list");
   if (!card || !text || !state.leagueCareer || !state.story) return;
   const report = buildCareerReport(currentRootState());
   const latest = report.seasons.at(-1);
   card.hidden = report.choices === 0;
   if (card.hidden) return;
   const record = latest?.record ? `${latest.record.w}胜${latest.record.l}负` : "赛季尚未结算";
-  text.textContent = `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}`;
+  const ending = report.ending ? ` · 当前结局倾向：${report.ending.label}` : "";
+  text.textContent = `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}${ending}`;
+  if (list) {
+    list.innerHTML = "";
+    for (const change of report.historyChanges) {
+      const item = document.createElement("li");
+      item.textContent = `${change.year}：史实冠军 ${change.historicalChampion} → 当前时间线 ${change.currentChampion}`;
+      list.appendChild(item);
+    }
+    if (!report.historyChanges.length) {
+      const item = document.createElement("li");
+      item.textContent = "目前还没有改写史实冠军，分叉仍在积累。";
+      list.appendChild(item);
+    }
+  }
 }
 
 function renderPendingStoryEvent() {
