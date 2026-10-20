@@ -67,6 +67,15 @@ html, body {
 }
 .hero > p { max-width: 48ch; color: #334155; margin-bottom: 22px; }
 
+.mode-group-label {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
 .mode-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -2992,6 +3001,32 @@ select, input[type="number"] {
 }
 .story-decision {
   margin-top: 14px;
+}
+.story-event-card {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 249, 235, .96), rgba(255, 255, 255, .88));
+}
+.story-event-kicker {
+  color: var(--accent);
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.story-event-card h3 {
+  margin: 5px 0 6px;
+}
+.story-report-card {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--good);
+  background: rgba(42, 157, 143, .08);
+}
+.story-event-choice {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
 }
 .story-choice-list {
   display: grid;

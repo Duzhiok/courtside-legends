@@ -75,7 +75,8 @@
             <input type="file" id="long-career-import-file" accept=".json" hidden />
           </div>
         </div>
-        <div class="mode-grid">
+        <div class="mode-grid" aria-label="游戏模式">
+          <div class="mode-group-label">核心生涯 · 先从这里开始</div>
           <button class="mode-card mode-card-feature" data-mode="timeTravel">
             <strong>穿越生涯</strong>
             <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
@@ -84,6 +85,7 @@
             <strong>联盟经理</strong>
             <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
           </button>
+          <div class="mode-group-label">快速玩法 · 一局就懂</div>
           <button class="mode-card mode-card-feature" data-mode="custom">
             <strong>自定义对战</strong>
             <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队淘汰赛 · 另含双人/传奇</span>
@@ -728,6 +730,16 @@
             <span>保留未来知识且不扰动历史，但管理层可能怀疑你缺少明确主张。</span>
           </button>
         </div>
+      </section>
+      <section id="time-travel-event" class="story-event-card" hidden aria-live="polite">
+        <div class="story-event-kicker" id="time-travel-event-kicker">本季关键事件</div>
+        <h3 id="time-travel-event-title">—</h3>
+        <p id="time-travel-event-prompt" class="tiny">—</p>
+        <div id="time-travel-event-choices" class="story-choice-list"></div>
+      </section>
+      <section id="time-travel-report" class="story-report-card" hidden>
+        <div class="story-event-kicker">历史改写记录</div>
+        <p id="time-travel-report-text" class="tiny">—</p>
       </section>
       <div class="actions">
         <button type="button" class="btn primary" id="btn-time-travel-continue" hidden>进入赛季中心</button>
