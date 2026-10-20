@@ -145,6 +145,29 @@ test("time-travel resume preserves career story and pending decision", () => {
   assert.deepEqual(resumed.liveGame.seasonPendingGame, root.liveGame.seasonPendingGame);
 });
 
+test("root saves accept structured story-event decisions", () => {
+  const storage = createMemoryStorage();
+  const root = createRootState({
+    activeMode: "timeTravel",
+    leagueCareer: {
+      careerId: "tt-1991-event",
+      kind: "timeTravel",
+      storyId: "tt-1991-event",
+      phase: "regular",
+      season: validSeason(),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+    story: validStory({
+      storyId: "tt-1991-event",
+      pendingDecision: { type: "story-event", eventId: "first-year-owner-test", year: 1992 },
+    }),
+  });
+  writeRootSave(root, storage);
+  assert.deepEqual(readRootSave(storage).story.pendingDecision, root.story.pendingDecision);
+});
+
 test("exported root save imports to the same state", () => {
   const root = createRootState({
     savedAt: 123,

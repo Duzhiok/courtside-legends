@@ -175,10 +175,18 @@ function validateTimeTravelStory(root) {
     || !Array.isArray(story.promises)
     || !Array.isArray(story.eventLog)
     || !isObject(story.flags)
-    || (story.pendingDecision !== null && typeof story.pendingDecision !== "string")
+    || !validPendingDecision(story.pendingDecision)
   ) {
     throw new Error("invalid root save");
   }
+}
+
+function validPendingDecision(value) {
+  if (value === null || typeof value === "string") return true;
+  return isObject(value)
+    && value.type === "story-event"
+    && isNonEmptyString(value.eventId)
+    && Number.isInteger(value.year);
 }
 
 function validateLiveGame(liveGame) {

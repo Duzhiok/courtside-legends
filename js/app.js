@@ -161,6 +161,12 @@ import {
   resolveFutureKnowledgeChoice,
 } from "./modes/timeTravelCareer.js";
 import {
+  buildCareerReport,
+  getStoryEvent,
+  queueStoryEvent,
+  resolveStoryEvent,
+} from "./story/eventEngine.js";
+import {
   advanceCareerOffseason,
   completeCareerOffseason,
   createLeagueCareer,
@@ -585,6 +591,62 @@ function renderTimeTravelResources() {
     .join("");
 }
 
+function renderTimeTravelReport() {
+  const card = $("#time-travel-report");
+  const text = $("#time-travel-report-text");
+  if (!card || !text || !state.leagueCareer || !state.story) return;
+  const report = buildCareerReport(currentRootState());
+  const latest = report.seasons.at(-1);
+  card.hidden = report.choices === 0;
+  if (card.hidden) return;
+  const record = latest?.record ? `${latest.record.w}胜${latest.record.l}负` : "赛季尚未结算";
+  text.textContent = `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}`;
+}
+
+function renderPendingStoryEvent() {
+  const card = $("#time-travel-event");
+  const title = $("#time-travel-event-title");
+  const prompt = $("#time-travel-event-prompt");
+  const choices = $("#time-travel-event-choices");
+  const pending = state.story?.pendingDecision;
+  const isEvent = pending?.type === "story-event";
+  if (!card || !title || !prompt || !choices) return;
+  card.hidden = !isEvent;
+  if (!isEvent) {
+    choices.innerHTML = "";
+    return;
+  }
+  const event = getStoryEvent(pending.eventId);
+  title.textContent = event.title;
+  prompt.textContent = event.prompt;
+  choices.innerHTML = "";
+  for (const choice of event.choices) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn story-event-choice";
+    button.dataset.eventChoice = choice.id;
+    button.innerHTML = `<strong>${choice.label}</strong><span>${choice.description}</span>`;
+    button.addEventListener("click", () => resolvePendingStoryEvent(choice.id));
+    choices.appendChild(button);
+  }
+}
+
+function resolvePendingStoryEvent(choiceId) {
+  try {
+    const root = resolveStoryEvent(currentRootState(), choiceId);
+    state.mode = root.activeMode;
+    state.leagueCareer = root.leagueCareer;
+    state.story = root.story;
+    state.season = root.leagueCareer?.season || state.season;
+    state.longCareerRoot = root;
+    if (!saveLongCareer()) throw new Error("存档写入失败，这次事件尚未生效");
+    setTimeTravelStatus("事件已记录。你的选择会在赛季总结和后续时间线中留下痕迹。");
+    renderTimeTravelStoryState();
+  } catch (error) {
+    setTimeTravelStatus(error?.message || "无法处理这个事件", true);
+  }
+}
+
 function renderTimeTravelStoryState({ showResolved = false } = {}) {
   const create = $("#time-travel-create");
   const offers = $("#time-travel-offers");
@@ -595,8 +657,10 @@ function renderTimeTravelStoryState({ showResolved = false } = {}) {
   if (create) create.hidden = !!state.leagueCareer;
   if (offers && !timeTravelPrologue) offers.hidden = true;
   if (decision) decision.hidden = !(pending || (showResolved && resolved));
-  if (continueButton) continueButton.hidden = !state.leagueCareer || pending;
+  if (continueButton) continueButton.hidden = !state.leagueCareer || pending || state.story?.pendingDecision?.type === "story-event";
   renderTimeTravelResources();
+  renderPendingStoryEvent();
+  renderTimeTravelReport();
   document.querySelectorAll("[data-story-choice]").forEach((button) => {
     button.disabled = !pending;
   });
@@ -700,6 +764,8 @@ function openTimeTravelScreen() {
     $("#time-travel-offers").hidden = true;
     $("#time-travel-offers").innerHTML = "";
     $("#time-travel-decision").hidden = true;
+    $("#time-travel-event").hidden = true;
+    $("#time-travel-report").hidden = true;
     $("#btn-time-travel-continue").hidden = true;
     setTimeTravelStatus("");
   }
@@ -733,7 +799,10 @@ document.querySelectorAll("[data-story-choice]").forEach((button) => {
       choice.disabled = true;
     });
     try {
-      const root = resolveFutureKnowledgeChoice(currentRootState(), button.dataset.storyChoice);
+      const resolvedRoot = resolveFutureKnowledgeChoice(currentRootState(), button.dataset.storyChoice);
+      const root = queueStoryEvent(resolvedRoot, "first-year-owner-test", {
+        year: resolvedRoot.leagueCareer?.season?.year,
+      });
       state.mode = root.activeMode;
       state.leagueCareer = root.leagueCareer;
       state.story = root.story;
