@@ -96,19 +96,28 @@ test("event engine rejects duplicate events and invalid choices", () => {
 test("career report summarizes history and derives a meaningful ending", () => {
   const summaries = Array.from({ length: 5 }, (_, index) => ({
     year: 1991 + index,
-    teamId: "CHI",
-    teamName: "Bulls",
+    teamId: index === 0 ? "LAL" : "CHI",
+    teamName: index === 0 ? "Lakers" : "Bulls",
     record: { w: 50 + index, l: 32 - index },
     finish: index < 2 ? "champion" : "playoffs",
-    championId: index < 2 ? "CHI" : "LAL",
+    championId: index === 0 ? "LAL" : index === 1 ? "CHI" : "LAL",
   }));
   const root = rootFixture({
-    leagueCareer: { season: { year: 1996 }, management: { seasonHistory: summaries } },
+    leagueCareer: {
+      season: {
+        year: 1996,
+        league: { labels: { LAL: "Lakers", CHI: "Bulls" } },
+      },
+      management: { seasonHistory: summaries },
+    },
     story: { ...rootFixture().story, frontOfficeTrust: 60 },
   });
   const report = buildCareerReport(root);
   assert.equal(report.championships, 2);
   assert.equal(report.seasons.length, 5);
+  assert.deepEqual(report.historyChanges, [
+    { year: 1991, historicalChampion: "公牛", currentChampion: "Lakers" },
+  ]);
   assert.deepEqual(report.ending, {
     id: "dynasty-builder",
     label: "王朝建筑师",

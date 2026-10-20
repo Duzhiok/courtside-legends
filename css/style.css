@@ -3025,6 +3025,14 @@ select, input[type="number"] {
   border-left: 3px solid var(--good);
   background: rgba(42, 157, 143, .08);
 }
+.story-report-list {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: .82rem;
+}
 .story-event-choice {
   border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
 }

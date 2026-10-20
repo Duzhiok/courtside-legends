@@ -1,3 +1,5 @@
+import { historicalSeason } from "../data/historicalSeasons.js";
+
 const EVENT_DEFINITIONS = [
   {
     id: "first-year-owner-test",
@@ -242,6 +244,18 @@ export function buildCareerReport(root) {
   }));
   const championships = seasons.filter((season) => season.champion).length;
   const choices = root.story.eventLog.filter((entry) => entry.type === "story-choice").length;
+  const historyChanges = seasons.flatMap((season) => {
+    const historical = historicalSeason(season.year);
+    if (!historical || !season.champion) return [];
+    const currentChampion = history.find((summary) => summary.year === season.year)?.championId;
+    if (!currentChampion || currentChampion === historical.championId) return [];
+    return [{
+      year: season.year,
+      historicalChampion: historical.championName,
+      currentChampion:
+        career?.season?.league?.labels?.[currentChampion] || currentChampion,
+    }];
+  });
   const ending = root.story.ending || (history.length >= 5 ? deriveEnding(root) : null);
   return {
     startYear: root.story.startYear,
@@ -249,6 +263,7 @@ export function buildCareerReport(root) {
     seasons,
     championships,
     choices,
+    historyChanges,
     timelineDivergence: root.story.timelineDivergence || 0,
     frontOfficeTrust: root.story.frontOfficeTrust || 0,
     mediaPressure: root.story.mediaPressure || 0,
