@@ -76,6 +76,28 @@ html, body {
   letter-spacing: .08em;
   text-transform: uppercase;
 }
+.mode-card-variants {
+  grid-column: 1 / -1;
+  padding: 6px 2px;
+}
+.mode-card-variants summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 700;
+  list-style: none;
+}
+.mode-card-variants summary::-webkit-details-marker { display: none; }
+.mode-card-variants summary::before {
+  content: "\25B8";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform .15s ease;
+}
+.mode-card-variants[open] summary::before { transform: rotate(90deg); }
+.mode-grid-nested {
+  margin-top: 10px;
+}
 .mode-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
