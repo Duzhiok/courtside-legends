@@ -986,6 +986,45 @@ select, input[type="number"] {
   display: grid;
   gap: 8px;
 }
+.result-explain {
+  text-align: left;
+  margin: 12px auto 0;
+  max-width: 640px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .7);
+}
+.result-explain h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+.result-explain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.result-explain-team {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: .82rem;
+}
+.result-explain-team > strong { font-size: .92rem; }
+.result-explain ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: .84rem;
+  display: grid;
+  gap: 4px;
+}
+@media (max-width: 760px) {
+  .result-explain-grid { grid-template-columns: 1fr; }
+}
 .box-score table {
   width: 100%;
   border-collapse: collapse;
