@@ -218,6 +218,7 @@ import {
 } from "./ui/rosterEvaluationView.js";
 import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeComparison.js";
 import { estimateDraftPickValue } from "./engine/draftPickValue.js";
+import { decorateHome } from "./ui/homeShowcase.js";
 import { confirmAction } from "./ui/confirmModal.js";
 import {
   SEASON_APRON,
@@ -9867,6 +9868,7 @@ function clamp(n, a, b) {
 async function boot() {
   try {
     initBgm();
+    decorateHome();
     $("#load-status").textContent = "正在加载名册（优先本地缓存）…";
     $("#load-bar").style.width = "6%";
     // Paint status before heavy work begins

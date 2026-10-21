@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css?v=20261017matchup1" />
+  <link rel="stylesheet" href="css/home.css?v=20261021home1" />
 </head>
 <body>
   <div id="app">
@@ -40,8 +41,19 @@
 
     <main id="screen-home" class="screen">
       <section class="hero">
-        <h1>组建你的传奇阵容</h1>
-        <p>按赛季抽卡组队，临场叫暂停、大喊、换人。空位也会打铁——巨星抱团不无敌。</p>
+        <div class="home-banner">
+          <div class="home-banner-copy">
+            <div class="home-banner-kicker">1950 — 今 · 全历史赛季卡</div>
+            <h1>组建你的传奇阵容</h1>
+            <p>按赛季抽卡组队，临场叫暂停、大喊、换人。空位也会打铁——巨星抱团不无敌。</p>
+            <ul class="home-banner-facts" aria-label="游戏特色">
+              <li><strong>75+</strong><span>年历史名册</span></li>
+              <li><strong>5</strong><span>年穿越任期</span></li>
+              <li><strong>32</strong><span>队淘汰赛</span></li>
+            </ul>
+          </div>
+          <div class="legends-wall" id="home-legends-wall" aria-label="历代传奇球星"></div>
+        </div>
         <div class="account-home-bar" id="account-home-bar">
           <div class="account-home-text">
             <strong id="account-home-name">尚未创建账号</strong>
@@ -77,52 +89,52 @@
         </div>
         <div class="mode-grid" aria-label="游戏模式">
           <div class="mode-group-label">核心生涯 · 先从这里开始</div>
-          <button class="mode-card mode-card-feature" data-mode="timeTravel">
+          <button class="mode-card mode-card-feature" data-mode="timeTravel" data-legend="jordami01:1991">
             <strong>穿越生涯</strong>
             <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
           </button>
-          <button class="mode-card mode-card-feature" data-mode="franchise">
+          <button class="mode-card mode-card-feature" data-mode="franchise" data-legend="curryst01:2016">
             <strong>联盟经理</strong>
             <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
           </button>
           <div class="mode-group-label">快速玩法 · 一局就懂</div>
-          <button class="mode-card mode-card-feature" data-mode="custom">
+          <button class="mode-card mode-card-feature" data-mode="custom" data-legend="onealsh01:2000">
             <strong>自定义对战</strong>
             <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队淘汰赛 · 另含双人/传奇</span>
           </button>
           <details class="mode-card-variants">
             <summary>更多单局玩法 · 与自定义对战同类</summary>
             <div class="mode-grid mode-grid-nested">
-              <button class="mode-card" data-mode="draft">
+              <button class="mode-card" data-mode="draft" data-legend="antetgi01:2020">
                 <strong>选秀建队</strong>
                 <span>抽球员与教练，打一场完整模拟赛</span>
               </button>
-              <button class="mode-card" data-mode="quick">
+              <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
                 <strong>快速演示</strong>
                 <span>系统自动组两队，立刻开打看指挥</span>
               </button>
             </div>
           </details>
-          <button class="mode-card" data-mode="ranked">
+          <button class="mode-card" data-mode="ranked" data-legend="bryanko01:2008">
             <strong>排位赛</strong>
             <span>用账号班底 + 教练/战术出战；胜负计入战绩，卡组不下线消失</span>
           </button>
-          <button class="mode-card mode-card-feature" data-mode="season">
+          <button class="mode-card mode-card-feature" data-mode="season" data-legend="birdla01:1986">
             <strong>常规赛征程</strong>
             <span>32 队或穿越历史整年（如 1991：当年全联盟常规赛→季后赛，总决赛才可能遇乔丹）· 自命名拉斯维加斯队 · 评奖</span>
           </button>
-          <button class="mode-card" data-mode="career">
+          <button class="mode-card" data-mode="career" data-legend="jokicni01:2023">
             <strong>金币晋级赛</strong>
             <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
           </button>
-          <button class="mode-card" data-mode="tournament">
+          <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">
             <strong>多人淘汰赛</strong>
             <span>每轮多一次选人，一路打到总决赛</span>
           </button>
         </div>
       </section>
-      <section class="hint-panel">
-        <h2>设计要点</h2>
+      <details class="hint-panel">
+        <summary><h2>设计要点 · 玩法说明</h2></summary>
         <ul>
           <li>球员带赛季年份与当季头像：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。</li>
           <li>命中率贴近真实：空位也会打铁；完整统计含盖帽、抢断、失误、罚球、前后场篮板、+/- 等。</li>
@@ -143,8 +155,8 @@
           <li>同一球员不同赛季卡会随年龄变化：新秀更快更有弹速，老将判断力/力量/传球/投篮手感与领袖气场、大心脏更强。</li>
           <li>技能≠能力：巨星也可能没有技能包；托尼·阿伦「缠绕盯防」、巴蒂尔「持球克星·3D」、慈世平/考辛斯「火爆脾气」等角色特质可挂在非巨星身上，并影响抢断、空位与技术犯规。</li>
         </ul>
-        <p class="tiny"><button type="button" class="btn small ghost" id="btn-clear-roster-cache" title="清除 Cache Storage + IndexedDB 名册缓存">清除名册本地缓存</button></p>
-      </section>
+      </details>
+      <p class="tiny home-cache-tools"><button type="button" class="btn small ghost" id="btn-clear-roster-cache" title="清除 Cache Storage + IndexedDB 名册缓存">清除名册本地缓存</button></p>
     </main>
 
     <main id="screen-account" class="screen">

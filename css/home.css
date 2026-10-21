@@ -1,0 +1,299 @@
+/* ==========================================================
+   Home screen showcase — arena banner, legends wall, photo cards.
+   Scoped to #screen-home / .topbar so other screens are untouched.
+   ========================================================== */
+
+:root {
+  --arena-1: #07130d;
+  --arena-2: #123522;
+  --arena-3: #1d4a31;
+  --gold: #f6c870;
+  --gold-soft: rgba(246, 200, 112, .22);
+}
+
+/* —— Top bar —— */
+.topbar {
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(7, 19, 13, .92);
+  box-shadow: 0 10px 30px rgba(7, 19, 13, .25);
+}
+.topbar .brand-mark { color: #ff7a1a; }
+.topbar .brand-name { color: #f3efe4; }
+.topbar .brand-mark::before {
+  content: "";
+  display: inline-block;
+  width: .8em;
+  height: .8em;
+  margin-right: .35em;
+  border-radius: 50%;
+  vertical-align: -.05em;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 46%, #0b0b0b 47% 51%, transparent 52%),
+    linear-gradient(90deg, transparent 47%, #0b0b0b 47% 53%, transparent 53%),
+    radial-gradient(circle at 35% 30%, #ffb26b, #e85d04 60%, #a33f00);
+}
+.topbar .tagline { color: rgba(243, 239, 228, .7); }
+.topbar .btn.ghost,
+.topbar .account-chip {
+  color: #f3efe4;
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .2);
+}
+.topbar .account-chip:hover,
+.topbar .btn.ghost:hover { border-color: var(--gold); }
+
+/* —— Arena banner —— */
+.home-banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 32px 32px 28px;
+  border-radius: 24px;
+  overflow: hidden;
+  color: #f8f4ea;
+  background:
+    radial-gradient(700px 320px at 78% -10%, rgba(255, 200, 120, .28), transparent 60%),
+    radial-gradient(500px 260px at 0% 110%, rgba(232, 93, 4, .25), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .025) 0 2px, transparent 2px 46px),
+    linear-gradient(150deg, var(--arena-1) 0%, var(--arena-2) 55%, var(--arena-3) 100%);
+  box-shadow: 0 24px 60px rgba(7, 19, 13, .35);
+  isolation: isolate;
+}
+/* Half-court arc decoration */
+.home-banner::after {
+  content: "";
+  position: absolute;
+  right: -120px;
+  bottom: -220px;
+  width: 520px;
+  height: 520px;
+  border: 2px solid rgba(246, 200, 112, .14);
+  border-radius: 50%;
+  z-index: -1;
+}
+.home-banner-kicker {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.hero .home-banner h1 {
+  margin: 12px 0 10px;
+  color: #fff;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: clamp(2rem, 4.6vw, 3.4rem);
+  line-height: 1.1;
+  letter-spacing: .02em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, .35);
+}
+.home-banner-copy > p {
+  max-width: 38ch;
+  margin: 0 0 18px;
+  color: rgba(248, 244, 234, .85);
+  line-height: 1.6;
+}
+.home-banner-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.home-banner-facts li {
+  min-width: 92px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+.home-banner-facts strong {
+  display: block;
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  line-height: 1;
+  letter-spacing: .04em;
+}
+.home-banner-facts span { font-size: .75rem; color: rgba(248, 244, 234, .8); }
+
+/* —— Legends photo wall —— */
+.legends-wall {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.legend-tile {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 5;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0b1f15;
+  border: 2px solid rgba(246, 200, 112, .35);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, .4);
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform .2s ease, border-color .2s ease;
+}
+.legend-tile:hover { transform: rotate(0deg) scale(1.04); border-color: var(--gold); z-index: 1; }
+.legend-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  filter: saturate(1.05) contrast(1.05);
+}
+.legend-tile figcaption {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 18px 8px 6px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, .85));
+  color: #fff;
+  line-height: 1.2;
+}
+.legend-tile figcaption strong { display: block; font-size: .78rem; }
+.legend-tile figcaption span { font-size: .66rem; color: var(--gold); }
+
+/* —— Account / save bars —— */
+#screen-home .account-home-bar {
+  position: relative;
+  padding-left: 20px;
+  background: rgba(255, 255, 255, .85);
+  border: 1px solid rgba(15, 28, 20, .08);
+  box-shadow: 0 8px 22px rgba(15, 28, 20, .08);
+  overflow: hidden;
+}
+#screen-home .account-home-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(#ff7a1a, #e85d04);
+}
+#screen-home .save-home-bar::before { background: linear-gradient(#34d399, #166534); }
+
+/* —— Mode cards with legend photos —— */
+#screen-home .mode-group-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  color: #1d4a31;
+}
+#screen-home .mode-group-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(29, 74, 49, .35), transparent);
+}
+#screen-home .mode-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 108px;
+  background: rgba(255, 255, 255, .9);
+  border: 1px solid rgba(15, 28, 20, .08);
+  box-shadow: 0 10px 26px rgba(15, 28, 20, .1);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+#screen-home .mode-card:hover,
+#screen-home .mode-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: #e85d04;
+  box-shadow: 0 16px 34px rgba(232, 93, 4, .18);
+}
+#screen-home .mode-card:focus-visible { outline: 3px solid #e85d04; outline-offset: 2px; }
+#screen-home .mode-card.has-photo { padding-right: 118px; }
+#screen-home .mode-card strong,
+#screen-home .mode-card > span:not(.mode-card-photo) { position: relative; z-index: 1; }
+#screen-home .mode-card > span:not(.mode-card-photo) { color: #4b5563; }
+.mode-card-photo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 128px;
+  pointer-events: none;
+}
+.mode-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 55%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 55%);
+  transition: transform .3s ease;
+}
+#screen-home .mode-card:hover .mode-card-photo img { transform: scale(1.06); }
+
+/* Featured cards: dark arena style */
+#screen-home .mode-card-feature {
+  background: linear-gradient(120deg, var(--arena-1) 0%, var(--arena-2) 60%, var(--arena-3) 100%);
+  border-color: rgba(246, 200, 112, .3);
+  color: #fff;
+}
+#screen-home .mode-card-feature strong { color: #fff; font-size: 1.25rem; }
+#screen-home .mode-card-feature strong::after { color: var(--gold); }
+#screen-home .mode-card-feature > span:not(.mode-card-photo) { color: rgba(248, 244, 234, .82); }
+#screen-home .mode-card-feature.has-photo { padding-right: 200px; }
+#screen-home .mode-card-feature .mode-card-photo { width: 220px; }
+
+/* Design notes panel (collapsible) */
+#screen-home .hint-panel {
+  background: rgba(255, 255, 255, .8);
+  border-left-color: #e85d04;
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(15, 28, 20, .08);
+}
+#screen-home .hint-panel summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+#screen-home .hint-panel summary::-webkit-details-marker { display: none; }
+#screen-home .hint-panel summary::before {
+  content: "\25B8";
+  color: #e85d04;
+  transition: transform .15s ease;
+}
+#screen-home .hint-panel[open] summary::before { transform: rotate(90deg); }
+#screen-home .hint-panel summary h2 { margin: 0; }
+#screen-home .hint-panel[open] summary { margin-bottom: 8px; }
+.home-cache-tools { margin: 10px 0 0; text-align: right; }
+
+/* —— Responsive —— */
+@media (max-width: 860px) {
+  .home-banner { grid-template-columns: 1fr; padding: 24px 18px 20px; }
+  .legends-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .legend-tile:nth-child(n + 9) { display: none; }
+}
+@media (max-width: 560px) {
+  .topbar { border-radius: 20px; padding: 10px 12px; }
+  .topbar .brand { flex-wrap: nowrap; gap: 6px; white-space: nowrap; }
+  .topbar .brand-mark { font-size: 1.3rem; }
+  .topbar .brand-name { font-size: 1.25rem; }
+  .topbar .tagline { display: none; }
+  .legends-wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .legend-tile:nth-child(n + 7) { display: none; }
+  #screen-home .mode-card.has-photo { padding-right: 96px; }
+  #screen-home .mode-card-feature.has-photo { padding-right: 120px; }
+  .mode-card-photo { width: 104px; }
+  #screen-home .mode-card-feature .mode-card-photo { width: 136px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .legend-tile,
+  .mode-card-photo img,
+  #screen-home .mode-card { transition: none; }
+  .legend-tile { transform: none; }
+}
