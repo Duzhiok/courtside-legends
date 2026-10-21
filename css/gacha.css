@@ -152,3 +152,24 @@
     grid-template-columns: 1fr;
   }
 }
+
+.favorite-tag {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #fde8f0;
+  color: #8a1c46;
+}
+
+.favorite-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.favorite-pick select {
+  min-height: 32px;
+}

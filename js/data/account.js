@@ -7,6 +7,7 @@ import { clonePlayer, overall, PLAYERS } from "./players.js";
 import { MERGE_ATTR_KEYS, SKILL_PACKS } from "./skills.js";
 import { applyHiddenRoll, legacyRollSeed } from "./cardRoll.js";
 import { MAX_STARS } from "./gacha.js";
+import { applyGrowth } from "./growthPaths.js";
 
 const STORE_KEY = "cls_accounts_v1";
 const ACTIVE_KEY = "cls_active_account";
@@ -177,8 +178,8 @@ export function deleteAccount(id) {
 
 /**
  * Apply account upgrades onto a cloned card:
- * each star → all rating attrs +1 (cap 100, max ★5), learned skills, and the
- * copy's 成色 roll on top of the historical intangibles.
+ * each star → all rating attrs +1 (cap 100, max ★5), 本命 growth on its path,
+ * learned skills, and the copy's 成色 roll on top of the historical intangibles.
  * `fallbackSeed` covers copies owned before 成色 existed.
  */
 export function applyCardMods(player, mod, fallbackSeed = null) {
@@ -192,6 +193,7 @@ export function applyCardMods(player, mod, fallbackSeed = null) {
       p[key] = Math.min(100, Math.round(Number(p[key]) || 0) + merges);
     }
   }
+  applyGrowth(p, mod?.growth);
   const extra = (mod?.skills || []).filter((id) => SKILL_PACKS[id]);
   if (extra.length) {
     const have = new Set(p.skills || []);
