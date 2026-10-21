@@ -34,6 +34,17 @@ import { searchPeople } from "./data/cardSearch.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import {
+  boughtSkillCount,
+  buyableSkills,
+  buySkillWithFragments,
+  codexProgress,
+  cardRoom,
+  junkIds,
+  recycleCards,
+  recycleValue,
+} from "./data/accountRecycle.js";
+import { manageBarHtml, recycleButtonHtml, skillShopHtml } from "./ui/collectionManageView.js";
+import {
   bannerPickerHtml,
   drawRevealHtml,
   drawRulesHtml,
@@ -1717,7 +1728,7 @@ function onboardCardHtml(p, { selectable = false, selected = false } = {}) {
   const type = selectable ? ' type="button"' : "";
   const view = selectable ? "" : " view-only";
   return `<${el}${type} class="player-card${sel}${view}"${tag}>
-    ${photoImg(p, 56)}
+    ${photoImg(p, "headshot lg")}
     <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
     <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.twilight ? " · 头像为生涯照" : ""}</div>
   </${el}>`;
@@ -1965,13 +1976,14 @@ function openCollection() {
       .map((p) => {
         const ovr = overall(p);
         return `<div class="player-card">
-          ${photoImg(p, 56)}
+          ${photoImg(p, "headshot lg")}
           <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
           <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
           <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
           ${skillChipsHtml(p)}
           ${soulButtonHtml(p, souls[p.bref] || 0)}
           ${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}
+          ${recycleButtonHtml(p, { isFavorite: acc.favoriteId === p.id })}
         </div>`;
       })
       .join("");
@@ -1986,6 +1998,11 @@ function openCollection() {
       }
     };
     grid.onclick = (event) => {
+      const recycle = event.target.closest("[data-recycle]");
+      if (recycle) {
+        recycleWithConfirm(acc, [recycle.dataset.recycle]);
+        return;
+      }
       const button = event.target.closest("[data-soul-star]");
       if (!button) return;
       try {
@@ -1996,6 +2013,7 @@ function openCollection() {
       }
     };
   }
+  renderCollectionManage(acc, players);
   const drawBtn = $("#btn-collection-draw");
   if (drawBtn) {
     drawBtn.disabled = false;
@@ -2003,6 +2021,81 @@ function openCollection() {
   }
   show("collection");
 }
+
+let shopCardId = "";
+
+function renderCollectionManage(acc, players) {
+  const box = $("#collection-manage");
+  if (!box) return;
+  const junk = junkIds(acc);
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const total = junk.reduce(
+    (sum, id) => {
+      const value = recycleValue(byId.get(id));
+      return { gold: sum.gold + value.gold, fragments: sum.fragments + value.fragments };
+    },
+    { gold: 0, fragments: 0 }
+  );
+  const shopCard = byId.get(shopCardId);
+  box.innerHTML =
+    manageBarHtml({ account: acc, codex: codexProgress(acc, PLAYERS), junk: { count: junk.length, ...total } }) +
+    skillShopHtml(
+      {
+        cards: players,
+        selectedId: shopCard ? shopCardId : "",
+        options: shopCard ? buyableSkills(shopCard) : [],
+        bought: shopCard ? boughtSkillCount(acc, shopCardId) : 0,
+        fragments: acc.fragments || 0,
+      },
+      esc
+    );
+}
+
+/** Recycle with a confirm that names the value; risky cards get a second, specific warning. */
+async function recycleWithConfirm(acc, ids) {
+  try {
+    const preview = resolvePlayers(ids, acc);
+    const gold = preview.reduce((sum, card) => sum + recycleValue(card).gold, 0);
+    const fragments = preview.reduce((sum, card) => sum + recycleValue(card).fragments, 0);
+    const names = preview.slice(0, 3).map((card) => card.name).join("、") + (preview.length > 3 ? ` 等 ${preview.length} 张` : "");
+    if (!(await confirmAction(`分解 ${names}？不可撤销，获得 ¤${gold} + ${fragments} 技能碎片。`, { title: "分解球员卡", acceptLabel: "分解" }))) return;
+    try {
+      recycleCards(acc, ids);
+    } catch (error) {
+      if (!error.needsConfirm) throw error;
+      const why = error.needsConfirm.map((c) => `${c.name}（${c.why.join("、")}）`).join("；");
+      if (!(await confirmAction(`注意：${why}。仍然分解吗？`, { title: "这些卡很可能值得留", acceptLabel: "仍然分解" }))) return;
+      recycleCards(acc, ids, { confirmed: true });
+    }
+    openCollection();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+$("#collection-manage")?.addEventListener("click", (event) => {
+  const acc = activeAccount();
+  if (!acc) return;
+  if (event.target.closest("[data-recycle-junk]")) {
+    recycleWithConfirm(acc, junkIds(acc));
+    return;
+  }
+  const buy = event.target.closest("[data-buy-skill]");
+  if (!buy) return;
+  try {
+    const skill = buySkillWithFragments(acc, shopCardId, buy.dataset.buySkill);
+    alert(`已学会「${skill.name}」（-${skill.cost} 碎片）`);
+    openCollection();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+$("#collection-manage")?.addEventListener("change", (event) => {
+  if (!event.target.matches("[data-shop-card]")) return;
+  shopCardId = event.target.value;
+  const acc = activeAccount();
+  if (acc) openCollection();
+});
 
 const drawView = () => ({ esc, photoImg, rarityClass, skillChipsHtml, ovrOf: overall });
 let drawBannerId = "standard";
@@ -2014,10 +2107,13 @@ function renderDrawStatus(acc) {
   $("#draw-status").innerHTML = drawStatusHtml(acc, availability, wishName, esc);
   const pull = $("#btn-draw-pull");
   if (!pull) return;
-  pull.disabled = !availability.any || !!acc.pendingRoll;
+  const full = cardRoom(acc) <= 0;
+  pull.disabled = !availability.any || !!acc.pendingRoll || full;
   pull.textContent = acc.pendingRoll
     ? "先选择成色"
-    : availability.free
+    : full
+      ? "卡库已满 · 先去分解"
+      : availability.free
       ? "免费抽卡"
       : availability.canPay
         ? `金币加抽（¤${availability.cost}）`
@@ -2030,6 +2126,8 @@ function renderWishPanel(acc) {
   $("#wish-panel").innerHTML = wishlistHtml(
     {
       people: query.trim() ? searchPeople(PLAYERS, query, { ovrOf: overall }) : [],
+      wishBref: wish || null,
+      wishName: wish ? PLAYERS.find((p) => p.bref === wish)?.name : null,
       wishCards: wish ? PLAYERS.filter((p) => p.bref === wish).sort((a, b) => b.season - a.season) : [],
       ownedIds: new Set(acc.playerIds || []),
       gold: acc.gold || 0,
@@ -2084,7 +2182,7 @@ $("#wish-search")?.addEventListener("input", () => {
 
 $("#btn-draw-pull")?.addEventListener("click", () => {
   const acc = activeAccount();
-  if (!acc || !canDailyDraw(acc) || acc.pendingRoll) return;
+  if (!acc || !canDailyDraw(acc) || acc.pendingRoll || cardRoom(acc) <= 0) return;
   try {
     const result = performDailyDraw(acc, { bannerId: drawBannerId });
     $("#draw-stage").innerHTML = drawRevealHtml(result, drawView());

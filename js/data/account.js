@@ -216,8 +216,8 @@ export function getCardMod(account, playerId) {
  * Resolve owned ids → upgraded cards. Without an account (onboarding offers)
  * no 成色 is applied: hidden values stay unrevealed until the card is owned.
  */
-export function resolvePlayers(ids, account = null) {
-  const map = new Map(PLAYERS.map((p) => [p.id, p]));
+export function resolvePlayers(ids, account = null, pool = PLAYERS) {
+  const map = new Map(pool.map((p) => [p.id, p]));
   const mods = account?.cardMods || {};
   return (ids || [])
     .map((id) => map.get(id))

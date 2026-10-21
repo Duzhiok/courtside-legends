@@ -36,7 +36,7 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
     <label class="tiny sandbox-option"><input type="checkbox" data-parity checked /> 跨时代平衡（补齐老年代没统计的盖帽 / 抢断 / 三分）</label>
     <div class="sandbox-sides">${SIDES.map(sideTemplate).join("")}</div>
     <p class="tiny sandbox-error" role="alert" data-error></p>
-    <div class="actions"><button type="button" class="btn primary" data-start>开打</button></div>`;
+    <div class="actions sandbox-start"><button type="button" class="btn primary" data-start>开打 · 时空对决</button></div>`;
 
   const q = (selector) => root.querySelector(selector);
   const cardLine = (card) => `${esc(card.name)} · ${card.season} · ${esc(card.team)} · ${card.pos} · OVR ${ovrOf(card)}`;
@@ -53,10 +53,26 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
       .join("");
   }
 
+  /** Same card collapses into one "×N" row; picks stays a flat list. */
+  function groupedRows(side) {
+    const rows = new Map();
+    picks[side].forEach((card, index) => {
+      const row = rows.get(card.id) || { card, first: index, count: 0 };
+      row.count += 1;
+      rows.set(card.id, row);
+    });
+    return [...rows.values()];
+  }
+
   function renderRoster(side) {
     q(`[data-count="${side}"]`).textContent = `已选 ${picks[side].length}/${SANDBOX_MAX}（至少 ${SANDBOX_MIN}）`;
-    q(`[data-roster="${side}"]`).innerHTML = picks[side]
-      .map((card, i) => `<li><span>${cardLine(card)}</span><button type="button" class="btn small ghost" data-remove="${side}:${i}" aria-label="移除 ${esc(card.name)}">移除</button></li>`)
+    q(`[data-roster="${side}"]`).innerHTML = groupedRows(side)
+      .map(({ card, first, count }) => `<li><span>${cardLine(card)}</span>
+          <span class="sandbox-qty">
+            <button type="button" class="btn small ghost" data-remove="${side}:${first}" aria-label="少一个 ${esc(card.name)}">−</button>
+            <strong aria-label="${count} 个">×${count}</strong>
+            <button type="button" class="btn small ghost" data-more="${side}:${first}" aria-label="多一个 ${esc(card.name)}">+</button>
+          </span></li>`)
       .join("");
   }
 
@@ -72,7 +88,7 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
   });
 
   root.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-add],[data-fill],[data-remove],[data-start]");
+    const button = event.target.closest("[data-add],[data-fill],[data-remove],[data-more],[data-start]");
     if (!button) return;
     setError("");
     try {
@@ -84,9 +100,10 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
         onStart(teamA, teamB);
         return;
       }
-      const [side, index] = (button.dataset.add || button.dataset.fill || button.dataset.remove).split(":");
+      const [side, index] = (button.dataset.add || button.dataset.fill || button.dataset.remove || button.dataset.more).split(":");
       if (button.dataset.add) picks[side] = addToSide(picks[side], found[side][index]);
       else if (button.dataset.fill) picks[side] = fillWithCopies(found[side][index]);
+      else if (button.dataset.more) picks[side] = addToSide(picks[side], picks[side][Number(index)]);
       else picks[side] = removeFromSide(picks[side], Number(index));
       renderRoster(side);
     } catch (error) {

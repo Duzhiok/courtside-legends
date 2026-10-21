@@ -20,6 +20,7 @@ import {
   weightedPick,
 } from "./account.js";
 import { compareRolls, legacyRollSeed, newRollSeed } from "./cardRoll.js";
+import { MAX_CARDS, cardRoom } from "./accountRecycle.js";
 import {
   EXTRA_DRAW,
   MAX_STARS,
@@ -56,6 +57,8 @@ function addSouls(account, bref, amount) {
 
 function addCopy(account, player, rng) {
   account.playerIds = [...(account.playerIds || []), player.id];
+  // 图鉴 remembers every card ever owned, even after it is recycled.
+  account.codex = [...new Set([...(account.codex || []), player.id])];
   modOf(account, player.id).roll = newRollSeed(rng);
 }
 
@@ -149,6 +152,7 @@ function applyPlayerPull(account, player, rng, pool) {
  */
 export function performDailyDraw(account, { bannerId = "standard", rng = Math.random, pool = PLAYERS, date = new Date() } = {}) {
   if (!account) throw new Error("无账号");
+  if (cardRoom(account) <= 0) throw new Error(`卡库已满（${MAX_CARDS} 张）——先去「我的球员卡」分解一些`);
   const paid = payForPull(account, todayKey(date));
   if (rng() < COACH_SHARE) return drawCoach(account, paid);
 
@@ -228,6 +232,7 @@ export function craftWishCard(account, playerId, { rng = Math.random, pool = PLA
   if (!card) throw new Error("卡牌不存在");
   if (card.bref !== gachaOf(account).wishlist) throw new Error("只能合成心愿单球员");
   if ((account.playerIds || []).includes(card.id)) throw new Error("已拥有这张卡——用球魂升星吧");
+  if (cardRoom(account) <= 0) throw new Error(`卡库已满（${MAX_CARDS} 张）——先分解一些`);
   const cost = craftCost(overall(card));
   if ((account.gold || 0) < cost) throw new Error(`金币不足（需要 ¤${cost}）`);
   account.gold -= cost;

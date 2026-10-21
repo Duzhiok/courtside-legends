@@ -223,7 +223,28 @@
 
 .sandbox-roster {
   margin: 0;
-  padding-left: 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.sandbox-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.sandbox-start {
+  position: sticky;
+  bottom: 0;
+  padding: 10px 0;
+  background: linear-gradient(to top, var(--bg, #eef2ea) 70%, transparent);
+}
+
+.sandbox-start .btn {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1.05rem;
 }
 
 .sandbox-option {
@@ -240,5 +261,74 @@
 @media (max-width: 720px) {
   .sandbox-sides {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Collection management */
+.manage-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.manage-bar.full {
+  border-color: #b42318;
+  background: #fff3f1;
+}
+
+.skill-shop {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+}
+
+.skill-shop summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 24px;
+}
+
+.shop-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line, #d8dccf);
+  font-size: 0.9rem;
+}
+
+.headshot.xl { width: 96px; height: 96px; }
+
+/* Collection: up to 60 cards — page scroll, 2 columns on phones, no nested scroller. */
+.collection-grid {
+  max-height: none;
+  overflow: visible;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.collection-grid .player-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 }
