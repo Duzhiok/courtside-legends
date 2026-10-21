@@ -270,3 +270,42 @@ test("exclusive skills never show up in the award picker", () => {
   }
   assert.ok(ids.includes("rim_wrecker") && ids.includes("rebound_maniac"));
 });
+
+test("Jokić is a rhythm big: 高抛大师 instead of 中投大师, no 篮下暴君", () => {
+  const jokic = assignSkillPacks(athlete("jokicni01", "Nikola Jokić"));
+  for (const id of ["high_floater", "one_leg_fade", "blind_pass"]) assert.ok(jokic.skills.includes(id), id);
+  for (const id of ["paint_bully", "mid_maestro"]) assert.ok(!jokic.skills.includes(id), `no ${id}`);
+  assert.equal(SKILL_PACKS.high_floater.name, "高抛大师");
+  assert.ok(skillBlockResist({ skills: ["high_floater"] }) < 1, "high arc is hard to block");
+  assert.equal(isLearnableSkill("high_floater"), true);
+});
+
+test("篮下暴君 is curated bully-ball only: finesse bigs lose it, Barkley / Malone get it", () => {
+  for (const [bref, name] of [["olajuha01", "Hakeem Olajuwon"], ["abdulka01", "Kareem Abdul-Jabbar"], ["johnsma02", "Magic Johnson"]]) {
+    assert.ok(!assignSkillPacks(athlete(bref, name)).skills.includes("paint_bully"), name);
+  }
+  for (const [bref, name] of [["barklch01", "Charles Barkley"], ["malonka01", "Karl Malone"], ["onealsh01", "Shaquille O'Neal"]]) {
+    assert.ok(assignSkillPacks(athlete(bref, name)).skills.includes("paint_bully"), name);
+  }
+  // stat heuristics and gold can't hand it out
+  const bigBody = { bref: "nobody01", age: 26, paint: 99, strength: 99, purchasedSkills: ["paint_bully"] };
+  assert.equal(canRetainSkill(bigBody, "paint_bully"), false);
+  assert.equal(isLearnableSkill("paint_bully"), false);
+});
+
+test("only curated players hold 篮下暴君 anywhere in the real roster", () => {
+  const roster = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"));
+  const rows = Array.isArray(roster) ? roster : Object.values(roster).find(Array.isArray);
+  const curated = new Set(
+    [...Object.entries(SIGNATURE_SKILLS), ...Object.entries(SEASON_SIGNATURE_SKILLS)]
+      .filter(([, ids]) => ids.includes("paint_bully"))
+      .map(([key]) => key.split(":")[0])
+  );
+  const holders = new Set(
+    rows
+      .map((row) => assignSkillPacks({ ...row, skills: [], age: 26 }))
+      .filter((p) => p.skills.includes("paint_bully"))
+      .map((p) => p.bref)
+  );
+  assert.deepEqual([...holders].filter((bref) => !curated.has(bref)), []);
+});

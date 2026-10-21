@@ -39,8 +39,10 @@ export const SKILL_PACKS = {
   paint_bully: {
     id: "paint_bully",
     name: "篮下暴君",
-    desc: "禁区强打与造杀伤",
+    desc: "Bully ball：靠身体在禁区硬凿、强打造杀伤。只属于真正暴力冲击篮下的人（奥尼尔、巴克利、张伯伦…），偏技术流的内线没有",
     tone: "gold",
+    exclusive: true,
+    curatedOnly: true,
   },
   lockdown: {
     id: "lockdown",
@@ -502,6 +504,19 @@ export const SKILL_PACKS = {
     makeBoost: 0.25,
     openBoost: 0.14,
   },
+  high_floater: {
+    id: "high_floater",
+    name: "高抛大师",
+    desc: "约基奇式高抛：在护框人头顶把球高高抛起，弧线极高很难被盖，靠节奏而不是蛮力",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    proc: 0.16,
+    zone: "paint",
+    makeBoost: 0.22,
+    openBoost: 0.08,
+    blockResist: 0.55,
+  },
   giant_stride: {
     id: "giant_stride",
     name: "大步流星",
@@ -848,6 +863,10 @@ export const SIGNATURE_SKILLS = {
   // Derrick Rose — 劲爆第一步 / 杀筐，不是传球核
   rosede01: ["first_step", "coast_to_coast", "ankle_breaker", "clutch_killer"],
   onealsh01: ["mountain_slam", "paint_bully", "motor_engine", "rim_protector"],
+  // Bully-ball 大前锋：之前一个技能都没有
+  barklch01: ["paint_bully", "board_man", "coast_to_coast"],
+  malonka01: ["paint_bully", "mid_maestro", "motor_engine"],
+  malonmo01: ["paint_bully", "board_man", "motor_engine"],
   // Dwight Howard — 魔兽：暴扣王 / 护框 / 板霸（巅峰另有赛季叠加）
   howardw01: ["poster_slam", "rim_protector", "board_man", "paint_bully"],
   duncati01: ["bank_45", "rim_protector", "lockdown", "mid_maestro"],
@@ -858,11 +877,11 @@ export const SIGNATURE_SKILLS = {
   stockjo01: ["teardrop", "dime_dropper", "thief", "lockdown"],
   paytoga01: ["glove", "thief", "lockdown", "dime_dropper"],
   mutomdi01: ["not_in_my_house", "rim_protector", "lockdown"],
-  olajuha01: ["dream_shake", "paint_bully", "rim_protector", "ankle_breaker"],
-  robinda01: ["rim_protector", "paint_bully", "lockdown", "motor_engine"],
+  olajuha01: ["dream_shake", "rim_protector", "ankle_breaker"],
+  robinda01: ["rim_protector", "lockdown", "motor_engine"],
   birdla01: ["clutch_killer", "rainmaker", "dime_dropper", "mid_maestro"],
-  johnsma02: ["dime_dropper", "paint_bully", "clutch_killer", "teardrop"],
-  abdulka01: ["skyhook", "paint_bully", "rim_protector", "mid_maestro"],
+  johnsma02: ["dime_dropper", "clutch_killer", "teardrop"],
+  abdulka01: ["skyhook", "rim_protector", "mid_maestro"],
   // Wilt Chamberlain — 内线统治 + 篮板狂魔 + 铁人
   chambwi01: ["big_dipper", "paint_bully", "board_man", "motor_engine"],
   // 韦德：迷踪步（euro_step）+ 变向终结 + 关键球 + 抢断
@@ -872,7 +891,8 @@ export const SIGNATURE_SKILLS = {
   nowitdi01: ["dirk_fade", "mid_maestro", "rainmaker", "freeze_iso"],
   // 字母哥「希腊怪物」：大步流星（大三步）+ 篮筐肆虐者（转身扣/暴扣）+ 长驱直入（快攻扣篮）
   antetgi01: ["giant_stride", "rim_wrecker", "coast_to_coast", "motor_engine", "lockdown"],
-  jokicni01: ["one_leg_fade", "blind_pass", "soft_touch", "dime_dropper", "paint_bully", "mid_maestro"],
+  // 约基奇：节奏型（偏软，不是 bully ball）—— 高抛 + 单脚抛射 + 脑后长眼，可当控球发起点
+  jokicni01: ["one_leg_fade", "blind_pass", "high_floater", "soft_touch", "dime_dropper"],
   murraja01: ["mid_maestro", "rainmaker", "clutch_killer", "freeze_iso"],
   doncilu01: ["stepback", "dime_dropper", "freeze_iso", "mid_maestro"],
   // Joel Embiid — BRef id 是 embiijo01（旧键 embiiijo01 多了一个 i）
@@ -904,7 +924,7 @@ export const SIGNATURE_SKILLS = {
   rodmade01: ["rebound_maniac", "stamina_monster", "lockdown"],
   mcgratr01: ["stepback", "freeze_iso", "rainmaker", "clutch_killer"],
   // Vince Carter — BRef id 是 cartevi01（旧键 cartere01 其实是 Reggie Carter）
-  cartevi01: ["coast_to_coast", "paint_bully", "ankle_breaker"],
+  cartevi01: ["coast_to_coast", "poster_slam", "ankle_breaker"],
   piercpa01: ["the_truth", "stepback", "clutch_killer", "mid_maestro", "freeze_iso"],
   anthoca01: ["offense_kaleidoscope", "lone_wolf", "mid_maestro", "freeze_iso"],
   billuch01: ["big_shot", "clutch_killer", "mid_maestro"],
@@ -915,10 +935,10 @@ export const SIGNATURE_SKILLS = {
   // Kenneth Faried — Manimal 半兽人：身体素质 +10% / 暴扣 / 空接 / 护框
   farieke01: ["manimal", "poster_slam", "lob_finisher", "spring_board", "rim_protector"],
   // 其他超巨
-  davisan02: ["rim_protector", "paint_bully", "mid_maestro", "lockdown"],
+  davisan02: ["rim_protector", "mid_maestro", "lockdown"],
   bookede01: ["freeze_iso", "mid_maestro", "rainmaker", "stepback"],
   youngtr01: ["teardrop", "dime_dropper", "rainmaker"],
-  moranja01: ["coast_to_coast", "paint_bully", "ankle_breaker"],
+  moranja01: ["coast_to_coast", "ankle_breaker"],
   gilgesh01: ["lean_in_jumper", "stepback", "rainmaker", "freeze_iso"],
   tatumja01: ["stepback", "mid_maestro", "freeze_iso"],
   stephcu01: ["logo_range", "splash_spot", "rainmaker", "ankle_breaker"], // alias safety
@@ -1069,6 +1089,8 @@ export function canRetainSkill(player, skillId) {
   // 球队限定技能：不是该队的赛季卡就没有
   const teams = SKILL_TEAM_GATES[skillId];
   if (teams && !teams.includes(String(player.team || "").toUpperCase())) return false;
+  // 人工名单技能（篮下暴君）：不在名单上就没有，买来的也不行
+  if (pack.curatedOnly && !isCuratedSkill(player, skillId)) return false;
   // 身高硬门槛（高塔）：买来的也不行，矮个子学不会
   const minH = SKILL_ATHLETE_GATES[skillId]?.minHeightCm;
   if (minH != null && (player.heightCm || 0) < minH) return false;
@@ -1368,7 +1390,6 @@ function candidateSkills(p) {
   }
   if (/floor_general|connector|playmaking/.test(a)) cands.add("dime_dropper");
   if (/shooter|spacing/.test(a) || (p.three || 0) >= 88) cands.add("rainmaker");
-  if (/dominant_big|rebounder/.test(a) || (p.paint || 0) >= 88) cands.add("paint_bully");
   if (/pest|two_way/.test(a) || (p.defense || 0) >= 88) cands.add("lockdown");
   if ((p.steal || 0) >= 85 || (p.raw?.spg || 0) >= 2.2) cands.add("thief");
   if ((p.block || 0) >= 85 || (p.raw?.bpg || 0) >= 2.5) cands.add("rim_protector");
@@ -1723,6 +1744,7 @@ export function signatureFeedFlavor(sigId) {
     god_mode: ["上帝附体，中投空心入网", "无视防守的中距离跳投", "那一刻他就是上帝"],
     high_tower: ["高塔俯射打进", "高位指尖拨进", "臂展压制砸进"],
     spring_board: ["弹跳暴起砸筐", "二次起飞灌篮"],
+    high_floater: ["高抛越过护框人入网", "抛物线高抛空心", "节奏一顿高抛打板"],
     giant_stride: ["大三步跨过防守上篮", "一步跨进禁区拉杆", "大步流星直冲篮下"],
     rim_wrecker: ["转身暴扣砸筐", "篮筐肆虐·强起灌篮", "快攻起飞劈扣", "硬撼护框人扣进"],
   };
@@ -2106,6 +2128,7 @@ export const SKILL_RARITY = {
   uncle_drew: "mythic",
   rim_wrecker: "mythic",
   giant_stride: "legendary",
+  high_floater: "legendary",
   big_dipper: "mythic",
   god_mode: "mythic",
   one_leg_fade: "mythic",
