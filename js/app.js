@@ -201,6 +201,10 @@ import {
   renderDevelopmentPlans,
   renderDraftBoard,
 } from "./ui/leagueManagementView.js";
+import {
+  buildRosterEvaluation,
+  renderRosterEvaluation,
+} from "./ui/rosterEvaluationView.js";
 import { confirmAction } from "./ui/confirmModal.js";
 import {
   SEASON_APRON,
@@ -7837,6 +7841,7 @@ function renderSeasonHub({ persist = true } = {}) {
   renderSeasonStandings();
   renderSeasonRotation();
   renderSeasonMarket();
+  renderSeasonEvaluation();
   renderSeasonSchedule();
   renderSeasonAwards();
   renderSeasonPlayoffs();
@@ -8090,6 +8095,28 @@ function renderSeasonRotation() {
     if (!saveSeasonAndCareer(st)) return;
     alert("默认轮换已保存。下场「亲自指挥」会自动套用首发/分钟/位置/核心。");
     renderSeasonRotation();
+  });
+}
+
+function renderSeasonEvaluation() {
+  const st = state.season;
+  const box = $("#season-evaluation");
+  if (!st || !box) return;
+  const you = st.teams?.[st.userTeamId];
+  const rows = buildRosterEvaluation(you?.players || [], st.playerSeason, {
+    teamId: st.userTeamId,
+    salaryOf: playerSalary,
+    overallOf: overall,
+  });
+  renderRosterEvaluation(box, rows);
+  box.querySelectorAll("[data-eval-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      showSeasonTab("market");
+      setTimeout(() => {
+        const target = $("#season-market");
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+    });
   });
 }
 
@@ -8850,6 +8877,7 @@ function showSeasonTab(tab) {
     standings: $("#season-standings"),
     rotation: $("#season-rotation"),
     market: $("#season-market"),
+    evaluation: $("#season-evaluation"),
     schedule: $("#season-schedule"),
     awards: $("#season-awards"),
     playoffs: $("#season-playoffs"),
