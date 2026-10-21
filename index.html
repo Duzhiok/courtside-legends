@@ -851,6 +851,17 @@
     </main>
   </div>
 
+  <dialog id="app-confirm-dialog" class="app-confirm-dialog" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-message">
+    <form method="dialog" class="app-confirm-card">
+      <h2 id="app-confirm-title">请确认</h2>
+      <p id="app-confirm-message"></p>
+      <div class="app-confirm-actions">
+        <button type="button" class="btn ghost" id="app-confirm-cancel">取消</button>
+        <button type="button" class="btn primary" id="app-confirm-accept">确定</button>
+      </div>
+    </form>
+  </dialog>
+
   <script>
     // Inline watchdog: catches module failures / frozen boots before app.js runs.
     (function () {

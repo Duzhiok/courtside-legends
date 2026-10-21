@@ -994,6 +994,27 @@ select, input[type="number"] {
 }
 .bar.opp i { background: #0e7490; }
 
+.app-confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  color: var(--ink);
+  background: transparent;
+}
+.app-confirm-dialog::backdrop { background: rgba(10, 18, 14, .58); }
+.app-confirm-card {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, .25);
+}
+.app-confirm-card h2 { margin: 0; font-size: 1.2rem; }
+.app-confirm-card p { margin: 0; color: var(--muted); line-height: 1.55; }
+.app-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .result-card { padding: 28px 22px; text-align: center; }
 .big-score {
   font-family: var(--font-display);

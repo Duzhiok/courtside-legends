@@ -104,6 +104,54 @@ const EVENT_DEFINITIONS = [
       },
     ],
   },
+  {
+    id: "fourth-year-commitment",
+    chapter: "year-four",
+    startOffset: 3,
+    title: "争冠窗口的代价",
+    prompt: "球队终于进入争冠窗口，但核心球员的合同、伤病和忠诚开始互相冲突。你只能优先保护一个目标。",
+    tags: ["contender", "loyalty"],
+    choices: [
+      {
+        id: "protect-the-player",
+        label: "保护核心健康",
+        description: "牺牲一部分常规赛成绩，给核心更多休息和恢复时间。",
+        effects: { trust: 3, mediaPressure: 3, divergence: 4, relationship: { players: 5, coach: -1 } },
+        flags: { playerHealthFirst: true },
+      },
+      {
+        id: "chase-every-win",
+        label: "追逐每一场胜利",
+        description: "把能用的资源全部投入当下，接受核心过载的风险。",
+        effects: { trust: 4, mediaPressure: -3, divergence: 7, relationship: { coach: 2, players: -3 } },
+        flags: { allInSeason: true },
+      },
+    ],
+  },
+  {
+    id: "fifth-year-final-call",
+    chapter: "year-five",
+    startOffset: 4,
+    title: "最后一通电话",
+    prompt: "五年合同即将结束。你可以留下继续守护这支球队，也可以带着已经验证的理念去开启下一段职业生涯。",
+    tags: ["ending", "career"],
+    choices: [
+      {
+        id: "stay-and-build",
+        label: "留下建立王朝",
+        description: "把未来交给这群一起成长的人，承担继续守成的压力。",
+        effects: { trust: 6, mediaPressure: 4, divergence: 5, relationship: { owner: 4, players: 4 } },
+        flags: { stayedForDynasty: true },
+      },
+      {
+        id: "leave-as-legend",
+        label: "带着成果离开",
+        description: "接受新的挑战，让这段历史停在最好的位置。",
+        effects: { trust: -2, mediaPressure: -5, divergence: 8, relationship: { owner: -3, media: 3 } },
+        flags: { leftAsLegend: true },
+      },
+    ],
+  },
 ];
 
 function clone(value) {
@@ -229,6 +277,27 @@ export function queueNextStoryEvent(root, { year } = {}) {
   );
   if (!next) return root;
   return queueStoryEvent(root, next.id, { year: currentYear });
+}
+
+export function finalizeCareerEnding(root) {
+  requireStory(root);
+  const history = root.leagueCareer?.management?.seasonHistory || [];
+  if (history.length < 5) return root;
+  if (root.story.ending) return root;
+  const ending = deriveEnding(root);
+  return {
+    ...root,
+    story: {
+      ...root.story,
+      currentChapter: "epilogue",
+      ending,
+      pendingDecision: null,
+      eventLog: [
+        ...root.story.eventLog,
+        { type: "career-ending", year: root.leagueCareer?.season?.year, ending: clone(ending), at: Date.now() },
+      ],
+    },
+  };
 }
 
 export function buildCareerReport(root) {

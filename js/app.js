@@ -162,6 +162,7 @@ import {
 } from "./modes/timeTravelCareer.js";
 import {
   buildCareerReport,
+  finalizeCareerEnding,
   getStoryEvent,
   queueNextStoryEvent,
   queueStoryEvent,
@@ -195,6 +196,7 @@ import {
   renderDevelopmentPlans,
   renderDraftBoard,
 } from "./ui/leagueManagementView.js";
+import { confirmAction } from "./ui/confirmModal.js";
 import {
   SEASON_APRON,
   SEASON_MAX_ROSTER,
@@ -668,9 +670,10 @@ function queueNextTimeTravelEvent() {
   if (state.leagueCareer?.kind !== "timeTravel" || !state.story) return;
   const root = state.longCareerRoot || currentRootState();
   const next = queueNextStoryEvent(root, { year: state.season?.year });
-  if (next === root) return;
-  state.story = next.story;
-  state.longCareerRoot = next;
+  const finalized = next === root ? finalizeCareerEnding(root) : next;
+  if (finalized === root) return;
+  state.story = finalized.story;
+  state.longCareerRoot = finalized;
   saveLongCareer();
 }
 
@@ -741,12 +744,15 @@ function renderTimeTravelOffers() {
         <span>信任 ${offer.trust}</span>
         <span>压力 ${offer.pressure}</span>
       </div>`;
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       if (state.leagueCareer?.kind === "timeTravel") return;
       const existingRoot = state.longCareerRoot || readRootSave();
       if (
         hasExistingCareerRoot(existingRoot)
-        && !confirm("接受新邀请将替换当前长期生涯存档，确定继续？")
+        && !(await confirmAction("接受新邀请将替换当前长期生涯存档，确定继续？", {
+          title: "覆盖长期生涯？",
+          acceptLabel: "覆盖并继续",
+        }))
       ) return;
       const previous = {
         mode: state.mode,
@@ -905,7 +911,10 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
   if (!file) return;
   try {
     const imported = importRootSave(await file.text());
-    if (!confirm("导入将替换当前长期生涯存档，确定继续？")) return;
+    if (!(await confirmAction("导入将替换当前长期生涯存档，确定继续？", {
+      title: "导入长期生涯？",
+      acceptLabel: "导入并覆盖",
+    }))) return;
     const persisted = writeRootSave(imported);
     state.longCareerRoot = persisted;
     refreshLongCareerHomeBar();
@@ -9262,17 +9271,23 @@ $("#btn-season-mode-hist")?.addEventListener("click", () => {
   syncSeasonModeUi();
   syncSeasonStartButtonLabel();
 });
-$("#btn-season-start")?.addEventListener("click", () => {
+$("#btn-season-start")?.addEventListener("click", async () => {
   const draft = state.seasonRosterDraft;
   if (!draft || draft.players.length < 8) return;
   const name = ($("#season-team-name")?.value || "").trim() || "拉斯维加斯 ***";
   if (
     seasonSetupKind === "franchise"
     && hasExistingCareerRoot(state.longCareerRoot || readRootSave())
-    && !confirm("开始新联盟经理生涯将替换当前长期生涯存档，确定继续？")
+    && !(await confirmAction("开始新联盟经理生涯将替换当前长期生涯存档，确定继续？", {
+      title: "覆盖联盟经理存档？",
+      acceptLabel: "覆盖并开始",
+    }))
   ) return;
   draft.name = name;
-  if (state.season && !confirm("将覆盖当前赛季进度，确定开新赛季？")) return;
+  if (state.season && !(await confirmAction("将覆盖当前赛季进度，确定开新赛季？", {
+    title: "覆盖当前赛季？",
+    acceptLabel: "覆盖并开始",
+  }))) return;
   clearSeasonSave();
   const yearSel = Number($("#season-year-select")?.value) || seasonSetupYear;
   try {
@@ -9311,8 +9326,11 @@ $("#btn-season-save")?.addEventListener("click", () => {
     }
   }
 });
-$("#btn-season-abandon")?.addEventListener("click", () => {
-  if (!confirm("确定放弃当前赛季？进度将清空。")) return;
+$("#btn-season-abandon")?.addEventListener("click", async () => {
+  if (!(await confirmAction("确定放弃当前赛季？进度将清空。", {
+    title: "放弃当前赛季？",
+    acceptLabel: "放弃并清空",
+  }))) return;
   const abandoningTimeTravel = state.leagueCareer?.kind === "timeTravel";
   clearSeasonSave();
   if (abandoningTimeTravel) {
