@@ -212,6 +212,7 @@ import {
   renderRosterEvaluation,
 } from "./ui/rosterEvaluationView.js";
 import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeComparison.js";
+import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { confirmAction } from "./ui/confirmModal.js";
 import {
   SEASON_APRON,
@@ -8327,7 +8328,10 @@ function renderSeasonMarket() {
         <strong>${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}</strong>
         <p class="tiny">${esc(proposal.reason)}</p>
         <div class="tiny">对方球员：${proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；")}</div>
-        <div class="tiny">附带选秀权：${proposal.offerPicks.map((pick) => `${pick.year} 年第 ${pick.round} 轮（${pick.protection}）`).join("、")}</div>
+        <div class="tiny">附带选秀权：${proposal.offerPicks.map((pick) => {
+          const value = estimateDraftPickValue(pick, { currentYear: st.year });
+          return `<span title="${esc(value.explanation)}">${esc(value.label)}（≈ +${value.ovrEquivalent} OVR）</span>`;
+        }).join("、")}</div>
         <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${proposal.id}">接受报价</button><button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${proposal.id}">拒绝</button></div>
       </article>`).join("") || `<p class="tiny">最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。</p>`}
     </section>

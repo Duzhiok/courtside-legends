@@ -3187,6 +3187,12 @@ select, input[type="number"] {
   border: 1px solid var(--line);
 }
 .trade-compare-col h5 { margin: 0 0 4px; font-size: .85rem; }
+.pick-value-list {
+  margin: 4px 0;
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}
+.pick-value-list li { margin: 2px 0; }
 @media (max-width: 640px) {
   .trade-compare-grid { grid-template-columns: 1fr; }
 }
