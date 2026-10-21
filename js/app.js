@@ -9727,11 +9727,23 @@ async function boot() {
     setTimeout(() => show("home"), 200);
   } catch (e) {
     console.error(e);
-    $("#load-status").textContent = `名册加载失败：${e.message}。请确认用本地服务器打开（当前应为 http://127.0.0.1:5173）。`;
+    const quotaError = /quota|storage quota|存储空间/i.test(e?.message || "");
+    $("#load-status").textContent = quotaError
+      ? `本地存档写入失败：${e.message}。名册本身未必损坏。`
+      : `名册加载失败：${e.message}。请确认用本地服务器打开（当前应为 http://127.0.0.1:5173）。`;
     const tip = $("#load-watchdog");
     if (tip) {
       tip.hidden = false;
-      tip.textContent = "可尝试强制刷新（Cmd+Shift+R），或点主页「清除名册本地缓存」后再开。";
+      if (quotaError) {
+        tip.innerHTML = "请清理名册缓存后重启：<button type=\"button\" class=\"btn small\" id=\"btn-recover-storage\">清理缓存并重启</button>";
+        $("#btn-recover-storage")?.addEventListener("click", async () => {
+          await clearRosterCache();
+          try { localStorage.removeItem("cls_root_v3_tmp"); } catch (_) { /* best effort */ }
+          location.reload();
+        });
+      } else {
+        tip.textContent = "可尝试强制刷新（Cmd+Shift+R），或点主页「清除名册本地缓存」后再开。";
+      }
     }
   }
 }

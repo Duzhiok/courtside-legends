@@ -292,11 +292,25 @@ export function writeRootSave(root, storage) {
   validateRoot(persisted);
 
   const serialized = JSON.stringify(persisted);
-  target.setItem(TEMP_ROOT_SAVE_KEY, serialized);
-  const verified = parseJson(target.getItem(TEMP_ROOT_SAVE_KEY));
-  validateRoot(verified);
-  target.setItem(ROOT_SAVE_KEY, JSON.stringify(verified));
-  target.removeItem(TEMP_ROOT_SAVE_KEY);
+  try {
+    target.setItem(TEMP_ROOT_SAVE_KEY, serialized);
+    const verified = parseJson(target.getItem(TEMP_ROOT_SAVE_KEY));
+    validateRoot(verified);
+    target.setItem(ROOT_SAVE_KEY, JSON.stringify(verified));
+    target.removeItem(TEMP_ROOT_SAVE_KEY);
+  } catch (error) {
+    // A full localStorage often cannot hold both the old root and a temporary
+    // full-sized copy. Fall back to replacing the official root directly so a
+    // large roster cache does not masquerade as a roster boot failure.
+    try {
+      target.removeItem(TEMP_ROOT_SAVE_KEY);
+      target.setItem(ROOT_SAVE_KEY, serialized);
+      validateRoot(parseJson(target.getItem(ROOT_SAVE_KEY)));
+    } catch (directError) {
+      try { target.removeItem(TEMP_ROOT_SAVE_KEY); } catch (_) { /* best effort */ }
+      throw new Error("storage quota exceeded while saving career", { cause: directError || error });
+    }
+  }
   root.savedAt = savedAt;
   return root;
 }
