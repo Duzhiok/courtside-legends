@@ -173,3 +173,72 @@
 .favorite-pick select {
   min-height: 32px;
 }
+
+/* 时空对决 sandbox */
+.sandbox-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 10px 0;
+}
+
+.sandbox-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+}
+
+.sandbox-side input {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.sandbox-name {
+  font-weight: 700;
+}
+
+.sandbox-result,
+.sandbox-roster li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed var(--line, #d8dccf);
+}
+
+.sandbox-result span:first-child,
+.sandbox-roster li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sandbox-roster {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.sandbox-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sandbox-error {
+  min-height: 1.2em;
+  color: #b42318;
+}
+
+@media (max-width: 720px) {
+  .sandbox-sides {
+    grid-template-columns: 1fr;
+  }
+}
