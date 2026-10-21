@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildCareerReport,
   deriveEnding,
+  finalizeCareerEnding,
   getStoryEvent,
   listStoryEvents,
   queueNextStoryEvent,
@@ -36,7 +37,7 @@ function rootFixture(overrides = {}) {
 
 test("story catalog exposes choices without leaking mutable definitions", () => {
   const catalog = listStoryEvents();
-  assert.equal(catalog.length, 4);
+  assert.equal(catalog.length, 6);
   assert.equal(catalog[0].choices.length, 3);
   const event = getStoryEvent(catalog[0].id);
   event.choices[0].label = "tampered";
@@ -77,7 +78,13 @@ test("story events advance in order and stop after the chapter chain", () => {
   const fifth = queueNextStoryEvent(afterThird, { year: 1993 });
   assert.equal(fifth.story.pendingDecision.eventId, "third-year-butterfly");
   const afterFourth = resolveStoryEvent(fifth, "hide-the-edge");
-  assert.equal(queueNextStoryEvent(afterFourth, { year: 1995 }).story.pendingDecision, null);
+  const sixth = queueNextStoryEvent(afterFourth, { year: 1994 });
+  assert.equal(sixth.story.pendingDecision.eventId, "fourth-year-commitment");
+  const afterFifth = resolveStoryEvent(sixth, "protect-the-player");
+  const seventh = queueNextStoryEvent(afterFifth, { year: 1995 });
+  assert.equal(seventh.story.pendingDecision.eventId, "fifth-year-final-call");
+  const afterSixth = resolveStoryEvent(seventh, "stay-and-build");
+  assert.equal(queueNextStoryEvent(afterSixth, { year: 1996 }).story.pendingDecision, null);
 });
 
 test("event engine rejects duplicate events and invalid choices", () => {
@@ -127,4 +134,9 @@ test("career report summarizes history and derives a meaningful ending", () => {
     tone: "success",
   });
   assert.deepEqual(deriveEnding(root), report.ending);
+  const finalized = finalizeCareerEnding(root);
+  assert.deepEqual(finalized.story.ending, report.ending);
+  assert.equal(finalized.story.currentChapter, "epilogue");
+  assert.equal(finalized.story.eventLog.at(-1).type, "career-ending");
+  assert.equal(finalizeCareerEnding(finalized), finalized);
 });
