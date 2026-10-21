@@ -34,6 +34,13 @@ function haystack(card) {
   return normalizeText(`${card.name}|${card.nameEn}|${card.bref}|${NICKNAMES[card.bref] || ""}|${aliases}`);
 }
 
+/** True when one card matches a free-text query (every term, plus the season if given). */
+export function matchesQuery(card, query) {
+  const { terms, season } = parseQuery(query);
+  if (!terms.length && season == null) return true;
+  return (season == null || card.season === season) && terms.every((term) => haystack(card).includes(term));
+}
+
 /** Season cards matching every term (and the season, if given), best OVR first. */
 export function searchCards(pool, query, { limit = 30, ovrOf }) {
   const { terms, season } = parseQuery(query);

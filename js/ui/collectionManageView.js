@@ -23,7 +23,7 @@ export function manageBarHtml({ account, codex, junk }) {
 export function recycleButtonHtml(card, { isFavorite }) {
   if (isFavorite) return "";
   const value = recycleValue(card);
-  return `<button type="button" class="btn small ghost" data-recycle="${card.id}">分解 +¤${value.gold} +${value.fragments}碎</button>`;
+  return `<button type="button" class="btn small ghost" data-recycle="${card.id}">分解 → ¤${value.gold} + ${value.fragments} 碎片</button>`;
 }
 
 export function skillShopHtml({ cards, selectedId, options, bought, fragments }, esc) {
