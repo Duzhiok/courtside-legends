@@ -30,8 +30,10 @@ import {
   extraDrawsLeft,
   freshGachaState,
   goldForPull,
+  pityFloor,
   pullCard,
   recordExtraDraw,
+  registerNonPlayerPull,
 } from "./gacha.js";
 
 const COACH_SHARE = 0.2;
@@ -159,7 +161,12 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
   if (!account) throw new Error("无账号");
   if (cardRoom(account) <= 0) throw new Error(`卡库已满（${MAX_CARDS} 张）——先去「我的球员卡」分解一些`);
   const paid = payForPull(account, todayKey(date));
-  if (rng() < COACH_SHARE) return drawCoach(account, paid);
+  // A pity-armed pull is always a player (the promised card), never a coach.
+  const state = gachaOf(account);
+  if (!pityFloor(state) && rng() < COACH_SHARE) {
+    account.gacha = registerNonPlayerPull(state);
+    return drawCoach(account, paid);
+  }
 
   const banner = currentBanners(date).find((b) => b.id === bannerId) || currentBanners(date)[0];
   const pull = pullCard({ pool, gacha: gachaOf(account), banner, rng, ovrOf: overall });
@@ -184,6 +191,8 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
     banner,
     pityHit: pull.pityHit,
     wishHit: pull.wishHit,
+    poolBand: pull.relative ? pull.band.label : null,
+    newbieStandard: pull.newbieForced && bannerId !== "standard",
     rollChoice,
     ...paid,
   };
