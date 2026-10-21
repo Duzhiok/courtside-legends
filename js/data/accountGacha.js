@@ -67,28 +67,33 @@ function pushHistory(account, entry) {
 }
 
 export function drawAvailability(account, today = todayKey()) {
-  if (!account) return { free: false, extraLeft: 0, cost: EXTRA_DRAW.cost, canPay: false, any: false };
+  if (!account) return { free: false, tickets: 0, extraLeft: 0, cost: EXTRA_DRAW.cost, canPay: false, any: false };
   const free = account.lastDailyDraw !== today;
+  const tickets = account.tickets || 0;
   const extraLeft = extraDrawsLeft(account.gacha, today);
   const canPay = extraLeft > 0 && (account.gold || 0) >= EXTRA_DRAW.cost;
-  return { free, extraLeft, cost: EXTRA_DRAW.cost, canPay, any: free || canPay };
+  return { free, tickets, extraLeft, cost: EXTRA_DRAW.cost, canPay, any: free || tickets > 0 || canPay };
 }
 
 export function canDailyDraw(account) {
   return drawAvailability(account).any;
 }
 
-/** Spend today's free pull, or gold for an extra one. Throws when neither is available. */
+/** Spend today's free pull, then an 抽卡券, then gold. Throws when none is available. */
 function payForPull(account, today) {
   const availability = drawAvailability(account, today);
   if (availability.free) {
     account.lastDailyDraw = today;
-    return { paidGold: 0 };
+    return { paidGold: 0, usedTicket: false };
   }
-  if (!availability.canPay) throw new Error("今日免费抽卡已用，金币也不够加抽");
+  if (availability.tickets > 0) {
+    account.tickets -= 1;
+    return { paidGold: 0, usedTicket: true };
+  }
+  if (!availability.canPay) throw new Error("今日免费抽卡和抽卡券都用完了，金币也不够加抽");
   account.gold -= EXTRA_DRAW.cost;
   account.gacha = recordExtraDraw(gachaOf(account), today);
-  return { paidGold: EXTRA_DRAW.cost };
+  return { paidGold: EXTRA_DRAW.cost, usedTicket: false };
 }
 
 function drawCoach(account, paid) {

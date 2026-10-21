@@ -33,6 +33,7 @@ import { currentBanners } from "./data/gacha.js";
 import { searchPeople } from "./data/cardSearch.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
+import { grantWelcomeTickets, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import {
   boughtSkillCount,
   buyableSkills,
@@ -50,6 +51,7 @@ import {
   drawRulesHtml,
   drawStatusHtml,
   favoriteControlHtml,
+  tasksHtml,
   hiddenBadgesHtml,
   rollChoiceHtml,
   soulButtonHtml,
@@ -1610,6 +1612,7 @@ function requireAccountReady() {
     startOnboarding(acc);
     return null;
   }
+  grantWelcomeTickets(acc);
   return acc;
 }
 
@@ -2105,6 +2108,7 @@ function renderDrawStatus(acc) {
   const wish = acc.gacha?.wishlist;
   const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
   $("#draw-status").innerHTML = drawStatusHtml(acc, availability, wishName, esc);
+  $("#draw-tasks").innerHTML = tasksHtml(taskBoard(acc));
   const pull = $("#btn-draw-pull");
   if (!pull) return;
   const full = cardRoom(acc) <= 0;
@@ -2114,10 +2118,12 @@ function renderDrawStatus(acc) {
     : full
       ? "卡库已满 · 先去分解"
       : availability.free
-      ? "免费抽卡"
-      : availability.canPay
-        ? `金币加抽（¤${availability.cost}）`
-        : "明日再来";
+        ? "免费抽卡"
+        : availability.tickets > 0
+          ? `用抽卡券（剩 ${availability.tickets}）`
+          : availability.canPay
+            ? `金币加抽（¤${availability.cost}）`
+            : "今日次数用完 · 打排位赚抽卡券";
 }
 
 function renderWishPanel(acc) {
@@ -9772,7 +9778,11 @@ function handleRankedResult(youWin, snap) {
   if (acc) recordRankedResult(acc, youWin);
   // Ranked always seats the account on the home side (startRankedMatch).
   const notes = acc ? applyRankedGame(acc, snap?.home?.roster, { won: youWin }) : [];
-  const progress = notes.map(progressNoteText).join(" ");
+  const tickets = acc ? recordRankedTasks(acc, youWin) : [];
+  const progress = [
+    ...notes.map(progressNoteText),
+    ...tickets.map((g) => `🎫 ${g.label}，抽卡券 +${g.tickets}`),
+  ].join(" ");
   const cont = $("#btn-result-continue");
   $("#result-summary").textContent = (youWin
     ? `排位胜利。班底与教练已保存，战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`

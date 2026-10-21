@@ -26,6 +26,9 @@ export const PITY = {
   legendAt: 50,
 };
 
+/** 新手保底: within the first pulls of an account, one 85+ is guaranteed (once). */
+export const NEWBIE = { allstarByPull: 5 };
+
 /** Chance that a pull landing in a band holding a wishlist card becomes it. */
 export const WISHLIST_REDIRECT = 0.3;
 /** Wishlist share of a legend-pity pull when the wish person has a 93+ card. */
@@ -116,11 +119,13 @@ export function bannerFilter(banner) {
 }
 
 export function freshGachaState() {
-  return { sinceAllstar: 0, sinceLegend: 0, wishlist: null, souls: {}, extra: null };
+  return { sinceAllstar: 0, sinceLegend: 0, pulls: 0, hadAllstar: false, wishlist: null, souls: {}, extra: null };
 }
 
 /** Which band the pity system forces this pull into (null = roll normally). */
 export function pityFloor(gacha) {
+  // 新手保底: no 85+ yet by the 5th pull → forced once; hadAllstar then stays true.
+  if (!gacha.hadAllstar && (gacha.pulls || 0) + 1 >= NEWBIE.allstarByPull) return bandById("allstar");
   if ((gacha.sinceLegend || 0) + 1 >= PITY.legendAt) return bandById("legend");
   if ((gacha.sinceAllstar || 0) + 1 >= PITY.allstarEvery) return bandById("allstar");
   return null;
@@ -184,6 +189,8 @@ export function pullCard({ pool, gacha = freshGachaState(), banner = null, rng =
     ...gacha,
     sinceAllstar: ovr >= 85 ? 0 : (gacha.sinceAllstar || 0) + 1,
     sinceLegend: ovr >= 93 ? 0 : (gacha.sinceLegend || 0) + 1,
+    pulls: (gacha.pulls || 0) + 1,
+    hadAllstar: !!gacha.hadAllstar || ovr >= 85,
   };
   return { player, band: bandOf(ovr), pityHit: !!floor, wishHit, gacha: next };
 }

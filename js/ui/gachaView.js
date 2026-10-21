@@ -44,11 +44,14 @@ export function drawStatusHtml(account, availability, wishName, esc) {
   const toLegend = PITY.legendAt - (gacha.sinceLegend || 0);
   const pull = availability.free
     ? "今日免费抽可用"
-    : availability.extraLeft > 0
+    : availability.tickets > 0
+      ? `抽卡券 ${availability.tickets} 张可用`
+      : availability.extraLeft > 0
       ? `加抽 ¤${availability.cost}（今日还剩 ${availability.extraLeft} 次）`
       : "今日抽卡次数已用完";
   return `<div class="draw-status">
       <span>金币 ¤${account.gold || 0}</span>
+      <span>抽卡券 ${availability.tickets || 0}</span>
       <span>卡库 ${(account.playerIds || []).length}/${MAX_CARDS}</span>
       <span>${pull}</span>
       <span>全明星保底还差 ${toAllstar} 抽</span>
@@ -103,6 +106,7 @@ export function drawRevealHtml(result, view) {
   const flags = [
     result.pityHit ? '<span class="draw-flag">保底触发</span>' : "",
     result.wishHit ? '<span class="draw-flag wish">心愿命中</span>' : "",
+    result.usedTicket ? '<span class="draw-flag">抽卡券 −1</span>' : "",
     result.paidGold ? `<span class="draw-flag">加抽 −¤${result.paidGold}</span>` : "",
     result.goldGain ? `<span class="draw-flag">+¤${result.goldGain}</span>` : "",
   ].join("");
@@ -163,4 +167,15 @@ export function favoriteControlHtml(player, growth, isFavorite) {
   return `<label class="tiny favorite-pick">设为本命
       <select data-favorite="${player.id}"><option value="">—</option>${options}</select>
     </label>`;
+}
+
+/** Daily tasks + win milestone. Tickets are the reward, shown up front. */
+export function tasksHtml(board) {
+  const rows = board.tasks
+    .map((task) => `<li class="${task.claimed ? "done" : ""}"><span aria-hidden="true">${task.claimed ? "✅" : "⬜"}</span> ${task.label} <span class="tiny">→ 抽卡券 +${task.tickets}${task.claimed ? "（已领）" : ""}</span></li>`)
+    .join("");
+  return `<div class="draw-tasks">
+      <strong>每日任务</strong>
+      <ul>${rows}<li><span aria-hidden="true">🎯</span> 排位累计 ${board.milestone.next} 胜 <span class="tiny">→ 抽卡券 +1（现在 ${board.milestone.wins} 胜，每 ${board.milestone.perTicket} 胜一张）</span></li></ul>
+    </div>`;
 }

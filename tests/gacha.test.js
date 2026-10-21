@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  NEWBIE,
   PITY,
   RATE_TABLE,
   bannerFilter,
@@ -52,7 +53,8 @@ test("rate table sums to 1 and 90+ is now 7%", () => {
 });
 
 test("10th pull without an 85+ is forced to at least 全明星", () => {
-  let gacha = freshGachaState();
+  // hadAllstar: skip the 新手保底 so this exercises the ordinary 10-pull pity
+  let gacha = { ...freshGachaState(), hadAllstar: true };
   const alwaysCommon = () => 0.999;
   for (let i = 0; i < PITY.allstarEvery - 1; i++) {
     const pull = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
@@ -156,4 +158,28 @@ test("the rates shown to players add up to exactly 100%", async () => {
   assert.equal(shown.length, RATE_TABLE.length);
   assert.ok(Math.abs(shown.reduce((a, b) => a + b, 0) - 100) < 1e-9);
   assert.match(rateSummary(), /传奇 1\.7%/);
+});
+
+test("新手保底: an account with no 85+ gets one by its 5th pull, once", () => {
+  let gacha = freshGachaState();
+  const alwaysCommon = () => 0.999;
+  for (let i = 0; i < NEWBIE.allstarByPull - 1; i++) {
+    const pull = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
+    assert.ok(pull.player.ovr < 85, `pull ${i + 1} is an ordinary pull`);
+    assert.ok(!pull.pityHit);
+    gacha = pull.gacha;
+  }
+  const fifth = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
+  assert.ok(fifth.pityHit && fifth.player.ovr >= 85);
+  assert.equal(fifth.gacha.hadAllstar, true);
+  assert.equal(fifth.gacha.pulls, NEWBIE.allstarByPull);
+  // after that, ordinary odds again (the 10-pull counter was reset by the 85+)
+  const sixth = pullCard({ pool: POOL, gacha: fifth.gacha, rng: alwaysCommon, ovrOf });
+  assert.ok(!sixth.pityHit && sixth.player.ovr < 85);
+});
+
+test("a lucky early 85+ also spends the 新手保底", () => {
+  const lucky = pullCard({ pool: POOL, gacha: freshGachaState(), rng: () => 0.001, ovrOf });
+  assert.ok(lucky.gacha.hadAllstar);
+  assert.equal(pityFloor(lucky.gacha), null);
 });
