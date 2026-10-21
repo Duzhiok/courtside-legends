@@ -252,7 +252,7 @@ export const SKILL_PACKS = {
   splash_bros: {
     id: "splash_bros",
     name: "水花兄弟",
-    desc: "与射手搭档同场：外线连携开火、无球跑位更毒",
+    desc: "Splash Brothers：库里+克莱同场时外线连携开火、无球跑位更毒，三分连带抬升",
     tone: "purple",
     duo: true,
     exclusive: true,
@@ -357,7 +357,7 @@ export const SKILL_PACKS = {
   logo_range: {
     id: "logo_range",
     name: "百步穿杨",
-    desc: "库里/利拉德类：超远三分随机触发，命中大幅提升（非必进）",
+    desc: "半场射程超远三分；手感火热时极难受干扰。慢防很难贴上，需高机动领防/缠绕才能有效压迫",
     tone: "gold",
     signature: true,
     kind: "offense",
@@ -532,8 +532,8 @@ export const SKILL_PACKS = {
   },
   euro_step: {
     id: "euro_step",
-    name: "欧洲步",
-    desc: "哈登/马努类：欧洲步骗过防守上篮或抛投",
+    name: "迷踪步",
+    desc: "韦德招牌迷踪步（欧洲步）：两步换向晃开防守上篮/抛投；哈登、马努同类",
     tone: "gold",
     signature: true,
     kind: "offense",
@@ -605,7 +605,7 @@ export const SKILL_PACKS = {
   splash_spot: {
     id: "splash_spot",
     name: "水花接投",
-    desc: "汤普森类：无球跑位接球就投",
+    desc: "接球就投：无球跑出空位后瞬投三分（克莱本色；库里亦擅接投）",
     tone: "gold",
     signature: true,
     kind: "offense",
@@ -702,7 +702,8 @@ export const SIGNATURE_SKILLS = {
     "coast_to_coast",
   ],
   duranke01: ["rainmaker", "mid_maestro", "freeze_iso", "midrange_assassin"],
-  curryst01: ["logo_range", "rainmaker", "gravity_well", "ankle_breaker"],
+  // 库里：百步穿杨（半场射程）+ 接投 + 自主变向创造 + 引力
+  curryst01: ["logo_range", "splash_spot", "rainmaker", "gravity_well", "ankle_breaker"],
   hardeti01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"],
   hardeja01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"],
   westbru01: ["motor_engine", "dime_dropper", "ankle_breaker", "coast_to_coast"],
@@ -725,7 +726,8 @@ export const SIGNATURE_SKILLS = {
   abdulka01: ["skyhook", "paint_bully", "rim_protector", "mid_maestro"],
   // Wilt Chamberlain — 内线统治 + 篮板狂魔 + 铁人
   chambwi01: ["big_dipper", "paint_bully", "board_man", "motor_engine"],
-  wadedw01: ["ankle_breaker", "clutch_killer", "thief", "euro_step"],
+  // 韦德：迷踪步（euro_step）+ 变向终结 + 关键球 + 抢断
+  wadedw01: ["euro_step", "ankle_breaker", "clutch_killer", "thief"],
   iversal01: ["crossover", "ankle_breaker", "freeze_iso", "motor_engine"],
   irvinky01: ["uncle_drew", "ankle_breaker", "freeze_iso", "crossover"],
   nowitdi01: ["dirk_fade", "mid_maestro", "rainmaker", "freeze_iso"],
@@ -740,7 +742,8 @@ export const SIGNATURE_SKILLS = {
   leonard01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
   greendr01: ["lockdown", "thief", "rim_protector", "dime_dropper"],
   // Splash / Dame / 经典射手
-  thompkl01: ["splash_spot", "rainmaker", "gravity_well"],
+  // 克莱：百步穿杨 + 水花接投（接球投本色）
+  thompkl01: ["logo_range", "splash_spot", "rainmaker", "gravity_well"],
   lillada01: ["dame_time", "logo_range", "clutch_killer", "rainmaker"],
   allenra02: ["splash_spot", "rainmaker", "clutch_killer"],
   korveky01: ["splash_spot", "rainmaker"],
@@ -775,7 +778,7 @@ export const SIGNATURE_SKILLS = {
   gilgesh01: ["stepback", "rainmaker", "freeze_iso"],
   tatumja01: ["stepback", "mid_maestro", "freeze_iso"],
   brownja02: ["coast_to_coast", "lockdown", "paint_bully"],
-  stephcu01: ["logo_range", "rainmaker"], // alias safety
+  stephcu01: ["logo_range", "splash_spot", "rainmaker", "ankle_breaker"], // alias safety
   // Zion — 篮下暴力终结：暴扣为主，暴君是强打底子
   willizi01: ["poster_slam", "paint_bully", "coast_to_coast", "first_step"],
   // 姚明 — 柔顺手感 / 梦幻舞步 / 高塔
@@ -1411,9 +1414,11 @@ function signatureByName(player) {
   if (/lebron|勒布朗/.test(name))
     return ["positionless", "bully_step", "chase_down_block", "dime_dropper", "clutch_killer", "coast_to_coast"];
   if (/durant|杜兰特/.test(name)) return ["rainmaker", "mid_maestro", "freeze_iso", "midrange_assassin"];
-  if (/stephen curry|斯蒂芬.?库里|curry/.test(name)) return ["logo_range", "rainmaker", "gravity_well", "ankle_breaker"];
+  if (/stephen curry|斯蒂芬.?库里|curry/.test(name))
+    return ["logo_range", "splash_spot", "rainmaker", "gravity_well", "ankle_breaker"];
   if (/lillard|利拉德/.test(name)) return ["dame_time", "logo_range", "clutch_killer", "rainmaker"];
-  if (/klay|汤普森/.test(name)) return ["splash_spot", "rainmaker", "gravity_well"];
+  if (/klay|汤普森/.test(name)) return ["logo_range", "splash_spot", "rainmaker", "gravity_well"];
+  if (/wade|韦德|dwyane/.test(name)) return ["euro_step", "ankle_breaker", "clutch_killer", "thief"];
   if (/harden|哈登/.test(name)) return ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"];
   if (/ginob|吉诺比利|manu/.test(name)) return ["euro_step", "clutch_killer", "ankle_breaker", "mid_maestro"];
   if (/magic johnson|魔术师/.test(name)) return ["dime_dropper", "paint_bully", "clutch_killer", "teardrop"];
@@ -1493,7 +1498,9 @@ export function signatureFeedFlavor(sigId) {
     mountain_slam: ["泰山压顶暴扣", "内线强吃砸筐", "势大力沉灌进"],
     lob_finisher: ["空接暴扣钉板", "拔地而起劈扣", "空中接力砸筐"],
     uncle_drew: ["蝴蝶穿花·拉杆上篮", "变向后拉杆挑篮", "换手蝴蝶穿花上篮", "晃过防守拉杆打进"],
-    euro_step: ["欧洲步上篮", "两步骗防挑篮", "欧洲步晃开上篮"],
+    euro_step: ["迷踪步上篮", "两步换向挑篮", "迷踪步晃开打进", "欧洲步骗防上篮"],
+    logo_range: ["半场开火命中", "超远三分砸进", "LOGO 三分打进", "百步穿杨"],
+    splash_spot: ["接球就投命中", "无球跑出空位瞬投", "水花接投打进"],
     bully_step: ["霸王步挤抗上篮", "强推弱防杀入上篮"],
     coast_to_coast: ["全场推进暴扣", "长驱直入砸筐", "一条龙灌进"],
     teardrop: ["抛投打进", "高抛软打进筐"],
@@ -1608,6 +1615,18 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
     if (m.id === "big_shot" && late && close) proc += 0.1;
     // 挡拆/分球喂到空接手：大幅提高「空接终结」出场率
     if (m.id === "lob_finisher" && lobFeed) proc = Math.min(0.55, proc + 0.28);
+    // 水花接投：被喂到空位时更易发动
+    if (m.id === "splash_spot" && (lobFeed || gameCtx.kickedOut)) {
+      proc = Math.min(0.48, proc + 0.14);
+    }
+    // 百步穿杨：手感火 / 自主持球超远开火
+    if (m.id === "logo_range") {
+      if ((baller.hot || 0) >= 2) proc += 0.07;
+      if (!gameCtx.kickedOut) proc += 0.05; // 自主进攻拉投
+      if ((baller.scoreForm ?? 50) >= 70) proc += 0.04;
+    }
+    // 韦德迷踪步略提高出场
+    if (m.id === "euro_step" && brefKey(baller) === "wadedw01") proc += 0.04;
     if (Math.random() > proc) continue;
     const zone = signatureZone(m);
     return {
@@ -2094,6 +2113,21 @@ export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open 
   if (hasSkill(baller, "cold_mid") && shot?.zone === "mid") b += 0.032;
   if (hasSkill(baller, "rainmaker") && shot?.zone === "three") b += 0.032;
   if (hasSkill(baller, "corner_sniper") && shot?.zone === "three" && open >= 0.45) b += 0.03;
+  // 百步穿杨：半场射程；手感来了时强干扰仍稳
+  if (hasSkill(baller, "logo_range") && shot?.zone === "three") {
+    b += 0.02;
+    const hot = baller.hot || 0;
+    const form = baller.scoreForm ?? 50;
+    if (hot >= 2 || form >= 68) {
+      b += 0.032 + Math.max(0, 0.45 - open) * 0.14;
+    } else if (open < 0.38) {
+      b += 0.012; // 冷手也比普通人更敢超远硬解
+    }
+  }
+  // 水花接投：空位/传导后的接球投更准
+  if (hasSkill(baller, "splash_spot") && shot?.zone === "three" && open >= 0.4) {
+    b += 0.026 + (open - 0.4) * 0.04;
+  }
   if (hasSkill(baller, "paint_bully") && shot?.zone === "paint") b += 0.035;
   if (hasSkill(baller, "big_dipper") && shot?.zone === "paint") b += 0.04;
   if (hasSkill(baller, "soft_touch") && (shot?.zone === "paint" || shot?.zone === "mid")) b += 0.028;
@@ -2174,6 +2208,18 @@ export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open 
   return b;
 }
 
+/** 高机动领防/缠绕型：才能有效干扰百步穿杨半场射程 */
+function isMobileChaser(defender) {
+  if (!defender) return false;
+  if ((defender.speed || 50) >= 76) return true;
+  if (hasSkill(defender, "sticky_wrap")) return true;
+  if (hasSkill(defender, "death_wrap")) return true;
+  if (hasSkill(defender, "first_step")) return true;
+  if (hasSkill(defender, "glove")) return true;
+  if (hasSkill(defender, "thief") && (defender.speed || 50) >= 70) return true;
+  return false;
+}
+
 export function skillOpennessDelta(baller, defender, off) {
   let d = 0;
   const offCourt = off?.onCourt || [];
@@ -2186,6 +2232,11 @@ export function skillOpennessDelta(baller, defender, off) {
   if (hasSkill(baller, "high_tower")) d += 0.035; // 高位出手更难贴防
   if (hasSkill(baller, "soft_touch")) d += 0.012;
   if (hasSkill(baller, "lone_wolf")) d += 0.035; // 造一对一空间
+  // 半场射程：慢防贴不上；高机动词/缠绕才能真正压缩空位
+  if (hasSkill(baller, "logo_range")) {
+    if (isMobileChaser(defender)) d -= 0.06;
+    else d += 0.045;
+  }
   if (hasSkill(defender, "lockdown")) d -= 0.05;
   if (hasSkill(defender, "wing_lock")) d -= 0.045;
   // 全能：换防对位几乎不漏空位
