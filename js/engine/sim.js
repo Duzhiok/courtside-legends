@@ -37,6 +37,7 @@ import {
   aggressionLevel,
   ensurePlayerOrders,
   ensureRoles,
+  fitMinuteBudget,
   FOCUS_PLAYS,
   getTempoDef,
   inferPlayerRole,
@@ -2241,6 +2242,8 @@ function wrapTeam(team, side) {
     onCourt = sorted.slice(0, 5);
     bench = sorted.slice(5).concat(injured);
   }
+  // 巨星队超额订分钟 → 按首发/OVR 排出真实轮换（只改本场副本）
+  fitMinuteBudget(roster, { starterIds: onCourt.map((p) => p.id), rank: overall });
   const coach = composeStaff(team.coach, team.assistant);
   const tactics = coach ? coachTactics(coach) : [TACTICS.balanced];
   const tactic = tactics[0];
