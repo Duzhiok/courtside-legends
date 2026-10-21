@@ -20,7 +20,7 @@ const SLOT_OFFSET = { A: 0, B: 100 };
 function sideTemplate(side) {
   return `<section class="sandbox-side" data-side="${side}" aria-label="${side} 队">
       <input class="sandbox-name" data-name="${side}" value="${side === "A" ? "时空队 A" : "时空队 B"}" aria-label="${side} 队队名" maxlength="20" />
-      <input type="search" data-search="${side}" placeholder="搜球员 + 年份，如「乔丹 1991」「黑曼巴」" aria-label="${side} 队搜索球员" />
+      <input type="search" data-search="${side}" placeholder="英文名/中文名/外号 + 年份，如「乔丹 1991」「Kobe 2006」" aria-label="${side} 队搜索球员" />
       <div class="sandbox-results" data-results="${side}"></div>
       <h4 class="tiny" data-count="${side}"></h4>
       <ol class="sandbox-roster" data-roster="${side}"></ol>

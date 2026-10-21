@@ -62,3 +62,11 @@ test("building a team never mutates the source cards", () => {
   buildSandboxTeam("A", fillWithCopies(JORDAN_91));
   assert.deepEqual(JORDAN_91, before);
 });
+
+test("roster cards are English-only, so Chinese search relies on aliases", () => {
+  const english = { id: "jordami01-1991-chi", bref: "jordami01", name: "Michael Jordan", nameEn: "Michael Jordan", season: 1991, team: "CHI", pos: "SG", ovr: 98 };
+  assert.equal(searchCards([english], "乔丹", { ovrOf }).length, 1);
+  assert.equal(searchCards([english], "乔丹 1992", { ovrOf }).length, 0);
+  const livingston = { ...english, id: "livinsh01-2016-gsw", bref: "livinsh01", name: "Shaun Livingston", nameEn: "Shaun Livingston" };
+  assert.equal(searchPeople([livingston], "利文斯顿", { ovrOf })[0].bref, "livinsh01");
+});

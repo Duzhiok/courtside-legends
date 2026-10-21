@@ -1,8 +1,10 @@
 /**
  * Player search shared by the wishlist picker and the free 时空对决 sandbox.
- * Matches Chinese name, English name, bref id and nickname ("黑曼巴" → Kobe).
+ * Matches English name, Chinese alias (名册只有英文名，见 nameAliases.js), bref id
+ * and nickname ("黑曼巴" → Kobe).
  * A 4-digit token is treated as a season filter: "乔丹 1991".
  */
+import { CN_ALIASES } from "./nameAliases.js";
 import { NICKNAMES } from "./nicknames.js";
 
 const SEASON_MIN = 1946;
@@ -28,7 +30,8 @@ export function parseQuery(query) {
 }
 
 function haystack(card) {
-  return normalizeText(`${card.name}|${card.nameEn}|${card.bref}|${NICKNAMES[card.bref] || ""}`);
+  const aliases = (CN_ALIASES[card.bref] || []).join("|");
+  return normalizeText(`${card.name}|${card.nameEn}|${card.bref}|${NICKNAMES[card.bref] || ""}|${aliases}`);
 }
 
 /** Season cards matching every term (and the season, if given), best OVR first. */
