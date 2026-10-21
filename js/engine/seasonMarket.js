@@ -439,7 +439,7 @@ function teamByPlayer(st, playerId) {
  * 1-for-1 or N-for-M trade with a CPU club.
  * Salary match: outgoing within 25% + ¤40 of incoming (NBA-ish simplified).
  */
-export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId } = {}) {
+export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId, acceptedProposal = false } = {}) {
   ensureSeasonMarket(st);
   if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可交易" };
   const you = st.teams[st.userTeamId];
@@ -477,10 +477,10 @@ export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId } = {})
   const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
   const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80; // dumping salary helps
   const cpuNeedsSpace = teamPayroll(cpu) > SEASON_SALARY_CAP && salOut < salIn;
-  if (!salaryOk && !cpuNeedsSpace) {
+  if (!acceptedProposal && !salaryOk && !cpuNeedsSpace) {
     return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };
   }
-  if (!valueOk && Math.random() > 0.25) {
+  if (!acceptedProposal && !valueOk && Math.random() > 0.25) {
     return { ok: false, reason: "对方认为吃亏，拒绝交易" };
   }
   // CPU apron
