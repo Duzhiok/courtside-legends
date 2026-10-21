@@ -192,6 +192,11 @@ import {
   setDevelopmentPlan,
 } from "./modes/playerDevelopment.js";
 import {
+  acceptCareerContract,
+  declineCareerContracts,
+  evaluateCareerEmployment,
+} from "./modes/careerContract.js";
+import {
   renderCareerHistory,
   renderDevelopmentPlans,
   renderDraftBoard,
@@ -670,7 +675,9 @@ function queueNextTimeTravelEvent() {
   if (state.leagueCareer?.kind !== "timeTravel" || !state.story) return;
   const root = state.longCareerRoot || currentRootState();
   const next = queueNextStoryEvent(root, { year: state.season?.year });
-  const finalized = next === root ? finalizeCareerEnding(root) : next;
+  const progressed = next === root ? root : next;
+  const employed = evaluateCareerEmployment(progressed);
+  const finalized = employed === progressed ? finalizeCareerEnding(progressed) : employed;
   if (finalized === root) return;
   state.story = finalized.story;
   state.longCareerRoot = finalized;
@@ -696,6 +703,40 @@ function resolvePendingStoryEvent(choiceId) {
   }
 }
 
+function renderCareerContract() {
+  const card = $("#time-travel-contract");
+  const options = $("#time-travel-contract-options");
+  const pending = state.story?.pendingDecision?.type === "contract-renewal";
+  if (!card || !options) return;
+  card.hidden = !pending;
+  if (!pending) {
+    options.innerHTML = "";
+    return;
+  }
+  options.innerHTML = "";
+  for (const offer of state.story.employment?.offers || []) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn story-event-choice";
+    button.innerHTML = `<strong>${offer.title}</strong><span>${offer.description}</span><span>${offer.years} 年 · 薪资 ${offer.salary} · 权限 ${offer.authority}</span><span>特权：${offer.privileges.join("、")}</span>`;
+    button.addEventListener("click", () => resolveCareerContract(offer.id));
+    options.appendChild(button);
+  }
+}
+
+async function resolveCareerContract(offerId) {
+  try {
+    const root = acceptCareerContract(currentRootState(), offerId);
+    state.story = root.story;
+    state.longCareerRoot = root;
+    if (!saveLongCareer()) throw new Error("续约保存失败");
+    setTimeTravelStatus("续约已签署，薪资和特权已写入生涯记录。");
+    renderTimeTravelStoryState();
+  } catch (error) {
+    setTimeTravelStatus(error?.message || "无法完成续约", true);
+  }
+}
+
 function renderTimeTravelStoryState({ showResolved = false } = {}) {
   const create = $("#time-travel-create");
   const offers = $("#time-travel-offers");
@@ -706,9 +747,10 @@ function renderTimeTravelStoryState({ showResolved = false } = {}) {
   if (create) create.hidden = !!state.leagueCareer;
   if (offers && !timeTravelPrologue) offers.hidden = true;
   if (decision) decision.hidden = !(pending || (showResolved && resolved));
-  if (continueButton) continueButton.hidden = !state.leagueCareer || pending || state.story?.pendingDecision?.type === "story-event";
+  if (continueButton) continueButton.hidden = !state.leagueCareer || !!state.story?.pendingDecision;
   renderTimeTravelResources();
   renderPendingStoryEvent();
+  renderCareerContract();
   renderTimeTravelReport();
   document.querySelectorAll("[data-story-choice]").forEach((button) => {
     button.disabled = !pending;
@@ -875,6 +917,23 @@ document.querySelectorAll("[data-story-choice]").forEach((button) => {
       renderTimeTravelStoryState();
     }
   });
+});
+$("#btn-time-travel-decline-contract")?.addEventListener("click", async () => {
+  if (state.story?.pendingDecision?.type !== "contract-renewal") return;
+  if (!(await confirmAction("拒绝续约后，你将带着五年成果离开这支球队。", {
+    title: "离开球队？",
+    acceptLabel: "确认离开",
+  }))) return;
+  try {
+    const root = declineCareerContracts(currentRootState());
+    state.story = root.story;
+    state.longCareerRoot = root;
+    if (!saveLongCareer()) throw new Error("离队决定保存失败");
+    setTimeTravelStatus("你选择带着成果离开，五年篇章正式结束。");
+    renderTimeTravelStoryState();
+  } catch (error) {
+    setTimeTravelStatus(error?.message || "无法处理离队决定", true);
+  }
 });
 $("#btn-time-travel-continue")?.addEventListener("click", () => {
   if (!state.leagueCareer?.season) return;
