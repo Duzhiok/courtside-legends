@@ -32,6 +32,7 @@ import {
 import { currentBanners } from "./data/gacha.js";
 import { searchPeople } from "./data/cardSearch.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
+import { mountSandbox } from "./ui/sandboxView.js";
 import {
   bannerPickerHtml,
   drawRevealHtml,
@@ -349,6 +350,7 @@ const screens = {
   tournament: $("#screen-tournament"),
   season: $("#screen-season"),
   timeTravel: $("#screen-time-travel"),
+  sandbox: $("#screen-sandbox"),
 };
 
 let state = {
@@ -1498,9 +1500,30 @@ function startMode(mode) {
     show("tournament");
     return;
   }
+  if (mode === "sandbox") {
+    openSandbox();
+    return;
+  }
   initDraft(mode);
   show("draft");
 }
+
+function openSandbox() {
+  mountSandbox({
+    root: screens.sandbox,
+    pool: () => PLAYERS,
+    ovrOf: overall,
+    esc,
+    onStart: (teamA, teamB) => {
+      state.mode = "sandbox";
+      state.lastMode = "sandbox";
+      state.career = null;
+      openSetup(teamA, teamB, "home");
+    },
+  });
+  show("sandbox");
+}
+$("#btn-sandbox-back")?.addEventListener("click", () => show("home"));
 
 $("#btn-custom-hub-back")?.addEventListener("click", () => show("home"));
 $("#btn-custom-budget")?.addEventListener("click", () => {
@@ -1536,6 +1559,10 @@ $("#btn-setup-back").onclick = () => {
   }
   if (c?.kind === "duel") {
     openMarket({ duel: true });
+    return;
+  }
+  if (state.mode === "sandbox") {
+    show("sandbox");
     return;
   }
   show("home");

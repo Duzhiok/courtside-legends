@@ -90,7 +90,7 @@
           </div>
         </div>
         <div class="mode-grid" aria-label="游戏模式">
-          <div class="mode-group-label">核心生涯 · 先从这里开始</div>
+          <div class="mode-group-label">① 生涯 · 长线经营，先从这里开始</div>
           <button class="mode-card mode-card-feature" data-mode="timeTravel" data-legend="jordami01:1991">
             <strong>穿越生涯</strong>
             <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
@@ -99,39 +99,48 @@
             <strong>联盟经理</strong>
             <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
           </button>
-          <div class="mode-group-label">快速玩法 · 一局就懂</div>
-          <button class="mode-card mode-card-feature" data-mode="custom" data-legend="onealsh01:2000">
-            <strong>自定义对战</strong>
-            <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队淘汰赛 · 另含双人/传奇</span>
+          <button class="mode-card" data-mode="season" data-legend="birdla01:1986">
+            <strong>单赛季快玩</strong>
+            <span>32 队或穿越历史整年（如 1991：常规赛→季后赛）· 自命名拉斯维加斯队 · 评奖</span>
+          </button>
+
+          <div class="mode-group-label">② 挑战之路 · 组队闯关打历史强队</div>
+          <button class="mode-card mode-card-feature" data-mode="career" data-legend="jokicni01:2023">
+            <strong>金币晋级赛</strong>
+            <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
+          </button>
+          <button class="mode-card" data-mode="custom" data-legend="onealsh01:2000">
+            <strong>预算轮抽挑战</strong>
+            <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队 · 另含双人/传奇</span>
           </button>
           <details class="mode-card-variants">
-            <summary>更多单局玩法 · 与自定义对战同类</summary>
+            <summary>更多闯关规则</summary>
             <div class="mode-grid mode-grid-nested">
+              <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">
+                <strong>多人淘汰赛</strong>
+                <span>每轮多一次选人，一路打到总决赛</span>
+              </button>
               <button class="mode-card" data-mode="draft" data-legend="antetgi01:2020">
                 <strong>选秀建队</strong>
                 <span>抽球员与教练，打一场完整模拟赛</span>
               </button>
-              <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
-                <strong>快速演示</strong>
-                <span>系统自动组两队，立刻开打看指挥</span>
-              </button>
             </div>
           </details>
+
+          <div class="mode-group-label">③ 时空对决 · 自由度拉满</div>
+          <button class="mode-card mode-card-feature" data-mode="sandbox" data-legend="jamesle01:2013">
+            <strong>时空对决</strong>
+            <span>搜索任意球员任意年份组队：五个乔丹 vs 五个科比也行 · 可开跨时代平衡</span>
+          </button>
+          <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
+            <strong>快速演示</strong>
+            <span>系统自动组两队，立刻开打看指挥</span>
+          </button>
+
+          <div class="mode-group-label">④ 我的球队 · 抽卡、养成、排位</div>
           <button class="mode-card" data-mode="ranked" data-legend="bryanko01:2008">
             <strong>排位赛</strong>
-            <span>用账号班底 + 教练/战术出战；胜负计入战绩，卡组不下线消失</span>
-          </button>
-          <button class="mode-card mode-card-feature" data-mode="season" data-legend="birdla01:1986">
-            <strong>常规赛征程</strong>
-            <span>32 队或穿越历史整年（如 1991：当年全联盟常规赛→季后赛，总决赛才可能遇乔丹）· 自命名拉斯维加斯队 · 评奖</span>
-          </button>
-          <button class="mode-card" data-mode="career" data-legend="jokicni01:2023">
-            <strong>金币晋级赛</strong>
-            <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
-          </button>
-          <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">
-            <strong>多人淘汰赛</strong>
-            <span>每轮多一次选人，一路打到总决赛</span>
+            <span>账号班底自动选最强 12 人（同一球员只上一张）· 赢金币 · 本命涨经验 · 连续爆发可领悟技能</span>
           </button>
         </div>
       </section>
@@ -221,6 +230,15 @@
         <input id="wish-search" type="search" placeholder="搜球员：中文 / 英文 / 外号，如「利文斯顿」「黑曼巴」" aria-label="搜索心愿单球员" />
         <div id="wish-panel"></div>
       </details>
+    </main>
+
+    <main id="screen-sandbox" class="screen">
+      <div class="panel-head">
+        <h2>时空对决</h2>
+        <button class="btn ghost" id="btn-sandbox-back">返回</button>
+      </div>
+      <p class="tiny">自由度拉满：任意球员、任意年份、可以重复。五个 1991 乔丹 vs 五个 2006 科比？点「×5」就行。这是唯一允许同一球员重复上场的模式；结果不影响账号和存档。</p>
+      <div data-sandbox-body></div>
     </main>
 
     <main id="screen-custom-hub" class="screen">
