@@ -3168,6 +3168,28 @@ select, input[type="number"] {
 }
 .evaluation-potential { color: var(--accent); }
 .evaluation-skills { margin: 6px 0; font-size: .8rem; }
+.trade-compare-panel {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(42, 157, 143, .06);
+  border: 1px dashed var(--line);
+}
+.trade-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.trade-compare-col {
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.trade-compare-col h5 { margin: 0 0 4px; font-size: .85rem; }
+@media (max-width: 640px) {
+  .trade-compare-grid { grid-template-columns: 1fr; }
+}
 .roster-evaluation-card header b {
   color: var(--accent);
   font-size: .78rem;

@@ -91,7 +91,8 @@ export function renderRosterEvaluation(container, rows) {
         <p class="tiny evaluation-potential">潜力：${row.potential}</p>
         ${row.skills ? `<div class="evaluation-skills">技能：${row.skills}</div>` : "<p class=\"tiny\">技能：暂无已配置技能</p>"}
         <p class="tiny">${row.reason}</p>
-        <div class="btn-row evaluation-actions"><button type="button" class="btn small" data-eval-action="market">去自由市场 / 交易</button><button type="button" class="btn small ghost" data-eval-action="cut">去裁人面板</button></div>
+        <div class="btn-row evaluation-actions"><button type="button" class="btn small" data-eval-action="market">去自由市场 / 交易</button><button type="button" class="btn small ghost" data-eval-action="cut">去裁人面板</button><button type="button" class="btn small ghost" data-eval-action="compare" data-player-id="${row.id}">方案对比</button></div>
+        <div class="trade-compare-panel" data-compare-for="${row.id}" hidden></div>
       </article>`).join("")}
     </div>`;
 }
