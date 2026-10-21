@@ -906,7 +906,15 @@ export const SIGNATURE_SKILLS = {
   // 克莱：百步穿杨 + 水花接投（接球投本色）
   thompkl01: ["logo_range", "splash_spot", "rainmaker", "gravity_well"],
   lillada01: ["dame_time", "logo_range", "clutch_killer", "rainmaker"],
-  allenra02: ["splash_spot", "rainmaker", "clutch_killer"],
+  allenra02: ["splash_spot", "rainmaker", "big_heart"], // 2013 Game 6：大心脏钉在史册
+  // Reggie Miller — 无球跑动绕屏接投 + 大心脏（知名的 8 秒 8 分、Reggie! 时刻）
+  millere01: ["splash_spot", "rainmaker", "big_heart"],
+  // Oscar Robertson — 正常赛三重夹天王，组织谋划 + 中距离终结 + 场上大脑
+  roberos01: ["dime_dropper", "mid_maestro", "floor_commander"],
+  // Jerry West — Mr. Clutch（真实历史外号）：无解单打 + 中距离 + 大心脏
+  westje01: ["freeze_iso", "mid_maestro", "big_heart"],
+  // George Gervin “冰人”—指尖柔拨的指尖打法 + 中距离 + 无解单打，四度得分王
+  gervige01: ["soft_touch", "mid_maestro", "freeze_iso"],
   korveky01: ["splash_spot", "rainmaker"],
   millspa01: ["splash_spot", "rainmaker", "clutch_killer"],
   // 控卫 / 技巧
