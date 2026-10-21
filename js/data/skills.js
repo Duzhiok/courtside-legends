@@ -93,6 +93,12 @@ export const SKILL_PACKS = {
     desc: "一对一更容易甩开防守",
     tone: "gold",
   },
+  rhythm_master: {
+    id: "rhythm_master",
+    name: "节奏大师",
+    desc: "靠变速和试探步晃开防守人，不需要顶级速度——忽快忽慢打乱防守重心，持球单打更容易造出空位。对防守人的速度不敏感",
+    tone: "gold",
+  },
   positionless: {
     id: "positionless",
     name: "全能",
@@ -857,8 +863,8 @@ export const SIGNATURE_SKILLS = {
   duranke01: ["rainmaker", "mid_maestro", "freeze_iso", "midrange_assassin"],
   // 库里：百步穿杨（半场射程）+ 接投 + 自主变向创造 + 引力
   curryst01: ["logo_range", "splash_spot", "rainmaker", "gravity_well", "ankle_breaker"],
-  hardeti01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"],
-  hardeja01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"],
+  hardeti01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker", "rhythm_master"],
+  hardeja01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker", "rhythm_master"],
   westbru01: ["motor_engine", "dime_dropper", "ankle_breaker", "coast_to_coast"],
   // Derrick Rose — 劲爆第一步 / 杀筐，不是传球核
   rosede01: ["first_step", "coast_to_coast", "ankle_breaker", "clutch_killer"],
@@ -894,9 +900,10 @@ export const SIGNATURE_SKILLS = {
   // 约基奇：节奏型（偏软，不是 bully ball）—— 高抛 + 单脚抛射 + 脑后长眼，可当控球发起点
   jokicni01: ["one_leg_fade", "blind_pass", "high_floater", "soft_touch", "dime_dropper"],
   murraja01: ["mid_maestro", "rainmaker", "clutch_killer", "freeze_iso"],
-  doncilu01: ["stepback", "dime_dropper", "freeze_iso", "mid_maestro"],
+  doncilu01: ["stepback", "dime_dropper", "freeze_iso", "mid_maestro", "rhythm_master"],
   // Joel Embiid — BRef id 是 embiijo01（旧键 embiiijo01 多了一个 i）
-  embiijo01: ["paint_bully", "stepback", "mid_maestro", "freeze_iso"],
+  // 没有篮下暴君：他是技术流，伤病体质用玻璃人标签体现（见 GLASS_CANNON_BREF）
+  embiijo01: ["stepback", "mid_maestro", "freeze_iso"],
   georgpa01: ["rainmaker", "lockdown", "mid_maestro", "midrange_assassin"],
   // Kawhi Leonard — BRef id is leonaka01（旧键 leonard01 保留兼容）
   leonaka01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
@@ -1682,6 +1689,14 @@ const SIGNATURE_NAME_TO_BREF = [
   [/gilgeous|吉尔杰斯|谢伊|\bsga\b/, "gilgesh01"],
   [/carmelo|卡梅隆.?安东尼|甜瓜/, "anthoca01"],
   [/paul pierce|保罗.?皮尔斯/, "piercpa01"],
+  [/charles barkley|查尔斯.?巴克利|巴克利/, "barklch01"],
+  [/karl malone|卡尔.?马龙/, "malonka01", /moses/i],
+  [/moses malone|摩西.?马龙/, "malonmo01"],
+  [/oscar robertson|奥斯卡.?罗伯特森/, "roberos01"],
+  [/jerry west|杰里.?韦斯特/, "westje01"],
+  [/george gervin|乔治.?格文|冰人/, "gervige01"],
+  [/reggie miller|雷吉.?米勒/, "millere01"],
+  [/ray allen|雷.?阿伦/, "allenra02"],
 ];
 
 export function signatureBrefForName(player) {
@@ -2520,6 +2535,7 @@ export function skillOpennessDelta(baller, defender, off) {
   let d = 0;
   const offCourt = off?.onCourt || [];
   if (hasSkill(baller, "ankle_breaker")) d += 0.045;
+  if (hasSkill(baller, "rhythm_master")) d += 0.05; // 变速/试探步造空间，不靠速度，对快防守人也有效
   if (hasSkill(baller, "first_step")) d += 0.04;
   if (hasSkill(baller, "freeze_iso")) d += 0.02;
   if (hasSkill(baller, "slowmo")) d += 0.025; // tempo shift always helps a bit

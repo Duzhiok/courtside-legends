@@ -419,6 +419,18 @@ html, body {
   font-weight: 700;
   vertical-align: middle;
 }
+.nickname-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: .72rem;
+  font-weight: 600;
+  vertical-align: middle;
+  background: #3b2a12;
+  color: #fbbf24;
+  border: 1px solid #92400e;
+}
 .value-badge.bargain {
   background: #14532d;
   color: #bbf7d0;
