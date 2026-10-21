@@ -149,3 +149,11 @@ test("applyHiddenRoll shifts intangibles but never role fingerprints", () => {
   assert.ok(["S", "A", "B", "C", "D"].includes(rolled.hiddenRoll.grade));
   assert.equal(rolled.hiddenRoll.rating, hiddenRating(rolled));
 });
+
+test("the rates shown to players add up to exactly 100%", async () => {
+  const { rateSummary } = await import("../js/ui/gachaView.js");
+  const shown = [...rateSummary().matchAll(/([\d.]+)%/g)].map((m) => Number(m[1]));
+  assert.equal(shown.length, RATE_TABLE.length);
+  assert.ok(Math.abs(shown.reduce((a, b) => a + b, 0) - 100) < 1e-9);
+  assert.match(rateSummary(), /传奇 1\.7%/);
+});

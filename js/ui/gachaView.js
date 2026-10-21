@@ -5,6 +5,7 @@
  */
 import { MAX_STARS, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
 import { GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "../data/growthPaths.js";
+import { MAX_CARDS } from "../data/accountRecycle.js";
 import { scoutLabel } from "../data/intangibles.js";
 
 const OUTCOME_TEXT = {
@@ -14,10 +15,15 @@ const OUTCOME_TEXT = {
   soulConvert: (r) => `已满 ★${MAX_STARS}，转为 2 球魂（现有 ${r.souls}）`,
 };
 
-const pct = (p) => `${(p * 100).toFixed(p < 0.01 ? 1 : 0)}%`;
+/** One decimal, trailing .0 trimmed — what is shown must sum to exactly 100%. */
+export const pct = (p) => `${(p * 100).toFixed(1).replace(/\.0$/, "")}%`;
+
+export function rateSummary() {
+  return RATE_TABLE.map((band) => `${band.label} ${pct(band.p)}`).join(" · ");
+}
 
 export function drawRulesHtml() {
-  const rates = RATE_TABLE.map((band) => `${band.label} ${pct(band.p)}`).join(" · ");
+  const rates = rateSummary();
   return `<p class="tiny">每天免费 1 抽，之后可用金币加抽。约 20% 出教练卡。<br/>
     球员概率：${rates}。<br/>
     保底：每 ${PITY.allstarEvery} 抽必出全明星+，${PITY.legendAt} 抽必出传奇+。抽前只看得到 OVR——成色、隐藏能力、妖人标签入手后才揭晓。</p>`;
@@ -43,6 +49,7 @@ export function drawStatusHtml(account, availability, wishName, esc) {
       : "今日抽卡次数已用完";
   return `<div class="draw-status">
       <span>金币 ¤${account.gold || 0}</span>
+      <span>卡库 ${(account.playerIds || []).length}/${MAX_CARDS}</span>
       <span>${pull}</span>
       <span>全明星保底还差 ${toAllstar} 抽</span>
       <span>传奇保底还差 ${toLegend} 抽</span>
@@ -100,7 +107,7 @@ export function drawRevealHtml(result, view) {
     result.goldGain ? `<span class="draw-flag">+¤${result.goldGain}</span>` : "",
   ].join("");
   return `<div class="draw-reveal">
-      ${photoImg(p, 96)}
+      ${photoImg(p, "headshot xl")}
       <div class="name">${esc(p.name)}${result.rarity ? ` <span class="rarity-tag ${rarityClass(result.ovr)}">${esc(result.rarity)}</span>` : ""}</div>
       <div class="meta">${p.season} · ${p.pos} · OVR ${result.ovr} · ${esc(result.banner?.name || "")}</div>
       <div class="draw-flags">${flags}</div>
@@ -112,10 +119,13 @@ export function drawRevealHtml(result, view) {
 }
 
 /** Wishlist search results + craftable cards of the current wish person. */
-export function wishlistHtml({ people, wishCards, ownedIds, gold }, view) {
+export function wishlistHtml({ people, wishCards, wishBref, wishName, ownedIds, gold }, view) {
   const { esc, ovrOf } = view;
   const peopleRows = people
-    .map((person) => `<button type="button" class="btn small" data-wish="${person.bref}">${esc(person.name)} · ${person.count} 张卡 · 最高 OVR ${ovrOf(person.best)}</button>`)
+    .map((person) => {
+      const current = person.bref === wishBref;
+      return `<button type="button" class="btn small${current ? " primary" : ""}" data-wish="${person.bref}" aria-pressed="${current}">${current ? "❤ 当前心愿 · " : ""}${esc(person.name)} · ${person.count} 张卡 · 最高 OVR ${ovrOf(person.best)}</button>`;
+    })
     .join("");
   const craftRows = wishCards
     .map((card) => {
@@ -130,7 +140,7 @@ export function wishlistHtml({ people, wishCards, ownedIds, gold }, view) {
     })
     .join("");
   return `${peopleRows ? `<div class="wish-results">${peopleRows}</div>` : ""}
-    ${craftRows ? `<div class="craft-list"><p class="tiny">心愿球员的赛季卡（金币直接合成指定年份）：</p>${craftRows}</div>` : ""}`;
+    ${craftRows && wishName ? `<div class="craft-list"><p class="tiny">❤ ${esc(wishName)} 的赛季卡（金币直接合成指定年份）：</p>${craftRows}</div>` : ""}`;
 }
 
 export function soulButtonHtml(player, souls) {
