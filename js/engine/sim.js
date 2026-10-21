@@ -1,7 +1,7 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
 import { overall } from "../data/players.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
-import { applyLineupPositionEffects, systemFitScore } from "../data/intangibles.js";
+import { applyLineupPositionEffects, inGameInjuryChance, systemFitScore } from "../data/intangibles.js";
 import {
   activeDuoIds,
   isJokerJamalTwoMan,
@@ -1766,19 +1766,24 @@ export class GameSim {
     return n;
   }
 
-  /** In-game injury for glass players (晋级制). Syncs injuredGames onto source card via id. */
+  /**
+   * In-game injury for glass players (晋级制). Syncs injuredGames onto source card via id.
+   * Checked once per offensive possession (~100x/game per team), so the per-check chance
+   * must stay small or it compounds into near-certain injuries over a full game.
+   * Below risk 60 the chance is 0 — only genuinely fragile players ("玻璃人") are at risk here.
+   */
   maybeInGameInjury(team, focus) {
     if (!this.injuriesEnabled || !team.onCourt.length) return;
     const candidates = focus ? [focus, ...team.onCourt.filter((p) => p.id !== focus.id)] : team.onCourt;
     for (const p of candidates.slice(0, 3)) {
-      let risk = p.intangibles?.injuryRisk ?? 40;
-      if ((p.skills || []).includes("iron_body")) risk = Math.max(12, risk - 24);
-      const fatigueBump = (p.fatigue || 0) * 0.00015;
-      const chance = clamp((risk - 55) * 0.00055 + fatigueBump, 0, 0.045);
+      const risk = p.intangibles?.injuryRisk ?? 40;
+      const ironBody = (p.skills || []).includes("iron_body");
+      const chance = inGameInjuryChance(risk, { fatigue: p.fatigue || 0, ironBody });
       if (Math.random() > chance) continue;
-      const gamesOut = risk >= 78 ? 2 : 1;
+      const effectiveRisk = ironBody ? Math.max(12, risk - 24) : risk;
+      const gamesOut = effectiveRisk >= 80 ? 2 : 1;
       p.injuredGames = gamesOut;
-      p.injuryStatus = risk >= 78 ? "严重伤病" : "伤停";
+      p.injuryStatus = effectiveRisk >= 80 ? "严重伤病" : "伤停";
       const src = team.roster.find((r) => r.id === p.id);
       if (src) {
         src.injuredGames = gamesOut;
@@ -1788,7 +1793,7 @@ export class GameSim {
       if (sub && this.substitute(p.id, sub.id, team.side)) {
         this.emit(
           "coach",
-          `受伤！${p.name} ${p.injuryStatus}下场（伤病风险 ${risk}），${sub.name}顶上。预计缺席后续 ${gamesOut} 场`
+          `受伤！${p.name} ${p.injuryStatus}下场（伤病风险 ${effectiveRisk}），${sub.name}顶上。预计缺席后续 ${gamesOut} 场`
         );
       } else {
         this.emit(

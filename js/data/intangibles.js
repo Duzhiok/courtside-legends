@@ -1071,7 +1071,25 @@ export function hiddenPlayFactor(player, ctx = {}) {
   return clamp(f, 0.76, 1.15);
 }
 
-/** Roll post-game / between-round injuries for advancement modes. */
+/**
+ * Per-possession in-game injury chance (晋级/淘汰赛 only). Checked up to ~100x per
+ * team per game, so this must stay small: below risk 60 it is always 0, and even
+ * a fully fatigued, very fragile player is capped at 2% per check.
+ */
+export function inGameInjuryChance(risk, { fatigue = 0, ironBody = false } = {}) {
+  const effectiveRisk = ironBody ? Math.max(12, risk - 24) : risk;
+  const fatigueBump = (fatigue || 0) * 0.00006;
+  return clamp((effectiveRisk - 60) * 0.00014 + fatigueBump, 0, 0.02);
+}
+
+/**
+ * Roll post-game / between-round injuries for advancement modes.
+ * This runs IN ADDITION to the in-game injury check (sim.js `maybeInGameInjury`),
+ * so its chance has to stay modest — otherwise a short bracket roster (the
+ * player's own 8-man team) gets shredded within a handful of games.
+ * Below risk 55 the chance is 0; even the most fragile player in the deepest
+ * round is capped at 16% per game, not per round.
+ */
 export function rollAdvancementInjuries(players, { round = 1, intensity = 1 } = {}) {
   const reports = [];
   for (const p of players) {
@@ -1094,11 +1112,11 @@ export function rollAdvancementInjuries(players, { round = 1, intensity = 1 } = 
     // 铁人技能：显著降低有效伤病风险
     if ((p.skills || []).includes("iron_body")) risk = Math.max(12, risk - 24);
     // Base chance scales with risk; deeper rounds / finals wear teams down
-    const chance = clamp((risk - 45) * 0.0045 * intensity + round * 0.008, 0, 0.42);
+    const chance = clamp((risk - 55) * 0.0025 * intensity + round * 0.006, 0, 0.16);
     if (Math.random() > chance) continue;
-    const gamesOut = risk >= 80 ? 2 + (Math.random() < 0.45 ? 1 : 0) : risk >= 65 ? 1 + (Math.random() < 0.35 ? 1 : 0) : 1;
+    const gamesOut = risk >= 80 ? 1 + (Math.random() < 0.3 ? 1 : 0) : risk >= 65 ? 1 + (Math.random() < 0.18 ? 1 : 0) : 1;
     p.injuredGames = gamesOut;
-    p.injuryStatus = risk >= 78 ? "严重伤病" : "伤停";
+    p.injuryStatus = risk >= 80 ? "严重伤病" : "伤停";
     reports.push({
       player: p,
       type: "injury",
