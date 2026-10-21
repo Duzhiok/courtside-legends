@@ -1,0 +1,204 @@
+/* ==========================================================
+   Time Travel career screen — dark hero header, year stepper,
+   resource meters, archetype-colored interview cards.
+   Scoped to #screen-time-travel so other screens are untouched.
+   ========================================================== */
+
+#screen-time-travel .tt-hero {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 26px;
+  border-radius: 18px;
+  overflow: hidden;
+  color: #f8f4ea;
+  background:
+    radial-gradient(520px 220px at 85% -20%, rgba(246, 200, 112, .25), transparent 60%),
+    linear-gradient(135deg, var(--arena-1), var(--arena-2) 55%, var(--arena-3));
+  border: none;
+  margin-bottom: 14px;
+}
+#screen-time-travel .tt-hero-kicker {
+  color: var(--gold);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+#screen-time-travel .tt-hero h2 {
+  margin: 4px 0 6px;
+  color: #fff;
+}
+#screen-time-travel .tt-hero-sub {
+  margin: 0;
+  max-width: 54ch;
+  color: rgba(248, 244, 234, .78);
+  font-size: .88rem;
+  line-height: 1.5;
+}
+#screen-time-travel .tt-hero .btn.ghost {
+  flex: none;
+  color: #f8f4ea;
+  border-color: rgba(255, 255, 255, .28);
+  background: rgba(255, 255, 255, .08);
+}
+#screen-time-travel .tt-hero .btn.ghost:hover { border-color: var(--gold); }
+
+/* —— Year stepper —— */
+.tt-stepper {
+  display: flex;
+  align-items: center;
+  padding: 14px 10px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .6);
+  border: 1px solid var(--line);
+  overflow-x: auto;
+}
+.tt-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  min-width: 56px;
+}
+.tt-step-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 700;
+}
+.tt-step-label {
+  font-size: .7rem;
+  color: var(--muted);
+}
+.tt-step.done .tt-step-dot {
+  border-color: var(--good);
+  background: var(--good);
+  color: #fff;
+}
+.tt-step.done .tt-step-label { color: var(--good); }
+.tt-step.current .tt-step-dot {
+  border-color: var(--accent);
+  background: var(--gold-soft);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px var(--gold-soft);
+}
+.tt-step.current .tt-step-label { color: var(--accent); font-weight: 700; }
+.tt-step-line {
+  flex: 1 1 24px;
+  height: 2px;
+  min-width: 18px;
+  background: var(--line);
+  margin: 0 2px 16px;
+}
+
+/* —— Resource meters —— */
+.time-travel-resources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.tt-chip {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: .82rem;
+  white-space: nowrap;
+}
+.tt-chip-knowledge {
+  background: var(--gold-soft);
+  border-color: color-mix(in srgb, var(--gold) 50%, var(--line));
+}
+.tt-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  flex: 1 1 150px;
+}
+.tt-meter-label {
+  font-size: .76rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tt-meter-label strong { color: var(--ink); }
+.tt-meter-track {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15, 28, 20, .13);
+  overflow: hidden;
+}
+.tt-meter-fill {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 999px;
+  transition: width .3s ease;
+}
+.tt-meter-good { background: var(--good); }
+.tt-meter-mid { background: var(--gold); }
+.tt-meter-bad { background: #d64545; }
+.tt-meter-accent { background: #8b5cf6; }
+
+/* —— Interview offer cards: archetype accent —— */
+.interview-offer {
+  position: relative;
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+.interview-offer[data-archetype="rebuild"] { border-left-color: #2a9d8f; }
+.interview-offer[data-archetype="middle"] { border-left-color: var(--gold); }
+.interview-offer[data-archetype="contender"] { border-left-color: #d64545; }
+.tt-offer-kicker {
+  font-size: .76rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* —— Story beats: event / decision / contract cards —— */
+#screen-time-travel .story-event-card,
+#screen-time-travel .story-decision,
+#screen-time-travel #time-travel-contract {
+  box-shadow: 0 6px 18px rgba(20, 20, 20, .05);
+}
+#screen-time-travel .story-event-choice:hover,
+#screen-time-travel .story-choice-list .btn:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+/* Resolved first-decision card stays as a muted memento, not a second active card */
+#screen-time-travel .story-decision:has(.story-choice-list .btn:disabled) {
+  opacity: .62;
+  background: rgba(255, 255, 255, .4);
+}
+#screen-time-travel .story-decision:has(.story-choice-list .btn:disabled) .story-choice-list .btn {
+  cursor: default;
+  transform: none !important;
+}
+
+@media (max-width: 760px) {
+  #screen-time-travel .tt-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tt-meter { min-width: 120px; }
+}
+@media (max-width: 480px) {
+  .tt-stepper { padding: 10px 6px; }
+  .tt-step { min-width: 0; gap: 2px; }
+  .tt-step-dot { width: 24px; height: 24px; font-size: .68rem; }
+  .tt-step-label { font-size: .58rem; }
+  .tt-step-line { min-width: 8px; margin-bottom: 12px; }
+}
