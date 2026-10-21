@@ -332,3 +332,26 @@
     gap: 8px;
   }
 }
+
+.draw-tasks {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px dashed #b8860b;
+  border-radius: 12px;
+  background: #fffaf0;
+  font-size: 0.9rem;
+}
+
+.draw-tasks ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draw-tasks li {
+  padding: 3px 0;
+}
+
+.draw-tasks li.done {
+  opacity: 0.65;
+}
