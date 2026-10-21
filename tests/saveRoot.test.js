@@ -382,7 +382,7 @@ test("future root prevents legacy migration and leaves all bytes unchanged", () 
   assert.deepEqual(storage.dump(), before);
 });
 
-test("failed temporary root write leaves the official root unchanged", () => {
+test("temporary root quota falls back to direct replacement", () => {
   const original = JSON.stringify(createRootState({ savedAt: 23 }));
   const base = createMemoryStorage({ [ROOT_SAVE_KEY]: original });
   const storage = {
@@ -393,8 +393,19 @@ test("failed temporary root write leaves the official root unchanged", () => {
     },
   };
 
-  assert.throws(() => writeRootSave(createRootState(), storage), /quota/);
-  assert.equal(storage.getItem(ROOT_SAVE_KEY), original);
+  const root = createRootState({ activeMode: "timeTravel" });
+  writeRootSave(root, storage);
+  assert.notEqual(storage.getItem(ROOT_SAVE_KEY), original);
+  assert.equal(storage.getItem(TEMP_ROOT_SAVE_KEY), null);
+});
+
+test("root quota error is actionable when even direct replacement fails", () => {
+  const storage = {
+    getItem() { return null; },
+    setItem() { throw new Error("quota"); },
+    removeItem() {},
+  };
+  assert.throws(() => writeRootSave(createRootState(), storage), /storage quota exceeded/);
 });
 
 test("clear removes root and temporary saves but preserves legacy saves", () => {
