@@ -176,6 +176,11 @@ import {
 } from "./story/eventEngine.js";
 import { summarizeMatchResult } from "./engine/matchExplain.js";
 import {
+  buildEndingShareCard,
+  renderEndingShareCardHtml,
+  shareCardText,
+} from "./story/endingShareCard.js";
+import {
   advanceCareerOffseason,
   completeCareerOffseason,
   createLeagueCareer,
@@ -655,6 +660,26 @@ function renderTimeTravelReport() {
   }
 }
 
+function renderTimeTravelShareCard() {
+  const section = $("#time-travel-share");
+  const holder = $("#time-travel-share-card");
+  if (!section || !holder) return;
+  const card = state.leagueCareer && state.story ? buildEndingShareCard(currentRootState()) : null;
+  section.hidden = !card;
+  holder.innerHTML = renderEndingShareCardHtml(card);
+  const copy = $("#btn-time-travel-share-copy");
+  const status = $("#time-travel-share-status");
+  if (!copy || !card) return;
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(shareCardText(card));
+      if (status) status.textContent = "已复制，可以直接粘贴分享。";
+    } catch (_) {
+      if (status) status.textContent = "浏览器不允许复制，请直接截图上方卡片。";
+    }
+  };
+}
+
 function renderPendingStoryEvent() {
   const card = $("#time-travel-event");
   const title = $("#time-travel-event-title");
@@ -764,6 +789,7 @@ function renderTimeTravelStoryState({ showResolved = false } = {}) {
   renderPendingStoryEvent();
   renderCareerContract();
   renderTimeTravelReport();
+  renderTimeTravelShareCard();
   document.querySelectorAll("[data-story-choice]").forEach((button) => {
     button.disabled = !pending;
   });
