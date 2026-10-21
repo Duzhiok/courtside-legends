@@ -17,6 +17,10 @@ test("evaluation derives per-game production and keeps a high-output core", () =
   const result = evaluateRosterPlayer(player("a", "Star"), row({ pts: 240, plusMinus: 30 }), { salary: 180, ovr: 88 });
   assert.equal(result.ppg, 24);
   assert.equal(result.recommendation, "核心保留");
+  assert.equal(result.age, "—");
+  assert.ok(result.photo.includes("img"));
+  assert.equal(result.abilities.scoring, "—");
+  assert.match(result.potential, /潜力/);
 });
 
 test("evaluation flags expensive low-impact players as cut candidates", () => {

@@ -3129,6 +3129,31 @@ select, input[type="number"] {
   gap: 10px;
   align-items: center;
 }
+.evaluation-player-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.evaluation-player-heading .headshot {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.evaluation-abilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 7px 0;
+}
+.evaluation-abilities span {
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: rgba(42, 157, 143, .1);
+  font-size: .74rem;
+}
+.evaluation-potential { color: var(--accent); }
+.evaluation-skills { margin: 6px 0; font-size: .8rem; }
 .roster-evaluation-card header b {
   color: var(--accent);
   font-size: .78rem;

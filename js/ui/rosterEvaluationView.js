@@ -1,3 +1,7 @@
+import { photoImg } from "../data/photo.js";
+import { skillChipsHtml } from "../data/skills.js";
+import { historicalUpsideHint } from "../engine/develop.js";
+
 function perGame(value, gp) {
   return gp > 0 ? (Number(value) || 0) / gp : 0;
 }
@@ -30,6 +34,19 @@ export function evaluateRosterPlayer(player, seasonRow, { salary = 0, ovr = 0 } 
     id: player.id,
     name: player.name,
     season: player.season,
+    age: player.age ?? "—",
+    photo: photoImg(player, "headshot sm"),
+    skills: skillChipsHtml(player),
+    potential: historicalUpsideHint(player) || "潜力信息不足，需要更多赛季样本。",
+    abilities: {
+      scoring: player.scoring ?? "—",
+      three: player.three ?? "—",
+      defense: player.defense ?? "—",
+      rebound: player.rebound ?? "—",
+      pass: player.pass ?? "—",
+      speed: player.speed ?? "—",
+      strength: player.strength ?? "—",
+    },
     ovr,
     salary: salaryValue,
     gp,
@@ -66,10 +83,13 @@ export function renderRosterEvaluation(container, rows) {
     <div class="evaluation-note tiny">建议只作为决策参考：它不会自动交易或裁掉任何人。完整动作请切到「自由市场」。</div>
     <div class="roster-evaluation-list">
       ${rows.map((row) => `<article class="roster-evaluation-card" data-player-id="${row.id}">
-        <header><div><strong>${row.name}</strong><span class="tiny"> · OVR ${row.ovr} · ${row.season || "—"}</span></div><b>${row.recommendation}</b></header>
+        <header><div class="evaluation-player-heading">${row.photo}<div><strong>${row.name}</strong><span class="tiny"> · OVR ${row.ovr} · ${row.age}岁 · ${row.season || "—"}</span></div></div><b>${row.recommendation}</b></header>
         <div class="evaluation-stats">
           <span>合同 ¤${row.salary}</span><span>GP ${row.gp}</span><span>MIN ${row.mpg.toFixed(1)}</span><span>PTS ${row.ppg.toFixed(1)}</span><span>REB ${row.rpg.toFixed(1)}</span><span>AST ${row.apg.toFixed(1)}</span><span>+/- ${row.plusMinus >= 0 ? "+" : ""}${row.plusMinus.toFixed(1)}</span>
         </div>
+        <div class="evaluation-abilities"><span>得分 ${row.abilities.scoring}</span><span>三分 ${row.abilities.three}</span><span>防守 ${row.abilities.defense}</span><span>篮板 ${row.abilities.rebound}</span><span>传球 ${row.abilities.pass}</span><span>速度 ${row.abilities.speed}</span><span>力量 ${row.abilities.strength}</span></div>
+        <p class="tiny evaluation-potential">潜力：${row.potential}</p>
+        ${row.skills ? `<div class="evaluation-skills">技能：${row.skills}</div>` : "<p class=\"tiny\">技能：暂无已配置技能</p>"}
         <p class="tiny">${row.reason}</p>
         <div class="btn-row evaluation-actions"><button type="button" class="btn small" data-eval-action="market">去自由市场 / 交易</button><button type="button" class="btn small ghost" data-eval-action="cut">去裁人面板</button></div>
       </article>`).join("")}
