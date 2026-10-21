@@ -3291,3 +3291,61 @@ select, input[type="number"] {
   .dunk-flash.star .dunk-flash-bang { font-size: 2.4rem; }
   .topbar { flex-wrap: wrap; }
 }
+
+/* —— 五年结局分享卡（截图友好） —— */
+.ending-share-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 420px;
+  margin: 8px auto;
+  padding: 18px 18px 14px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #0f1c14 0%, #1d3a28 100%);
+  color: #f3efe4;
+  border: 2px solid #c9a66b;
+  overflow-wrap: anywhere;
+}
+.ending-share-card.tone-hard { border-color: #b23a2b; }
+.ending-share-card.tone-neutral { border-color: #8a9a8f; }
+.ending-share-card header { text-align: center; margin-bottom: 12px; }
+.ending-share-card h3 { margin: 4px 0; font-size: 1.4rem; color: #f6d28a; }
+.ending-share-card h4 { margin: 12px 0 4px; font-size: .8rem; color: #c9a66b; letter-spacing: .05em; }
+.ending-share-card header p,
+.ending-share-card footer { margin: 0; font-size: .78rem; opacity: .85; }
+.ending-share-card footer { margin-top: 12px; text-align: center; }
+.share-card-kicker { font-size: .72rem; letter-spacing: .12em; opacity: .75; }
+.share-card-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+.share-card-stats div {
+  padding: 8px 2px;
+  border-radius: 10px;
+  background: rgba(243, 239, 228, .08);
+}
+.share-card-stats strong { display: block; font-size: 1.05rem; color: #fff; }
+.share-card-stats span { font-size: .68rem; opacity: .8; }
+.share-card-seasons,
+.share-card-trades { margin: 0; padding: 0; list-style: none; font-size: .78rem; }
+.share-card-seasons li {
+  display: grid;
+  grid-template-columns: 3.5em 4.5em 1fr;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px dashed rgba(243, 239, 228, .15);
+}
+.share-card-trades li { padding: 2px 0; }
+.share-card-contract { margin: 0; font-size: .85rem; font-weight: 600; }
+.share-card-contract.tone-hard { color: #f08a7a; }
+.share-card-privileges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.share-card-privileges span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(201, 166, 107, .25);
+  font-size: .7rem;
+}
+@media (max-width: 380px) {
+  .share-card-stats { grid-template-columns: repeat(2, 1fr); }
+}
