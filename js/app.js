@@ -104,6 +104,7 @@ import {
   SKILL_SELL_RATE,
   syncTeamDuoSkills,
 } from "./data/skills.js";
+import { nicknameBadgeHtml } from "./data/nicknames.js";
 import { lineupBallNote, lineupFit, teamChemistry } from "./engine/chemistry.js";
 import {
   acceptTradeProposal,
@@ -2882,7 +2883,7 @@ function rollLegendTeam() {
         return `<button class="setup-player" data-id="${p.id}">
           ${photoImg(p)}
           <div>
-            <strong>${p.name}</strong>
+            <strong>${p.name}</strong>${nicknameBadgeHtml(p)}
             <div class="tiny">${p.season} · 原位置 ${p.pos} · OVR ${overall(p)} · ${p.team}${
               physiqueLabel(p) ? ` · ${physiqueLabel(p)}` : ""
             }</div>
@@ -4660,7 +4661,7 @@ function marketOwnedCard(p, canSell, sideLabel = "") {
     ${photoImg(p)}
     <div class="market-owned-body">
       <div class="market-owned-head">
-        <strong>${p.name}${v ? ` <span class="value-badge ${p.valueArchetype}">${v}</span>` : ""}</strong>
+        <strong>${p.name}${v ? ` <span class="value-badge ${p.valueArchetype}">${v}</span>` : ""}</strong>${nicknameBadgeHtml(p)}
         ${posCtrl}
       </div>
       <div class="tiny">${p.season} · 原${p.pos} · OVR ${overall(p)}${inj}${
@@ -4884,7 +4885,7 @@ function paintFreeAgentList(c, duel = false) {
       return `<div class="market-row ${afford ? "" : "unaffordable"}">
         ${photoImg(p)}
         <div style="flex:1">
-          <strong>${p.name}${badge ? ` ${badge}` : ""}</strong>
+          <strong>${p.name}${badge ? ` ${badge}` : ""}</strong>${nicknameBadgeHtml(p)}
           <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · <strong>¤${price}</strong>${
             afford ? "" : " · 超出预算"
           }${physiqueLabel(p) ? ` · ${physiqueLabel(p)}` : ""}</div>

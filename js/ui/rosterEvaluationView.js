@@ -1,5 +1,6 @@
 import { photoImg } from "../data/photo.js";
 import { skillChipsHtml } from "../data/skills.js";
+import { nicknameBadgeHtml } from "../data/nicknames.js";
 import { historicalUpsideHint } from "../engine/develop.js";
 
 function perGame(value, gp) {
@@ -37,6 +38,7 @@ export function evaluateRosterPlayer(player, seasonRow, { salary = 0, ovr = 0 } 
     age: player.age ?? "—",
     photo: photoImg(player, "headshot sm"),
     skills: skillChipsHtml(player),
+    nickname: nicknameBadgeHtml(player),
     potential: historicalUpsideHint(player) || "潜力信息不足，需要更多赛季样本。",
     abilities: {
       scoring: player.scoring ?? "—",
@@ -83,7 +85,7 @@ export function renderRosterEvaluation(container, rows) {
     <div class="evaluation-note tiny">建议只作为决策参考：它不会自动交易或裁掉任何人。完整动作请切到「自由市场」。</div>
     <div class="roster-evaluation-list">
       ${rows.map((row) => `<article class="roster-evaluation-card" data-player-id="${row.id}">
-        <header><div class="evaluation-player-heading">${row.photo}<div><strong>${row.name}</strong><span class="tiny"> · OVR ${row.ovr} · ${row.age}岁 · ${row.season || "—"}</span></div></div><b>${row.recommendation}</b></header>
+        <header><div class="evaluation-player-heading">${row.photo}<div><strong>${row.name}</strong>${row.nickname}<span class="tiny"> · OVR ${row.ovr} · ${row.age}岁 · ${row.season || "—"}</span></div></div><b>${row.recommendation}</b></header>
         <div class="evaluation-stats">
           <span>合同 ¤${row.salary}</span><span>GP ${row.gp}</span><span>MIN ${row.mpg.toFixed(1)}</span><span>PTS ${row.ppg.toFixed(1)}</span><span>REB ${row.rpg.toFixed(1)}</span><span>AST ${row.apg.toFixed(1)}</span><span>+/- ${row.plusMinus >= 0 ? "+" : ""}${row.plusMinus.toFixed(1)}</span>
         </div>

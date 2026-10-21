@@ -144,7 +144,7 @@ export const OVERPAID_BREF = {
 /** Known fragile / load-managed stars — bref id → risk bump */
 export const GLASS_CANNON_BREF = {
   porzikr01: 32, // Kristaps Porzingis
-  embiijo01: 18,
+  embiijo01: 24, // Joel Embiid — 每赛季十几场缺席，玻璃人证据最慢性的之一
   davisan02: 16,
   rosede01: 26,
   griffbl01: 17,
