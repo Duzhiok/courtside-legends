@@ -597,7 +597,7 @@ function ensurePlayerSeason(st, teamId, p) {
   return st.playerSeason[key];
 }
 
-function applyGameResult(st, game, snap) {
+function applyGameResult(st, game, snap, { recordStandings = true, recordLog = true } = {}) {
   // 防止同一场被累加两次（会导致场均 50–70 分这种离谱数据）
   if (game.played || game._statsApplied) return;
   game._statsApplied = true;
@@ -624,8 +624,10 @@ function applyGameResult(st, game, snap) {
     r.pa += against;
     r.last10 = [...r.last10, won ? "W" : "L"].slice(-10);
   };
-  upd(game.homeId, hs, as, homeWin);
-  upd(game.awayId, as, hs, !homeWin);
+  if (recordStandings) {
+    upd(game.homeId, hs, as, homeWin);
+    upd(game.awayId, as, hs, !homeWin);
+  }
 
   for (const sideKey of ["home", "away"]) {
     const tid = sideKey === "home" ? game.homeId : game.awayId;
@@ -666,7 +668,7 @@ function applyGameResult(st, game, snap) {
       }
     }
   }
-  st.resultsLog.push(entry);
+  if (recordLog) st.resultsLog.push(entry);
 }
 
 /** Compact box-score payload for UI / persistence (not full sim snapshot). */
@@ -753,15 +755,7 @@ export function simScheduledGame(st, game, { youSide = null, recordStandings = t
   const snap = sim.runFast();
   game._lastSnap = snap;
   if (recordStandings) applyGameResult(st, game, snap);
-  else {
-    game.played = true;
-    game._statsApplied = true;
-    game.result = {
-      homeScore: snap.score.home,
-      awayScore: snap.score.away,
-      winnerId: snap.score.home > snap.score.away ? game.homeId : game.awayId,
-    };
-  }
+  else applyGameResult(st, game, snap, { recordStandings: false, recordLog: false });
   return snap;
 }
 
@@ -1069,10 +1063,12 @@ export function claimAwardSkill(st, rewardId, skillId) {
   const team = st.teams[st.userTeamId];
   const player = team?.players?.find((p) => p.id === reward.playerId);
   if (!player) return { ok: false, reason: "找不到球员" };
+  const previousSkillIds = [...(player.skills || [])];
   if (!grantSkillToPlayer(player, skillId)) {
     return { ok: false, reason: "该球员已有此技能" };
   }
   reward.claimed = true;
+  reward.previousSkillIds = previousSkillIds;
   reward.skillId = skillId;
   reward.skillName = pack.name;
   return { ok: true, player, reward, skillName: pack.name };

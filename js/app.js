@@ -8602,8 +8602,9 @@ function renderAwardSkillRewards(st) {
       if (r.claimed) {
         return `<div class="award-skill-row claimed">
           <div><strong>${r.playerName}</strong> · ${r.awardName}
-            <div class="tiny">已领取：${r.skillName || SKILL_PACKS[r.skillId]?.name || r.skillId}</div>
-            ${p?.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p)}</div>` : ""}
+            <div class="tiny award-claimed-skill">本次奖励领取：<strong>${r.skillName || SKILL_PACKS[r.skillId]?.name || r.skillId}</strong></div>
+            <div class="tiny">领取前已有：${(r.previousSkillIds || []).map((id) => SKILL_PACKS[id]?.name || id).join("、") || "无"}</div>
+            ${p?.skills?.length ? `<div class="tiny">当前全部技能</div><div class="skill-row compact">${skillChipsHtml(p)}</div>` : ""}
           </div>
           <span class="tiny">✓</span>
         </div>`;
@@ -8780,7 +8781,17 @@ function renderSeasonPlayoffs() {
             .join("")}
         </div></div>`
     : "";
+  const userRecord = st.standings?.[st.userTeamId];
+  const playoffStats = Object.values(st.playerSeason || {})
+    .filter((row) => row.teamId === st.userTeamId && row.stats?.gp)
+    .sort((a, b) => (b.stats.pts / b.stats.gp) - (a.stats.pts / a.stats.gp))
+    .slice(0, 8);
+  const playoffStatsHtml = `<div class="season-award-card playoff-live-stats"><h4>我方当前战绩与球员数据</h4><p class="tiny">${
+    userRecord ? `${userRecord.w}胜${userRecord.l}负 · 净胜 ${userRecord.pf - userRecord.pa}` : "暂无战绩"
+  } · 数据为赛季累计（含已模拟季后赛）</p><div class="table-scroll"><table class="season-table"><thead><tr><th>球员</th><th>GP</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>+/-</th></tr></thead><tbody>${
+    playoffStats.map((row) => `<tr><td>${esc(row.name)}</td><td>${row.stats.gp}</td><td>${(row.stats.min / row.stats.gp).toFixed(1)}</td><td>${(row.stats.pts / row.stats.gp).toFixed(1)}</td><td>${(row.stats.reb / row.stats.gp).toFixed(1)}</td><td>${(row.stats.ast / row.stats.gp).toFixed(1)}</td><td>${row.stats.plusMinus / row.stats.gp >= 0 ? "+" : ""}${(row.stats.plusMinus / row.stats.gp).toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="7">暂无球员数据</td></tr>`}</tbody></table></div></div>`;
   box.innerHTML = `
+    ${playoffStatsHtml}
     ${confBlock("east", "东部")}
     ${confBlock("west", "西部")}
     ${
@@ -8905,6 +8916,7 @@ function renderSeasonPlayoffs() {
 }
 
 function showSeasonTab(tab) {
+  state.seasonTab = tab;
   if (
     !isManagedCareer(state.leagueCareer) &&
     ["draftBoard", "development", "history"].includes(tab)
@@ -9088,7 +9100,7 @@ $("#btn-season-resume")?.addEventListener("click", () => {
   state.season = st;
   state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
   renderSeasonHub();
-  showSeasonTab("standings");
+  showSeasonTab(state.seasonTab || "standings");
 });
 $("#btn-season-roster-account")?.addEventListener("click", () => {
   const acc = requireAccountReady();
