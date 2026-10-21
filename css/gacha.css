@@ -165,9 +165,11 @@
 
 .favorite-pick {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px 6px;
   margin-top: 6px;
+  white-space: nowrap;
 }
 
 .favorite-pick select {
@@ -319,11 +321,20 @@
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
 
+/* Block flow on purpose: skill chips are bare inline spans and must wrap side by side
+   (a flex column here once stretched every chip to a full-width bar). */
 .collection-grid .player-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   min-width: 0;
+}
+
+.collection-grid .player-card .skill-chip {
+  margin: 0 3px 3px 0;
+}
+
+.collection-grid .player-card > .btn,
+.collection-grid .player-card > .favorite-pick,
+.collection-grid .player-card > .favorite-tag {
+  margin-top: 6px;
 }
 
 @media (max-width: 480px) {
@@ -354,4 +365,52 @@
 
 .draw-tasks li.done {
   opacity: 0.65;
+}
+
+.collection-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.collection-filter input[type="search"] {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.collection-filter select {
+  min-height: 40px;
+  max-width: 100%;
+}
+
+.collection-filter label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Phones: the filter bar is a tidy 2-column grid instead of ragged wrapping rows. */
+@media (max-width: 480px) {
+  .collection-filter {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .collection-filter input[type="search"],
+  .collection-filter label,
+  .collection-filter [data-cf-count] {
+    grid-column: 1 / -1;
+  }
+
+  .collection-filter [data-cf-count] {
+    order: -1;
+    text-align: right;
+  }
 }

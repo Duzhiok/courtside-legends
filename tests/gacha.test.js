@@ -281,3 +281,12 @@ test("relativeRater: a block of identical OVRs is spread by production, not drop
   const bands = new Set(values.map((v) => RATE_TABLE.find((b) => v >= b.min && v < b.max).id));
   assert.ok(bands.size >= 3, `ties span several bands, got ${[...bands]}`);
 });
+
+test("legacy cards (no stored roll) keep a stable 成色 per account, and differ between accounts", async () => {
+  const { legacyRollSeed } = await import("../js/data/cardRoll.js");
+  assert.equal(legacyRollSeed("acc-1", "farieke01-2012-den"), legacyRollSeed("acc-1", "farieke01-2012-den"));
+  assert.notEqual(legacyRollSeed("acc-1", "farieke01-2012-den"), legacyRollSeed("acc-2", "farieke01-2012-den"));
+  assert.notEqual(legacyRollSeed("acc-1", "farieke01-2012-den"), legacyRollSeed("acc-1", "farieke01-2013-den"));
+  // the grade this seed rolls never changes between reads
+  assert.deepEqual(rollOffsets(legacyRollSeed("acc-1", "x")), rollOffsets(legacyRollSeed("acc-1", "x")));
+});

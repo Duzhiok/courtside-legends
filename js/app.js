@@ -45,6 +45,7 @@ import {
   recycleValue,
 } from "./data/accountRecycle.js";
 import { manageBarHtml, recycleButtonHtml, skillShopHtml } from "./ui/collectionManageView.js";
+import { applyCollectionView, decadesOf, filterBarHtml, freshFilter, redundantIds } from "./ui/collectionFilter.js";
 import {
   bannerPickerHtml,
   drawRevealHtml,
@@ -1908,6 +1909,65 @@ $("#btn-onboard-next")?.addEventListener("click", () => {
   openCollection();
 });
 
+let collectionFilter = freshFilter();
+let collectionCache = null;
+
+/** Cards the filter bar / grid work on, with the lookups the filter needs. */
+function collectionContext(acc, players) {
+  const junk = new Set(junkIds(acc));
+  return {
+    ovrOf: overall,
+    hiddenOf: (card) => card.hiddenRoll?.rating,
+    redundant: redundantIds(players, overall),
+    junk,
+    order: new Map((acc.playerIds || []).map((id, index) => [id, index])),
+  };
+}
+
+function paintCollectionGrid(acc, players) {
+  const grid = $("#collection-grid");
+  if (!grid) return;
+  const view = applyCollectionView(players, collectionFilter, collectionContext(acc, players));
+  const souls = acc.gacha?.souls || {};
+  grid.innerHTML = view.length
+    ? view
+        .map((p) => {
+          const ovr = overall(p);
+          return `<div class="player-card">
+          ${photoImg(p, "headshot lg")}
+          <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
+          <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
+          <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
+          ${skillChipsHtml(p)}
+          ${soulButtonHtml(p, souls[p.bref] || 0)}
+          ${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}
+          ${recycleButtonHtml(p, { isFavorite: acc.favoriteId === p.id })}
+        </div>`;
+        })
+        .join("")
+    : '<p class="tiny">没有符合条件的卡——放宽筛选试试。</p>';
+  const count = $("[data-cf-count]");
+  if (count) count.textContent = `显示 ${view.length}/${players.length} 张`;
+}
+
+function paintCollectionFilter(players) {
+  const box = $("#collection-filter");
+  if (box) box.innerHTML = filterBarHtml(collectionFilter, { shown: players.length, total: players.length, decades: decadesOf(players) }, esc);
+}
+
+$("#collection-filter")?.addEventListener("input", (event) => {
+  if (event.target.dataset.cf !== "query" || !collectionCache) return;
+  collectionFilter = { ...collectionFilter, query: event.target.value };
+  paintCollectionGrid(collectionCache.acc, collectionCache.players);
+});
+$("#collection-filter")?.addEventListener("change", (event) => {
+  const key = event.target.dataset.cf;
+  if (!key || key === "query" || !collectionCache) return;
+  const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+  collectionFilter = { ...collectionFilter, [key]: value };
+  paintCollectionGrid(collectionCache.acc, collectionCache.players);
+});
+
 function openCollection() {
   const acc = requireAccountReady();
   if (!acc) return;
@@ -1974,22 +2034,9 @@ function openCollection() {
   }
   const grid = $("#collection-grid");
   if (grid) {
-    const souls = acc.gacha?.souls || {};
-    grid.innerHTML = players
-      .map((p) => {
-        const ovr = overall(p);
-        return `<div class="player-card">
-          ${photoImg(p, "headshot lg")}
-          <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
-          <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
-          <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
-          ${skillChipsHtml(p)}
-          ${soulButtonHtml(p, souls[p.bref] || 0)}
-          ${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}
-          ${recycleButtonHtml(p, { isFavorite: acc.favoriteId === p.id })}
-        </div>`;
-      })
-      .join("");
+    collectionCache = { acc, players };
+    paintCollectionFilter(players);
+    paintCollectionGrid(acc, players);
     grid.onchange = (event) => {
       const select = event.target.closest("[data-favorite]");
       if (!select?.value) return;
