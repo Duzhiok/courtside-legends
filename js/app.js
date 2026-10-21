@@ -105,6 +105,12 @@ import {
   syncTeamDuoSkills,
 } from "./data/skills.js";
 import { lineupBallNote, lineupFit, teamChemistry } from "./engine/chemistry.js";
+import {
+  acceptTradeProposal,
+  declineTradeProposal,
+  ensureTradeProposals,
+  refreshTradeProposals,
+} from "./engine/tradeProposals.js";
 import { autoFillTeam, cpuUpgradeRoster, drawPack, teamPowerLabel } from "./engine/draft.js";
 import {
   allPodsDone,
@@ -8127,6 +8133,7 @@ function renderSeasonMarket() {
   prepareSeasonState(st);
   const you = st.teams[st.userTeamId];
   const pay = payrollSummary(you);
+  const proposals = ensureTradeProposals(st);
   const locked = st.phase !== "regular";
 
   if (locked) {
@@ -8299,6 +8306,16 @@ function renderSeasonMarket() {
         <div class="sm-list sm-fa-list">${faRows || "<p class='tiny'>暂无</p>"}</div>
       </section>
     </div>
+    <section class="sm-proposals">
+      <header class="sm-fa-head"><h4>收到的交易请求</h4><div class="btn-row"><span class="tiny">${proposals.length ? `${proposals.length} 份待处理` : "暂无新报价"}</span><button type="button" class="btn small" id="btn-refresh-proposals">刷新报价</button></div></header>
+      ${proposals.map((proposal) => `<article class="trade-proposal-card" data-proposal-id="${proposal.id}">
+        <strong>${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}</strong>
+        <p class="tiny">${esc(proposal.reason)}</p>
+        <div class="tiny">对方球员：${proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；")}</div>
+        <div class="tiny">附带选秀权：${proposal.offerPicks.map((pick) => `${pick.year} 年第 ${pick.round} 轮（${pick.protection}）`).join("、")}</div>
+        <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${proposal.id}">接受报价</button><button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${proposal.id}">拒绝</button></div>
+      </article>`).join("") || `<p class="tiny">最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。</p>`}
+    </section>
     <section class="sm-trade">
       <h4>交易（1 换 1）</h4>
       <p class="tiny">薪资大致匹配；对方会评估战力。交易后继续打当赛季赛程。</p>
@@ -8421,6 +8438,27 @@ function renderSeasonMarket() {
       renderSeasonHub();
       showSeasonTab("market");
     };
+  });
+  $("#btn-refresh-proposals")?.addEventListener("click", () => {
+    refreshTradeProposals(st);
+    if (!saveSeasonAndCareer(st)) return;
+    renderSeasonHub();
+    showSeasonTab("market");
+  });
+  box.querySelectorAll("[data-trade-proposal-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const proposalId = button.dataset.proposalId;
+      const result = button.dataset.tradeProposalAction === "accept"
+        ? acceptTradeProposal(st, proposalId)
+        : declineTradeProposal(st, proposalId);
+      if (!result.ok) {
+        alert(result.reason);
+        return;
+      }
+      if (!saveSeasonAndCareer(st)) return;
+      renderSeasonHub();
+      showSeasonTab("market");
+    });
   });
   $("#btn-sm-trade")?.addEventListener("click", () => {
     const giveId = $("#sm-trade-give")?.value;

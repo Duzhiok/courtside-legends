@@ -2516,6 +2516,20 @@ select, input[type="number"] {
     grid-column: 1 / -1;
   }
 }
+.sm-proposals {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: 12px;
+  background: rgba(201, 166, 107, .08);
+}
+.trade-proposal-card {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
 .sm-trade {
   border: 1px solid var(--line);
   border-radius: 10px;
