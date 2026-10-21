@@ -211,6 +211,7 @@ import {
   buildRosterEvaluation,
   renderRosterEvaluation,
 } from "./ui/rosterEvaluationView.js";
+import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeComparison.js";
 import { confirmAction } from "./ui/confirmModal.js";
 import {
   SEASON_APRON,
@@ -8115,13 +8116,27 @@ function renderSeasonEvaluation() {
     overallOf: overall,
   });
   renderRosterEvaluation(box, rows);
-  box.querySelectorAll("[data-eval-action]").forEach((button) => {
+  box.querySelectorAll('[data-eval-action="market"], [data-eval-action="cut"]').forEach((button) => {
     button.addEventListener("click", () => {
       showSeasonTab("market");
       setTimeout(() => {
         const target = $("#season-market");
         target?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 0);
+    });
+  });
+  box.querySelectorAll('[data-eval-action="compare"]').forEach((button) => {
+    button.addEventListener("click", () => {
+      const playerId = button.dataset.playerId;
+      const panel = box.querySelector(`[data-compare-for="${playerId}"]`);
+      if (!panel) return;
+      if (!panel.hidden) {
+        panel.hidden = true;
+        return;
+      }
+      const comparison = buildTradeComparison(st, playerId, { salaryOf: playerSalary, overallOf: overall });
+      panel.innerHTML = renderTradeComparisonHtml(comparison);
+      panel.hidden = false;
     });
   });
 }
