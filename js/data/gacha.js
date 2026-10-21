@@ -165,18 +165,62 @@ function pickOne(list, rng) {
   return list[Math.floor(rng() * list.length)] || list[0];
 }
 
+const globalOvrCache = new WeakMap();
+
+/** All OVRs of the full pool, best first (cached per pool array). */
+function globalSortedOvr(pool, ovrOf) {
+  const hit = globalOvrCache.get(pool);
+  if (hit && hit.size === pool.length) return hit.sorted;
+  const sorted = pool.map(ovrOf).sort((a, b) => b - a);
+  globalOvrCache.set(pool, { size: pool.length, sorted });
+  return sorted;
+}
+
+/** Tie-break inside equal OVRs: real production, then id (stable, no randomness). */
+function production(card) {
+  const raw = card.raw || {};
+  return (raw.ppg || 0) + (raw.rpg || 0) * 0.5 + (raw.apg || 0) * 0.7;
+}
+
+/**
+ * 池内相对档位: rate a card by where it stands inside its banner pool, mapped
+ * onto the same standing in the full pool. The 1950s pool's best 0.2% rolls as
+ * 神话档 even though its raw OVRs are low, so old-era banners are not all filler.
+ *
+ * OVRs come in big ties (the 2000s pool has 450 cards at exactly 72), so ranking
+ * by OVR alone would drop a whole tie group into one band and leave other bands
+ * with 3 cards that get pulled constantly. Ties are broken by production.
+ */
+export function relativeRater(pool, source, ovrOf) {
+  const global = globalSortedOvr(pool, ovrOf);
+  const ranked = source
+    .map((card) => ({ card, ovr: ovrOf(card), prod: production(card) }))
+    .sort((a, b) => b.ovr - a.ovr || b.prod - a.prod || String(a.card.id).localeCompare(String(b.card.id)));
+  const rated = new Map();
+  ranked.forEach(({ card }, i) => {
+    const q = (i + 0.5) / ranked.length;
+    rated.set(card.id, global[Math.min(global.length - 1, Math.floor(q * global.length))]);
+  });
+  return (card) => rated.get(card.id) ?? global.at(-1);
+}
+
 /**
  * One pull. Returns { player, band, pityHit, wishHit } and the next gacha
  * state — never mutates its inputs.
  */
 export function pullCard({ pool, gacha = freshGachaState(), banner = null, rng = Math.random, ovrOf }) {
-  const bannerPool = pool.filter(bannerFilter(banner));
+  // 新手保底 is never wasted on a narrow pool: that one pull always uses the full pool.
+  const newbieForced = !gacha.hadAllstar && (gacha.pulls || 0) + 1 >= NEWBIE.allstarByPull;
+  const activeBanner = newbieForced ? null : banner;
+  const bannerPool = pool.filter(bannerFilter(activeBanner));
   const source = bannerPool.length ? bannerPool : pool;
   if (!source.length) throw new Error("卡池为空，无法抽卡");
+  const relative = !!activeBanner && activeBanner.kind !== "standard" && source !== pool;
+  const rate = relative ? relativeRater(pool, source, ovrOf) : ovrOf;
 
   const floor = pityFloor(gacha);
   const band = rollBand(rng, floor);
-  const candidates = cardsNearBand(source, band, ovrOf);
+  const candidates = cardsNearBand(source, band, rate);
 
   const wish = gacha.wishlist;
   const wishCards = wish ? candidates.filter((p) => p.bref === wish) : [];
@@ -184,15 +228,27 @@ export function pullCard({ pool, gacha = freshGachaState(), banner = null, rng =
   const wishHit = wishCards.length > 0 && rng() < wishChance;
   const player = pickOne(wishHit ? wishCards : candidates, rng);
 
-  const ovr = ovrOf(player);
+  const rated = rate(player);
+  const realOvr = ovrOf(player);
   const next = {
     ...gacha,
-    sinceAllstar: ovr >= 85 ? 0 : (gacha.sinceAllstar || 0) + 1,
-    sinceLegend: ovr >= 93 ? 0 : (gacha.sinceLegend || 0) + 1,
+    // pity counters follow the pool-relative standing, so a weak-era pool cannot jam them
+    sinceAllstar: rated >= 85 ? 0 : (gacha.sinceAllstar || 0) + 1,
+    sinceLegend: rated >= 93 ? 0 : (gacha.sinceLegend || 0) + 1,
     pulls: (gacha.pulls || 0) + 1,
-    hadAllstar: !!gacha.hadAllstar || ovr >= 85,
+    hadAllstar: !!gacha.hadAllstar || realOvr >= 85,
   };
-  return { player, band: bandOf(ovr), pityHit: !!floor, wishHit, gacha: next };
+  return { player, band: bandOf(rated), pityHit: !!floor, wishHit, relative, newbieForced, gacha: next };
+}
+
+/** A coach draw still counts as a draw: it walks every pity counter forward. */
+export function registerNonPlayerPull(gacha) {
+  return {
+    ...gacha,
+    sinceAllstar: (gacha.sinceAllstar || 0) + 1,
+    sinceLegend: (gacha.sinceLegend || 0) + 1,
+    pulls: (gacha.pulls || 0) + 1,
+  };
 }
 
 export function goldForPull(ovr) {

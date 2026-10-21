@@ -183,3 +183,101 @@ test("a lucky early 85+ also spends the 新手保底", () => {
   assert.ok(lucky.gacha.hadAllstar);
   assert.equal(pityFloor(lucky.gacha), null);
 });
+
+// ---- R13: pool-relative bands for era / team banners ----
+
+/** 1000-card "league": a realistic top-heavy shape, plus a weak 1955 era. */
+function leaguePool() {
+  const shape = [[3, 98], [3, 94], [5, 91], [20, 87], [20, 82], [100, 77], [549, 65]];
+  const cards = [];
+  for (const [count, ovr] of shape) {
+    for (let i = 0; i < count; i++) cards.push(card(`m${ovr}x${i}-2015`, ovr - (i % 3) * 0.2, { season: 2015, bref: `m${ovr}x${i}` }));
+  }
+  // weak era: 300 cards at 60–79, listed worst-first so a lazy "nearest band" pick is bad
+  for (let i = 0; i < 300; i++) cards.push(card(`old${i}-1955`, 60 + i * (19 / 299), { season: 1955, bref: `old${i}` }));
+  return cards;
+}
+const ERA_1950 = { id: "era-1950", kind: "era", decade: 1950, name: "1950年代" };
+
+function lcg(seed) {
+  let x = seed;
+  return () => ((x = (x * 1664525 + 1013904223) % 4294967296) / 4294967296);
+}
+
+test("relativeRater: the pool's best card rates like a top card, its worst like filler", async () => {
+  const { relativeRater } = await import("../js/data/gacha.js");
+  const pool = leaguePool();
+  const era = pool.filter((p) => p.season === 1955);
+  const rate = relativeRater(pool, era, ovrOf);
+  assert.ok(rate(era[era.length - 1]) >= 93, "era's best ≈ league's top 0.3%");
+  assert.ok(rate(era[0]) < 74, "era's worst stays filler");
+  for (let i = 1; i < era.length; i++) assert.ok(rate(era[i]) >= rate(era[i - 1]), "monotonic");
+});
+
+test("a weak-era banner still has a top end: a top-band roll gives the era's best card", () => {
+  const pool = leaguePool();
+  const gacha = { ...freshGachaState(), hadAllstar: true, pulls: 20 };
+  // band roll 0.001 → 神话+; with absolute bands this collapses into the 74–79 filler
+  const pull = pullCard({ pool, gacha, banner: ERA_1950, rng: scripted(0.001, 0), ovrOf });
+  assert.equal(pull.player.season, 1955);
+  assert.ok(pull.player.ovr > 78, `got ${pull.player.ovr}`);
+  assert.ok(pull.relative);
+});
+
+test("every rarity band is reachable inside a weak-era banner (not just rotation / common)", () => {
+  const pool = leaguePool();
+  const rng = lcg(7);
+  let gacha = { ...freshGachaState(), hadAllstar: true, pulls: 20 };
+  const seen = new Map();
+  for (let i = 0; i < 8000; i++) {
+    const pull = pullCard({ pool, gacha, banner: ERA_1950, rng, ovrOf });
+    gacha = pull.gacha;
+    seen.set(pull.band.id, (seen.get(pull.band.id) || 0) + 1);
+  }
+  assert.deepEqual([...seen.keys()].sort(), RATE_TABLE.map((band) => band.id).sort());
+  // and the shares stay close to the advertised table
+  const share = (id) => (seen.get(id) || 0) / 8000;
+  const advertised = (id) => RATE_TABLE.find((band) => band.id === id).p;
+  assert.ok(Math.abs(share("common") - advertised("common")) < 0.04, `common ${share("common").toFixed(3)}`);
+  assert.ok(share("legend") > 0.005, `legend ${share("legend").toFixed(4)}`);
+});
+
+test("新手保底 ignores the chosen banner: the forced pull is a real 85+ from the full pool", () => {
+  const pool = leaguePool();
+  let gacha = { ...freshGachaState(), pulls: NEWBIE.allstarByPull - 1 };
+  const pull = pullCard({ pool, gacha, banner: ERA_1950, rng: scripted(0.999, 0), ovrOf });
+  assert.ok(pull.player.ovr >= 85);
+  assert.equal(pull.player.season, 2015);
+  assert.equal(pull.newbieForced, true);
+  assert.equal(pull.relative, false);
+  assert.equal(pull.gacha.hadAllstar, true);
+});
+
+test("pity counters follow pool-relative standing, so a weak pool cannot jam them", () => {
+  const pool = leaguePool();
+  const era = pool.filter((p) => p.season === 1955);
+  const gacha = { ...freshGachaState(), hadAllstar: true, pulls: 20, sinceAllstar: 8 };
+  const pull = pullCard({ pool, gacha, banner: ERA_1950, rng: scripted(0.1, 0), ovrOf }); // 全明星+ roll
+  assert.ok(era.includes(pull.player));
+  assert.equal(pull.gacha.sinceAllstar, 0, "an era-best pull resets the 10-pull counter");
+});
+
+test("the standard banner is unchanged by relative rating", () => {
+  const pool = leaguePool();
+  const gacha = { ...freshGachaState(), hadAllstar: true, pulls: 20 };
+  const pull = pullCard({ pool, gacha, banner: { id: "standard", kind: "standard" }, rng: scripted(0.001, 0), ovrOf });
+  assert.ok(pull.player.ovr >= 96 || pull.player.season === 2015);
+  assert.equal(pull.relative, false);
+});
+
+test("relativeRater: a block of identical OVRs is spread by production, not dropped into one band", async () => {
+  const { relativeRater } = await import("../js/data/gacha.js");
+  const pool = leaguePool();
+  const tied = Array.from({ length: 120 }, (_, i) => card(`tie${i}-2005`, 78, { season: 2005, bref: `tie${i}`, raw: { ppg: i } }));
+  const rate = relativeRater([...pool, ...tied], tied, ovrOf);
+  const values = tied.map(rate);
+  assert.ok(new Set(values).size > 20, "ties are spread across many standings");
+  assert.ok(rate(tied[119]) >= rate(tied[0]), "higher production ranks higher");
+  const bands = new Set(values.map((v) => RATE_TABLE.find((b) => v >= b.min && v < b.max).id));
+  assert.ok(bands.size >= 3, `ties span several bands, got ${[...bands]}`);
+});

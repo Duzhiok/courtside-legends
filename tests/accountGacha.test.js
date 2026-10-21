@@ -120,3 +120,35 @@ test("one real person per roster: keep the best copy", () => {
   assert.ok(lineup.some((p) => p.id === "jokic-2021"));
   assert.ok(!lineup.some((p) => p.id === "jokic-2020"));
 });
+
+test("a coach draw still counts toward every pity counter", () => {
+  const acc = account({ gacha: { sinceAllstar: 2, sinceLegend: 5, pulls: 9, hadAllstar: true, souls: {} } });
+  const result = performDailyDraw(acc, { pool: [JOKIC_2020], rng: () => 0.01, date: DATE }); // 0.01 < 20% → coach
+  assert.equal(result.kind, "coach");
+  assert.equal(acc.gacha.sinceAllstar, 3);
+  assert.equal(acc.gacha.sinceLegend, 6);
+  assert.equal(acc.gacha.pulls, 10);
+});
+
+test("a pity-armed pull is never a coach, even when the coach roll would hit", () => {
+  const star = card("star-2015", 92);
+  const acc = account({ gacha: { sinceAllstar: 9, sinceLegend: 9, pulls: 30, hadAllstar: true, souls: {} } });
+  const result = performDailyDraw(acc, { pool: [star], rng: () => 0.01, date: DATE });
+  assert.equal(result.kind, "player");
+  assert.ok(result.pityHit);
+});
+
+test("新手保底 holds even if every earlier draw was a coach: draw 5 is a real 85+ player", () => {
+  const star = card("star-2015", 90);
+  const filler = card("filler-2015", 60);
+  const acc = account({ gold: 5000 });
+  let last;
+  for (let i = 0; i < 5; i++) {
+    acc.lastDailyDraw = null; // a fresh free pull each time
+    last = performDailyDraw(acc, { pool: [star, filler], rng: () => 0.01, date: new Date(2026, 9, 21 + i) });
+    if (i < 4) assert.equal(last.kind, "coach");
+  }
+  assert.equal(last.kind, "player");
+  assert.ok(last.ovr >= 85);
+  assert.equal(acc.gacha.hadAllstar, true);
+});

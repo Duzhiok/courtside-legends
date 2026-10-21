@@ -92,6 +92,14 @@ export function rollChoiceHtml(choice) {
     </div>`;
 }
 
+/** What this draw cost — shown for coach and player reveals alike. */
+function paymentFlagsHtml(result) {
+  return [
+    result.usedTicket ? '<span class="draw-flag">抽卡券 −1</span>' : "",
+    result.paidGold ? `<span class="draw-flag">加抽 −¤${result.paidGold}</span>` : "",
+  ].join("");
+}
+
 export function drawRevealHtml(result, view) {
   const { esc, photoImg, rarityClass, skillChipsHtml } = view;
   if (result.kind === "coach") {
@@ -99,15 +107,17 @@ export function drawRevealHtml(result, view) {
     return `<div class="draw-reveal">
         <div class="name">${esc(c.name)} <span class="rarity-tag myth">${esc(result.rarity)}</span></div>
         <p class="tiny">${esc(c.style)} · ${esc(c.note || "")}</p>
+        <div class="draw-flags">${paymentFlagsHtml(result)}</div>
         <p class="tiny">${result.duplicate ? `重复教练卡，折合 ¤${result.goldGain}` : "新教练卡已加入教头收藏"}</p>
       </div>`;
   }
   const p = result.player;
   const flags = [
     result.pityHit ? '<span class="draw-flag">保底触发</span>' : "",
+    result.newbieStandard ? '<span class="draw-flag">新手保底 · 从常驻池出</span>' : "",
+    result.poolBand ? `<span class="draw-flag">池内 ${esc(result.poolBand)} 档</span>` : "",
     result.wishHit ? '<span class="draw-flag wish">心愿命中</span>' : "",
-    result.usedTicket ? '<span class="draw-flag">抽卡券 −1</span>' : "",
-    result.paidGold ? `<span class="draw-flag">加抽 −¤${result.paidGold}</span>` : "",
+    paymentFlagsHtml(result),
     result.goldGain ? `<span class="draw-flag">+¤${result.goldGain}</span>` : "",
   ].join("");
   return `<div class="draw-reveal">
