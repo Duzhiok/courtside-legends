@@ -2,21 +2,11 @@
  * Local multi-account binder: persistent season cards + coach + tactic.
  * Cards survive refresh/offline; ranked uses this roster as the core squad.
  */
-import {
-  COACHES,
-  TACTICS,
-  coachDrawWeight,
-  isLegendCoach,
-  isStarterCoach,
-} from "./coaches.js";
+import { COACHES, TACTICS, isStarterCoach } from "./coaches.js";
 import { clonePlayer, overall, PLAYERS } from "./players.js";
-import {
-  MERGE_ATTR_KEYS,
-  pickMergeSkill,
-  SKILL_PACKS,
-} from "./skills.js";
-
-const MAX_CARD_MERGES = 20;
+import { MERGE_ATTR_KEYS, SKILL_PACKS } from "./skills.js";
+import { applyHiddenRoll, legacyRollSeed } from "./cardRoll.js";
+import { MAX_STARS } from "./gacha.js";
 
 const STORE_KEY = "cls_accounts_v1";
 const ACTIVE_KEY = "cls_active_account";
@@ -39,8 +29,8 @@ export function drawWeight(ovr) {
 }
 
 /**
- * Designed pull rates by OVR band — independent of how many scrub cards exist.
- * Sums to 1. No extra nerf on top of these odds.
+ * Onboarding offer odds only (开局福利, intentionally generous). Daily pulls
+ * use gacha.js RATE_TABLE + pity instead.
  */
 export const DRAW_BANDS = [
   { min: 96, max: 200, p: 0.02, label: "神话+" },
@@ -93,7 +83,7 @@ export function rarityLabel(ovr) {
   return ""; // no「边缘」tag — low cards just show OVR
 }
 
-function todayKey(d = new Date()) {
+export function todayKey(d = new Date()) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -186,13 +176,15 @@ export function deleteAccount(id) {
 }
 
 /**
- * Apply account merge upgrades onto a cloned card:
- * each merge → all rating attrs +1 (cap 100) + learned skills.
+ * Apply account upgrades onto a cloned card:
+ * each star → all rating attrs +1 (cap 100, max ★5), learned skills, and the
+ * copy's 成色 roll on top of the historical intangibles.
+ * `fallbackSeed` covers copies owned before 成色 existed.
  */
-export function applyCardMods(player, mod) {
+export function applyCardMods(player, mod, fallbackSeed = null) {
   if (!player) return null;
   const p = clonePlayer(player);
-  const merges = Math.min(MAX_CARD_MERGES, Math.max(0, mod?.merges || 0));
+  const merges = Math.min(MAX_STARS, Math.max(0, mod?.merges || 0));
   p.mergeLevel = merges;
   if (merges > 0) {
     for (const key of MERGE_ATTR_KEYS) {
@@ -211,54 +203,37 @@ export function applyCardMods(player, mod) {
       }
     }
   }
-  return p;
+  return applyHiddenRoll(p, mod?.roll || fallbackSeed);
 }
 
 export function getCardMod(account, playerId) {
   return account?.cardMods?.[playerId] || null;
 }
 
+/**
+ * Resolve owned ids → upgraded cards. Without an account (onboarding offers)
+ * no 成色 is applied: hidden values stay unrevealed until the card is owned.
+ */
 export function resolvePlayers(ids, account = null) {
   const map = new Map(PLAYERS.map((p) => [p.id, p]));
   const mods = account?.cardMods || {};
   return (ids || [])
     .map((id) => map.get(id))
     .filter(Boolean)
-    .map((p) => applyCardMods(p, mods[p.id]));
+    .map((p) =>
+      applyCardMods(p, mods[p.id], account ? legacyRollSeed(account.id, p.id) : null)
+    );
 }
 
-/**
- * Merge a duplicate into the owned card: all attrs +1, learn one random skill.
- * Returns { player, merges, learnedSkill, learnedName } or throws.
- */
-export function mergeDuplicateCard(account, playerId) {
-  if (!account) throw new Error("无账号");
-  if (!(account.playerIds || []).includes(playerId)) {
-    throw new Error("未拥有该卡，无法合并");
+/** Same real person (bref) may only appear once on a roster — keep the best copy. */
+export function uniqueByPerson(players, ovrOf = overall) {
+  const best = new Map();
+  for (const p of players) {
+    const key = p.bref || p.id;
+    const prev = best.get(key);
+    if (!prev || ovrOf(p) > ovrOf(prev)) best.set(key, p);
   }
-  account.cardMods = account.cardMods || {};
-  const prev = account.cardMods[playerId] || { merges: 0, skills: [] };
-  if ((prev.merges || 0) >= MAX_CARD_MERGES) {
-    throw new Error(`该卡已合并 ${MAX_CARD_MERGES} 次上限`);
-  }
-  const base = PLAYERS.find((p) => p.id === playerId);
-  if (!base) throw new Error("卡牌不存在");
-  const current = applyCardMods(base, prev);
-  const learnedSkill = pickMergeSkill([...(current.skills || []), ...(prev.skills || [])]);
-  const next = {
-    merges: (prev.merges || 0) + 1,
-    skills: [...(prev.skills || [])],
-  };
-  if (learnedSkill) next.skills.push(learnedSkill);
-  account.cardMods[playerId] = next;
-  const merged = applyCardMods(base, next);
-  return {
-    player: merged,
-    merges: next.merges,
-    learnedSkill,
-    learnedName: learnedSkill ? SKILL_PACKS[learnedSkill]?.name : null,
-    ovr: overall(merged),
-  };
+  return [...best.values()];
 }
 
 export function resolveCoach(coachId) {
@@ -271,9 +246,15 @@ export function resolveTactic(tacticId) {
 }
 
 /** Account → live team blob for ranked / setup. */
+/**
+ * Best 12 owned cards, one per real person. (Used to be `playerIds.slice(0, 12)`,
+ * which meant every card drawn after onboarding could never play.)
+ */
 export function accountToTeam(account, teamName) {
   if (!account) return null;
-  const players = resolvePlayers(account.playerIds, account).slice(0, 12);
+  const players = uniqueByPerson(resolvePlayers(account.playerIds, account))
+    .sort((a, b) => overall(b) - overall(a))
+    .slice(0, 12);
   if (!players.length) return null;
   const coach = resolveCoach(account.coachId) || structuredClone(COACHES[0]);
   return {
@@ -288,7 +269,7 @@ export function accountToTeam(account, teamName) {
   };
 }
 
-function weightedPick(list, weightFn) {
+export function weightedPick(list, weightFn) {
   let total = 0;
   const weights = list.map((x) => {
     const w = Math.max(0.01, weightFn(x));
@@ -390,100 +371,6 @@ export function canEquipCoach(account, coachId) {
   if (account.coachId === coachId) return true;
   const c = COACHES.find((x) => x.id === coachId);
   return isStarterCoach(c);
-}
-
-export function canDailyDraw(account) {
-  if (!account) return false;
-  return account.lastDailyDraw !== todayKey();
-}
-
-/**
- * Daily pull: mostly players; ~20% chance a coach card (名帅极稀有).
- * Returns { kind:'player'|'coach', player?, coach?, duplicate, goldGain, rarity, ovr? }.
- */
-export function performDailyDraw(account) {
-  if (!account) throw new Error("无账号");
-  if (!canDailyDraw(account)) throw new Error("今日已抽过");
-  account.coachIds = account.coachIds || [];
-
-  const wantCoach = Math.random() < 0.2;
-  if (wantCoach) {
-    // Bias toward legend coaches being rare (same idea as superstar players)
-    const coach = weightedPick(COACHES, (c) => coachDrawWeight(c));
-    const duplicate = account.coachIds.includes(coach.id);
-    let goldGain = 0;
-    const rarity = isLegendCoach(coach)
-      ? coach.fame >= 94
-        ? "名帅"
-        : "名教"
-      : coach.fame >= 45
-        ? "主帅"
-        : "菜鸟教头";
-    if (duplicate) {
-      goldGain = Math.max(20, Math.round((coach.fame || 40) * 0.9));
-      account.gold = (account.gold || 0) + goldGain;
-    } else {
-      account.coachIds = [...account.coachIds, coach.id];
-    }
-    account.lastDailyDraw = todayKey();
-    account.drawHistory = [
-      ...(account.drawHistory || []).slice(-49),
-      { kind: "coach", id: coach.id, at: Date.now(), duplicate, rarity },
-    ];
-    saveAccount(account);
-    return {
-      kind: "coach",
-      coach: structuredClone(coach),
-      duplicate,
-      goldGain,
-      rarity,
-    };
-  }
-
-  const owned = new Set(account.playerIds || []);
-  const player = pickPlayerByOdds(PLAYERS);
-  if (!player) throw new Error("名册为空，无法抽卡");
-  const ovr = overall(player);
-  const rarity = rarityLabel(ovr);
-  const duplicate = owned.has(player.id);
-  let goldGain = 0;
-  let merge = null;
-  if (duplicate) {
-    // Same card → merge: all attrs +1 + random skill (no duplicate stack)
-    try {
-      merge = mergeDuplicateCard(account, player.id);
-    } catch (e) {
-      // At merge cap: fall back to gold convert
-      goldGain = Math.max(15, Math.round(ovr * 0.8));
-      account.gold = (account.gold || 0) + goldGain;
-    }
-  } else {
-    account.playerIds = [...(account.playerIds || []), player.id];
-  }
-  account.lastDailyDraw = todayKey();
-  account.drawHistory = [
-    ...(account.drawHistory || []).slice(-49),
-    {
-      kind: "player",
-      id: player.id,
-      at: Date.now(),
-      duplicate,
-      rarity,
-      merged: !!merge,
-      learnedSkill: merge?.learnedSkill || null,
-    },
-  ];
-  saveAccount(account);
-  return {
-    kind: "player",
-    player: merge?.player || clonePlayer(player),
-    duplicate,
-    merged: !!merge,
-    merge,
-    goldGain,
-    rarity,
-    ovr: merge?.ovr ?? ovr,
-  };
 }
 
 export function finalizeOnboarding(account, { playerIds, coachId, tacticId }) {

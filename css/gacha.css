@@ -1,0 +1,154 @@
+/* Draw + collection: banners, 成色 grades, hidden badges, wishlist. */
+.draw-banners {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.draw-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 44px;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+  background: var(--card, #fff);
+  color: inherit;
+  cursor: pointer;
+}
+
+.draw-banner.active {
+  border-color: #b8860b;
+  box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.25);
+  background: #fffaf0;
+}
+
+.draw-banner:focus-visible,
+.roll-option:focus-visible {
+  outline: 3px solid #1f6f50;
+  outline-offset: 2px;
+}
+
+.draw-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 8px 0 12px;
+  font-size: 0.85rem;
+  color: var(--muted, #4b5563);
+}
+
+.draw-flags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.draw-flag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #eef2ea;
+  color: #1f3d2c;
+}
+
+.draw-flag.wish {
+  background: #fde8f0;
+  color: #8a1c46;
+}
+
+.roll-grade {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Contrast ≥ 4.5:1 on white text for every grade. */
+.roll-S { background: #a1580a; }
+.roll-A { background: #6b3fa0; }
+.roll-B { background: #1f5f8b; }
+.roll-C { background: #4b5563; }
+.roll-D { background: #6b4f3a; }
+
+.gem-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e6f4ea;
+  color: #14532d;
+}
+
+.roll-choice {
+  margin-top: 12px;
+}
+
+.roll-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.roll-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 12px;
+}
+
+.draw-wishlist {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+}
+
+.draw-wishlist summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 24px;
+}
+
+.draw-wishlist input[type="search"] {
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.wish-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.craft-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line, #d8dccf);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 480px) {
+  .roll-options {
+    grid-template-columns: 1fr;
+  }
+}

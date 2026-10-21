@@ -2,12 +2,35 @@ import { ASSISTANTS, COACHES } from "../data/coaches.js";
 import { playerPrice } from "../data/intangibles.js";
 import { HIDDEN_TIERS, PLAYERS, clonePlayer, overall } from "../data/players.js";
 
+/** id → bref, rebuilt only when the roster reloads. */
+let brefIndex = null;
+let brefIndexSize = -1;
+
+function brefOf(id) {
+  if (brefIndexSize !== PLAYERS.length) {
+    brefIndex = new Map(PLAYERS.map((p) => [p.id, p.bref]));
+    brefIndexSize = PLAYERS.length;
+  }
+  return brefIndex.get(id);
+}
+
+/** Real people already taken — one person (any season) per league in draft modes. */
+export function takenPeople(ids) {
+  const people = new Set();
+  for (const id of ids || []) {
+    const bref = brefOf(id);
+    if (bref) people.add(bref);
+  }
+  return people;
+}
+
 /** Weighted pack — hidden tiers affect odds, never revealed in UI. */
 export function drawPack(
   size = 5,
   { includeCoach = false, includeAssistant = false, excludeIds = new Set() } = {}
 ) {
-  const pool = PLAYERS.filter((p) => !excludeIds.has(p.id));
+  const people = takenPeople(excludeIds);
+  const pool = PLAYERS.filter((p) => !excludeIds.has(p.id) && !people.has(p.bref));
   const cards = [];
   const used = new Set(excludeIds);
 
@@ -15,11 +38,12 @@ export function drawPack(
   const count = Math.max(1, size - staffSlots);
   for (let i = 0; i < count; i++) {
     const p = weightedPick(
-      pool.filter((x) => !used.has(x.id)),
+      pool.filter((x) => !used.has(x.id) && !people.has(x.bref)),
       (x) => HIDDEN_TIERS[x.hiddenTier]?.weight ?? 10
     );
     if (!p) break;
     used.add(p.id);
+    if (p.bref) people.add(p.bref);
     cards.push({ kind: "player", data: clonePlayer(p) });
   }
 
@@ -102,12 +126,13 @@ export function cpuUpgradeRoster(team, budget, globalUsed = new Set()) {
   const spentNotes = [];
   const added = [];
   const localUsed = new Set([...globalUsed, ...team.players.map((p) => p.id)]);
+  const localPeople = takenPeople(localUsed);
 
   // Prefer filling empty slots first, then swap out weakest
   const maxRoster = 12;
   let guard = 0;
   while (gold >= 40 && guard++ < 6) {
-    const candidates = PLAYERS.filter((p) => !localUsed.has(p.id))
+    const candidates = PLAYERS.filter((p) => !localUsed.has(p.id) && !localPeople.has(p.bref))
       .map((p) => clonePlayer(p))
       .map((p) => ({ p, price: playerPrice(p), ovr: overall(p) }))
       .filter((x) => x.price <= gold)
@@ -123,6 +148,7 @@ export function cpuUpgradeRoster(team, budget, globalUsed = new Set()) {
       team.players.push(pick.p);
       gold -= pick.price;
       localUsed.add(pick.p.id);
+      localPeople.add(pick.p.bref);
       globalUsed.add(pick.p.id);
       added.push(pick.p);
       spentNotes.push(`买入 ${pick.p.name}（¤${pick.price}）`);
@@ -135,6 +161,7 @@ export function cpuUpgradeRoster(team, budget, globalUsed = new Set()) {
     team.players.push(pick.p);
     gold -= pick.price;
     localUsed.add(pick.p.id);
+    localPeople.add(pick.p.bref);
     globalUsed.add(pick.p.id);
     added.push(pick.p);
     spentNotes.push(`换下 ${weakest.name}，买入 ${pick.p.name}（¤${pick.price}）`);
