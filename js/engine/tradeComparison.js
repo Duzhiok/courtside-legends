@@ -1,5 +1,6 @@
 import { overall } from "../data/players.js";
 import { SEASON_SALARY_CAP, playerSalary, teamPayroll } from "./seasonMarket.js";
+import { totalPickValue } from "./draftPickValue.js";
 
 function fmtDelta(n) {
   const v = Math.round(n);
@@ -32,10 +33,14 @@ export function buildTradeComparison(st, playerId, { salaryOf = playerSalary, ov
   if (proposal) {
     const incomingOvr = proposal.receivePlayers.reduce((sum, p) => sum + (overallOf(p) || 0), 0) / proposal.receivePlayers.length;
     const incomingSalary = proposal.receivePlayers.reduce((sum, p) => sum + (salaryOf(p) || 0), 0);
+    const picks = totalPickValue(proposal.offerPicks, { currentYear: st.year });
     trade = {
       label: `交易给 ${proposal.fromTeamName}`,
       salaryDelta: incomingSalary - playerSalaryValue,
       ovrDelta: incomingOvr - playerOvr,
+      pickValue: picks.total,
+      pickItems: picks.items,
+      netValueDelta: incomingOvr - playerOvr + picks.total,
       rosterDelta: proposal.receivePlayers.length - 1,
       partnerTeamName: proposal.fromTeamName,
       receiveNames: proposal.receivePlayers.map((p) => p.name),
@@ -85,6 +90,9 @@ export function renderTradeComparisonHtml(comparison) {
           <div class="tiny">工资变化：${fmtDelta(opt.salaryDelta)}</div>
           <div class="tiny">能力变化：${fmtDelta(opt.ovrDelta)} OVR</div>
           <div class="tiny">阵容人数变化：${fmtDelta(opt.rosterDelta)}</div>
+          ${opt.pickItems?.length ? `<div class="tiny">选秀权折算：+${opt.pickValue} OVR</div>
+          <ul class="pick-value-list tiny">${opt.pickItems.map((item) => `<li><strong>${item.label}</strong>：${item.explanation}</li>`).join("")}</ul>
+          <div class="tiny"><strong>综合价值变化：${fmtDelta(opt.netValueDelta)} OVR</strong>（球员能力差 + 选秀权折算）</div>` : ""}
           <p class="tiny">${opt.note}</p>
         </div>`
       : `<div class="trade-compare-col"><h5>暂无交易报价</h5><p class="tiny">这名球员目前没有收到主动交易请求，可在自由市场手动议价。</p></div>`;

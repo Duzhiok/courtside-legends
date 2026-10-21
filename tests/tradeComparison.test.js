@@ -8,6 +8,7 @@ function player(id, ovr, salary = 100) {
 
 function seasonFixture() {
   return {
+    year: 1995,
     userTeamId: "USER",
     teams: {
       USER: { players: [player("star", 86, 200), player("bench", 70, 60)] },
@@ -36,6 +37,9 @@ test("comparison includes keep, an existing inbound trade offer, and best cut-an
   assert.equal(comparison.keep.salaryDelta, 0);
   assert.equal(comparison.trade.partnerTeamName, "对手");
   assert.equal(comparison.trade.ovrDelta, 83 - 86);
+  assert.ok(comparison.trade.pickValue > 0);
+  assert.equal(comparison.trade.netValueDelta, comparison.trade.ovrDelta + comparison.trade.pickValue);
+  assert.match(renderTradeComparisonHtml(comparison), /综合价值变化/);
   assert.equal(comparison.cutSign.freeAgentName, "fa-good");
 });
 
