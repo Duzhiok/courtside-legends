@@ -31,11 +31,13 @@ import {
 } from "./data/accountGacha.js";
 import { currentBanners } from "./data/gacha.js";
 import { searchPeople } from "./data/cardSearch.js";
+import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import {
   bannerPickerHtml,
   drawRevealHtml,
   drawRulesHtml,
   drawStatusHtml,
+  favoriteControlHtml,
   hiddenBadgesHtml,
   rollChoiceHtml,
   soulButtonHtml,
@@ -1942,9 +1944,20 @@ function openCollection() {
           <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
           ${skillChipsHtml(p)}
           ${soulButtonHtml(p, souls[p.bref] || 0)}
+          ${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}
         </div>`;
       })
       .join("");
+    grid.onchange = (event) => {
+      const select = event.target.closest("[data-favorite]");
+      if (!select?.value) return;
+      try {
+        setFavorite(acc, select.dataset.favorite, select.value);
+        openCollection();
+      } catch (error) {
+        alert(error.message);
+      }
+    };
     grid.onclick = (event) => {
       const button = event.target.closest("[data-soul-star]");
       if (!button) return;
@@ -7771,7 +7784,7 @@ function showResult(snap, { formNotes = [] } = {}) {
     return;
   }
   if (state.career?.kind === "ranked") {
-    handleRankedResult(youWin);
+    handleRankedResult(youWin, snap);
     return;
   }
   if (state.career?.kind === "career") {
@@ -9629,13 +9642,16 @@ document.querySelectorAll("[data-season-tab]").forEach((btn) => {
   btn.addEventListener("click", () => showSeasonTab(btn.dataset.seasonTab));
 });
 
-function handleRankedResult(youWin) {
+function handleRankedResult(youWin, snap) {
   const acc = getAccount(state.career?.accountId) || activeAccount();
   if (acc) recordRankedResult(acc, youWin);
+  // Ranked always seats the account on the home side (startRankedMatch).
+  const notes = acc ? applyRankedGame(acc, snap?.home?.roster, { won: youWin }) : [];
+  const progress = notes.map(progressNoteText).join(" ");
   const cont = $("#btn-result-continue");
-  $("#result-summary").textContent = youWin
+  $("#result-summary").textContent = (youWin
     ? `排位胜利。班底与教练已保存，战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`
-    : `排位失利。班底仍在，可回收藏调整战术后再战。战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`;
+    : `排位失利。班底仍在，可回收藏调整战术后再战。战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`) + (progress ? ` ${progress}` : "");
   cont.textContent = "回到球员卡";
   cont.onclick = () => {
     state.career = null;

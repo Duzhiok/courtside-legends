@@ -4,6 +4,7 @@
  * module never reaches into app.js globals.
  */
 import { MAX_STARS, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
+import { GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "../data/growthPaths.js";
 import { scoutLabel } from "../data/intangibles.js";
 
 const OUTCOME_TEXT = {
@@ -136,4 +137,20 @@ export function soulButtonHtml(player, souls) {
   if ((player.mergeLevel || 0) >= MAX_STARS) return "";
   const enough = souls >= SOULS_PER_STAR;
   return `<button type="button" class="btn small" data-soul-star="${player.id}" ${enough ? "" : "disabled"}>球魂升星 ${souls}/${SOULS_PER_STAR}</button>`;
+}
+
+/** 本命 status for the favourite card, a path picker for everyone else. */
+export function favoriteControlHtml(player, growth, isFavorite) {
+  const locked = (growth?.levels || 0) > 0 ? growth.path : null;
+  if (isFavorite && GROWTH_PATHS[growth?.path]) {
+    const done = growth.levels >= MAX_GROWTH_LEVEL;
+    return `<div class="favorite-tag">❤ 本命 · ${GROWTH_PATHS[growth.path].label} Lv.${growth.levels || 0}${done ? "（已满）" : ` · ${growth.xp || 0}/${XP_PER_LEVEL} 经验`}</div>`;
+  }
+  const options = Object.entries(GROWTH_PATHS)
+    .filter(([id]) => !locked || id === locked)
+    .map(([id, path]) => `<option value="${id}">${path.label}路线</option>`)
+    .join("");
+  return `<label class="tiny favorite-pick">设为本命
+      <select data-favorite="${player.id}"><option value="">—</option>${options}</select>
+    </label>`;
 }
