@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css?v=20261017matchup1" />
   <link rel="stylesheet" href="css/home.css?v=20261021home1" />
+  <link rel="stylesheet" href="css/timeTravel.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -706,10 +707,15 @@
     </main>
 
     <main id="screen-time-travel" class="screen">
-      <div class="panel-head">
-        <h2>穿越生涯 · 五年篇章</h2>
+      <div class="panel-head tt-hero">
+        <div>
+          <div class="tt-hero-kicker">COURTSIDE LEGENDS · TIME TRAVEL</div>
+          <h2>穿越生涯 · 五年篇章</h2>
+          <p class="tt-hero-sub">带着有限的未来知识，回到历史一年擅自执教一支球队。每个选择都会被记录进历史。</p>
+        </div>
         <button type="button" class="btn ghost" id="btn-time-travel-back">返回</button>
       </div>
+      <div id="time-travel-stepper" class="tt-stepper" hidden></div>
       <section id="time-travel-create" class="time-travel-create">
         <h3>选择历史起点</h3>
         <p class="tiny">带着有限的未来知识参加面试；不同理念会影响你与管理层共事的方式。</p>
@@ -731,7 +737,7 @@
       <p id="time-travel-status" class="tiny" role="status" aria-live="polite"></p>
       <section id="time-travel-offers" class="interview-grid" aria-label="球队面试邀请" hidden></section>
       <section id="time-travel-decision" class="story-decision" hidden>
-        <h3>第一次使用未来知识</h3>
+        <h3>🔮 第一次使用未来知识</h3>
         <p>新工作刚开始，你必须决定是否提前透露一些超越时代的判断。每次干预都会消耗筹码，也可能改变管理层与媒体的态度。</p>
         <div id="time-travel-resources" class="time-travel-resources"></div>
         <div class="story-choice-list">
@@ -750,20 +756,20 @@
         </div>
       </section>
       <section id="time-travel-event" class="story-event-card" hidden aria-live="polite">
-        <div class="story-event-kicker" id="time-travel-event-kicker">本季关键事件</div>
+        <div class="story-event-kicker" id="time-travel-event-kicker">✨ 本季关键事件</div>
         <h3 id="time-travel-event-title">—</h3>
         <p id="time-travel-event-prompt" class="tiny">—</p>
         <div id="time-travel-event-choices" class="story-choice-list"></div>
       </section>
       <section id="time-travel-report" class="story-report-card" hidden>
-        <div class="story-event-kicker">历史改写记录</div>
+        <div class="story-event-kicker">📜 历史改写记录</div>
         <p id="time-travel-report-text" class="tiny">—</p>
         <p id="time-travel-report-status" class="story-report-status">—</p>
         <ul id="time-travel-report-seasons" class="story-report-list"></ul>
         <ul id="time-travel-report-list" class="story-report-list"></ul>
       </section>
       <section id="time-travel-share" class="story-report-card" hidden>
-        <div class="story-event-kicker">结局分享卡 · 可直接截图</div>
+        <div class="story-event-kicker">🏅 结局分享卡 · 可直接截图</div>
         <div id="time-travel-share-card"></div>
         <div class="btn-row">
           <button type="button" class="btn small" id="btn-time-travel-share-copy">复制战报文字</button>
@@ -771,7 +777,7 @@
         </div>
       </section>
       <section id="time-travel-contract" class="story-event-card" hidden>
-        <div class="story-event-kicker">五年合同决定</div>
+        <div class="story-event-kicker">📝 五年合同决定</div>
         <h3 id="time-travel-contract-title">球队愿意继续合作吗？</h3>
         <p id="time-travel-contract-prompt" class="tiny">你的战绩、压力和特权会影响续约条件。</p>
         <div id="time-travel-contract-options" class="story-choice-list"></div>

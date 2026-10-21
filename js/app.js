@@ -608,15 +608,49 @@ function renderTimeTravelResources() {
   const story = state.story;
   const resources = $("#time-travel-resources");
   if (!resources || !story) return;
+  const trust = story.frontOfficeTrust ?? 0;
+  const pressure = story.mediaPressure ?? 0;
+  const divergence = story.timelineDivergence ?? 0;
+  const trustTone = trust >= 65 ? "good" : trust >= 35 ? "mid" : "bad";
+  const pressureTone = pressure >= 65 ? "bad" : pressure >= 35 ? "mid" : "good";
   resources.innerHTML = [
-    `未来知识 <strong>${story.futureKnowledge ?? 0}</strong>`,
-    `管理层信任 <strong>${story.frontOfficeTrust ?? 0}</strong>`,
-    `媒体压力 <strong>${story.mediaPressure ?? 0}</strong>`,
-    `时间线偏离 <strong>${story.timelineDivergence ?? 0}</strong>`,
-  ]
-    .map((item) => `<span>${item}</span>`)
-    .join("");
+    `<span class="tt-chip tt-chip-knowledge">🔮 未来知识 <strong>${story.futureKnowledge ?? 0}</strong></span>`,
+    ttMeterHtml("🤝 管理层信任", trust, trustTone),
+    ttMeterHtml("📰 媒体压力", pressure, pressureTone),
+    ttMeterHtml("🌀 时间线偏离", divergence, "accent"),
+  ].join("");
 }
+
+/** 单个资源进度条：0-100 夹位，超过 100 视觉上封顶但数字仍显示真实值 */
+function ttMeterHtml(label, value, tone) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  return `<span class="tt-meter"><span class="tt-meter-label">${label} <strong>${value}</strong></span><span class="tt-meter-track"><span class="tt-meter-fill tt-meter-${tone}" style="width:${pct}%"></span></span></span>`;
+}
+
+/** 年度进度条：5 个赛季 + 结局，已完成/当前/待进行三种状态 */
+function renderTimeTravelStepper() {
+  const box = $("#time-travel-stepper");
+  if (!box) return;
+  if (!state.leagueCareer || !state.story) {
+    box.hidden = true;
+    return;
+  }
+  const report = buildCareerReport(currentRootState());
+  const steps = [];
+  for (let year = 1; year <= report.maxSeasons; year++) {
+    const done = year <= report.seasonCount;
+    const current = year === report.seasonCount + 1 && !report.finished;
+    steps.push(
+      `<span class="tt-step ${done ? "done" : ""} ${current ? "current" : ""}"><span class="tt-step-dot">${done ? "✓" : year}</span><span class="tt-step-label">第${year}年</span></span>`
+    );
+  }
+  steps.push(
+    `<span class="tt-step ${report.finished ? "done current" : ""}"><span class="tt-step-dot">${report.finished ? "🏆" : "•"}</span><span class="tt-step-label">结局</span></span>`
+  );
+  box.hidden = false;
+  box.innerHTML = steps.join('<span class="tt-step-line"></span>');
+}
+
 
 function renderTimeTravelReport() {
   const card = $("#time-travel-report");
@@ -787,6 +821,7 @@ function renderTimeTravelStoryState({ showResolved = false } = {}) {
   if (decision) decision.hidden = !(pending || (showResolved && resolved));
   if (continueButton) continueButton.hidden = !state.leagueCareer || !!state.story?.pendingDecision;
   renderTimeTravelResources();
+  renderTimeTravelStepper();
   renderPendingStoryEvent();
   renderCareerContract();
   renderTimeTravelReport();
@@ -804,19 +839,25 @@ function renderTimeTravelOffers() {
     middle: "中游队",
     contender: "争冠队",
   };
+  const icons = {
+    rebuild: "🌱",
+    middle: "⚖️",
+    contender: "🏆",
+  };
   box.innerHTML = "";
   for (const offer of timeTravelPrologue.offers.slice(0, 3)) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "interview-offer";
     button.dataset.offerId = offer.id;
+    button.dataset.archetype = offer.archetype;
     button.setAttribute("aria-pressed", "false");
     button.setAttribute(
       "aria-label",
       `${offer.teamName}，${labels[offer.archetype]}面试邀请。${offer.summary}。首年目标：${offer.firstYearGoal}。权限 ${offer.authority}，信任 ${offer.trust}，压力 ${offer.pressure}`
     );
     button.innerHTML = `
-      <span>${labels[offer.archetype]}</span>
+      <span class="tt-offer-kicker">${icons[offer.archetype] || "🏀"} ${labels[offer.archetype]}</span>
       <strong>${offer.teamName}</strong>
       <span>${offer.summary}</span>
       <span>首年目标：${offer.firstYearGoal}</span>
