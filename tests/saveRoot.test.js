@@ -168,6 +168,33 @@ test("root saves accept structured story-event decisions", () => {
   assert.deepEqual(readRootSave(storage).story.pendingDecision, root.story.pendingDecision);
 });
 
+test("root persistence strips large ephemeral box snapshots but keeps schedule state", () => {
+  const storage = createMemoryStorage();
+  const root = createRootState({
+    activeMode: "franchise",
+    leagueCareer: {
+      careerId: "compact-1",
+      kind: "franchise",
+      phase: "regular",
+      season: validSeason({
+        resultsLog: [{ day: 1, box: { huge: true }, snapshot: { huge: true }, score: 101 }],
+        schedule: [[{ homeId: "POR", awayId: "LAL", _lastSnap: { huge: true }, box: { huge: true } }]],
+        finalsAllTeam: { huge: true },
+      }),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+  });
+  writeRootSave(root, storage);
+  const saved = readRootSave(storage);
+  assert.equal(saved.leagueCareer.season.resultsLog[0].box, undefined);
+  assert.equal(saved.leagueCareer.season.resultsLog[0].score, 101);
+  assert.equal(saved.leagueCareer.season.schedule[0][0]._lastSnap, undefined);
+  assert.equal(saved.leagueCareer.season.schedule[0][0].homeId, "POR");
+  assert.equal(saved.leagueCareer.season.finalsAllTeam, undefined);
+});
+
 test("exported root save imports to the same state", () => {
   const root = createRootState({
     savedAt: 123,

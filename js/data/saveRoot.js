@@ -258,6 +258,52 @@ function cloneJson(value) {
   return parseJson(JSON.stringify(value));
 }
 
+function compactSeasonForStorage(season) {
+  if (!isObject(season)) return season;
+  const compact = { ...season };
+  if (Array.isArray(compact.resultsLog)) {
+    compact.resultsLog = compact.resultsLog.map((entry) => {
+      if (!isObject(entry)) return entry;
+      const next = { ...entry };
+      delete next.box;
+      delete next.snapshot;
+      delete next.feed;
+      return next;
+    });
+  }
+  if (Array.isArray(compact.schedule)) {
+    compact.schedule = compact.schedule.map((night) =>
+      Array.isArray(night)
+        ? night.map((game) => {
+            if (!isObject(game)) return game;
+            const next = { ...game };
+            delete next._lastSnap;
+            delete next.box;
+            delete next.snapshot;
+            delete next.feed;
+            return next;
+          })
+        : night,
+    );
+  }
+  delete compact.finalsAllTeam;
+  return compact;
+}
+
+function compactRootForStorage(root) {
+  const compact = { ...root };
+  if (compact.leagueCareer?.season) {
+    compact.leagueCareer = {
+      ...compact.leagueCareer,
+      season: compactSeasonForStorage(compact.leagueCareer.season),
+    };
+  }
+  if (compact.liveGame?.feed?.length > 24) {
+    compact.liveGame = { ...compact.liveGame, feed: compact.liveGame.feed.slice(-24) };
+  }
+  return compact;
+}
+
 function parseLegacy(storage, key, allowedVersions) {
   const text = storage.getItem(key);
   if (text === null) {
@@ -286,7 +332,7 @@ export function createRootState(overrides = {}) {
 
 export function writeRootSave(root, storage) {
   const target = getStorage(storage);
-  const persisted = cloneJson(root);
+  const persisted = compactRootForStorage(cloneJson(root));
   const savedAt = Date.now();
   persisted.savedAt = savedAt;
   validateRoot(persisted);
