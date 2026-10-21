@@ -1,6 +1,5 @@
 import {
   accountToTeam,
-  canDailyDraw,
   coachRecordLabel,
   createAccount,
   deleteAccount,
@@ -8,7 +7,6 @@ import {
   getAccount,
   getActiveAccountId,
   listAccounts,
-  performDailyDraw,
   rarityLabel,
   recordRankedResult,
   resolveCoach,
@@ -21,6 +19,28 @@ import {
   setAccountCoach,
   setAccountTactic,
 } from "./data/account.js";
+import {
+  canDailyDraw,
+  craftWishCard,
+  drawAvailability,
+  pendingRollChoice,
+  performDailyDraw,
+  resolvePendingRoll,
+  setWishlist,
+  starUpWithSouls,
+} from "./data/accountGacha.js";
+import { currentBanners } from "./data/gacha.js";
+import { searchPeople } from "./data/cardSearch.js";
+import {
+  bannerPickerHtml,
+  drawRevealHtml,
+  drawRulesHtml,
+  drawStatusHtml,
+  hiddenBadgesHtml,
+  rollChoiceHtml,
+  soulButtonHtml,
+  wishlistHtml,
+} from "./ui/gachaView.js";
 import {
   ASSISTANTS,
   COACHES,
@@ -1577,8 +1597,8 @@ function refreshAccountHomeBar() {
       : "请先完成开局：先看系统 7 人 → 自选 5 人 + 教练 + 战术";
   }
   if (drawBtn) {
-    drawBtn.disabled = !acc.onboardingDone || !dailyOk;
-    drawBtn.textContent = dailyOk ? "每日抽卡" : "今日已抽";
+    drawBtn.disabled = !acc.onboardingDone;
+    drawBtn.textContent = dailyOk ? "每日抽卡" : "抽卡 · 心愿单";
   }
 }
 
@@ -1911,89 +1931,125 @@ function openCollection() {
   }
   const grid = $("#collection-grid");
   if (grid) {
+    const souls = acc.gacha?.souls || {};
     grid.innerHTML = players
       .map((p) => {
         const ovr = overall(p);
         return `<div class="player-card">
           ${photoImg(p, 56)}
-          <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.mergeLevel ? `<span class="tag-merge">合×${p.mergeLevel}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
+          <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
           <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
+          <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
           ${skillChipsHtml(p)}
+          ${soulButtonHtml(p, souls[p.bref] || 0)}
         </div>`;
       })
       .join("");
+    grid.onclick = (event) => {
+      const button = event.target.closest("[data-soul-star]");
+      if (!button) return;
+      try {
+        starUpWithSouls(acc, button.dataset.soulStar);
+        openCollection();
+      } catch (error) {
+        alert(error.message);
+      }
+    };
   }
   const drawBtn = $("#btn-collection-draw");
   if (drawBtn) {
-    drawBtn.disabled = !canDailyDraw(acc);
-    drawBtn.textContent = canDailyDraw(acc) ? "每日抽卡" : "今日已抽";
+    drawBtn.disabled = false;
+    drawBtn.textContent = canDailyDraw(acc) ? "去抽卡" : "抽卡 / 心愿单";
   }
   show("collection");
+}
+
+const drawView = () => ({ esc, photoImg, rarityClass, skillChipsHtml, ovrOf: overall });
+let drawBannerId = "standard";
+
+function renderDrawStatus(acc) {
+  const availability = drawAvailability(acc);
+  const wish = acc.gacha?.wishlist;
+  const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
+  $("#draw-status").innerHTML = drawStatusHtml(acc, availability, wishName, esc);
+  const pull = $("#btn-draw-pull");
+  if (!pull) return;
+  pull.disabled = !availability.any || !!acc.pendingRoll;
+  pull.textContent = acc.pendingRoll
+    ? "先选择成色"
+    : availability.free
+      ? "免费抽卡"
+      : availability.canPay
+        ? `金币加抽（¤${availability.cost}）`
+        : "明日再来";
+}
+
+function renderWishPanel(acc) {
+  const query = $("#wish-search")?.value || "";
+  const wish = acc.gacha?.wishlist;
+  $("#wish-panel").innerHTML = wishlistHtml(
+    {
+      people: query.trim() ? searchPeople(PLAYERS, query, { ovrOf: overall }) : [],
+      wishCards: wish ? PLAYERS.filter((p) => p.bref === wish).sort((a, b) => b.season - a.season) : [],
+      ownedIds: new Set(acc.playerIds || []),
+      gold: acc.gold || 0,
+    },
+    drawView()
+  );
 }
 
 function openDailyDraw() {
   const acc = requireAccountReady();
   if (!acc) return;
-  const stage = $("#draw-stage");
-  const pull = $("#btn-draw-pull");
-  if (stage) {
-    stage.innerHTML = canDailyDraw(acc)
-      ? `<p class="tiny">准备就绪——新卡入账；抽到已有卡会自动合并（全属性+1并随机领悟技能）。</p>`
-      : `<p class="tiny">今日已抽取。明天再来扩充班底。</p>`;
-  }
-  if (pull) {
-    pull.disabled = !canDailyDraw(acc);
-    pull.textContent = canDailyDraw(acc) ? "抽取今日卡" : "明日再来";
-  }
+  $("#draw-rules").innerHTML = drawRulesHtml();
+  $("#draw-banners").innerHTML = bannerPickerHtml(currentBanners(), drawBannerId, esc);
+  const choice = pendingRollChoice(acc);
+  $("#draw-stage").innerHTML = choice
+    ? `<p class="tiny">上次升星还没选成色：</p>${rollChoiceHtml(choice)}`
+    : `<p class="tiny">选好卡池后开包。</p>`;
+  renderDrawStatus(acc);
+  renderWishPanel(acc);
   show("draw");
 }
 
+$("#screen-draw")?.addEventListener("click", (event) => {
+  const acc = activeAccount();
+  if (!acc) return;
+  const target = event.target.closest("[data-banner],[data-roll-keep],[data-wish],[data-craft]");
+  if (!target) return;
+  try {
+    if (target.dataset.banner) {
+      drawBannerId = target.dataset.banner;
+      $("#draw-banners").innerHTML = bannerPickerHtml(currentBanners(), drawBannerId, esc);
+    } else if (target.dataset.rollKeep) {
+      const keepNew = target.dataset.rollKeep === "new";
+      resolvePendingRoll(acc, keepNew);
+      target.closest(".roll-choice").innerHTML = `<p class="tiny">已${keepNew ? "换成新" : "保留原"}成色。</p>`;
+    } else if (target.dataset.wish) {
+      setWishlist(acc, target.dataset.wish);
+    } else if (target.dataset.craft) {
+      const { player, cost } = craftWishCard(acc, target.dataset.craft);
+      $("#draw-stage").innerHTML = `<p class="tiny">花费 ¤${cost} 合成 ${esc(player.name)}（${player.season}）——成色去「我的球员卡」揭晓。</p>`;
+    }
+    renderDrawStatus(acc);
+    renderWishPanel(acc);
+  } catch (error) {
+    alert(error.message);
+  }
+});
+$("#wish-search")?.addEventListener("input", () => {
+  const acc = activeAccount();
+  if (acc) renderWishPanel(acc);
+});
+
 $("#btn-draw-pull")?.addEventListener("click", () => {
   const acc = activeAccount();
-  if (!acc || !canDailyDraw(acc)) return;
+  if (!acc || !canDailyDraw(acc) || acc.pendingRoll) return;
   try {
-    const result = performDailyDraw(acc);
-    const stage = $("#draw-stage");
-    if (stage) {
-      if (result.kind === "coach") {
-        const c = result.coach;
-        stage.innerHTML = `<div class="draw-reveal">
-          <div class="name">${esc(c.name)}${result.rarity ? ` <span class="rarity-tag myth">${result.rarity}</span>` : ""}</div>
-          <div class="meta">${coachRecordLabel(c)}</div>
-          <p class="tiny">${esc(c.style)} · ${esc(c.note || "")}</p>
-          <p class="tiny">${
-            result.duplicate
-              ? `重复教练卡，折合 ¤${result.goldGain}`
-              : isLegendCoach(c)
-                ? "名帅卡入账！可在「我的球员卡」更换主教练"
-                : "新教练卡已加入教头收藏"
-          }</p>
-        </div>`;
-      } else {
-        stage.innerHTML = `<div class="draw-reveal">
-          ${photoImg(result.player, 96)}
-          <div class="name">${esc(result.player.name)}${result.rarity ? ` <span class="rarity-tag ${rarityClass(result.ovr)}">${result.rarity}</span>` : ""}</div>
-          <div class="meta">${result.player.season} · ${result.player.pos} · OVR ${result.ovr} · ${result.player.team || ""}</div>
-          <p class="tiny">${
-            result.merged && result.merge
-              ? `重复卡已合并！全属性 +1（合并×${result.merge.merges}）${
-                  result.merge.learnedName
-                    ? ` · 领悟「${esc(result.merge.learnedName)}」`
-                    : " · 可领悟技能已集齐"
-                }`
-              : result.duplicate
-                ? `重复卡已达合并上限，折合 ¤${result.goldGain}`
-                : "新卡已加入你的永久班底"
-          }</p>
-          ${result.merged ? skillChipsHtml(result.player) : ""}
-        </div>`;
-      }
-    }
-    const pull = $("#btn-draw-pull");
-    if (pull) {
-      pull.disabled = true;
-      pull.textContent = "今日已抽";
-    }
+    const result = performDailyDraw(acc, { bannerId: drawBannerId });
+    $("#draw-stage").innerHTML = drawRevealHtml(result, drawView());
+    renderDrawStatus(acc);
+    renderWishPanel(acc);
     refreshAccountHomeBar();
   } catch (e) {
     alert(e.message || "抽卡失败");

@@ -1,0 +1,139 @@
+/**
+ * HTML builders for the daily draw + collection screens. Pure string output;
+ * app.js owns DOM wiring. View helpers (esc, photoImg, …) are injected so this
+ * module never reaches into app.js globals.
+ */
+import { MAX_STARS, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
+import { scoutLabel } from "../data/intangibles.js";
+
+const OUTCOME_TEXT = {
+  new: () => "新卡入账",
+  newVersion: (r) => `同一球员的新版本入账 · 球魂 +1（现有 ${r.souls}）`,
+  starUp: (r) => `重复卡升星 ★${r.stars}：全属性 +1。请选择保留哪套成色 ↓`,
+  soulConvert: (r) => `已满 ★${MAX_STARS}，转为 2 球魂（现有 ${r.souls}）`,
+};
+
+const pct = (p) => `${(p * 100).toFixed(p < 0.01 ? 1 : 0)}%`;
+
+export function drawRulesHtml() {
+  const rates = RATE_TABLE.map((band) => `${band.label} ${pct(band.p)}`).join(" · ");
+  return `<p class="tiny">每天免费 1 抽，之后可用金币加抽。约 20% 出教练卡。<br/>
+    球员概率：${rates}。<br/>
+    保底：每 ${PITY.allstarEvery} 抽必出全明星+，${PITY.legendAt} 抽必出传奇+。抽前只看得到 OVR——成色、隐藏能力、妖人标签入手后才揭晓。</p>`;
+}
+
+export function bannerPickerHtml(banners, selectedId, esc) {
+  return banners
+    .map((banner) => `<button type="button" class="draw-banner${banner.id === selectedId ? " active" : ""}" data-banner="${banner.id}" aria-pressed="${banner.id === selectedId}">
+        <strong>${esc(banner.name)}</strong>
+        <span class="tiny">${banner.kind === "standard" ? "23k 全历史赛季卡" : "每周轮换 · 卡池更窄，目标更容易出"}</span>
+      </button>`)
+    .join("");
+}
+
+export function drawStatusHtml(account, availability, wishName, esc) {
+  const gacha = account.gacha || {};
+  const toAllstar = PITY.allstarEvery - (gacha.sinceAllstar || 0);
+  const toLegend = PITY.legendAt - (gacha.sinceLegend || 0);
+  const pull = availability.free
+    ? "今日免费抽可用"
+    : availability.extraLeft > 0
+      ? `加抽 ¤${availability.cost}（今日还剩 ${availability.extraLeft} 次）`
+      : "今日抽卡次数已用完";
+  return `<div class="draw-status">
+      <span>金币 ¤${account.gold || 0}</span>
+      <span>${pull}</span>
+      <span>全明星保底还差 ${toAllstar} 抽</span>
+      <span>传奇保底还差 ${toLegend} 抽</span>
+      <span>心愿单：${wishName ? esc(wishName) : "未设置"}</span>
+    </div>`;
+}
+
+export function hiddenBadgesHtml(player, esc) {
+  const roll = player.hiddenRoll;
+  const stars = player.mergeLevel ? `<span class="tag-merge">★${player.mergeLevel}</span>` : "";
+  const gem = scoutLabel(player);
+  const parts = [
+    stars,
+    roll ? `<span class="roll-grade roll-${roll.grade}" title="成色">成色 ${roll.grade}</span>` : "",
+    roll ? `<span class="tiny">隐藏能力 ${roll.rating}</span>` : "",
+    gem ? `<span class="gem-tag">${esc(gem)}</span>` : "",
+  ];
+  return parts.filter(Boolean).join(" ");
+}
+
+function rollSide(label, roll, keepNew) {
+  return `<button type="button" class="btn roll-option" data-roll-keep="${keepNew ? "new" : "old"}">
+      <strong>${label}</strong>
+      <span class="roll-grade roll-${roll.grade}">成色 ${roll.grade}</span>
+      <span>隐藏能力 ${roll.rating}</span>
+    </button>`;
+}
+
+export function rollChoiceHtml(choice) {
+  if (!choice) return "";
+  return `<div class="roll-choice">
+      <p class="tiny">整套二选一（不会逐项取最高，避免把卡刷成满值）：</p>
+      <div class="roll-options">
+        ${rollSide("保留原成色", choice.current, false)}
+        ${rollSide("换成新成色", choice.candidate, true)}
+      </div>
+    </div>`;
+}
+
+export function drawRevealHtml(result, view) {
+  const { esc, photoImg, rarityClass, skillChipsHtml } = view;
+  if (result.kind === "coach") {
+    const c = result.coach;
+    return `<div class="draw-reveal">
+        <div class="name">${esc(c.name)} <span class="rarity-tag myth">${esc(result.rarity)}</span></div>
+        <p class="tiny">${esc(c.style)} · ${esc(c.note || "")}</p>
+        <p class="tiny">${result.duplicate ? `重复教练卡，折合 ¤${result.goldGain}` : "新教练卡已加入教头收藏"}</p>
+      </div>`;
+  }
+  const p = result.player;
+  const flags = [
+    result.pityHit ? '<span class="draw-flag">保底触发</span>' : "",
+    result.wishHit ? '<span class="draw-flag wish">心愿命中</span>' : "",
+    result.paidGold ? `<span class="draw-flag">加抽 −¤${result.paidGold}</span>` : "",
+    result.goldGain ? `<span class="draw-flag">+¤${result.goldGain}</span>` : "",
+  ].join("");
+  return `<div class="draw-reveal">
+      ${photoImg(p, 96)}
+      <div class="name">${esc(p.name)}${result.rarity ? ` <span class="rarity-tag ${rarityClass(result.ovr)}">${esc(result.rarity)}</span>` : ""}</div>
+      <div class="meta">${p.season} · ${p.pos} · OVR ${result.ovr} · ${esc(result.banner?.name || "")}</div>
+      <div class="draw-flags">${flags}</div>
+      <p class="tiny">${OUTCOME_TEXT[result.outcome](result)}</p>
+      <div>${hiddenBadgesHtml(p, esc)}</div>
+      ${skillChipsHtml(p)}
+      ${rollChoiceHtml(result.rollChoice)}
+    </div>`;
+}
+
+/** Wishlist search results + craftable cards of the current wish person. */
+export function wishlistHtml({ people, wishCards, ownedIds, gold }, view) {
+  const { esc, ovrOf } = view;
+  const peopleRows = people
+    .map((person) => `<button type="button" class="btn small" data-wish="${person.bref}">${esc(person.name)} · ${person.count} 张卡 · 最高 OVR ${ovrOf(person.best)}</button>`)
+    .join("");
+  const craftRows = wishCards
+    .map((card) => {
+      const owned = ownedIds.has(card.id);
+      const cost = craftCost(ovrOf(card));
+      return `<div class="craft-row">
+          <span>${card.season} · ${esc(card.team)} · OVR ${ovrOf(card)}</span>
+          ${owned
+            ? '<span class="tiny">已拥有</span>'
+            : `<button type="button" class="btn small" data-craft="${card.id}" ${gold < cost ? "disabled" : ""}>¤${cost} 合成</button>`}
+        </div>`;
+    })
+    .join("");
+  return `${peopleRows ? `<div class="wish-results">${peopleRows}</div>` : ""}
+    ${craftRows ? `<div class="craft-list"><p class="tiny">心愿球员的赛季卡（金币直接合成指定年份）：</p>${craftRows}</div>` : ""}`;
+}
+
+export function soulButtonHtml(player, souls) {
+  if ((player.mergeLevel || 0) >= MAX_STARS) return "";
+  const enough = souls >= SOULS_PER_STAR;
+  return `<button type="button" class="btn small" data-soul-star="${player.id}" ${enough ? "" : "disabled"}>球魂升星 ${souls}/${SOULS_PER_STAR}</button>`;
+}
