@@ -24,6 +24,9 @@ import {
   skillPassCareTov,
   skillTunnelVisionTov,
   skillDuoKickTargetMult,
+  skillBlockResist,
+  skillKickOpenBonus,
+  applySkillAttributeBoosts,
   trySignatureBlock,
   trySignatureOffense,
   trySignatureSteal,
@@ -864,6 +867,15 @@ export class GameSim {
     let sigOff = null;
     baller._sigMakeBoost = 0;
     baller._sigLabel = null;
+    // 脑后长眼：组织者分球后，接球人更空（被包夹时传背后队友更空）
+    if (sideCtx.kickedOut && sideCtx.organizerId && sideCtx.organizerId !== baller.id) {
+      const organizer = (off.onCourt || []).find((p) => p.id === sideCtx.organizerId);
+      const kick = skillKickOpenBonus(organizer, { doubled });
+      if (kick.bonus) {
+        open = clamp(open + kick.bonus, 0.08, 0.95);
+        if (Math.random() < 0.35) this.emit("coach", `${organizer.name} ${kick.label}，${baller.name} 空位接球`);
+      }
+    }
     // 低欲望几乎不主动发动招牌绝技；空接窗（被传球手喂到）例外
     const lobWindow =
       sideCtx?.kickedOut &&
@@ -905,11 +917,14 @@ export class GameSim {
     if (sigBlk) {
       this.emit("coach", `${defender.name} 「${sigBlk.name}」！`);
     }
-    const blkChance = calcBlockChance(baller, defender, shot, open, {
-      defPress,
-      skillBonus: skillBlockBonus(defender, shot, def.onCourt),
-      sigBoost: sigBlk?.blockBoost || 0,
-    });
+    // 上帝附体必进：不会被盖；单脚抛射 / 答案等出手更难被盖
+    const blkChance = sigOff?.guaranteed
+      ? 0
+      : calcBlockChance(baller, defender, shot, open, {
+          defPress,
+          skillBonus: skillBlockBonus(defender, shot, def.onCourt),
+          sigBoost: sigBlk?.blockBoost || 0,
+        }) * skillBlockResist(baller);
     if (Math.random() < blkChance) {
       baller.stats.fga += 1;
       if (shot.pts === 3) baller.stats.tpa += 1;
@@ -947,6 +962,8 @@ export class GameSim {
     if (aggressionLevel(baller) <= 0.35 && open < shotOpenThreshold(baller)) {
       makeP *= 0.82;
     }
+    // 上帝附体：无论防守如何，那一球必进
+    if (sigOff?.guaranteed) makeP = 1;
     const made = Math.random() < makeP;
     let label = baller._sigLabel || null;
     if (!label && shot.zone === "paint") {
@@ -2189,6 +2206,8 @@ function wrapTeam(team, side) {
   ensureUniqueRosterIds(roster);
   ensureRoles(roster);
   ensurePlayerOrders(roster);
+  // 技能带来的能力加成（半兽人等）：只作用于本场比赛副本
+  for (const p of roster) applySkillAttributeBoosts(p);
   // Auto-mode: hot scorers lean score; feeders lean organize / kick
   for (const p of roster) {
     applyFormAutoOrders(p);
@@ -2764,7 +2783,7 @@ function reboundContestWeight(p, { offensive = false } = {}) {
   const already = Number(p.stats?.reb) || 0;
   if (already >= 8) w /= 1 + (already - 7) * 0.12;
   w *= fatiguePerfMult(p);
-  w *= skillReboundMult(p);
+  w *= skillReboundMult(p, { offensive });
   return Math.max(0.5, w);
 }
 
