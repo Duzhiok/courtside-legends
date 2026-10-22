@@ -154,11 +154,16 @@ import {
   buildStagePods,
   careerStageLabel,
   collectAdvancers,
+  computeCareerAllTeam,
   findYourOpenMatch,
   finalizePod,
   kindLabel,
   listPodMatches,
   nextStageSize,
+  noteCareerAllTeamGame,
+  noteCareerLoss,
+  runCpuMatchInto,
+  yourCareerMatch,
   progressPodAfterMid,
   progressPodAfterOpeners,
 } from "./engine/careerBracket.js";
@@ -166,7 +171,6 @@ import {
   SCOUT_PACK_COST_MIN,
   buildAffordableShop,
   rollScoutPackOffer,
-  simulateCpuMatch,
   teamStarters,
 } from "./engine/careerEconomy.js";
 import {
@@ -325,11 +329,6 @@ import {
   suggestedBallHandlerAction,
   usageForBallAction,
 } from "./engine/gameplan.js";
-import {
-  accumulateGameToAllTeamBoard,
-  allTeamFromRosters,
-  selectAllTeamByPos,
-} from "./engine/allTeam.js";
 import { CourtView } from "./engine/court.js";
 import { GameSim } from "./engine/sim.js";
 import {
@@ -4228,47 +4227,6 @@ function careerRoundLabel(roundOrStage, finals = false) {
   return CAREER_ROUND_LABELS[roundOrStage] || `第 ${roundOrStage} 轮`;
 }
 
-function runCpuMatchInto(match) {
-  if (!match || match.done || match.yours) return;
-  const c = state.career;
-  const result = simulateCpuMatch(match.a, match.b);
-  applyMatchResult(match, result.winner);
-  match.score = result.score;
-  match.startersA = result.startersA;
-  match.startersB = result.startersB;
-  if (result.snap) noteCareerAllTeamGame(c, result.snap, match.a, match.b);
-  if (match.loser) noteCareerLoss(c, match.loser);
-}
-
-function noteCareerAllTeamGame(c, snap, homeTeam, awayTeam) {
-  if (!c || !snap) return;
-  if (!c.allTeamBoard) c.allTeamBoard = {};
-  accumulateGameToAllTeamBoard(c.allTeamBoard, snap, homeTeam, awayTeam);
-}
-
-/** 总决赛后：按 PG→C 评出本届最佳阵容 */
-function computeCareerAllTeam(c) {
-  if (!c) return [];
-  if (!c.allTeamBoard) c.allTeamBoard = {};
-  let team = selectAllTeamByPos(c.allTeamBoard);
-  if (team.length < 5) {
-    const finalsTeams = [];
-    if (c.team) finalsTeams.push(c.team);
-    for (const t of c.alive || []) {
-      if (t && !finalsTeams.some((x) => x.bracketId === t.bracketId)) finalsTeams.push(t);
-    }
-    const m = yourCareerMatch();
-    if (m?.a && !finalsTeams.some((x) => x.bracketId === m.a.bracketId)) finalsTeams.push(m.a);
-    if (m?.b && !finalsTeams.some((x) => x.bracketId === m.b.bracketId)) finalsTeams.push(m.b);
-    if (c.series?.opp && !finalsTeams.some((x) => x.bracketId === c.series.opp.bracketId)) {
-      finalsTeams.push(c.series.opp);
-    }
-    team = allTeamFromRosters(finalsTeams);
-  }
-  c.allTeam = team;
-  return team;
-}
-
 function renderResultAllTeam(team, title = "总决赛最佳阵容") {
   const box = $("#result-all-team");
   if (!box) return;
@@ -4316,28 +4274,28 @@ function syncCareerMatchesFromPods() {
     for (const pod of c.pods) {
       if (pod.done) continue;
       if (pod.isFinal) {
-        runCpuMatchInto(pod.openerA);
+        runCpuMatchInto(c, pod.openerA);
         if (pod.openerA?.done) {
           finalizePod(pod);
           progressed = true;
         }
         continue;
       }
-      runCpuMatchInto(pod.openerA);
-      runCpuMatchInto(pod.openerB);
+      runCpuMatchInto(c, pod.openerA);
+      runCpuMatchInto(c, pod.openerB);
       const mid = progressPodAfterOpeners(pod);
       for (const m of mid) {
         if (!m.startersA) m.startersA = teamStarters(m.a);
         if (!m.startersB) m.startersB = teamStarters(m.b);
       }
-      runCpuMatchInto(pod.winnersMatch);
-      runCpuMatchInto(pod.revivalMatch);
+      runCpuMatchInto(c, pod.winnersMatch);
+      runCpuMatchInto(c, pod.revivalMatch);
       const dec = progressPodAfterMid(pod);
       for (const m of dec) {
         if (!m.startersA) m.startersA = teamStarters(m.a);
         if (!m.startersB) m.startersB = teamStarters(m.b);
       }
-      runCpuMatchInto(pod.deciderMatch);
+      runCpuMatchInto(c, pod.deciderMatch);
       if (pod.deciderMatch?.done) {
         finalizePod(pod);
         progressed = true;
@@ -4346,11 +4304,6 @@ function syncCareerMatchesFromPods() {
     if (!progressed) break;
   }
   c.roundMatches = listPodMatches(c.pods);
-}
-
-function noteCareerLoss(c, team) {
-  if (!c?.losses || !team?.bracketId) return;
-  c.losses[team.bracketId] = (c.losses[team.bracketId] || 0) + 1;
 }
 
 function seedCareerStage() {
@@ -4370,19 +4323,6 @@ function seedCareerStage() {
   const { pods } = buildStagePods(alive);
   c.pods = pods;
   syncCareerMatchesFromPods();
-}
-
-function yourCareerMatch() {
-  const c = state.career;
-  if (c?.pods?.length) {
-    const open = findYourOpenMatch(c.pods);
-    if (open) return open;
-  }
-  return (
-    c?.roundMatches?.find((m) => m.yours && !m.done) ||
-    c?.roundMatches?.find((m) => m.yours) ||
-    null
-  );
 }
 
 function formatStarterLine(players) {
@@ -4537,7 +4477,7 @@ function advanceCareerToNextStage() {
 function resolveCareerYourResult(youWon, yourOpp) {
   const c = state.career;
   syncCareerMatchesFromPods();
-  const match = findYourOpenMatch(c.pods) || yourCareerMatch();
+  const match = findYourOpenMatch(c.pods) || yourCareerMatch(c);
   if (!match) {
     return { eliminated: !youWon, advancedStage: false, needAnotherGame: false, champion: false, match: null };
   }
@@ -5314,7 +5254,7 @@ $("#btn-market-done").onclick = () => {
       openSetup(c.team, c.series.opp, "home");
       return;
     }
-    const match = yourCareerMatch();
+    const match = yourCareerMatch(c);
     const opp = match ? (match.a.bracketId === "you" ? match.b : match.a) : null;
     if (!opp) {
       alert("对阵尚未生成，请重开晋级赛");
@@ -9691,7 +9631,7 @@ function handleCareerResult(youWin, snap) {
     intensity: c.stageSize <= 4 ? 1.35 : 1,
   });
 
-  const match = findYourOpenMatch(c.pods) || yourCareerMatch();
+  const match = findYourOpenMatch(c.pods) || yourCareerMatch(c);
   const opp = match ? (match.a.bracketId === "you" ? match.b : match.a) : null;
   if (match && snap) {
     if (match.a.bracketId === "you") {
