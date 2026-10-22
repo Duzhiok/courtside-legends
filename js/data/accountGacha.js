@@ -45,7 +45,7 @@ import {
 const COACH_SHARE = 0.2;
 /** The ★5 gift never rolls the top tiers: 传说 / 神话 stay a 技能碎片 purchase. */
 export const STAR_SKILL_RARITIES = new Set(["common", "rare", "epic"]);
-const SOULS_AT_MAX_STAR = 2;
+export const SOULS_AT_MAX_STAR = 2;
 const HISTORY_KEEP = 50;
 
 function gachaOf(account) {

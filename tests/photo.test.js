@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { NOT_A_PORTRAIT, eraPhoto, isPortrait, resolveCardPhoto } from "../js/data/photo.js";
+import { NOT_A_PORTRAIT, eraPhoto, isCreditedPhoto, isPortrait, resolveCardPhoto } from "../js/data/photo.js";
 import { PHOTO_BY_BREF, PHOTO_BY_BREF_DECADE } from "../js/data/photos.scraped.js";
 
 const allUrls = [...Object.values(PHOTO_BY_BREF), ...Object.values(PHOTO_BY_BREF_DECADE)];
@@ -19,13 +19,14 @@ test("no usable photo is a signed ball, a bus station, a painting or a building"
   }
 });
 
-test("1991 Jordan no longer shows the signed-basketball display case or a high-school photo", () => {
+test("1991 Jordan shows the credited 1997 Bulls close-up, not the signed-basketball case or a high-school photo", () => {
   const url = eraPhoto({ bref: "jordami01", season: 1991 });
-  assert.ok(url === null || isPortrait(url));
+  assert.ok(url && isPortrait(url));
   assert.doesNotMatch(String(url), /signed_basketball|Laney/);
-  const resolved = resolveCardPhoto({ bref: "jordami01", season: 1991, nbaId: 893, name: "Michael Jordan" });
-  assert.equal(resolved.photoSource, "nba");
-  assert.equal(resolved.photoCareerDefault, true, "labelled as a career photo, not the season's");
+  assert.match(decoded(url), /Michael_Jordan_\(1997\)/);
+  const resolved = resolveCardPhoto({ bref: "jordami01", season: 1991, name: "Michael Jordan" });
+  assert.equal(resolved.photoSource, "era");
+  assert.equal(resolved.photo, url);
 });
 
 test("2000s LeBron is not a bus station", () => {
@@ -51,11 +52,12 @@ test("isPortrait tolerates empty and malformed input", () => {
 // ---- curated overrides ----
 import { CURATED_PHOTOS } from "../js/data/photos.curated.js";
 
-test("every curated photo is a portrait and carries attribution (CC BY-SA needs credit)", () => {
+test("every curated photo is a portrait, says why it was chosen, and has a credit on file", () => {
   for (const [key, photo] of Object.entries(CURATED_PHOTOS)) {
     assert.ok(isPortrait(photo.url), `${key} is blocked`);
-    for (const field of ["url", "artist", "license", "licenseUrl", "page", "taken"]) assert.ok(photo[field], `${key} missing ${field}`);
+    assert.ok(photo.why, `${key} needs a reason`);
     assert.match(photo.url, /^https:\/\/thumb\.wikimedia\.org\//);
+    assert.ok(isCreditedPhoto(photo.url), `${key}: no credit for ${photo.url} — run scripts/photos/build-credits.mjs`);
   }
 });
 
