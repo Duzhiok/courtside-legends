@@ -689,12 +689,14 @@
           <div class="btn-row">
             <button class="btn ghost" id="btn-speed">速度 x1</button>
             <button class="btn ghost" id="btn-pause-sim">暂停模拟</button>
-            <button class="btn" id="btn-managed" type="button" title="FIFA 式智能托管：累了自动换人，状态差叫暂停，按对面调整基本攻防；节间自动处理并继续">智能托管：关</button>
+            <button class="btn ghost" id="btn-auto-offense" type="button" title="按比赛情况自动微调进攻战术/焦点。你仍可随时叫暂停接手">进攻托管：关</button>
+            <button class="btn ghost" id="btn-auto-defense" type="button" title="按对方核心自动调整盯防/包夹。你仍可随时叫暂停接手">防守托管：关</button>
+            <button class="btn ghost" id="btn-auto-rotation" type="button" title="不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回">沿用当前策略：关</button>
             <button class="btn warn" id="btn-quick-sim" type="button" title="用当前阵容与战术立刻打完剩余比赛（双方自动轮换）">快速模拟整场</button>
             <button class="btn primary" id="btn-save-game" type="button" title="保存比分、阵容与进度到本机，可关机离开后再继续">保存进度</button>
             <button class="btn ghost" id="btn-save-leave" type="button" title="保存后返回首页">保存并离开</button>
           </div>
-          <p class="tiny" id="managed-hint">托管关闭时由你亲自指挥。</p>
+          <p class="tiny" id="managed-hint">三个托管均关：进攻、防守、换人均由你亲自指挥。</p>
         </aside>
       </div>
 
