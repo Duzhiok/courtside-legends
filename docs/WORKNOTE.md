@@ -53,6 +53,9 @@
 | R23 | 「回主页」按钮重复出现 2 次——**真正原因不是代码回归**，`handleCareerResult` 两处 `homeBtn.hidden = true` 代码都还在、逻辑也验证是对的；是 `index.html` 里 `app.js?v=20261017matchup1` 这个缓存版本号好几轮改动都没打，浏览器可能一直跑旧 JS（或者同一个已打开的标签页本来就不会热更新） | ✅ 临时调试钩子在真实浏览器里复现+验证 eliminated 分支确实只剩 2 个按钮；bump 版本号到 `20261022dup-home`；调试钩子已清理，`js/app.js` diff 为零 |
 | R24 | 全面 code review + README/WORKNOTE 补全 + 推送远端分支 | ✅ 见下方「R24 code review 发现」 |
 
+| R25 | 加 eslint（flat config，只抓真 bug 的规则集：no-undef/no-unused-vars/no-dupe-*/no-unreachable 等，**不**管风格，没有 prettier）。第一次跑出 99 个问题，其中 84 个是误报（QA 脚本里 `page.evaluate()` 回调在浏览器里跑，但整文件按 Node 环境判——配置改成 QA 脚本两套 globals 都给）。剩下 15 个全是真·死代码：3 个顶层死函数（`resolveTeamRef`/`seedCareerRound`/`advanceCareerBracket`，旧 career bracket 重构后从没删）、3 个只剩声明没人读的局部变量（`avgEgo`/`paint`/`impact`——都是「算了但从没接进公式」的半成品，不是明显 bug，没有乱加新平衡逻辑，只删）、`cap` 被 `room` 悄悄取代、`confirmModal.js` 一个快照变量白存。逐个读代码确认「删了真的零行为变化」才删，不是看到 warning 就无脑删 | ✅ 0 error/0 warning；458 测试不变；两处误删函数时顺手发现自己留下的孤儿 doc 注释（描述已删函数、挂在别的函数头上），一并清理 |
+| R26 | **第一刀真·拆 `app.js`**（10,217 → 10,086 行）：`teamStarters`/`simulateCpuMatch`/`budgetGold`/`buildAffordableShop`/`rollScoutPackOffer` 零 DOM 耦合，纯逻辑，挪进新文件 `js/engine/careerEconomy.js`（跟已有的 `careerBracket.js` 是邻居：一个管对阵结构，一个管 CPU 模拟 + 市场经济）。之前这 5 个函数完全没有单测——app.js 里的东西没法单测是今天 code review 点名的头号风险——现在补了 12 个真测试（含一个故意改坏 `budgetGold` 验证测试真的会抓到的变异检查）。不是为了拆而拆：只挑了「零 DOM、零 `$()`、能独立单测」的这一类，UI 渲染/事件绑定的部分这轮没碰，继续放着（风险/收益比不划算，没有 UI 层自动化测试兜底） | ✅ 470 测试；真实浏览器验证金币晋级赛商店渲染正常（23 张卡，0 个 pageerror）|
+
 ## 卡池事实（2026-10 实测，roster.json）
 
 - 23,452 张赛季卡 / 4,398 个真人 / 1951–2025；无重复行；无缺人（姚明 `mingya01`、Faried `farieke01`）。
@@ -195,3 +198,8 @@
 - 经核实：**origin/main 是 `feature/time-travel-foundation` 的纯祖先**（`git rev-list --left-right --count origin/main...feature/time-travel-foundation` = `0 29`，origin/main 没有任何本分支不包含的提交）——也就是说把这个分支推上去是一次干净的 fast-forward，不会和 main 产生任何冲突。
 - 本地 `main`（另一个 worktree，`/Users/z0d01u4/Myproject/nba-coach-sim`）落后 origin/main 44 个提交，是另一条独立的陈旧状态，这轮不处理（不碰 main checkout）。
 - 本轮按用户明确指示：只推 `feature/time-travel-foundation` 分支本身到远端作为备份/同步，**不触碰、不合并、不快进 `main`**，合并到 main 留给用户自己决定。
+
+### R25/R26 遗留（💡 顺手发现，没解决）
+
+- **金币晋级赛一开局就 `QuotaExceededError`**：开一局金币晋级赛，就算先把 `localStorage`/`sessionStorage` 清空再刷新页面，立刻还是会报 `cls_savegame_v1` 超配额。**不是这轮引入的**——切到 R24 之前的提交 `5de11e7` 复现同一个错误，确认是既有 bug，这轮没有顺手修，怕战线拉太长。值得单独立项：先查 `writeSave`/`cls_savegame_v1` 存的到底是什么（整个 roster？历史快照？），参考 R7/R8 之前给 `cls_root_v3` 做过的「存档瘦身」手法（`compactSeasonForStorage`）。
+- **`app.js` 继续拆的候选**：`runCpuMatchInto` / `noteCareerAllTeamGame` / `computeCareerAllTeam`（紧挨着这次挪走的 `teamStarters`/`simulateCpuMatch`，同样是晋级赛相关逻辑）看起来也够独立，可以作为下一刀的目标——但没有验证过它们是否真的零 DOM 耦合，下次动手前要重新 grep 一遍确认，不能想当然复用这次的结论。
