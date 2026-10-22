@@ -904,7 +904,7 @@ export const SIGNATURE_SKILLS = {
   // Joel Embiid — BRef id 是 embiijo01（旧键 embiiijo01 多了一个 i）
   // 没有篮下暴君：他是技术流，伤病体质用玻璃人标签体现（见 GLASS_CANNON_BREF）
   embiijo01: ["stepback", "mid_maestro", "freeze_iso"],
-  georgpa01: ["rainmaker", "lockdown", "mid_maestro", "midrange_assassin"],
+  georgpa01: ["rhythm_master", "lockdown", "midrange_assassin"],
   // Kawhi Leonard — BRef id is leonaka01（旧键 leonard01 保留兼容）
   leonaka01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
   leonard01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
@@ -1339,6 +1339,8 @@ export const TRAIT_SKILLS = {
   battish01: ["stopper_3d", "charge_taker", "rainmaker"],
   // Metta World Peace / Ron Artest — 铁防 + 火爆
   artesro01: ["sticky_wrap", "lockdown", "hothead", "enforcer"],
+  // Matt Barnes — 场上恶汉：硬碰硬、干扰强、对抗凶悍
+  barnema02: ["sticky_wrap", "lockdown", "enforcer"],
   // DeMarcus Cousins — 天赋内线 + 暴躁
   couside01: ["paint_bully", "hothead", "enforcer"],
   // Bruce Bowen — 脏防 / 底角三分
