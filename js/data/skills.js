@@ -1345,6 +1345,11 @@ export const TRAIT_SKILLS = {
   couside01: ["paint_bully", "hothead", "enforcer"],
   // Bruce Bowen — 脏防 / 底角三分
   bowenbr01: ["stopper_3d", "sticky_wrap", "rainmaker"],
+  // Isaiah Thomas（微笑刺客，bref: thomais02 —— 注意别和活塞名宿 Isiah Thomas/thomais01 搞混，
+  // 两人姓名只差一个字母，所以这里只用 bref 绑定，不走姓名正则）：5'9" 最小号里最能打的刺客，
+  // 不是「场上打手」那种硬碰硬型——他的看家本领是逆天的强干扰单打效率、第四节大心脏、
+  // 面对比他高一头的防守人靠抛投终结、变速晃开空间。
+  thomais02: ["freeze_iso", "clutch_killer", "teardrop", "rhythm_master"],
   // Draymond — already has D packs; temper is separate
   greendr01: ["hothead"],
   // Iggy

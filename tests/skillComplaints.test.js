@@ -46,6 +46,24 @@ test("Matt Barnes has 场上恶汉 (enforcer) in every season", () => {
   for (const card of cards) assert.ok(card.skills.includes("enforcer"), `${card.season} lacks 场上恶汉`);
 });
 
+test("Isaiah Thomas (微笑刺客, thomais02) keeps 杀手时刻/抛投大师/节奏大师 always, and never gets Isiah Thomas's (thomais01, Pistons) card mixed in", () => {
+  const cards = cardsOf("thomais02");
+  assert.ok(cards.length >= 8);
+  for (const card of cards) {
+    for (const id of ["clutch_killer", "teardrop", "rhythm_master"]) assert.ok(card.skills.includes(id), `${card.season} lacks ${id}`);
+    // 场上恶汉/场上打手 (enforcer) does not fit him at all -- he's the smallest guy on the
+    // floor, not a hard-fouling physical bruiser. Make sure nobody adds it by mistake later.
+    assert.ok(!card.skills.includes("enforcer"), `${card.season} should not have 场上打手`);
+  }
+  const pistonsThomas = cardsOf("thomais01");
+  assert.ok(pistonsThomas.length > 0, "the other Thomas (Isiah, Pistons) should still exist as his own person");
+  for (const card of pistonsThomas) {
+    for (const id of ["clutch_killer", "teardrop", "rhythm_master"]) {
+      assert.ok(!card.skills.includes(id), `Isiah Thomas (Pistons) ${card.season} should not inherit Isaiah Thomas's (Celtics) kit`);
+    }
+  }
+});
+
 test("Rajon Rondo has skills on every card, including low-ppg bench-tier seasons (he is 场上大脑, not a scorer)", () => {
   const cards = cardsOf("rondora01");
   assert.ok(cards.length >= 10);
