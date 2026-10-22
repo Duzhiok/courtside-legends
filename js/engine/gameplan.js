@@ -213,11 +213,11 @@ function normPos5(pos) {
 }
 
 /**
- * 按身高/传控/投射/内线等属性推荐场上位置。
+ * 按身高/传控/投射/内线等属性给每个位置打分。
  * 本职有加成，但仍可因属性明显偏向而改打（如高助攻后卫→PG）。
  */
-export function recommendPlayPos(player) {
-  if (!player) return "SF";
+export function playPosFitScores(player) {
+  if (!player) return { PG: 0, SG: 0, SF: 0, PF: 0, C: 0 };
   const nat = normPos5(player.pos);
   const h = Number(player.heightCm) || 0;
   const pass = player.pass || 50;
@@ -290,7 +290,14 @@ export function recommendPlayPos(player) {
   // 护框巨人
   if ((block >= 78 || (player.raw?.bpg || 0) >= 2.2) && h >= 208) scores.C += 14;
 
-  let best = nat;
+  return scores;
+}
+
+/** Best-fit position for this player (what used to be inline in recommendPlayPos). */
+export function recommendPlayPos(player) {
+  if (!player) return "SF";
+  const scores = playPosFitScores(player);
+  let best = normPos5(player.pos);
   let bestS = -1e9;
   for (const pos of ["PG", "SG", "SF", "PF", "C"]) {
     if (scores[pos] > bestS) {
@@ -299,6 +306,32 @@ export function recommendPlayPos(player) {
     }
   }
   return best;
+}
+
+/**
+ * All 5 slots, ranked best-fit → worst-fit for this player. Used when the player's preferred
+ * slot is already taken by a teammate and we need the next-best fallback — NOT just "whatever
+ * slot happens to come first in PG→C order", which is how a 208cm rim protector used to end up
+ * parked at SG once the C and PF slots were full.
+ */
+export function rankedPlayPosFits(player) {
+  const scores = playPosFitScores(player);
+  return ["PG", "SG", "SF", "PF", "C"].sort((a, b) => scores[b] - scores[a]);
+}
+
+/**
+ * Given players already placed (`picked`, each with playPos/pos) and a player to seat, find a
+ * free slot: try `preferredPos` first (e.g. a manually-chosen position), then fall back through
+ * this player's own best-fit ranking — never a position he has zero business playing.
+ */
+export function nextEmptyPlayPos(picked, player, preferredPos = null) {
+  const used = new Set((picked || []).map((p) => normPos5(p.playPos || p.pos)));
+  const pref = preferredPos ? normPos5(preferredPos) : null;
+  if (pref && !used.has(pref)) return pref;
+  for (const pos of rankedPlayPosFits(player)) {
+    if (!used.has(pos)) return pos;
+  }
+  return pref || normPos5(player?.pos);
 }
 
 /**
