@@ -4,6 +4,8 @@
  * - 金币晋级赛：32 支随机联队（非历史绑定），越往后阵容迭代越强
  * 四人一组：开门赛 → 胜者组 / 复活赛 → 晋级决胜；两败出局。
  */
+import { accumulateGameToAllTeamBoard, allTeamFromRosters, selectAllTeamByPos } from "./allTeam.js";
+import { simulateCpuMatch } from "./careerEconomy.js";
 
 export const CAREER_STAGES = [32, 16, 8, 4, 2];
 
@@ -237,4 +239,63 @@ export function _selfCheckPodMath() {
   const T = (id) => ({ bracketId: id, name: id, isCpu: id !== "you" });
   const { pods } = buildStagePods([T("a"), T("b"), T("c"), T("d"), T("e"), T("f"), T("g"), T("h")]);
   return pods.length === 2 && pods.every((p) => p.teams.length === 4);
+}
+
+export function noteCareerLoss(c, team) {
+  if (!c?.losses || !team?.bracketId) return;
+  c.losses[team.bracketId] = (c.losses[team.bracketId] || 0) + 1;
+}
+
+export function noteCareerAllTeamGame(c, snap, homeTeam, awayTeam) {
+  if (!c || !snap) return;
+  if (!c.allTeamBoard) c.allTeamBoard = {};
+  accumulateGameToAllTeamBoard(c.allTeamBoard, snap, homeTeam, awayTeam);
+}
+
+/** Fast-forward a CPU-vs-CPU match the human isn't in and record the result onto it. */
+export function runCpuMatchInto(c, match) {
+  if (!match || match.done || match.yours) return;
+  const result = simulateCpuMatch(match.a, match.b);
+  applyMatchResult(match, result.winner);
+  match.score = result.score;
+  match.startersA = result.startersA;
+  match.startersB = result.startersB;
+  if (result.snap) noteCareerAllTeamGame(c, result.snap, match.a, match.b);
+  if (match.loser) noteCareerLoss(c, match.loser);
+}
+
+/** The human's next unfinished match: current pod first, legacy flat roundMatches as fallback. */
+export function yourCareerMatch(c) {
+  if (c?.pods?.length) {
+    const open = findYourOpenMatch(c.pods);
+    if (open) return open;
+  }
+  return (
+    c?.roundMatches?.find((m) => m.yours && !m.done) ||
+    c?.roundMatches?.find((m) => m.yours) ||
+    null
+  );
+}
+
+/** 总决赛后：按 PG→C 评出本届最佳阵容 */
+export function computeCareerAllTeam(c) {
+  if (!c) return [];
+  if (!c.allTeamBoard) c.allTeamBoard = {};
+  let team = selectAllTeamByPos(c.allTeamBoard);
+  if (team.length < 5) {
+    const finalsTeams = [];
+    if (c.team) finalsTeams.push(c.team);
+    for (const t of c.alive || []) {
+      if (t && !finalsTeams.some((x) => x.bracketId === t.bracketId)) finalsTeams.push(t);
+    }
+    const m = yourCareerMatch(c);
+    if (m?.a && !finalsTeams.some((x) => x.bracketId === m.a.bracketId)) finalsTeams.push(m.a);
+    if (m?.b && !finalsTeams.some((x) => x.bracketId === m.b.bracketId)) finalsTeams.push(m.b);
+    if (c.series?.opp && !finalsTeams.some((x) => x.bracketId === c.series.opp.bracketId)) {
+      finalsTeams.push(c.series.opp);
+    }
+    team = allTeamFromRosters(finalsTeams);
+  }
+  c.allTeam = team;
+  return team;
 }
