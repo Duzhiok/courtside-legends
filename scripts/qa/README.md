@@ -28,6 +28,9 @@ Notes
 | `tickets-tasks.mjs` | welcome tickets, 新手保底, task board |
 | `era-banner.mjs` | 池内档位 flag on era banners |
 | `collection-filter.mjs` | search / sort / filters, focus, persistence, chip layout |
+| `banner-explain.mjs` | banner subtitles + explanation panel; panel follows the wishlist |
+| `draw-fold.mjs` | where the pull button sits vs. the fold (phone + desktop) |
+| `contrast.mjs` | WCAG AA contrast of the draw-page text, measured from real pixels |
 | `home-legends.mjs` | no blocked photo files on the home page, Jordan uses the headshot fallback |
 | `legends-wall-dump.mjs <out.png>` | prints each tile's real image file + load state, saves a screenshot |
 

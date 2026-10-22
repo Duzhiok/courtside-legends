@@ -109,6 +109,12 @@ export function currentBanners(date = new Date()) {
   ];
 }
 
+/** Whole days until this week's banners rotate (1 = last day). */
+export function daysUntilRotation(date = new Date()) {
+  const next = BANNER_EPOCH + (weekIndex(date) + 1) * WEEK_MS;
+  return Math.max(1, Math.ceil((next - date.getTime()) / (WEEK_MS / 7)));
+}
+
 export function bannerFilter(banner) {
   if (!banner || banner.kind === "standard") return () => true;
   if (banner.kind === "era") {
@@ -268,4 +274,21 @@ export function extraDrawsLeft(gacha, todayKey) {
 export function recordExtraDraw(gacha, todayKey) {
   const used = gacha?.extra?.day === todayKey ? gacha.extra.count : 0;
   return { ...gacha, extra: { day: todayKey, count: used + 1 } };
+}
+
+/** What a player wants to know before choosing a banner: size, best cards, wished person. */
+export function bannerStats(pool, banner, ovrOf, wishBref = null) {
+  const source = pool.filter(bannerFilter(banner));
+  const best = [...source].sort((a, b) => ovrOf(b) - ovrOf(a) || String(a.id).localeCompare(String(b.id)));
+  const top = [];
+  for (const card of best) {
+    if (top.length === 3) break;
+    if (!top.some((t) => t.bref === card.bref)) top.push({ bref: card.bref, name: card.name, season: card.season, ovr: ovrOf(card) });
+  }
+  return {
+    cards: source.length,
+    people: new Set(source.map((card) => card.bref)).size,
+    top,
+    wishCards: wishBref ? source.filter((card) => card.bref === wishBref).length : null,
+  };
 }
