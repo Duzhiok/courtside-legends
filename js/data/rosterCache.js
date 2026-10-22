@@ -7,7 +7,8 @@
  * Cards are stored in CHUNKS so reading/writing does not freeze the tab for minutes.
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
-export const ROSTER_SCHEMA = 42; // bump: Yao Ming soft_touch / dream_shake / high_tower
+// tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
+export const ROSTER_SCHEMA = 44; // bump: Bird no 传球魔术; Garnett no 篮下暴君 / 传球魔术 (stale v42 kept them); name rules no longer hit Jim/Rick Fox, other Lukas, other Simmonses
 const DB_NAME = "courtside-legends";
 const STORE = "roster";
 const DB_VERSION = 2;
@@ -70,6 +71,15 @@ function idbDelete(key) {
 
 function yieldPaint() {
   return new Promise((r) => setTimeout(r, 0));
+}
+
+/**
+ * A remembered key from an older ROSTER_SCHEMA must never be loaded. The fast path used to
+ * trust whatever key localStorage remembered, so a bump only took effect one reload later —
+ * and cards built by old code (with old skills) survived code changes.
+ */
+export function isCurrentSchemaKey(key) {
+  return typeof key === "string" && key.startsWith(`v${ROSTER_SCHEMA}|`);
 }
 
 export function rosterCacheKey(meta) {
@@ -145,9 +155,10 @@ export async function loadCachedPlayersFast(onProgress) {
       return loadChunks(key, onProgress);
     };
 
-    const hit = await tryLoad(rememberedKey());
+    const remembered = rememberedKey();
+    const hit = isCurrentSchemaKey(remembered) ? await tryLoad(remembered) : null;
     if (hit?.length) {
-      revalidateMetaInBackground(rememberedKey());
+      revalidateMetaInBackground(remembered);
       onProgress?.(0.92, "cache");
       return hit;
     }

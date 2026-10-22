@@ -2874,7 +2874,7 @@ function fatigueResist(p) {
   // Known iron lungs / perennial motors
   if (bref === "westbru01" || /westbrook|威少|威斯布鲁克/.test(name)) r = Math.max(r, 94);
   if (bref === "jordami01" || /michael jordan|乔丹/.test(name)) r = Math.max(r, 92);
-  if (/(^| )kobe|科比/.test(name) || bref === "bryanko01") r = Math.max(r, 90);
+  if (/kobe bryant|科比/.test(name) || bref === "bryanko01") r = Math.max(r, 90); // not bare "kobe": Bufkin and Brown are different people
   // 技能牌：铁肺 / 永动机才是真正的高体力档
   if ((p.skills || []).includes("iron_lungs")) r = Math.max(r, 97);
   if ((p.skills || []).includes("motor_engine")) r = Math.max(r, 91);
