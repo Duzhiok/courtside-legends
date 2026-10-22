@@ -918,6 +918,11 @@ export const SIGNATURE_SKILLS = {
   millere01: ["splash_spot", "rainmaker", "big_heart"],
   // Oscar Robertson — 正常赛三重夹天王，组织谋划 + 中距离终结 + 场上大脑
   roberos01: ["dime_dropper", "mid_maestro", "floor_commander"],
+  // Rajon Rondo — 两度联盟助攻王，08 冠军首发后卫：场上大脑 + 传球魔术 + 锁门防守
+  // （他的得分数往往不高，但组织/防守站上 prod 门槛其实一直包裹了这两项）
+  rondora01: ["floor_commander", "dime_dropper", "lockdown"],
+  // Jimmy Butler — Heat Culture 极致：关键时刻关杀 + 无解单打 + 训练狂人一般的永动机
+  butleji01: ["clutch_killer", "freeze_iso", "motor_engine"],
   // Jerry West — Mr. Clutch（真实历史外号）：无解单打 + 中距离 + 大心脏
   westje01: ["freeze_iso", "mid_maestro", "big_heart"],
   // George Gervin “冰人”—指尖柔拨的指尖打法 + 中距离 + 无解单打，四度得分王
@@ -2010,14 +2015,18 @@ export function nonDuoSkillCount(player) {
   return (player?.skills || []).filter((id) => !SKILL_PACKS[id]?.duo).length;
 }
 
-/** 可卸下的技能（组合技除外） */
+/** 可卸下的技能：组合技除外，且必须是用技能碎片买来装上的。
+ * 球员自带的签名技/领悟技/随机获得的不列在内——不过是不能卸，列出来让人点了再被拒绝没意义。 */
 export function removableSkills(player) {
-  return (player?.skills || []).filter((id) => SKILL_PACKS[id] && !SKILL_PACKS[id].duo);
+  const purchased = new Set(player?.purchasedSkills || []);
+  return (player?.skills || []).filter((id) => SKILL_PACKS[id] && !SKILL_PACKS[id].duo && purchased.has(id));
 }
 
 /**
- * 卸下技能。组合技不可卸。
- * 若为已购技能，返回 returnToInv 便于退回技能库。
+ * 卸下技能。组合技不可卸；球员自带的技能（签名技/领悟/随机获得的，总之没花过技能碎片买）
+ * 同样不可卸——卸了既不会退任何东西（它本来就不是买来的，没有碎片可退），也会让同一张卡
+ * 下次重建（存档迁移、roster 刷新）时又把技能加回来，卸的动作只是糊弄自己。
+ * 只有「用技能碎片买来装上的」才能卸下，并退回技能库。
  */
 export function removeSkillFromPlayer(player, skillId) {
   if (!player || !skillId) return { ok: false, reason: "无效" };
@@ -2026,25 +2035,26 @@ export function removeSkillFromPlayer(player, skillId) {
   if (pack.duo) return { ok: false, reason: "组合技随阵容显隐，不可手动卸" };
   if (!(player.skills || []).includes(skillId)) return { ok: false, reason: "球员没有该技能" };
 
-  player.skills = (player.skills || []).filter((id) => id !== skillId);
   const wasPurchased = (player.purchasedSkills || []).includes(skillId);
-  const paid = Number(player.purchasedSkillCosts?.[skillId]) || skillPackShopPrice(skillId);
-  if (wasPurchased) {
-    player.purchasedSkills = (player.purchasedSkills || []).filter((id) => id !== skillId);
-    if (player.purchasedSkillCosts) delete player.purchasedSkillCosts[skillId];
-    return {
-      ok: true,
-      returnToInv: {
-        id: skillId,
-        name: pack.name,
-        desc: pack.desc || "",
-        rarity: skillRarity(skillId),
-        rarityLabel: SKILL_RARITY_LABEL[skillRarity(skillId)] || "",
-        cost: paid,
-      },
-    };
+  if (!wasPurchased) {
+    return { ok: false, reason: "球员自带的技能（非购买获得），不能卸下" };
   }
-  return { ok: true };
+
+  player.skills = (player.skills || []).filter((id) => id !== skillId);
+  const paid = Number(player.purchasedSkillCosts?.[skillId]) || skillPackShopPrice(skillId);
+  player.purchasedSkills = (player.purchasedSkills || []).filter((id) => id !== skillId);
+  if (player.purchasedSkillCosts) delete player.purchasedSkillCosts[skillId];
+  return {
+    ok: true,
+    returnToInv: {
+      id: skillId,
+      name: pack.name,
+      desc: pack.desc || "",
+      rarity: skillRarity(skillId),
+      rarityLabel: SKILL_RARITY_LABEL[skillRarity(skillId)] || "",
+      cost: paid,
+    },
+  };
 }
 
 /** 金币商店可售技能（不含组合技 / 专属技 / 负面）. */

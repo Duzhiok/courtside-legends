@@ -50,10 +50,27 @@ def load_master():
     return names, pos
 
 
-# Career identity overrides when talldata/BRef primary pos is misleading.
+# Career identity overrides when talldata/BRef primary pos is misleading, and when
+# the ambiguous raw "F" tag got normalized to "SF" below for someone who was really a PF/C.
 POS_OVERRIDES = {
     "nowitdi01": "PF",  # Dirk Nowitzki — often tagged C early; natural PF
     "willija02": "PG",  # Jason Williams (White Chocolate)
+    "garneke01": "PF",  # Kevin Garnett
+    "malonka01": "PF",  # Karl Malone
+    "barklch01": "PF",  # Charles Barkley
+    "rodmade01": "PF",  # Dennis Rodman
+    "hayesel01": "PF",  # Elvin Hayes
+    "pettibo01": "PF",  # Bob Pettit
+    "haywosp01": "PF",  # Spencer Haywood
+    "willibu01": "PF",  # Buck Williams
+    "silaspa01": "PF",  # Paul Silas
+    "debusda01": "PF",  # Dave DeBusschere
+    "schaydo01": "PF",  # Dolph Schayes
+    "mchalke01": "PF",  # Kevin McHale
+    "oaklech01": "PF",  # Charles Oakley
+    "willike02": "PF",  # Kevin Willis
+    "kempsh01": "PF",  # Shawn Kemp
+    "rondora01": "PG",  # Rajon Rondo — 2007–11 rows all say SF; he's a career PG
 }
 
 

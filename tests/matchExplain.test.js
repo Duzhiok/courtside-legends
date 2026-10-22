@@ -70,3 +70,23 @@ test("summarizeMatchResult skips small, noisy differences", () => {
   );
   assert.deepEqual(summary.factors, []);
 });
+
+test("最佳表现 ranks by the box score shown next to it, not the live gradeScore", () => {
+  // Real bug report: a 0pt/3reb/6ast/0tov bench PG out-graded a real scorer (gradeScore rewards
+  // zero-turnover efficiency), so the result screen said "最佳表现" over a stat line that looked
+  // like nothing happened. gradeScore stays useful for development elsewhere — this screen must
+  // agree with the pts/reb/ast it prints.
+  const summary = summarizeMatchResult(
+    snapFixture({
+      away: {
+        name: "Away Team",
+        roster: [
+          player("Volume Scorer", { pts: 24, fgm: 9, fga: 20, oreb: 1, tov: 2, pm: -4 }, 60),
+          player("Zero Shot Playmaker", { pts: 0, ast: 6, reb: 3, dreb: 3, tov: 0, pm: -2 }, 96),
+        ],
+      },
+    }),
+  );
+  assert.equal(summary.topPerformers.away.name, "Volume Scorer");
+  assert.equal(summary.topPerformers.away.pts, 24);
+});

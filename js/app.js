@@ -3789,7 +3789,11 @@ function forgetPlayerSkill(playerId, skillId) {
     alert("组合技不可手动卸下");
     return;
   }
-  if (!confirm(`卸下 ${player.name} 的「${pack.name}」？${(player.purchasedSkills || []).includes(skillId) ? "（已购技能退回技能库）" : ""}`)) {
+  if (!(player.purchasedSkills || []).includes(skillId)) {
+    alert(`「${pack.name}」是 ${player.name} 自带的技能（非购买获得），不能卸下`);
+    return;
+  }
+  if (!confirm(`卸下 ${player.name} 的「${pack.name}」？（已购技能退回技能库）`)) {
     return;
   }
   let returned = null;
@@ -8010,6 +8014,14 @@ function showResult(snap, { formNotes = [] } = {}) {
 
   const cont = $("#btn-result-continue");
   cont.hidden = true;
+  // Every entry to the result screen starts from a clean baseline — branches below may hide
+  // this again when #btn-result-continue is ALSO doing "go home" (see handleCareerResult),
+  // otherwise you'd see two buttons both saying 回主页 at once.
+  const homeBtnReset = $("#btn-home");
+  if (homeBtnReset) {
+    homeBtnReset.hidden = false;
+    homeBtnReset.onclick = () => show("home");
+  }
   setResultActionMode("quick");
 
   if (isSeasonProgressMode(state.mode) && state.season && state.seasonPendingGame) {
@@ -9882,6 +9894,8 @@ function handleCareerResult(youWin, snap) {
         show("home");
       };
       setResultActionMode("career", { showContinue: true, continuePrimary: true });
+      // cont already reads 回主页 here; don't let the always-present #btn-home duplicate it
+      { const homeBtn = $("#btn-home"); if (homeBtn) homeBtn.hidden = true; }
     }
     autosaveCareer();
     return;
@@ -9901,6 +9915,8 @@ function handleCareerResult(youWin, snap) {
       show("home");
     };
     setResultActionMode("career", { showContinue: true, continuePrimary: false });
+    // cont already reads 回主页 here; don't let the always-present #btn-home duplicate it
+    { const homeBtn = $("#btn-home"); if (homeBtn) homeBtn.hidden = true; }
     autosaveCareer();
     return;
   }
