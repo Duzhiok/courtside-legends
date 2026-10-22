@@ -10,24 +10,28 @@ import { CURATED_PHOTOS } from "../js/data/photos.curated.js";
 import { PHOTO_BY_BREF, PHOTO_BY_BREF_DECADE } from "../js/data/photos.scraped.js";
 
 const ROSTER = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
-const BANNED_HOSTS = /basketball-reference\.com|cdn\.nba\.com|nba\.com|ui-avatars\.com|google|duckduckgo|bing\./i;
 
-test("no card in the whole roster can be given a third-party headshot or a search-engine image", () => {
-  const seen = { generated: 0, credited: 0 };
+test("no card in the whole roster can be given a search-engine image, and every card lands on local / credited-Wikimedia / hot-linked-headshot / generated, never anything else", () => {
+  const seen = { generated: 0, credited: 0, hotlinked: 0 };
+  const searchEngines = /ui-avatars\.com|google|duckduckgo|bing\./i;
   for (const row of ROSTER) {
     const url = photoUrl({ bref: row.bref, season: row.season, name: row.name, team: row.team });
-    assert.doesNotMatch(url.slice(0, 120), BANNED_HOSTS, `${row.name} ${row.season}`);
+    assert.doesNotMatch(url.slice(0, 120), searchEngines, `${row.name} ${row.season}`);
     if (url.startsWith("data:image/svg+xml")) seen.generated += 1;
+    else if (url.startsWith("https://www.basketball-reference.com/")) seen.hotlinked += 1;
     else {
       assert.ok(isCreditedPhoto(url), `${row.name} ${row.season}: ${url}`);
       seen.credited += 1;
     }
   }
   assert.ok(seen.credited > 800, `credited photos should cover ~900 cards, got ${seen.credited}`);
-  assert.ok(seen.generated > 20000, "everyone else gets a generated avatar");
+  // Everyone with a bref and no curated/local photo now gets the hot-linked BBRef headshot
+  // instead of a generated avatar — that is the whole point of this tier (personal-use choice).
+  assert.ok(seen.hotlinked > 20000, `expected the hot-link tier to cover almost everyone else, got ${seen.hotlinked}`);
+  assert.equal(seen.generated, 0, "every roster row has a bref, so nobody should fall all the way to a generated avatar");
 });
 
-test("an old cached card's hot-linked photo is ignored, with or without a bref", () => {
+test("a stale cached photo URL is never trusted as-is, but a live bref still resolves through the normal chain (now including the hot-link tier)", () => {
   const stale = [
     "https://www.basketball-reference.com/req/202106291/images/headshots/jordami01.jpg",
     "https://cdn.nba.com/headshots/nba/latest/260x190/893.png",
@@ -35,10 +39,13 @@ test("an old cached card's hot-linked photo is ignored, with or without a bref",
     "assets/photos/ellisda01_1990.jpg",
   ];
   for (const photo of stale) {
-    for (const extra of [{ bref: "nobodyxx01", season: 1990 }, {}]) {
-      const url = photoUrl({ name: "Someone Else", team: "BOS", photo, ...extra });
-      assert.match(url, /^data:image\/svg\+xml/, `${photo} must not survive`);
-    }
+    // With a bref present, the stale `photo` field is ignored but the live chain still finds
+    // the fresh, bref-keyed hot-link — it is NOT the stale URL, and it is NOT the avatar either.
+    const withBref = photoUrl({ name: "Someone Else", team: "BOS", photo, bref: "nobodyxx01", season: 1990 });
+    assert.equal(withBref, "https://www.basketball-reference.com/req/202106291/images/headshots/nobodyxx01.jpg");
+    // With no bref at all, there is nothing to hot-link, so it falls through to the avatar.
+    const withoutBref = photoUrl({ name: "Someone Else", team: "BOS", photo });
+    assert.match(withoutBref, /^data:image\/svg\+xml/, `${photo} must not survive with no bref to hot-link against`);
   }
 });
 
@@ -65,12 +72,22 @@ test("the local illustration wins over a credited photo, and is labelled as an i
   assert.equal(photoUrl({ bref, season: 1991, name: "Michael Jordan" }), withPhoto, "and it falls back once removed");
 });
 
-test("a card with no photo stores nothing (23k data URIs would be heavy); photoImg draws the avatar", () => {
-  const card = { bref: "nobodyxx01", season: 2001, name: "No Photo", team: "DEN" };
+test("a card with no bref at all (so nothing to hot-link against) stores nothing and photoImg draws the avatar directly, no fallback needed", () => {
+  const card = { season: 2001, name: "No Photo", team: "DEN" };
   assert.deepEqual(resolveCardPhoto(card), { photo: null, photoCareerDefault: false, photoSource: "generated" });
   const html = photoImg(card, "headshot lg");
   assert.match(html, /<img class="headshot lg" src="data:image\/svg\+xml/);
   assert.doesNotMatch(html, /data-fb|onerror/, "an avatar cannot fail to load, so it needs no fallback");
+});
+
+test("a card with a bref but no curated/local photo tries the hot-linked headshot first, with an onerror fallback to the avatar if it 404s", () => {
+  const card = { bref: "nobodyxx01", season: 2001, name: "No Photo", team: "DEN" };
+  // Still not stored on the card -- it is recomputed live every render, same as the avatar was.
+  assert.deepEqual(resolveCardPhoto(card), { photo: null, photoCareerDefault: false, photoSource: "generated" });
+  const html = photoImg(card, "headshot lg");
+  assert.match(html, /<img class="headshot lg" src="https:\/\/www\.basketball-reference\.com\//);
+  assert.match(html, /data-fb="data:image\/svg\+xml/, "a 404'd headshot must still fall back to the avatar");
+  assert.match(html, /onerror="if\(this\.dataset\.fb\)/);
 });
 
 test("a real photo that fails to load falls back to the generated avatar", () => {

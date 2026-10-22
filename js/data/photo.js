@@ -3,10 +3,15 @@
  *
  *   1. a local illustration we made   (assets/avatars/<bref>.*, see avatars.local.js)
  *   2. a Wikimedia Commons photo with a credit   (photoCredits.js, shown on the credits page)
- *   3. a generated avatar   (avatarArt.js — depicts nobody, fetches nothing)
+ *   3. a Basketball-Reference headshot thumbnail, hot-linked   (bbrefHeadshotUrl)
+ *   4. a generated avatar   (avatarArt.js — depicts nobody, fetches nothing)
  *
- * Nothing is hot-linked from NBA.com or Basketball-Reference, and no search-engine image is
- * used: a photo is only ever shown if we can name its author and licence.
+ * Tier 3 is a conscious, explicit choice: this build is for the owner's own private play, not a
+ * public release, and loading a small thumbnail straight from basketball-reference.com for your
+ * own game isn't "stealing" anything — it's just loading a webpage. It IS still a live network
+ * fetch with no attribution, so it stays off the public-release checklist (see HOTLINK_HEADSHOTS
+ * below if this project is ever shipped to other people: flip it to false and tier 3 disappears,
+ * falling straight through to the generated avatar, same as before).
  */
 
 import { avatarDataUri } from "./avatarArt.js";
@@ -18,6 +23,16 @@ import { CURATED_PHOTOS } from "./photos.curated.js";
 import { PHOTO_BY_BREF as SCRAPED_BY_BREF, PHOTO_BY_BREF_DECADE as SCRAPED_BY_DECADE } from "./photos.scraped.js";
 
 export { NOT_A_PORTRAIT, isPortrait } from "./photoBlocklist.js";
+
+/** Single on/off switch for the hot-linked Basketball-Reference tier. See the note above. */
+export const HOTLINK_HEADSHOTS = true;
+
+/** Basketball-Reference's own headshot thumbnail for a bref id. 404s gracefully (no bref match)
+ *  and photoImg()'s onerror already swaps a failed <img> to the generated avatar. */
+export function bbrefHeadshotUrl(bref) {
+  if (!bref) return null;
+  return `https://www.basketball-reference.com/req/202106291/images/headshots/${bref}.jpg`;
+}
 
 // Curated entries override the generated scraped tables. Keys are "bref:decade" or "bref",
 // so one merge serves both lookups.
@@ -70,15 +85,22 @@ function safeStoredPhoto(url) {
   return usable(url);
 }
 
-/** "local" | "era" | "generated" — which rung of the chain this card lands on. */
+/** "local" | "era" | "hotlinked" | "generated" — which rung of the chain this card lands on. */
 export function photoSourceOf(player) {
   if (localIllustration(player?.bref)) return "local";
   if (eraPhoto(player) || safeStoredPhoto(player?.photo)) return "era";
+  if (HOTLINK_HEADSHOTS && player?.bref) return "hotlinked";
   return "generated";
 }
 
 export function photoUrl(player) {
-  return localIllustration(player?.bref) || eraPhoto(player) || safeStoredPhoto(player?.photo) || avatarDataUri(player);
+  return (
+    localIllustration(player?.bref) ||
+    eraPhoto(player) ||
+    safeStoredPhoto(player?.photo) ||
+    (HOTLINK_HEADSHOTS ? bbrefHeadshotUrl(player?.bref) : null) ||
+    avatarDataUri(player)
+  );
 }
 
 /**
@@ -95,7 +117,7 @@ export function resolveCardPhoto(playerLike) {
 
 const escapeAttr = (text) => String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const TIP_SUFFIX = { local: " · 插画", era: "", generated: "" };
+const TIP_SUFFIX = { local: " · 插画", era: "", hotlinked: "", generated: "" };
 
 /**
  * Safe <img> markup. A real photo that fails to load (offline, blocked) falls back to the

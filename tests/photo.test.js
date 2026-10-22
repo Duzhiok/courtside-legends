@@ -75,3 +75,36 @@ test("Shaq: 1990s, 2000s and later each get a real portrait, never the exhibit o
 test("curated entries only replace what they name; everyone else still uses the scraped table", () => {
   assert.equal(eraPhoto({ bref: "curryst01", season: 2016 }), PHOTO_BY_BREF_DECADE["curryst01:2010"]);
 });
+
+// ---- hot-linked Basketball-Reference headshots (personal-use fallback) ----
+import { HOTLINK_HEADSHOTS, bbrefHeadshotUrl, photoSourceOf, photoUrl } from "../js/data/photo.js";
+
+test("bbrefHeadshotUrl builds a real, bref-keyed thumbnail URL", () => {
+  assert.equal(
+    bbrefHeadshotUrl("rondora01"),
+    "https://www.basketball-reference.com/req/202106291/images/headshots/rondora01.jpg"
+  );
+  assert.equal(bbrefHeadshotUrl(null), null);
+  assert.equal(bbrefHeadshotUrl(""), null);
+});
+
+test("a player with no local illustration and no credited era photo falls back to the hot-linked headshot, not straight to the generated avatar", () => {
+  // Rajon Rondo has neither a local illustration nor a curated/scraped credited photo.
+  const player = { bref: "rondora01", season: 2012, name: "Rajon Rondo" };
+  assert.equal(photoSourceOf(player), HOTLINK_HEADSHOTS ? "hotlinked" : "generated");
+  if (HOTLINK_HEADSHOTS) {
+    assert.equal(photoUrl(player), bbrefHeadshotUrl("rondora01"));
+  }
+});
+
+test("a player with a credited era photo still wins over the hot-link tier (local/Wikimedia stays higher priority)", () => {
+  const url = photoUrl({ bref: "jordami01", season: 1991, name: "Michael Jordan" });
+  assert.notEqual(url, bbrefHeadshotUrl("jordami01"));
+  assert.equal(photoSourceOf({ bref: "jordami01", season: 1991 }), "era");
+});
+
+test("no bref at all still safely falls through to a generated avatar, never a broken hot-link URL", () => {
+  assert.equal(bbrefHeadshotUrl(undefined), null);
+  const url = photoUrl({ name: "Nobody" });
+  assert.match(url, /^data:image\/svg/);
+});

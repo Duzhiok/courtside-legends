@@ -315,6 +315,7 @@ import {
   inferPlayerRole,
   markOrdersManual,
   markPlayPosManual,
+  nextEmptyPlayPos,
   normalizeTempo,
   ordersLabel,
   recommendPlayPos,
@@ -6281,16 +6282,6 @@ function autoAssignUniquePositions(players) {
 }
 
 /** First empty PG–C slot, preferring natural position. */
-function nextEmptyPlayPos(picked, naturalPos) {
-  const used = new Set(picked.map((p) => normalizePos(p.playPos || p.pos)));
-  const nat = normalizePos(naturalPos);
-  if (!used.has(nat)) return nat;
-  for (const s of POS_SLOTS) {
-    if (!used.has(s.id)) return s.id;
-  }
-  return nat;
-}
-
 function setupPosSelectHtml(p) {
   const cur = normalizePos(p.playPos || p.pos);
   const nat = normalizePos(p.pos);
@@ -6660,9 +6651,9 @@ function renderSetupRoster() {
       } else if (state.setup.selected.size < 5) {
         const current = you.players.filter((x) => state.setup.selected.has(x.id));
         if (!p.playPosManual) {
-          p.playPos = nextEmptyPlayPos(current, recommendPlayPos(p));
+          p.playPos = nextEmptyPlayPos(current, p);
         } else {
-          p.playPos = nextEmptyPlayPos(current, p.playPos || p.pos);
+          p.playPos = nextEmptyPlayPos(current, p, p.playPos || p.pos);
         }
         state.setup.selected.add(id);
         const five = you.players.filter((x) => state.setup.selected.has(x.id));
