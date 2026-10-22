@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { seasonToCard, PLAYERS } from "../js/data/players.js";
+import { seasonToCard } from "../js/data/players.js";
 import { buildCareerSpanIndex } from "../js/data/careerArc.js";
 
 const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;

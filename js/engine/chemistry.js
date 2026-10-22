@@ -17,7 +17,6 @@ export function teamChemistry(players, { primaryId = null } = {}) {
   if (!players.length) return 40;
   const egos = players.map((p) => p.personality?.ego ?? 50);
   const teams = players.map((p) => p.personality?.team ?? 50);
-  const avgEgo = avg(egos);
   const avgTeam = avg(teams);
   const egoClash = std(egos);
 

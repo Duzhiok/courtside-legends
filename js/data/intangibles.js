@@ -767,7 +767,6 @@ function overpaidBumpFor(player) {
 export function topIntangibles(player, n = 3) {
   const entries = Object.entries(player.intangibles || {});
   const risk = player.intangibles?.injuryRisk;
-  const impact = player.intangibles?.winningImpact;
   const ceil = player.intangibles?.ceiling;
   const need = player.intangibles?.ballNeed;
   const off = player.intangibles?.offBall;
