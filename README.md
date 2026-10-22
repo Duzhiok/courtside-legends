@@ -306,7 +306,8 @@ courtside-legends/
 
 - 纯前端静态页（ES Module），**无需构建、无后端**
 - 存档与账号存在浏览器 `localStorage` / IndexedDB（各电脑互不同步）
-- 自动化测试：`npm test`（Node 内置 `node:test`，当前 458 个测试，52 个测试文件，全部通过）
+- 自动化测试：`npm test`（Node 内置 `node:test`，当前 470 个测试，53 个测试文件，全部通过）
+- 静态检查：`npm run lint`（eslint flat config，只启拓 bug 的规则集如 no-undef/no-unused-vars/no-unreachable，不管风格，没有 prettier）
 - MIT License
 
 ## 尚未完成（路线图）
@@ -322,8 +323,8 @@ courtside-legends/
 - 更细的球场动作动画
 - 头像本地化：目前 B-Ref 头像是实时热链，断网/被限流会回退到生成头像；考虑改为构建时下载到 `assets/avatars/` 永久化
 - 分赛季匹配的历史照片：同一球员各个年代的卡目前共用一张头像，未按 bref:年代 分别匹配
-- `js/app.js` 现已超过 1 万行，承载了几乎所有模式的 UI 接线；长远来看应按模式拆分到 `js/modes/` / `js/ui/`，目前仅作架构记录，未安排拆分
-- 没有 eslint/prettier 等自动 lint，仅依赖 `node --check` 语法检查 + 测试覆盖
+- `js/app.js` 仍有 1 万多行，承载了几乎所有模式的 UI 接线；已开始按“零 DOM 耦合的纯逻辑优先拆”的思路增量迁出（如 `js/engine/careerEconomy.js`），但 UI 渲染/事件绑定部分暂未动，还是一个长期进行中的工程
+- 已有 eslint（简最式配置，只报真 bug），但没有 prettier 统一风格
 
 ## 内容与授权说明
 
