@@ -27,10 +27,23 @@ test("Larry Bird has no 传球魔术 in any season, and keeps 杀手时刻 / 三
   }
 });
 
-test("Paul George keeps 三分雨, 中投大师 and 中投刺客 in every season", () => {
+test("Paul George keeps 运球节奏大师 and 中投刺客 in every season, and no longer carries 三分雨/中投大师", () => {
   const cards = cardsOf("georgpa01");
   assert.equal(cards.length, 15);
-  for (const card of cards) for (const id of ["rainmaker", "mid_maestro", "midrange_assassin"]) assert.ok(card.skills.includes(id), `${card.season} lacks ${id}`);
+  for (const card of cards) {
+    for (const id of ["rhythm_master", "lockdown", "midrange_assassin"]) {
+      assert.ok(card.skills.includes(id), `${card.season} lacks ${id}`);
+    }
+    for (const id of ["rainmaker", "mid_maestro"]) {
+      assert.ok(!card.skills.includes(id), `${card.season} should have dropped ${id}`);
+    }
+  }
+});
+
+test("Matt Barnes has 场上恶汉 (enforcer) in every season", () => {
+  const cards = cardsOf("barnema02");
+  assert.ok(cards.length >= 5);
+  for (const card of cards) assert.ok(card.skills.includes("enforcer"), `${card.season} lacks 场上恶汉`);
 });
 
 test("Rajon Rondo has skills on every card, including low-ppg bench-tier seasons (he is 场上大脑, not a scorer)", () => {
