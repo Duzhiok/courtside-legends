@@ -8,11 +8,13 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 46; // bump: Matt Barnes gets 场上恶汉 (enforcer); Paul George drops
-// 三分雨/中投大师 (rainmaker/mid_maestro) for 运球节奏大师 (rhythm_master), keeps 中投刺客.
-// (schema 45 was: fixed PF-era players stuck at SF -- Garnett/Malone/Barkley/Rodman/
-// McHale/Oakley/Willis/Kemp/etc. -- Rondo stuck at SF, Rondo/Butler given signature skill kits,
-// hiddenTier no longer requires ppg alone, Middleton height fixed)
+export const ROSTER_SCHEMA = 47; // bump: Wikipedia auto-discovery tier (photos.wiki.js) adds
+// ~2,560 credited real photos covering ~2,630 people who previously had no portrait beyond the
+// bbref hotlink/generated avatar -- see scripts/photos/discover-wiki.mjs.
+// (schema 46 was: Matt Barnes gets 场上恶汉 (enforcer); Paul George drops 三分雨/中投大师
+// for 运球节奏大师, keeps 中投刺客. schema 45 was: fixed PF-era players stuck at SF --
+// Garnett/Malone/Barkley/Rodman/McHale/Oakley/Willis/Kemp/etc. -- Rondo stuck at SF, Rondo/Butler
+// given signature skill kits, hiddenTier no longer requires ppg alone, Middleton height fixed)
 const DB_NAME = "courtside-legends";
 const STORE = "roster";
 const DB_VERSION = 2;

@@ -89,11 +89,13 @@ test("bbrefHeadshotUrl builds a real, bref-keyed thumbnail URL", () => {
 });
 
 test("a player with no local illustration and no credited era photo falls back to the hot-linked headshot, not straight to the generated avatar", () => {
-  // Rajon Rondo has neither a local illustration nor a curated/scraped credited photo.
-  const player = { bref: "rondora01", season: 2012, name: "Rajon Rondo" };
+  // A synthetic bref, not a real person -- using a real one here would be fragile, since the
+  // Wikipedia auto-discovery tier (photos.wiki.js) keeps growing and could cover a real player
+  // at any time, which is the point of that tier but would make this specific assertion flaky.
+  const player = { bref: "zzznobody01", season: 2012, name: "Zzz Nobody" };
   assert.equal(photoSourceOf(player), HOTLINK_HEADSHOTS ? "hotlinked" : "generated");
   if (HOTLINK_HEADSHOTS) {
-    assert.equal(photoUrl(player), bbrefHeadshotUrl("rondora01"));
+    assert.equal(photoUrl(player), bbrefHeadshotUrl("zzznobody01"));
   }
 });
 
@@ -107,4 +109,42 @@ test("no bref at all still safely falls through to a generated avatar, never a b
   assert.equal(bbrefHeadshotUrl(undefined), null);
   const url = photoUrl({ name: "Nobody" });
   assert.match(url, /^data:image\/svg/);
+});
+
+// ---- auto-discovered Wikipedia candidates (scripts/photos/discover-wiki.mjs) ----
+import { PHOTO_BY_BREF_WIKI } from "../js/data/photos.wiki.js";
+
+test("every wiki-discovered candidate URL matches the Commons shape wikimediaFile() expects (scaled thumb or, when no scaling was needed, the original upload)", () => {
+  for (const [bref, url] of Object.entries(PHOTO_BY_BREF_WIKI)) {
+    assert.match(url, /^https:\/\/(?:thumb|upload)\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/.+/, bref);
+  }
+});
+
+test("the discovery script never records a candidate for someone already covered by hand-verified data (no overlap with scraped/curated)", () => {
+  const handVerified = new Set([
+    ...Object.keys(PHOTO_BY_BREF).map((k) => k.split(":")[0]),
+    ...Object.keys(PHOTO_BY_BREF_DECADE).map((k) => k.split(":")[0]),
+    ...Object.keys(CURATED_PHOTOS).map((k) => k.split(":")[0]),
+  ]);
+  for (const bref of Object.keys(PHOTO_BY_BREF_WIKI)) {
+    assert.ok(!handVerified.has(bref), `${bref} has both a hand-verified entry and an auto-discovered one`);
+  }
+});
+
+test("a wiki-discovered 1950s star (Bob Cousy) has a candidate on file -- this era had almost no coverage before auto-discovery", () => {
+  assert.ok(PHOTO_BY_BREF_WIKI.cousybo01, "expected a discovered candidate for Bob Cousy");
+});
+
+test("a credited wiki-discovered photo resolves through eraPhoto() just like a hand-scraped one would", () => {
+  const creditedWikiBref = Object.keys(PHOTO_BY_BREF_WIKI).find((bref) => isCreditedPhoto(PHOTO_BY_BREF_WIKI[bref]));
+  if (!creditedWikiBref) return; // nothing credited yet (build-credits.mjs hasn't run against this batch)
+  const url = eraPhoto({ bref: creditedWikiBref, season: 1955 });
+  assert.equal(url, PHOTO_BY_BREF_WIKI[creditedWikiBref]);
+});
+
+test("an uncredited wiki-discovered photo does NOT show -- it must clear build-credits.mjs's licence check first", () => {
+  const uncreditedWikiBref = Object.keys(PHOTO_BY_BREF_WIKI).find((bref) => !isCreditedPhoto(PHOTO_BY_BREF_WIKI[bref]));
+  if (!uncreditedWikiBref) return; // everything in the current batch happens to be credited already
+  const url = eraPhoto({ bref: uncreditedWikiBref, season: 1955 });
+  assert.notEqual(url, PHOTO_BY_BREF_WIKI[uncreditedWikiBref]);
 });
