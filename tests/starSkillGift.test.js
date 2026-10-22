@@ -9,8 +9,9 @@ const PLAYERS = await loadSampleRoster();
 const { overall } = await import("../js/data/players.js");
 const { resolvePlayers } = await import("../js/data/account.js");
 const { STAR_SKILL_RARITIES, performDailyDraw, starUpWithSouls } = await import("../js/data/accountGacha.js");
-const { MAX_STARS } = await import("../js/data/gacha.js");
+const { MAX_STARS, SOULS_PER_STAR } = await import("../js/data/gacha.js");
 const { MAX_BOUGHT_SKILLS, boughtSkillCount, buyableSkills, buySkillWithFragments } = await import("../js/data/accountRecycle.js");
+const { soulStarNotice } = await import("../js/ui/gachaView.js");
 
 const DATE = new Date(Date.UTC(2026, 9, 21));
 const playerRng = () => 0.5; // never the 20% coach roll
@@ -25,32 +26,41 @@ function realCard() {
   return PLAYERS.find((p) => overall(p) >= 60 && overall(p) < 78 && buyableSkills(resolvePlayers([p.id], null, PLAYERS)[0]).some((s) => STAR_SKILL_RARITIES.has(s.rarity)));
 }
 
-/** Draw the same single-card pool again (a duplicate each time after the first). */
-function draw(acc, card, rng = playerRng) {
-  acc.lastDailyDraw = null; // a free pull every time
-  return performDailyDraw(acc, { pool: [card], rng, date: DATE });
+/** Owns the card at `stars` ★ with plenty of 球魂 to spend. */
+function owning(card, stars, extra = {}) {
+  return account({
+    playerIds: [card.id],
+    cardMods: { [card.id]: { merges: stars, skills: [], roll: 7, ...extra } },
+    gacha: { souls: { [card.bref]: SOULS_PER_STAR * 10 } },
+  });
 }
 
-/** Account that owns the card at ★4, so the next duplicate is the 5th. */
-function atFourStars(card, extra = {}) {
-  return account({ playerIds: [card.id], cardMods: { [card.id]: { merges: MAX_STARS - 1, skills: [], roll: 7, ...extra } } });
-}
+const soulUp = (acc, card, rng = playerRng) => starUpWithSouls(acc, card.id, { pool: PLAYERS, rng });
 
-test("only the 5th duplicate (★5) gifts a skill; the new card and duplicates 1–4 do not", () => {
+test("only the 球魂 star-up that reaches ★5 gifts a skill; ★1–★4 do not", () => {
   const card = realCard();
-  const acc = account();
-  const results = [draw(acc, card)];
-  assert.equal(results[0].outcome, "new");
-  for (let i = 1; i <= 4; i++) results.push(draw(acc, card));
-  assert.deepEqual(results.map((r) => r.stars), [0, 1, 2, 3, 4]);
-  for (const r of results) assert.ok(!r.starSkill, "no gift before ★5");
-  assert.deepEqual(acc.cardMods[card.id].skills, []);
+  const acc = owning(card, 0);
+  const results = [];
+  for (let i = 0; i < MAX_STARS; i++) results.push(soulUp(acc, card));
+  assert.deepEqual(results.map((r) => r.stars), [1, 2, 3, 4, 5]);
+  for (const r of results.slice(0, 4)) assert.equal(r.skill, null, "no gift before ★5");
+  assert.deepEqual(acc.cardMods[card.id].skills.length, 1, "exactly one skill, from the last star");
+  const last = results[4];
+  assert.ok(last.skill, "the ★5 star-up gifts a skill");
+  assert.equal(acc.cardMods[card.id].starSkill, last.skill.id);
+  assert.ok(resolvePlayers([card.id], acc, PLAYERS)[0].skills.includes(last.skill.id), "the card really has it");
+});
 
-  const fifth = draw(acc, card);
-  assert.equal(fifth.stars, MAX_STARS);
-  assert.ok(fifth.starSkill, "the 5th duplicate gifts a skill");
-  assert.ok(fifth.player.skills.includes(fifth.starSkill.id), "the revealed card already has it");
-  assert.equal(acc.cardMods[card.id].starSkill, fifth.starSkill.id);
+test("reaching ★5 by DRAWING duplicates gifts nothing (the rule is about 球魂)", () => {
+  const card = realCard();
+  const acc = owning(card, MAX_STARS - 1);
+  acc.lastDailyDraw = null;
+  const result = performDailyDraw(acc, { pool: [card], rng: playerRng, date: DATE });
+  assert.equal(result.outcome, "starUp");
+  assert.equal(result.stars, MAX_STARS);
+  assert.equal(result.starSkill, undefined);
+  assert.equal(acc.cardMods[card.id].starSkill, undefined);
+  assert.deepEqual(acc.cardMods[card.id].skills, []);
 });
 
 test("the gift is a skill the card could legally buy, below 传说 / 神话", () => {
@@ -58,11 +68,11 @@ test("the gift is a skill the card could legally buy, below 传说 / 神话", ()
     // 0.3 / 0.5 / 0.999 pick the low, middle and LAST (priciest) option — the last is where a
     // missing rarity filter would hand out a 神话 skill.
     for (const roll of [0.3, 0.5, 0.999]) {
-      const acc = atFourStars(card);
+      const acc = owning(card, MAX_STARS - 1);
       const options = buyableSkills(resolvePlayers([card.id], acc, PLAYERS)[0]);
-      const result = draw(acc, card, () => roll);
-      if (!result.starSkill) continue; // a card with nothing eligible gets nothing, never something illegal
-      const chosen = options.find((s) => s.id === result.starSkill.id);
+      const { skill } = soulUp(acc, card, () => roll);
+      if (!skill) continue; // nothing eligible → nothing, never something illegal
+      const chosen = options.find((s) => s.id === skill.id);
       assert.ok(chosen, `${card.name}: gift must pass the shop's own gates`);
       assert.ok(STAR_SKILL_RARITIES.has(chosen.rarity), `${card.name}: ${chosen.name} is ${chosen.rarity} (rng ${roll})`);
     }
@@ -70,38 +80,23 @@ test("the gift is a skill the card could legally buy, below 传说 / 神话", ()
   assert.deepEqual([...STAR_SKILL_RARITIES].sort(), ["common", "epic", "rare"]);
 });
 
-test("many different rolls never produce a 传说 or 神话 gift", () => {
+test("once per card: ★5 cannot be bought again, and later duplicate draws turn into 球魂 only", () => {
   const card = realCard();
-  let seed = 11;
-  const rng = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
-  const seen = new Set();
-  for (let i = 0; i < 80; i++) {
-    const acc = atFourStars(card);
-    const result = draw(acc, card, () => rng());
-    // rng also drives the coach roll; skip those draws
-    if (result.kind !== "player" || !result.starSkill) continue;
-    seen.add(result.starSkill.rarity);
-  }
-  assert.ok(seen.size > 0);
-  for (const rarity of seen) assert.ok(STAR_SKILL_RARITIES.has(rarity), rarity);
-});
-
-test("once per card: the 6th duplicate converts to 球魂 and gifts nothing more", () => {
-  const card = realCard();
-  const acc = atFourStars(card);
-  const fifth = draw(acc, card);
+  const acc = owning(card, MAX_STARS - 1);
+  const { skill } = soulUp(acc, card);
+  assert.throws(() => soulUp(acc, card), /已满/);
   const skillsAtFive = [...acc.cardMods[card.id].skills];
-  const sixth = draw(acc, card);
-  assert.equal(sixth.outcome, "soulConvert");
-  assert.ok(!sixth.starSkill);
+  acc.lastDailyDraw = null;
+  const dup = performDailyDraw(acc, { pool: [card], rng: playerRng, date: DATE });
+  assert.equal(dup.outcome, "soulConvert");
   assert.deepEqual(acc.cardMods[card.id].skills, skillsAtFive);
-  assert.equal(acc.cardMods[card.id].starSkill, fifth.starSkill.id);
+  assert.equal(acc.cardMods[card.id].starSkill, skill.id);
 });
 
 test("the gift does not use up the 2 purchasable skill slots", () => {
   const card = realCard();
-  const acc = atFourStars(card);
-  draw(acc, card);
+  const acc = owning(card, MAX_STARS - 1);
+  soulUp(acc, card);
   assert.equal(boughtSkillCount(acc, card.id), 0);
   acc.fragments = 5000;
   const [first, second] = buyableSkills(resolvePlayers([card.id], acc, PLAYERS)[0]);
@@ -114,38 +109,35 @@ test("the gift does not use up the 2 purchasable skill slots", () => {
   assert.ok(skills.includes(acc.cardMods[card.id].starSkill), "gift + 2 bought coexist");
 });
 
-test("a card with nothing eligible left simply gets no gift (no crash, no empty record)", () => {
+test("nothing eligible left: the star-up still succeeds, there is just no gift", () => {
   const card = realCard();
-  const probe = atFourStars(card);
+  const probe = owning(card, MAX_STARS - 1);
   const eligible = buyableSkills(resolvePlayers([card.id], probe, PLAYERS)[0]).filter((s) => STAR_SKILL_RARITIES.has(s.rarity));
-  const acc = atFourStars(card, { skills: eligible.map((s) => s.id) });
-  const result = draw(acc, card);
+  const acc = owning(card, MAX_STARS - 1, { skills: eligible.map((s) => s.id) });
+  const result = soulUp(acc, card);
   assert.equal(result.stars, MAX_STARS);
-  assert.ok(!result.starSkill);
+  assert.equal(result.skill, null);
+  assert.equal(acc.cardMods[card.id].starSkill, undefined);
+});
+
+test("a failed star-up (not enough 球魂) neither spends souls nor gifts", () => {
+  const card = realCard();
+  const acc = owning(card, MAX_STARS - 1);
+  acc.gacha = { souls: { [card.bref]: SOULS_PER_STAR - 1 } };
+  assert.throws(() => soulUp(acc, card), /球魂不足/);
+  assert.equal(acc.cardMods[card.id].merges, MAX_STARS - 1);
   assert.equal(acc.cardMods[card.id].starSkill, undefined);
 });
 
 test("same rng, same gift (no hidden randomness)", () => {
   const card = realCard();
-  const gifts = [1, 2].map(() => draw(atFourStars(card), card).starSkill?.id);
+  const gifts = [1, 2].map(() => soulUp(owning(card, MAX_STARS - 1), card).skill?.id);
   assert.equal(gifts[0], gifts[1]);
 });
 
-test("reaching ★5 with 球魂 is not a draw: no gift (the rule is about drawing the 5th duplicate)", () => {
-  const card = realCard();
-  const acc = atFourStars(card, {});
-  acc.gacha = { souls: { [card.bref]: 99 } };
-  starUpWithSouls(acc, card.id);
-  assert.equal(acc.cardMods[card.id].merges, MAX_STARS);
-  assert.equal(acc.cardMods[card.id].starSkill, undefined);
-});
-
-test("the reveal tells the player about the gift (and says nothing when there is none)", async () => {
-  const { drawRevealHtml } = await import("../js/ui/gachaView.js");
-  const view = { esc: (x) => String(x), photoImg: () => "", rarityClass: () => "", skillChipsHtml: () => "" };
-  const base = { kind: "player", outcome: "starUp", stars: MAX_STARS, ovr: 70, banner: { name: "常驻" }, player: { name: "X", season: 2000, pos: "SF" }, rollChoice: null };
-  const withGift = drawRevealHtml({ ...base, starSkill: { id: "x", name: "盗球鬼才", rarity: "rare" } }, view);
-  assert.match(withGift, /满星礼物：获得技能「盗球鬼才」/);
-  const without = drawRevealHtml({ ...base, stars: 3, starSkill: null }, view);
-  assert.doesNotMatch(without, /满星礼物/);
+test("the notice announces a gift, and stays silent for ordinary star-ups", () => {
+  assert.equal(soulStarNotice({ stars: 5, skill: { name: "盗球鬼才" } }), "★5 满星！获得技能「盗球鬼才」");
+  assert.equal(soulStarNotice({ stars: 3, skill: null }), null);
+  assert.equal(soulStarNotice({ stars: 5, skill: null }), null);
+  assert.equal(soulStarNotice(undefined), null);
 });

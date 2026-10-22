@@ -87,7 +87,7 @@ test("same person, other season → new version + 1 球魂", () => {
 
 test("球魂 buy ★ on any card of that person", () => {
   const acc = account({ playerIds: ["jokic-2021"], cardMods: {}, gacha: { souls: { jokic: SOULS_PER_STAR } } });
-  assert.equal(starUpWithSouls(acc, "jokic-2021", { pool: [JOKIC_2021] }), 1);
+  assert.equal(starUpWithSouls(acc, "jokic-2021", { pool: [JOKIC_2021] }).stars, 1);
   assert.equal(acc.gacha.souls.jokic, 0);
   assert.throws(() => starUpWithSouls(acc, "jokic-2021", { pool: [JOKIC_2021] }), /球魂不足/);
 });

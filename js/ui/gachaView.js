@@ -12,8 +12,7 @@ import { scoutLabel } from "../data/intangibles.js";
 const OUTCOME_TEXT = {
   new: () => "新卡入账",
   newVersion: (r) => `同一球员的新版本入账 · 球魂 +1（现有 ${r.souls}）`,
-  starUp: (r) =>
-    `重复卡升星 ★${r.stars}：全属性 +1。${r.starSkill ? `满星礼物：获得技能「${r.starSkill.name}」！` : ""}请选择保留哪套成色 ↓`,
+  starUp: (r) => `重复卡升星 ★${r.stars}：全属性 +1。请选择保留哪套成色 ↓`,
   soulConvert: (r) => `已满 ★${MAX_STARS}，转为 2 球魂（现有 ${r.souls}）`,
 };
 
@@ -201,6 +200,12 @@ export function wishlistHtml({ people, wishCards, wishBref, wishName, ownedIds, 
     .join("");
   return `${peopleRows ? `<div class="wish-results">${peopleRows}</div>` : ""}
     ${craftRows && wishName ? `<div class="craft-list"><p class="tiny">❤ ${esc(wishName)} 的赛季卡（金币直接合成指定年份）：</p>${craftRows}</div>` : ""}`;
+}
+
+/** What the player is told after spending 球魂 on a star (null = nothing to announce). */
+export function soulStarNotice(result) {
+  if (!result?.skill) return null;
+  return `★${result.stars} 满星！获得技能「${result.skill.name}」`;
 }
 
 export function soulButtonHtml(player, souls) {
