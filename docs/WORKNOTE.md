@@ -199,7 +199,9 @@
 - 本地 `main`（另一个 worktree，`/Users/z0d01u4/Myproject/nba-coach-sim`）落后 origin/main 44 个提交，是另一条独立的陈旧状态，这轮不处理（不碰 main checkout）。
 - 本轮按用户明确指示：只推 `feature/time-travel-foundation` 分支本身到远端作为备份/同步，**不触碰、不合并、不快进 `main`**，合并到 main 留给用户自己决定。
 
-### R25/R26 遗留（💡 顺手发现，没解决）
 
-- **金币晋级赛一开局就 `QuotaExceededError`**：开一局金币晋级赛，就算先把 `localStorage`/`sessionStorage` 清空再刷新页面，立刻还是会报 `cls_savegame_v1` 超配额。**不是这轮引入的**——切到 R24 之前的提交 `5de11e7` 复现同一个错误，确认是既有 bug，这轮没有顺手修，怕战线拉太长。值得单独立项：先查 `writeSave`/`cls_savegame_v1` 存的到底是什么（整个 roster？历史快照？），参考 R7/R8 之前给 `cls_root_v3` 做过的「存档瘦身」手法（`compactSeasonForStorage`）。
-- **`app.js` 继续拆的候选**：`runCpuMatchInto` / `noteCareerAllTeamGame` / `computeCareerAllTeam`（紧挨着这次挪走的 `teamStarters`/`simulateCpuMatch`，同样是晋级赛相关逻辑）看起来也够独立，可以作为下一刀的目标——但没有验证过它们是否真的零 DOM 耦合，下次动手前要重新 grep 一遍确认，不能想当然复用这次的结论。
+### R27：拆第二刀 app.js + 修好 R25/R26 发现的存档 quota bug
+
+- **第二刀拆 app.js**（10,086 → 10,026 行）：`noteCareerLoss`/`noteCareerAllTeamGame`/`runCpuMatchInto`/`yourCareerMatch`/`computeCareerAllTeam` 这五个跟上一刀挪走的 `teamStarters`/`simulateCpuMatch` 不是一类——它们是「晋级赛对阵结构」的逻辑，跟 `careerBracket.js` 里已有的 `buildStagePods`/`progressPod*` 是同一个关注点，所以挪进 `careerBracket.js` 而不是 `careerEconomy.js`（没有为了偷懒塞进同一个文件）。其中两个（`runCpuMatchInto`/`yourCareerMatch`）原本靠读 `state.career` 这个隐藏全局变量，这轮顺手改成显式接收 `c` 参数——6+3 处调用点逐个确认过都已经在局部作用域里有 `c`，是纯重构不是行为变更。`careerBracket.js` 之前零测试（尽管早就有真实的对阵推进逻辑），这轮补了 10 个，含一个变异检查。
+- **修了 R25/R26 遗留里记的那个 `QuotaExceededError`，根因比想象中有意思**：不是「存的数据太多」，是**同一个 team 对象在 `career.team`、`alive[]`、每个 pod 的 `teams[]`、每场 match 的 a/b/winner/loser 里被引用了几十次，而 `JSON.stringify` 不认识对象共享引用，每次遇到都原样展开成一份独立的完整拷贝**——32 支队伍的名册被重复序列化几十遍。实测：全新开一局金币晋级赛，一局都没打，`cls_savegame_v1` 的 payload 就有 **7,863,440 字节**（写入直接抛 quota 异常，存档完全没存上）。修法：`serializeCareer` 按 `bracketId` 把每支队伍只序列化一次放进 `teamsById` 表，其它出现的地方全部换成 `{ __teamRef }` 占位符；`reviveCareer` 反向解出来，并且**对同一个 id 的所有占位符返回字面上同一个对象**——这不只是省体积：代码里 `seedCareerStage()` 本来就靠 `c.team` 和 `alive[]` 里的「你」是同一个对象（改名册要处处同步可见），旧的 `jsonClone` 写法其实一直在悄悄破坏这个前提，只是没人注意到，这次顺手把这个隐藏的一致性 bug 也修了。真实浏览器验证：同一个复现场景从「写入抛异常，存档没了」变成「2,122,213 字节，写入成功」，完整 保存→刷新页面→继续进度→商店正常渲染 跑通，0 个 page error。
+- **`js/data/savegame.js` 之前也是零测试**，这次补了 7 个，全部是纯函数测试（`serializeCareer`/`reviveCareer` 不碰 `localStorage`，不需要 mock）：体积量级回归、「每支队伍只写一次」检查、往返正确性、共享引用在 revive 后真的恢复（含一次「改 c.team.players 后 alive[] 里也能看到」的活体验证）、非 bracket 形状（双人模式）和 null 输入的防御性测试。变异测试故意把「返回同一个引用」改成「返回浅拷贝」，测试立刻报错，确认测试真的在验证这件事而不是走过场。
