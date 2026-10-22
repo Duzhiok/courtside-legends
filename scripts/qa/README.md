@@ -28,3 +28,10 @@ Notes
 | `tickets-tasks.mjs` | welcome tickets, 新手保底, task board |
 | `era-banner.mjs` | 池内档位 flag on era banners |
 | `collection-filter.mjs` | search / sort / filters, focus, persistence, chip layout |
+| `home-legends.mjs` | no blocked photo files on the home page, Jordan uses the headshot fallback |
+| `legends-wall-dump.mjs <out.png>` | prints each tile's real image file + load state, saves a screenshot |
+
+Visual checks
+- **A passing "image loaded" check does not prove it is the right person.** The 1991 Jordan tile used to load fine — as a signed-basketball display case. Look at the screenshot, and print the file names (`legends-wall-dump.mjs`).
+- Save every screenshot to a **fresh file name**. Re-reading a reused path once showed a stale image and led to a wrong conclusion.
+- `cdn.nba.com` can be unreachable from a sandbox while `curl` works; treat those tiles as "unverified", not "broken".

@@ -3,7 +3,7 @@
  * Photos come from the existing Wikimedia-backed era photo map (see photo.js),
  * so there is exactly one place that decides which image a player gets.
  */
-import { eraPhoto } from "../data/photo.js";
+import { resolveCardPhoto } from "../data/photo.js";
 
 export const HOME_LEGENDS = [
   { bref: "jordami01", season: 1991, name: "迈克尔·乔丹", era: "90 年代" },
@@ -21,7 +21,15 @@ export const HOME_LEGENDS = [
 export function legendPhotoFromToken(token) {
   const [bref, season] = String(token || "").split(":");
   if (!bref) return null;
-  return eraPhoto({ bref, season: Number(season) });
+  return legendPhoto({ bref, season: Number(season) });
+}
+
+/**
+ * The era photo when it is a real portrait, otherwise the normal fallback chain
+ * (NBA headshot → Basketball-Reference → initials). Never an object or a bus stop.
+ */
+export function legendPhoto(legend) {
+  return resolveCardPhoto(legend).photo;
 }
 
 function photoImg(src, alt) {
@@ -41,7 +49,7 @@ export function renderLegendsWall(container, legends = HOME_LEGENDS) {
   container.replaceChildren();
   let count = 0;
   for (const legend of legends) {
-    const src = eraPhoto(legend);
+    const src = legendPhoto(legend);
     if (!src) continue;
     const figure = document.createElement("figure");
     figure.className = "legend-tile";
