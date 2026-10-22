@@ -98,6 +98,7 @@ import { photoImg } from "./data/photo.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
+import { shortfallLabel } from "./ui/shortfall.js";
 import {
   loadPlayers,
   overall,
@@ -3468,7 +3469,7 @@ function renderCareerCoachPanel(c) {
         <div class="tiny">${esc(offer.note || "")}</div>
         <button type="button" class="btn small primary" data-hire-career-coach="${offer.id}" ${
           can && !isCur ? "" : "disabled"
-        }>${isCur ? "已是主帅" : can ? `聘请 ¤${cost}` : `差钱 ¤${cost}`}</button>
+        }>${isCur ? "已是主帅" : can ? `聘请 ¤${cost}` : shortfallLabel(cost, gold)}</button>
       </div>`;
     })
     .join("");
@@ -3527,7 +3528,7 @@ function paintSkillShopRoot({ shop: skillBox, inv: invBox, hint }, c) {
         <div class="tiny">标价 ¤${cost}${offer.rarity === "mythic" ? " · 对齐超巨身价" : ""}</div>
         <button type="button" class="btn small primary" data-buy-skill="${offer.id}" ${
           canAfford ? "" : "disabled"
-        }>${canAfford ? `买入入库 ¤${cost}` : `差钱 ¤${cost}`}</button>
+        }>${canAfford ? `买入入库 ¤${cost}` : shortfallLabel(cost, gold)}</button>
       </div>`;
     })
     .join("") || `<p class="tiny">货架空了——可在市场刷新技能包。</p>`;
@@ -5216,7 +5217,7 @@ function paintFreeAgentList(c, duel = false) {
             ? `<button class="btn small" data-bid="${p.id}">加入竞价</button>`
             : `<button class="btn small ${afford ? "" : "buy-disabled"}" data-buy="${p.id}" ${
                 afford ? "" : "disabled"
-              }>${afford ? "买入" : `差钱 ¤${price}`}</button>`
+              }>${afford ? "买入" : shortfallLabel(price, budget)}</button>`
         }
       </div>`;
     })
