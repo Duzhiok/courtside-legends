@@ -1,0 +1,12 @@
+import { chromium } from "playwright-core";
+const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
+const browser = await chromium.launch({ executablePath: EXE });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
+await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: "domcontentloaded" });
+await page.waitForSelector("#home-legends-wall .legend-tile");
+await page.waitForTimeout(7000);
+const rows = await page.$$eval("#home-legends-wall .legend-tile", (n) => n.map((t) => { const i = t.querySelector("img"); return `${t.querySelector("strong").textContent.padEnd(8)} ${i.complete && i.naturalWidth ? "loaded " + i.naturalWidth + "px" : "NOT LOADED"}  ${decodeURIComponent(i.src).split("/").pop().slice(0, 62)}`; }));
+console.log(rows.join("\n"));
+await (await page.$("#home-legends-wall")).screenshot({ path: process.argv[2] });
+await browser.close();

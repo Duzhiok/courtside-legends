@@ -24,6 +24,43 @@ function decadeOf(season) {
 }
 
 /**
+ * Scraped Commons files that are NOT a portrait of that player: objects, buildings,
+ * paintings, a bus station, someone else. The scraper matched on file names, so
+ * these slipped in (e.g. LeBron's 2000s card was a bus-station platform).
+ * Matched against the decoded URL; a card that loses its era photo falls back to
+ * the NBA CDN headshot. Keep exact — "World_Basketball_Festival_<player>" is fine.
+ */
+export const NOT_A_PORTRAIT = [
+  "signed_basketball",
+  "signed_Lakers_jersey",
+  "Basketball_Center,_Syracuse",
+  "Embassy_of_Hope",
+  "Schuh_v._Shaquille",
+  "Laney_High_School",
+  "Bernard_Cardinal_Law",
+  "Girls_playing_basketball",
+  "At_Anchor_by_Paul",
+  "Cultural_Centre_bus_station",
+  "Jerry_Bell_Field",
+  "LeBron_James_signs_basketball_for_Airman", // an autograph line; his face is out of frame
+  "Magic_Johnson_and_Kareem", // a two-shot, not either player alone
+  "thumbnail.jpg",
+];
+
+export function isPortrait(url) {
+  if (!url) return false;
+  let decoded = url;
+  try {
+    decoded = decodeURIComponent(url);
+  } catch {
+    // keep the raw URL if it is not valid percent-encoding
+  }
+  return !NOT_A_PORTRAIT.some((bad) => decoded.includes(bad));
+}
+
+const usable = (url) => (isPortrait(url) ? url : null);
+
+/**
  * Prefer scraped era photo (same player, different decade) when available.
  */
 export function eraPhoto(player) {
@@ -31,15 +68,15 @@ export function eraPhoto(player) {
   if (!bref) return null;
   const decade = decadeOf(player?.season);
   if (decade != null) {
-    const hit = PHOTO_BY_BREF_DECADE[`${bref}:${decade}`];
+    const hit = usable(PHOTO_BY_BREF_DECADE[`${bref}:${decade}`]);
     if (hit) return hit;
     // nearby decade (±10y) if exact bucket missing
     for (const d of [decade - 10, decade + 10]) {
-      const near = PHOTO_BY_BREF_DECADE[`${bref}:${d}`];
+      const near = usable(PHOTO_BY_BREF_DECADE[`${bref}:${d}`]);
       if (near) return near;
     }
   }
-  return PHOTO_BY_BREF[bref] || null;
+  return usable(PHOTO_BY_BREF[bref]);
 }
 
 export function photoUrl(player) {
