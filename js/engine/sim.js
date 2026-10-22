@@ -3341,12 +3341,16 @@ function estHeightCm(p) {
  */
 function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonus = 0, sigBoost = 0 } = {}) {
   const blk = defender.block || 40;
+  // Base rates tuned up from the original ~2% league-wide realized block rate (measured via
+  // full-game sims) toward the real NBA's ~5.5% of all FGA -- the zone multipliers below
+  // (height/strength mismatch, elite-finisher resistance, etc) already do a lot of discounting
+  // on top of this, so the base needs real headroom before those kick in.
   let chance =
     shot.zone === "three"
-      ? 0.003 + blk * 0.0001
+      ? 0.005 + blk * 0.00017
       : shot.zone === "mid"
-        ? 0.01 + blk * 0.0004 + (100 - open * 100) * 0.0002
-        : 0.014 + blk * 0.0005 + (100 - open * 100) * 0.00022;
+        ? 0.036 + blk * 0.0015 + (100 - open * 100) * 0.0002
+        : 0.055 + blk * 0.002 + (100 - open * 100) * 0.00022;
   chance += defPress * 0.008;
   chance += skillBonus;
   chance += sigBoost;
