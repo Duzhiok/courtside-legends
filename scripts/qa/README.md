@@ -18,6 +18,7 @@ node collection-recycle.mjs <repo>/.wibey-tasks/agent-browser
 Notes
 - Chromium path is `~/Library/Caches/ms-playwright/chromium_headless_shell-1208/...` (macOS); edit `EXE` elsewhere.
 - Use `waitUntil: "domcontentloaded"` — remote player photos never finish loading offline.
+- Images are `loading="lazy"`: scroll each into view before asserting on it (see `revealAll` in `photo-chain.mjs`), and print each check as it runs so a crash cannot hide what passed.
 - 20 % of draws are coach cards: never assume every reveal is a player.
 - Seed fixed 成色 rolls (see `bSeed`) — a random roll can protect every "junk" card and skip checks.
 
@@ -31,7 +32,7 @@ Notes
 | `banner-explain.mjs` | banner subtitles + explanation panel; panel follows the wishlist |
 | `draw-fold.mjs` | where the pull button sits vs. the fold (phone + desktop) |
 | `contrast.mjs` | WCAG AA contrast of the draw-page text, measured from real pixels |
-| `home-legends.mjs` | no blocked photo files on the home page, Jordan uses the headshot fallback |
+| `photo-chain.mjs <out-dir>` | the whole picture chain in a real browser: home wall, credits page, collection avatars (photo + generated), a blocked photo falls back to the avatar, **no request to NBA.com / Basketball-Reference / ui-avatars**; desktop + 390px. Needs network for Wikimedia thumbnails |
 | `legends-wall-dump.mjs <out.png>` | prints each tile's real image file + load state, saves a screenshot |
 | `star-skill-gift.mjs <out-prefix>` | pins Math.random so every pull is the same card, then walks pull 1 (new) → 5th duplicate (★5 skill gift) → 6th (球魂); element screenshot of the reveal |
 

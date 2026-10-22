@@ -1,7 +1,8 @@
 /**
  * Home screen showcase: legends photo wall + photo accents on mode cards.
- * Photos come from the existing Wikimedia-backed era photo map (see photo.js),
- * so there is exactly one place that decides which image a player gets.
+ * Pictures come from photo.js, which is the one place that decides what a player gets.
+ * A tile is drawn only when there is real art (a local illustration or a credited photo):
+ * a generated silhouette is fine in a list but would be a poor stand-in for a "legend".
  */
 import { resolveCardPhoto } from "../data/photo.js";
 
@@ -24,12 +25,10 @@ export function legendPhotoFromToken(token) {
   return legendPhoto({ bref, season: Number(season) });
 }
 
-/**
- * The era photo when it is a real portrait, otherwise the normal fallback chain
- * (NBA headshot → Basketball-Reference → initials). Never an object or a bus stop.
- */
+/** Real art for this legend, or null when the only option would be a generated avatar. */
 export function legendPhoto(legend) {
-  return resolveCardPhoto(legend).photo;
+  const { photo, photoSource } = resolveCardPhoto(legend);
+  return photoSource === "generated" ? null : photo;
 }
 
 function photoImg(src, alt) {

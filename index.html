@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/home.css?v=20261021home1" />
   <link rel="stylesheet" href="css/timeTravel.css?v=1" />
   <link rel="stylesheet" href="css/gacha.css?v=1" />
+  <link rel="stylesheet" href="css/credits.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -147,7 +148,7 @@
       <details class="hint-panel">
         <summary><h2>设计要点 · 玩法说明</h2></summary>
         <ul>
-          <li>球员带赛季年份与当季头像：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。</li>
+          <li>球员带赛季年份：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。头像是带署名的照片；没有照片的球员显示按队色生成的剪影（见页尾「图片来源与署名」）。</li>
           <li>命中率贴近真实：空位也会打铁；完整统计含盖帽、抢断、失误、罚球、前后场篮板、+/- 等。</li>
           <li>隐藏抽卡等级不会显示；巨星抱团不一定赢，化学反应与战术适配更重要。</li>
           <li>晋级/淘汰赛有伤病风险暗属性（如波尔津吉斯类「玻璃人」），连续作战可能伤停缺阵。</li>
@@ -161,13 +162,13 @@
           <li>按成名技术挂技能包：超巨/名人堂可有招牌绝技；另有组合技（空接之城、水花兄弟等，搭档同场才触发）与光环（潜能激发抬队友、防守统领抬全队防守）。</li>
           <li>出手按 2K 逻辑：投篮/三分倾向决定会不会投，能力值决定投得准不准；进攻方式（低位/定点/突破等）与强弱侧共同影响选择。</li>
           <li>本地账号班底：开局先发 7 张系统卡，看完后再自选 5 张；开局只有菜鸟教头。战术板已扩充（牛角/普林斯顿/五外/挡拆轰炸/换防等），每位教练擅长体系不同；名帅与超巨一样靠抽卡。</li>
-          <li>重复球员卡自动合并：该卡全部能力 +1（上限 100），并随机领悟技能（火锅大师 / 四分卫长传 / 场上指挥家 / 大心脏等）。单卡最多合并 20 次。</li>
+          <li>重复卡：抽到已有的同一张卡 → 升 1 星（★1–★5，每星全部能力 +1），并可在新旧两份成色里二选一；已满 ★5 再抽到 → 转成 2 个球魂。抽到已有球员的另一个赛季版本 → 照常入库，并额外得 1 个球魂。3 个球魂可给该球员的任意一张卡升 1 星，用球魂升到 ★5 时赠送一个技能（靠抽卡升到 ★5 不送）。技能只有三个来源：比赛表现领悟、技能碎片购买、★5 礼物；奖项只是荣誉，不送技能。</li>
           <li>球员能力按 NBA 2K 历年标尺从当季数据推算（得分/三分/中投/内线/防守等）；乔丹 91、詹皇巅峰等关键赛季用公开 2K 锚点校正。改完后若数值异常可点「清除名册本地缓存」重建。</li>
           <li>同一球员不同赛季卡会随年龄变化：新秀更快更有弹速，老将判断力/力量/传球/投篮手感与领袖气场、大心脏更强。</li>
           <li>技能≠能力：巨星也可能没有技能包；托尼·阿伦「缠绕盯防」、巴蒂尔「持球克星·3D」、慈世平/考辛斯「火爆脾气」等角色特质可挂在非巨星身上，并影响抢断、空位与技术犯规。</li>
         </ul>
       </details>
-      <p class="tiny home-cache-tools"><button type="button" class="btn small ghost" id="btn-clear-roster-cache" title="清除 Cache Storage + IndexedDB 名册缓存">清除名册本地缓存</button></p>
+      <p class="tiny home-cache-tools"><button type="button" class="btn small ghost" id="btn-open-credits">图片来源与署名</button> <button type="button" class="btn small ghost" id="btn-clear-roster-cache" title="清除 Cache Storage + IndexedDB 名册缓存">清除名册本地缓存</button></p>
     </main>
 
     <main id="screen-account" class="screen">
@@ -210,6 +211,14 @@
         <button class="btn primary" id="btn-collection-draw">每日抽卡</button>
         <button class="btn" id="btn-collection-ranked">用班底打排位</button>
       </div>
+    </main>
+
+    <main id="screen-credits" class="screen">
+      <div class="panel-head">
+        <h2>图片来源与署名</h2>
+        <button class="btn ghost" id="btn-credits-back">返回</button>
+      </div>
+      <div id="credits-body"></div>
     </main>
 
     <main id="screen-draw" class="screen">

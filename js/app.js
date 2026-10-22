@@ -97,6 +97,8 @@ import {
   listPaidPeaks,
 } from "./data/customPool.js";
 import { photoImg } from "./data/photo.js";
+import { LOCAL_AVATARS } from "./data/avatars.local.js";
+import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import {
   loadPlayers,
   overall,
@@ -353,6 +355,7 @@ const screens = {
   account: $("#screen-account"),
   onboard: $("#screen-onboard"),
   collection: $("#screen-collection"),
+  credits: $("#screen-credits"),
   draw: $("#screen-draw"),
   draft: $("#screen-draft"),
   customHub: $("#screen-custom-hub"),
@@ -1709,6 +1712,8 @@ $("#btn-daily-draw")?.addEventListener("click", () => {
   openDailyDraw();
 });
 $("#btn-collection-back")?.addEventListener("click", () => show("home"));
+$("#btn-open-credits")?.addEventListener("click", openCredits);
+$("#btn-credits-back")?.addEventListener("click", () => show("home"));
 $("#btn-draw-back")?.addEventListener("click", () => {
   refreshAccountHomeBar();
   show("collection");
@@ -1967,6 +1972,16 @@ $("#collection-filter")?.addEventListener("change", (event) => {
   collectionFilter = { ...collectionFilter, [key]: value };
   paintCollectionGrid(collectionCache.acc, collectionCache.players);
 });
+
+/** Who took each photo we show, and under which licence (photoCredits.js). */
+function openCredits() {
+  const names = new Map();
+  for (const player of PLAYERS) if (!names.has(player.bref)) names.set(player.bref, player.name);
+  const rows = creditRows(undefined, (bref) => names.get(bref) || bref);
+  $("#credits-body").innerHTML = creditsHtml({ rows, localCount: Object.keys(LOCAL_AVATARS).length }, esc);
+  show("credits");
+  window.scrollTo(0, 0);
+}
 
 function openCollection() {
   const acc = requireAccountReady();
