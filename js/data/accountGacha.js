@@ -8,19 +8,23 @@
  *                        keep the old roll or take the new one (whole set).
  *  - Same person, other season → new version joins the binder + 1 球魂.
  *  - Same card at ★5   → 2 球魂.
- *  No random skill on duplicates anymore — skills come from 领悟 / awards.
+ *  - The duplicate that takes a card to ★5 → one skill, once (see giftStarSkill).
+ *
+ * Skills reach a card ONLY through: 领悟 (epiphany), the 技能碎片 shop, and that
+ * ★5 gift. Season awards no longer hand out skills — they made the strong stronger.
  */
 import { COACHES, coachDrawWeight, isLegendCoach } from "./coaches.js";
 import { clonePlayer, overall, PLAYERS } from "./players.js";
 import {
   applyCardMods,
   rarityLabel,
+  resolvePlayers,
   saveAccount,
   todayKey,
   weightedPick,
 } from "./account.js";
 import { compareRolls, legacyRollSeed, newRollSeed } from "./cardRoll.js";
-import { MAX_CARDS, cardRoom } from "./accountRecycle.js";
+import { MAX_CARDS, buyableSkills, cardRoom } from "./accountRecycle.js";
 import {
   EXTRA_DRAW,
   MAX_STARS,
@@ -37,6 +41,8 @@ import {
 } from "./gacha.js";
 
 const COACH_SHARE = 0.2;
+/** The ★5 gift never rolls the top tiers: 传说 / 神话 stay a 技能碎片 purchase. */
+export const STAR_SKILL_RARITIES = new Set(["common", "rare", "epic"]);
 const SOULS_AT_MAX_STAR = 2;
 const HISTORY_KEEP = 50;
 
@@ -48,6 +54,24 @@ function modOf(account, playerId) {
   account.cardMods = account.cardMods || {};
   account.cardMods[playerId] = account.cardMods[playerId] || { merges: 0, skills: [] };
   return account.cardMods[playerId];
+}
+
+/**
+ * Reaching ★5 by drawing the 5th duplicate gifts one skill, once per card: a random
+ * skill this card could buy (height / age / roster gates apply), below the top tiers.
+ * It is stored in mod.skills + mod.starSkill, NOT mod.bought, so it does not use
+ * up the card's 2 purchasable skill slots.
+ */
+function giftStarSkill(account, playerId, rng, pool) {
+  const mod = modOf(account, playerId);
+  if (mod.starSkill) return null;
+  const [card] = resolvePlayers([playerId], account, pool);
+  const options = buyableSkills(card).filter((skill) => STAR_SKILL_RARITIES.has(skill.rarity));
+  if (!options.length) return null;
+  const pick = options[Math.floor(rng() * options.length)];
+  mod.skills = [...(mod.skills || []), pick.id];
+  mod.starSkill = pick.id;
+  return { id: pick.id, name: pick.name, rarity: pick.rarity };
 }
 
 function addSouls(account, bref, amount) {
@@ -129,6 +153,7 @@ function applyPlayerPull(account, player, rng, pool) {
   let outcome = "new";
   let souls = gachaOf(account).souls[player.bref] || 0;
   let rollChoice = null;
+  let starSkill = null;
 
   if (sameCard) {
     const mod = modOf(account, player.id);
@@ -136,6 +161,7 @@ function applyPlayerPull(account, player, rng, pool) {
       outcome = "starUp";
       mod.merges = (mod.merges || 0) + 1;
       mod.roll = mod.roll || legacyRollSeed(account.id, player.id);
+      if (mod.merges >= MAX_STARS) starSkill = giftStarSkill(account, player.id, rng, pool);
       account.pendingRoll = { playerId: player.id, seed: newRollSeed(rng) };
       rollChoice = pendingRollChoice(account, pool);
     } else {
@@ -149,7 +175,7 @@ function applyPlayerPull(account, player, rng, pool) {
   } else {
     addCopy(account, player, rng);
   }
-  return { outcome, souls, rollChoice };
+  return { outcome, souls, rollChoice, starSkill };
 }
 
 /**
@@ -172,7 +198,7 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
   const pull = pullCard({ pool, gacha: gachaOf(account), banner, rng, ovrOf: overall });
   account.gacha = pull.gacha;
   const ovr = overall(pull.player);
-  const { outcome, souls, rollChoice } = applyPlayerPull(account, pull.player, rng, pool);
+  const { outcome, souls, rollChoice, starSkill } = applyPlayerPull(account, pull.player, rng, pool);
   const goldGain = goldForPull(ovr);
   account.gold = (account.gold || 0) + goldGain;
 
@@ -194,6 +220,7 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
     poolBand: pull.relative ? pull.band.label : null,
     newbieStandard: pull.newbieForced && bannerId !== "standard",
     rollChoice,
+    starSkill,
     ...paid,
   };
 }

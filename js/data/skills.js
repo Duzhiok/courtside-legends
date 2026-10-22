@@ -1968,20 +1968,6 @@ export function skillsLabel(player) {
     .join(" · ");
 }
 
-/** Skills that can be learned by merging duplicate cards. */
-export const MERGE_SKILL_POOL = [
-  "block_artist",
-  "qb_outlet",
-  "floor_commander",
-  "big_heart",
-  "glass_cleaner",
-  "first_step",
-  "cold_mid",
-  "corner_sniper",
-  "paint_finisher",
-  "wing_lock",
-];
-
 /** Rating keys bumped +1 on each card merge (capped at 100). */
 export const MERGE_ATTR_KEYS = [
   "scoring",
@@ -1999,48 +1985,6 @@ export const MERGE_ATTR_KEYS = [
   "steal",
   "block",
 ];
-
-export function pickMergeSkill(ownedSkills = []) {
-  const have = new Set(ownedSkills || []);
-  const pool = MERGE_SKILL_POOL.filter((id) => SKILL_PACKS[id] && !have.has(id));
-  if (!pool.length) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-/** 赛季评奖可选技能包：排除负面特质，且未拥有的。 */
-export function listAwardSkillChoices(ownedSkills = []) {
-  const have = new Set(ownedSkills || []);
-  return Object.values(SKILL_PACKS)
-    .filter((s) => s && !s.negative && s.tone !== "bad" && !s.duo && !s.exclusive && !have.has(s.id))
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh"));
-}
-
-/**
- * Full award skill catalog for UI: marks which the player already owns.
- * Claimable = positive packs not yet owned.
- */
-export function listAwardSkillCatalog(ownedSkills = []) {
-  const have = new Set(ownedSkills || []);
-  const all = Object.values(SKILL_PACKS)
-    .filter((s) => s && !s.negative && s.tone !== "bad" && !s.duo && !s.exclusive)
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      desc: s.desc || "",
-      tone: s.tone || "blue",
-      signature: !!s.signature,
-      owned: have.has(s.id),
-    }))
-    .sort((a, b) => {
-      if (a.owned !== b.owned) return a.owned ? 1 : -1;
-      return String(a.name).localeCompare(String(b.name), "zh");
-    });
-  return {
-    available: all.filter((s) => !s.owned),
-    owned: all.filter((s) => s.owned),
-    all,
-  };
-}
 
 /** 是否可被购买 / 学习（组合技与专属技一律否） */
 export function isLearnableSkill(skillId) {

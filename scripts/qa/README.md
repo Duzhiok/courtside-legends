@@ -33,8 +33,11 @@ Notes
 | `contrast.mjs` | WCAG AA contrast of the draw-page text, measured from real pixels |
 | `home-legends.mjs` | no blocked photo files on the home page, Jordan uses the headshot fallback |
 | `legends-wall-dump.mjs <out.png>` | prints each tile's real image file + load state, saves a screenshot |
+| `star-skill-gift.mjs <out-prefix>` | pins Math.random so every pull is the same card, then walks pull 1 (new) → 5th duplicate (★5 skill gift) → 6th (球魂); element screenshot of the reveal |
 
 Visual checks
 - **A passing "image loaded" check does not prove it is the right person.** The 1991 Jordan tile used to load fine — as a signed-basketball display case. Look at the screenshot, and print the file names (`legends-wall-dump.mjs`).
 - Save every screenshot to a **fresh file name**. Re-reading a reused path once showed a stale image and led to a wrong conclusion.
 - `cdn.nba.com` can be unreachable from a sandbox while `curl` works; treat those tiles as "unverified", not "broken".
+- **Screenshot the element you are verifying, not the viewport.** A viewport shot of the draw page showed only the header; the gift message was below the fold and the check looked done when it was not.
+- `node --check` does not catch a missing export — one removed name would blank the whole app in the browser. Boot the real page after deleting exports.
