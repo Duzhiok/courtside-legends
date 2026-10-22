@@ -8,7 +8,9 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 44; // bump: Bird no 传球魔术; Garnett no 篮下暴君 / 传球魔术 (stale v42 kept them); name rules no longer hit Jim/Rick Fox, other Lukas, other Simmonses
+export const ROSTER_SCHEMA = 45; // bump: fixed PF-era players stuck at SF (Garnett/Malone/Barkley/Rodman/
+// McHale/Oakley/Willis/Kemp/etc.), Rondo stuck at SF, Rondo/Butler given signature skill kits, hiddenTier no
+// longer requires ppg alone (unlocks elite non-scoring passers/defenders), Middleton height fixed
 const DB_NAME = "courtside-legends";
 const STORE = "roster";
 const DB_VERSION = 2;

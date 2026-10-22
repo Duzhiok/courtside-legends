@@ -32,3 +32,26 @@ test("Paul George keeps 三分雨, 中投大师 and 中投刺客 in every season
   assert.equal(cards.length, 15);
   for (const card of cards) for (const id of ["rainmaker", "mid_maestro", "midrange_assassin"]) assert.ok(card.skills.includes(id), `${card.season} lacks ${id}`);
 });
+
+test("Rajon Rondo has skills on every card, including low-ppg bench-tier seasons (he is 场上大脑, not a scorer)", () => {
+  const cards = cardsOf("rondora01");
+  assert.ok(cards.length >= 10);
+  for (const card of cards) {
+    assert.equal(card.pos, "PG", `${card.season} should read PG`);
+    for (const id of ["floor_commander", "dime_dropper", "lockdown"]) assert.ok(card.skills.includes(id), `${card.season} lacks ${id}`);
+  }
+});
+
+test("Jimmy Butler has skills on every card", () => {
+  const cards = cardsOf("butleji01");
+  assert.ok(cards.length >= 10);
+  for (const card of cards) {
+    for (const id of ["clutch_killer", "freeze_iso", "motor_engine"]) assert.ok(card.skills.includes(id), `${card.season} lacks ${id}`);
+  }
+});
+
+test("a high-production, low-scoring season (Rondo 2012: 11.9ppg/11.7apg) reaches star-tier-or-above, not capped at starter by a scoring floor alone", () => {
+  const card2012 = cardsOf("rondora01").find((c) => c.season === 2012);
+  assert.ok(card2012, "2012 Rondo card missing");
+  assert.ok(["star", "allstar", "superstar"].includes(card2012.hiddenTier), `tier was ${card2012.hiddenTier}`);
+});
