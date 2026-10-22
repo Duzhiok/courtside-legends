@@ -1,0 +1,50 @@
+import { chromium } from "playwright-core";
+const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
+const OUT = process.argv[2]; const STAMP = Date.now();
+const browser = await chromium.launch({ executablePath: EXE });
+const out = [];
+const check = (l, ok, d = "") => out.push(`${ok ? "PASS" : "FAIL"} ${l}${d ? " — " + d : ""}`);
+for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
+  const page = await browser.newPage({ viewport: { width: w, height: h } });
+  const errors = []; page.on("pageerror", (e) => errors.push(e.message));
+  const home = () => page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
+  await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: "domcontentloaded" }); await home();
+  await page.evaluate(async () => {
+    const acc = await import("/js/data/account.js"); const pl = await import("/js/data/players.js"); const co = await import("/js/data/coaches.js");
+    const a = acc.createAccount("banner QA");
+    a.playerIds = pl.PLAYERS.filter((p) => pl.overall(p) < 70).slice(0, 12).map((p) => p.id);
+    a.onboardingDone = true; a.welcomeGranted = true; a.coachId = co.COACHES[0].id; a.coachIds = [a.coachId];
+    acc.saveAccount(a); acc.setActiveAccountId(a.id);
+  });
+  await page.reload({ waitUntil: "domcontentloaded" }); await home();
+  await page.click("#btn-daily-draw"); await page.waitForSelector("#screen-draw.active");
+  const subs = await page.$$eval(".draw-banner .tiny", (n) => n.map((e) => e.textContent.trim()));
+  check(`[${tag}] standard subtitle: size + absolute OVR`, /张全历史赛季卡 · 按绝对 OVR 分档/.test(subs[0]), subs[0]);
+  check(`[${tag}] era subtitle: cards, people, relative, days`, /\d+ 张 · \d+ 人 · 池内排名分档 · [1-7] 天后轮换/.test(subs[1]), subs[1]);
+  check(`[${tag}] team subtitle likewise`, /\d+ 张 · \d+ 人 · 池内排名分档/.test(subs[2]), subs[2]);
+  const explain = async () => (await page.textContent("#draw-banner-explain")).replace(/\s+/g, " ").trim();
+  check(`[${tag}] default (standard) explanation`, /绝对 OVR/.test(await explain()) && /还没设心愿球员/.test(await explain()));
+  await page.click(".draw-banner:nth-child(2)");
+  const era = await explain();
+  check(`[${tag}] era explanation: relative rating, best cards, days left`, /本池内排名/.test(era) && /本池最强：.+OVR \d+/.test(era) && /还剩 [1-7] 天轮换/.test(era), era.slice(0, 110));
+  // wish a person through the real UI and watch the banner explanation follow
+  await page.click("#draw-wishlist summary");
+  await page.fill("#wish-search", "Michael Jordan");
+  await page.waitForSelector("[data-wish]");
+  await page.click("[data-wish]");
+  await page.waitForTimeout(300);
+  const wished = await explain();
+  check(`[${tag}] after setting a wish, the era panel reports whether he is in the pool`, /心愿球员 .*Jordan.*(本池有 \d+ 张他的卡|没有他的卡)/.test(wished), wished.match(/心愿球员[^。]*/)?.[0]);
+  await page.click(".draw-banner:nth-child(1)");
+  const std = await explain();
+  check(`[${tag}] standard panel says he is in the all-history pool`, /心愿球员 .*Jordan.*本池有 \d+ 张他的卡/.test(std), std.match(/心愿球员[^。]*/)?.[0]);
+  check(`[${tag}] no horizontal overflow`, !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)));
+  check(`[${tag}] no page errors`, errors.length === 0, errors.join(";"));
+  await page.click(".draw-banner:nth-child(2)");
+  await page.locator("#draw-banners").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${OUT}/banners-${tag}-${STAMP}.png` });
+  console.log(`shot: banners-${tag}-${STAMP}.png`);
+  await page.close();
+}
+await browser.close(); console.log(out.join("\n"));

@@ -3,7 +3,8 @@
  * app.js owns DOM wiring. View helpers (esc, photoImg, …) are injected so this
  * module never reaches into app.js globals.
  */
-import { MAX_STARS, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
+import { EXTRA_DRAW, MAX_STARS, NEWBIE, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
+import { MILESTONE_WINS, WELCOME_TICKETS } from "../data/dailyTasks.js";
 import { GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "../data/growthPaths.js";
 import { MAX_CARDS } from "../data/accountRecycle.js";
 import { scoutLabel } from "../data/intangibles.js";
@@ -23,19 +24,63 @@ export function rateSummary() {
 }
 
 export function drawRulesHtml() {
-  const rates = rateSummary();
-  return `<p class="tiny">每天免费 1 抽，之后可用金币加抽。约 20% 出教练卡。<br/>
-    球员概率：${rates}。<br/>
-    保底：每 ${PITY.allstarEvery} 抽必出全明星+，${PITY.legendAt} 抽必出传奇+。抽前只看得到 OVR——成色、隐藏能力、妖人标签入手后才揭晓。</p>`;
+  return `<details class="draw-rules-more">
+    <summary>概率与保底规则</summary>
+    <p class="tiny"><strong>抽卡顺序</strong>：每日免费 1 抽 → 抽卡券 → 金币加抽（¤${EXTRA_DRAW.cost}/次，每天最多 ${EXTRA_DRAW.perDay} 次）。
+    抽卡券来源：新手礼包 ${WELCOME_TICKETS} 张、每日排位任务（打 1 场 +1、赢 1 场 +1）、排位累计每 ${MILESTONE_WINS} 胜 +1。约 20% 出教练卡。<br/>
+    <strong>球员概率</strong>：${rateSummary()}。<br/>
+    <strong>保底</strong>：新手前 ${NEWBIE.allstarByPull} 抽必出 85+（只一次，一定从常驻池出）；之后每 ${PITY.allstarEvery} 抽必出全明星+，${PITY.legendAt} 抽必出传奇+。教练卡也算一抽。<br/>
+    抽前只看得到 OVR——成色、隐藏能力、妖人标签入手后才揭晓。</p>
+  </details>`;
 }
 
-export function bannerPickerHtml(banners, selectedId, esc) {
+const fmt = (n) => n.toLocaleString("en-US");
+const bandFloors = () => RATE_TABLE.filter((band) => band.id !== "common" && band.min >= 85).map((band) => `${band.label} ${band.min}+`).join("、");
+
+/** One line under each banner button: how big it is and how its rarity is measured. */
+function bannerSubtitle(banner, stats, days) {
+  if (!stats) return banner.kind === "standard" ? "全历史赛季卡" : "每周轮换";
+  if (banner.kind === "standard") return `${fmt(stats.cards)} 张全历史赛季卡 · 按绝对 OVR 分档`;
+  return `${fmt(stats.cards)} 张 · ${fmt(stats.people)} 人 · 池内排名分档 · ${days} 天后轮换`;
+}
+
+export function bannerPickerHtml(banners, selectedId, esc, view = {}) {
   return banners
     .map((banner) => `<button type="button" class="draw-banner${banner.id === selectedId ? " active" : ""}" data-banner="${banner.id}" aria-pressed="${banner.id === selectedId}">
         <strong>${esc(banner.name)}</strong>
-        <span class="tiny">${banner.kind === "standard" ? "23k 全历史赛季卡" : "每周轮换 · 卡池更窄，目标更容易出"}</span>
+        <span class="tiny">${esc(bannerSubtitle(banner, view.stats?.[banner.id], view.days))}</span>
       </button>`)
     .join("");
+}
+
+function wishLine(stats, wishName, esc) {
+  if (!wishName) return "还没设心愿球员——设了之后，这里会告诉你他在不在这个池里。";
+  const name = esc(wishName);
+  return stats.wishCards > 0
+    ? `心愿球员 <strong>${name}</strong>：本池有 ${stats.wishCards} 张他的卡 ✔`
+    : `心愿球员 <strong>${name}</strong>：本池<strong>没有</strong>他的卡——换个池抽。`;
+}
+
+/** What the selected banner means. Headline + wish stay visible; the how-it-works part folds away. */
+export function bannerExplainHtml(banner, stats, { days, wishName } = {}, esc = (x) => x) {
+  if (!banner || !stats) return "";
+  const best = stats.top.map((t) => `${esc(t.name)} ${t.season}（OVR ${t.ovr}）`).join(" · ");
+  const standard = banner.kind === "standard";
+  const headline = standard
+    ? `<strong>${esc(banner.name)}</strong>：${fmt(stats.cards)} 张赛季卡、${fmt(stats.people)} 位球员。`
+    : `<strong>${esc(banner.name)}</strong>：${fmt(stats.cards)} 张赛季卡、${fmt(stats.people)} 位球员，还剩 ${days} 天轮换。`;
+  const how = standard
+    ? `稀有度按<strong>绝对 OVR</strong> 分档（${bandFloors()}）。`
+    : `稀有度按<strong>「本池内排名」</strong>换算：本池最强的那批出神话档——所以弱年代也有高档位，强年代整体更强。但档位只表示「这个池里的位置」，不等于 OVR 96+。抽到的卡会标「池内 X 档」。<br/>本池最强：${best}`;
+  return `<div class="banner-explain" role="region" aria-label="卡池说明">
+      <p class="tiny">${headline}</p>
+      <p class="tiny">${wishLine(stats, wishName, esc)}</p>
+      <details class="banner-more">
+        <summary>稀有度怎么算${standard ? "" : " · 本池最强"}</summary>
+        <p class="tiny">${how}</p>
+        <p class="tiny muted">新手保底那一抽不论选哪个池，都从常驻池出。</p>
+      </details>
+    </div>`;
 }
 
 export function drawStatusHtml(account, availability, wishName, esc) {

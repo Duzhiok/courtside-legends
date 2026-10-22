@@ -29,7 +29,7 @@ import {
   setWishlist,
   starUpWithSouls,
 } from "./data/accountGacha.js";
-import { currentBanners } from "./data/gacha.js";
+import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js";
 import { searchPeople } from "./data/cardSearch.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
@@ -47,6 +47,7 @@ import {
 import { manageBarHtml, recycleButtonHtml, skillShopHtml } from "./ui/collectionManageView.js";
 import { applyCollectionView, decadesOf, filterBarHtml, freshFilter, redundantIds } from "./ui/collectionFilter.js";
 import {
+  bannerExplainHtml,
   bannerPickerHtml,
   drawRevealHtml,
   drawRulesHtml,
@@ -2189,11 +2190,31 @@ function renderWishPanel(acc) {
   );
 }
 
+let bannerStatsCache = { key: "", stats: {} };
+
+/** Banner buttons + the explanation of the selected one (pool facts, wished player). */
+function paintDrawBanners(acc) {
+  const banners = currentBanners();
+  const wish = acc.gacha?.wishlist || null;
+  const key = `${banners.map((banner) => banner.id).join("|")}|${wish}|${PLAYERS.length}`;
+  if (bannerStatsCache.key !== key) {
+    bannerStatsCache = {
+      key,
+      stats: Object.fromEntries(banners.map((banner) => [banner.id, bannerStats(PLAYERS, banner, overall, wish)])),
+    };
+  }
+  const days = daysUntilRotation();
+  const selected = banners.find((banner) => banner.id === drawBannerId) || banners[0];
+  const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
+  $("#draw-banners").innerHTML = bannerPickerHtml(banners, selected.id, esc, { stats: bannerStatsCache.stats, days });
+  $("#draw-banner-explain").innerHTML = bannerExplainHtml(selected, bannerStatsCache.stats[selected.id], { days, wishName }, esc);
+}
+
 function openDailyDraw() {
   const acc = requireAccountReady();
   if (!acc) return;
   $("#draw-rules").innerHTML = drawRulesHtml();
-  $("#draw-banners").innerHTML = bannerPickerHtml(currentBanners(), drawBannerId, esc);
+  paintDrawBanners(acc);
   const choice = pendingRollChoice(acc);
   $("#draw-stage").innerHTML = choice
     ? `<p class="tiny">上次升星还没选成色：</p>${rollChoiceHtml(choice)}`
@@ -2211,13 +2232,14 @@ $("#screen-draw")?.addEventListener("click", (event) => {
   try {
     if (target.dataset.banner) {
       drawBannerId = target.dataset.banner;
-      $("#draw-banners").innerHTML = bannerPickerHtml(currentBanners(), drawBannerId, esc);
+      paintDrawBanners(acc);
     } else if (target.dataset.rollKeep) {
       const keepNew = target.dataset.rollKeep === "new";
       resolvePendingRoll(acc, keepNew);
       target.closest(".roll-choice").innerHTML = `<p class="tiny">已${keepNew ? "换成新" : "保留原"}成色。</p>`;
     } else if (target.dataset.wish) {
       setWishlist(acc, target.dataset.wish);
+      paintDrawBanners(acc);
     } else if (target.dataset.craft) {
       const { player, cost } = craftWishCard(acc, target.dataset.craft);
       $("#draw-stage").innerHTML = `<p class="tiny">花费 ¤${cost} 合成 ${esc(player.name)}（${player.season}）——成色去「我的球员卡」揭晓。</p>`;

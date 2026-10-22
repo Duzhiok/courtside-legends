@@ -414,3 +414,52 @@
     text-align: right;
   }
 }
+
+.banner-explain {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--gold, #c9a227);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.banner-explain p {
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.banner-explain p:last-child {
+  margin-bottom: 0;
+}
+
+.banner-explain .muted {
+  opacity: 0.75;
+}
+
+.draw-rules-more,
+.banner-more {
+  margin-top: 4px;
+}
+
+.draw-rules-more summary,
+.banner-more summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--muted, #5f6b5f);
+}
+
+/* WCAG AA: the site-wide .tiny grey is 4.69:1 on white cards but 3.4–4.3:1 on the tinted
+   panels of these screens. Darker grey here only; the global colour is a separate decision. */
+#screen-draw .tiny,
+#screen-collection .tiny,
+#screen-draw summary,
+#screen-collection summary {
+  color: #475569;
+}
+
+.draw-banner .tiny {
+  text-wrap: balance;
+}
