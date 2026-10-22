@@ -21,6 +21,7 @@ import { PHOTO_CREDITS } from "./photoCredits.js";
 import { wikimediaFile } from "./photoSource.js";
 import { CURATED_PHOTOS } from "./photos.curated.js";
 import { PHOTO_BY_BREF as SCRAPED_BY_BREF, PHOTO_BY_BREF_DECADE as SCRAPED_BY_DECADE } from "./photos.scraped.js";
+import { PHOTO_BY_BREF_WIKI } from "./photos.wiki.js";
 
 export { NOT_A_PORTRAIT, isPortrait } from "./photoBlocklist.js";
 
@@ -34,11 +35,12 @@ export function bbrefHeadshotUrl(bref) {
   return `https://www.basketball-reference.com/req/202106291/images/headshots/${bref}.jpg`;
 }
 
-// Curated entries override the generated scraped tables. Keys are "bref:decade" or "bref",
-// so one merge serves both lookups.
+// Curated entries override the generated scraped tables, which override the auto-discovered
+// Wikipedia ones (photos.wiki.js) -- hand-verified work always wins over name-matched guesses.
+// Keys are "bref:decade" or "bref", so one merge serves both lookups.
 const CURATED_URLS = Object.fromEntries(Object.entries(CURATED_PHOTOS).map(([key, photo]) => [key, photo.url]));
 const PHOTO_BY_BREF_DECADE = { ...SCRAPED_BY_DECADE, ...CURATED_URLS };
-const PHOTO_BY_BREF = { ...SCRAPED_BY_BREF, ...CURATED_URLS };
+const PHOTO_BY_BREF = { ...PHOTO_BY_BREF_WIKI, ...SCRAPED_BY_BREF, ...CURATED_URLS };
 
 function decadeOf(season) {
   const s = Number(season);

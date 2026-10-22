@@ -8,6 +8,7 @@ import { wikimediaFile } from "../js/data/photoSource.js";
 import { LOCAL_AVATARS } from "../js/data/avatars.local.js";
 import { CURATED_PHOTOS } from "../js/data/photos.curated.js";
 import { PHOTO_BY_BREF, PHOTO_BY_BREF_DECADE } from "../js/data/photos.scraped.js";
+import { PHOTO_BY_BREF_WIKI } from "../js/data/photos.wiki.js";
 
 const ROSTER = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 
@@ -24,10 +25,13 @@ test("no card in the whole roster can be given a search-engine image, and every 
       seen.credited += 1;
     }
   }
-  assert.ok(seen.credited > 800, `credited photos should cover ~900 cards, got ${seen.credited}`);
-  // Everyone with a bref and no curated/local photo now gets the hot-linked BBRef headshot
-  // instead of a generated avatar — that is the whole point of this tier (personal-use choice).
-  assert.ok(seen.hotlinked > 20000, `expected the hot-link tier to cover almost everyone else, got ${seen.hotlinked}`);
+  assert.ok(seen.credited > 15000, `credited photos should now cover most of the roster thanks to the Wikipedia auto-discovery tier, got ${seen.credited}`);
+  // Everyone with a bref and no curated/local/wiki photo still gets the hot-linked BBRef
+  // headshot instead of a generated avatar -- that is the whole point of this tier (personal-use
+  // choice). This count keeps shrinking as more real, credited photos get discovered, which is
+  // the intended direction -- so this just checks it is still a meaningful fallback, not a
+  // specific number.
+  assert.ok(seen.hotlinked > 1000, `expected the hot-link tier to still cover a meaningful chunk of the roster, got ${seen.hotlinked}`);
   assert.equal(seen.generated, 0, "every roster row has a bref, so nobody should fall all the way to a generated avatar");
 });
 
@@ -109,12 +113,20 @@ test("photoImg escapes names and classes (an apostrophe or a quote must not brea
 const tableFiles = () => {
   const files = new Set();
   const overridden = (key) => key in CURATED_PHOTOS;
+  const brefCovered = new Set([
+    ...Object.keys(PHOTO_BY_BREF).map((k) => k.split(":")[0]),
+    ...Object.keys(PHOTO_BY_BREF_DECADE).map((k) => k.split(":")[0]),
+    ...Object.keys(CURATED_PHOTOS).map((k) => k.split(":")[0]),
+  ]);
   const add = (url) => {
     const file = wikimediaFile(url);
     if (file && isPortrait(url)) files.add(file);
   };
   for (const [key, url] of [...Object.entries(PHOTO_BY_BREF), ...Object.entries(PHOTO_BY_BREF_DECADE)]) if (!overridden(key)) add(url);
   for (const photo of Object.values(CURATED_PHOTOS)) add(photo.url);
+  // Wiki-discovered candidates only count where hand-verified data doesn't already cover that
+  // bref -- same precedence build-credits.mjs's collectFiles() uses.
+  for (const [bref, url] of Object.entries(PHOTO_BY_BREF_WIKI)) if (!brefCovered.has(bref)) add(url);
   return [...files].sort();
 };
 
@@ -129,8 +141,13 @@ test("every credit names an author, a recognised free licence, and a Commons pag
     assert.match(credit.license, /^(CC BY|CC0|Public domain|PD[ -]|GFDL)/i, `${file}: ${credit.license}`);
     assert.match(credit.page, /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/, file);
     assert.ok(credit.brefs.length > 0, `${file}: used by nobody`);
-    if (credit.license !== "Public domain") {
+    if (credit.license !== "Public domain" && credit.license !== "CC0") {
+      // CC0 is a public-domain dedication -- the uploader waives every right including
+      // attribution, so "Unknown author" (common for old institutional archive scans) is fine
+      // here for the same reason it's fine for "Public domain".
       assert.doesNotMatch(credit.artist, /^Unknown author$/i, `${file}: a ${credit.license} photo needs a real author`);
+    }
+    if (credit.license !== "Public domain") {
       assert.match(credit.licenseUrl || "", /^https?:\/\//, `${file}: attribution needs a licence link`);
     }
   }

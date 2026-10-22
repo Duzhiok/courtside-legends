@@ -220,3 +220,46 @@
 - `tests/skillComplaints.test.js` 里上一轮（R-早期）写的 Paul George 测试原本断言他**必须有**三分雨/中投大师——那是当时修"乔治缺技能"遗留的旧断言，这轮改成断言新技能组合 + 明确断言旧技能已经不在了，否则这个测试会变成一份过期文档。新增 Matt Barnes 测试。
 - 技能变化影响所有卡片输出，`ROSTER_SCHEMA` 从 45 bump 到 46，重新跑了 `scripts/cards/update-schema-fixture.mjs`。
 - 真实浏览器验证：乔治 15 张卡全部是新技能组合、不含旧技能；巴恩斯 14 张卡全部有 `enforcer`；0 个 page error。全量 500 测试、lint 全绿。
+
+### R30：Wikipedia 自动发现头像，大幅提升真实头像覆盖率
+
+用户反馈：大多数球员头像还是没有换成真人照片，要求尽量让每个人至少有一个头像，有多张可用照片的球员按赛季年代给不同头像。
+
+根因排查：
+- 之前的头像链路（本地插画 → 有署名的 Wikimedia 照片 → BBRef 热链头像 → 生成头像）本身没问题，但"有署名 Wikimedia 照片"这一档此前只手工整理了 75 个人（173 个 bref:decade 条目），对 4398 个真实球员来说覆盖率只有 1.7%。
+- BBRef 热链实测命中率约 50-55%（抽样测试），很多角色球员、尤其 1980 年代以前的球员在 basketball-reference.com 上根本没有头像资源，会 404 回退到生成头像——这是用户感知"头像没换"的主要原因。
+- 真实浏览器验证确认 BBRef 热链本身能正常加载（之前怀疑的"全部 error"是我自己的测试脚本手滑传了一个错误的强制代理配置，不是真的网络问题）。
+
+新增自动发现管线：
+- `scripts/photos/discover-wiki.mjs`：用 Wikipedia 的 `action=query&prop=pageimages|pageprops` 批量接口（一次最多 50 个条目）按球员姓名查 Wikipedia 词条首图。只接受 `/wikipedia/commons/` 路径的图（排除英文维基本地非自由版权头像），并用 `pageprops["wikibase-shortdesc"]` 里是否含 "basketball" 做兜底校验，防止撞车到同名的其他名人。找不到的名字会再试一次"<姓名> (basketball)"消歧义后缀。
+  - 第一版用 Wikipedia REST `page/summary` 单条查询，结果在公司共享出口 IP 上撞到限流，1 条要等到 10+ 秒；改成批量 `action=query` 接口后，4323 人只需要约 90 批请求，几分钟内跑完。
+  - 产出写入新文件 `js/data/photos.wiki.js`，导出 `PHOTO_BY_BREF_WIKI`，在 `photo.js` 的合并优先级里排在 `scraped`/`curated` **之下**（自动名字匹配的可信度低于人工核实过的条目，绝不会覆盖已有的手工数据）。
+- `scripts/photos/build-credits.mjs` 升级：
+  - 加了 429 重试退避（之前遇到限流直接崩溃，现在等一等重试，并且每批次就增量写盘，中途失败不会丢光已验证的结果）；
+  - 新增校验：许可证要求署名（非 Public domain / CC0）但作者写的是 "Unknown author" 时直接拒绝——这种组合在法律上没法真正署名，不能用；
+  - 现在同时扫描 `photos.wiki.js`（仅限该 bref 还没有手工数据覆盖时）。
+- 新增 `scripts/photos/prune-uncredited-wiki.mjs`：跑完 `build-credits.mjs` 后，把没通过版权校验的候选从 `photos.wiki.js` 里摘掉、转成 miss 记录，保证数据表里不会留着"反正也用不了"的死数据。
+
+最终结果：
+- 发现 2574 个候选，经版权校验后 2561 个干净（13 个因许可证只是"Attribution"或作者未知+需要署名的许可证被拒绝，含 5 个是本轮新加的"未知作者+需要署名许可证"校验才抓到的，之前会漏判）。
+- 全库 2640 个 Commons 文件全部拿到署名信息，0 个 UNCREDITED。
+- 全库 4398 个真实球员中，2625 人（59.7%）现在有真实、有署名的历史/现代照片；1950 年代的 Cousy、Schayes、Pollard、Macauley、Arizin 等名人堂球员是这批新增里的典型代表，真实浏览器加载验证全部成功、0 个 page error。
+- 剩下约 1773 人仍走 BBRef 热链，其中约一半会成功加载，另一半会在浏览器里通过现有的 `onerror` 回退机制换成生成头像——即"每个人至少有一个头像"的底线。
+- 自动发现这一层**每人只有一张代表照**，不是按年代给不同头像；按年代/球队区分多张头像的能力仍然只存在于手工整理的 `photos.scraped.js`/`photos.curated.js` 两层（`eraPhoto()` 的就近年代回退逻辑没变）。如果要让新发现的 2561 人也按年代区分头像，需要针对每个人再去扒 Wikipedia Commons 分类下的多张历史照片，工作量大得多，这轮没有做。
+
+测试/文档改动：
+- `tests/photo.test.js` 新增 5 个针对 `photos.wiki.js` 的测试（候选 URL 格式、与手工数据不重叠、1950 年代球星确有候选、署名后能通过 `eraPhoto()` 正确展示、未署名的不会展示）；把一处用真人 `rondora01` 做"走热链"示例的旧测试换成了虚构 bref，避免以后自动发现覆盖到他导致测试变脆。
+- `tests/photoPolicy.test.js`：
+  - 更新"署名覆盖面必须和数据表完全对应"测试，让它也扫描 `photos.wiki.js`；
+  - 放宽"CC0/Public domain 可以没有真实作者"的豁免到两种许可证（原来只豁免 Public domain，但 CC0 本质也是放弃全部权利，不该卡作者名）；
+  - 更新两个被新头像大幅改变分布的硬编码阈值断言（"热链覆盖 20000+ 张卡"改成"热链仍覆盖有意义的一部分，但不再要求是大多数"）。
+- `ROSTER_SCHEMA`：46 → 47（头像变化会改变卡片输出，必须 bump 避免浏览器继续用旧缓存）。
+
+验证：
+- `npm test`：505/505 全绿；`npm run lint` 全绿；`git diff --check` 通过。
+- 真实 headless Chromium 验证 5 个 1950 年代新头像全部成功加载，0 个 page error。
+
+遗留事项：
+- BBRef 热链仍有约一半会 404，最终体验里这部分人会落到生成头像——用户已明确接受这是底线，不是 bug。
+- 自动发现只给一张代表照，没有按年代区分；如果用户对某些球员的"年代感"有强烈要求（比如想要球员职业生涯早期/巅峰期/暮年分别用不同照片），需要后续针对性扩充 `photos.curated.js`。
+- `discover-wiki.mjs`、`build-credits.mjs`、`prune-uncredited-wiki.mjs` 都设计成可重复运行、增量更新——以后新增球员或想再捞一轮漏网之鱼，直接重新跑这三个脚本即可（顺序：discover → build-credits → prune → build-credits 再跑一次确认 UNCREDITED 为空）。
