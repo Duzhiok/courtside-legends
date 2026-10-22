@@ -57,6 +57,7 @@ import {
   hiddenBadgesHtml,
   rollChoiceHtml,
   soulButtonHtml,
+  soulStarNotice,
   wishlistHtml,
 } from "./ui/gachaView.js";
 import {
@@ -2055,7 +2056,8 @@ function openCollection() {
       const button = event.target.closest("[data-soul-star]");
       if (!button) return;
       try {
-        starUpWithSouls(acc, button.dataset.soulStar);
+        const notice = soulStarNotice(starUpWithSouls(acc, button.dataset.soulStar));
+        if (notice) alert(notice);
         openCollection();
       } catch (error) {
         alert(error.message);

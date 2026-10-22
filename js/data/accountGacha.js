@@ -8,10 +8,12 @@
  *                        keep the old roll or take the new one (whole set).
  *  - Same person, other season → new version joins the binder + 1 球魂.
  *  - Same card at ★5   → 2 球魂.
- *  - The duplicate that takes a card to ★5 → one skill, once (see giftStarSkill).
+ *  - Spending 球魂 to take a card to ★5 → one skill, once (see giftStarSkill).
+ *    Reaching ★5 by drawing duplicates does NOT gift one.
  *
  * Skills reach a card ONLY through: 领悟 (epiphany), the 技能碎片 shop, and that
  * ★5 gift. Season awards no longer hand out skills — they made the strong stronger.
+ * (Gold skill packs in the single-run 执教席 shop are a separate, run-scoped mode.)
  */
 import { COACHES, coachDrawWeight, isLegendCoach } from "./coaches.js";
 import { clonePlayer, overall, PLAYERS } from "./players.js";
@@ -57,7 +59,7 @@ function modOf(account, playerId) {
 }
 
 /**
- * Reaching ★5 by drawing the 5th duplicate gifts one skill, once per card: a random
+ * Taking a card to ★5 with 球魂 gifts one skill, once per card: a random
  * skill this card could buy (height / age / roster gates apply), below the top tiers.
  * It is stored in mod.skills + mod.starSkill, NOT mod.bought, so it does not use
  * up the card's 2 purchasable skill slots.
@@ -153,7 +155,6 @@ function applyPlayerPull(account, player, rng, pool) {
   let outcome = "new";
   let souls = gachaOf(account).souls[player.bref] || 0;
   let rollChoice = null;
-  let starSkill = null;
 
   if (sameCard) {
     const mod = modOf(account, player.id);
@@ -161,7 +162,6 @@ function applyPlayerPull(account, player, rng, pool) {
       outcome = "starUp";
       mod.merges = (mod.merges || 0) + 1;
       mod.roll = mod.roll || legacyRollSeed(account.id, player.id);
-      if (mod.merges >= MAX_STARS) starSkill = giftStarSkill(account, player.id, rng, pool);
       account.pendingRoll = { playerId: player.id, seed: newRollSeed(rng) };
       rollChoice = pendingRollChoice(account, pool);
     } else {
@@ -175,7 +175,7 @@ function applyPlayerPull(account, player, rng, pool) {
   } else {
     addCopy(account, player, rng);
   }
-  return { outcome, souls, rollChoice, starSkill };
+  return { outcome, souls, rollChoice };
 }
 
 /**
@@ -198,7 +198,7 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
   const pull = pullCard({ pool, gacha: gachaOf(account), banner, rng, ovrOf: overall });
   account.gacha = pull.gacha;
   const ovr = overall(pull.player);
-  const { outcome, souls, rollChoice, starSkill } = applyPlayerPull(account, pull.player, rng, pool);
+  const { outcome, souls, rollChoice } = applyPlayerPull(account, pull.player, rng, pool);
   const goldGain = goldForPull(ovr);
   account.gold = (account.gold || 0) + goldGain;
 
@@ -220,7 +220,6 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
     poolBand: pull.relative ? pull.band.label : null,
     newbieStandard: pull.newbieForced && bannerId !== "standard",
     rollChoice,
-    starSkill,
     ...paid,
   };
 }
@@ -248,7 +247,7 @@ export function resolvePendingRoll(account, keepNew) {
 }
 
 /** Spend SOULS_PER_STAR 球魂 of that person for ★+1 on one of their owned cards. */
-export function starUpWithSouls(account, playerId, { pool = PLAYERS } = {}) {
+export function starUpWithSouls(account, playerId, { pool = PLAYERS, rng = Math.random } = {}) {
   if (!(account?.playerIds || []).includes(playerId)) throw new Error("未拥有该卡");
   const base = pool.find((p) => p.id === playerId);
   const gacha = gachaOf(account);
@@ -258,8 +257,9 @@ export function starUpWithSouls(account, playerId, { pool = PLAYERS } = {}) {
   if (have < SOULS_PER_STAR) throw new Error(`球魂不足（需要 ${SOULS_PER_STAR}）`);
   addSouls(account, base.bref, -SOULS_PER_STAR);
   mod.merges = (mod.merges || 0) + 1;
+  const skill = mod.merges >= MAX_STARS ? giftStarSkill(account, playerId, rng, pool) : null;
   saveAccount(account);
-  return mod.merges;
+  return { stars: mod.merges, skill };
 }
 
 export function setWishlist(account, bref) {
