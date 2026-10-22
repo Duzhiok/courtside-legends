@@ -212,3 +212,11 @@
 - **`applyCareerInjuryWave` 挪进 `careerBracket.js`**，跟前两轮搬过去的几个 career 相关函数做邻居——只摸 `c.team`/`c.alive`/`c.series` 这套 bracket 结构，零 DOM。
 - 新增 `tests/starterPositionSlots.test.js`（8 个）+ `tests/careerBracket.test.js` 追加 4 个。两边都抓到了真实的变异：一个是把 collision-resolution 的 while 循环条件改坏；另一个更有意思——第一版「跳过 alive[] 里的你，避免重复算」测试写挂了：用了同一个共享球员对象模拟两次出现的「你」，结果第二次处理时球员已经在第一次被治愈，新一轮随机伤病判定是否触发完全看运气，导致就算真把去重逻辑删掉，测试也可能侥幸不报错——属于「测试本身没有真的在测这件事」。改成两个**不同对象**但都标 `bracketId: "you"`，才真正测到「按 id 去重，不是按对象引用去重」这条实际逻辑，变异测试复测后能稳定抓到。
 - 全量 499 测试、lint、真实 headless-Chromium 过了一遍金币晋级赛（商店渲染正常）和选秀页的位置板（`groupByPosition` 的主要 UI 消费者），0 个 page error。
+
+### R29：马特巴恩斯加场上恶汉；保罗乔治换技能
+
+- Matt Barnes（`barnema02`，之前零签名技能）加入 `lockdown`/`sticky_wrap`/`enforcer`（场上恶汉），归到 Artest/Cousins 那组「铁防+暴躁」球员堆里。`enforcer` 这个技能本来就有（名字是"场上打手"，跟用户说的"场上恶汉"概念一致），直接复用，没有为同一个概念再开一个新技能 ID——顺手发现这个技能目前是纯 flavor，`sim.js`/`chemistry.js` 里完全没接，跟同组大多数 trait 技能一样只是展示用的标签，不像 `charge_taker` 真的会影响造进攻犯规概率。已在回复里跟用户说清楚这一点。
+- Paul George（`georgpa01`）去掉 `rainmaker`（三分雨）、`mid_maestro`（中投大师），保留 `lockdown`、`midrange_assassin`（中投刺客），加 `rhythm_master`。用户说的是"运球节奏大师"，但已有技能叫"节奏大师"——描述（靠变速/试探步甩开防守，不吃防守人速度）正好符合需求，所以直接复用而不是为 Luka/Harden/George 三个人各开一个几乎一样的技能。这点也在回复里标注，万一用户是真想要个带"运球"二字的独立技能可以再说。
+- `tests/skillComplaints.test.js` 里上一轮（R-早期）写的 Paul George 测试原本断言他**必须有**三分雨/中投大师——那是当时修"乔治缺技能"遗留的旧断言，这轮改成断言新技能组合 + 明确断言旧技能已经不在了，否则这个测试会变成一份过期文档。新增 Matt Barnes 测试。
+- 技能变化影响所有卡片输出，`ROSTER_SCHEMA` 从 45 bump 到 46，重新跑了 `scripts/cards/update-schema-fixture.mjs`。
+- 真实浏览器验证：乔治 15 张卡全部是新技能组合、不含旧技能；巴恩斯 14 张卡全部有 `enforcer`；0 个 page error。全量 500 测试、lint 全绿。
