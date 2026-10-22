@@ -93,6 +93,11 @@
 - 发现 `Public domain` / `CC BY` 之类并不等于「可展示」：先看是不是肖像、是不是本人、有没有作者，再谈许可。
 
 
+- **改了卡片内容必须提升 `ROSTER_SCHEMA`，否则玩家浏览器一直用旧卡**（10-18 起技能表改了 6 次从没提升，Garnett 的 篮下暴君/传球魔术 一直"复活"）。现在有 `tests/cardSchema.test.js`：卡片指纹和 `tests/fixtures/cardSchema.json` 对不上就变红；提升版本号后跑 `node scripts/cards/update-schema-fixture.mjs` 记录（版本号没动时脚本拒绝覆盖）。快路径也不再信任旧版本号的记忆键（`isCurrentSchemaKey`）。
+- **别用姓氏/名字片段匹配球员**：`/fox/`、`/luka/`、`/simmons/`、`/kobe/`、`giannis` 都误伤过别人（Jim/Rick Fox、Luka Šamanić、Kobe Bufkin、Papagiannis…）。用 bref 或全名。`tests/namePatterns.test.js` 会扫 `js/` 下所有 `.test(name)` 正则，匹配多人且不在白名单就失败。
+- **隐藏信息不能写在还能选/买的卡上**：「高薪低能」「妖人」同属隐藏分类，选人/商店里不显示，买球探包才揭示，入手后（自己队里）才显示。规则集中在 `js/ui/valueBadge.js`。
+- 球员专属技能是人手写的（`SIGNATURE_SKILLS`），"某人不该有某技能"以用户为准：Bird 无 传球魔术，Garnett 无 篮下暴君/传球魔术。
+
 ## Idea backlog
 
 - **AI 生成自有头像（2026-10-21 你提出）**：我这边没有任何图像生成工具/agent，只能你来生成；我能做的是规格 + 加载优先级（本地资源 → 人工整理 → 年代照 → 程序化头像）。风险要看清：AI 画「像某个真人」仍有**肖像权/商标（球衣队徽）**问题，不是版权问题；而项目当前最大的暴露面是约 2.25 万张卡用 Basketball-Reference 头像热链，不是 Wikimedia（后者有授权，只是缺署名页）。更稳的分层：① 程序化头像（剪影+号码+队色+姓名缩写，零肖像，我能直接写）作默认；② 少量传奇用你生成的插画风；③ 保留带署名的 CC 照片。待你选。

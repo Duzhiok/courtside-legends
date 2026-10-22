@@ -82,10 +82,8 @@ import {
   marketMeta,
   playerPrice,
   rollAdvancementInjuries,
-  scoutLabel,
   systemFitNote,
   topIntangibles,
-  valueLabel,
 } from "./data/intangibles.js";
 import {
   CUSTOM_BUDGET,
@@ -99,6 +97,7 @@ import {
 import { photoImg } from "./data/photo.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
+import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
 import {
   loadPlayers,
   overall,
@@ -2620,12 +2619,13 @@ function renderPack() {
         ? `${cost} 块${p.peakLabel ? " · 巅峰" : ""}`
         : `¤${playerPrice(p)}`;
       const compact = d.budgetMode && d.customPhase === "spend";
+      const valueTag = valueBadgeHtml(valueBadge(p)); // nothing while this card can still be picked
       el.innerHTML = `
         <div class="card-head">
           ${photoImg(p, compact ? "headshot" : "headshot lg")}
           <div>
             <div class="name">${p.name} <span class="pos-badge">${normalizePos(p.pos)}</span>${
-              valueLabel(p) ? ` <span class="value-badge ${p.valueArchetype}">${valueLabel(p)}</span>` : ""
+              valueTag ? ` ${valueTag}` : ""
             }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}</div>
             <div class="meta">${p.season} · ${p.team} · ${p.pos} · OVR ${overall(p)} · ${priceTxt}</div>
             <div class="meta tiny">${d.budgetMode ? `当前方剩余 ${gold} 块` : marketMeta(p)}</div>
@@ -4788,13 +4788,7 @@ function buyScoutPack() {
 }
 
 function shopRevealBadge(p, scoutActive) {
-  const pub = valueLabel(p);
-  if (pub) return `<span class="value-badge ${p.valueArchetype}">${pub}</span>`;
-  if (!scoutActive) return "";
-  const sc = scoutLabel(p);
-  if (!sc) return "";
-  const cls = sc === "妖人" ? "bargain" : "bench-bandit";
-  return `<span class="value-badge ${cls}">${sc}</span>`;
+  return valueBadgeHtml(valueBadge(p, { scouted: scoutActive }));
 }
 
 function openMarket({ career = false, duel = false, afterWin = false, refillShop = false } = {}) {
@@ -4963,7 +4957,8 @@ function marketOwnedCard(p, canSell, sideLabel = "") {
     skillRefund.gold > 0
       ? `（含技能变现 ¤${skillRefund.gold}）`
       : "";
-  const v = valueLabel(p);
+  const badge = valueBadge(p, { owned: true });
+  const v = badge?.text;
   const tips = topIntangibles(p, 3)
     .map((t) => `${t.name}${t.value}`)
     .join(" · ");
@@ -4985,7 +4980,7 @@ function marketOwnedCard(p, canSell, sideLabel = "") {
     ${photoImg(p)}
     <div class="market-owned-body">
       <div class="market-owned-head">
-        <strong>${p.name}${v ? ` <span class="value-badge ${p.valueArchetype}">${v}</span>` : ""}</strong>
+        <strong>${p.name}${v ? ` ${valueBadgeHtml(badge)}` : ""}</strong>
         ${posCtrl}
       </div>
       <div class="tiny">${p.season} · 原${p.pos} · OVR ${overall(p)}${inj}${

@@ -90,7 +90,7 @@ export function positionFitScore(naturalPos, assignedPos, player = null) {
   const nm = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
   const pointForward =
     pass >= 78 ||
-    /jokic|约基奇|lebron|詹姆斯|antetokounmpo|字母|donci|东契奇/.test(nm);
+    /jokic|约基奇|lebron|詹姆斯|giannis antetokounmpo|字母|donci|东契奇/.test(nm); // full name: his brothers Thanasis and Kostas (and Papagiannis) are not point-forwards
   if (["PF", "C", "SF"].includes(nat) && asg === "PG") {
     if (pass >= 88 && iq >= 82) score = Math.max(score, 92); // Jokic-tier
     else if (pointForward && pass >= 75) score = Math.max(score, 84); // LeBron / Giannis

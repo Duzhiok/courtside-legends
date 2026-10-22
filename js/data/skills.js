@@ -885,7 +885,7 @@ export const SIGNATURE_SKILLS = {
   mutomdi01: ["not_in_my_house", "rim_protector", "lockdown"],
   olajuha01: ["dream_shake", "rim_protector", "ankle_breaker"],
   robinda01: ["rim_protector", "lockdown", "motor_engine"],
-  birdla01: ["clutch_killer", "rainmaker", "dime_dropper", "mid_maestro"],
+  birdla01: ["clutch_killer", "rainmaker", "mid_maestro"],
   johnsma02: ["dime_dropper", "clutch_killer", "teardrop"],
   abdulka01: ["skyhook", "rim_protector", "mid_maestro"],
   // Wilt Chamberlain — 内线统治 + 篮板狂魔 + 铁人
