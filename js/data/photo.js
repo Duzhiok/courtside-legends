@@ -1,6 +1,13 @@
 /** Season card headshot helpers. Era map → NBA CDN → Basketball-Reference → avatar. */
 
-import { PHOTO_BY_BREF, PHOTO_BY_BREF_DECADE } from "./photos.scraped.js";
+import { CURATED_PHOTOS } from "./photos.curated.js";
+import { PHOTO_BY_BREF as SCRAPED_BY_BREF, PHOTO_BY_BREF_DECADE as SCRAPED_BY_DECADE } from "./photos.scraped.js";
+
+// Curated entries (see photos.curated.js, they carry attribution) override the generated
+// scraped tables. Keys are "bref:decade" or "bref", so one merge serves both lookups.
+const CURATED_URLS = Object.fromEntries(Object.entries(CURATED_PHOTOS).map(([key, photo]) => [key, photo.url]));
+const PHOTO_BY_BREF_DECADE = { ...SCRAPED_BY_DECADE, ...CURATED_URLS };
+const PHOTO_BY_BREF = { ...SCRAPED_BY_BREF, ...CURATED_URLS };
 
 export function nbaPhoto(nbaId, size = "260x190") {
   if (!nbaId) return null;
