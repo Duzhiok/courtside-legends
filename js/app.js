@@ -76,7 +76,6 @@ import {
 import { FRANCHISES, POS_SLOTS, playersForFranchise } from "./data/franchises.js";
 import {
   applyLineupPositionEffects,
-  isHiddenGem,
   isPlayerAvailable,
   marketMeta,
   playerPrice,
@@ -163,6 +162,13 @@ import {
   progressPodAfterMid,
   progressPodAfterOpeners,
 } from "./engine/careerBracket.js";
+import {
+  SCOUT_PACK_COST_MIN,
+  buildAffordableShop,
+  rollScoutPackOffer,
+  simulateCpuMatch,
+  teamStarters,
+} from "./engine/careerEconomy.js";
 import {
   advanceLeagueOffseason,
   advancePlayoffs,
@@ -3340,13 +3346,6 @@ function rollCareerStaffShops(c, { coaches = true, skills = true } = {}) {
     c.skillShopRecent = [...new Set([...recent, ...c.skillShop.map((x) => x.id)])].slice(-24);
   }
 }
-const SCOUT_PACK_COST_MIN = 70;
-const SCOUT_PACK_COST_MAX = 100;
-/** 换货时出现球探包的基础概率（新一轮 / 手动刷新都会重 roll，不是每轮必出） */
-const SCOUT_PACK_CHANCE = 0.28;
-/** 花钱刷新球员市场时略低，避免刷出来 */
-const SCOUT_PACK_REFRESH_CHANCE = 0.2;
-
 /** Gold cost to hire a coach in 晋级赛 (one-time buyout). */
 function careerCoachPrice(coach) {
   if (!coach) return 80;
@@ -4373,55 +4372,6 @@ function seedCareerStage() {
   syncCareerMatchesFromPods();
 }
 
-/** @deprecated name kept — seeds current stage pods */
-function teamStarters(team) {
-  if (!team?.players?.length) return [];
-  const healthy = team.players.filter(isPlayerAvailable);
-  const pool = healthy.length ? healthy : team.players;
-  if (team.starterIds?.length >= 5) {
-    const pick = team.starterIds.map((id) => team.players.find((p) => p.id === id)).filter(Boolean);
-    if (pick.length >= 5) return pick.slice(0, 5);
-  }
-  return [...pool].sort((a, b) => overall(b) - overall(a)).slice(0, 5);
-}
-
-function simulateCpuMatch(home, away) {
-  const h = {
-    ...home,
-    starterIds: teamStarters(home).map((p) => p.id),
-  };
-  const a = {
-    ...away,
-    starterIds: teamStarters(away).map((p) => p.id),
-  };
-  let finalSnap = null;
-  const sim = new GameSim({
-    home: h,
-    away: a,
-    youSide: "home",
-    injuries: true,
-    speed: 3,
-    onEvent: () => {},
-    onTick: () => {},
-    onEnd: (snap) => {
-      finalSnap = snap;
-    },
-  });
-  const snap = sim.runFast() || finalSnap || sim.snapshot();
-  const hs = snap.score.home;
-  const as = snap.score.away;
-  // Tie-break: higher team power
-  let winner = hs >= as ? home : away;
-  if (hs === as) winner = teamPowerLabel(home) >= teamPowerLabel(away) ? home : away;
-  return {
-    score: { home: hs, away: as },
-    winner,
-    snap,
-    startersA: snap.home?.onCourt?.length ? snap.home.onCourt.slice(0, 5) : teamStarters(home),
-    startersB: snap.away?.onCourt?.length ? snap.away.onCourt.slice(0, 5) : teamStarters(away),
-  };
-}
-
 function yourCareerMatch() {
   const c = state.career;
   if (c?.pods?.length) {
@@ -4635,67 +4585,6 @@ function resolveCareerYourResult(youWon, yourOpp) {
     }
   }
   return { eliminated: false, advancedStage: false, needAnotherGame: false, champion: false, match };
-}
-
-/** Legacy wrapper used by older call sites — prefer resolveCareerYourResult. */
-function budgetGold(c) {
-  if (c.kind === "duel") return Math.max(c.goldA || 0, c.goldB || 0);
-  return c.gold || 0;
-}
-
-/** Build a shop skewed toward what you can afford now. */
-function buildAffordableShop(c, size = 12) {
-  const exclude = c.used || new Set();
-  const budget = Math.max(80, budgetGold(c));
-  const pool = PLAYERS.filter((p) => !exclude.has(p.id) && !(c.shop || []).some((s) => s.id === p.id));
-  const priced = pool.map((p) => ({ p, price: playerPrice(p) }));
-  const cheap = priced.filter((x) => x.price <= budget * 0.55);
-  const mid = priced.filter((x) => x.price > budget * 0.55 && x.price <= budget);
-  const stretch = priced.filter((x) => x.price > budget && x.price <= budget * 1.35);
-  const gems = priced.filter((x) => isHiddenGem(x.p) && x.price <= budget * 1.2);
-
-  const pick = (arr, n) => {
-    const copy = [...arr];
-    const out = [];
-    while (copy.length && out.length < n) {
-      const i = Math.floor(Math.random() * copy.length);
-      out.push(copy.splice(i, 1)[0].p);
-    }
-    return out;
-  };
-
-  // Mostly buyable: 7 cheap + 4 mid + 1 stretch tease; sometimes seed hidden gems
-  let shop = [...pick(cheap, 7), ...pick(mid, 4), ...pick(stretch, 1)];
-  if (gems.length && Math.random() < 0.62) {
-    shop = [...pick(gems, Math.min(2, gems.length)), ...shop];
-  }
-  if (shop.length < size) {
-    shop = shop.concat(pick(priced, size - shop.length));
-  }
-  // de-dupe
-  const seen = new Set();
-  shop = shop.filter((p) => {
-    if (seen.has(p.id)) return false;
-    seen.add(p.id);
-    return true;
-  });
-  return shop.slice(0, size).map(clonePlayer);
-}
-
-/**
- * 每换一批货重新 roll：有时出球探包，有时没有（不是每轮必买）。
- * @param {"round"|"refresh"} reason
- */
-function rollScoutPackOffer(c, reason = "round") {
-  c.scoutActive = false;
-  const chance = reason === "refresh" ? SCOUT_PACK_REFRESH_CHANCE : SCOUT_PACK_CHANCE;
-  if (Math.random() >= chance) {
-    c.scoutOffer = null;
-    return;
-  }
-  const span = SCOUT_PACK_COST_MAX - SCOUT_PACK_COST_MIN;
-  const cost = SCOUT_PACK_COST_MIN + Math.floor(Math.random() * (span + 1));
-  c.scoutOffer = { cost, bought: false, reason };
 }
 
 function paintPendingChallengeBanner(c) {
