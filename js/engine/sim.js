@@ -85,6 +85,10 @@ import {
 
 const QUARTER_SEC = 12 * 60;
 
+// "沿用当前策略" rotation autopilot: pure fatigue management, no tactical opinions.
+export const ROTATION_FATIGUE_OUT = 70; // sub out once fatigue reaches this
+export const ROTATION_FATIGUE_IN = 0; // a resting STARTER returns the instant they hit this (fully recovered)
+
 /**
  * Possession-based NBA sim with full box-score stats.
  * Open look ≠ automatic make. Coach actions apply temporary modifiers.
@@ -102,6 +106,12 @@ export class GameSim {
   }) {
     this.home = wrapTeam(home, "home");
     this.away = wrapTeam(away, "away");
+    // wrapTeam() only reads starterIds to decide the INITIAL onCourt five — it doesn't carry the
+    // field onto the wrapped team. 沿用当前策略's "主力恢复满立即换回" needs to know who the
+    // starters actually are for the whole game, so capture it here (fallback: however
+    // wrapTeam ended up filling onCourt, if the caller never set starterIds).
+    this.home.starterIds = home.starterIds?.length >= 5 ? [...home.starterIds] : this.home.onCourt.map((p) => p.id);
+    this.away.starterIds = away.starterIds?.length >= 5 ? [...away.starterIds] : this.away.onCourt.map((p) => p.id);
     assignFeedDisplayNames(this.home, this.away);
     this.youSide = youSide;
     this.onEvent = onEvent || (() => {});
@@ -133,8 +143,10 @@ export class GameSim {
     this.focusPlay = null;
     /** Primary offensive option player id (persists until cleared). */
     this.offenseFocusId = null;
-    /** FIFA-style smart manager: auto sub / timeout / basic tactics for your side. */
-    this.managed = false;
+    /** FIFA-style smart manager for your side — three independent switches. */
+    this.autoOffense = false; // auto-adjust offensive playbook/focus
+    this.autoDefense = false; // auto-adjust defensive scheme/matchup
+    this.autoRotation = false; // "沿用当前策略": leaves tactics alone, only manages fatigue subs
     this._manageCd = 0;
     this._manageLastTo = -999;
     // Apply your side's pre-game matchup gameplan only
@@ -156,6 +168,11 @@ export class GameSim {
       };
     }
     if (youSrc.gameplan?.offenseFocusId) this.offenseFocusId = youSrc.gameplan.offenseFocusId;
+  }
+
+  /** Any of the three autopilot switches on? */
+  isAutopilotOn() {
+    return this.autoOffense || this.autoDefense || this.autoRotation;
   }
 
   /**
@@ -188,7 +205,9 @@ export class GameSim {
       momentum: this.momentum ? { ...this.momentum } : { side: null, points: 0, streak: 0 },
       focusPlay: this.focusPlay ? { ...this.focusPlay } : null,
       offenseFocusId: this.offenseFocusId || null,
-      managed: !!this.managed,
+      autoOffense: !!this.autoOffense,
+      autoDefense: !!this.autoDefense,
+      autoRotation: !!this.autoRotation,
       _manageCd: this._manageCd || 0,
       _manageLastTo: this._manageLastTo ?? -999,
     };
@@ -238,7 +257,17 @@ export class GameSim {
     sim.momentum = data.momentum || { side: null, points: 0, streak: 0 };
     sim.focusPlay = data.focusPlay || null;
     sim.offenseFocusId = data.offenseFocusId || null;
-    sim.managed = !!data.managed;
+    // Legacy single-toggle saves (before offense/defense/rotation were split): carry the old
+    // "on" forward as all three so an in-flight save doesn't silently lose its autopilot.
+    if (data.autoOffense != null || data.autoDefense != null || data.autoRotation != null) {
+      sim.autoOffense = !!data.autoOffense;
+      sim.autoDefense = !!data.autoDefense;
+      sim.autoRotation = !!data.autoRotation;
+    } else {
+      sim.autoOffense = !!data.managed;
+      sim.autoDefense = !!data.managed;
+      sim.autoRotation = !!data.managed;
+    }
     sim._manageCd = data._manageCd || 0;
     sim._manageLastTo = data._manageLastTo ?? -999;
     sim.injuriesEnabled = !!data.injuriesEnabled;
@@ -348,7 +377,7 @@ export class GameSim {
       this._timer = null;
       // 托管只自动处理节间/中场；玩家或对方叫的暂停必须停住，否则关不了托管也喊不停
       const autoBreak =
-        this.managed && !this._quiet && (reason === "quarter" || reason === "half");
+        this.isAutopilotOn() && !this._quiet && (reason === "quarter" || reason === "half");
       if (autoBreak) {
         try {
           this.runManagedBreak(reason);
@@ -386,17 +415,32 @@ export class GameSim {
     }
   }
 
-  /** Toggle FIFA-style autopilot for your sideline. */
-  setManaged(on) {
+  /** Copy for each autopilot switch, keyed by the state field it controls. */
+  static AUTOPILOT_LABELS = {
+    autoOffense: {
+      name: "进攻托管",
+      on: "进攻托管已开启——会按比赛情况微调进攻战术/焦点。你仍可随时叫暂停接手。",
+      off: "进攻托管已关闭——进攻战术改回由你指挥。",
+    },
+    autoDefense: {
+      name: "防守托管",
+      on: "防守托管已开启——会按对方核心自动调整盯防/包夹。你仍可随时叫暂停接手。",
+      off: "防守托管已关闭——盯防改回由你指挥。",
+    },
+    autoRotation: {
+      name: "沿用当前策略",
+      on: "沿用当前策略已开启——不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回。",
+      off: "沿用当前策略已关闭——换人改回由你亲自操作。",
+    },
+  };
+
+  /** Shared toggle body for the three autopilot switches below. */
+  _setAutopilot(key, on) {
     const next = !!on;
-    this.managed = next;
-    this._manageCd = 0;
-    this.emit(
-      "coach",
-      next
-        ? "智能托管已开启——累了自动换人；节间/中场自动处理。你仍可随时叫暂停接手。"
-        : "智能托管已关闭——你重新接管指挥"
-    );
+    this[key] = next;
+    if (key === "autoRotation") this._manageCd = 0;
+    const copy = GameSim.AUTOPILOT_LABELS[key];
+    this.emit("coach", next ? copy.on : copy.off);
     // 开启且正停在节间/中场 → 助手代劳后继续；玩家暂停不自动跳过
     if (
       next &&
@@ -417,7 +461,22 @@ export class GameSim {
         /* ignore */
       }
     }
-    return this.managed;
+    return this.isAutopilotOn();
+  }
+
+  /** Toggle auto-adjusting your offensive playbook/focus. */
+  setAutoOffense(on) {
+    return this._setAutopilot("autoOffense", on);
+  }
+
+  /** Toggle auto-adjusting your defensive scheme/matchup. */
+  setAutoDefense(on) {
+    return this._setAutopilot("autoDefense", on);
+  }
+
+  /** Toggle "沿用当前策略": fatigue-only auto subs, tactics untouched. */
+  setAutoRotation(on) {
+    return this._setAutopilot("autoRotation", on);
   }
 
   setSpeed(n) {
@@ -1426,7 +1485,7 @@ export class GameSim {
     // Live ball: CPU may still rotate without stopping play
     this.cpuAutoSub(cpu, { aggressive: deficit >= 8 || avgFat >= 60 });
     // Instant full-game / unmanaged quiet: light auto-coach your side
-    if (this._quiet && !this.managed) {
+    if (this._quiet && !this.isAutopilotOn()) {
       const youSide = this.you();
       if (youSide?.onCourt?.length) {
         const youFat = avg(youSide.onCourt.map((p) => p.fatigue || 0));
@@ -1443,27 +1502,19 @@ export class GameSim {
    * Quiet (快速模拟): same logic without pause spam.
    */
   maybeManagedCoach() {
-    if (!this.managed || this.paused) return;
+    if (!this.isAutopilotOn() || this.paused) return;
     const you = this.you();
     if (!you?.onCourt?.length) return;
 
     this._manageCd = (this._manageCd || 0) - 1;
     if (this._manageCd <= 0) {
-      const avgFat = avg(you.onCourt.map((p) => p.fatigue || 0));
-      const opp = this.opp();
-      const deficit = this.score[opp.side] - this.score[you.side];
-      const protecting = deficit <= -4; // 领先：别乱换主力
-      const chasing = deficit >= 6;
-      // 以前 Q3 起一律 aggressive（疲劳≈48就换人）——领先时把球星换下去最容易崩盘
-      this.managedAutoSubs({
-        aggressive: !protecting && (avgFat >= 62 || chasing || (this.quarter >= 4 && deficit >= 2)),
-        protectLead: protecting,
-      });
+      // 轮换只归 autoRotation 管：这样单独开它（“沿用当前策略”）不会顺带动进攻/防守改战术
+      if (this.autoRotation) this.autoSubsByFatigue();
       this._manageCd = this._quiet ? 1 : 2;
     }
 
-    if (Math.random() < (this._quiet ? 0.35 : 0.2)) this.managedDefense();
-    if (Math.random() < 0.12) this.managedOffensePlan({ light: true });
+    if (this.autoDefense && Math.random() < (this._quiet ? 0.35 : 0.2)) this.managedDefense();
+    if (this.autoOffense && Math.random() < 0.12) this.managedOffensePlan({ light: true });
 
     // Occasional shout when flat
     if (!this._quiet && (you.morale || 50) < 42 && Math.random() < 0.12) {
@@ -1505,69 +1556,84 @@ export class GameSim {
     this.runManagedBreak("timeout");
   }
 
-  /** Dead-ball / instant package: rotate + basic O/D. */
+  /** Dead-ball / instant package: whatever autopilot switches are on, nothing more. */
   runManagedBreak(reason = "timeout") {
     const you = this.you();
     const opp = this.opp();
     const deficit = this.score[opp.side] - this.score[you.side];
     const protecting = deficit <= -4;
     const aggressive = !protecting && (reason === "half" || reason === "timeout" || deficit >= 6);
-    this.managedAutoSubs({ aggressive, protectLead: protecting });
-    // 领先时节间别按分钟硬轮转把核换下去；追分/中场再轮
-    if (aggressive && !protecting) this.autoRotateByMinutes(you, true);
-    this.managedDefense();
-    this.managedOffensePlan({ light: false });
-    if ((you.morale || 50) < 55 && reason !== "quarter") {
+    const did = [];
+    if (this.autoRotation) {
+      this.autoSubsByFatigue();
+      // 领先时节间别按分钟硬轮转把核换下去；追分/中场再轮
+      if (aggressive && !protecting) this.autoRotateByMinutes(you, true);
+      did.push("轮换");
+    }
+    if (this.autoDefense) {
+      this.managedDefense();
+      did.push("盯防");
+    }
+    if (this.autoOffense) {
+      this.managedOffensePlan({ light: false });
+      did.push("基本战术");
+    }
+    if (did.length && (you.morale || 50) < 55 && reason !== "quarter") {
       // Soft huddle buff without full talk UI
       you.morale = clamp((you.morale || 50) + 4, 0, 100);
       for (const p of you.onCourt) p.mood = clamp((p.mood ?? 50) + 2, 15, 95);
     }
-    this.emit("coach", `托管助手已调整：轮换 / 盯防 / 基本战术（${reason === "half" ? "中场" : reason === "quarter" ? "节间" : "暂停"}）`);
+    if (did.length) {
+      this.emit(
+        "coach",
+        `托管助手已调整：${did.join(" / ")}（${
+          reason === "half" ? "中场" : reason === "quarter" ? "节间" : "暂停"
+        }）`
+      );
+    }
     this.refreshMeters();
   }
 
-  /** Sub gassed / ice-cold players for fresher same-position bench. */
-  managedAutoSubs({ aggressive = false, protectLead = false } = {}) {
+  /**
+   * "沿用当前策略": never touches tactics, only fatigue.
+   *  - the instant a benched STARTER's fatigue is fully recovered, they return —
+   *    even if nobody else is especially tired yet. A rested primary always wins.
+   *  - otherwise, whoever on court is gassed (>= ROTATION_FATIGUE_OUT) comes off for
+   *    the freshest same-ish-position bench option.
+   *  One swap per call — this runs on a short pulse, so multiple overdue swaps just
+   *  happen a beat apart instead of all at once mid-possession.
+   */
+  autoSubsByFatigue() {
     const you = this.you();
     if (!you?.onCourt?.length || !you.bench?.length) return;
-    // Up to 2 swaps per pulse
-    for (let i = 0; i < 2; i++) {
-      const before = you.onCourt.map((p) => p.id).join("|");
-      this.cpuAutoSub(you, { aggressive, protectLead });
-      // 只有追分才因「手感冰」换人；领先时冰一手的球星仍比板凳强
-      const opp = this.opp();
-      const deficit = this.score[opp.side] - this.score[you.side];
-      if (!protectLead && (deficit >= 4 || aggressive)) this.managedSubCold(you);
-      if (you.onCourt.map((p) => p.id).join("|") === before) break;
-    }
-  }
+    const healthyBench = you.bench.filter((p) => !(p.injuredGames > 0));
+    if (!healthyBench.length) return;
 
-  managedSubCold(team) {
-    const bench = team.bench.filter((p) => !(p.injuredGames > 0));
-    if (!bench.length) return;
-    const cold = [...team.onCourt]
-      .filter((p) => (p.hot || 0) <= -2 && fatiguePerfMult(p) < 0.97)
-      .sort((a, b) => (a.hot || 0) - (b.hot || 0) || overall(a) - overall(b))[0];
-    if (!cold) return;
-    const fresh = [...bench]
-      .filter((p) => (p.fatigue || 0) < (cold.fatigue || 0) - 8 || (p.hot || 0) > (cold.hot || 0))
-      .sort(
-        (a, b) =>
-          (a.fatigue || 0) - (b.fatigue || 0) ||
-          (b.hot || 0) - (a.hot || 0) ||
-          overall(b) - overall(a)
-      )[0];
-    if (!fresh || overall(fresh) < overall(cold) - 12) return;
-    const samePos =
-      bench
-        .filter(
-          (p) =>
-            (p.pos === cold.pos || p.playPos === cold.playPos || p.playPos === cold.pos) &&
-            (p.fatigue || 0) <= (fresh.fatigue || 0) + 5
-        )
-        .sort((a, b) => overall(b) - overall(a))[0] || fresh;
-    if ((samePos.hot || 0) <= (cold.hot || 0) && overall(samePos) <= overall(cold)) return;
-    this.substitute(cold.id, samePos.id, team.side);
+    const starterIds = new Set(you.starterIds || []);
+    const rested = healthyBench
+      .filter((p) => starterIds.has(p.id) && (p.fatigue || 0) <= ROTATION_FATIGUE_IN)
+      .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
+    if (rested) {
+      const outgoing = [...you.onCourt].sort((a, b) => (b.fatigue || 0) - (a.fatigue || 0))[0];
+      if (outgoing && this.substitute(outgoing.id, rested.id, you.side)) {
+        this.emit("coach", `${rested.name} 体力已完全恢复，立即换回场上`);
+        return;
+      }
+    }
+
+    const tired = [...you.onCourt]
+      .filter((p) => (p.fatigue || 0) >= ROTATION_FATIGUE_OUT)
+      .sort((a, b) => (b.fatigue || 0) - (a.fatigue || 0))[0];
+    if (!tired) return;
+    const fresh =
+      healthyBench
+        .filter((p) => p.pos === tired.pos || p.playPos === tired.pos || p.playPos === tired.playPos)
+        .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0] ||
+      [...healthyBench].sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
+    if (!fresh || (fresh.fatigue || 0) >= (tired.fatigue || 0)) return;
+    if (this.substitute(tired.id, fresh.id, you.side)) {
+      this.emit("coach", `${tired.name} 体力透支，${fresh.name} 换上保存体力`);
+    }
   }
 
   /** Put a body on the opponent's hottest threat. */
@@ -2108,7 +2174,9 @@ export class GameSim {
       momentum: { ...this.momentum },
       focusPlay: this.focusPlay ? { ...this.focusPlay } : null,
       offenseFocusId: this.offenseFocusId,
-      managed: !!this.managed,
+      autoOffense: !!this.autoOffense,
+      autoDefense: !!this.autoDefense,
+      autoRotation: !!this.autoRotation,
     };
   }
 }

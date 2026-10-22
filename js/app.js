@@ -392,7 +392,9 @@ let state = {
   subOutId: null,
   subInId: null,
   onboard: null,
-  managed: false,
+  autoOffense: false,
+  autoDefense: false,
+  autoRotation: false,
 };
 let timeTravelPrologue = null;
 
@@ -1283,7 +1285,9 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
     const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";
     speedBtn.textContent = `速度 x${state.speed} · ${label}`;
   }
-  state.managed = !!sim.managed;
+  state.autoOffense = !!sim.autoOffense;
+  state.autoDefense = !!sim.autoDefense;
+  state.autoRotation = !!sim.autoRotation;
   syncManagedUI();
 
   const you = youSide === "home" ? sim.home : sim.away;
@@ -1345,7 +1349,11 @@ function continueFromSave() {
     state.mode = app.mode;
     state.lastMode = app.lastMode || app.mode;
     state.speed = app.speed || 1;
-    state.managed = !!app.managed;
+    // Legacy single-toggle saves: carry the old on/off forward as all three switches.
+    const legacyManaged = !!app.managed;
+    state.autoOffense = app.autoOffense != null ? !!app.autoOffense : legacyManaged;
+    state.autoDefense = app.autoDefense != null ? !!app.autoDefense : legacyManaged;
+    state.autoRotation = app.autoRotation != null ? !!app.autoRotation : legacyManaged;
     state.career = reviveCareer(app.career);
     state.tournament = app.tournament || null;
     state.legend = reviveLegend(app.legend);
@@ -6780,8 +6788,10 @@ function beginGame(homeTeam, awayTeam, youSide) {
     quickBtn.disabled = false;
     quickBtn.hidden = false;
   }
-  // Keep last managed preference across tip-offs in the same session
-  if (state.managed == null) state.managed = false;
+  // Keep last autopilot preference across tip-offs in the same session
+  if (state.autoOffense == null) state.autoOffense = false;
+  if (state.autoDefense == null) state.autoDefense = false;
+  if (state.autoRotation == null) state.autoRotation = false;
 
   const sim = new GameSim({
     home: homeTeam,
@@ -6819,7 +6829,9 @@ function beginGame(homeTeam, awayTeam, youSide) {
   initFocusAndPacksUI(homeTeam, awayTeam, youSide);
 
   // Start clock first so a court/UI paint error cannot leave the sim dead.
-  if (state.managed) sim.setManaged(true);
+  if (state.autoOffense) sim.setAutoOffense(true);
+  if (state.autoDefense) sim.setAutoDefense(true);
+  if (state.autoRotation) sim.setAutoRotation(true);
   syncManagedUI();
   syncPauseUI(sim.snapshot());
   sim.start();
@@ -7613,7 +7625,7 @@ function resumeGame() {
 $("#btn-timeout").onclick = () => {
   if (!state.sim || state.sim.paused) return;
   // 托管开着时也允许你亲自叫停；暂停会停住（助手不再自动续上）
-  if (state.sim.managed) {
+  if (state.sim.isAutopilotOn()) {
     pushFeed("coach", "你叫了暂停——本回合由你指挥；托管仍开着，节间还会自动处理");
   }
   state.sim.callTimeout();
@@ -7820,63 +7832,78 @@ $("#btn-speed").onclick = () => {
   $("#btn-speed").textContent = `速度 x${state.speed} · ${label}`;
 };
 
+const AUTOPILOT_BUTTONS = [
+  { btn: "#btn-auto-offense", stateKey: "autoOffense", setter: "setAutoOffense", label: "进攻托管" },
+  { btn: "#btn-auto-defense", stateKey: "autoDefense", setter: "setAutoDefense", label: "防守托管" },
+  { btn: "#btn-auto-rotation", stateKey: "autoRotation", setter: "setAutoRotation", label: "沿用当前策略" },
+];
+
 function syncManagedUI() {
-  const on = state.sim ? !!state.sim.managed : !!state.managed;
-  state.managed = on;
-  const btn = $("#btn-managed");
   const hint = $("#managed-hint");
-  if (btn) {
+  const onLabels = [];
+  for (const { btn: sel, stateKey, label } of AUTOPILOT_BUTTONS) {
+    const on = state.sim ? !!state.sim[stateKey] : !!state[stateKey];
+    state[stateKey] = on;
+    if (on) onLabels.push(label);
+    const btn = $(sel);
+    if (!btn) continue;
     btn.disabled = !state.sim;
-    btn.textContent = on ? "智能托管：开" : "智能托管：关";
+    btn.textContent = `${label}：${on ? "开" : "关"}`;
     btn.classList.toggle("primary", on);
     btn.classList.toggle("ghost", !on);
-    btn.title = on
-      ? "点击关闭托管，重新由你指挥（叫暂停不会被助手立刻续上）"
-      : "FIFA 式智能托管：累了换人，节间自动处理；你仍可叫暂停接手";
   }
   if (hint) {
-    hint.textContent = on
-      ? "托管中：自动轮换/盯防 · 节间中场自动继续 · 你点「叫暂停」会停住并由你指挥"
-      : "托管关闭时由你亲自指挥。可随时开启，类似 FIFA 助理教练。";
+    hint.textContent = onLabels.length
+      ? `已开：${onLabels.join(" / ")} · 节间中场自动继续 · 你点「叫暂停」会停住并由你指挥`
+      : "三个托管均关：进攻、防守、换人均由你亲自指挥。可单独或组合开启，其中「沿用当前策略」只换人不改战术。";
   }
 }
 
 // 用 onclick 覆盖，避免脚本重复加载时叠多个 listener 导致「点关又弹开」
-$("#btn-managed").onclick = () => {
-  if (!state.sim) {
-    pushFeed("coach", "比赛开始后才能开关智能托管");
-    return;
-  }
-  const next = !state.sim.managed;
-  state.sim.setManaged(next);
-  state.managed = next;
-  syncManagedUI();
-  if (!next && state.sim.paused) {
-    syncPauseUI(state.sim.snapshot());
-    pushFeed("coach", "托管已关——可继续调整，或点「继续比赛」");
-  }
-};
+for (const { btn: sel, stateKey, setter } of AUTOPILOT_BUTTONS) {
+  const el = $(sel);
+  if (!el) continue;
+  el.onclick = () => {
+    if (!state.sim) {
+      pushFeed("coach", "比赛开始后才能开关托管");
+      return;
+    }
+    const next = !state.sim[stateKey];
+    state.sim[setter](next);
+    state[stateKey] = next;
+    syncManagedUI();
+    if (!next && state.sim.paused) {
+      syncPauseUI(state.sim.snapshot());
+      pushFeed("coach", "托管已关——可继续调整，或点「继续比赛」");
+    }
+  };
+}
 
 /** Instant-sim the rest of the live game with auto rotation on both sides. */
 $("#btn-quick-sim").onclick = () => {
   const sim = state.sim;
   if (!sim || !sim.running) return;
+  const anyOn = sim.isAutopilotOn();
   const ok = window.confirm(
     "将用当前阵容、战术与指令立刻打完剩余比赛。\n" +
-      (sim.managed
-        ? "智能托管会继续自动轮换并调整基本攻防。\n"
-        : "将自动轮换疲劳球员（建议先开智能托管以获得更完整的临场调整）。\n") +
+      (anyOn
+        ? "已开的托管会继续自动处理。\n"
+        : "将临时全开托管（进攻/防守/换人）以自动轮换疲劳球员。\n") +
       "期间无法再手动干预。确定？"
   );
   if (!ok) return;
   const btn = $("#btn-quick-sim");
   if (btn) btn.disabled = true;
   // Quiet sim still benefits from manager logic if enabled
-  if (!sim.managed) {
-    sim.setManaged(true);
-    state.managed = true;
+  if (!anyOn) {
+    sim.setAutoOffense(true);
+    sim.setAutoDefense(true);
+    sim.setAutoRotation(true);
+    state.autoOffense = true;
+    state.autoDefense = true;
+    state.autoRotation = true;
     syncManagedUI();
-    pushFeed("coach", "快速模拟已临时开启智能托管");
+    pushFeed("coach", "快速模拟已临时全开托管");
   }
   pushFeed("coach", "快速模拟整场——托管助手接管剩余比赛…");
   try {
