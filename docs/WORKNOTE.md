@@ -263,3 +263,7 @@
 - BBRef 热链仍有约一半会 404，最终体验里这部分人会落到生成头像——用户已明确接受这是底线，不是 bug。
 - 自动发现只给一张代表照，没有按年代区分；如果用户对某些球员的"年代感"有强烈要求（比如想要球员职业生涯早期/巅峰期/暮年分别用不同照片），需要后续针对性扩充 `photos.curated.js`。
 - `discover-wiki.mjs`、`build-credits.mjs`、`prune-uncredited-wiki.mjs` 都设计成可重复运行、增量更新——以后新增球员或想再捞一轮漏网之鱼，直接重新跑这三个脚本即可（顺序：discover → build-credits → prune → build-credits 再跑一次确认 UNCREDITED 为空）。
+
+### R31：教练席高度上限再提一次（940px → 1240px）
+
+之前（06f8a96）把教练席从 `min(72vh,780px)` 加到 `min(88vh,940px)`，用户反馈还是不够长。根因：绝对上限 940px 在任何超过约 1070px 高的屏幕上都会提前把面板截断，下面留一大片空白——`min(vh, px)` 取两者较小值，高屏幕上 `vh` 那边早就超过 940，所以 940 这个硬顶一直在起作用。把 `.court-wrap` 的 `min-height` 和配对的 `.coach-panel` 的 `max-height` 一起从 `min(88vh,940px)` 提到 `min(94vh,1240px)`（两者靠 `align-items:stretch` 保持等高，必须一起改）。用 computed style 验证：1280×800 下 704px→752px，1440×1024 下约 901px→962px，1920×1200 下 940px（硬顶）→1128px（这才是真正受益的场景）。390px 移动端走 `max-width:800px` 断点下的 `max-height:none`，不受影响。505/505 测试、lint、diff-check 全过，已提交并推送（`98cd32d`）。
