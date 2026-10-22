@@ -150,6 +150,7 @@ import {
 import { autoFillTeam, cpuUpgradeRoster, drawPack, teamPowerLabel } from "./engine/draft.js";
 import {
   allPodsDone,
+  applyCareerInjuryWave,
   applyMatchResult,
   buildStagePods,
   careerStageLabel,
@@ -319,6 +320,7 @@ import {
   ensurePlayerOrders,
   ensureRoles,
   getTempoDef,
+  groupByPosition,
   inferPlayerRole,
   markOrdersManual,
   markPlayPosManual,
@@ -326,6 +328,7 @@ import {
   normalizeTempo,
   ordersLabel,
   recommendPlayPos,
+  resolveStarterPositionCollisions,
   suggestedBallHandlerAction,
   usageForBallAction,
 } from "./engine/gameplan.js";
@@ -2906,20 +2909,6 @@ function normalizePos(pos) {
   if (p.includes("C")) return "C";
   if (p.includes("F") && p.startsWith("P")) return "PF";
   return "SF";
-}
-
-function playerSlotPos(p) {
-  return normalizePos(p.playPos || p.pos);
-}
-
-/** Group players into five position buckets for draft/legend browsing. */
-function groupByPosition(players) {
-  const buckets = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
-  for (const p of players || []) {
-    const slot = playerSlotPos(p);
-    (buckets[slot] || buckets.SF).push(p);
-  }
-  return buckets;
 }
 
 function renderPosBoard(players, { usePlayPosLabel = false, editable = false } = {}) {
@@ -6198,25 +6187,6 @@ function findStackedStarter(picked) {
 }
 
 /** 把叠位的人自动挪到空位，避免「5 人但 SF 空着」。 */
-function resolveStarterPositionCollisions(picked) {
-  if (!picked?.length) return;
-  const byPos = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
-  for (const p of picked) {
-    const pos = normalizePos(p.playPos || p.pos);
-    (byPos[pos] || byPos.SF).push(p);
-  }
-  const empty = POS_SLOTS.map((s) => s.id).filter((id) => !byPos[id].length);
-  for (const s of POS_SLOTS) {
-    const list = byPos[s.id];
-    while (list.length > 1 && empty.length) {
-      const mover = list.pop();
-      const dest = empty.shift();
-      mover.playPos = dest;
-      byPos[dest].push(mover);
-    }
-  }
-}
-
 /** Drop player onto a starter slot (move / swap / replace). */
 function setupDropOntoSlot(you, playerId, slotPos) {
   const p = you.players.find((x) => x.id === playerId);
@@ -9759,19 +9729,6 @@ function handleCareerResult(youWin, snap) {
 }
 
 /** Tick recovery + new injury rolls between晋级 games. */
-function applyCareerInjuryWave(c, opts) {
-  if (!c?.team?.players) return [];
-  const reports = rollAdvancementInjuries(c.team.players, opts);
-  if (c.series?.opp?.players) {
-    reports.push(...rollAdvancementInjuries(c.series.opp.players, { ...opts, intensity: (opts.intensity || 1) * 0.9 }));
-  }
-  for (const t of c.alive || []) {
-    if (t.bracketId === "you" || !t.players) continue;
-    reports.push(...rollAdvancementInjuries(t.players, { ...opts, intensity: (opts.intensity || 1) * 0.85 }));
-  }
-  return reports.filter((r) => r.type === "injury" || r.type === "recover").map((r) => r.text);
-}
-
 function boxTable(team) {
   const rows = [...team.roster]
     .sort((a, b) => (b.gradeScore || 0) - (a.gradeScore || 0) || b.stats.pts - a.stats.pts)

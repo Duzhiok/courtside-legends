@@ -3,6 +3,7 @@
  * lineup packs, role expectations, minute targets, possession focus.
  */
 import { overall } from "../data/players.js";
+import { POS_SLOTS } from "../data/franchises.js";
 
 export const PLAYER_ROLES = {
   alpha: { id: "alpha", name: "进攻核心", wantMin: 36, wantUsage: "high" },
@@ -332,6 +333,45 @@ export function nextEmptyPlayPos(picked, player, preferredPos = null) {
     if (!used.has(pos)) return pos;
   }
   return pref || normPos5(player?.pos);
+}
+
+/** Which of the five slots a player currently occupies (manual playPos, else natural pos). */
+export function playerSlotPos(p) {
+  return normPos5(p.playPos || p.pos);
+}
+
+/** Group players into five position buckets for draft/legend browsing. */
+export function groupByPosition(players) {
+  const buckets = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
+  for (const p of players || []) {
+    const slot = playerSlotPos(p);
+    (buckets[slot] || buckets.SF).push(p);
+  }
+  return buckets;
+}
+
+/**
+ * A starting five can end up with two players claiming the same slot (e.g. both marked SG)
+ * and an empty slot sitting unused. Bump the loser of each collision into whichever empty
+ * slot is open, rather than leaving a duplicate and a gap in the lineup.
+ */
+export function resolveStarterPositionCollisions(picked) {
+  if (!picked?.length) return;
+  const byPos = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
+  for (const p of picked) {
+    const pos = normPos5(p.playPos || p.pos);
+    (byPos[pos] || byPos.SF).push(p);
+  }
+  const empty = POS_SLOTS.map((s) => s.id).filter((id) => !byPos[id].length);
+  for (const s of POS_SLOTS) {
+    const list = byPos[s.id];
+    while (list.length > 1 && empty.length) {
+      const mover = list.pop();
+      const dest = empty.shift();
+      mover.playPos = dest;
+      byPos[dest].push(mover);
+    }
+  }
 }
 
 /**
