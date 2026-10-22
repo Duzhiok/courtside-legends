@@ -47,3 +47,29 @@ test("isPortrait tolerates empty and malformed input", () => {
   assert.equal(isPortrait(null), false);
   assert.equal(isPortrait("%E0%A4%A"), true); // invalid escape: kept raw, not blocked
 });
+
+// ---- curated overrides ----
+import { CURATED_PHOTOS } from "../js/data/photos.curated.js";
+
+test("every curated photo is a portrait and carries attribution (CC BY-SA needs credit)", () => {
+  for (const [key, photo] of Object.entries(CURATED_PHOTOS)) {
+    assert.ok(isPortrait(photo.url), `${key} is blocked`);
+    for (const field of ["url", "artist", "license", "licenseUrl", "page", "taken"]) assert.ok(photo[field], `${key} missing ${field}`);
+    assert.match(photo.url, /^https:\/\/thumb\.wikimedia\.org\//);
+  }
+});
+
+test("Shaq: 1990s, 2000s and later each get a real portrait, never the exhibit or the Celtics sideline candid", () => {
+  const file = (season) => decodeURIComponent(eraPhoto({ bref: "onealsh01", season }) || "null");
+  assert.match(file(1996), /Shaquille_O'Neal_1998\.jpg/);
+  assert.match(file(2002), /Shaq_Heat\.jpg/);
+  assert.match(file(2005), /Shaq_Heat\.jpg/);
+  assert.match(file(2011), /Shaq_Heat\.jpg/);
+  for (let season = 1993; season <= 2011; season++) {
+    assert.doesNotMatch(file(season), /Schuh|Shaquille_O'Neal\.JPG/, `${season}`);
+  }
+});
+
+test("curated entries only replace what they name; everyone else still uses the scraped table", () => {
+  assert.equal(eraPhoto({ bref: "curryst01", season: 2016 }), PHOTO_BY_BREF_DECADE["curryst01:2010"]);
+});
