@@ -6,6 +6,7 @@
  */
 import { accumulateGameToAllTeamBoard, allTeamFromRosters, selectAllTeamByPos } from "./allTeam.js";
 import { simulateCpuMatch } from "./careerEconomy.js";
+import { rollAdvancementInjuries } from "../data/intangibles.js";
 
 export const CAREER_STAGES = [32, 16, 8, 4, 2];
 
@@ -298,4 +299,23 @@ export function computeCareerAllTeam(c) {
   }
   c.allTeam = team;
   return team;
+}
+
+/**
+ * Roll the injury/recovery wave for a career advancement round: your team at full
+ * intensity, your current series opponent slightly lighter, and every other team still
+ * alive in the bracket lighter still (they're CPU-only, so their injuries are flavor/
+ * balance, not something the human needs to manage in detail).
+ */
+export function applyCareerInjuryWave(c, opts) {
+  if (!c?.team?.players) return [];
+  const reports = rollAdvancementInjuries(c.team.players, opts);
+  if (c.series?.opp?.players) {
+    reports.push(...rollAdvancementInjuries(c.series.opp.players, { ...opts, intensity: (opts.intensity || 1) * 0.9 }));
+  }
+  for (const t of c.alive || []) {
+    if (t.bracketId === "you" || !t.players) continue;
+    reports.push(...rollAdvancementInjuries(t.players, { ...opts, intensity: (opts.intensity || 1) * 0.85 }));
+  }
+  return reports.filter((r) => r.type === "injury" || r.type === "recover").map((r) => r.text);
 }

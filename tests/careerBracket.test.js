@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyCareerInjuryWave,
   buildStagePods,
   computeCareerAllTeam,
   findYourOpenMatch,
@@ -94,4 +95,55 @@ test("computeCareerAllTeam: with no board yet, falls back to pulling rosters fro
 test("computeCareerAllTeam: a career object with nothing at all returns an empty array, not a crash", () => {
   assert.deepEqual(computeCareerAllTeam(null), []);
   assert.deepEqual(computeCareerAllTeam({}), []);
+});
+
+/**
+ * applyCareerInjuryWave's actual injury roll is random (rollAdvancementInjuries), so these
+ * tests drive the deterministic "already hurt, now recovering" path (injuredGames: 1 always
+ * recovers on the next roll, no RNG involved) -- that's enough to pin the *routing* this
+ * function is actually responsible for: your team at full weight, your series opponent and
+ * the rest of the bracket's survivors at reduced weight, and never double-counting "you".
+ */
+function hurtPlayer(id) {
+  return { id, name: id, injuredGames: 1, injuryStatus: "伤停" };
+}
+
+test("applyCareerInjuryWave: rolls your own team's recoveries", () => {
+  const c = { team: { bracketId: "you", players: [hurtPlayer("p1")] } };
+  const notes = applyCareerInjuryWave(c, { round: 1 });
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /伤愈归队/);
+});
+
+test("applyCareerInjuryWave: also rolls the current series opponent", () => {
+  const c = {
+    team: { bracketId: "you", players: [] },
+    series: { opp: { bracketId: "cpu-x", players: [hurtPlayer("rival")] } },
+  };
+  const notes = applyCareerInjuryWave(c, { round: 1 });
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /rival/);
+});
+
+test("applyCareerInjuryWave: rolls the rest of the bracket's survivors but skips 'you' in alive[] to avoid double-counting", () => {
+  // Two distinct objects both tagged bracketId "you" -- the filter is by id, not identity,
+  // so this pins down that *any* alive[] entry claiming to be "you" gets skipped, not just
+  // a reference-equality check against c.team.
+  const c = {
+    team: { bracketId: "you", players: [hurtPlayer("dup")] },
+    alive: [
+      { bracketId: "you", players: [hurtPlayer("should-be-skipped")] },
+      { bracketId: "cpu-y", players: [hurtPlayer("other")] },
+    ],
+  };
+  const notes = applyCareerInjuryWave(c, { round: 1 });
+  assert.equal(notes.length, 2, "human team (from c.team) once + cpu-y once -- never the alive[] 'you' duplicate");
+  assert.ok(notes.some((n) => n.includes("dup")));
+  assert.ok(notes.some((n) => n.includes("other")));
+  assert.ok(!notes.some((n) => n.includes("should-be-skipped")));
+});
+
+test("applyCareerInjuryWave: with no team at all, returns an empty array instead of crashing", () => {
+  assert.deepEqual(applyCareerInjuryWave(null, {}), []);
+  assert.deepEqual(applyCareerInjuryWave({}, {}), []);
 });
