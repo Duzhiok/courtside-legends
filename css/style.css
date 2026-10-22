@@ -724,8 +724,8 @@ html, body {
   grid-template-columns: minmax(0, 0.95fr) minmax(460px, 1.3fr);
   gap: 12px;
   align-items: stretch;
-  /* 吃掉比分板下方的视口，避免球场变矮后露出大片空白；也多给点高度减少教练席滚动 */
-  min-height: min(88vh, 940px);
+  /* 940px 的硬上限在高屏幕上让教练席提前截断、下面留一大片空白，换成更高的绝对上限。 */
+  min-height: min(94vh, 1240px);
 }
 .court-column {
   display: grid;
@@ -931,7 +931,7 @@ html, body {
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  max-height: min(88vh, 940px);
+  max-height: min(94vh, 1240px);
 }
 .coach-panel .tiny, .tiny { color: var(--muted); font-size: .88rem; }
 .meter { margin: 12px 0; display: grid; gap: 6px; font-size: .88rem; }
