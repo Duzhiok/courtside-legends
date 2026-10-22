@@ -12,7 +12,8 @@ import { scoutLabel } from "../data/intangibles.js";
 const OUTCOME_TEXT = {
   new: () => "新卡入账",
   newVersion: (r) => `同一球员的新版本入账 · 球魂 +1（现有 ${r.souls}）`,
-  starUp: (r) => `重复卡升星 ★${r.stars}：全属性 +1。请选择保留哪套成色 ↓`,
+  starUp: (r) =>
+    `重复卡升星 ★${r.stars}：全属性 +1。${r.starSkill ? `满星礼物：获得技能「${r.starSkill.name}」！` : ""}请选择保留哪套成色 ↓`,
   soulConvert: (r) => `已满 ★${MAX_STARS}，转为 2 球魂（现有 ${r.souls}）`,
 };
 

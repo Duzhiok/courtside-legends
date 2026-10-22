@@ -11,7 +11,6 @@ import {
   canRetainSkill,
   isBlueCollarRebounder,
   isLearnableSkill,
-  listAwardSkillCatalog,
   signatureFeedFlavor,
   skillBlockResist,
   skillDefCaptainOpenPenalty,
@@ -263,12 +262,11 @@ test("Giannis skills are generic, learnable, and make paint finishes better", ()
   assert.equal(SKILL_PACKS.rim_wrecker.name, "篮筐肆虐者");
 });
 
-test("exclusive skills never show up in the award picker", () => {
-  const ids = listAwardSkillCatalog([]).all.map((s) => s.id);
+test("exclusive skills are not learnable (the shop and the ★5 gift both rely on this gate)", () => {
   for (const id of ["god_mode", "mamba_spirit", "the_answer", "wolf_king", "high_tower", "manimal"]) {
-    assert.ok(!ids.includes(id), `${id} should not be claimable`);
+    assert.equal(isLearnableSkill(id), false, `${id} should not be learnable`);
   }
-  assert.ok(ids.includes("rim_wrecker") && ids.includes("rebound_maniac"));
+  assert.ok(isLearnableSkill("rim_wrecker") && isLearnableSkill("rebound_maniac"));
 });
 
 test("Jokić is a rhythm big: 高抛大师 instead of 中投大师, no 篮下暴君", () => {

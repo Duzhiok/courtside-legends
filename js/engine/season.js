@@ -13,7 +13,6 @@ import {
 import { historicalSeason } from "../data/historicalSeasons.js";
 import { playersForFranchise } from "../data/franchises.js";
 import { PLAYERS, clonePlayer, overall } from "../data/players.js";
-import { grantSkillToPlayer, SKILL_PACKS } from "../data/skills.js";
 import { ensureTeamStaff } from "../data/coaches.js";
 import { autoFillTeam } from "./draft.js";
 import { developLeagueRosters } from "./develop.js";
@@ -997,81 +996,10 @@ export function computeAwards(st) {
     rebChamp: rebChamp ? formatAwardPlayer(rebChamp) : null,
     astChamp: astChamp ? formatAwardPlayer(astChamp) : null,
   };
-  // 我方获奖球员 → 各奖项奖励一次「自选技能包」
+  // Awards are honours only. They used to hand out a free skill, which snowballed the
+  // strongest players; skills now come from 领悟 and 技能碎片 only.
   st.awards = awards;
-  buildUserAwardSkillRewards(st);
   return awards;
-}
-
-/**
- * 我方球员每拿一个个人/阵容奖，奖励一次任意技能包自选。
- * （最佳教练不发球员技能）
- */
-export function buildUserAwardSkillRewards(st) {
-  const a = st?.awards;
-  if (!a) {
-    st.awardSkillRewards = [];
-    return [];
-  }
-  // 已有未领完的保留 claimed 状态
-  const prev = new Map((st.awardSkillRewards || []).map((r) => [r.id, r]));
-  const uid = st.userTeamId;
-  const out = [];
-  const push = (entry, awardId, awardName) => {
-    if (!entry?.playerId || entry.teamId !== uid) return;
-    const id = `${awardId}:${entry.playerId}`;
-    const old = prev.get(id);
-    out.push(
-      old || {
-        id,
-        awardId,
-        awardName,
-        playerId: entry.playerId,
-        playerName: entry.name,
-        claimed: false,
-        skillId: null,
-        skillName: null,
-      }
-    );
-  };
-  push(a.mvp, "mvp", "常规赛 MVP");
-  push(a.dpoy, "dpoy", "最佳防守球员");
-  push(a.sixthMan, "sixth", "最佳第六人");
-  push(a.mip, "mip", "最快进步");
-  push(a.roy, "roy", "最佳新秀");
-  push(a.scoringChamp, "scoring", "得分王");
-  push(a.rebChamp, "reb", "篮板王");
-  push(a.astChamp, "ast", "助攻王");
-  for (const p of a.allNba?.first || []) push(p, "allnba1", "一阵");
-  for (const p of a.allNba?.second || []) push(p, "allnba2", "二阵");
-  for (const p of a.allNba?.third || []) push(p, "allnba3", "三阵");
-  for (const p of a.allDefense?.first || []) push(p, "alldef1", "最佳防守一阵");
-  for (const p of a.allDefense?.second || []) push(p, "alldef2", "最佳防守二阵");
-  st.awardSkillRewards = out;
-  return out;
-}
-
-/** 领取评奖技能包：写入我方球员 card。 */
-export function claimAwardSkill(st, rewardId, skillId) {
-  const reward = (st.awardSkillRewards || []).find((r) => r.id === rewardId);
-  if (!reward) return { ok: false, reason: "奖励不存在" };
-  if (reward.claimed) return { ok: false, reason: "已领取" };
-  const pack = SKILL_PACKS[skillId];
-  if (!pack || pack.negative || pack.tone === "bad") {
-    return { ok: false, reason: "无效技能包" };
-  }
-  const team = st.teams[st.userTeamId];
-  const player = team?.players?.find((p) => p.id === reward.playerId);
-  if (!player) return { ok: false, reason: "找不到球员" };
-  const previousSkillIds = [...(player.skills || [])];
-  if (!grantSkillToPlayer(player, skillId)) {
-    return { ok: false, reason: "该球员已有此技能" };
-  }
-  reward.claimed = true;
-  reward.previousSkillIds = previousSkillIds;
-  reward.skillId = skillId;
-  reward.skillName = pack.name;
-  return { ok: true, player, reward, skillName: pack.name };
 }
 
 function formatAwardPlayer(x) {
@@ -1423,7 +1351,6 @@ export function advanceLeagueOffseason(st, options = {}) {
   st.phase = "regular";
   st.dayIndex = 0;
   st.awards = null;
-  st.awardSkillRewards = null;
   st.playoffs = null;
   st.playerSeason = {};
   st.resultsLog = [];

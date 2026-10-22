@@ -130,7 +130,6 @@ import {
 } from "./data/saveRoot.js";
 import {
   grantSkillToPlayer,
-  listAwardSkillCatalog,
   markPurchasedSkill,
   nonDuoSkillCount,
   purchasedSkillsRefund,
@@ -168,7 +167,6 @@ import {
   advanceLeagueOffseason,
   advancePlayoffs,
   advanceToUserGame,
-  claimAwardSkill,
   clearSeasonSave,
   buildCpuTeamForYear,
   computeFinalsAllTeam,
@@ -8946,84 +8944,13 @@ function awardLine(a) {
   return `${a.name}（${a.teamName}）· ${a.ppg}分 ${a.rpg}板 ${a.apg}助 · ${a.gp}场`;
 }
 
-function renderAwardSkillRewards(st) {
-  const rewards = st.awardSkillRewards || [];
-  if (!rewards.length) {
-    return `<div class="season-award-card"><h4>我方评奖技能奖励</h4><p class="tiny">本赛季暂无我方球员获奖。MVP / DPOY / 一阵 / 最佳防守一阵等均可各领一次任意技能包。</p></div>`;
-  }
-  const team = st.teams[st.userTeamId];
-  const rows = rewards
-    .map((r) => {
-      const p = team?.players?.find((x) => x.id === r.playerId);
-      if (r.claimed) {
-        return `<div class="award-skill-row claimed">
-          <div><strong>${r.playerName}</strong> · ${r.awardName}
-            <div class="tiny award-claimed-skill">本次奖励领取：<strong>${r.skillName || SKILL_PACKS[r.skillId]?.name || r.skillId}</strong></div>
-            <div class="tiny">领取前已有：${(r.previousSkillIds || []).map((id) => SKILL_PACKS[id]?.name || id).join("、") || "无"}</div>
-            ${p?.skills?.length ? `<div class="tiny">当前全部技能</div><div class="skill-row compact">${skillChipsHtml(p)}</div>` : ""}
-          </div>
-          <span class="tiny">✓</span>
-        </div>`;
-      }
-      const catalog = listAwardSkillCatalog(p?.skills || []);
-      const avail = catalog.available;
-      const owned = catalog.owned;
-      const ownedOpts = owned.length
-        ? `<optgroup label="已拥有（${owned.length}）不可再领">
-            ${owned
-              .map(
-                (s) =>
-                  `<option value="${s.id}" disabled>✓ ${esc(s.name)} — ${esc(s.desc)}</option>`
-              )
-              .join("")}
-          </optgroup>`
-        : "";
-      const availOpts = avail.length
-        ? `<optgroup label="可学习（${avail.length}）">
-            ${avail
-              .map(
-                (s) =>
-                  `<option value="${s.id}">○ ${esc(s.name)} — ${esc(s.desc)}</option>`
-              )
-              .join("")}
-          </optgroup>`
-        : `<option value="">（已学会全部可选技能）</option>`;
-      const haveHtml = p?.skills?.length
-        ? `<div class="tiny">当前技能</div><div class="skill-row compact">${skillChipsHtml(p)}</div>`
-        : `<div class="tiny muted">当前无技能</div>`;
-      const ownedNames = owned.map((s) => s.name).join("、") || "无";
-      return `<div class="award-skill-row" data-reward-id="${r.id}">
-        <div><strong>${esc(r.playerName)}</strong> · ${esc(r.awardName)}
-          <div class="tiny">获奖奖励：自选一个尚未拥有的技能包</div>
-          ${haveHtml}
-          <div class="tiny award-skill-owned-hint">已有：${esc(ownedNames)} · 还可学 ${avail.length} 个</div>
-        </div>
-        <div class="award-skill-pick">
-          <select class="award-skill-select" ${avail.length ? "" : "disabled"}>
-            ${availOpts}${ownedOpts}
-          </select>
-          <button type="button" class="btn small primary award-skill-claim" ${
-            avail.length ? "" : "disabled"
-          }>领取</button>
-        </div>
-      </div>`;
-    })
-    .join("");
-  const pending = rewards.filter((r) => !r.claimed).length;
-  return `<div class="season-award-card award-skill-panel">
-    <h4>我方评奖技能奖励${pending ? ` · 待领 ${pending}` : " · 已领完"}</h4>
-    <p class="tiny">我方球员每获一项个人/阵容奖（如最佳防守），可自选安装一个技能包。下拉列表里「○」为未学会，「✓」为已有（不可重复领取）。</p>
-    ${rows}
-  </div>`;
-}
-
 function renderSeasonAwards() {
   const st = state.season;
   const box = $("#season-awards");
   if (!st || !box) return;
   const a = st.awards;
   if (!a) {
-    box.innerHTML = `<p class="tiny">打完 82 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。我方获奖可领任意技能包。</p>`;
+    box.innerHTML = `<p class="tiny">打完 82 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。奖项只是荣誉，不送技能。</p>`;
     return;
   }
   const teamList = (list, label) =>
@@ -9031,7 +8958,6 @@ function renderSeasonAwards() {
       .map((p) => `<span>${p.pos || ""} ${p.name} <em class="tiny">${p.teamName}</em></span>`)
       .join("") || "—"}</div></div>`;
   box.innerHTML = `
-    ${renderAwardSkillRewards(st)}
     <div class="season-award-card"><h4>常规赛 MVP</h4><p>${awardLine(a.mvp)}</p></div>
     <div class="season-award-card"><h4>最佳防守球员 DPOY</h4><p>${awardLine(a.dpoy)}</p></div>
     <div class="season-award-card"><h4>最佳第六人</h4><p>${awardLine(a.sixthMan)}</p></div>
@@ -9054,28 +8980,7 @@ function renderSeasonAwards() {
       }</button>
     </div>
   `;
-  box.querySelectorAll(".award-skill-claim").forEach((btn) => {
-    btn.onclick = () => {
-      const row = btn.closest("[data-reward-id]");
-      const rewardId = row?.dataset.rewardId;
-      const sel = row?.querySelector(".award-skill-select");
-      const skillId = sel?.value;
-      if (!rewardId || !skillId) return;
-      const res = claimAwardSkill(st, rewardId, skillId);
-      if (!res.ok) {
-        alert(res.reason || "领取失败");
-        return;
-      }
-      if (!saveSeasonAndCareer(st)) return;
-      alert(`${res.player.name} 学会了「${res.skillName}」！`);
-      renderSeasonAwards();
-    };
-  });
   $("#btn-season-to-playoffs")?.addEventListener("click", () => {
-    const pending = (st.awardSkillRewards || []).filter((r) => !r.claimed);
-    if (pending.length && !confirm(`还有 ${pending.length} 个评奖技能未领取，确定先去季后赛？`)) {
-      return;
-    }
     if (st.phase === "awards" || st.phase === "regular") {
       startPlayoffs(st);
       st.phase = "playoffs";

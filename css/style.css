@@ -2856,40 +2856,6 @@ select, input[type="number"] {
     grid-column: 1 / -1;
   }
 }
-.award-skill-panel { border-color: rgba(42, 157, 143, .45); background: #f3fbf9; }
-.award-skill-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(15, 28, 20, .08);
-}
-.award-skill-row:last-child { border-bottom: 0; }
-.award-skill-row.claimed { opacity: .75; }
-.award-skill-owned-hint {
-  margin-top: 4px;
-  color: #5b6470;
-}
-.award-skill-pick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  max-width: min(100%, 420px);
-}
-.award-skill-select {
-  min-width: min(100%, 260px);
-  max-width: min(360px, 70vw);
-  font: inherit;
-  font-size: .82rem;
-  padding: 4px 6px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-}
-.award-skill-select optgroup { font-weight: 600; }
-.award-skill-select option:disabled { color: #8a939e; }
 .career-coach-panel {
   margin: 0 0 12px;
   padding: 12px 14px;
