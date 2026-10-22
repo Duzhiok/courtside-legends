@@ -61,7 +61,6 @@ import {
   wishlistHtml,
 } from "./ui/gachaView.js";
 import {
-  ASSISTANTS,
   COACHES,
   TACTICS,
   applyCoachPhilosophy,
@@ -82,7 +81,6 @@ import {
   marketMeta,
   playerPrice,
   rollAdvancementInjuries,
-  systemFitNote,
   topIntangibles,
 } from "./data/intangibles.js";
 import {
@@ -122,7 +120,6 @@ import {
   writeSave,
 } from "./data/savegame.js";
 import {
-  ROOT_SAVE_VERSION,
   clearRootSave,
   createRootState,
   exportRootSave,
@@ -3433,7 +3430,6 @@ function hireCareerCoach(coachId) {
 function renderCareerCoachPanel(c) {
   const panel = $("#career-coach-panel");
   const shopBox = $("#career-coach-shop");
-  const skillBox = $("#career-skill-shop");
   const curEl = $("#career-coach-current");
   if (!panel || !shopBox) return;
   const show = c?.kind === "career";
@@ -4233,13 +4229,6 @@ function careerRoundLabel(roundOrStage, finals = false) {
   return CAREER_ROUND_LABELS[roundOrStage] || `第 ${roundOrStage} 轮`;
 }
 
-function resolveTeamRef(c, teamLike) {
-  if (!teamLike) return null;
-  const id = teamLike.bracketId;
-  if (id === "you") return c.team;
-  return (c.alive || c.field || []).find((t) => t.bracketId === id) || teamLike;
-}
-
 function runCpuMatchInto(match) {
   if (!match || match.done || match.yours) return;
   const c = state.career;
@@ -4385,10 +4374,6 @@ function seedCareerStage() {
 }
 
 /** @deprecated name kept — seeds current stage pods */
-function seedCareerRound() {
-  seedCareerStage();
-}
-
 function teamStarters(team) {
   if (!team?.players?.length) return [];
   const healthy = team.players.filter(isPlayerAvailable);
@@ -4653,10 +4638,6 @@ function resolveCareerYourResult(youWon, yourOpp) {
 }
 
 /** Legacy wrapper used by older call sites — prefer resolveCareerYourResult. */
-function advanceCareerBracket(youWon, yourOpp) {
-  resolveCareerYourResult(youWon, yourOpp);
-}
-
 function budgetGold(c) {
   if (c.kind === "duel") return Math.max(c.goldA || 0, c.goldB || 0);
   return c.gold || 0;
@@ -8538,7 +8519,6 @@ function renderSeasonMarket() {
   const rosterRows = [...(you.players || [])]
     .sort((a, b) => overall(b) - overall(a))
     .map((p) => {
-      const sal = playerSalary(p);
       return `<div class="sm-row">
         <div>
           <strong>${p.playPos || p.pos} ${p.name}</strong>

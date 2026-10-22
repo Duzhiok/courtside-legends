@@ -11,7 +11,6 @@ const LS_VOL = "courtside-bgm-vol";
 
 let audio = null;
 let objectUrl = null;
-let unlocked = false;
 let preferredOn = false;
 
 function readOn() {
@@ -72,7 +71,6 @@ async function tryPlay() {
   const a = ensureAudio();
   try {
     await a.play();
-    unlocked = true;
     preferredOn = true;
     writeOn(true);
     return true;

@@ -83,7 +83,6 @@ export function positionFitScore(naturalPos, assignedPos, player = null) {
 
   // —— 奇效 / 惨案：跨位实验 ——
   const rebound = player.rebound || 50;
-  const paint = player.paint || 50;
   const speed = player.speed || 50;
   const defense = player.defense || 50;
   // 传球怪兽大个子打控卫：约基奇 / 詹姆斯 / 字母哥类

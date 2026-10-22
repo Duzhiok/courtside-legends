@@ -21,7 +21,6 @@ export function confirmAction(message, { title = "请确认", acceptLabel = "确
     activeRequest = { resolve };
     const finish = (value) => {
       if (!activeRequest) return;
-      const request = activeRequest;
       activeRequest = null;
       dialog.close();
       resolve(value);

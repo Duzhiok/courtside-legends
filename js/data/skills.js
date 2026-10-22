@@ -1362,14 +1362,6 @@ export const TRAIT_SKILLS = {
 
 const STAR_TIERS = new Set(["star", "allstar", "superstar", "hof", "nba50"]);
 
-function skillCap(namedCount, tier) {
-  // Cap by how many identity skills they actually have — not by fame alone
-  if (namedCount >= 4) return 4;
-  if (namedCount >= 1) return Math.min(4, namedCount);
-  if (tier === "superstar" || tier === "hof" || tier === "nba50") return 1; // rare filler only
-  return 0;
-}
-
 function hasSkill(p, id) {
   return (p.skills || []).includes(id);
 }
@@ -1516,7 +1508,6 @@ export function assignSkillPacks(player) {
   // Duo/aura / 全能 / 多招牌身份技：放宽格数，避免巅峰魔兽等被截断
   const needsRoom = linkCount || named.includes("positionless") || named.length > 4;
   const softCap = Math.min(7, Math.max(needsRoom ? 7 : 4, named.length || 0));
-  const cap = Math.min(softCap, Math.max(skillCap(named.length, tier), named.length));
 
   if (named.length) {
     // Prefer keeping duo/aura badges visible near the front of the chip row
