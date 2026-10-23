@@ -84,7 +84,6 @@ import {
 } from "./data/intangibles.js";
 import {
   CUSTOM_BUDGET,
-  CUSTOM_REFRESH_COST,
   CUSTOM_ROSTER_SIZE,
   clearPeakPoolCache,
   customPriceOf,
@@ -147,7 +146,17 @@ import {
   ensureTradeProposals,
   refreshTradeProposals,
 } from "./engine/tradeProposals.js";
-import { autoFillTeam, cpuUpgradeRoster, drawPack, teamPowerLabel } from "./engine/draft.js";
+import {
+  DRAFT_FREE_REFRESHES,
+  autoFillTeam,
+  customSideCanSpend,
+  customSpendPhaseDone,
+  draftRefreshCost,
+  drawPack,
+  isDraftDone,
+  pickCost,
+  teamPowerLabel,
+} from "./engine/draft.js";
 import {
   allPodsDone,
   applyCareerInjuryWave,
@@ -164,6 +173,7 @@ import {
   noteCareerAllTeamGame,
   noteCareerLoss,
   runCpuMatchInto,
+  upgradeCpuAdvancers,
   yourCareerMatch,
   progressPodAfterMid,
   progressPodAfterOpeners,
@@ -350,9 +360,6 @@ const CAREER_ROUND_LABELS = {
   4: "四强 · 4进2",
   5: "总决赛 · 2进1",
 };
-
-const DRAFT_FREE_REFRESHES = 3;
-const DRAFT_REFRESH_COST = 40;
 
 const $ = (sel) => document.querySelector(sel);
 const screens = {
@@ -2388,21 +2395,6 @@ function initDraft(mode) {
   dealPack();
 }
 
-/** 自定义：某边是否还能从 5→1 价池里买人 */
-function customSideCanSpend(d, side) {
-  if (!d?.budgetMode) return false;
-  const team = d.teams[side];
-  if (!team || team.players.length >= d.picksPerSide) return false;
-  const gold = team.gold ?? 0;
-  if (gold <= 0) return false;
-  return listPaidPeaks(d.used).some((c) => customPriceOf(c.data) <= gold);
-}
-
-function customSpendPhaseDone(d = state.draft) {
-  if (!d?.budgetMode) return true;
-  return !customSideCanSpend(d, "A") && !customSideCanSpend(d, "B");
-}
-
 function updateCustomDraftChrome() {
   const d = state.draft;
   const packArea = document.querySelector(".pack-area");
@@ -2466,18 +2458,6 @@ function updateCustomDraftChrome() {
   }
 }
 
-function isDraftDone(d = state.draft) {
-  if (!d) return false;
-  return (
-    d.teams.A.players.length >= d.picksPerSide &&
-    d.teams.B.players.length >= d.picksPerSide &&
-    !!d.teams.A.coach &&
-    !!d.teams.B.coach &&
-    !!d.teams.A.assistant &&
-    !!d.teams.B.assistant
-  );
-}
-
 function dealPack() {
   const d = state.draft;
   if (!d || isDraftDone(d)) return;
@@ -2515,10 +2495,6 @@ function dealPack() {
   });
   renderPack();
   updateRefreshBtn();
-}
-
-function draftRefreshCost(d) {
-  return d?.budgetMode ? CUSTOM_REFRESH_COST : DRAFT_REFRESH_COST;
 }
 
 function updateRefreshBtn() {
@@ -2582,13 +2558,6 @@ $("#btn-refresh-pack").onclick = () => {
   dealPack();
   refreshDraftUI();
 };
-
-/** Cost to acquire a player in current draft mode. */
-function pickCost(d, player) {
-  if (!d?.buyPlayers) return 0;
-  if (d.budgetMode) return customPriceOf(player);
-  return playerPrice(player);
-}
 
 function renderPack() {
   const d = state.draft;
@@ -3098,15 +3067,6 @@ $("#btn-start-game").onclick = () => {
 
 // —— Career progression ——
 // —— Legend Mode ——
-function shuffleCopy(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 /** Same person across seasons — Mourning 1994 and 1995 share one key. */
 function legendPlayerKey(p) {
   return String(p.bref || p.nameEn || p.name || p.id)
@@ -3115,11 +3075,11 @@ function legendPlayerKey(p) {
 }
 
 function startLegendMode() {
-  const eight = shuffleCopy(FRANCHISES).slice(0, 8);
+  const eight = shuffleArr(FRANCHISES).slice(0, 8);
   state.legend = {
     franchises: eight,
     /** Shuffle once; consume without replacement until empty, then reshuffle. */
-    franchiseQueue: shuffleCopy(eight),
+    franchiseQueue: shuffleArr(eight),
     lastFranchiseId: null,
     roster: [],
     usedIds: new Set(),
@@ -3154,7 +3114,7 @@ function nextLegendFranchise() {
   const L = state.legend;
   if (!L.franchiseQueue.length) {
     // New cycle: reshuffle all eight; avoid immediately repeating the last team
-    let next = shuffleCopy(L.franchises);
+    let next = shuffleArr(L.franchises);
     if (L.lastFranchiseId && next.length > 1 && next[0].id === L.lastFranchiseId) {
       const swap = next.findIndex((f) => f.id !== L.lastFranchiseId);
       if (swap > 0) [next[0], next[swap]] = [next[swap], next[0]];
@@ -3193,8 +3153,8 @@ function rollLegendTeam() {
   markLegendFranchiseChips(L);
 
   const top = list.slice(0, 16);
-  const rest = shuffleCopy(list.slice(16)).slice(0, 10);
-  list = shuffleCopy([...top, ...rest]).slice(0, 18);
+  const rest = shuffleArr(list.slice(16)).slice(0, 10);
+  list = shuffleArr([...top, ...rest]).slice(0, 18);
 
   const box = $("#legend-pool");
   if (!list.length) {
@@ -4404,29 +4364,6 @@ function slimMatchForLog(m) {
       season: p.season,
     })),
   };
-}
-
-function upgradeCpuAdvancers(c, survivors) {
-  // stageSize 仍是晋级前规模：32→16 时为 32；越深入 depth 越大
-  const depth = Math.max(0, 5 - Math.log2(Math.max(2, c.stageSize || 32)));
-  const randomField = c.fieldSource === "random";
-  const purseBase = randomField ? 200 : 140;
-  const purse = purseBase + depth * (randomField ? 95 : 55);
-  const passes = randomField ? 1 + Math.floor(depth) : 1; // 随机联队：越往后多轮换血
-  for (const t of survivors) {
-    if (!t?.isCpu) continue;
-    t.gold = (t.gold || 0) + purse + Math.floor(Math.random() * (randomField ? 120 : 80));
-    for (let i = 0; i < passes; i++) {
-      const spend = Math.min(
-        t.gold,
-        110 + Math.floor(purse * 0.75) + Math.floor(Math.random() * 70) + depth * 40
-      );
-      if (spend < 40) break;
-      const res = cpuUpgradeRoster(t, spend, c.used);
-      t.gold = Math.max(0, (t.gold || 0) - res.spent);
-    }
-    t.starterIds = null;
-  }
 }
 
 /** Archive finished stage and seed next (16/8/4/2). */

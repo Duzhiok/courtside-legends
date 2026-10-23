@@ -1,6 +1,11 @@
 import { ASSISTANTS, COACHES } from "../data/coaches.js";
+import { CUSTOM_REFRESH_COST, customPriceOf, listPaidPeaks } from "../data/customPool.js";
 import { playerPrice } from "../data/intangibles.js";
 import { HIDDEN_TIERS, PLAYERS, clonePlayer, overall } from "../data/players.js";
+
+/** Free refreshes per side before the pick-and-pack draft starts charging gold. */
+export const DRAFT_FREE_REFRESHES = 3;
+export const DRAFT_REFRESH_COST = 40;
 
 /** id → bref, rebuilt only when the roster reloads. */
 let brefIndex = null;
@@ -168,6 +173,47 @@ export function cpuUpgradeRoster(team, budget, globalUsed = new Set()) {
   }
 
   return { spent: budget - gold, added, notes: spentNotes };
+}
+
+/** Both rosters full and both sides have a coach + an assistant -- the pack-and-pick draft is over. */
+export function isDraftDone(d) {
+  if (!d) return false;
+  return (
+    d.teams.A.players.length >= d.picksPerSide &&
+    d.teams.B.players.length >= d.picksPerSide &&
+    !!d.teams.A.coach &&
+    !!d.teams.B.coach &&
+    !!d.teams.A.assistant &&
+    !!d.teams.B.assistant
+  );
+}
+
+/** Gold/block cost of refreshing the current pack: cheap in custom budget mode, pricier otherwise. */
+export function draftRefreshCost(d) {
+  return d?.budgetMode ? CUSTOM_REFRESH_COST : DRAFT_REFRESH_COST;
+}
+
+/** What a pick actually costs this draft: free unless buyPlayers is on, then custom-block or gold price. */
+export function pickCost(d, player) {
+  if (!d?.buyPlayers) return 0;
+  if (d.budgetMode) return customPriceOf(player);
+  return playerPrice(player);
+}
+
+/** Custom budget mode's "spend" phase: can this side still afford any priced (1-5 block) peak card? */
+export function customSideCanSpend(d, side) {
+  if (!d?.budgetMode) return false;
+  const team = d.teams[side];
+  if (!team || team.players.length >= d.picksPerSide) return false;
+  const gold = team.gold ?? 0;
+  if (gold <= 0) return false;
+  return listPaidPeaks(d.used).some((c) => customPriceOf(c.data) <= gold);
+}
+
+/** Spend phase ends once neither side can afford another priced card -- time to move to 0-block fillers. */
+export function customSpendPhaseDone(d) {
+  if (!d?.budgetMode) return true;
+  return !customSideCanSpend(d, "A") && !customSideCanSpend(d, "B");
 }
 
 export function teamPowerLabel(team) {
