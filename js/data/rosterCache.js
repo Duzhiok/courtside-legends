@@ -8,9 +8,12 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 48; // bump: Isaiah Thomas (thomais02, 微笑刺客) gets a signature kit
-// (杀手时刻/抛投大师/无解单打/节奏大师) instead of no skills at all.
-// (schema 47 was: Wikipedia auto-discovery tier (photos.wiki.js) adds ~2,560 credited real
+export const ROSTER_SCHEMA = 49; // bump: Isiah Thomas (thomais01, 活塞坏小子队长) gets a signature
+// kit (场上指挥家/传球魔术/杀手时刻/劲爆第一步) instead of no skills at all -- distinct from the
+// other Isaiah Thomas (thomais02) one letter off in the name.
+// (schema 48 was: Isaiah Thomas (thomais02, 微笑刺客) gets a signature kit (杀手时刻/抛投大师/
+// 无解单打/节奏大师) instead of no skills at all.
+// schema 47 was: Wikipedia auto-discovery tier (photos.wiki.js) adds ~2,560 credited real
 // photos covering ~2,630 people who previously had no portrait beyond the bbref hotlink/
 // generated avatar -- see scripts/photos/discover-wiki.mjs.
 // schema 46 was: Matt Barnes gets 场上恶汉 (enforcer); Paul George drops 三分雨/中投大师
