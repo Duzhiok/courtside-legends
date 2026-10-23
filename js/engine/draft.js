@@ -194,6 +194,48 @@ export function draftRefreshCost(d) {
   return d?.budgetMode ? CUSTOM_REFRESH_COST : DRAFT_REFRESH_COST;
 }
 
+/**
+ * Whose turn is next, after a pick was just made.
+ *
+ * Custom budget mode already has its own back-and-forth (keeps spending while the other side is
+ * tapped out, etc) -- untouched here.
+ *
+ * Everywhere else (选秀建队 vs CPU, and 双人对抗 duel), picks used to be a flat A,B,A,B,... toggle.
+ * That's a real fairness bug, not just a vibe: every single turn deals a brand-new, independently
+ * random 5-card pack (see dealPack/drawPack), so whoever is "d.turn" always gets first look at a
+ * pack nobody else has seen yet. Flat alternation means A is ALWAYS the one opening a fresh pack
+ * on odd turns and B on even ones -- fine turn-to-turn, but it never rotates who gets to anchor a
+ * round. A proper snake/zigzag draft (A,B,B,A,A,B,B,A,...) is the standard fix: pick index to
+ * picker is `floor((i+1)/2) % 2 === 0 ? "A" : "B"` for 0-based pick index i, which gives pairs of
+ * back-to-back picks for whoever picked last, alternating which side anchors each round.
+ *
+ * d._pickIdx counts every non-budget-mode pick (player, coach, or assistant alike) so interleaved
+ * staff picks don't throw off the player-pack sequence the user actually sees and cares about.
+ */
+export function advanceTurn(d) {
+  if (!d) return d;
+  if (d.budgetMode && d.customPhase === "spend") {
+    const other = d.turn === "A" ? "B" : "A";
+    if (customSideCanSpend(d, other)) {
+      d.turn = other;
+    } else if (customSideCanSpend(d, d.turn)) {
+      // the other side is tapped out, current side keeps spending
+    } else {
+      d.customPhase = "filler";
+      d.turn = other; // switch sides to start the 0-block filler phase
+    }
+  } else if (d.budgetMode && d.customPhase === "filler") {
+    const other = d.turn === "A" ? "B" : "A";
+    if (d.teams[other].players.length < d.picksPerSide) d.turn = other;
+    // the other side is already full, current side keeps filling
+  } else {
+    d._pickIdx = (d._pickIdx || 0) + 1;
+    d.turn = Math.floor((d._pickIdx + 1) / 2) % 2 === 0 ? "A" : "B";
+  }
+  d.round = Math.min(d.picksDone.A, d.picksDone.B) + 1;
+  return d;
+}
+
 /** What a pick actually costs this draft: free unless buyPlayers is on, then custom-block or gold price. */
 export function pickCost(d, player) {
   if (!d?.buyPlayers) return 0;
