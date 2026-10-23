@@ -271,6 +271,12 @@ const WIPED_STAT_PATCH = {
  * 生涯被标成 SF：马隆、巴克利、罗德曼、加内特……对照真实赛季编号在 rpg/apg 上的签名很易找到
  * 这批“被误判为 SF 的大前锋”（全生涯标 SF 且 rpg>=9/apg<=4.2 的，足有 30 位，其中这几位是每个
  * 球迷都知道的无争议 HOF 大前锋，其余个别 1950–60 年代边缘人物产产业证据不足暂未改）。
+ *
+ * 同样的归一化套路也发生在后卫身上：模糊的 "G"（后卫，未区分 PG/SG）被统一归一化成了 "SG"。
+ * 结果是一大批每个球迷都知道的无争议 HOF 组织后卫全生涯被标成 SG：斯托克顿、魔术师约翰逊、
+ * 艾赛亚·托马斯、加里·佩顿……同样用 apg 签名（全生涯标 SG 且 apg>=6.5 的）很容易找到这批
+ * “被误判为 SG 的控卫”（杰里·韦斯特、米切尔·雷·理查德森这类历史上长期被列为双位置后卫、
+ * 本身就有争议的生涯，暂不动）。
  */
 const POS_OVERRIDES = {
   nowitdi01: "PF", // Dirk Nowitzki
@@ -292,6 +298,43 @@ const POS_OVERRIDES = {
   willike02: "PF", // Kevin Willis — 100% 标 SF 达 21 季
   kempsh01: "PF", // Shawn Kemp — 100% 标 SF 达 14 季
   rondora01: "PG", // Rajon Rondo — 2007–11 全标 SF，他整个生涯都是组织后卫
+  // 被 "G"→"SG" 归一化误收的历史控卫（roster.json 全生涯都标 SG，但现实中都是无争议 PG）
+  stockjo01: "PG", // John Stockton — NBA 历史助攻王，19 个赛季全标 SG
+  cousybo01: "PG", // Bob Cousy
+  rodgegu01: "PG", // Guy Rodgers
+  roberos01: "PG", // Oscar Robertson
+  wilkele01: "PG", // Lenny Wilkens
+  vanlino01: "PG", // Norm Van Lier
+  archina01: "PG", // Nate "Tiny" Archibald
+  porteke01: "PG", // Kevin Porter
+  lucasjo01: "PG", // John Lucas
+  nixonno01: "PG", // Norm Nixon
+  cheekma01: "PG", // Maurice Cheeks
+  johnsma02: "PG", // Earvin "Magic" Johnson
+  moorejo01: "PG", // Johnny Moore
+  thomais01: "PG", // Isiah Thomas
+  pricema01: "PG", // Mark Price
+  jacksma01: "PG", // Mark Jackson
+  johnske02: "PG", // Kevin Johnson
+  boguemu01: "PG", // Muggsy Bogues
+  stricro02: "PG", // Rod Strickland
+  hardati01: "PG", // Tim Hardaway
+  paytoga01: "PG", // Gary Payton
+  brandte01: "PG", // Terrell Brandon
+  vanexni01: "PG", // Nick Van Exel
+  marbust01: "PG", // Stephon Marbury
+};
+
+/**
+ * 少数球员的误判只发生在个别赛季（不是整段生涯），所以不能用上面整段生涯的 bref 覆盖——那样会
+ * 连带改掉他本来就标对的赛季。按 "bref:season" 精确打补丁，找不到才退回整段生涯覆盖 / 原始值。
+ */
+const POS_OVERRIDES_BY_SEASON = {
+  // Vince Carter 2019/2020 老鹰生涯（42–43 岁替补）两个赛季被标成 PF，但他从未真正打内线——
+  // 其余 20 个赛季（猛龙/篮网/魔术/太阳/独行侠/灰熊/国王）全部正确标 SF/SG，整段生涯覆盖只会
+  // 把那些本来对的赛季也改错。
+  "cartevi01:2019": "SF",
+  "cartevi01:2020": "SF",
 };
 
 /** Recover wiped box-score fields (some scrape rows lost PPG/FGA/BPG/…). */
@@ -311,7 +354,8 @@ function repairSeasonStats(r) {
   if (ft <= 0) ft = 0.75;
   const tpa = +r.tpa || 0;
   const brefKey = String(r.bref || "").toLowerCase();
-  const pos = POS_OVERRIDES[brefKey] || r.pos || "SF";
+  const pos =
+    POS_OVERRIDES_BY_SEASON[`${brefKey}:${r.season}`] || POS_OVERRIDES[brefKey] || r.pos || "SF";
   if (r.bref && r.season) {
     const patched = WIPED_STAT_PATCH[`${r.bref}:${r.season}`];
     if (patched) {
@@ -489,6 +533,10 @@ const PHYS_OVERRIDES = {
   // Khris Middleton — real-life ~198cm/101kg stocky two-way wing; the formula was spitting
   // out 210cm "瘦高" (lanky) for him, which is backwards.
   middlkh01: { heightCm: 198, weightKg: 101 },
+  // Ben Simmons — real-life 208cm/109kg; no raw height in roster.json, so the fallback formula
+  // fell back to the generic "PG" bucket (188cm) since he's statistically a point guard despite
+  // being a legit 6'10" forward-sized frame who can guard/create from 1 through 5.
+  simmobe01: { heightCm: 208, weightKg: 109 },
 };
 
 /**
