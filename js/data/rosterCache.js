@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 50; // bump: Draymond Green's (greendr01) scraped NBA2K anchors
+export const ROSTER_SCHEMA = 51; // bump: PG overrides for G→SG-mislabeled legends, Vince Carter season-pos fix, Ben Simmons height
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good
