@@ -329,3 +329,24 @@
 验证：`npm test` 529/529（508 + 18 新增 draft.test.js + 3 新增 careerBracket 测试），`npm run lint` 干净，`git diff --check` 干净。`js/app.js` 从 9983 行降到约 9920 行左右。
 
 这是纯搬运 + 去重，没有改变任何行为，所以**没有**碰 `ROSTER_SCHEMA`（卡片数据/技能/头像都没变）。
+
+### R33：修复本届最佳阵容把内线塞进控卫位的 bug
+
+用户截图：某届金币晋级赛的"本届最佳阵容"把 Barkley 排在 PG、Malone 排在 SF、Irving 排在 PF——明显是历史位置错配。
+
+根因定位（两层）：
+
+1. `js/engine/allTeam.js` 的 `selectAllTeamByPos()` 选位时用 `playPos`（球员那场比赛实际被安排的位置）优先于 `pos`（真实自然位置）。这个设计本身没问题（如果 `playPos` 可信的话，"实际打了什么位置"确实该优先于卡面原始位置），但前提是 `playPos` 得先是靠谱的。
+2. 真正的根因在 `js/engine/careerEconomy.js` 的 `teamStarters()`——这是淘汰赛里所有 CPU 对 CPU 快速模拟比赛选首发用的函数，它只按 OVR 排序取前 5，**完全不管位置**，所以这 5 个人的 `playPos` 就是各自卡面上随便带着的旧值，毫无保证。人类自己的阵容设置页会走 `resolveStarterPositionCollisions`/`nextEmptyPlayPos` 这套"按适配度排名选空位"的逻辑（R28 修的 Drummond 站错位问题用的就是这套），但 CPU 首发完全绕过了它。
+
+修复：
+- `teamStarters()` 现在在选出 top-5 后，调用新的内部 `seatByPosition()`，复用 `gameplan.js` 里 `nextEmptyPlayPos()` 的按位置适配度排名逻辑，按 OVR 从高到低依次让每个人挑最适合自己的空位，再也不会出现"谁坐哪全看卡面旧数据"的情况。返回的是克隆对象，不会污染原始名单球员的 `playPos`。
+- 顺手把 `allTeam.js` 的 `selectAllTeamByPos()` 从"单层 OR 兜底"改成三趟独立扫描：第一趟全场找精确位置匹配，第二趟找相邻位置，第三趟（真正的兜底）才按"离目标位置最近"排序挑剩下的人。原来的单层写法有个隐藏坑：PG 排在扫描顺序最前面，如果 PG 没人就直接从"剩下所有人里选分最高的"兜底，可能会把一个本该留给 SF 的精确匹配人选提前抢走——三趟扫描保证任何精确匹配都会先于任何兜底被锁定。
+
+新增测试：
+- `tests/allTeam.test.js`（新文件，之前这个模块完全没有专属测试）：精确匹配、全内线无真控卫兜底不互相抢位、同位置不重复选人、空池安全返回。
+- `tests/careerEconomy.test.js` 新增 3 个 `teamStarters` 测试：五个纯内线也能分到 5 个不同位置、不会污染原始名单、mutation 验证（临时让函数绕过 seating 直接返回，测试能抓出 `[null,null,null,null,null]`）。
+
+验证：536/536 测试、lint、diff-check 全过。这个修复不改变 `seasonToCard` 的卡片输出，所以不需要 bump `ROSTER_SCHEMA`。
+
+遗留：这次只覆盖了"淘汰赛 CPU 首发"这一条路径；`makeFranchiseCareerTeam`/`makeRandomCareerTeam`/`rollLegendTeam` 等其他 CPU 建队函数如果也存在类似"选人不管位置"的情况，还没有逐一排查，有空再看。
