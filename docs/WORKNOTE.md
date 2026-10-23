@@ -350,3 +350,35 @@
 验证：536/536 测试、lint、diff-check 全过。这个修复不改变 `seasonToCard` 的卡片输出，所以不需要 bump `ROSTER_SCHEMA`。
 
 遗留：这次只覆盖了"淘汰赛 CPU 首发"这一条路径；`makeFranchiseCareerTeam`/`makeRandomCareerTeam`/`rollLegendTeam` 等其他 CPU 建队函数如果也存在类似"选人不管位置"的情况，还没有逐一排查，有空再看。
+
+### R34：继续拆 app.js——提取对位分配逻辑到 engine/matchups.js
+
+继续之前约定的"小步拆 app.js"节奏，这次拆的是用户点名的方向之一：`matchupPosOf`/`sortByMatchupPos`/`buildSamePosMatchups` 这串对位分配逻辑（赛前设置页和比赛内防守对位面板共用）。
+
+新建 `js/engine/matchups.js`，搬过去：
+- `MATCHUP_POS_ORDER`、`MATCHUP_NEAR_POS`
+- `matchupPosOf`、`sortByMatchupPos`、`buildSamePosMatchups`
+
+`matchupOptionList`/`renderMatchupBoard` 留在 `app.js`——这两个是拼 HTML 字符串的渲染函数，不是纯逻辑，不该拆。
+
+拆的过程中又顺手发现一处和之前"shuffle 重复两份"同类型的 DRY 问题：`matchupPosOf` 依赖的位置归一化逻辑，全仓库至少有 4 份几乎一样但**不完全等价**的独立实现（`app.js` 的 `normalizePos`、`court.js` 的私有 `normPos`、`gameplan.js` 的私有 `normPos5`、`allTeam.js` 的 `normAllTeamPos`）。抽查了一下：`normPos5("PG-SG")` 和 `normalizePos("PG-SG")` 在复合位置标签上输出不一样（`normPos5` 会把它判成 "SF"，`normalizePos` 判成 "PG"）。所以这次**没有**趁机合并成一份共享工具——那是真实行为差异，贸然合并是会改变行为的，不是无痛 DRY。新模块里原样复制了 `app.js` 版本的精确逻辑，加了注释说明这是有意为之的本地拷贝，统一合并留到以后单独评估。
+
+新增 `tests/matchups.test.js`（这块逻辑之前零测试），覆盖：
+- 位置归一化（含复合标签的精确行为）
+- 排序（位置优先，同位置按防守值）
+- 同位置优先配对
+- 相邻位置兜底
+- 完全没有同位置/相邻位置时的最终兜底
+- 不会把同一个防守人分给两个对手
+- 保留手动对位覆盖（含故意错位）
+- 手动对位指向已不在名单的球员时安全忽略
+- 空输入安全返回
+
+做了 mutation 验证：第一版"破坏同位置优先判断"的测试没抓住（因为测试样例凑巧让兜底逻辑算出一样的答案），追加了一个更锋利的用例（弱控卫 vs 王牌防守中锋守同一个对方控卫，必须选控卫而不是选防守值更高的中锋），这次真的抓住了 mutation。
+
+验证：
+- `npm test`：548/548 全绿；lint、diff-check 全过。
+- 真实 headless Chromium 加载首页：0 个 page error，新模块能正常 import。
+- `js/app.js`：9983 → 9848 行（-135）。
+
+遗留：全仓库至少 4 份位置归一化实现不统一，哪天要做一次专门的审计+合并（需要先逐个对比所有复合/异常输入的行为差异，确认合并不会引入回归，再决定用哪一份作为统一实现）。
