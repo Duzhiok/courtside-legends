@@ -60,3 +60,37 @@ test("accepting a proposal moves players and adds future draft assets", () => {
   assert.equal(st.draftAssets.length, proposal.offerPicks.length);
   assert.equal(st.tradeLog.at(-1).proposalId, proposal.id);
 });
+
+// Regression for user report #14: "我都拒绝报价了，怎么刷新报价后又出现相同的报价？". generateTradeProposals
+// is a pure function of (year, dayIndex, roster) -- without a persistent "already said no to this
+// exact deal" memory, clicking refresh (which re-runs generateTradeProposals at the SAME day/year
+// with nothing else changed) was guaranteed to hand back the identical proposal.
+test("declining a proposal, then refreshing at the same day/year, does NOT bring back the exact same offer", () => {
+  const st = seasonFixture();
+  const first = ensureTradeProposals(st)[0];
+  declineTradeProposal(st, first.id);
+
+  const refreshed = generateTradeProposals(st); // same st.year/st.dayIndex/roster as before
+  assert.equal(
+    refreshed.some((p) => p.fromTeamId === first.fromTeamId && p.wantIds[0] === first.wantIds[0]),
+    false,
+    "the exact team+offer-player shape the user just declined must not reappear on refresh",
+  );
+});
+
+test("declining one team's offer does not block a DIFFERENT team's offer for the same star later", () => {
+  const st = seasonFixture();
+  const first = ensureTradeProposals(st)[0];
+  declineTradeProposal(st, first.id);
+
+  // Add a second CPU team and advance a day so the team-rotation picks it instead of CPU --
+  // a different team's offer has a different signature and must still be allowed through; only
+  // the EXACT declined team+player+offer shape is blocked, not the star forever.
+  st.teams.CPU2 = { name: "另一队", players: [player("cpu2-star", 84, 150), player("cpu2-filler", 60, 30)] };
+  st.dayIndex += 1;
+  const refreshed = generateTradeProposals(st);
+  assert.ok(
+    refreshed.some((p) => p.targetName === first.targetName && p.fromTeamId !== first.fromTeamId),
+    "a different team's offer for the same player should still surface",
+  );
+});

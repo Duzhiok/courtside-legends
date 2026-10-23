@@ -1288,7 +1288,11 @@ export function loadSeason() {
 }
 
 export function clearSeasonSave() {
-  localStorage.removeItem(SAVE_KEY);
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch (err) {
+    console.error("[season] clearSeasonSave failed", err);
+  }
 }
 
 export function seasonProgressLabel(st) {

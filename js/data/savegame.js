@@ -41,7 +41,11 @@ export function peekSave() {
 }
 
 export function clearSave() {
-  localStorage.removeItem(SAVE_KEY);
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch (err) {
+    console.error("[savegame] clearSave failed", err);
+  }
 }
 
 export function formatSaveLabel(meta) {
@@ -71,8 +75,15 @@ export function writeSave(payload) {
     feed: payload.feed || [],
   };
   const text = JSON.stringify(data);
-  localStorage.setItem(SAVE_KEY, text);
-  return { bytes: text.length, ...data };
+  try {
+    localStorage.setItem(SAVE_KEY, text);
+    return { bytes: text.length, ...data };
+  } catch (err) {
+    // Mid-session autosave is best-effort -- an unguarded throw here (e.g. quota exceeded) would
+    // otherwise abort whatever UI action triggered this save, with no visible explanation.
+    console.error("[savegame] writeSave failed (likely localStorage quota) -- progress was NOT saved", err);
+    return { bytes: 0, ...data, saveFailed: true };
+  }
 }
 
 export function readSave() {
