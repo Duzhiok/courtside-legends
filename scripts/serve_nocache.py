@@ -20,10 +20,18 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 
+class DevServer(socketserver.ThreadingTCPServer):
+    # Restart right after Ctrl+C without "Address already in use",
+    # and serve requests concurrently so one large file (roster.json)
+    # does not block every other asset behind it.
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 def main() -> None:
     os.chdir(ROOT)
     handler = functools.partial(NoCacheHandler, directory=ROOT)
-    with socketserver.TCPServer(("", PORT), handler) as httpd:
+    with DevServer(("", PORT), handler) as httpd:
         print(f"Serving {ROOT} on http://127.0.0.1:{PORT}/ (no-cache)", flush=True)
         httpd.serve_forever()
 
