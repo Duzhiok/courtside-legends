@@ -10,6 +10,7 @@
 import { isHiddenGem, isPlayerAvailable, playerPrice } from "../data/intangibles.js";
 import { overall, clonePlayer, PLAYERS } from "../data/players.js";
 import { teamPowerLabel } from "./draft.js";
+import { nextEmptyPlayPos } from "./gameplan.js";
 import { GameSim } from "./sim.js";
 
 /** 换货时出现球探包的基础概率（新一轮 / 手动刷新都会重 roll，不是每轮必出） */
@@ -24,11 +25,33 @@ export function teamStarters(team) {
   if (!team?.players?.length) return [];
   const healthy = team.players.filter(isPlayerAvailable);
   const pool = healthy.length ? healthy : team.players;
+  let picked;
   if (team.starterIds?.length >= 5) {
     const pick = team.starterIds.map((id) => team.players.find((p) => p.id === id)).filter(Boolean);
-    if (pick.length >= 5) return pick.slice(0, 5);
+    if (pick.length >= 5) picked = pick.slice(0, 5);
   }
-  return [...pool].sort((a, b) => overall(b) - overall(a)).slice(0, 5);
+  if (!picked) picked = [...pool].sort((a, b) => overall(b) - overall(a)).slice(0, 5);
+  return seatByPosition(picked);
+}
+
+/**
+ * CPU/auto-picked fives never go through the human setup screen's position-collision handling,
+ * so a lineup like Malone + Barkley + Duncan (three true bigs) would just carry over each
+ * player's stale/leftover playPos -- which then poisons anything downstream that trusts playPos
+ * over natural pos, like the all-tournament team (allTeam.js picks "this tournament's best PG"
+ * by playPos, so a big who was never actually a guard could get recorded as one). Clone + seat
+ * everyone by best-fit here, best OVR first, so every starting five this hands back is
+ * positionally sane -- without mutating the real roster objects underneath it.
+ */
+function seatByPosition(picked) {
+  const seated = [];
+  for (const p of [...picked].sort((a, b) => overall(b) - overall(a))) {
+    const clone = { ...p };
+    const preferred = p.playPosManual ? p.playPos || p.pos : null;
+    clone.playPos = nextEmptyPlayPos(seated, clone, preferred);
+    seated.push(clone);
+  }
+  return seated;
 }
 
 /** Fast CPU-vs-CPU sim for bracket rounds the human isn't playing in. */

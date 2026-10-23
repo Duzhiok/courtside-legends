@@ -114,44 +114,72 @@ export function selectAllTeamByPos(pool) {
     .sort((a, b) => b._score - a._score);
 
   const used = new Set();
+  const bySlot = {};
+  const posDist = (pos, slot) => Math.abs(ALL_TEAM_POS.indexOf(pos) - ALL_TEAM_POS.indexOf(slot));
+
+  // Three separate passes across ALL slots, not one slot-at-a-time OR-chain: a slot with no
+  // exact-fit candidates left must never "steal" a player who is a perfect fit for a slot that
+  // just hasn't been processed yet. e.g. five classic bigs with zero real guards -- the lone SF
+  // among them must land at SF, not get swept into PG just because PG happens to come first in
+  // ALL_TEAM_POS and runs its fallback before SF's own turn.
+  // Pass 1: exact position match, best score wins each slot.
+  for (const slot of ALL_TEAM_POS) {
+    const pick = scored.find((r) => !used.has(r.id) && r.pos === slot);
+    if (pick) {
+      bySlot[slot] = pick;
+      used.add(pick.id);
+    }
+  }
+  // Pass 2: adjacent position (PG<->SG, SG<->SF, SF<->PF, PF<->C), only for slots still open.
+  for (const slot of ALL_TEAM_POS) {
+    if (bySlot[slot]) continue;
+    const pick = scored.find((r) => !used.has(r.id) && posDist(r.pos, slot) === 1);
+    if (pick) {
+      bySlot[slot] = pick;
+      used.add(pick.id);
+    }
+  }
+  // Pass 3: true last resort (e.g. a run with almost no real point guards). Prefer whoever's
+  // natural position is physically closest to the slot over whoever merely scored highest
+  // overall -- a center is a worse PG stand-in than a shooting guard is, gaudy box score or not.
+  for (const slot of ALL_TEAM_POS) {
+    if (bySlot[slot]) continue;
+    const pick = [...scored]
+      .filter((r) => !used.has(r.id))
+      .sort((a, b) => posDist(a.pos, slot) - posDist(b.pos, slot) || b._score - a._score)[0];
+    if (pick) {
+      bySlot[slot] = pick;
+      used.add(pick.id);
+    }
+  }
+
   const out = [];
   for (const slot of ALL_TEAM_POS) {
-    let pick =
-      scored.find((r) => !used.has(r.id) && r.pos === slot) ||
-      scored.find((r) => {
-        if (used.has(r.id)) return false;
-        // 相邻位置兜底
-        const i = ALL_TEAM_POS.indexOf(r.pos);
-        const j = ALL_TEAM_POS.indexOf(slot);
-        return Math.abs(i - j) <= 1;
-      }) ||
-      scored.find((r) => !used.has(r.id));
-    if (pick) {
-      used.add(pick.id);
-      out.push({
-        slot,
-        id: pick.id,
-        name: pick.name,
-        pos: slot,
-        naturalPos: pick.pos,
-        teamName: pick.teamName || "",
-        teamId: pick.teamId || "",
-        ovr: pick.ovr,
-        gp: pick.gp || 0,
-        pts: pick.pts || 0,
-        reb: pick.reb || 0,
-        ast: pick.ast || 0,
-        ppg: pick.gp ? +(pick.pts / pick.gp).toFixed(1) : 0,
-        rpg: pick.gp ? +(pick.reb / pick.gp).toFixed(1) : 0,
-        apg: pick.gp ? +(pick.ast / pick.gp).toFixed(1) : 0,
-        score: +pick._score.toFixed(1),
-        bref: pick.bref,
-        nbaId: pick.nbaId,
-        photo: pick.photo,
-        photoCareerDefault: pick.photoCareerDefault,
-        season: pick.season,
-      });
-    }
+    const pick = bySlot[slot];
+    if (!pick) continue;
+    out.push({
+      slot,
+      id: pick.id,
+      name: pick.name,
+      pos: slot,
+      naturalPos: pick.pos,
+      teamName: pick.teamName || "",
+      teamId: pick.teamId || "",
+      ovr: pick.ovr,
+      gp: pick.gp || 0,
+      pts: pick.pts || 0,
+      reb: pick.reb || 0,
+      ast: pick.ast || 0,
+      ppg: pick.gp ? +(pick.pts / pick.gp).toFixed(1) : 0,
+      rpg: pick.gp ? +(pick.reb / pick.gp).toFixed(1) : 0,
+      apg: pick.gp ? +(pick.ast / pick.gp).toFixed(1) : 0,
+      score: +pick._score.toFixed(1),
+      bref: pick.bref,
+      nbaId: pick.nbaId,
+      photo: pick.photo,
+      photoCareerDefault: pick.photoCareerDefault,
+      season: pick.season,
+    });
   }
   return out;
 }

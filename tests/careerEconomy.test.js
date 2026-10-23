@@ -60,6 +60,48 @@ test("teamStarters: empty/missing roster returns an empty lineup, not a crash", 
   assert.deepEqual(teamStarters({ players: [] }), []);
 });
 
+test("teamStarters: a five crowded with true bigs still gets five DISTINCT, sane positions (not whoever's left over)", () => {
+  // Reproduces a real bug report: an all-tournament CPU five of Duncan/Robinson/Towns/Gobert-
+  // style bigs ended up with one of them recorded at PG, because teamStarters used to hand back
+  // raw top-5-by-OVR with no position assignment at all, so playPos was just whatever stale
+  // value each card already carried. Build a team of five classic bigs (PF/C, tall, strong,
+  // rim-protecting, zero playmaking) plus enough size that none of them look remotely like a
+  // guard, and make sure the auto-seated five never puts a big at PG or SG.
+  const bigTemplate = (id, ovr) => ({
+    id,
+    name: id,
+    pos: "C",
+    heightCm: 213,
+    weightKg: 115,
+    strength: 88,
+    paint: 85,
+    rebound: 86,
+    block: 80,
+    pass: 35,
+    speed: 45,
+    three: 25,
+    defense: 78,
+    scoring: 60,
+    raw: { apg: 1.2 },
+    _ovr: ovr,
+  });
+  const players = [1, 2, 3, 4, 5].map((n) => bigTemplate(`big${n}`, 90 - n));
+  const team = { name: "AllBigs", players, starterIds: players.map((p) => p.id) };
+  const starters = teamStarters(team);
+  assert.equal(starters.length, 5);
+  const positions = starters.map((p) => p.playPos);
+  assert.equal(new Set(positions).size, 5, `expected 5 distinct slots, got ${JSON.stringify(positions)}`);
+  for (const slot of ["PG", "SG", "SF", "PF", "C"]) assert.ok(positions.includes(slot), `missing ${slot}`);
+});
+
+test("teamStarters: does not mutate the real roster's playPos (only hands back seated clones)", () => {
+  const team = buildTeam("Home", 0);
+  const before = team.players.map((p) => p.playPos);
+  teamStarters(team);
+  const after = team.players.map((p) => p.playPos);
+  assert.deepEqual(after, before, "teamStarters must not leave side effects on the source roster");
+});
+
 test("simulateCpuMatch: returns a complete, consistent result shape", () => {
   const home = buildTeam("Home", 0);
   const away = buildTeam("Away", 12);
