@@ -454,3 +454,17 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 顺手回答了用户最后那个问题——"玩家角度现在该怎么惩罚这种阵容"：选对位优先防挡库里/克莱这种人的后卫（哪怕防守评分低一点，位置对口现在真的有用了），别让系统自动把防守评分最高的中锋拉到外面，另外战术上"五外"配合挡拆/突破分球（`drive_kick`/`pnr`）比单纯站着等三分更有效，因为那条通路本来就有自己的加成，会叠加在这次修的错位加成上面。
 
 567/567 测试全过，lint、diff-check 干净。本轮修改还在工作区，尚未提交。
+
+### R34：shuffle() DRY 清理——7 份一模一样的洗牌函数合并成 1 份
+
+接上一轮的 draft 拆分方案：核对发现用户提出的"提取 draft 纯逻辑到 engine/draft.js + 对应测试"这部分**在更早的会话里已经全部做完了**（`js/engine/draft.js` 已经导出 `isDraftDone`/`draftRefreshCost`/`pickCost`/`customSideCanSpend`/`customSpendPhaseDone`，`upgradeCpuAdvancers` 已经在 `careerBracket.js`，`tests/draft.test.js`/`tests/careerBracket.test.js` 已经覆盖，`app.js` 里也没有残留的重复定义）。所以这轮只需要做 shuffle 的 DRY 部分。
+
+搜了一圈发现比用户记忆中的还严重：不是两份（`shuffleArr`/`shuffleCopy`），是**七份完全一样的 Fisher-Yates 洗牌**，散落在 `app.js`（`shuffleArr`）、`engine/draft.js`、`engine/seasonDraft.js`、`engine/season.js`、`engine/careerBracket.js`、`data/skills.js` 里两个（`shuffleInPlace`、`shuffleLocal`）。其中 `season.js`/`careerBracket.js` 的版本额外带了个可注入 `rng` 参数（默认 `Math.random`），这个设计值得保留——合并后统一用这个带 `rng` 的版本。
+
+`shuffleInPlace` 命名暗示"原地修改不返回新数组"，跟其余六份"返回拷贝"的语义不一样，合并前专门查了它两处调用点（`trySignatureOffense`/`trySignatureBlock` 里对 `sigs`），确认 `sigs` 都是当场 `.map().filter()` 出来的一次性局部数组，没有别处持有同一个引用，所以换成返回拷贝的版本是行为不变的（只是把 `const sigs = ...` 改成 `let sigs = ...` 以便重新赋值）。
+
+统一后的 `shuffle(arr, rng = Math.random)` 放进 `js/core/seededRandom.js`——这个文件本来就是"纯函数、调用方自己注入随机源"的专门模块（`hashSeed`/`seededStream`/`clamp`），放这里比新建一个 `utils.js`更合适，也不需要额外建文件。
+
+新增 `tests/seededRandom.test.js`（之前这个文件完全没有测试）：不修改原数组、不丢元素只打乱顺序、同一个注入 seed 可复现、不同 seed 真的会给出不同顺序、没传 rng 时走默认 `Math.random` 的路径仍然正常、空数组/单元素数组安全。
+
+7 处定义全删，11 处 `app.js` 调用点用 `sed` 批量从 `shuffleArr(` 改成 `shuffle(`，其余各文件调用点不用改名字（本来就叫 `shuffle`）。净减少 37 行（38 增/75 删，7 个文件）。573/573 测试全过，lint、diff-check 干净。本轮改动还在工作区，尚未提交。

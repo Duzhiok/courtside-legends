@@ -29,3 +29,18 @@ export function seededStream(seed) {
 export function clamp(n, lo, hi) {
   return Math.max(lo, Math.min(hi, n));
 }
+
+/**
+ * Fisher-Yates shuffle, returning a new array (never mutates `arr`). Defaults to Math.random for
+ * call sites that don't care about determinism, but accepts an injected rng (e.g. a seededStream)
+ * for reproducible tests -- this used to be copy-pasted identically into five different files
+ * (app.js, draft.js, seasonDraft.js, season.js, careerBracket.js); one copy here, please.
+ */
+export function shuffle(arr, rng = Math.random) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
