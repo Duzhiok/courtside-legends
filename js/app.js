@@ -342,6 +342,7 @@ import {
   suggestedBallHandlerAction,
   usageForBallAction,
 } from "./engine/gameplan.js";
+import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos } from "./engine/matchups.js";
 import { CourtView } from "./engine/court.js";
 import { GameSim } from "./engine/sim.js";
 import {
@@ -5606,79 +5607,6 @@ function persistSeasonRotationFromTeam(youTeam, starterIds = null) {
   team.rotation = captureRotationPlan(team, team.starterIds);
   if (!saveSeasonAndCareer(st)) return false;
   return true;
-}
-
-const MATCHUP_POS_ORDER = ["PG", "SG", "SF", "PF", "C"];
-const MATCHUP_NEAR_POS = {
-  PG: ["SG", "SF"],
-  SG: ["PG", "SF"],
-  SF: ["SG", "PF", "PG"],
-  PF: ["C", "SF"],
-  C: ["PF", "SF"],
-};
-
-function matchupPosOf(p) {
-  return normalizePos(p?.playPos || p?.pos);
-}
-
-function sortByMatchupPos(list) {
-  return [...(list || [])].sort((a, b) => {
-    const da = MATCHUP_POS_ORDER.indexOf(matchupPosOf(a));
-    const db = MATCHUP_POS_ORDER.indexOf(matchupPosOf(b));
-    return (da < 0 ? 99 : da) - (db < 0 ? 99 : db) || (b.defense || 0) - (a.defense || 0);
-  });
-}
-
-/** 同位置优先互防；同位置多人取防守更高者；再邻位，最后才随便补 */
-function buildSamePosMatchups(youPool, oppPool, saved = {}) {
-  const you = sortByMatchupPos(youPool);
-  const opp = sortByMatchupPos(oppPool);
-  const youById = new Map(you.map((p) => [p.id, p]));
-  const assignments = {};
-  const used = new Set();
-
-  const claim = (opId, defId) => {
-    if (!opId || !defId || used.has(defId) || !youById.has(defId)) return false;
-    assignments[opId] = defId;
-    used.add(defId);
-    return true;
-  };
-
-  // 保留玩家已选手动对位（含故意错位），只要防守人仍在名单里
-  for (const op of opp) {
-    const sid = saved[op.id];
-    if (!sid || !youById.has(sid) || used.has(sid)) continue;
-    claim(op.id, sid);
-  }
-
-  const pickBest = (op, pred) => {
-    const cands = you
-      .filter((p) => !used.has(p.id) && pred(p))
-      .sort((a, b) => (b.defense || 0) - (a.defense || 0) || overall(b) - overall(a));
-    return cands[0] || null;
-  };
-
-  // 1) 同位置
-  for (const op of opp) {
-    if (assignments[op.id]) continue;
-    const bp = matchupPosOf(op);
-    const hit = pickBest(op, (p) => matchupPosOf(p) === bp);
-    if (hit) claim(op.id, hit.id);
-  }
-  // 2) 邻位
-  for (const op of opp) {
-    if (assignments[op.id]) continue;
-    const near = MATCHUP_NEAR_POS[matchupPosOf(op)] || [];
-    const hit = pickBest(op, (p) => near.includes(matchupPosOf(p)));
-    if (hit) claim(op.id, hit.id);
-  }
-  // 3) 剩余
-  for (const op of opp) {
-    if (assignments[op.id]) continue;
-    const hit = pickBest(op, () => true);
-    if (hit) claim(op.id, hit.id);
-  }
-  return assignments;
 }
 
 function matchupOptionList(youPool, oppPlayer, selectedId) {
