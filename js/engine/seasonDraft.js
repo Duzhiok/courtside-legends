@@ -5,6 +5,7 @@
 import { FRANCHISES, POS_SLOTS, playersForFranchise } from "../data/franchises.js";
 import { clonePlayer, overall, PLAYERS } from "../data/players.js";
 import { playerSalary, SEASON_SALARY_CAP } from "./seasonMarket.js";
+import { shuffle } from "../core/seededRandom.js";
 
 const OFFER_COUNT = 10;
 /** Opening draft fills to this size when salary space runs out. */
@@ -16,14 +17,6 @@ export function draftableFranchises() {
   return FRANCHISES.filter((f) => f.id !== "LAS" && (f.aliases || []).length);
 }
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function pickOne(list) {
   if (!list?.length) return null;

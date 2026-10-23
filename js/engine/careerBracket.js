@@ -8,6 +8,7 @@ import { accumulateGameToAllTeamBoard, allTeamFromRosters, selectAllTeamByPos } 
 import { simulateCpuMatch } from "./careerEconomy.js";
 import { cpuUpgradeRoster } from "./draft.js";
 import { rollAdvancementInjuries } from "../data/intangibles.js";
+import { shuffle } from "../core/seededRandom.js";
 
 export const CAREER_STAGES = [32, 16, 8, 4, 2];
 
@@ -30,14 +31,6 @@ export function nextStageSize(stageSize) {
   return CAREER_STAGES[i + 1];
 }
 
-function shuffle(arr, rng = Math.random) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function mkMatch(a, b, kind, podId) {
   return {

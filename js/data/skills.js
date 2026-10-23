@@ -5,6 +5,8 @@
  * - 招牌绝技：随机触发，大幅提升命中/盖帽（非必中）
  */
 
+import { shuffle } from "../core/seededRandom.js";
+
 export const SKILL_PACKS = {
   clutch_killer: {
     id: "clutch_killer",
@@ -1397,14 +1399,6 @@ function pickStable(key, list, n) {
   return out;
 }
 
-function shuffleInPlace(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
 function candidateSkills(p) {
   const a = p.archetype || "";
   const cands = new Set();
@@ -1872,11 +1866,11 @@ function bullyProcChance(baller, defender, base) {
  * Random signature offense proc among all owned signature moves.
  */
 export function trySignatureOffense(baller, defender, gameCtx = {}) {
-  const sigs = (baller?.skills || [])
+  let sigs = (baller?.skills || [])
     .map((id) => SKILL_PACKS[id])
     .filter((m) => m?.signature && m.kind === "offense");
   if (!sigs.length) return null;
-  shuffleInPlace(sigs);
+  sigs = shuffle(sigs);
   const late = (gameCtx.quarter || 1) >= 4;
   const close = Math.abs(gameCtx.scoreDiff || 0) <= 8;
   const lobFeed =
@@ -1920,11 +1914,11 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
 }
 
 export function trySignatureBlock(defender, shot) {
-  const sigs = (defender?.skills || [])
+  let sigs = (defender?.skills || [])
     .map((id) => SKILL_PACKS[id])
     .filter((m) => m?.signature && m.kind === "defense" && m.blockBoost);
   if (!sigs.length) return null;
-  shuffleInPlace(sigs);
+  sigs = shuffle(sigs);
   for (const m of sigs) {
     let proc = m.proc;
     // 追身定板：更吃禁区/快攻终结
@@ -2330,16 +2324,7 @@ export function rollSkillShopOffers(size = 6, excludeIds = []) {
     take(s);
   }
 
-  return shuffleLocal(picks);
-}
-
-function shuffleLocal(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+  return shuffle(picks);
 }
 
 export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open = 0.5, onCourt = null } = {}) {

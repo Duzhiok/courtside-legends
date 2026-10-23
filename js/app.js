@@ -140,6 +140,7 @@ import {
   syncTeamDuoSkills,
 } from "./data/skills.js";
 import { lineupBallNote, lineupFit, teamChemistry } from "./engine/chemistry.js";
+import { shuffle } from "./core/seededRandom.js";
 import {
   acceptTradeProposal,
   declineTradeProposal,
@@ -3076,11 +3077,11 @@ function legendPlayerKey(p) {
 }
 
 function startLegendMode() {
-  const eight = shuffleArr(FRANCHISES).slice(0, 8);
+  const eight = shuffle(FRANCHISES).slice(0, 8);
   state.legend = {
     franchises: eight,
     /** Shuffle once; consume without replacement until empty, then reshuffle. */
-    franchiseQueue: shuffleArr(eight),
+    franchiseQueue: shuffle(eight),
     lastFranchiseId: null,
     roster: [],
     usedIds: new Set(),
@@ -3115,7 +3116,7 @@ function nextLegendFranchise() {
   const L = state.legend;
   if (!L.franchiseQueue.length) {
     // New cycle: reshuffle all eight; avoid immediately repeating the last team
-    let next = shuffleArr(L.franchises);
+    let next = shuffle(L.franchises);
     if (L.lastFranchiseId && next.length > 1 && next[0].id === L.lastFranchiseId) {
       const swap = next.findIndex((f) => f.id !== L.lastFranchiseId);
       if (swap > 0) [next[0], next[swap]] = [next[swap], next[0]];
@@ -3154,8 +3155,8 @@ function rollLegendTeam() {
   markLegendFranchiseChips(L);
 
   const top = list.slice(0, 16);
-  const rest = shuffleArr(list.slice(16)).slice(0, 10);
-  list = shuffleArr([...top, ...rest]).slice(0, 18);
+  const rest = shuffle(list.slice(16)).slice(0, 10);
+  list = shuffle([...top, ...rest]).slice(0, 18);
 
   const box = $("#legend-pool");
   if (!list.length) {
@@ -3324,10 +3325,10 @@ function rollCareerCoachShop(c, size = 5) {
   const blocked = new Set([...(c.hiredCoachIds || [])]);
   if (c.team?.coach?.id) blocked.add(c.team.coach.id);
   if (c.team?.assistant?.id) blocked.add(c.team.assistant.id);
-  let pool = shuffleArr(COACHES.filter((x) => x?.id && !blocked.has(x.id)));
+  let pool = shuffle(COACHES.filter((x) => x?.id && !blocked.has(x.id)));
   if (pool.length < size) {
     // Allow previously fired staff back onto the board if pool is thin
-    pool = shuffleArr(COACHES.filter((x) => x?.id && x.id !== c.team?.coach?.id));
+    pool = shuffle(COACHES.filter((x) => x?.id && x.id !== c.team?.coach?.id));
   }
   const picks = [];
   for (const coach of pool) {
@@ -3850,7 +3851,7 @@ function buildFranchiseRoster(franchise, used, n = 10, power = 0) {
   if (power > 0 && picks.length > n) {
     // Slightly deeper pool then keep top n after shuffle of top band
     const band = picks.slice(0, Math.min(picks.length, n + power * 3));
-    picks = shuffleArr(band).sort((a, b) => overall(b) - overall(a));
+    picks = shuffle(band).sort((a, b) => overall(b) - overall(a));
   }
   picks = picks.slice(0, n).map((p) => clonePlayer(p));
   for (const p of picks) used.add(p.id);
@@ -3994,7 +3995,7 @@ function bootCareerBracket({
     finals: startSize === 2,
     series: null,
     field,
-    alive: shuffleArr(field),
+    alive: shuffle(field),
     pods: [],
     roundMatches: [],
     bracketLog: [],
@@ -4130,7 +4131,7 @@ function beginCustomHistoricalCareer(draftTeam) {
   if (you.coach?.id) used.add(you.coach.id);
   if (you.assistant?.id) used.add(you.assistant.id);
 
-  const franchises = shuffleArr([...FRANCHISES]);
+  const franchises = shuffle([...FRANCHISES]);
   while (franchises.length < 31) {
     franchises.push({
       id: `X${franchises.length}`,
@@ -4159,15 +4160,6 @@ function beginCustomHistoricalCareer(draftTeam) {
     fromCustom: true,
     hintGold: 520,
   });
-}
-
-function shuffleArr(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 function careerRoundLabel(roundOrStage, finals = false) {
@@ -4380,7 +4372,7 @@ function advanceCareerToNextStage() {
     t.bracketId === "you" ? c.team : t
   );
   upgradeCpuAdvancers(c, survivors);
-  c.alive = shuffleArr(survivors.filter((t) => t.bracketId === "you" || t.isCpu));
+  c.alive = shuffle(survivors.filter((t) => t.bracketId === "you" || t.isCpu));
   c.alive = c.alive.map((t) => (t.bracketId === "you" ? c.team : t));
   c.round = (c.round || 1) + 1;
   // 每一轮独立：负场清零，再输两场才出局

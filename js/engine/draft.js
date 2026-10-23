@@ -2,6 +2,7 @@ import { ASSISTANTS, COACHES } from "../data/coaches.js";
 import { CUSTOM_REFRESH_COST, customPriceOf, listPaidPeaks } from "../data/customPool.js";
 import { playerPrice } from "../data/intangibles.js";
 import { HIDDEN_TIERS, PLAYERS, clonePlayer, overall } from "../data/players.js";
+import { shuffle } from "../core/seededRandom.js";
 
 /** Free refreshes per side before the pick-and-pack draft starts charging gold. */
 export const DRAFT_FREE_REFRESHES = 3;
@@ -232,15 +233,6 @@ function weightedPick(arr, weightFn) {
     if (r <= 0) return arr[i];
   }
   return arr[arr.length - 1];
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 function clamp(n, a, b) {

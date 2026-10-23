@@ -24,6 +24,7 @@ import {
 } from "./seasonMarket.js";
 import { allTeamFromSeasonRows } from "./allTeam.js";
 import { GameSim } from "./sim.js";
+import { shuffle } from "../core/seededRandom.js";
 
 const RS_GAMES = 82;
 const SAVE_KEY = "cls_season_v1";
@@ -56,14 +57,6 @@ function seasonLabelOf(st, teamId) {
   return leagueTeamLabel(teamId, st?.customNames);
 }
 
-function shuffle(arr, rng = Math.random) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function mulberry32(seed) {
   let t = seed >>> 0;
