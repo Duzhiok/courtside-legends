@@ -33,7 +33,7 @@ import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js"
 import { searchPeople } from "./data/cardSearch.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
-import { grantWelcomeTickets, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
+import { grantWelcomeTickets, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import {
   boughtSkillCount,
   buyableSkills,
@@ -8817,6 +8817,7 @@ function renderSeasonPlayoffs() {
           prepareCareerOffseason,
         );
         commitManagedCareer(next, "draftBoard");
+        recordChallengeProgress(activeAccount(), "leagueSeason");
       } catch (error) {
         alert(error?.message || "无法进入休赛期选秀");
       }
@@ -8835,6 +8836,10 @@ function renderSeasonPlayoffs() {
       alert(res.reason || "无法进入休赛期");
       return;
     }
+    const challengeGrant = recordChallengeProgress(
+      activeAccount(),
+      state.leagueCareer?.kind === "timeTravel" ? "timeTravelSeason" : "leagueSeason",
+    );
     const highlights = (res.log || [])
       .filter((r) => r.delta > 0 || (r.salaryAfter || 0) > (r.salaryBefore || 0) + 10)
       .slice(0, 8);
@@ -8849,7 +8854,8 @@ function renderSeasonPlayoffs() {
           .join("\n")
       : "本队本轮成长/涨薪幅度不大。";
     if (!saveSeasonAndCareer(state.season)) return;
-    alert(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}`);
+    const challengeNote = challengeGrant ? `\n\n🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}` : "";
+    alert(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}${challengeNote}`);
     renderSeasonHub();
     showSeasonTab("standings");
   });
@@ -9483,6 +9489,8 @@ function handleCareerResult(youWin, snap) {
   if (result.champion) {
     const reward = 400 + (c.round || 1) * 100;
     c.gold += reward;
+    const challengeGrant = recordChallengeProgress(activeAccount(), "goldChampion");
+    const challengeNote = challengeGrant ? ` 🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}` : "";
     const tierId = c.challengeTier || (c.fromCustom ? "custom" : "gold");
     const tier = challengeTierMeta(tierId === "custom" ? "gold" : tierId);
     const canLadder =
@@ -9490,11 +9498,11 @@ function handleCareerResult(youWin, snap) {
     const nextTier = canLadder ? tier.next : null;
     $("#result-title").textContent =
       tierId === "champ7" ? "历史总冠军挑战 · 通关！" : tierId === "playoff15" ? "季后赛挑战冠军！" : "总冠军！";
-    $("#result-summary").textContent = nextTier
+    $("#result-summary").textContent = (nextTier
       ? `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。可继续${tier.nextLabel}（保留阵容与金币）。${injLine}`
       : tierId === "champ7"
         ? `你已击败 7 支历史总冠军！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`
-        : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`;
+        : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`) + challengeNote;
     const allTeam = computeCareerAllTeam(c);
     renderResultAllTeam(allTeam, "本届最佳阵容 · PG → C");
     if (nextTier === "playoff15" || nextTier === "champ7") {

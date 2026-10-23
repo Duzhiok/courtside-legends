@@ -235,8 +235,12 @@ export function tasksHtml(board) {
   const rows = board.tasks
     .map((task) => `<li class="${task.claimed ? "done" : ""}"><span aria-hidden="true">${task.claimed ? "✅" : "⬜"}</span> ${task.label} <span class="tiny">→ 抽卡券 +${task.tickets}${task.claimed ? "（已领）" : ""}</span></li>`)
     .join("");
+  const challenge = board.challenge;
+  const challengeRow = challenge
+    ? `<li class="${challenge.claimed ? "done" : ""}"><span aria-hidden="true">${challenge.claimed ? "✅" : "🏆"}</span> 今日挑战：${challenge.label} <span class="tiny">→ 抽卡券 +${challenge.tickets}${challenge.claimed ? "（已领）" : ""}</span></li>`
+    : "";
   return `<div class="draw-tasks">
       <strong>每日任务</strong>
-      <ul>${rows}<li><span aria-hidden="true">🎯</span> 排位累计 ${board.milestone.next} 胜 <span class="tiny">→ 抽卡券 +1（现在 ${board.milestone.wins} 胜，每 ${board.milestone.perTicket} 胜一张）</span></li></ul>
+      <ul>${rows}${challengeRow}<li><span aria-hidden="true">🎯</span> 排位累计 ${board.milestone.next} 胜 <span class="tiny">→ 抽卡券 +1（现在 ${board.milestone.wins} 胜，每 ${board.milestone.perTicket} 胜一张）</span></li></ul>
     </div>`;
 }
