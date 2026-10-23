@@ -8,10 +8,17 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 49; // bump: Isiah Thomas (thomais01, 活塞坏小子队长) gets a signature
+export const ROSTER_SCHEMA = 50; // bump: Draymond Green's (greendr01) scraped NBA2K anchors
+// stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
+// data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
+// in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good
+// shooting years (2016 at 38.8%, 2024 at 39.5%). Dropped the anchor override for `three` on
+// seasons with real box-score data (2015-2025) so it now swings 46-77 with his actual accuracy
+// instead of sitting in the high-70s no matter how he actually shot that year.
+// (schema 49 was: Isiah Thomas (thomais01, 活塞坏小子队长) gets a signature
 // kit (场上指挥家/传球魔术/杀手时刻/劲爆第一步) instead of no skills at all -- distinct from the
 // other Isaiah Thomas (thomais02) one letter off in the name.
-// (schema 48 was: Isaiah Thomas (thomais02, 微笑刺客) gets a signature kit (杀手时刻/抛投大师/
+// schema 48 was: Isaiah Thomas (thomais02, 微笑刺客) gets a signature kit (杀手时刻/抛投大师/
 // 无解单打/节奏大师) instead of no skills at all.
 // schema 47 was: Wikipedia auto-discovery tier (photos.wiki.js) adds ~2,560 credited real
 // photos covering ~2,630 people who previously had no portrait beyond the bbref hotlink/
