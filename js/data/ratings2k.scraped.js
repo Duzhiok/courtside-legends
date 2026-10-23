@@ -2694,17 +2694,24 @@ export const SCRAPED_ANCHORS_2K = {
   "greendo01:2014": {"ovr":63},
   "greendr01:2013": {"ovr":62},
   "greendr01:2014": {"ovr":77},
-  "greendr01:2015": {"ovr":82,"scoring":76,"three":75,"mid":75,"paint":75,"speed":57},
-  "greendr01:2016": {"ovr":90,"scoring":80,"three":80,"mid":80,"paint":78,"speed":78},
-  "greendr01:2017": {"ovr":88,"scoring":73,"three":73,"mid":68,"paint":78,"speed":78},
-  "greendr01:2018": {"ovr":87,"scoring":74,"three":75,"mid":69,"paint":78,"speed":78},
-  "greendr01:2019": {"ovr":86,"scoring":73,"three":73,"mid":72,"paint":74,"defense":88,"speed":73,"steal":64,"block":81},
-  "greendr01:2020": {"ovr":79,"scoring":70,"three":70,"mid":70,"paint":69,"defense":82,"speed":73,"steal":62,"block":72},
-  "greendr01:2021": {"ovr":80,"scoring":65,"three":66,"mid":60,"paint":69,"defense":87,"speed":73,"steal":65,"block":77},
-  "greendr01:2022": {"ovr":83,"scoring":66,"three":72,"mid":60,"paint":69,"defense":89,"speed":73,"steal":67,"block":78},
-  "greendr01:2023": {"ovr":83,"scoring":71,"three":74,"mid":70,"paint":69,"defense":90,"speed":73,"steal":67,"block":79},
-  "greendr01:2024": {"ovr":84,"scoring":80,"three":74,"mid":91,"paint":69,"defense":90,"speed":73,"steal":69,"block":79},
-  "greendr01:2025": {"ovr":79,"scoring":74,"three":75,"mid":75,"paint":69,"defense":90,"speed":73,"steal":69,"block":79},
+  // three dropped from these anchors: real NBA2K scraped data rated Draymond's jumper 66-80
+  // in EVERY season regardless of how he actually shot that year (e.g. 2019 anchor said 73
+  // on a real 28.5% clip, 2021 anchor said 66 on a real 27.0% clip) -- a well-known NBA2K
+  // quirk where his jumper rating almost never drops even in his worst shooting seasons.
+  // Letting the box-score formula drive `three` instead means his good years (2016 at
+  // 38.8%, 2024 at 39.5%) still read as a real catch-and-shoot threat, and his bad years
+  // read as what they actually were: a below-average, streaky shooter defenses can sag off.
+  "greendr01:2015": {"ovr":82,"scoring":76,"mid":75,"paint":75,"speed":57},
+  "greendr01:2016": {"ovr":90,"scoring":80,"mid":80,"paint":78,"speed":78},
+  "greendr01:2017": {"ovr":88,"scoring":73,"mid":68,"paint":78,"speed":78},
+  "greendr01:2018": {"ovr":87,"scoring":74,"mid":69,"paint":78,"speed":78},
+  "greendr01:2019": {"ovr":86,"scoring":73,"mid":72,"paint":74,"defense":88,"speed":73,"steal":64,"block":81},
+  "greendr01:2020": {"ovr":79,"scoring":70,"mid":70,"paint":69,"defense":82,"speed":73,"steal":62,"block":72},
+  "greendr01:2021": {"ovr":80,"scoring":65,"mid":60,"paint":69,"defense":87,"speed":73,"steal":65,"block":77},
+  "greendr01:2022": {"ovr":83,"scoring":66,"mid":60,"paint":69,"defense":89,"speed":73,"steal":67,"block":78},
+  "greendr01:2023": {"ovr":83,"scoring":71,"mid":70,"paint":69,"defense":90,"speed":73,"steal":67,"block":79},
+  "greendr01:2024": {"ovr":84,"scoring":80,"mid":91,"paint":69,"defense":90,"speed":73,"steal":69,"block":79},
+  "greendr01:2025": {"ovr":79,"scoring":74,"mid":75,"paint":69,"defense":90,"speed":73,"steal":69,"block":79},
   "greendr01:2026": {"ovr":79,"scoring":74,"three":75,"mid":75,"paint":71,"defense":90,"speed":73,"steal":69,"block":79},
   "greendr01:2027": {"ovr":79,"scoring":74,"three":75,"mid":75,"paint":71,"defense":90,"speed":73,"steal":69,"block":79},
   "greener01:2015": {"ovr":65,"scoring":75,"three":75,"mid":74,"paint":64,"speed":70},

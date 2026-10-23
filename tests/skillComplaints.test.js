@@ -106,3 +106,28 @@ test("a high-production, low-scoring season (Rondo 2012: 11.9ppg/11.7apg) reache
   assert.ok(card2012, "2012 Rondo card missing");
   assert.ok(["star", "allstar", "superstar"].includes(card2012.hiddenTier), `tier was ${card2012.hiddenTier}`);
 });
+
+test("Draymond Green's three rating tracks his real season-by-season accuracy, not a flat scraped-NBA2K number that never drops even in his worst shooting years", () => {
+  const rawOf = (season) => rows.find((r) => r.bref === "greendr01" && r.season === season);
+  const cardOf = (season) => seasonToCard(rawOf(season));
+  // 2019 and 2021 were genuinely bad shooting years (28.5% and 27.0% from three) -- the old
+  // scraped-NBA2K anchor rated him 73 and 66 those seasons anyway (2K apparently never
+  // downgrades his jumper). He should read as a mediocre, streaky shooter in his bad years...
+  for (const season of [2019, 2020, 2021, 2022, 2023]) {
+    const card = cardOf(season);
+    assert.ok(card.three <= 60, `${season}: three=${card.three} should read as a below-average shooter (real tp was ${rawOf(season).tp})`);
+  }
+  // ...but still look like a real threat in the two years he actually earned it (2016 at
+  // 38.8%, 2024 at 39.5%) -- this isn't "nerf Draymond", it's "make the rating follow the box
+  // score like everyone else's does".
+  for (const season of [2016, 2024]) {
+    const card = cardOf(season);
+    assert.ok(card.three >= 70, `${season}: three=${card.three} should still read as a real shooting threat (real tp was ${rawOf(season).tp})`);
+  }
+  // His defense/playmaking-hub identity (the actual reason he's a star) must be untouched --
+  // this fix only targets the specific inflated attribute, not his whole card.
+  for (const id of ["lockdown", "thief", "rim_protector", "dime_dropper"]) {
+    assert.ok(cardOf(2019).skills.includes(id), `2019 should keep ${id}`);
+  }
+  assert.ok(!cardOf(2019).skills.some((id) => ["rainmaker", "splash_spot"].includes(id)), "still no shooter skills tacked on");
+});
