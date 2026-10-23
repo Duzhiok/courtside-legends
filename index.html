@@ -90,59 +90,76 @@
             <input type="file" id="long-career-import-file" accept=".json" hidden />
           </div>
         </div>
-        <div class="mode-grid" aria-label="游戏模式">
-          <div class="mode-group-label">① 生涯 · 长线经营，先从这里开始</div>
-          <button class="mode-card mode-card-feature" data-mode="timeTravel" data-legend="jordami01:1991">
-            <strong>穿越生涯</strong>
-            <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
-          </button>
-          <button class="mode-card mode-card-feature" data-mode="franchise" data-legend="curryst01:2016">
-            <strong>联盟经理</strong>
-            <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
-          </button>
-          <button class="mode-card" data-mode="season" data-legend="birdla01:1986">
-            <strong>单赛季快玩</strong>
-            <span>32 队或穿越历史整年（如 1991：常规赛→季后赛）· 自命名拉斯维加斯队 · 评奖</span>
-          </button>
+        <div class="home-category-tabs" role="tablist" aria-label="模式分类">
+          <button type="button" class="home-tab" data-category="players" role="tab">我的球员</button>
+          <button type="button" class="home-tab" data-category="career" role="tab">职业经理</button>
+          <button type="button" class="home-tab" data-category="custom" role="tab">自定义</button>
+        </div>
 
-          <div class="mode-group-label">② 挑战之路 · 组队闯关打历史强队</div>
-          <button class="mode-card mode-card-feature" data-mode="career" data-legend="jokicni01:2023">
-            <strong>金币晋级赛</strong>
-            <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
-          </button>
-          <button class="mode-card" data-mode="custom" data-legend="onealsh01:2000">
-            <strong>预算轮抽挑战</strong>
-            <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队 · 另含双人/传奇</span>
-          </button>
-          <details class="mode-card-variants">
-            <summary>更多闯关规则</summary>
-            <div class="mode-grid mode-grid-nested">
-              <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">
-                <strong>多人淘汰赛</strong>
-                <span>每轮多一次选人，一路打到总决赛</span>
-              </button>
-              <button class="mode-card" data-mode="draft" data-legend="antetgi01:2020">
-                <strong>选秀建队</strong>
-                <span>抽球员与教练，打一场完整模拟赛</span>
-              </button>
-            </div>
-          </details>
+        <div class="home-category-panel" data-category="players">
+          <p class="home-category-hint tiny">你的永久班底：抽卡、养成、排位。收藏、每日抽卡、技能商店在上方账号条里。</p>
+          <div class="mode-grid" aria-label="我的球员">
+            <button class="mode-card mode-card-feature" data-mode="ranked" data-legend="bryanko01:2008">
+              <strong>排位赛</strong>
+              <span>账号班底自动选最强 12 人（同一球员只上一张）· 赢金币 · 本命涨经验 · 连续爆发可领悟技能</span>
+            </button>
+          </div>
+        </div>
 
-          <div class="mode-group-label">③ 时空对决 · 自由度拉满</div>
-          <button class="mode-card mode-card-feature" data-mode="sandbox" data-legend="jamesle01:2013">
-            <strong>时空对决</strong>
-            <span>搜索任意球员任意年份组队：五个乔丹 vs 五个科比也行 · 可开跨时代平衡</span>
-          </button>
-          <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
-            <strong>快速演示</strong>
-            <span>系统自动组两队，立刻开打看指挥</span>
-          </button>
+        <div class="home-category-panel" data-category="career">
+          <p class="home-category-hint tiny">长线经营：选秀、发展、市场补强、完整比赛与联盟历史。</p>
+          <div class="mode-grid" aria-label="职业经理">
+            <button class="mode-card mode-card-feature" data-mode="timeTravel" data-legend="jordami01:1991">
+              <strong>穿越生涯</strong>
+              <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
+            </button>
+            <button class="mode-card mode-card-feature" data-mode="franchise" data-legend="curryst01:2016">
+              <strong>联盟经理</strong>
+              <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
+            </button>
+            <button class="mode-card" data-mode="season" data-legend="birdla01:1986">
+              <strong>单赛季快玩</strong>
+              <span>32 队或穿越历史整年（如 1991：常规赛→季后赛）· 自命名拉斯维加斯队 · 评奖</span>
+            </button>
+          </div>
+        </div>
 
-          <div class="mode-group-label">④ 我的球队 · 抽卡、养成、排位</div>
-          <button class="mode-card" data-mode="ranked" data-legend="bryanko01:2008">
-            <strong>排位赛</strong>
-            <span>账号班底自动选最强 12 人（同一球员只上一张）· 赢金币 · 本命涨经验 · 连续爆发可领悟技能</span>
-          </button>
+        <div class="home-category-panel" data-category="custom">
+          <p class="home-category-hint tiny">天马行空：挑战之路的组队闯关，加上任意球员任意年份的自由对战。</p>
+          <div class="mode-grid" aria-label="自定义">
+            <div class="mode-group-label">挑战之路 · 组队闯关打历史强队</div>
+            <button class="mode-card mode-card-feature" data-mode="career" data-legend="jokicni01:2023">
+              <strong>金币晋级赛</strong>
+              <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
+            </button>
+            <button class="mode-card" data-mode="custom" data-legend="onealsh01:2000">
+              <strong>预算轮抽挑战</strong>
+              <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队 · 另含双人/传奇</span>
+            </button>
+            <details class="mode-card-variants">
+              <summary>更多闯关规则</summary>
+              <div class="mode-grid mode-grid-nested">
+                <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">
+                  <strong>多人淘汰赛</strong>
+                  <span>每轮多一次选人，一路打到总决赛</span>
+                </button>
+                <button class="mode-card" data-mode="draft" data-legend="antetgi01:2020">
+                  <strong>选秀建队</strong>
+                  <span>抽球员与教练，打一场完整模拟赛</span>
+                </button>
+              </div>
+            </details>
+
+            <div class="mode-group-label">自由对战 · 自由度拉满</div>
+            <button class="mode-card mode-card-feature" data-mode="sandbox" data-legend="jamesle01:2013">
+              <strong>时空对决</strong>
+              <span>搜索任意球员任意年份组队：五个乔丹 vs 五个科比也行 · 可开跨时代平衡</span>
+            </button>
+            <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
+              <strong>快速演示</strong>
+              <span>系统自动组两队，立刻开打看指挥</span>
+            </button>
+          </div>
         </div>
       </section>
       <details class="hint-panel">
