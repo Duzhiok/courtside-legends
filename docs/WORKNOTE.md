@@ -572,3 +572,17 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 全部按 `saveSeason()` 已经验证过的套路补上 `try/catch`：失败就打印诊断日志、返回安全的兜底值（`false`/`null`/`{saveFailed:true}`），绝不让异常冒泡出去中断玩家当前的操作。全程没有改变任何一个函数的返回值类型/调用约定，纯粹是"原来会炸，现在会优雅认怂"，现有调用方不用动。新增 `tests/storageResilience.test.js`，用一个会在 `setItem/getItem/removeItem` 上全部抛 `DOMException` 的假 storage，验证以上每个函数都不再抛出、健康路径不受影响；全部做过反向 mutation 验证（抠掉 try/catch 立刻报错，报的还是真实的 `QuotaExceededError` 堆栈）。
 
 四个修复一共新增/扩展 `tests/rotationPlanFreshness.test.js`（4 条新文件）、`tests/tradeProposals.test.js`（+2 条）、`tests/storageResilience.test.js`（6 条新文件），外加 `showResult()` 里 10 行防御性兜底。602/602 测试、lint、diff --check 全绿。
+
+### R40（T1）：主页三分类重组 —— 我的球员 / 职业经理 / 自定义
+
+原来的主页是一条不断加组标签的单页长列表（①生涯 ②挑战之路 ③时空对决 ④我的球队），每加一个新模式就多一行，本质上没有真正分类，只是"更多的滚动"。改成用户指定的三分类（对照 NBA2K MyTeam/MyCareer/MyNBA、FIFA Ultimate Team/Career Mode/Kick Off 的成熟分法）：
+
+- **我的球员**——你的永久账号班底：排位赛（抽卡/收藏/技能商店已经在上方账号条里，不重复放进 tab）。
+- **职业经理**——长线经营：穿越生涯、联盟经理、单赛季快玩。
+- **自定义**——天马行空：原"挑战之路"的金币晋级赛/预算轮抽挑战/多人淘汰赛/选秀建队，加上原来单独占一个顶层分组的时空对决、快速演示。这也顺手满足了 T2 要求的"时空对决并入自定义"的前半句——它现在已经是自定义 tab 内的一个子分组，不再是平级的顶层入口。
+
+实现上刻意保持低风险：`.mode-card[data-mode]` 按钮的点击绑定是 `app.js` 启动时一次性 `querySelectorAll().forEach()`，不是事件委托，所以把按钮从"一个大列表"挪进"三个可切换的 tab 面板"（用 `hidden` 属性控制显示，不是从 DOM 里移除）对接线完全没有影响。category→mode 的映射抽成纯数据模块 `js/ui/homeTabs.js`（`HOME_CATEGORIES`/`categoryForMode`/`wireHomeTabs`），不是写死在 HTML 和 JS 两处各自维护一份——`tests/homeTabs.test.js` 用和 `homeShowcase.test.js` 一样的"正则读 index.html 原始文本"手法（这个项目没有 jsdom，DOM 测试走真实浏览器而不是假 DOM），校验：index.html 里每一个 `data-mode` 按钮都被分到了唯一一个分类、不会同时属于两个分类、`homeTabs.js` 里声明的每个 mode 真的渲染在对应分类面板的 HTML 区间内、三个 tab 按钮都有对应的 `data-category`。5 条测试全过。
+
+真实浏览器验证（1280×900 桌面 + 390×844 手机）：默认打开「职业经理」tab，点「我的球员」只剩排位赛一张卡，点「自定义」展开后能看到全部 6 个模式（含折叠的"更多闯关规则"），点「联盟经理」卡片能正常跳转进联盟经理的建队页（`模拟新赛季`/`历史赛季`/`球队名`/`随机球队选人`），全程 `agent-browser console`/`errors` 干净。手机端 `document.documentElement.scrollWidth` 和 `window.innerWidth` 相等（390 vs 390），tab 栏是三等分的胶囊式切换，没有换行/溢出。
+
+607/607 测试、lint、diff --check 全绿。

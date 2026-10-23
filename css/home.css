@@ -196,6 +196,42 @@
   height: 1px;
   background: linear-gradient(90deg, rgba(29, 74, 49, .35), transparent);
 }
+
+/* —— T1: home category tabs (我的球员 / 职业经理 / 自定义) —— */
+.home-category-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 18px 0 2px;
+  padding: 5px;
+  border-radius: 14px;
+  background: rgba(15, 28, 20, .06);
+}
+.home-tab {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #4b5563;
+  font-family: var(--font-display, inherit);
+  font-size: .96rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.home-tab:hover { color: #1d4a31; }
+.home-tab:focus-visible { outline: 3px solid #e85d04; outline-offset: 2px; }
+.home-tab.active {
+  background: #fff;
+  color: #1d4a31;
+  box-shadow: 0 6px 16px rgba(15, 28, 20, .14);
+}
+.home-category-hint {
+  margin: 10px 2px 4px;
+  color: #4b5563;
+}
+.home-category-panel[hidden] { display: none; }
 #screen-home .mode-card {
   position: relative;
   overflow: hidden;
