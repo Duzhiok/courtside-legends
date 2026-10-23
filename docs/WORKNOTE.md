@@ -382,3 +382,39 @@
 - `js/app.js`：9983 → 9848 行（-135）。
 
 遗留：全仓库至少 4 份位置归一化实现不统一，哪天要做一次专门的审计+合并（需要先逐个对比所有复合/异常输入的行为差异，确认合并不会引入回归，再决定用哪一份作为统一实现）。
+
+### R35：父子同心 / 兄弟同心——真实 NBA 家族隐藏化学反应
+
+用户想法：有父子同场加"父子同心"，有兄弟同场加"兄弟同心"，隐藏加成不做成可见徽章，尽量把 NBA 历史上的父子/兄弟都收进来。
+
+做法：没有凭印象瞎编，而是先把 `roster.json` 里所有球员名字跑了一遍，针对几十个已知的真实 NBA 家族姓氏（Curry、Barry、Thompson、Walton、Antetokounmpo、Holiday、Grant、Gasol、Lopez、Morris、Mikan 等等）逐个核对确实在名册里、bref 具体是什么，才落进数据表——包括排除了几个容易踩坑的"同姓但不是一家人"的情况（Moses Malone/Karl Malone/Jeff Malone 三个 Malone 互不相关；Rasheed Wallace/Ben Wallace 不是一家；Bojan/Bogdan Bogdanović 不是兄弟）。
+
+新建 `js/data/family.js`：
+
+- `FAMILY_GROUPS`：39 个家族单位（25 对父子 + 14 组兄弟），每条记录是 `{ id, label, parents?, children? }`，不是逐对羅列——这样 3 人以上的大家族（字母哥三兄弟、霍乐迪三兄弟、巴里一家四口）不用枚举所有两两组合。乔治·米坎比较特殊：他既是拉里·米坎的父亲、又是艾德·米坎的哥哥，拆成 `mikan_father_son` 和 `mikan_brothers` 两条独立记录，同一个人出现在两条里完全没问题。
+- `activeFamilyBonds(onCourt)`：场上家族关系判定——`parents` 和 `children` 都在场才算"父子同心"；`children` 里有 2+ 人在场就算"兄弟同心"（不需要追踪到父亲，像格兰特兄弟、洛佩兹兄弟这种父亲没打过 NBA 的照样成立）；有父亲记录的家族里（比如库里家），孩子们之间互相也算兄弟——Dell+Steph+Seth 三人同场会同时触发父子同心和兄弟同心。
+- `familyChemistryBonus(onCourt)`：父子 +4、兄弟 +3，累加后封顶 +12，防止在时空对决/自由组队这种能跨年代乱凑人的模式里把好几个家族全端上来导致加成失控。
+
+接入 `js/engine/chemistry.js` 的 `teamChemistry()`，跟明牌组合技 `DUO_COMBOS` 挨着但完全独立——**不在 UI 上做成可见徽章**，纯粹悄悄影响化学反应数字，符合"隐藏加成"的要求。
+
+收录的 25 个父子家族：Curry（Dell-Steph-Seth）、Barry（Rick-Jon/Brent/Drew）、Thompson（Mychal-Klay/Mychel）、Rivers、Walton、Hardaway、Sabonis、Schayes、Nance、Payton、Dunleavy、Manning、Bryant（Joe-Kobe）、Vandeweghe、Ewing、Henderson、Horford（Tito-Al）、Trent、Brunson、Anthony、Bibby、Ferry、Mikan、Lucas、Jackson（Jaren Sr/Jr）。
+
+收录的 14 组兄弟：Grant 双胞胎、Gasol（Marc/Pau）、Lopez 双胞胎、Morris 双胞胎、Holiday 三兄弟、Ball（Lonzo/LaMelo）、字母哥三兄弟、King 兄弟（Bernard/Albert）、Wilkins 兄弟（Dominique/Gerald）、Person 兄弟、Van Arsdale 双胞胎、Price 兄弟（Mark/Brent）、Mikan 兄弟、Collins 双胞胎、Porter 兄弟（Michael Jr./Jontay）。
+
+测试：新增 `tests/family.test.js`（16 项）——
+- 所有 bref 对照真实 `roster.json` 逐条核实存在（防止手滑打错字静默失效）；
+- 每个家族至少 2 人、无重复 id；
+- 父子/兄弟各自的触发/不触发边界条件；
+- 3 人家族只要 2 人在场就触发，不需要凑齐全部；
+- 库里家三人同场父子+兄弟同时触发；
+- 同姓不同家族不会误触发（Malone 三人组）；
+- 乔治·米坎的两段关系能分别独立触发；
+- 空输入安全；
+- 加成封顶验证（16 人全家族同时上场也不会炸）；
+- `teamChemistry()` 集成测试：真实父子阵容化学反应确实高于等价的陌生人阵容，且全程不越出 [15,95] 区间。
+
+mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立刻报错，确认不是摆设。
+
+验证：564/564 测试、lint、diff-check 全过；真实 headless Chromium 直接 import 两个模块验证，字母哥兄弟+库里父子同时在场正确识别出两条 bond、加成 7、化学反应 86，0 个 page error。
+
+遗留：这是一个"尽量全"但不是穷举的列表——NBA 历史上还有一些我没有十足把握核实的家族（比如部分年代久远、roster.json 本身可能漏收的球员），以后发现新的可以直接往 `FAMILY_GROUPS` 里加，格式已经很清楚。
