@@ -1350,6 +1350,12 @@ export const TRAIT_SKILLS = {
   // 不是「场上打手」那种硬碰硬型——他的看家本领是逆天的强干扰单打效率、第四节大心脏、
   // 面对比他高一头的防守人靠抛投终结、变速晃开空间。
   thomais02: ["freeze_iso", "clutch_killer", "teardrop", "rhythm_master"],
+  // Isiah Thomas（活塞坏小子队长，bref: thomais01 —— 上面那位是同姓氏的 Isaiah Thomas，两人只差一个
+  // 字母，所以这里也只用 bref 绑定，不走姓名正则）：巅峰 1985 季场场均 13.9 助攻，连续一十年
+  // 7-11 助攻，又是坏小子队队长；1988 总决赛 G6 拖着严重扁足的脚踝打进第四节 25 分是联盟历史最
+  // 著名的忍痛打法之一。他个人身材不大（185cm），靠的是读秒和手技穿越人群，不是硬碎型，
+  // 所以也不给场上打手——那是布莉姆伯/马霍金等队友的活。
+  thomais01: ["floor_commander", "dime_dropper", "clutch_killer", "first_step"],
   // Draymond — already has D packs; temper is separate
   greendr01: ["hothead"],
   // Iggy

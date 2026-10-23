@@ -58,10 +58,30 @@ test("Isaiah Thomas (微笑刺客, thomais02) keeps 杀手时刻/抛投大师/�
   const pistonsThomas = cardsOf("thomais01");
   assert.ok(pistonsThomas.length > 0, "the other Thomas (Isiah, Pistons) should still exist as his own person");
   for (const card of pistonsThomas) {
-    for (const id of ["clutch_killer", "teardrop", "rhythm_master"]) {
+    // teardrop/rhythm_master are specific to the Celtics Thomas's game (tiny-man floater over
+    // size, change-of-pace shiftiness) -- the Pistons captain should never inherit them just
+    // because they share (almost) a name. clutch_killer is NOT checked here: both men
+    // legitimately earned it on their own merits (1988 Finals G6 on a busted ankle vs
+    // "Fourth Quarter King"), so both having it independently is correct, not a name-bleed bug.
+    for (const id of ["teardrop", "rhythm_master"]) {
       assert.ok(!card.skills.includes(id), `Isiah Thomas (Pistons) ${card.season} should not inherit Isaiah Thomas's (Celtics) kit`);
     }
   }
+});
+
+test("Isiah Thomas (活塞坏小子队长, thomais01) keeps 场上指挥家/传球魔术/杀手时刻 always; no 场上打手 (he's a 185cm playmaker, not a bruiser -- that's Laimbeer/Mahorn's job)", () => {
+  const cards = cardsOf("thomais01");
+  assert.equal(cards.length, 13);
+  for (const card of cards) {
+    for (const id of ["floor_commander", "dime_dropper", "clutch_killer"]) assert.ok(card.skills.includes(id), `${card.season} lacks ${id}`);
+    assert.ok(!card.skills.includes("enforcer"), `${card.season} should not have 场上打手`);
+  }
+  // first_step (劲爆第一步, speed/athleticism gated) should still be present at his explosive
+  // peak and correctly age out once his speed declines -- not a fixed lifetime skill.
+  const peak = cards.find((c) => c.season === 1985);
+  const late = cards.find((c) => c.season === 1994);
+  assert.ok(peak.skills.includes("first_step"), "1985 peak should still have 劲爆第一步");
+  assert.ok(!late.skills.includes("first_step"), "1994 (speed declined) should have aged out of 劲爆第一步");
 });
 
 test("Rajon Rondo has skills on every card, including low-ppg bench-tier seasons (he is 场上大脑, not a scorer)", () => {
