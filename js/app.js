@@ -149,6 +149,7 @@ import {
 } from "./engine/tradeProposals.js";
 import {
   DRAFT_FREE_REFRESHES,
+  advanceTurn,
   autoFillTeam,
   customSideCanSpend,
   customSpendPhaseDone,
@@ -2706,7 +2707,7 @@ function pickCard(card) {
       d.used.add(card.data.id);
       d.needCoach[side] = false;
     }
-    advanceTurn();
+    advanceTurn(d);
     if (d.budgetMode && d.customPhase === "spend" && customSpendPhaseDone(d)) {
       d.customPhase = "filler";
     }
@@ -2786,7 +2787,7 @@ function cpuPick() {
     } else {
       // Nothing to pick — skip CPU turn to avoid soft-lock
       console.warn("[draft] CPU pack empty, skipping turn");
-      advanceTurn();
+      advanceTurn(d);
       ensureStaffIfReady();
       refreshDraftUI();
       if (isDraftDone(d)) {
@@ -2797,32 +2798,10 @@ function cpuPick() {
   } catch (err) {
     console.error("[draft] cpuPick", err);
     d.picking = false;
-    advanceTurn();
+    advanceTurn(d);
     refreshDraftUI();
     dealPack();
   }
-}
-
-function advanceTurn() {
-  const d = state.draft;
-  if (d.budgetMode && d.customPhase === "spend") {
-    const other = d.turn === "A" ? "B" : "A";
-    if (customSideCanSpend(d, other)) {
-      d.turn = other;
-    } else if (customSideCanSpend(d, d.turn)) {
-      // 对方花光了，当前方继续花
-    } else {
-      d.customPhase = "filler";
-      d.turn = other; // 换边开始补 0 块
-    }
-  } else if (d.budgetMode && d.customPhase === "filler") {
-    const other = d.turn === "A" ? "B" : "A";
-    if (d.teams[other].players.length < d.picksPerSide) d.turn = other;
-    // 对方已满则本方继续补人
-  } else {
-    d.turn = d.turn === "A" ? "B" : "A";
-  }
-  d.round = Math.min(d.picksDone.A, d.picksDone.B) + 1;
 }
 
 function ensureStaffIfReady() {

@@ -11,6 +11,7 @@ import { CUSTOM_REFRESH_COST } from "../js/data/customPool.js";
 import {
   DRAFT_FREE_REFRESHES,
   DRAFT_REFRESH_COST,
+  advanceTurn,
   autoFillTeam,
   cpuUpgradeRoster,
   customSideCanSpend,
@@ -186,4 +187,67 @@ test("teamPowerLabel: the rounded average OVR of the roster", () => {
   const label = teamPowerLabel(team);
   assert.ok(Number.isInteger(label));
   assert.ok(label > 0);
+});
+
+/**
+ * advanceTurn: outside custom budget mode, pick order used to be a flat A,B,A,B,... toggle. Real
+ * bug, not just a vibe -- every turn deals a brand-new independently-random 5-card pack (nobody
+ * shares a pool mid-turn), so whoever is "d.turn" always gets first look at a pack nobody else has
+ * seen. Flat alternation never rotates who anchors a round. Fixed to proper snake/zigzag:
+ * A,B,B,A,A,B,B,A,... so picks pair up and the anchor side flips every round.
+ */
+test("advanceTurn: outside budget mode, pick order is a proper snake draft (A,B,B,A,A,B,B,A), not flat A,B,A,B", () => {
+  const d = fakeDraft({ picksPerSide: 8 });
+  d.turn = "A";
+  d.picksDone = { A: 0, B: 0 };
+  const sequence = [];
+  for (let i = 0; i < 12; i++) {
+    sequence.push(d.turn);
+    d.teams[d.turn].players.push(fakePlayer(`p${i}`));
+    d.picksDone[d.turn] += 1;
+    advanceTurn(d);
+  }
+  assert.deepEqual(sequence, ["A", "B", "B", "A", "A", "B", "B", "A", "A", "B", "B", "A"]);
+});
+
+test("advanceTurn: the snake sequence survives staff (coach/assistant) picks interleaved with player picks", () => {
+  const d = fakeDraft({ picksPerSide: 8 });
+  d.turn = "A";
+  d.picksDone = { A: 0, B: 0 };
+  const sequence = [];
+  // Player picks still move d.picksDone (what isDraftDone/round tracking cares about); a coach
+  // pick in between must not reset or skip the snake counter (which counts EVERY pick, staff
+  // included) -- the point is the visible pack sequence the user sees stays snake regardless of
+  // whether the thing picked that turn was a player or a coach.
+  sequence.push(d.turn); // A picks a player
+  d.teams.A.players.push(fakePlayer("a1"));
+  d.picksDone.A += 1;
+  advanceTurn(d);
+  sequence.push(d.turn); // B picks a coach (no picksDone bump)
+  d.teams.B.coach = { id: "cb" };
+  advanceTurn(d);
+  sequence.push(d.turn); // still B's turn in the snake (back-to-back pair)
+  d.teams.B.players.push(fakePlayer("b1"));
+  d.picksDone.B += 1;
+  advanceTurn(d);
+  assert.deepEqual(sequence, ["A", "B", "B"]);
+});
+
+test("advanceTurn: custom budget mode's spend/filler back-and-forth is untouched by the snake fix", async () => {
+  // Regression guard: the snake logic must only replace the plain-toggle `else` branch. Budget
+  // mode's own "keep spending while the other side can still afford something" rule must still
+  // let the SAME side pick twice when the other side is tapped out -- not forced into a rigid
+  // A,B,B,A pattern that ignores actual affordability.
+  const { loadSampleRoster } = await import("./helpers/sampleRoster.js");
+  const { clearPeakPoolCache } = await import("../js/data/customPool.js");
+  await loadSampleRoster();
+  clearPeakPoolCache();
+  const d = fakeDraft({ budgetMode: true, picksPerSide: 8 });
+  d.customPhase = "spend";
+  d.turn = "A";
+  d.picksDone = { A: 0, B: 0 };
+  d.teams.A.gold = 999; // comfortably affords something
+  d.teams.B.gold = 0; // B can never afford anything
+  advanceTurn(d);
+  assert.equal(d.turn, "A", "B is broke, so A must keep picking in the spend phase");
 });
