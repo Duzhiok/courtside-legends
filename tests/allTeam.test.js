@@ -10,7 +10,12 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectAllTeamByPos, normAllTeamPos } from "../js/engine/allTeam.js";
+import {
+  selectAllTeamByPos,
+  normAllTeamPos,
+  accumulateGameToAllTeamBoard,
+  allTeamFromRosters,
+} from "../js/engine/allTeam.js";
 
 function row(id, pos, { gp = 10, pts = 200, reb = 50, ast = 50 } = {}) {
   return { id, name: id, pos, gp, pts, reb, ast, stl: 0, blk: 0, min: 300, wins: 5, gradeSum: 0, ovr: 80 };
@@ -74,4 +79,56 @@ test("selectAllTeamByPos: nobody is picked twice even when the fallback has to s
 test("selectAllTeamByPos: empty pool returns an empty team, not a crash", () => {
   assert.deepEqual(selectAllTeamByPos([]), []);
   assert.deepEqual(selectAllTeamByPos({}), []);
+});
+
+/**
+ * Regression for the "Barkley at PG, Malone at SF, Kyrie at PF" bug report: a true power
+ * forward's stable `pos` must win over whatever volatile `playPos` slot a lineup happened to
+ * stick him in for one specific game (injuries, a short-handed CPU auto-fill, a one-off small-
+ * ball experiment -- `playPos` legitimately varies game to game for reasons that have nothing to
+ * do with a player's real position). Before this fix, both accumulateGameToAllTeamBoard() and
+ * allTeamFromRosters() preferred `p.playPos || p.pos`, so one weird lineup from an earlier round
+ * got permanently baked into the All-Team board's position -- selectAllTeamByPos() itself was
+ * innocent, it just faithfully trusted the corrupted position it was handed.
+ */
+function gamePlayer(id, name, pos, playPos, stats = {}) {
+  return { id, name, pos, playPos, bref: id, stats: { pts: 20, reb: 5, ast: 3, ...stats } };
+}
+
+test("accumulateGameToAllTeamBoard: a power forward slotted at PG for one odd game is still remembered at his real position", () => {
+  const board = {};
+  // Barkley's real position is PF; this game's lineup (short-handed, whatever) stuck him at PG.
+  const barkley = gamePlayer("barklch01", "Charles Barkley", "PF", "PG");
+  const snap = {
+    score: { home: 100, away: 90 },
+    home: { roster: [barkley] },
+    away: { roster: [] },
+  };
+  accumulateGameToAllTeamBoard(board, snap, { name: "you" }, { name: "cpu" });
+  assert.equal(board.barklch01.pos, "PF", "board must remember his real position, not the one-off PG slot");
+});
+
+test("accumulateGameToAllTeamBoard: position stays stable across games even if a later game's playPos drifts", () => {
+  const board = {};
+  const malone1 = gamePlayer("malonka01", "Karl Malone", "PF", "PF");
+  const malone2 = gamePlayer("malonka01", "Karl Malone", "PF", "SF"); // later game, odd slot again
+  const snap1 = { score: { home: 1, away: 0 }, home: { roster: [malone1] }, away: { roster: [] } };
+  const snap2 = { score: { home: 1, away: 0 }, home: { roster: [malone2] }, away: { roster: [] } };
+  accumulateGameToAllTeamBoard(board, snap1, {}, {});
+  accumulateGameToAllTeamBoard(board, snap2, {}, {});
+  assert.equal(board.malonka01.pos, "PF", "a later game's odd playPos must not overwrite the stable position");
+  assert.equal(board.malonka01.gp, 2, "stats should still accumulate across both games");
+});
+
+test("allTeamFromRosters: Kyrie Irving sitting at PF for a finals roster slot still lands at PG, not PF", () => {
+  const kyrie = { id: "irvinky01", name: "Kyrie Irving", pos: "PG", playPos: "PF", bref: "irvinky01" };
+  const bigs = ["pf-a", "pf-b", "c-a", "sf-a", "sg-a"].map((id, i) =>
+    row(id, ["PF", "PF", "C", "SF", "SG"][i], { pts: 150 })
+  );
+  const team1 = { name: "Your Team", bracketId: "you", players: [kyrie] };
+  const team2 = { name: "CPU Team", bracketId: "cpu", players: bigs };
+  const result = allTeamFromRosters([team1, team2]);
+  const bySlot = Object.fromEntries(result.map((t) => [t.slot, t.id]));
+  assert.equal(bySlot.PG, "irvinky01", "Kyrie's real position (PG) must win over his one-lineup playPos (PF)");
+  assert.notEqual(bySlot.PF, "irvinky01", "he must not be remembered as a power forward");
 });
