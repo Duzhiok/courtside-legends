@@ -5208,24 +5208,29 @@ function openSetup(home, away, youSide) {
     $("#phil-stam").value = you.coach.buffs.stamina;
   }
   // 未手动改过的位置/倾向按属性推荐填充
-  // Season default rotation: restore starters / minutes / orders if saved
+  // Season default rotation: restore starters / minutes / orders from the LIVE team's current
+  // fields every time, never from the cached live.rotation snapshot. renderSeasonRotation()
+  // (默认轮换·实验板) mutates live.players[i].targetMinutes directly as the user drags a slider --
+  // it does NOT update live.rotation until the separate "保存默认轮换" button is clicked. If we
+  // trusted that stale snapshot here, an unsaved minutes edit would silently get reverted the
+  // moment the next game's setup opens, even though cloneSide() already copied the correct,
+  // up-to-date value onto `you` a moment earlier. Re-capturing fresh from `live` every time means
+  // there is nothing to go stale.
   if (state.season) {
     const live = state.season.teams[state.season.userTeamId];
-    if (live?.rotation) {
-      applyRotationPlan(you, live.rotation);
-      if (live.rotation.starterIds?.length === 5) {
-        state.setup.selected = new Set(live.rotation.starterIds.filter((id) => you.players.some((p) => p.id === id)));
+    if (live) {
+      const plan = captureRotationPlan(live, live.starterIds);
+      applyRotationPlan(you, plan);
+      if (plan.starterIds?.length === 5) {
+        state.setup.selected = new Set(plan.starterIds.filter((id) => you.players.some((p) => p.id === id)));
       }
-      if (live.rotation.phil) {
-        $("#phil-off").value = live.rotation.phil.offense ?? $("#phil-off").value;
-        $("#phil-def").value = live.rotation.phil.defense ?? $("#phil-def").value;
-        $("#phil-morale").value = live.rotation.phil.morale ?? $("#phil-morale").value;
-        $("#phil-stam").value = live.rotation.phil.stamina ?? $("#phil-stam").value;
-        if (live.rotation.phil.styleName) $("#phil-name").value = live.rotation.phil.styleName;
+      if (plan.phil) {
+        $("#phil-off").value = plan.phil.offense ?? $("#phil-off").value;
+        $("#phil-def").value = plan.phil.defense ?? $("#phil-def").value;
+        $("#phil-morale").value = plan.phil.morale ?? $("#phil-morale").value;
+        $("#phil-stam").value = plan.phil.stamina ?? $("#phil-stam").value;
+        if (plan.phil.styleName) $("#phil-name").value = plan.phil.styleName;
       }
-    } else if (live) {
-      // First game: seed from live roster fields
-      applyRotationPlan(you, captureRotationPlan(live, live.starterIds));
     }
   }
   syncPhilLabels();
@@ -7657,6 +7662,23 @@ function showResult(snap, { formNotes = [] } = {}) {
       state.career.goldA += youSide === "home" ? (youWin ? 350 : 120) : youWin ? 120 : 350;
       state.career.goldB += youSide === "away" ? (youWin ? 350 : 120) : youWin ? 120 : 350;
       openMarket({ duel: true, afterWin: true });
+    };
+    return;
+  }
+  // Safety net for user report #10 ("没有继续按钮，只能回主页"): every known game type above either
+  // handles its own continue button or returns early. If we ever reach here while the player is
+  // mid leagueCareer (franchise or time-travel) through some game-starting path none of the
+  // branches above recognize, falling all the way through used to leave 回主页 as the ONLY option
+  // -- silently stranding the player instead of taking them back into their career. Always wire a
+  // safe continue back into the career/season hub instead of doing nothing.
+  if (state.leagueCareer) {
+    setResultActionMode("season", { showContinue: true, continuePrimary: true });
+    cont.hidden = false;
+    cont.textContent = "继续";
+    cont.onclick = () => {
+      state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
+      renderSeasonHub();
+      show("season");
     };
   }
 }

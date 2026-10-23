@@ -107,8 +107,29 @@ function loadStore() {
   }
 }
 
+/**
+ * Unlike season.js's saveSeason() (which already has a quota-retry fallback), this write had NO
+ * error handling at all: a raw localStorage.setItem() that throws an uncaught DOMException the
+ * instant the account store (every account's cards/souls/skills/daily-task state, all in one
+ * blob) outgrows quota. That's the prime suspect for user report #15 ("跟存储有关系吗" -- a
+ * mysterious error, possibly storage-related): saveAccount() runs on nearly every meaningful
+ * click (draw a card, claim a daily task, level up, recycle a card), so an unguarded throw here
+ * would abort whatever click handler was mid-flight, with no visible explanation to the player.
+ * Caught here instead so a quota failure degrades to "this one save silently didn't persist"
+ * (logged for diagnosis) rather than a crash -- matching saveAccount()'s existing contract of
+ * always returning the account object and never throwing.
+ */
 function saveStore(store) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    return true;
+  } catch (err) {
+    console.error(
+      "[account] saveStore failed (likely localStorage quota) -- this action's progress was NOT persisted",
+      err,
+    );
+    return false;
+  }
 }
 
 export function listAccounts() {
@@ -122,13 +143,24 @@ export function listAccounts() {
   }));
 }
 
+/** Guarded like saveStore(): a browser with storage fully disabled (some strict private-mode
+ * configurations block the whole localStorage object, not just large writes) must not crash app
+ * boot just because nobody has an active account chosen yet. */
 export function getActiveAccountId() {
-  return localStorage.getItem(ACTIVE_KEY) || null;
+  try {
+    return localStorage.getItem(ACTIVE_KEY) || null;
+  } catch {
+    return null;
+  }
 }
 
 export function setActiveAccountId(id) {
-  if (id) localStorage.setItem(ACTIVE_KEY, id);
-  else localStorage.removeItem(ACTIVE_KEY);
+  try {
+    if (id) localStorage.setItem(ACTIVE_KEY, id);
+    else localStorage.removeItem(ACTIVE_KEY);
+  } catch (err) {
+    console.error("[account] setActiveAccountId failed", err);
+  }
 }
 
 export function getAccount(id = getActiveAccountId()) {
