@@ -299,3 +299,33 @@
 特别注意：名册里还有一个历史人物"Isiah Thomas"（活塞坏小子队长，`bref: thomais01`），和 Isaiah Thomas（`thomais02`）只差一个字母。所以这次**只用 bref 直接绑定，完全没加任何"托马斯"相关的姓名正则**，避免像之前 Fox/Kobe/Giannis 那样的同姓氏误伤问题。新增测试 `tests/skillComplaints.test.js` 里同时断言了两个人互不传染技能，以及 Isaiah Thomas 明确没有 `enforcer`。
 
 验证：508/508 测试、lint、diff-check 全过。`ROSTER_SCHEMA` 46→47（R30 头像）→48（这轮技能），已重新生成 fixture。
+
+### R33：继续拆 app.js —— 选秀状态纯逻辑搬进 draft.js/careerBracket.js
+
+延续之前 careerEconomy.js 那轮的拆分方向，这次挑的是选秀（抽卡式建队）相关的纯逻辑：
+
+搬进 `js/engine/draft.js`（该文件此前已有 `drawPack`/`cpuUpgradeRoster`/`autoFillTeam`/`teamPowerLabel`，但**一个测试都没有**）：
+- `isDraftDone(d)` —— 双方名单、主教练、助教是否都齐了；
+- `draftRefreshCost(d)` —— 刷新卡包的花费（自定义预算模式用块，普通模式用金币）；
+- `pickCost(d, player)` —— 选中一张卡实际要花多少；
+- `customSideCanSpend(d, side)` —— 自定义预算模式"花钱阶段"某一方是否还买得起巅峰卡；
+- `customSpendPhaseDone(d)` —— 花钱阶段是否结束，该切到 0 块补位阶段；
+- 常量 `DRAFT_FREE_REFRESHES`、`DRAFT_REFRESH_COST`（原来是 app.js 里的裸 `const`，现在和 `customPool.js` 的 `CUSTOM_*` 常量并列，都在各自的"选秀经济"模块里）。
+
+搬进 `js/engine/careerBracket.js`（同一个 app.js 调用点，紧挨着 `cpuUpgradeRoster`）：
+- `upgradeCpuAdvancers(c, survivors)` —— 晋级赛每轮结束后，给存活的 CPU 球队发钱升级阵容，轮次越深预算越大。
+
+顺手清理：`js/app.js` 里有两份**完全相同**的 Fisher-Yates 洗牌函数（`shuffleCopy` 和 `shuffleArr`，逐行一模一样），统一成 `shuffleArr` 一个，6 处调用点改掉，删掉重复定义——纯 DRY 清理，不改变行为。
+
+测试：
+- 新建 `tests/draft.test.js`（18 个测试）：不仅覆盖这次搬过去的 5 个函数，也顺手给 `draft.js` 原本就有、但从来没测过的 `drawPack`/`cpuUpgradeRoster`/`autoFillTeam`/`teamPowerLabel`/`takenPeople` 补了至少一个烟雾测试——不能说"刚搬过去的函数有测试，原来就在那的函数继续裸奔"。
+- `tests/careerBracket.test.js` 新增 3 个测试覆盖 `upgradeCpuAdvancers`：只动 CPU 球队、深轮次预算更大、空存活列表安全跳过。
+- 对 `isDraftDone` 做过 mutation 验证（临时让它永远返回 `true`，确认测试会失败），验证不是摆设。
+
+需要真实名册数据的测试（`customSideCanSpend`、`takenPeople`、`drawPack`、`cpuUpgradeRoster`、`autoFillTeam`）复用了已有的 `tests/helpers/sampleRoster.js`，不用每次手搓假数据。
+
+浏览器回归：进入"联盟经理"模式的选秀界面，点选卡片不报错、标题正常显示"选秀"、页面无新增报错（已知的 2 个 404 是旧问题，和这轮改动无关，之前就确认过）。
+
+验证：`npm test` 529/529（508 + 18 新增 draft.test.js + 3 新增 careerBracket 测试），`npm run lint` 干净，`git diff --check` 干净。`js/app.js` 从 9983 行降到约 9920 行左右。
+
+这是纯搬运 + 去重，没有改变任何行为，所以**没有**碰 `ROSTER_SCHEMA`（卡片数据/技能/头像都没变）。

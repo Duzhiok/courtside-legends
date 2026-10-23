@@ -6,6 +6,7 @@
  */
 import { accumulateGameToAllTeamBoard, allTeamFromRosters, selectAllTeamByPos } from "./allTeam.js";
 import { simulateCpuMatch } from "./careerEconomy.js";
+import { cpuUpgradeRoster } from "./draft.js";
 import { rollAdvancementInjuries } from "../data/intangibles.js";
 
 export const CAREER_STAGES = [32, 16, 8, 4, 2];
@@ -318,4 +319,32 @@ export function applyCareerInjuryWave(c, opts) {
     reports.push(...rollAdvancementInjuries(t.players, { ...opts, intensity: (opts.intensity || 1) * 0.85 }));
   }
   return reports.filter((r) => r.type === "injury" || r.type === "recover").map((r) => r.text);
+}
+
+/**
+ * Give every surviving CPU team a budget to upgrade their roster before the next stage --
+ * deeper stages (smaller stageSize) hand out bigger purses and, for random-field gold-ladder
+ * teams, more upgrade passes, so CPU rosters visibly get tougher the later you advance.
+ */
+export function upgradeCpuAdvancers(c, survivors) {
+  // stageSize 仍是晋级前规模：32→16 时为 32；越深入 depth 越大
+  const depth = Math.max(0, 5 - Math.log2(Math.max(2, c.stageSize || 32)));
+  const randomField = c.fieldSource === "random";
+  const purseBase = randomField ? 200 : 140;
+  const purse = purseBase + depth * (randomField ? 95 : 55);
+  const passes = randomField ? 1 + Math.floor(depth) : 1; // 随机联队：越往后多轮换血
+  for (const t of survivors) {
+    if (!t?.isCpu) continue;
+    t.gold = (t.gold || 0) + purse + Math.floor(Math.random() * (randomField ? 120 : 80));
+    for (let i = 0; i < passes; i++) {
+      const spend = Math.min(
+        t.gold,
+        110 + Math.floor(purse * 0.75) + Math.floor(Math.random() * 70) + depth * 40
+      );
+      if (spend < 40) break;
+      const res = cpuUpgradeRoster(t, spend, c.used);
+      t.gold = Math.max(0, (t.gold || 0) - res.spent);
+    }
+    t.starterIds = null;
+  }
 }

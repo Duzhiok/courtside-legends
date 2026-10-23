@@ -8,6 +8,7 @@ import {
   noteCareerAllTeamGame,
   noteCareerLoss,
   runCpuMatchInto,
+  upgradeCpuAdvancers,
   yourCareerMatch,
 } from "../js/engine/careerBracket.js";
 
@@ -146,4 +147,41 @@ test("applyCareerInjuryWave: rolls the rest of the bracket's survivors but skips
 test("applyCareerInjuryWave: with no team at all, returns an empty array instead of crashing", () => {
   assert.deepEqual(applyCareerInjuryWave(null, {}), []);
   assert.deepEqual(applyCareerInjuryWave({}, {}), []);
+});
+
+/**
+ * Extracted alongside the above (same app.js call site, upgradeCpuAdvancers hands budgets to
+ * cpuUpgradeRoster from draft.js, which spends against the real PLAYERS pool) -- needs the real
+ * roster loaded, unlike the rest of this file which uses tiny fake team() fixtures.
+ */
+test("upgradeCpuAdvancers: only touches CPU survivors, hands out gold, and clears stale starterIds so a rebuilt lineup gets picked", async () => {
+  const { loadSampleRoster } = await import("./helpers/sampleRoster.js");
+  await loadSampleRoster();
+  const you = team("you", { isCpu: false, gold: 0, starterIds: ["x"], players: [] });
+  const cpu = team("cpu-a", { gold: 0, starterIds: ["y"], players: [] });
+  const c = { stageSize: 16, fieldSource: "historical", used: new Set() };
+  upgradeCpuAdvancers(c, [you, cpu]);
+  assert.equal(you.gold, 0, "the human's own team is never touched");
+  assert.deepEqual(you.starterIds, ["x"], "human starterIds untouched");
+  assert.ok(cpu.gold >= 0, "CPU team got a gold purse (all of it may have been spent on upgrades)");
+  assert.equal(cpu.starterIds, null, "CPU starterIds cleared so the lineup picker re-derives it from the new roster");
+});
+
+test("upgradeCpuAdvancers: deeper stages (smaller stageSize) hand out bigger purses than earlier rounds", async () => {
+  const { loadSampleRoster } = await import("./helpers/sampleRoster.js");
+  await loadSampleRoster();
+  // Spy on cpuUpgradeRoster's actual spend isn't exposed, so measure the purse via gold left
+  // over when there's nothing left in the pool to buy (globalUsed = everyone already taken).
+  const { PLAYERS } = await import("../js/data/players.js");
+  const everyoneTaken = new Set(PLAYERS.map((p) => p.id));
+  const early = team("cpu-early", { gold: 0, players: [] });
+  const late = team("cpu-late", { gold: 0, players: [] });
+  upgradeCpuAdvancers({ stageSize: 32, fieldSource: "historical", used: new Set(everyoneTaken) }, [early]);
+  upgradeCpuAdvancers({ stageSize: 4, fieldSource: "historical", used: new Set(everyoneTaken) }, [late]);
+  // Nothing is buyable (pool fully excluded), so gold left over IS the purse that was handed out.
+  assert.ok(late.gold > early.gold, `expected a deeper stage (4) to hand out a bigger purse than stage 32, got early=${early.gold} late=${late.gold}`);
+});
+
+test("upgradeCpuAdvancers: empty survivor list is a safe no-op", () => {
+  assert.doesNotThrow(() => upgradeCpuAdvancers({ stageSize: 16, used: new Set() }, []));
 });
