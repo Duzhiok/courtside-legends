@@ -894,7 +894,7 @@ export class GameSim {
 
     // Shot + optional signature move (random proc — not every touch)
     let shot = chooseShot(baller, off, focus, sideCtx);
-    let open = calcOpenness(baller, defender, off, def, plan, sideCtx);
+    let open = calcOpenness(baller, defender, off, def, plan, sideCtx, shot);
     const tempoDef = off === this.you() ? getTempoDef(off.gameplan?.tempo) : null;
     if (tempoDef?.openBonus) open = clamp(open + tempoDef.openBonus, 0.08, 0.92);
 
@@ -919,7 +919,7 @@ export class GameSim {
           return;
         }
         shot = chooseShot(baller, off, focus, sideCtx);
-        open = calcOpenness(baller, defender, off, def, plan, sideCtx);
+        open = calcOpenness(baller, defender, off, def, plan, sideCtx, shot);
         if (tempoDef?.openBonus) open = clamp(open + tempoDef.openBonus, 0.08, 0.92);
       }
     }
@@ -3706,15 +3706,40 @@ function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   return { zone: "mid", pts: 2, weakSide };
 }
 
-function calcOpenness(baller, defender, off, def, plan, sideCtx = null) {
+/**
+ * A single `defense` rating has to stand in for both rim protection/post D and 25-foot closeout
+ * discipline, but those are genuinely different skills -- a dominant low-post anchor (Duncan,
+ * Robinson, Gobert-style) is not automatically a real wing defender just because the number is
+ * high. This discounts how much of a traditional big's `defense` rating actually transfers to a
+ * jump shot away from the rim; `speed` (mobility) recovers up to half of that discount, since a
+ * switchable modern big keeps more of it than a lumbering rim-only one, but it never recovers
+ * all of it -- closing out on a shooter is a skill in itself, not just foot speed.
+ *
+ * This is what actually punishes a jumbo, multi-center lineup (Duncan/Robinson/Towns/Gobert-type
+ * frontcourts): with 3-4 true bigs on the floor, pickDefender() ends up assigning one of them to
+ * guard a shooter far more often than a balanced lineup would (their otherwise-elite `defense`
+ * rating can easily outweigh a guard's, even through the position mismatch penalty), and THAT
+ * specific matchup now actually bites instead of being treated as a tough post defender's shot.
+ */
+function perimeterDefenseRating(defender, zone) {
+  if (!zone || zone === "paint") return defender.defense; // rim/post D fully counts near the rim
+  const pos = defender.playPos || defender.pos;
+  if (pos !== "C" && pos !== "PF") return defender.defense;
+  const discount = pos === "C" ? 0.4 : 0.25;
+  const mobility = clamp(((defender.speed || 50) - 50) / 40, 0, 1);
+  return defender.defense * (1 - discount * (1 - mobility * 0.5));
+}
+
+function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = null) {
   const defPress = defensePressLevel(def.coach);
   const hunt = offenseHuntLevel(off.coach, baller);
+  const perimDef = perimeterDefenseRating(defender, shot?.zone);
   let open =
     0.45 +
     (baller.speed - defender.speed) * 0.002 +
     (baller.iq - defender.iq) * 0.0015 +
     off.fit * 0.002 -
-    defender.defense * 0.0025 -
+    perimDef * 0.0025 -
     (def.tactic.defense - 1) * 0.15 +
     (off.chem - 50) * 0.001 +
     skillOpennessDelta(baller, defender, off) +
@@ -3850,6 +3875,20 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
       base += 0.03;
     }
   }
+  // 多塔阵破绽：3-4个真中锋同时在场时，defense 评分碾压后卫的大个子常常被派去守射手
+  // （pickDefender 只按总 defense + 轻微位置罚分权重，错位常常照样赢），但禁区防守力
+  // 不等于外线盯防——传统内线被拉出禁区领防跳投时，命中率要比防守方 defense 评分暗示的更高；
+  // mobility 只能部分弥补（换防型现代内线吃亏少一些），不会完全抵消。直接加在 base 上，
+  // 不走 calcOpenness 的 open（那条通路系数太小，不足以在整场命中率上体现出来）。
+  let bigMismatch = 0;
+  if (shot.zone !== "paint" && ["C", "PF"].includes(defender.playPos || defender.pos)) {
+    const isCenter = (defender.playPos || defender.pos) === "C";
+    const mismatchBase = isCenter ? 0.05 : 0.03;
+    const mobility = clamp(((defender.speed || 50) - 50) / 40, 0, 1);
+    const bonus = mismatchBase * (1 - mobility * 0.5);
+    bigMismatch = bonus * (shot.zone === "three" ? 1 : 0.5) * (isFloorShooter(baller) ? 1.1 : 0.85);
+    base += bigMismatch;
+  }
   base *= personalityOnPlay(baller, off.chem, off.onCourt, {
     coach: off.coach,
     tactic: off.tactic,
@@ -3917,10 +3956,14 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
     base = Math.min(base, gameCtx.sigMakeBoost ? 0.8 : 0.68);
   }
   if (shot.zone === "mid") {
-    base = Math.min(base, gameCtx.sigMakeBoost ? 0.72 : 0.52);
+    base = Math.min(base, gameCtx.sigMakeBoost ? 0.72 : 0.52 + bigMismatch * 0.5);
   }
   if (shot.zone === "three") {
-    base = Math.min(base, gameCtx.sigMakeBoost ? 0.62 : 0.45);
+    // The 45% league-env ceiling below exists to keep a normally-defended three realistic, but
+    // it would also swallow the big-mismatch bonus above whenever the shooter's otherwise
+    // already near it -- exactly the case we're trying to reward. Let that one specific
+    // matchup push a bit past the normal cap instead of being thrown away by it.
+    base = Math.min(base, gameCtx.sigMakeBoost ? 0.62 : 0.45 + bigMismatch);
   }
   // League-env ceiling: keep team PPP near modern NBA (~1.10–1.15)
   return clamp(base, 0.1, gameCtx.sigMakeBoost ? 0.82 : 0.68);
