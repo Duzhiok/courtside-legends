@@ -1,5 +1,13 @@
 /**
  * 总决赛后最佳阵容（PG → C）：按位置各选一人。
+ *
+ * IMPORTANT: this module always keys off a player's stable `pos` (their real, established
+ * position), never `playPos`. `playPos` is the volatile tactical slot a player happens to be
+ * plugged into for one specific lineup/game (can legitimately be anything when a roster is
+ * short-handed -- injuries, an odd CPU auto-fill, a small-ball experiment), and it changes game
+ * to game. If this module ever prefers `playPos` over `pos` again, you get exactly the bug this
+ * comment is guarding against: Barkley/Malone-type power forwards permanently "remembered" as a
+ * PG/SF because of one weird lineup from three rounds ago, baked into the All-Team selection.
  */
 import { overall } from "../data/players.js";
 
@@ -36,8 +44,7 @@ export function accumulateGameToAllTeamBoard(board, snap, homeMeta, awayMeta) {
           photo: p.photo,
           photoCareerDefault: p.photoCareerDefault,
           season: p.season,
-          pos: normAllTeamPos(p.playPos || p.pos),
-          playPos: p.playPos || p.pos,
+          pos: normAllTeamPos(p.pos),
           teamName: meta?.name || team?.name || "",
           teamId: meta?.bracketId || meta?.id || "",
           ovr: overall(p),
@@ -53,8 +60,7 @@ export function accumulateGameToAllTeamBoard(board, snap, homeMeta, awayMeta) {
         };
       }
       const row = board[id];
-      row.pos = normAllTeamPos(p.playPos || p.pos || row.pos);
-      row.playPos = p.playPos || p.pos || row.playPos;
+      row.pos = normAllTeamPos(p.pos || row.pos);
       row.teamName = meta?.name || row.teamName;
       row.ovr = Math.max(row.ovr || 0, overall(p));
       row.gp += 1;
@@ -107,7 +113,7 @@ export function selectAllTeamByPos(pool) {
   const scored = list
     .map((row) => ({
       ...row,
-      pos: normAllTeamPos(row.playPos || row.pos),
+      pos: normAllTeamPos(row.pos),
       _score: entryScore(row),
     }))
     .filter((r) => r.id && r.name)
@@ -198,8 +204,7 @@ export function allTeamFromRosters(teams = []) {
         photo: p.photo,
         photoCareerDefault: p.photoCareerDefault,
         season: p.season,
-        pos: normAllTeamPos(p.playPos || p.pos),
-        playPos: p.playPos || p.pos,
+        pos: normAllTeamPos(p.pos),
         teamName: t.name || "",
         teamId: t.bracketId || t.id || "",
         ovr: overall(p),
@@ -227,7 +232,6 @@ export function allTeamFromSeasonRows(rows, teamIds) {
       id: r.playerId,
       name: r.name,
       pos: normAllTeamPos(r.pos),
-      playPos: r.pos,
       teamName: r.teamName || "",
       teamId: r.teamId,
       ovr: r.ovr || 70,
