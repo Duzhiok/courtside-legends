@@ -667,3 +667,11 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 修复（`js/engine/careerEconomy.js`）：`buildAffordableShop` 用已用卡 id 反查 bref 建「已用人」集合，货架池按人排除（当前货架里已有的卡也一并占位）；结尾的货架内去重从按 id 扩到按人，同一货架不再同时摆同人两个赛季。
 
 验证：新增 `tests/marketDuplicatePerson.test.js`（把全局卡池缩成确定性样本：乔丹全部赛季 + 30 人）——拥有乔丹 '96 后货架连续 5 次绝不出现任何乔丹赛季、且货架仍有货；单货架内不出现同人两赛季。变异检查：临时摘掉按人过滤，第一个测试立刻变红，恢复后全绿。全量 631/631。
+
+### R46：feature/time-travel-foundation 合并进 main + 分支政策变更
+
+用户 2026-10-23 晚通过 GitHub PR #1 把 `feature/time-travel-foundation` 合并进 `main`（merge commit `02b8a24`），并明确指示：**以后 Luna 的提交直接 push 到 main，不再走 feature 分支**。
+
+合并完整性已核验：feature 分支是 main 的祖先（`git merge-base --is-ancestor` 通过），feature 上零提交遗漏；main 独有的只有 merge commit 本身。合并后 main 本地全量 631/631 测试通过，GitHub Actions 在 main 上的合并 run 也绿。本地 clone 已切换到 main 并与 origin/main 同步。
+
+说明：R24 当时记的「只推 feature 分支、不触碰 main，合并留给用户决定」到此为止——用户已经决定并完成合并，此后以本条为准。feature 分支暂保留作历史，不急着删。
