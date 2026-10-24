@@ -802,3 +802,14 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - **适配徽标**：货架每行新增 `shopFit` 徽标——缺位补强（绿，位置在目标以下）优先于战术契合（蓝，球员 archetype 命中教练战术板 needs，如 connector）；样式在 `css/style.css`（`.fit-badge`），中英双语。
 - **球员 + 技能绑定刷新**：`rollSkillShopOffers(size, excludeIds, avoidIds)` 新增已拥有降权——阵容里已有 2 人以上拥有的技能在各档位都不再优先出现（`pickFromTier` 改为“只取 fresh，取不到返回 null”，最后统一 top-up：先 fresh 后 avoided，保证满格）；球员刷新与技能/教练重 roll 仍走同一 `rollCareerStaffShops`，技能单刷（¤25）同样吃绑定。
 - **测试**：`tests/careerShopRefresh.test.js` 6 个（缺位排序、shopFit 三态、低金币 2/3 可负担、11 后卫队一次刷新必见中锋、免费刷新三态、技能 avoid 全量）。过程中修了两处真问题：`pickFromTier` 的逐档回退会先返回已拥有技能（改为全局 fresh 优先 + 统一 top-up）；测试沿用仓库既有 synthetic 卡模式（PLAYERS 初始为空，seasonToCard 不填充）。
+
+---
+
+### R55：T4 穿越生涯交易市场（挂牌询价 / 选秀权倾向 / 三方交易 / 人员上限）
+
+- **挂牌询价**：`listPlayerForTrade / unlistPlayerForTrade / listedPlayerIds`（`js/engine/tradeProposals.js`，挂牌存 `st.listedPlayerIds`，跟存档走）。`generateTradeProposals` 改为目标池 = 挂牌球员优先 + 原有“表现突出”球员（去重），挂牌球员不需要打出好表现也能收到报价，文案改为“已挂牌询价，X 前来问价”；已拒绝的签名仍跳过（挂牌后拒绝同一报价不会立刻重现）。
+- **选秀权倾向**：`teamSituation(team)` 按平均 OVR 划分——<78 重建、>84 争冠、其余中间。重建队在原有选秀权规则上多搭 1 个（上限 3 个），因为重建队更看重未来资产；争冠队按原规则出价。
+- **三方交易**：`executeThreeTeamTrade`（`js/engine/seasonMarket.js`），循环：我方 → 二方 → 三方 → 我方，每腿可多名球员。校验：常规赛阶段、三方互异且球员在队、每队交易后人数在 8–15 人、我方不超硬帽；每支 CPU 队按双边规则分别验收（薪资匹配/战力/硬帽，随机拒规则与双边一致）。日志 `type: "trade_3team"`，带三方队名。
+- **人员上限**：双边交易本已在 `executeTrade` 强制 8–15 人（SEASON_MAX/MIN_ROSTER），三方沿用同一常量逐队校验；市场面板顶部工资帽卡片已显示“名单 n/15（最少 8）”。
+- **UI**（赛季市场面板）：阵容每行加“挂牌/取消挂牌”按钮与“已挂牌”角标，挂牌后自动刷新报价；交易表单加可选的第三方球队/球员（不选即原 1 换 1，选了走三方循环，表单上方有循环说明）。新增挂牌按钮文案走 `getLang()` 中英切换；面板其余中文文案仍是 T7 剩余项（未动）。
+- **测试**：`tests/tradeMarketT4.test.js` 5 个（挂牌优先+非明星也能收到报价、倾向三档阈值、重建队选秀权 +1 及 3 封顶、三方球员轮转与日志、三方拒绝：人数/无效球员/阶段/硬帽）。三方暂只换球员，不带选秀权（留给 T5 的选秀权交易）。

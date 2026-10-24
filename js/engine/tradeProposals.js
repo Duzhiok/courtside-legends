@@ -28,18 +28,51 @@ function tradeSignature(fromTeamId, playerId, offerPlayerId) {
   return `${fromTeamId}:${playerId}:${offerPlayerId}`;
 }
 
+/** Players the user listed for trade (挂牌询价): proposals target them first. */
+export function listedPlayerIds(st) {
+  return Array.isArray(st?.listedPlayerIds) ? [...st.listedPlayerIds] : [];
+}
+
+export function listPlayerForTrade(st, playerId) {
+  const user = st?.teams?.[st.userTeamId];
+  if (!user?.players?.some((p) => p.id === playerId)) return { ok: false, reason: "球员不在我方阵容" };
+  st.listedPlayerIds = listedPlayerIds(st);
+  if (!st.listedPlayerIds.includes(playerId)) st.listedPlayerIds.push(playerId);
+  return { ok: true };
+}
+
+export function unlistPlayerForTrade(st, playerId) {
+  st.listedPlayerIds = listedPlayerIds(st).filter((id) => id !== playerId);
+  return { ok: true };
+}
+
+/** Rebuilding teams value future picks most; contenders value win-now talent. */
+export function teamSituation(team) {
+  const players = team?.players || [];
+  if (!players.length) return "mid";
+  const avg = players.reduce((s, p) => s + overall(p), 0) / players.length;
+  if (avg < 78) return "rebuilding";
+  if (avg > 84) return "contender";
+  return "mid";
+}
+
 export function generateTradeProposals(st, limit = 3) {
   if (!st?.teams?.[st.userTeamId]) return [];
   const user = st.teams[st.userTeamId];
   const declined = new Set(st.declinedTradeSignatures || []);
+  const listedIds = new Set(listedPlayerIds(st));
+  const listed = listedIds.size
+    ? user.players.filter((p) => listedIds.has(p.id)).map((player) => ({ player, row: st.playerSeason?.[`${st.userTeamId}:${player.id}`], listed: true }))
+    : [];
   const attractive = (user.players || [])
     .map((player) => ({ player, row: st.playerSeason?.[`${st.userTeamId}:${player.id}`] }))
-    .filter(({ player, row }) => isAttractive(row, player))
+    .filter(({ player, row }) => !listedIds.has(player.id) && isAttractive(row, player))
     .sort((a, b) => overall(b.player) - overall(a.player));
+  const targets = [...listed, ...attractive];
   const proposals = [];
   const cpuTeams = Object.entries(st.teams).filter(([id, team]) => id !== st.userTeamId && team?.players?.length);
-  for (let i = 0; i < Math.min(limit, attractive.length, cpuTeams.length); i++) {
-    const { player, row } = attractive[i];
+  for (let i = 0; i < Math.min(limit, targets.length, cpuTeams.length); i++) {
+    const { player, row, listed: isListed } = targets[i];
     const [fromTeamId, fromTeam] = cpuTeams[(i + (st.dayIndex || 0)) % cpuTeams.length];
     const candidate = [...fromTeam.players]
       .sort((a, b) => Math.abs(overall(a) - overall(player)) - Math.abs(overall(b) - overall(player)))[0];
@@ -53,7 +86,9 @@ export function generateTradeProposals(st, limit = 3) {
     // skipped here -- a genuinely different offer only resurfaces once the roster actually
     // changes (a different candidate/offerPlayer naturally produces a different signature).
     if (declined.has(tradeSignature(fromTeamId, player.id, offerPlayer.id))) continue;
-    const pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
+    let pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
+    // 选秀权倾向：重建队更愿意为即战力多搭选秀权（上限 3 个）
+    if (teamSituation(fromTeam) === "rebuilding") pickCount = Math.min(3, pickCount + 1);
     const picks = Array.from({ length: pickCount }, (_, pickIndex) => makePickAsset(st, i + pickIndex));
     const prospect = [...fromTeam.players]
       .filter((item) => item.id !== offerPlayer.id && prospectScore(item) > prospectScore(offerPlayer))
@@ -67,7 +102,9 @@ export function generateTradeProposals(st, limit = 3) {
       targetName: player.name,
       receivePlayers: [offerPlayer, ...(prospect ? [prospect] : [])],
       offerPicks: picks,
-      reason: `${player.name} 最近表现突出（${perGame(row, "pts").toFixed(1)} 分 / ${perGame(row, "plusMinus").toFixed(1)} +/-），${fromTeam.name || fromTeamId} 主动来谈。`,
+      reason: isListed
+        ? `${player.name} 已挂牌询价，${fromTeam.name || fromTeamId} 前来问价。`
+        : `${player.name} 最近表现突出（${perGame(row, "pts").toFixed(1)} 分 / ${perGame(row, "plusMinus").toFixed(1)} +/-），${fromTeam.name || fromTeamId} 主动来谈。`,
       createdYear: st.year,
       createdDay: st.dayIndex || 0,
     });

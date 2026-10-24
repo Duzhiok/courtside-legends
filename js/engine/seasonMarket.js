@@ -511,6 +511,95 @@ export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId, accept
   };
 }
 
+/**
+ * Three-team trade, one cycle: user gives -> team2, team2 gives -> team3,
+ * team3 gives -> user. Each leg may carry several players, so roster caps
+ * are checked per team (the 1-1-1 case keeps counts unchanged, but the
+ * check still guards multi-player legs). CPU acceptance mirrors the
+ * two-team rule per receiving team.
+ */
+export function executeThreeTeamTrade(
+  st,
+  { giveIds = [], team2Id, team2PlayerIds = [], team3Id, team3PlayerIds = [], acceptedProposal = false } = {},
+) {
+  ensureSeasonMarket(st);
+  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可交易" };
+  const you = st.teams[st.userTeamId];
+  const t2 = st.teams[team2Id];
+  const t3 = st.teams[team3Id];
+  if (!you || !t2 || !t3 || team2Id === st.userTeamId || team3Id === st.userTeamId || team2Id === team3Id) {
+    return { ok: false, reason: "三方球队无效" };
+  }
+  if (!giveIds.length || !team2PlayerIds.length || !team3PlayerIds.length) {
+    return { ok: false, reason: "三方都需出人" };
+  }
+  const give = giveIds.map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
+  const p2 = team2PlayerIds.map((id) => t2.players.find((p) => p.id === id)).filter(Boolean);
+  const p3 = team3PlayerIds.map((id) => t3.players.find((p) => p.id === id)).filter(Boolean);
+  if (give.length !== giveIds.length) return { ok: false, reason: "我方球员无效" };
+  if (p2.length !== team2PlayerIds.length) return { ok: false, reason: "第二方球员无效" };
+  if (p3.length !== team3PlayerIds.length) return { ok: false, reason: "第三方球员无效" };
+
+  const youAfter = rosterCount(you) - give.length + p3.length;
+  const t2After = rosterCount(t2) - p2.length + give.length;
+  const t3After = rosterCount(t3) - p3.length + p2.length;
+  if (youAfter > SEASON_MAX_ROSTER || youAfter < SEASON_MIN_ROSTER) {
+    return { ok: false, reason: `交易后我方人数须在 ${SEASON_MIN_ROSTER}–${SEASON_MAX_ROSTER}` };
+  }
+  if (t2After > SEASON_MAX_ROSTER || t2After < SEASON_MIN_ROSTER || t3After > SEASON_MAX_ROSTER || t3After < SEASON_MIN_ROSTER) {
+    return { ok: false, reason: "对方人数不合规，CPU 拒绝" };
+  }
+
+  const youPayAfter = teamPayroll(you) - give.reduce((s, p) => s + playerSalary(p), 0) + p3.reduce((s, p) => s + playerSalary(p), 0);
+  if (youPayAfter > SEASON_APRON) {
+    return { ok: false, reason: `交易后将超过硬帽 ${SEASON_APRON}` };
+  }
+
+  // CPU acceptance, per team: receives inPlayers, sends outPlayers.
+  const cpuAccepts = (team, outPlayers, inPlayers) => {
+    const salOut = outPlayers.reduce((s, p) => s + playerSalary(p), 0);
+    const salIn = inPlayers.reduce((s, p) => s + playerSalary(p), 0);
+    const ovrOut = outPlayers.reduce((s, p) => s + overall(p), 0);
+    const ovrIn = inPlayers.reduce((s, p) => s + overall(p), 0);
+    const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
+    const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80;
+    const needsSpace = teamPayroll(team) > SEASON_SALARY_CAP && salOut < salIn;
+    if (!acceptedProposal && !salaryOk && !needsSpace) return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };
+    if (!acceptedProposal && !valueOk && Math.random() > 0.25) return { ok: false, reason: "对方认为吃亏，拒绝交易" };
+    if (teamPayroll(team) - salOut + salIn > SEASON_APRON + 50) return { ok: false, reason: "对方硬帽放不下，拒绝" };
+    return { ok: true };
+  };
+  const a2 = cpuAccepts(t2, p2, give);
+  if (!a2.ok) return a2;
+  const a3 = cpuAccepts(t3, p3, p2);
+  if (!a3.ok) return a3;
+
+  you.players = you.players.filter((p) => !giveIds.includes(p.id)).concat(p3.map((p) => clonePlayer(p)));
+  t2.players = t2.players.filter((p) => !team2PlayerIds.includes(p.id)).concat(give.map((p) => clonePlayer(p)));
+  t3.players = t3.players.filter((p) => !team3PlayerIds.includes(p.id)).concat(p2.map((p) => clonePlayer(p)));
+  for (const p of you.players) ensurePlayerSalary(p);
+  for (const p of t2.players) ensurePlayerSalary(p);
+  for (const p of t3.players) ensurePlayerSalary(p);
+
+  st.tradeLog.push({
+    type: "trade_3team",
+    year: st.year,
+    day: st.dayIndex,
+    with: team2Id,
+    withName: t2.name,
+    with3: team3Id,
+    with3Name: t3.name,
+    give: give.map((p) => ({ id: p.id, name: p.name, salary: playerSalary(p) })),
+    get: p3.map((p) => ({ id: p.id, name: p.name, salary: playerSalary(p) })),
+  });
+
+  return {
+    ok: true,
+    message: `三方成交：送出 ${give.map((p) => p.name).join("、")}，经 ${t2.name} 得到 ${p3.map((p) => p.name).join("、")}`,
+    payroll: payrollSummary(you),
+  };
+}
+
 /** Upcoming user games for schedule strip. */
 export function upcomingUserGames(st, limit = 12) {
   const out = [];
