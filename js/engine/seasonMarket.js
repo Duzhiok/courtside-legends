@@ -4,6 +4,7 @@
  * Coaches & assistants also hire from a staff free-agent pool (count vs cap).
  */
 import { ASSISTANTS, COACHES, coachDrawWeight, coachSpecialtyLabel, coachTactics } from "../data/coaches.js";
+import { estimateDraftPickValue } from "./draftPickValue.js";
 import { playerPrice, marketMeta } from "../data/intangibles.js";
 import { PLAYERS, clonePlayer, overall } from "../data/players.js";
 
@@ -436,26 +437,71 @@ function teamByPlayer(st, playerId) {
 }
 
 /**
- * 1-for-1 or N-for-M trade with a CPU club.
- * Salary match: outgoing within 25% + ¤40 of incoming (NBA-ish simplified).
+ * Two deterministic starter picks per team: a protected 1st a couple years out, a 2nd next year.
+ * The user's own pool lives at st.draftAssets (tradeProposals.js already reads/writes that field
+ * for accepted-proposal sweeteners -- reusing it keeps those two code paths from drifting out of
+ * sync). CPU teams get a pool on the team object itself, since nothing else owns that space yet.
  */
-export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId, acceptedProposal = false } = {}) {
+function seedPicks(st, teamId) {
+  const year = Number(st?.year) || 2024;
+  return [
+    { id: `${teamId}-r1-${year + 2}`, year: year + 2, round: 1, protection: "lottery-protected", source: "own" },
+    { id: `${teamId}-r2-${year + 1}`, year: year + 1, round: 2, protection: "unprotected", source: "own" },
+  ];
+}
+
+export function teamDraftAssets(st, teamId) {
+  if (!st || !teamId) return [];
+  if (teamId === st.userTeamId) {
+    if (!Array.isArray(st.draftAssets)) st.draftAssets = [];
+    if (!st.draftAssets.length) st.draftAssets.push(...seedPicks(st, teamId));
+    return st.draftAssets;
+  }
+  const team = st.teams?.[teamId];
+  if (!team) return [];
+  if (!Array.isArray(team.draftAssets)) team.draftAssets = [];
+  if (!team.draftAssets.length) team.draftAssets.push(...seedPicks(st, teamId));
+  return team.draftAssets;
+}
+
+export function pickValueOf(st, pick) {
+  return estimateDraftPickValue(pick, { currentYear: st?.year }).ovrEquivalent;
+}
+
+/**
+ * 1-for-1 or N-for-M trade with a CPU club; either side may also throw in draft picks.
+ * Salary match: outgoing within 25% + ¤40 of incoming (NBA-ish simplified). Picks don't carry
+ * salary (nothing to assign one to yet), so they only move the OVR/value side of the ledger.
+ */
+export function executeTrade(
+  st,
+  { giveIds = [], wantIds = [], givePickIds = [], wantPickIds = [], cpuTeamId, acceptedProposal = false } = {},
+) {
   ensureSeasonMarket(st);
   if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可交易" };
   const you = st.teams[st.userTeamId];
   const cpu = st.teams[cpuTeamId];
   if (!you || !cpu || cpuTeamId === st.userTeamId) return { ok: false, reason: "对手无效" };
-  if (!giveIds.length || !wantIds.length) return { ok: false, reason: "双方都需出人" };
+  if ((!giveIds.length && !givePickIds.length) || (!wantIds.length && !wantPickIds.length)) {
+    return { ok: false, reason: "双方都需出点东西（球员或选秀权）" };
+  }
 
   const give = giveIds.map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
   const want = wantIds.map((id) => cpu.players.find((p) => p.id === id)).filter(Boolean);
   if (give.length !== giveIds.length) return { ok: false, reason: "我方球员无效" };
   if (want.length !== wantIds.length) return { ok: false, reason: "对方球员无效" };
 
+  const myPicks = givePickIds.length ? teamDraftAssets(st, st.userTeamId) : [];
+  const cpuPicks = wantPickIds.length ? teamDraftAssets(st, cpuTeamId) : [];
+  const givePicks = givePickIds.map((id) => myPicks.find((p) => p.id === id)).filter(Boolean);
+  const wantPicks = wantPickIds.map((id) => cpuPicks.find((p) => p.id === id)).filter(Boolean);
+  if (givePicks.length !== givePickIds.length) return { ok: false, reason: "我方选秀权无效" };
+  if (wantPicks.length !== wantPickIds.length) return { ok: false, reason: "对方选秀权无效" };
+
   const salOut = give.reduce((s, p) => s + playerSalary(p), 0);
   const salIn = want.reduce((s, p) => s + playerSalary(p), 0);
-  const ovrOut = give.reduce((s, p) => s + overall(p), 0);
-  const ovrIn = want.reduce((s, p) => s + overall(p), 0);
+  const ovrOut = give.reduce((s, p) => s + overall(p), 0) + givePicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
+  const ovrIn = want.reduce((s, p) => s + overall(p), 0) + wantPicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
 
   // Roster size after
   const youAfter = rosterCount(you) - give.length + want.length;
@@ -494,6 +540,19 @@ export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId, accept
   for (const p of you.players) ensurePlayerSalary(p);
   for (const p of cpu.players) ensurePlayerSalary(p);
 
+  // Picks move pools too -- same pattern as players: pulled out of the giver's list, pushed into
+  // the receiver's. This is the thing that makes "ask for their 2nd rounder back" possible at all.
+  if (givePicks.length || wantPicks.length) {
+    const givePickIdSet = new Set(givePickIds);
+    const wantPickIdSet = new Set(wantPickIds);
+    st.draftAssets = (teamDraftAssets(st, st.userTeamId) || [])
+      .filter((pk) => !givePickIdSet.has(pk.id))
+      .concat(wantPicks);
+    cpu.draftAssets = (teamDraftAssets(st, cpuTeamId) || [])
+      .filter((pk) => !wantPickIdSet.has(pk.id))
+      .concat(givePicks);
+  }
+
   st.tradeLog.push({
     type: "trade",
     year: st.year,
@@ -502,11 +561,21 @@ export function executeTrade(st, { giveIds = [], wantIds = [], cpuTeamId, accept
     withName: cpu.name,
     give: give.map((p) => ({ id: p.id, name: p.name, salary: playerSalary(p) })),
     get: want.map((p) => ({ id: p.id, name: p.name, salary: playerSalary(p) })),
+    givePicks: givePicks.map((pk) => estimateDraftPickValue(pk, { currentYear: st.year }).label),
+    getPicks: wantPicks.map((pk) => estimateDraftPickValue(pk, { currentYear: st.year }).label),
   });
 
+  const pickBit =
+    givePicks.length || wantPicks.length
+      ? `${givePicks.length ? `，送出 ${givePicks.length} 个选秀权` : ""}${
+          wantPicks.length ? `，得到 ${wantPicks.length} 个选秀权` : ""
+        }`
+      : "";
   return {
     ok: true,
-    message: `成交：送出 ${give.map((p) => p.name).join("、")}，得到 ${want.map((p) => p.name).join("、")}`,
+    message: `成交：送出 ${give.map((p) => p.name).join("、") || "（无球员）"}，得到 ${
+      want.map((p) => p.name).join("、") || "（无球员）"
+    }${pickBit}`,
     payroll: payrollSummary(you),
   };
 }

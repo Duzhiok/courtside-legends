@@ -2568,6 +2568,15 @@ select, input[type="number"] {
   border-radius: 6px;
   border: 1px solid var(--line);
 }
+.sm-trade-check {
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  align-items: center;
+  gap: 6px;
+  font-size: .82rem;
+  cursor: pointer;
+}
+.sm-trade-check input { flex-shrink: 0; }
 @media (max-width: 800px) {
   .sm-cols { grid-template-columns: 1fr; }
 }

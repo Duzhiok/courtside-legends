@@ -14,6 +14,13 @@ function prospectScore(player) {
   return (100 - overall(player)) + (Number(player.age) < 24 ? 18 : 0);
 }
 
+/** Young, cheap, high-upside roster filler -- worth suggesting as a trade sweetener. */
+export function isProspectCandidate(player) {
+  return overall(player) < 76 && Number(player.age) < 25;
+}
+
+export { prospectScore };
+
 function makePickAsset(st, index) {
   return {
     id: `${st.year}-${st.userTeamId}-incoming-${index + 1}`,
