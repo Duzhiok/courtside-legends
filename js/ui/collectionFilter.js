@@ -74,7 +74,7 @@ export function decadesOf(cards) {
 export function filterBarHtml(filter, { shown, total, decades }, esc) {
   const option = (value, label, current) => `<option value="${value}" ${String(current) === String(value) ? "selected" : ""}>${esc(label)}</option>`;
   return `<div class="collection-filter" role="search" aria-label="筛选和排序卡库">
-      <input type="search" data-cf="query" value="${esc(filter.query)}" placeholder="搜球员 / 年份 / 外号" aria-label="搜索卡库" />
+      <span class="search-wrap cf-query"><input type="search" data-cf="query" value="${esc(filter.query)}" placeholder="搜球员 / 年份 / 外号" aria-label="搜索卡库" /><button type="button" class="search-clear" data-cf-clear aria-label="清空搜索" title="清空搜索"${filter.query ? "" : " hidden"}>×</button></span>
       <select data-cf="sort" aria-label="排序">${SORTS.map((s) => option(s.id, s.label, filter.sort)).join("")}</select>
       <select data-cf="band" aria-label="稀有度">${BANDS.map((b) => option(b.id, b.label, filter.band)).join("")}</select>
       <select data-cf="grade" aria-label="成色">${option("all", "全部成色", filter.grade)}${GRADES.map((g) => option(g, `成色 ${g}`, filter.grade)).join("")}</select>
