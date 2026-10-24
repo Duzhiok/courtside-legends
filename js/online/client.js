@@ -23,7 +23,61 @@ const state = {
   connected: false,
   token: null,
   account: null,
+  market: null,
 };
+
+function esc(text) {
+  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function renderMarket() {
+  const m = state.market;
+  if (!m) return;
+  $("market-gold").textContent = `联机金币：${m.gold}`;
+  $("market-roster").innerHTML = m.roster
+    .map((c, i) => {
+      const starter = i < 5 ? "（首发）" : "";
+      return `<li>${esc(c.name)} ${c.pos} OVR ${c.ovr}${starter} <input data-list-price="${c.id}" placeholder="挂牌价" size="6" /> <button data-list="${c.id}" type="button">挂牌</button> <button data-up="${c.id}" type="button" class="ghost">↑</button> <button data-down="${c.id}" type="button" class="ghost">↓</button></li>`;
+    })
+    .join("");
+  $("market-board").innerHTML = m.listings
+    .map((l) => {
+      const mine = state.account && l.seller === state.account.name;
+      const action = mine
+        ? `<button data-cancel="${l.id}" type="button">撤牌</button>`
+        : `<button data-buy="${l.id}" type="button">购买</button>`;
+      return `<li>${esc(l.card.name)} ${l.card.pos} OVR ${l.card.ovr} · ${l.price} 金 · ${l.seller ? esc(l.seller) : "系统"} ${action}</li>`;
+    })
+    .join("");
+}
+
+function marketAction() {
+  const rosterEl = $("market-roster");
+  rosterEl.addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.list) {
+      const input = rosterEl.querySelector(`[data-list-price="${btn.dataset.list}"]`);
+      const price = Number(input?.value);
+      if (!Number.isInteger(price)) return setStatus("挂牌价需为整数。", true);
+      send({ type: "market_list", cardId: btn.dataset.list, price, token: state.token });
+    } else if (btn.dataset.up || btn.dataset.down) {
+      const ids = state.market.roster.map((c) => c.id);
+      const id = btn.dataset.up || btn.dataset.down;
+      const i = ids.indexOf(id);
+      const j = btn.dataset.up ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      send({ type: "market_roster_order", cardIds: ids, token: state.token });
+    }
+  });
+  $("market-board").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    if (btn.dataset.buy) send({ type: "market_buy", listingId: Number(btn.dataset.buy), token: state.token });
+    else if (btn.dataset.cancel) send({ type: "market_cancel", listingId: Number(btn.dataset.cancel), token: state.token });
+  });
+}
 
 function renderAccount() {
   const el = $("account-info");
@@ -210,7 +264,20 @@ function handleMessage(msg) {
       state.name = msg.name;
       $("player-name").value = msg.name;
       renderAccount();
-      setStatus(`已登录：${msg.name}（排位分 ${msg.rating}）。`);
+      $("market-card").hidden = false;
+      send({ type: "market_board", token: state.token });
+      setStatus(`已登录：${msg.name}（排位分 ${msg.rating}）。联机生涯已开通，去市场补人吧。`);
+      break;
+    case "market":
+      state.market = msg;
+      renderMarket();
+      break;
+    case "economy":
+      if (state.market) {
+        state.market.gold = msg.gold;
+        renderMarket();
+      }
+      feedLine(`联机生涯奖金到账，现有金币 ${msg.gold}`);
       break;
     case "account":
       if (state.account && state.account.name === msg.name) {
@@ -340,6 +407,20 @@ function bind() {
     if (!state.token) return setStatus("排位匹配需要先登录账号。", true);
     send({ type: "queue", name: state.name, teamId: state.teamId, mode: "ranked", token: state.token });
   });
+  $("btn-market-refresh").addEventListener("click", () => {
+    if (!state.token) return setStatus("请先登录账号。", true);
+    send({ type: "market_board", token: state.token });
+  });
+  $("btn-online-queue").addEventListener("click", () => {
+    if (!state.token) return setStatus("联机阵容需要先登录账号。", true);
+    state.name = state.account ? state.account.name : state.name;
+    send({ type: "queue", name: state.name, roster: "online", token: state.token });
+  });
+  $("btn-online-queue-ranked").addEventListener("click", () => {
+    if (!state.token) return setStatus("联机阵容需要先登录账号。", true);
+    state.name = state.account ? state.account.name : state.name;
+    send({ type: "queue", name: state.name, roster: "online", mode: "ranked", token: state.token });
+  });
   $("btn-queue").addEventListener("click", () => {
     state.name = $("player-name").value.trim();
     state.teamId = $("team-create").value;
@@ -380,4 +461,5 @@ function bind() {
 
 $("record-line").textContent = `联机战绩：${formatRecord(loadRecord(localStorage))}`;
 
+marketAction();
 bind();
