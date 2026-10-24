@@ -276,6 +276,7 @@ import {
   resolveRootLiveGame,
   upgradeLeagueCareerManagement,
 } from "./modes/leagueCareer.js";
+import { picksOwnedBy, swapDraftPicks } from "./engine/leagueDraft.js";
 import {
   careerForPersistence,
   isManagedCareer,
@@ -8669,6 +8670,18 @@ function renderSeasonMarket() {
       </div>
       <p class="tiny" id="sm-trade-hint"></p>
     </section>
+    ${isManagedCareer(state.leagueCareer) ? `<section class="sm-picks">
+      <h4>选秀权交易（上下换签）</h4>
+      <p class="tiny">用我方 ${st.year} 年首轮自然签，换对方同年首轮签：战绩越差的签越值钱，对方按战绩估值，差太多会拒绝。换来的签在赛季末选秀的顺位里生效；一枚签一季只能换一次。</p>
+      <p class="tiny">我方持有 ${st.year} 年首轮签：${picksOwnedBy(st, st.year, st.userTeamId).map((srcId) => srcId === st.userTeamId ? "自然签" : `${st.teams[srcId]?.name || srcId} 的签`).join("、") || "无"}</p>
+      <div class="form-row">
+        <label>对方球队
+          <select id="sm-pick-cpu">${cpuOpts}</select>
+        </label>
+        <button type="button" class="btn primary" id="btn-sm-pick-swap">提出换签</button>
+      </div>
+      <p class="tiny" id="sm-pick-hint"></p>
+    </section>` : ""}
   `;
 
   const fillCpuPlayers = () => {
@@ -8828,6 +8841,20 @@ function renderSeasonMarket() {
       renderSeasonHub();
       showSeasonTab("market");
     });
+  });
+  $("#btn-sm-pick-swap")?.addEventListener("click", () => {
+    const cpuId = $("#sm-pick-cpu")?.value;
+    const res = swapDraftPicks(st, { year: st.year, cpuTeamId: cpuId });
+    const hint = $("#sm-pick-hint");
+    if (!res.ok) {
+      if (hint) hint.textContent = res.reason;
+      alert(res.reason);
+      return;
+    }
+    if (hint) hint.textContent = res.message;
+    if (!saveSeasonAndCareer(st)) return;
+    renderSeasonHub();
+    showSeasonTab("market");
   });
   $("#btn-sm-trade")?.addEventListener("click", () => {
     const giveId = $("#sm-trade-give")?.value;

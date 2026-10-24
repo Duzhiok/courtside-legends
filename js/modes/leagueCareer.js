@@ -1,6 +1,8 @@
 import { advanceLeagueOffseason } from "../engine/season.js";
 import {
   advanceDraftToUserPick,
+  applyPickOwnership,
+  buildNaturalPicks,
   createDraftState,
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
@@ -490,7 +492,13 @@ export function beginCareerDraft(career) {
   }
 
   const seed = `${career.careerId}:${career.season.year}:draft`;
-  const created = createDraftState({ season: career.season, seed });
+  // Traded picks change who owns which slot: build the pick list from the
+  // season's ownership map (set by pick swaps during the season).
+  const picks = applyPickOwnership(
+    buildNaturalPicks(career.season),
+    career.season?.pickOwnership?.[career.season.year],
+  );
+  const created = createDraftState({ season: career.season, seed, picks });
   const draft = advanceDraftToUserPick(created, career.season);
   const management = careerManagement(career);
   const history = [
