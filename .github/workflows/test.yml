@@ -12,6 +12,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # No dependencies to install: the suite runs on Node's built-in
-      # test runner (see the "test" script in package.json).
+      # The suite runs on Node's built-in test runner, but the online
+      # server/tests import the `ws` package (added in R60), so
+      # dependencies must be installed first. Without this step CI
+      # failed with "Cannot find package 'ws'" while local runs passed.
+      - run: npm ci
       - run: npm test
