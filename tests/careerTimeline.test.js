@@ -197,6 +197,7 @@ test("offseason summaries keep only 20 compact current-year transactions", () =>
     year: 2030,
     day: 2,
     description: "Player 2",
+    descriptionEn: "Player 2",
   });
   assert.equal(transactions.some((entry) => entry.description === "Old"), false);
   assert.equal(JSON.stringify(transactions).includes("salary"), false);
@@ -280,18 +281,21 @@ test("transaction descriptions compact trades and staff changes", () => {
         year: 2030,
         day: 3,
         description: "Team C：送出 Out A、Out B，得到 In A",
+        descriptionEn: "Team C: sent Out A, Out B, got In A",
       },
       {
         type: "hire_coach",
         year: 2030,
         day: 4,
         description: "New Coach（替换 Old Coach）",
+        descriptionEn: "New Coach (replacing Old Coach)",
       },
       {
         type: "fire_assistant",
         year: 2030,
         day: 5,
         description: "Old Assistant",
+        descriptionEn: "Old Assistant",
       },
     ],
   );
@@ -325,6 +329,7 @@ test("real offseason summaries survive root round-trip into the timeline", () =>
     year: 2030,
     day: 2,
     description: "Signed Player",
+    descriptionEn: "Signed Player",
   }]);
 });
 

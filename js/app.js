@@ -150,6 +150,7 @@ import {
   removeSkillFromPlayer,
   rollSkillShopOffers,
   skillChipsHtml,
+  skillDesc,
   SKILL_PACKS,
   SKILL_SELL_RATE,
   syncTeamDuoSkills,
@@ -3470,7 +3471,7 @@ function rollCareerStaffShops(c, { coaches = true, skills = true } = {}) {
       for (const s of pl.skills || []) ownedCounts[s] = (ownedCounts[s] || 0) + 1;
     }
     const avoid = new Set(Object.keys(ownedCounts).filter((id) => ownedCounts[id] >= 2));
-    c.skillShop = rollSkillShopOffers(SKILL_SHOP_SIZE, recent, avoid);
+    c.skillShop = rollSkillShopOffers(SKILL_SHOP_SIZE, recent, avoid, getLang());
     c.skillShopRecent = [...new Set([...recent, ...c.skillShop.map((x) => x.id)])].slice(-24);
   }
 }
@@ -3700,8 +3701,8 @@ function paintSkillShopRoot({ shop: skillBox, inv: invBox, hint }, c) {
           )
           .join("");
         return `<div class="career-skill-card rarity-${escAttr(owned.rarity || "common")}">
-        <strong>${esc(pack.name || owned.name)}</strong>
-        <div class="tiny">${esc(pack.desc || owned.desc || "")}</div>
+        <strong>${esc(skillNameL(pack.name || owned.name, getLang()))}</strong>
+        <div class="tiny">${esc(skillDesc(pack, getLang()) || owned.desc || "")}</div>
         <div class="skill-install-row">
           <select data-inv-target="${idx}" title="装给谁">${opts || "<option value=''>—</option>"}</select>
           <select data-inv-drop="${idx}" title="技能已满时选择卸下哪项（有空位可留空）">
@@ -8261,7 +8262,7 @@ function renderLeagueManagement() {
       },
     },
   );
-  renderCareerHistory($("#season-history"), { career });
+  renderCareerHistory($("#season-history"), { career, lang: getLang() });
 }
 
 function renderSeasonRotation() {

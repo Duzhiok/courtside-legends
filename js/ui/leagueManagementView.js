@@ -343,10 +343,10 @@ export function renderDevelopmentPlans(container, { career } = {}, handlers = {}
 }
 
 const HISTORY_FILTERS = [
-  ["all", "全部"],
-  ["seasons", "赛季"],
-  ["drafts", "选秀"],
-  ["transactions", "交易"],
+  ["all", "全部", "All"],
+  ["seasons", "赛季", "Seasons"],
+  ["drafts", "选秀", "Drafts"],
+  ["transactions", "交易", "Transactions"],
 ];
 
 const FINISH_LABELS = {
@@ -356,7 +356,16 @@ const FINISH_LABELS = {
   lottery: "乐透区",
 };
 
-function historyCard(entry, career) {
+const FINISH_LABELS_EN = {
+  champion: "Champion",
+  finals: "Finals",
+  playoffs: "Playoffs",
+  lottery: "Lottery",
+};
+
+function historyCard(entry, career, lang = "zh") {
+  const en = lang === "en";
+  const finishLabels = en ? FINISH_LABELS_EN : FINISH_LABELS;
   const awards = [
     ["MVP", entry.awards?.mvp],
     ["DPOY", entry.awards?.dpoy],
@@ -368,7 +377,7 @@ function historyCard(entry, career) {
   const transactions = entry.transactions
     .map(
       (transaction) =>
-        `<li>第 ${escapeHtml(Number(transaction.day) + 1)} 日 · ${escapeHtml(transaction.description)}</li>`,
+        `<li>${en ? `Day ${escapeHtml(Number(transaction.day) + 1)}` : `第 ${escapeHtml(Number(transaction.day) + 1)} 日`} · ${escapeHtml(en ? transaction.descriptionEn || transaction.description : transaction.description)}</li>`,
     )
     .join("");
   const events = entry.events
@@ -378,30 +387,31 @@ function historyCard(entry, career) {
     )
     .join("");
   const pick = entry.userDraftPick
-    ? `<p><strong>本队选秀：</strong>#${escapeHtml(entry.userDraftPick.pickNumber)} ${escapeHtml(entry.userDraftPick.name || entry.userDraftPick.bref || "—")} · ${escapeHtml(sourceLabel(entry.userDraftPick.source))}</p>`
+    ? `<p><strong>${en ? "Your draft pick:" : "本队选秀："}</strong>#${escapeHtml(entry.userDraftPick.pickNumber)} ${escapeHtml(entry.userDraftPick.name || entry.userDraftPick.bref || "—")} · ${escapeHtml(sourceLabel(entry.userDraftPick.source))}</p>`
     : "";
   const champion = entry.championId
     ? teamName(career, {}, entry.championId)
     : "—";
   return `<article class="career-history-card" data-history-year="${escapeHtml(entry.year)}">
     <header><div><h4>${escapeHtml(entry.year)} · ${escapeHtml(entry.teamName)}</h4>
-      <p>${entry.record ? `${escapeHtml(entry.record.w)} 胜 ${escapeHtml(entry.record.l)} 负` : "无赛季总结"} · ${escapeHtml(FINISH_LABELS[entry.finish] || entry.finish || "—")}</p></div>
-      <span>冠军：${escapeHtml(champion)}</span></header>
+      <p>${entry.record ? (en ? `${escapeHtml(entry.record.w)}W-${escapeHtml(entry.record.l)}L` : `${escapeHtml(entry.record.w)} 胜 ${escapeHtml(entry.record.l)} 负`) : (en ? "No season summary" : "无赛季总结")} · ${escapeHtml(finishLabels[entry.finish] || entry.finish || "—")}</p></div>
+      <span>${en ? "Champion:" : "冠军："}${escapeHtml(champion)}</span></header>
     ${pick}
-    <details><summary>奖项、交易与大事记</summary>
-      ${awards ? `<h5>奖项</h5><ul>${awards}</ul>` : ""}
-      ${transactions ? `<h5>交易记录</h5><ul>${transactions}</ul>` : ""}
-      ${events ? `<h5>生涯事件</h5><ul>${events}</ul>` : ""}
-      ${!awards && !transactions && !events ? "<p class=\"tiny\">本年暂无更多记录。</p>" : ""}
+    <details><summary>${en ? "Awards, transactions & events" : "奖项、交易与大事记"}</summary>
+      ${awards ? `<h5>${en ? "Awards" : "奖项"}</h5><ul>${awards}</ul>` : ""}
+      ${transactions ? `<h5>${en ? "Transactions" : "交易记录"}</h5><ul>${transactions}</ul>` : ""}
+      ${events ? `<h5>${en ? "Career events" : "生涯事件"}</h5><ul>${events}</ul>` : ""}
+      ${!awards && !transactions && !events ? `<p class=\"tiny\">${en ? "No more records this year." : "本年暂无更多记录。"}</p>` : ""}
     </details>
   </article>`;
 }
 
-export function renderCareerHistory(container, { career } = {}) {
+export function renderCareerHistory(container, { career, lang = "zh" } = {}) {
+  const en = lang === "en";
   if (!container) return container;
   if (!career?.management) {
     container.onclick = null;
-    container.innerHTML = "<p class=\"tiny\">生涯历史属于长期生涯模式，请先创建或载入长期生涯。</p>";
+    container.innerHTML = `<p class=\"tiny\">${en ? "Career history belongs to long-career mode. Create or load a long career first." : "生涯历史属于长期生涯模式，请先创建或载入长期生涯。"}</p>`;
     return container;
   }
   const timeline = buildCareerTimeline(career);
@@ -413,18 +423,18 @@ export function renderCareerHistory(container, { career } = {}) {
     const activeFilter = container.dataset.historyFilter;
     const entries = filterCareerTimeline(timeline, activeFilter).reverse();
     const filterLabel =
-      HISTORY_FILTERS.find(([value]) => value === activeFilter)?.[1] || "历史";
+      HISTORY_FILTERS.find(([value]) => value === activeFilter)?.[en ? 2 : 1] || (en ? "History" : "历史");
     const buttons = HISTORY_FILTERS.map(
-      ([value, label]) =>
-        `<button type="button" class="btn small${value === activeFilter ? " active" : ""}" data-history-filter="${value}">${label}</button>`,
+      ([value, label, labelEn]) =>
+        `<button type="button" class="btn small${value === activeFilter ? " active" : ""}" data-history-filter="${value}">${en ? labelEn : label}</button>`,
     ).join("");
     container.innerHTML = `<section class="career-history-panel">
-      <header class="career-history-head"><div><h4>长期生涯历史</h4><p class="tiny">仅保留紧凑赛季、选秀、交易和大事记。</p></div>
+      <header class="career-history-head"><div><h4>${en ? "Career History" : "长期生涯历史"}</h4><p class="tiny">${en ? "Compact seasons, drafts, transactions and milestones only." : "仅保留紧凑赛季、选秀、交易和大事记。"}</p></div>
         <div class="btn-row career-history-filters">${buttons}</div></header>
       <div class="career-history-list">${
         entries.length
-          ? entries.map((entry) => historyCard(entry, career)).join("")
-          : `<p class="career-history-empty">暂无${escapeHtml(filterLabel)}记录。</p>`
+          ? entries.map((entry) => historyCard(entry, career, lang)).join("")
+          : `<p class="career-history-empty">${en ? `No ${escapeHtml(filterLabel)} records yet.` : `暂无${escapeHtml(filterLabel)}记录。`}</p>`
       }</div>
     </section>`;
   };
