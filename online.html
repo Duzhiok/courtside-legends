@@ -27,7 +27,7 @@
 </style>
 </head>
 <body>
-<h1>联机对战（P0）</h1>
+<h1>联机对战（P1）</h1>
 <p class="muted">服务端权威模拟：两台浏览器各执一队，房号组队。先启动服务端 <code>node server/online-server.mjs</code>（默认 ws://localhost:3001），再用静态站打开本页。</p>
 <p><a href="index.html">← 回单机主页</a></p>
 
@@ -38,15 +38,26 @@
     <button id="btn-connect" type="button">连接服务器</button>
   </div>
   <div class="row">
+    <label>账号 <input id="account-name" placeholder="账号名" size="12" /></label>
+    <label>密码 <input id="account-password" type="password" placeholder="至少 4 位" size="12" /></label>
+    <button id="btn-register" type="button" class="ghost">注册</button>
+    <button id="btn-login" type="button" class="ghost">登录</button>
+    <span id="account-info" class="muted"></span>
+  </div>
+  <div class="row">
     <label>建房球队 <select id="team-create"></select></label>
     <button id="btn-create" type="button">创建房间</button>
+    <button id="btn-queue" type="button" class="ghost">快速匹配（按球队 OVR 配对）</button>
+    <button id="btn-queue-ranked" type="button" class="ghost">排位匹配（按排位分配对，需登录）</button>
   </div>
+  <p id="record-line" class="muted"></p>
   <div class="row">
     <label>房号 <input id="room-code-input" placeholder="6 位房号" size="10" /></label>
     <label>加入球队 <select id="team-join"></select></label>
     <button id="btn-join" type="button">加入房间</button>
+    <button id="btn-spectate" type="button" class="ghost">观战（不下场）</button>
   </div>
-  <p class="muted">P0 规则：纯对决，不带生涯经济；换人/战术/指定持球人/站位/暂停/继续都可随时发，换人下个回合生效；暂停与节间双方都可调整，任一方点继续即恢复，20 秒无人操作自动恢复；断线后同名重新加入可认领原座位。</p>
+  <p class="muted">规则：纯对决，不带生涯经济；换人/战术/指定持球人/站位/暂停/继续都可随时发，换人下个回合生效；暂停与节间双方都可调整，任一方点继续即恢复，20 秒无人操作自动恢复；断线后同名重新加入可认领原座位，30 秒未回判负；知道房号也可只观战；快速匹配按球队 OVR ±2 配对，60 秒未配上放宽。</p>
 </div>
 
 <p id="room-code"></p>
@@ -74,7 +85,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="coach-card">
     <h2>执教</h2>
     <div class="row">
       <label>换下 <select id="sub-out"></select></label>
