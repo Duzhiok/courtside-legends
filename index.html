@@ -290,6 +290,47 @@
           <strong>传奇八队</strong>
           <span>八支传奇球队历史球员轮抽组队</span>
         </button>
+        <button class="mode-card" id="btn-custom-father-son" type="button">
+          <strong>父子局</strong>
+          <span>老爸军团 vs 儿子军团，花金币从真实 NBA 父子档案里选人</span>
+        </button>
+        <button class="mode-card" id="btn-custom-brothers" type="button">
+          <strong>兄弟局</strong>
+          <span>真兄弟分在对面，字母哥、加索尔、霍乐迪都能自己人打自己人</span>
+        </button>
+      </div>
+    </main>
+
+    <main id="screen-family-duel" class="screen">
+      <div class="panel-head">
+        <h2 id="family-duel-title">父子局</h2>
+        <button class="btn ghost" id="btn-family-duel-back">返回</button>
+      </div>
+      <p class="tiny" id="family-duel-hint">花金币从各自的家族档案里选人，两队都满 5 人就能开打。</p>
+      <div class="market-grid family-duel-grid">
+        <div class="family-duel-side">
+          <h3 id="family-duel-name-a">老爸军团</h3>
+          <div class="tiny" id="family-duel-gold-a"></div>
+          <div class="btn-row">
+            <button class="btn small" id="btn-family-duel-refresh-a">刷新候选</button>
+            <button class="btn small" id="btn-family-duel-autofill-a">自动补满</button>
+          </div>
+          <div id="family-duel-roster-a" class="family-duel-roster"></div>
+          <div id="family-duel-shop-a" class="family-duel-shop"></div>
+        </div>
+        <div class="family-duel-side">
+          <h3 id="family-duel-name-b">儿子军团</h3>
+          <div class="tiny" id="family-duel-gold-b"></div>
+          <div class="btn-row">
+            <button class="btn small" id="btn-family-duel-refresh-b">刷新候选</button>
+            <button class="btn small" id="btn-family-duel-autofill-b">自动补满</button>
+          </div>
+          <div id="family-duel-roster-b" class="family-duel-roster"></div>
+          <div id="family-duel-shop-b" class="family-duel-shop"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-family-duel-start" disabled>开打</button>
       </div>
     </main>
 
