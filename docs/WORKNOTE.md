@@ -613,3 +613,30 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 修复：在 `js/data/players.js` 的 `POS_OVERRIDES` 和 `scripts/build_full_roster.py` 的同名字典里都加上 `pachuza01: "C"`（全生涯覆盖，而不是像 Vince Carter 那样只覆盖特定赛季——因为 Pachulia 的全部 16 个赛季本来就应该是 C，覆盖已经正确的赛季不会有副作用）。`tests/positionOverrides.test.js` 新增一条测试，覆盖他全部 16 个赛季（含早年被错标的 8 个）都读 C，并做了反向 mutation 验证（临时把 override 的 key 改错名字，测试立刻报 `actual: 'SF', expected: 'C'`，确认测试真的在验证这个修复，不是摆设）。
 
 由于 roster card 的输出变了，`ROSTER_SCHEMA` 从 51 bump 到 52（否则已经打开过游戏的浏览器会继续从 IndexedDB 读旧的、带错误位置的缓存卡），跑了 `scripts/cards/update-schema-fixture.mjs` 重新生成 `tests/fixtures/cardSchema.json`。独立 node 脚本抽查确认 Pachulia 全部 16 季（2004–2019）现在都是 `C`，身高都在 219–222cm 区间，跟真实中锋体型完全吻合。全量 622/622、lint、diff --check 全绿。
+
+### R43（T4）：穿越生涯交易市场 —— 多对多 + 含选秀权 + 配平推荐 + 自由市场熟悉感/潜力/价值标签
+
+用户直接点名：穿越模式的交易 UI 只能 1 换 1、没有选秀权、没有配平推荐；还要求自由市场左侧裁人列表补上「熟悉感/未来潜力/妖人/高薪低能」（这些标签只在已拥有的屏幕显示，不会跳到还能挑选/抽卡的屏幕里）。
+
+**发现**：`js/engine/seasonMarket.js` 的 `executeTrade()` 其实早就支持 N-for-M 多球员交易（`giveIds`/`wantIds` 是数组，连注释都写着「1-for-1 or N-for-M」）——UI 层从来没暴露过一个以上的复选框。真正的缺口是选秀权：CPU 队从来没有自己的可交易选秀权池，选秀权只能通过已有的主动报价单向 CPU→用户流动。
+
+**实现**：新增 `teamDraftAssets(st, teamId)`（放在 `seasonMarket.js` 里，避免与新建的 `tradeBuilder.js` 形成循环 import）：用户自己的选秀权池复用现有 `st.draftAssets`（和 `tradeProposals.js` 共用字段，不分裂成两套），CPU 队懒加载到 `team.draftAssets`。两个起始选秀权确定性生成（同一 `st.year` 输入给同一轮次/保护形状）。`executeTrade` 扩展接受 `givePickIds`/`wantPickIds`，选秀权价值通过已有的 `estimateDraftPickValue` 计入 OVR 对比（选秀权不带薪资，只影响价值侧）。
+
+试验过程中抓到一个真 bug：初版 `executeTrade` 无论这笔交易是否涉及选秀权都会无条件调用 `teamDraftAssets()`，而它会懒加载种入两个起始选秀权——导致每次交易都偶然把两个选秀权注入 `st.draftAssets`，把旧的 `acceptTradeProposal` 回归测试抓出来了（期望 1 个却变成 3 个）。改成只在真正涉及选秀权时（`givePickIds.length || wantPickIds.length` 为真）才调用后修复。
+
+新建 `js/engine/tradeBuilder.js` 的 `recommendTradePackage(st, { cpuTeamId, wantPlayerId })`：按三档回退找匹配方案：
+1. 单件货，货值最接近对方要走的人；
+2. 锚点+潜力新秀的两件套装（复用 `tradeProposals.js` 已有的 `prospectScore`/`isProspectCandidate`，避免重写）；
+3. 在最接近的单件货上加送自己一个选秀权，弥补价值差。
+
+故意简单、非穷举搜索，跟 `draftPickValue.js` 自己注释里写的「故意简单可解释，不是黑盒 oracle」设计风格一致。
+
+前端 `js/app.js` 把「交易（1 换 1）」重写成「交易（多对多 · 可含选秀权）」：我方/对方球员+选秀权都是复选框，勾选后实时显示薪资/身价对比汇总，「推荐方案」按钮会先看用户勾了哪个对方球员，再自动勾选我方匹配项并在提示中给理由。另在自由市场左侧裁人列表（之前只显示 OVR/赛季/薪资）接上三样已有但没接上的东西：`systemFitNote()`（熟悉感/体系适配，文本故意不会透露「妖人」字样）、`historicalUpsideHint()`（未来潜力，右侧自由市场签约列表早就在用）、`valueBadge(p,{owned:true})`（妖人/高薪低能，这个门控本来就是为「已拥有才显示」设计的，只是这个屏幕之前没接上）。
+
+写了 14 条 `tests/tradeBuilder.test.js`，过程中有个有趣发现：`executeTrade` 的薪资匹配检查 `salIn<=salOut*1.25+40 || salOut<=salIn*1.25+40` 对任何非负薪资都是恒真——数学上找不到一对值能让两个方向同时失败，所以「薪资差太大」这个拒绝理由在当前实现下几乎不可能触发。这是预存行为，不是本轮引入的回归，没动它（改动核心交易平衡公式超出本轮请求范围，也没人要求改），只是把测试改成对真实行为的断言（真正能拦交易的是价值检查，不是薪资检查）。做了反向 mutation 验证（注掉选秀权搬运代码块，测试立刻报错）。
+
+真实浏览器全流程验证（账号用 15 张 OVR 55–70 的便宜球员卡搭进工资帽开局，因为几个真正的超级巨星单独就会把 ¤2000 软帽冲爆，连 8 人最低阵容都凑不齐）：左右两边正确渲染球员+选秀权复选框，点勾选后实时汇总更新，点「推荐方案」自动勾选并给出理由文案，提交交易后有明确反馈，左侧裁人列表真实渲染出「James Jones：与多数体系都合拍」和「潜力峰值 OVR 81（2018，约 +13）」这样的真实文案，32/32 检查点全部通过（桌面 1280×900 + 手机 390×844），无横向溢出、无 console 报错。636/636 测试、lint、diff --check 全绿。
+
+**未完成**（范围说明，留待后续）：
+- 「挂牌询价」——把我的球员挂出去收集外部报价，而不是我指定目标去谈；
+- 「3+ 队多方交易」——当前仍是两队一对一。
