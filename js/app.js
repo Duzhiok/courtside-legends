@@ -80,6 +80,7 @@ import {
   marketMeta,
   playerPrice,
   rollAdvancementInjuries,
+  systemFitNote,
   topIntangibles,
 } from "./data/intangibles.js";
 import {
@@ -302,6 +303,7 @@ import {
   hireAssistant,
   hireCoach,
   payrollSummary,
+  pickValueOf,
   playerSalary,
   refreshFreeAgency,
   refreshStaffMarket,
@@ -309,8 +311,10 @@ import {
   signFreeAgent,
   staffMarketLabel,
   staffSalary,
+  teamDraftAssets,
   upcomingUserGames,
 } from "./engine/seasonMarket.js";
+import { recommendTradePackage } from "./engine/tradeBuilder.js";
 import {
   autoFillSeasonDraft,
   drawFranchiseOffers,
@@ -8303,10 +8307,15 @@ function renderSeasonMarket() {
   const rosterRows = [...(you.players || [])]
     .sort((a, b) => overall(b) - overall(a))
     .map((p) => {
+      const fit = systemFitNote(p, you.coach, null);
+      const upside = historicalUpsideHint(p);
+      const badge = valueBadgeHtml(valueBadge(p, { owned: true }));
       return `<div class="sm-row">
         <div>
-          <strong>${p.playPos || p.pos} ${p.name}</strong>
+          <strong>${p.playPos || p.pos} ${p.name}</strong> ${badge}
           <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p)}</div>
+          ${fit ? `<div class="tiny">${esc(fit)}</div>` : ""}
+          ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
         </div>
         <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">裁掉</button>
       </div>`;
@@ -8342,14 +8351,6 @@ function renderSeasonMarket() {
     .map((id) => ({ id, name: st.teams[id].name || id }))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh"))
     .map((t) => `<option value="${t.id}">${t.name}</option>`)
-    .join("");
-
-  const myOpts = [...(you.players || [])]
-    .sort((a, b) => overall(b) - overall(a))
-    .map(
-      (p) =>
-        `<option value="${p.id}">${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}</option>`
-    )
     .join("");
 
   refreshStaffMarket(st);
@@ -8478,39 +8479,83 @@ function renderSeasonMarket() {
       </article>`).join("") || `<p class="tiny">最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。</p>`}
     </section>
     <section class="sm-trade">
-      <h4>交易（1 换 1）</h4>
-      <p class="tiny">薪资大致匹配；对方会评估战力。交易后继续打当赛季赛程。</p>
-      <div class="form-row">
-        <label>我方送出
-          <select id="sm-trade-give">${myOpts}</select>
-        </label>
-        <label>对手球队
-          <select id="sm-trade-cpu">${cpuOpts}</select>
-        </label>
-        <label>对方球员
-          <select id="sm-trade-want"></select>
-        </label>
+      <h4>交易（多对多 · 可含选秀权）</h4>
+      <p class="tiny">勾选我方/对方要换的球员或未来选秀权，多选多。薪资/身价大致配平即可。选好想要的对方球员后点「推荐方案」自动配平。</p>
+      <label>对手球队
+        <select id="sm-trade-cpu">${cpuOpts}</select>
+      </label>
+      <div class="sm-cols" id="sm-trade-cols"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <button type="button" class="btn small" id="btn-sm-trade-recommend">推荐方案</button>
         <button type="button" class="btn primary" id="btn-sm-trade">提出交易</button>
       </div>
+      <p class="tiny" id="sm-trade-summary"></p>
       <p class="tiny" id="sm-trade-hint"></p>
     </section>
   `;
 
-  const fillCpuPlayers = () => {
-    const tid = $("#sm-trade-cpu")?.value;
-    const sel = $("#sm-trade-want");
-    if (!sel || !tid) return;
-    const cpu = st.teams[tid];
-    sel.innerHTML = [...(cpu?.players || [])]
-      .sort((a, b) => overall(b) - overall(a))
-      .map(
-        (p) =>
-          `<option value="${p.id}">${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}</option>`
-      )
-      .join("");
+  const pickLabel = (pk) => {
+    const v = estimateDraftPickValue(pk, { currentYear: st.year });
+    return `<span title="${esc(v.explanation)}">${esc(v.label)}（≈ +${v.ovrEquivalent} OVR）</span>`;
   };
-  fillCpuPlayers();
-  $("#sm-trade-cpu")?.addEventListener("change", fillCpuPlayers);
+  const tradeCheckboxRow = (cls, id, label) =>
+    `<label class="sm-row sm-trade-check"><span><input type="checkbox" class="${cls}" value="${id}"> ${label}</span></label>`;
+
+  const updateTradeSummary = () => {
+    const tid = $("#sm-trade-cpu")?.value;
+    const cpu = st.teams[tid];
+    const summary = $("#sm-trade-summary");
+    if (!cpu || !summary) return;
+    const myPicksPool = teamDraftAssets(st, st.userTeamId);
+    const cpuPicksPool = teamDraftAssets(st, tid);
+    const checkedVals = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
+    const give = checkedVals(".sm-give-player:checked").map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
+    const want = checkedVals(".sm-want-player:checked").map((id) => cpu.players.find((p) => p.id === id)).filter(Boolean);
+    const givePicks = checkedVals(".sm-give-pick:checked").map((id) => myPicksPool.find((p) => p.id === id)).filter(Boolean);
+    const wantPicks = checkedVals(".sm-want-pick:checked").map((id) => cpuPicksPool.find((p) => p.id === id)).filter(Boolean);
+    const salOut = give.reduce((s, p) => s + playerSalary(p), 0);
+    const salIn = want.reduce((s, p) => s + playerSalary(p), 0);
+    const valOut = give.reduce((s, p) => s + overall(p), 0) + givePicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
+    const valIn = want.reduce((s, p) => s + overall(p), 0) + wantPicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
+    if (!give.length && !want.length && !givePicks.length && !wantPicks.length) {
+      summary.textContent = "勾选两边要换的东西后，这里会显示薪资/身价对比";
+      return;
+    }
+    summary.textContent = `送出：薪资 ${formatSalary(salOut)} · 身价≈${valOut.toFixed(1)}｜得到：薪资 ${formatSalary(salIn)} · 身价≈${valIn.toFixed(1)}`;
+  };
+
+  const renderTradeCols = () => {
+    const tid = $("#sm-trade-cpu")?.value;
+    const cols = $("#sm-trade-cols");
+    if (!cols || !tid) return;
+    const cpu = st.teams[tid];
+    const myPicksPool = teamDraftAssets(st, st.userTeamId);
+    const cpuPicksPool = teamDraftAssets(st, tid);
+    const myPlayerRows = [...(you.players || [])]
+      .sort((a, b) => overall(b) - overall(a))
+      .map((p) => tradeCheckboxRow("sm-give-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
+      .join("");
+    const myPickRows = myPicksPool.map((pk) => tradeCheckboxRow("sm-give-pick", pk.id, pickLabel(pk))).join("");
+    const cpuPlayerRows = [...(cpu?.players || [])]
+      .sort((a, b) => overall(b) - overall(a))
+      .map((p) => tradeCheckboxRow("sm-want-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
+      .join("");
+    const cpuPickRows = cpuPicksPool.map((pk) => tradeCheckboxRow("sm-want-pick", pk.id, pickLabel(pk))).join("");
+    cols.innerHTML = `
+      <section>
+        <h5 class="tiny">我方送出</h5>
+        <div class="sm-list">${myPlayerRows}${myPickRows}</div>
+      </section>
+      <section>
+        <h5 class="tiny">对方送出</h5>
+        <div class="sm-list">${cpuPlayerRows}${cpuPickRows}</div>
+      </section>
+    `;
+    cols.querySelectorAll("input[type=checkbox]").forEach((el) => el.addEventListener("change", updateTradeSummary));
+    updateTradeSummary();
+  };
+  renderTradeCols();
+  $("#sm-trade-cpu")?.addEventListener("change", renderTradeCols);
 
   box.querySelectorAll(".sm-cut").forEach((btn) => {
     btn.onclick = () => {
@@ -8621,11 +8666,33 @@ function renderSeasonMarket() {
       showSeasonTab("market");
     });
   });
+  $("#btn-sm-trade-recommend")?.addEventListener("click", () => {
+    const tid = $("#sm-trade-cpu")?.value;
+    const wantChecked = [...box.querySelectorAll(".sm-want-player:checked")];
+    const hint = $("#sm-trade-hint");
+    if (!tid || !wantChecked.length) {
+      if (hint) hint.textContent = "先勾选你想要的对方球员，再点「推荐方案」";
+      return;
+    }
+    const rec = recommendTradePackage(st, { cpuTeamId: tid, wantPlayerId: wantChecked[0].value });
+    if (!rec.ok) {
+      if (hint) hint.textContent = rec.reason;
+      return;
+    }
+    box.querySelectorAll(".sm-give-player, .sm-give-pick").forEach((el) => {
+      el.checked = rec.giveIds.includes(el.value) || rec.givePickIds.includes(el.value);
+    });
+    if (hint) hint.textContent = `推荐方案：${rec.note}`;
+    updateTradeSummary();
+  });
   $("#btn-sm-trade")?.addEventListener("click", () => {
-    const giveId = $("#sm-trade-give")?.value;
-    const wantId = $("#sm-trade-want")?.value;
     const cpuId = $("#sm-trade-cpu")?.value;
-    const res = executeTrade(st, { giveIds: [giveId], wantIds: [wantId], cpuTeamId: cpuId });
+    const checkedVals = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
+    const giveIds = checkedVals(".sm-give-player:checked");
+    const givePickIds = checkedVals(".sm-give-pick:checked");
+    const wantIds = checkedVals(".sm-want-player:checked");
+    const wantPickIds = checkedVals(".sm-want-pick:checked");
+    const res = executeTrade(st, { giveIds, givePickIds, wantIds, wantPickIds, cpuTeamId: cpuId });
     const hint = $("#sm-trade-hint");
     if (!res.ok) {
       if (hint) hint.textContent = res.reason;
