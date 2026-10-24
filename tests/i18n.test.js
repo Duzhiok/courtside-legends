@@ -242,3 +242,105 @@ test("i18n: the default (zh) game still reads Chinese, and lang defaults to zh",
     assert.ok(en.includes("Finals") && !hasCJK(en));
     assert.equal(finalsSeriesLabel({ wins: 1, losses: 0, target: 2 }, "zh"), "总决赛 1–0（先赢 2 场）");
   });
+
+test("R59 skill descriptions: every pack has a CJK-free descEn", async () => {
+  const { SKILL_PACKS, skillDesc } = await import("../js/data/skills.js");
+  const ids = Object.keys(SKILL_PACKS);
+  assert.equal(ids.length, 92);
+  for (const id of ids) {
+    const pack = SKILL_PACKS[id];
+    assert.ok(pack.descEn, `${id} missing descEn`);
+    assert.ok(!hasCJK(pack.descEn), `${id} descEn has CJK: ${pack.descEn}`);
+    assert.equal(skillDesc(pack, "en"), pack.descEn);
+    assert.equal(skillDesc(pack, "zh"), pack.desc);
+  }
+  assert.equal(skillDesc("clutch_killer", "en"), "Clutch shooting rises in close games and the fourth quarter");
+});
+
+test("R59 skill shop offers localize name and desc in EN", async () => {
+  const { rollSkillShopOffers } = await import("../js/data/skills.js");
+  for (let run = 0; run < 3; run++) {
+    const offers = rollSkillShopOffers(6, [], null, "en");
+    assert.equal(offers.length, 6);
+    for (const offer of offers) {
+      assert.ok(!hasCJK(offer.name), `offer name has CJK: ${offer.name}`);
+      assert.ok(!hasCJK(offer.desc), `offer desc has CJK: ${offer.desc}`);
+    }
+  }
+});
+
+test("R59 career timeline prose: trade and hire descriptions have EN forms", async () => {
+  const { transactionDescription } = await import("../js/modes/leagueCareer.js");
+  const trade = {
+    type: "trade",
+    withName: "Team C",
+    give: [{ name: "Out A" }, { name: "Out B" }],
+    get: [{ name: "In A" }],
+  };
+  assert.equal(transactionDescription(trade, "en"), "Team C: sent Out A, Out B, got In A");
+  assert.equal(transactionDescription(trade, "zh"), "Team C：送出 Out A、Out B，得到 In A");
+  const hire = { type: "hire_coach", name: "New Coach", replaced: "Old Coach" };
+  assert.equal(transactionDescription(hire, "en"), "New Coach (replacing Old Coach)");
+});
+
+test("R59 career history renders EN timeline prose", async () => {
+  const { renderCareerHistory } = await import("../js/ui/leagueManagementView.js");
+  const career = {
+    season: { userTeamId: "B", teams: { B: { name: "Team B" } } },
+    management: {
+      seasonHistory: [{
+        year: 2030,
+        teamId: "B",
+        teamName: "Team B",
+        record: { w: 41, l: 41 },
+        finish: "champion",
+        awards: {},
+        transactions: [{
+          type: "trade",
+          year: 2030,
+          day: 2,
+          description: "Team C：送出 Out A，得到 In A",
+          descriptionEn: "Team C: sent Out A, got In A",
+        }],
+      }],
+      draftHistory: [],
+    },
+    history: [],
+  };
+  const container = { dataset: {}, innerHTML: "" };
+  renderCareerHistory(container, { career, lang: "en" });
+  assert.ok(container.innerHTML.includes("Team C: sent Out A, got In A"));
+  assert.ok(container.innerHTML.includes("Champion"));
+  assert.ok(!hasCJK(container.innerHTML), container.innerHTML.slice(0, 300));
+});
+
+test("R59 ending share card: text and HTML localize fully in EN", async () => {
+  const { shareCardText, renderEndingShareCardHtml } = await import("../js/story/endingShareCard.js");
+  const card = {
+    ending: { label: "王朝建筑师", labelEn: "Dynasty Builder", tone: "gold" },
+    teamName: "Team B",
+    yearSpan: "2024–2029",
+    seasonCount: 5,
+    record: { w: 250, l: 160, pct: 0.61 },
+    championships: 2,
+    bestSeason: { year: 2027, record: { w: 60, l: 22 } },
+    seasons: [{ year: 2027, record: { w: 60, l: 22 }, finish: "champion" }],
+    historyChanges: 1,
+    signatureTrades: [{ year: 2025, description: "Team C：送出 Out A，得到 In A", descriptionEn: "Team C: sent Out A, got In A" }],
+    contract: {
+      tone: "success",
+      text: "接受「主教练」：3 年 · 薪资 500 · 权限 高",
+      textEn: 'Accepted "Head Coach": 3 yrs · salary 500 · authority High',
+      privileges: ["自定义训练计划"],
+      privilegesEn: ["Custom training plans"],
+    },
+    story: { trust: 80, pressure: 30, divergence: 5 },
+  };
+  const text = shareCardText(card, "en");
+  assert.ok(!hasCJK(text), text);
+  assert.ok(text.includes("Signature trade 2025: Team C: sent Out A, got In A"));
+  const html = renderEndingShareCardHtml(card, "en");
+  assert.ok(!hasCJK(html), html.slice(0, 300));
+  assert.ok(html.includes("Custom training plans"));
+  assert.ok(html.includes("Season by season"));
+});

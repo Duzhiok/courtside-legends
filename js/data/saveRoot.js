@@ -71,20 +71,28 @@ function validateSeasonSummary(summary) {
     "fire_assistant",
   ]);
   const transactionKeys = ["day", "description", "type", "year"];
+  // Bilingual histories (R59) add descriptionEn; old saves without it stay valid.
+  const transactionKeysEn = ["day", "description", "descriptionEn", "type", "year"];
   if (
     !Array.isArray(summary.transactions)
     || summary.transactions.length > 20
     || summary.transactions.some(
-      (entry) =>
-        !isObject(entry)
-        || Object.keys(entry).sort().join(",") !== transactionKeys.join(",")
-        || !transactionTypes.has(entry.type)
-        || !Number.isInteger(entry.year)
-        || entry.year !== summary.year
-        || !Number.isInteger(entry.day)
-        || entry.day < 0
-        || !isNonEmptyString(entry.description)
-        || entry.description.length > 200,
+      (entry) => {
+        const keys = Object.keys(entry).sort().join(",");
+        return (
+          !isObject(entry)
+          || (keys !== transactionKeys.join(",") && keys !== transactionKeysEn.join(","))
+          || !transactionTypes.has(entry.type)
+          || !Number.isInteger(entry.year)
+          || entry.year !== summary.year
+          || !Number.isInteger(entry.day)
+          || entry.day < 0
+          || !isNonEmptyString(entry.description)
+          || entry.description.length > 200
+          || (entry.descriptionEn !== undefined
+            && (!isNonEmptyString(entry.descriptionEn) || entry.descriptionEn.length > 200))
+        );
+      },
     )
   ) {
     throw new Error("invalid root save");

@@ -249,21 +249,31 @@ function userReachedPlayoffs(season, teamId) {
   );
 }
 
-function transactionDescription(entry) {
+/**
+ * Career timeline prose. Descriptions are computed at season-completion
+ * time and stored, so both languages are stored side by side (old histories
+ * without descriptionEn fall back to the Chinese text at render time).
+ */
+export function transactionDescription(entry, lang = "zh") {
+  const en = lang === "en";
   if (entry.type === "sign" || entry.type === "cut") {
-    return String(entry.name || entry.playerId || "未知球员");
+    return String(entry.name || entry.playerId || (en ? "Unknown player" : "未知球员"));
   }
   if (entry.type === "trade") {
-    const outgoing = (entry.give || []).map((player) => player?.name).filter(Boolean).join("、") || "—";
-    const incoming = (entry.get || []).map((player) => player?.name).filter(Boolean).join("、") || "—";
-    return `${entry.withName || entry.with || "对手球队"}：送出 ${outgoing}，得到 ${incoming}`;
+    const outgoing = (entry.give || []).map((player) => player?.name).filter(Boolean).join(en ? ", " : "、") || "—";
+    const incoming = (entry.get || []).map((player) => player?.name).filter(Boolean).join(en ? ", " : "、") || "—";
+    return en
+      ? `${entry.withName || entry.with || "Opponent"}: sent ${outgoing}, got ${incoming}`
+      : `${entry.withName || entry.with || "对手球队"}：送出 ${outgoing}，得到 ${incoming}`;
   }
   if (entry.type === "hire_coach" || entry.type === "hire_assistant") {
     return entry.replaced
-      ? `${entry.name || "未知职员"}（替换 ${entry.replaced}）`
-      : String(entry.name || "未知职员");
+      ? en
+        ? `${entry.name || "Unknown staff"} (replacing ${entry.replaced})`
+        : `${entry.name || "未知职员"}（替换 ${entry.replaced}）`
+      : String(entry.name || (en ? "Unknown staff" : "未知职员"));
   }
-  return String(entry.name || "未知职员");
+  return String(entry.name || (en ? "Unknown staff" : "未知职员"));
 }
 
 function compactTransactions(season, includeLegacy) {
@@ -276,11 +286,13 @@ function compactTransactions(season, includeLegacy) {
     .slice(-20)
     .map((entry) => {
       const description = transactionDescription(entry).slice(0, 200);
+      const descriptionEn = transactionDescription(entry, "en").slice(0, 200);
       return {
         type: String(entry.type),
         year: season.year,
         day: Number.isInteger(entry.day) ? entry.day : 0,
         description,
+        descriptionEn,
       };
     });
 }

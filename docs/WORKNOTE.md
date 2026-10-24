@@ -839,3 +839,12 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - 用户 2026-10-24 拍板：晋级赛小组段**保持现状**（四人一组：开门赛 → 胜者组 / 复活赛 → 晋级决胜，两败出局，见 `js/engine/careerBracket.js` 注释与 opener/winners/revival/decider 四种对局），原始需求里的「输了就淘汰」（一负淘汰）设想作废。
 - 本次无代码改动：实现本来就是两败出局 + 复活赛，拍板即确认现状。改动只在文档对齐：README（中英）原始需求对照里的 ⚠️ 待定项改为 ✅ 已决，路线图里删掉 T9 待定项；TASKS T9 标完成。
 - 顺带修正同节一条旧路线图：选秀权上下交易已随 T5（R56）上线，路线图里“选秀权只出现在主动报价里”的说法已过期，改为仅剩第二轮选秀待做。
+
+---
+
+### R59：T7 收尾——技能描述、生涯报告、分享卡动态叙事全双语（T7 完成）
+
+- **技能描述**：92 个 SKILL_PACKS 全部补 `descEn`（逐条翻译，含 paint_bully / wolf_king 等长文）；新增 `skillDesc(packOrId, lang)`（与 tacticDesc 同款）；技能芯片 tooltip、技能商店 offer、技能库渲染全部走语言选择（商店 offer 在生成时按当前语言定格，切换语言后下次刷新生效，与教练商店刷新机制一致；技能名本身早已全映射，无需再动）。
+- **生涯报告 prose**：`transactionDescription(entry, lang)` 双语化（交易：sent/got；聘任：replacing）；`compactTransactions` 同时存 `description` + `descriptionEn`（赛季结算时算好，旧存档无 descriptionEn 时渲染回退中文）；`careerTimeline` 透传 descriptionEn；`saveRoot` 校验放行双语交易键（旧存档四键仍合法）。生涯历史面板（`renderCareerHistory` + `historyCard`）接 `lang`：筛选器、finish 标签、胜负/冠军/选秀/奖项/交易/大事记等静态文案、交易描述全部按语言取。
+- **分享卡动态叙事**：`contractResult` 一次建中英双文案（续约/离队/解雇/谈判中/进行中）+ 4 条合同特权英译；`signatureTrades` 透传 descriptionEn；`finishLabel` 加英文表；`shareCardText` 与 `renderEndingShareCardHtml` 全部行/标签双语（战绩、最佳赛季、改写史实、标志性交易、合同结果、特权、页脚）。
+- **测试**：i18n.test.js +5（92 条 descEn 齐全且无中文、商店 offer 中英名/描述干净、交易/聘任 EN 文案、生涯历史 EN 渲染干净、分享卡文本与 HTML EN 干净）；另有 3 处旧测试因交易对象多出 descriptionEn 更新期望（形状变化是有意的）。修测试时发现存档校验是精确键集合，顺手放行双语键。

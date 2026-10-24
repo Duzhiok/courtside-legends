@@ -94,6 +94,7 @@ export function buildCareerTimeline(career) {
           year: entry.year,
           day: entry.day,
           description: entry.description,
+          descriptionEn: entry.descriptionEn,
         })),
         events: events
           .filter(
