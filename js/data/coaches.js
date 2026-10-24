@@ -7,6 +7,8 @@ export const TACTICS = {
     id: "balanced",
     name: "均衡进攻",
     desc: "四平八稳，无明显偏科；适合阵容未定型时过渡。",
+    nameEn: "Balanced Offense",
+    descEn: "Steady all-around, no glaring weakness; a good bridge while the roster is still unsettled.",
     offense: 1,
     defense: 1,
     pace: 1,
@@ -16,6 +18,8 @@ export const TACTICS = {
     id: "triangle",
     name: "三角进攻",
     desc: "强调站位与传球角度；适合高球商巨星+内线轴心，节奏偏慢。",
+    nameEn: "Triangle Offense",
+    descEn: "Spacing and passing angles; suits high-IQ stars plus a post hub, at a slower pace.",
     offense: 1.08,
     defense: 1.02,
     pace: 0.95,
@@ -26,6 +30,8 @@ export const TACTICS = {
     id: "smallball",
     name: "小球空间",
     desc: "拉空禁区、提速三分；射手多时收益大，内线堆叠会吃亏。",
+    nameEn: "Small Ball",
+    descEn: "Empties the paint and speeds up threes; big returns with shooters, punished by stacked bigs inside.",
     offense: 1.06,
     defense: 0.96,
     pace: 1.12,
@@ -36,6 +42,8 @@ export const TACTICS = {
     id: "iso_heavy",
     name: "单打为核心",
     desc: "球权集中给一到两位持球核；双大核容易打架，纯无球阵容吃亏。",
+    nameEn: "Iso Heavy",
+    descEn: "Possessions funnel to one or two ball-handling cores; two alpha bigs can clash, and a pure off-ball roster suffers.",
     offense: 1.04,
     defense: 0.94,
     pace: 0.92,
@@ -46,6 +54,8 @@ export const TACTICS = {
     id: "grind",
     name: "铁血半场",
     desc: "降节奏、拼防守与篮板；消耗主力体力，适合硬实力硬桥硬马。",
+    nameEn: "Grind It Out",
+    descEn: "Slow pace, defense and rebounding; wears starters down, suits hard-nosed talent.",
     offense: 0.96,
     defense: 1.12,
     pace: 0.88,
@@ -56,6 +66,8 @@ export const TACTICS = {
     id: "motion",
     name: "动态传导",
     desc: "多点持球与无球切入；需要组织点+连接者，适配度看传球网。",
+    nameEn: "Motion Offense",
+    descEn: "Multiple handlers and off-ball cuts; needs playmakers and connectors — fit depends on the passing web.",
     offense: 1.05,
     defense: 1.0,
     pace: 1.05,
@@ -66,6 +78,8 @@ export const TACTICS = {
     id: "pace_space",
     name: "魔球节奏",
     desc: "极致三分与转换；适合持球魔球核+射手群，防守端略冒险。",
+    nameEn: "Moreyball Pace",
+    descEn: "Extreme threes and transition; suits a Moreyball hub plus shooters, a bit of a gamble defensively.",
     offense: 1.07,
     defense: 0.95,
     pace: 1.15,
@@ -76,6 +90,8 @@ export const TACTICS = {
     id: "morale_boost",
     name: "鼓舞士气",
     desc: "立刻抬升士气与参与感；体系加成一般，关键时刻提气很有用。",
+    nameEn: "Morale Boost",
+    descEn: "Lifts morale and engagement immediately; modest system bonus, great for lifting a team in big moments.",
     offense: 1.03,
     defense: 1.03,
     pace: 1.0,
@@ -87,6 +103,8 @@ export const TACTICS = {
     id: "horns",
     name: "牛角挡拆",
     desc: "高位双挡起步，内外联动；需要掩护质量与决策后卫。",
+    nameEn: "Horns PnR",
+    descEn: "Starts with a high double screen, inside-out action; needs screen quality and a decision-making guard.",
     offense: 1.06,
     defense: 1.0,
     pace: 1.02,
@@ -97,6 +115,8 @@ export const TACTICS = {
     id: "princeton",
     name: "普林斯顿",
     desc: "背切、反跑与弱侧时机；球商高、愿意无球跑动才吃香。",
+    nameEn: "Princeton",
+    descEn: "Back cuts, counters, and weak-side timing; rewards high IQ and willingness to move without the ball.",
     offense: 1.04,
     defense: 1.04,
     pace: 0.94,
@@ -107,6 +127,8 @@ export const TACTICS = {
     id: "five_out",
     name: "五外拉开",
     desc: "五人站外线清空禁区；射手+持球突破收益高，传统中锋难受。",
+    nameEn: "Five Out",
+    descEn: "All five stand outside and clear the paint; shooters and driving handlers gain most, traditional centers suffer.",
     offense: 1.05,
     defense: 0.97,
     pace: 1.08,
@@ -117,6 +139,8 @@ export const TACTICS = {
     id: "pnr_spam",
     name: "挡拆轰炸",
     desc: "回合堆挡拆选择；拖曳、短滚、外弹都要有人能完成。",
+    nameEn: "PnR Spam",
+    descEn: "Possessions stacked with pick-and-roll reads; drags, short rolls, and pops all need someone who can finish them.",
     offense: 1.07,
     defense: 0.98,
     pace: 1.06,
@@ -127,6 +151,8 @@ export const TACTICS = {
     id: "post_up",
     name: "低位强打",
     desc: "球喂到低位背身；需要吨位与脚步，外线多为定点等待。",
+    nameEn: "Post Up",
+    descEn: "Feed the low post and play with your back to the basket; needs size and footwork, wings mostly spot up.",
     offense: 1.05,
     defense: 1.01,
     pace: 0.9,
@@ -137,6 +163,8 @@ export const TACTICS = {
     id: "transition",
     name: "转换突击",
     desc: "抢板或造失误后秒推；速度与体力决定上限。",
+    nameEn: "Transition Attack",
+    descEn: "Push the second you grab a board or force a turnover; speed and stamina set the ceiling.",
     offense: 1.06,
     defense: 0.96,
     pace: 1.18,
@@ -147,6 +175,8 @@ export const TACTICS = {
     id: "switch_all",
     name: "无限换防",
     desc: "挡拆直接换人；锋线机动性要够，否则被错位点名。",
+    nameEn: "Switch Everything",
+    descEn: "Switch every screen; wings must be mobile enough or you get hunted on mismatches.",
     offense: 0.99,
     defense: 1.1,
     pace: 1.0,
@@ -157,6 +187,8 @@ export const TACTICS = {
     id: "zone_drop",
     name: "沉退联防",
     desc: "护框优先、放中距离；适合护框大闸，怕优质中投与底角。",
+    nameEn: "Drop Zone",
+    descEn: "Rim protection first, concede the mid-range; suits a rim-protecting anchor, fears quality mid-range and corner shooting.",
     offense: 0.98,
     defense: 1.08,
     pace: 0.95,
@@ -167,6 +199,8 @@ export const TACTICS = {
     id: "corner",
     name: "底角体系",
     desc: "强侧突破吸引，弱侧底角惩罚；需要稳定定点射手。",
+    nameEn: "Corner System",
+    descEn: "Strong-side drives draw help, weak-side corners punish; needs reliable spot-up shooters.",
     offense: 1.05,
     defense: 0.99,
     pace: 1.02,
@@ -177,6 +211,8 @@ export const TACTICS = {
     id: "freestyle",
     name: "自由发挥",
     desc: "少叫战术多靠球员自主；放权型教练常用，纪律型阵容会散。",
+    nameEn: "Freestyle",
+    descEn: "Few called plays, lots of player freedom; a staple for empowering coaches, undisciplined rosters drift.",
     offense: 1.02,
     defense: 0.97,
     pace: 1.06,
@@ -188,6 +224,8 @@ export const TACTICS = {
     id: "twin_towers",
     name: "双塔内线",
     desc: "两名大个子占禁区；篮板与护框拉满，空间压力大。",
+    nameEn: "Twin Towers",
+    descEn: "Two bigs occupy the paint; rebounding and rim protection maxed out, spacing under pressure.",
     offense: 1.02,
     defense: 1.1,
     pace: 0.9,
@@ -198,6 +236,8 @@ export const TACTICS = {
     id: "flex",
     name: "Flex 切入",
     desc: "侧翼掩护后切入接球；老派半场，考验时机与无球。",
+    nameEn: "Flex Cut",
+    descEn: "Wing screens into cuts for the catch; old-school half-court, timing and off-ball work matter.",
     offense: 1.03,
     defense: 1.02,
     pace: 0.96,
@@ -208,6 +248,8 @@ export const TACTICS = {
     id: "crash_boards",
     name: "冲抢篮板",
     desc: "多人冲进攻篮板；二次机会增多，回防略慢。需要内线吨位与弹性。",
+    nameEn: "Crash the Boards",
+    descEn: "Send numbers to the offensive glass; more second chances, slightly slower to get back. Needs interior size and spring.",
     offense: 1.03,
     defense: 0.96,
     pace: 0.98,
@@ -219,6 +261,8 @@ export const TACTICS = {
     id: "second_chance",
     name: "二次进攻",
     desc: "强调补篮与进攻篮板后的立刻终结；高大禁区收益最大。",
+    nameEn: "Second-Chance Points",
+    descEn: "Putbacks and immediate finishes after offensive boards; the biggest paint presence gains most.",
     offense: 1.05,
     defense: 0.97,
     pace: 0.96,
@@ -231,6 +275,8 @@ export const TACTICS = {
     id: "paint_attack",
     name: "内线进攻",
     desc: "优先杀筐与油漆区；外线比重下降，适合优质中锋/锋线终结点。",
+    nameEn: "Paint Attack",
+    descEn: "Rim runs and paint touches first; perimeter share drops, suits quality centers and wing finishers.",
     offense: 1.06,
     defense: 1.0,
     pace: 0.94,
@@ -280,7 +326,8 @@ export function isQualityCenter(p) {
  * 阵容解锁的战术（不占用教练本能战术栏，可直接在比赛中选用）.
  * @returns {{ ids: string[], reasons: Record<string,string> }}
  */
-export function rosterTacticUnlocks(players = []) {
+export function rosterTacticUnlocks(players = [], lang = "zh") {
+  const en = lang === "en";
   const list = players.filter(Boolean);
   const passers = list.filter(isQualityPasser);
   const bigs = list.filter(isQualityBig);
@@ -291,26 +338,23 @@ export function rosterTacticUnlocks(players = []) {
   if (passers.length >= 2) {
     ids.add("motion");
     ids.add("pace_space");
-    reasons.motion = `双组织（${passers
-      .slice(0, 2)
-      .map((p) => p.name)
-      .join(" / ")}）→ 动态传导`;
-    reasons.pace_space = `双组织 → 魔球节奏更流畅`;
+    reasons.motion = en ? `Two playmakers (${passers.slice(0, 2).map((p) => p.name).join(" / ")}) → Motion Offense` : `双组织（${passers.slice(0, 2).map((p) => p.name).join(" / ")}）→ 动态传导`;
+    reasons.pace_space = en ? `Two playmakers → smoother Moreyball pace` : `双组织 → 魔球节奏更流畅`;
   }
   if (bigs.length >= 1 || centers.length >= 1) {
     ids.add("pnr_spam");
     ids.add("horns");
     const who = (centers[0] || bigs[0])?.name || "内线";
-    reasons.pnr_spam = `优质内线 ${who} → 挡拆轰炸`;
-    reasons.horns = `优质内线 → 牛角挡拆`;
+    reasons.pnr_spam = en ? `Quality big ${who} → PnR Spam` : `优质内线 ${who} → 挡拆轰炸`;
+    reasons.horns = en ? `Quality big → Horns PnR` : `优质内线 → 牛角挡拆`;
   }
   if (centers.length >= 1) {
     ids.add("post_up");
     ids.add("zone_drop");
     ids.add("paint_attack");
-    reasons.post_up = `中锋级内线 → 低位强打`;
-    reasons.zone_drop = `护框内线 → 沉退/收缩防守`;
-    reasons.paint_attack = `优质内线 → 内线进攻`;
+    reasons.post_up = en ? `Center-grade big → Post Up` : `中锋级内线 → 低位强打`;
+    reasons.zone_drop = en ? `Rim-protecting big → Drop defense` : `护框内线 → 沉退/收缩防守`;
+    reasons.paint_attack = en ? `Quality big → Paint Attack` : `优质内线 → 内线进攻`;
   }
   if (centers.length >= 2 || bigs.filter((p) => (p.playPos || p.pos) === "C" || (p.rebound || 0) >= 80).length >= 2) {
     ids.add("twin_towers");
@@ -323,9 +367,9 @@ export function rosterTacticUnlocks(players = []) {
       .slice(0, 2)
       .map((p) => p.name)
       .join(" / ");
-    reasons.twin_towers = `双塔（${names || "两名大个子"}）`;
-    reasons.crash_boards = `多名内线 → 冲抢篮板`;
-    reasons.second_chance = `多名内线 → 二次进攻`;
+    reasons.twin_towers = en ? `Twin towers (${names || "two bigs"})` : `双塔（${names || "两名大个子"}）`;
+    reasons.crash_boards = en ? `Multiple bigs → Crash the Boards` : `多名内线 → 冲抢篮板`;
+    reasons.second_chance = en ? `Multiple bigs → Second-Chance Points` : `多名内线 → 二次进攻`;
   }
 
   return { ids: [...ids], reasons };
@@ -344,8 +388,8 @@ export function availableTactics(coach, players = null) {
 }
 
 /** 短说明：为何能选某战术. */
-export function tacticUnlockHint(tacticId, players = []) {
-  const { reasons } = rosterTacticUnlocks(players);
+export function tacticUnlockHint(tacticId, players = [], lang = "zh") {
+  const { reasons } = rosterTacticUnlocks(players, lang);
   return reasons[tacticId] || "";
 }
 
@@ -373,15 +417,19 @@ export const COACHES = [
   {
     id: "phil-1996-chi",
     name: "菲尔·杰克逊",
+    nameEn: "Phil Jackson",
     season: 1996,
     team: "CHI",
-    record: { wins: 72, losses: 10, note: "常规赛史诗 · 总冠军" },
+    record: { wins: 72, losses: 10, note: "常规赛史诗 · 总冠军", noteEn: "Historic regular season · Champions" },
     style: "禅师",
+    styleEn: "Zen Master",
     specialty: "三角进攻 · 巨星管控",
+    specialtyEn: "Triangle Offense · Superstar Management",
     buffs: { offense: 8, defense: 6, morale: 10, stamina: 4 },
     specialTactics: ["triangle", "princeton", "flex"],
     preferred: ["goat", "connector", "rebounder", "fundamentals"],
     note: "三角为核；高球商阵容吃满",
+    noteEn: "Triangle at the core; high-IQ rosters feast",
     hiddenTier: "hof",
     fame: 95,
     playerAutonomy: 25,
@@ -390,15 +438,19 @@ export const COACHES = [
   {
     id: "phil-2000-lal",
     name: "菲尔·杰克逊",
+    nameEn: "Phil Jackson",
     season: 2000,
     team: "LAL",
-    record: { wins: 67, losses: 15, note: "常规赛榜首 · 总冠军" },
+    record: { wins: 67, losses: 15, note: "常规赛榜首 · 总冠军", noteEn: "Conference best · Champions" },
     style: "禅师",
+    styleEn: "Zen Master",
     specialty: "三角 · 内线轴心",
+    specialtyEn: "Triangle · Post Hub",
     buffs: { offense: 9, defense: 5, morale: 8, stamina: 3 },
     specialTactics: ["triangle", "post_up", "flex"],
     preferred: ["dominant_big", "mamba", "fundamentals"],
     note: "OK组合三角；低位与侧翼单打结合",
+    noteEn: "OK duo triangle; post play mixed with wing iso",
     hiddenTier: "hof",
     fame: 96,
     playerAutonomy: 22,
@@ -407,15 +459,19 @@ export const COACHES = [
   {
     id: "kerr-2016-gsw",
     name: "史蒂夫·科尔",
+    nameEn: "Steve Kerr",
     season: 2016,
     team: "GSW",
-    record: { wins: 73, losses: 9, note: "常规赛纪录 · 西决出局" },
+    record: { wins: 73, losses: 9, note: "常规赛纪录 · 西决出局", noteEn: "Record regular season · Out in the West Finals" },
     style: "小球空间",
+    styleEn: "Small Ball",
     specialty: "五外 · 小球 · 换防",
+    specialtyEn: "Five Out · Small Ball · Switching",
     buffs: { offense: 10, defense: 4, morale: 8, stamina: 5 },
     specialTactics: ["smallball", "five_out", "motion", "switch_all"],
     preferred: ["spacing_guard", "catch_shoot", "connector", "3andD"],
     note: "水花体系；空间与换防一体",
+    noteEn: "The Splash system; spacing and switching as one",
     hiddenTier: "allstar",
     fame: 88,
     playerAutonomy: 45,
@@ -424,15 +480,19 @@ export const COACHES = [
   {
     id: "doc-2008-bos",
     name: "道格·里弗斯",
+    nameEn: "Doc Rivers",
     season: 2008,
     team: "BOS",
-    record: { wins: 66, losses: 16, note: "东部第一 · 总冠军" },
+    record: { wins: 66, losses: 16, note: "东部第一 · 总冠军", noteEn: "East first · Champions" },
     style: "鼓舞型",
+    styleEn: "Motivator",
     specialty: "士气 · 简单挡拆",
+    specialtyEn: "Morale · Simple PnR",
     buffs: { offense: 5, defense: 7, morale: 14, stamina: 4 },
     specialTactics: ["morale_boost", "horns", "iso_heavy"],
     preferred: ["versatile_big", "closer", "shooter", "two_way_wing"],
     note: "更衣室发动机；战术偏简洁",
+    noteEn: "Locker-room engine; keeps tactics simple",
     hiddenTier: "star",
     fame: 78,
     playerAutonomy: 50,
@@ -441,15 +501,19 @@ export const COACHES = [
   {
     id: "thibs-2011-chi",
     name: "汤姆·锡伯杜",
+    nameEn: "Tom Thibodeau",
     season: 2011,
     team: "CHI",
-    record: { wins: 62, losses: 20, note: "东部第一 · 东决出局" },
+    record: { wins: 62, losses: 20, note: "东部第一 · 东决出局", noteEn: "East first · Out in the East Finals" },
     style: "防守铁血",
+    styleEn: "Iron Defense",
     specialty: "铁血半场 · 沉退护框",
+    specialtyEn: "Grind It Out · Drop Coverage",
     buffs: { offense: 2, defense: 14, morale: 4, stamina: -6 },
     specialTactics: ["grind", "zone_drop", "switch_all"],
     preferred: ["versatile_big", "pest", "two_way_star", "competitor"],
     note: "防守优先；主力消耗极大",
+    noteEn: "Defense first; starters pay a heavy toll",
     hiddenTier: "star",
     fame: 80,
     playerAutonomy: 18,
@@ -458,15 +522,19 @@ export const COACHES = [
   {
     id: "pop-2003-sas",
     name: "格雷格·波波维奇",
+    nameEn: "Gregg Popovich",
     season: 2003,
     team: "SAS",
-    record: { wins: 60, losses: 22, note: "西部第一 · 总冠军" },
+    record: { wins: 60, losses: 22, note: "西部第一 · 总冠军", noteEn: "West first · Champions" },
     style: "体系纪律",
+    styleEn: "System Discipline",
     specialty: "传导 · 普林斯顿 · 纪律防",
+    specialtyEn: "Ball Movement · Princeton · Disciplined Defense",
     buffs: { offense: 6, defense: 12, morale: 6, stamina: 6 },
     specialTactics: ["motion", "princeton", "grind", "flex"],
     preferred: ["fundamentals", "connector", "floor_general"],
     note: "石佛体系；基础扎实才开花",
+    noteEn: "The Duncan system; fundamentals first, then it blooms",
     hiddenTier: "hof",
     fame: 98,
     playerAutonomy: 20,
@@ -475,15 +543,19 @@ export const COACHES = [
   {
     id: "dantonio-2018-hou",
     name: "迈克·德安东尼",
+    nameEn: "Mike D'Antoni",
     season: 2018,
     team: "HOU",
-    record: { wins: 65, losses: 17, note: "西部第一 · 西决出局" },
+    record: { wins: 65, losses: 17, note: "西部第一 · 西决出局", noteEn: "West first · Out in the West Finals" },
     style: "魔球",
+    styleEn: "Moreyball",
     specialty: "魔球 · 挡拆 · 转换",
+    specialtyEn: "Moreyball · PnR · Transition",
     buffs: { offense: 11, defense: -2, morale: 3, stamina: 2 },
     specialTactics: ["pace_space", "pnr_spam", "iso_heavy", "transition"],
     preferred: ["iso_creator", "floor_general", "shooter", "spacing_guard"],
     note: "三分或禁区；中投几乎不作数",
+    noteEn: "Threes or layups; the mid-range barely counts",
     hiddenTier: "star",
     fame: 76,
     playerAutonomy: 55,
@@ -492,15 +564,19 @@ export const COACHES = [
   {
     id: "spo-2020-mia",
     name: "埃里克·斯波尔斯特拉",
+    nameEn: "Erik Spoelstra",
     season: 2020,
     team: "MIA",
-    record: { wins: 44, losses: 29, note: "泡泡园 · 总决赛" },
+    record: { wins: 44, losses: 29, note: "泡泡园 · 总决赛", noteEn: "Bubble · Finals" },
     style: "硬派文化",
+    styleEn: "Tough Culture",
     specialty: "换防 · 铁血 · 底角",
+    specialtyEn: "Switching · Grit · Corner",
     buffs: { offense: 6, defense: 10, morale: 10, stamina: 8 },
     specialTactics: ["switch_all", "grind", "corner", "horns"],
     preferred: ["competitor", "switch_big", "two_way_star"],
     note: "热火文化；能防能拼才进轮换",
+    noteEn: "Heat culture; only the tough and scrappy crack the rotation",
     hiddenTier: "allstar",
     fame: 90,
     playerAutonomy: 30,
@@ -509,15 +585,19 @@ export const COACHES = [
   {
     id: "nurse-2019-tor",
     name: "尼克·纳斯",
+    nameEn: "Nick Nurse",
     season: 2019,
     team: "TOR",
-    record: { wins: 58, losses: 24, note: "东部第二 · 总冠军" },
+    record: { wins: 58, losses: 24, note: "东部第二 · 总冠军", noteEn: "East second · Champions" },
     style: "灵活变阵",
+    styleEn: "Flexible Schemes",
     specialty: "变阵 · 牛角 · 沉退",
+    specialtyEn: "Scheme Changes · Horns · Drop",
     buffs: { offense: 7, defense: 9, morale: 7, stamina: 5 },
     specialTactics: ["horns", "zone_drop", "motion", "switch_all"],
     preferred: ["two_way_star", "ascending", "connector"],
     note: "临场变阵多；一套打不通立刻换",
+    noteEn: "Changes looks constantly; if one set stalls, he switches instantly",
     hiddenTier: "star",
     fame: 72,
     playerAutonomy: 60,
@@ -526,15 +606,19 @@ export const COACHES = [
   {
     id: "malone-2023-den",
     name: "迈克尔·马龙",
+    nameEn: "Michael Malone",
     season: 2023,
     team: "DEN",
-    record: { wins: 53, losses: 29, note: "西部第一 · 总冠军" },
+    record: { wins: 53, losses: 29, note: "西部第一 · 总冠军", noteEn: "West first · Champions" },
     style: "枢纽进攻",
+    styleEn: "Hub Offense",
     specialty: "挡拆枢纽 · 牛角 · 低位",
+    specialtyEn: "PnR Hub · Horns · Post",
     buffs: { offense: 9, defense: 6, morale: 6, stamina: 5 },
     specialTactics: ["pnr_spam", "horns", "post_up", "motion"],
     preferred: ["playmaking_big", "creator", "catch_shoot"],
     note: "大中锋组织一切；外线接应",
+    noteEn: "The big center runs everything; shooters spot up around him",
     hiddenTier: "star",
     fame: 82,
     playerAutonomy: 48,
@@ -543,15 +627,19 @@ export const COACHES = [
   {
     id: "bud-2021-mil",
     name: "迈克·布登霍尔泽",
+    nameEn: "Mike Budenholzer",
     season: 2021,
     team: "MIL",
-    record: { wins: 46, losses: 26, note: "东部第三 · 总冠军" },
+    record: { wins: 46, losses: 26, note: "东部第三 · 总冠军", noteEn: "East third · Champions" },
     style: "简单高效",
+    styleEn: "Simple & Efficient",
     specialty: "转换 · 沉退 · 底角",
+    specialtyEn: "Transition · Drop · Corner",
     buffs: { offense: 7, defense: 7, morale: 5, stamina: 4 },
     specialTactics: ["transition", "zone_drop", "corner"],
     preferred: ["freak", "shooter", "3andD"],
     note: "简化选择；靠巨星天赋收官",
+    noteEn: "Simplifies choices; lets star talent close games",
     hiddenTier: "starter",
     fame: 70,
     playerAutonomy: 58,
@@ -560,15 +648,19 @@ export const COACHES = [
   {
     id: "rookie-hc-2024",
     name: "新人主帅·林",
+    nameEn: "Rookie Head Coach Lin",
     season: 2024,
     team: "自由身",
-    record: { wins: 0, losses: 0, note: "尚无执教战绩" },
+    record: { wins: 0, losses: 0, note: "尚无执教战绩", noteEn: "No head-coaching record yet" },
     style: "放权成长",
+    styleEn: "Empowering Growth",
     specialty: "自由发挥 · 轻传导",
+    specialtyEn: "Freestyle · Light Movement",
     buffs: { offense: 4, defense: 4, morale: 8, stamina: 4 },
     specialTactics: ["freestyle", "motion", "balanced"],
     preferred: ["draft_prospect", "ascending", "creator"],
     note: "少叫战术，让新人自己找感觉",
+    noteEn: "Calls few plays, lets rookies find their own feel",
     hiddenTier: "bench",
     fame: 22,
     playerAutonomy: 92,
@@ -580,15 +672,19 @@ export const COACHES = [
   {
     id: "gleague-hc-2019",
     name: "发展联盟主帅·卡伦",
+    nameEn: "G League Head Coach Callen",
     season: 2019,
     team: "G League",
-    record: { wins: 22, losses: 28, note: "发展联盟中游" },
+    record: { wins: 22, losses: 28, note: "发展联盟中游", noteEn: "Mid-table in the G League" },
     style: "青训摸索",
+    styleEn: "Youth Development",
     specialty: "自由发挥 · 转换",
+    specialtyEn: "Freestyle · Transition",
     buffs: { offense: 3, defense: 3, morale: 6, stamina: 5 },
     specialTactics: ["freestyle", "transition", "balanced"],
     preferred: ["draft_prospect", "ascending"],
     note: "习惯带新秀跑转换，半场设计少",
+    noteEn: "Used to running rookies in transition, thin on half-court design",
     hiddenTier: "undrafted_gleague",
     fame: 12,
     playerAutonomy: 88,
@@ -598,15 +694,19 @@ export const COACHES = [
   {
     id: "college-hc-2015",
     name: "大学教练·沃克",
+    nameEn: "College Coach Walker",
     season: 2015,
     team: "NCAA",
-    record: { wins: 18, losses: 14, note: "大学联赛苦战" },
+    record: { wins: 18, losses: 14, note: "大学联赛苦战", noteEn: "Grinding in college ball" },
     style: "半场纪律",
+    styleEn: "Half-Court Discipline",
     specialty: "Flex · 铁血半场",
+    specialtyEn: "Flex · Grind It Out",
     buffs: { offense: 2, defense: 5, morale: 5, stamina: 2 },
     specialTactics: ["flex", "grind", "princeton"],
     preferred: ["fundamentals", "competitor"],
     note: "大学半场底子，节奏偏慢",
+    noteEn: "College half-court roots, slower pace",
     hiddenTier: "bench",
     fame: 18,
     playerAutonomy: 70,
@@ -616,15 +716,19 @@ export const COACHES = [
   {
     id: "asst-promoted-2021",
     name: "临时主帅·陈",
+    nameEn: "Interim Head Coach Chen",
     season: 2021,
     team: "自由身",
-    record: { wins: 9, losses: 17, note: "赛季中途接手" },
+    record: { wins: 9, losses: 17, note: "赛季中途接手", noteEn: "Took over mid-season" },
     style: "过渡维稳",
+    styleEn: "Steady Transition",
     specialty: "鼓舞 · 均衡",
+    specialtyEn: "Morale · Balanced",
     buffs: { offense: 3, defense: 4, morale: 7, stamina: 3 },
     specialTactics: ["morale_boost", "balanced", "horns"],
     preferred: ["connector", "ascending"],
     note: "先稳住更衣室，战术板还在抄",
+    noteEn: "Steady the locker room first; still copying the playbook",
     hiddenTier: "bench",
     fame: 15,
     playerAutonomy: 80,
@@ -634,15 +738,19 @@ export const COACHES = [
   {
     id: "euro-hc-2017",
     name: "欧洲来客·马尔科",
+    nameEn: "European Visitor Marco",
     season: 2017,
     team: "EuroLeague",
-    record: { wins: 14, losses: 16, note: "欧陆联赛半区" },
+    record: { wins: 14, losses: 16, note: "欧陆联赛半区", noteEn: "Mid-table in Euro leagues" },
     style: "团队传导",
+    styleEn: "Team Ball Movement",
     specialty: "传导 · 牛角 · 普林斯顿",
+    specialtyEn: "Ball Movement · Horns · Princeton",
     buffs: { offense: 5, defense: 3, morale: 4, stamina: 4 },
     specialTactics: ["motion", "horns", "princeton"],
     preferred: ["connector", "floor_general"],
     note: "传球优先，身体对抗仍在适应",
+    noteEn: "Passing first; still adjusting to the physicality",
     hiddenTier: "bench",
     fame: 24,
     playerAutonomy: 75,
@@ -652,15 +760,19 @@ export const COACHES = [
   {
     id: "scout-hc-2012",
     name: "球探转正·里德",
+    nameEn: "Scout-Turned-Coach Reed",
     season: 2012,
     team: "自由身",
-    record: { wins: 0, losses: 0, note: "首年执教" },
+    record: { wins: 0, losses: 0, note: "首年执教", noteEn: "First year as head coach" },
     style: "球探视角",
+    styleEn: "Scout's Eye",
     specialty: "底角 · 3D 空间",
+    specialtyEn: "Corner · 3&D Spacing",
     buffs: { offense: 3, defense: 3, morale: 5, stamina: 6 },
     specialTactics: ["corner", "five_out", "balanced"],
     preferred: ["draft_prospect", "ascending", "3andD"],
     note: "爱用定点射手，临场叫停偏慢",
+    noteEn: "Loves spot-up shooters; a beat slow to call timeouts",
     hiddenTier: "water_cooler",
     fame: 10,
     playerAutonomy: 85,
@@ -670,15 +782,19 @@ export const COACHES = [
   {
     id: "video-hc-2018",
     name: "录像分析师·金",
+    nameEn: "Video Analyst Kim",
     season: 2018,
     team: "自由身",
-    record: { wins: 11, losses: 22, note: "重建队过渡期" },
+    record: { wins: 11, losses: 22, note: "重建队过渡期", noteEn: "Rebuilding-team transition" },
     style: "数据试错",
+    styleEn: "Data Trial & Error",
     specialty: "魔球 · 挡拆轰炸",
+    specialtyEn: "Moreyball · PnR Spam",
     buffs: { offense: 4, defense: 2, morale: 4, stamina: 5 },
     specialTactics: ["pace_space", "pnr_spam", "five_out"],
     preferred: ["shooter", "spacing_guard"],
     note: "录像室点子多，现场执行打折",
+    noteEn: "Plenty of film-room ideas; execution on the floor lags",
     hiddenTier: "bench",
     fame: 16,
     playerAutonomy: 82,
@@ -688,15 +804,19 @@ export const COACHES = [
   {
     id: "player-coach-2006",
     name: "退役球员·老霍",
+    nameEn: "Retired Player Huo",
     season: 2006,
     team: "自由身",
-    record: { wins: 27, losses: 55, note: "乐透区苦熬" },
+    record: { wins: 27, losses: 55, note: "乐透区苦熬", noteEn: "Grinding in the lottery" },
     style: "老哥带弟",
+    styleEn: "Veteran Mentorship",
     specialty: "士气 · 单打 · 自由",
+    specialtyEn: "Morale · Iso · Freestyle",
     buffs: { offense: 4, defense: 4, morale: 9, stamina: 2 },
     specialTactics: ["morale_boost", "iso_heavy", "freestyle"],
     preferred: ["competitor", "ascending"],
     note: "更衣室有人缘，体系谈不上复杂",
+    noteEn: "Popular in the locker room; the system is nothing fancy",
     hiddenTier: "bench",
     fame: 28,
     playerAutonomy: 78,
@@ -706,15 +826,19 @@ export const COACHES = [
   {
     id: "overseas-hc-2020",
     name: "海外回流·赵",
+    nameEn: "Overseas Returnee Zhao",
     season: 2020,
     team: "CBA/海外",
-    record: { wins: 16, losses: 20, note: "海外联赛中游" },
+    record: { wins: 16, losses: 20, note: "海外联赛中游", noteEn: "Mid-table overseas" },
     style: "身体对抗优先",
+    styleEn: "Physicality First",
     specialty: "铁血 · 低位 · 双塔",
+    specialtyEn: "Grit · Post · Twin Towers",
     buffs: { offense: 3, defense: 6, morale: 5, stamina: 3 },
     specialTactics: ["grind", "post_up", "twin_towers"],
     preferred: ["competitor", "pest", "dominant_big"],
     note: "对抗与内线为主，外线空间一般",
+    noteEn: "Physicality and interior first; perimeter spacing is average",
     hiddenTier: "undrafted_gleague",
     fame: 14,
     playerAutonomy: 76,
@@ -756,97 +880,121 @@ export const ASSISTANTS = [
   {
     id: "asst-kerr-young",
     name: "助教·科尔（早期）",
+    nameEn: "Assistant Coach Kerr (Early)",
     season: 2010,
     role: "进攻助教",
+    roleEn: "Offensive Assistant",
     buffs: { offense: 3, defense: 0, morale: 2, stamina: 1 },
     fame: 40,
     playerAutonomy: 15,
     sparkPotential: 20,
     note: "空间与投射细节",
+    noteEn: "Spacing and shooting details",
     hiddenTier: "starter",
   },
   {
     id: "asst-casey",
     name: "助教·凯西",
+    nameEn: "Assistant Coach Casey",
     season: 2012,
     role: "防守助教",
+    roleEn: "Defensive Assistant",
     buffs: { offense: 0, defense: 4, morale: 1, stamina: 0 },
     fame: 55,
     playerAutonomy: 10,
     sparkPotential: 15,
     note: "半场防守纪律",
+    noteEn: "Half-court defensive discipline",
     hiddenTier: "starter",
   },
   {
     id: "asst-prunty",
     name: "助教·普朗蒂",
+    nameEn: "Assistant Coach Prunty",
     season: 2018,
     role: "防守助教",
+    roleEn: "Defensive Assistant",
     buffs: { offense: 1, defense: 3, morale: 1, stamina: 1 },
     fame: 35,
     playerAutonomy: 20,
     sparkPotential: 25,
     note: "换防沟通",
+    noteEn: "Switching communication",
     hiddenTier: "bench",
   },
   {
     id: "asst-unknown-lee",
     name: "助教·李（边缘）",
+    nameEn: "Assistant Coach Lee (Fringe)",
     season: 2021,
     role: "球员发展",
+    roleEn: "Player Development",
     buffs: { offense: 1, defense: 1, morale: 4, stamina: 2 },
     fame: 12,
     playerAutonomy: 35,
     sparkPotential: 55,
     note: "不出名，但擅长点燃潜力新秀",
+    noteEn: "Unknown, but great at igniting potential rookies",
     hiddenTier: "water_cooler",
   },
   {
     id: "asst-rookie-maya",
     name: "新人助教·玛雅",
+    nameEn: "Rookie Assistant Maya",
     season: 2024,
     role: "数据分析/发展",
+    roleEn: "Analytics / Development",
     buffs: { offense: 2, defense: 1, morale: 3, stamina: 2 },
     fame: 8,
     playerAutonomy: 40,
     sparkPotential: 70,
     note: "新人视角，常给球星意外自由，奇效频出",
+    noteEn: "A fresh perspective; often gives stars surprising freedom, to great effect",
     hiddenTier: "undrafted_gleague",
   },
   {
     id: "asst-hammons",
     name: "助教·哈蒙斯",
+    nameEn: "Assistant Coach Hammons",
     season: 2016,
     role: "进攻助教",
+    roleEn: "Offensive Assistant",
     buffs: { offense: 3, defense: 1, morale: 2, stamina: 0 },
     fame: 30,
     playerAutonomy: 25,
     sparkPotential: 30,
     note: "挡拆细节",
+    noteEn: "Pick-and-roll details",
     hiddenTier: "bench",
   },
   {
     id: "asst-udoka",
     name: "助教·乌度卡",
+    nameEn: "Assistant Coach Udoka",
     season: 2019,
     role: "防守助教",
+    roleEn: "Defensive Assistant",
     buffs: { offense: 1, defense: 4, morale: 3, stamina: 1 },
     fame: 50,
     playerAutonomy: 18,
     sparkPotential: 28,
     note: "强硬防守文化",
+    noteEn: "Tough defensive culture",
     hiddenTier: "starter",
   },
   {
     id: "asst-unknown-zhou",
     name: "助教·周（青训）",
+    nameEn: "Assistant Coach Zhou (Youth)",
     season: 2023,
     role: "潜力开发",
+    roleEn: "Potential Development",
     buffs: { offense: 2, defense: 2, morale: 5, stamina: 3 },
     fame: 5,
     playerAutonomy: 45,
     sparkPotential: 85,
     note: "几乎没人认识；对高成长球员有奇效",
+    noteEn: "Barely anyone knows him; magical with high-growth players",
     hiddenTier: "undrafted_gleague",
   },
 ];
@@ -929,11 +1077,25 @@ export function coachTactics(coach) {
   return ids.map((id) => TACTICS[id]).filter(Boolean);
 }
 
-export function coachSpecialtyLabel(coach) {
+/** Language-aware display fields for coaches and tactics (defaults to zh). */
+export const tacticName = (t, lang = "zh") => (t ? (lang === "en" ? t.nameEn || t.name : t.name) : "");
+export const tacticDesc = (t, lang = "zh") => (t ? (lang === "en" ? t.descEn || t.desc : t.desc) : "");
+export const coachName = (c, lang = "zh") => (c ? (lang === "en" ? c.nameEn || c.name : c.name) : "");
+export const coachStyle = (c, lang = "zh") => (c ? (lang === "en" ? c.styleEn || c.style : c.style) : "");
+export const coachSpecialty = (c, lang = "zh") => (c ? (lang === "en" ? c.specialtyEn || c.specialty : c.specialty) : "");
+export const coachRecordNote = (c, lang = "zh") => (c?.record ? (lang === "en" ? c.record.noteEn || c.record.note : c.record.note) : "");
+export const coachNote = (c, lang = "zh") => (c ? (lang === "en" ? c.noteEn || c.note : c.note) : "");
+
+export const asstName = (a, lang = "zh") => (a ? (lang === "en" ? a.nameEn || a.name : a.name) : "");
+export const asstRole = (a, lang = "zh") => (a ? (lang === "en" ? a.roleEn || a.role : a.role) : "");
+export const asstNote = (a, lang = "zh") => (a ? (lang === "en" ? a.noteEn || a.note : a.note) : "");
+
+export function coachSpecialtyLabel(coach, lang = "zh") {
   if (!coach) return "";
+  if (lang === "en" && coach.specialtyEn) return coach.specialtyEn;
   if (coach.specialty) return coach.specialty;
   const names = coachTactics(coach)
-    .map((t) => t.name)
+    .map((t) => tacticName(t, lang))
     .slice(0, 3);
   return names.join(" · ");
 }

@@ -166,3 +166,79 @@ test("i18n: the default (zh) game still reads Chinese, and lang defaults to zh",
   });
   assert.equal(sim.lang, "zh");
 });
+
+  const hasCJK = (s) => /[\u4e00-\u9fff]/.test(s || "");
+  test("all tactics and coaches carry complete EN fields", async () => {
+    const m = await import("../js/data/coaches.js");
+    for (const [id, t] of Object.entries(m.TACTICS)) {
+      assert.ok(t.nameEn && !hasCJK(t.nameEn), `tactic ${id} nameEn`);
+      assert.ok(t.descEn && !hasCJK(t.descEn), `tactic ${id} descEn`);
+      assert.equal(m.tacticName(t, "zh"), t.name);
+      assert.equal(m.tacticName(t, "en"), t.nameEn);
+    }
+    for (const c of m.COACHES) {
+      assert.ok(c.nameEn && !hasCJK(c.nameEn), `coach ${c.id} nameEn`);
+      assert.ok(c.styleEn && !hasCJK(c.styleEn), `coach ${c.id} styleEn`);
+      assert.ok(c.specialtyEn && !hasCJK(c.specialtyEn), `coach ${c.id} specialtyEn`);
+      assert.ok(c.noteEn && !hasCJK(c.noteEn), `coach ${c.id} noteEn`);
+      assert.ok(c.record.noteEn && !hasCJK(c.record.noteEn), `coach ${c.id} record.noteEn`);
+      assert.equal(m.coachName(c, "zh"), c.name);
+      assert.equal(m.coachSpecialtyLabel(c, "en"), c.specialtyEn);
+    }
+    for (const a of m.ASSISTANTS) {
+      assert.ok(a.nameEn && !hasCJK(a.nameEn), `assistant ${a.id} nameEn`);
+      assert.ok(a.roleEn && !hasCJK(a.roleEn), `assistant ${a.id} roleEn`);
+      assert.ok(a.noteEn && !hasCJK(a.noteEn), `assistant ${a.id} noteEn`);
+    }
+  });
+  test("roster tactic unlock reasons are EN-clean in EN mode", async () => {
+    const m = await import("../js/data/coaches.js");
+    const passers = [
+      { name: "P1", pass: 90, pos: "PG", playPos: "PG" },
+      { name: "P2", pass: 88, pos: "SG", playPos: "SG" },
+    ];
+    const bigs = [
+      { name: "C1", rebound: 92, pos: "C", playPos: "C" },
+      { name: "C2", rebound: 90, pos: "C", playPos: "C" },
+    ];
+    const { reasons } = m.rosterTacticUnlocks([...passers, ...bigs], "en");
+    assert.ok(Object.keys(reasons).length >= 5);
+    for (const [id, r] of Object.entries(reasons)) assert.ok(!hasCJK(r), `reason ${id}: ${r}`);
+  });
+  test("story events and endings localize without Chinese", async () => {
+    const m = await import("../js/story/eventEngine.js");
+    for (const ev of m.listStoryEvents()) {
+      const loc = m.localizeStoryEvent(ev, "en");
+      assert.ok(loc.titleEn || !hasCJK(loc.title), `event ${ev.id} title`);
+      assert.ok(!hasCJK(loc.prompt), `event ${ev.id} prompt`);
+      for (const c of loc.choices) {
+        assert.ok(!hasCJK(c.label), `event ${ev.id} choice ${c.id} label`);
+        assert.ok(!hasCJK(c.description), `event ${ev.id} choice ${c.id} desc`);
+      }
+      assert.equal(m.localizeStoryEvent(ev, "zh"), ev);
+    }
+    const root = { story: { eventLog: [] }, leagueCareer: { management: { seasonHistory: [
+      { championId: "t1", teamId: "t1" }, { championId: "t1", teamId: "t1" },
+    ] } } };
+    // trust >= 55 path needs frontOfficeTrust; set it
+    root.story.frontOfficeTrust = 60;
+    const ending = m.deriveEnding(root);
+    assert.equal(ending.id, "dynasty-builder");
+    assert.ok(ending.labelEn && !hasCJK(ending.labelEn));
+  });
+  test("teamNameL covers league/time-team generated names", async () => {
+    const { teamNameL } = await import("../js/i18n.js");
+    assert.equal(teamNameL("联盟队3", "en"), "League Team 3");
+    assert.equal(teamNameL("时空队 B", "en"), "Time Team B");
+    assert.equal(teamNameL("山猫", "en"), "Bobcats");
+    assert.equal(teamNameL("联盟队3", "zh"), "联盟队3");
+  });
+  test("tier next labels and finals label have EN forms", async () => {
+    const { challengeTierMeta } = await import("../js/data/careerChallenges.js");
+    assert.ok(challengeTierMeta("gold").nextLabelEn);
+    assert.ok(challengeTierMeta("playoff15").nextLabelEn);
+    const { finalsSeriesLabel } = await import("../js/engine/careerBracket.js");
+    const en = finalsSeriesLabel({ wins: 1, losses: 0, target: 2 }, "en");
+    assert.ok(en.includes("Finals") && !hasCJK(en));
+    assert.equal(finalsSeriesLabel({ wins: 1, losses: 0, target: 2 }, "zh"), "总决赛 1–0（先赢 2 场）");
+  });

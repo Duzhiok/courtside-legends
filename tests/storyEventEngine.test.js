@@ -131,6 +131,7 @@ test("career report summarizes history and derives a meaningful ending", () => {
   assert.deepEqual(report.ending, {
     id: "dynasty-builder",
     label: "王朝建筑师",
+    labelEn: "Dynasty Builder",
     tone: "success",
   });
   assert.deepEqual(deriveEnding(root), report.ending);

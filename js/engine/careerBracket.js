@@ -205,10 +205,12 @@ export function recordFinalsGame(series, youWon) {
   return { done: champion || series.losses >= target, champion };
 }
 
-export function finalsSeriesLabel(series) {
+export function finalsSeriesLabel(series, lang = "zh") {
   if (!series) return "";
   const target = series.target || FINALS_TARGET_WINS;
-  return `总决赛 ${series.wins || 0}–${series.losses || 0}（先赢 ${target} 场）`;
+  return lang === "en"
+    ? `Finals ${series.wins || 0}–${series.losses || 0} (first to ${target})`
+    : `总决赛 ${series.wins || 0}–${series.losses || 0}（先赢 ${target} 场）`;
 }
 
 export function kindLabel(kind) {

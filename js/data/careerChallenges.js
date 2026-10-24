@@ -40,18 +40,21 @@ export const CAREER_CHALLENGE_TIERS = {
     name: "金币联赛", nameEn: "Gold League",
     next: "playoff15",
     nextLabel: "挑战 15 支历史季后赛球队",
+    nextLabelEn: "the 15-team Historical Playoff Challenge",
   },
   playoff15: {
     id: "playoff15",
     name: "历史季后赛挑战", nameEn: "Historical Playoff Challenge",
     next: "champ7",
     nextLabel: "挑战 7 支历史总冠军",
+    nextLabelEn: "the 7-team Historical Champions Challenge",
   },
   champ7: {
     id: "champ7",
     name: "历史总冠军挑战", nameEn: "Historical Champions Challenge",
     next: null,
     nextLabel: null,
+    nextLabelEn: null,
   },
 };
 

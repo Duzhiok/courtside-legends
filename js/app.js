@@ -74,6 +74,13 @@ import {
   applyCoachPhilosophy,
   availableTactics,
   coachSpecialtyLabel,
+  coachName,
+  coachStyle,
+  coachSpecialty,
+  coachNote,
+  tacticName,
+  tacticDesc,
+  asstName,
   coachTactics,
   ensureTeamStaff,
   isLegendCoach,
@@ -241,6 +248,7 @@ import {
   buildCareerReport,
   finalizeCareerEnding,
   getStoryEvent,
+  localizeStoryEvent,
   queueNextStoryEvent,
   queueStoryEvent,
   resolveStoryEvent,
@@ -362,6 +370,7 @@ import {
   normalizeTempo,
   ordersLabel,
   recommendPlayPos,
+  roleName,
   resolveStarterPositionCollisions,
   suggestedBallHandlerAction,
   usageForBallAction,
@@ -750,11 +759,13 @@ function renderTimeTravelReport() {
   card.hidden = report.choices === 0;
   if (card.hidden) return;
   const record = latest?.record ? `${latest.record.w}胜${latest.record.l}负` : "赛季尚未结算";
-  const ending = report.ending ? ` · 当前结局倾向：${report.ending.label}` : "";
+  const ending = report.ending ? (getLang() === "en" ? ` · Projected ending: ${report.ending.labelEn || report.ending.label}` : ` · 当前结局倾向：${report.ending.label}`) : "";
   text.textContent = `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}${ending}`;
   if (status) {
     status.textContent = report.finished
-      ? `五年篇章已完成 · 冠军 ${report.championships} 次${report.ending ? ` · 结局：${report.ending.label}` : ""}`
+      ? getLang() === "en"
+        ? `Five-year arc complete · ${report.championships} titles${report.ending ? ` · Ending: ${report.ending.labelEn || report.ending.label}` : ""}`
+        : `五年篇章已完成 · 冠军 ${report.championships} 次${report.ending ? ` · 结局：${report.ending.label}` : ""}`
       : `五年篇章进度：${report.seasonCount}/${report.maxSeasons}`;
   }
   if (seasons) {
@@ -787,13 +798,13 @@ function renderTimeTravelShareCard() {
   if (!section || !holder) return;
   const card = state.leagueCareer && state.story ? buildEndingShareCard(currentRootState()) : null;
   section.hidden = !card;
-  holder.innerHTML = renderEndingShareCardHtml(card);
+  holder.innerHTML = renderEndingShareCardHtml(card, getLang());
   const copy = $("#btn-time-travel-share-copy");
   const status = $("#time-travel-share-status");
   if (!copy || !card) return;
   copy.onclick = async () => {
     try {
-      await navigator.clipboard.writeText(shareCardText(card));
+      await navigator.clipboard.writeText(shareCardText(card, getLang()));
       if (status) status.textContent = "已复制，可以直接粘贴分享。";
     } catch (_) {
       if (status) status.textContent = "浏览器不允许复制，请直接截图上方卡片。";
@@ -814,7 +825,7 @@ function renderPendingStoryEvent() {
     choices.innerHTML = "";
     return;
   }
-  const event = getStoryEvent(pending.eventId);
+  const event = localizeStoryEvent(getStoryEvent(pending.eventId), getLang());
   title.textContent = event.title;
   prompt.textContent = event.prompt;
   choices.innerHTML = "";
@@ -1315,8 +1326,8 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   state.subInId = null;
   state.court = new CourtView($("#court-root"));
   state.court.ensureDom();
-  $("#game-team-a").textContent = homeTeam?.name || sim.home.name;
-  $("#game-team-b").textContent = awayTeam?.name || sim.away.name;
+  $("#game-team-a").textContent = teamNameL(homeTeam?.name || sim.home.name, getLang());
+  $("#game-team-b").textContent = teamNameL(awayTeam?.name || sim.away.name, getLang());
   paintFeedIdentity(homeTeam || sim.home, awayTeam || sim.away);
   $("#you-side").textContent =
     youSide === "home" ? $("#game-team-a").textContent : $("#game-team-b").textContent;
@@ -1809,7 +1820,7 @@ function refreshAccountHomeBar() {
   if (metaEl) {
     metaEl.textContent = acc.onboardingDone
       ? getLang() === "en"
-        ? `Coach ${coach ? `${coach.name} (${coachRecordLabel(coach)})` : "TBD"} · Ranked ${acc.rankedWins || 0}W-${acc.rankedLosses || 0}L · ${dailyOk ? "Daily draw available" : "Drawn today"}`
+        ? `Coach ${coach ? `${coachName(coach, "en")} (${coachRecordLabel(coach, "en")})` : "TBD"} · Ranked ${acc.rankedWins || 0}W-${acc.rankedLosses || 0}L · ${dailyOk ? "Daily draw available" : "Drawn today"}`
         : `教练 ${coach ? `${coach.name}（${coachRecordLabel(coach)}）` : "未定"} · 排位 ${acc.rankedWins || 0}胜${acc.rankedLosses || 0}负 · ${dailyOk ? "今日可抽卡" : "今日已抽"}`
       : L("请先完成开局：先看系统 7 人 → 自选 5 人 + 教练 + 战术", "Finish setup first: review the system's 7 → pick 5 + coach + tactics");
   }
@@ -2185,22 +2196,23 @@ function openCollection() {
     const owned = ownedCoaches(acc);
     const coachOpts = (owned.length ? owned : COACHES.filter((c) => c.id === acc.coachId))
       .map((c) => {
-        const tag = isLegendCoach(c) ? " · 名帅" : "";
-        return `<option value="${c.id}" ${c.id === acc.coachId ? "selected" : ""}>${esc(c.name)}（${c.season} ${c.team}${tag}）</option>`;
+        const lang = getLang();
+        const tag = isLegendCoach(c) ? (lang === "en" ? " · Legend" : " · 名帅") : "";
+        return `<option value="${c.id}" ${c.id === acc.coachId ? "selected" : ""}>${esc(coachName(c, lang))}（${c.season} ${c.team}${tag}）</option>`;
       })
       .join("");
     staff.innerHTML = coach
-      ? `<strong>主教练</strong> ${esc(coach.name)} · ${esc(coachRecordLabel(coach))}${
-          isLegendCoach(coach) ? ' <span class="rarity-tag myth">名帅</span>' : ""
+      ? `<strong>${getLang() === "en" ? "Head Coach" : "主教练"}</strong> ${esc(coachName(coach, getLang()))} · ${esc(coachRecordLabel(coach, getLang()))}${
+          isLegendCoach(coach) ? ` <span class="rarity-tag myth">${getLang() === "en" ? "Legend" : "名帅"}</span>` : ""
         }<br/>
-         <span class="tiny">${esc(coach.style)} · 擅长 ${esc(coachSpecialtyLabel(coach))} · 默认「${esc(tactic.name)}」</span>
-         <p class="tiny">${esc(coach.note || "")} · 已拥有教练 ${owned.length} 名（名帅靠抽卡）。</p>
+         <span class="tiny">${esc(coachStyle(coach, getLang()))} · ${getLang() === "en" ? "Specialty" : "擅长"} ${esc(coachSpecialtyLabel(coach, getLang()))} · ${getLang() === "en" ? `Default “${esc(tacticName(tactic, getLang()))}”` : `默认「${esc(tactic.name)}」`}</span>
+         <p class="tiny">${esc(coachNote(coach, getLang()) || "")} · ${getLang() === "en" ? `Own ${owned.length} coaches (legends come from pulls).` : `已拥有教练 ${owned.length} 名（名帅靠抽卡）。`}</p>
          <div class="btn-row" style="margin-top:8px">
            <label class="tiny">更换战术（仅本教头战术板）
              <select id="collection-tactic">${coachTactics(coach)
                .map(
                  (t) =>
-                   `<option value="${t.id}" ${t.id === acc.tacticId ? "selected" : ""}>${esc(t.name)}</option>`
+                   `<option value="${t.id}" ${t.id === acc.tacticId ? "selected" : ""}>${esc(tacticName(t, getLang()))}</option>`
                )
                .join("")}</select>
            </label>
@@ -3168,11 +3180,16 @@ function renderRoster(key, team, { editable = false } = {}) {
       : team.coach
         ? ` · 自主 ${team.coach.playerAutonomy ?? "-"}`
         : "";
+  const lang = getLang();
   $(`#coach-${key}`).textContent = team.coach
-    ? `教练：${team.coach.name}（${team.coach.season}）· ${team.coach.style}${autoHint}`
-    : `未选教练${budgetBit}`;
+    ? lang === "en"
+      ? `Coach: ${coachName(team.coach, "en")} (${team.coach.season}) · ${coachStyle(team.coach, "en")}${autoHint}`
+      : `教练：${team.coach.name}（${team.coach.season}）· ${team.coach.style}${autoHint}`
+    : lang === "en"
+      ? `No coach${budgetBit}`
+      : `未选教练${budgetBit}`;
   if (!team.coach && budgetBit) {
-    $(`#coach-${key}`).textContent = `预算${budgetBit}`;
+    $(`#coach-${key}`).textContent = lang === "en" ? `Budget${budgetBit}` : `预算${budgetBit}`;
   }
   const asstEl = $(`#asst-${key}`);
   if (asstEl) {
@@ -3542,12 +3559,12 @@ function renderCareerCoachPanel(c) {
   const tactics = coach ? coachTactics(coach) : [];
   if (curEl) {
     curEl.innerHTML = coach
-      ? `当前：<strong>${esc(coach.name)}</strong> · ${esc(coachRecordLabel(coach))} · 擅长 ${esc(
-          coachSpecialtyLabel(coach)
-        )} · 战术 ${tactics
+      ? `当前：<strong>${esc(coachName(coach, getLang()))}</strong> · ${esc(coachRecordLabel(coach, getLang()))} · ${getLang() === "en" ? "Specialty" : "擅长"} ${esc(
+          coachSpecialtyLabel(coach, getLang())
+        )} · ${getLang() === "en" ? "Tactics" : "战术"} ${tactics
           .slice(0, 3)
-          .map((t) => esc(t.name))
-          .join(" / ")}${isLegendCoach(coach) ? ' <span class="rarity-tag myth">名帅</span>' : ""} · 身价约 ¤${careerCoachPrice(
+          .map((t) => esc(tacticName(t, getLang())))
+          .join(" / ")}${isLegendCoach(coach) ? ` <span class="rarity-tag myth">${getLang() === "en" ? "Legend" : "名帅"}</span>` : ""} · ${getLang() === "en" ? "valued at" : "身价约"} ¤${careerCoachPrice(
           coach
         )}`
       : `<em class="inj">尚未聘请主教练——可从下方市场选，或不请直接出战（系统随机 roll 主教练+助教）</em>`;
@@ -4312,9 +4329,10 @@ function beginCustomHistoricalCareer(draftTeam) {
 
 function careerRoundLabel(roundOrStage, finals = false) {
   const c = state.career;
-  if (c?.stageSize) return careerStageLabel(c.stageSize, { finals: finals || c.stageSize === 2 });
-  if (finals) return CAREER_ROUND_LABELS[5];
-  return CAREER_ROUND_LABELS[roundOrStage] || `第 ${roundOrStage} 轮`;
+  const lang = getLang();
+  if (c?.stageSize) return careerStageLabel(c.stageSize, { finals: finals || c.stageSize === 2, lang });
+  if (finals) return lang === "en" ? "Finals · 2→1" : CAREER_ROUND_LABELS[5];
+  return lang === "en" ? `Round ${roundOrStage}` : CAREER_ROUND_LABELS[roundOrStage] || `第 ${roundOrStage} 轮`;
 }
 
 function renderResultAllTeam(team, title = "总决赛最佳阵容") {
@@ -4513,7 +4531,7 @@ function advanceCareerToNextStage() {
   if (!allPodsDone(c.pods)) return false;
   const finished = listPodMatches(c.pods).filter((m) => m.done);
   c.bracketLog.push({
-    label: careerStageLabel(c.stageSize, { finals: c.stageSize === 2 }),
+    label: careerStageLabel(c.stageSize, { finals: c.stageSize === 2, lang: getLang() }),
     matches: finished.map(slimMatchForLog),
   });
   const survivors = collectAdvancers(c.pods).map((t) =>
@@ -4728,27 +4746,35 @@ function openMarket({ career = false, duel = false, afterWin = false, refillShop
 
   if (!isDuel) {
     const losses = c.losses?.you || 0;
+    const lang = getLang();
     const roundBit = c.roundMatches?.length
-      ? `当前 ${careerRoundLabel(c.round, c.finals)}（四人一组 · 复活赛 · 两败出局；你已负 ${losses}/2）。下方可查看其他对决与阵容。`
+      ? lang === "en"
+        ? `Now: ${careerRoundLabel(c.round, c.finals)} (groups of four · repechage · double elimination; you have ${losses}/2 losses). See other matchups and rosters below.`
+        : `当前 ${careerRoundLabel(c.round, c.finals)}（四人一组 · 复活赛 · 两败出局；你已负 ${losses}/2）。下方可查看其他对决与阵容。`
       : "";
     const tier = challengeTierMeta(c.challengeTier || "gold");
     const fieldBit =
       c.challengeTier === "playoff15"
-        ? "历史季后赛挑战：你 + 15 支经典季后赛强队（16 强起）"
+        ? lang === "en" ? "Historical Playoff Challenge: you + 15 classic playoff teams (from the Round of 16)" : "历史季后赛挑战：你 + 15 支经典季后赛强队（16 强起）"
         : c.challengeTier === "champ7"
-          ? "历史总冠军挑战：你 + 7 支史实冠军班底（8 强起）"
+          ? lang === "en" ? "Historical Champions Challenge: you + 7 real championship cores (from the Quarterfinals)" : "历史总冠军挑战：你 + 7 支史实冠军班底（8 强起）"
           : c.fieldSource === "historical"
             ? c.fromCustom
-              ? "自定义 15 块轮抽完成 · 挑战 32 支历史球队"
-              : "历史球队挑战赛"
-            : "金币联赛：32 支随机联队（夺冠后可挑战历史季后赛 / 总冠军）";
+              ? lang === "en" ? "Custom 15-gold draft done · challenging 32 historical teams" : "自定义 15 块轮抽完成 · 挑战 32 支历史球队"
+              : lang === "en" ? "Historical team challenge" : "历史球队挑战赛"
+            : lang === "en" ? "Gold League: 32 random mixed teams (win it to challenge historical playoff teams / champions)" : "金币联赛：32 支随机联队（夺冠后可挑战历史季后赛 / 总冠军）";
+    const tierName = challengeTierName(c.challengeTier || "gold", lang);
     $("#market-hint").textContent = afterWin
-      ? `赛果奖金已入账 · ${tier.name}。可买球员/教练/技能包；刷新 ¤${MARKET_REFRESH_COST}。球探包随机刷出。${roundBit}`
-      : `${fieldBit}。当前 ¤${c.gold || 600}。球探包随机出现（约三成换货）。${roundBit}`;
-    $("#market-right-title").textContent = "自由市场（可连买）";
-    $("#market-left-title").textContent = "我的球队（评估是否卖出）";
+      ? lang === "en"
+        ? `Game bonus banked · ${tierName}. Buy players / coaches / skill packs; refresh ¤${MARKET_REFRESH_COST}. Scout packs appear randomly. ${roundBit}`
+        : `赛果奖金已入账 · ${tier.name}。可买球员/教练/技能包；刷新 ¤${MARKET_REFRESH_COST}。球探包随机刷出。${roundBit}`
+      : lang === "en"
+        ? `${fieldBit}. Now ¤${c.gold || 600}. Scout packs appear randomly (about 30% refresh). ${roundBit}`
+        : `${fieldBit}。当前 ¤${c.gold || 600}。球探包随机出现（约三成换货）。${roundBit}`;
+    $("#market-right-title").textContent = lang === "en" ? "Free Market (buy in bulk)" : "自由市场（可连买）";
+    $("#market-left-title").textContent = lang === "en" ? "My Team (evaluate sells)" : "我的球队（评估是否卖出）";
     $("#gold-amt").textContent = String(c.gold);
-    $("#shop-budget-hint").textContent = `当前可负担约 ¤${c.gold} 以内 · 列表 ${c.shop.length} 人`;
+    $("#shop-budget-hint").textContent = lang === "en" ? `Affordable up to about ¤${c.gold} · ${c.shop.length} listed` : `当前可负担约 ¤${c.gold} 以内 · 列表 ${c.shop.length} 人`;
     renderCareerCoachPanel(c);
     const mScout = $("#market-scout");
     if (mScout) {
@@ -5332,10 +5358,10 @@ $("#btn-market-done").onclick = () => {
       const bits = [];
       if (staff.rolledCoach && staff.coach) {
         c.hiredCoachIds = [...new Set([...(c.hiredCoachIds || []), staff.coach.id])];
-        bits.push(`主教练「${staff.coach.name}」`);
+        bits.push(getLang() === "en" ? `Head coach “${coachName(staff.coach, "en")}”` : `主教练「${staff.coach.name}」`);
       }
-      if (staff.rolledAsst && staff.assistant) bits.push(`助教「${staff.assistant.name}」`);
-      if (bits.length) alert(`教练组空缺——系统随机指派 ${bits.join(" + ")}`);
+      if (staff.rolledAsst && staff.assistant) bits.push(getLang() === "en" ? `Assistant “${asstName(staff.assistant, "en")}”` : `助教「${staff.assistant.name}」`);
+      if (bits.length) alert(getLang() === "en" ? `Coaching staff vacancy — system randomly assigned ${bits.join(" + ")}` : `教练组空缺——系统随机指派 ${bits.join(" + ")}`);
     }
     c.team.gold = c.gold;
     ensurePlayerDefaults(c.team.players || []);
@@ -5709,7 +5735,7 @@ function renderSetupRoles() {
       .map((p) => {
         const role = p.roleExpectation || inferPlayerRole(p);
         const opts = Object.values(PLAYER_ROLES)
-          .map((r) => `<option value="${r.id}" ${r.id === role ? "selected" : ""}>${r.name}</option>`)
+          .map((r) => `<option value="${r.id}" ${r.id === role ? "selected" : ""}>${roleName(r, getLang())}</option>`)
           .join("");
         const cap = staminaMinuteCap(p);
         const warn = (p.targetMinutes || 0) > cap ? " over-min" : "";
@@ -5940,7 +5966,8 @@ function renderPhilTactics(you) {
   if (!box || !you) return;
   const picked = (you.players || []).filter((p) => state.setup?.selected?.has(p.id));
   const roster = picked.length >= 5 ? picked : you.players || [];
-  const unlock = rosterTacticUnlocks(roster);
+  const lang = getLang();
+  const unlock = rosterTacticUnlocks(roster, lang);
   const rosterIds = new Set(unlock.ids);
   const coachIds = new Set(you.coach?.specialTactics || ["balanced"]);
   const current = new Set(you.coach?.specialTactics || ["balanced"]);
@@ -5951,21 +5978,22 @@ function renderPhilTactics(you) {
       const fromRoster = rosterIds.has(t.id);
       const fromCoach = coachIds.has(t.id) || t.id === "balanced";
       const unlocked = fromRoster || fromCoach;
-      const badge = fromRoster && !fromCoach ? " · 阵容" : fromCoach && fromRoster ? " · 双解锁" : "";
-      const why = unlock.reasons[t.id] || t.desc || "";
+      const badge = fromRoster && !fromCoach ? (lang === "en" ? " · Roster" : " · 阵容") : fromCoach && fromRoster ? (lang === "en" ? " · Both" : " · 双解锁") : "";
+      const why = unlock.reasons[t.id] || tacticDesc(t, lang) || "";
+      const tdesc = tacticDesc(t, lang) || "";
       return `<label class="${unlocked ? "" : "tactic-locked"}" title="${escAttr(
-        unlocked ? why : `${t.desc || ""}（需：双组织 / 优质内线 / 双塔等阵容条件，或教练自带）`
+        unlocked ? why : lang === "en" ? `${tdesc} (Needs: two playmakers / quality big / twin towers, or coach-owned)` : `${tdesc}（需：双组织 / 优质内线 / 双塔等阵容条件，或教练自带）`
       )}"><input type="checkbox" value="${t.id}" ${unlocked ? "" : "disabled"} ${
         current.has(t.id) && unlocked ? "checked" : ""
-      }/> ${t.name}${badge}</label>`;
+      }/> ${tacticName(t, lang)}${badge}</label>`;
     })
     .join("");
   const hint = $("#phil-tactics-hint");
   if (hint) {
     const bits = Object.values(unlock.reasons);
     hint.textContent = bits.length
-      ? `阵容解锁：${bits.slice(0, 4).join("；")}`
-      : "选满首发后：双组织→动态传导/魔球；优质中锋→挡拆/低位/收缩；双塔→冲板/二次进攻等。";
+      ? lang === "en" ? `Roster unlocks: ${bits.slice(0, 4).join("; ")}` : `阵容解锁：${bits.slice(0, 4).join("；")}`
+      : lang === "en" ? "After picking starters: two playmakers → Motion / Moreyball; quality center → PnR / Post / Drop; twin towers → Crash / Second-chance, etc." : "选满首发后：双组织→动态传导/魔球；优质中锋→挡拆/低位/收缩；双塔→冲板/二次进攻等。";
   }
 }
 
@@ -6572,8 +6600,8 @@ function beginGame(homeTeam, awayTeam, youSide) {
   state.court = new CourtView($("#court-root"));
   state.court.ensureDom();
 
-  $("#game-team-a").textContent = homeTeam.name;
-  $("#game-team-b").textContent = awayTeam.name;
+  $("#game-team-a").textContent = teamNameL(homeTeam.name, getLang());
+  $("#game-team-b").textContent = teamNameL(awayTeam.name, getLang());
   paintFeedIdentity(homeTeam, awayTeam);
   $("#you-side").textContent = youSide === "home" ? homeTeam.name : awayTeam.name;
 
@@ -6741,9 +6769,9 @@ function paintFeedIdentity(homeTeam, awayTeam) {
     feed.parentElement?.insertBefore(legend, feed);
   }
   legend.innerHTML =
-    `<span class="lg-side"><i class="dot" style="background:${home.color}"></i>${esc(homeName)}</span>` +
+    `<span class="lg-side"><i class="dot" style="background:${home.color}"></i>${esc(teamNameL(homeName, getLang()))}</span>` +
     `<span class="lg-vs">vs</span>` +
-    `<span class="lg-side"><i class="dot" style="background:${away.color}"></i>${esc(awayName)}</span>` +
+    `<span class="lg-side"><i class="dot" style="background:${away.color}"></i>${esc(teamNameL(awayName, getLang()))}</span>` +
     `<span class="lg-hint">${L("颜色 = 进攻方 · 得分带比分牌", "Colour = attacking team · scores carry the score chip")}</span>`;
 }
 
@@ -7058,8 +7086,9 @@ function syncTacticHelp() {
   const help = $("#tactic-help");
   if (!sel || !help) return;
   const t = TACTICS[sel.value];
-  help.textContent = t?.desc || "选择战术后点「布置」立即生效。";
-  help.title = t?.desc || "";
+  const lang = getLang();
+  help.textContent = t ? tacticDesc(t, lang) : lang === "en" ? "Pick a tactic, then hit Deploy to apply it immediately." : "选择战术后点「布置」立即生效。";
+  help.title = t ? tacticDesc(t, lang) : "";
 }
 
 function initFocusAndPacksUI(homeTeam, awayTeam, youSide) {
@@ -8245,7 +8274,7 @@ function renderSeasonRotation() {
     .map((p) => {
       const role = p.roleExpectation || inferPlayerRole(p);
       const roleOpts = Object.values(PLAYER_ROLES)
-        .map((r) => `<option value="${r.id}" ${r.id === role ? "selected" : ""}>${r.name}</option>`)
+        .map((r) => `<option value="${r.id}" ${r.id === role ? "selected" : ""}>${roleName(r, getLang())}</option>`)
         .join("");
       const recPos = recommendPlayPos(p);
       const posOpts = POS_SLOTS.map(
@@ -9746,19 +9775,26 @@ function handleCareerResult(youWin, snap) {
     const canLadder =
       !c.fromCustom && (tierId === "gold" || tierId === "playoff15" || tierId === "champ7");
     const nextTier = canLadder ? tier.next : null;
+    const lang = getLang();
     $("#result-title").textContent =
-      tierId === "champ7" ? "历史总冠军挑战 · 通关！" : tierId === "playoff15" ? "季后赛挑战冠军！" : "总冠军！";
+      tierId === "champ7" ? (lang === "en" ? "Historical Champions Challenge · Cleared!" : "历史总冠军挑战 · 通关！") : tierId === "playoff15" ? (lang === "en" ? "Playoff Challenge Champions!" : "季后赛挑战冠军！") : (lang === "en" ? "Champions!" : "总冠军！");
     $("#result-summary").textContent = (nextTier
-      ? `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。可继续${tier.nextLabel}（保留阵容与金币）。${injLine}`
+      ? lang === "en"
+        ? `Champions! Earned ¤${reward}. Now ¤${c.gold}. Continue to ${tier.nextLabelEn || tier.nextLabel} (roster and gold kept). ${injLine}`
+        : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。可继续${tier.nextLabel}（保留阵容与金币）。${injLine}`
       : tierId === "champ7"
-        ? `你已击败 7 支历史总冠军！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`
-        : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`) + challengeNote;
+        ? lang === "en"
+          ? `You beat all 7 historical champions! Earned ¤${reward}. Now ¤${c.gold}. ${injLine}`
+          : `你已击败 7 支历史总冠军！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`
+        : lang === "en"
+          ? `Champions! Earned ¤${reward}. Now ¤${c.gold}. ${injLine}`
+          : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`) + challengeNote;
     if (wasFinals && c.series) {
       $("#result-summary").textContent =
-        `${finalsSeriesLabel(c.series)} · ${$("#result-summary").textContent}`;
+        `${finalsSeriesLabel(c.series, getLang())} · ${$("#result-summary").textContent}`;
     }
     const allTeam = computeCareerAllTeam(c);
-    renderResultAllTeam(allTeam, "本届最佳阵容 · PG → C");
+    renderResultAllTeam(allTeam, L("本届最佳阵容 · PG → C", "All-Tournament Team · PG → C"));
     if (nextTier === "playoff15" || nextTier === "champ7") {
       c.pendingChallenge = nextTier;
       cont.textContent = tier.nextLabel;
@@ -10051,7 +10087,10 @@ async function boot() {
     };
     paintLangBtn();
     langBtn?.addEventListener("click", () => {
-      setLang(getLang() === "en" ? "zh" : "en");
+      const nextLang = getLang() === "en" ? "zh" : "en";
+      setLang(nextLang);
+      // Sandbox is mount-once: re-render its language chrome in place (picks stay).
+      screens.sandbox?.__sandboxSetLang?.(nextLang);
       applyStaticLang();
       paintLangBtn();
     });
