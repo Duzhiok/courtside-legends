@@ -70,6 +70,8 @@ POS_OVERRIDES = {
     "oaklech01": "PF",  # Charles Oakley
     "willike02": "PF",  # Kevin Willis
     "kempsh01": "PF",  # Shawn Kemp
+    "pachuza01": "C",  # Zaza Pachulia — 2004-11 rows (talldata source) say SF, 2012+ (bref source)
+    # correctly say C; he's a career bruiser center, never played small forward.
     "rondora01": "PG",  # Rajon Rondo — 2007–11 rows all say SF; he's a career PG
     # Same "G"→"SG" normalize_pos default bug, this time for historical point guards
     # (roster.json tags them SG whole-career; they're undisputed HOF/All-Star floor generals).
