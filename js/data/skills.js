@@ -5,6 +5,8 @@
  * - 招牌绝技：随机触发，大幅提升命中/盖帽（非必中）
  */
 
+import { shuffle } from "../core/seededRandom.js";
+
 export const SKILL_PACKS = {
   clutch_killer: {
     id: "clutch_killer",
@@ -39,8 +41,10 @@ export const SKILL_PACKS = {
   paint_bully: {
     id: "paint_bully",
     name: "篮下暴君",
-    desc: "禁区强打与造杀伤",
+    desc: "Bully ball：靠身体在禁区硬凿、强打造杀伤。只属于真正暴力冲击篮下的人（奥尼尔、巴克利、张伯伦…），偏技术流的内线没有",
     tone: "gold",
+    exclusive: true,
+    curatedOnly: true,
   },
   lockdown: {
     id: "lockdown",
@@ -89,6 +93,12 @@ export const SKILL_PACKS = {
     id: "ankle_breaker",
     name: "脚踝收割",
     desc: "一对一更容易甩开防守",
+    tone: "gold",
+  },
+  rhythm_master: {
+    id: "rhythm_master",
+    name: "节奏大师",
+    desc: "靠变速和试探步晃开防守人，不需要顶级速度——忽快忽慢打乱防守重心，持球单打更容易造出空位。对防守人的速度不敏感",
     tone: "gold",
   },
   positionless: {
@@ -155,9 +165,121 @@ export const SKILL_PACKS = {
   lone_wolf: {
     id: "lone_wolf",
     name: "独狼",
-    desc: "马布里式：一对一单打更凶；被包夹时容易忽略队友硬解",
+    desc: "一对一单打更凶；被包夹时容易忽略队友硬解（马布里 / 科比 / 艾弗森 / 安东尼）",
     tone: "gold",
     trait: true,
+  },
+
+  // —— 球星称号技：绑定球员身份（exclusive 的不可购买）——
+  lean_in_jumper: {
+    id: "lean_in_jumper",
+    name: "前仰跳投",
+    desc: "亚历山大招牌：贴身时身体前倾起跳，中距离出手难封难盖",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    proc: 0.16,
+    zone: "mid",
+    makeBoost: 0.24,
+    openBoost: 0.08,
+  },
+  manimal: {
+    id: "manimal",
+    name: "半兽人",
+    desc: "法里埃德 Manimal：身体素质暴涨 10%（速度、力量、体能、篮板、盖帽）",
+    tone: "green",
+    trait: true,
+    exclusive: true,
+    attributeBoost: { keys: ["speed", "strength", "stamina", "rebound", "block"], mult: 1.1 },
+  },
+  blind_pass: {
+    id: "blind_pass",
+    name: "脑后长眼",
+    desc: "约基奇招牌：总能找到意想不到的空位队友，被包夹时也能传给背后的人——分球更多、接球人更空、包夹下失误更少",
+    tone: "purple",
+    signature: true,
+    kind: "pass",
+  },
+  one_leg_fade: {
+    id: "one_leg_fade",
+    name: "单脚抛射",
+    desc: "约基奇招牌：单脚后仰高抛——被紧贴时超远三分有时也能进，禁区命中更进一步，出手点高很难被盖",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    proc: 0.14,
+    makeBoost: 0.22,
+    openBoost: 0.04,
+    blockResist: 0.45,
+  },
+  the_answer: {
+    id: "the_answer",
+    name: "答案",
+    desc: "艾弗森 The Answer：身材再小也敢硬冲禁区——对抗下禁区命中更稳、更难被盖；球队落后时越打越凶",
+    tone: "gold",
+    exclusive: true,
+    blockResist: 0.7,
+  },
+  mamba_spirit: {
+    id: "mamba_spirit",
+    name: "曼巴精神",
+    desc: "科比 Mamba Spirit：永不服输——末节与落后时命中提升，被贴身的高难度出手更稳，体能消耗更慢",
+    tone: "gold",
+    exclusive: true,
+  },
+  offense_kaleidoscope: {
+    id: "offense_kaleidoscope",
+    name: "进攻万花筒",
+    desc: "卡梅隆·安东尼：三威胁持球，投、突、背身样样会——三分、中距离、禁区命中全面小幅提升，单打更容易创造空间",
+    tone: "gold",
+  },
+  wolf_king: {
+    id: "wolf_king",
+    name: "狼王",
+    desc: "加内特的森林狼时代：场上嘶吼带动全队——同场队友防守强度提升（与防守统领效果相同），自己贴防与抢板更凶。只在森林狼赛季卡生效",
+    tone: "blue",
+    aura: true,
+    exclusive: true,
+  },
+  the_truth: {
+    id: "the_truth",
+    name: "真理",
+    desc: "皮尔斯 The Truth：不靠速度靠节奏——被紧逼时中距离和突破命中不降反升，关键时刻更稳",
+    tone: "gold",
+    exclusive: true,
+  },
+  rebound_maniac: {
+    id: "rebound_maniac",
+    name: "篮板痴汉",
+    desc: "顶级篮板技能：扮演蓝领篮板 / 二次进攻角色（冲板、补篮指令或不拿球的角色球员）时频繁触发，抢到进攻板的概率大幅提升",
+    tone: "green",
+    signature: true,
+    kind: "rebound",
+    proc: 0.25,
+    rebBoost: 1.7,
+    blueCollarProc: 0.7,
+    blueCollarOffBoost: 2.2,
+  },
+  stamina_monster: {
+    id: "stamina_monster",
+    name: "体能怪物",
+    desc: "跑不死的体能：体力消耗比永动机更慢，整场保持强度",
+    tone: "purple",
+  },
+  god_mode: {
+    id: "god_mode",
+    name: "上帝附体",
+    desc: "乔丹终极技能：中投偶尔触发——无论防守如何，那一球必进（末节胶着时更容易触发）",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    exclusive: true,
+    ultimate: true,
+    proc: 0.045,
+    zone: "mid",
+    guaranteed: true,
+    makeBoost: 0,
+    openBoost: 0,
   },
 
   // —— 合卡领悟（重复抽卡合并时随机学会）——
@@ -380,21 +502,60 @@ export const SKILL_PACKS = {
   },
   dream_shake: {
     id: "dream_shake",
-    name: "梦幻舞步",
-    desc: "虚晃脚步后低位出手（大梦 / 姚明类）",
+    name: "梦幻脚步",
+    desc: "大梦招牌：禁区连续虚晃转身，把对手晃开再从容出手（姚明也学过）",
     tone: "gold",
     signature: true,
     kind: "offense",
     proc: 0.15,
     zone: "paint",
     makeBoost: 0.25,
+    openBoost: 0.14,
+  },
+  high_floater: {
+    id: "high_floater",
+    name: "高抛大师",
+    desc: "约基奇式高抛：在护框人头顶把球高高抛起，弧线极高很难被盖，靠节奏而不是蛮力",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    proc: 0.16,
+    zone: "paint",
+    makeBoost: 0.22,
+    openBoost: 0.08,
+    blockResist: 0.55,
+  },
+  giant_stride: {
+    id: "giant_stride",
+    name: "大步流星",
+    desc: "字母哥式大三步：一步跨过半个防守区，超大步幅直冲篮下拉杆上篮，很难被贴住",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    proc: 0.16,
+    zone: "paint",
+    makeBoost: 0.23,
+    openBoost: 0.15,
+  },
+  rim_wrecker: {
+    id: "rim_wrecker",
+    name: "篮筐肆虐者",
+    desc: "字母哥式暴力终结：快攻、转身、强起——能扣就扣，禁区终结更凶也更难被盖",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    proc: 0.15,
+    zone: "paint",
+    makeBoost: 0.26,
     openBoost: 0.1,
+    blockResist: 0.7,
   },
   high_tower: {
     id: "high_tower",
     name: "高塔",
-    desc: "身高臂展压制：禁区与中距离高位出手更难干扰，护框存在感强",
+    desc: "只属于身高超过奥尼尔（216cm）的特高内线：身高臂展压制，禁区与中距离高位出手更难干扰，护框存在感强",
     tone: "gold",
+    exclusive: true,
     signature: true,
     kind: "offense",
     proc: 0.14,
@@ -691,8 +852,8 @@ export const SKILL_PACKS = {
  */
 export const SIGNATURE_SKILLS = {
   // GOAT / 超巨
-  jordami01: ["fadeaway", "clutch_killer", "ankle_breaker", "mid_maestro"],
-  bryanko01: ["fadeaway", "clutch_killer", "freeze_iso", "mid_maestro"],
+  jordami01: ["god_mode", "fadeaway", "clutch_killer", "ankle_breaker", "mid_maestro"],
+  bryanko01: ["fadeaway", "mamba_spirit", "clutch_killer", "lone_wolf", "freeze_iso", "mid_maestro"],
   jamesle01: [
     "positionless",
     "bully_step",
@@ -704,39 +865,48 @@ export const SIGNATURE_SKILLS = {
   duranke01: ["rainmaker", "mid_maestro", "freeze_iso", "midrange_assassin"],
   // 库里：百步穿杨（半场射程）+ 接投 + 自主变向创造 + 引力
   curryst01: ["logo_range", "splash_spot", "rainmaker", "gravity_well", "ankle_breaker"],
-  hardeti01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"],
-  hardeja01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"],
+  hardeti01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker", "rhythm_master"],
+  hardeja01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker", "rhythm_master"],
   westbru01: ["motor_engine", "dime_dropper", "ankle_breaker", "coast_to_coast"],
   // Derrick Rose — 劲爆第一步 / 杀筐，不是传球核
   rosede01: ["first_step", "coast_to_coast", "ankle_breaker", "clutch_killer"],
   onealsh01: ["mountain_slam", "paint_bully", "motor_engine", "rim_protector"],
+  // Bully-ball 大前锋：之前一个技能都没有
+  barklch01: ["paint_bully", "board_man", "coast_to_coast"],
+  malonka01: ["paint_bully", "mid_maestro", "motor_engine"],
+  malonmo01: ["paint_bully", "board_man", "motor_engine"],
   // Dwight Howard — 魔兽：暴扣王 / 护框 / 板霸（巅峰另有赛季叠加）
   howardw01: ["poster_slam", "rim_protector", "board_man", "paint_bully"],
   duncati01: ["bank_45", "rim_protector", "lockdown", "mid_maestro"],
-  garneke01: ["lockdown", "dime_dropper", "mid_maestro", "paint_bully"],
+  // 加内特：防守 + 中投；狼王仅森林狼赛季卡（见 SKILL_TEAM_GATES），无传球魔术 / 篮下暴君
+  garneke01: ["lockdown", "mid_maestro"],
   ginobem01: ["euro_step", "clutch_killer", "ankle_breaker", "mid_maestro"],
   nashst01: ["teardrop", "dime_dropper", "rainmaker", "motor_engine"],
   stockjo01: ["teardrop", "dime_dropper", "thief", "lockdown"],
   paytoga01: ["glove", "thief", "lockdown", "dime_dropper"],
   mutomdi01: ["not_in_my_house", "rim_protector", "lockdown"],
-  olajuha01: ["dream_shake", "paint_bully", "rim_protector", "ankle_breaker"],
-  robinda01: ["rim_protector", "paint_bully", "lockdown", "motor_engine"],
-  birdla01: ["clutch_killer", "rainmaker", "dime_dropper", "mid_maestro"],
-  johnsma02: ["dime_dropper", "paint_bully", "clutch_killer", "teardrop"],
-  abdulka01: ["skyhook", "paint_bully", "rim_protector", "mid_maestro"],
+  olajuha01: ["dream_shake", "rim_protector", "ankle_breaker"],
+  robinda01: ["rim_protector", "lockdown", "motor_engine"],
+  birdla01: ["clutch_killer", "rainmaker", "mid_maestro"],
+  johnsma02: ["dime_dropper", "clutch_killer", "teardrop"],
+  abdulka01: ["skyhook", "rim_protector", "mid_maestro"],
   // Wilt Chamberlain — 内线统治 + 篮板狂魔 + 铁人
   chambwi01: ["big_dipper", "paint_bully", "board_man", "motor_engine"],
   // 韦德：迷踪步（euro_step）+ 变向终结 + 关键球 + 抢断
   wadedw01: ["euro_step", "ankle_breaker", "clutch_killer", "thief"],
-  iversal01: ["crossover", "ankle_breaker", "freeze_iso", "motor_engine"],
+  iversal01: ["the_answer", "crossover", "lone_wolf", "ankle_breaker", "freeze_iso", "motor_engine"],
   irvinky01: ["uncle_drew", "ankle_breaker", "freeze_iso", "crossover"],
   nowitdi01: ["dirk_fade", "mid_maestro", "rainmaker", "freeze_iso"],
-  antetgi01: ["coast_to_coast", "paint_bully", "motor_engine", "lockdown"],
-  jokicni01: ["soft_touch", "dime_dropper", "paint_bully", "mid_maestro"],
+  // 字母哥「希腊怪物」：大步流星（大三步）+ 篮筐肆虐者（转身扣/暴扣）+ 长驱直入（快攻扣篮）
+  antetgi01: ["giant_stride", "rim_wrecker", "coast_to_coast", "motor_engine", "lockdown"],
+  // 约基奇：节奏型（偏软，不是 bully ball）—— 高抛 + 单脚抛射 + 脑后长眼，可当控球发起点
+  jokicni01: ["one_leg_fade", "blind_pass", "high_floater", "soft_touch", "dime_dropper"],
   murraja01: ["mid_maestro", "rainmaker", "clutch_killer", "freeze_iso"],
-  doncilu01: ["stepback", "dime_dropper", "freeze_iso", "mid_maestro"],
-  embiiijo01: ["paint_bully", "stepback", "mid_maestro", "freeze_iso"],
-  georgpa01: ["rainmaker", "lockdown", "mid_maestro", "midrange_assassin"],
+  doncilu01: ["stepback", "dime_dropper", "freeze_iso", "mid_maestro", "rhythm_master"],
+  // Joel Embiid — BRef id 是 embiijo01（旧键 embiiijo01 多了一个 i）
+  // 没有篮下暴君：他是技术流，伤病体质用玻璃人标签体现（见 GLASS_CANNON_BREF）
+  embiijo01: ["stepback", "mid_maestro", "freeze_iso"],
+  georgpa01: ["rhythm_master", "lockdown", "midrange_assassin"],
   // Kawhi Leonard — BRef id is leonaka01（旧键 leonard01 保留兼容）
   leonaka01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
   leonard01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
@@ -745,7 +915,20 @@ export const SIGNATURE_SKILLS = {
   // 克莱：百步穿杨 + 水花接投（接球投本色）
   thompkl01: ["logo_range", "splash_spot", "rainmaker", "gravity_well"],
   lillada01: ["dame_time", "logo_range", "clutch_killer", "rainmaker"],
-  allenra02: ["splash_spot", "rainmaker", "clutch_killer"],
+  allenra02: ["splash_spot", "rainmaker", "big_heart"], // 2013 Game 6：大心脏钉在史册
+  // Reggie Miller — 无球跑动绕屏接投 + 大心脏（知名的 8 秒 8 分、Reggie! 时刻）
+  millere01: ["splash_spot", "rainmaker", "big_heart"],
+  // Oscar Robertson — 正常赛三重夹天王，组织谋划 + 中距离终结 + 场上大脑
+  roberos01: ["dime_dropper", "mid_maestro", "floor_commander"],
+  // Rajon Rondo — 两度联盟助攻王，08 冠军首发后卫：场上大脑 + 传球魔术 + 锁门防守
+  // （他的得分数往往不高，但组织/防守站上 prod 门槛其实一直包裹了这两项）
+  rondora01: ["floor_commander", "dime_dropper", "lockdown"],
+  // Jimmy Butler — Heat Culture 极致：关键时刻关杀 + 无解单打 + 训练狂人一般的永动机
+  butleji01: ["clutch_killer", "freeze_iso", "motor_engine"],
+  // Jerry West — Mr. Clutch（真实历史外号）：无解单打 + 中距离 + 大心脏
+  westje01: ["freeze_iso", "mid_maestro", "big_heart"],
+  // George Gervin “冰人”—指尖柔拨的指尖打法 + 中距离 + 无解单打，四度得分王
+  gervige01: ["soft_touch", "mid_maestro", "freeze_iso"],
   korveky01: ["splash_spot", "rainmaker"],
   millspa01: ["splash_spot", "rainmaker", "clutch_killer"],
   // 控卫 / 技巧
@@ -759,30 +942,33 @@ export const SIGNATURE_SKILLS = {
   jordade01: ["lob_finisher", "rim_protector", "paint_finisher", "board_man"],
   stoudam01: ["paint_bully", "lob_finisher", "spring_board", "motor_engine"],
   terryja01: ["splash_spot", "rainmaker", "clutch_killer"],
-  rodmak01: ["board_man", "lockdown", "motor_engine"],
+  // Dennis Rodman — BRef id 是 rodmade01（旧键 rodmak01 拼错，导致表内技能从未生效）
+  rodmade01: ["rebound_maniac", "stamina_monster", "lockdown"],
   mcgratr01: ["stepback", "freeze_iso", "rainmaker", "clutch_killer"],
-  cartere01: ["coast_to_coast", "paint_bully", "ankle_breaker"],
-  piercpa01: ["stepback", "clutch_killer", "mid_maestro", "freeze_iso"],
+  // Vince Carter — BRef id 是 cartevi01（旧键 cartere01 其实是 Reggie Carter）
+  cartevi01: ["coast_to_coast", "poster_slam", "ankle_breaker"],
+  piercpa01: ["the_truth", "stepback", "clutch_killer", "mid_maestro", "freeze_iso"],
+  anthoca01: ["offense_kaleidoscope", "lone_wolf", "mid_maestro", "freeze_iso"],
   billuch01: ["big_shot", "clutch_killer", "mid_maestro"],
   horryro01: ["big_shot", "clutch_killer", "rainmaker"],
   // 角色成名技
   anderky01: ["slowmo", "dime_dropper"], // Kyle Anderson Slow-Mo
   ibakase01: ["rim_protector", "mid_maestro", "lockdown"], // OKC 护框 + 中投
-  // Kenneth Faried — Manimal 半兽人：弹跳 / 暴扣 / 空接 / 护框
-  farieke01: ["poster_slam", "lob_finisher", "spring_board", "rim_protector"],
+  // Kenneth Faried — Manimal 半兽人：身体素质 +10% / 暴扣 / 空接 / 护框
+  farieke01: ["manimal", "poster_slam", "lob_finisher", "spring_board", "rim_protector"],
   // 其他超巨
-  davisan02: ["rim_protector", "paint_bully", "mid_maestro", "lockdown"],
+  davisan02: ["rim_protector", "mid_maestro", "lockdown"],
   bookede01: ["freeze_iso", "mid_maestro", "rainmaker", "stepback"],
   youngtr01: ["teardrop", "dime_dropper", "rainmaker"],
-  moranja01: ["coast_to_coast", "paint_bully", "ankle_breaker"],
-  gilgesh01: ["stepback", "rainmaker", "freeze_iso"],
+  moranja01: ["coast_to_coast", "ankle_breaker"],
+  gilgesh01: ["lean_in_jumper", "stepback", "rainmaker", "freeze_iso"],
   tatumja01: ["stepback", "mid_maestro", "freeze_iso"],
-  brownja02: ["coast_to_coast", "lockdown", "paint_bully"],
   stephcu01: ["logo_range", "splash_spot", "rainmaker", "ankle_breaker"], // alias safety
   // Zion — 篮下暴力终结：暴扣为主，暴君是强打底子
   willizi01: ["poster_slam", "paint_bully", "coast_to_coast", "first_step"],
-  // 姚明 — 柔顺手感 / 梦幻舞步 / 高塔
-  mingya01: ["soft_touch", "dream_shake", "high_tower", "paint_bully"],
+  // 姚明 — 柔顺手感 / 梦幻脚步 / 高塔
+  // 姚明：高塔 + 梦幻脚步 + 柔顺手感；伤病体质由「玻璃人」属性体现（intangibles），没有篮下暴君
+  mingya01: ["soft_touch", "dream_shake", "high_tower"],
   // Tyrese Haliburton — base identity (2025 peak kit also in SEASON_SIGNATURE)
   halibty01: ["dime_dropper", "clean_dime"],
 };
@@ -809,6 +995,10 @@ export const SEASON_SIGNATURE_SKILLS = {
  * 球商/手感类（后仰、天勾、传球、关键球）不受此限。
  */
 export const SKILL_ATHLETE_GATES = {
+  // 比奥尼尔（216cm）还高才有高塔
+  high_tower: { minHeightCm: 217 },
+  giant_stride: { maxAge: 36, minSpeed: 66, minAth: 64 },
+  rim_wrecker: { maxAge: 35, minSpeed: 60, minStrength: 70 },
   chase_down_block: { maxAge: 37, minSpeed: 74, minAth: 76 },
   coast_to_coast: { maxAge: 36, minSpeed: 72, minAth: 72 },
   spring_board: { maxAge: 34, minSpeed: 68, minAth: 70 },
@@ -828,6 +1018,7 @@ export const SKILL_ATHLETE_GATES = {
   uncle_drew: { maxAge: 35, minSpeed: 72, minAth: 68 },
   thief: { maxAge: 36, minSpeed: 66, minAth: 58 },
   glove: { maxAge: 35, minSpeed: 68, minAth: 60 },
+  manimal: { maxAge: 32 },
 };
 
 /**
@@ -881,6 +1072,14 @@ export const SKILL_AGE_DROPS = {
   },
 };
 
+/** 只在特定球队的赛季卡上生效的技能（卡面 team 缩写） */
+export const SKILL_TEAM_GATES = {
+  wolf_king: ["MIN"],
+};
+
+/** 明确不需要任何身份技能的球员（也不吃随机通用技） */
+export const SKILL_FREE_BREFS = new Set(["brownja02"]);
+
 function athleteScore(p) {
   if (!p) return 50;
   const motor = p.intangibles?.motor ?? 50;
@@ -893,11 +1092,30 @@ function athleteScore(p) {
   );
 }
 
+/** 是否为给该球员人工指定的身份技（签名表 / 赛季签名表） */
+function isCuratedSkill(player, skillId) {
+  const bref = String(player.bref || "").toLowerCase() || signatureBrefForName(player);
+  if (!bref) return false;
+  const season = Number(player.season) || 0;
+  return (
+    (SIGNATURE_SKILLS[bref] || []).includes(skillId) ||
+    (SEASON_SIGNATURE_SKILLS[`${bref}:${season}`] || []).includes(skillId)
+  );
+}
+
 /** 某技能在当前年龄/身体下是否仍可持有 */
 export function canRetainSkill(player, skillId) {
   if (!player || !skillId) return false;
   const pack = SKILL_PACKS[skillId];
   if (!pack) return false;
+  // 球队限定技能：不是该队的赛季卡就没有
+  const teams = SKILL_TEAM_GATES[skillId];
+  if (teams && !teams.includes(String(player.team || "").toUpperCase())) return false;
+  // 人工名单技能（篮下暴君）：不在名单上就没有，买来的也不行
+  if (pack.curatedOnly && !isCuratedSkill(player, skillId)) return false;
+  // 身高硬门槛（高塔）：买来的也不行，矮个子学不会
+  const minH = SKILL_ATHLETE_GATES[skillId]?.minHeightCm;
+  if (minH != null && (player.heightCm || 0) < minH) return false;
   // 组合技 / 光环：身份链接，不因衰老脱落（仅同场才生效）
   if (pack.duo || pack.aura) return true;
   // 金币买来装上的技能：花钱学的就不因年龄/运动门槛再被摘掉
@@ -912,6 +1130,9 @@ export function canRetainSkill(player, skillId) {
   if (!gate) return true;
 
   if (gate.maxAge != null && age > gate.maxAge) return false;
+  // 人工指定的身份技只看年龄规则：卡面速度/盖帽由场均数据推算，
+  // 对中锋偏低（大梦速度 43），不能因此在巨星巅峰期扣掉招牌技
+  if (isCuratedSkill(player, skillId)) return true;
   if (gate.minSpeed != null && (player.speed || 50) < gate.minSpeed) return false;
   if (gate.minStamina != null && (player.stamina || 50) < gate.minStamina) return false;
   if (gate.minBlock != null && (player.block || 40) < gate.minBlock) return false;
@@ -1043,6 +1264,8 @@ export const AURA_HOLDERS = {
   battish01: ["def_captain"],
   mutomdi01: ["def_captain"],
   duncati01: ["def_captain"],
+  // 狼王 — 加内特：防守统领同等的全队防守光环 + 自身强度
+  garneke01: ["wolf_king"],
 };
 
 /** bref → 其参与的组合技 id 列表 */
@@ -1096,6 +1319,17 @@ export function teammateHasAura(onCourt, skillId, exceptId = null) {
   );
 }
 
+/** 防守领袖型光环：防守统领与狼王效果相同 */
+const DEFENSIVE_AURA_IDS = ["def_captain", "wolf_king"];
+
+function isDefensiveLeader(p) {
+  return DEFENSIVE_AURA_IDS.some((id) => hasSkill(p || {}, id));
+}
+
+function defensiveAuraOnCourt(onCourt, exceptId = null) {
+  return DEFENSIVE_AURA_IDS.some((id) => teammateHasAura(onCourt, id, exceptId));
+}
+
 /**
  * 角色 / 性格特质：跟 OVR 无关。低能力也能有，高能力也不强制有。
  */
@@ -1107,10 +1341,23 @@ export const TRAIT_SKILLS = {
   battish01: ["stopper_3d", "charge_taker", "rainmaker"],
   // Metta World Peace / Ron Artest — 铁防 + 火爆
   artesro01: ["sticky_wrap", "lockdown", "hothead", "enforcer"],
+  // Matt Barnes — 场上恶汉：硬碰硬、干扰强、对抗凶悍
+  barnema02: ["sticky_wrap", "lockdown", "enforcer"],
   // DeMarcus Cousins — 天赋内线 + 暴躁
   couside01: ["paint_bully", "hothead", "enforcer"],
   // Bruce Bowen — 脏防 / 底角三分
   bowenbr01: ["stopper_3d", "sticky_wrap", "rainmaker"],
+  // Isaiah Thomas（微笑刺客，bref: thomais02 —— 注意别和活塞名宿 Isiah Thomas/thomais01 搞混，
+  // 两人姓名只差一个字母，所以这里只用 bref 绑定，不走姓名正则）：5'9" 最小号里最能打的刺客，
+  // 不是「场上打手」那种硬碰硬型——他的看家本领是逆天的强干扰单打效率、第四节大心脏、
+  // 面对比他高一头的防守人靠抛投终结、变速晃开空间。
+  thomais02: ["freeze_iso", "clutch_killer", "teardrop", "rhythm_master"],
+  // Isiah Thomas（活塞坏小子队长，bref: thomais01 —— 上面那位是同姓氏的 Isaiah Thomas，两人只差一个
+  // 字母，所以这里也只用 bref 绑定，不走姓名正则）：巅峰 1985 季场场均 13.9 助攻，连续一十年
+  // 7-11 助攻，又是坏小子队队长；1988 总决赛 G6 拖着严重扁足的脚踝打进第四节 25 分是联盟历史最
+  // 著名的忍痛打法之一。他个人身材不大（185cm），靠的是读秒和手技穿越人群，不是硬碎型，
+  // 所以也不给场上打手——那是布莉姆伯/马霍金等队友的活。
+  thomais01: ["floor_commander", "dime_dropper", "clutch_killer", "first_step"],
   // Draymond — already has D packs; temper is separate
   greendr01: ["hothead"],
   // Iggy
@@ -1129,14 +1376,6 @@ export const TRAIT_SKILLS = {
 };
 
 const STAR_TIERS = new Set(["star", "allstar", "superstar", "hof", "nba50"]);
-
-function skillCap(namedCount, tier) {
-  // Cap by how many identity skills they actually have — not by fame alone
-  if (namedCount >= 4) return 4;
-  if (namedCount >= 1) return Math.min(4, namedCount);
-  if (tier === "superstar" || tier === "hof" || tier === "nba50") return 1; // rare filler only
-  return 0;
-}
 
 function hasSkill(p, id) {
   return (p.skills || []).includes(id);
@@ -1160,14 +1399,6 @@ function pickStable(key, list, n) {
   return out;
 }
 
-function shuffleInPlace(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
 function candidateSkills(p) {
   const a = p.archetype || "";
   const cands = new Set();
@@ -1178,7 +1409,6 @@ function candidateSkills(p) {
   }
   if (/floor_general|connector|playmaking/.test(a)) cands.add("dime_dropper");
   if (/shooter|spacing/.test(a) || (p.three || 0) >= 88) cands.add("rainmaker");
-  if (/dominant_big|rebounder/.test(a) || (p.paint || 0) >= 88) cands.add("paint_bully");
   if (/pest|two_way/.test(a) || (p.defense || 0) >= 88) cands.add("lockdown");
   if ((p.steal || 0) >= 85 || (p.raw?.spg || 0) >= 2.2) cands.add("thief");
   if ((p.block || 0) >= 85 || (p.raw?.bpg || 0) >= 2.5) cands.add("rim_protector");
@@ -1275,12 +1505,16 @@ export function syncTeamDuoSkills(roster = []) {
 export function assignSkillPacks(player) {
   const tier = player.hiddenTier || "";
   const bref = String(player.bref || "").toLowerCase();
+  if (SKILL_FREE_BREFS.has(bref)) {
+    player.skills = [];
+    pruneAgedSkills(player);
+    return restorePurchasedSkills(player);
+  }
   const named = namedIdentitySkills(player);
   const linkCount = (AURA_HOLDERS[bref] || []).length + comboIdsForBref(bref).length;
   // Duo/aura / 全能 / 多招牌身份技：放宽格数，避免巅峰魔兽等被截断
   const needsRoom = linkCount || named.includes("positionless") || named.length > 4;
   const softCap = Math.min(7, Math.max(needsRoom ? 7 : 4, named.length || 0));
-  const cap = Math.min(softCap, Math.max(skillCap(named.length, tier), named.length));
 
   if (named.length) {
     // Prefer keeping duo/aura badges visible near the front of the chip row
@@ -1407,66 +1641,84 @@ function traitHeuristics(player) {
   return out.slice(0, 2);
 }
 
-function signatureByName(player) {
-  const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
-  if (/michael jordan|乔丹/.test(name)) return ["fadeaway", "clutch_killer", "ankle_breaker", "mid_maestro"];
-  if (/kobe|科比/.test(name)) return ["fadeaway", "clutch_killer", "freeze_iso", "mid_maestro"];
-  if (/lebron|勒布朗/.test(name))
-    return ["positionless", "bully_step", "chase_down_block", "dime_dropper", "clutch_killer", "coast_to_coast"];
-  if (/durant|杜兰特/.test(name)) return ["rainmaker", "mid_maestro", "freeze_iso", "midrange_assassin"];
-  if (/stephen curry|斯蒂芬.?库里|curry/.test(name))
-    return ["logo_range", "splash_spot", "rainmaker", "gravity_well", "ankle_breaker"];
-  if (/lillard|利拉德/.test(name)) return ["dame_time", "logo_range", "clutch_killer", "rainmaker"];
-  if (/klay|汤普森/.test(name)) return ["logo_range", "splash_spot", "rainmaker", "gravity_well"];
-  if (/wade|韦德|dwyane/.test(name)) return ["euro_step", "ankle_breaker", "clutch_killer", "thief"];
-  if (/harden|哈登/.test(name)) return ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker"];
-  if (/ginob|吉诺比利|manu/.test(name)) return ["euro_step", "clutch_killer", "ankle_breaker", "mid_maestro"];
-  if (/magic johnson|魔术师/.test(name)) return ["dime_dropper", "paint_bully", "clutch_killer", "teardrop"];
-  if (/iverson|艾弗森/.test(name)) return ["crossover", "ankle_breaker", "freeze_iso", "motor_engine"];
-  if (/kyrie|欧文|uncle drew/.test(name)) return ["uncle_drew", "ankle_breaker", "freeze_iso", "crossover"];
-  if (/shaq|奥尼尔|oneal|o'neal/.test(name)) return ["mountain_slam", "paint_bully", "motor_engine", "rim_protector"];
-  if (/dwight howard|霍华德|魔兽/.test(name) && !/juwan|jaylen|jaden|howarje|howarju|howarma/i.test(name))
-    return ["poster_slam", "rim_protector", "board_man", "paint_bully"];
-  if (/olajuwon|大梦|奥拉朱旺/.test(name)) return ["dream_shake", "paint_bully", "rim_protector", "ankle_breaker"];
-  if (/duncan|邓肯/.test(name)) return ["bank_45", "rim_protector", "lockdown", "mid_maestro"];
-  if (/abdul.?jabbar|kareem abdul|贾巴尔/.test(name) && !/rush/.test(name))
-    return ["skyhook", "paint_bully", "rim_protector", "mid_maestro"];
-  if (/kevin garnett|加内特/.test(name) && !/bill|marlon/.test(name))
-    return ["lockdown", "dime_dropper", "mid_maestro", "paint_bully"];
-  if (/russell westbrook|威斯布鲁克|威少/.test(name))
-    return ["motor_engine", "dime_dropper", "ankle_breaker", "coast_to_coast"];
-  if (/derrick rose|德里克.?罗斯/.test(name))
-    return ["first_step", "coast_to_coast", "ankle_breaker", "clutch_killer"];
-  if (/wilt|chamberlain|张伯伦/.test(name)) return ["big_dipper", "paint_bully", "board_man", "motor_engine"];
-  if (/mutombo|穆托姆博/.test(name)) return ["not_in_my_house", "rim_protector", "lockdown"];
-  if (/nowitzki|诺维茨基|dirk/.test(name)) return ["dirk_fade", "mid_maestro", "rainmaker", "freeze_iso"];
-  if (/giannis|字母|antetokounmpo/.test(name)) return ["coast_to_coast", "paint_bully", "motor_engine", "lockdown"];
-  if (/joki[cć]|约基奇/.test(name)) return ["soft_touch", "dime_dropper", "paint_bully", "mid_maestro"];
-  if (/donci[cć]|东契奇|luka/.test(name)) return ["stepback", "dime_dropper", "freeze_iso", "mid_maestro"];
-  if (/kawhi|伦纳德|卡哇伊/.test(name))
-    return ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"];
-  if (/chris paul|保罗/.test(name) && !/battier|george|millsap/i.test(name))
-    return ["teardrop", "dime_dropper", "thief", "lockdown"];
-  if (/kyle anderson|凯尔.?安德森|slow.?mo|慢三步/.test(name)) return ["slowmo", "dime_dropper"];
-  if (/haliburton|哈利伯顿/.test(name)) {
-    const season = Number(player.season) || 0;
-    if (season === 2025) return ["big_heart", "clean_dime", "dime_dropper", "floor_commander"];
-    return ["dime_dropper", "clean_dime"];
+/**
+ * Name → bref for cards that arrive without a bref (custom / legacy data).
+ * Kits themselves live ONLY in SIGNATURE_SKILLS / SEASON_SIGNATURE_SKILLS,
+ * so a fix there automatically applies to the name fallback too.
+ * Order matters: more specific patterns first.
+ */
+const SIGNATURE_NAME_TO_BREF = [
+  [/michael jordan|乔丹/, "jordami01"],
+  [/kobe|科比/, "bryanko01"],
+  [/lebron|勒布朗/, "jamesle01"],
+  [/durant|杜兰特/, "duranke01"],
+  [/stephen curry|斯蒂芬.?库里|curry/, "curryst01"],
+  [/lillard|利拉德/, "lillada01"],
+  [/klay|汤普森/, "thompkl01"],
+  [/wade|韦德|dwyane/, "wadedw01"],
+  [/harden|哈登/, "hardeja01"],
+  [/ginob|吉诺比利|manu/, "ginobem01"],
+  [/magic johnson|魔术师/, "johnsma02"],
+  [/iverson|艾弗森/, "iversal01"],
+  [/kyrie|欧文|uncle drew/, "irvinky01"],
+  [/shaq|奥尼尔|oneal|o'neal/, "onealsh01"],
+  [/dwight howard|霍华德|魔兽/, "howardw01", /juwan|jaylen|jaden|howarje|howarju|howarma/i],
+  [/olajuwon|大梦|奥拉朱旺/, "olajuha01"],
+  [/duncan|邓肯/, "duncati01"],
+  [/abdul.?jabbar|kareem abdul|贾巴尔/, "abdulka01", /rush/],
+  [/kevin garnett|加内特/, "garneke01", /bill|marlon/],
+  [/russell westbrook|威斯布鲁克|威少/, "westbru01"],
+  [/derrick rose|德里克.?罗斯/, "rosede01"],
+  [/wilt|chamberlain|张伯伦/, "chambwi01"],
+  [/mutombo|穆托姆博/, "mutomdi01"],
+  [/nowitzki|诺维茨基|dirk/, "nowitdi01"],
+  [/giannis|字母|antetokounmpo/, "antetgi01"],
+  [/joki[cć]|约基奇/, "jokicni01"],
+  [/donci[cć]|东契奇|luka/, "doncilu01"],
+  [/kawhi|伦纳德|卡哇伊/, "leonaka01"],
+  [/chris paul|保罗/, "paulch01", /battier|george|millsap|pierce|皮尔斯/i],
+  [/kyle anderson|凯尔.?安德森|slow.?mo|慢三步/, "anderky01"],
+  [/haliburton|哈利伯顿/, "halibty01"],
+  [/rodman|罗德曼/, "rodmade01"],
+  [/pippen|皮蓬/, "pippesc01"],
+  [/mcgrady|麦迪|t-?mac/, "mcgratr01"],
+  [/billups|比卢普斯/, "billuch01"],
+  [/horry|霍里/, "horryro01"],
+  [/gary payton|加里.?佩顿|手套/, "paytoga01"],
+  [/faried|法里埃德|半兽人|manimal/, "farieke01"],
+  [/zion|锡安|williamson/, "willizi01"],
+  [/yao ming|姚明/, "mingya01"],
+  [/marbury|马布里/, "marbust01"],
+  [/gilgeous|吉尔杰斯|谢伊|\bsga\b/, "gilgesh01"],
+  [/carmelo|卡梅隆.?安东尼|甜瓜/, "anthoca01"],
+  [/paul pierce|保罗.?皮尔斯/, "piercpa01"],
+  [/charles barkley|查尔斯.?巴克利|巴克利/, "barklch01"],
+  [/karl malone|卡尔.?马龙/, "malonka01", /moses/i],
+  [/moses malone|摩西.?马龙/, "malonmo01"],
+  [/oscar robertson|奥斯卡.?罗伯特森/, "roberos01"],
+  [/jerry west|杰里.?韦斯特/, "westje01"],
+  [/george gervin|乔治.?格文|冰人/, "gervige01"],
+  [/reggie miller|雷吉.?米勒/, "millere01"],
+  [/ray allen|雷.?阿伦/, "allenra02"],
+];
+
+export function signatureBrefForName(player) {
+  const name = `${player?.nameEn || ""} ${player?.name || ""}`.toLowerCase();
+  for (const [pattern, bref, exclude] of SIGNATURE_NAME_TO_BREF) {
+    if (pattern.test(name) && !(exclude && exclude.test(name))) return bref;
   }
-  if (/rodman|罗德曼/.test(name)) return ["board_man", "lockdown", "motor_engine"];
-  if (/pippen|皮蓬/.test(name)) return ["lockdown", "thief", "dime_dropper", "motor_engine"];
-  if (/mcgrady|麦迪|t-?mac/.test(name)) return ["stepback", "freeze_iso", "rainmaker", "clutch_killer"];
-  if (/billups|比卢普斯/.test(name)) return ["big_shot", "clutch_killer", "mid_maestro"];
-  if (/horry|霍里/.test(name)) return ["big_shot", "clutch_killer", "rainmaker"];
-  if (/payton|佩顿/.test(name) && /gary|手套/.test(name)) return ["glove", "thief", "lockdown", "dime_dropper"];
-  if (/faried|法里埃德|半兽人|manimal/.test(name))
-    return ["poster_slam", "lob_finisher", "spring_board", "rim_protector"];
-  if (/zion|锡安|williamson/.test(name))
-    return ["poster_slam", "paint_bully", "coast_to_coast", "first_step"];
-  if (/yao ming|姚明/.test(name)) return ["soft_touch", "dream_shake", "high_tower", "paint_bully"];
-  if (/marbury|马布里/.test(name)) return ["lone_wolf", "freeze_iso", "ankle_breaker", "mid_maestro"];
-  // Role identities live in traitByName — keep signatureByName for star sigs only
-  return [];
+  return null;
+}
+
+function signatureByName(player) {
+  const bref = signatureBrefForName(player);
+  if (!bref) return [];
+  const season = Number(player.season) || 0;
+  return [
+    ...(SEASON_SIGNATURE_SKILLS[`${bref}:${season}`] || []),
+    ...(SIGNATURE_SKILLS[bref] || []),
+    ...(AURA_HOLDERS[bref] || []),
+  ];
 }
 
 function signatureZone(move) {
@@ -1478,6 +1730,13 @@ function signatureZone(move) {
   if (move.id === "soft_touch") return Math.random() < 0.5 ? "mid" : "paint";
   if (move.id === "high_tower") return Math.random() < 0.62 ? "paint" : "mid";
   if (move.id === "euro_step") return Math.random() < 0.75 ? "paint" : "mid";
+  // 单脚抛射：禁区为主，也会超远三分
+  if (move.id === "one_leg_fade") {
+    const r = Math.random();
+    if (r < 0.45) return "paint";
+    if (r < 0.8) return "mid";
+    return "three";
+  }
   // 蝴蝶穿花：以拉杆上篮为主，偶发中投
   if (move.id === "uncle_drew") {
     return Math.random() < 0.78 ? "paint" : "mid";
@@ -1505,9 +1764,15 @@ export function signatureFeedFlavor(sigId) {
     coast_to_coast: ["全场推进暴扣", "长驱直入砸筐", "一条龙灌进"],
     teardrop: ["抛投打进", "高抛软打进筐"],
     soft_touch: ["柔拨打进", "指尖轻点入网", "柔顺手感拨进"],
-    dream_shake: ["梦幻舞步虚晃打进", "脚步虚晃后低位出手", "梦幻舞步翻身打进"],
+    dream_shake: ["梦幻脚步虚晃打进", "连续虚晃把对手晃开出手", "梦幻脚步翻身打进"],
+    lean_in_jumper: ["前仰跳投命中", "贴身前倾起跳打进", "顶着防守前仰中投"],
+    one_leg_fade: ["单脚抛射打进", "单脚后仰高抛入网", "拉开身位单脚抛投"],
+    god_mode: ["上帝附体，中投空心入网", "无视防守的中距离跳投", "那一刻他就是上帝"],
     high_tower: ["高塔俯射打进", "高位指尖拨进", "臂展压制砸进"],
     spring_board: ["弹跳暴起砸筐", "二次起飞灌篮"],
+    high_floater: ["高抛越过护框人入网", "抛物线高抛空心", "节奏一顿高抛打板"],
+    giant_stride: ["大三步跨过防守上篮", "一步跨进禁区拉杆", "大步流星直冲篮下"],
+    rim_wrecker: ["转身暴扣砸筐", "篮筐肆虐·强起灌篮", "快攻起飞劈扣", "硬撼护框人扣进"],
   };
   const pool = lines[sigId];
   if (!pool?.length) return null;
@@ -1527,6 +1792,7 @@ export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, sc
   const dunkSkill =
     sk.includes("poster_slam") ||
     sk.includes("mountain_slam") ||
+    sk.includes("rim_wrecker") ||
     sk.includes("lob_finisher") ||
     sk.includes("spring_board") ||
     sk.includes("coast_to_coast");
@@ -1536,6 +1802,7 @@ export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, sc
   const craftSkill =
     sk.includes("uncle_drew") ||
     sk.includes("euro_step") ||
+    sk.includes("giant_stride") ||
     sk.includes("teardrop") ||
     sk.includes("soft_touch") ||
     sk.includes("dream_shake") ||
@@ -1568,6 +1835,8 @@ export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, sc
   if (Math.random() < craftChance) {
     const lays = sk.includes("uncle_drew")
       ? ["蝴蝶穿花·拉杆上篮", "拉杆换手挑篮", "晃过防守上篮", "低手柔拨上篮"]
+      : sk.includes("giant_stride")
+        ? ["大三步上篮", "超大步幅拉杆", "大步流星一步上篮", "跨过防守挑篮"]
       : sk.includes("high_tower") || sk.includes("soft_touch") || sk.includes("dream_shake")
         ? ["高位柔拨", "指尖轻点入网", "梦幻脚步翻身", "勾手打进", "擦板巧打"]
         : ["拉杆上篮", "换手上篮", "抛投挑篮", "擦板打进", "空切上篮"];
@@ -1597,11 +1866,11 @@ function bullyProcChance(baller, defender, base) {
  * Random signature offense proc among all owned signature moves.
  */
 export function trySignatureOffense(baller, defender, gameCtx = {}) {
-  const sigs = (baller?.skills || [])
+  let sigs = (baller?.skills || [])
     .map((id) => SKILL_PACKS[id])
     .filter((m) => m?.signature && m.kind === "offense");
   if (!sigs.length) return null;
-  shuffleInPlace(sigs);
+  sigs = shuffle(sigs);
   const late = (gameCtx.quarter || 1) >= 4;
   const close = Math.abs(gameCtx.scoreDiff || 0) <= 8;
   const lobFeed =
@@ -1627,6 +1896,8 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
     }
     // 韦德迷踪步略提高出场
     if (m.id === "euro_step" && brefKey(baller) === "wadedw01") proc += 0.04;
+    // 上帝附体：末节胶着时更容易降临
+    if (m.id === "god_mode" && late && close) proc += 0.045;
     if (Math.random() > proc) continue;
     const zone = signatureZone(m);
     return {
@@ -1635,6 +1906,7 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
       shot: { zone, pts: zone === "three" ? 3 : 2 },
       makeBoost: m.makeBoost,
       openBoost: m.openBoost || 0,
+      guaranteed: !!m.guaranteed,
       label: m.name,
     };
   }
@@ -1642,11 +1914,11 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
 }
 
 export function trySignatureBlock(defender, shot) {
-  const sigs = (defender?.skills || [])
+  let sigs = (defender?.skills || [])
     .map((id) => SKILL_PACKS[id])
     .filter((m) => m?.signature && m.kind === "defense" && m.blockBoost);
   if (!sigs.length) return null;
-  shuffleInPlace(sigs);
+  sigs = shuffle(sigs);
   for (const m of sigs) {
     let proc = m.proc;
     // 追身定板：更吃禁区/快攻终结
@@ -1699,20 +1971,6 @@ export function skillsLabel(player) {
     .join(" · ");
 }
 
-/** Skills that can be learned by merging duplicate cards. */
-export const MERGE_SKILL_POOL = [
-  "block_artist",
-  "qb_outlet",
-  "floor_commander",
-  "big_heart",
-  "glass_cleaner",
-  "first_step",
-  "cold_mid",
-  "corner_sniper",
-  "paint_finisher",
-  "wing_lock",
-];
-
 /** Rating keys bumped +1 on each card merge (capped at 100). */
 export const MERGE_ATTR_KEYS = [
   "scoring",
@@ -1730,48 +1988,6 @@ export const MERGE_ATTR_KEYS = [
   "steal",
   "block",
 ];
-
-export function pickMergeSkill(ownedSkills = []) {
-  const have = new Set(ownedSkills || []);
-  const pool = MERGE_SKILL_POOL.filter((id) => SKILL_PACKS[id] && !have.has(id));
-  if (!pool.length) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-/** 赛季评奖可选技能包：排除负面特质，且未拥有的。 */
-export function listAwardSkillChoices(ownedSkills = []) {
-  const have = new Set(ownedSkills || []);
-  return Object.values(SKILL_PACKS)
-    .filter((s) => s && !s.negative && s.tone !== "bad" && !s.duo && !have.has(s.id))
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh"));
-}
-
-/**
- * Full award skill catalog for UI: marks which the player already owns.
- * Claimable = positive packs not yet owned.
- */
-export function listAwardSkillCatalog(ownedSkills = []) {
-  const have = new Set(ownedSkills || []);
-  const all = Object.values(SKILL_PACKS)
-    .filter((s) => s && !s.negative && s.tone !== "bad" && !s.duo)
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      desc: s.desc || "",
-      tone: s.tone || "blue",
-      signature: !!s.signature,
-      owned: have.has(s.id),
-    }))
-    .sort((a, b) => {
-      if (a.owned !== b.owned) return a.owned ? 1 : -1;
-      return String(a.name).localeCompare(String(b.name), "zh");
-    });
-  return {
-    available: all.filter((s) => !s.owned),
-    owned: all.filter((s) => s.owned),
-    all,
-  };
-}
 
 /** 是否可被购买 / 学习（组合技与专属技一律否） */
 export function isLearnableSkill(skillId) {
@@ -1797,14 +2013,18 @@ export function nonDuoSkillCount(player) {
   return (player?.skills || []).filter((id) => !SKILL_PACKS[id]?.duo).length;
 }
 
-/** 可卸下的技能（组合技除外） */
+/** 可卸下的技能：组合技除外，且必须是用技能碎片买来装上的。
+ * 球员自带的签名技/领悟技/随机获得的不列在内——不过是不能卸，列出来让人点了再被拒绝没意义。 */
 export function removableSkills(player) {
-  return (player?.skills || []).filter((id) => SKILL_PACKS[id] && !SKILL_PACKS[id].duo);
+  const purchased = new Set(player?.purchasedSkills || []);
+  return (player?.skills || []).filter((id) => SKILL_PACKS[id] && !SKILL_PACKS[id].duo && purchased.has(id));
 }
 
 /**
- * 卸下技能。组合技不可卸。
- * 若为已购技能，返回 returnToInv 便于退回技能库。
+ * 卸下技能。组合技不可卸；球员自带的技能（签名技/领悟/随机获得的，总之没花过技能碎片买）
+ * 同样不可卸——卸了既不会退任何东西（它本来就不是买来的，没有碎片可退），也会让同一张卡
+ * 下次重建（存档迁移、roster 刷新）时又把技能加回来，卸的动作只是糊弄自己。
+ * 只有「用技能碎片买来装上的」才能卸下，并退回技能库。
  */
 export function removeSkillFromPlayer(player, skillId) {
   if (!player || !skillId) return { ok: false, reason: "无效" };
@@ -1813,25 +2033,26 @@ export function removeSkillFromPlayer(player, skillId) {
   if (pack.duo) return { ok: false, reason: "组合技随阵容显隐，不可手动卸" };
   if (!(player.skills || []).includes(skillId)) return { ok: false, reason: "球员没有该技能" };
 
-  player.skills = (player.skills || []).filter((id) => id !== skillId);
   const wasPurchased = (player.purchasedSkills || []).includes(skillId);
-  const paid = Number(player.purchasedSkillCosts?.[skillId]) || skillPackShopPrice(skillId);
-  if (wasPurchased) {
-    player.purchasedSkills = (player.purchasedSkills || []).filter((id) => id !== skillId);
-    if (player.purchasedSkillCosts) delete player.purchasedSkillCosts[skillId];
-    return {
-      ok: true,
-      returnToInv: {
-        id: skillId,
-        name: pack.name,
-        desc: pack.desc || "",
-        rarity: skillRarity(skillId),
-        rarityLabel: SKILL_RARITY_LABEL[skillRarity(skillId)] || "",
-        cost: paid,
-      },
-    };
+  if (!wasPurchased) {
+    return { ok: false, reason: "球员自带的技能（非购买获得），不能卸下" };
   }
-  return { ok: true };
+
+  player.skills = (player.skills || []).filter((id) => id !== skillId);
+  const paid = Number(player.purchasedSkillCosts?.[skillId]) || skillPackShopPrice(skillId);
+  player.purchasedSkills = (player.purchasedSkills || []).filter((id) => id !== skillId);
+  if (player.purchasedSkillCosts) delete player.purchasedSkillCosts[skillId];
+  return {
+    ok: true,
+    returnToInv: {
+      id: skillId,
+      name: pack.name,
+      desc: pack.desc || "",
+      rarity: skillRarity(skillId),
+      rarityLabel: SKILL_RARITY_LABEL[skillRarity(skillId)] || "",
+      cost: paid,
+    },
+  };
 }
 
 /** 金币商店可售技能（不含组合技 / 专属技 / 负面）. */
@@ -1880,8 +2101,23 @@ export const SKILL_RARITY = {
   skyhook: "mythic",
   not_in_my_house: "mythic",
   uncle_drew: "mythic",
+  rim_wrecker: "mythic",
+  giant_stride: "legendary",
+  high_floater: "legendary",
   big_dipper: "mythic",
+  god_mode: "mythic",
+  one_leg_fade: "mythic",
+  blind_pass: "mythic",
+  mamba_spirit: "mythic",
+  wolf_king: "mythic",
+  stamina_monster: "mythic",
   // 传奇
+  lean_in_jumper: "legendary",
+  the_answer: "legendary",
+  the_truth: "legendary",
+  offense_kaleidoscope: "legendary",
+  manimal: "legendary",
+  rebound_maniac: "mythic",
   clutch_killer: "legendary",
   freeze_iso: "legendary",
   ankle_breaker: "legendary",
@@ -2088,16 +2324,7 @@ export function rollSkillShopOffers(size = 6, excludeIds = []) {
     take(s);
   }
 
-  return shuffleLocal(picks);
-}
-
-function shuffleLocal(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+  return shuffle(picks);
 }
 
 export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open = 0.5, onCourt = null } = {}) {
@@ -2149,6 +2376,33 @@ export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open 
   }
   // Battier 3&D: punish open catch-and-shoot
   if (hasSkill(baller, "stopper_3d") && shot?.zone === "three" && open >= 0.48) b += 0.028;
+
+  // —— 球星称号技 ——
+  const trailing = scoreDiff < 0;
+  // 单脚抛射：禁区更进一步；被紧贴的超远三分也有机会
+  if (hasSkill(baller, "one_leg_fade")) {
+    if (shot?.zone === "paint") b += 0.03;
+    else if (shot?.zone === "three" && open < 0.4) b += 0.024;
+    else if (shot?.zone === "mid") b += 0.012;
+  }
+  // 答案：对抗下硬冲禁区；落后时越打越凶
+  if (hasSkill(baller, "the_answer")) {
+    if (shot?.zone === "paint" && open < 0.5) b += 0.035;
+    if (trailing) b += 0.02;
+  }
+  // 曼巴精神：末节、落后、高难度出手更稳
+  if (hasSkill(baller, "mamba_spirit")) {
+    if (late) b += 0.022;
+    if (trailing) b += 0.015;
+    if (open < 0.4) b += 0.02;
+  }
+  // 真理：被紧逼时中距离/突破不降反升，关键时刻更稳
+  if (hasSkill(baller, "the_truth")) {
+    if ((shot?.zone === "mid" || shot?.zone === "paint") && open < 0.42) b += 0.032;
+    if (late && close) b += 0.02;
+  }
+  // 进攻万花筒：三个区域全面小幅提升
+  if (hasSkill(baller, "offense_kaleidoscope") && shot?.zone) b += 0.022;
 
   // —— 光环：高球商激发队友 ——
   if (teammateHasAura(court, "mind_unlock", baller.id) && !hasSkill(baller, "mind_unlock")) {
@@ -2224,6 +2478,7 @@ export function skillOpennessDelta(baller, defender, off) {
   let d = 0;
   const offCourt = off?.onCourt || [];
   if (hasSkill(baller, "ankle_breaker")) d += 0.045;
+  if (hasSkill(baller, "rhythm_master")) d += 0.05; // 变速/试探步造空间，不靠速度，对快防守人也有效
   if (hasSkill(baller, "first_step")) d += 0.04;
   if (hasSkill(baller, "freeze_iso")) d += 0.02;
   if (hasSkill(baller, "slowmo")) d += 0.025; // tempo shift always helps a bit
@@ -2232,6 +2487,7 @@ export function skillOpennessDelta(baller, defender, off) {
   if (hasSkill(baller, "high_tower")) d += 0.035; // 高位出手更难贴防
   if (hasSkill(baller, "soft_touch")) d += 0.012;
   if (hasSkill(baller, "lone_wolf")) d += 0.035; // 造一对一空间
+  if (hasSkill(baller, "offense_kaleidoscope")) d += 0.02; // 三威胁持球
   // 半场射程：慢防贴不上；高机动词/缠绕才能真正压缩空位
   if (hasSkill(baller, "logo_range")) {
     if (isMobileChaser(defender)) d -= 0.06;
@@ -2254,6 +2510,8 @@ export function skillOpennessDelta(baller, defender, off) {
     if ((baller?.scoring || 50) >= 86 || (baller?.raw?.ppg || 0) >= 22) d -= 0.025;
   }
   if (hasSkill(defender, "enforcer")) d -= 0.02;
+  // 狼王：自己贴防更凶
+  if (hasSkill(defender, "wolf_king")) d -= 0.035;
   for (const p of offCourt) {
     if (p.id !== baller?.id && hasSkill(p, "gravity_well")) d += 0.018;
   }
@@ -2272,13 +2530,13 @@ export function skillOpennessDelta(baller, defender, off) {
     d += bref === "jokicni01" || bref === "murraja01" ? 0.028 : 0.012;
   }
   if (duos.includes("bulls_wing")) d += 0.015;
-  if (hasSkill(defender, "def_captain")) d -= 0.028;
+  if (isDefensiveLeader(defender)) d -= 0.028;
   return d;
 }
 
 /** Extra contest from defensive captain aura on the defending five. */
 export function skillDefCaptainOpenPenalty(defOnCourt) {
-  if (!teammateHasAura(defOnCourt || [], "def_captain")) return 0;
+  if (!defensiveAuraOnCourt(defOnCourt)) return 0;
   return -0.032;
 }
 
@@ -2290,8 +2548,8 @@ export function skillStealBonus(defender, defOnCourt = null) {
   if (hasSkill(defender, "sticky_wrap")) b += 0.018;
   if (hasSkill(defender, "death_wrap")) b += 0.022;
   if (hasSkill(defender, "stopper_3d")) b += 0.008;
-  if (hasSkill(defender, "def_captain")) b += 0.01;
-  if (teammateHasAura(defOnCourt || [], "def_captain", defender?.id)) b += 0.008;
+  if (isDefensiveLeader(defender)) b += 0.01;
+  if (defensiveAuraOnCourt(defOnCourt, defender?.id)) b += 0.008;
   return b;
 }
 
@@ -2401,8 +2659,46 @@ export function skillBlockBonus(defender, shot, defOnCourt = null) {
   }
   // Manimal vertical — extra paint contests even without elite rim-protector label alone
   if (hasSkill(defender, "spring_board") && shot?.zone === "paint") b += 0.018;
-  if (teammateHasAura(defOnCourt || [], "def_captain") && shot?.zone === "paint") b += 0.012;
+  if (defensiveAuraOnCourt(defOnCourt) && shot?.zone === "paint") b += 0.012;
   return b;
+}
+
+/** 进攻方抗盖帽倍率：单脚抛射、答案等出手更难被盖（1 = 无影响） */
+export function skillBlockResist(baller) {
+  let m = 1;
+  for (const id of baller?.skills || []) {
+    const resist = SKILL_PACKS[id]?.blockResist;
+    if (resist) m *= resist;
+  }
+  return m;
+}
+
+/**
+ * 脑后长眼：组织者分球后，接球人额外空位。被包夹时传给背后队友，空位更大。
+ * @returns {{ bonus: number, label: string|null }}
+ */
+export function skillKickOpenBonus(organizer, { doubled = false } = {}) {
+  if (!hasSkill(organizer || {}, "blind_pass")) return { bonus: 0, label: null };
+  return doubled
+    ? { bonus: 0.09, label: "被包夹中「脑后长眼」传给背后的队友" }
+    : { bonus: 0.06, label: "「脑后长眼」找到意想不到的空位队友" };
+}
+
+/**
+ * 上场前按技能提升能力值（如半兽人身体素质 +10%）。
+ * 只应用于比赛副本，重复调用不会叠加。
+ */
+export function applySkillAttributeBoosts(player) {
+  if (!player || player._attrBoosted) return player;
+  for (const id of player.skills || []) {
+    const boost = SKILL_PACKS[id]?.attributeBoost;
+    if (!boost) continue;
+    for (const key of boost.keys) {
+      if (typeof player[key] === "number") player[key] = Math.min(99, Math.round(player[key] * boost.mult));
+    }
+  }
+  player._attrBoosted = true;
+  return player;
 }
 
 /**
@@ -2412,6 +2708,7 @@ export function skillBlockBonus(defender, shot, defOnCourt = null) {
 export function skillKickMult(baller, { doubled = false } = {}) {
   let m = 1;
   if (hasSkill(baller, "lone_wolf")) m *= doubled ? 0.08 : 0.38;
+  if (hasSkill(baller, "blind_pass")) m *= doubled ? 1.9 : 1.3;
   if (hasSkill(baller, "qb_outlet")) m *= doubled ? 1.55 : 1.35;
   if (hasSkill(baller, "floor_commander")) m *= 1.18;
   return m;
@@ -2429,6 +2726,7 @@ export function skillTunnelVisionTov(baller, { doubled = false, open = 0.5 } = {
 export function skillPassCareTov(baller) {
   let d = 0;
   if (hasSkill(baller, "clean_dime")) d -= 0.028;
+  if (hasSkill(baller, "blind_pass")) d -= 0.015;
   if (hasSkill(baller, "floor_commander")) d -= 0.008;
   if (hasSkill(baller, "dime_dropper")) d -= 0.006;
   return d;
@@ -2440,14 +2738,16 @@ export function skillPassCareTov(baller) {
  */
 export function skillFatigueMult(baller) {
   if (hasSkill(baller, "iron_lungs")) return 0.36;
+  if (hasSkill(baller, "stamina_monster")) return 0.4;
   if (hasSkill(baller, "motor_engine")) return 0.52;
+  if (hasSkill(baller, "mamba_spirit")) return 0.82;
   if (hasSkill(baller, "slowmo")) return 0.88;
   return 1;
 }
 
-/** 是否挂了「高体力」类技能（铁肺 / 永动机） */
+/** 是否挂了「高体力」类技能（铁肺 / 体能怪物 / 永动机） */
 export function hasEliteStaminaSkill(p) {
-  return hasSkill(p, "iron_lungs") || hasSkill(p, "motor_engine");
+  return hasSkill(p, "iron_lungs") || hasSkill(p, "stamina_monster") || hasSkill(p, "motor_engine");
 }
 
 export function skillPassWeight(p) {
@@ -2457,6 +2757,7 @@ export function skillPassWeight(p) {
   if (hasSkill(p, "qb_outlet")) w *= 1.28;
   if (hasSkill(p, "floor_commander")) w *= 1.32;
   if (hasSkill(p, "clean_dime")) w *= 1.22;
+  if (hasSkill(p, "blind_pass")) w *= 1.3;
   return w;
 }
 
@@ -2496,14 +2797,28 @@ export function isJokerJamalTwoMan(baller, passer, onCourt = []) {
 }
 
 /** Rebound weight multiplier when Board Man / glass / spring bounce procs. */
-export function skillReboundMult(p) {
-  if (hasSkill(p, "board_man")) {
-    if (Math.random() <= (SKILL_PACKS.board_man.proc || 0.35)) {
-      return SKILL_PACKS.board_man.rebBoost || 1.5;
-    }
+export function isBlueCollarRebounder(p) {
+  const o = p?.orders || {};
+  if (o.usage === "hustle" || o.action === "crash" || o.attack === "putback") return true;
+  const role = p?.roleExpectation;
+  const lowUsage = (p?.raw?.ppg ?? 99) < 12;
+  return lowUsage && (role === "role" || role === "bench" || role === "sixth");
+}
+
+/** 篮板权重倍率；篮板痴汉在蓝领二次进攻角色下更常触发、进攻板加成更大 */
+export function skillReboundMult(p, { offensive = false } = {}) {
+  if (hasSkill(p, "rebound_maniac")) {
+    const pack = SKILL_PACKS.rebound_maniac;
+    const blue = isBlueCollarRebounder(p);
+    const proc = blue ? pack.blueCollarProc * (offensive ? 1 : 0.75) : pack.proc * 0.5;
+    if (Math.random() <= proc) return blue && offensive ? pack.blueCollarOffBoost : pack.rebBoost;
+  }
+  if (hasSkill(p, "board_man") && Math.random() <= SKILL_PACKS.board_man.proc) {
+    return SKILL_PACKS.board_man.rebBoost;
   }
   if (hasSkill(p, "glass_cleaner") && Math.random() < 0.32) return 1.4;
   if (hasSkill(p, "spring_board") && Math.random() < 0.28) return 1.35;
+  if (hasSkill(p, "wolf_king") && Math.random() < 0.25) return 1.3;
   return 1;
 }
 

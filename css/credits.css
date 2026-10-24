@@ -1,0 +1,32 @@
+/* Image credits page. Plain, readable, wraps long names and URLs; colours chosen for >= 4.5:1 on the paper background. */
+.credits-intro p { margin: 0 0 8px; line-height: 1.6; max-width: 70ch; }
+.credits-intro .tiny { color: #4b5563; }
+
+.credits-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.credit-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr) minmax(0, 2fr);
+  gap: 4px 16px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: .9rem;
+  overflow-wrap: anywhere;
+}
+
+.credit-players { color: var(--ink); }
+.credit-meta { color: #374151; }
+.credits-list a { color: #0b5cad; text-decoration: underline; text-underline-offset: 2px; }
+.credits-list a:focus-visible { outline: 3px solid #0b5cad; outline-offset: 2px; border-radius: 2px; }
+
+@media (max-width: 640px) {
+  .credit-row { grid-template-columns: 1fr; padding: 12px 2px; }
+  .credit-players { font-size: 1rem; }
+}

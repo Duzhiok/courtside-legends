@@ -4,6 +4,8 @@
  * Possession advances the whole 5 into the attacking half — not static matchup dots.
  */
 
+import { photoUrl } from "../data/photo.js";
+
 /**
  * Frontcourt slots: y=0 near rim, y=100 near half-court.
  * Index order is always C → PF → SF → SG → PG (rim to perimeter),
@@ -283,7 +285,7 @@ export class CourtView {
       el.className = `court-token ${side} ${isOff ? "offense" : "defense"}`;
       el.innerHTML = `
         <div class="tok-avatar">
-          <img src="${p.photo || ""}" alt="" loading="lazy" referrerpolicy="no-referrer"
+          <img src="${photoUrl(p)}" alt="" loading="lazy" referrerpolicy="no-referrer"
             onerror="this.style.opacity=0.2" />
           <span class="tok-pts">${p.stats?.pts ?? 0}</span>
         </div>

@@ -83,14 +83,13 @@ export function positionFitScore(naturalPos, assignedPos, player = null) {
 
   // —— 奇效 / 惨案：跨位实验 ——
   const rebound = player.rebound || 50;
-  const paint = player.paint || 50;
   const speed = player.speed || 50;
   const defense = player.defense || 50;
   // 传球怪兽大个子打控卫：约基奇 / 詹姆斯 / 字母哥类
   const nm = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
   const pointForward =
     pass >= 78 ||
-    /jokic|约基奇|lebron|詹姆斯|antetokounmpo|字母|donci|东契奇/.test(nm);
+    /jokic|约基奇|lebron|詹姆斯|giannis antetokounmpo|字母|donci|东契奇/.test(nm); // full name: his brothers Thanasis and Kostas (and Papagiannis) are not point-forwards
   if (["PF", "C", "SF"].includes(nat) && asg === "PG") {
     if (pass >= 88 && iq >= 82) score = Math.max(score, 92); // Jokic-tier
     else if (pointForward && pass >= 75) score = Math.max(score, 84); // LeBron / Giannis

@@ -50,10 +50,55 @@ def load_master():
     return names, pos
 
 
-# Career identity overrides when talldata/BRef primary pos is misleading.
+# Career identity overrides when talldata/BRef primary pos is misleading, and when
+# the ambiguous raw "F" tag got normalized to "SF" below for someone who was really a PF/C.
 POS_OVERRIDES = {
     "nowitdi01": "PF",  # Dirk Nowitzki — often tagged C early; natural PF
     "willija02": "PG",  # Jason Williams (White Chocolate)
+    "garneke01": "PF",  # Kevin Garnett
+    "malonka01": "PF",  # Karl Malone
+    "barklch01": "PF",  # Charles Barkley
+    "rodmade01": "PF",  # Dennis Rodman
+    "hayesel01": "PF",  # Elvin Hayes
+    "pettibo01": "PF",  # Bob Pettit
+    "haywosp01": "PF",  # Spencer Haywood
+    "willibu01": "PF",  # Buck Williams
+    "silaspa01": "PF",  # Paul Silas
+    "debusda01": "PF",  # Dave DeBusschere
+    "schaydo01": "PF",  # Dolph Schayes
+    "mchalke01": "PF",  # Kevin McHale
+    "oaklech01": "PF",  # Charles Oakley
+    "willike02": "PF",  # Kevin Willis
+    "kempsh01": "PF",  # Shawn Kemp
+    "pachuza01": "C",  # Zaza Pachulia — 2004-11 rows (talldata source) say SF, 2012+ (bref source)
+    # correctly say C; he's a career bruiser center, never played small forward.
+    "rondora01": "PG",  # Rajon Rondo — 2007–11 rows all say SF; he's a career PG
+    # Same "G"→"SG" normalize_pos default bug, this time for historical point guards
+    # (roster.json tags them SG whole-career; they're undisputed HOF/All-Star floor generals).
+    "stockjo01": "PG",  # John Stockton
+    "cousybo01": "PG",  # Bob Cousy
+    "rodgegu01": "PG",  # Guy Rodgers
+    "roberos01": "PG",  # Oscar Robertson
+    "wilkele01": "PG",  # Lenny Wilkens
+    "vanlino01": "PG",  # Norm Van Lier
+    "archina01": "PG",  # Nate "Tiny" Archibald
+    "porteke01": "PG",  # Kevin Porter
+    "lucasjo01": "PG",  # John Lucas
+    "nixonno01": "PG",  # Norm Nixon
+    "cheekma01": "PG",  # Maurice Cheeks
+    "johnsma02": "PG",  # Earvin "Magic" Johnson
+    "moorejo01": "PG",  # Johnny Moore
+    "thomais01": "PG",  # Isiah Thomas
+    "pricema01": "PG",  # Mark Price
+    "jacksma01": "PG",  # Mark Jackson
+    "johnske02": "PG",  # Kevin Johnson
+    "boguemu01": "PG",  # Muggsy Bogues
+    "stricro02": "PG",  # Rod Strickland
+    "hardati01": "PG",  # Tim Hardaway
+    "paytoga01": "PG",  # Gary Payton
+    "brandte01": "PG",  # Terrell Brandon
+    "vanexni01": "PG",  # Nick Van Exel
+    "marbust01": "PG",  # Stephon Marbury
 }
 
 

@@ -12,6 +12,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css?v=20261017matchup1" />
   <link rel="stylesheet" href="css/home.css?v=20261021home1" />
+  <link rel="stylesheet" href="css/timeTravel.css?v=1" />
+  <link rel="stylesheet" href="css/gacha.css?v=1" />
+  <link rel="stylesheet" href="css/credits.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -87,56 +90,82 @@
             <input type="file" id="long-career-import-file" accept=".json" hidden />
           </div>
         </div>
-        <div class="mode-grid" aria-label="游戏模式">
-          <div class="mode-group-label">核心生涯 · 先从这里开始</div>
-          <button class="mode-card mode-card-feature" data-mode="timeTravel" data-legend="jordami01:1991">
-            <strong>穿越生涯</strong>
-            <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
-          </button>
-          <button class="mode-card mode-card-feature" data-mode="franchise" data-legend="curryst01:2016">
-            <strong>联盟经理</strong>
-            <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
-          </button>
-          <div class="mode-group-label">快速玩法 · 一局就懂</div>
-          <button class="mode-card mode-card-feature" data-mode="custom" data-legend="onealsh01:2000">
-            <strong>自定义对战</strong>
-            <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队淘汰赛 · 另含双人/传奇</span>
-          </button>
-          <details class="mode-card-variants">
-            <summary>更多单局玩法 · 与自定义对战同类</summary>
-            <div class="mode-grid mode-grid-nested">
-              <button class="mode-card" data-mode="draft" data-legend="antetgi01:2020">
-                <strong>选秀建队</strong>
-                <span>抽球员与教练，打一场完整模拟赛</span>
-              </button>
-              <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
-                <strong>快速演示</strong>
-                <span>系统自动组两队，立刻开打看指挥</span>
-              </button>
-            </div>
-          </details>
-          <button class="mode-card" data-mode="ranked" data-legend="bryanko01:2008">
-            <strong>排位赛</strong>
-            <span>用账号班底 + 教练/战术出战；胜负计入战绩，卡组不下线消失</span>
-          </button>
-          <button class="mode-card mode-card-feature" data-mode="season" data-legend="birdla01:1986">
-            <strong>常规赛征程</strong>
-            <span>32 队或穿越历史整年（如 1991：当年全联盟常规赛→季后赛，总决赛才可能遇乔丹）· 自命名拉斯维加斯队 · 评奖</span>
-          </button>
-          <button class="mode-card" data-mode="career" data-legend="jokicni01:2023">
-            <strong>金币晋级赛</strong>
-            <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
-          </button>
-          <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">
-            <strong>多人淘汰赛</strong>
-            <span>每轮多一次选人，一路打到总决赛</span>
-          </button>
+        <div class="home-category-tabs" role="tablist" aria-label="模式分类">
+          <button type="button" class="home-tab" data-category="players" role="tab">我的球员</button>
+          <button type="button" class="home-tab" data-category="career" role="tab">职业经理</button>
+          <button type="button" class="home-tab" data-category="custom" role="tab">自定义</button>
+        </div>
+
+        <div class="home-category-panel" data-category="players">
+          <p class="home-category-hint tiny">你的永久班底：抽卡、养成、排位。收藏、每日抽卡、技能商店在上方账号条里。</p>
+          <div class="mode-grid" aria-label="我的球员">
+            <button class="mode-card mode-card-feature" data-mode="ranked" data-legend="bryanko01:2008">
+              <strong>排位赛</strong>
+              <span>账号班底自动选最强 12 人（同一球员只上一张）· 赢金币 · 本命涨经验 · 连续爆发可领悟技能</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="home-category-panel" data-category="career">
+          <p class="home-category-hint tiny">长线经营：选秀、发展、市场补强、完整比赛与联盟历史。</p>
+          <div class="mode-grid" aria-label="职业经理">
+            <button class="mode-card mode-card-feature" data-mode="timeTravel" data-legend="jordami01:1991">
+              <strong>穿越生涯</strong>
+              <span>回到过去担任经理兼教练，用有限的未来知识改写五年历史</span>
+            </button>
+            <button class="mode-card mode-card-feature" data-mode="franchise" data-legend="curryst01:2016">
+              <strong>联盟经理</strong>
+              <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
+            </button>
+            <button class="mode-card" data-mode="season" data-legend="birdla01:1986">
+              <strong>单赛季快玩</strong>
+              <span>32 队或穿越历史整年（如 1991：常规赛→季后赛）· 自命名拉斯维加斯队 · 评奖</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="home-category-panel" data-category="custom">
+          <p class="home-category-hint tiny">天马行空：挑战之路的组队闯关，加上任意球员任意年份的自由对战。</p>
+          <div class="mode-grid" aria-label="自定义">
+            <div class="mode-group-label">挑战之路 · 组队闯关打历史强队</div>
+            <button class="mode-card mode-card-feature" data-mode="career" data-legend="jokicni01:2023">
+              <strong>金币晋级赛</strong>
+              <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
+            </button>
+            <button class="mode-card" data-mode="custom" data-legend="onealsh01:2000">
+              <strong>预算轮抽挑战</strong>
+              <span>15 块预算轮抽巅峰卡 → 挑战 32 支历史球队 · 另含双人/传奇</span>
+            </button>
+            <details class="mode-card-variants">
+              <summary>更多闯关规则</summary>
+              <div class="mode-grid mode-grid-nested">
+                <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">
+                  <strong>多人淘汰赛</strong>
+                  <span>每轮多一次选人，一路打到总决赛</span>
+                </button>
+                <button class="mode-card" data-mode="draft" data-legend="antetgi01:2020">
+                  <strong>选秀建队</strong>
+                  <span>抽球员与教练，打一场完整模拟赛</span>
+                </button>
+              </div>
+            </details>
+
+            <div class="mode-group-label">自由对战 · 自由度拉满</div>
+            <button class="mode-card mode-card-feature" data-mode="sandbox" data-legend="jamesle01:2013">
+              <strong>时空对决</strong>
+              <span>搜索任意球员任意年份组队：五个乔丹 vs 五个科比也行 · 可开跨时代平衡</span>
+            </button>
+            <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
+              <strong>快速演示</strong>
+              <span>系统自动组两队，立刻开打看指挥</span>
+            </button>
+          </div>
         </div>
       </section>
       <details class="hint-panel">
         <summary><h2>设计要点 · 玩法说明</h2></summary>
         <ul>
-          <li>球员带赛季年份与当季头像：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。</li>
+          <li>球员带赛季年份：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。头像是带署名的照片；没有照片的球员显示按队色生成的剪影（见页尾「图片来源与署名」）。</li>
           <li>命中率贴近真实：空位也会打铁；完整统计含盖帽、抢断、失误、罚球、前后场篮板、+/- 等。</li>
           <li>隐藏抽卡等级不会显示；巨星抱团不一定赢，化学反应与战术适配更重要。</li>
           <li>晋级/淘汰赛有伤病风险暗属性（如波尔津吉斯类「玻璃人」），连续作战可能伤停缺阵。</li>
@@ -150,13 +179,13 @@
           <li>按成名技术挂技能包：超巨/名人堂可有招牌绝技；另有组合技（空接之城、水花兄弟等，搭档同场才触发）与光环（潜能激发抬队友、防守统领抬全队防守）。</li>
           <li>出手按 2K 逻辑：投篮/三分倾向决定会不会投，能力值决定投得准不准；进攻方式（低位/定点/突破等）与强弱侧共同影响选择。</li>
           <li>本地账号班底：开局先发 7 张系统卡，看完后再自选 5 张；开局只有菜鸟教头。战术板已扩充（牛角/普林斯顿/五外/挡拆轰炸/换防等），每位教练擅长体系不同；名帅与超巨一样靠抽卡。</li>
-          <li>重复球员卡自动合并：该卡全部能力 +1（上限 100），并随机领悟技能（火锅大师 / 四分卫长传 / 场上指挥家 / 大心脏等）。单卡最多合并 20 次。</li>
+          <li>重复卡：抽到已有的同一张卡 → 升 1 星（★1–★5，每星全部能力 +1），并可在新旧两份成色里二选一；已满 ★5 再抽到 → 转成 2 个球魂。抽到已有球员的另一个赛季版本 → 照常入库，并额外得 1 个球魂。3 个球魂可给该球员的任意一张卡升 1 星，用球魂升到 ★5 时赠送一个技能（靠抽卡升到 ★5 不送）。技能只有三个来源：比赛表现领悟、技能碎片购买、★5 礼物；奖项只是荣誉，不送技能。</li>
           <li>球员能力按 NBA 2K 历年标尺从当季数据推算（得分/三分/中投/内线/防守等）；乔丹 91、詹皇巅峰等关键赛季用公开 2K 锚点校正。改完后若数值异常可点「清除名册本地缓存」重建。</li>
           <li>同一球员不同赛季卡会随年龄变化：新秀更快更有弹速，老将判断力/力量/传球/投篮手感与领袖气场、大心脏更强。</li>
           <li>技能≠能力：巨星也可能没有技能包；托尼·阿伦「缠绕盯防」、巴蒂尔「持球克星·3D」、慈世平/考辛斯「火爆脾气」等角色特质可挂在非巨星身上，并影响抢断、空位与技术犯规。</li>
         </ul>
       </details>
-      <p class="tiny home-cache-tools"><button type="button" class="btn small ghost" id="btn-clear-roster-cache" title="清除 Cache Storage + IndexedDB 名册缓存">清除名册本地缓存</button></p>
+      <p class="tiny home-cache-tools"><button type="button" class="btn small ghost" id="btn-open-credits">图片来源与署名</button> <button type="button" class="btn small ghost" id="btn-clear-roster-cache" title="清除 Cache Storage + IndexedDB 名册缓存">清除名册本地缓存</button></p>
     </main>
 
     <main id="screen-account" class="screen">
@@ -191,7 +220,9 @@
       </div>
       <div class="collection-summary" id="collection-summary"></div>
       <div class="collection-staff" id="collection-staff"></div>
+      <div id="collection-manage"></div>
       <h3 class="tiny" style="margin:16px 0 8px">赛季卡收藏</h3>
+      <div id="collection-filter"></div>
       <div id="collection-grid" class="card-row collection-grid"></div>
       <div class="actions" style="margin-top:16px">
         <button class="btn primary" id="btn-collection-draw">每日抽卡</button>
@@ -199,18 +230,45 @@
       </div>
     </main>
 
+    <main id="screen-credits" class="screen">
+      <div class="panel-head">
+        <h2>图片来源与署名</h2>
+        <button class="btn ghost" id="btn-credits-back">返回</button>
+      </div>
+      <div id="credits-body"></div>
+    </main>
+
     <main id="screen-draw" class="screen">
       <div class="panel-head">
         <h2>每日抽卡</h2>
         <button class="btn ghost" id="btn-draw-back">返回</button>
       </div>
-      <p class="tiny">每天免费 1 抽（约 20% 出教练卡）。球员按稀有度概率档抽取（全明星约 14%、超巨约 8%、传奇约 4%、神话约 2%），不因名册里垃圾卡多而额外压低好卡。重复折合金币。</p>
-      <div class="draw-stage" id="draw-stage">
-        <p class="tiny">点击下方按钮开包</p>
-      </div>
+      <div class="draw-banners" id="draw-banners" role="group" aria-label="选择卡池"></div>
+      <div id="draw-banner-explain" aria-live="polite"></div>
+      <div id="draw-status"></div>
       <div class="actions">
         <button class="btn primary" id="btn-draw-pull">抽取今日卡</button>
       </div>
+      <div class="draw-stage" id="draw-stage">
+        <p class="tiny">点击上方按钮开包</p>
+      </div>
+      <div id="draw-tasks"></div>
+      <div id="draw-rules"></div>
+      <details class="draw-wishlist" id="draw-wishlist">
+        <summary>心愿单 & 金币合成</summary>
+        <p class="tiny">指定 1 名想要的球员：抽到他所在档位时 30% 概率直接变成他，传奇保底时 50%；也可以花金币直接合成他的指定年份。</p>
+        <input id="wish-search" type="search" placeholder="搜球员：英文名 / 热门球星中文名 / 外号，如「Livingston」「利文斯顿」「黑曼巴」" aria-label="搜索心愿单球员" />
+        <div id="wish-panel"></div>
+      </details>
+    </main>
+
+    <main id="screen-sandbox" class="screen">
+      <div class="panel-head">
+        <h2>时空对决</h2>
+        <button class="btn ghost" id="btn-sandbox-back">返回</button>
+      </div>
+      <p class="tiny">自由度拉满：任意球员、任意年份、可以重复。五个 1991 乔丹 vs 五个 2006 科比？点「×5」就行。这是唯一允许同一球员重复上场的模式；结果不影响账号和存档。</p>
+      <div data-sandbox-body></div>
     </main>
 
     <main id="screen-custom-hub" class="screen">
@@ -232,6 +290,47 @@
           <strong>传奇八队</strong>
           <span>八支传奇球队历史球员轮抽组队</span>
         </button>
+        <button class="mode-card" id="btn-custom-father-son" type="button">
+          <strong>父子局</strong>
+          <span>老爸军团 vs 儿子军团，花金币从真实 NBA 父子档案里选人</span>
+        </button>
+        <button class="mode-card" id="btn-custom-brothers" type="button">
+          <strong>兄弟局</strong>
+          <span>真兄弟分在对面，字母哥、加索尔、霍乐迪都能自己人打自己人</span>
+        </button>
+      </div>
+    </main>
+
+    <main id="screen-family-duel" class="screen">
+      <div class="panel-head">
+        <h2 id="family-duel-title">父子局</h2>
+        <button class="btn ghost" id="btn-family-duel-back">返回</button>
+      </div>
+      <p class="tiny" id="family-duel-hint">花金币从各自的家族档案里选人，两队都满 5 人就能开打。</p>
+      <div class="market-grid family-duel-grid">
+        <div class="family-duel-side">
+          <h3 id="family-duel-name-a">老爸军团</h3>
+          <div class="tiny" id="family-duel-gold-a"></div>
+          <div class="btn-row">
+            <button class="btn small" id="btn-family-duel-refresh-a">刷新候选</button>
+            <button class="btn small" id="btn-family-duel-autofill-a">自动补满</button>
+          </div>
+          <div id="family-duel-roster-a" class="family-duel-roster"></div>
+          <div id="family-duel-shop-a" class="family-duel-shop"></div>
+        </div>
+        <div class="family-duel-side">
+          <h3 id="family-duel-name-b">儿子军团</h3>
+          <div class="tiny" id="family-duel-gold-b"></div>
+          <div class="btn-row">
+            <button class="btn small" id="btn-family-duel-refresh-b">刷新候选</button>
+            <button class="btn small" id="btn-family-duel-autofill-b">自动补满</button>
+          </div>
+          <div id="family-duel-roster-b" class="family-duel-roster"></div>
+          <div id="family-duel-shop-b" class="family-duel-shop"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-family-duel-start" disabled>开打</button>
       </div>
     </main>
 
@@ -648,12 +747,14 @@
           <div class="btn-row">
             <button class="btn ghost" id="btn-speed">速度 x1</button>
             <button class="btn ghost" id="btn-pause-sim">暂停模拟</button>
-            <button class="btn" id="btn-managed" type="button" title="FIFA 式智能托管：累了自动换人，状态差叫暂停，按对面调整基本攻防；节间自动处理并继续">智能托管：关</button>
+            <button class="btn ghost" id="btn-auto-offense" type="button" title="按比赛情况自动微调进攻战术/焦点。你仍可随时叫暂停接手">进攻托管：关</button>
+            <button class="btn ghost" id="btn-auto-defense" type="button" title="按对方核心自动调整盯防/包夹。你仍可随时叫暂停接手">防守托管：关</button>
+            <button class="btn ghost" id="btn-auto-rotation" type="button" title="不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回">沿用当前策略：关</button>
             <button class="btn warn" id="btn-quick-sim" type="button" title="用当前阵容与战术立刻打完剩余比赛（双方自动轮换）">快速模拟整场</button>
             <button class="btn primary" id="btn-save-game" type="button" title="保存比分、阵容与进度到本机，可关机离开后再继续">保存进度</button>
             <button class="btn ghost" id="btn-save-leave" type="button" title="保存后返回首页">保存并离开</button>
           </div>
-          <p class="tiny" id="managed-hint">托管关闭时由你亲自指挥。</p>
+          <p class="tiny" id="managed-hint">三个托管均关：进攻、防守、换人均由你亲自指挥。</p>
         </aside>
       </div>
 
@@ -706,10 +807,15 @@
     </main>
 
     <main id="screen-time-travel" class="screen">
-      <div class="panel-head">
-        <h2>穿越生涯 · 五年篇章</h2>
+      <div class="panel-head tt-hero">
+        <div>
+          <div class="tt-hero-kicker">COURTSIDE LEGENDS · TIME TRAVEL</div>
+          <h2>穿越生涯 · 五年篇章</h2>
+          <p class="tt-hero-sub">带着有限的未来知识，回到历史一年擅自执教一支球队。每个选择都会被记录进历史。</p>
+        </div>
         <button type="button" class="btn ghost" id="btn-time-travel-back">返回</button>
       </div>
+      <div id="time-travel-stepper" class="tt-stepper" hidden></div>
       <section id="time-travel-create" class="time-travel-create">
         <h3>选择历史起点</h3>
         <p class="tiny">带着有限的未来知识参加面试；不同理念会影响你与管理层共事的方式。</p>
@@ -731,7 +837,7 @@
       <p id="time-travel-status" class="tiny" role="status" aria-live="polite"></p>
       <section id="time-travel-offers" class="interview-grid" aria-label="球队面试邀请" hidden></section>
       <section id="time-travel-decision" class="story-decision" hidden>
-        <h3>第一次使用未来知识</h3>
+        <h3>🔮 第一次使用未来知识</h3>
         <p>新工作刚开始，你必须决定是否提前透露一些超越时代的判断。每次干预都会消耗筹码，也可能改变管理层与媒体的态度。</p>
         <div id="time-travel-resources" class="time-travel-resources"></div>
         <div class="story-choice-list">
@@ -750,20 +856,20 @@
         </div>
       </section>
       <section id="time-travel-event" class="story-event-card" hidden aria-live="polite">
-        <div class="story-event-kicker" id="time-travel-event-kicker">本季关键事件</div>
+        <div class="story-event-kicker" id="time-travel-event-kicker">✨ 本季关键事件</div>
         <h3 id="time-travel-event-title">—</h3>
         <p id="time-travel-event-prompt" class="tiny">—</p>
         <div id="time-travel-event-choices" class="story-choice-list"></div>
       </section>
       <section id="time-travel-report" class="story-report-card" hidden>
-        <div class="story-event-kicker">历史改写记录</div>
+        <div class="story-event-kicker">📜 历史改写记录</div>
         <p id="time-travel-report-text" class="tiny">—</p>
         <p id="time-travel-report-status" class="story-report-status">—</p>
         <ul id="time-travel-report-seasons" class="story-report-list"></ul>
         <ul id="time-travel-report-list" class="story-report-list"></ul>
       </section>
       <section id="time-travel-share" class="story-report-card" hidden>
-        <div class="story-event-kicker">结局分享卡 · 可直接截图</div>
+        <div class="story-event-kicker">🏅 结局分享卡 · 可直接截图</div>
         <div id="time-travel-share-card"></div>
         <div class="btn-row">
           <button type="button" class="btn small" id="btn-time-travel-share-copy">复制战报文字</button>
@@ -771,7 +877,7 @@
         </div>
       </section>
       <section id="time-travel-contract" class="story-event-card" hidden>
-        <div class="story-event-kicker">五年合同决定</div>
+        <div class="story-event-kicker">📝 五年合同决定</div>
         <h3 id="time-travel-contract-title">球队愿意继续合作吗？</h3>
         <p id="time-travel-contract-prompt" class="tiny">你的战绩、压力和特权会影响续约条件。</p>
         <div id="time-travel-contract-options" class="story-choice-list"></div>
@@ -937,6 +1043,6 @@
       }, 15000);
     })();
   </script>
-  <script type="module" src="js/app.js?v=20261017matchup1"></script>
+  <script type="module" src="js/app.js?v=20261023finals-bo3"></script>
 </body>
 </html>

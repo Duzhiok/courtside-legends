@@ -1,6 +1,5 @@
 import {
   accountToTeam,
-  canDailyDraw,
   coachRecordLabel,
   createAccount,
   deleteAccount,
@@ -8,7 +7,6 @@ import {
   getAccount,
   getActiveAccountId,
   listAccounts,
-  performDailyDraw,
   rarityLabel,
   recordRankedResult,
   resolveCoach,
@@ -22,7 +20,47 @@ import {
   setAccountTactic,
 } from "./data/account.js";
 import {
-  ASSISTANTS,
+  canDailyDraw,
+  craftWishCard,
+  drawAvailability,
+  pendingRollChoice,
+  performDailyDraw,
+  resolvePendingRoll,
+  setWishlist,
+  starUpWithSouls,
+} from "./data/accountGacha.js";
+import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js";
+import { searchPeople } from "./data/cardSearch.js";
+import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
+import { mountSandbox } from "./ui/sandboxView.js";
+import { grantWelcomeTickets, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
+import {
+  boughtSkillCount,
+  buyableSkills,
+  buySkillWithFragments,
+  codexProgress,
+  cardRoom,
+  junkIds,
+  recycleCards,
+  recycleValue,
+} from "./data/accountRecycle.js";
+import { manageBarHtml, recycleButtonHtml, skillShopHtml } from "./ui/collectionManageView.js";
+import { applyCollectionView, decadesOf, filterBarHtml, freshFilter, redundantIds } from "./ui/collectionFilter.js";
+import {
+  bannerExplainHtml,
+  bannerPickerHtml,
+  drawRevealHtml,
+  drawRulesHtml,
+  drawStatusHtml,
+  favoriteControlHtml,
+  tasksHtml,
+  hiddenBadgesHtml,
+  rollChoiceHtml,
+  soulButtonHtml,
+  soulStarNotice,
+  wishlistHtml,
+} from "./ui/gachaView.js";
+import {
   COACHES,
   TACTICS,
   applyCoachPhilosophy,
@@ -38,19 +76,14 @@ import {
 import { FRANCHISES, POS_SLOTS, playersForFranchise } from "./data/franchises.js";
 import {
   applyLineupPositionEffects,
-  isHiddenGem,
   isPlayerAvailable,
   marketMeta,
   playerPrice,
   rollAdvancementInjuries,
-  scoutLabel,
-  systemFitNote,
   topIntangibles,
-  valueLabel,
 } from "./data/intangibles.js";
 import {
   CUSTOM_BUDGET,
-  CUSTOM_REFRESH_COST,
   CUSTOM_ROSTER_SIZE,
   clearPeakPoolCache,
   customPriceOf,
@@ -58,6 +91,10 @@ import {
   listPaidPeaks,
 } from "./data/customPool.js";
 import { photoImg } from "./data/photo.js";
+import { LOCAL_AVATARS } from "./data/avatars.local.js";
+import { creditRows, creditsHtml } from "./ui/creditsView.js";
+import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
+import { shortfallLabel } from "./ui/shortfall.js";
 import {
   loadPlayers,
   overall,
@@ -81,7 +118,6 @@ import {
   writeSave,
 } from "./data/savegame.js";
 import {
-  ROOT_SAVE_VERSION,
   clearRootSave,
   createRootState,
   exportRootSave,
@@ -92,7 +128,6 @@ import {
 } from "./data/saveRoot.js";
 import {
   grantSkillToPlayer,
-  listAwardSkillCatalog,
   markPurchasedSkill,
   nonDuoSkillCount,
   purchasedSkillsRefund,
@@ -105,32 +140,59 @@ import {
   syncTeamDuoSkills,
 } from "./data/skills.js";
 import { lineupBallNote, lineupFit, teamChemistry } from "./engine/chemistry.js";
+import { shuffle } from "./core/seededRandom.js";
 import {
   acceptTradeProposal,
   declineTradeProposal,
   ensureTradeProposals,
   refreshTradeProposals,
 } from "./engine/tradeProposals.js";
-import { autoFillTeam, cpuUpgradeRoster, drawPack, teamPowerLabel } from "./engine/draft.js";
+import {
+  DRAFT_FREE_REFRESHES,
+  advanceTurn,
+  autoFillTeam,
+  customSideCanSpend,
+  customSpendPhaseDone,
+  draftRefreshCost,
+  drawPack,
+  isDraftDone,
+  pickCost,
+  teamPowerLabel,
+} from "./engine/draft.js";
 import {
   allPodsDone,
+  applyCareerInjuryWave,
   applyMatchResult,
   buildStagePods,
   careerStageLabel,
   collectAdvancers,
+  computeCareerAllTeam,
   findYourOpenMatch,
   finalizePod,
+  finalsSeriesLabel,
   kindLabel,
   listPodMatches,
   nextStageSize,
+  noteCareerAllTeamGame,
+  noteCareerLoss,
+  recordFinalsGame,
+  runCpuMatchInto,
+  startFinalsSeries,
+  upgradeCpuAdvancers,
+  yourCareerMatch,
   progressPodAfterMid,
   progressPodAfterOpeners,
 } from "./engine/careerBracket.js";
 import {
+  SCOUT_PACK_COST_MIN,
+  buildAffordableShop,
+  rollScoutPackOffer,
+  teamStarters,
+} from "./engine/careerEconomy.js";
+import {
   advanceLeagueOffseason,
   advancePlayoffs,
   advanceToUserGame,
-  claimAwardSkill,
   clearSeasonSave,
   buildCpuTeamForYear,
   computeFinalsAllTeam,
@@ -219,6 +281,16 @@ import {
 import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeComparison.js";
 import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
+import { wireHomeTabs } from "./ui/homeTabs.js";
+import {
+  FAMILY_DUEL_THEMES,
+  autoFillFamilySide,
+  buyIntoFamilySide,
+  familyDuelPool,
+  familyDuelReadyToStart,
+  familyDuelShop,
+  freshFamilySide,
+} from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
 import {
   SEASON_APRON,
@@ -273,20 +345,19 @@ import {
   ensurePlayerOrders,
   ensureRoles,
   getTempoDef,
+  groupByPosition,
   inferPlayerRole,
   markOrdersManual,
   markPlayPosManual,
+  nextEmptyPlayPos,
   normalizeTempo,
   ordersLabel,
   recommendPlayPos,
+  resolveStarterPositionCollisions,
   suggestedBallHandlerAction,
   usageForBallAction,
 } from "./engine/gameplan.js";
-import {
-  accumulateGameToAllTeamBoard,
-  allTeamFromRosters,
-  selectAllTeamByPos,
-} from "./engine/allTeam.js";
+import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos } from "./engine/matchups.js";
 import { CourtView } from "./engine/court.js";
 import { GameSim } from "./engine/sim.js";
 import {
@@ -306,9 +377,6 @@ const CAREER_ROUND_LABELS = {
   5: "总决赛 · 2进1",
 };
 
-const DRAFT_FREE_REFRESHES = 3;
-const DRAFT_REFRESH_COST = 40;
-
 const $ = (sel) => document.querySelector(sel);
 const screens = {
   loading: $("#screen-loading"),
@@ -316,6 +384,7 @@ const screens = {
   account: $("#screen-account"),
   onboard: $("#screen-onboard"),
   collection: $("#screen-collection"),
+  credits: $("#screen-credits"),
   draw: $("#screen-draw"),
   draft: $("#screen-draft"),
   customHub: $("#screen-custom-hub"),
@@ -327,6 +396,8 @@ const screens = {
   tournament: $("#screen-tournament"),
   season: $("#screen-season"),
   timeTravel: $("#screen-time-travel"),
+  sandbox: $("#screen-sandbox"),
+  familyDuel: $("#screen-family-duel"),
 };
 
 let state = {
@@ -335,6 +406,7 @@ let state = {
   setup: null,
   pendingMatch: null,
   career: null,
+  familyDuel: null,
   sim: null,
   speed: 1,
   tournament: null,
@@ -351,7 +423,9 @@ let state = {
   subOutId: null,
   subInId: null,
   onboard: null,
-  managed: false,
+  autoOffense: false,
+  autoDefense: false,
+  autoRotation: false,
 };
 let timeTravelPrologue = null;
 
@@ -608,15 +682,49 @@ function renderTimeTravelResources() {
   const story = state.story;
   const resources = $("#time-travel-resources");
   if (!resources || !story) return;
+  const trust = story.frontOfficeTrust ?? 0;
+  const pressure = story.mediaPressure ?? 0;
+  const divergence = story.timelineDivergence ?? 0;
+  const trustTone = trust >= 65 ? "good" : trust >= 35 ? "mid" : "bad";
+  const pressureTone = pressure >= 65 ? "bad" : pressure >= 35 ? "mid" : "good";
   resources.innerHTML = [
-    `未来知识 <strong>${story.futureKnowledge ?? 0}</strong>`,
-    `管理层信任 <strong>${story.frontOfficeTrust ?? 0}</strong>`,
-    `媒体压力 <strong>${story.mediaPressure ?? 0}</strong>`,
-    `时间线偏离 <strong>${story.timelineDivergence ?? 0}</strong>`,
-  ]
-    .map((item) => `<span>${item}</span>`)
-    .join("");
+    `<span class="tt-chip tt-chip-knowledge">🔮 未来知识 <strong>${story.futureKnowledge ?? 0}</strong></span>`,
+    ttMeterHtml("🤝 管理层信任", trust, trustTone),
+    ttMeterHtml("📰 媒体压力", pressure, pressureTone),
+    ttMeterHtml("🌀 时间线偏离", divergence, "accent"),
+  ].join("");
 }
+
+/** 单个资源进度条：0-100 夹位，超过 100 视觉上封顶但数字仍显示真实值 */
+function ttMeterHtml(label, value, tone) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  return `<span class="tt-meter"><span class="tt-meter-label">${label} <strong>${value}</strong></span><span class="tt-meter-track"><span class="tt-meter-fill tt-meter-${tone}" style="width:${pct}%"></span></span></span>`;
+}
+
+/** 年度进度条：5 个赛季 + 结局，已完成/当前/待进行三种状态 */
+function renderTimeTravelStepper() {
+  const box = $("#time-travel-stepper");
+  if (!box) return;
+  if (!state.leagueCareer || !state.story) {
+    box.hidden = true;
+    return;
+  }
+  const report = buildCareerReport(currentRootState());
+  const steps = [];
+  for (let year = 1; year <= report.maxSeasons; year++) {
+    const done = year <= report.seasonCount;
+    const current = year === report.seasonCount + 1 && !report.finished;
+    steps.push(
+      `<span class="tt-step ${done ? "done" : ""} ${current ? "current" : ""}"><span class="tt-step-dot">${done ? "✓" : year}</span><span class="tt-step-label">第${year}年</span></span>`
+    );
+  }
+  steps.push(
+    `<span class="tt-step ${report.finished ? "done current" : ""}"><span class="tt-step-dot">${report.finished ? "🏆" : "•"}</span><span class="tt-step-label">结局</span></span>`
+  );
+  box.hidden = false;
+  box.innerHTML = steps.join('<span class="tt-step-line"></span>');
+}
+
 
 function renderTimeTravelReport() {
   const card = $("#time-travel-report");
@@ -787,6 +895,7 @@ function renderTimeTravelStoryState({ showResolved = false } = {}) {
   if (decision) decision.hidden = !(pending || (showResolved && resolved));
   if (continueButton) continueButton.hidden = !state.leagueCareer || !!state.story?.pendingDecision;
   renderTimeTravelResources();
+  renderTimeTravelStepper();
   renderPendingStoryEvent();
   renderCareerContract();
   renderTimeTravelReport();
@@ -804,19 +913,25 @@ function renderTimeTravelOffers() {
     middle: "中游队",
     contender: "争冠队",
   };
+  const icons = {
+    rebuild: "🌱",
+    middle: "⚖️",
+    contender: "🏆",
+  };
   box.innerHTML = "";
   for (const offer of timeTravelPrologue.offers.slice(0, 3)) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "interview-offer";
     button.dataset.offerId = offer.id;
+    button.dataset.archetype = offer.archetype;
     button.setAttribute("aria-pressed", "false");
     button.setAttribute(
       "aria-label",
       `${offer.teamName}，${labels[offer.archetype]}面试邀请。${offer.summary}。首年目标：${offer.firstYearGoal}。权限 ${offer.authority}，信任 ${offer.trust}，压力 ${offer.pressure}`
     );
     button.innerHTML = `
-      <span>${labels[offer.archetype]}</span>
+      <span class="tt-offer-kicker">${icons[offer.archetype] || "🏀"} ${labels[offer.archetype]}</span>
       <strong>${offer.teamName}</strong>
       <span>${offer.summary}</span>
       <span>首年目标：${offer.firstYearGoal}</span>
@@ -1201,7 +1316,9 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
     const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";
     speedBtn.textContent = `速度 x${state.speed} · ${label}`;
   }
-  state.managed = !!sim.managed;
+  state.autoOffense = !!sim.autoOffense;
+  state.autoDefense = !!sim.autoDefense;
+  state.autoRotation = !!sim.autoRotation;
   syncManagedUI();
 
   const you = youSide === "home" ? sim.home : sim.away;
@@ -1263,7 +1380,11 @@ function continueFromSave() {
     state.mode = app.mode;
     state.lastMode = app.lastMode || app.mode;
     state.speed = app.speed || 1;
-    state.managed = !!app.managed;
+    // Legacy single-toggle saves: carry the old on/off forward as all three switches.
+    const legacyManaged = !!app.managed;
+    state.autoOffense = app.autoOffense != null ? !!app.autoOffense : legacyManaged;
+    state.autoDefense = app.autoDefense != null ? !!app.autoDefense : legacyManaged;
+    state.autoRotation = app.autoRotation != null ? !!app.autoRotation : legacyManaged;
     state.career = reviveCareer(app.career);
     state.tournament = app.tournament || null;
     state.legend = reviveLegend(app.legend);
@@ -1435,9 +1556,30 @@ function startMode(mode) {
     show("tournament");
     return;
   }
+  if (mode === "sandbox") {
+    openSandbox();
+    return;
+  }
   initDraft(mode);
   show("draft");
 }
+
+function openSandbox() {
+  mountSandbox({
+    root: screens.sandbox,
+    pool: () => PLAYERS,
+    ovrOf: overall,
+    esc,
+    onStart: (teamA, teamB) => {
+      state.mode = "sandbox";
+      state.lastMode = "sandbox";
+      state.career = null;
+      openSetup(teamA, teamB, "home");
+    },
+  });
+  show("sandbox");
+}
+$("#btn-sandbox-back")?.addEventListener("click", () => show("home"));
 
 $("#btn-custom-hub-back")?.addEventListener("click", () => show("home"));
 $("#btn-custom-budget")?.addEventListener("click", () => {
@@ -1457,6 +1599,121 @@ $("#btn-custom-legend")?.addEventListener("click", () => {
   state.lastMode = "legend";
   startLegendMode();
 });
+$("#btn-custom-father-son")?.addEventListener("click", () => startFamilyDuel("fatherSon"));
+$("#btn-custom-brothers")?.addEventListener("click", () => startFamilyDuel("brothers"));
+
+/**
+ * T2: 父子局 / 兄弟局 —— 两个完全自成一体的小模式，不走 state.career 那套 c.kind 状态机
+ * （那套 39+ 处判断都假设两队共享同一个候选池，象家局/兄弟局恰恰相反：甲队只能买爸爸、
+ * 乙队只能买儿子）。两边都由玩家自己花金币挑（跟「预算轮抽挑战」让玩家自己搭建两队是同一种
+ * 思路），选完点「开打」直接 openSetup(teamA, teamB, "home")——跟 quick/sandbox 模式一样的最简
+ * 入口，不进任何 bracket/duel 进程机制。
+ */
+function startFamilyDuel(theme) {
+  const meta = FAMILY_DUEL_THEMES[theme];
+  if (!meta) return;
+  const poolA = familyDuelPool(theme, "A");
+  const poolB = familyDuelPool(theme, "B");
+  state.familyDuel = {
+    theme,
+    poolA,
+    poolB,
+    sideA: freshFamilySide(meta.teamA),
+    sideB: freshFamilySide(meta.teamB),
+    shopA: familyDuelShop(poolA, new Set(), freshFamilySide(meta.teamA).gold),
+    shopB: familyDuelShop(poolB, new Set(), freshFamilySide(meta.teamB).gold),
+  };
+  $("#family-duel-title").textContent = meta.label;
+  $("#family-duel-name-a").textContent = meta.teamA;
+  $("#family-duel-name-b").textContent = meta.teamB;
+  renderFamilyDuel();
+  show("familyDuel");
+}
+
+function familyDuelCardRow(p, { onBuy } = {}) {
+  const price = playerPrice(p);
+  return `<div class="market-row">
+    ${photoImg(p)}
+    <div style="flex:1">
+      <strong>${p.name}</strong>
+      <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · <strong>¤${price}</strong></div>
+    </div>
+    ${onBuy ? `<button class="btn small" data-family-buy="${p.id}">买入</button>` : ""}
+  </div>`;
+}
+
+function renderFamilyDuel() {
+  const f = state.familyDuel;
+  if (!f) return;
+  for (const side of ["A", "B"]) {
+    const sideState = side === "A" ? f.sideA : f.sideB;
+    const pool = side === "A" ? f.poolA : f.poolB;
+    const shop = side === "A" ? f.shopA : f.shopB;
+    $(`#family-duel-gold-${side.toLowerCase()}`).textContent =
+      `金币 ¤${sideState.gold} · 已选 ${sideState.players.length}/12 · 候选池共 ${pool.length} 人`;
+    const rosterBox = $(`#family-duel-roster-${side.toLowerCase()}`);
+    rosterBox.innerHTML = sideState.players.length
+      ? sideState.players.map((p) => familyDuelCardRow(p)).join("")
+      : `<p class="tiny">还没选人——从下面的候选里买，或点「自动补满」。</p>`;
+    const shopBox = $(`#family-duel-shop-${side.toLowerCase()}`);
+    const owned = new Set(sideState.players.map((p) => p.id));
+    const buyable = shop.filter((p) => !owned.has(p.id));
+    shopBox.innerHTML = buyable.length
+      ? buyable.map((p) => familyDuelCardRow(p, { onBuy: true })).join("")
+      : `<p class="tiny">候选都买完了，点「刷新候选」换一批。</p>`;
+    shopBox.querySelectorAll("[data-family-buy]").forEach((btn) => {
+      btn.onclick = () => {
+        const player = shop.find((p) => p.id === btn.dataset.familyBuy);
+        const result = buyIntoFamilySide(sideState, player, pool);
+        if (!result.ok) {
+          alert(result.reason || "无法买入");
+          return;
+        }
+        renderFamilyDuel();
+      };
+    });
+  }
+  $("#btn-family-duel-start").disabled = !familyDuelReadyToStart(f.sideA, f.sideB);
+}
+
+$("#btn-family-duel-back")?.addEventListener("click", () => show("customHub"));
+$("#btn-family-duel-refresh-a")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  const owned = new Set(f.sideA.players.map((p) => p.id));
+  f.shopA = familyDuelShop(f.poolA, owned, f.sideA.gold);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-refresh-b")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  const owned = new Set(f.sideB.players.map((p) => p.id));
+  f.shopB = familyDuelShop(f.poolB, owned, f.sideB.gold);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-autofill-a")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  autoFillFamilySide(f.sideA, f.poolA);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-autofill-b")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  autoFillFamilySide(f.sideB, f.poolB);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-start")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f || !familyDuelReadyToStart(f.sideA, f.sideB)) return;
+  const teamA = { name: f.sideA.name, players: f.sideA.players, gold: 0 };
+  const teamB = { name: f.sideB.name, players: f.sideB.players, gold: 0 };
+  state.mode = "familyDuel";
+  state.lastMode = "familyDuel";
+  state.career = null;
+  state.familyDuel = null;
+  openSetup(teamA, teamB, "home");
+});
 
 $("#btn-draft-back").onclick = () => {
   if (state.mode === "custom" || state.lastMode === "custom") show("customHub");
@@ -1473,6 +1730,10 @@ $("#btn-setup-back").onclick = () => {
   }
   if (c?.kind === "duel") {
     openMarket({ duel: true });
+    return;
+  }
+  if (state.mode === "sandbox") {
+    show("sandbox");
     return;
   }
   show("home");
@@ -1509,6 +1770,7 @@ function requireAccountReady() {
     startOnboarding(acc);
     return null;
   }
+  grantWelcomeTickets(acc);
   return acc;
 }
 
@@ -1536,8 +1798,8 @@ function refreshAccountHomeBar() {
       : "请先完成开局：先看系统 7 人 → 自选 5 人 + 教练 + 战术";
   }
   if (drawBtn) {
-    drawBtn.disabled = !acc.onboardingDone || !dailyOk;
-    drawBtn.textContent = dailyOk ? "每日抽卡" : "今日已抽";
+    drawBtn.disabled = !acc.onboardingDone;
+    drawBtn.textContent = dailyOk ? "每日抽卡" : "抽卡 · 心愿单";
   }
 }
 
@@ -1604,6 +1866,8 @@ $("#btn-daily-draw")?.addEventListener("click", () => {
   openDailyDraw();
 });
 $("#btn-collection-back")?.addEventListener("click", () => show("home"));
+$("#btn-open-credits")?.addEventListener("click", openCredits);
+$("#btn-credits-back")?.addEventListener("click", () => show("home"));
 $("#btn-draw-back")?.addEventListener("click", () => {
   refreshAccountHomeBar();
   show("collection");
@@ -1627,7 +1891,7 @@ function onboardCardHtml(p, { selectable = false, selected = false } = {}) {
   const type = selectable ? ' type="button"' : "";
   const view = selectable ? "" : " view-only";
   return `<${el}${type} class="player-card${sel}${view}"${tag}>
-    ${photoImg(p, 56)}
+    ${photoImg(p, "headshot lg")}
     <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
     <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.twilight ? " · 头像为生涯照" : ""}</div>
   </${el}>`;
@@ -1804,6 +2068,75 @@ $("#btn-onboard-next")?.addEventListener("click", () => {
   openCollection();
 });
 
+let collectionFilter = freshFilter();
+let collectionCache = null;
+
+/** Cards the filter bar / grid work on, with the lookups the filter needs. */
+function collectionContext(acc, players) {
+  const junk = new Set(junkIds(acc));
+  return {
+    ovrOf: overall,
+    hiddenOf: (card) => card.hiddenRoll?.rating,
+    redundant: redundantIds(players, overall),
+    junk,
+    order: new Map((acc.playerIds || []).map((id, index) => [id, index])),
+  };
+}
+
+function paintCollectionGrid(acc, players) {
+  const grid = $("#collection-grid");
+  if (!grid) return;
+  const view = applyCollectionView(players, collectionFilter, collectionContext(acc, players));
+  const souls = acc.gacha?.souls || {};
+  grid.innerHTML = view.length
+    ? view
+        .map((p) => {
+          const ovr = overall(p);
+          return `<div class="player-card">
+          ${photoImg(p, "headshot lg")}
+          <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
+          <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
+          <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
+          ${skillChipsHtml(p)}
+          ${soulButtonHtml(p, souls[p.bref] || 0)}
+          ${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}
+          ${recycleButtonHtml(p, { isFavorite: acc.favoriteId === p.id })}
+        </div>`;
+        })
+        .join("")
+    : '<p class="tiny">没有符合条件的卡——放宽筛选试试。</p>';
+  const count = $("[data-cf-count]");
+  if (count) count.textContent = `显示 ${view.length}/${players.length} 张`;
+}
+
+function paintCollectionFilter(players) {
+  const box = $("#collection-filter");
+  if (box) box.innerHTML = filterBarHtml(collectionFilter, { shown: players.length, total: players.length, decades: decadesOf(players) }, esc);
+}
+
+$("#collection-filter")?.addEventListener("input", (event) => {
+  if (event.target.dataset.cf !== "query" || !collectionCache) return;
+  collectionFilter = { ...collectionFilter, query: event.target.value };
+  paintCollectionGrid(collectionCache.acc, collectionCache.players);
+});
+$("#collection-filter")?.addEventListener("change", (event) => {
+  const key = event.target.dataset.cf;
+  if (!key || key === "query" || !collectionCache) return;
+  const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+  collectionFilter = { ...collectionFilter, [key]: value };
+  paintCollectionGrid(collectionCache.acc, collectionCache.players);
+});
+
+/** Who took each photo we show, and under which licence (photoCredits.js). */
+function openCredits() {
+  const names = new Map();
+  for (const player of PLAYERS) if (!names.has(player.bref)) names.set(player.bref, player.name);
+  const rows = creditRows(undefined, (bref) => names.get(bref) || bref);
+  $("#credits-body").innerHTML = creditsHtml({ rows, localCount: Object.keys(LOCAL_AVATARS).length }, esc);
+  show("credits");
+  window.scrollTo(0, 0);
+}
+
 function openCollection() {
   const acc = requireAccountReady();
   if (!acc) return;
@@ -1870,89 +2203,235 @@ function openCollection() {
   }
   const grid = $("#collection-grid");
   if (grid) {
-    grid.innerHTML = players
-      .map((p) => {
-        const ovr = overall(p);
-        return `<div class="player-card">
-          ${photoImg(p, 56)}
-          <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.mergeLevel ? `<span class="tag-merge">合×${p.mergeLevel}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
-          <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
-          ${skillChipsHtml(p)}
-        </div>`;
-      })
-      .join("");
+    collectionCache = { acc, players };
+    paintCollectionFilter(players);
+    paintCollectionGrid(acc, players);
+    grid.onchange = (event) => {
+      const select = event.target.closest("[data-favorite]");
+      if (!select?.value) return;
+      try {
+        setFavorite(acc, select.dataset.favorite, select.value);
+        openCollection();
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+    grid.onclick = (event) => {
+      const recycle = event.target.closest("[data-recycle]");
+      if (recycle) {
+        recycleWithConfirm(acc, [recycle.dataset.recycle]);
+        return;
+      }
+      const button = event.target.closest("[data-soul-star]");
+      if (!button) return;
+      try {
+        const notice = soulStarNotice(starUpWithSouls(acc, button.dataset.soulStar));
+        if (notice) alert(notice);
+        openCollection();
+      } catch (error) {
+        alert(error.message);
+      }
+    };
   }
+  renderCollectionManage(acc, players);
   const drawBtn = $("#btn-collection-draw");
   if (drawBtn) {
-    drawBtn.disabled = !canDailyDraw(acc);
-    drawBtn.textContent = canDailyDraw(acc) ? "每日抽卡" : "今日已抽";
+    drawBtn.disabled = false;
+    drawBtn.textContent = canDailyDraw(acc) ? "去抽卡" : "抽卡 / 心愿单";
   }
   show("collection");
+}
+
+let shopCardId = "";
+
+function renderCollectionManage(acc, players) {
+  const box = $("#collection-manage");
+  if (!box) return;
+  const junk = junkIds(acc);
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const total = junk.reduce(
+    (sum, id) => {
+      const value = recycleValue(byId.get(id));
+      return { gold: sum.gold + value.gold, fragments: sum.fragments + value.fragments };
+    },
+    { gold: 0, fragments: 0 }
+  );
+  const shopCard = byId.get(shopCardId);
+  box.innerHTML =
+    manageBarHtml({ account: acc, codex: codexProgress(acc, PLAYERS), junk: { count: junk.length, ...total } }) +
+    skillShopHtml(
+      {
+        cards: players,
+        selectedId: shopCard ? shopCardId : "",
+        options: shopCard ? buyableSkills(shopCard) : [],
+        bought: shopCard ? boughtSkillCount(acc, shopCardId) : 0,
+        fragments: acc.fragments || 0,
+      },
+      esc
+    );
+}
+
+/** Recycle with a confirm that names the value; risky cards get a second, specific warning. */
+async function recycleWithConfirm(acc, ids) {
+  try {
+    const preview = resolvePlayers(ids, acc);
+    const gold = preview.reduce((sum, card) => sum + recycleValue(card).gold, 0);
+    const fragments = preview.reduce((sum, card) => sum + recycleValue(card).fragments, 0);
+    const names = preview.slice(0, 3).map((card) => card.name).join("、") + (preview.length > 3 ? ` 等 ${preview.length} 张` : "");
+    if (!(await confirmAction(`分解 ${names}？不可撤销，获得 ¤${gold} + ${fragments} 技能碎片。`, { title: "分解球员卡", acceptLabel: "分解" }))) return;
+    try {
+      recycleCards(acc, ids);
+    } catch (error) {
+      if (!error.needsConfirm) throw error;
+      const why = error.needsConfirm.map((c) => `${c.name}（${c.why.join("、")}）`).join("；");
+      if (!(await confirmAction(`注意：${why}。仍然分解吗？`, { title: "这些卡很可能值得留", acceptLabel: "仍然分解" }))) return;
+      recycleCards(acc, ids, { confirmed: true });
+    }
+    openCollection();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+$("#collection-manage")?.addEventListener("click", (event) => {
+  const acc = activeAccount();
+  if (!acc) return;
+  if (event.target.closest("[data-recycle-junk]")) {
+    recycleWithConfirm(acc, junkIds(acc));
+    return;
+  }
+  const buy = event.target.closest("[data-buy-skill]");
+  if (!buy) return;
+  try {
+    const skill = buySkillWithFragments(acc, shopCardId, buy.dataset.buySkill);
+    alert(`已学会「${skill.name}」（-${skill.cost} 碎片）`);
+    openCollection();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+$("#collection-manage")?.addEventListener("change", (event) => {
+  if (!event.target.matches("[data-shop-card]")) return;
+  shopCardId = event.target.value;
+  const acc = activeAccount();
+  if (acc) openCollection();
+});
+
+const drawView = () => ({ esc, photoImg, rarityClass, skillChipsHtml, ovrOf: overall });
+let drawBannerId = "standard";
+
+function renderDrawStatus(acc) {
+  const availability = drawAvailability(acc);
+  const wish = acc.gacha?.wishlist;
+  const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
+  $("#draw-status").innerHTML = drawStatusHtml(acc, availability, wishName, esc);
+  $("#draw-tasks").innerHTML = tasksHtml(taskBoard(acc));
+  const pull = $("#btn-draw-pull");
+  if (!pull) return;
+  const full = cardRoom(acc) <= 0;
+  pull.disabled = !availability.any || !!acc.pendingRoll || full;
+  pull.textContent = acc.pendingRoll
+    ? "先选择成色"
+    : full
+      ? "卡库已满 · 先去分解"
+      : availability.free
+        ? "免费抽卡"
+        : availability.tickets > 0
+          ? `用抽卡券（剩 ${availability.tickets}）`
+          : availability.canPay
+            ? `金币加抽（¤${availability.cost}）`
+            : "今日次数用完 · 打排位赚抽卡券";
+}
+
+function renderWishPanel(acc) {
+  const query = $("#wish-search")?.value || "";
+  const wish = acc.gacha?.wishlist;
+  $("#wish-panel").innerHTML = wishlistHtml(
+    {
+      people: query.trim() ? searchPeople(PLAYERS, query, { ovrOf: overall }) : [],
+      wishBref: wish || null,
+      wishName: wish ? PLAYERS.find((p) => p.bref === wish)?.name : null,
+      wishCards: wish ? PLAYERS.filter((p) => p.bref === wish).sort((a, b) => b.season - a.season) : [],
+      ownedIds: new Set(acc.playerIds || []),
+      gold: acc.gold || 0,
+    },
+    drawView()
+  );
+}
+
+let bannerStatsCache = { key: "", stats: {} };
+
+/** Banner buttons + the explanation of the selected one (pool facts, wished player). */
+function paintDrawBanners(acc) {
+  const banners = currentBanners();
+  const wish = acc.gacha?.wishlist || null;
+  const key = `${banners.map((banner) => banner.id).join("|")}|${wish}|${PLAYERS.length}`;
+  if (bannerStatsCache.key !== key) {
+    bannerStatsCache = {
+      key,
+      stats: Object.fromEntries(banners.map((banner) => [banner.id, bannerStats(PLAYERS, banner, overall, wish)])),
+    };
+  }
+  const days = daysUntilRotation();
+  const selected = banners.find((banner) => banner.id === drawBannerId) || banners[0];
+  const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
+  $("#draw-banners").innerHTML = bannerPickerHtml(banners, selected.id, esc, { stats: bannerStatsCache.stats, days });
+  $("#draw-banner-explain").innerHTML = bannerExplainHtml(selected, bannerStatsCache.stats[selected.id], { days, wishName }, esc);
 }
 
 function openDailyDraw() {
   const acc = requireAccountReady();
   if (!acc) return;
-  const stage = $("#draw-stage");
-  const pull = $("#btn-draw-pull");
-  if (stage) {
-    stage.innerHTML = canDailyDraw(acc)
-      ? `<p class="tiny">准备就绪——新卡入账；抽到已有卡会自动合并（全属性+1并随机领悟技能）。</p>`
-      : `<p class="tiny">今日已抽取。明天再来扩充班底。</p>`;
-  }
-  if (pull) {
-    pull.disabled = !canDailyDraw(acc);
-    pull.textContent = canDailyDraw(acc) ? "抽取今日卡" : "明日再来";
-  }
+  $("#draw-rules").innerHTML = drawRulesHtml();
+  paintDrawBanners(acc);
+  const choice = pendingRollChoice(acc);
+  $("#draw-stage").innerHTML = choice
+    ? `<p class="tiny">上次升星还没选成色：</p>${rollChoiceHtml(choice)}`
+    : `<p class="tiny">选好卡池后开包。</p>`;
+  renderDrawStatus(acc);
+  renderWishPanel(acc);
   show("draw");
 }
 
+$("#screen-draw")?.addEventListener("click", (event) => {
+  const acc = activeAccount();
+  if (!acc) return;
+  const target = event.target.closest("[data-banner],[data-roll-keep],[data-wish],[data-craft]");
+  if (!target) return;
+  try {
+    if (target.dataset.banner) {
+      drawBannerId = target.dataset.banner;
+      paintDrawBanners(acc);
+    } else if (target.dataset.rollKeep) {
+      const keepNew = target.dataset.rollKeep === "new";
+      resolvePendingRoll(acc, keepNew);
+      target.closest(".roll-choice").innerHTML = `<p class="tiny">已${keepNew ? "换成新" : "保留原"}成色。</p>`;
+    } else if (target.dataset.wish) {
+      setWishlist(acc, target.dataset.wish);
+      paintDrawBanners(acc);
+    } else if (target.dataset.craft) {
+      const { player, cost } = craftWishCard(acc, target.dataset.craft);
+      $("#draw-stage").innerHTML = `<p class="tiny">花费 ¤${cost} 合成 ${esc(player.name)}（${player.season}）——成色去「我的球员卡」揭晓。</p>`;
+    }
+    renderDrawStatus(acc);
+    renderWishPanel(acc);
+  } catch (error) {
+    alert(error.message);
+  }
+});
+$("#wish-search")?.addEventListener("input", () => {
+  const acc = activeAccount();
+  if (acc) renderWishPanel(acc);
+});
+
 $("#btn-draw-pull")?.addEventListener("click", () => {
   const acc = activeAccount();
-  if (!acc || !canDailyDraw(acc)) return;
+  if (!acc || !canDailyDraw(acc) || acc.pendingRoll || cardRoom(acc) <= 0) return;
   try {
-    const result = performDailyDraw(acc);
-    const stage = $("#draw-stage");
-    if (stage) {
-      if (result.kind === "coach") {
-        const c = result.coach;
-        stage.innerHTML = `<div class="draw-reveal">
-          <div class="name">${esc(c.name)}${result.rarity ? ` <span class="rarity-tag myth">${result.rarity}</span>` : ""}</div>
-          <div class="meta">${coachRecordLabel(c)}</div>
-          <p class="tiny">${esc(c.style)} · ${esc(c.note || "")}</p>
-          <p class="tiny">${
-            result.duplicate
-              ? `重复教练卡，折合 ¤${result.goldGain}`
-              : isLegendCoach(c)
-                ? "名帅卡入账！可在「我的球员卡」更换主教练"
-                : "新教练卡已加入教头收藏"
-          }</p>
-        </div>`;
-      } else {
-        stage.innerHTML = `<div class="draw-reveal">
-          ${photoImg(result.player, 96)}
-          <div class="name">${esc(result.player.name)}${result.rarity ? ` <span class="rarity-tag ${rarityClass(result.ovr)}">${result.rarity}</span>` : ""}</div>
-          <div class="meta">${result.player.season} · ${result.player.pos} · OVR ${result.ovr} · ${result.player.team || ""}</div>
-          <p class="tiny">${
-            result.merged && result.merge
-              ? `重复卡已合并！全属性 +1（合并×${result.merge.merges}）${
-                  result.merge.learnedName
-                    ? ` · 领悟「${esc(result.merge.learnedName)}」`
-                    : " · 可领悟技能已集齐"
-                }`
-              : result.duplicate
-                ? `重复卡已达合并上限，折合 ¤${result.goldGain}`
-                : "新卡已加入你的永久班底"
-          }</p>
-          ${result.merged ? skillChipsHtml(result.player) : ""}
-        </div>`;
-      }
-    }
-    const pull = $("#btn-draw-pull");
-    if (pull) {
-      pull.disabled = true;
-      pull.textContent = "今日已抽";
-    }
+    const result = performDailyDraw(acc, { bannerId: drawBannerId });
+    $("#draw-stage").innerHTML = drawRevealHtml(result, drawView());
+    renderDrawStatus(acc);
+    renderWishPanel(acc);
     refreshAccountHomeBar();
   } catch (e) {
     alert(e.message || "抽卡失败");
@@ -2049,21 +2528,6 @@ function initDraft(mode) {
   dealPack();
 }
 
-/** 自定义：某边是否还能从 5→1 价池里买人 */
-function customSideCanSpend(d, side) {
-  if (!d?.budgetMode) return false;
-  const team = d.teams[side];
-  if (!team || team.players.length >= d.picksPerSide) return false;
-  const gold = team.gold ?? 0;
-  if (gold <= 0) return false;
-  return listPaidPeaks(d.used).some((c) => customPriceOf(c.data) <= gold);
-}
-
-function customSpendPhaseDone(d = state.draft) {
-  if (!d?.budgetMode) return true;
-  return !customSideCanSpend(d, "A") && !customSideCanSpend(d, "B");
-}
-
 function updateCustomDraftChrome() {
   const d = state.draft;
   const packArea = document.querySelector(".pack-area");
@@ -2127,18 +2591,6 @@ function updateCustomDraftChrome() {
   }
 }
 
-function isDraftDone(d = state.draft) {
-  if (!d) return false;
-  return (
-    d.teams.A.players.length >= d.picksPerSide &&
-    d.teams.B.players.length >= d.picksPerSide &&
-    !!d.teams.A.coach &&
-    !!d.teams.B.coach &&
-    !!d.teams.A.assistant &&
-    !!d.teams.B.assistant
-  );
-}
-
 function dealPack() {
   const d = state.draft;
   if (!d || isDraftDone(d)) return;
@@ -2176,10 +2628,6 @@ function dealPack() {
   });
   renderPack();
   updateRefreshBtn();
-}
-
-function draftRefreshCost(d) {
-  return d?.budgetMode ? CUSTOM_REFRESH_COST : DRAFT_REFRESH_COST;
 }
 
 function updateRefreshBtn() {
@@ -2244,13 +2692,6 @@ $("#btn-refresh-pack").onclick = () => {
   refreshDraftUI();
 };
 
-/** Cost to acquire a player in current draft mode. */
-function pickCost(d, player) {
-  if (!d?.buyPlayers) return 0;
-  if (d.budgetMode) return customPriceOf(player);
-  return playerPrice(player);
-}
-
 function renderPack() {
   const d = state.draft;
   const box = $("#pack-cards");
@@ -2295,12 +2736,13 @@ function renderPack() {
         ? `${cost} 块${p.peakLabel ? " · 巅峰" : ""}`
         : `¤${playerPrice(p)}`;
       const compact = d.budgetMode && d.customPhase === "spend";
+      const valueTag = valueBadgeHtml(valueBadge(p)); // nothing while this card can still be picked
       el.innerHTML = `
         <div class="card-head">
           ${photoImg(p, compact ? "headshot" : "headshot lg")}
           <div>
             <div class="name">${p.name} <span class="pos-badge">${normalizePos(p.pos)}</span>${
-              valueLabel(p) ? ` <span class="value-badge ${p.valueArchetype}">${valueLabel(p)}</span>` : ""
+              valueTag ? ` ${valueTag}` : ""
             }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}</div>
             <div class="meta">${p.season} · ${p.team} · ${p.pos} · OVR ${overall(p)} · ${priceTxt}</div>
             <div class="meta tiny">${d.budgetMode ? `当前方剩余 ${gold} 块` : marketMeta(p)}</div>
@@ -2395,7 +2837,7 @@ function pickCard(card) {
       d.used.add(card.data.id);
       d.needCoach[side] = false;
     }
-    advanceTurn();
+    advanceTurn(d);
     if (d.budgetMode && d.customPhase === "spend" && customSpendPhaseDone(d)) {
       d.customPhase = "filler";
     }
@@ -2475,7 +2917,7 @@ function cpuPick() {
     } else {
       // Nothing to pick — skip CPU turn to avoid soft-lock
       console.warn("[draft] CPU pack empty, skipping turn");
-      advanceTurn();
+      advanceTurn(d);
       ensureStaffIfReady();
       refreshDraftUI();
       if (isDraftDone(d)) {
@@ -2486,32 +2928,10 @@ function cpuPick() {
   } catch (err) {
     console.error("[draft] cpuPick", err);
     d.picking = false;
-    advanceTurn();
+    advanceTurn(d);
     refreshDraftUI();
     dealPack();
   }
-}
-
-function advanceTurn() {
-  const d = state.draft;
-  if (d.budgetMode && d.customPhase === "spend") {
-    const other = d.turn === "A" ? "B" : "A";
-    if (customSideCanSpend(d, other)) {
-      d.turn = other;
-    } else if (customSideCanSpend(d, d.turn)) {
-      // 对方花光了，当前方继续花
-    } else {
-      d.customPhase = "filler";
-      d.turn = other; // 换边开始补 0 块
-    }
-  } else if (d.budgetMode && d.customPhase === "filler") {
-    const other = d.turn === "A" ? "B" : "A";
-    if (d.teams[other].players.length < d.picksPerSide) d.turn = other;
-    // 对方已满则本方继续补人
-  } else {
-    d.turn = d.turn === "A" ? "B" : "A";
-  }
-  d.round = Math.min(d.picksDone.A, d.picksDone.B) + 1;
 }
 
 function ensureStaffIfReady() {
@@ -2569,20 +2989,6 @@ function normalizePos(pos) {
   if (p.includes("C")) return "C";
   if (p.includes("F") && p.startsWith("P")) return "PF";
   return "SF";
-}
-
-function playerSlotPos(p) {
-  return normalizePos(p.playPos || p.pos);
-}
-
-/** Group players into five position buckets for draft/legend browsing. */
-function groupByPosition(players) {
-  const buckets = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
-  for (const p of players || []) {
-    const slot = playerSlotPos(p);
-    (buckets[slot] || buckets.SF).push(p);
-  }
-  return buckets;
 }
 
 function renderPosBoard(players, { usePlayPosLabel = false, editable = false } = {}) {
@@ -2772,15 +3178,6 @@ $("#btn-start-game").onclick = () => {
 
 // —— Career progression ——
 // —— Legend Mode ——
-function shuffleCopy(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 /** Same person across seasons — Mourning 1994 and 1995 share one key. */
 function legendPlayerKey(p) {
   return String(p.bref || p.nameEn || p.name || p.id)
@@ -2789,11 +3186,11 @@ function legendPlayerKey(p) {
 }
 
 function startLegendMode() {
-  const eight = shuffleCopy(FRANCHISES).slice(0, 8);
+  const eight = shuffle(FRANCHISES).slice(0, 8);
   state.legend = {
     franchises: eight,
     /** Shuffle once; consume without replacement until empty, then reshuffle. */
-    franchiseQueue: shuffleCopy(eight),
+    franchiseQueue: shuffle(eight),
     lastFranchiseId: null,
     roster: [],
     usedIds: new Set(),
@@ -2828,7 +3225,7 @@ function nextLegendFranchise() {
   const L = state.legend;
   if (!L.franchiseQueue.length) {
     // New cycle: reshuffle all eight; avoid immediately repeating the last team
-    let next = shuffleCopy(L.franchises);
+    let next = shuffle(L.franchises);
     if (L.lastFranchiseId && next.length > 1 && next[0].id === L.lastFranchiseId) {
       const swap = next.findIndex((f) => f.id !== L.lastFranchiseId);
       if (swap > 0) [next[0], next[swap]] = [next[swap], next[0]];
@@ -2867,8 +3264,8 @@ function rollLegendTeam() {
   markLegendFranchiseChips(L);
 
   const top = list.slice(0, 16);
-  const rest = shuffleCopy(list.slice(16)).slice(0, 10);
-  list = shuffleCopy([...top, ...rest]).slice(0, 18);
+  const rest = shuffle(list.slice(16)).slice(0, 10);
+  list = shuffle([...top, ...rest]).slice(0, 18);
 
   const box = $("#legend-pool");
   if (!list.length) {
@@ -3008,13 +3405,6 @@ function rollCareerStaffShops(c, { coaches = true, skills = true } = {}) {
     c.skillShopRecent = [...new Set([...recent, ...c.skillShop.map((x) => x.id)])].slice(-24);
   }
 }
-const SCOUT_PACK_COST_MIN = 70;
-const SCOUT_PACK_COST_MAX = 100;
-/** 换货时出现球探包的基础概率（新一轮 / 手动刷新都会重 roll，不是每轮必出） */
-const SCOUT_PACK_CHANCE = 0.28;
-/** 花钱刷新球员市场时略低，避免刷出来 */
-const SCOUT_PACK_REFRESH_CHANCE = 0.2;
-
 /** Gold cost to hire a coach in 晋级赛 (one-time buyout). */
 function careerCoachPrice(coach) {
   if (!coach) return 80;
@@ -3044,10 +3434,10 @@ function rollCareerCoachShop(c, size = 5) {
   const blocked = new Set([...(c.hiredCoachIds || [])]);
   if (c.team?.coach?.id) blocked.add(c.team.coach.id);
   if (c.team?.assistant?.id) blocked.add(c.team.assistant.id);
-  let pool = shuffleArr(COACHES.filter((x) => x?.id && !blocked.has(x.id)));
+  let pool = shuffle(COACHES.filter((x) => x?.id && !blocked.has(x.id)));
   if (pool.length < size) {
     // Allow previously fired staff back onto the board if pool is thin
-    pool = shuffleArr(COACHES.filter((x) => x?.id && x.id !== c.team?.coach?.id));
+    pool = shuffle(COACHES.filter((x) => x?.id && x.id !== c.team?.coach?.id));
   }
   const picks = [];
   for (const coach of pool) {
@@ -3098,7 +3488,6 @@ function hireCareerCoach(coachId) {
 function renderCareerCoachPanel(c) {
   const panel = $("#career-coach-panel");
   const shopBox = $("#career-coach-shop");
-  const skillBox = $("#career-skill-shop");
   const curEl = $("#career-coach-current");
   if (!panel || !shopBox) return;
   const show = c?.kind === "career";
@@ -3143,7 +3532,7 @@ function renderCareerCoachPanel(c) {
         <div class="tiny">${esc(offer.note || "")}</div>
         <button type="button" class="btn small primary" data-hire-career-coach="${offer.id}" ${
           can && !isCur ? "" : "disabled"
-        }>${isCur ? "已是主帅" : can ? `聘请 ¤${cost}` : `差钱 ¤${cost}`}</button>
+        }>${isCur ? "已是主帅" : can ? `聘请 ¤${cost}` : shortfallLabel(cost, gold)}</button>
       </div>`;
     })
     .join("");
@@ -3202,7 +3591,7 @@ function paintSkillShopRoot({ shop: skillBox, inv: invBox, hint }, c) {
         <div class="tiny">标价 ¤${cost}${offer.rarity === "mythic" ? " · 对齐超巨身价" : ""}</div>
         <button type="button" class="btn small primary" data-buy-skill="${offer.id}" ${
           canAfford ? "" : "disabled"
-        }>${canAfford ? `买入入库 ¤${cost}` : `差钱 ¤${cost}`}</button>
+        }>${canAfford ? `买入入库 ¤${cost}` : shortfallLabel(cost, gold)}</button>
       </div>`;
     })
     .join("") || `<p class="tiny">货架空了——可在市场刷新技能包。</p>`;
@@ -3455,7 +3844,11 @@ function forgetPlayerSkill(playerId, skillId) {
     alert("组合技不可手动卸下");
     return;
   }
-  if (!confirm(`卸下 ${player.name} 的「${pack.name}」？${(player.purchasedSkills || []).includes(skillId) ? "（已购技能退回技能库）" : ""}`)) {
+  if (!(player.purchasedSkills || []).includes(skillId)) {
+    alert(`「${pack.name}」是 ${player.name} 自带的技能（非购买获得），不能卸下`);
+    return;
+  }
+  if (!confirm(`卸下 ${player.name} 的「${pack.name}」？（已购技能退回技能库）`)) {
     return;
   }
   let returned = null;
@@ -3567,7 +3960,7 @@ function buildFranchiseRoster(franchise, used, n = 10, power = 0) {
   if (power > 0 && picks.length > n) {
     // Slightly deeper pool then keep top n after shuffle of top band
     const band = picks.slice(0, Math.min(picks.length, n + power * 3));
-    picks = shuffleArr(band).sort((a, b) => overall(b) - overall(a));
+    picks = shuffle(band).sort((a, b) => overall(b) - overall(a));
   }
   picks = picks.slice(0, n).map((p) => clonePlayer(p));
   for (const p of picks) used.add(p.id);
@@ -3711,7 +4104,7 @@ function bootCareerBracket({
     finals: startSize === 2,
     series: null,
     field,
-    alive: shuffleArr(field),
+    alive: shuffle(field),
     pods: [],
     roundMatches: [],
     bracketLog: [],
@@ -3847,7 +4240,7 @@ function beginCustomHistoricalCareer(draftTeam) {
   if (you.coach?.id) used.add(you.coach.id);
   if (you.assistant?.id) used.add(you.assistant.id);
 
-  const franchises = shuffleArr([...FRANCHISES]);
+  const franchises = shuffle([...FRANCHISES]);
   while (franchises.length < 31) {
     franchises.push({
       id: `X${franchises.length}`,
@@ -3878,68 +4271,11 @@ function beginCustomHistoricalCareer(draftTeam) {
   });
 }
 
-function shuffleArr(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 function careerRoundLabel(roundOrStage, finals = false) {
   const c = state.career;
   if (c?.stageSize) return careerStageLabel(c.stageSize, { finals: finals || c.stageSize === 2 });
   if (finals) return CAREER_ROUND_LABELS[5];
   return CAREER_ROUND_LABELS[roundOrStage] || `第 ${roundOrStage} 轮`;
-}
-
-function resolveTeamRef(c, teamLike) {
-  if (!teamLike) return null;
-  const id = teamLike.bracketId;
-  if (id === "you") return c.team;
-  return (c.alive || c.field || []).find((t) => t.bracketId === id) || teamLike;
-}
-
-function runCpuMatchInto(match) {
-  if (!match || match.done || match.yours) return;
-  const c = state.career;
-  const result = simulateCpuMatch(match.a, match.b);
-  applyMatchResult(match, result.winner);
-  match.score = result.score;
-  match.startersA = result.startersA;
-  match.startersB = result.startersB;
-  if (result.snap) noteCareerAllTeamGame(c, result.snap, match.a, match.b);
-  if (match.loser) noteCareerLoss(c, match.loser);
-}
-
-function noteCareerAllTeamGame(c, snap, homeTeam, awayTeam) {
-  if (!c || !snap) return;
-  if (!c.allTeamBoard) c.allTeamBoard = {};
-  accumulateGameToAllTeamBoard(c.allTeamBoard, snap, homeTeam, awayTeam);
-}
-
-/** 总决赛后：按 PG→C 评出本届最佳阵容 */
-function computeCareerAllTeam(c) {
-  if (!c) return [];
-  if (!c.allTeamBoard) c.allTeamBoard = {};
-  let team = selectAllTeamByPos(c.allTeamBoard);
-  if (team.length < 5) {
-    const finalsTeams = [];
-    if (c.team) finalsTeams.push(c.team);
-    for (const t of c.alive || []) {
-      if (t && !finalsTeams.some((x) => x.bracketId === t.bracketId)) finalsTeams.push(t);
-    }
-    const m = yourCareerMatch();
-    if (m?.a && !finalsTeams.some((x) => x.bracketId === m.a.bracketId)) finalsTeams.push(m.a);
-    if (m?.b && !finalsTeams.some((x) => x.bracketId === m.b.bracketId)) finalsTeams.push(m.b);
-    if (c.series?.opp && !finalsTeams.some((x) => x.bracketId === c.series.opp.bracketId)) {
-      finalsTeams.push(c.series.opp);
-    }
-    team = allTeamFromRosters(finalsTeams);
-  }
-  c.allTeam = team;
-  return team;
 }
 
 function renderResultAllTeam(team, title = "总决赛最佳阵容") {
@@ -3989,28 +4325,28 @@ function syncCareerMatchesFromPods() {
     for (const pod of c.pods) {
       if (pod.done) continue;
       if (pod.isFinal) {
-        runCpuMatchInto(pod.openerA);
+        runCpuMatchInto(c, pod.openerA);
         if (pod.openerA?.done) {
           finalizePod(pod);
           progressed = true;
         }
         continue;
       }
-      runCpuMatchInto(pod.openerA);
-      runCpuMatchInto(pod.openerB);
+      runCpuMatchInto(c, pod.openerA);
+      runCpuMatchInto(c, pod.openerB);
       const mid = progressPodAfterOpeners(pod);
       for (const m of mid) {
         if (!m.startersA) m.startersA = teamStarters(m.a);
         if (!m.startersB) m.startersB = teamStarters(m.b);
       }
-      runCpuMatchInto(pod.winnersMatch);
-      runCpuMatchInto(pod.revivalMatch);
+      runCpuMatchInto(c, pod.winnersMatch);
+      runCpuMatchInto(c, pod.revivalMatch);
       const dec = progressPodAfterMid(pod);
       for (const m of dec) {
         if (!m.startersA) m.startersA = teamStarters(m.a);
         if (!m.startersB) m.startersB = teamStarters(m.b);
       }
-      runCpuMatchInto(pod.deciderMatch);
+      runCpuMatchInto(c, pod.deciderMatch);
       if (pod.deciderMatch?.done) {
         finalizePod(pod);
         progressed = true;
@@ -4019,11 +4355,6 @@ function syncCareerMatchesFromPods() {
     if (!progressed) break;
   }
   c.roundMatches = listPodMatches(c.pods);
-}
-
-function noteCareerLoss(c, team) {
-  if (!c?.losses || !team?.bracketId) return;
-  c.losses[team.bracketId] = (c.losses[team.bracketId] || 0) + 1;
 }
 
 function seedCareerStage() {
@@ -4043,72 +4374,6 @@ function seedCareerStage() {
   const { pods } = buildStagePods(alive);
   c.pods = pods;
   syncCareerMatchesFromPods();
-}
-
-/** @deprecated name kept — seeds current stage pods */
-function seedCareerRound() {
-  seedCareerStage();
-}
-
-function teamStarters(team) {
-  if (!team?.players?.length) return [];
-  const healthy = team.players.filter(isPlayerAvailable);
-  const pool = healthy.length ? healthy : team.players;
-  if (team.starterIds?.length >= 5) {
-    const pick = team.starterIds.map((id) => team.players.find((p) => p.id === id)).filter(Boolean);
-    if (pick.length >= 5) return pick.slice(0, 5);
-  }
-  return [...pool].sort((a, b) => overall(b) - overall(a)).slice(0, 5);
-}
-
-function simulateCpuMatch(home, away) {
-  const h = {
-    ...home,
-    starterIds: teamStarters(home).map((p) => p.id),
-  };
-  const a = {
-    ...away,
-    starterIds: teamStarters(away).map((p) => p.id),
-  };
-  let finalSnap = null;
-  const sim = new GameSim({
-    home: h,
-    away: a,
-    youSide: "home",
-    injuries: true,
-    speed: 3,
-    onEvent: () => {},
-    onTick: () => {},
-    onEnd: (snap) => {
-      finalSnap = snap;
-    },
-  });
-  const snap = sim.runFast() || finalSnap || sim.snapshot();
-  const hs = snap.score.home;
-  const as = snap.score.away;
-  // Tie-break: higher team power
-  let winner = hs >= as ? home : away;
-  if (hs === as) winner = teamPowerLabel(home) >= teamPowerLabel(away) ? home : away;
-  return {
-    score: { home: hs, away: as },
-    winner,
-    snap,
-    startersA: snap.home?.onCourt?.length ? snap.home.onCourt.slice(0, 5) : teamStarters(home),
-    startersB: snap.away?.onCourt?.length ? snap.away.onCourt.slice(0, 5) : teamStarters(away),
-  };
-}
-
-function yourCareerMatch() {
-  const c = state.career;
-  if (c?.pods?.length) {
-    const open = findYourOpenMatch(c.pods);
-    if (open) return open;
-  }
-  return (
-    c?.roundMatches?.find((m) => m.yours && !m.done) ||
-    c?.roundMatches?.find((m) => m.yours) ||
-    null
-  );
 }
 
 function formatStarterLine(players) {
@@ -4203,29 +4468,6 @@ function slimMatchForLog(m) {
   };
 }
 
-function upgradeCpuAdvancers(c, survivors) {
-  // stageSize 仍是晋级前规模：32→16 时为 32；越深入 depth 越大
-  const depth = Math.max(0, 5 - Math.log2(Math.max(2, c.stageSize || 32)));
-  const randomField = c.fieldSource === "random";
-  const purseBase = randomField ? 200 : 140;
-  const purse = purseBase + depth * (randomField ? 95 : 55);
-  const passes = randomField ? 1 + Math.floor(depth) : 1; // 随机联队：越往后多轮换血
-  for (const t of survivors) {
-    if (!t?.isCpu) continue;
-    t.gold = (t.gold || 0) + purse + Math.floor(Math.random() * (randomField ? 120 : 80));
-    for (let i = 0; i < passes; i++) {
-      const spend = Math.min(
-        t.gold,
-        110 + Math.floor(purse * 0.75) + Math.floor(Math.random() * 70) + depth * 40
-      );
-      if (spend < 40) break;
-      const res = cpuUpgradeRoster(t, spend, c.used);
-      t.gold = Math.max(0, (t.gold || 0) - res.spent);
-    }
-    t.starterIds = null;
-  }
-}
-
 /** Archive finished stage and seed next (16/8/4/2). */
 function advanceCareerToNextStage() {
   const c = state.career;
@@ -4239,7 +4481,7 @@ function advanceCareerToNextStage() {
     t.bracketId === "you" ? c.team : t
   );
   upgradeCpuAdvancers(c, survivors);
-  c.alive = shuffleArr(survivors.filter((t) => t.bracketId === "you" || t.isCpu));
+  c.alive = shuffle(survivors.filter((t) => t.bracketId === "you" || t.isCpu));
   c.alive = c.alive.map((t) => (t.bracketId === "you" ? c.team : t));
   c.round = (c.round || 1) + 1;
   // 每一轮独立：负场清零，再输两场才出局
@@ -4263,9 +4505,31 @@ function advanceCareerToNextStage() {
 function resolveCareerYourResult(youWon, yourOpp) {
   const c = state.career;
   syncCareerMatchesFromPods();
-  const match = findYourOpenMatch(c.pods) || yourCareerMatch();
+  const match = findYourOpenMatch(c.pods) || yourCareerMatch(c);
   if (!match) {
     return { eliminated: !youWon, advancedStage: false, needAnotherGame: false, champion: false, match: null };
+  }
+  // 总决赛系列赛（三局两胜，T8）：未分胜负的场次只记系列赛比分，不结算 pod 的
+  // 总决赛 match——它保持 open，市场调整后下一场还打同一对；分出胜负时不清
+  // series（结算页要显示最终比分），最后一场走下面原有的单场结算分出夺冠/淘汰。
+  if (c.stageSize === 2 && yourOpp) {
+    if (!c.series || c.series.opp?.bracketId !== yourOpp.bracketId) {
+      c.series = startFinalsSeries(yourOpp);
+    }
+    const gameNo = (c.series.wins || 0) + (c.series.losses || 0) + 1;
+    const outcome = recordFinalsGame(c.series, youWon);
+    if (!outcome.done) {
+      return {
+        eliminated: false,
+        advancedStage: false,
+        needAnotherGame: false,
+        champion: false,
+        match,
+        seriesGame: true,
+        series: c.series,
+        gameNo,
+      };
+    }
   }
   const winner = youWon ? c.team : yourOpp;
   applyMatchResult(match, winner);
@@ -4274,7 +4538,7 @@ function resolveCareerYourResult(youWon, yourOpp) {
   syncCareerMatchesFromPods();
 
   const yourLosses = c.losses?.you || 0;
-  // 总决赛一败即出局；其他轮次两败出局
+  // 其他轮次两败出局；总决赛走到这里的是系列赛分出胜负的最后一场，赢=夺冠、输=出局
   const stillAlive = c.stageSize === 2 ? !!youWon : yourLosses < 2;
   const youAdvanced = (c.pods || []).some(
     (pod) => pod.done && (pod.advancers || []).some((t) => t.bracketId === "you")
@@ -4311,71 +4575,6 @@ function resolveCareerYourResult(youWon, yourOpp) {
     }
   }
   return { eliminated: false, advancedStage: false, needAnotherGame: false, champion: false, match };
-}
-
-/** Legacy wrapper used by older call sites — prefer resolveCareerYourResult. */
-function advanceCareerBracket(youWon, yourOpp) {
-  resolveCareerYourResult(youWon, yourOpp);
-}
-
-function budgetGold(c) {
-  if (c.kind === "duel") return Math.max(c.goldA || 0, c.goldB || 0);
-  return c.gold || 0;
-}
-
-/** Build a shop skewed toward what you can afford now. */
-function buildAffordableShop(c, size = 12) {
-  const exclude = c.used || new Set();
-  const budget = Math.max(80, budgetGold(c));
-  const pool = PLAYERS.filter((p) => !exclude.has(p.id) && !(c.shop || []).some((s) => s.id === p.id));
-  const priced = pool.map((p) => ({ p, price: playerPrice(p) }));
-  const cheap = priced.filter((x) => x.price <= budget * 0.55);
-  const mid = priced.filter((x) => x.price > budget * 0.55 && x.price <= budget);
-  const stretch = priced.filter((x) => x.price > budget && x.price <= budget * 1.35);
-  const gems = priced.filter((x) => isHiddenGem(x.p) && x.price <= budget * 1.2);
-
-  const pick = (arr, n) => {
-    const copy = [...arr];
-    const out = [];
-    while (copy.length && out.length < n) {
-      const i = Math.floor(Math.random() * copy.length);
-      out.push(copy.splice(i, 1)[0].p);
-    }
-    return out;
-  };
-
-  // Mostly buyable: 7 cheap + 4 mid + 1 stretch tease; sometimes seed hidden gems
-  let shop = [...pick(cheap, 7), ...pick(mid, 4), ...pick(stretch, 1)];
-  if (gems.length && Math.random() < 0.62) {
-    shop = [...pick(gems, Math.min(2, gems.length)), ...shop];
-  }
-  if (shop.length < size) {
-    shop = shop.concat(pick(priced, size - shop.length));
-  }
-  // de-dupe
-  const seen = new Set();
-  shop = shop.filter((p) => {
-    if (seen.has(p.id)) return false;
-    seen.add(p.id);
-    return true;
-  });
-  return shop.slice(0, size).map(clonePlayer);
-}
-
-/**
- * 每换一批货重新 roll：有时出球探包，有时没有（不是每轮必买）。
- * @param {"round"|"refresh"} reason
- */
-function rollScoutPackOffer(c, reason = "round") {
-  c.scoutActive = false;
-  const chance = reason === "refresh" ? SCOUT_PACK_REFRESH_CHANCE : SCOUT_PACK_CHANCE;
-  if (Math.random() >= chance) {
-    c.scoutOffer = null;
-    return;
-  }
-  const span = SCOUT_PACK_COST_MAX - SCOUT_PACK_COST_MIN;
-  const cost = SCOUT_PACK_COST_MIN + Math.floor(Math.random() * (span + 1));
-  c.scoutOffer = { cost, bought: false, reason };
 }
 
 function paintPendingChallengeBanner(c) {
@@ -4463,13 +4662,7 @@ function buyScoutPack() {
 }
 
 function shopRevealBadge(p, scoutActive) {
-  const pub = valueLabel(p);
-  if (pub) return `<span class="value-badge ${p.valueArchetype}">${pub}</span>`;
-  if (!scoutActive) return "";
-  const sc = scoutLabel(p);
-  if (!sc) return "";
-  const cls = sc === "妖人" ? "bargain" : "bench-bandit";
-  return `<span class="value-badge ${cls}">${sc}</span>`;
+  return valueBadgeHtml(valueBadge(p, { scouted: scoutActive }));
 }
 
 function openMarket({ career = false, duel = false, afterWin = false, refillShop = false } = {}) {
@@ -4638,7 +4831,8 @@ function marketOwnedCard(p, canSell, sideLabel = "") {
     skillRefund.gold > 0
       ? `（含技能变现 ¤${skillRefund.gold}）`
       : "";
-  const v = valueLabel(p);
+  const badge = valueBadge(p, { owned: true });
+  const v = badge?.text;
   const tips = topIntangibles(p, 3)
     .map((t) => `${t.name}${t.value}`)
     .join(" · ");
@@ -4660,7 +4854,7 @@ function marketOwnedCard(p, canSell, sideLabel = "") {
     ${photoImg(p)}
     <div class="market-owned-body">
       <div class="market-owned-head">
-        <strong>${p.name}${v ? ` <span class="value-badge ${p.valueArchetype}">${v}</span>` : ""}</strong>
+        <strong>${p.name}${v ? ` ${valueBadgeHtml(badge)}` : ""}</strong>
         ${posCtrl}
       </div>
       <div class="tiny">${p.season} · 原${p.pos} · OVR ${overall(p)}${inj}${
@@ -4896,7 +5090,7 @@ function paintFreeAgentList(c, duel = false) {
             ? `<button class="btn small" data-bid="${p.id}">加入竞价</button>`
             : `<button class="btn small ${afford ? "" : "buy-disabled"}" data-buy="${p.id}" ${
                 afford ? "" : "disabled"
-              }>${afford ? "买入" : `差钱 ¤${price}`}</button>`
+              }>${afford ? "买入" : shortfallLabel(price, budget)}</button>`
         }
       </div>`;
     })
@@ -5110,7 +5304,7 @@ $("#btn-market-done").onclick = () => {
       openSetup(c.team, c.series.opp, "home");
       return;
     }
-    const match = yourCareerMatch();
+    const match = yourCareerMatch(c);
     const opp = match ? (match.a.bracketId === "you" ? match.b : match.a) : null;
     if (!opp) {
       alert("对阵尚未生成，请重开晋级赛");
@@ -5166,24 +5360,29 @@ function openSetup(home, away, youSide) {
     $("#phil-stam").value = you.coach.buffs.stamina;
   }
   // 未手动改过的位置/倾向按属性推荐填充
-  // Season default rotation: restore starters / minutes / orders if saved
+  // Season default rotation: restore starters / minutes / orders from the LIVE team's current
+  // fields every time, never from the cached live.rotation snapshot. renderSeasonRotation()
+  // (默认轮换·实验板) mutates live.players[i].targetMinutes directly as the user drags a slider --
+  // it does NOT update live.rotation until the separate "保存默认轮换" button is clicked. If we
+  // trusted that stale snapshot here, an unsaved minutes edit would silently get reverted the
+  // moment the next game's setup opens, even though cloneSide() already copied the correct,
+  // up-to-date value onto `you` a moment earlier. Re-capturing fresh from `live` every time means
+  // there is nothing to go stale.
   if (state.season) {
     const live = state.season.teams[state.season.userTeamId];
-    if (live?.rotation) {
-      applyRotationPlan(you, live.rotation);
-      if (live.rotation.starterIds?.length === 5) {
-        state.setup.selected = new Set(live.rotation.starterIds.filter((id) => you.players.some((p) => p.id === id)));
+    if (live) {
+      const plan = captureRotationPlan(live, live.starterIds);
+      applyRotationPlan(you, plan);
+      if (plan.starterIds?.length === 5) {
+        state.setup.selected = new Set(plan.starterIds.filter((id) => you.players.some((p) => p.id === id)));
       }
-      if (live.rotation.phil) {
-        $("#phil-off").value = live.rotation.phil.offense ?? $("#phil-off").value;
-        $("#phil-def").value = live.rotation.phil.defense ?? $("#phil-def").value;
-        $("#phil-morale").value = live.rotation.phil.morale ?? $("#phil-morale").value;
-        $("#phil-stam").value = live.rotation.phil.stamina ?? $("#phil-stam").value;
-        if (live.rotation.phil.styleName) $("#phil-name").value = live.rotation.phil.styleName;
+      if (plan.phil) {
+        $("#phil-off").value = plan.phil.offense ?? $("#phil-off").value;
+        $("#phil-def").value = plan.phil.defense ?? $("#phil-def").value;
+        $("#phil-morale").value = plan.phil.morale ?? $("#phil-morale").value;
+        $("#phil-stam").value = plan.phil.stamina ?? $("#phil-stam").value;
+        if (plan.phil.styleName) $("#phil-name").value = plan.phil.styleName;
       }
-    } else if (live) {
-      // First game: seed from live roster fields
-      applyRotationPlan(you, captureRotationPlan(live, live.starterIds));
     }
   }
   syncPhilLabels();
@@ -5538,79 +5737,6 @@ function persistSeasonRotationFromTeam(youTeam, starterIds = null) {
   return true;
 }
 
-const MATCHUP_POS_ORDER = ["PG", "SG", "SF", "PF", "C"];
-const MATCHUP_NEAR_POS = {
-  PG: ["SG", "SF"],
-  SG: ["PG", "SF"],
-  SF: ["SG", "PF", "PG"],
-  PF: ["C", "SF"],
-  C: ["PF", "SF"],
-};
-
-function matchupPosOf(p) {
-  return normalizePos(p?.playPos || p?.pos);
-}
-
-function sortByMatchupPos(list) {
-  return [...(list || [])].sort((a, b) => {
-    const da = MATCHUP_POS_ORDER.indexOf(matchupPosOf(a));
-    const db = MATCHUP_POS_ORDER.indexOf(matchupPosOf(b));
-    return (da < 0 ? 99 : da) - (db < 0 ? 99 : db) || (b.defense || 0) - (a.defense || 0);
-  });
-}
-
-/** 同位置优先互防；同位置多人取防守更高者；再邻位，最后才随便补 */
-function buildSamePosMatchups(youPool, oppPool, saved = {}) {
-  const you = sortByMatchupPos(youPool);
-  const opp = sortByMatchupPos(oppPool);
-  const youById = new Map(you.map((p) => [p.id, p]));
-  const assignments = {};
-  const used = new Set();
-
-  const claim = (opId, defId) => {
-    if (!opId || !defId || used.has(defId) || !youById.has(defId)) return false;
-    assignments[opId] = defId;
-    used.add(defId);
-    return true;
-  };
-
-  // 保留玩家已选手动对位（含故意错位），只要防守人仍在名单里
-  for (const op of opp) {
-    const sid = saved[op.id];
-    if (!sid || !youById.has(sid) || used.has(sid)) continue;
-    claim(op.id, sid);
-  }
-
-  const pickBest = (op, pred) => {
-    const cands = you
-      .filter((p) => !used.has(p.id) && pred(p))
-      .sort((a, b) => (b.defense || 0) - (a.defense || 0) || overall(b) - overall(a));
-    return cands[0] || null;
-  };
-
-  // 1) 同位置
-  for (const op of opp) {
-    if (assignments[op.id]) continue;
-    const bp = matchupPosOf(op);
-    const hit = pickBest(op, (p) => matchupPosOf(p) === bp);
-    if (hit) claim(op.id, hit.id);
-  }
-  // 2) 邻位
-  for (const op of opp) {
-    if (assignments[op.id]) continue;
-    const near = MATCHUP_NEAR_POS[matchupPosOf(op)] || [];
-    const hit = pickBest(op, (p) => near.includes(matchupPosOf(p)));
-    if (hit) claim(op.id, hit.id);
-  }
-  // 3) 剩余
-  for (const op of opp) {
-    if (assignments[op.id]) continue;
-    const hit = pickBest(op, () => true);
-    if (hit) claim(op.id, hit.id);
-  }
-  return assignments;
-}
-
 function matchupOptionList(youPool, oppPlayer, selectedId) {
   const bp = matchupPosOf(oppPlayer);
   const near = MATCHUP_NEAR_POS[bp] || [];
@@ -5948,16 +6074,6 @@ function autoAssignUniquePositions(players) {
 }
 
 /** First empty PG–C slot, preferring natural position. */
-function nextEmptyPlayPos(picked, naturalPos) {
-  const used = new Set(picked.map((p) => normalizePos(p.playPos || p.pos)));
-  const nat = normalizePos(naturalPos);
-  if (!used.has(nat)) return nat;
-  for (const s of POS_SLOTS) {
-    if (!used.has(s.id)) return s.id;
-  }
-  return nat;
-}
-
 function setupPosSelectHtml(p) {
   const cur = normalizePos(p.playPos || p.pos);
   const nat = normalizePos(p.pos);
@@ -6064,25 +6180,6 @@ function findStackedStarter(picked) {
 }
 
 /** 把叠位的人自动挪到空位，避免「5 人但 SF 空着」。 */
-function resolveStarterPositionCollisions(picked) {
-  if (!picked?.length) return;
-  const byPos = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
-  for (const p of picked) {
-    const pos = normalizePos(p.playPos || p.pos);
-    (byPos[pos] || byPos.SF).push(p);
-  }
-  const empty = POS_SLOTS.map((s) => s.id).filter((id) => !byPos[id].length);
-  for (const s of POS_SLOTS) {
-    const list = byPos[s.id];
-    while (list.length > 1 && empty.length) {
-      const mover = list.pop();
-      const dest = empty.shift();
-      mover.playPos = dest;
-      byPos[dest].push(mover);
-    }
-  }
-}
-
 /** Drop player onto a starter slot (move / swap / replace). */
 function setupDropOntoSlot(you, playerId, slotPos) {
   const p = you.players.find((x) => x.id === playerId);
@@ -6327,9 +6424,9 @@ function renderSetupRoster() {
       } else if (state.setup.selected.size < 5) {
         const current = you.players.filter((x) => state.setup.selected.has(x.id));
         if (!p.playPosManual) {
-          p.playPos = nextEmptyPlayPos(current, recommendPlayPos(p));
+          p.playPos = nextEmptyPlayPos(current, p);
         } else {
-          p.playPos = nextEmptyPlayPos(current, p.playPos || p.pos);
+          p.playPos = nextEmptyPlayPos(current, p, p.playPos || p.pos);
         }
         state.setup.selected.add(id);
         const five = you.players.filter((x) => state.setup.selected.has(x.id));
@@ -6459,8 +6556,10 @@ function beginGame(homeTeam, awayTeam, youSide) {
     quickBtn.disabled = false;
     quickBtn.hidden = false;
   }
-  // Keep last managed preference across tip-offs in the same session
-  if (state.managed == null) state.managed = false;
+  // Keep last autopilot preference across tip-offs in the same session
+  if (state.autoOffense == null) state.autoOffense = false;
+  if (state.autoDefense == null) state.autoDefense = false;
+  if (state.autoRotation == null) state.autoRotation = false;
 
   const sim = new GameSim({
     home: homeTeam,
@@ -6498,7 +6597,9 @@ function beginGame(homeTeam, awayTeam, youSide) {
   initFocusAndPacksUI(homeTeam, awayTeam, youSide);
 
   // Start clock first so a court/UI paint error cannot leave the sim dead.
-  if (state.managed) sim.setManaged(true);
+  if (state.autoOffense) sim.setAutoOffense(true);
+  if (state.autoDefense) sim.setAutoDefense(true);
+  if (state.autoRotation) sim.setAutoRotation(true);
   syncManagedUI();
   syncPauseUI(sim.snapshot());
   sim.start();
@@ -7292,7 +7393,7 @@ function resumeGame() {
 $("#btn-timeout").onclick = () => {
   if (!state.sim || state.sim.paused) return;
   // 托管开着时也允许你亲自叫停；暂停会停住（助手不再自动续上）
-  if (state.sim.managed) {
+  if (state.sim.isAutopilotOn()) {
     pushFeed("coach", "你叫了暂停——本回合由你指挥；托管仍开着，节间还会自动处理");
   }
   state.sim.callTimeout();
@@ -7499,63 +7600,78 @@ $("#btn-speed").onclick = () => {
   $("#btn-speed").textContent = `速度 x${state.speed} · ${label}`;
 };
 
+const AUTOPILOT_BUTTONS = [
+  { btn: "#btn-auto-offense", stateKey: "autoOffense", setter: "setAutoOffense", label: "进攻托管" },
+  { btn: "#btn-auto-defense", stateKey: "autoDefense", setter: "setAutoDefense", label: "防守托管" },
+  { btn: "#btn-auto-rotation", stateKey: "autoRotation", setter: "setAutoRotation", label: "沿用当前策略" },
+];
+
 function syncManagedUI() {
-  const on = state.sim ? !!state.sim.managed : !!state.managed;
-  state.managed = on;
-  const btn = $("#btn-managed");
   const hint = $("#managed-hint");
-  if (btn) {
+  const onLabels = [];
+  for (const { btn: sel, stateKey, label } of AUTOPILOT_BUTTONS) {
+    const on = state.sim ? !!state.sim[stateKey] : !!state[stateKey];
+    state[stateKey] = on;
+    if (on) onLabels.push(label);
+    const btn = $(sel);
+    if (!btn) continue;
     btn.disabled = !state.sim;
-    btn.textContent = on ? "智能托管：开" : "智能托管：关";
+    btn.textContent = `${label}：${on ? "开" : "关"}`;
     btn.classList.toggle("primary", on);
     btn.classList.toggle("ghost", !on);
-    btn.title = on
-      ? "点击关闭托管，重新由你指挥（叫暂停不会被助手立刻续上）"
-      : "FIFA 式智能托管：累了换人，节间自动处理；你仍可叫暂停接手";
   }
   if (hint) {
-    hint.textContent = on
-      ? "托管中：自动轮换/盯防 · 节间中场自动继续 · 你点「叫暂停」会停住并由你指挥"
-      : "托管关闭时由你亲自指挥。可随时开启，类似 FIFA 助理教练。";
+    hint.textContent = onLabels.length
+      ? `已开：${onLabels.join(" / ")} · 节间中场自动继续 · 你点「叫暂停」会停住并由你指挥`
+      : "三个托管均关：进攻、防守、换人均由你亲自指挥。可单独或组合开启，其中「沿用当前策略」只换人不改战术。";
   }
 }
 
 // 用 onclick 覆盖，避免脚本重复加载时叠多个 listener 导致「点关又弹开」
-$("#btn-managed").onclick = () => {
-  if (!state.sim) {
-    pushFeed("coach", "比赛开始后才能开关智能托管");
-    return;
-  }
-  const next = !state.sim.managed;
-  state.sim.setManaged(next);
-  state.managed = next;
-  syncManagedUI();
-  if (!next && state.sim.paused) {
-    syncPauseUI(state.sim.snapshot());
-    pushFeed("coach", "托管已关——可继续调整，或点「继续比赛」");
-  }
-};
+for (const { btn: sel, stateKey, setter } of AUTOPILOT_BUTTONS) {
+  const el = $(sel);
+  if (!el) continue;
+  el.onclick = () => {
+    if (!state.sim) {
+      pushFeed("coach", "比赛开始后才能开关托管");
+      return;
+    }
+    const next = !state.sim[stateKey];
+    state.sim[setter](next);
+    state[stateKey] = next;
+    syncManagedUI();
+    if (!next && state.sim.paused) {
+      syncPauseUI(state.sim.snapshot());
+      pushFeed("coach", "托管已关——可继续调整，或点「继续比赛」");
+    }
+  };
+}
 
 /** Instant-sim the rest of the live game with auto rotation on both sides. */
 $("#btn-quick-sim").onclick = () => {
   const sim = state.sim;
   if (!sim || !sim.running) return;
+  const anyOn = sim.isAutopilotOn();
   const ok = window.confirm(
     "将用当前阵容、战术与指令立刻打完剩余比赛。\n" +
-      (sim.managed
-        ? "智能托管会继续自动轮换并调整基本攻防。\n"
-        : "将自动轮换疲劳球员（建议先开智能托管以获得更完整的临场调整）。\n") +
+      (anyOn
+        ? "已开的托管会继续自动处理。\n"
+        : "将临时全开托管（进攻/防守/换人）以自动轮换疲劳球员。\n") +
       "期间无法再手动干预。确定？"
   );
   if (!ok) return;
   const btn = $("#btn-quick-sim");
   if (btn) btn.disabled = true;
   // Quiet sim still benefits from manager logic if enabled
-  if (!sim.managed) {
-    sim.setManaged(true);
-    state.managed = true;
+  if (!anyOn) {
+    sim.setAutoOffense(true);
+    sim.setAutoDefense(true);
+    sim.setAutoRotation(true);
+    state.autoOffense = true;
+    state.autoDefense = true;
+    state.autoRotation = true;
     syncManagedUI();
-    pushFeed("coach", "快速模拟已临时开启智能托管");
+    pushFeed("coach", "快速模拟已临时全开托管");
   }
   pushFeed("coach", "快速模拟整场——托管助手接管剩余比赛…");
   try {
@@ -7662,6 +7778,14 @@ function showResult(snap, { formNotes = [] } = {}) {
 
   const cont = $("#btn-result-continue");
   cont.hidden = true;
+  // Every entry to the result screen starts from a clean baseline — branches below may hide
+  // this again when #btn-result-continue is ALSO doing "go home" (see handleCareerResult),
+  // otherwise you'd see two buttons both saying 回主页 at once.
+  const homeBtnReset = $("#btn-home");
+  if (homeBtnReset) {
+    homeBtnReset.hidden = false;
+    homeBtnReset.onclick = () => show("home");
+  }
   setResultActionMode("quick");
 
   if (isSeasonProgressMode(state.mode) && state.season && state.seasonPendingGame) {
@@ -7674,7 +7798,7 @@ function showResult(snap, { formNotes = [] } = {}) {
     return;
   }
   if (state.career?.kind === "ranked") {
-    handleRankedResult(youWin);
+    handleRankedResult(youWin, snap);
     return;
   }
   if (state.career?.kind === "career") {
@@ -7690,6 +7814,23 @@ function showResult(snap, { formNotes = [] } = {}) {
       state.career.goldA += youSide === "home" ? (youWin ? 350 : 120) : youWin ? 120 : 350;
       state.career.goldB += youSide === "away" ? (youWin ? 350 : 120) : youWin ? 120 : 350;
       openMarket({ duel: true, afterWin: true });
+    };
+    return;
+  }
+  // Safety net for user report #10 ("没有继续按钮，只能回主页"): every known game type above either
+  // handles its own continue button or returns early. If we ever reach here while the player is
+  // mid leagueCareer (franchise or time-travel) through some game-starting path none of the
+  // branches above recognize, falling all the way through used to leave 回主页 as the ONLY option
+  // -- silently stranding the player instead of taking them back into their career. Always wire a
+  // safe continue back into the career/season hub instead of doing nothing.
+  if (state.leagueCareer) {
+    setResultActionMode("season", { showContinue: true, continuePrimary: true });
+    cont.hidden = false;
+    cont.textContent = "继续";
+    cont.onclick = () => {
+      state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
+      renderSeasonHub();
+      show("season");
     };
   }
 }
@@ -8187,7 +8328,6 @@ function renderSeasonMarket() {
   const rosterRows = [...(you.players || [])]
     .sort((a, b) => overall(b) - overall(a))
     .map((p) => {
-      const sal = playerSalary(p);
       return `<div class="sm-row">
         <div>
           <strong>${p.playPos || p.pos} ${p.name}</strong>
@@ -8636,84 +8776,13 @@ function awardLine(a) {
   return `${a.name}（${a.teamName}）· ${a.ppg}分 ${a.rpg}板 ${a.apg}助 · ${a.gp}场`;
 }
 
-function renderAwardSkillRewards(st) {
-  const rewards = st.awardSkillRewards || [];
-  if (!rewards.length) {
-    return `<div class="season-award-card"><h4>我方评奖技能奖励</h4><p class="tiny">本赛季暂无我方球员获奖。MVP / DPOY / 一阵 / 最佳防守一阵等均可各领一次任意技能包。</p></div>`;
-  }
-  const team = st.teams[st.userTeamId];
-  const rows = rewards
-    .map((r) => {
-      const p = team?.players?.find((x) => x.id === r.playerId);
-      if (r.claimed) {
-        return `<div class="award-skill-row claimed">
-          <div><strong>${r.playerName}</strong> · ${r.awardName}
-            <div class="tiny award-claimed-skill">本次奖励领取：<strong>${r.skillName || SKILL_PACKS[r.skillId]?.name || r.skillId}</strong></div>
-            <div class="tiny">领取前已有：${(r.previousSkillIds || []).map((id) => SKILL_PACKS[id]?.name || id).join("、") || "无"}</div>
-            ${p?.skills?.length ? `<div class="tiny">当前全部技能</div><div class="skill-row compact">${skillChipsHtml(p)}</div>` : ""}
-          </div>
-          <span class="tiny">✓</span>
-        </div>`;
-      }
-      const catalog = listAwardSkillCatalog(p?.skills || []);
-      const avail = catalog.available;
-      const owned = catalog.owned;
-      const ownedOpts = owned.length
-        ? `<optgroup label="已拥有（${owned.length}）不可再领">
-            ${owned
-              .map(
-                (s) =>
-                  `<option value="${s.id}" disabled>✓ ${esc(s.name)} — ${esc(s.desc)}</option>`
-              )
-              .join("")}
-          </optgroup>`
-        : "";
-      const availOpts = avail.length
-        ? `<optgroup label="可学习（${avail.length}）">
-            ${avail
-              .map(
-                (s) =>
-                  `<option value="${s.id}">○ ${esc(s.name)} — ${esc(s.desc)}</option>`
-              )
-              .join("")}
-          </optgroup>`
-        : `<option value="">（已学会全部可选技能）</option>`;
-      const haveHtml = p?.skills?.length
-        ? `<div class="tiny">当前技能</div><div class="skill-row compact">${skillChipsHtml(p)}</div>`
-        : `<div class="tiny muted">当前无技能</div>`;
-      const ownedNames = owned.map((s) => s.name).join("、") || "无";
-      return `<div class="award-skill-row" data-reward-id="${r.id}">
-        <div><strong>${esc(r.playerName)}</strong> · ${esc(r.awardName)}
-          <div class="tiny">获奖奖励：自选一个尚未拥有的技能包</div>
-          ${haveHtml}
-          <div class="tiny award-skill-owned-hint">已有：${esc(ownedNames)} · 还可学 ${avail.length} 个</div>
-        </div>
-        <div class="award-skill-pick">
-          <select class="award-skill-select" ${avail.length ? "" : "disabled"}>
-            ${availOpts}${ownedOpts}
-          </select>
-          <button type="button" class="btn small primary award-skill-claim" ${
-            avail.length ? "" : "disabled"
-          }>领取</button>
-        </div>
-      </div>`;
-    })
-    .join("");
-  const pending = rewards.filter((r) => !r.claimed).length;
-  return `<div class="season-award-card award-skill-panel">
-    <h4>我方评奖技能奖励${pending ? ` · 待领 ${pending}` : " · 已领完"}</h4>
-    <p class="tiny">我方球员每获一项个人/阵容奖（如最佳防守），可自选安装一个技能包。下拉列表里「○」为未学会，「✓」为已有（不可重复领取）。</p>
-    ${rows}
-  </div>`;
-}
-
 function renderSeasonAwards() {
   const st = state.season;
   const box = $("#season-awards");
   if (!st || !box) return;
   const a = st.awards;
   if (!a) {
-    box.innerHTML = `<p class="tiny">打完 82 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。我方获奖可领任意技能包。</p>`;
+    box.innerHTML = `<p class="tiny">打完 82 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。奖项只是荣誉，不送技能。</p>`;
     return;
   }
   const teamList = (list, label) =>
@@ -8721,7 +8790,6 @@ function renderSeasonAwards() {
       .map((p) => `<span>${p.pos || ""} ${p.name} <em class="tiny">${p.teamName}</em></span>`)
       .join("") || "—"}</div></div>`;
   box.innerHTML = `
-    ${renderAwardSkillRewards(st)}
     <div class="season-award-card"><h4>常规赛 MVP</h4><p>${awardLine(a.mvp)}</p></div>
     <div class="season-award-card"><h4>最佳防守球员 DPOY</h4><p>${awardLine(a.dpoy)}</p></div>
     <div class="season-award-card"><h4>最佳第六人</h4><p>${awardLine(a.sixthMan)}</p></div>
@@ -8744,28 +8812,7 @@ function renderSeasonAwards() {
       }</button>
     </div>
   `;
-  box.querySelectorAll(".award-skill-claim").forEach((btn) => {
-    btn.onclick = () => {
-      const row = btn.closest("[data-reward-id]");
-      const rewardId = row?.dataset.rewardId;
-      const sel = row?.querySelector(".award-skill-select");
-      const skillId = sel?.value;
-      if (!rewardId || !skillId) return;
-      const res = claimAwardSkill(st, rewardId, skillId);
-      if (!res.ok) {
-        alert(res.reason || "领取失败");
-        return;
-      }
-      if (!saveSeasonAndCareer(st)) return;
-      alert(`${res.player.name} 学会了「${res.skillName}」！`);
-      renderSeasonAwards();
-    };
-  });
   $("#btn-season-to-playoffs")?.addEventListener("click", () => {
-    const pending = (st.awardSkillRewards || []).filter((r) => !r.claimed);
-    if (pending.length && !confirm(`还有 ${pending.length} 个评奖技能未领取，确定先去季后赛？`)) {
-      return;
-    }
     if (st.phase === "awards" || st.phase === "regular") {
       startPlayoffs(st);
       st.phase = "playoffs";
@@ -8923,6 +8970,7 @@ function renderSeasonPlayoffs() {
           prepareCareerOffseason,
         );
         commitManagedCareer(next, "draftBoard");
+        recordChallengeProgress(activeAccount(), "leagueSeason");
       } catch (error) {
         alert(error?.message || "无法进入休赛期选秀");
       }
@@ -8941,6 +8989,10 @@ function renderSeasonPlayoffs() {
       alert(res.reason || "无法进入休赛期");
       return;
     }
+    const challengeGrant = recordChallengeProgress(
+      activeAccount(),
+      state.leagueCareer?.kind === "timeTravel" ? "timeTravelSeason" : "leagueSeason",
+    );
     const highlights = (res.log || [])
       .filter((r) => r.delta > 0 || (r.salaryAfter || 0) > (r.salaryBefore || 0) + 10)
       .slice(0, 8);
@@ -8955,7 +9007,8 @@ function renderSeasonPlayoffs() {
           .join("\n")
       : "本队本轮成长/涨薪幅度不大。";
     if (!saveSeasonAndCareer(state.season)) return;
-    alert(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}`);
+    const challengeNote = challengeGrant ? `\n\n🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}` : "";
+    alert(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}${challengeNote}`);
     renderSeasonHub();
     showSeasonTab("standings");
   });
@@ -9532,13 +9585,20 @@ document.querySelectorAll("[data-season-tab]").forEach((btn) => {
   btn.addEventListener("click", () => showSeasonTab(btn.dataset.seasonTab));
 });
 
-function handleRankedResult(youWin) {
+function handleRankedResult(youWin, snap) {
   const acc = getAccount(state.career?.accountId) || activeAccount();
   if (acc) recordRankedResult(acc, youWin);
+  // Ranked always seats the account on the home side (startRankedMatch).
+  const notes = acc ? applyRankedGame(acc, snap?.home?.roster, { won: youWin }) : [];
+  const tickets = acc ? recordRankedTasks(acc, youWin) : [];
+  const progress = [
+    ...notes.map(progressNoteText),
+    ...tickets.map((g) => `🎫 ${g.label}，抽卡券 +${g.tickets}`),
+  ].join(" ");
   const cont = $("#btn-result-continue");
-  $("#result-summary").textContent = youWin
+  $("#result-summary").textContent = (youWin
     ? `排位胜利。班底与教练已保存，战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`
-    : `排位失利。班底仍在，可回收藏调整战术后再战。战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`;
+    : `排位失利。班底仍在，可回收藏调整战术后再战。战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`) + (progress ? ` ${progress}` : "");
   cont.textContent = "回到球员卡";
   cont.onclick = () => {
     state.career = null;
@@ -9557,7 +9617,7 @@ function handleCareerResult(youWin, snap) {
     intensity: c.stageSize <= 4 ? 1.35 : 1,
   });
 
-  const match = findYourOpenMatch(c.pods) || yourCareerMatch();
+  const match = findYourOpenMatch(c.pods) || yourCareerMatch(c);
   const opp = match ? (match.a.bracketId === "you" ? match.b : match.a) : null;
   if (match && snap) {
     if (match.a.bracketId === "you") {
@@ -9582,6 +9642,8 @@ function handleCareerResult(youWin, snap) {
   if (result.champion) {
     const reward = 400 + (c.round || 1) * 100;
     c.gold += reward;
+    const challengeGrant = recordChallengeProgress(activeAccount(), "goldChampion");
+    const challengeNote = challengeGrant ? ` 🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}` : "";
     const tierId = c.challengeTier || (c.fromCustom ? "custom" : "gold");
     const tier = challengeTierMeta(tierId === "custom" ? "gold" : tierId);
     const canLadder =
@@ -9589,11 +9651,15 @@ function handleCareerResult(youWin, snap) {
     const nextTier = canLadder ? tier.next : null;
     $("#result-title").textContent =
       tierId === "champ7" ? "历史总冠军挑战 · 通关！" : tierId === "playoff15" ? "季后赛挑战冠军！" : "总冠军！";
-    $("#result-summary").textContent = nextTier
+    $("#result-summary").textContent = (nextTier
       ? `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。可继续${tier.nextLabel}（保留阵容与金币）。${injLine}`
       : tierId === "champ7"
         ? `你已击败 7 支历史总冠军！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`
-        : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`;
+        : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`) + challengeNote;
+    if (wasFinals && c.series) {
+      $("#result-summary").textContent =
+        `${finalsSeriesLabel(c.series)} · ${$("#result-summary").textContent}`;
+    }
     const allTeam = computeCareerAllTeam(c);
     renderResultAllTeam(allTeam, "本届最佳阵容 · PG → C");
     if (nextTier === "playoff15" || nextTier === "champ7") {
@@ -9620,14 +9686,19 @@ function handleCareerResult(youWin, snap) {
         show("home");
       };
       setResultActionMode("career", { showContinue: true, continuePrimary: true });
+      // cont already reads 回主页 here; don't let the always-present #btn-home duplicate it
+      { const homeBtn = $("#btn-home"); if (homeBtn) homeBtn.hidden = true; }
     }
     autosaveCareer();
     return;
   }
 
   if (result.eliminated) {
-    $("#result-title").textContent = losses >= 2 ? "两败出局" : "淘汰出局";
-    $("#result-summary").textContent = `${careerRoundLabel(c.round)} · ${kind}失利后出局（负场 ${losses}）。可回看其他对决。${injLine}`;
+    $("#result-title").textContent = wasFinals ? "总决赛出局" : losses >= 2 ? "两败出局" : "淘汰出局";
+    $("#result-summary").textContent =
+      wasFinals && c.series
+        ? `${finalsSeriesLabel(c.series)} · 系列赛失利出局。可回看其他对决。${injLine}`
+        : `${careerRoundLabel(c.round)} · ${kind}失利后出局（负场 ${losses}）。可回看其他对决。${injLine}`;
     if (wasFinals) {
       const allTeam = computeCareerAllTeam(c);
       renderResultAllTeam(allTeam, "总决赛最佳阵容 · PG → C");
@@ -9639,12 +9710,34 @@ function handleCareerResult(youWin, snap) {
       show("home");
     };
     setResultActionMode("career", { showContinue: true, continuePrimary: false });
+    // cont already reads 回主页 here; don't let the always-present #btn-home duplicate it
+    { const homeBtn = $("#btn-home"); if (homeBtn) homeBtn.hidden = true; }
     autosaveCareer();
     return;
   }
 
   const reward = youWin ? 120 + (c.round || 1) * 40 : 40;
   c.gold += reward;
+
+  if (result.seriesGame) {
+    const s = result.series;
+    const nextGame = (s.wins || 0) + (s.losses || 0) + 1;
+    $("#result-title").textContent = youWin
+      ? `总决赛 G${result.gameNo} 拿下`
+      : `总决赛 G${result.gameNo} 惜败`;
+    $("#result-summary").textContent =
+      `${finalsSeriesLabel(s)}。获得 ¤${reward}，当前 ¤${c.gold}。` +
+      `G${nextGame} 开打前可先进市场买卖球员，调整阵容再战。${injLine}`;
+    cont.textContent = `备战总决赛 G${nextGame}（先进市场）`;
+    cont.onclick = () => {
+      c.shop = null;
+      openMarket({ career: true, afterWin: youWin, refillShop: true });
+      autosaveCareer();
+    };
+    setResultActionMode("career", { showContinue: true, continuePrimary: true });
+    autosaveCareer();
+    return;
+  }
 
   if (result.needAnotherGame) {
     const next = findYourOpenMatch(c.pods);
@@ -9681,19 +9774,6 @@ function handleCareerResult(youWin, snap) {
 }
 
 /** Tick recovery + new injury rolls between晋级 games. */
-function applyCareerInjuryWave(c, opts) {
-  if (!c?.team?.players) return [];
-  const reports = rollAdvancementInjuries(c.team.players, opts);
-  if (c.series?.opp?.players) {
-    reports.push(...rollAdvancementInjuries(c.series.opp.players, { ...opts, intensity: (opts.intensity || 1) * 0.9 }));
-  }
-  for (const t of c.alive || []) {
-    if (t.bracketId === "you" || !t.players) continue;
-    reports.push(...rollAdvancementInjuries(t.players, { ...opts, intensity: (opts.intensity || 1) * 0.85 }));
-  }
-  return reports.filter((r) => r.type === "injury" || r.type === "recover").map((r) => r.text);
-}
-
 function boxTable(team) {
   const rows = [...team.roster]
     .sort((a, b) => (b.gradeScore || 0) - (a.gradeScore || 0) || b.stats.pts - a.stats.pts)
@@ -9869,6 +9949,7 @@ async function boot() {
   try {
     initBgm();
     decorateHome();
+  wireHomeTabs();
     $("#load-status").textContent = "正在加载名册（优先本地缓存）…";
     $("#load-bar").style.width = "6%";
     // Paint status before heavy work begins

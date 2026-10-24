@@ -1,0 +1,465 @@
+/* Draw + collection: banners, 成色 grades, hidden badges, wishlist. */
+.draw-banners {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.draw-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 44px;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+  background: var(--card, #fff);
+  color: inherit;
+  cursor: pointer;
+}
+
+.draw-banner.active {
+  border-color: #b8860b;
+  box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.25);
+  background: #fffaf0;
+}
+
+.draw-banner:focus-visible,
+.roll-option:focus-visible {
+  outline: 3px solid #1f6f50;
+  outline-offset: 2px;
+}
+
+.draw-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 8px 0 12px;
+  font-size: 0.85rem;
+  color: var(--muted, #4b5563);
+}
+
+.draw-flags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.draw-flag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #eef2ea;
+  color: #1f3d2c;
+}
+
+.draw-flag.wish {
+  background: #fde8f0;
+  color: #8a1c46;
+}
+
+.roll-grade {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Contrast ≥ 4.5:1 on white text for every grade. */
+.roll-S { background: #a1580a; }
+.roll-A { background: #6b3fa0; }
+.roll-B { background: #1f5f8b; }
+.roll-C { background: #4b5563; }
+.roll-D { background: #6b4f3a; }
+
+.gem-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e6f4ea;
+  color: #14532d;
+}
+
+.roll-choice {
+  margin-top: 12px;
+}
+
+.roll-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.roll-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 12px;
+}
+
+.draw-wishlist {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+}
+
+.draw-wishlist summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 24px;
+}
+
+.draw-wishlist input[type="search"] {
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.wish-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.craft-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line, #d8dccf);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 480px) {
+  .roll-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+.favorite-tag {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #fde8f0;
+  color: #8a1c46;
+}
+
+.favorite-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+.favorite-pick select {
+  min-height: 32px;
+}
+
+/* 时空对决 sandbox */
+.sandbox-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 10px 0;
+}
+
+.sandbox-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+}
+
+.sandbox-side input {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.sandbox-name {
+  font-weight: 700;
+}
+
+.sandbox-result,
+.sandbox-roster li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed var(--line, #d8dccf);
+}
+
+.sandbox-result span:first-child,
+.sandbox-roster li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sandbox-roster {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sandbox-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.sandbox-start {
+  position: sticky;
+  bottom: 0;
+  padding: 10px 0;
+  background: linear-gradient(to top, var(--bg, #eef2ea) 70%, transparent);
+}
+
+.sandbox-start .btn {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1.05rem;
+}
+
+.sandbox-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sandbox-error {
+  min-height: 1.2em;
+  color: #b42318;
+}
+
+@media (max-width: 720px) {
+  .sandbox-sides {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Collection management */
+.manage-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.manage-bar.full {
+  border-color: #b42318;
+  background: #fff3f1;
+}
+
+.skill-shop {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 12px;
+}
+
+.skill-shop summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 24px;
+}
+
+.shop-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line, #d8dccf);
+  font-size: 0.9rem;
+}
+
+.headshot.xl { width: 96px; height: 96px; }
+
+/* Collection: up to 60 cards — page scroll, 2 columns on phones, no nested scroller. */
+.collection-grid {
+  max-height: none;
+  overflow: visible;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+/* Block flow on purpose: skill chips are bare inline spans and must wrap side by side
+   (a flex column here once stretched every chip to a full-width bar). */
+.collection-grid .player-card {
+  min-width: 0;
+}
+
+.collection-grid .player-card .skill-chip {
+  margin: 0 3px 3px 0;
+}
+
+.collection-grid .player-card > .btn,
+.collection-grid .player-card > .favorite-pick,
+.collection-grid .player-card > .favorite-tag {
+  margin-top: 6px;
+}
+
+@media (max-width: 480px) {
+  .collection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+.draw-tasks {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px dashed #b8860b;
+  border-radius: 12px;
+  background: #fffaf0;
+  font-size: 0.9rem;
+}
+
+.draw-tasks ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draw-tasks li {
+  padding: 3px 0;
+}
+
+.draw-tasks li.done {
+  opacity: 0.65;
+}
+
+.collection-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.collection-filter input[type="search"] {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #d8dccf);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.collection-filter select {
+  min-height: 40px;
+  max-width: 100%;
+}
+
+.collection-filter label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Phones: the filter bar is a tidy 2-column grid instead of ragged wrapping rows. */
+@media (max-width: 480px) {
+  .collection-filter {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .collection-filter input[type="search"],
+  .collection-filter label,
+  .collection-filter [data-cf-count] {
+    grid-column: 1 / -1;
+  }
+
+  .collection-filter [data-cf-count] {
+    order: -1;
+    text-align: right;
+  }
+}
+
+.banner-explain {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--gold, #c9a227);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.banner-explain p {
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.banner-explain p:last-child {
+  margin-bottom: 0;
+}
+
+.banner-explain .muted {
+  opacity: 0.75;
+}
+
+.draw-rules-more,
+.banner-more {
+  margin-top: 4px;
+}
+
+.draw-rules-more summary,
+.banner-more summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--muted, #5f6b5f);
+}
+
+/* WCAG AA: the site-wide .tiny grey is 4.69:1 on white cards but 3.4–4.3:1 on the tinted
+   panels of these screens. Darker grey here only; the global colour is a separate decision. */
+#screen-draw .tiny,
+#screen-collection .tiny,
+#screen-draw summary,
+#screen-collection summary {
+  color: #475569;
+}
+
+.draw-banner .tiny {
+  text-wrap: balance;
+}

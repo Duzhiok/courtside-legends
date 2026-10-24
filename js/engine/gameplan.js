@@ -3,6 +3,7 @@
  * lineup packs, role expectations, minute targets, possession focus.
  */
 import { overall } from "../data/players.js";
+import { POS_SLOTS } from "../data/franchises.js";
 
 export const PLAYER_ROLES = {
   alpha: { id: "alpha", name: "进攻核心", wantMin: 36, wantUsage: "high" },
@@ -213,11 +214,11 @@ function normPos5(pos) {
 }
 
 /**
- * 按身高/传控/投射/内线等属性推荐场上位置。
+ * 按身高/传控/投射/内线等属性给每个位置打分。
  * 本职有加成，但仍可因属性明显偏向而改打（如高助攻后卫→PG）。
  */
-export function recommendPlayPos(player) {
-  if (!player) return "SF";
+export function playPosFitScores(player) {
+  if (!player) return { PG: 0, SG: 0, SF: 0, PF: 0, C: 0 };
   const nat = normPos5(player.pos);
   const h = Number(player.heightCm) || 0;
   const pass = player.pass || 50;
@@ -290,7 +291,14 @@ export function recommendPlayPos(player) {
   // 护框巨人
   if ((block >= 78 || (player.raw?.bpg || 0) >= 2.2) && h >= 208) scores.C += 14;
 
-  let best = nat;
+  return scores;
+}
+
+/** Best-fit position for this player (what used to be inline in recommendPlayPos). */
+export function recommendPlayPos(player) {
+  if (!player) return "SF";
+  const scores = playPosFitScores(player);
+  let best = normPos5(player.pos);
   let bestS = -1e9;
   for (const pos of ["PG", "SG", "SF", "PF", "C"]) {
     if (scores[pos] > bestS) {
@@ -299,6 +307,71 @@ export function recommendPlayPos(player) {
     }
   }
   return best;
+}
+
+/**
+ * All 5 slots, ranked best-fit → worst-fit for this player. Used when the player's preferred
+ * slot is already taken by a teammate and we need the next-best fallback — NOT just "whatever
+ * slot happens to come first in PG→C order", which is how a 208cm rim protector used to end up
+ * parked at SG once the C and PF slots were full.
+ */
+export function rankedPlayPosFits(player) {
+  const scores = playPosFitScores(player);
+  return ["PG", "SG", "SF", "PF", "C"].sort((a, b) => scores[b] - scores[a]);
+}
+
+/**
+ * Given players already placed (`picked`, each with playPos/pos) and a player to seat, find a
+ * free slot: try `preferredPos` first (e.g. a manually-chosen position), then fall back through
+ * this player's own best-fit ranking — never a position he has zero business playing.
+ */
+export function nextEmptyPlayPos(picked, player, preferredPos = null) {
+  const used = new Set((picked || []).map((p) => normPos5(p.playPos || p.pos)));
+  const pref = preferredPos ? normPos5(preferredPos) : null;
+  if (pref && !used.has(pref)) return pref;
+  for (const pos of rankedPlayPosFits(player)) {
+    if (!used.has(pos)) return pos;
+  }
+  return pref || normPos5(player?.pos);
+}
+
+/** Which of the five slots a player currently occupies (manual playPos, else natural pos). */
+export function playerSlotPos(p) {
+  return normPos5(p.playPos || p.pos);
+}
+
+/** Group players into five position buckets for draft/legend browsing. */
+export function groupByPosition(players) {
+  const buckets = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
+  for (const p of players || []) {
+    const slot = playerSlotPos(p);
+    (buckets[slot] || buckets.SF).push(p);
+  }
+  return buckets;
+}
+
+/**
+ * A starting five can end up with two players claiming the same slot (e.g. both marked SG)
+ * and an empty slot sitting unused. Bump the loser of each collision into whichever empty
+ * slot is open, rather than leaving a duplicate and a gap in the lineup.
+ */
+export function resolveStarterPositionCollisions(picked) {
+  if (!picked?.length) return;
+  const byPos = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
+  for (const p of picked) {
+    const pos = normPos5(p.playPos || p.pos);
+    (byPos[pos] || byPos.SF).push(p);
+  }
+  const empty = POS_SLOTS.map((s) => s.id).filter((id) => !byPos[id].length);
+  for (const s of POS_SLOTS) {
+    const list = byPos[s.id];
+    while (list.length > 1 && empty.length) {
+      const mover = list.pop();
+      const dest = empty.shift();
+      mover.playPos = dest;
+      byPos[dest].push(mover);
+    }
+  }
 }
 
 /**
@@ -317,6 +390,7 @@ export function recommendPlayerOrders(player = null) {
   const speed = player?.speed || 50;
   const steal = player?.steal || 40;
   const apg = player?.raw?.apg || 0;
+  const ppg = Number(player?.raw?.ppg) || 0;
   const threeTend = player?.threeTend || 30;
   const paintTend = player?.paintTend || 40;
   const midTend = player?.midTend || 40;
@@ -361,11 +435,19 @@ export function recommendPlayerOrders(player = null) {
     defFocus = "allout";
     aggression = "lock_d";
     hunt = "patient";
+  } else if (ppg >= 27 && scoring >= 85) {
+    // 历史级得分手（乔丹 / 科比 / 哈登 / 东契奇…）：就算会传球，默认也是第一得分点
+    usage = "score";
+    action = isBig && style === "post" ? "post" : "iso";
+    aggression = "high";
+    hunt = "hunt";
   } else if (apg >= 8 || (pass >= 78 && scoring < 88) || style === "playmake") {
-    usage = "organize";
+    // 传球手 ≠ 不投篮：奥斯卡 30+11、魔术师 24+12、约基奇 25+10 都是得分型发起点。
+    // 只有得分少的纯组织者才「低攻击欲 + 先传导」
+    usage = ppg >= 20 ? "balanced" : "organize";
     action = pass >= 80 ? "drive_kick" : "pnr";
-    aggression = "low";
-    hunt = "patient";
+    aggression = ppg >= 12 || scoring >= 80 ? "normal" : "low";
+    hunt = ppg >= 20 ? "auto" : "patient";
   } else if (scoring >= 88 && pass < 68 && apg < 6) {
     usage = "score";
     action = isBig && style === "post" ? "post" : style === "midiso" ? "iso" : "iso";
@@ -563,6 +645,43 @@ export function ensureRoles(players) {
     const cap = staminaMinuteCap(p);
     if (p.targetMinutes > cap + 4) p.targetMinutes = cap;
   }
+  return players;
+}
+
+/** Regulation player-minutes per side (5 × 48). */
+export const TEAM_MINUTE_BUDGET = 240;
+// Rotation tiers when a superteam over-books minutes: starters / rotation / garbage time
+const ROTATION_TIER_CAPS = [34, 34, 34, 34, 34, 24, 22, 18, 14];
+const DEEP_BENCH_CAP = 6;
+
+/**
+ * 巨星队分钟预算：13 个 alpha 各要 36 分钟 = 468 分钟，比赛只有 240。
+ * 超额时按优先级（首发 → OVR）排出真实教练的 9 人轮换，否则换人逻辑
+ * 会把下场的巨星永远排在“剩余分钟更多”的替补后面。
+ * 只在明显超额时生效，普通球队不受影响。会改写 targetMinutes，应只传比赛副本。
+ */
+export function fitMinuteBudget(players, { starterIds = [], rank = (p) => p.ovr || 0, budget = TEAM_MINUTE_BUDGET } = {}) {
+  const active = (players || []).filter((p) => !(p.injuredGames > 0));
+  const booked = active.reduce((sum, p) => sum + (p.targetMinutes ?? 22), 0);
+  if (booked <= budget * 1.1) return players;
+  const starters = new Set(starterIds);
+  const ordered = [...active].sort(
+    (a, b) => Number(starters.has(b.id)) - Number(starters.has(a.id)) || rank(b) - rank(a)
+  );
+  const caps = ordered.map((p, i) => Math.min(p.targetMinutes ?? 22, ROTATION_TIER_CAPS[i] ?? DEEP_BENCH_CAP));
+  const total = caps.reduce((sum, m) => sum + m, 0);
+  if (total > budget) {
+    // Trim the bench first, then (only if still over) everyone
+    const starterMin = caps.slice(0, 5).reduce((sum, m) => sum + m, 0);
+    const benchMin = total - starterMin;
+    const benchScale = benchMin > 0 ? Math.max(0, (budget - starterMin) / benchMin) : 1;
+    for (let i = 5; i < caps.length; i += 1) caps[i] *= Math.min(1, benchScale);
+    const after = caps.reduce((sum, m) => sum + m, 0);
+    if (after > budget) for (let i = 0; i < caps.length; i += 1) caps[i] *= budget / after;
+  }
+  ordered.forEach((p, i) => {
+    p.targetMinutes = Math.round(caps[i]);
+  });
   return players;
 }
 

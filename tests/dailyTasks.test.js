@@ -1,0 +1,166 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createMemoryStorage } from "./helpers/memoryStorage.js";
+
+globalThis.localStorage = createMemoryStorage();
+
+const { recordRankedResult } = await import("../js/data/account.js");
+const {
+  MILESTONE_WINS,
+  WELCOME_TICKETS,
+  CHALLENGE_TICKETS,
+  DAILY_CHALLENGES,
+  grantWelcomeTickets,
+  recordRankedTasks,
+  recordChallengeProgress,
+  dailyState,
+  taskBoard,
+} = await import("../js/data/dailyTasks.js");
+const { drawAvailability, performDailyDraw } = await import("../js/data/accountGacha.js");
+
+const DAY1 = "2026-03-01";
+const DAY2 = "2026-03-02";
+
+function account(extra = {}) {
+  return { id: "t", playerIds: [], cardMods: {}, gold: 0, rankedWins: 0, rankedLosses: 0, ...extra };
+}
+
+/** What handleRankedResult does, minus the UI. */
+function playRanked(acc, won, day) {
+  recordRankedResult(acc, won);
+  return recordRankedTasks(acc, won, day);
+}
+
+test("welcome tickets are granted exactly once", () => {
+  const acc = account();
+  assert.equal(grantWelcomeTickets(acc), WELCOME_TICKETS);
+  assert.equal(grantWelcomeTickets(acc), 0);
+  assert.equal(acc.tickets, WELCOME_TICKETS);
+});
+
+test("first ranked game of the day pays the 'play' ticket, a win pays 'win'", () => {
+  const acc = account();
+  const loss = playRanked(acc, false, DAY1);
+  assert.deepEqual(loss.map((g) => g.id), ["play"]);
+  const win = playRanked(acc, true, DAY1);
+  assert.deepEqual(win.map((g) => g.id), ["win"]);
+  assert.equal(acc.tickets, 2);
+});
+
+test("daily tasks pay once per day, no matter how many games", () => {
+  const acc = account();
+  for (let i = 0; i < 6; i++) playRanked(acc, i % 2 === 0, DAY1);
+  // 3 wins → no milestone yet (needs 5); only the two daily tickets
+  assert.equal(acc.tickets, 2);
+});
+
+test("a new day resets the tasks", () => {
+  const acc = account();
+  playRanked(acc, true, DAY1);
+  assert.equal(acc.tickets, 2);
+  playRanked(acc, true, DAY2);
+  assert.equal(acc.tickets, 4);
+  assert.equal(taskBoard(acc, "2026-03-03").tasks.every((t) => !t.claimed), true);
+});
+
+test("every 5 lifetime ranked wins grants one ticket, never twice", () => {
+  const acc = account();
+  let milestoneTickets = 0;
+  for (let i = 0; i < MILESTONE_WINS * 2; i++) {
+    const day = `2026-04-${String(i + 1).padStart(2, "0")}`; // new day each game → dailies reset
+    const granted = playRanked(acc, true, day);
+    milestoneTickets += granted.filter((g) => g.id === "milestone").reduce((s, g) => s + g.tickets, 0);
+  }
+  assert.equal(milestoneTickets, 2);
+  assert.equal(acc.milestoneClaimed, 2);
+  // replaying the same settle does not double pay
+  assert.deepEqual(recordRankedTasks(acc, false, "2026-04-10").filter((g) => g.id === "milestone"), []);
+});
+
+test("tickets are spent after the free pull and before gold", () => {
+  const acc = account({ tickets: 2, gold: 1000, lastDailyDraw: DAY1 });
+  const date = new Date(2026, 2, 1); // same local day as DAY1
+  const pool = [{ id: "a-2000", bref: "a", season: 2000, team: "CHI", ovr2k: 60, ratingSource: "anchor", skills: [] }];
+  const result = performDailyDraw(acc, { pool, rng: () => 0.5, date });
+  assert.equal(result.usedTicket, true);
+  assert.equal(result.paidGold, 0);
+  assert.equal(acc.tickets, 1);
+  assert.equal(acc.gold, 1000 + 20, "only the low-pull refund, no gold spent");
+  assert.equal(drawAvailability(acc, DAY1).tickets, 1);
+});
+
+test("with no free pull, no tickets and no gold, drawing is refused", () => {
+  const acc = account({ lastDailyDraw: DAY1 });
+  assert.throws(() => performDailyDraw(acc, { pool: [], rng: () => 0.5, date: new Date(2026, 2, 1) }), /都用完了/);
+});
+
+/**
+ * The daily challenge: the two 每日任务 (play 1 ranked, win 1 ranked) pay out trivially from a
+ * single match, so there was no reason to ever touch the gold tournament or a full time-travel
+ * season just for ticket income. This is one randomly-assigned hard accomplishment a day, worth
+ * more, reported by whatever game-mode completion hook matches its id.
+ */
+test("taskBoard always surfaces today's assigned challenge, unclaimed on a fresh day", () => {
+  const acc = account();
+  const board = taskBoard(acc, DAY1);
+  assert.ok(board.challenge, "a challenge must be assigned, not missing");
+  assert.ok(DAILY_CHALLENGES.some((c) => c.id === board.challenge.id), "must be one of the real pool entries");
+  assert.equal(board.challenge.tickets, CHALLENGE_TICKETS);
+  assert.equal(board.challenge.claimed, false);
+});
+
+test("the assigned challenge is sticky for the whole day, not re-rolled on every read", () => {
+  const acc = account();
+  const first = taskBoard(acc, DAY1).challenge.id;
+  for (let i = 0; i < 10; i++) {
+    assert.equal(taskBoard(acc, DAY1).challenge.id, first, "must not change within the same day");
+  }
+});
+
+test("dailyState honors an injected rng, so the pick is deterministic and testable", () => {
+  const acc = account();
+  const day = dailyState(acc, DAY1, () => 0);
+  assert.equal(day.challengeId, DAILY_CHALLENGES[0].id, "rng() => 0 must pick the first pool entry");
+});
+
+test("recordChallengeProgress pays out only when the id matches today's assigned challenge", () => {
+  const acc = account();
+  dailyState(acc, DAY1, () => 0); // pins today's challenge to DAILY_CHALLENGES[0]
+  const wrongId = DAILY_CHALLENGES.find((c) => c.id !== DAILY_CHALLENGES[0].id).id;
+  assert.equal(recordChallengeProgress(acc, wrongId, DAY1), null, "wrong accomplishment pays nothing");
+  assert.equal(acc.tickets || 0, 0);
+
+  const grant = recordChallengeProgress(acc, DAILY_CHALLENGES[0].id, DAY1);
+  assert.ok(grant, "the matching accomplishment must pay out");
+  assert.equal(grant.tickets, CHALLENGE_TICKETS);
+  assert.equal(acc.tickets, CHALLENGE_TICKETS);
+});
+
+test("recordChallengeProgress never pays twice for the same day, even if the accomplishment repeats", () => {
+  const acc = account();
+  dailyState(acc, DAY1, () => 0);
+  recordChallengeProgress(acc, DAILY_CHALLENGES[0].id, DAY1);
+  const second = recordChallengeProgress(acc, DAILY_CHALLENGES[0].id, DAY1);
+  assert.equal(second, null, "claiming the same challenge twice in one day must no-op");
+  assert.equal(acc.tickets, CHALLENGE_TICKETS, "ticket count must not double");
+});
+
+test("a new day rolls a fresh challenge that can be claimed again", () => {
+  const acc = account();
+  dailyState(acc, DAY1, () => 0);
+  recordChallengeProgress(acc, DAILY_CHALLENGES[0].id, DAY1);
+  assert.equal(acc.tickets, CHALLENGE_TICKETS);
+
+  dailyState(acc, DAY2, () => 0); // new day -> challenge resets to unclaimed
+  const grant = recordChallengeProgress(acc, DAILY_CHALLENGES[0].id, DAY2);
+  assert.ok(grant, "the next day's matching accomplishment must pay out again");
+  assert.equal(acc.tickets, CHALLENGE_TICKETS * 2);
+});
+
+test("recordChallengeProgress is a safe no-op with no account, no id, or an unknown id", () => {
+  assert.equal(recordChallengeProgress(null, "goldChampion", DAY1), null);
+  const acc = account();
+  assert.equal(recordChallengeProgress(acc, null, DAY1), null);
+  assert.equal(recordChallengeProgress(acc, "not-a-real-challenge", DAY1), null);
+  assert.equal(acc.tickets || 0, 0);
+});
