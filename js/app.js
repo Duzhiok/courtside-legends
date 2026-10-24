@@ -61,6 +61,13 @@ import {
   wishlistHtml,
 } from "./ui/gachaView.js";
 import {
+  clockLabel,
+  feedEventSide,
+  resolveMatchColors,
+  stripTrailingScore,
+  withAlpha,
+} from "./ui/feedView.js";
+import {
   COACHES,
   TACTICS,
   applyCoachPhilosophy,
@@ -1305,6 +1312,7 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   state.court.ensureDom();
   $("#game-team-a").textContent = homeTeam?.name || sim.home.name;
   $("#game-team-b").textContent = awayTeam?.name || sim.away.name;
+  paintFeedIdentity(homeTeam || sim.home, awayTeam || sim.away);
   $("#you-side").textContent =
     youSide === "home" ? $("#game-team-a").textContent : $("#game-team-b").textContent;
 
@@ -6535,6 +6543,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
 
   $("#game-team-a").textContent = homeTeam.name;
   $("#game-team-b").textContent = awayTeam.name;
+  paintFeedIdentity(homeTeam, awayTeam);
   $("#you-side").textContent = youSide === "home" ? homeTeam.name : awayTeam.name;
 
   const isDraftGame = state.mode === "draft" || state.mode === "duel" || state.mode === "custom";
@@ -6621,7 +6630,7 @@ function handleSimEvent(e) {
     showDunkFlash(e.meta.player, e.meta.label || e.text);
     return;
   }
-  pushFeed(e.type, e.text);
+  pushFeed(e.type, e.text, e);
   try {
     paintScore(e);
   } catch (err) {
@@ -6674,23 +6683,75 @@ function showDunkFlash(player, label = "暴扣") {
   }, ms);
 }
 
-function pushFeed(type, text) {
+/**
+ * 本场颜色身份：两队各一个球队色（历史队真队色 / 联队取首发众数队色），
+ * 写进记分牌队名、播报图例与 state.feedColors。播报按进攻方上色——
+ * 看颜色就知道是谁在进攻、谁得分，不用认球员名。
+ */
+function paintFeedIdentity(homeTeam, awayTeam) {
+  const homeName = homeTeam?.name || "主队";
+  const awayName = awayTeam?.name || "客队";
+  state.feedColors = resolveMatchColors(
+    homeTeam || { name: homeName },
+    awayTeam || { name: awayName }
+  );
+  const { home, away } = state.feedColors;
+  const aEl = $("#game-team-a");
+  const bEl = $("#game-team-b");
+  if (aEl) aEl.style.color = home.text;
+  if (bEl) bEl.style.color = away.text;
+  const feed = $("#play-feed");
+  if (!feed) return;
+  let legend = $("#feed-legend");
+  if (!legend) {
+    legend = document.createElement("div");
+    legend.id = "feed-legend";
+    legend.className = "feed-legend";
+    feed.parentElement?.insertBefore(legend, feed);
+  }
+  legend.innerHTML =
+    `<span class="lg-side"><i class="dot" style="background:${home.color}"></i>${esc(homeName)}</span>` +
+    `<span class="lg-vs">vs</span>` +
+    `<span class="lg-side"><i class="dot" style="background:${away.color}"></i>${esc(awayName)}</span>` +
+    `<span class="lg-hint">颜色 = 进攻方 · 得分带比分牌</span>`;
+}
+
+function pushFeed(type, text, ev = null) {
   const feed = $("#play-feed");
   if (!feed) return;
   if (type === "dunk") return;
   const div = document.createElement("div");
-  div.className = `event ${
-    type === "score"
-      ? "score"
-      : type === "coach"
-        ? "coach"
-        : type === "miss"
-          ? "miss"
-          : type === "reb"
-            ? "reb"
-            : ""
-  }`;
-  div.textContent = text;
+  // 教练/系统消息不属于任何一队，保持中性色；实况按进攻方球队色上色。
+  const side = type !== "coach" && ev ? feedEventSide(ev) : null;
+  const colors = side ? state.feedColors : null;
+  if (side && colors) {
+    const c = colors[side];
+    const isScore = type === "score";
+    div.className = `event tm${isScore ? " scored" : ""}`;
+    div.style.borderColor = c.color;
+    div.style.background = withAlpha(c.color, isScore ? 0.2 : 0.1);
+    const meta = clockLabel(ev);
+    const chip =
+      isScore && ev.score
+        ? `<span class="feed-chip"><b style="color:${colors.home.text}">${ev.score.home}</b><i>–</i><b style="color:${colors.away.text}">${ev.score.away}</b></span>`
+        : "";
+    div.innerHTML =
+      `<span class="feed-meta">${meta ? `${meta} · ` : ""}${side === "home" ? "主" : "客"}</span> ` +
+      `<span class="feed-text" style="color:${c.text}">${esc(isScore ? stripTrailingScore(text) : text)}</span>${chip}`;
+  } else {
+    div.className = `event ${
+      type === "score"
+        ? "score"
+        : type === "coach"
+          ? "coach"
+          : type === "miss"
+            ? "miss"
+            : type === "reb"
+              ? "reb"
+              : ""
+    }`;
+    div.textContent = text;
+  }
   feed.prepend(div);
   while (feed.children.length > 40) feed.removeChild(feed.lastChild);
 }

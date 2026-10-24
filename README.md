@@ -306,7 +306,7 @@ courtside-legends/
 
 - 纯前端静态页（ES Module），**无需构建、无后端**
 - 存档与账号存在浏览器 `localStorage` / IndexedDB（各电脑互不同步）
-- 自动化测试：`npm test`（Node 内置 `node:test`，当前 635 个测试，全部通过）
+- 自动化测试：`npm test`（Node 内置 `node:test`，当前 644 个测试，全部通过）
 - 静态检查：`npm run lint`（eslint flat config，只启拓 bug 的规则集如 no-undef/no-unused-vars/no-unreachable，不管风格，没有 prettier）
 - MIT License
 
