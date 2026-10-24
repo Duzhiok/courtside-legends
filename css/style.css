@@ -3342,3 +3342,22 @@ select, input[type="number"] {
 @media (max-width: 380px) {
   .share-card-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* T3 shop fit badges: gap fill (green) / tactic fit (blue). */
+.fit-badge {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.fit-badge.need {
+  background: #1d5c38;
+  color: #d8ffe9;
+}
+.fit-badge.tactic {
+  background: #1d3f6e;
+  color: #dbe9ff;
+}

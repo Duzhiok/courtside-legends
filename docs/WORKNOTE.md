@@ -791,3 +791,14 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - **已开局存档队名**：记分牌队名在开局（beginGame）与读档（wireRestoredSim）两处显示时走 `teamNameL`；播报图例同理；`teamNameL` 新增生成名模式：联盟队 N → League Team N、时空队 X → Time Team X（修了 `时空队 B` 切英文后多空格的小 bug）。
 - **沙盒切换即时刷新**：`mountSandbox` 内部 `lang` 改为可变的 `currentLang`，暴露 `root.__sandboxSetLang(lang)`：原地重绘平衡勾选、开打按钮、两侧队名（仅未被用户改过的默认值才跟语言走）、搜索占位/aria、计数与阵容行 aria；语言切换按钮调用它，选卡与搜索状态不丢。
 - **测试**：`tests/i18n.test.js` 新增 5 个（战术/教练/助教 EN 字段全量 + helper、解锁原因 EN 无中文、6 事件 + 结局本地化、生成队名映射、tier nextLabel/finals 标签）；顺手修了 `storyEventEngine.test.js` 的结局 deepEqual（新增 `labelEn` 字段）。仍属后续：技能描述长文（skills.js desc）、分享卡内的动态交易/合同叙事、生涯报告 prose。
+
+---
+
+### R54：T3 金币晋级赛刷新池调优
+
+- **缺口加权**：`buildAffordableShop` 在每个价格带内先取缺位（2 人/位置目标下不足的位置，最缺优先）再取其余，组内仍随机抽，刷新结果会变但不再与阵容脱节；价格带构成（7 cheap + 4 mid + 1 stretch + 宝石）不动，经济形状不变。
+- **保底可负担**：成架后若可负担（价 ≤ 当前金币）不足 2/3，用最便宜的未上架可负担球员替换最贵的超预算者（按人去重，不摆同人两季）；金币极低到全池都买不起时保底自然落空，不编球员。
+- **不满 8 人刷新免费**：新增 `careerRefreshCost(c, base)`——生涯队不满 8 人（凑不齐轮换）时球员刷新费用为 0，满 8 人恢复 ¤50；双人模式走原双边扣费不动；市场提示与空架文案同步显示实际费用。
+- **适配徽标**：货架每行新增 `shopFit` 徽标——缺位补强（绿，位置在目标以下）优先于战术契合（蓝，球员 archetype 命中教练战术板 needs，如 connector）；样式在 `css/style.css`（`.fit-badge`），中英双语。
+- **球员 + 技能绑定刷新**：`rollSkillShopOffers(size, excludeIds, avoidIds)` 新增已拥有降权——阵容里已有 2 人以上拥有的技能在各档位都不再优先出现（`pickFromTier` 改为“只取 fresh，取不到返回 null”，最后统一 top-up：先 fresh 后 avoided，保证满格）；球员刷新与技能/教练重 roll 仍走同一 `rollCareerStaffShops`，技能单刷（¤25）同样吃绑定。
+- **测试**：`tests/careerShopRefresh.test.js` 6 个（缺位排序、shopFit 三态、低金币 2/3 可负担、11 后卫队一次刷新必见中锋、免费刷新三态、技能 avoid 全量）。过程中修了两处真问题：`pickFromTier` 的逐档回退会先返回已拥有技能（改为全局 fresh 优先 + 统一 top-up）；测试沿用仓库既有 synthetic 卡模式（PLAYERS 初始为空，seasonToCard 不填充）。
