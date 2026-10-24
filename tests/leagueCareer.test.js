@@ -326,7 +326,13 @@ test("career draft user picks auto-advance and completion records one summary", 
   const started = beginCareerDraft(original);
   const prospectId = started.management.draft.prospects[0].prospectId;
   const prospectSource = started.management.draft.prospects[0].source;
-  const picked = makeCareerDraftPick(started, prospectId);
+  let picked = makeCareerDraftPick(started, prospectId);
+  // Career drafts are two rounds: keep picking on the user's turns until
+  // both rounds are done. The round-1 -> round-2 transition must NOT
+  // record a second summary; only the final completion archives once.
+  while (picked.management.draft.status === "in_progress") {
+    picked = makeCareerDraftPick(picked, picked.management.draft.prospects[0].prospectId);
+  }
 
   assert.notEqual(picked, started);
   assert.equal(started.management.draft.prospects.some((p) => p.prospectId === prospectId), true);
@@ -362,10 +368,18 @@ test("draft phase recovery repairs current-year in-progress and unadvanced compl
   assert.equal(recoveredStarted.phase, "draft");
   assert.equal(badStarted.phase, "done");
 
-  const completed = makeCareerDraftPick(
+  let completed = makeCareerDraftPick(
     started,
     started.management.draft.prospects[0].prospectId,
   );
+  // Two-round career drafts: drive through round 2 so this is a genuinely
+  // completed draft (the "unadvanced completed save" the test is about).
+  while (completed.management.draft.status === "in_progress") {
+    completed = makeCareerDraftPick(
+      completed,
+      completed.management.draft.prospects[0].prospectId,
+    );
+  }
   const recoveredComplete = recoverCareerPhase({ ...completed, phase: "done" });
   assert.equal(recoveredComplete.phase, "draft");
 
@@ -440,10 +454,13 @@ function completedManagedCareerWithRoster() {
     developmentPlayer("mentor", { age: 31, iq: 85 }),
   ];
   let career = beginCareerDraft(careerWith({ season }));
-  career = makeCareerDraftPick(
-    career,
-    career.management.draft.prospects[0].prospectId,
-  );
+  // Two-round career drafts: a "completed" helper must finish both rounds.
+  while (career.management.draft.status === "in_progress") {
+    career = makeCareerDraftPick(
+      career,
+      career.management.draft.prospects[0].prospectId,
+    );
+  }
   career.management.seasonHistory = [{ year: season.year }];
   career.phase = "draft";
   return career;

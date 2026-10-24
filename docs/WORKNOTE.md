@@ -848,3 +848,23 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - **生涯报告 prose**：`transactionDescription(entry, lang)` 双语化（交易：sent/got；聘任：replacing）；`compactTransactions` 同时存 `description` + `descriptionEn`（赛季结算时算好，旧存档无 descriptionEn 时渲染回退中文）；`careerTimeline` 透传 descriptionEn；`saveRoot` 校验放行双语交易键（旧存档四键仍合法）。生涯历史面板（`renderCareerHistory` + `historyCard`）接 `lang`：筛选器、finish 标签、胜负/冠军/选秀/奖项/交易/大事记等静态文案、交易描述全部按语言取。
 - **分享卡动态叙事**：`contractResult` 一次建中英双文案（续约/离队/解雇/谈判中/进行中）+ 4 条合同特权英译；`signatureTrades` 透传 descriptionEn；`finishLabel` 加英文表；`shareCardText` 与 `renderEndingShareCardHtml` 全部行/标签双语（战绩、最佳赛季、改写史实、标志性交易、合同结果、特权、页脚）。
 - **测试**：i18n.test.js +5（92 条 descEn 齐全且无中文、商店 offer 中英名/描述干净、交易/聘任 EN 文案、生涯历史 EN 渲染干净、分享卡文本与 HTML EN 干净）；另有 3 处旧测试因交易对象多出 descriptionEn 更新期望（形状变化是有意的）。修测试时发现存档校验是精确键集合，顺手放行双语键。
+
+---
+
+### R60：T6 联机 P0——服务端权威房号 1v1 可玩
+
+- **先实测再动手（设计文档 R57 列的四项全部有结论）**：① 快照体积：两队 12 人满编时 `sim.snapshot()` 实测 ~70KB（publicTeam 把每人重复三遍：场上 + 板凳 + 全名单），远超 8KB 目标——P0 改发精简帧（只带每回合变化的字段 + 场上/板凳名单，静态球员数据由加入消息一次给齐，实测 < 8KB）；② tick 节奏：速度 2 = 300ms/回合，整局约 60 秒，P0 服务端固定速度 2；③ `wireRestoredSim` 不能直接吃服务端快照（它要的是活 sim 实例），但它的 paint 函数全是快照驱动的，客户端按这个思路自己渲染；④ 决策窗口：换人无需排队（立即改场上名单，下个回合生效），暂停/节间/中场天然停住并对双方开放调整，任一方点继续即恢复，20 秒无人操作自动恢复（断线座位在场时不自动恢复）。
+- **引擎按方化（单机行为不变）**：`setTactic` / `setPlayPos` 加 `sideKey`；`setOffenseFocus` 经 `opts.sideKey` 按方指定——对方焦点写进该队 gameplan，`resolvePossession` 与 `ballOpts` 的非我方分支同步读 gameplan（此前只读我方字段，对方焦点实际不生效）；换人清空焦点时同步清该队 gameplan。防守体系（defensePlan）与托管开关仍是单方模型，P0 决策集不含这两项，记为 P1 引擎工作。
+- **服务端**：`server/online-server.mjs`（Node + ws，需 `npm install`），6 位房号建房/加入，29 支 2020 预设队（名册 2020 赛季 ≥12 人球队），开局发一次全量名单 + 每 tick 精简帧，sim 事件剥掉自带快照只转发 kind/text；决策服务端逐条校验（己方名单/伤停/暂停余量/合法战术与位置），非法回 `decision_rejected` 不中断对局；断线暂停 + 同名重新加入认领原座位；P0 对决伤病关闭（避开已知短手软锁边角）。
+- **客户端**：`online.html` + `js/online/client.js`（不跑 sim，只渲染帧 + 发决策）：比分/时钟/球权/暂停、双方场上与板凳、换人/战术/指定持球人/站位/暂停/继续全套；主页加联机入口链接。启动方式：静态站开 `online.html`，另起 `node server/online-server.mjs`（默认 3001）。
+- **测试**：新增 19 个——引擎按方 7 个、精简帧 3 个（含 < 8KB 断言）、决策校验 8 个、WS 联调 1 个（建房→加入→换人生效→非法指令拒绝→暂停/继续→断线认领）；另有一局完整对局冒烟（两真客户端打满全场 108–130，双方各 213 帧一致）。修测试时踩到的两个坑已记入教训：resume 会重新拉起 sim 计时链，测试里必须 `stop()`；i18n 覆盖测试在 `setLang("en")` 后断言失败会跳过恢复中文，导致后续中文测试级联失败——根因是主页新增链接文本未进 PHRASES 词表，补词条后 19/19。
+- **P0 明确不做**：服务端账号、匹配池、观战、差量压缩（精简帧已够小）、防守体系与托管指令、生涯经济联机。
+
+---
+
+### R61：生涯选秀第二轮——同一 draft 内续轮
+
+- **设计**：单 draft state 内续轮，不拆两个 draft、不动存档校验。`createDraftState` 加 `rounds`（默认 1，旧行为不变）与 `round` 跟踪；生涯 `beginCareerDraft` 传 `rounds: 2`。第一轮打完时 `advanceDraftRoundIfNeeded` 续轮：顺位表沿用本届 `draft.picks`（T5 归属表，含换签结果），按来源战绩最差优先排（**无乐透重抽**，与第一轮的半程乐透不同）；总顺位顺延（4 队联赛第 5–8 顺位），新秀合同按总顺位递减，无需改薪资表；两轮 selections 在同一 draft 对象里，`withCompletedDraft` 一次归档，`draftHistory` 仍一年一条。
+- **第二轮池子**：不用第一轮剩菜——第一轮池子按首轮顺位数定量，耗尽时无剩可吃。改用 `${seed}|round-2` 种子重生成，过滤掉第一轮已选的 prospectId/bref，并按已选数补量（每个已选最多顶掉一个候选，补量后必够）；生成卡 id 与种子无关（`generated-年-序号`），过滤是去重的关键。`advanceDraftToUserPick` 入口与循环内都接续轮检查，用户选完最后一签、CPU 选完最后一签都会正确续轮或结束。
+- **选秀板**：进行中标题在 `round > 1` 时显示“第 X 轮”；多签计数（“我方本届签位共 N 个”）天然覆盖两轮。旧存档里进行中的一轮选秀（无 rounds 字段）不受影响，仍按一轮走完。
+- **测试**：新增 `tests/round2Draft.test.js` 7 个（续轮状态与顺位顺延、次轮最差优先、换签归属带入次轮、池子排除已选且够数、一轮 draft 不受影响、advance 全程带两轮、rounds 非法值拒绝）；5 处旧生涯选秀测试按“两轮打完才算完成”更新（单次归档断言保留，正好验证续轮不重复记 summary）。

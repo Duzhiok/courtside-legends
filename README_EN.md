@@ -307,9 +307,9 @@ courtside-legends/
 
 ## Technical notes
 
-- Pure frontend static pages (ES Modules), **no build, no backend**
+- Pure frontend static pages (ES Modules), **no build, no backend** (single-player); online duels need a separate Node server, `node server/online-server.mjs` (see `online.html`, P0 room-code 1v1, R60)
 - Saves and accounts live in the browser's `localStorage` / IndexedDB (not synced across machines)
-- Automated tests: `npm test` (Node built-in `node:test`, currently 684 tests, all passing)
+- Automated tests: `npm test` (Node built-in `node:test`, currently 710 tests, all passing)
 - Static checks: `npm run lint` (eslint flat config, only real-bug rules like no-undef / no-unused-vars / no-unreachable — no style rules, no prettier)
 - MIT License
 
@@ -334,13 +334,12 @@ The launch requirements, checked against the code one by one:
 
 ## Not yet done (roadmap)
 
-- Player-initiated pick trades and a second-round draft (draft picks currently only appear in other teams' inbound offers)
 - Second-term storylines after an extension, and the actual gameplay effects of contract perks
 - Full multi-year veteran contract talks and restricted free agency (RFA)
 - Deeper CPU free agency, trading, and team-building strategy
 - Exporting the ending share card as an image
 - Integrating the home page's three main threads and a four-tab in-game coach panel
-- Online multiplayer and cloud saves
+- Online multiplayer P1–P3 (reconnect/spectating, matchmaking pool, accounts/ranked) and cloud saves (P0 room-code 1v1 is live, see R60)
 - Full sync with an official live-stats API
 - Finer on-court motion animation
 - Avatar localization: B-Ref headshots are currently live hotlinks — they fall back to generated avatars when offline / rate-limited; consider downloading them at build time into `assets/avatars/` permanently

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>联机对战 · Courtside Legends</title>
+<style>
+  body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #101418; color: #eef2f5; margin: 0 auto; max-width: 860px; padding: 16px; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 16px; margin: 18px 0 8px; }
+  a { color: #9fd0ff; }
+  .card { background: #1a2129; border: 1px solid #2c3947; border-radius: 10px; padding: 14px; margin: 12px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  input, select { background: #0f1419; color: #eef2f5; border: 1px solid #2c3947; border-radius: 6px; padding: 7px 9px; }
+  button { background: #2e7dd1; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  button.ghost { background: #28333e; }
+  #status { min-height: 20px; margin: 8px 0; }
+  #status.error { color: #ff9a9a; }
+  #pause-banner { background: #3a2f10; border: 1px solid #8a6d1f; border-radius: 8px; padding: 10px; margin: 10px 0; }
+  #scoreboard { font-size: 22px; font-weight: 700; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+  #clock, #possession, #timeouts, #chem { color: #c6d2dd; }
+  ul { list-style: none; padding: 0; margin: 6px 0; }
+  ul li { padding: 3px 0; border-bottom: 1px solid #232e38; }
+  #feed { max-height: 260px; overflow: auto; }
+  #feed li { color: #c6d2dd; }
+  .muted { color: #8fa1b0; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>联机对战（P0）</h1>
+<p class="muted">服务端权威模拟：两台浏览器各执一队，房号组队。先启动服务端 <code>node server/online-server.mjs</code>（默认 ws://localhost:3001），再用静态站打开本页。</p>
+<p><a href="index.html">← 回单机主页</a></p>
+
+<div id="lobby" class="card">
+  <div class="row">
+    <label>服务器 <input id="server-url" value="ws://localhost:3001" size="24" /></label>
+    <label>名字 <input id="player-name" placeholder="你的名字" size="12" /></label>
+    <button id="btn-connect" type="button">连接服务器</button>
+  </div>
+  <div class="row">
+    <label>建房球队 <select id="team-create"></select></label>
+    <button id="btn-create" type="button">创建房间</button>
+  </div>
+  <div class="row">
+    <label>房号 <input id="room-code-input" placeholder="6 位房号" size="10" /></label>
+    <label>加入球队 <select id="team-join"></select></label>
+    <button id="btn-join" type="button">加入房间</button>
+  </div>
+  <p class="muted">P0 规则：纯对决，不带生涯经济；换人/战术/指定持球人/站位/暂停/继续都可随时发，换人下个回合生效；暂停与节间双方都可调整，任一方点继续即恢复，20 秒无人操作自动恢复；断线后同名重新加入可认领原座位。</p>
+</div>
+
+<p id="room-code"></p>
+<div id="waiting" class="card" hidden>等待对手加入…</div>
+
+<div id="game" hidden>
+  <div class="card">
+    <div id="scoreboard"><span id="score-home"></span><span>—</span><span id="score-away"></span></div>
+    <div class="row"><span id="clock"></span><span id="possession"></span><span id="timeouts"></span></div>
+    <div id="chem" class="muted"></div>
+    <div id="you-side" class="muted"></div>
+    <div id="pause-banner" hidden></div>
+  </div>
+
+  <div class="card">
+    <h2>场上</h2>
+    <div class="row" style="gap: 32px; align-items: flex-start;">
+      <div><strong>主队</strong><ul id="lineup-home"></ul></div>
+      <div><strong>客队</strong><ul id="lineup-away"></ul></div>
+    </div>
+    <h2>板凳</h2>
+    <div class="row" style="gap: 32px; align-items: flex-start;">
+      <div><strong>主队</strong><ul id="bench-home"></ul></div>
+      <div><strong>客队</strong><ul id="bench-away"></ul></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>执教</h2>
+    <div class="row">
+      <label>换下 <select id="sub-out"></select></label>
+      <label>换上 <select id="sub-in"></select></label>
+      <button id="btn-sub" type="button">换人</button>
+    </div>
+    <div class="row">
+      <label>战术 <select id="tactic-select"></select></label>
+      <label>指定持球人 <select id="focus-select"></select></label>
+      <button id="btn-timeout" type="button">叫暂停</button>
+      <button id="btn-resume" type="button" hidden>继续比赛</button>
+    </div>
+    <div class="row">
+      <label>站位球员 <select id="pos-player"></select></label>
+      <label>位置
+        <select id="pos-select">
+          <option value="PG">PG</option>
+          <option value="SG">SG</option>
+          <option value="SF">SF</option>
+          <option value="PF">PF</option>
+          <option value="C">C</option>
+        </select>
+      </label>
+      <button id="btn-pos" type="button">调整站位</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>战报</h2>
+    <ul id="feed"></ul>
+  </div>
+</div>
+
+<p id="status"></p>
+<button id="btn-reconnect" type="button" hidden>重新连接</button>
+
+<script type="module" src="js/online/client.js"></script>
+</body>
+</html>
