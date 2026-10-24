@@ -160,7 +160,10 @@ import {
   acceptTradeProposal,
   declineTradeProposal,
   ensureTradeProposals,
+  listPlayerForTrade,
+  listedPlayerIds,
   refreshTradeProposals,
+  unlistPlayerForTrade,
 } from "./engine/tradeProposals.js";
 import {
   DRAFT_FREE_REFRESHES,
@@ -318,6 +321,7 @@ import {
   SEASON_SALARY_CAP,
   cutPlayer,
   executeTrade,
+  executeThreeTeamTrade,
   fireAssistant,
   fireCoach,
   formatSalary,
@@ -8462,15 +8466,18 @@ function renderSeasonMarket() {
     return;
   }
 
+  const listedSet = new Set(listedPlayerIds(st));
   const rosterRows = [...(you.players || [])]
     .sort((a, b) => overall(b) - overall(a))
     .map((p) => {
+      const isListed = listedSet.has(p.id);
       return `<div class="sm-row">
         <div>
-          <strong>${p.playPos || p.pos} ${p.name}</strong>
+          <strong>${p.playPos || p.pos} ${p.name}</strong>${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
           <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p)}</div>
         </div>
-        <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">裁掉</button>
+        <span class="btn-row"><button type="button" class="btn small ghost sm-list-trade" data-list-trade="${p.id}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
+        <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">裁掉</button></span>
       </div>`;
     })
     .join("");
@@ -8640,8 +8647,8 @@ function renderSeasonMarket() {
       </article>`).join("") || `<p class="tiny">最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。</p>`}
     </section>
     <section class="sm-trade">
-      <h4>交易（1 换 1）</h4>
-      <p class="tiny">薪资大致匹配；对方会评估战力。交易后继续打当赛季赛程。</p>
+      <h4>交易（1 换 1 / 三方）</h4>
+      <p class="tiny">薪资大致匹配；对方会评估战力。交易后继续打当赛季赛程。三方循环：我方送出 → 对手球队 → 第三方球队 → 我方；不选第三方就是普通 1 换 1。</p>
       <div class="form-row">
         <label>我方送出
           <select id="sm-trade-give">${myOpts}</select>
@@ -8651,6 +8658,12 @@ function renderSeasonMarket() {
         </label>
         <label>对方球员
           <select id="sm-trade-want"></select>
+        </label>
+        <label>第三方球队（可选）
+          <select id="sm-trade-cpu3"><option value="">不选（1 换 1）</option>${cpuOpts}</select>
+        </label>
+        <label>第三方球员（给我的）
+          <select id="sm-trade-want3"></select>
         </label>
         <button type="button" class="btn primary" id="btn-sm-trade">提出交易</button>
       </div>
@@ -8673,7 +8686,40 @@ function renderSeasonMarket() {
   };
   fillCpuPlayers();
   $("#sm-trade-cpu")?.addEventListener("change", fillCpuPlayers);
+  const fillTeam3Players = () => {
+    const tid = $("#sm-trade-cpu3")?.value;
+    const sel = $("#sm-trade-want3");
+    if (!sel) return;
+    const cpu = tid ? st.teams[tid] : null;
+    sel.innerHTML = cpu
+      ? [...(cpu.players || [])]
+          .sort((a, b) => overall(b) - overall(a))
+          .map(
+            (p) =>
+              `<option value="${p.id}">${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}</option>`
+          )
+          .join("")
+      : "";
+  };
+  fillTeam3Players();
+  $("#sm-trade-cpu3")?.addEventListener("change", fillTeam3Players);
 
+  box.querySelectorAll(".sm-list-trade").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.dataset.listTrade;
+      const listed = new Set(listedPlayerIds(st)).has(id);
+      const res = listed ? unlistPlayerForTrade(st, id) : listPlayerForTrade(st, id);
+      if (!res.ok) {
+        alert(res.reason);
+        return;
+      }
+      // 挂牌后刷新报价，让挂牌球员立刻进入报价池
+      refreshTradeProposals(st);
+      if (!saveSeasonAndCareer(st)) return;
+      renderSeasonHub();
+      showSeasonTab("market");
+    };
+  });
   box.querySelectorAll(".sm-cut").forEach((btn) => {
     btn.onclick = () => {
       const p = you.players.find((x) => x.id === btn.dataset.cut);
@@ -8787,7 +8833,18 @@ function renderSeasonMarket() {
     const giveId = $("#sm-trade-give")?.value;
     const wantId = $("#sm-trade-want")?.value;
     const cpuId = $("#sm-trade-cpu")?.value;
-    const res = executeTrade(st, { giveIds: [giveId], wantIds: [wantId], cpuTeamId: cpuId });
+    const cpu3Id = $("#sm-trade-cpu3")?.value;
+    const want3Id = $("#sm-trade-want3")?.value;
+    const res =
+      cpu3Id && want3Id
+        ? executeThreeTeamTrade(st, {
+            giveIds: [giveId],
+            team2Id: cpuId,
+            team2PlayerIds: [wantId],
+            team3Id: cpu3Id,
+            team3PlayerIds: [want3Id],
+          })
+        : executeTrade(st, { giveIds: [giveId], wantIds: [wantId], cpuTeamId: cpuId });
     const hint = $("#sm-trade-hint");
     if (!res.ok) {
       if (hint) hint.textContent = res.reason;
