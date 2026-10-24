@@ -91,6 +91,55 @@ export function budgetGold(c) {
   return c.gold || 0;
 }
 
+/** Primary position token ("PG/SG" -> "PG"). */
+export function primaryPos(p) {
+  return String(p?.playPos || p?.pos || "").split("/")[0].trim();
+}
+
+const SHOP_POSITIONS = ["PG", "SG", "SF", "PF", "C"];
+const SHOP_POS_TARGET = 2;
+
+/** Count a roster by primary position. */
+export function positionCounts(players = []) {
+  const counts = {};
+  for (const p of players || []) {
+    const pos = primaryPos(p);
+    if (pos) counts[pos] = (counts[pos] || 0) + 1;
+  }
+  return counts;
+}
+
+/** Positions below the 2-per-slot target, scarcest first. */
+export function deficitPositions(players = []) {
+  const counts = positionCounts(players);
+  return SHOP_POSITIONS.filter((pos) => (counts[pos] || 0) < SHOP_POS_TARGET)
+    .sort((a, b) => (counts[a] || 0) - (counts[b] || 0));
+}
+
+/**
+ * Fit signal for a shop row: "need" when the player fills a below-target
+ * position, "tactic" when his archetype matches a coach tactic need,
+ * otherwise null. Pure (tacticNeeds passed in) so tests need no DOM/coach.
+ */
+export function shopFit(p, teamPlayers = [], tacticNeeds = []) {
+  if (!p) return null;
+  const pos = primaryPos(p);
+  if (pos && deficitPositions(teamPlayers).includes(pos)) return "need";
+  const needs = new Set(tacticNeeds || []);
+  if (p.archetype && needs.has(p.archetype)) return "tactic";
+  return null;
+}
+
+/**
+ * Refresh cost for a career market: free while the roster cannot field a
+ * rotation (< 8 players), so gold can never be burned without a team.
+ * Duel keeps its own charging path and never uses this.
+ */
+export function careerRefreshCost(c, baseCost) {
+  if (c?.kind === "career" && (c.team?.players?.length || 0) < 8) return 0;
+  return baseCost;
+}
+
 /** Build a shop skewed toward what you can afford now. */
 export function buildAffordableShop(c, size = 12) {
   const exclude = c.used || new Set();
@@ -109,12 +158,22 @@ export function buildAffordableShop(c, size = 12) {
   const stretch = priced.filter((x) => x.price > budget && x.price <= budget * 1.35);
   const gems = priced.filter((x) => isHiddenGem(x.p) && x.price <= budget * 1.2);
 
+  const deficit = new Set(deficitPositions(c.team?.players));
   const pick = (arr, n) => {
-    const copy = [...arr];
+    // Deficit positions first within each price band, sampled randomly
+    // inside each group so refreshes still vary.
+    const groups = [
+      arr.filter((x) => deficit.has(primaryPos(x.p))),
+      arr.filter((x) => !deficit.has(primaryPos(x.p))),
+    ];
     const out = [];
-    while (copy.length && out.length < n) {
-      const i = Math.floor(Math.random() * copy.length);
-      out.push(copy.splice(i, 1)[0].p);
+    for (const group of groups) {
+      const copy = [...group];
+      while (copy.length && out.length < n) {
+        const i = Math.floor(Math.random() * copy.length);
+        out.push(copy.splice(i, 1)[0].p);
+      }
+      if (out.length >= n) break;
     }
     return out;
   };
@@ -136,7 +195,26 @@ export function buildAffordableShop(c, size = 12) {
     if (p.bref) seenPeople.add(p.bref);
     return true;
   });
-  return shop.slice(0, size).map(clonePlayer);
+  shop = shop.slice(0, size);
+  // 保底：至少 2/3 货架为当前金币可负担，否则用最便宜的未上架球员替换最贵的超预算者
+  const gold = budgetGold(c);
+  const needAffordable = Math.ceil((shop.length * 2) / 3);
+  const affordable = shop.filter((p) => playerPrice(p) <= gold).length;
+  if (affordable < needAffordable) {
+    const inShop = new Set(shop.map((p) => p.id));
+    const inShopPeople = new Set(shop.map((p) => p.bref).filter(Boolean));
+    const cheapBench = priced
+      .filter((x) => !inShop.has(x.p.id) && !inShopPeople.has(x.p.bref) && !usedPeople.has(x.p.bref) && x.price <= gold)
+      .sort((a, b) => a.price - b.price);
+    shop.sort((a, b) => playerPrice(b) - playerPrice(a));
+    for (const x of cheapBench) {
+      if (shop.filter((p) => playerPrice(p) <= gold).length >= needAffordable) break;
+      const idx = shop.findIndex((p) => playerPrice(p) > gold);
+      if (idx < 0) break;
+      shop[idx] = x.p;
+    }
+  }
+  return shop.map(clonePlayer);
 }
 
 /**

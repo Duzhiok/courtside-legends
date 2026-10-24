@@ -201,7 +201,9 @@ import {
 import {
   SCOUT_PACK_COST_MIN,
   buildAffordableShop,
+  careerRefreshCost,
   rollScoutPackOffer,
+  shopFit,
   teamStarters,
 } from "./engine/careerEconomy.js";
 import {
@@ -3457,7 +3459,13 @@ function rollCareerStaffShops(c, { coaches = true, skills = true } = {}) {
     const prev = (c.skillShop || []).map((x) => x.id);
     // 连续刷新避开上一柜，并记住近期出现过的，减少「来回就那几样」
     const recent = [...new Set([...(c.skillShopRecent || []), ...prev])].slice(-18);
-    c.skillShop = rollSkillShopOffers(SKILL_SHOP_SIZE, recent);
+    // 绑定刷新：阵容里已有 2 人以上拥有的技能降权，少推重复货
+    const ownedCounts = {};
+    for (const pl of c.team?.players || []) {
+      for (const s of pl.skills || []) ownedCounts[s] = (ownedCounts[s] || 0) + 1;
+    }
+    const avoid = new Set(Object.keys(ownedCounts).filter((id) => ownedCounts[id] >= 2));
+    c.skillShop = rollSkillShopOffers(SKILL_SHOP_SIZE, recent, avoid);
     c.skillShopRecent = [...new Set([...recent, ...c.skillShop.map((x) => x.id)])].slice(-24);
   }
 }
@@ -4766,8 +4774,8 @@ function openMarket({ career = false, duel = false, afterWin = false, refillShop
     const tierName = challengeTierName(c.challengeTier || "gold", lang);
     $("#market-hint").textContent = afterWin
       ? lang === "en"
-        ? `Game bonus banked · ${tierName}. Buy players / coaches / skill packs; refresh ¤${MARKET_REFRESH_COST}. Scout packs appear randomly. ${roundBit}`
-        : `赛果奖金已入账 · ${tier.name}。可买球员/教练/技能包；刷新 ¤${MARKET_REFRESH_COST}。球探包随机刷出。${roundBit}`
+        ? `Game bonus banked · ${tierName}. Buy players / coaches / skill packs; refresh ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}. Scout packs appear randomly. ${roundBit}`
+        : `赛果奖金已入账 · ${tier.name}。可买球员/教练/技能包；刷新 ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}。球探包随机刷出。${roundBit}`
       : lang === "en"
         ? `${fieldBit}. Now ¤${c.gold || 600}. Scout packs appear randomly (about 30% refresh). ${roundBit}`
         : `${fieldBit}。当前 ¤${c.gold || 600}。球探包随机出现（约三成换货）。${roundBit}`;
@@ -5131,19 +5139,26 @@ function paintFreeAgentList(c, duel = false) {
   const sortEl = $("#market-sort");
   if (sortEl && state.marketSort) sortEl.value = state.marketSort;
   if (!c.shop?.length) {
-    box.innerHTML = `<p class="tiny">市场空了。点「刷新自由市场」花 ¤${MARKET_REFRESH_COST} 换一批。</p>`;
+    box.innerHTML = `<p class="tiny">${careerRefreshCost(c, MARKET_REFRESH_COST) === 0 ? "市场空了。阵容不满 8 人，本次刷新免费，点「刷新自由市场」换一批。" : `市场空了。点「刷新自由市场」花 ¤${MARKET_REFRESH_COST} 换一批。`}</p>`;
     return;
   }
   const scoutOn = !!c.scoutActive;
+  const tacticNeeds = coachTactics(c.team?.coach).flatMap((t) => t.needs || []);
   box.innerHTML = sortedMarketShop(c.shop)
     .map((p) => {
       const price = playerPrice(p);
       const afford = price <= budget;
       const badge = shopRevealBadge(p, scoutOn);
+      const fit = shopFit(p, c.team?.players || [], tacticNeeds);
+      const fitBadge = fit === "need"
+        ? ` <span class="fit-badge need">${getLang() === "en" ? "Fills a gap" : "缺位补强"}</span>`
+        : fit === "tactic"
+          ? ` <span class="fit-badge tactic">${getLang() === "en" ? "Tactic fit" : "战术契合"}</span>`
+          : "";
       return `<div class="market-row ${afford ? "" : "unaffordable"}">
         ${photoImg(p)}
         <div style="flex:1">
-          <strong>${p.name}${badge ? ` ${badge}` : ""}</strong>
+          <strong>${p.name}${badge ? ` ${badge}` : ""}${fitBadge}</strong>
           <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · <strong>¤${price}</strong>${
             afford ? "" : " · 超出预算"
           }${physiqueLabel(p) ? ` · ${physiqueLabel(p)}` : ""}</div>
@@ -5207,11 +5222,12 @@ $("#btn-refresh-market").onclick = () => {
   const c = state.career;
   if (!c) return;
   if (c.kind === "career") {
-    if (c.gold < MARKET_REFRESH_COST) {
-      alert(`刷新需要 ¤${MARKET_REFRESH_COST}，当前不够`);
+    const refreshCost = careerRefreshCost(c, MARKET_REFRESH_COST);
+    if (c.gold < refreshCost) {
+      alert(`刷新需要 ¤${refreshCost}，当前不够`);
       return;
     }
-    c.gold -= MARKET_REFRESH_COST;
+    c.gold -= refreshCost;
     c.shop = buildAffordableShop(c, 12);
     rollScoutPackOffer(c, "refresh");
     // 球员市场刷新时，教练与技能包也一起随机换一批
