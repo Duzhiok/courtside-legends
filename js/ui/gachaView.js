@@ -4,7 +4,7 @@
  * module never reaches into app.js globals.
  */
 import { EXTRA_DRAW, MAX_STARS, NEWBIE, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
-import { MILESTONE_WINS, WELCOME_TICKETS } from "../data/dailyTasks.js";
+import { CHALLENGE_TICKETS, MILESTONE_WINS, WELCOME_TICKETS } from "../data/dailyTasks.js";
 import { GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "../data/growthPaths.js";
 import { MAX_CARDS } from "../data/accountRecycle.js";
 import { scoutLabel } from "../data/intangibles.js";
@@ -27,7 +27,7 @@ export function drawRulesHtml() {
   return `<details class="draw-rules-more">
     <summary>概率与保底规则</summary>
     <p class="tiny"><strong>抽卡顺序</strong>：每日免费 1 抽 → 抽卡券 → 金币加抽（¤${EXTRA_DRAW.cost}/次，每天最多 ${EXTRA_DRAW.perDay} 次）。
-    抽卡券来源：新手礼包 ${WELCOME_TICKETS} 张、每日排位任务（打 1 场 +1、赢 1 场 +1）、排位累计每 ${MILESTONE_WINS} 胜 +1。约 20% 出教练卡。<br/>
+    抽卡券来源：新手礼包 ${WELCOME_TICKETS} 张、每日任务（排位打 1 场 +1、赢 1 场 +1、金币挑战赛赢 1 场 +1）、今日挑战 +${CHALLENGE_TICKETS}、排位累计每 ${MILESTONE_WINS} 胜 +1。约 20% 出教练卡。<br/>
     <strong>球员概率</strong>：${rateSummary()}。<br/>
     <strong>保底</strong>：新手前 ${NEWBIE.allstarByPull} 抽必出 85+（只一次，一定从常驻池出）；之后每 ${PITY.allstarEvery} 抽必出全明星+，${PITY.legendAt} 抽必出传奇+。教练卡也算一抽。<br/>
     抽前只看得到 OVR——成色、隐藏能力、妖人标签入手后才揭晓。</p>

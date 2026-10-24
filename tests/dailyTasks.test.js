@@ -11,6 +11,7 @@ const {
   CHALLENGE_TICKETS,
   DAILY_CHALLENGES,
   grantWelcomeTickets,
+  recordCareerTasks,
   recordRankedTasks,
   recordChallengeProgress,
   dailyState,
@@ -163,4 +164,42 @@ test("recordChallengeProgress is a safe no-op with no account, no id, or an unkn
   assert.equal(recordChallengeProgress(acc, null, DAY1), null);
   assert.equal(recordChallengeProgress(acc, "not-a-real-challenge", DAY1), null);
   assert.equal(acc.tickets || 0, 0);
+});
+
+/**
+ * R47 rebalance: day one used to hand out 5 premium pulls before any real
+ * play (welcome 4 + free 1). The welcome gift is 2 now, and the third daily
+ * task ticket moved into the gold ladder （金币挑战赛） so a daily ticket is
+ * earned in the tournament mode, not only in ranked.
+ */
+test("welcome gift is the rebalanced 2 tickets", () => {
+  assert.equal(WELCOME_TICKETS, 2);
+});
+
+test("career win pays the 金币挑战赛 ticket once a day; a loss pays nothing", () => {
+  const acc = account();
+  assert.deepEqual(recordCareerTasks(acc, false, DAY1), [], "a loss must not pay");
+  assert.equal(acc.tickets || 0, 0);
+  const grant = recordCareerTasks(acc, true, DAY1);
+  assert.deepEqual(grant.map((g) => g.id), ["careerWin"]);
+  assert.equal(acc.tickets, 1);
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "second win the same day pays nothing more");
+  assert.equal(acc.tickets, 1);
+  const nextDay = recordCareerTasks(acc, true, DAY2);
+  assert.deepEqual(nextDay.map((g) => g.id), ["careerWin"], "a new day pays again");
+  assert.equal(acc.tickets, 2);
+});
+
+test("ranked pair + career task stack to 3 daily task tickets, each once", () => {
+  const acc = account();
+  playRanked(acc, true, DAY1); // play + win
+  recordCareerTasks(acc, true, DAY1); // careerWin
+  assert.equal(acc.tickets, 3);
+  const board = taskBoard(acc, DAY1);
+  assert.deepEqual(board.tasks.map((t) => t.id), ["play", "win", "careerWin"]);
+  assert.ok(board.tasks.every((t) => t.claimed));
+});
+
+test("recordCareerTasks is a safe no-op without an account", () => {
+  assert.deepEqual(recordCareerTasks(null, true, DAY1), []);
 });

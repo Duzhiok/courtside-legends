@@ -3,7 +3,12 @@
  *
  * Tasks pay 抽卡券 (extra pulls), never gold or cards directly, so progress
  * always goes through the same pity / 成色 rules. Everything is capped:
- *  - daily tasks: at most 2 tickets a day (play 1 ranked + win 1 ranked);
+ *  - daily tasks: at most 3 tickets a day (play 1 ranked + win 1 ranked +
+ *    win 1 gold-ladder game). The career task exists because the ranked pair
+ *    alone made day one too cheap: a welcome gift + free pull + two ranked
+ *    tickets handed out premium pulls before any real play (R47 rebalance --
+ *    the gift was cut 4 -> 2 and the third daily ticket moved into the
+ *    gold tournament, the mode the user asked to matter daily);
  *  - daily challenge: 1 randomly-assigned hard task a day, worth
  *    CHALLENGE_TICKETS more on top -- without this, "2 extra pulls" was
  *    trivially farmable from a single ranked game, so there was no reason
@@ -13,13 +18,14 @@
  */
 import { saveAccount, todayKey } from "./account.js";
 
-export const WELCOME_TICKETS = 4;
+export const WELCOME_TICKETS = 2;
 export const MILESTONE_WINS = 5;
 export const CHALLENGE_TICKETS = 2;
 
 export const DAILY_TASKS = [
   { id: "play", label: "打 1 场排位", tickets: 1, done: (day) => day.played >= 1 },
   { id: "win", label: "排位赢 1 场", tickets: 1, done: (day) => day.won >= 1 },
+  { id: "careerWin", label: "金币挑战赛赢 1 场", tickets: 1, done: (day) => (day.careerWon || 0) >= 1 },
 ];
 
 /**
@@ -50,7 +56,7 @@ export function grantWelcomeTickets(account) {
 export function dailyState(account, today = todayKey(), rng = Math.random) {
   const day = account.daily;
   if (day?.day === today) return day;
-  account.daily = { day: today, played: 0, won: 0, claimed: [], challengeId: pickChallenge(rng).id };
+  account.daily = { day: today, played: 0, won: 0, careerWon: 0, claimed: [], challengeId: pickChallenge(rng).id };
   saveAccount(account); // persist the day's challenge pick immediately, so a reload can't re-roll it
   return account.daily;
 }
@@ -59,6 +65,18 @@ export function winMilestone(account) {
   const wins = account.rankedWins || 0;
   const earned = Math.floor(wins / MILESTONE_WINS);
   return { wins, earned, claimed: account.milestoneClaimed || 0, next: (earned + 1) * MILESTONE_WINS };
+}
+
+/** Claim every daily task whose condition the day now satisfies. */
+function claimReadyTasks(account, day) {
+  const granted = [];
+  for (const task of DAILY_TASKS) {
+    if (day.claimed.includes(task.id) || !task.done(day)) continue;
+    day.claimed.push(task.id);
+    account.tickets = (account.tickets || 0) + task.tickets;
+    granted.push({ id: task.id, label: task.label, tickets: task.tickets });
+  }
+  return granted;
 }
 
 /**
@@ -70,13 +88,7 @@ export function recordRankedTasks(account, won, today = todayKey()) {
   day.played += 1;
   if (won) day.won += 1;
 
-  const granted = [];
-  for (const task of DAILY_TASKS) {
-    if (day.claimed.includes(task.id) || !task.done(day)) continue;
-    day.claimed.push(task.id);
-    account.tickets = (account.tickets || 0) + task.tickets;
-    granted.push({ id: task.id, label: task.label, tickets: task.tickets });
-  }
+  const granted = claimReadyTasks(account, day);
 
   const milestone = winMilestone(account);
   const fresh = milestone.earned - milestone.claimed;
@@ -86,6 +98,19 @@ export function recordRankedTasks(account, won, today = todayKey()) {
     granted.push({ id: "milestone", label: `排位累计 ${milestone.earned * MILESTONE_WINS} 胜`, tickets: fresh });
   }
   saveAccount(account);
+  return granted;
+}
+
+/**
+ * Call after a 金币晋级赛 (career) game. Only wins move the 金币挑战赛 daily
+ * task; losses change nothing. Returns what was granted, like recordRankedTasks.
+ */
+export function recordCareerTasks(account, won, today = todayKey()) {
+  if (!account) return [];
+  const day = dailyState(account, today);
+  if (won) day.careerWon = (day.careerWon || 0) + 1;
+  const granted = claimReadyTasks(account, day);
+  if (granted.length || won) saveAccount(account);
   return granted;
 }
 
