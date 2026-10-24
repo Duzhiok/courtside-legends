@@ -9221,11 +9221,85 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
     if (viewingHistory) showSeasonTab("schedule");
     else if (st?.phase === "awards") showSeasonTab("awards");
   };
-  setResultActionMode("season", { showContinue: true, continuePrimary: true });
+
+  // #btn-again doubles as "继续模拟" here (user feedback: result screen only offered a trip back
+  // to the season hub to trigger the next game -- no way to just keep going from this screen).
+  const canKeepSimming = !viewingHistory && st?.phase === "regular";
+  setResultActionMode("season", { showContinue: true, continuePrimary: !canKeepSimming });
   const again = $("#btn-again");
-  if (again) again.hidden = true;
+  if (again) {
+    again.hidden = !canKeepSimming;
+    again.classList.toggle("primary", canKeepSimming);
+    if (canKeepSimming) {
+      again.textContent = "模拟下一场";
+      again.onclick = () => simSeasonGames(1);
+    }
+  }
+  cont.classList.toggle("primary", !canKeepSimming);
+  const simSeasonBtn = $("#btn-result-sim-season");
+  if (simSeasonBtn) {
+    simSeasonBtn.hidden = !canKeepSimming;
+    if (canKeepSimming) {
+      simSeasonBtn.textContent = "模拟整个赛季";
+      simSeasonBtn.onclick = async () => {
+        if (
+          !(await confirmAction(
+            "一气模拟完剩余常规赛，过程中不能亲自指挥。全联盟每夜比赛都要跟着模拟，整赛季大约十幾秒，过程中不能交易/调整轮换。",
+            { title: "模拟整个赛季", acceptLabel: "模拟到底" },
+          ))
+        )
+          return;
+        await simRestOfSeason();
+      };
+    }
+  }
   const homeBtn = $("#btn-home");
   if (homeBtn) homeBtn.hidden = false;
+}
+
+/**
+ * Simulating the whole rest of a 32-team season takes ~15-20s of real wall-clock time
+ * (every call to simUserNextGame() also advances every OTHER game around the league that
+ * night, so "82 games" is really more like 1000+ individual games under the hood). Doing
+ * that synchronously would freeze the tab for that whole stretch with zero feedback, so this
+ * yields to the browser after every simulated night and paints a running progress count.
+ */
+async function simRestOfSeason() {
+  const st = state.season;
+  if (!st || st.phase !== "regular") return;
+  const buttons = ["#btn-result-sim-season", "#btn-again", "#btn-result-continue", "#btn-home"]
+    .map((sel) => $(sel))
+    .filter(Boolean);
+  for (const b of buttons) b.disabled = true;
+  const summaryEl = $("#result-summary");
+  let last = null;
+  let n = 0;
+  const maxGames = 82;
+  for (let i = 0; i < maxGames; i++) {
+    const r = simUserNextGame(st);
+    if (!r) break;
+    last = r;
+    n += 1;
+    if (summaryEl) summaryEl.textContent = `正在模拟整个赛季…已完成 ${n} 个比赛日，请稍候`;
+    // Intentionally awaited inside the loop: yield one frame so the progress text above
+    // actually paints instead of the tab looking frozen for ~15-20s straight.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  for (const b of buttons) b.disabled = false;
+  if (!saveSeasonAndCareer(st)) return;
+  if (last?.snap) {
+    const extra = `已连续模拟 ${n} 场；下方为最近一场（${last.snap.home?.name} ${last.snap.score.home}-${last.snap.score.away} ${last.snap.away?.name}）的完整数据。`;
+    const youSide =
+      last.game?.homeId === st.userTeamId
+        ? "home"
+        : last.game?.awayId === st.userTeamId
+          ? "away"
+          : last.snap.youSide;
+    showSeasonSimResult({ ...last.snap, youSide }, { summaryExtra: extra });
+  } else {
+    renderSeasonHub();
+    if (st.phase === "awards") showSeasonTab("awards");
+  }
 }
 
 function simSeasonGames(count = 1) {

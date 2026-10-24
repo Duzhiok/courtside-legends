@@ -35,6 +35,7 @@ Notes
 | `photo-chain.mjs <out-dir>` | the whole picture chain in a real browser: home wall, credits page, collection avatars (photo + generated), a blocked photo falls back to the avatar, **no request to NBA.com / Basketball-Reference / ui-avatars**; desktop + 390px. Needs network for Wikimedia thumbnails |
 | `legends-wall-dump.mjs <out.png>` | prints each tile's real image file + load state, saves a screenshot |
 | `star-skill-gift.mjs <out-prefix>` | pins Math.random so every pull is the same card, then walks pull 1 (new) → 5th duplicate (★5 skill gift) → 6th (球魂); element screenshot of the reveal |
+| `season-sim-continue.mjs <out-dir>` | season result screen: 模拟下一场 stays on the result screen instead of forcing a trip to the hub; 模拟整个赛季 shows live progress + disabled buttons during the ~15-20s run (not a frozen tab) and settles back to normal once the regular season ends; also guards the box-score table's overflow-x fix |
 
 Visual checks
 - **A passing "image loaded" check does not prove it is the right person.** The 1991 Jordan tile used to load fine — as a signed-basketball display case. Look at the screenshot, and print the file names (`legends-wall-dump.mjs`).
