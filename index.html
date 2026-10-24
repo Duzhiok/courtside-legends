@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="css/style.css?v=20261017matchup1" />
   <link rel="stylesheet" href="css/home.css?v=20261021home1" />
   <link rel="stylesheet" href="css/timeTravel.css?v=1" />
-  <link rel="stylesheet" href="css/gacha.css?v=1" />
+  <link rel="stylesheet" href="css/gacha.css?v=20261023search1" />
   <link rel="stylesheet" href="css/credits.css?v=1" />
 </head>
 <body>
@@ -257,7 +257,10 @@
       <details class="draw-wishlist" id="draw-wishlist">
         <summary>心愿单 & 金币合成</summary>
         <p class="tiny">指定 1 名想要的球员：抽到他所在档位时 30% 概率直接变成他，传奇保底时 50%；也可以花金币直接合成他的指定年份。</p>
-        <input id="wish-search" type="search" placeholder="搜球员：英文名 / 热门球星中文名 / 外号，如「Livingston」「利文斯顿」「黑曼巴」" aria-label="搜索心愿单球员" />
+        <div class="search-wrap">
+          <input id="wish-search" type="search" placeholder="搜球员：英文名 / 热门球星中文名 / 外号，如「Livingston」「利文斯顿」「黑曼巴」" aria-label="搜索心愿单球员" />
+          <button type="button" class="search-clear" id="wish-search-clear" aria-label="清空搜索" title="清空搜索" hidden>×</button>
+        </div>
         <div id="wish-panel"></div>
       </details>
     </main>
@@ -1043,6 +1046,6 @@
       }, 15000);
     })();
   </script>
-  <script type="module" src="js/app.js?v=20261023feed-colors"></script>
+  <script type="module" src="js/app.js?v=20261023search-clear"></script>
 </body>
 </html>

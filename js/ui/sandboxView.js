@@ -20,7 +20,10 @@ const SLOT_OFFSET = { A: 0, B: 100 };
 function sideTemplate(side) {
   return `<section class="sandbox-side" data-side="${side}" aria-label="${side} 队">
       <input class="sandbox-name" data-name="${side}" value="${side === "A" ? "时空队 A" : "时空队 B"}" aria-label="${side} 队队名" maxlength="20" />
-      <input type="search" data-search="${side}" placeholder="英文名/中文名/外号 + 年份，如「乔丹 1991」「Kobe 2006」" aria-label="${side} 队搜索球员" />
+      <div class="search-wrap">
+        <input type="search" data-search="${side}" placeholder="英文名/中文名/外号 + 年份，如「乔丹 1991」「Kobe 2006」" aria-label="${side} 队搜索球员" />
+        <button type="button" class="search-clear" data-clear="${side}" aria-label="清空 ${side} 队搜索" title="清空搜索" hidden>×</button>
+      </div>
       <div class="sandbox-results" data-results="${side}"></div>
       <h4 class="tiny" data-count="${side}"></h4>
       <ol class="sandbox-roster" data-roster="${side}"></ol>
@@ -72,6 +75,7 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
             <button type="button" class="btn small ghost" data-remove="${side}:${first}" aria-label="少一个 ${esc(card.name)}">−</button>
             <strong aria-label="${count} 个">×${count}</strong>
             <button type="button" class="btn small ghost" data-more="${side}:${first}" aria-label="多一个 ${esc(card.name)}">+</button>
+            <button type="button" class="btn small ghost sandbox-remove-all" data-remove-all="${side}:${first}" aria-label="一键移除全部 ${esc(card.name)}" title="一键移除这名球员（全部 ${count} 个）">✕</button>
           </span></li>`)
       .join("");
   }
@@ -85,10 +89,24 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
     if (!side) return;
     found[side] = searchCards(pool(), event.target.value, { limit: RESULT_LIMIT, ovrOf });
     renderResults(side);
+    const clearBtn = q(`[data-clear="${side}"]`);
+    if (clearBtn) clearBtn.hidden = !event.target.value;
   });
 
   root.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-add],[data-fill],[data-remove],[data-more],[data-start]");
+    const clearBtn = event.target.closest("[data-clear]");
+    if (clearBtn) {
+      // × 清空：一次点掉整串搜索词，回到未搜索状态并重新聚焦——不用逐字退格。
+      const side = clearBtn.dataset.clear;
+      const input = q(`[data-search="${side}"]`);
+      if (input) input.value = "";
+      found[side] = [];
+      renderResults(side);
+      clearBtn.hidden = true;
+      input?.focus();
+      return;
+    }
+    const button = event.target.closest("[data-add],[data-fill],[data-remove],[data-more],[data-remove-all],[data-start]");
     if (!button) return;
     setError("");
     try {
@@ -98,6 +116,14 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
           buildSandboxTeam(q(`[data-name="${side}"]`).value.trim() || `时空队 ${side}`, picks[side], { ...options, slotOffset: SLOT_OFFSET[side] })
         );
         onStart(teamA, teamB);
+        return;
+      }
+      if (button.dataset.removeAll) {
+        // 一键删掉这名已选球员的全部副本（×5 科比不用连点五次 −）。
+        const [side, index] = button.dataset.removeAll.split(":");
+        const card = picks[side][Number(index)];
+        if (card) picks[side] = picks[side].filter((c) => c.id !== card.id);
+        renderRoster(side);
         return;
       }
       const [side, index] = (button.dataset.add || button.dataset.fill || button.dataset.remove || button.dataset.more).split(":");

@@ -2125,7 +2125,19 @@ function paintCollectionFilter(players) {
 $("#collection-filter")?.addEventListener("input", (event) => {
   if (event.target.dataset.cf !== "query" || !collectionCache) return;
   collectionFilter = { ...collectionFilter, query: event.target.value };
+  const clearBtn = event.target.closest(".search-wrap")?.querySelector("[data-cf-clear]");
+  if (clearBtn) clearBtn.hidden = !event.target.value;
   paintCollectionGrid(collectionCache.acc, collectionCache.players);
+});
+$("#collection-filter")?.addEventListener("click", (event) => {
+  const clearBtn = event.target.closest("[data-cf-clear]");
+  if (!clearBtn || !collectionCache) return;
+  collectionFilter = { ...collectionFilter, query: "" };
+  const input = $("#collection-filter")?.querySelector('[data-cf="query"]');
+  if (input) input.value = "";
+  clearBtn.hidden = true;
+  paintCollectionGrid(collectionCache.acc, collectionCache.players);
+  input?.focus();
 });
 $("#collection-filter")?.addEventListener("change", (event) => {
   const key = event.target.dataset.cf;
@@ -2428,8 +2440,19 @@ $("#screen-draw")?.addEventListener("click", (event) => {
   }
 });
 $("#wish-search")?.addEventListener("input", () => {
+  const clearBtn = $("#wish-search-clear");
+  if (clearBtn) clearBtn.hidden = !$("#wish-search").value;
   const acc = activeAccount();
   if (acc) renderWishPanel(acc);
+});
+$("#wish-search-clear")?.addEventListener("click", () => {
+  const input = $("#wish-search");
+  if (!input) return;
+  input.value = "";
+  $("#wish-search-clear").hidden = true;
+  const acc = activeAccount();
+  if (acc) renderWishPanel(acc);
+  input.focus();
 });
 
 $("#btn-draw-pull")?.addEventListener("click", () => {
