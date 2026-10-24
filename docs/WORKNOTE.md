@@ -640,3 +640,20 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 
 **赛制差异（1 条，待用户拍板）→ 立项 T9：**
 - 原始需求写「输了就淘汰」，现状金币晋级赛小组段是两败出局 + 复活赛（打进淘汰段后才是一负出局）。这是手感取舍不是 bug，改不改等用户决定。
+
+### R44（T8）：金币晋级赛总决赛系列赛 —— 三局两胜 + 每场后进市场
+
+用户对 R43 审计里唯一的未达标项拍板：不做七场四胜，改**三局两胜**，每场后可以买卖球员调整阵容。
+
+**实现（关键是别推翻 pod 状态机）：**
+- `js/engine/careerBracket.js` 新增纯逻辑：`startFinalsSeries(opp)` / `recordFinalsGame(series, youWon)` / `finalsSeriesLabel(series)` + 常量 `FINALS_TARGET_WINS = 2`。挑战档（playoff15/champ7）的总决赛同走这套（它们共用 career bracket）。
+- `resolveCareerYourResult`（app.js）在 `stageSize === 2` 时拦截：首场总决赛赛果到达时按对手 bracketId 建 `c.series` 并记比分；**未分胜负的场次不 `applyMatchResult`**——pod 的总决赛 match 保持 open，下一场还会被 `findYourOpenMatch` 找到重打同一对；分出胜负的最后一场才落回原有的单场结算（赢→pod 晋级→夺冠，输→`stillAlive=false`→淘汰），结算后不清 `c.series`，结算页要拿它显示最终比分。
+- `handleCareerResult` 新增 `seriesGame` 分支：标题「总决赛 G‹n› 拿下/惜败」，摘要显示系列赛比分 + 本场奖金（沿用胜 120+轮次×40 / 负 40 的公式，保证场间市场有钱花），按钮「备战总决赛 G‹n+1›（先进市场）」→ `openMarket({career, refillShop})`；市场「完成」按钮原有的 `c.finals && c.series → openSetup(c.team, c.series.opp)` 骨架分支就此真正生效，卖人卖到不足 8 人仍会被市场完成按钮拦住。
+- 伤病波本来就读 `c.series.opp`（对手强度 ×0.9），系列赛每场后照常 roll，伤员在后续场次会被布置页的可用性过滤挡下——骨架的另一半也顺带活了。
+- 存档：`serializeCareer/reviveCareer` 的 series stub 机制原样复用，新增测试钉死往返后 wins/losses/target 不丢、且 `series.opp` 与 `alive[]` 里是同一个对象（共享引用一致性，和 R27 的老规矩一致）。
+
+**验证：**
+- 新增 `tests/finalsSeries.test.js` 7 个测试：2-0 / 0-2 / 2-1 三条比分线、null 防御、label 文案、「系列赛未分胜负时 pod 总决赛 match 必须保持 open」这条接线契约、存档往返。
+- 另用独立 node 脚本把 app 的实际调用顺序（建 series → 记 G1/G2 不结算 → G3 结算 + finalizePod）整段跑了一遍：pod done、advancer 是你、allPodsDone 为真。
+- 全量 629/629（622 + 7）、`node --check` 两个改动文件通过；本地 serve 200 且确认在供新版 `careerBracket.js`。eslint 本机 clone 没装 node_modules 跑不了，留给 CI/日常环境（本次改动未引入新变量名风险点，导入已逐个核对在 careerBracket.js 里真实存在）。
+- 真实浏览器全流程（打进总决赛连打 2-3 场 + 场间买人）未在本机复跑——本机浏览器工具此前打不开标签页；逻辑层契约已由上面两层测试钉住，浏览器回归留待用户机器或后续会话补。

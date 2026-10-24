@@ -169,12 +169,15 @@ import {
   computeCareerAllTeam,
   findYourOpenMatch,
   finalizePod,
+  finalsSeriesLabel,
   kindLabel,
   listPodMatches,
   nextStageSize,
   noteCareerAllTeamGame,
   noteCareerLoss,
+  recordFinalsGame,
   runCpuMatchInto,
+  startFinalsSeries,
   upgradeCpuAdvancers,
   yourCareerMatch,
   progressPodAfterMid,
@@ -4506,6 +4509,28 @@ function resolveCareerYourResult(youWon, yourOpp) {
   if (!match) {
     return { eliminated: !youWon, advancedStage: false, needAnotherGame: false, champion: false, match: null };
   }
+  // 总决赛系列赛（三局两胜，T8）：未分胜负的场次只记系列赛比分，不结算 pod 的
+  // 总决赛 match——它保持 open，市场调整后下一场还打同一对；分出胜负时不清
+  // series（结算页要显示最终比分），最后一场走下面原有的单场结算分出夺冠/淘汰。
+  if (c.stageSize === 2 && yourOpp) {
+    if (!c.series || c.series.opp?.bracketId !== yourOpp.bracketId) {
+      c.series = startFinalsSeries(yourOpp);
+    }
+    const gameNo = (c.series.wins || 0) + (c.series.losses || 0) + 1;
+    const outcome = recordFinalsGame(c.series, youWon);
+    if (!outcome.done) {
+      return {
+        eliminated: false,
+        advancedStage: false,
+        needAnotherGame: false,
+        champion: false,
+        match,
+        seriesGame: true,
+        series: c.series,
+        gameNo,
+      };
+    }
+  }
   const winner = youWon ? c.team : yourOpp;
   applyMatchResult(match, winner);
   if (match.loser) noteCareerLoss(c, match.loser);
@@ -4513,7 +4538,7 @@ function resolveCareerYourResult(youWon, yourOpp) {
   syncCareerMatchesFromPods();
 
   const yourLosses = c.losses?.you || 0;
-  // 总决赛一败即出局；其他轮次两败出局
+  // 其他轮次两败出局；总决赛走到这里的是系列赛分出胜负的最后一场，赢=夺冠、输=出局
   const stillAlive = c.stageSize === 2 ? !!youWon : yourLosses < 2;
   const youAdvanced = (c.pods || []).some(
     (pod) => pod.done && (pod.advancers || []).some((t) => t.bracketId === "you")
@@ -9631,6 +9656,10 @@ function handleCareerResult(youWin, snap) {
       : tierId === "champ7"
         ? `你已击败 7 支历史总冠军！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`
         : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`) + challengeNote;
+    if (wasFinals && c.series) {
+      $("#result-summary").textContent =
+        `${finalsSeriesLabel(c.series)} · ${$("#result-summary").textContent}`;
+    }
     const allTeam = computeCareerAllTeam(c);
     renderResultAllTeam(allTeam, "本届最佳阵容 · PG → C");
     if (nextTier === "playoff15" || nextTier === "champ7") {
@@ -9665,8 +9694,11 @@ function handleCareerResult(youWin, snap) {
   }
 
   if (result.eliminated) {
-    $("#result-title").textContent = losses >= 2 ? "两败出局" : "淘汰出局";
-    $("#result-summary").textContent = `${careerRoundLabel(c.round)} · ${kind}失利后出局（负场 ${losses}）。可回看其他对决。${injLine}`;
+    $("#result-title").textContent = wasFinals ? "总决赛出局" : losses >= 2 ? "两败出局" : "淘汰出局";
+    $("#result-summary").textContent =
+      wasFinals && c.series
+        ? `${finalsSeriesLabel(c.series)} · 系列赛失利出局。可回看其他对决。${injLine}`
+        : `${careerRoundLabel(c.round)} · ${kind}失利后出局（负场 ${losses}）。可回看其他对决。${injLine}`;
     if (wasFinals) {
       const allTeam = computeCareerAllTeam(c);
       renderResultAllTeam(allTeam, "总决赛最佳阵容 · PG → C");
@@ -9686,6 +9718,26 @@ function handleCareerResult(youWin, snap) {
 
   const reward = youWin ? 120 + (c.round || 1) * 40 : 40;
   c.gold += reward;
+
+  if (result.seriesGame) {
+    const s = result.series;
+    const nextGame = (s.wins || 0) + (s.losses || 0) + 1;
+    $("#result-title").textContent = youWin
+      ? `总决赛 G${result.gameNo} 拿下`
+      : `总决赛 G${result.gameNo} 惜败`;
+    $("#result-summary").textContent =
+      `${finalsSeriesLabel(s)}。获得 ¤${reward}，当前 ¤${c.gold}。` +
+      `G${nextGame} 开打前可先进市场买卖球员，调整阵容再战。${injLine}`;
+    cont.textContent = `备战总决赛 G${nextGame}（先进市场）`;
+    cont.onclick = () => {
+      c.shop = null;
+      openMarket({ career: true, afterWin: youWin, refillShop: true });
+      autosaveCareer();
+    };
+    setResultActionMode("career", { showContinue: true, continuePrimary: true });
+    autosaveCareer();
+    return;
+  }
 
   if (result.needAnotherGame) {
     const next = findYourOpenMatch(c.pods);
