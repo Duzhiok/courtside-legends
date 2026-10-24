@@ -132,3 +132,21 @@ test("Ben Simmons reads a believable 208cm, not the generic 'PG' height-bucket g
     assert.equal(card.weightKg, 109);
   }
 });
+
+/**
+ * Zaza Pachulia was a bruising screen-setting center his entire career -- he never played small
+ * forward. roster.json's 2004-11 rows (the "talldata" source, pre-dating the real bref scrape)
+ * got swept up by the same ambiguous-"F"-collapses-to-"SF" normalize_pos() bug; his 2012+ rows
+ * (the "bref" source) already correctly say C. Unlike Vince Carter's season-specific patch, this
+ * is a whole-career override (POS_OVERRIDES) because EVERY season should read C, including the
+ * ones that were already right -- a blanket "C" can't make an already-correct C wrong.
+ */
+test("Zaza Pachulia reads C on every season, including the early ones roster.json mistagged SF", () => {
+  const cards = rows.filter((r) => r.bref === "pachuza01").map(seasonToCard);
+  assert.ok(cards.length >= 15, "expected Pachulia's full career span");
+  const earlySeasons = cards.filter((c) => c.season <= 2011);
+  assert.ok(earlySeasons.length > 0, "should include the mistagged talldata-era seasons");
+  for (const card of cards) {
+    assert.equal(card.pos, "C", `${card.season} should read C, not ${card.pos}`);
+  }
+});

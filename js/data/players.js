@@ -297,6 +297,8 @@ const POS_OVERRIDES = {
   oaklech01: "PF", // Charles Oakley — 100% 标 SF 达 19 季
   willike02: "PF", // Kevin Willis — 100% 标 SF 达 21 季
   kempsh01: "PF", // Shawn Kemp — 100% 标 SF 达 14 季
+  pachuza01: "C", // Zaza Pachulia — 2004–11（talldata 源）全标 SF，2012 起（bref 源）才正确标 C；
+  // 他整个生涯都是撞人挡拆/卡位抢板的纯中锋，从没打过小前锋
   rondora01: "PG", // Rajon Rondo — 2007–11 全标 SF，他整个生涯都是组织后卫
   // 被 "G"→"SG" 归一化误收的历史控卫（roster.json 全生涯都标 SG，但现实中都是无争议 PG）
   stockjo01: "PG", // John Stockton — NBA 历史助攻王，19 个赛季全标 SG

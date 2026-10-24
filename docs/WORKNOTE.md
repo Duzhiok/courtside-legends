@@ -605,3 +605,11 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 **过程中抓到一个真实 bug**，不是靠单测，是靠真实浏览器点击：第一次点「父子局」直接炸，`Cannot read properties of undefined (reading 'id')`。根因是 `familyDuelShop()` 里的随机抽样辅助函数 `pick(arr, n)` 写死假设 `arr` 里每个元素都是 `{p, price}` 元组、无条件做 `.p` 解包——这对 `cheap`/`mid`/`stretch` 三个价位桶成立，但候选池太小、三个桶凑不够数时会走一个"兜底补量"分支，那个分支传进去的是已经解包过的裸球员对象（没有 `.p` 字段），于是解包结果是 `undefined`，商店数组里混进了货真价实的 `undefined`，下一行 `shop.filter(p => p.id)` 当场爆炸。单测没抓到是因为原来那条「商店」测试凑巧选用的候选池/价格分布让三个桶刚好够数，从没走到兜底分支——这也是为什么浏览器验证不能省：这次要是只跑单测就收工，这个 bug 会原封不动地上线。修复思路是让 `pick()` 变成一个真正通用的"从数组里随机挑 N 个、不对元素形状做任何假设"的函数，调用方自己决定要不要先 `.map(x => x.p)` 解包，兜底分支从一开始就传未解包过的候选，不再有两种形状混用的风险。补了一条专门复现这个坑的回归测试——先在旧代码上验证它真的会炸，再确认新代码修好，不是"我觉得修好了"。
 
 新增测试文件 `tests/familyDuel.test.js`（14 条）：合成数据覆盖候选池解析、同人不出现在两边、买人扣金币/查重/查预算/查名额、自动补满不超支不炸雷、`familyDuelReadyToStart` 的人数门槛，外加一条真实 `roster.json` + 真实 `FAMILY_GROUPS` 的集成测试（确认两个池子在真实数据下都不空、没有跨边重叠、人数比例不离谱）。全量 621/621、lint、`git diff --check` 全绿。真实浏览器全流程验证：桌面 1280×900 和手机 390×844 都走了"进入自定义→预算轮抽挑战子菜单→父子局/兄弟局→自动补满→开打→进比赛"全程，父子局挖出 Rick Brunson、Jaren Jackson Sr、Ed Manning、Tito Horford 这些真实历史老爹，兄弟局正确拆开 Jason/Jarron Collins 双胞胎，手机端无横向溢出（`scrollWidth === innerWidth === 390`），全程 `agent-browser console`/`errors` 干净。
+
+### R42：Zaza Pachulia 位置修复 —— 同一个 normalize_pos() 老毛病
+
+用户截图发现自定义模式阵容里 Zaza Pachulia 显示 `SF`（小前锋），但他整个生涯都是一个 219–222cm 的撞人型纯中锋，从没打过小前锋。查数据：`roster.json` 里他 2004–2011 赛季（`talldata` 数据源，早于真正的 bref 抓取）全部标 `SF`，2012 年起（`bref` 数据源）才正确标 `C`——跟之前修过的 Garnett/Malone/Barkley/Rodman/McHale/Oakley/Willis/Kemp（F→SF 归一化默认值 bug）、Stockton/Cousy 等控卫（G→SG 归一化默认值 bug）是**同一个根因**：`scripts/build_full_roster.py` 的 `normalize_pos()` 把早期数据源里模糊的单字母位置标签（`F`）一律归一成 `SF`，不管这人实际是前锋还是中锋。
+
+修复：在 `js/data/players.js` 的 `POS_OVERRIDES` 和 `scripts/build_full_roster.py` 的同名字典里都加上 `pachuza01: "C"`（全生涯覆盖，而不是像 Vince Carter 那样只覆盖特定赛季——因为 Pachulia 的全部 16 个赛季本来就应该是 C，覆盖已经正确的赛季不会有副作用）。`tests/positionOverrides.test.js` 新增一条测试，覆盖他全部 16 个赛季（含早年被错标的 8 个）都读 C，并做了反向 mutation 验证（临时把 override 的 key 改错名字，测试立刻报 `actual: 'SF', expected: 'C'`，确认测试真的在验证这个修复，不是摆设）。
+
+由于 roster card 的输出变了，`ROSTER_SCHEMA` 从 51 bump 到 52（否则已经打开过游戏的浏览器会继续从 IndexedDB 读旧的、带错误位置的缓存卡），跑了 `scripts/cards/update-schema-fixture.mjs` 重新生成 `tests/fixtures/cardSchema.json`。独立 node 脚本抽查确认 Pachulia 全部 16 季（2004–2019）现在都是 `C`，身高都在 219–222cm 区间，跟真实中锋体型完全吻合。全量 622/622、lint、diff --check 全绿。
