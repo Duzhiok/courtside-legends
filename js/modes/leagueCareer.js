@@ -510,7 +510,9 @@ export function beginCareerDraft(career) {
     buildNaturalPicks(career.season),
     career.season?.pickOwnership?.[career.season.year],
   );
-  const created = createDraftState({ season: career.season, seed, picks });
+  // Career drafts are two rounds: round 2 extends the same draft state
+  // (same year, same ownership map) when round 1 completes.
+  const created = createDraftState({ season: career.season, seed, picks, rounds: 2 });
   const draft = advanceDraftToUserPick(created, career.season);
   const management = careerManagement(career);
   const history = [

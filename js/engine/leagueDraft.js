@@ -371,8 +371,11 @@ export function generateDraftOrder(season, { seed, picks = null } = {}) {
   return [...order, ...ranked.slice(lotterySize).map((pick) => pick.ownerTeamId)];
 }
 
-export function createDraftState({ season, seed, players = PLAYERS, picks = null } = {}) {
+export function createDraftState({ season, seed, players = PLAYERS, picks = null, rounds = 1 } = {}) {
   requireSeed(seed);
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 2) {
+    throw new TypeError("rounds must be 1 or 2");
+  }
   const resolvedPicks = picks?.length ? picks : buildNaturalPicks(season);
   const order = generateDraftOrder(season, { seed, picks: resolvedPicks });
   const year = requireYear(season.year, "season.year");
@@ -384,6 +387,8 @@ export function createDraftState({ season, seed, players = PLAYERS, picks = null
   return {
     year,
     seed,
+    rounds,
+    round: 1,
     order,
     picks: resolvedPicks,
     prospects,
@@ -608,8 +613,52 @@ function cpuScore(draft, season, prospect) {
   };
 }
 
-export function advanceDraftToUserPick(draft, season) {
-  let next = draft;
+/**
+ * Second-round transition for a 2-round draft (T6 follow-up: career drafts).
+ *
+ * Runs when round 1 just completed. The round-2 order is pure worst-first
+ * by source record (no lottery re-draw, unlike round 1) with the same pick
+ * ownership map, so traded picks carry over. The round-2 pool is generated
+ * from a different seed and filtered against round-1 selections; the pool
+ * is padded by the number of round-1 selections because each selection can
+ * remove at most one candidate (unique prospectId/bref), which guarantees
+ * enough survivors. Leftover round-1 prospects are NOT reused: the round-1
+ * pool is sized to round 1 only and can be empty when round 1 ends.
+ * Returns the draft unchanged unless a transition applies.
+ */
+export function advanceDraftRoundIfNeeded(draft, season, players = PLAYERS) {
+  if (!draft || draft.status !== "complete") return draft;
+  if (draft.rounds !== 2 || (draft.round ?? 1) !== 1) return draft;
+  if (!Array.isArray(draft.picks) || !draft.picks.length) return draft;
+  const round2Order = [...draft.picks]
+    .sort((a, b) => worseFirst(season, draft.seed)(a.sourceTeamId, b.sourceTeamId))
+    .map((pick) => pick.ownerTeamId);
+  if (!round2Order.length) return draft;
+  const selectedIds = new Set((draft.selections || []).map((s) => s.prospectId));
+  const selectedBrefs = new Set(
+    (draft.selections || []).map((s) => s.bref).filter(Boolean),
+  );
+  const pool = rookieClassForYear(draft.year, {
+    seed: `${draft.seed}|round-2`,
+    minimumSize: round2Order.length + (draft.selections || []).length,
+    players,
+  }).filter(
+    (p) => !selectedIds.has(p.prospectId) && !(p.bref && selectedBrefs.has(p.bref)),
+  );
+  if (pool.length < round2Order.length) {
+    throw new Error("round-2 prospect pool is too small");
+  }
+  return {
+    ...draft,
+    order: [...draft.order, ...round2Order],
+    prospects: pool,
+    round: 2,
+    status: "in_progress",
+  };
+}
+
+export function advanceDraftToUserPick(draft, season, players = PLAYERS) {
+  let next = advanceDraftRoundIfNeeded(draft, season, players);
   while (
     next?.status === "in_progress" &&
     next.order[next.currentPick] !== season?.userTeamId
@@ -628,6 +677,9 @@ export function advanceDraftToUserPick(draft, season) {
       );
     })[0];
     next = selectDraftProspect(next, season, selected.prospectId);
+    // A CPU pick can close round 1: extend before the loop condition
+    // re-checks, so round 2 CPU picks keep advancing to the user's turn.
+    next = advanceDraftRoundIfNeeded(next, season, players);
   }
   return next;
 }

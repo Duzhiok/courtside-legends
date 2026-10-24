@@ -286,9 +286,13 @@ export class GameSim {
    * @param {{ action?: string }} [opts]
    */
   setOffenseFocus(playerId, opts = {}) {
-    const t = this.you();
+    // Online play: opts.sideKey addresses the other side. Default (no sideKey)
+    // keeps the exact single-player behavior: the sim-level field is you-only,
+    // while each side's gameplan carries its own focus for resolvePossession.
+    const t = opts.sideKey ? this.sideByKey(opts.sideKey) : this.you();
+    const isYou = t === this.you();
     if (!playerId) {
-      this.offenseFocusId = null;
+      if (isYou) this.offenseFocusId = null;
       if (t.gameplan) t.gameplan.offenseFocusId = null;
       this.emit("coach", this.S("取消指定持球人——球权按本能分配", "Ball-handler cleared — possessions run on instinct"));
       t.chem = teamChemistry(t.onCourt, { primaryId: null });
@@ -300,7 +304,7 @@ export class GameSim {
       this.emit("coach", this.S("持球人必须是当前场上球员", "The ball-handler must be on the court"));
       return false;
     }
-    this.offenseFocusId = p.id;
+    if (isYou) this.offenseFocusId = p.id;
     if (!t.gameplan) t.gameplan = {};
     t.gameplan.offenseFocusId = p.id;
     ensurePlayerOrders([p]);
@@ -337,7 +341,10 @@ export class GameSim {
 
   /** 指定持球人 id（仅我方；对手暂无教练指定）. */
   ballOpts(t) {
-    const id = t === this.you() ? this.offenseFocusId || t.gameplan?.offenseFocusId : null;
+    // Per-side focus: you reads the sim-level field first, the other side
+    // reads its own gameplan. A side without a focus still yields null, so
+    // single-player CPU behavior is unchanged.
+    const id = t === this.you() ? this.offenseFocusId || t.gameplan?.offenseFocusId : t.gameplan?.offenseFocusId || null;
     return { primaryId: id || null };
   }
 
@@ -626,7 +633,7 @@ export class GameSim {
 
     const chase = off.temp?.lateChase || null;
     let focus = off === this.you() ? this.focusPlay : null;
-    let offenseFocusId = off === this.you() ? this.offenseFocusId : null;
+    let offenseFocusId = off === this.you() ? this.offenseFocusId : (off.gameplan?.offenseFocusId || null);
     if (chase?.shooterId) {
       offenseFocusId = chase.shooterId;
       if (chase.needThree) {
@@ -1967,8 +1974,8 @@ export class GameSim {
     this.emit("coach", this.S("场边沟通：士气与化学反应小幅上升——请为每人布置进攻与防守指令", "Sideline talk: morale and chemistry tick up — now set each player an offense and defense instruction"));
   }
 
-  setTactic(tacticId) {
-    const t = this.you();
+  setTactic(tacticId, sideKey) {
+    const t = sideKey ? this.sideByKey(sideKey) : this.you();
     const tactic = TACTICS[tacticId] || TACTICS.balanced;
     t.tactic = tactic;
     t.fit = lineupFit(t.onCourt, t.coach, t.tactic, this.ballOpts(t));
@@ -2003,8 +2010,8 @@ export class GameSim {
   }
 
   /** Reassign on-court (or roster) play position mid-game. Occupant swaps. */
-  setPlayPos(playerId, pos) {
-    const t = this.you();
+  setPlayPos(playerId, pos, sideKey) {
+    const t = sideKey ? this.sideByKey(sideKey) : this.you();
     const p = t.roster.find((x) => x.id === playerId);
     if (!p) {
       this.emit("coach", this.S("找不到该球员", "Player not found"));
@@ -2075,6 +2082,7 @@ export class GameSim {
       this.offenseFocusId = null;
       this.emit("coach", this.S(`${out.name} 下场——已清空持球人指定，请从新阵容重选`, `${out.name} subs out — ball-handler assignment cleared; pick a new one from this lineup`));
     }
+    if (t.gameplan?.offenseFocusId === outId) t.gameplan.offenseFocusId = null;
     if (this.defensePlan) {
       const assignments = { ...(this.defensePlan.assignments || {}) };
       let defenderId = this.defensePlan.defenderId || null;

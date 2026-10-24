@@ -85,6 +85,7 @@ export const PHRASES = [
   ["技能≠能力：巨星也可能没有技能包；托尼·阿伦「缠绕盯防」、巴蒂尔「持球克星·3D」、慈世平/考辛斯「火爆脾气」等角色特质可挂在非巨星身上，并影响抢断、空位与技术犯规。", "Skills ≠ ratings: even superstars may have no pack, while role-player traits — Tony Allen's clamps, Battier's on-ball menace, Artest/Cousins hot tempers — live on non-stars and move steals, openness and technicals."],
   ["图片来源与署名", "Photo Credits"],
   ["清除名册本地缓存", "Clear Roster Cache"],
+  ["联机对战（P0，需先启动服务端）", "Online Duel (P0, start the server first)"],
   ["账号", "Account"],
   ["返回", "Back"],
   ["本地多账号；球员卡与教练存在本机浏览器，刷新/下线不丢。换设备需自行备份（后续可加云同步）。", "Multiple local accounts; cards and coaches live in this browser and survive refreshes. Back up before switching devices (cloud sync may come later)."],

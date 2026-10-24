@@ -96,5 +96,12 @@ test("two user picks in a row both land on the user team", () => {
   const second = makeCareerDraftPick(first, draftAfterFirst.prospects[0].prospectId);
   const draftAfterSecond = second.management.draft;
   assert.equal(draftAfterSecond.selections.filter((s) => s.teamId === "B").length, 2);
-  assert.equal(draftAfterSecond.status, "complete");
+  // Career drafts are two rounds now: the mutated round-1 order finishes,
+  // round 2 extends from the season pick list, and user picks continue
+  // until the whole draft (both rounds) is complete.
+  let done = second;
+  while (done.management.draft.status === "in_progress") {
+    done = makeCareerDraftPick(done, done.management.draft.prospects[0].prospectId);
+  }
+  assert.equal(done.management.draft.status, "complete");
 });

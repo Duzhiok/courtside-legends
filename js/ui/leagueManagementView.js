@@ -142,7 +142,7 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
         userSlots > 1 ? `<p class="tiny">我方本届签位共 ${userSlots} 个，已选 ${userPicked} 个</p>` : "";
       container.innerHTML = `<section class="draft-board-panel">
         <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀</h4>
-        <p>当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择</p>${slotsLine}</div></header>
+        <p>${draft.round > 1 ? `第 ${escapeHtml(draft.round)} 轮 · ` : ""}当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择</p>${slotsLine}</div></header>
         ${waiverControl}
         <div class="draft-board-prospects">${cards}</div>
         <h4>已完成选择</h4>
