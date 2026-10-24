@@ -1,4 +1,5 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
+import { getLang, skillNameL } from "../i18n.js";
 import { overall } from "../data/players.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
 import { applyLineupPositionEffects, inGameInjuryChance, systemFitScore } from "../data/intangibles.js";
@@ -103,7 +104,10 @@ export class GameSim {
     onEnd,
     injuries = false,
     speed = 1,
+    lang = null,
   }) {
+    /** Feed/UI language for THIS game (T7): "en" or "zh"; defaults to the app language. */
+    this.lang = lang === "en" || lang === "zh" ? lang : getLang();
     this.home = wrapTeam(home, "home");
     this.away = wrapTeam(away, "away");
     // wrapTeam() only reads starterIds to decide the INITIAL onCourt five — it doesn't carry the
@@ -112,7 +116,7 @@ export class GameSim {
     // wrapTeam ended up filling onCourt, if the caller never set starterIds).
     this.home.starterIds = home.starterIds?.length >= 5 ? [...home.starterIds] : this.home.onCourt.map((p) => p.id);
     this.away.starterIds = away.starterIds?.length >= 5 ? [...away.starterIds] : this.away.onCourt.map((p) => p.id);
-    assignFeedDisplayNames(this.home, this.away);
+    assignFeedDisplayNames(this.home, this.away, this.lang);
     this.youSide = youSide;
     this.onEvent = onEvent || (() => {});
     this.onTick = onTick || (() => {});
@@ -217,13 +221,13 @@ export class GameSim {
   static fromSave(data, { onEvent, onTick, onEnd } = {}) {
     if (!data?.home || !data?.away) throw new Error("invalid sim save");
     const stub = {
-      name: data.home.name || "主队",
+      name: data.home.name || (getLang() === "en" ? "Home" : "主队"),
       players: (data.home.roster || []).map((p) => ({ ...p, stats: undefined })),
       coach: data.home.coach,
       assistant: data.home.assistant,
     };
     const stubAway = {
-      name: data.away.name || "客队",
+      name: data.away.name || (getLang() === "en" ? "Away" : "客队"),
       players: (data.away.roster || []).map((p) => ({ ...p, stats: undefined })),
       coach: data.away.coach,
       assistant: data.away.assistant,
@@ -241,7 +245,7 @@ export class GameSim {
     // Overwrite wrapped teams with the exact mid-game state
     sim.home = data.home;
     sim.away = data.away;
-    assignFeedDisplayNames(sim.home, sim.away);
+    assignFeedDisplayNames(sim.home, sim.away, sim.lang);
     sim.quarter = data.quarter || 1;
     sim.clock = data.clock ?? QUARTER_SEC;
     sim.elapsedSec = data.elapsedSec || 0;
@@ -286,14 +290,14 @@ export class GameSim {
     if (!playerId) {
       this.offenseFocusId = null;
       if (t.gameplan) t.gameplan.offenseFocusId = null;
-      this.emit("coach", "取消指定持球人——球权按本能分配");
+      this.emit("coach", this.S("取消指定持球人——球权按本能分配", "Ball-handler cleared — possessions run on instinct"));
       t.chem = teamChemistry(t.onCourt, { primaryId: null });
       t.fit = lineupFit(t.onCourt, t.coach, t.tactic, { primaryId: null });
       return false;
     }
     const p = t.onCourt.find((x) => x.id === playerId);
     if (!p) {
-      this.emit("coach", "持球人必须是当前场上球员");
+      this.emit("coach", this.S("持球人必须是当前场上球员", "The ball-handler must be on the court"));
       return false;
     }
     this.offenseFocusId = p.id;
@@ -307,7 +311,7 @@ export class GameSim {
       if (u && (p.orders.usage === "auto" || opts.forceUsage)) p.orders.usage = u;
     }
     const styleName = ORDER_ACTION.find((a) => a.id === (p.orders?.action || ""))?.name;
-    this.emit("coach", `持球发起：${p.name}${styleName ? ` · ${styleName}` : ""}`);
+    this.emit("coach", this.S(`持球发起：${p.name}${styleName ? ` · ${styleName}` : ""}`, `Initiator: ${p.name}${styleName ? ` · ${styleName}` : ""}`));
     t.chem = teamChemistry(t.onCourt, { primaryId: p.id });
     t.fit = lineupFit(t.onCourt, t.coach, t.tactic, { primaryId: p.id });
     return true;
@@ -326,7 +330,7 @@ export class GameSim {
     const bits = Object.entries(patch)
       .map(([k, v]) => `${k}:${v}`)
       .join(" ");
-    this.emit("coach", `指令 ${p.name}：${bits || "已更新"}`);
+    this.emit("coach", this.S(`指令 ${p.name}：${bits || "已更新"}`, `Instructions ${p.name}: ${bits || "updated"}`));
     this.refreshMeters();
     return true;
   }
@@ -363,7 +367,7 @@ export class GameSim {
         this._pendingQuarterStart = false;
         this.emit(
           "coach",
-          `第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`
+          this.S(`第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`, `${this.quarter > 4 ? "Overtime" : `Q${this.quarter}`} begins`)
         );
       }
       this.breakReason = null;
@@ -390,7 +394,7 @@ export class GameSim {
           this._pendingQuarterStart = false;
           this.emit(
             "coach",
-            `第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`
+            this.S(`第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`, `${this.quarter > 4 ? "Overtime" : `Q${this.quarter}`} begins`)
           );
         }
         this.running = true;
@@ -421,16 +425,22 @@ export class GameSim {
       name: "进攻托管",
       on: "进攻托管已开启——会按比赛情况微调进攻战术/焦点。你仍可随时叫暂停接手。",
       off: "进攻托管已关闭——进攻战术改回由你指挥。",
+      onEn: "Auto-Offense ON — it will fine-tune offensive systems/focus to the game. Call timeout anytime to take over.",
+      offEn: "Auto-Offense OFF — offensive systems are yours to command again.",
     },
     autoDefense: {
       name: "防守托管",
       on: "防守托管已开启——会按对方核心自动调整盯防/包夹。你仍可随时叫暂停接手。",
       off: "防守托管已关闭——盯防改回由你指挥。",
+      onEn: "Auto-Defense ON — it will adjust shadow/double plans to their core. Call timeout anytime to take over.",
+      offEn: "Auto-Defense OFF — matchups are yours to command again.",
     },
     autoRotation: {
       name: "沿用当前策略",
       on: "沿用当前策略已开启——不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回。",
       off: "沿用当前策略已关闭——换人改回由你亲自操作。",
+      onEn: "Keep Current Plan ON — tactics untouched, fatigue subs only: tired players sit, starters return the moment they are full.",
+      offEn: "Keep Current Plan OFF — substitutions are yours to make again.",
     },
   };
 
@@ -440,7 +450,7 @@ export class GameSim {
     this[key] = next;
     if (key === "autoRotation") this._manageCd = 0;
     const copy = GameSim.AUTOPILOT_LABELS[key];
-    this.emit("coach", next ? copy.on : copy.off);
+    this.emit("coach", this.lang === "en" ? (next ? copy.onEn : copy.offEn) : next ? copy.on : copy.off);
     // 开启且正停在节间/中场 → 助手代劳后继续；玩家暂停不自动跳过
     if (
       next &&
@@ -508,7 +518,7 @@ export class GameSim {
     } catch (err) {
       console.error("[sim] step failed", err);
       try {
-        this.emit("coach", "回合结算异常，已跳过并继续");
+        this.emit("coach", this.S("回合结算异常，已跳过并继续", "Possession glitch — skipped, play on"));
       } catch (_) {
         /* ignore */
       }
@@ -560,8 +570,8 @@ export class GameSim {
       }
     }
     if (this._quiet) {
-      if (isHalf) this.emit("coach", "中场休息——恢复 50 点疲劳");
-      this.emit("coach", `第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`);
+      if (isHalf) this.emit("coach", this.S("中场休息——恢复 50 点疲劳", "Halftime — 50 fatigue restored"));
+      this.emit("coach", this.S(`第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`, `${this.quarter > 4 ? "Overtime" : `Q${this.quarter}`} begins`));
       return;
     }
     // Real game: stop the clock so both sides can adjust (like NBA intermission)
@@ -572,12 +582,12 @@ export class GameSim {
     for (const side of [this.home, this.away]) this.autoRotateByMinutes(side, isHalf);
 
     if (isHalf) {
-      this.emit("coach", "中场休息——恢复 50 点疲劳。可调整战术、沟通、换人与站位");
+      this.emit("coach", this.S("中场休息——恢复 50 点疲劳。可调整战术、沟通、换人与站位", "Halftime — 50 fatigue restored. Adjust tactics, talk, subs and positioning"));
       this.setPaused(true, "half");
     } else {
       this.emit(
         "coach",
-        `第${leaving}节结束，节间休息——恢复 25 点疲劳。可调整战术、沟通、换人与站位`
+        this.S(`第${leaving}节结束，节间休息——恢复 25 点疲劳。可调整战术、沟通、换人与站位`, `End of Q${leaving} — quarter break, 25 fatigue restored. Adjust tactics, talk, subs and positioning`)
       );
       this.setPaused(true, "quarter");
     }
@@ -606,7 +616,7 @@ export class GameSim {
     const off = this.possession === "home" ? this.home : this.away;
     const def = this.possession === "home" ? this.away : this.home;
     if (!off.onCourt?.length || !def.onCourt?.length) {
-      this.emit("coach", "场上人数不足，跳过回合");
+      this.emit("coach", this.S("场上人数不足，跳过回合", "Not enough players on court — possession skipped"));
       this.clock = Math.max(0, this.clock - 10);
       this.possession = flip(this.possession);
       return;
@@ -620,7 +630,7 @@ export class GameSim {
     if (chase?.shooterId) {
       offenseFocusId = chase.shooterId;
       if (chase.needThree) {
-        focus = { id: "pace_three", label: "终场抢攻三分", ttl: 99 };
+        focus = { id: "pace_three", label: this.S("终场抢攻三分", "Late-Game Three Hunt"), ttl: 99 };
       }
     }
     const plan = this.you() === def ? this.defensePlan : null;
@@ -698,13 +708,13 @@ export class GameSim {
       if (kicked) {
         organizerId = organizer.id;
         if (ballAgg <= 0.35) {
-          this.emit("coach", `${organizer.name} 攻击欲低，先传导给 ${kicked.name}`);
+          this.emit("coach", this.S(`${organizer.name} 攻击欲低，先传导给 ${kicked.name}`, `${organizer.name} has low shot appetite — swings it to ${kicked.name}`));
         }
         baller = kicked;
         kickedOut = true;
       }
     } else if (doubled && baller && (baller.skills || []).includes("lone_wolf") && Math.random() < 0.35) {
-      this.emit("coach", `${baller.name}「独狼」硬解包夹，没分给空位队友`);
+      this.emit("coach", this.S(`${baller.name}「独狼」硬解包夹，没分给空位队友`, `${baller.name} (Lone Wolf) forces it into the double-team, ignoring the open man`));
     }
     // Strong side = ball side; weak side = help/kick-out side (2K spacing)
     const weakSide = kickedOut ? Math.random() < 0.72 : Math.random() < 0.28;
@@ -734,7 +744,7 @@ export class GameSim {
       return;
     }
     if (putbackId) {
-      this.emit("coach", `${baller.name} 二次进攻补篮机会`);
+      this.emit("coach", this.S(`${baller.name} 二次进攻补篮机会`, `${baller.name} has a putback chance on the second effort`));
     }
 
     let pace = off.tactic.pace * (1 + (off.temp.pace || 0));
@@ -790,7 +800,7 @@ export class GameSim {
     if (wrapPress.label) {
       this.emit(
         "coach",
-        `${defender.name}「${wrapPress.label}」贴死 ${baller.name}——体能被大量消耗`
+        this.S(`${defender.name}「${wrapPress.label}」贴死 ${baller.name}——体能被大量消耗`, `${defender.name} "${this.nL(wrapPress.label)}" glues to ${baller.name} — burning his stamina`)
       );
     }
 
@@ -802,7 +812,7 @@ export class GameSim {
       gradeTov(baller);
       gradeFoul(baller);
       gradeGoodContest(defender, { open: 0.2 });
-      this.emit("miss", `${defender.name} 造进攻犯规！${baller.name} 撞人`);
+      this.emit("miss", this.S(`${defender.name} 造进攻犯规！${baller.name} 撞人`, `${defender.name} draws the charge! ${baller.name} barrels in`));
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: true }));
       this.possession = flip(this.possession);
       return;
@@ -836,8 +846,8 @@ export class GameSim {
       this.emit(
         "miss",
         stlSkill
-          ? `${defender.name}「${stlSkill}」抢断 ${baller.name}！`
-          : `${defender.name} 抢断 ${baller.name}！`
+          ? this.S(`${defender.name}「${stlSkill}」抢断 ${baller.name}！`, `${defender.name} "${this.nL(stlSkill)}" strips ${baller.name}!`)
+          : this.S(`${defender.name} 抢断 ${baller.name}！`, `${defender.name} steals it from ${baller.name}!`)
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: true }));
       this.possession = flip(this.possession);
@@ -870,22 +880,22 @@ export class GameSim {
       if (Math.random() < 0.12) {
         defender.stats.pf += 1;
         gradeFoul(defender);
-        this.emit("miss", `${baller.name} 失误，${defender.name} 防守犯规`);
+        this.emit("miss", this.S(`${baller.name} 失误，${defender.name} 防守犯规`, `${baller.name} turns it over; ${defender.name} is whistled for the defensive foul`));
         applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
         shootFts(baller, off, this, 2);
         return;
       }
       const wrapForced =
         wrapTov >= 0.05 && Math.random() < 0.55
-          ? `——被 ${defender.name}「死亡缠绕」逼出`
+          ? this.S(`——被 ${defender.name}「死亡缠绕」逼出`, ` — forced by ${defender.name}'s "Death Grip"`)
           : wrapTov > 0 && wrapPress.label && Math.random() < 0.4
-            ? `——被 ${defender.name}「${wrapPress.label}」压出`
+            ? this.S(`——被 ${defender.name}「${wrapPress.label}」压出`, ` — pressured out by ${defender.name}'s "${this.nL(wrapPress.label)}"`)
             : "";
       this.emit(
         "miss",
         forcedHunt
-          ? `${baller.name} 强行抓机会失误${wrapForced}`
-          : `${baller.name} 失误${wrapForced}`
+          ? this.S(`${baller.name} 强行抓机会失误${wrapForced}`, `${baller.name} forces the issue and turns it over${wrapForced}`)
+          : this.S(`${baller.name} 失误${wrapForced}`, `${baller.name} turnover${wrapForced}`)
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
       this.possession = flip(this.possession);
@@ -910,7 +920,7 @@ export class GameSim {
         if (!sideCtx.scheme) sideCtx.scheme = "drive_kick";
         this.emit(
           "coach",
-          `${passer.name}${aggNow <= 0.12 ? " 专注防守" : " 欲望低"}，机会一般先传给 ${kicked2.name}`
+          this.S(`${passer.name}${aggNow <= 0.12 ? " 专注防守" : " 欲望低"}，机会一般先传给 ${kicked2.name}`, `${passer.name}${aggNow <= 0.12 ? " is defence-first" : " has low appetite"} — the look is not great, swings it to ${kicked2.name}`)
         );
         baller = kicked2;
         defender = pickDefender(def, baller, plan);
@@ -933,7 +943,7 @@ export class GameSim {
       const kick = skillKickOpenBonus(organizer, { doubled });
       if (kick.bonus) {
         open = clamp(open + kick.bonus, 0.08, 0.95);
-        if (Math.random() < 0.35) this.emit("coach", `${organizer.name} ${kick.label}，${baller.name} 空位接球`);
+        if (Math.random() < 0.35) this.emit("coach", this.S(`${organizer.name} ${kick.label}，${baller.name} 空位接球`, `${organizer.name} ${this.nL(kick.label)} — ${baller.name} catches it wide open`));
       }
     }
     // 低欲望几乎不主动发动招牌绝技；空接窗（被传球手喂到）例外
@@ -962,20 +972,20 @@ export class GameSim {
       shot = sigOff.shot;
       open = clamp(open + (sigOff.openBoost || 0), 0.08, 0.95);
       baller._sigMakeBoost = sigOff.makeBoost || 0;
-      const flav = signatureFeedFlavor(sigOff.id);
-      baller._sigLabel = flav || sigOff.label;
+      const flav = signatureFeedFlavor(sigOff.id, this.lang);
+      baller._sigLabel = flav || this.nL(sigOff.label);
       this.emit(
         "coach",
         flav
-          ? `${baller.name} 发动「${sigOff.name}」——${flav}！`
-          : `${baller.name} 发动「${sigOff.name}」！`
+          ? this.S(`${baller.name} 发动「${sigOff.name}」——${flav}！`, `${baller.name} unleashes "${this.nL(sigOff.name)}" — ${flav}!`)
+          : this.S(`${baller.name} 发动「${sigOff.name}」！`, `${baller.name} unleashes "${this.nL(sigOff.name)}"!`)
       );
     }
 
     // Block attempt — size/position matter (PG almost never rejects Howard at the rim)
     const sigBlk = trySignatureBlock(defender, shot);
     if (sigBlk) {
-      this.emit("coach", `${defender.name} 「${sigBlk.name}」！`);
+      this.emit("coach", this.S(`${defender.name} 「${sigBlk.name}」！`, `${defender.name} — "${this.nL(sigBlk.name)}"!`));
     }
     // 上帝附体必进：不会被盖；单脚抛射 / 答案等出手更难被盖
     const blkChance = sigOff?.guaranteed
@@ -994,10 +1004,10 @@ export class GameSim {
       this.emit(
         "miss",
         sigBlk
-          ? `${defender.name} 「${sigBlk.name}」盖帽 ${baller.name}！`
-          : `${defender.name} 盖帽 ${baller.name}！`
+          ? this.S(`${defender.name} 「${sigBlk.name}」盖帽 ${baller.name}！`, `${defender.name} "${this.nL(sigBlk.name)}" BLOCKS ${baller.name}!`)
+          : this.S(`${defender.name} 盖帽 ${baller.name}！`, `${defender.name} blocks ${baller.name}!`)
       );
-      sparkTeamFromHighlight(def, "block", defender, (t, msg) => this.emit(t, msg));
+      sparkTeamFromHighlight(def, "block", defender, (t, msg) => this.emit(t, msg), this.lang);
       // 被帽方略受挫
       off.morale = clamp((off.morale || 50) - 1.5, 0, 100);
       if (baller) baller.mood = clamp((baller.mood ?? 50) - 3, 15, 95);
@@ -1027,16 +1037,16 @@ export class GameSim {
     const made = Math.random() < makeP;
     let label = baller._sigLabel || null;
     if (!label && shot.zone === "paint") {
-      label = paintFinishFeedLabel(baller, {
+      label = paintFinishFeedLabel(baller, { lang: this.lang,
         open,
         kickedOut: !!sideCtx?.kickedOut,
         scheme: sideCtx?.scheme || null,
       });
     }
-    if (!label) label = shotLabel(shot, open);
+    if (!label) label = shotLabel(shot, open, this.lang);
     if (baller._bumpCold) {
-      label = `下盘顶飞·${label}`;
-      this.emit("coach", `${defender.name} 用下盘顶开 ${baller.name}，投篮准心大乱！`);
+      label = this.lang === "en" ? `Bumped Off · ${label}` : `下盘顶飞·${label}`;
+      this.emit("coach", this.S(`${defender.name} 用下盘顶开 ${baller.name}，投篮准心大乱！`, `${defender.name} bumps ${baller.name} off his base — his aim is wrecked!`));
       baller._bumpCold = false;
     }
     // 在清掉招牌标记前判定是否灌篮高光（全队士气）
@@ -1070,10 +1080,10 @@ export class GameSim {
       gradeMake(baller, { pts, open });
       gradeScoredOn(defender, { open, pts });
       if (dunkHighlight) {
-        sparkTeamFromHighlight(off, "dunk", baller, (t, msg) => this.emit(t, msg));
+        sparkTeamFromHighlight(off, "dunk", baller, (t, msg) => this.emit(t, msg), this.lang);
         def.morale = clamp((def.morale || 50) - 1.2, 0, 100);
         if (defender) defender.mood = clamp((defender.mood ?? 50) - 2, 15, 95);
-        this.emit("dunk", `${baller.name} · ${label || "暴扣"}`, {
+        this.emit("dunk", `${baller.name} · ${label || this.S("暴扣", "Dunk")}`, {
           player: {
             id: baller.id,
             name: baller.name,
@@ -1088,7 +1098,7 @@ export class GameSim {
             paint: baller.paint,
             hiddenTier: baller.hiddenTier,
           },
-          label: label || "暴扣",
+          label: label || this.S("暴扣", "Dunk"),
         });
       }
       let primaryAst = null;
@@ -1118,28 +1128,28 @@ export class GameSim {
       if (this.focusPlay && off === this.you()) {
         this.focusPlay.ttl -= 1;
         if (this.focusPlay.ttl <= 0) {
-          this.emit("coach", `回合重点「${this.focusPlay.label}」结束`);
+          this.emit("coach", this.S(`回合重点「${this.focusPlay.label}」结束`, `Possession focus "${this.focusPlay.label}" ends`));
           this.focusPlay = null;
         }
       }
-      const huntTag = forcedHunt ? " · 弱侧抓机会" : offShare >= 0.6 && hunt >= 0.55 ? " · 群狼抓机会" : "";
-      const astTag = primaryAst ? ` · ${primaryAst.name} 助攻` : "";
+      const huntTag = forcedHunt ? this.S(" · 弱侧抓机会", " · weak-side hunt") : offShare >= 0.6 && hunt >= 0.55 ? this.S(" · 群狼抓机会", " · pack hunt") : "";
+      const astTag = primaryAst ? (this.lang === "en" ? ` · ${primaryAst.name} AST` : ` · ${primaryAst.name} 助攻`) : "";
       const duoIds = activeDuoIds(off.onCourt);
       let duoTag = "";
-      if (duoIds.includes("lob_city") && shot.zone === "paint") duoTag = " · 空接之城";
-      else if (duoIds.includes("splash_bros") && shot.zone === "three") duoTag = " · 水花连携";
-      else if (duoIds.includes("pick_roll_twins")) duoTag = " · 挡拆默契";
-      else if (isJokerJamalTwoMan(baller, primaryAst, off.onCourt)) duoTag = " · 二人转";
+      if (duoIds.includes("lob_city") && shot.zone === "paint") duoTag = this.S(" · 空接之城", " · Lob City");
+      else if (duoIds.includes("splash_bros") && shot.zone === "three") duoTag = this.S(" · 水花连携", " · Splash Bros");
+      else if (duoIds.includes("pick_roll_twins")) duoTag = this.S(" · 挡拆默契", " · PnR Chemistry");
+      else if (isJokerJamalTwoMan(baller, primaryAst, off.onCourt)) duoTag = this.S(" · 二人转", " · Two-Man Game");
       if (baller._duoProc) baller._duoProc = null;
-      const story = matchupFeedStory(baller, defender, shot, open, label, { made: true });
+      const story = matchupFeedStory(baller, defender, shot, open, label, { made: true, lang: this.lang });
       this.emit(
         "score",
-        `${story}！（${pct(makeP)} · ${hotLabel(baller.hot)}${huntTag}）${astTag}${duoTag} ${this.score.home}-${this.score.away}`
+        this.S(`${story}！（${pct(makeP)} · ${hotLabel(baller.hot)}${huntTag}）${astTag}${duoTag} ${this.score.home}-${this.score.away}`, `${story}! (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}${huntTag})${astTag}${duoTag} ${this.score.home}-${this.score.away}`)
       );
       if (fouled) {
         defender.stats.pf += 1;
         gradeFoul(defender);
-        this.emit("coach", `${defender.name} 打手犯规，加罚`);
+        this.emit("coach", this.S(`${defender.name} 打手犯规，加罚`, `${defender.name} fouls on the shot — and-one coming`));
         applyPossessionFatigue(
           off,
           def,
@@ -1167,18 +1177,18 @@ export class GameSim {
       if (fouled) {
         defender.stats.pf += 1;
         gradeFoul(defender);
-        const foulStory = matchupFeedStory(baller, defender, shot, open, label, { made: false, fouled: true });
-        this.emit("miss", `${foulStory}（${pct(makeP)}）`);
+        const foulStory = matchupFeedStory(baller, defender, shot, open, label, { made: false, fouled: true, lang: this.lang });
+        this.emit("miss", this.lang === "en" ? `${foulStory} (${pct(makeP)})` : `${foulStory}（${pct(makeP)}）`);
         applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
         shootFts(baller, off, this, shot.pts === 3 ? 3 : 2);
         return;
       }
-      const missStory = matchupFeedStory(baller, defender, shot, open, label, { made: false });
+      const missStory = matchupFeedStory(baller, defender, shot, open, label, { made: false, lang: this.lang });
       this.emit(
         "miss",
         forcedHunt
-          ? `${missStory}（${pct(makeP)}）—— 抓机会过猛`
-          : `${missStory}（${pct(makeP)} · ${hotLabel(baller.hot)}）—— 空位也会打铁`
+          ? this.S(`${missStory}（${pct(makeP)}）—— 抓机会过猛`, `${missStory} (${pct(makeP)}) — hunting the shot too hard`)
+          : this.S(`${missStory}（${pct(makeP)} · ${hotLabel(baller.hot)}）—— 空位也会打铁`, `${missStory} (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}) — even open looks clang`)
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
       resolveRebound(off, def, this, false);
@@ -1193,10 +1203,10 @@ export class GameSim {
     const prevAssign = { ...(this.defensePlan?.assignments || {}) };
     if (!scheme || !target) {
       this.defensePlan = { scheme: null, targetId: null, defenderId: null, assignments: prevAssign };
-      this.emit("coach", "取消重点策略（个人对位表仍保留）");
+      this.emit("coach", this.S("取消重点策略（个人对位表仍保留）", "Focus plan cleared (individual matchups kept)"));
       return;
     }
-    const names = { focus: "重点盯防", double: "包夹", bump: "下盘顶防" };
+    const names = this.lang === "en" ? { focus: "Shadow", double: "Double-Team", bump: "Deny the Post" } : { focus: "重点盯防", double: "包夹", bump: "下盘顶防" };
     let defId = defenderId || null;
     if (defId && !you.onCourt.some((p) => p.id === defId)) defId = null;
     if (scheme === "bump") {
@@ -1205,9 +1215,9 @@ export class GameSim {
         you.onCourt.find(isSturdy) ||
         you.onCourt[0];
       if (!isLanky(target) && (target.strength || 50) >= 65) {
-        this.emit("coach", `${target.name} 下盘不弱，顶防收益有限——仍布置「下盘顶防」`);
+        this.emit("coach", this.S(`${target.name} 下盘不弱，顶防收益有限——仍布置「下盘顶防」`, `${target.name} has a strong base — post denial gains little, but the plan stands`));
       } else if (!bumper || !isSturdy(bumper)) {
-        this.emit("coach", `场上缺少壮硕内线，顶防奇效较弱`);
+        this.emit("coach", this.S(`场上缺少壮硕内线，顶防奇效较弱`, `No bruising big on the floor — post denial will be weaker`));
       }
       if (!defId && bumper) defId = bumper.id;
     }
@@ -1222,8 +1232,8 @@ export class GameSim {
     this.emit(
       "coach",
       defName
-        ? `防守策略：${defName} 对 ${target.name}「${names[scheme] || scheme}」`
-        : `防守策略：对 ${target.name}「${names[scheme] || scheme}」`
+        ? this.S(`防守策略：${defName} 对 ${target.name}「${names[scheme] || scheme}」`, `Defensive plan: ${defName} on ${target.name} — "${names[scheme] || scheme}"`)
+        : this.S(`防守策略：对 ${target.name}「${names[scheme] || scheme}」`, `Defensive plan: "${names[scheme] || scheme}" on ${target.name}`)
     );
   }
 
@@ -1237,7 +1247,7 @@ export class GameSim {
     if (!defenderId) {
       delete assignments[targetId];
       this.defensePlan = { ...(this.defensePlan || {}), assignments };
-      this.emit("coach", `取消对 ${target.name} 的指定对位`);
+      this.emit("coach", this.S(`取消对 ${target.name} 的指定对位`, `Assigned matchup on ${target.name} cleared`));
       return true;
     }
     const defender = you.onCourt.find((p) => p.id === defenderId);
@@ -1245,7 +1255,7 @@ export class GameSim {
     assignments[targetId] = defenderId;
     this.defensePlan = { ...(this.defensePlan || {}), assignments };
     if (this.defensePlan.targetId === targetId) this.defensePlan.defenderId = defenderId;
-    this.emit("coach", `对位：${defender.name} 防 ${target.name}`);
+    this.emit("coach", this.S(`对位：${defender.name} 防 ${target.name}`, `Matchup: ${defender.name} guards ${target.name}`));
     return true;
   }
 
@@ -1263,7 +1273,7 @@ export class GameSim {
     // Real NBA: either side's timeout is a dead ball — both coaches can adjust
     const pause = opts.pause != null ? opts.pause : !this._quiet;
     if (this.timeouts[t.side] <= 0) {
-      if (isYou) this.emit("coach", "没有暂停了");
+      if (isYou) this.emit("coach", this.S("没有暂停了", "No timeouts left"));
       return false;
     }
     this.timeouts[t.side] -= 1;
@@ -1276,18 +1286,22 @@ export class GameSim {
     t.temp.offense = (t.temp.offense || 0) + 0.04;
     t.temp.defense = (t.temp.defense || 0) + 0.04;
     t.temp.ttl = 8;
-    const who = isYou ? "我方" : t.name;
+    const who = isYou ? this.S("我方", "We") : t.name;
     // Break opponent scoring run (2K-style timeout momentum kill)
     const broken = this.breakMomentum(t.side);
     this.emit(
       "coach",
       isYou
-        ? `我方叫暂停！可调整战术、沟通与换人（剩 ${this.timeouts[t.side]}）；体力仅略回一点${
+        ? this.S(`我方叫暂停！可调整战术、沟通与换人（剩 ${this.timeouts[t.side]}）；体力仅略回一点${
             broken ? " · 打断对方高潮" : ""
-          }`
-        : `${who}叫暂停！你也可以趁机调整（对方剩 ${this.timeouts[t.side]}）；体力仅略回一点${
+          }`, `Timeout — ours! Adjust tactics, talk and subs (${this.timeouts[t.side]} left); stamina recovers only slightly${
+            broken ? " · their run is broken" : ""
+          }`)
+        : this.S(`${who}叫暂停！你也可以趁机调整（对方剩 ${this.timeouts[t.side]}）；体力仅略回一点${
             broken ? " · 势头被掐断" : ""
-          }`
+          }`, `${who} call timeout! You may adjust too (they have ${this.timeouts[t.side]} left); stamina recovers only slightly${
+            broken ? " · momentum cut" : ""
+          }`)
     );
     if (pause) this.setPaused(true, "timeout");
     return true;
@@ -1323,11 +1337,11 @@ export class GameSim {
     const def = FOCUS_PLAYS.find((f) => f.id === focusId);
     if (!def) {
       this.focusPlay = null;
-      this.emit("coach", "已取消回合重点");
+      this.emit("coach", this.S("已取消回合重点", "Possession focus cleared"));
       return false;
     }
     this.focusPlay = { id: def.id, label: def.name, ttl: 6 };
-    this.emit("coach", `回合重点：${def.name}（约 ${this.focusPlay.ttl} 个进攻回合）`);
+    this.emit("coach", this.S(`回合重点：${def.name}（约 ${this.focusPlay.ttl} 个进攻回合）`, `Possession focus: ${def.name} (~${this.focusPlay.ttl} offensive possessions)`));
     return true;
   }
 
@@ -1338,7 +1352,7 @@ export class GameSim {
     const id = normalizeTempo(tempoId);
     t.gameplan.tempo = id;
     const def = getTempoDef(id);
-    this.emit("coach", `比赛节奏：${def.name}——${def.desc}`);
+    this.emit("coach", this.S(`比赛节奏：${def.name}——${def.desc}`, `Game pace: ${def.name} — ${def.desc}`));
     return true;
   }
 
@@ -1352,7 +1366,7 @@ export class GameSim {
     if (!ids?.length) return false;
     const want = ids.slice(0, 5).map((id) => t.roster.find((p) => p.id === id)).filter(Boolean);
     if (want.length < 5) {
-      this.emit("coach", "阵容包人数不足或不在名单");
+      this.emit("coach", this.S("阵容包人数不足或不在名单", "Package is short-handed or off the roster"));
       return false;
     }
     const onIds = new Set(want.map((p) => p.id));
@@ -1360,14 +1374,14 @@ export class GameSim {
     t.bench = t.roster.filter((p) => !onIds.has(p.id));
     t.chem = teamChemistry(t.onCourt, this.ballOpts(t));
     t.fit = lineupFit(t.onCourt, t.coach, t.tactic, this.ballOpts(t));
-    this.emit("coach", `切换阵容包：${want.map((p) => p.name).join(" / ")} · 适配 ${t.fit}`);
+    this.emit("coach", this.S(`切换阵容包：${want.map((p) => p.name).join(" / ")} · 适配 ${t.fit}`, `Lineup package in: ${want.map((p) => p.name).join(" / ")} · fit ${t.fit}`));
     this.refreshMeters();
     return true;
   }
 
   applyRoleMorale(quarterJustEnded) {
     for (const side of [this.home, this.away]) {
-      const reports = roleMinutesMoraleDelta(side.onCourt, side.bench, quarterJustEnded);
+      const reports = roleMinutesMoraleDelta(side.onCourt, side.bench, quarterJustEnded, this.lang);
       let teamDelta = 0;
       for (const r of reports) {
         r.player.mood = clamp((r.player.mood ?? 50) + r.delta, 15, 95);
@@ -1535,24 +1549,24 @@ export class GameSim {
     let wantTo = false;
     if (runAgainst) {
       wantTo = Math.random() < 0.72;
-      why = "打断对方高潮";
+      why = this.S("打断对方高潮", "break their run");
     } else if (deficit >= 12 && this.quarter >= 2) {
       wantTo = Math.random() < 0.48;
-      why = "分差拉开，重整阵脚";
+      why = this.S("分差拉开，重整阵脚", "gap widening — reset");
     } else if (cold && deficit >= 3) {
       wantTo = Math.random() < 0.42;
-      why = "手感冰凉，叫停调整";
+      why = this.S("手感冰凉，叫停调整", "ice cold — stop and adjust");
     } else if (avgFat >= 72 && this.timeouts[you.side] >= 2) {
       wantTo = Math.random() < 0.3;
-      why = "全员过劳，喘口气";
+      why = this.S("全员过劳，喘口气", "everyone gassed — catch a breath");
     } else if (late && deficit >= 4 && deficit <= 14) {
       wantTo = Math.random() < 0.4;
-      why = "关键分追分布置";
+      why = this.S("关键分追分布置", "key-possession chase setup");
     }
     if (!wantTo) return;
     if (!this.callTimeout(you.side, { pause: false })) return;
     this._manageLastTo = elapsed;
-    this.emit("coach", `托管助手叫暂停：${why}`);
+    this.emit("coach", this.S(`托管助手叫暂停：${why}`, `Assistant calls timeout: ${why}`));
     this.runManagedBreak("timeout");
   }
 
@@ -1568,15 +1582,15 @@ export class GameSim {
       this.autoSubsByFatigue();
       // 领先时节间别按分钟硬轮转把核换下去；追分/中场再轮
       if (aggressive && !protecting) this.autoRotateByMinutes(you, true);
-      did.push("轮换");
+      did.push(this.S("轮换", "rotation"));
     }
     if (this.autoDefense) {
       this.managedDefense();
-      did.push("盯防");
+      did.push(this.S("盯防", "matchups"));
     }
     if (this.autoOffense) {
       this.managedOffensePlan({ light: false });
-      did.push("基本战术");
+      did.push(this.S("基本战术", "base tactics"));
     }
     if (did.length && (you.morale || 50) < 55 && reason !== "quarter") {
       // Soft huddle buff without full talk UI
@@ -1586,9 +1600,11 @@ export class GameSim {
     if (did.length) {
       this.emit(
         "coach",
-        `托管助手已调整：${did.join(" / ")}（${
+        this.S(`托管助手已调整：${did.join(" / ")}（${
           reason === "half" ? "中场" : reason === "quarter" ? "节间" : "暂停"
-        }）`
+        }）`, `Assistant adjusted: ${did.join(" / ")} (${
+          reason === "half" ? "halftime" : reason === "quarter" ? "quarter break" : "timeout"
+        })`)
       );
     }
     this.refreshMeters();
@@ -1616,7 +1632,7 @@ export class GameSim {
     if (rested) {
       const outgoing = [...you.onCourt].sort((a, b) => (b.fatigue || 0) - (a.fatigue || 0))[0];
       if (outgoing && this.substitute(outgoing.id, rested.id, you.side)) {
-        this.emit("coach", `${rested.name} 体力已完全恢复，立即换回场上`);
+        this.emit("coach", this.S(`${rested.name} 体力已完全恢复，立即换回场上`, `${rested.name} is fully rested — straight back in`));
         return;
       }
     }
@@ -1632,7 +1648,7 @@ export class GameSim {
       [...healthyBench].sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
     if (!fresh || (fresh.fatigue || 0) >= (tired.fatigue || 0)) return;
     if (this.substitute(tired.id, fresh.id, you.side)) {
-      this.emit("coach", `${tired.name} 体力透支，${fresh.name} 换上保存体力`);
+      this.emit("coach", this.S(`${tired.name} 体力透支，${fresh.name} 换上保存体力`, `${tired.name} is spent — ${fresh.name} in to save his legs`));
     }
   }
 
@@ -1769,7 +1785,7 @@ export class GameSim {
         Number(b.stamina) !== stam;
       if (changed) {
         this.applyPhilosophy({
-          styleName: "托管助手",
+          styleName: this.S("托管助手", "Assistant"),
           offense: off,
           defense: def,
           morale,
@@ -1833,7 +1849,7 @@ export class GameSim {
           this[key] = true;
           this.emit(
             "coach",
-            `${hurt.name} ${hurt.injuryStatus || "伤停"}仍在场上——板凳没有健康球员可换，只能硬顶`
+            this.S(`${hurt.name} ${hurt.injuryStatus || "伤停"}仍在场上——板凳没有健康球员可换，只能硬顶`, `${hurt.name} (${hurt.injuryStatus || "injured"}) stays on — no healthy body on the bench, he has to gut it out`)
           );
         }
         break;
@@ -1843,7 +1859,7 @@ export class GameSim {
         n += 1;
         this.emit(
           "coach",
-          `${hurt.name} ${hurt.injuryStatus || "伤停"}不能继续比赛，${sub.name}强制顶上`
+          this.S(`${hurt.name} ${hurt.injuryStatus || "伤停"}不能继续比赛，${sub.name}强制顶上`, `${hurt.name} (${hurt.injuryStatus || "injured"}) cannot continue — ${sub.name} forced in`)
         );
       } else break;
     }
@@ -1867,7 +1883,7 @@ export class GameSim {
       const effectiveRisk = ironBody ? Math.max(12, risk - 24) : risk;
       const gamesOut = effectiveRisk >= 80 ? 2 : 1;
       p.injuredGames = gamesOut;
-      p.injuryStatus = effectiveRisk >= 80 ? "严重伤病" : "伤停";
+      p.injuryStatus = effectiveRisk >= 80 ? this.S("严重伤病", "serious injury") : this.S("伤停", "injured");
       const src = team.roster.find((r) => r.id === p.id);
       if (src) {
         src.injuredGames = gamesOut;
@@ -1877,12 +1893,12 @@ export class GameSim {
       if (sub && this.substitute(p.id, sub.id, team.side)) {
         this.emit(
           "coach",
-          `受伤！${p.name} ${p.injuryStatus}下场（伤病风险 ${effectiveRisk}），${sub.name}顶上。预计缺席后续 ${gamesOut} 场`
+          this.S(`受伤！${p.name} ${p.injuryStatus}下场（伤病风险 ${effectiveRisk}），${sub.name}顶上。预计缺席后续 ${gamesOut} 场`, `Injury! ${p.name} (${p.injuryStatus}) leaves (injury risk ${effectiveRisk}); ${sub.name} in. Expected to miss ${gamesOut} more game(s)`)
         );
       } else {
         this.emit(
           "coach",
-          `受伤！${p.name} ${p.injuryStatus}——板凳暂无健康球员，暂停后请尽快换下（预计缺席 ${gamesOut} 场）`
+          this.S(`受伤！${p.name} ${p.injuryStatus}——板凳暂无健康球员，暂停后请尽快换下（预计缺席 ${gamesOut} 场）`, `Injury! ${p.name} (${p.injuryStatus}) — no healthy bench option; sub him out at the next timeout (expected to miss ${gamesOut} game(s))`)
         );
         // Dead-ball pause so coach can react when it's the user side
         if (team === this.you() && !this._quiet) {
@@ -1904,7 +1920,7 @@ export class GameSim {
     if (egoAvg > 75 && Math.random() < 0.25) {
       t.morale = clamp(t.morale - 8, 0, 100);
       for (const p of t.onCourt) p.mood = clamp((p.mood ?? 50) - 6, 15, 95);
-      this.emit("coach", "大喊加压——球星不买账，士气反而下滑");
+      this.emit("coach", this.S("大喊加压——球星不买账，士气反而下滑", "The shout backfires — the star tunes it out and morale dips"));
       return;
     }
     // Core effect: yank freelancers back onto the called tactic for a few possessions
@@ -1931,12 +1947,12 @@ export class GameSim {
         p.tempTacticFocus = Math.max(p.tempTacticFocus || 0, 3);
       }
     }
-    const tName = t.tactic?.name || "当前战术";
+    const tName = t.tactic?.name || this.S("当前战术", "the current system");
     this.emit(
       "coach",
       drifted
-        ? `大喊！${drifted}人有点脱离体系——勒令集中执行「${tName}」`
-        : `大喊！全员集中注意力，严格执行「${tName}」`
+        ? this.S(`大喊！${drifted}人有点脱离体系——勒令集中执行「${tName}」`, `Shout! ${drifted} drifting off-system — ordered to lock into "${tName}"`)
+        : this.S(`大喊！全员集中注意力，严格执行「${tName}」`, `Shout! Everyone locks in and executes "${tName}"`)
     );
   }
 
@@ -1948,7 +1964,7 @@ export class GameSim {
       p.mood = clamp((p.mood ?? 50) + 3, 15, 95);
       if ((p.personality?.ego || 0) > 70) p.tempFocus = 3;
     }
-    this.emit("coach", "场边沟通：士气与化学反应小幅上升——请为每人布置进攻与防守指令");
+    this.emit("coach", this.S("场边沟通：士气与化学反应小幅上升——请为每人布置进攻与防守指令", "Sideline talk: morale and chemistry tick up — now set each player an offense and defense instruction"));
   }
 
   setTactic(tacticId) {
@@ -1957,7 +1973,7 @@ export class GameSim {
     t.tactic = tactic;
     t.fit = lineupFit(t.onCourt, t.coach, t.tactic, this.ballOpts(t));
     if (tactic.morale) t.morale = clamp(t.morale + tactic.morale, 0, 100);
-    this.emit("coach", `战术切换为「${tactic.name}」适配度 ${t.fit}`);
+    this.emit("coach", this.S(`战术切换为「${tactic.name}」适配度 ${t.fit}`, `System switched to "${tactic.name}" — fit ${t.fit}`));
     this.refreshMeters();
   }
 
@@ -1971,7 +1987,7 @@ export class GameSim {
     const stamina = clamp(Number(philosophy.stamina ?? base.buffs?.stamina ?? 0), -10, 12);
     t.coach = {
       ...base,
-      style: philosophy.styleName || base.style || "临场调整",
+      style: philosophy.styleName || base.style || this.S("临场调整", "Live Adjustment"),
       buffs: { offense: off, defense: def, morale, stamina },
       philosophy: { offense: off, defense: def, morale, stamina },
     };
@@ -1980,7 +1996,7 @@ export class GameSim {
     t.fit = lineupFit(t.onCourt, t.coach, t.tactic, this.ballOpts(t));
     this.emit(
       "coach",
-      `临场调整方针：抓机会${off} / 防守压迫${def} / 士气${morale} / 负荷${stamina} · 适配 ${t.fit}`
+      this.S(`临场调整方针：抓机会${off} / 防守压迫${def} / 士气${morale} / 负荷${stamina} · 适配 ${t.fit}`, `Live philosophy: opportunism ${off} / defensive pressure ${def} / morale ${morale} / load ${stamina} · fit ${t.fit}`)
     );
     this.refreshMeters();
     return t.coach;
@@ -1991,7 +2007,7 @@ export class GameSim {
     const t = this.you();
     const p = t.roster.find((x) => x.id === playerId);
     if (!p) {
-      this.emit("coach", "找不到该球员");
+      this.emit("coach", this.S("找不到该球员", "Player not found"));
       return false;
     }
     const slot = String(pos || p.pos).toUpperCase();
@@ -2016,9 +2032,11 @@ export class GameSim {
     const boostBit = boostNotes.find((n) => n.startsWith(p.name)) || boostNotes[0];
     this.emit(
       "coach",
-      `站位调整：${p.name} ${prev} → ${slot}（适配 ${t.fit} · 化学反应 ${t.chem}${
+      this.S(`站位调整：${p.name} ${prev} → ${slot}（适配 ${t.fit} · 化学反应 ${t.chem}${
         boostBit ? ` · ${boostBit}` : ""
-      }）`
+      }）`, `Positioning: ${p.name} ${prev} → ${slot} (fit ${t.fit} · chemistry ${t.chem}${
+        boostBit ? ` · ${boostBit}` : ""
+      })`)
     );
     this.refreshMeters();
     return true;
@@ -2029,13 +2047,13 @@ export class GameSim {
     const outIdx = t.onCourt.findIndex((p) => p.id === outId);
     const inbound = t.bench.find((p) => p.id === inId);
     if (outIdx < 0 || !inbound) {
-      if (t === this.you()) this.emit("coach", "换人失败");
+      if (t === this.you()) this.emit("coach", this.S("换人失败", "Substitution failed"));
       return false;
     }
     // Never check an injured player back onto the floor
     if (inbound.injuredGames > 0) {
       if (t === this.you()) {
-        this.emit("coach", `${inbound.name} ${inbound.injuryStatus || "伤停"}，不能上场`);
+        this.emit("coach", this.S(`${inbound.name} ${inbound.injuryStatus || "伤停"}，不能上场`, `${inbound.name} (${inbound.injuryStatus || "injured"}) cannot check in`));
       }
       return false;
     }
@@ -2055,7 +2073,7 @@ export class GameSim {
     // Focus / matchup targets that left the floor are cleared
     if (t === this.you() && this.offenseFocusId === outId) {
       this.offenseFocusId = null;
-      this.emit("coach", `${out.name} 下场——已清空持球人指定，请从新阵容重选`);
+      this.emit("coach", this.S(`${out.name} 下场——已清空持球人指定，请从新阵容重选`, `${out.name} subs out — ball-handler assignment cleared; pick a new one from this lineup`));
     }
     if (this.defensePlan) {
       const assignments = { ...(this.defensePlan.assignments || {}) };
@@ -2091,7 +2109,7 @@ export class GameSim {
       }
     }
     const tag = t === this.you() ? "" : `【${t.name}】`;
-    this.emit("coach", `${tag}换人：${inbound.name} 换下 ${out.name}`);
+    this.emit("coach", this.S(`${tag}换人：${inbound.name} 换下 ${out.name}`, `${tag}Sub: ${inbound.name} in for ${out.name}`));
     this.refreshMeters();
     return true;
   }
@@ -2144,8 +2162,18 @@ export class GameSim {
     for (const side of [this.home, this.away]) {
       for (const p of side.roster) p.stats.min = Math.round(p.stats.min);
     }
-    this.emit("coach", "终场哨响！");
+    this.emit("coach", this.S("终场哨响！", "Final buzzer!"));
     this.onEnd(this.snapshot());
+  }
+
+  /** Pick a feed/UI string in this game's language. */
+  S(zh, en) {
+    return this.lang === "en" ? en : zh;
+  }
+
+  /** Translate a skill display name into this game's language. */
+  nL(name) {
+    return skillNameL(name, this.lang);
   }
 
   emit(type, text, meta = null) {
@@ -2161,8 +2189,8 @@ export class GameSim {
       clock: this.clock,
       score: { ...this.score },
       possession: this.possession,
-      home: publicTeam(this.home),
-      away: publicTeam(this.away),
+      home: publicTeam(this.home, this.lang),
+      away: publicTeam(this.away, this.lang),
       youSide: this.youSide,
       timeouts: { ...this.timeouts },
       defensePlan: {
@@ -2332,7 +2360,8 @@ function wrapTeam(team, side) {
   };
 }
 
-function publicTeam(t) {
+function publicTeam(t, lang = "zh") {
+  const s = (p) => slim(p, lang);
   return {
     name: t.name,
     side: t.side,
@@ -2341,9 +2370,9 @@ function publicTeam(t) {
     morale: t.morale,
     tactic: t.tactic,
     coach: t.coach,
-    onCourt: t.onCourt.map(slim),
-    bench: t.bench.map(slim),
-    roster: t.roster.map(slim),
+    onCourt: t.onCourt.map(s),
+    bench: t.bench.map(s),
+    roster: t.roster.map(s),
   };
 }
 
@@ -2367,16 +2396,16 @@ function ensureUniqueRosterIds(roster) {
   }
 }
 
-function shortTeamTag(teamName, side, otherName) {
+function shortTeamTag(teamName, side, otherName, lang = "zh") {
   const short = (n) => {
     const s = String(n || "").trim();
-    if (!s) return side === "home" ? "主" : "客";
+    if (!s) return lang === "en" ? (side === "home" ? "H" : "A") : side === "home" ? "主" : "客";
     if (/[\u4e00-\u9fff]/.test(s)) return s.length <= 2 ? s : s.slice(-2);
     return s.length <= 4 ? s : s.slice(0, 3);
   };
   const a = short(teamName);
   const b = short(otherName);
-  if (a === b) return side === "home" ? "主" : "客";
+  if (a === b) return lang === "en" ? (side === "home" ? "H" : "A") : side === "home" ? "主" : "客";
   return a;
 }
 
@@ -2391,7 +2420,7 @@ function seasonShort(p) {
  * 战报用显示名：两边同名 →「湖人·詹姆斯」；同队两张同名卡 →「詹姆斯('95)」或「詹姆斯#2」。
  * 只改本场 sim 副本的 name，名单卡面原名在 cardName。
  */
-function assignFeedDisplayNames(home, away) {
+function assignFeedDisplayNames(home, away, lang = "zh") {
   if (!home?.roster || !away?.roster) return;
   const entries = [
     ...home.roster.map((p) => ({ p, side: "home", team: home.name })),
@@ -2435,7 +2464,8 @@ function assignFeedDisplayNames(home, away) {
           const tag = shortTeamTag(
             e.team,
             e.side,
-            e.side === "home" ? away.name : home.name
+            e.side === "home" ? away.name : home.name,
+            lang
           );
           e.p.name = `${tag}·${core}`;
         } else {
@@ -2446,7 +2476,7 @@ function assignFeedDisplayNames(home, away) {
   }
 }
 
-function slim(p) {
+function slim(p, slimLang = "zh") {
   const s = p.stats || emptyStats();
   const fgPct = s.fga ? Math.round((s.fgm / s.fga) * 100) : null;
   ensureGrade(p);
@@ -2475,13 +2505,13 @@ function slim(p) {
     skills: Array.isArray(p.skills) ? [...p.skills] : [],
     intangibles: p.intangibles,
     fatigue: Math.round(p.fatigue),
-    fatigueNote: fatigueTierNote(p),
+    fatigueNote: fatigueTierNote(p, slimLang),
     stamina: p.stamina ?? null,
     ironLungs: hasEliteStaminaSkill(p) || fatigueResist(p) >= 92,
     hot: p.hot || 0,
     mood: Math.round(p.mood ?? 50),
-    hotLabel: hotLabel(p.hot || 0),
-    moodLabel: moodLabel(p.mood ?? 50),
+    hotLabel: hotLabel(p.hot || 0, slimLang),
+    moodLabel: moodLabel(p.mood ?? 50, slimLang),
     confidence: Math.round(formConfidence(p)),
     confidenceLabel: confidenceLabel(p.confidence),
     tacticalStatus: Math.round(formTactical(p)),
@@ -2500,7 +2530,17 @@ function slim(p) {
   };
 }
 
-function hotLabel(hot) {
+const HOT_LABELS_EN = { frozen: "Frozen", ice: "Ice Cold", cold: "Cold", even: "Steady", warm: "Warming Up", hot: "On Fire", nuclear: "Nuclear" };
+function hotLabel(hot, lang = "zh") {
+  if (lang === "en") {
+    if (hot <= -3) return HOT_LABELS_EN.frozen;
+    if (hot === -2) return HOT_LABELS_EN.ice;
+    if (hot === -1) return HOT_LABELS_EN.cold;
+    if (hot === 0) return HOT_LABELS_EN.even;
+    if (hot === 1) return HOT_LABELS_EN.warm;
+    if (hot === 2) return HOT_LABELS_EN.hot;
+    return HOT_LABELS_EN.nuclear;
+  }
   if (hot <= -3) return "冰冻";
   if (hot === -2) return "手感冰";
   if (hot === -1) return "偏冷";
@@ -2510,7 +2550,14 @@ function hotLabel(hot) {
   return "爆表";
 }
 
-function moodLabel(mood) {
+function moodLabel(mood, lang = "zh") {
+  if (lang === "en") {
+    if (mood < 35) return "Down";
+    if (mood < 48) return "Flat";
+    if (mood < 58) return "Calm";
+    if (mood < 72) return "Fired Up";
+    return "Sky High";
+  }
   if (mood < 35) return "低落";
   if (mood < 48) return "沉闷";
   if (mood < 58) return "平静";
@@ -2531,7 +2578,7 @@ function registerShotFeel(baller, made) {
 /** 战报/招牌是否算灌篮（暴扣、砸筐等） */
 function isDunkFinish(label, baller = null) {
   const text = `${label || ""} ${baller?._sigLabel || ""}`;
-  if (/暴扣|灌篮|砸筐|劈扣|钉板|起飞|泰山压顶|暴力灌篮|空接暴扣|隔扣/.test(text)) return true;
+  if (/暴扣|灌篮|砸筐|劈扣|钉板|起飞|泰山压顶|暴力灌篮|空接暴扣|隔扣|dunk|slam/i.test(text)) return true;
   // 招牌灌篮技触发时 label 常为技能名
   const sk = baller?.skills || [];
   if (
@@ -2547,7 +2594,7 @@ function isDunkFinish(label, baller = null) {
  * 灌篮 / 盖帽：点燃全队士气与信心（场上为主，板凳也吃一点）。
  * @param {"dunk"|"block"} kind
  */
-function sparkTeamFromHighlight(team, kind, hero, emitFn = null) {
+function sparkTeamFromHighlight(team, kind, hero, emitFn = null, lang = "zh") {
   if (!team) return;
   const dunk = kind === "dunk";
   const moraleBump = dunk ? 3.8 : 3.4;
@@ -2574,8 +2621,12 @@ function sparkTeamFromHighlight(team, kind, hero, emitFn = null) {
     emitFn(
       "coach",
       dunk
-        ? `${hero.name} 灌篮点燃全队——士气与信心一起上扬！`
-        : `${hero.name} 盖帽振奋全队——防线士气与信心大涨！`
+        ? lang === "en"
+          ? `${hero.name}'s dunk ignites the whole team — morale and confidence surge!`
+          : `${hero.name} 灌篮点燃全队——士气与信心一起上扬！`
+        : lang === "en"
+          ? `${hero.name}'s block fires up the whole team — defensive morale and confidence soar!`
+          : `${hero.name} 盖帽振奋全队——防线士气与信心大涨！`
     );
   }
 }
@@ -2689,7 +2740,7 @@ function applyLateGameScripts(sim, off, def) {
     // 同步到你方 UI：焦点战术 + 持球人
     if (off === sim.you() && shooter) {
       if (needThree) {
-        sim.focusPlay = { id: "pace_three", label: "终场抢攻三分", ttl: 10 };
+        sim.focusPlay = { id: "pace_three", label: sim.S("终场抢攻三分", "Late-Game Three Hunt"), ttl: 10 };
       }
       sim.offenseFocusId = shooter.id;
       if (!off.gameplan) off.gameplan = {};
@@ -2701,12 +2752,12 @@ function applyLateGameScripts(sim, off, def) {
       if (needThree && shooter) {
         sim.emit(
           "coach",
-          `落后 ${offInfo.deficit} 分 · 终场抢攻三分：球给 ${shooter.name}`
+          sim.S(`落后 ${offInfo.deficit} 分 · 终场抢攻三分：球给 ${shooter.name}`, `Down ${offInfo.deficit} · late three hunt: ball to ${shooter.name}`)
         );
       } else if (shooter) {
-        sim.emit("coach", `落后 ${offInfo.deficit} 分 · 终场抢攻提速`);
+        sim.emit("coach", sim.S(`落后 ${offInfo.deficit} 分 · 终场抢攻提速`, `Down ${offInfo.deficit} · late push, pace up`));
       } else {
-        sim.emit("coach", `落后 ${offInfo.deficit} 分 · 终场抢攻`);
+        sim.emit("coach", sim.S(`落后 ${offInfo.deficit} 分 · 终场抢攻`, `Down ${offInfo.deficit} · late push`));
       }
     }
   } else if (off.temp.lateChase) {
@@ -2742,7 +2793,7 @@ function tryIntentionalFoul(sim, off, def, info) {
 
   sim.emit(
     "coach",
-    `战术犯规！${fouler.name} 故意犯规 ${victim.name}（落后 ${info.deficit} 分抢时间）`
+    sim.S(`战术犯规！${fouler.name} 故意犯规 ${victim.name}（落后 ${info.deficit} 分抢时间）`, `Intentional foul! ${fouler.name} fouls ${victim.name} (down ${info.deficit}, buying time)`)
   );
   // 布置下一回合：落后方拿到球权后强制三分抢攻
   const shooter = bestThreeShooter(def.onCourt);
@@ -2754,13 +2805,13 @@ function tryIntentionalFoul(sim, off, def, info) {
     deficit: info.deficit,
   };
   if (def === sim.you() && shooter) {
-    sim.focusPlay = { id: "pace_three", label: "犯规后抢攻三分", ttl: 10 };
+    sim.focusPlay = { id: "pace_three", label: sim.S("犯规后抢攻三分", "Post-Foul Three Hunt"), ttl: 10 };
     sim.offenseFocusId = shooter.id;
     if (!def.gameplan) def.gameplan = {};
     def.gameplan.offenseFocusId = shooter.id;
   }
   if (shooter) {
-    sim.emit("coach", `犯规后三分布置：球给 ${shooter.name}`);
+    sim.emit("coach", sim.S(`犯规后三分布置：球给 ${shooter.name}`, `Post-foul three plan: ball to ${shooter.name}`));
   }
 
   shootFts(victim, off, sim, 2);
@@ -2777,10 +2828,10 @@ function shootFts(baller, off, sim, n) {
       sim.score[off.side] += 1;
       applyPlusMinus(off, def, 1);
       gradeFtMake(baller);
-      sim.emit("score", `${baller.name} 罚球命中 ${sim.score.home}-${sim.score.away}`);
+      sim.emit("score", sim.S(`${baller.name} 罚球命中 ${sim.score.home}-${sim.score.away}`, `${baller.name} hits the free throw ${sim.score.home}-${sim.score.away}`));
     } else {
       gradeFtMiss(baller);
-      sim.emit("miss", `${baller.name} 罚球不中`);
+      sim.emit("miss", sim.S(`${baller.name} 罚球不中`, `${baller.name} misses the free throw`));
       if (i === n - 1) {
         resolveRebound(off, def, sim, false);
         return;
@@ -2815,9 +2866,11 @@ function maybeTechnicalFoul(sim, off, def, baller, defender) {
       [...victimSide.onCourt].sort((a, b) => (b.ft || 0.7) - (a.ft || 0.7))[0] || victimSide.onCourt[0];
     sim.emit(
       "coach",
-      `${offender.name} 情绪失控吃到技术犯规！${
+      sim.S(`${offender.name} 情绪失控吃到技术犯规！${
         (offender.skills || []).includes("hothead") ? "（火爆脾气）" : ""
-      }`
+      }`, `${offender.name} loses it — technical foul!${
+        (offender.skills || []).includes("hothead") ? " (Hot Temper)" : ""
+      }`)
     );
     if (shooter) shootFts(shooter, victimSide, sim, 1);
     else sim.possession = flip(offenderSide.side);
@@ -2884,7 +2937,7 @@ function resolveRebound(off, def, sim, afterBlock) {
       off.temp.crashPutbackId = reb.id;
       off.temp.crashPutbackTtl = 1;
     }
-    sim.emit("reb", crash ? `${reb.name} 冲到进攻篮板，准备二次进攻` : `${reb.name} 抢到进攻篮板`);
+    sim.emit("reb", crash ? sim.S(`${reb.name} 冲到进攻篮板，准备二次进攻`, `${reb.name} crashes the offensive glass — second chance coming`) : sim.S(`${reb.name} 抢到进攻篮板`, `${reb.name} grabs the offensive board`));
     sim.clock = Math.max(0, sim.clock - 3);
     // keep possession
   } else {
@@ -2892,7 +2945,7 @@ function resolveRebound(off, def, sim, afterBlock) {
     reb.stats.reb += 1;
     reb.stats.dreb += 1;
     gradeDreb(reb);
-    sim.emit("reb", `${reb.name} 抢到防守篮板`);
+    sim.emit("reb", sim.S(`${reb.name} 抢到防守篮板`, `${reb.name} secures the defensive rebound`));
     sim.possession = flip(off.side);
   }
 }
@@ -2975,9 +3028,14 @@ function fatiguePerfMult(p) {
 }
 
 /** UI / feed tag: 略损 → 下滑 → 透支 */
-function fatigueTierNote(p) {
+function fatigueTierNote(p, lang = "zh") {
   const m = fatiguePerfMult(p);
   if (m >= 0.99) return "";
+  if (lang === "en") {
+    if (m >= 0.95) return "Winded";
+    if (m >= 0.78) return "Fading";
+    return "Spent";
+  }
   if (m >= 0.95) return "略损";
   if (m >= 0.78) return "下滑";
   return "透支";
@@ -3986,7 +4044,13 @@ function applyCoachSpark(baller, off) {
   return rand(0.018, 0.045) * (0.7 + sparkStat / 100);
 }
 
-function shotLabel(shot, open) {
+function shotLabel(shot, open, lang = "zh") {
+  if (lang === "en") {
+    const space = open > 0.7 ? "wide-open" : open > 0.45 ? "semi-open" : "heavily contested";
+    const z = shot.zone === "three" ? "three" : shot.zone === "paint" ? "at the rim" : "mid-range";
+    const side = shot.weakSide ? "weak-side " : "";
+    return `${side}${space} ${z}`;
+  }
   const space = open > 0.7 ? "空位" : open > 0.45 ? "半空位" : "强干扰";
   const z = shot.zone === "three" ? "三分" : shot.zone === "paint" ? "篮下" : "中距离";
   const side = shot.weakSide ? "弱侧" : "";
@@ -4003,12 +4067,19 @@ function pickLine(lines) {
  * 例：「霍华德强打米尔萨普得手，虚晃起来，暴扣」
  *     「约基奇错位打德里克·罗斯，低位翻身打进」
  */
-function matchupFeedStory(baller, defender, shot, open, finishLabel, { made = true, fouled = false } = {}) {
-  const bn = baller?.name || "进攻方";
-  const finish = finishLabel || shotLabel(shot, open);
+function matchupFeedStory(baller, defender, shot, open, finishLabel, { made = true, fouled = false, lang = "zh" } = {}) {
+  const en = lang === "en";
+  const bn = baller?.name || (en ? "the offense" : "进攻方");
+  const finish = finishLabel || shotLabel(shot, open, lang);
   if (!defender?.name) {
-    if (fouled) return `${bn} ${finish} 出手被侵`;
-    return made ? `${bn} ${finish} 命中` : `${bn} ${finish} 不中`;
+    if (fouled) return en ? `${bn} — ${finish}, fouled on the attempt` : `${bn} ${finish} 出手被侵`;
+    return made
+      ? en
+        ? `${bn} — ${finish}, good`
+        : `${bn} ${finish} 命中`
+      : en
+        ? `${bn} — ${finish}, no good`
+        : `${bn} ${finish} 不中`;
   }
   const dn = defender.name;
   const bPos = baller.playPos || baller.pos || "";
@@ -4024,102 +4095,102 @@ function matchupFeedStory(baller, defender, shot, open, finishLabel, { made = tr
 
   let setup;
   if (bigOnGuard || (htGap >= 12 && ["C", "PF"].includes(bPos))) {
-    setup = pickLine([
-      `错位打${dn}`,
-      `错位单打${dn}`,
-      `低位错位收拾${dn}`,
-      `大打小点名${dn}`,
-    ]);
+    setup = en
+      ? pickLine([`mismatch on ${dn}`, `posts the mismatch vs ${dn}`, `big-on-small, hunting ${dn}`, `calls out ${dn} on the switch`])
+      : pickLine([`错位打${dn}`, `错位单打${dn}`, `低位错位收拾${dn}`, `大打小点名${dn}`]);
   } else if (guardOnBig && spdGap >= 8) {
-    setup = pickLine([
-      `小打大晃开${dn}`,
-      `速度错位过掉${dn}`,
-      `面对高大的${dn}变向`,
-    ]);
+    setup = en
+      ? pickLine([`small-on-big, blows by ${dn}`, `speed mismatch past ${dn}`, `crosses up the taller ${dn}`])
+      : pickLine([`小打大晃开${dn}`, `速度错位过掉${dn}`, `面对高大的${dn}变向`]);
   } else if (strGap >= 12 && paint) {
-    setup = pickLine([
-      `强打${dn}`,
-      `吨位碾压${dn}`,
-      `肉搏顶开${dn}`,
-      `硬凿${dn}`,
-    ]);
+    setup = en
+      ? pickLine([`bullies ${dn}`, `overpowers ${dn}`, `shoulders through ${dn}`, `bodies ${dn} inside`])
+      : pickLine([`强打${dn}`, `吨位碾压${dn}`, `肉搏顶开${dn}`, `硬凿${dn}`]);
   } else if (htGap >= 8 && paint) {
-    setup = pickLine([`身高优势打${dn}`, `高打低收拾${dn}`, `顶着${dn}起跳`]);
+    setup = en
+      ? pickLine([`height advantage on ${dn}`, `shoots over the smaller ${dn}`, `rises over ${dn}`])
+      : pickLine([`身高优势打${dn}`, `高打低收拾${dn}`, `顶着${dn}起跳`]);
   } else if (spdGap >= 12) {
-    setup = pickLine([`速度甩开${dn}`, `第一步过掉${dn}`, `加速甩开${dn}`]);
+    setup = en
+      ? pickLine([`blows by ${dn}`, `first step past ${dn}`, `speeds clear of ${dn}`])
+      : pickLine([`速度甩开${dn}`, `第一步过掉${dn}`, `加速甩开${dn}`]);
   } else if (open < 0.36) {
-    setup = pickLine([`硬解${dn}`, `在${dn}头顶强投`, `贴身对抗${dn}`]);
+    setup = en
+      ? pickLine([`forces it over ${dn}`, `shoots over ${dn}'s contest`, `smothered by ${dn}`])
+      : pickLine([`硬解${dn}`, `在${dn}头顶强投`, `贴身对抗${dn}`]);
   } else if (open >= 0.62) {
-    setup = pickLine([`整开${dn}`, `摆脱${dn}`, `晃开${dn}`]);
+    setup = en
+      ? pickLine([`shakes free of ${dn}`, `loses ${dn}`, `creates space from ${dn}`])
+      : pickLine([`整开${dn}`, `摆脱${dn}`, `晃开${dn}`]);
   } else {
-    setup = pickLine([`对位${dn}`, `盯防下打${dn}`, `顶着${dn}`]);
+    setup = en
+      ? pickLine([`matched with ${dn}`, `works on ${dn}`, `goes at ${dn}`])
+      : pickLine([`对位${dn}`, `盯防下打${dn}`, `顶着${dn}`]);
   }
 
-  const dunkish = /暴扣|灌篮|砸筐|劈扣|钉板|起飞|泰山压顶/.test(finish);
-  const layupish = /上篮|拉杆|挑篮|抛投|穿花|欧洲步/.test(finish);
-  const postish = /强打|翻身|低位|霸王|梦幻|柔拨|指尖/.test(finish);
+  const dunkish = /暴扣|灌篮|砸筐|劈扣|钉板|起飞|泰山压顶|dunk|slam|poster|alley-oop/i.test(finish);
+  const layupish = /上篮|拉杆|挑篮|抛投|穿花|欧洲步|layup|finger roll|floater|euro/i.test(finish);
+  const postish = /强打|翻身|低位|霸王|梦幻|柔拨|指尖|post|fadeaway|hook/i.test(finish);
 
   let action = finish;
   if (made && dunkish) {
-    action = pickLine([
-      `虚晃起来，${finish}`,
-      `假动作后${finish}`,
-      `起跳${finish}`,
-      `连着虚晃，${finish}`,
-      finish,
-    ]);
+    action = en
+      ? pickLine([`pump-fake, rises — ${finish}`, `fake, then ${finish}`, `takes off — ${finish}`, `double-clutch fake — ${finish}`, finish])
+      : pickLine([`虚晃起来，${finish}`, `假动作后${finish}`, `起跳${finish}`, `连着虚晃，${finish}`, finish]);
   } else if (made && layupish) {
-    action = pickLine([`变向后${finish}`, `挤进去${finish}`, `探肩${finish}`, finish]);
+    action = en
+      ? pickLine([`crosses over — ${finish}`, `squeezes inside — ${finish}`, `dips the shoulder — ${finish}`, finish])
+      : pickLine([`变向后${finish}`, `挤进去${finish}`, `探肩${finish}`, finish]);
   } else if (made && paint && (strGap >= 10 || postish)) {
-    action = pickLine([`低位翻身打进`, `背身挤进`, `${finish}`, `虚晃后强打打进`]);
+    action = en
+      ? pickLine([`turnaround in the post — good`, `backs him down and scores`, `${finish}`, `fake and power finish — good`])
+      : pickLine([`低位翻身打进`, `背身挤进`, `${finish}`, `虚晃后强打打进`]);
   }
 
   if (fouled) {
-    return pickLine([
-      `${bn}${setup}，${finish}出手被侵`,
-      `${bn}打${dn} ${finish} 造犯规`,
-      `${dn}防${bn}下手，${finish}被侵`,
-    ]);
+    return en
+      ? pickLine([
+          `${bn} ${setup} — ${finish}, fouled on the shot`,
+          `${bn} vs ${dn}: ${finish}, draws the foul`,
+          `${dn} reaches in on ${bn} — ${finish}, fouled`,
+        ])
+      : pickLine([
+          `${bn}${setup}，${finish}出手被侵`,
+          `${bn}打${dn} ${finish} 造犯规`,
+          `${dn}防${bn}下手，${finish}被侵`,
+        ]);
   }
 
   if (made) {
     if (paint && (dunkish || strGap >= 10 || bigOnGuard)) {
-      return pickLine([
-        `${bn}${setup}得手，${action}`,
-        `${bn}${setup}，${action}得手`,
-        `${bn}对位${dn}，${action}`,
-      ]);
+      return en
+        ? pickLine([`${bn} ${setup} — scores, ${action}`, `${bn} ${setup}, ${action} — good`, `${bn} on ${dn} — ${action}`])
+        : pickLine([`${bn}${setup}得手，${action}`, `${bn}${setup}，${action}得手`, `${bn}对位${dn}，${action}`]);
     }
     if (three) {
-      return pickLine([
-        `${bn}面对${dn} ${finish} 命中`,
-        `${bn}在${dn}眼前 ${finish} 命中`,
-        `${bn}${setup}，${finish}命中`,
-      ]);
+      return en
+        ? pickLine([`${bn} over ${dn} — ${finish}, good`, `${bn} in ${dn}'s face — ${finish} falls`, `${bn} ${setup} — ${finish}, good`])
+        : pickLine([`${bn}面对${dn} ${finish} 命中`, `${bn}在${dn}眼前 ${finish} 命中`, `${bn}${setup}，${finish}命中`]);
     }
     if (mid) {
-      return pickLine([
-        `${bn}${setup}，${finish}命中`,
-        `${bn}对位${dn} ${finish} 打进`,
-        `${bn}干拔甩开${dn}，${finish}命中`,
-      ]);
+      return en
+        ? pickLine([`${bn} ${setup} — ${finish}, good`, `${bn} vs ${dn} — ${finish} falls`, `${bn} pulls up over ${dn} — ${finish}, good`])
+        : pickLine([`${bn}${setup}，${finish}命中`, `${bn}对位${dn} ${finish} 打进`, `${bn}干拔甩开${dn}，${finish}命中`]);
     }
-    return pickLine([`${bn}${setup}，${finish}命中`, `${bn}对位${dn} ${finish} 命中`]);
+    return en
+      ? pickLine([`${bn} ${setup} — ${finish}, good`, `${bn} vs ${dn} — ${finish}, good`])
+      : pickLine([`${bn}${setup}，${finish}命中`, `${bn}对位${dn} ${finish} 命中`]);
   }
 
   // miss
   if (paint && (dunkish || strGap >= 8)) {
-    return pickLine([
-      `${bn}${setup}未果，${finish}不中`,
-      `${dn}干扰下 ${bn} ${finish} 砸偏`,
-      `${bn}打${dn} ${finish} 打铁`,
-    ]);
+    return en
+      ? pickLine([`${bn} ${setup} — ${finish}, no good`, `${dn} contests — ${bn}'s ${finish} rims out`, `${bn} on ${dn} — ${finish} clangs off`])
+      : pickLine([`${bn}${setup}未果，${finish}不中`, `${dn}干扰下 ${bn} ${finish} 砸偏`, `${bn}打${dn} ${finish} 打铁`]);
   }
-  return pickLine([
-    `${bn}${setup}未果，${finish}不中`,
-    `${dn}干扰下 ${bn} ${finish} 不中`,
-    `${bn}打${dn} ${finish} 打铁`,
-  ]);
+  return en
+    ? pickLine([`${bn} ${setup} — ${finish}, no good`, `${dn} contests — ${bn}'s ${finish} misses`, `${bn} on ${dn} — ${finish} clangs off`])
+    : pickLine([`${bn}${setup}未果，${finish}不中`, `${dn}干扰下 ${bn} ${finish} 不中`, `${bn}打${dn} ${finish} 打铁`]);
 }
 
 function weighted(arr, weightFn) {

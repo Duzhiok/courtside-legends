@@ -23,9 +23,9 @@ export const MILESTONE_WINS = 5;
 export const CHALLENGE_TICKETS = 2;
 
 export const DAILY_TASKS = [
-  { id: "play", label: "打 1 场排位", tickets: 1, done: (day) => day.played >= 1 },
-  { id: "win", label: "排位赢 1 场", tickets: 1, done: (day) => day.won >= 1 },
-  { id: "careerWin", label: "金币挑战赛赢 1 场", tickets: 1, done: (day) => (day.careerWon || 0) >= 1 },
+  { id: "play", label: "打 1 场排位", labelEn: "Play 1 ranked game", tickets: 1, done: (day) => day.played >= 1 },
+  { id: "win", label: "排位赢 1 场", labelEn: "Win 1 ranked game", tickets: 1, done: (day) => day.won >= 1 },
+  { id: "careerWin", label: "金币挑战赛赢 1 场", labelEn: "Win 1 gold challenge game", tickets: 1, done: (day) => (day.careerWon || 0) >= 1 },
 ];
 
 /**
@@ -34,9 +34,9 @@ export const DAILY_TASKS = [
  * accomplishments, not "play one more match" busywork, so they're worth more than a 每日任务.
  */
 export const DAILY_CHALLENGES = [
-  { id: "goldChampion", label: "金币晋级赛 / 预算轮抽夺冠", tickets: CHALLENGE_TICKETS },
-  { id: "timeTravelSeason", label: "穿越生涯打完一个完整赛季", tickets: CHALLENGE_TICKETS },
-  { id: "leagueSeason", label: "联盟经理打完一个完整赛季", tickets: CHALLENGE_TICKETS },
+  { id: "goldChampion", label: "金币晋级赛 / 预算轮抽夺冠", labelEn: "Win a gold promotion / budget-draft title", tickets: CHALLENGE_TICKETS },
+  { id: "timeTravelSeason", label: "穿越生涯打完一个完整赛季", labelEn: "Finish a full time-travel career season", tickets: CHALLENGE_TICKETS },
+  { id: "leagueSeason", label: "联盟经理打完一个完整赛季", labelEn: "Finish a full league-manager season", tickets: CHALLENGE_TICKETS },
 ];
 
 function pickChallenge(rng = Math.random) {
@@ -68,13 +68,13 @@ export function winMilestone(account) {
 }
 
 /** Claim every daily task whose condition the day now satisfies. */
-function claimReadyTasks(account, day) {
+function claimReadyTasks(account, day, lang = "zh") {
   const granted = [];
   for (const task of DAILY_TASKS) {
     if (day.claimed.includes(task.id) || !task.done(day)) continue;
     day.claimed.push(task.id);
     account.tickets = (account.tickets || 0) + task.tickets;
-    granted.push({ id: task.id, label: task.label, tickets: task.tickets });
+    granted.push({ id: task.id, label: taskLabel(task, lang), tickets: task.tickets });
   }
   return granted;
 }
@@ -83,19 +83,19 @@ function claimReadyTasks(account, day) {
  * Call after a ranked game (and after recordRankedResult, which bumps the win
  * count). Returns what was granted so the result screen can say so.
  */
-export function recordRankedTasks(account, won, today = todayKey()) {
+export function recordRankedTasks(account, won, today = todayKey(), lang = "zh") {
   const day = dailyState(account, today);
   day.played += 1;
   if (won) day.won += 1;
 
-  const granted = claimReadyTasks(account, day);
+  const granted = claimReadyTasks(account, day, lang);
 
   const milestone = winMilestone(account);
   const fresh = milestone.earned - milestone.claimed;
   if (fresh > 0) {
     account.milestoneClaimed = milestone.earned;
     account.tickets = (account.tickets || 0) + fresh;
-    granted.push({ id: "milestone", label: `排位累计 ${milestone.earned * MILESTONE_WINS} 胜`, tickets: fresh });
+    granted.push({ id: "milestone", label: lang === "en" ? `Ranked total ${milestone.earned * MILESTONE_WINS} wins` : `排位累计 ${milestone.earned * MILESTONE_WINS} 胜`, tickets: fresh });
   }
   saveAccount(account);
   return granted;
@@ -105,11 +105,11 @@ export function recordRankedTasks(account, won, today = todayKey()) {
  * Call after a 金币晋级赛 (career) game. Only wins move the 金币挑战赛 daily
  * task; losses change nothing. Returns what was granted, like recordRankedTasks.
  */
-export function recordCareerTasks(account, won, today = todayKey()) {
+export function recordCareerTasks(account, won, today = todayKey(), lang = "zh") {
   if (!account) return [];
   const day = dailyState(account, today);
   if (won) day.careerWon = (day.careerWon || 0) + 1;
-  const granted = claimReadyTasks(account, day);
+  const granted = claimReadyTasks(account, day, lang);
   if (granted.length || won) saveAccount(account);
   return granted;
 }
@@ -133,13 +133,14 @@ export function recordChallengeProgress(account, challengeId, today = todayKey()
 }
 
 /** What the draw screen shows: each task with its state. */
-export function taskBoard(account, today = todayKey()) {
+const taskLabel = (task, lang) => (lang === "en" ? task.labelEn || task.label : task.label);
+export function taskBoard(account, today = todayKey(), lang = "zh") {
   const day = dailyState(account, today);
   const milestone = winMilestone(account);
   const challengeDef = DAILY_CHALLENGES.find((c) => c.id === day.challengeId) || DAILY_CHALLENGES[0];
   return {
-    tasks: DAILY_TASKS.map((task) => ({ id: task.id, label: task.label, tickets: task.tickets, claimed: day.claimed.includes(task.id) })),
-    challenge: { id: challengeDef.id, label: challengeDef.label, tickets: challengeDef.tickets, claimed: day.claimed.includes(challengeDef.id) },
+    tasks: DAILY_TASKS.map((task) => ({ id: task.id, label: taskLabel(task, lang), tickets: task.tickets, claimed: day.claimed.includes(task.id) })),
+    challenge: { id: challengeDef.id, label: taskLabel(challengeDef, lang), tickets: challengeDef.tickets, claimed: day.claimed.includes(challengeDef.id) },
     milestone: { wins: milestone.wins, next: milestone.next, perTicket: MILESTONE_WINS },
     tickets: account.tickets || 0,
   };

@@ -3,38 +3,38 @@
  * Used by Legend Mode to pull anyone who ever played for that club.
  */
 export const FRANCHISES = [
-  { id: "LAL", name: "湖人", aliases: ["LAL", "MNL"] },
-  { id: "BOS", name: "凯尔特人", aliases: ["BOS"] },
-  { id: "CHI", name: "公牛", aliases: ["CHI"] },
-  { id: "GSW", name: "勇士", aliases: ["GSW", "PHW", "SFW"] },
-  { id: "SAS", name: "马刺", aliases: ["SAS"] },
-  { id: "MIA", name: "热火", aliases: ["MIA"] },
-  { id: "NYK", name: "尼克斯", aliases: ["NYK"] },
-  { id: "PHI", name: "76人", aliases: ["PHI", "SYR"] },
-  { id: "DET", name: "活塞", aliases: ["DET", "FTW"] },
-  { id: "HOU", name: "火箭", aliases: ["HOU", "SDR"] },
-  { id: "DAL", name: "独行侠", aliases: ["DAL"] },
-  { id: "DEN", name: "掘金", aliases: ["DEN", "DNA", "DNR"] },
-  { id: "MIL", name: "雄鹿", aliases: ["MIL"] },
-  { id: "CLE", name: "骑士", aliases: ["CLE"] },
-  { id: "ATL", name: "老鹰", aliases: ["ATL", "STL", "TRI", "MLH"] },
-  { id: "POR", name: "开拓者", aliases: ["POR"] },
-  { id: "UTA", name: "爵士", aliases: ["UTA", "NOJ"] },
-  { id: "PHO", name: "太阳", aliases: ["PHO", "PHX"] },
-  { id: "SAC", name: "国王", aliases: ["SAC", "KCK", "KCO", "CIN", "ROC"] },
-  { id: "LAC", name: "快船", aliases: ["LAC", "SDC", "BUF"] },
-  { id: "OKC", name: "雷霆", aliases: ["OKC"] },
-  { id: "SEA", name: "超音速", aliases: ["SEA"] },
-  { id: "LAS", name: "拉斯维加斯", aliases: ["LAS", "LV"] },
-  { id: "ORL", name: "魔术", aliases: ["ORL"] },
-  { id: "MIN", name: "森林狼", aliases: ["MIN"] },
-  { id: "TOR", name: "猛龙", aliases: ["TOR"] },
-  { id: "IND", name: "步行者", aliases: ["IND"] },
-  { id: "WAS", name: "奇才", aliases: ["WAS", "WSB", "BAL", "CAP", "CHP", "CHZ"] },
-  { id: "MEM", name: "灰熊", aliases: ["MEM", "VAN"] },
-  { id: "NOP", name: "鹈鹕", aliases: ["NOP", "NOH", "NOK"] },
-  { id: "BKN", name: "篮网", aliases: ["BRK", "BKN", "NJN", "NYA", "NYN"] },
-  { id: "CHA", name: "黄蜂", aliases: ["CHA", "CHO", "CHH"] },
+  { id: "LAL", name: "湖人", nameEn: "Lakers", aliases: ["LAL", "MNL"] },
+  { id: "BOS", name: "凯尔特人", nameEn: "Celtics", aliases: ["BOS"] },
+  { id: "CHI", name: "公牛", nameEn: "Bulls", aliases: ["CHI"] },
+  { id: "GSW", name: "勇士", nameEn: "Warriors", aliases: ["GSW", "PHW", "SFW"] },
+  { id: "SAS", name: "马刺", nameEn: "Spurs", aliases: ["SAS"] },
+  { id: "MIA", name: "热火", nameEn: "Heat", aliases: ["MIA"] },
+  { id: "NYK", name: "尼克斯", nameEn: "Knicks", aliases: ["NYK"] },
+  { id: "PHI", name: "76人", nameEn: "76ers", aliases: ["PHI", "SYR"] },
+  { id: "DET", name: "活塞", nameEn: "Pistons", aliases: ["DET", "FTW"] },
+  { id: "HOU", name: "火箭", nameEn: "Rockets", aliases: ["HOU", "SDR"] },
+  { id: "DAL", name: "独行侠", nameEn: "Mavericks", aliases: ["DAL"] },
+  { id: "DEN", name: "掘金", nameEn: "Nuggets", aliases: ["DEN", "DNA", "DNR"] },
+  { id: "MIL", name: "雄鹿", nameEn: "Bucks", aliases: ["MIL"] },
+  { id: "CLE", name: "骑士", nameEn: "Cavaliers", aliases: ["CLE"] },
+  { id: "ATL", name: "老鹰", nameEn: "Hawks", aliases: ["ATL", "STL", "TRI", "MLH"] },
+  { id: "POR", name: "开拓者", nameEn: "Trail Blazers", aliases: ["POR"] },
+  { id: "UTA", name: "爵士", nameEn: "Jazz", aliases: ["UTA", "NOJ"] },
+  { id: "PHO", name: "太阳", nameEn: "Suns", aliases: ["PHO", "PHX"] },
+  { id: "SAC", name: "国王", nameEn: "Kings", aliases: ["SAC", "KCK", "KCO", "CIN", "ROC"] },
+  { id: "LAC", name: "快船", nameEn: "Clippers", aliases: ["LAC", "SDC", "BUF"] },
+  { id: "OKC", name: "雷霆", nameEn: "Thunder", aliases: ["OKC"] },
+  { id: "SEA", name: "超音速", nameEn: "SuperSonics", aliases: ["SEA"] },
+  { id: "LAS", name: "拉斯维加斯", nameEn: "Las Vegas", aliases: ["LAS", "LV"] },
+  { id: "ORL", name: "魔术", nameEn: "Magic", aliases: ["ORL"] },
+  { id: "MIN", name: "森林狼", nameEn: "Timberwolves", aliases: ["MIN"] },
+  { id: "TOR", name: "猛龙", nameEn: "Raptors", aliases: ["TOR"] },
+  { id: "IND", name: "步行者", nameEn: "Pacers", aliases: ["IND"] },
+  { id: "WAS", name: "奇才", nameEn: "Wizards", aliases: ["WAS", "WSB", "BAL", "CAP", "CHP", "CHZ"] },
+  { id: "MEM", name: "灰熊", nameEn: "Grizzlies", aliases: ["MEM", "VAN"] },
+  { id: "NOP", name: "鹈鹕", nameEn: "Pelicans", aliases: ["NOP", "NOH", "NOK"] },
+  { id: "BKN", name: "篮网", nameEn: "Nets", aliases: ["BRK", "BKN", "NJN", "NYA", "NYN"] },
+  { id: "CHA", name: "黄蜂", nameEn: "Hornets", aliases: ["CHA", "CHO", "CHH"] },
 ];
 
 export const POS_SLOTS = [
@@ -127,4 +127,10 @@ export function positionFitScore(naturalPos, assignedPos, player = null) {
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
+}
+
+/** Display name for a franchise in the given language (defaults to zh). */
+export function franchiseName(f, lang = "zh") {
+  if (!f) return "";
+  return lang === "en" ? f.nameEn || f.id : f.name;
 }

@@ -1,4 +1,5 @@
 import { photoImg } from "../data/photo.js";
+import { getLang } from "../i18n.js";
 import { skillChipsHtml } from "../data/skills.js";
 import { nicknameBadgeHtml } from "../data/nicknames.js";
 import { historicalUpsideHint } from "../engine/develop.js";
@@ -37,7 +38,7 @@ export function evaluateRosterPlayer(player, seasonRow, { salary = 0, ovr = 0 } 
     season: player.season,
     age: player.age ?? "—",
     photo: photoImg(player, "headshot sm"),
-    skills: skillChipsHtml(player),
+    skills: skillChipsHtml(player, getLang()),
     nickname: nicknameBadgeHtml(player),
     potential: historicalUpsideHint(player) || "潜力信息不足，需要更多赛季样本。",
     abilities: {

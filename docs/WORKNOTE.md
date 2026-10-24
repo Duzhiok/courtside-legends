@@ -723,3 +723,17 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - 样式在 `css/gacha.css` 共享 `.search-wrap/.search-clear`；同时隐藏浏览器自带的 search 取消按钮，避免出现两个 ×（各浏览器原生 × 出现时机不一致，正是这次要自研一个的原因）。
 
 **验证：** `tests/searchClear.test.js` 4 个测试（筛选条 × 显隐随 query、sandbox 模板与移除逻辑、index/app 接线、样式与原生 × 抑制）；全量 648/648。缓存版本号：app.js → `20261023search-clear`，gacha.css → `20261023search1`。
+
+### R50：英文版 v1（T7 第一阶段，用户反馈）
+
+用户反馈：截图里的浏览器自动翻译把「中投」翻成了中投公司（China Investment Corporation）——问是不是翻译错误；确认是机翻错误后，用户说「英文版本也照着先做一个吧」。
+
+**翻译策略（源头双语，不用机翻）：** 浏览器机翻按词典猜，「中投」这种篮球术语必然翻车。所以 v1 全部在源码里双语：JS 现拼的文案用 `L(中文, 英文)` 在源头选语言（「中投」永远是 MID）；index.html 静态文案走 403 条 `PHRASES` 词表 + DOM 遍历（`applyStaticLang`），原文存 WeakMap，切回中文逐字还原，不靠反向翻译。顶栏新增语言按钮 `EN / 中文`（显示的是目标语言），偏好存 localStorage。
+
+**比赛播报双语（`GameSim` 构造收 `lang` 选项，默认 zh）：** 81 处 emit 点全部走 `this.S(中文, 英文)`；自由函数里的 emit 用 `sim.S`。包括：得分/失误/篮板/盖帽/抢断模板、招牌动作与盖帽名（92 个技能名走 `SKILL_EN` id 词表，如 死亡缠绕 → Death Wrap、大北斗指滚 → Big Dipper Finger Roll）、`matchupFeedStory` 整段重写为双语（含 dunk/layup/post 动作池与英文正则分类）、shotLabel / hotLabel / moodLabel / fatigueTag、暂停/换人/伤病/战术/终场抢攻/战术犯规/罚球/技术犯规。无头实测：英文整场 score/miss/reb/dunk/coach 五类事件**零中文残留**（coach 类此前 15 条残留来自技能名与轮换心情，全部清掉）；中文默认局的断言全部不变。
+
+**界面双语（v1 已覆盖）：** 顶部加载进度、记分牌「主队进攻/客队进攻」、球员卡 12 项属性缩写（攻→ATK、三分→3PT、中投→MID、内线→INS、传→PAS、防→DEF、板→REB、断→STL、帽→BLK、速→SPD、力→STR、球商→IQ）、播报图例提示、技能 chip 名、抽卡规则/卡池说明/抽卡状态/每日任务与挑战名（`labelEn` 字段 + `taskBoard(lang)`）、时空对决沙盒、卡库筛选条、32 支球队英文名（湖人 → Lakers）、结果屏胜负标题。
+
+**v1 明确没做的（留给 T7 后续）：** 生涯叙事线（生涯弧线、顿悟文本、教练/技能描述长文）、gameplan.js 的战术名与教练名、已开局的存档队名（只在新开局时按当前语言取）、沙盒在语言切换后需重进才刷新（挂载一次的限制）。技能招牌的风味文案（`signatureFeedFlavor`）已双语；`_sigLabel` 回退走技能名翻译。
+
+**验证：** `tests/i18n.test.js` 8 个测试（L 切换、技能名映射、中投 → MID、index.html 全量 401 段中文词表覆盖——仅 2 处有意保留：语言按钮自身的双语 title、搜索示例里的人名外号、球队名英译、英局零中文 + 中局仍中文、默认 lang=zh）；全量 **656/656**。缓存版本号：app.js → `20261024i18n-en`。

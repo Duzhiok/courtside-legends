@@ -6,6 +6,7 @@
  */
 
 import { shuffle } from "../core/seededRandom.js";
+import { skillNameL } from "../i18n.js";
 
 export const SKILL_PACKS = {
   clutch_killer: {
@@ -1751,7 +1752,33 @@ function signatureZone(move) {
 }
 
 /** 招牌绝技触发时的战报短句（暴扣 / 拉杆等） */
-export function signatureFeedFlavor(sigId) {
+const SIG_FLAVOR_EN = {
+    poster_slam: ["violent rim slam", "soaring poster off the glass", "slam tears the defence apart", "two-hand power slam"],
+    mountain_slam: ["mountain slam dunk", "bullying finish at the rim", "heavy power jam"],
+    lob_finisher: ["alley-oop off the glass", "rising tomahawk lob", "lob jam"],
+    uncle_drew: ["butterfly crossover — up-and-under", "crossover into a finger roll", "switch-hand butterfly layup", "shakes him — scoop finish"],
+    euro_step: ["euro step layup", "two-step change-of-direction roll", "euro shakes him — good", "euro step fools the defence"],
+    logo_range: ["fires from half-court — good", "ultra-deep three splashes", "logo three — good", "from way downtown"],
+    splash_spot: ["catch-and-shoot — good", "runs free off-ball — instant shot falls", "splash spot-up — good"],
+    bully_step: ["bully step through contact — layup", "powers through the weak defence — layup"],
+    coast_to_coast: ["coast-to-coast slam", "full-court drive — jam", "one-man fast break dunk"],
+    teardrop: ["teardrop — good", "high soft floater drops"],
+    soft_touch: ["soft touch — good", "fingertip tap falls", "feather touch rolls in"],
+    dream_shake: ["dream shake fake — good", "back-to-back fakes shake him loose", "dream shake turnaround — good"],
+    lean_in_jumper: ["lean-in jumper — good", "leans into contact and hits", "leaning mid-range over the defence"],
+    one_leg_fade: ["one-leg floater — good", "one-leg fade, high arc — good", "creates space — one-leg shot falls"],
+    god_mode: ["god mode — mid-range swish", "ignores the defence from mid-range", "for a moment, he IS god"],
+    high_tower: ["high tower shot — good", "fingertip release from up high", "wingspan overwhelms — good"],
+    spring_board: ["springboard slam", "second-jump dunk"],
+    high_floater: ["high floater over the rim protector", "parabola floater — swish", "rhythm-stop floater off the glass"],
+    giant_stride: ["giant stride past the defence — layup", "one stride into the paint — scoop", "giant strides straight to the rim"],
+    rim_wrecker: ["turnaround rim-wrecker slam", "rim wrecker — power dunk", "fast-break tomahawk", "through the rim protector — dunk"],
+  };
+export function signatureFeedFlavor(sigId, lang = "zh") {
+  if (lang === "en") {
+    const poolEn = SIG_FLAVOR_EN[sigId];
+    if (poolEn?.length) return poolEn[Math.floor(Math.random() * poolEn.length)];
+  }
   const lines = {
     poster_slam: ["暴力灌篮砸框", "起飞隔扣钉板", "暴扣撕开防守", "双手暴扣怒砸"],
     mountain_slam: ["泰山压顶暴扣", "内线强吃砸筐", "势大力沉灌进"],
@@ -1783,7 +1810,8 @@ export function signatureFeedFlavor(sigId) {
  * 非招牌触发时，禁区出手的战报风味：暴扣 / 拉杆上篮等。
  * 扣篮手、欧文类上篮手更容易刷出对应文案。
  */
-export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, scheme = null } = {}) {
+export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, scheme = null, lang = "zh" } = {}) {
+  const en = lang === "en";
   if (!baller) return null;
   const sk = baller.skills || [];
   const paint = baller.paint || 50;
@@ -1823,27 +1851,41 @@ export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, sc
 
   if (Math.random() < dunkChance) {
     if (lobWindow && (sk.includes("lob_finisher") || Math.random() < 0.7)) {
-      const lobs = ["空接暴扣", "空中接力砸筐", "拔地空接劈扣", "吊传空接钉板", "顺下空接灌篮"];
+      const lobs = en
+        ? ["alley-oop slam", "lob jam at the rim", "rising alley-oop dunk", "lob off the glass — dunk", "rolling alley-oop dunk"]
+        : ["空接暴扣", "空中接力砸筐", "拔地空接劈扣", "吊传空接钉板", "顺下空接灌篮"];
       return lobs[Math.floor(Math.random() * lobs.length)];
     }
     const dunks =
       open >= 0.55
-        ? ["双手暴扣", "起飞灌篮砸框", "无人防守暴扣", "大风车灌篮", "劈扣钉板"]
-        : ["隔人暴扣", "对抗中砸筐", "强起灌篮", "硬凿暴扣", "挤抗起飞扣进"];
+        ? en
+          ? ["two-hand slam", "soaring dunk at the rim", "uncontested slam", "windmill dunk", "tomahawk off the glass"]
+          : ["双手暴扣", "起飞灌篮砸框", "无人防守暴扣", "大风车灌篮", "劈扣钉板"]
+        : en
+          ? ["poster dunk", "slam through contact", "power dunk", "bulldozer dunk", "rises through traffic — dunk"]
+          : ["隔人暴扣", "对抗中砸筐", "强起灌篮", "硬凿暴扣", "挤抗起飞扣进"];
     return dunks[Math.floor(Math.random() * dunks.length)];
   }
   if (Math.random() < craftChance) {
     const lays = sk.includes("uncle_drew")
-      ? ["蝴蝶穿花·拉杆上篮", "拉杆换手挑篮", "晃过防守上篮", "低手柔拨上篮"]
+      ? en
+        ? ["butterfly crossover — up-and-under layup", "switch-hand finger roll", "shakes the defender — layup", "soft underhand floater layup"]
+        : ["蝴蝶穿花·拉杆上篮", "拉杆换手挑篮", "晃过防守上篮", "低手柔拨上篮"]
       : sk.includes("giant_stride")
-        ? ["大三步上篮", "超大步幅拉杆", "大步流星一步上篮", "跨过防守挑篮"]
-      : sk.includes("high_tower") || sk.includes("soft_touch") || sk.includes("dream_shake")
-        ? ["高位柔拨", "指尖轻点入网", "梦幻脚步翻身", "勾手打进", "擦板巧打"]
-        : ["拉杆上篮", "换手上篮", "抛投挑篮", "擦板打进", "空切上篮"];
+        ? en
+          ? ["giant-stride layup", "huge-stride scoop", "one giant step — layup", "strides over the defence — finger roll"]
+          : ["大三步上篮", "超大步幅拉杆", "大步流星一步上篮", "跨过防守挑篮"]
+        : sk.includes("high_tower") || sk.includes("soft_touch") || sk.includes("dream_shake")
+          ? en
+            ? ["high soft touch", "fingertip tap-in", "dream-shake turnaround", "hook shot — good", "crafty bank shot"]
+            : ["高位柔拨", "指尖轻点入网", "梦幻脚步翻身", "勾手打进", "擦板巧打"]
+          : en
+            ? ["up-and-under layup", "switch-hand layup", "floater finger roll", "bank shot — good", "cutting layup"]
+            : ["拉杆上篮", "换手上篮", "抛投挑篮", "擦板打进", "空切上篮"];
     return lays[Math.floor(Math.random() * lays.length)];
   }
   if (paint >= 80 && Math.random() < (bullyDunker || dunkSkill ? 0.22 : 0.35)) {
-    return Math.random() < 0.45 ? "强打上篮" : "杀筐打进";
+    return Math.random() < 0.45 ? (en ? "power layup" : "强打上篮") : en ? "rim attack — good" : "杀筐打进";
   }
   return null;
 }
@@ -1948,8 +1990,9 @@ export function trySignatureSteal(defender) {
   return null;
 }
 
-export function skillChipsHtml(player) {
+export function skillChipsHtml(player, lang = "zh") {
   const skills = player?.skills || [];
+  const nameL = (s) => skillNameL(s.name, lang);
   if (!skills.length) return "";
   const bought = new Set(player.purchasedSkills || []);
   return skills
@@ -1959,7 +2002,7 @@ export function skillChipsHtml(player) {
       const tag = s.duo ? "组合" : s.aura ? "光环" : s.signature ? "招牌" : bought.has(id) ? "已购" : "";
       const title = tag ? `【${tag}】${s.desc || s.name}` : s.desc || s.name;
       const boughtCls = bought.has(id) ? " bought" : "";
-      return `<span class="skill-chip ${s.tone}${s.duo ? " duo" : ""}${s.aura ? " aura" : ""}${boughtCls}" title="${title}">${s.name}</span>`;
+      return `<span class="skill-chip ${s.tone}${s.duo ? " duo" : ""}${s.aura ? " aura" : ""}${boughtCls}" title="${title}">${nameL(s)}</span>`;
     })
     .join("");
 }

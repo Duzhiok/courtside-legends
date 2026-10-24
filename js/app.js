@@ -33,6 +33,7 @@ import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js"
 import { searchPeople } from "./data/cardSearch.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
+import { getLang, setLang, applyStaticLang, L, skillNameL } from "./i18n.js";
 import { grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import {
   boughtSkillCount,
@@ -80,7 +81,7 @@ import {
   rosterTacticUnlocks,
   tacticUnlockHint,
 } from "./data/coaches.js";
-import { FRANCHISES, POS_SLOTS, playersForFranchise } from "./data/franchises.js";
+import { FRANCHISES, POS_SLOTS, franchiseName, playersForFranchise } from "./data/franchises.js";
 import {
   applyLineupPositionEffects,
   isPlayerAvailable,
@@ -1466,7 +1467,7 @@ function continueFromSave() {
         chipBox.innerHTML = L.franchises
           .map(
             (f) =>
-              `<span class="franchise-chip" data-id="${f.id}">${f.name} <small>${f.id}</small></span>`
+              `<span class="franchise-chip" data-id="${f.id}">${franchiseName(f, getLang())} <small>${f.id}</small></span>`
           )
           .join("");
       }
@@ -1578,6 +1579,7 @@ function openSandbox() {
     pool: () => PLAYERS,
     ovrOf: overall,
     esc,
+    lang: getLang(),
     onStart: (teamA, teamB) => {
       state.mode = "sandbox";
       state.lastMode = "sandbox";
@@ -2105,7 +2107,7 @@ function paintCollectionGrid(acc, players) {
           <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
           <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
           <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
-          ${skillChipsHtml(p)}
+          ${skillChipsHtml(p, getLang())}
           ${soulButtonHtml(p, souls[p.bref] || 0)}
           ${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}
           ${recycleButtonHtml(p, { isFavorite: acc.favoriteId === p.id })}
@@ -2119,7 +2121,7 @@ function paintCollectionGrid(acc, players) {
 
 function paintCollectionFilter(players) {
   const box = $("#collection-filter");
-  if (box) box.innerHTML = filterBarHtml(collectionFilter, { shown: players.length, total: players.length, decades: decadesOf(players) }, esc);
+  if (box) box.innerHTML = filterBarHtml(collectionFilter, { shown: players.length, total: players.length, decades: decadesOf(players) }, esc, getLang());
 }
 
 $("#collection-filter")?.addEventListener("input", (event) => {
@@ -2344,8 +2346,8 @@ function renderDrawStatus(acc) {
   const availability = drawAvailability(acc);
   const wish = acc.gacha?.wishlist;
   const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
-  $("#draw-status").innerHTML = drawStatusHtml(acc, availability, wishName, esc);
-  $("#draw-tasks").innerHTML = tasksHtml(taskBoard(acc));
+  $("#draw-status").innerHTML = drawStatusHtml(acc, availability, wishName, esc, getLang());
+  $("#draw-tasks").innerHTML = tasksHtml(taskBoard(acc, undefined, getLang()));
   const pull = $("#btn-draw-pull");
   if (!pull) return;
   const full = cardRoom(acc) <= 0;
@@ -2395,14 +2397,14 @@ function paintDrawBanners(acc) {
   const days = daysUntilRotation();
   const selected = banners.find((banner) => banner.id === drawBannerId) || banners[0];
   const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
-  $("#draw-banners").innerHTML = bannerPickerHtml(banners, selected.id, esc, { stats: bannerStatsCache.stats, days });
-  $("#draw-banner-explain").innerHTML = bannerExplainHtml(selected, bannerStatsCache.stats[selected.id], { days, wishName }, esc);
+  $("#draw-banners").innerHTML = bannerPickerHtml(banners, selected.id, esc, { stats: bannerStatsCache.stats, days }, getLang());
+  $("#draw-banner-explain").innerHTML = bannerExplainHtml(selected, bannerStatsCache.stats[selected.id], { days, wishName, lang: getLang() }, esc);
 }
 
 function openDailyDraw() {
   const acc = requireAccountReady();
   if (!acc) return;
-  $("#draw-rules").innerHTML = drawRulesHtml();
+  $("#draw-rules").innerHTML = drawRulesHtml(getLang());
   paintDrawBanners(acc);
   const choice = pendingRollChoice(acc);
   $("#draw-stage").innerHTML = choice
@@ -3232,7 +3234,7 @@ function startLegendMode() {
     targetSize: 10,
   };
   $("#legend-franchises").innerHTML = eight
-    .map((f) => `<span class="franchise-chip" data-id="${f.id}">${f.name} <small>${f.id}</small></span>`)
+    .map((f) => `<span class="franchise-chip" data-id="${f.id}">${franchiseName(f, getLang())} <small>${f.id}</small></span>`)
     .join("");
   $("#legend-pos").innerHTML = POS_SLOTS.map(
     (s) =>
@@ -3291,7 +3293,7 @@ function rollLegendTeam() {
 
   L.current = f;
   L.pickId = null;
-  $("#legend-round-team").textContent = `${f.name}（${f.id}）`;
+  $("#legend-round-team").textContent = getLang() === "en" ? `${franchiseName(f, "en")} (${f.id})` : `${f.name}（${f.id}）`;
   markLegendFranchiseChips(L);
 
   const top = list.slice(0, 16);
@@ -4897,7 +4899,7 @@ function marketOwnedCard(p, canSell, sideLabel = "") {
       <div class="tiny">${tendencyLabel(p)}</div>
       <div class="tiny">暗属性 ${tips || "—"}</div>
       <div class="tiny">${marketMeta(p)}</div>
-      ${p.skills?.length ? `<div class="skill-row">${skillChipsHtml(p)}</div>` : ""}
+      ${p.skills?.length ? `<div class="skill-row">${skillChipsHtml(p, getLang())}</div>` : ""}
       <div class="tiny">估价 ¤${buy} · <strong>卖出 ¤${sell}</strong>${skillBit}${
         v === "高薪低能" ? " · 可考虑卖出腾薪资" : ""
       }</div>
@@ -5114,7 +5116,7 @@ function paintFreeAgentList(c, duel = false) {
             afford ? "" : " · 超出预算"
           }${physiqueLabel(p) ? ` · ${physiqueLabel(p)}` : ""}</div>
           <div class="tiny">${marketMeta(p)}</div>
-          ${p.skills?.length ? `<div class="skill-row">${skillChipsHtml(p)}</div>` : ""}
+          ${p.skills?.length ? `<div class="skill-row">${skillChipsHtml(p, getLang())}</div>` : ""}
         </div>
         ${
           duel
@@ -6160,18 +6162,18 @@ function setupStatGridHtml(p) {
     return `<span class="setup-stat ${tone}" title="${label}"><em>${label}</em>${n || "—"}</span>`;
   };
   return `<div class="setup-stat-grid">
-    ${row("攻", p.scoring)}
-    ${row("三分", p.three)}
-    ${row("中投", p.mid)}
-    ${row("内线", p.paint)}
-    ${row("传", p.pass)}
-    ${row("防", p.defense)}
-    ${row("板", p.rebound)}
-    ${row("断", p.steal)}
-    ${row("帽", p.block)}
-    ${row("速", p.speed)}
-    ${row("力", p.strength)}
-    ${row("球商", p.iq)}
+    ${row(L("攻", "ATK"), p.scoring)}
+    ${row(L("三分", "3PT"), p.three)}
+    ${row(L("中投", "MID"), p.mid)}
+    ${row(L("内线", "INS"), p.paint)}
+    ${row(L("传", "PAS"), p.pass)}
+    ${row(L("防", "DEF"), p.defense)}
+    ${row(L("板", "REB"), p.rebound)}
+    ${row(L("断", "STL"), p.steal)}
+    ${row(L("帽", "BLK"), p.block)}
+    ${row(L("速", "SPD"), p.speed)}
+    ${row(L("力", "STR"), p.strength)}
+    ${row(L("球商", "IQ"), p.iq)}
   </div>`;
 }
 
@@ -6195,7 +6197,7 @@ function setupMiniCardHtml(p, { onCourt = false } = {}) {
       <span class="setup-action-label">${out ? "伤停" : actionLabel}</span>
     </div>
     ${setupStatGridHtml(p)}
-    ${p.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p)}</div>` : ""}
+    ${p.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p, getLang())}</div>` : ""}
   </div>`;
 }
 
@@ -6736,7 +6738,7 @@ function paintFeedIdentity(homeTeam, awayTeam) {
     `<span class="lg-side"><i class="dot" style="background:${home.color}"></i>${esc(homeName)}</span>` +
     `<span class="lg-vs">vs</span>` +
     `<span class="lg-side"><i class="dot" style="background:${away.color}"></i>${esc(awayName)}</span>` +
-    `<span class="lg-hint">颜色 = 进攻方 · 得分带比分牌</span>`;
+    `<span class="lg-hint">${L("颜色 = 进攻方 · 得分带比分牌", "Colour = attacking team · scores carry the score chip")}</span>`;
 }
 
 function pushFeed(type, text, ev = null) {
@@ -6784,7 +6786,7 @@ function paintScore(snap) {
   $("#score-b").textContent = snap.score.away;
   $("#quarter").textContent = snap.quarter > 4 ? "OT" : `Q${snap.quarter}`;
   $("#game-clock").textContent = fmtClock(snap.clock);
-  $("#poss-label").textContent = snap.possession === "home" ? "主队进攻" : "客队进攻";
+  $("#poss-label").textContent = snap.possession === "home" ? L("主队进攻", "Home on offense") : L("客队进攻", "Away on offense");
 }
 
 function hotClass(hot) {
@@ -7848,8 +7850,8 @@ function showResult(snap, { formNotes = [] } = {}) {
   const youScore = youSide === "home" ? hs : as;
   const oppScore = youSide === "home" ? as : hs;
   const youWin = youScore > oppScore;
-  const winner = hs === as ? "平局" : hs > as ? snap.home.name : snap.away.name;
-  $("#result-title").textContent = hs === as ? "加时仍平——以模拟终局计" : `${winner} 获胜`;
+  const winner = hs === as ? L("平局", "Tie") : hs > as ? snap.home.name : snap.away.name;
+  $("#result-title").textContent = hs === as ? L("加时仍平——以模拟终局计", "Still tied after OT — decided by sim") : L(`${winner} 获胜`, `${winner} wins`);
   const formBit = formNotes?.length
     ? `本场表现已写入自信/战术地位：${formNotes.slice(0, 3).join("；")}${
         formNotes.length > 3 ? "…" : ""
@@ -9210,14 +9212,14 @@ function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false }
   const youSide = snap.youSide === "away" ? "away" : "home";
   const youScore = youSide === "home" ? hs : as;
   const oppScore = youSide === "home" ? as : hs;
-  const winner = hs === as ? "平局" : hs > as ? snap.home.name : snap.away.name;
+  const winner = hs === as ? L("平局", "Tie") : hs > as ? snap.home.name : snap.away.name;
   const youWin = youScore > oppScore;
   $("#result-title").textContent =
     hs === as
-      ? "加时仍平——以模拟终局计"
+      ? L("加时仍平——以模拟终局计", "Still tied after OT — decided by sim")
       : viewingHistory
-        ? `${winner} 获胜`
-        : `${winner} 获胜 · ${youWin ? "我方胜" : "我方负"}`;
+        ? L(`${winner} 获胜`, `${winner} wins`)
+        : L(`${winner} 获胜 · ${youWin ? "我方胜" : "我方负"}`, `${winner} wins · ${youWin ? "You win" : "You lose"}`);
   $("#box-score").innerHTML = `${boxTable(snap.home)}${boxTable(snap.away)}`;
   wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory });
 }
@@ -9458,7 +9460,7 @@ function renderSeasonOfferPack() {
           <strong>${p.pos} ${p.name}</strong>
           <span class="chip tiny">${meta.role}</span>
           <div class="tiny">${p.season} 赛季 · OVR ${meta.ovr} · 当季工资 <strong>${formatSalary(sal)}</strong></div>
-          <div class="tiny season-pick-attrs">攻${p.scoring ?? "—"} 三分${p.three ?? "—"} 中投${p.mid ?? "—"} 内线${p.paint ?? "—"} 传${p.pass ?? "—"} 防${p.defense ?? "—"} 板${p.rebound ?? "—"} 断${p.steal ?? "—"} 帽${p.block ?? "—"} 速${p.speed ?? "—"} 力${p.strength ?? "—"} 智商${p.iq ?? "—"} 关键${p.clutch ?? "—"}</div>
+          <div class="tiny season-pick-attrs">${L("攻", "ATK")}${p.scoring ?? "—"} ${L("三分", "3PT")}${p.three ?? "—"} ${L("中投", "MID")}${p.mid ?? "—"} ${L("内线", "INS")}${p.paint ?? "—"} ${L("传", "PAS")}${p.pass ?? "—"} ${L("防", "DEF")}${p.defense ?? "—"} ${L("板", "REB")}${p.rebound ?? "—"} ${L("断", "STL")}${p.steal ?? "—"} ${L("帽", "BLK")}${p.block ?? "—"} ${L("速", "SPD")}${p.speed ?? "—"} ${L("力", "STR")}${p.strength ?? "—"} ${L("球商", "IQ")}${p.iq ?? "—"} ${L("关键", "CLT")}${p.clutch ?? "—"}</div>
           <div class="tiny">${marketMeta(p)}</div>
           ${
             historicalUpsideHint(p)
@@ -9674,7 +9676,7 @@ function handleRankedResult(youWin, snap) {
   if (acc) recordRankedResult(acc, youWin);
   // Ranked always seats the account on the home side (startRankedMatch).
   const notes = acc ? applyRankedGame(acc, snap?.home?.roster, { won: youWin }) : [];
-  const tickets = acc ? recordRankedTasks(acc, youWin) : [];
+  const tickets = acc ? recordRankedTasks(acc, youWin, undefined, getLang()) : [];
   const progress = [
     ...notes.map(progressNoteText),
     ...tickets.map((g) => `🎫 ${g.label}，抽卡券 +${g.tickets}`),
@@ -9721,7 +9723,7 @@ function handleCareerResult(youWin, snap) {
   const wasFinals = !!(c.finals || c.stageSize === 2);
   const result = resolveCareerYourResult(youWin, opp);
   // 每日任务「金币挑战赛」：晋级赛赢 1 场 +1 抽卡券；奖励说明并进 injLine，各分支结算文案都会带上。
-  const taskGrants = recordCareerTasks(activeAccount(), youWin);
+  const taskGrants = recordCareerTasks(activeAccount(), youWin, undefined, getLang());
   const taskNote = taskGrants.length
     ? ` 🎫 每日任务达成：${taskGrants.map((g) => g.label).join("、")}，抽卡券 +${taskGrants.reduce((s, g) => s + g.tickets, 0)}。`
     : "";
@@ -10036,10 +10038,21 @@ function clamp(n, a, b) {
 
 async function boot() {
   try {
+    applyStaticLang();
+    const langBtn = $("#btn-lang");
+    const paintLangBtn = () => {
+      if (langBtn) langBtn.textContent = getLang() === "en" ? "中文" : "EN";
+    };
+    paintLangBtn();
+    langBtn?.addEventListener("click", () => {
+      setLang(getLang() === "en" ? "zh" : "en");
+      applyStaticLang();
+      paintLangBtn();
+    });
     initBgm();
     decorateHome();
   wireHomeTabs();
-    $("#load-status").textContent = "正在加载名册（优先本地缓存）…";
+    $("#load-status").textContent = L("正在加载名册（优先本地缓存）…", "Loading roster (local cache first)…");
     $("#load-bar").style.width = "6%";
     // Paint status before heavy work begins
     await new Promise((r) => requestAnimationFrame(() => r()));
@@ -10050,14 +10063,14 @@ async function boot() {
       $("#load-bar").style.width = `${pct}%`;
       if (phase === "cache") {
         sawCache = true;
-        $("#load-status").textContent = `读取本地缓存 ${pct}%…`;
+        $("#load-status").textContent = L(`读取本地缓存 ${pct}%…`, `Reading local cache ${pct}%…`);
       } else if (phase === "download") {
-        $("#load-status").textContent = "下载 / 解析 JSON…";
+        $("#load-status").textContent = L("下载 / 解析 JSON…", "Downloading / parsing JSON…");
       } else if (phase === "build") {
         sawBuild = true;
-        $("#load-status").textContent = `构建赛季卡与暗属性 ${pct}%（首次较慢，完成后会分块写入缓存）…`;
+        $("#load-status").textContent = L(`构建赛季卡与暗属性 ${pct}%（首次较慢，完成后会分块写入缓存）…`, `Building season cards & hidden traits ${pct}% (slower the first time, cached in chunks after)…`);
       } else {
-        $("#load-status").textContent = "即将进入主界面…";
+        $("#load-status").textContent = L("即将进入主界面…", "Almost at the home screen…");
       }
     });
     clearPeakPoolCache();
@@ -10065,8 +10078,8 @@ async function boot() {
     $("#load-bar").style.width = "100%";
     $("#load-status").textContent =
       sawCache && !sawBuild
-        ? `已从本地缓存加载 ${PLAYERS.length} 张赛季卡`
-        : `已加载 ${PLAYERS.length} 张赛季卡（已写入本地缓存，下次秒开）`;
+        ? L(`已从本地缓存加载 ${PLAYERS.length} 张赛季卡`, `Loaded ${PLAYERS.length} season cards from local cache`)
+        : L(`已加载 ${PLAYERS.length} 张赛季卡（已写入本地缓存，下次秒开）`, `Loaded ${PLAYERS.length} season cards (cached, next launch is instant)`);
     const wd = $("#load-watchdog");
     if (wd) wd.hidden = true;
     const poolNote = document.querySelector(".hint-panel ul");

@@ -1,4 +1,5 @@
 /**
+import { getLang } from "../i18n.js";
  * HTML builders for the daily draw + collection screens. Pure string output;
  * app.js owns DOM wiring. View helpers (esc, photoImg, …) are injected so this
  * module never reaches into app.js globals.
@@ -19,11 +20,22 @@ const OUTCOME_TEXT = {
 /** One decimal, trailing .0 trimmed — what is shown must sum to exactly 100%. */
 export const pct = (p) => `${(p * 100).toFixed(1).replace(/\.0$/, "")}%`;
 
-export function rateSummary() {
-  return RATE_TABLE.map((band) => `${band.label} ${pct(band.p)}`).join(" · ");
+export function rateSummary(lang = "zh") {
+  return RATE_TABLE.map((band) => `${lang === "en" ? band.labelEn || band.label : band.label} ${pct(band.p)}`).join(" · ");
 }
 
-export function drawRulesHtml() {
+export function drawRulesHtml(lang = "zh") {
+  const en = lang === "en";
+  if (en) {
+    return `<details class="draw-rules-more">
+    <summary>Rates & pity rules</summary>
+    <p class="tiny"><strong>Draw order</strong>: 1 free daily draw → tickets → extra draws for gold (¤${EXTRA_DRAW.cost} each, max ${EXTRA_DRAW.perDay}/day).
+    Ticket sources: welcome pack ${WELCOME_TICKETS}, daily tasks (play 1 ranked +1, win 1 ranked +1, win 1 gold challenge +1), today's challenge +${CHALLENGE_TICKETS}, +1 per ${MILESTONE_WINS} ranked wins. About 20% of draws are coach cards.<br/>
+    <strong>Player rates</strong>: ${rateSummary("en")}.<br/>
+    <strong>Pity</strong>: first ${NEWBIE.allstarByPull} draws guarantee an 85+ (once, always from the standard pool); after that, an All-Star+ every ${PITY.allstarEvery} draws, a Legend+ at ${PITY.legendAt} draws. Coach cards count as draws.<br/>
+    Before you pull you only see OVR — grade, hidden traits and gem tags reveal after you own the card.</p>
+  </details>`;
+  }
   return `<details class="draw-rules-more">
     <summary>概率与保底规则</summary>
     <p class="tiny"><strong>抽卡顺序</strong>：每日免费 1 抽 → 抽卡券 → 金币加抽（¤${EXTRA_DRAW.cost}/次，每天最多 ${EXTRA_DRAW.perDay} 次）。
@@ -35,73 +47,77 @@ export function drawRulesHtml() {
 }
 
 const fmt = (n) => n.toLocaleString("en-US");
-const bandFloors = () => RATE_TABLE.filter((band) => band.id !== "common" && band.min >= 85).map((band) => `${band.label} ${band.min}+`).join("、");
+const bandFloors = (lang = "zh") => RATE_TABLE.filter((band) => band.id !== "common" && band.min >= 85).map((band) => `${lang === "en" ? band.labelEn || band.label : band.label} ${band.min}+`).join(lang === "en" ? ", " : "、");
 
 /** One line under each banner button: how big it is and how its rarity is measured. */
-function bannerSubtitle(banner, stats, days) {
-  if (!stats) return banner.kind === "standard" ? "全历史赛季卡" : "每周轮换";
-  if (banner.kind === "standard") return `${fmt(stats.cards)} 张全历史赛季卡 · 按绝对 OVR 分档`;
-  return `${fmt(stats.cards)} 张 · ${fmt(stats.people)} 人 · 池内排名分档 · ${days} 天后轮换`;
+function bannerSubtitle(banner, stats, days, lang = "zh") {
+  const en = lang === "en";
+  if (!stats) return banner.kind === "standard" ? (en ? "All-history season cards" : "全历史赛季卡") : en ? "Weekly rotation" : "每周轮换";
+  if (banner.kind === "standard") return en ? `${fmt(stats.cards)} all-history season cards · tiered by absolute OVR` : `${fmt(stats.cards)} 张全历史赛季卡 · 按绝对 OVR 分档`;
+  return en ? `${fmt(stats.cards)} cards · ${fmt(stats.people)} players · tiered by in-pool rank · rotates in ${days} days` : `${fmt(stats.cards)} 张 · ${fmt(stats.people)} 人 · 池内排名分档 · ${days} 天后轮换`;
 }
 
-export function bannerPickerHtml(banners, selectedId, esc, view = {}) {
+export function bannerPickerHtml(banners, selectedId, esc, view = {}, lang = "zh") {
   return banners
     .map((banner) => `<button type="button" class="draw-banner${banner.id === selectedId ? " active" : ""}" data-banner="${banner.id}" aria-pressed="${banner.id === selectedId}">
         <strong>${esc(banner.name)}</strong>
-        <span class="tiny">${esc(bannerSubtitle(banner, view.stats?.[banner.id], view.days))}</span>
+        <span class="tiny">${esc(bannerSubtitle(banner, view.stats?.[banner.id], view.days, lang))}</span>
       </button>`)
     .join("");
 }
 
-function wishLine(stats, wishName, esc) {
-  if (!wishName) return "还没设心愿球员——设了之后，这里会告诉你他在不在这个池里。";
+function wishLine(stats, wishName, esc, lang = "zh") {
+  const en = lang === "en";
+  if (!wishName) return en ? "No wish player set yet — set one and this will tell you if he is in this pool." : "还没设心愿球员——设了之后，这里会告诉你他在不在这个池里。";
   const name = esc(wishName);
   return stats.wishCards > 0
-    ? `心愿球员 <strong>${name}</strong>：本池有 ${stats.wishCards} 张他的卡 ✔`
-    : `心愿球员 <strong>${name}</strong>：本池<strong>没有</strong>他的卡——换个池抽。`;
+    ? en ? `Wish player <strong>${name}</strong>: this pool has ${stats.wishCards} of his cards ✔` : `心愿球员 <strong>${name}</strong>：本池有 ${stats.wishCards} 张他的卡 ✔`
+    : en ? `Wish player <strong>${name}</strong>: this pool has <strong>none</strong> of his cards — try another pool.` : `心愿球员 <strong>${name}</strong>：本池<strong>没有</strong>他的卡——换个池抽。`;
 }
 
 /** What the selected banner means. Headline + wish stay visible; the how-it-works part folds away. */
-export function bannerExplainHtml(banner, stats, { days, wishName } = {}, esc = (x) => x) {
+export function bannerExplainHtml(banner, stats, { days, wishName, lang = "zh" } = {}, esc = (x) => x) {
   if (!banner || !stats) return "";
-  const best = stats.top.map((t) => `${esc(t.name)} ${t.season}（OVR ${t.ovr}）`).join(" · ");
+  const en = lang === "en";
+  const best = stats.top.map((t) => lang === "en" ? `${esc(t.name)} ${t.season} (OVR ${t.ovr})` : `${esc(t.name)} ${t.season}（OVR ${t.ovr}）`).join(" · ");
   const standard = banner.kind === "standard";
   const headline = standard
-    ? `<strong>${esc(banner.name)}</strong>：${fmt(stats.cards)} 张赛季卡、${fmt(stats.people)} 位球员。`
-    : `<strong>${esc(banner.name)}</strong>：${fmt(stats.cards)} 张赛季卡、${fmt(stats.people)} 位球员，还剩 ${days} 天轮换。`;
+    ? en ? `<strong>${esc(banner.name)}</strong>: ${fmt(stats.cards)} season cards, ${fmt(stats.people)} players.` : `<strong>${esc(banner.name)}</strong>：${fmt(stats.cards)} 张赛季卡、${fmt(stats.people)} 位球员。`
+    : en ? `<strong>${esc(banner.name)}</strong>: ${fmt(stats.cards)} season cards, ${fmt(stats.people)} players, ${days} days left in rotation.` : `<strong>${esc(banner.name)}</strong>：${fmt(stats.cards)} 张赛季卡、${fmt(stats.people)} 位球员，还剩 ${days} 天轮换。`;
   const how = standard
-    ? `稀有度按<strong>绝对 OVR</strong> 分档（${bandFloors()}）。`
-    : `稀有度按<strong>「本池内排名」</strong>换算：本池最强的那批出神话档——所以弱年代也有高档位，强年代整体更强。但档位只表示「这个池里的位置」，不等于 OVR 96+。抽到的卡会标「池内 X 档」。<br/>本池最强：${best}`;
-  return `<div class="banner-explain" role="region" aria-label="卡池说明">
+    ? en ? `Rarity is tiered by <strong>absolute OVR</strong> (${bandFloors("en")}).` : `稀有度按<strong>绝对 OVR</strong> 分档（${bandFloors()}）。`
+    : en ? `Rarity is converted by <strong>in-pool rank</strong>: the pool's strongest batch lands in the Myth tier — so weak eras get high tiers too, while strong eras are stronger overall. But a tier only means "position in this pool", not OVR 96+. Pulled cards are marked "Pool tier X".<br/>Strongest in this pool: ${best}` : `稀有度按<strong>「本池内排名」</strong>换算：本池最强的那批出神话档——所以弱年代也有高档位，强年代整体更强。但档位只表示「这个池里的位置」，不等于 OVR 96+。抽到的卡会标「池内 X 档」。<br/>本池最强：${best}`;
+  return `<div class="banner-explain" role="region" aria-label="${en ? "Pool notes" : "卡池说明"}">
       <p class="tiny">${headline}</p>
-      <p class="tiny">${wishLine(stats, wishName, esc)}</p>
+      <p class="tiny">${wishLine(stats, wishName, esc, lang)}</p>
       <details class="banner-more">
-        <summary>稀有度怎么算${standard ? "" : " · 本池最强"}</summary>
+        <summary>${en ? "How rarity is calculated" : "稀有度怎么算"}${standard ? "" : en ? " · Strongest in pool" : " · 本池最强"}</summary>
         <p class="tiny">${how}</p>
-        <p class="tiny muted">新手保底那一抽不论选哪个池，都从常驻池出。</p>
+        <p class="tiny muted">${en ? "The newbie pity pull always comes from the standard pool, whichever pool you pick." : "新手保底那一抽不论选哪个池，都从常驻池出。"}</p>
       </details>
     </div>`;
 }
 
-export function drawStatusHtml(account, availability, wishName, esc) {
+export function drawStatusHtml(account, availability, wishName, esc, lang = "zh") {
   const gacha = account.gacha || {};
   const toAllstar = PITY.allstarEvery - (gacha.sinceAllstar || 0);
   const toLegend = PITY.legendAt - (gacha.sinceLegend || 0);
+  const en = lang === "en";
   const pull = availability.free
-    ? "今日免费抽可用"
+    ? en ? "Free daily draw available" : "今日免费抽可用"
     : availability.tickets > 0
-      ? `抽卡券 ${availability.tickets} 张可用`
+      ? en ? `${availability.tickets} tickets available` : `抽卡券 ${availability.tickets} 张可用`
       : availability.extraLeft > 0
-      ? `加抽 ¤${availability.cost}（今日还剩 ${availability.extraLeft} 次）`
-      : "今日抽卡次数已用完";
+      ? en ? `Extra draw ¤${availability.cost} (${availability.extraLeft} left today)` : `加抽 ¤${availability.cost}（今日还剩 ${availability.extraLeft} 次）`
+      : en ? "No draws left today" : "今日抽卡次数已用完";
   return `<div class="draw-status">
-      <span>金币 ¤${account.gold || 0}</span>
-      <span>抽卡券 ${availability.tickets || 0}</span>
-      <span>卡库 ${(account.playerIds || []).length}/${MAX_CARDS}</span>
+      <span>${en ? "Gold" : "金币"} ¤${account.gold || 0}</span>
+      <span>${en ? "Tickets" : "抽卡券"} ${availability.tickets || 0}</span>
+      <span>${en ? "Collection" : "卡库"} ${(account.playerIds || []).length}/${MAX_CARDS}</span>
       <span>${pull}</span>
-      <span>全明星保底还差 ${toAllstar} 抽</span>
-      <span>传奇保底还差 ${toLegend} 抽</span>
-      <span>心愿单：${wishName ? esc(wishName) : "未设置"}</span>
+      <span>${en ? `All-Star pity in ${toAllstar} draws` : `全明星保底还差 ${toAllstar} 抽`}</span>
+      <span>${en ? `Legend pity in ${toLegend} draws` : `传奇保底还差 ${toLegend} 抽`}</span>
+      <span>${en ? "Wishlist" : "心愿单"}：${wishName ? esc(wishName) : en ? "not set" : "未设置"}</span>
     </div>`;
 }
 
@@ -172,7 +188,7 @@ export function drawRevealHtml(result, view) {
       <div class="draw-flags">${flags}</div>
       <p class="tiny">${OUTCOME_TEXT[result.outcome](result)}</p>
       <div>${hiddenBadgesHtml(p, esc)}</div>
-      ${skillChipsHtml(p)}
+      ${skillChipsHtml(p, getLang())}
       ${rollChoiceHtml(result.rollChoice)}
     </div>`;
 }
