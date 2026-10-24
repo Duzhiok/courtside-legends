@@ -654,7 +654,10 @@ html, body {
   min-width: 140px;
 }
 .table-scroll { overflow-x: auto; }
-.box-wrap { margin-bottom: 14px; }
+/* min-width: 0 overrides the grid item's implicit min-width: auto -- without it, this grid
+   item refuses to shrink below the box score table's intrinsic (wide) width, so .table-scroll's
+   own overflow-x:auto never kicks in and the whole page scrolls horizontally on mobile instead. */
+.box-wrap { margin-bottom: 14px; min-width: 0; }
 .player-card .name, .coach-card .name {
   font-weight: 700;
   font-size: 1.05rem;
