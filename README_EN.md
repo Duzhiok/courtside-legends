@@ -322,7 +322,7 @@ The launch requirements, checked against the code one by one:
 - ✅ Hidden traits: gravity, leadership aura, killer instinct, chemistry core, hidden ceiling, and 20+ more off-ratings attributes
 - ✅ Promotion format as the core: wins earn gold, market trading after every round, max 12-man roster, lose and you're out
 - ✅ Gold promotion Finals series: changed per user decision to **best-of-3** (replacing the original best-of-7 idea), with market access between games to adjust the roster (T8, see docs/WORKNOTE.md R44; the regular-season mode's playoffs stay best-of-7)
-- ⚠️ The promotion group stage currently runs double elimination + repechage, which differs from the original "lose once and you're out" — whether to revert to single elimination is undecided (T9)
+- ✅ Promotion group-stage format: per the user's 2026-10-24 decision, **double elimination + repechage is kept** (superseding the original "lose once and you're out" idea; T9 decided, see docs/WORKNOTE.md R58)
 - ✅ Two-player bidding mode; two-player random picks; multiplayer knockout grants one extra pick per round survived, through the Finals
 - ✅ Ratings generated from that season's data and labeled by year (verified: Shaq 2000 Lakers OVR 98 / speed 68 / strength 99 → 2011 Celtics OVR 74 / speed 28 / strength 92)
 - ✅ Watch + coach live: shout, timeouts, set tactics, subs, communication
@@ -334,7 +334,6 @@ The launch requirements, checked against the code one by one:
 
 ## Not yet done (roadmap)
 
-- Whether the promotion group stage reverts to single elimination (T9, awaiting a decision; currently double elimination + repechage)
 - Player-initiated pick trades and a second-round draft (draft picks currently only appear in other teams' inbound offers)
 - Second-term storylines after an extension, and the actual gameplay effects of contract perks
 - Full multi-year veteran contract talks and restricted free agency (RFA)
