@@ -91,13 +91,13 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
     const selections = (draft.selections || [])
       .map((selection) => selectionRow(selection, career, teamNames))
       .join("");
-    const userPick = (draft.selections || []).find(
+    const userPicks = (draft.selections || []).filter(
       (selection) => selection.teamId === career.season?.userTeamId,
     );
     if (draft.status === "complete") {
       container.innerHTML = `<section class="draft-board-panel">
         <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀完成</h4>
-        <p class="tiny">你的选择：${escapeHtml(userPick?.name || "—")}</p></div></header>
+        <p class="tiny">你的选择：${escapeHtml(userPicks.map((s) => s.name).join("、") || "—")}</p></div></header>
         <div class="draft-board-selections">${selections || "<p class=\"tiny\">暂无选择记录</p>"}</div>
         <div class="btn-row"><button type="button" class="btn primary" data-action="complete-offseason">开始新赛季</button></div>
       </section>`;
@@ -136,9 +136,13 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
             </button>`)
             .join("")
         : `<p class="draft-board-recovery">电脑球队仍在选秀计时中，暂时不能代替其选人。请重新载入存档以恢复自动推进。</p>`;
+      const userSlots = (draft.order || []).filter((id) => id === career.season?.userTeamId).length;
+      const userPicked = (draft.selections || []).filter((s) => s.teamId === career.season?.userTeamId).length;
+      const slotsLine =
+        userSlots > 1 ? `<p class="tiny">我方本届签位共 ${userSlots} 个，已选 ${userPicked} 个</p>` : "";
       container.innerHTML = `<section class="draft-board-panel">
         <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀</h4>
-        <p>当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择</p></div></header>
+        <p>当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择</p>${slotsLine}</div></header>
         ${waiverControl}
         <div class="draft-board-prospects">${cards}</div>
         <h4>已完成选择</h4>

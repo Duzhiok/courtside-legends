@@ -281,13 +281,74 @@ function worseFirst(season, seed) {
 /**
  * Seeded weighted lottery for the bottom half, followed by inverse standings.
  */
-export function generateDraftOrder(season, { seed } = {}) {
+/** One natural first-rounder per team: source and owner are the same team. */
+export function buildNaturalPicks(season) {
+  return seasonTeamIds(season).map((id) => ({ sourceTeamId: id, ownerTeamId: id }));
+}
+
+/** Apply a { [sourceTeamId]: ownerTeamId } map (e.g. from pick trades). */
+export function applyPickOwnership(picks, ownership) {
+  if (!ownership || typeof ownership !== "object" || Array.isArray(ownership)) return picks;
+  return (picks || []).map((pick) =>
+    ownership[pick.sourceTeamId] ? { ...pick, ownerTeamId: ownership[pick.sourceTeamId] } : pick,
+  );
+}
+
+/** Which source teams' picks a team owns for a draft year (naturals + trades). */
+export function picksOwnedBy(season, year, teamId) {
+  const picks = applyPickOwnership(buildNaturalPicks(season), season?.pickOwnership?.[year]);
+  return picks.filter((pick) => pick.ownerTeamId === teamId).map((pick) => pick.sourceTeamId);
+}
+
+/**
+ * Swap the user's natural pick with a CPU team's natural pick for a draft
+ * year. v1 rule: both picks must still be natural (never traded before).
+ * CPU acceptance uses a standings-rank value proxy: worse record = earlier
+ * pick = more value; the CPU accepts when the incoming pick is worth at
+ * least 90% of the outgoing one.
+ */
+export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
+  requireYear(year, "year");
+  const ids = seasonTeamIds(season);
+  const userTeamId = season.userTeamId;
+  if (!userTeamId || !ids.includes(userTeamId)) return { ok: false, reason: "用户球队无效" };
+  if (!cpuTeamId || !ids.includes(cpuTeamId) || cpuTeamId === userTeamId) {
+    return { ok: false, reason: "对方球队无效" };
+  }
+  const ownership = season.pickOwnership?.[year] || {};
+  const userOwner = ownership[userTeamId] || userTeamId;
+  const cpuOwner = ownership[cpuTeamId] || cpuTeamId;
+  if (userOwner !== userTeamId || cpuOwner !== cpuTeamId) {
+    return { ok: false, reason: "已有过交易的签位暂不支持二次换签" };
+  }
+  const ranked = [...ids].sort(worseFirst(season, `${season.year}|pick-value`));
+  const valueOf = (sourceId) => ids.length - ranked.indexOf(sourceId);
+  if (valueOf(userTeamId) < valueOf(cpuTeamId) * 0.9) {
+    return { ok: false, reason: "对方认为换来的签位价值不够，拒绝换签" };
+  }
+  season.pickOwnership = { ...(season.pickOwnership || {}) };
+  season.pickOwnership[year] = { ...ownership, [userTeamId]: cpuTeamId, [cpuTeamId]: userTeamId };
+  return {
+    ok: true,
+    message: `换签成交：送出我方 ${year} 年首轮签，得到 ${season.teams[cpuTeamId]?.name || cpuTeamId} 的 ${year} 年首轮签`,
+  };
+}
+
+export function generateDraftOrder(season, { seed, picks = null } = {}) {
   requireSeed(seed);
   const ids = seasonTeamIds(season);
-  const ranked = [...ids].sort(worseFirst(season, seed));
+  // Order entries are owner team ids; a team may appear several times when
+  // it owns several picks, so multi-pick drafting needs no other change.
+  const entries = picks?.length ? picks : buildNaturalPicks(season);
+  for (const pick of entries) {
+    if (!ids.includes(pick.sourceTeamId) || !ids.includes(pick.ownerTeamId)) {
+      throw new TypeError("draft pick source and owner must be season teams");
+    }
+  }
+  const ranked = [...entries].sort((a, b) => worseFirst(season, seed)(a.sourceTeamId, b.sourceTeamId));
   const lotterySize = Math.min(14, Math.ceil(ranked.length / 2));
-  const lotteryPool = ranked.slice(0, lotterySize).map((id, rank) => ({
-    id,
+  const lotteryPool = ranked.slice(0, lotterySize).map((pick, rank) => ({
+    ownerTeamId: pick.ownerTeamId,
     weight: lotterySize - rank,
   }));
   const rng = seededRandom(`${seed}|${season.year}|draft-order`);
@@ -304,15 +365,16 @@ export function generateDraftOrder(season, { seed } = {}) {
         break;
       }
     }
-    order.push(lotteryPool[selectedIndex].id);
+    order.push(lotteryPool[selectedIndex].ownerTeamId);
     lotteryPool.splice(selectedIndex, 1);
   }
-  return [...order, ...ranked.slice(lotterySize)];
+  return [...order, ...ranked.slice(lotterySize).map((pick) => pick.ownerTeamId)];
 }
 
-export function createDraftState({ season, seed, players = PLAYERS } = {}) {
+export function createDraftState({ season, seed, players = PLAYERS, picks = null } = {}) {
   requireSeed(seed);
-  const order = generateDraftOrder(season, { seed });
+  const resolvedPicks = picks?.length ? picks : buildNaturalPicks(season);
+  const order = generateDraftOrder(season, { seed, picks: resolvedPicks });
   const year = requireYear(season.year, "season.year");
   const prospects = rookieClassForYear(year, {
     seed,
@@ -323,6 +385,7 @@ export function createDraftState({ season, seed, players = PLAYERS } = {}) {
     year,
     seed,
     order,
+    picks: resolvedPicks,
     prospects,
     currentPick: 0,
     selections: [],

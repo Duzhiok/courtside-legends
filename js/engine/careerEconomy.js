@@ -196,6 +196,13 @@ export function buildAffordableShop(c, size = 12) {
     return true;
   });
   shop = shop.slice(0, size);
+  // 宝石前置可能与价格带 picks 重复，去重后若不足格要补货（否则货架缩水）
+  if (shop.length < size) {
+    const pickedIds = new Set(shop.map((p) => p.id));
+    const pickedPeople = new Set(shop.map((p) => p.bref).filter(Boolean));
+    const rest = priced.filter((x) => !pickedIds.has(x.p.id) && !pickedPeople.has(x.p.bref));
+    shop = shop.concat(pick(rest, size - shop.length));
+  }
   // 保底：至少 2/3 货架为当前金币可负担，否则用最便宜的未上架球员替换最贵的超预算者
   const gold = budgetGold(c);
   const needAffordable = Math.ceil((shop.length * 2) / 3);
