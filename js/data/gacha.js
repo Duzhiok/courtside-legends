@@ -10,13 +10,13 @@ import { hashSeed } from "../core/seededRandom.js";
  * feels like an event; pity below makes the drought predictable.
  */
 export const RATE_TABLE = [
-  { id: "myth", min: 96, max: 200, p: 0.008, label: "神话+" },
-  { id: "legend", min: 93, max: 96, p: 0.017, label: "传奇" },
-  { id: "superstar", min: 90, max: 93, p: 0.045, label: "超巨" },
-  { id: "allstar", min: 85, max: 90, p: 0.11, label: "全明星" },
-  { id: "starter", min: 80, max: 85, p: 0.2, label: "先发" },
-  { id: "rotation", min: 74, max: 80, p: 0.27, label: "轮换" },
-  { id: "common", min: 0, max: 74, p: 0.35, label: "普通" },
+  { id: "myth", min: 96, max: 200, p: 0.008, label: "神话+", labelEn: "Myth+" },
+  { id: "legend", min: 93, max: 96, p: 0.017, label: "传奇", labelEn: "Legend" },
+  { id: "superstar", min: 90, max: 93, p: 0.045, label: "超巨", labelEn: "Superstar" },
+  { id: "allstar", min: 85, max: 90, p: 0.11, label: "全明星", labelEn: "All-Star" },
+  { id: "starter", min: 80, max: 85, p: 0.2, label: "先发", labelEn: "Starter" },
+  { id: "rotation", min: 74, max: 80, p: 0.27, label: "轮换", labelEn: "Rotation" },
+  { id: "common", min: 0, max: 74, p: 0.35, label: "普通", labelEn: "Common" },
 ];
 
 export const PITY = {

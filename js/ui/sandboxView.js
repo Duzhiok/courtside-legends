@@ -17,12 +17,14 @@ const RESULT_LIMIT = 12;
 /** Keeps duplicate ids unique across both teams (Jordan can be on both sides). */
 const SLOT_OFFSET = { A: 0, B: 100 };
 
-function sideTemplate(side) {
-  return `<section class="sandbox-side" data-side="${side}" aria-label="${side} 队">
-      <input class="sandbox-name" data-name="${side}" value="${side === "A" ? "时空队 A" : "时空队 B"}" aria-label="${side} 队队名" maxlength="20" />
+function sideTemplate(side, lang = "zh") {
+  const en = lang === "en";
+  const teamName = side === "A" ? (en ? "Time Team A" : "时空队 A") : en ? "Time Team B" : "时空队 B";
+  return `<section class="sandbox-side" data-side="${side}" aria-label="${en ? `Team ${side}` : `${side} 队`}">
+      <input class="sandbox-name" data-name="${side}" value="${teamName}" aria-label="${en ? `Team ${side} name` : `${side} 队队名`}" maxlength="20" />
       <div class="search-wrap">
-        <input type="search" data-search="${side}" placeholder="英文名/中文名/外号 + 年份，如「乔丹 1991」「Kobe 2006」" aria-label="${side} 队搜索球员" />
-        <button type="button" class="search-clear" data-clear="${side}" aria-label="清空 ${side} 队搜索" title="清空搜索" hidden>×</button>
+        <input type="search" data-search="${side}" placeholder="${en ? "English/Chinese name, nickname + year, e.g. Jordan 1991, Kobe 2006" : "英文名/中文名/外号 + 年份，如「乔丹 1991」「Kobe 2006」"}" aria-label="${en ? `Team ${side} search` : `${side} 队搜索球员`}" />
+        <button type="button" class="search-clear" data-clear="${side}" aria-label="${en ? `Clear Team ${side} search` : `清空 ${side} 队搜索`}" title="${en ? "Clear search" : "清空搜索"}" hidden>×</button>
       </div>
       <div class="sandbox-results" data-results="${side}"></div>
       <h4 class="tiny" data-count="${side}"></h4>
@@ -30,16 +32,16 @@ function sideTemplate(side) {
     </section>`;
 }
 
-export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
+export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
   if (root.dataset.mounted) return;
   root.dataset.mounted = "1";
   const picks = { A: [], B: [] };
   const found = { A: [], B: [] };
   root.querySelector("[data-sandbox-body]").innerHTML = `
-    <label class="tiny sandbox-option"><input type="checkbox" data-parity checked /> 跨时代平衡（补齐老年代没统计的盖帽 / 抢断 / 三分）</label>
-    <div class="sandbox-sides">${SIDES.map(sideTemplate).join("")}</div>
+    <label class="tiny sandbox-option"><input type="checkbox" data-parity checked /> ${lang === "en" ? "Cross-era balance (fills in blocks / steals / threes missing from old-era stats)" : "跨时代平衡（补齐老年代没统计的盖帽 / 抢断 / 三分）"}</label>
+    <div class="sandbox-sides">${SIDES.map((s) => sideTemplate(s, lang)).join("")}</div>
     <p class="tiny sandbox-error" role="alert" data-error></p>
-    <div class="actions sandbox-start"><button type="button" class="btn primary" data-start>开打 · 时空对决</button></div>`;
+    <div class="actions sandbox-start"><button type="button" class="btn primary" data-start>${lang === "en" ? "Tip Off · Time Duel" : "开打 · 时空对决"}</button></div>`;
 
   const q = (selector) => root.querySelector(selector);
   const cardLine = (card) => `${esc(card.name)} · ${card.season} · ${esc(card.team)} · ${card.pos} · OVR ${ovrOf(card)}`;
@@ -68,7 +70,7 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart }) {
   }
 
   function renderRoster(side) {
-    q(`[data-count="${side}"]`).textContent = `已选 ${picks[side].length}/${SANDBOX_MAX}（至少 ${SANDBOX_MIN}）`;
+    q(`[data-count="${side}"]`).textContent = lang === "en" ? `Picked ${picks[side].length}/${SANDBOX_MAX} (min ${SANDBOX_MIN})` : `已选 ${picks[side].length}/${SANDBOX_MAX}（至少 ${SANDBOX_MIN}）`;
     q(`[data-roster="${side}"]`).innerHTML = groupedRows(side)
       .map(({ card, first, count }) => `<li><span>${cardLine(card)}</span>
           <span class="sandbox-qty">

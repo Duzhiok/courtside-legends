@@ -6,18 +6,18 @@ import { bandOf } from "../data/gacha.js";
 import { matchesQuery } from "../data/cardSearch.js";
 
 export const SORTS = [
-  { id: "ovr", label: "OVR 高→低" },
-  { id: "hidden", label: "隐藏能力 高→低" },
-  { id: "recent", label: "最近获得" },
-  { id: "season", label: "年代 新→旧" },
-  { id: "stars", label: "星级 高→低" },
+  { id: "ovr", label: "OVR 高→低", labelEn: "OVR high → low" },
+  { id: "hidden", label: "隐藏能力 高→低", labelEn: "Hidden trait high → low" },
+  { id: "recent", label: "最近获得", labelEn: "Recently acquired" },
+  { id: "season", label: "年代 新→旧", labelEn: "Era new → old" },
+  { id: "stars", label: "星级 高→低", labelEn: "Stars high → low" },
 ];
 
 export const BANDS = [
-  { id: "all", label: "全部稀有度" },
-  { id: "star", label: "全明星以上" },
-  { id: "mid", label: "先发 / 轮换" },
-  { id: "low", label: "普通" },
+  { id: "all", label: "全部稀有度", labelEn: "All rarities" },
+  { id: "star", label: "全明星以上", labelEn: "All-Star+" },
+  { id: "mid", label: "先发 / 轮换", labelEn: "Starter / Rotation" },
+  { id: "low", label: "普通", labelEn: "Common" },
 ];
 
 export const GRADES = ["S", "A", "B", "C", "D"];
@@ -71,16 +71,20 @@ export function decadesOf(cards) {
   return [...new Set(cards.map((card) => Math.floor(card.season / 10) * 10))].sort((a, b) => b - a);
 }
 
-export function filterBarHtml(filter, { shown, total, decades }, esc) {
+export function filterBarHtml(filter, { shown, total, decades }, esc, lang = "zh") {
+  const en = lang === "en";
+  const L = (zh, labelEn) => (en ? labelEn : zh);
+  const sortLabel = (s) => L(s.label, s.labelEn || s.label);
+  const bandLabel = (b) => L(b.label, b.labelEn || b.label);
   const option = (value, label, current) => `<option value="${value}" ${String(current) === String(value) ? "selected" : ""}>${esc(label)}</option>`;
-  return `<div class="collection-filter" role="search" aria-label="筛选和排序卡库">
-      <span class="search-wrap cf-query"><input type="search" data-cf="query" value="${esc(filter.query)}" placeholder="搜球员 / 年份 / 外号" aria-label="搜索卡库" /><button type="button" class="search-clear" data-cf-clear aria-label="清空搜索" title="清空搜索"${filter.query ? "" : " hidden"}>×</button></span>
-      <select data-cf="sort" aria-label="排序">${SORTS.map((s) => option(s.id, s.label, filter.sort)).join("")}</select>
-      <select data-cf="band" aria-label="稀有度">${BANDS.map((b) => option(b.id, b.label, filter.band)).join("")}</select>
-      <select data-cf="grade" aria-label="成色">${option("all", "全部成色", filter.grade)}${GRADES.map((g) => option(g, `成色 ${g}`, filter.grade)).join("")}</select>
-      <select data-cf="decade" aria-label="年代">${option("all", "全部年代", filter.decade)}${decades.map((d) => option(d, `${d} 年代`, filter.decade)).join("")}</select>
-      <label class="tiny"><input type="checkbox" data-cf="redundantOnly" ${filter.redundantOnly ? "checked" : ""} /> 只看同人冗余版本</label>
-      <label class="tiny"><input type="checkbox" data-cf="junkOnly" ${filter.junkOnly ? "checked" : ""} /> 只看可一键分解</label>
-      <span class="tiny" role="status" data-cf-count>显示 ${shown}/${total} 张</span>
+  return `<div class="collection-filter" role="search" aria-label="${en ? "Filter and sort collection" : "筛选和排序卡库"}">
+      <span class="search-wrap cf-query"><input type="search" data-cf="query" value="${esc(filter.query)}" placeholder="${en ? "Search player / year / nickname" : "搜球员 / 年份 / 外号"}" aria-label="${en ? "Search collection" : "搜索卡库"}" /><button type="button" class="search-clear" data-cf-clear aria-label="${en ? "Clear search" : "清空搜索"}" title="${en ? "Clear search" : "清空搜索"}"${filter.query ? "" : " hidden"}>×</button></span>
+      <select data-cf="sort" aria-label="${en ? "Sort" : "排序"}">${SORTS.map((s) => option(s.id, sortLabel(s), filter.sort)).join("")}</select>
+      <select data-cf="band" aria-label="${en ? "Rarity" : "稀有度"}">${BANDS.map((b) => option(b.id, bandLabel(b), filter.band)).join("")}</select>
+      <select data-cf="grade" aria-label="${en ? "Grade" : "成色"}">${option("all", en ? "All grades" : "全部成色", filter.grade)}${GRADES.map((g) => option(g, en ? `Grade ${g}` : `成色 ${g}`, filter.grade)).join("")}</select>
+      <select data-cf="decade" aria-label="${en ? "Era" : "年代"}">${option("all", en ? "All eras" : "全部年代", filter.decade)}${decades.map((d) => option(d, en ? `${d}s` : `${d} 年代`, filter.decade)).join("")}</select>
+      <label class="tiny"><input type="checkbox" data-cf="redundantOnly" ${filter.redundantOnly ? "checked" : ""} /> ${en ? "Only duplicate-person versions" : "只看同人冗余版本"}</label>
+      <label class="tiny"><input type="checkbox" data-cf="junkOnly" ${filter.junkOnly ? "checked" : ""} /> ${en ? "Only one-tap recyclable" : "只看可一键分解"}</label>
+      <span class="tiny" role="status" data-cf-count>${en ? `Showing ${shown}/${total}` : `显示 ${shown}/${total} 张`}</span>
     </div>`;
 }

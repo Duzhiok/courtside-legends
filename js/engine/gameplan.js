@@ -825,7 +825,9 @@ export function autoBuildAllPacks(players) {
  * Morale delta from minutes vs role expectation (call between quarters / at half).
  * Returns list of { player, delta, reason }.
  */
-export function roleMinutesMoraleDelta(onCourt, bench, quarter) {
+const ROLE_NAMES_EN = { alpha: "Offensive Core", starter: "Stable Starter", sixth: "Sixth Man", role: "Role Player", bench: "Bench Blue-Collar" };
+export function roleMinutesMoraleDelta(onCourt, bench, quarter, lang = "zh") {
+  const en = lang === "en";
   const all = [...(onCourt || []), ...(bench || [])];
   const reports = [];
   // Rough expected share of game by now (quarters 1–4)
@@ -839,16 +841,20 @@ export function roleMinutesMoraleDelta(onCourt, bench, quarter) {
     let reason = "";
     if (played + 2 < expected * 0.72 && role.id !== "bench") {
       delta = role.id === "alpha" ? -6 : role.id === "starter" ? -4 : -2;
-      reason = `${p.name}（${role.name}）出场偏少，心情下滑`;
+      reason = en ? `${p.name} (${ROLE_NAMES_EN[role.id] || role.name}) is playing too little — morale dips` : `${p.name}（${role.name}）出场偏少，心情下滑`;
     } else if (played > expected * 1.25 && (p.fatigue || 0) > 55) {
       delta = role.id === "bench" || role.id === "role" ? 2 : -1;
       reason =
         role.id === "bench" || role.id === "role"
-          ? `${p.name} 获得额外机会，士气上升`
-          : `${p.name} 负荷偏高，略显烦躁`;
+          ? en
+            ? `${p.name} gets extra opportunity — morale rises`
+            : `${p.name} 获得额外机会，士气上升`
+          : en
+            ? `${p.name} is carrying a heavy load and getting irritated`
+            : `${p.name} 负荷偏高，略显烦躁`;
     } else if (Math.abs(played - expected) <= 3) {
       delta = 1;
-      reason = `${p.name} 轮换符合预期`;
+      reason = en ? `${p.name} — rotation as expected` : `${p.name} 轮换符合预期`;
     }
     if (delta) reports.push({ player: p, delta, reason });
   }
