@@ -309,7 +309,7 @@ courtside-legends/
 
 - Pure frontend static pages (ES Modules), **no build, no backend**
 - Saves and accounts live in the browser's `localStorage` / IndexedDB (not synced across machines)
-- Automated tests: `npm test` (Node built-in `node:test`, currently 656 tests, all passing)
+- Automated tests: `npm test` (Node built-in `node:test`, currently 657 tests, all passing)
 - Static checks: `npm run lint` (eslint flat config, only real-bug rules like no-undef / no-unused-vars / no-unreachable — no style rules, no prettier)
 - MIT License
 

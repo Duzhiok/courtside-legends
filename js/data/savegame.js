@@ -48,17 +48,47 @@ export function clearSave() {
   }
 }
 
-export function formatSaveLabel(meta) {
-  if (!meta) return "无存档";
+/** Stored save labels are written in the language active at save time; translate known fragments on display. */
+const STORED_LABEL_EN = [
+  ["金币联赛", "Gold League"],
+  ["Gold联赛", "Gold League"],
+  ["历史季后赛挑战", "Historical Playoff Challenge"],
+  ["历史总冠军挑战", "Historical Champions Challenge"],
+  ["三十二强 · 32进16", "Round of 32 · 32→16"],
+  ["十六强 · 16进8", "Round of 16 · 16→8"],
+  ["八强 · 8进4", "Quarterfinals · 8→4"],
+  ["四强 · 4进2", "Semifinals · 4→2"],
+  ["总决赛 · 2进1", "Finals · 2→1"],
+  ["赛前选首发", "Pre-game starters"],
+  ["传奇组队", "Legendary team build"],
+  ["双人模式进度", "Duel progress"],
+  ["淘汰赛进度", "Knockout progress"],
+  ["选秀", "Draft"],
+  ["已选", "picked"],
+  ["比赛", "Game"],
+  ["进度", "Progress"],
+  ["人", " players"],
+];
+
+export function translateStoredLabel(label, lang = "zh") {
+  if (lang !== "en" || !label) return label;
+  let out = label;
+  for (const [zh, en] of STORED_LABEL_EN) out = out.split(zh).join(en);
+  return out;
+}
+
+export function formatSaveLabel(meta, lang = "zh") {
+  if (!meta) return lang === "en" ? "No save" : "无存档";
   const when = meta.savedAt
-    ? new Date(meta.savedAt).toLocaleString("zh-CN", {
+    ? new Date(meta.savedAt).toLocaleString(lang === "en" ? "en-US" : "zh-CN", {
         month: "numeric",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       })
     : "";
-  return when ? `${meta.label || "进度"} · ${when}` : meta.label || "已保存进度";
+  const label = translateStoredLabel(meta.label || (lang === "en" ? "Progress" : "进度"), lang);
+  return when ? `${label} · ${when}` : label || (lang === "en" ? "Saved progress" : "已保存进度");
 }
 
 /**

@@ -37,19 +37,19 @@ export const HISTORICAL_CHAMPION_CHALLENGERS = [
 export const CAREER_CHALLENGE_TIERS = {
   gold: {
     id: "gold",
-    name: "金币联赛",
+    name: "金币联赛", nameEn: "Gold League",
     next: "playoff15",
     nextLabel: "挑战 15 支历史季后赛球队",
   },
   playoff15: {
     id: "playoff15",
-    name: "历史季后赛挑战",
+    name: "历史季后赛挑战", nameEn: "Historical Playoff Challenge",
     next: "champ7",
     nextLabel: "挑战 7 支历史总冠军",
   },
   champ7: {
     id: "champ7",
-    name: "历史总冠军挑战",
+    name: "历史总冠军挑战", nameEn: "Historical Champions Challenge",
     next: null,
     nextLabel: null,
   },
@@ -57,4 +57,10 @@ export const CAREER_CHALLENGE_TIERS = {
 
 export function challengeTierMeta(tier) {
   return CAREER_CHALLENGE_TIERS[tier] || CAREER_CHALLENGE_TIERS.gold;
+}
+
+/** Tier display name in the given language (defaults to zh). */
+export function challengeTierName(tier, lang = "zh") {
+  const meta = challengeTierMeta(tier);
+  return lang === "en" ? meta.nameEn || meta.name : meta.name;
 }
