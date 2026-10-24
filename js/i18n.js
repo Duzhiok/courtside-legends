@@ -183,3 +183,22 @@ export function skillNameL(zhName, lang = getLang()) {
 export function skillNameEnById(id, fallback) {
   return getLang() === "en" ? SKILL_EN[id] || fallback : fallback;
 }
+
+/** Historical-season team names (historicalSeasons.js) in English, keyed by Chinese name. */
+export const TEAM_NAME_EN = {
+  "76人": "76ers", "公牛": "Bulls", "凯尔特人": "Celtics", "勇士": "Warriors",
+  "勇士/水牛城": "Warriors / Buffalo", "国王": "Kings", "太阳": "Suns", "奇才": "Wizards",
+  "子弹士": "Bullets", "尼克斯": "Knicks", "山猫": "Bobcats", "开拓者": "Trail Blazers",
+  "快船": "Clippers", "掘金": "Nuggets", "森林狼": "Timberwolves", "步行者": "Pacers",
+  "活塞": "Pistons", "湖人": "Lakers", "火箭": "Rockets", "灰熊": "Grizzlies",
+  "热火": "Heat", "爵士": "Jazz", "独行侠": "Mavericks", "猛龙": "Raptors",
+  "篮网": "Nets", "老鹰": "Hawks", "超音速": "SuperSonics", "雄鹿": "Bucks",
+  "雷霆": "Thunder", "马刺": "Spurs", "骑士": "Cavaliers", "魔术": "Magic",
+  "鹈鹕": "Pelicans", "黄蜂": "Hornets", "黄蜂/鹈鹕": "Hornets / Pelicans",
+};
+
+/** Translate a stored Chinese team name for display (user-named teams pass through). */
+export function teamNameL(zhName, lang = getLang()) {
+  if (lang !== "en" || !zhName) return zhName;
+  return TEAM_NAME_EN[zhName] || zhName;
+}

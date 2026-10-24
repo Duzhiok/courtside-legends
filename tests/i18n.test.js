@@ -4,9 +4,12 @@ import { readFileSync } from "node:fs";
 import { seasonToCard } from "../js/data/players.js";
 import { buildCareerSpanIndex } from "../js/data/careerArc.js";
 import { GameSim } from "../js/engine/sim.js";
-import { getLang, setLang, L, translateStatic, skillNameL } from "../js/i18n.js";
+import { getLang, setLang, L, translateStatic, skillNameL, teamNameL } from "../js/i18n.js";
 import { PHRASES } from "../js/i18n-phrases.js";
 import { FRANCHISES, franchiseName } from "../js/data/franchises.js";
+import { careerStageLabel } from "../js/engine/careerBracket.js";
+import { challengeTierName } from "../js/data/careerChallenges.js";
+import { formatSaveLabel, translateStoredLabel } from "../js/data/savegame.js";
 
 const ZH = /[\u4e00-\u9fff]/;
 
@@ -78,6 +81,28 @@ test("i18n: franchise names have English forms", () => {
   function FRANCHISEES_EVERY() {
     return FRANCHISES.every((f) => franchiseName(f, "en"));
   }
+});
+
+test("i18n: home bars — stage labels, tier names, stored labels, team names", () => {
+  assert.equal(careerStageLabel(32, { lang: "zh" }), "三十二强 · 32进16");
+  assert.equal(careerStageLabel(32, { lang: "en" }), "Round of 32 · 32→16");
+  assert.equal(careerStageLabel(2, { lang: "en" }), "Finals · 2→1");
+  assert.equal(challengeTierName("gold", "zh"), "金币联赛");
+  assert.equal(challengeTierName("gold", "en"), "Gold League");
+  assert.equal(challengeTierName("playoff15", "en"), "Historical Playoff Challenge");
+  // The exact stored label from the user's screenshot, shown in EN mode.
+  assert.equal(
+    translateStoredLabel("Gold联赛 · 三十二强 · 32进16", "en"),
+    "Gold League · Round of 32 · 32→16"
+  );
+  assert.equal(translateStoredLabel("金币联赛 · 十六强 · 16进8", "en"), "Gold League · Round of 16 · 16→8");
+  assert.equal(translateStoredLabel("金币联赛 · 三十二强 · 32进16", "zh"), "金币联赛 · 三十二强 · 32进16");
+  const shown = formatSaveLabel({ label: "金币联赛 · 三十二强 · 32进16", savedAt: Date.UTC(2026, 9, 24, 0, 28) }, "en");
+  assert.match(shown, /Gold League · Round of 32/);
+  assert.doesNotMatch(shown, ZH);
+  assert.equal(teamNameL("山猫", "en"), "Bobcats");
+  assert.equal(teamNameL("山猫", "zh"), "山猫");
+  assert.equal(teamNameL("我自己的队名", "en"), "我自己的队名");
 });
 
 // ---- GameSim language smoke tests ----

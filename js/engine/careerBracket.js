@@ -20,9 +20,18 @@ export const CAREER_STAGE_LABELS = {
   2: "总决赛 · 2进1",
 };
 
-export function careerStageLabel(stageSize, { finals = false } = {}) {
-  if (finals || stageSize === 2) return CAREER_STAGE_LABELS[2];
-  return CAREER_STAGE_LABELS[stageSize] || `${stageSize} 强`;
+export const CAREER_STAGE_LABELS_EN = {
+  32: "Round of 32 · 32→16",
+  16: "Round of 16 · 16→8",
+  8: "Quarterfinals · 8→4",
+  4: "Semifinals · 4→2",
+  2: "Finals · 2→1",
+};
+
+export function careerStageLabel(stageSize, { finals = false, lang = "zh" } = {}) {
+  const table = lang === "en" ? CAREER_STAGE_LABELS_EN : CAREER_STAGE_LABELS;
+  if (finals || stageSize === 2) return table[2];
+  return table[stageSize] || (lang === "en" ? `Top ${stageSize}` : `${stageSize} 强`);
 }
 
 export function nextStageSize(stageSize) {

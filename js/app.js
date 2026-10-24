@@ -33,7 +33,7 @@ import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js"
 import { searchPeople } from "./data/cardSearch.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
-import { getLang, setLang, applyStaticLang, L, skillNameL } from "./i18n.js";
+import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import {
   boughtSkillCount,
@@ -224,6 +224,7 @@ import {
   HISTORICAL_CHAMPION_CHALLENGERS,
   HISTORICAL_PLAYOFF_CHALLENGERS,
   challengeTierMeta,
+  challengeTierName,
 } from "./data/careerChallenges.js";
 import { historicalUpsideHint } from "./engine/develop.js";
 import {
@@ -455,28 +456,30 @@ function activeScreenName() {
 }
 
 function buildSaveLabel() {
+  const lang = getLang();
   if (state.sim) {
     const s = state.sim.snapshot();
     const q = s.quarter > 4 ? "OT" : `Q${s.quarter}`;
-    return `比赛 ${q} ${s.score.home}-${s.score.away}`;
+    return lang === "en" ? `Game ${q} ${s.score.home}-${s.score.away}` : `比赛 ${q} ${s.score.home}-${s.score.away}`;
   }
   if (state.draft) {
     const a = state.draft.teams?.A?.players?.length ?? 0;
     const b = state.draft.teams?.B?.players?.length ?? 0;
-    return `选秀 ${state.draft.mode || state.mode || ""} · ${a}/${b}人`;
+    return lang === "en" ? `Draft ${state.draft.mode || state.mode || ""} · ${a}/${b} players` : `选秀 ${state.draft.mode || state.mode || ""} · ${a}/${b}人`;
   }
-  if (state.setup) return `赛前选首发 ${state.setup.selected?.size ?? 0}/5`;
-  if (state.legend) return `传奇组队 · 已选 ${state.legend.roster?.length ?? 0}`;
+  if (state.setup) return lang === "en" ? `Pre-game starters ${state.setup.selected?.size ?? 0}/5` : `赛前选首发 ${state.setup.selected?.size ?? 0}/5`;
+  if (state.legend) return lang === "en" ? `Legendary team build · picked ${state.legend.roster?.length ?? 0}` : `传奇组队 · 已选 ${state.legend.roster?.length ?? 0}`;
   if (state.career?.kind === "career") {
-    const tier = challengeTierMeta(state.career.challengeTier || "gold");
+    const tier = challengeTierName(state.career.challengeTier || "gold", lang);
     const stage = careerStageLabel(state.career.stageSize, {
       finals: !!state.career.finals,
+      lang,
     });
-    return `${tier.name} · ${stage}`;
+    return `${tier} · ${stage}`;
   }
-  if (state.career?.kind === "duel") return `双人模式进度`;
-  if (state.tournament) return `淘汰赛进度`;
-  return `进度 · ${state.mode || activeScreenName()}`;
+  if (state.career?.kind === "duel") return lang === "en" ? "Duel progress" : `双人模式进度`;
+  if (state.tournament) return lang === "en" ? "Knockout progress" : `淘汰赛进度`;
+  return lang === "en" ? `Progress · ${state.mode || activeScreenName()}` : `进度 · ${state.mode || activeScreenName()}`;
 }
 
 /** 金币晋级赛自动存档（静默），防止误退丢进度 */
@@ -651,16 +654,17 @@ function refreshLongCareerHomeBar() {
   const season = career.season;
   const team = season?.teams?.[season.userTeamId];
   const story = root.story;
+  const lang = getLang();
   const details = [
-    team?.name || "未命名球队",
+    teamNameL(team?.name || (lang === "en" ? "Unnamed team" : "未命名球队"), lang),
     `${story?.startYear ?? season?.year ?? "—"} → ${season?.year ?? "—"}`,
-    `阶段：${career.phase || season?.phase || "—"}`,
+    lang === "en" ? `Phase: ${career.phase || season?.phase || "—"}` : `阶段：${career.phase || season?.phase || "—"}`,
   ];
   if (story && Number.isFinite(story.futureKnowledge)) {
-    details.push(`未来知识 ${story.futureKnowledge}`);
+    details.push(lang === "en" ? `Future Knowledge ${story.futureKnowledge}` : `未来知识 ${story.futureKnowledge}`);
   }
   if (story && Number.isFinite(story.frontOfficeTrust)) {
-    details.push(`管理层信任 ${story.frontOfficeTrust}`);
+    details.push(lang === "en" ? `Front-Office Trust ${story.frontOfficeTrust}` : `管理层信任 ${story.frontOfficeTrust}`);
   }
   meta.textContent = details.join(" · ");
   bar.hidden = false;
@@ -1288,7 +1292,7 @@ function refreshSaveHomeBar() {
     return;
   }
   bar.hidden = false;
-  if (meta) meta.textContent = formatSaveLabel(peek);
+  if (meta) meta.textContent = formatSaveLabel(peek, getLang());
   if (btnCont) btnCont.disabled = false;
   if (btnClear) btnClear.disabled = false;
 }
@@ -1791,9 +1795,9 @@ function refreshAccountHomeBar() {
   const drawBtn = $("#btn-daily-draw");
   const acc = activeAccount();
   if (!acc) {
-    if (chip) chip.textContent = "未登录";
-    if (nameEl) nameEl.textContent = "尚未创建账号";
-    if (metaEl) metaEl.textContent = "开局先看系统 7 人，再自选 5 人；每天可抽 1 张；班底永久保存，用于排位赛。";
+    if (chip) chip.textContent = L("未登录", "Not signed in");
+    if (nameEl) nameEl.textContent = L("尚未创建账号", "No account yet");
+    if (metaEl) metaEl.textContent = L("开局先看系统 7 人，再自选 5 人；每天可抽 1 张；班底永久保存，用于排位赛。", "Start with the system's 7, then pick 5 more; draw 1 card daily; your core is permanent and plays ranked games.");
     if (drawBtn) drawBtn.disabled = true;
     return;
   }
@@ -1801,11 +1805,13 @@ function refreshAccountHomeBar() {
   const coach = resolveCoach(acc.coachId);
   const dailyOk = canDailyDraw(acc);
   if (chip) chip.textContent = acc.name;
-  if (nameEl) nameEl.textContent = `${acc.name} · ${n} 张卡`;
+  if (nameEl) nameEl.textContent = getLang() === "en" ? `${acc.name} · ${n} cards` : `${acc.name} · ${n} 张卡`;
   if (metaEl) {
     metaEl.textContent = acc.onboardingDone
-      ? `教练 ${coach ? `${coach.name}（${coachRecordLabel(coach)}）` : "未定"} · 排位 ${acc.rankedWins || 0}胜${acc.rankedLosses || 0}负 · ${dailyOk ? "今日可抽卡" : "今日已抽"}`
-      : "请先完成开局：先看系统 7 人 → 自选 5 人 + 教练 + 战术";
+      ? getLang() === "en"
+        ? `Coach ${coach ? `${coach.name} (${coachRecordLabel(coach)})` : "TBD"} · Ranked ${acc.rankedWins || 0}W-${acc.rankedLosses || 0}L · ${dailyOk ? "Daily draw available" : "Drawn today"}`
+        : `教练 ${coach ? `${coach.name}（${coachRecordLabel(coach)}）` : "未定"} · 排位 ${acc.rankedWins || 0}胜${acc.rankedLosses || 0}负 · ${dailyOk ? "今日可抽卡" : "今日已抽"}`
+      : L("请先完成开局：先看系统 7 人 → 自选 5 人 + 教练 + 战术", "Finish setup first: review the system's 7 → pick 5 + coach + tactics");
   }
   if (drawBtn) {
     drawBtn.disabled = !acc.onboardingDone;
