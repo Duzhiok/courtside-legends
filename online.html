@@ -60,6 +60,21 @@
   <p class="muted">规则：纯对决，不带生涯经济；换人/战术/指定持球人/站位/暂停/继续都可随时发，换人下个回合生效；暂停与节间双方都可调整，任一方点继续即恢复，20 秒无人操作自动恢复；断线后同名重新加入可认领原座位，30 秒未回判负；知道房号也可只观战；快速匹配按球队 OVR ±2 配对，60 秒未配上放宽。</p>
 </div>
 
+<div id="market-card" class="card" hidden>
+  <h2>联机生涯 · 共享市场</h2>
+  <p id="market-gold" class="muted"></p>
+  <div class="row">
+    <button id="btn-market-refresh" type="button" class="ghost">刷新市场</button>
+    <button id="btn-online-queue" type="button">联机阵容快速匹配</button>
+    <button id="btn-online-queue-ranked" type="button" class="ghost">联机阵容排位匹配</button>
+  </div>
+  <h2>我的阵容（前 5 人首发，↑↓ 调顺序）</h2>
+  <ul id="market-roster"></ul>
+  <h2>市场</h2>
+  <ul id="market-board"></ul>
+  <p class="muted">规则：登录即开通联机生涯（1000 金 + 8 人随机阵容）；挂牌后卡离队托管，卖出收钱；阵容上限 12 人；对决赢 +200 金、输 +50 金；排位还动 Elo 分。</p>
+</div>
+
 <p id="room-code"></p>
 <div id="waiting" class="card" hidden>等待对手加入…</div>
 

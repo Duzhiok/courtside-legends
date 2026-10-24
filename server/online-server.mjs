@@ -38,6 +38,7 @@ import { buildOnlineFrame } from "./online-frame.mjs";
 import { diffFrame } from "../js/online/delta.js";
 import { validateDecision, describeDecision } from "./online-decisions.mjs";
 import { createAccountStore } from "./online-accounts.mjs";
+import { createEconomyStore, MIN_DUEL_ROSTER } from "./online-economy.mjs";
 
 export const ONLINE_SPEED = 2; // 300ms per possession, ~60s per game
 export const AUTO_RESUME_MS = 20000;
@@ -73,6 +74,18 @@ function loadPresets() {
   return presets;
 }
 
+function loadCardPool() {
+  const rows = JSON.parse(
+    readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")
+  ).players;
+  buildCareerSpanIndex(rows);
+  const cards = rows.filter((r) => r.season === 2020).map(seasonToCard);
+  const cardById = new Map(cards.map((c) => [c.id, c]));
+  const cardOvr = new Map();
+  for (const c of cards) cardOvr.set(c.id, overall(c));
+  return { cardById, cardIds: cards.map((c) => c.id), cardOvr };
+}
+
 function roomCode(rng = Math.random) {
   return String(Math.floor(100000 + rng() * 900000));
 }
@@ -90,9 +103,37 @@ export function createOnlineServer({
   queueSweepMs = QUEUE_SWEEP_MS,
   ratingBand = RATING_BAND,
   accountsFile,
+  economyFile,
 } = {}) {
   const presets = loadPresets();
   const accounts = createAccountStore(accountsFile ? { file: accountsFile } : {});
+  const { cardById, cardIds, cardOvr } = loadCardPool();
+  const economy = createEconomyStore(
+    economyFile ? { file: economyFile, cardIds, cardOvr } : { cardIds, cardOvr }
+  );
+
+  const rosterCardsFor = (account) => {
+    if (!account) return null;
+    const ids = economy.getPlayer(account).roster;
+    if (ids.length < MIN_DUEL_ROSTER) return null;
+    const cards = ids.map((id) => cardById.get(id)).filter(Boolean);
+    return cards.length >= MIN_DUEL_ROSTER ? cards : null;
+  };
+
+  const slimCard = (card) => ({ id: card.id, name: card.name, pos: card.pos, ovr: overall(card) });
+  const marketView = (account) => {
+    const player = economy.getPlayer(account);
+    return {
+      type: "market",
+      gold: player.gold,
+      roster: player.roster.map((id) => cardById.get(id)).filter(Boolean).map(slimCard),
+      listings: economy
+        .getBoard()
+        .map((l) => ({ id: l.id, seller: l.seller, card: cardById.get(l.cardId), price: l.price }))
+        .filter((l) => l.card)
+        .map((l) => ({ ...l, card: slimCard(l.card) })),
+    };
+  };
   const presetById = new Map(presets.map((p) => [p.id, p]));
   const tactics = Object.values(TACTICS).map((t) => ({ id: t.id, name: t.name }));
   const rooms = new Map();
@@ -182,12 +223,18 @@ export function createOnlineServer({
   };
 
   const startGame = (room) => {
-    const home = presetById.get(room.seats.home.teamId);
-    const away = presetById.get(room.seats.away.teamId);
+    const teamFor = (seat) => {
+      if (seat.rosterCards) {
+        return { name: seat.name, players: seat.rosterCards, starterIds: seat.rosterCards.slice(0, 5).map((p) => p.id) };
+      }
+      const preset = presetById.get(seat.teamId);
+      return { name: preset.name, players: preset.players, starterIds: preset.starterIds };
+    };
+    room.online = !!(room.seats.home.rosterCards && room.seats.away.rosterCards);
     room.tick = 0;
     room.sim = new GameSim({
-      home: { name: home.name, players: home.players, starterIds: home.starterIds },
-      away: { name: away.name, players: away.players, starterIds: away.starterIds },
+      home: teamFor(room.seats.home),
+      away: teamFor(room.seats.away),
       youSide: "home",
       injuries: false,
       speed: ONLINE_SPEED,
@@ -216,6 +263,19 @@ export function createOnlineServer({
           winner,
         });
         recordGameResult(room, winner);
+        if (room.online && winner) {
+          const loserSide = winner === "home" ? "away" : "home";
+          const prizes = economy.recordDuel(
+            room.seats[winner].account,
+            room.seats[loserSide].account
+          );
+          if (prizes) {
+            const winnerSeat = room.seats[winner];
+            const loserSeat = room.seats[loserSide];
+            if (winnerSeat?.ws) send(winnerSeat.ws, { type: "economy", gold: prizes.winnerGold });
+            if (loserSeat?.ws) send(loserSeat.ws, { type: "economy", gold: prizes.loserGold });
+          }
+        }
       },
     });
     room.started = true;
@@ -247,8 +307,10 @@ export function createOnlineServer({
 
   const matchable = (a, b) => {
     if (a.mode !== b.mode) return false; // ranked and casual never mix
+    if (a.rosterKind !== b.rosterKind) return false; // preset teams never meet custom rosters
     if (isStale(a) || isStale(b)) return true;
     if (a.mode === "ranked") return Math.abs(a.rating - b.rating) <= ratingBand;
+    if (a.rosterKind === "online") return true; // custom rosters: no OVR band yet
     return Math.abs(a.ovr - b.ovr) <= matchBand;
   };
 
@@ -256,8 +318,8 @@ export function createOnlineServer({
     leaveQueue(a.ws);
     leaveQueue(b.ws);
     const room = newRoom();
-    room.seats.home = { name: a.name, teamId: a.teamId, ws: a.ws, needsFull: true, account: a.account || null };
-    room.seats.away = { name: b.name, teamId: b.teamId, ws: b.ws, needsFull: true, account: b.account || null };
+    room.seats.home = { name: a.name, teamId: a.teamId, ws: a.ws, needsFull: true, account: a.account || null, rosterCards: a.rosterKind === "online" ? rosterCardsFor(a.account) : null };
+    room.seats.away = { name: b.name, teamId: b.teamId, ws: b.ws, needsFull: true, account: b.account || null, rosterCards: b.rosterKind === "online" ? rosterCardsFor(b.account) : null };
     a.ctx.room = room;
     a.ctx.side = "home";
     b.ctx.room = room;
@@ -271,9 +333,11 @@ export function createOnlineServer({
   // Try to match one entry now (called on enqueue and on each sweep).
   const tryMatch = (entry) => {
     if (!queue.includes(entry)) return false;
+    const ready = (e) => e.rosterKind !== "online" || rosterCardsFor(e.account);
+    if (!ready(entry)) return false;
     let best = null;
     for (const other of queue) {
-      if (other === entry || !matchable(entry, other)) continue;
+      if (other === entry || !ready(other) || !matchable(entry, other)) continue;
       if (!best || Math.abs(other.ovr - entry.ovr) < Math.abs(best.ovr - entry.ovr)) best = other;
     }
     if (!best) return false;
@@ -312,6 +376,16 @@ export function createOnlineServer({
         forfeitSide: side,
       });
       recordGameResult(room, otherSide);
+      if (room.online) {
+        const prizes = economy.recordDuel(
+          room.seats[otherSide].account,
+          room.seats[side].account
+        );
+        if (prizes) {
+          const winnerSeat = room.seats[otherSide];
+          if (winnerSeat?.ws) send(winnerSeat.ws, { type: "economy", gold: prizes.winnerGold });
+        }
+      }
     }, graceMs);
   };
 
@@ -370,12 +444,23 @@ export function createOnlineServer({
       if (msg.type === "create") {
         const name = String(msg.name || "").trim();
         if (!name) return send(ws, { type: "decision_rejected", reason: "请填写名字" });
+        const account = resolveAccount(msg);
+        if (msg.roster === "online") {
+          if (!account) return send(ws, { type: "decision_rejected", reason: "联机阵容需要先登录账号" });
+          const cards = rosterCardsFor(account);
+          if (!cards) return send(ws, { type: "decision_rejected", reason: "联机阵容不足 5 人，先去市场补人" });
+          leaveQueue(ws);
+          const room = newRoom();
+          room.seats.home = { name: account, teamId: null, ws, needsFull: true, account, rosterCards: cards };
+          ctx.room = room;
+          ctx.side = "home";
+          return send(ws, { type: "room", code: room.code, side: "home" });
+        }
         if (!presetById.has(msg.teamId)) {
           return send(ws, { type: "decision_rejected", reason: "球队不存在" });
         }
         leaveQueue(ws);
         const room = newRoom();
-        const account = resolveAccount(msg);
         room.seats.home = { name: account || name, teamId: msg.teamId, ws, needsFull: true, account: account || null };
         ctx.room = room;
         ctx.side = "home";
@@ -421,11 +506,24 @@ export function createOnlineServer({
         if (target.started) {
           return send(ws, { type: "decision_rejected", reason: "对局已开始" });
         }
-        if (!presetById.has(msg.teamId)) {
-          return send(ws, { type: "decision_rejected", reason: "球队不存在" });
-        }
         if (target.seats.away) {
           return send(ws, { type: "decision_rejected", reason: "房间已满" });
+        }
+        if (msg.roster === "online") {
+          const account = resolveAccount(msg);
+          if (!account) return send(ws, { type: "decision_rejected", reason: "联机阵容需要先登录账号" });
+          const cards = rosterCardsFor(account);
+          if (!cards) return send(ws, { type: "decision_rejected", reason: "联机阵容不足 5 人，先去市场补人" });
+          leaveQueue(ws);
+          target.seats.away = { name: account, teamId: null, ws, needsFull: true, account, rosterCards: cards };
+          ctx.room = target;
+          ctx.side = "away";
+          send(ws, { type: "room", code: target.code, side: "away" });
+          startGame(target);
+          return;
+        }
+        if (!presetById.has(msg.teamId)) {
+          return send(ws, { type: "decision_rejected", reason: "球队不存在" });
         }
         if (target.seats.home?.teamId === msg.teamId) {
           return send(ws, { type: "decision_rejected", reason: "对方已选这支球队，换一支" });
@@ -470,20 +568,28 @@ export function createOnlineServer({
       if (msg.type === "queue") {
         const name = String(msg.name || "").trim();
         if (!name) return send(ws, { type: "decision_rejected", reason: "请填写名字" });
-        const preset = presetById.get(msg.teamId);
-        if (!preset) return send(ws, { type: "decision_rejected", reason: "球队不存在" });
         const account = resolveAccount(msg);
         if (msg.mode === "ranked" && !account) {
           return send(ws, { type: "decision_rejected", reason: "排位匹配需要先登录账号" });
         }
+        const online = msg.roster === "online";
+        if (online && !account) {
+          return send(ws, { type: "decision_rejected", reason: "联机阵容需要先登录账号" });
+        }
+        if (online && !rosterCardsFor(account)) {
+          return send(ws, { type: "decision_rejected", reason: "联机阵容不足 5 人，先去市场补人" });
+        }
+        const preset = online ? null : presetById.get(msg.teamId);
+        if (!online && !preset) return send(ws, { type: "decision_rejected", reason: "球队不存在" });
         leaveQueue(ws);
         const entry = {
           ws,
           ctx,
           name: account || name,
-          teamId: msg.teamId,
-          ovr: preset.ovr,
+          teamId: online ? null : msg.teamId,
+          ovr: preset ? preset.ovr : null,
           mode: msg.mode === "ranked" ? "ranked" : "casual",
+          rosterKind: online ? "online" : "preset",
           rating: account ? accounts.get(account).rating : null,
           account: account || null,
           enqueuedAt: Date.now(),
@@ -492,6 +598,19 @@ export function createOnlineServer({
         send(ws, { type: "queue_status", position: queue.length });
         tryMatch(entry);
         return;
+      }
+
+      // Career-online market (requires login; guests get a rejection).
+      if (msg.type === "market_board" || msg.type === "market_list" || msg.type === "market_buy" || msg.type === "market_cancel" || msg.type === "market_roster_order") {
+        const account = resolveAccount(msg);
+        if (!account) return send(ws, { type: "decision_rejected", reason: "联机市场需要先登录账号" });
+        let result = { ok: true };
+        if (msg.type === "market_list") result = economy.listCard(account, msg.cardId, msg.price);
+        else if (msg.type === "market_buy") result = economy.buyListing(account, msg.listingId);
+        else if (msg.type === "market_cancel") result = economy.cancelListing(account, msg.listingId);
+        else if (msg.type === "market_roster_order") result = economy.reorderRoster(account, msg.cardIds || []);
+        if (!result.ok) return send(ws, { type: "decision_rejected", reason: result.reason });
+        return send(ws, marketView(account));
       }
 
       if (msg.type === "register") {
