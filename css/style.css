@@ -923,6 +923,20 @@ html, body {
 .play-feed .event.miss { color: #cbd5e1; }
 .play-feed .event.coach { color: #7dd3fc; }
 .play-feed .event.reb { color: #86efac; }
+/* R48: team-coloured play-by-play. The row's colour IS the attacking team:
+   left bar + tint in the raw team colour, text in a dark-bg-readable shade.
+   Score rows get a bolder tint and a score chip (each number in its team's
+   colour), so who scored is visible without reading a single name. */
+.play-feed .event.tm { border-left: 4px solid #888; padding: 6px 10px; border-radius: 8px; }
+.play-feed .event.tm .feed-text { font-weight: 600; }
+.play-feed .event.tm.scored .feed-text { font-weight: 800; }
+.play-feed .feed-meta { color: #9fb3a8; font-size: .72rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.play-feed .feed-chip { float: right; margin-left: 8px; background: rgba(0,0,0,.38); padding: 1px 9px; border-radius: 999px; font-size: .82rem; font-weight: 800; white-space: nowrap; }
+.play-feed .feed-chip i { font-style: normal; color: #9fb3a8; margin: 0 3px; }
+.feed-legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 8px; background: #102319; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; color: #f4f7f2; font-size: .85rem; }
+.feed-legend .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; border: 1px solid rgba(255,255,255,.35); vertical-align: -1px; }
+.feed-legend .lg-vs { color: #9fb3a8; font-size: .75rem; }
+.feed-legend .lg-hint { margin-left: auto; color: #9fb3a8; font-size: .72rem; }
 @keyframes slide { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none; } }
 
 .coach-panel {
