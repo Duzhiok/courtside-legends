@@ -279,6 +279,15 @@ import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeC
 import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
+import {
+  FAMILY_DUEL_THEMES,
+  autoFillFamilySide,
+  buyIntoFamilySide,
+  familyDuelPool,
+  familyDuelReadyToStart,
+  familyDuelShop,
+  freshFamilySide,
+} from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
 import {
   SEASON_APRON,
@@ -385,6 +394,7 @@ const screens = {
   season: $("#screen-season"),
   timeTravel: $("#screen-time-travel"),
   sandbox: $("#screen-sandbox"),
+  familyDuel: $("#screen-family-duel"),
 };
 
 let state = {
@@ -393,6 +403,7 @@ let state = {
   setup: null,
   pendingMatch: null,
   career: null,
+  familyDuel: null,
   sim: null,
   speed: 1,
   tournament: null,
@@ -1584,6 +1595,121 @@ $("#btn-custom-legend")?.addEventListener("click", () => {
   state.mode = "legend";
   state.lastMode = "legend";
   startLegendMode();
+});
+$("#btn-custom-father-son")?.addEventListener("click", () => startFamilyDuel("fatherSon"));
+$("#btn-custom-brothers")?.addEventListener("click", () => startFamilyDuel("brothers"));
+
+/**
+ * T2: 父子局 / 兄弟局 —— 两个完全自成一体的小模式，不走 state.career 那套 c.kind 状态机
+ * （那套 39+ 处判断都假设两队共享同一个候选池，象家局/兄弟局恰恰相反：甲队只能买爸爸、
+ * 乙队只能买儿子）。两边都由玩家自己花金币挑（跟「预算轮抽挑战」让玩家自己搭建两队是同一种
+ * 思路），选完点「开打」直接 openSetup(teamA, teamB, "home")——跟 quick/sandbox 模式一样的最简
+ * 入口，不进任何 bracket/duel 进程机制。
+ */
+function startFamilyDuel(theme) {
+  const meta = FAMILY_DUEL_THEMES[theme];
+  if (!meta) return;
+  const poolA = familyDuelPool(theme, "A");
+  const poolB = familyDuelPool(theme, "B");
+  state.familyDuel = {
+    theme,
+    poolA,
+    poolB,
+    sideA: freshFamilySide(meta.teamA),
+    sideB: freshFamilySide(meta.teamB),
+    shopA: familyDuelShop(poolA, new Set(), freshFamilySide(meta.teamA).gold),
+    shopB: familyDuelShop(poolB, new Set(), freshFamilySide(meta.teamB).gold),
+  };
+  $("#family-duel-title").textContent = meta.label;
+  $("#family-duel-name-a").textContent = meta.teamA;
+  $("#family-duel-name-b").textContent = meta.teamB;
+  renderFamilyDuel();
+  show("familyDuel");
+}
+
+function familyDuelCardRow(p, { onBuy } = {}) {
+  const price = playerPrice(p);
+  return `<div class="market-row">
+    ${photoImg(p)}
+    <div style="flex:1">
+      <strong>${p.name}</strong>
+      <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · <strong>¤${price}</strong></div>
+    </div>
+    ${onBuy ? `<button class="btn small" data-family-buy="${p.id}">买入</button>` : ""}
+  </div>`;
+}
+
+function renderFamilyDuel() {
+  const f = state.familyDuel;
+  if (!f) return;
+  for (const side of ["A", "B"]) {
+    const sideState = side === "A" ? f.sideA : f.sideB;
+    const pool = side === "A" ? f.poolA : f.poolB;
+    const shop = side === "A" ? f.shopA : f.shopB;
+    $(`#family-duel-gold-${side.toLowerCase()}`).textContent =
+      `金币 ¤${sideState.gold} · 已选 ${sideState.players.length}/12 · 候选池共 ${pool.length} 人`;
+    const rosterBox = $(`#family-duel-roster-${side.toLowerCase()}`);
+    rosterBox.innerHTML = sideState.players.length
+      ? sideState.players.map((p) => familyDuelCardRow(p)).join("")
+      : `<p class="tiny">还没选人——从下面的候选里买，或点「自动补满」。</p>`;
+    const shopBox = $(`#family-duel-shop-${side.toLowerCase()}`);
+    const owned = new Set(sideState.players.map((p) => p.id));
+    const buyable = shop.filter((p) => !owned.has(p.id));
+    shopBox.innerHTML = buyable.length
+      ? buyable.map((p) => familyDuelCardRow(p, { onBuy: true })).join("")
+      : `<p class="tiny">候选都买完了，点「刷新候选」换一批。</p>`;
+    shopBox.querySelectorAll("[data-family-buy]").forEach((btn) => {
+      btn.onclick = () => {
+        const player = shop.find((p) => p.id === btn.dataset.familyBuy);
+        const result = buyIntoFamilySide(sideState, player, pool);
+        if (!result.ok) {
+          alert(result.reason || "无法买入");
+          return;
+        }
+        renderFamilyDuel();
+      };
+    });
+  }
+  $("#btn-family-duel-start").disabled = !familyDuelReadyToStart(f.sideA, f.sideB);
+}
+
+$("#btn-family-duel-back")?.addEventListener("click", () => show("customHub"));
+$("#btn-family-duel-refresh-a")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  const owned = new Set(f.sideA.players.map((p) => p.id));
+  f.shopA = familyDuelShop(f.poolA, owned, f.sideA.gold);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-refresh-b")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  const owned = new Set(f.sideB.players.map((p) => p.id));
+  f.shopB = familyDuelShop(f.poolB, owned, f.sideB.gold);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-autofill-a")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  autoFillFamilySide(f.sideA, f.poolA);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-autofill-b")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f) return;
+  autoFillFamilySide(f.sideB, f.poolB);
+  renderFamilyDuel();
+});
+$("#btn-family-duel-start")?.addEventListener("click", () => {
+  const f = state.familyDuel;
+  if (!f || !familyDuelReadyToStart(f.sideA, f.sideB)) return;
+  const teamA = { name: f.sideA.name, players: f.sideA.players, gold: 0 };
+  const teamB = { name: f.sideB.name, players: f.sideB.players, gold: 0 };
+  state.mode = "familyDuel";
+  state.lastMode = "familyDuel";
+  state.career = null;
+  state.familyDuel = null;
+  openSetup(teamA, teamB, "home");
 });
 
 $("#btn-draft-back").onclick = () => {
