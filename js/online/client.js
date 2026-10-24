@@ -5,6 +5,9 @@
  * message; per-tick frames only carry ids + mutable fields.
  */
 
+import { applyFrameDelta } from "./delta.js";
+import { loadRecord, saveRecord, recordGame, formatRecord } from "./record.js";
+
 const $ = (id) => document.getElementById(id);
 
 const state = {
@@ -18,7 +21,17 @@ const state = {
   tactics: [],
   lastFrame: null,
   connected: false,
+  token: null,
+  account: null,
 };
+
+function renderAccount() {
+  const el = $("account-info");
+  if (!el) return;
+  el.textContent = state.account
+    ? `账号 ${state.account.name} · 排位分 ${state.account.rating} · ${state.account.wins} 胜 ${state.account.losses} 负`
+    : "";
+}
 
 function feedLine(text, cls = "") {
   const feed = $("feed");
@@ -71,8 +84,14 @@ function renderFrame(frame) {
   $("bench-home").innerHTML = home.bench.map((p) => `<li>${playerRow(p)}</li>`).join("");
   $("bench-away").innerHTML = away.bench.map((p) => `<li>${playerRow(p)}</li>`).join("");
 
-  // Own-side controls follow the live frame.
-  const mine = state.side === "home" ? home : away;
+  const breakText = { timeout: "暂停", quarter: "节间休息", half: "中场休息", manual: "暂停" }[frame.breakReason] || "";
+  $("pause-banner").hidden = !frame.paused;
+  $("pause-banner").textContent = frame.paused ? `比赛暂停${breakText ? `（${breakText}）` : ""}——可以调整战术、换人、站位，点「继续比赛」恢复` : "";
+  $("btn-resume").hidden = !frame.paused;
+
+  // Own-side controls follow the live frame (spectators have no side).
+  const mine = state.side === "home" ? home : state.side === "away" ? away : null;
+  if (!mine) return;
   const outSel = $("sub-out");
   const inSel = $("sub-in");
   const prevOut = outSel.value;
@@ -110,10 +129,6 @@ function renderFrame(frame) {
   const currentPosPlayer = ownRoster.find((p) => p.id === posPlayerSel.value);
   if (currentPosPlayer) $("pos-select").value = currentPosPlayer.playPos;
 
-  const breakText = { timeout: "暂停", quarter: "节间休息", half: "中场休息", manual: "暂停" }[frame.breakReason] || "";
-  $("pause-banner").hidden = !frame.paused;
-  $("pause-banner").textContent = frame.paused ? `比赛暂停${breakText ? `（${breakText}）` : ""}——可以调整战术、换人、站位，点「继续比赛」恢复` : "";
-  $("btn-resume").hidden = !frame.paused;
 }
 
 function send(obj) {
@@ -176,7 +191,38 @@ function handleMessage(msg) {
       $("room-code").textContent = `房号：${msg.code}（把房号发给对手）`;
       $("lobby").hidden = true;
       $("waiting").hidden = false;
-      setStatus(msg.reclaimed ? "已认领原座位，正在同步对局…" : msg.side === "home" ? "房间已建，等对手加入…" : "已加入房间，等对局开始…");
+      setStatus(
+        msg.reclaimed
+          ? "已认领原座位，正在同步对局…"
+          : msg.matched
+            ? "已匹配到对手，对局开始！"
+            : msg.side === "home"
+              ? "房间已建，等对手加入…"
+              : "已加入房间，等对局开始…"
+      );
+      break;
+    case "registered":
+      setStatus(`账号 ${msg.name} 注册成功，请登录。`);
+      break;
+    case "logged_in":
+      state.token = msg.token;
+      state.account = { name: msg.name, rating: msg.rating, wins: msg.wins, losses: msg.losses };
+      state.name = msg.name;
+      $("player-name").value = msg.name;
+      renderAccount();
+      setStatus(`已登录：${msg.name}（排位分 ${msg.rating}）。`);
+      break;
+    case "account":
+      if (state.account && state.account.name === msg.name) {
+        state.account = { name: msg.name, rating: msg.rating, wins: msg.wins, losses: msg.losses };
+        renderAccount();
+      }
+      break;
+    case "queue_status":
+      $("lobby").hidden = true;
+      $("waiting").hidden = false;
+      $("waiting").textContent = `匹配中…当前第 ${msg.position} 位`;
+      setStatus("正在匹配对手（按球队 OVR 配对）…");
       break;
     case "joined": {
       state.side = msg.side;
@@ -186,13 +232,34 @@ function handleMessage(msg) {
       }
       $("waiting").hidden = true;
       $("game").hidden = false;
-      $("you-side").textContent = `你是${msg.side === "home" ? msg.home.name : msg.away.name}（${msg.side === "home" ? "主队" : "客队"}）`;
+      if (msg.side === "spectator") {
+        $("you-side").textContent = "你是观战者（只能看，不能下指令）";
+        $("coach-card").hidden = true;
+      } else {
+        $("coach-card").hidden = false;
+        $("you-side").textContent = `你是${msg.side === "home" ? msg.home.name : msg.away.name}（${msg.side === "home" ? "主队" : "客队"}）`;
+      }
       setStatus("对局开始！");
       feedLine("对局开始！");
       break;
     }
     case "frame":
       renderFrame(msg);
+      break;
+    case "frame_delta": {
+      if (!state.lastFrame) break; // full frame first, always
+      const next = applyFrameDelta(state.lastFrame, msg);
+      if (next) renderFrame(next);
+      break;
+    }
+    case "opponent_disconnected": {
+      const sec = Math.round((msg.graceMs || 30000) / 1000);
+      feedLine(`对方断线，${sec} 秒内未重新连接将判负`);
+      setStatus(`对方断线，${sec} 秒内未重新连接将判负`);
+      break;
+    }
+    case "opponent_back":
+      feedLine("对方已重新连接");
       break;
     case "event":
       feedLine(msg.text || "");
@@ -206,9 +273,14 @@ function handleMessage(msg) {
     case "game_over": {
       const winner = msg.winner === "home" ? state.lastFrame?.home.name : msg.winner === "away" ? state.lastFrame?.away.name : "平局";
       $("pause-banner").hidden = false;
-      $("pause-banner").textContent = `全场比赛结束：${msg.score.home} - ${msg.score.away}，${msg.winner ? `${winner} 获胜` : "平局"}`;
+      $("pause-banner").textContent = `全场比赛结束：${msg.score.home} - ${msg.score.away}，${msg.winner ? `${winner} 获胜` : "平局"}${msg.forfeit ? "（对方断线未回，判负）" : ""}`;
       $("btn-resume").hidden = true;
       feedLine(`全场结束 ${msg.score.home} - ${msg.score.away}`);
+      if (state.side === "home" || state.side === "away") {
+        const next = recordGame(loadRecord(localStorage), { side: state.side, winner: msg.winner });
+        saveRecord(localStorage, next);
+        feedLine(`你的联机战绩：${formatRecord(next)}`);
+      }
       break;
     }
     case "room_closed":
@@ -235,7 +307,7 @@ function bind() {
     state.teamId = $("team-create").value;
     if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
     if (!state.name) return setStatus("请先填名字。", true);
-    send({ type: "create", name: state.name, teamId: state.teamId });
+    send({ type: "create", name: state.name, teamId: state.teamId, token: state.token });
   });
   $("btn-join").addEventListener("click", () => {
     state.name = $("player-name").value.trim();
@@ -244,13 +316,50 @@ function bind() {
     if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
     if (!state.name || !code) return setStatus("请填名字和房号。", true);
     state.code = code;
-    send({ type: "join", code, name: state.name, teamId: state.teamId });
+    send({ type: "join", code, name: state.name, teamId: state.teamId, token: state.token });
+  });
+  $("btn-register").addEventListener("click", () => {
+    const name = $("account-name").value.trim();
+    const password = $("account-password").value;
+    if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
+    if (!name || !password) return setStatus("请填账号名和密码。", true);
+    send({ type: "register", name, password });
+  });
+  $("btn-login").addEventListener("click", () => {
+    const name = $("account-name").value.trim();
+    const password = $("account-password").value;
+    if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
+    if (!name || !password) return setStatus("请填账号名和密码。", true);
+    send({ type: "login", name, password });
+  });
+  $("btn-queue-ranked").addEventListener("click", () => {
+    state.name = $("player-name").value.trim();
+    state.teamId = $("team-create").value;
+    if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
+    if (!state.name) return setStatus("请先填名字。", true);
+    if (!state.token) return setStatus("排位匹配需要先登录账号。", true);
+    send({ type: "queue", name: state.name, teamId: state.teamId, mode: "ranked", token: state.token });
+  });
+  $("btn-queue").addEventListener("click", () => {
+    state.name = $("player-name").value.trim();
+    state.teamId = $("team-create").value;
+    if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
+    if (!state.name) return setStatus("请先填名字。", true);
+    send({ type: "queue", name: state.name, teamId: state.teamId, token: state.token });
+  });
+  $("btn-spectate").addEventListener("click", () => {
+    state.name = $("player-name").value.trim();
+    const code = $("room-code-input").value.trim();
+    if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
+    if (!state.name || !code) return setStatus("请填名字和房号。", true);
+    state.code = code;
+    send({ type: "spectate", code, name: state.name, token: state.token });
   });
   $("btn-reconnect").addEventListener("click", () => {
     if (!state.code || !state.name) return;
     $("btn-reconnect").hidden = true;
     connect(() => {
-      send({ type: "join", code: state.code, name: state.name, teamId: state.teamId });
+      send({ type: "join", code: state.code, name: state.name, teamId: state.teamId, token: state.token });
     });
   });
   $("btn-sub").addEventListener("click", () => {
@@ -268,5 +377,7 @@ function bind() {
   $("btn-timeout").addEventListener("click", () => sendDecision({ kind: "timeout" }));
   $("btn-resume").addEventListener("click", () => sendDecision({ kind: "resume" }));
 }
+
+$("record-line").textContent = `联机战绩：${formatRecord(loadRecord(localStorage))}`;
 
 bind();

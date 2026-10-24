@@ -306,9 +306,9 @@ courtside-legends/
 
 ## 技术说明
 
-- 纯前端静态页（ES Module），**无需构建、无后端**（单机部分）；联机对战需另起 Node 服务端 `node server/online-server.mjs`（见 `online.html`，P0 房号 1v1，R60）
+- 纯前端静态页（ES Module），**无需构建、无后端**（单机部分）；联机对战需另起 Node 服务端 `node server/online-server.mjs`（见 `online.html`，房号 1v1 + 观战 + 匹配池 + 账号排位，R60、R62–R64）
 - 存档与账号存在浏览器 `localStorage` / IndexedDB（各电脑互不同步）
-- 自动化测试：`npm test`（Node 内置 `node:test`，当前 710 个测试，全部通过）
+- 自动化测试：`npm test`（Node 内置 `node:test`，当前 730 个测试，全部通过）
 - 静态检查：`npm run lint`（eslint flat config，只启拓 bug 的规则集如 no-undef/no-unused-vars/no-unreachable，不管风格，没有 prettier）
 - MIT License
 
@@ -338,7 +338,7 @@ courtside-legends/
 - 更深入的 CPU 自由市场、交易与建队策略
 - 结局分享卡导出为图片
 - 主页三大主线整合与比赛教练面板四标签页
-- 在线联网对战 P1–P3（断线重连/观战、匹配池、账号/排位）与云存档（P0 房号 1v1 已上线，见 R60）
+- 在线联网对战 P1–P3 已上线（断线重连/观战/差量、匹配池、账号/排位，见 R62–R64）；云存档与生涯联机经济待立项
 - 官方实时统计 API 全量同步
 - 更细的球场动作动画
 - 头像本地化：目前 B-Ref 头像是实时热链，断网/被限流会回退到生成头像；考虑改为构建时下载到 `assets/avatars/` 永久化

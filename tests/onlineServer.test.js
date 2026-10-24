@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import WebSocket from "ws";
 import { createOnlineServer } from "../server/online-server.mjs";
+import { applyFrameDelta } from "../js/online/delta.js";
 
 /**
  * T6 P0 integration: two real WebSocket clients, create -> join -> frames
@@ -36,6 +37,7 @@ function makeClient(ws) {
   });
   return {
     ws,
+    seen: () => [...seen],
     send: (obj) => ws.send(JSON.stringify(obj)),
     waitFor: (pred, label, ms = 8000) =>
       new Promise((resolve, reject) => {
@@ -50,6 +52,20 @@ function makeClient(ws) {
         }, ms);
       }),
   };
+}
+
+async function waitForApplied(client, pred, label, ms = 8000) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    let current = null;
+    for (const m of client.seen()) {
+      if (m.type === "frame") current = m;
+      else if (m.type === "frame_delta" && current) current = applyFrameDelta(current, m);
+    }
+    if (current && pred(current)) return current;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error(`timeout waiting for ${label}`);
 }
 
 test("online P0: create, join, frames, decisions, pause, reclaim", async () => {
@@ -94,8 +110,9 @@ test("online P0: create, join, frames, decisions, pause, reclaim", async () => {
     (m) => m.type === "decision_applied" && m.kind === "sub",
     "sub applied"
   );
-  const frameAfterSub = await a.waitFor(
-    (m) => m.type === "frame" && m.home.onCourt.some((p) => p.id === inId),
+  const frameAfterSub = await waitForApplied(
+    a,
+    (f) => f.home.onCourt.some((p) => p.id === inId),
     "frame with sub"
   );
   assert.equal(frameAfterSub.home.onCourt.some((p) => p.id === outId), false);
@@ -111,16 +128,13 @@ test("online P0: create, join, frames, decisions, pause, reclaim", async () => {
   // Timeout pauses; resume restarts.
   a.send({ type: "decision", decision: { kind: "timeout" } });
   await a.waitFor((m) => m.type === "decision_applied" && m.kind === "timeout", "timeout applied");
-  await a.waitFor((m) => m.type === "frame" && m.paused === true, "paused frame");
+  await waitForApplied(a, (f) => f.paused === true, "paused frame");
   a.send({ type: "decision", decision: { kind: "resume" } });
-  await a.waitFor((m) => m.type === "frame" && m.paused === false, "resumed frame");
+  await waitForApplied(a, (f) => f.paused === false, "resumed frame");
 
   // Bob disconnects: Alice sees the pause. Bob reclaims his seat by name.
   b.ws.close();
-  await a.waitFor(
-    (m) => m.type === "frame" && m.paused === true,
-    "paused after disconnect"
-  );
+  await waitForApplied(a, (f) => f.paused === true, "paused after disconnect");
   const b2 = track(await connect(url));
   await b2.waitFor((m) => m.type === "welcome", "welcome B2");
   b2.send({ type: "join", code: roomMsg.code, name: "Bob", teamId: teamB.id });
