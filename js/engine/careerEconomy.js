@@ -95,7 +95,14 @@ export function budgetGold(c) {
 export function buildAffordableShop(c, size = 12) {
   const exclude = c.used || new Set();
   const budget = Math.max(80, budgetGold(c));
-  const pool = PLAYERS.filter((p) => !exclude.has(p.id) && !(c.shop || []).some((s) => s.id === p.id));
+  // 一人一卡是按「人」算的（WORKNOTE 决策：同一真人只有时空对决允许重复）：
+  // 已用卡的 bref 集合要挡住同人其他赛季的卡，否则市场能买到第二个乔丹。
+  const byId = new Map(PLAYERS.map((p) => [p.id, p.bref]));
+  const usedPeople = new Set([...exclude].map((id) => byId.get(id)).filter(Boolean));
+  for (const s of c.shop || []) if (s?.bref) usedPeople.add(s.bref);
+  const pool = PLAYERS.filter(
+    (p) => !exclude.has(p.id) && !usedPeople.has(p.bref) && !(c.shop || []).some((s) => s.id === p.id)
+  );
   const priced = pool.map((p) => ({ p, price: playerPrice(p) }));
   const cheap = priced.filter((x) => x.price <= budget * 0.55);
   const mid = priced.filter((x) => x.price > budget * 0.55 && x.price <= budget);
@@ -120,11 +127,13 @@ export function buildAffordableShop(c, size = 12) {
   if (shop.length < size) {
     shop = shop.concat(pick(priced, size - shop.length));
   }
-  // de-dupe
+  // de-dupe（按卡 + 按人：同一货架不摆同人两个赛季）
   const seen = new Set();
+  const seenPeople = new Set();
   shop = shop.filter((p) => {
-    if (seen.has(p.id)) return false;
+    if (seen.has(p.id) || (p.bref && seenPeople.has(p.bref))) return false;
     seen.add(p.id);
+    if (p.bref) seenPeople.add(p.bref);
     return true;
   });
   return shop.slice(0, size).map(clonePlayer);

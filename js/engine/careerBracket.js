@@ -174,6 +174,34 @@ export function applyMatchResult(match, winnerTeam) {
   match.loser = lose;
 }
 
+/* —— 总决赛系列赛（三局两胜，用户 2026-10-23 拍板，取代最初的七场四胜设想）——
+ * 系列赛进行中时，pod 的总决赛 match 保持未结算（不 applyMatchResult），
+ * 同一场对阵会被 findYourOpenMatch 反复找到，直到系列赛分出胜负，
+ * 才把最后一场的结果正式记进 pod，走原有的夺冠/淘汰流程。
+ * 每场之间玩家走市场买卖调整（app.js 的 btn-market-done 在
+ * c.finals && c.series 时直接回到与 series.opp 的布置页）。 */
+export const FINALS_TARGET_WINS = 2;
+
+export function startFinalsSeries(opp) {
+  return { opp, wins: 0, losses: 0, target: FINALS_TARGET_WINS };
+}
+
+/** Record one finals game. Returns { done, champion } — done when either side reaches target. */
+export function recordFinalsGame(series, youWon) {
+  if (!series) return { done: false, champion: false };
+  if (youWon) series.wins = (series.wins || 0) + 1;
+  else series.losses = (series.losses || 0) + 1;
+  const target = series.target || FINALS_TARGET_WINS;
+  const champion = series.wins >= target;
+  return { done: champion || series.losses >= target, champion };
+}
+
+export function finalsSeriesLabel(series) {
+  if (!series) return "";
+  const target = series.target || FINALS_TARGET_WINS;
+  return `总决赛 ${series.wins || 0}–${series.losses || 0}（先赢 ${target} 场）`;
+}
+
 export function kindLabel(kind) {
   if (kind === "opener") return "开门赛";
   if (kind === "winners") return "胜者组";
