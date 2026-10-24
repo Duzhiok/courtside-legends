@@ -120,13 +120,25 @@ export function seasonToCard(r) {
   const midFg = clamp(fg * 0.95, 0.28, 0.55);
 
   const prod = ppg * 1.0 + rpg * 0.7 + apg * 0.9 + spg * 1.5 + bpg * 1.4;
+  // 要求 prod 高还不够，旧规则还硬性再加一道 ppg 门槛，等于把非得分型巨星罚了两次：
+  // 朗多 2012 季 11.9 分/11.7 助攻/1.8 断，prod≈29（allstar 级），却因 ppg<14 被按在 starter，
+  // 连「有技能」的骰子都摇不到。改成：高 prod + （真的会得分 或 顶级组织 或 顶级防守指标）任一达标。
+  const bigScorer = ppg >= 14;
+  const elitePasser = apg >= 9;
+  const eliteDefender = spg >= 2.2 || bpg >= 2.2;
+  const bigScorerPlus = ppg >= 18;
+  const elitePasserPlus = apg >= 10.5;
+  const eliteDefenderPlus = spg >= 2.6 || bpg >= 2.6;
+  const bigScorerSuper = ppg >= 24;
+  const elitePasserSuper = apg >= 11.5;
+  const eliteDefenderSuper = spg >= 3.0 || bpg >= 3.0;
   let hiddenTier = "bench";
   if (prod < 8 || mpg < 12) hiddenTier = "water_cooler";
   if (prod < 5 && gp < 30) hiddenTier = "undrafted_gleague";
   if (prod >= 14 && mpg >= 22) hiddenTier = "starter";
-  if (prod >= 22 && ppg >= 14) hiddenTier = "star";
-  if (prod >= 28 && ppg >= 18) hiddenTier = "allstar";
-  if (prod >= 34 && ppg >= 24) hiddenTier = "superstar";
+  if (prod >= 22 && (bigScorer || elitePasser || eliteDefender)) hiddenTier = "star";
+  if (prod >= 28 && (bigScorerPlus || elitePasserPlus || eliteDefenderPlus)) hiddenTier = "allstar";
+  if (prod >= 34 && (bigScorerSuper || elitePasserSuper || eliteDefenderSuper)) hiddenTier = "superstar";
   // Old legends production curve was different — bump era stars
   if (r.season <= 1979 && ppg >= 20) hiddenTier = "hof";
   if (r.season <= 1979 && ppg >= 27) hiddenTier = "nba50";
@@ -253,10 +265,78 @@ const WIPED_STAT_PATCH = {
 /**
  * 史源本职纠错：talldata 生涯主位置 / BRef 单季标签偶发把 PF 标成 C。
  * 例：诺维茨基早期赛季大量标 C，但生涯身份是大前锋。
+ *
+ * 另外一类更广泛的问题：构建 roster.json 的脚本把模糊的 "F"（前锋，未区分 SF/PF）统一归
+ * 一化成了 "SF"（见 scripts/build_full_roster.py 的 normalize_pos）。结果是大批历史大前锋全
+ * 生涯被标成 SF：马隆、巴克利、罗德曼、加内特……对照真实赛季编号在 rpg/apg 上的签名很易找到
+ * 这批“被误判为 SF 的大前锋”（全生涯标 SF 且 rpg>=9/apg<=4.2 的，足有 30 位，其中这几位是每个
+ * 球迷都知道的无争议 HOF 大前锋，其余个别 1950–60 年代边缘人物产产业证据不足暂未改）。
+ *
+ * 同样的归一化套路也发生在后卫身上：模糊的 "G"（后卫，未区分 PG/SG）被统一归一化成了 "SG"。
+ * 结果是一大批每个球迷都知道的无争议 HOF 组织后卫全生涯被标成 SG：斯托克顿、魔术师约翰逊、
+ * 艾赛亚·托马斯、加里·佩顿……同样用 apg 签名（全生涯标 SG 且 apg>=6.5 的）很容易找到这批
+ * “被误判为 SG 的控卫”（杰里·韦斯特、米切尔·雷·理查德森这类历史上长期被列为双位置后卫、
+ * 本身就有争议的生涯，暂不动）。
  */
 const POS_OVERRIDES = {
   nowitdi01: "PF", // Dirk Nowitzki
   willija02: "PG", // Jason Williams (White Chocolate)
+  // 被 "F"→"SF" 归一化误收的历史大前锋（roster.json 全生涯都标 SF，但现实中都是 PF/C）
+  garneke01: "PF", // Kevin Garnett — 1996–2011 全标 SF，实际生涯身份是大前锋
+  malonka01: "PF", // Karl Malone
+  barklch01: "PF", // Charles Barkley
+  rodmade01: "PF", // Dennis Rodman
+  hayesel01: "PF", // Elvin Hayes
+  pettibo01: "PF", // Bob Pettit
+  haywosp01: "PF", // Spencer Haywood
+  willibu01: "PF", // Buck Williams
+  silaspa01: "PF", // Paul Silas
+  debusda01: "PF", // Dave DeBusschere
+  schaydo01: "PF", // Dolph Schayes
+  mchalke01: "PF", // Kevin McHale — 100% 标 SF达 13 季
+  oaklech01: "PF", // Charles Oakley — 100% 标 SF 达 19 季
+  willike02: "PF", // Kevin Willis — 100% 标 SF 达 21 季
+  kempsh01: "PF", // Shawn Kemp — 100% 标 SF 达 14 季
+  pachuza01: "C", // Zaza Pachulia — 2004–11（talldata 源）全标 SF，2012 起（bref 源）才正确标 C；
+  // 他整个生涯都是撞人挡拆/卡位抢板的纯中锋，从没打过小前锋
+  rondora01: "PG", // Rajon Rondo — 2007–11 全标 SF，他整个生涯都是组织后卫
+  // 被 "G"→"SG" 归一化误收的历史控卫（roster.json 全生涯都标 SG，但现实中都是无争议 PG）
+  stockjo01: "PG", // John Stockton — NBA 历史助攻王，19 个赛季全标 SG
+  cousybo01: "PG", // Bob Cousy
+  rodgegu01: "PG", // Guy Rodgers
+  roberos01: "PG", // Oscar Robertson
+  wilkele01: "PG", // Lenny Wilkens
+  vanlino01: "PG", // Norm Van Lier
+  archina01: "PG", // Nate "Tiny" Archibald
+  porteke01: "PG", // Kevin Porter
+  lucasjo01: "PG", // John Lucas
+  nixonno01: "PG", // Norm Nixon
+  cheekma01: "PG", // Maurice Cheeks
+  johnsma02: "PG", // Earvin "Magic" Johnson
+  moorejo01: "PG", // Johnny Moore
+  thomais01: "PG", // Isiah Thomas
+  pricema01: "PG", // Mark Price
+  jacksma01: "PG", // Mark Jackson
+  johnske02: "PG", // Kevin Johnson
+  boguemu01: "PG", // Muggsy Bogues
+  stricro02: "PG", // Rod Strickland
+  hardati01: "PG", // Tim Hardaway
+  paytoga01: "PG", // Gary Payton
+  brandte01: "PG", // Terrell Brandon
+  vanexni01: "PG", // Nick Van Exel
+  marbust01: "PG", // Stephon Marbury
+};
+
+/**
+ * 少数球员的误判只发生在个别赛季（不是整段生涯），所以不能用上面整段生涯的 bref 覆盖——那样会
+ * 连带改掉他本来就标对的赛季。按 "bref:season" 精确打补丁，找不到才退回整段生涯覆盖 / 原始值。
+ */
+const POS_OVERRIDES_BY_SEASON = {
+  // Vince Carter 2019/2020 老鹰生涯（42–43 岁替补）两个赛季被标成 PF，但他从未真正打内线——
+  // 其余 20 个赛季（猛龙/篮网/魔术/太阳/独行侠/灰熊/国王）全部正确标 SF/SG，整段生涯覆盖只会
+  // 把那些本来对的赛季也改错。
+  "cartevi01:2019": "SF",
+  "cartevi01:2020": "SF",
 };
 
 /** Recover wiped box-score fields (some scrape rows lost PPG/FGA/BPG/…). */
@@ -276,7 +356,8 @@ function repairSeasonStats(r) {
   if (ft <= 0) ft = 0.75;
   const tpa = +r.tpa || 0;
   const brefKey = String(r.bref || "").toLowerCase();
-  const pos = POS_OVERRIDES[brefKey] || r.pos || "SF";
+  const pos =
+    POS_OVERRIDES_BY_SEASON[`${brefKey}:${r.season}`] || POS_OVERRIDES[brefKey] || r.pos || "SF";
   if (r.bref && r.season) {
     const patched = WIPED_STAT_PATCH[`${r.bref}:${r.season}`];
     if (patched) {
@@ -451,6 +532,13 @@ const PHYS_OVERRIDES = {
   chambwi01: { heightCm: 216, weightKg: 125 },
   // Marcus Morris — 6'8" / ~245lb 厚实侧翼，不是瘦高
   morrima03: { heightCm: 203, weightKg: 110 },
+  // Khris Middleton — real-life ~198cm/101kg stocky two-way wing; the formula was spitting
+  // out 210cm "瘦高" (lanky) for him, which is backwards.
+  middlkh01: { heightCm: 198, weightKg: 101 },
+  // Ben Simmons — real-life 208cm/109kg; no raw height in roster.json, so the fallback formula
+  // fell back to the generic "PG" bucket (188cm) since he's statistically a point guard despite
+  // being a legit 6'10" forward-sized frame who can guard/create from 1 through 5.
+  simmobe01: { heightCm: 208, weightKg: 109 },
 };
 
 /**

@@ -4,6 +4,11 @@
  * - 金币晋级赛：32 支随机联队（非历史绑定），越往后阵容迭代越强
  * 四人一组：开门赛 → 胜者组 / 复活赛 → 晋级决胜；两败出局。
  */
+import { accumulateGameToAllTeamBoard, allTeamFromRosters, selectAllTeamByPos } from "./allTeam.js";
+import { simulateCpuMatch } from "./careerEconomy.js";
+import { cpuUpgradeRoster } from "./draft.js";
+import { rollAdvancementInjuries } from "../data/intangibles.js";
+import { shuffle } from "../core/seededRandom.js";
 
 export const CAREER_STAGES = [32, 16, 8, 4, 2];
 
@@ -26,14 +31,6 @@ export function nextStageSize(stageSize) {
   return CAREER_STAGES[i + 1];
 }
 
-function shuffle(arr, rng = Math.random) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function mkMatch(a, b, kind, podId) {
   return {
@@ -177,6 +174,34 @@ export function applyMatchResult(match, winnerTeam) {
   match.loser = lose;
 }
 
+/* —— 总决赛系列赛（三局两胜，用户 2026-10-23 拍板，取代最初的七场四胜设想）——
+ * 系列赛进行中时，pod 的总决赛 match 保持未结算（不 applyMatchResult），
+ * 同一场对阵会被 findYourOpenMatch 反复找到，直到系列赛分出胜负，
+ * 才把最后一场的结果正式记进 pod，走原有的夺冠/淘汰流程。
+ * 每场之间玩家走市场买卖调整（app.js 的 btn-market-done 在
+ * c.finals && c.series 时直接回到与 series.opp 的布置页）。 */
+export const FINALS_TARGET_WINS = 2;
+
+export function startFinalsSeries(opp) {
+  return { opp, wins: 0, losses: 0, target: FINALS_TARGET_WINS };
+}
+
+/** Record one finals game. Returns { done, champion } — done when either side reaches target. */
+export function recordFinalsGame(series, youWon) {
+  if (!series) return { done: false, champion: false };
+  if (youWon) series.wins = (series.wins || 0) + 1;
+  else series.losses = (series.losses || 0) + 1;
+  const target = series.target || FINALS_TARGET_WINS;
+  const champion = series.wins >= target;
+  return { done: champion || series.losses >= target, champion };
+}
+
+export function finalsSeriesLabel(series) {
+  if (!series) return "";
+  const target = series.target || FINALS_TARGET_WINS;
+  return `总决赛 ${series.wins || 0}–${series.losses || 0}（先赢 ${target} 场）`;
+}
+
 export function kindLabel(kind) {
   if (kind === "opener") return "开门赛";
   if (kind === "winners") return "胜者组";
@@ -237,4 +262,110 @@ export function _selfCheckPodMath() {
   const T = (id) => ({ bracketId: id, name: id, isCpu: id !== "you" });
   const { pods } = buildStagePods([T("a"), T("b"), T("c"), T("d"), T("e"), T("f"), T("g"), T("h")]);
   return pods.length === 2 && pods.every((p) => p.teams.length === 4);
+}
+
+export function noteCareerLoss(c, team) {
+  if (!c?.losses || !team?.bracketId) return;
+  c.losses[team.bracketId] = (c.losses[team.bracketId] || 0) + 1;
+}
+
+export function noteCareerAllTeamGame(c, snap, homeTeam, awayTeam) {
+  if (!c || !snap) return;
+  if (!c.allTeamBoard) c.allTeamBoard = {};
+  accumulateGameToAllTeamBoard(c.allTeamBoard, snap, homeTeam, awayTeam);
+}
+
+/** Fast-forward a CPU-vs-CPU match the human isn't in and record the result onto it. */
+export function runCpuMatchInto(c, match) {
+  if (!match || match.done || match.yours) return;
+  const result = simulateCpuMatch(match.a, match.b);
+  applyMatchResult(match, result.winner);
+  match.score = result.score;
+  match.startersA = result.startersA;
+  match.startersB = result.startersB;
+  if (result.snap) noteCareerAllTeamGame(c, result.snap, match.a, match.b);
+  if (match.loser) noteCareerLoss(c, match.loser);
+}
+
+/** The human's next unfinished match: current pod first, legacy flat roundMatches as fallback. */
+export function yourCareerMatch(c) {
+  if (c?.pods?.length) {
+    const open = findYourOpenMatch(c.pods);
+    if (open) return open;
+  }
+  return (
+    c?.roundMatches?.find((m) => m.yours && !m.done) ||
+    c?.roundMatches?.find((m) => m.yours) ||
+    null
+  );
+}
+
+/** 总决赛后：按 PG→C 评出本届最佳阵容 */
+export function computeCareerAllTeam(c) {
+  if (!c) return [];
+  if (!c.allTeamBoard) c.allTeamBoard = {};
+  let team = selectAllTeamByPos(c.allTeamBoard);
+  if (team.length < 5) {
+    const finalsTeams = [];
+    if (c.team) finalsTeams.push(c.team);
+    for (const t of c.alive || []) {
+      if (t && !finalsTeams.some((x) => x.bracketId === t.bracketId)) finalsTeams.push(t);
+    }
+    const m = yourCareerMatch(c);
+    if (m?.a && !finalsTeams.some((x) => x.bracketId === m.a.bracketId)) finalsTeams.push(m.a);
+    if (m?.b && !finalsTeams.some((x) => x.bracketId === m.b.bracketId)) finalsTeams.push(m.b);
+    if (c.series?.opp && !finalsTeams.some((x) => x.bracketId === c.series.opp.bracketId)) {
+      finalsTeams.push(c.series.opp);
+    }
+    team = allTeamFromRosters(finalsTeams);
+  }
+  c.allTeam = team;
+  return team;
+}
+
+/**
+ * Roll the injury/recovery wave for a career advancement round: your team at full
+ * intensity, your current series opponent slightly lighter, and every other team still
+ * alive in the bracket lighter still (they're CPU-only, so their injuries are flavor/
+ * balance, not something the human needs to manage in detail).
+ */
+export function applyCareerInjuryWave(c, opts) {
+  if (!c?.team?.players) return [];
+  const reports = rollAdvancementInjuries(c.team.players, opts);
+  if (c.series?.opp?.players) {
+    reports.push(...rollAdvancementInjuries(c.series.opp.players, { ...opts, intensity: (opts.intensity || 1) * 0.9 }));
+  }
+  for (const t of c.alive || []) {
+    if (t.bracketId === "you" || !t.players) continue;
+    reports.push(...rollAdvancementInjuries(t.players, { ...opts, intensity: (opts.intensity || 1) * 0.85 }));
+  }
+  return reports.filter((r) => r.type === "injury" || r.type === "recover").map((r) => r.text);
+}
+
+/**
+ * Give every surviving CPU team a budget to upgrade their roster before the next stage --
+ * deeper stages (smaller stageSize) hand out bigger purses and, for random-field gold-ladder
+ * teams, more upgrade passes, so CPU rosters visibly get tougher the later you advance.
+ */
+export function upgradeCpuAdvancers(c, survivors) {
+  // stageSize 仍是晋级前规模：32→16 时为 32；越深入 depth 越大
+  const depth = Math.max(0, 5 - Math.log2(Math.max(2, c.stageSize || 32)));
+  const randomField = c.fieldSource === "random";
+  const purseBase = randomField ? 200 : 140;
+  const purse = purseBase + depth * (randomField ? 95 : 55);
+  const passes = randomField ? 1 + Math.floor(depth) : 1; // 随机联队：越往后多轮换血
+  for (const t of survivors) {
+    if (!t?.isCpu) continue;
+    t.gold = (t.gold || 0) + purse + Math.floor(Math.random() * (randomField ? 120 : 80));
+    for (let i = 0; i < passes; i++) {
+      const spend = Math.min(
+        t.gold,
+        110 + Math.floor(purse * 0.75) + Math.floor(Math.random() * 70) + depth * 40
+      );
+      if (spend < 40) break;
+      const res = cpuUpgradeRoster(t, spend, c.used);
+      t.gold = Math.max(0, (t.gold || 0) - res.spent);
+    }
+    t.starterIds = null;
+  }
 }

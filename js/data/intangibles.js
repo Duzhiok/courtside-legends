@@ -144,7 +144,7 @@ export const OVERPAID_BREF = {
 /** Known fragile / load-managed stars — bref id → risk bump */
 export const GLASS_CANNON_BREF = {
   porzikr01: 32, // Kristaps Porzingis
-  embiijo01: 18,
+  embiijo01: 24, // Joel Embiid — 每赛季十几场缺席，玻璃人证据最慢性的之一
   davisan02: 16,
   rosede01: 26,
   griffbl01: 17,
@@ -537,7 +537,7 @@ function ballHogBumpFor(player) {
   if (bref && BALL_HOG_BREF[bref]) return BALL_HOG_BREF[bref];
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
   if (/westbrook|威斯布鲁克|威少/.test(name)) return 28;
-  if (/donci|dončić|东契奇|luka/.test(name)) return 26;
+  if (/donci|dončić|东契奇/.test(name)) return 26; // not bare "luka": Šamanić and Garza are different people
   if (/harden|哈登/.test(name)) return 24;
   if (/iverson|艾弗森/.test(name)) return 22;
   if (/trae young|特雷.?杨/.test(name)) return 20;
@@ -757,7 +757,7 @@ function overpaidBumpFor(player) {
   if (bref && OVERPAID_BREF[bref]) return OVERPAID_BREF[bref];
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
   if (/embiid|恩比德/.test(name)) return 20;
-  if (/de'?aaron fox|fox|福克斯/.test(name)) return 22;
+  if (/de'?aaron fox/.test(name)) return 22; // not bare "fox": Jim, Harold and Rick Fox are different people
   if (/westbrook|威少|威斯布鲁克/.test(name)) return 16;
   if (/ben simmons|西蒙斯/.test(name)) return 18;
   if (/deandre ayton|艾顿/.test(name)) return 16;
@@ -767,7 +767,6 @@ function overpaidBumpFor(player) {
 export function topIntangibles(player, n = 3) {
   const entries = Object.entries(player.intangibles || {});
   const risk = player.intangibles?.injuryRisk;
-  const impact = player.intangibles?.winningImpact;
   const ceil = player.intangibles?.ceiling;
   const need = player.intangibles?.ballNeed;
   const off = player.intangibles?.offBall;
@@ -991,7 +990,7 @@ function schemeHintBonus(player, coach, tactic) {
     if (style.includes("铁血") || style.includes("防守") || style.includes("三角") || style.includes("体系")) b += 6;
   }
   // Fox / speed scoring guards
-  if (/fox|福克斯|de'?aaron/.test(name)) {
+  if (/de'?aaron fox/.test(name)) {
     if (tid === "pace_space" || tid === "iso_heavy" || tid === "motion") b += 12;
     if (tid === "grind" || tid === "triangle") b -= 8;
   }
@@ -1001,7 +1000,7 @@ function schemeHintBonus(player, coach, tactic) {
     if (tid === "motion" || tid === "triangle") b -= 6;
   }
   // Ben Simmons
-  if (/simmons|西蒙斯/.test(name)) {
+  if (/ben simmons/.test(name)) {
     if (tid === "motion" || tid === "grind") b += 10;
     if (tid === "pace_space" || tid === "iso_heavy") b -= 10;
   }

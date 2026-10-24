@@ -16,9 +16,34 @@ function pct(made, attempted) {
   return attempted > 0 ? made / attempted : 0;
 }
 
+/**
+ * Classic box-score "Game Score" (Hollinger), NOT the live gradeScore.
+ * gradeScore rewards in-possession process (assists, no-shot efficiency, defense) and can
+ * legitimately crown a 0-point/6-assist/0-turnover floor general over a volume scorer who
+ * missed a pile of shots — that's a fine signal for player development, but on the RESULT
+ * SCREEN "最佳表现" needs to match what the box score next to it actually shows, or it just
+ * reads as a bug. So 最佳表现 ranks by the box score itself.
+ */
+function gameScore(stats = {}) {
+  const s = (k) => Number(stats[k]) || 0;
+  return (
+    s("pts") +
+    0.4 * s("fgm") -
+    0.7 * s("fga") -
+    0.4 * (s("fta") - s("ftm")) +
+    0.7 * s("oreb") +
+    0.3 * s("dreb") +
+    s("stl") +
+    0.7 * s("ast") +
+    0.7 * s("blk") -
+    0.4 * s("pf") -
+    s("tov")
+  );
+}
+
 function topPerformer(team) {
   const ranked = [...(team.roster || [])].sort(
-    (a, b) => (b.gradeScore || 0) - (a.gradeScore || 0) || (b.stats?.pts || 0) - (a.stats?.pts || 0),
+    (a, b) => gameScore(b.stats) - gameScore(a.stats) || (b.stats?.pts || 0) - (a.stats?.pts || 0),
   );
   const player = ranked[0];
   if (!player) return null;

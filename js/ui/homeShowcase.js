@@ -1,9 +1,10 @@
 /**
  * Home screen showcase: legends photo wall + photo accents on mode cards.
- * Photos come from the existing Wikimedia-backed era photo map (see photo.js),
- * so there is exactly one place that decides which image a player gets.
+ * Pictures come from photo.js, which is the one place that decides what a player gets.
+ * A tile is drawn only when there is real art (a local illustration or a credited photo):
+ * a generated silhouette is fine in a list but would be a poor stand-in for a "legend".
  */
-import { eraPhoto } from "../data/photo.js";
+import { resolveCardPhoto } from "../data/photo.js";
 
 export const HOME_LEGENDS = [
   { bref: "jordami01", season: 1991, name: "迈克尔·乔丹", era: "90 年代" },
@@ -21,7 +22,13 @@ export const HOME_LEGENDS = [
 export function legendPhotoFromToken(token) {
   const [bref, season] = String(token || "").split(":");
   if (!bref) return null;
-  return eraPhoto({ bref, season: Number(season) });
+  return legendPhoto({ bref, season: Number(season) });
+}
+
+/** Real art for this legend, or null when the only option would be a generated avatar. */
+export function legendPhoto(legend) {
+  const { photo, photoSource } = resolveCardPhoto(legend);
+  return photoSource === "generated" ? null : photo;
 }
 
 function photoImg(src, alt) {
@@ -41,7 +48,7 @@ export function renderLegendsWall(container, legends = HOME_LEGENDS) {
   container.replaceChildren();
   let count = 0;
   for (const legend of legends) {
-    const src = eraPhoto(legend);
+    const src = legendPhoto(legend);
     if (!src) continue;
     const figure = document.createElement("figure");
     figure.className = "legend-tile";

@@ -1,4 +1,5 @@
 import { positionFitScore } from "../data/franchises.js";
+import { familyChemistryBonus } from "../data/family.js";
 import {
   ballRolePlayFactor,
   ballSharingFit,
@@ -17,7 +18,6 @@ export function teamChemistry(players, { primaryId = null } = {}) {
   if (!players.length) return 40;
   const egos = players.map((p) => p.personality?.ego ?? 50);
   const teams = players.map((p) => p.personality?.team ?? 50);
-  const avgEgo = avg(egos);
   const avgTeam = avg(teams);
   const egoClash = std(egos);
 
@@ -75,6 +75,10 @@ export function teamChemistry(players, { primaryId = null } = {}) {
   // Famous duo / trio chemistry
   const duos = activeDuoIds(players);
   if (duos.length) chem += Math.min(14, 5 + duos.length * 3);
+
+  // 家族羘绊（父子同心 / 兄弟同心）——隐藏加成，不在 UI 上做成可见徽章，与上面的
+  // 明牌组合技 DUO_COMBOS 不同。
+  chem += familyChemistryBonus(players);
 
   return clamp(Math.round(chem), 15, 95);
 }

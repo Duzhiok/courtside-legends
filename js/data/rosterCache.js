@@ -7,7 +7,26 @@
  * Cards are stored in CHUNKS so reading/writing does not freeze the tab for minutes.
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
-export const ROSTER_SCHEMA = 42; // bump: Yao Ming soft_touch / dream_shake / high_tower
+// tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
+export const ROSTER_SCHEMA = 52; // bump: Zaza Pachulia whole-career C override (2004-11 talldata rows mistagged SF)
+// stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
+// data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
+// in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good
+// shooting years (2016 at 38.8%, 2024 at 39.5%). Dropped the anchor override for `three` on
+// seasons with real box-score data (2015-2025) so it now swings 46-77 with his actual accuracy
+// instead of sitting in the high-70s no matter how he actually shot that year.
+// (schema 49 was: Isiah Thomas (thomais01, 活塞坏小子队长) gets a signature
+// kit (场上指挥家/传球魔术/杀手时刻/劲爆第一步) instead of no skills at all -- distinct from the
+// other Isaiah Thomas (thomais02) one letter off in the name.
+// schema 48 was: Isaiah Thomas (thomais02, 微笑刺客) gets a signature kit (杀手时刻/抛投大师/
+// 无解单打/节奏大师) instead of no skills at all.
+// schema 47 was: Wikipedia auto-discovery tier (photos.wiki.js) adds ~2,560 credited real
+// photos covering ~2,630 people who previously had no portrait beyond the bbref hotlink/
+// generated avatar -- see scripts/photos/discover-wiki.mjs.
+// schema 46 was: Matt Barnes gets 场上恶汉 (enforcer); Paul George drops 三分雨/中投大师
+// for 运球节奏大师, keeps 中投刺客. schema 45 was: fixed PF-era players stuck at SF --
+// Garnett/Malone/Barkley/Rodman/McHale/Oakley/Willis/Kemp/etc. -- Rondo stuck at SF, Rondo/Butler
+// given signature skill kits, hiddenTier no longer requires ppg alone, Middleton height fixed)
 const DB_NAME = "courtside-legends";
 const STORE = "roster";
 const DB_VERSION = 2;
@@ -70,6 +89,15 @@ function idbDelete(key) {
 
 function yieldPaint() {
   return new Promise((r) => setTimeout(r, 0));
+}
+
+/**
+ * A remembered key from an older ROSTER_SCHEMA must never be loaded. The fast path used to
+ * trust whatever key localStorage remembered, so a bump only took effect one reload later —
+ * and cards built by old code (with old skills) survived code changes.
+ */
+export function isCurrentSchemaKey(key) {
+  return typeof key === "string" && key.startsWith(`v${ROSTER_SCHEMA}|`);
 }
 
 export function rosterCacheKey(meta) {
@@ -145,9 +173,10 @@ export async function loadCachedPlayersFast(onProgress) {
       return loadChunks(key, onProgress);
     };
 
-    const hit = await tryLoad(rememberedKey());
+    const remembered = rememberedKey();
+    const hit = isCurrentSchemaKey(remembered) ? await tryLoad(remembered) : null;
     if (hit?.length) {
-      revalidateMetaInBackground(rememberedKey());
+      revalidateMetaInBackground(remembered);
       onProgress?.(0.92, "cache");
       return hit;
     }

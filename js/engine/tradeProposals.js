@@ -24,9 +24,14 @@ function makePickAsset(st, index) {
   };
 }
 
+function tradeSignature(fromTeamId, playerId, offerPlayerId) {
+  return `${fromTeamId}:${playerId}:${offerPlayerId}`;
+}
+
 export function generateTradeProposals(st, limit = 3) {
   if (!st?.teams?.[st.userTeamId]) return [];
   const user = st.teams[st.userTeamId];
+  const declined = new Set(st.declinedTradeSignatures || []);
   const attractive = (user.players || [])
     .map((player) => ({ player, row: st.playerSeason?.[`${st.userTeamId}:${player.id}`] }))
     .filter(({ player, row }) => isAttractive(row, player))
@@ -41,6 +46,13 @@ export function generateTradeProposals(st, limit = 3) {
     if (!candidate) continue;
     const salaryDelta = playerSalary(candidate) - playerSalary(player);
     const offerPlayer = salaryDelta <= 0 || salaryDelta < 60 ? candidate : [...fromTeam.players].sort((a, b) => playerSalary(a) - playerSalary(b))[0];
+    // generateTradeProposals is a pure function of (year, dayIndex, roster) with no randomness --
+    // calling it again with nothing meaningfully changed would otherwise hand back the EXACT same
+    // offer the user just declined (user report #14: "我都拒绝报价了，怎么刷新报价后又出现相同的报价？").
+    // declineTradeProposal() remembers this exact team+player+offer shape, so it's permanently
+    // skipped here -- a genuinely different offer only resurfaces once the roster actually
+    // changes (a different candidate/offerPlayer naturally produces a different signature).
+    if (declined.has(tradeSignature(fromTeamId, player.id, offerPlayer.id))) continue;
     const pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
     const picks = Array.from({ length: pickCount }, (_, pickIndex) => makePickAsset(st, i + pickIndex));
     const prospect = [...fromTeam.players]
@@ -78,6 +90,9 @@ export function declineTradeProposal(st, proposalId) {
   const index = proposals.findIndex((proposal) => proposal.id === proposalId);
   if (index < 0) return { ok: false, reason: "报价已不存在" };
   const [proposal] = proposals.splice(index, 1);
+  st.declinedTradeSignatures = Array.isArray(st.declinedTradeSignatures) ? st.declinedTradeSignatures : [];
+  const signature = tradeSignature(proposal.fromTeamId, proposal.giveIds[0], proposal.wantIds[0]);
+  if (!st.declinedTradeSignatures.includes(signature)) st.declinedTradeSignatures.push(signature);
   st.tradeLog = Array.isArray(st.tradeLog) ? st.tradeLog : [];
   st.tradeLog.push({ type: "trade_declined", year: st.year, day: st.dayIndex || 0, proposalId: proposal.id, from: proposal.fromTeamId, target: proposal.targetName });
   return { ok: true, proposal };
