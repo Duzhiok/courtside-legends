@@ -826,6 +826,7 @@ export function autoBuildAllPacks(players) {
  * Returns list of { player, delta, reason }.
  */
 const ROLE_NAMES_EN = { alpha: "Offensive Core", starter: "Stable Starter", sixth: "Sixth Man", role: "Role Player", bench: "Bench Blue-Collar" };
+export const roleName = (r, lang = "zh") => (r ? (lang === "en" ? ROLE_NAMES_EN[r.id] || r.name : r.name) : "");
 export function roleMinutesMoraleDelta(onCourt, bench, quarter, lang = "zh") {
   const en = lang === "en";
   const all = [...(onCourt || []), ...(bench || [])];

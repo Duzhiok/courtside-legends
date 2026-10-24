@@ -200,5 +200,8 @@ export const TEAM_NAME_EN = {
 /** Translate a stored Chinese team name for display (user-named teams pass through). */
 export function teamNameL(zhName, lang = getLang()) {
   if (lang !== "en" || !zhName) return zhName;
-  return TEAM_NAME_EN[zhName] || zhName;
+  if (TEAM_NAME_EN[zhName]) return TEAM_NAME_EN[zhName];
+  if (zhName.startsWith("联盟队")) return `League Team ${zhName.slice(3).trim()}`;
+  if (zhName.startsWith("时空队")) return `Time Team ${zhName.slice(3).trim()}`;
+  return zhName;
 }

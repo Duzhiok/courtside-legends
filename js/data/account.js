@@ -448,14 +448,14 @@ export function recordRankedResult(account, won) {
   saveAccount(account);
 }
 
-export function coachRecordLabel(coach) {
+export function coachRecordLabel(coach, lang = "zh") {
   if (!coach) return "";
   const rec = coach.record;
   const team = coach.team || "—";
   const season = coach.season || "";
+  const note = rec?.note ? (lang === "en" ? rec.noteEn || rec.note : rec.note) : "";
   if (rec?.wins != null && rec?.losses != null) {
-    const note = rec.note ? ` · ${rec.note}` : "";
-    return `${season} ${team} ${rec.wins}-${rec.losses}${note}`;
+    return `${season} ${team} ${rec.wins}-${rec.losses}${note ? ` · ${note}` : ""}`;
   }
   return `${season} ${team}`;
 }

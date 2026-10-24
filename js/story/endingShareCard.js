@@ -82,10 +82,11 @@ export function buildEndingShareCard(root) {
   };
 }
 
-export function shareCardText(card) {
+export function shareCardText(card, lang = "zh") {
   if (!card) return "";
+  const en = lang === "en";
   const lines = [
-    `【场边传奇 · 穿越五年】${card.ending.label}`,
+    en ? `[Courtside Legends · Five-Year Journey] ${card.ending.labelEn || card.ending.label}` : `【场边传奇 · 穿越五年】${card.ending.label}`,
     `${card.teamName} · ${card.yearSpan} · ${card.seasonCount} 个赛季`,
     `总战绩 ${card.record.w}胜${card.record.l}负（胜率 ${(card.record.pct * 100).toFixed(1)}%）· 总冠军 ${card.championships} 次`,
   ];
@@ -98,8 +99,9 @@ export function shareCardText(card) {
   return lines.join("\n");
 }
 
-export function renderEndingShareCardHtml(card) {
+export function renderEndingShareCardHtml(card, lang = "zh") {
   if (!card) return "";
+  const en = lang === "en";
   const seasonRows = card.seasons
     .map((season) => `<li><span>${escapeHtml(season.year)}</span><span>${season.record ? `${season.record.w}-${season.record.l}` : "—"}</span><span>${escapeHtml(finishLabel(season))}</span></li>`)
     .join("");
@@ -109,15 +111,15 @@ export function renderEndingShareCardHtml(card) {
   const privileges = card.contract.privileges.length
     ? `<div class="share-card-privileges">${card.contract.privileges.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>`
     : "";
-  return `<article class="ending-share-card tone-${escapeHtml(card.ending.tone)}" aria-label="五年任期结局卡">
+  return `<article class="ending-share-card tone-${escapeHtml(card.ending.tone)}" aria-label="${en ? "Five-year tenure ending card" : "五年任期结局卡"}">
     <header>
-      <div class="share-card-kicker">场边传奇 · 穿越五年</div>
-      <h3>${escapeHtml(card.ending.label)}</h3>
+      <div class="share-card-kicker">${en ? "Courtside Legends · Five-Year Journey" : "场边传奇 · 穿越五年"}</div>
+      <h3>${escapeHtml(card.ending.labelEn && en ? card.ending.labelEn : card.ending.label)}</h3>
       <p>${escapeHtml(card.teamName)} · ${escapeHtml(card.yearSpan)}</p>
     </header>
     <div class="share-card-stats">
-      <div><strong>${card.record.w}-${card.record.l}</strong><span>总战绩</span></div>
-      <div><strong>${(card.record.pct * 100).toFixed(1)}%</strong><span>胜率</span></div>
+      <div><strong>${card.record.w}-${card.record.l}</strong><span>${en ? "Record" : "总战绩"}</span></div>
+      <div><strong>${(card.record.pct * 100).toFixed(1)}%</strong><span>${en ? "Win %" : "胜率"}</span></div>
       <div><strong>${card.championships}</strong><span>总冠军</span></div>
       <div><strong>${card.historyChanges}</strong><span>改写史实</span></div>
     </div>

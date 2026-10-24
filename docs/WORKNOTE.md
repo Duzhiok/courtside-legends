@@ -780,3 +780,14 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - [ ] **T4：** 穿越生涯交易市场（挂牌询价、外部主动报价、选秀权优先级/倾向、多方交易、球队人员上限）
 - [ ] **T5：** 选秀多选 + 交易选秀权（手握多个选秀权连续选多人；选秀权本身可上下交易）
 - [ ] **T6：** 真联机对战（服务端 + 账号 + 同步；架构级工程，需先出独立设计文档再动工）
+
+---
+
+### R53：T7 v2——教练/战术名、生涯叙事、市场结果屏、存档队名、沙盒即时刷新
+
+- **教练/战术名**：`coaches.js` 的 23 个战术全补 `nameEn/descEn`（如三角进攻 → Triangle Offense），20 名教练全补 `nameEn/styleEn/specialtyEn/noteEn/record.noteEn`（菲尔·杰克逊 → Phil Jackson；虚构教练按意译，如新人主帅·林 → Rookie Head Coach Lin），8 名助教全补 `nameEn/roleEn/noteEn`；新增 `tacticName/tacticDesc/coachName/coachStyle/coachSpecialty/coachNote/coachRecordNote/asstName` + `coachSpecialtyLabel(coach, lang)`。接线处：账号条教练行、教练下拉（名帅 → Legend）、收藏屏教练卡 + 战术下拉、阵容行教练行、市场当前教练行、教练组随机指派提示、战术勾选面板（名/描述/徽标/解锁原因全双语，`rosterTacticUnlocks(players, lang)`）、战术帮助文案、角色下拉（`roleName`，复用 `ROLE_NAMES_EN`）。
+- **生涯叙事长文**：6 个穿越事件全补 `titleEn/promptEn/labelEn/descriptionEn`，渲染处 `localizeStoryEvent(event, lang)`（`listStoryEvents` 之前白名单漏了 EN 字段，顺手补上）；4 种结局标签补 `labelEn`（王朝建筑师 → Dynasty Builder 等），生涯中心结局行与结局分享卡（标题/标签/战绩标签）走语言。
+- **市场结果屏深层文案**：`bracketLog` 标签、`careerRoundLabel`、市场提示（回合/场地/奖金/预算/左右栏标题）、冠军结果标题与总结（含 `nextLabelEn`）、总决赛系列标签（`finalsSeriesLabel(series, lang)`）、最佳阵容标题。
+- **已开局存档队名**：记分牌队名在开局（beginGame）与读档（wireRestoredSim）两处显示时走 `teamNameL`；播报图例同理；`teamNameL` 新增生成名模式：联盟队 N → League Team N、时空队 X → Time Team X（修了 `时空队 B` 切英文后多空格的小 bug）。
+- **沙盒切换即时刷新**：`mountSandbox` 内部 `lang` 改为可变的 `currentLang`，暴露 `root.__sandboxSetLang(lang)`：原地重绘平衡勾选、开打按钮、两侧队名（仅未被用户改过的默认值才跟语言走）、搜索占位/aria、计数与阵容行 aria；语言切换按钮调用它，选卡与搜索状态不丢。
+- **测试**：`tests/i18n.test.js` 新增 5 个（战术/教练/助教 EN 字段全量 + helper、解锁原因 EN 无中文、6 事件 + 结局本地化、生成队名映射、tier nextLabel/finals 标签）；顺手修了 `storyEventEngine.test.js` 的结局 deepEqual（新增 `labelEn` 字段）。仍属后续：技能描述长文（skills.js desc）、分享卡内的动态交易/合同叙事、生涯报告 prose。

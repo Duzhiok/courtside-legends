@@ -6,27 +6,35 @@ const EVENT_DEFINITIONS = [
     chapter: "year-one",
     startOffset: 0,
     title: "老板要看见方向",
+    titleEn: "The Owner Wants a Direction",
     prompt: "球队开局不顺，老板要求你在短期成绩和长期培养之间做出公开选择。你的回答会改变管理层对你的授权方式。",
+    promptEn: "The team is off to a rough start, and the owner wants a public choice between short-term results and long-term development. Your answer changes how much authority the front office gives you.",
     tags: ["management", "trust"],
     choices: [
       {
         id: "protect-the-plan",
         label: "坚持长期计划",
+        labelEn: "Stick to the Long-Term Plan",
         description: "承诺培养核心，不用短期交易掩盖问题。",
+        descriptionEn: "Commit to developing the core; don't paper over problems with short-term trades.",
         effects: { trust: 4, mediaPressure: 2, divergence: 2, relationship: { owner: 2 } },
         flags: { longPlanProtected: true },
       },
       {
         id: "trade-for-respect",
         label: "用交易换取尊重",
+        labelEn: "Trade for Respect",
         description: "主动寻求即战力，先让更衣室看到胜利可能。",
+        descriptionEn: "Go get win-now talent so the locker room sees a path to winning.",
         effects: { trust: -2, mediaPressure: -3, divergence: 6, relationship: { players: 2 } },
         flags: { winNowDeclared: true },
       },
       {
         id: "ask-for-evidence",
         label: "要求三个月观察期",
+        labelEn: "Ask for Three Months",
         description: "用数据和阶段性指标争取时间，不提前许诺结果。",
+        descriptionEn: "Buy time with data and staged benchmarks instead of promising results up front.",
         effects: { trust: 2, mediaPressure: 1, divergence: 1, relationship: { gm: 2 } },
         flags: { evidencePlan: true },
       },
@@ -37,20 +45,26 @@ const EVENT_DEFINITIONS = [
     chapter: "year-one",
     startOffset: 0,
     title: "核心球员的承诺",
+    titleEn: "The Core Player's Commitment",
     prompt: "核心球员愿意留下，但希望你明确他的角色。这个选择会影响球员关系，也会影响未来的球队文化。",
+    promptEn: "The core player will stay, but wants his role spelled out. This choice affects player relationships — and the team's future culture.",
     tags: ["players", "culture"],
     choices: [
       {
         id: "promise-role",
         label: "承诺核心角色",
+        labelEn: "Promise a Core Role",
         description: "保证他是体系中心，同时接受更高的使用压力。",
+        descriptionEn: "Guarantee he is the center of the system, accepting heavier usage pressure.",
         effects: { trust: 1, mediaPressure: 2, divergence: 3, relationship: { players: 5 } },
         flags: { coreRolePromised: true },
       },
       {
         id: "share-the-ball",
         label: "强调共同成长",
+        labelEn: "Emphasize Shared Growth",
         description: "不保证球权，承诺用体系让每个人都得到机会。",
+        descriptionEn: "Promise no guaranteed touches, but a system where everyone gets chances.",
         effects: { trust: 2, mediaPressure: 0, divergence: 2, relationship: { players: 2, coach: 2 } },
         flags: { sharedGrowth: true },
       },
@@ -61,20 +75,26 @@ const EVENT_DEFINITIONS = [
     chapter: "year-two",
     startOffset: 1,
     title: "交易截止日前的压力",
+    titleEn: "Trade-Deadline Pressure",
     prompt: "球队进入竞争窗口，市场上出现一名明星球员。交易会提高短期上限，也可能拆散你正在建立的体系。",
+    promptEn: "The team is entering its window and a star is on the market. A trade raises the short-term ceiling — and could break the system you are building.",
     tags: ["trade", "window"],
     choices: [
       {
         id: "keep-the-core",
         label: "保留核心与选秀权",
+        labelEn: "Keep the Core and the Picks",
         description: "相信已经建立的体系，拒绝用未来换取短期名气。",
+        descriptionEn: "Trust the system you built; refuse to trade the future for short-term fame.",
         effects: { trust: 3, mediaPressure: 4, divergence: 1, relationship: { gm: 2 } },
         flags: { protectedAssets: true },
       },
       {
         id: "buy-the-star",
         label: "押注明星交易",
+        labelEn: "Bet on the Star Trade",
         description: "交出重要资产，提前把球队推入争冠窗口。",
+        descriptionEn: "Give up major assets to push the team into its title window early.",
         effects: { trust: 5, mediaPressure: -2, divergence: 8, relationship: { players: -2 } },
         flags: { winNowTrade: true },
       },
@@ -85,20 +105,26 @@ const EVENT_DEFINITIONS = [
     chapter: "year-three",
     startOffset: 2,
     title: "历史开始偏离",
+    titleEn: "History Starts to Diverge",
     prompt: "联盟已经注意到你的球队。媒体发现你提前押中了某些趋势，继续使用未来知识可能带来优势，也可能让时间线彻底失控。",
+    promptEn: "The league has noticed your team. The media figured out you called some trends early — leaning on future knowledge could bring an edge, or send the timeline completely off the rails.",
     tags: ["timeline", "media"],
     choices: [
       {
         id: "embrace-the-change",
         label: "公开拥抱改变",
+        labelEn: "Embrace the Change Publicly",
         description: "承认球队正在创造新的篮球答案，接受更高曝光。",
+        descriptionEn: "Admit the team is creating new basketball answers, and accept the bigger spotlight.",
         effects: { trust: 2, mediaPressure: 8, divergence: 10, relationship: { media: 4 } },
         flags: { publicRevolution: true },
       },
       {
         id: "hide-the-edge",
         label: "隐藏领先优势",
+        labelEn: "Hide the Edge",
         description: "继续低调试验，避免让竞争对手复制你的判断。",
+        descriptionEn: "Keep experimenting quietly so rivals can't copy your reads.",
         effects: { trust: -1, mediaPressure: -4, divergence: 3, relationship: { media: -1 } },
         flags: { hiddenAdvantage: true },
       },
@@ -109,20 +135,26 @@ const EVENT_DEFINITIONS = [
     chapter: "year-four",
     startOffset: 3,
     title: "争冠窗口的代价",
+    titleEn: "The Price of the Window",
     prompt: "球队终于进入争冠窗口，但核心球员的合同、伤病和忠诚开始互相冲突。你只能优先保护一个目标。",
+    promptEn: "The team has finally reached its title window, but the core's contract, health, and loyalty are pulling in different directions. You can only protect one goal.",
     tags: ["contender", "loyalty"],
     choices: [
       {
         id: "protect-the-player",
         label: "保护核心健康",
+        labelEn: "Protect the Core's Health",
         description: "牺牲一部分常规赛成绩，给核心更多休息和恢复时间。",
+        descriptionEn: "Sacrifice some regular-season wins to give the core more rest and recovery.",
         effects: { trust: 3, mediaPressure: 3, divergence: 4, relationship: { players: 5, coach: -1 } },
         flags: { playerHealthFirst: true },
       },
       {
         id: "chase-every-win",
         label: "追逐每一场胜利",
+        labelEn: "Chase Every Win",
         description: "把能用的资源全部投入当下，接受核心过载的风险。",
+        descriptionEn: "Pour every resource into right now, accepting the risk of overloading the core.",
         effects: { trust: 4, mediaPressure: -3, divergence: 7, relationship: { coach: 2, players: -3 } },
         flags: { allInSeason: true },
       },
@@ -133,20 +165,26 @@ const EVENT_DEFINITIONS = [
     chapter: "year-five",
     startOffset: 4,
     title: "最后一通电话",
+    titleEn: "The Final Call",
     prompt: "五年合同即将结束。你可以留下继续守护这支球队，也可以带着已经验证的理念去开启下一段职业生涯。",
+    promptEn: "The five-year deal is nearly up. You can stay and keep guarding this team, or take a proven philosophy into the next chapter of your career.",
     tags: ["ending", "career"],
     choices: [
       {
         id: "stay-and-build",
         label: "留下建立王朝",
+        labelEn: "Stay and Build a Dynasty",
         description: "把未来交给这群一起成长的人，承担继续守成的压力。",
+        descriptionEn: "Hand the future to the people who grew together, and carry the pressure of defending it.",
         effects: { trust: 6, mediaPressure: 4, divergence: 5, relationship: { owner: 4, players: 4 } },
         flags: { stayedForDynasty: true },
       },
       {
         id: "leave-as-legend",
         label: "带着成果离开",
+        labelEn: "Leave With the Results",
         description: "接受新的挑战，让这段历史停在最好的位置。",
+        descriptionEn: "Take on a new challenge and let this history end at its best.",
         effects: { trust: -2, mediaPressure: -5, divergence: 8, relationship: { owner: -3, media: 3 } },
         flags: { leftAsLegend: true },
       },
@@ -171,6 +209,21 @@ function definitionFor(eventId) {
   const definition = EVENT_DEFINITIONS.find((event) => event.id === eventId);
   if (!definition) throw new RangeError(`unknown story event: ${eventId}`);
   return definition;
+}
+
+/** Return a copy of a story event with title/prompt/choices in the given language. */
+export function localizeStoryEvent(event, lang = "zh") {
+  if (!event || lang !== "en") return event;
+  return {
+    ...event,
+    title: event.titleEn || event.title,
+    prompt: event.promptEn || event.prompt,
+    choices: (event.choices || []).map((c) => ({
+      ...c,
+      label: c.labelEn || c.label,
+      description: c.descriptionEn || c.description,
+    })),
+  };
 }
 
 function isEventResolved(story, eventId) {
@@ -211,12 +264,16 @@ export function listStoryEvents() {
     id: event.id,
     chapter: event.chapter,
     title: event.title,
+    titleEn: event.titleEn,
     prompt: event.prompt,
+    promptEn: event.promptEn,
     tags: [...event.tags],
     choices: event.choices.map((choice) => ({
       id: choice.id,
       label: choice.label,
+      labelEn: choice.labelEn,
       description: choice.description,
+      descriptionEn: choice.descriptionEn,
     })),
   }));
 }
@@ -353,8 +410,8 @@ export function deriveEnding(root) {
   const championships = history.filter((summary) => summary.championId === summary.teamId).length;
   const trust = root.story.frontOfficeTrust || 0;
   const pressure = root.story.mediaPressure || 0;
-  if (championships >= 2 && trust >= 55) return { id: "dynasty-builder", label: "王朝建筑师", tone: "success" };
-  if (championships >= 1) return { id: "history-maker", label: "历史改写者", tone: "success" };
-  if (pressure >= 85 || trust <= 20) return { id: "dismissed", label: "在压力中离任", tone: "hard" };
-  return { id: "unfinished-revolution", label: "未完的革命", tone: "neutral" };
+  if (championships >= 2 && trust >= 55) return { id: "dynasty-builder", label: "王朝建筑师", labelEn: "Dynasty Builder", tone: "success" };
+  if (championships >= 1) return { id: "history-maker", label: "历史改写者", labelEn: "History Maker", tone: "success" };
+  if (pressure >= 85 || trust <= 20) return { id: "dismissed", label: "在压力中离任", labelEn: "Departed Under Pressure", tone: "hard" };
+  return { id: "unfinished-revolution", label: "未完的革命", labelEn: "Unfinished Revolution", tone: "neutral" };
 }
