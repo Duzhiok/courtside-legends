@@ -318,7 +318,7 @@ courtside-legends/
 The launch requirements, checked against the code one by one:
 
 - ✅ Pick your own starters; coach strategies selectable, coaching philosophy customizable (four-dimension philosophy + tactic checkboxes)
-- ✅ Dynamic court: avatar positions move with possessions, including offensive/defensive formations; a simple capsule-player toggle sits at the court's top-right corner (see R66)
+- ✅ Dynamic court: avatar positions move with possessions, including offensive/defensive formations; a simple humanoid-player toggle sits at the court's top-right corner (see R66, R67)
 - ✅ Hidden traits: gravity, leadership aura, killer instinct, chemistry core, hidden ceiling, and 20+ more off-ratings attributes
 - ✅ Promotion format as the core: wins earn gold, market trading after every round, max 12-man roster, lose and you're out
 - ✅ Gold promotion Finals series: changed per user decision to **best-of-3** (replacing the original best-of-7 idea), with market access between games to adjust the roster (T8, see docs/WORKNOTE.md R44; the regular-season mode's playoffs stay best-of-7)

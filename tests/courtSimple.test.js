@@ -106,7 +106,7 @@ function setup() {
   return { root, view };
 }
 
-test("court simple: photo mode renders avatar images, simple mode renders capsules", () => {
+test("court simple: photo mode renders avatar images, simple mode renders humanoid figures", () => {
   const { root, view } = setup();
   const tokenBox = root._parts["#court-tokens"];
   assert.equal(view.simple, false);
@@ -119,9 +119,14 @@ test("court simple: photo mode renders avatar images, simple mode renders capsul
   assert.ok(tokenBox.children.every((el) => el.innerHTML.includes("tok-figure")));
   assert.ok(tokenBox.children.every((el) => !el.innerHTML.includes("<img")));
   assert.ok(tokenBox.children.every((el) => el.className.includes("simple")));
-  // Capsule bodies carry the position letters, names stay visible.
+  // Humanoid figures: jersey torso with position letters, two arms,
+  // two legs, names stay visible.
   const first = tokenBox.children[0];
-  assert.match(first.innerHTML, /tok-body/);
+  assert.match(first.innerHTML, /tok-torso/);
+  assert.match(first.innerHTML, /tok-arm left/);
+  assert.match(first.innerHTML, /tok-arm right/);
+  assert.match(first.innerHTML, /tok-leg left/);
+  assert.match(first.innerHTML, /tok-leg right/);
   assert.match(first.innerHTML, /tok-name/);
 
   view.setSimpleMode(false);

@@ -321,14 +321,18 @@ export class CourtView {
     const add = (p, side, isOff) => {
       const el = document.createElement("div");
       el.className = `court-token ${side} ${isOff ? "offense" : "defense"}${this.simple ? " simple" : ""}`;
-      // Simple mode: a CSS capsule player (head + body in team colors)
-      // instead of a photo. Names, points and roles stay identical, so
-      // moveToken() keeps working unchanged.
+      // Simple mode: a CSS humanoid player (head + jersey torso + arms
+      // + legs) instead of a photo. Names, points and roles stay
+      // identical, so moveToken() keeps working unchanged.
       el.innerHTML = this.simple
         ? `
         <div class="tok-figure">
           <div class="tok-head"></div>
-          <div class="tok-body">${normPos(p.playPos || p.pos)}</div>
+          <div class="tok-torso">${normPos(p.playPos || p.pos)}</div>
+          <div class="tok-arm left"></div>
+          <div class="tok-arm right"></div>
+          <div class="tok-leg left"></div>
+          <div class="tok-leg right"></div>
           <span class="tok-pts">${p.stats?.pts ?? 0}</span>
         </div>
         <span class="tok-name" title="${p.name}">${shortName(p.name)}</span>

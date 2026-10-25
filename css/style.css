@@ -2188,31 +2188,58 @@ select, input[type="number"] {
 }
 .court-mode-btn:hover { background: rgba(0,0,0,.75); }
 .tok-figure {
-  position: relative; display: flex; flex-direction: column; align-items: center;
+  position: relative; width: 34px; height: 50px;
 }
 .tok-head {
-  width: 14px; height: 14px; border-radius: 50%;
+  position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  width: 13px; height: 13px; border-radius: 50%;
   background: #e8c39a; border: 2px solid #fff;
 }
 .court-token.home .tok-head { border-color: #ffe08a; }
 .court-token.away .tok-head { border-color: #7dd3fc; }
-.tok-body {
-  min-width: 28px; height: 19px; margin-top: 1px; border-radius: 999px;
+.tok-torso {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+  width: 20px; height: 20px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: .58rem; font-weight: 700; letter-spacing: .02em;
+  color: #fff; font-size: .55rem; font-weight: 700; letter-spacing: .02em;
   background: #c9a227;
 }
-.court-token.away .tok-body { background: #2f7fc4; }
-.court-token.defense .tok-body { filter: brightness(.92) saturate(.85); }
+.court-token.away .tok-torso { background: #2f7fc4; }
+.court-token.defense .tok-torso { filter: brightness(.92) saturate(.85); }
+.tok-arm {
+  position: absolute; top: 16px; width: 5px; height: 15px;
+  border-radius: 3px; background: #e8c39a; transform-origin: top center;
+}
+.tok-arm.left { left: 3px; transform: rotate(12deg); }
+.tok-arm.right { right: 3px; transform: rotate(-12deg); }
+.tok-leg {
+  position: absolute; top: 34px; width: 5px; height: 15px;
+  border-radius: 3px; background: #22303c; transform-origin: top center;
+}
+.tok-leg.left { left: 11px; }
+.tok-leg.right { right: 11px; }
 .court-token.simple.hot .tok-figure { filter: drop-shadow(0 0 5px var(--accent)); }
-/* Run bob: only while the team is pushing up the court (stage.pushing),
-   applied to the inner figure so it never fights the token's left/top. */
+/* Run motion, only while the team is pushing up the court (stage.pushing):
+   the whole figure bounces, and limbs swing in opposite phase per side.
+   Everything animates inner parts, never the token's left/top. */
 @keyframes tok-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
 }
+@keyframes tok-swing {
+  from { transform: rotate(-24deg); }
+  to { transform: rotate(24deg); }
+}
 #court-stage.pushing .court-token.simple .tok-figure {
   animation: tok-bob .38s ease-in-out infinite;
+}
+#court-stage.pushing .court-token.simple .tok-leg.left,
+#court-stage.pushing .court-token.simple .tok-arm.right {
+  animation: tok-swing .38s ease-in-out infinite alternate;
+}
+#court-stage.pushing .court-token.simple .tok-leg.right,
+#court-stage.pushing .court-token.simple .tok-arm.left {
+  animation: tok-swing .38s ease-in-out infinite alternate-reverse;
 }
 .court-label {
   position: absolute; left: 8px; right: 8px; bottom: 6px;
