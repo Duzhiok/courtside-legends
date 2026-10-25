@@ -308,7 +308,7 @@ courtside-legends/
 
 - 纯前端静态页（ES Module），**无需构建、无后端**（单机部分）；联机对战需另起 Node 服务端 `node server/online-server.mjs`（见 `online.html`，房号 1v1 + 观战 + 匹配池 + 账号排位，R60、R62–R64）
 - 存档与账号存在浏览器 `localStorage` / IndexedDB（各电脑互不同步）
-- 自动化测试：`npm test`（Node 内置 `node:test`，当前 741 个测试，全部通过）
+- 自动化测试：`npm test`（Node 内置 `node:test`，当前 745 个测试，全部通过）
 - 静态检查：`npm run lint`（eslint flat config，只启拓 bug 的规则集如 no-undef/no-unused-vars/no-unreachable，不管风格，没有 prettier）
 - MIT License
 
@@ -317,7 +317,7 @@ courtside-legends/
 立项时的原始要求逐条对代码核查的结果：
 
 - ✅ 自己决定首发；教练策略可选、执教方针可自定义（四维方针 + 战术勾选）
-- ✅ 动态球场：头像站位随回合移动，含攻防阵型；另有简易人物模型开关（球场右上角，见 R66、R67）
+- ✅ 动态球场：头像站位随回合移动，含攻防阵型；另有简易人物模型开关（球场右上角，见 R66、R67）与投篮出手弧线（见 R68）
 - ✅ 隐藏属性：引力、领袖气场、杀手本能、化学反应核、隐藏上限等 20+ 项能力值外属性
 - ✅ 晋级制主体：赢球赢金币、每轮后市场买卖、名单最多 12 人、输了淘汰
 - ✅ 金币晋级赛总决赛系列赛：按用户拍板改**三局两胜**（取代最初的七场四胜设想），每场后可进市场买卖调整阵容（T8，见 docs/WORKNOTE.md R44；常规赛模式的季后赛仍为七场四胜）

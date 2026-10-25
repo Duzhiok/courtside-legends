@@ -6711,6 +6711,16 @@ function handleSimEvent(e) {
     showDunkFlash(e.meta.player, e.meta.label || e.text);
     return;
   }
+  // Jump-shot arc: score/miss events from the shot-resolution branches
+  // carry meta.shot. Foul/turnover "miss" events and free-throw "score"
+  // events have no meta.shot, so they never animate.
+  if (e?.meta?.shot) {
+    try {
+      state.court?.onShot(e.meta.shot);
+    } catch (err) {
+      console.error(err);
+    }
+  }
   pushFeed(e.type, e.text, e);
   try {
     paintScore(e);

@@ -153,3 +153,54 @@ test("court simple: pushing class follows the 2.6s push phase", () => {
   view.render(snap());
   assert.equal(stage.classList.contains("pushing"), false);
 });
+
+test("court shot arc: made shot flies shooter to rim and ends clean", () => {
+  const { view } = setup();
+  // SG (h3) sits off-center, so the arc's travel is actually measurable.
+  view.onShot({ shooterId: "h3", made: true });
+  assert.ok(view._shot);
+  // The arc starts exactly where the shooter token stands.
+  assert.deepEqual(view._shot.from, view._lastTokenPos.get("home-h3"));
+  assert.equal(view._shot.to.y, 6); // home attacks the top rim
+  const start = view._shot.start;
+  const fromX = view._shot.from.x;
+  const fromY = view._shot.from.y;
+  view._shotFrame(start + 375); // mid-flight
+  const midLeft = parseFloat(view.ball.style.left);
+  const midTop = parseFloat(view.ball.style.top);
+  assert.ok(midLeft > fromX && midLeft < 50, `mid x ${midLeft} should travel ${fromX} -> 50`);
+  assert.ok(midTop < fromY && midTop > 6, `mid y ${midTop} should travel ${fromY} -> 6`);
+  assert.equal(view.ball.style.width, "20px"); // peak height reads as size
+  view._shotFrame(start + 750 + 150 + 1); // past the net phase
+  assert.equal(view._shot, null);
+  assert.equal(view.ball.style.transition, "");
+  assert.equal(view.ball.style.width, "");
+});
+
+test("court shot arc: missed shot bounces off the rim and settles short", () => {
+  const { view } = setup();
+  view.onShot({ shooterId: "h3", made: false });
+  const start = view._shot.start;
+  view._shotFrame(start + 750 + 300 + 1); // past the bounce phase
+  assert.equal(view._shot, null);
+  assert.equal(parseFloat(view.ball.style.left), 50);
+  assert.ok(Math.abs(parseFloat(view.ball.style.top) - 10) < 0.01); // rim 6 + 4 settle
+});
+
+test("court shot arc: render during flight does not move the ball", () => {
+  const { view } = setup();
+  view.onShot({ shooterId: "h3", made: true });
+  view._shotFrame(view._shot.start + 200);
+  const left = view.ball.style.left;
+  const top = view.ball.style.top;
+  view.render(snap());
+  assert.equal(view.ball.style.left, left);
+  assert.equal(view.ball.style.top, top);
+});
+
+test("court shot arc: onShot before any render is a silent no-op", () => {
+  const root = makeRoot();
+  const view = new CourtView(root);
+  view.onShot({ shooterId: "h3", made: true });
+  assert.equal(view._shot, null);
+});

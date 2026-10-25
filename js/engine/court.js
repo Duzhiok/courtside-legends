@@ -154,6 +154,11 @@ export class CourtView {
     this._raf = 0;
     this.simple = loadSimpleMode();
     this._lastSnap = null;
+    this._shot = null;
+    this._shotRaf = 0;
+    this._lastTokenPos = new Map();
+    this._lastHandlerPos = null;
+    this._lastAttackingUp = true;
   }
 
   /** Flip between photo avatars and simple capsule players. */
@@ -282,6 +287,7 @@ export class CourtView {
       offPos[i] = { x, y };
       const side = attackingUp ? "home" : "away";
       this.moveToken(`${side}-${p.id}`, x, y, p, true, shortName(p.name));
+      this._lastTokenPos.set(`${side}-${p.id}`, { x, y });
     });
 
     defOrdered.forEach((p, i) => {
@@ -297,12 +303,18 @@ export class CourtView {
       const y = base.y + Math.cos(t * 1.35 + i) * 0.9;
       const side = attackingUp ? "away" : "home";
       this.moveToken(`${side}-${p.id}`, x, y, p, false, shortName(p.name));
+      this._lastTokenPos.set(`${side}-${p.id}`, { x, y });
     });
 
     // Ball with the PG / primary handler slot (not whoever happened to be index 0)
     const hi = clamp(this._handlerIdx, 0, Math.max(0, offOrdered.length - 1));
     const hp = offPos[hi] || offPos[offPos.length - 1];
-    if (this.ball && hp) {
+    if (hp) {
+      this._lastHandlerPos = hp;
+      this._lastAttackingUp = attackingUp;
+    }
+    // A shot arc owns the ball while it flies; render must not fight it.
+    if (this.ball && hp && !this._shot) {
       this.ball.style.left = `${hp.x}%`;
       this.ball.style.top = `${hp.y}%`;
       this.ball.classList.toggle("in-frontcourt", phase > 0.45);
@@ -313,6 +325,82 @@ export class CourtView {
     if (phase < 1) {
       this._raf = requestAnimationFrame(() => this.render(snap));
     }
+  }
+
+  /** Animate the ball from the shooter to the rim on a jump shot. */
+  onShot(shot) {
+    if (!this.ball || !this._lastHandlerPos) return;
+    const shootSide = this._lastAttackingUp ? "home" : "away";
+    const from =
+      (shot?.shooterId && this._lastTokenPos.get(`${shootSide}-${shot.shooterId}`)) ||
+      this._lastHandlerPos;
+    const to = this._lastAttackingUp ? { x: 50, y: 6 } : { x: 50, y: 94 };
+    cancelAnimationFrame(this._shotRaf);
+    this._shot = {
+      from: { ...from },
+      to,
+      start: performance.now(),
+      made: !!shot?.made,
+      // Direction away from the rim, toward mid-court (for the miss bounce).
+      out: this._lastAttackingUp ? 1 : -1,
+    };
+    // The ball's CSS transition would smear per-frame arc updates into lag.
+    this.ball.style.transition = "none";
+    this._shotFrame(this._shot.start);
+  }
+
+  /** One frame of the shot arc. The browser drives it via rAF; tests call it directly. */
+  _shotFrame(now) {
+    const s = this._shot;
+    if (!s || !this.ball) return;
+    const FLIGHT = 750;
+    const END = s.made ? 150 : 300;
+    const elapsed = now - s.start;
+    if (elapsed < FLIGHT) {
+      const u = elapsed / FLIGHT;
+      const v = 1 - u;
+      const dx = s.to.x - s.from.x;
+      const dy = s.to.y - s.from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const bulge = Math.min(9, len * 0.12);
+      const cx = (s.from.x + s.to.x) / 2 + (-dy / len) * bulge;
+      const cy = (s.from.y + s.to.y) / 2 + (dx / len) * bulge;
+      const x = v * v * s.from.x + 2 * v * u * cx + u * u * s.to.x;
+      const y = v * v * s.from.y + 2 * v * u * cy + u * u * s.to.y;
+      // Height reads as size on a top-down court: swell, then fall.
+      const size = 12 + 8 * Math.sin(Math.PI * u);
+      this.ball.style.left = `${x}%`;
+      this.ball.style.top = `${y}%`;
+      this.ball.style.width = `${size}px`;
+      this.ball.style.height = `${size}px`;
+    } else if (elapsed < FLIGHT + END) {
+      const v = (elapsed - FLIGHT) / END;
+      this.ball.style.left = `${s.to.x}%`;
+      if (s.made) {
+        // Through the net: shrink at the rim.
+        this.ball.style.top = `${s.to.y}%`;
+        const size = 12 - 4 * v;
+        this.ball.style.width = `${size}px`;
+        this.ball.style.height = `${size}px`;
+      } else {
+        // Off the iron: bounce toward mid-court, settle just off the rim.
+        this.ball.style.top = `${s.to.y + s.out * (5 * Math.sin(Math.PI * v) + 4 * v)}%`;
+        this.ball.style.width = "12px";
+        this.ball.style.height = "12px";
+      }
+    } else {
+      // Land exactly on the resting spot, even if frames skipped the
+      // ending phase: at the rim when made, just short of it when missed.
+      this.ball.style.left = `${s.to.x}%`;
+      this.ball.style.top = `${s.to.y + (s.made ? 0 : s.out * 4)}%`;
+      this._shot = null;
+      this.ball.style.transition = "";
+      this.ball.style.width = "";
+      this.ball.style.height = "";
+      return;
+    }
+    cancelAnimationFrame(this._shotRaf);
+    this._shotRaf = requestAnimationFrame(() => this._shotFrame(performance.now()));
   }
 
   rebuildTokens(off, def, attackingUp) {

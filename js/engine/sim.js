@@ -1151,7 +1151,9 @@ export class GameSim {
       const story = matchupFeedStory(baller, defender, shot, open, label, { made: true, lang: this.lang });
       this.emit(
         "score",
-        this.S(`${story}！（${pct(makeP)} · ${hotLabel(baller.hot)}${huntTag}）${astTag}${duoTag} ${this.score.home}-${this.score.away}`, `${story}! (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}${huntTag})${astTag}${duoTag} ${this.score.home}-${this.score.away}`)
+        this.S(`${story}！（${pct(makeP)} · ${hotLabel(baller.hot)}${huntTag}）${astTag}${duoTag} ${this.score.home}-${this.score.away}`, `${story}! (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}${huntTag})${astTag}${duoTag} ${this.score.home}-${this.score.away}`),
+        // Shot meta only: the court animates the arc from this. Feed text unchanged.
+        { shot: { shooterId: baller.id, made: true, pts: shot.pts } }
       );
       if (fouled) {
         defender.stats.pf += 1;
@@ -1195,7 +1197,8 @@ export class GameSim {
         "miss",
         forcedHunt
           ? this.S(`${missStory}（${pct(makeP)}）—— 抓机会过猛`, `${missStory} (${pct(makeP)}) — hunting the shot too hard`)
-          : this.S(`${missStory}（${pct(makeP)} · ${hotLabel(baller.hot)}）—— 空位也会打铁`, `${missStory} (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}) — even open looks clang`)
+          : this.S(`${missStory}（${pct(makeP)} · ${hotLabel(baller.hot)}）—— 空位也会打铁`, `${missStory} (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}) — even open looks clang`),
+        { shot: { shooterId: baller.id, made: false, pts: shot.pts } }
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
       resolveRebound(off, def, this, false);
