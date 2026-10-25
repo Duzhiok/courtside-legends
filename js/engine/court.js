@@ -132,6 +132,16 @@ function handlerSlotIndex(ordered) {
   return Math.max(0, ordered.length - 1);
 }
 
+const SIMPLE_MODE_KEY = "courtside-simple-players";
+
+function loadSimpleMode() {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(SIMPLE_MODE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export class CourtView {
   constructor(rootEl) {
     this.root = rootEl;
@@ -142,6 +152,25 @@ export class CourtView {
     this._phaseStart = 0;
     this._handlerIdx = 0;
     this._raf = 0;
+    this.simple = loadSimpleMode();
+    this._lastSnap = null;
+  }
+
+  /** Flip between photo avatars and simple capsule players. */
+  setSimpleMode(v) {
+    this.simple = !!v;
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(SIMPLE_MODE_KEY, this.simple ? "1" : "0");
+      }
+    } catch {
+      /* private mode: the toggle still works for this session */
+    }
+    if (this.modeBtn) {
+      this.modeBtn.textContent = this.simple ? "人物：简易" : "人物：照片";
+    }
+    this._lastLineup = "";
+    if (this._lastSnap) this.render(this._lastSnap);
   }
 
   ensureDom() {
@@ -169,12 +198,18 @@ export class CourtView {
         <div class="ball-dot" id="court-ball"></div>
         <div class="court-tokens" id="court-tokens"></div>
         <div class="court-label" id="court-formation">推进中</div>
+        <button class="court-mode-btn" id="court-mode-btn" type="button"></button>
       </div>
     `;
     this.stage = this.root.querySelector("#court-stage");
     this.tokenBox = this.root.querySelector("#court-tokens");
     this.ball = this.root.querySelector("#court-ball");
     this.formLabel = this.root.querySelector("#court-formation");
+    this.modeBtn = this.root.querySelector("#court-mode-btn");
+    if (this.modeBtn) {
+      this.modeBtn.textContent = this.simple ? "人物：简易" : "人物：照片";
+      this.modeBtn.addEventListener("click", () => this.setSimpleMode(!this.simple));
+    }
     this._built = true;
   }
 
@@ -193,6 +228,7 @@ export class CourtView {
 
   render(snap) {
     this.ensureDom();
+    this._lastSnap = snap;
     const offSide = snap.possession;
     const attackingUp = offSide === "home"; // home attacks toward top (away hoop)
     const off = attackingUp ? snap.home : snap.away;
@@ -212,6 +248,8 @@ export class CourtView {
     const elapsed = performance.now() - this._phaseStart;
     // 0–1 over ~2.6s: bring ball up → set offense
     const phase = clamp(elapsed / 2600, 0, 1);
+    // Simple players bob while the team is still pushing up the court.
+    if (this.stage) this.stage.classList.toggle("pushing", phase < 1);
     const phaseName =
       phase < 0.25 ? "发球推进" : phase < 0.55 ? "过半场" : phase < 0.85 ? "落位进攻" : "终结回合";
 
@@ -282,8 +320,21 @@ export class CourtView {
     this.tokens.clear();
     const add = (p, side, isOff) => {
       const el = document.createElement("div");
-      el.className = `court-token ${side} ${isOff ? "offense" : "defense"}`;
-      el.innerHTML = `
+      el.className = `court-token ${side} ${isOff ? "offense" : "defense"}${this.simple ? " simple" : ""}`;
+      // Simple mode: a CSS capsule player (head + body in team colors)
+      // instead of a photo. Names, points and roles stay identical, so
+      // moveToken() keeps working unchanged.
+      el.innerHTML = this.simple
+        ? `
+        <div class="tok-figure">
+          <div class="tok-head"></div>
+          <div class="tok-body">${normPos(p.playPos || p.pos)}</div>
+          <span class="tok-pts">${p.stats?.pts ?? 0}</span>
+        </div>
+        <span class="tok-name" title="${p.name}">${shortName(p.name)}</span>
+        <span class="tok-role">${isOff ? "攻" : "防"}</span>
+      `
+        : `
         <div class="tok-avatar">
           <img src="${photoUrl(p)}" alt="" loading="lazy" referrerpolicy="no-referrer"
             onerror="this.style.opacity=0.2" />
