@@ -169,6 +169,7 @@ import {
   refreshTradeProposals,
   unlistPlayerForTrade,
 } from "./engine/tradeProposals.js";
+import { LISTING_PREFERENCES, listingPref, setListingPref } from "./engine/tradeListing.js";
 import {
   DRAFT_FREE_REFRESHES,
   advanceTurn,
@@ -8548,6 +8549,34 @@ function renderSeasonEvaluation() {
   });
 }
 
+/** A listed player whose sale preference no team could meet gets a note, not silence. */
+function unmetListingHintHtml(st, proposals) {
+  const en = getLang() === "en";
+  const answered = new Set(proposals.flatMap((proposal) => proposal.giveIds));
+  const roster = st.teams[st.userTeamId]?.players || [];
+  return listedPlayerIds(st)
+    .filter((id) => listingPref(st, id) !== "any" && !answered.has(id))
+    .map((id) => {
+      const def = LISTING_PREFERENCES[listingPref(st, id)];
+      const name = roster.find((p) => p.id === id)?.name || id;
+      return `<p class="tiny unmet-listing">${esc(en
+        ? `No team can make a "${def.labelEn}" offer for ${name} right now (cap room or roster). Try another preference or refresh later.`
+        : `暂时没有球队能按「${def.label}」给 ${name} 出价（薪资空间或阵容不允许）。换个倾向或稍后刷新。`)}</p>`;
+    })
+    .join("");
+}
+
+/** 挂牌球员的出售倾向下拉：决定谁来谈、回报长什么样（见 engine/tradeListing.js）。 */
+function listingPrefSelectHtml(st, playerId) {
+  const en = getLang() === "en";
+  const current = listingPref(st, playerId);
+  const options = Object.entries(LISTING_PREFERENCES)
+    .map(([id, def]) => `<option value="${id}" title="${esc(en ? def.whyEn : def.why)}"${id === current ? " selected" : ""}>${esc(en ? def.labelEn : def.label)}</option>`)
+    .join("");
+  const label = en ? "What do you want back?" : "出售倾向";
+  return `<select class="sm-list-pref" data-list-pref="${playerId}" aria-label="${label}" title="${label}">${options}</select>`;
+}
+
 function renderSeasonMarket() {
   const st = state.season;
   const box = $("#season-market");
@@ -8578,7 +8607,7 @@ function renderSeasonMarket() {
           ${fit ? `<div class="tiny">${esc(fit)}</div>` : ""}
           ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
         </div>
-        <span class="btn-row"><button type="button" class="btn small ghost sm-list-trade" data-list-trade="${p.id}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
+        <span class="btn-row">${isListed ? listingPrefSelectHtml(st, p.id) : ""}<button type="button" class="btn small ghost sm-list-trade" data-list-trade="${p.id}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
         <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">裁掉</button></span>
       </div>`;
     })
@@ -8729,6 +8758,7 @@ function renderSeasonMarket() {
     </div>
     <section class="sm-proposals">
       <header class="sm-fa-head"><h4>收到的交易请求</h4><div class="btn-row"><span class="tiny">${proposals.length ? `${proposals.length} 份待处理` : "暂无新报价"}</span><button type="button" class="btn small" id="btn-refresh-proposals">刷新报价</button></div></header>
+      ${unmetListingHintHtml(st, proposals)}
       ${proposals.map((proposal) => `<article class="trade-proposal-card" data-proposal-id="${proposal.id}">
         <strong>${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}</strong>
         <p class="tiny">${esc(proposal.reason)}</p>
@@ -8856,6 +8886,20 @@ function renderSeasonMarket() {
   $("#sm-trade-cpu")?.addEventListener("change", renderTradeCols);
   $("#sm-trade-cpu3")?.addEventListener("change", renderTradeCols);
 
+  box.querySelectorAll(".sm-list-pref").forEach((sel) => {
+    sel.onchange = () => {
+      const res = setListingPref(st, sel.dataset.listPref, sel.value);
+      if (!res.ok) {
+        alert(res.reason);
+        return;
+      }
+      // 换了出售倾向就重新询价，让报价立刻按新倾向来
+      refreshTradeProposals(st);
+      if (!saveSeasonAndCareer(st)) return;
+      renderSeasonHub();
+      showSeasonTab("market");
+    };
+  });
   box.querySelectorAll(".sm-list-trade").forEach((btn) => {
     btn.onclick = () => {
       const id = btn.dataset.listTrade;

@@ -1,5 +1,15 @@
 import { overall } from "../data/players.js";
 import { SEASON_APRON, executeTrade, playerSalary, teamPayroll } from "./seasonMarket.js";
+import {
+  DEFAULT_LISTING_PREF,
+  MAX_PROPOSAL_PICKS,
+  clearListingPref,
+  listingPref,
+  listingPrefText,
+  prospectScore,
+  rankTeams,
+  shapeOffer,
+} from "./tradeListing.js";
 
 function perGame(row, key) {
   const gp = Number(row?.stats?.gp) || 0;
@@ -8,10 +18,6 @@ function perGame(row, key) {
 
 function isAttractive(row, player) {
   return overall(player) >= 78 || perGame(row, "pts") >= 14 || perGame(row, "plusMinus") >= 1.5;
-}
-
-function prospectScore(player) {
-  return (100 - overall(player)) + (Number(player.age) < 24 ? 18 : 0);
 }
 
 /** Young, cheap, high-upside roster filler -- worth suggesting as a trade sweetener. */
@@ -50,6 +56,7 @@ export function listPlayerForTrade(st, playerId) {
 
 export function unlistPlayerForTrade(st, playerId) {
   st.listedPlayerIds = listedPlayerIds(st).filter((id) => id !== playerId);
+  clearListingPref(st, playerId);
   return { ok: true };
 }
 
@@ -79,66 +86,93 @@ export function generateTradeProposals(st, limit = 3) {
   const proposals = [];
   const cpuTeams = Object.entries(st.teams).filter(([id, team]) => id !== st.userTeamId && team?.players?.length);
   for (let i = 0; i < Math.min(limit, targets.length, cpuTeams.length); i++) {
-    const { player, row, listed: isListed } = targets[i];
-    const [fromTeamId, fromTeam] = cpuTeams[(i + (st.dayIndex || 0)) % cpuTeams.length];
-    const candidate = [...fromTeam.players]
-      .sort((a, b) => Math.abs(overall(a) - overall(player)) - Math.abs(overall(b) - overall(player)))[0];
-    if (!candidate) continue;
-    const salaryDelta = playerSalary(candidate) - playerSalary(player);
-    const offerPlayer = salaryDelta <= 0 || salaryDelta < 60 ? candidate : [...fromTeam.players].sort((a, b) => playerSalary(a) - playerSalary(b))[0];
-    // generateTradeProposals is a pure function of (year, dayIndex, roster) with no randomness --
-    // calling it again with nothing meaningfully changed would otherwise hand back the EXACT same
-    // offer the user just declined (user report #14: "我都拒绝报价了，怎么刷新报价后又出现相同的报价？").
-    // declineTradeProposal() remembers this exact team+player+offer shape, so it's permanently
-    // skipped here -- a genuinely different offer only resurfaces once the roster actually
-    // changes (a different candidate/offerPlayer naturally produces a different signature).
-    if (declined.has(tradeSignature(fromTeamId, player.id, offerPlayer.id))) continue;
-    let pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
-    // 选秀权倾向：重建队更愿意为即战力多搭选秀权（上限 3 个）
-    if (teamSituation(fromTeam) === "rebuilding") pickCount = Math.min(3, pickCount + 1);
-    const picks = Array.from({ length: pickCount }, (_, pickIndex) => makePickAsset(st, i + pickIndex));
-    const prospect = [...fromTeam.players]
-      .filter((item) => item.id !== offerPlayer.id && prospectScore(item) > prospectScore(offerPlayer))
-      .sort((a, b) => prospectScore(b) - prospectScore(a))[0] || null;
-
-    // A proposal the CPU can't actually afford is worse than no proposal: acceptTradeProposal()
-    // runs this exact apron math through executeTrade(), and a team already tight against the cap
-    // will fail it even on a deal it just "offered" (user report: "明明是对方发来的报价，接受却说
-    // 对方硬帽放不下"). Mirror that check here -- either patch the offer with one extra salary
-    // throw-in so it actually clears the cap, or don't dangle an offer that will bounce.
-    let sendBackIds = [offerPlayer.id, ...(prospect ? [prospect.id] : [])];
-    const capFits = (ids) => {
-      const outgoing = ids.reduce((sum, id) => sum + playerSalary(fromTeam.players.find((p) => p.id === id)), 0);
-      return teamPayroll(fromTeam) - outgoing + playerSalary(player) <= SEASON_APRON + 50;
-    };
-    if (!capFits(sendBackIds)) {
-      const throwIn = [...fromTeam.players]
-        .filter((item) => !sendBackIds.includes(item.id))
-        .sort((a, b) => playerSalary(b) - playerSalary(a))[0];
-      if (throwIn && capFits([...sendBackIds, throwIn.id])) {
-        sendBackIds = [...sendBackIds, throwIn.id];
-      } else {
-        continue;
+    const target = targets[i];
+    const pref = target.listed ? listingPref(st, target.player.id) : DEFAULT_LISTING_PREF;
+    const rotate = i + (st.dayIndex || 0);
+    // No preference: the original single rotating caller. With a preference: try the three
+    // best-fitting teams (rotated so refreshes vary) until one has a package that fits.
+    const callers = pref === DEFAULT_LISTING_PREF
+      ? [cpuTeams[rotate % cpuTeams.length]]
+      : rankTeams(cpuTeams, pref).slice(0, 3).map((_, k, top) => top[(k + rotate) % top.length]);
+    for (const [fromTeamId, fromTeam] of callers) {
+      const proposal = buildProposal(st, { ...target, pref, index: i, fromTeamId, fromTeam, declined });
+      if (proposal) {
+        proposals.push(proposal);
+        break;
       }
     }
-    const sendBackPlayers = sendBackIds.map((id) => fromTeam.players.find((p) => p.id === id));
-    proposals.push({
-      id: `${st.year}:${st.dayIndex || 0}:${fromTeamId}:${player.id}`,
-      fromTeamId,
-      fromTeamName: fromTeam.name || fromTeamId,
-      giveIds: [player.id],
-      wantIds: sendBackIds,
-      targetName: player.name,
-      receivePlayers: sendBackPlayers,
-      offerPicks: picks,
-      reason: isListed
-        ? `${player.name} 已挂牌询价，${fromTeam.name || fromTeamId} 前来问价。`
-        : `${player.name} 最近表现突出（${perGame(row, "pts").toFixed(1)} 分 / ${perGame(row, "plusMinus").toFixed(1)} +/-），${fromTeam.name || fromTeamId} 主动来谈。`,
-      createdYear: st.year,
-      createdDay: st.dayIndex || 0,
-    });
   }
   return proposals;
+}
+
+/** One CPU team's offer for one of the user's players, or null if it can't make a valid one. */
+function buildProposal(st, { player, row, listed: isListed, pref, index: i, fromTeamId, fromTeam, declined }) {
+  const shaped = shapeOffer(pref, fromTeam, player);
+  if (pref !== DEFAULT_LISTING_PREF && !shaped) return null;
+  let offerPlayer = shaped?.offer;
+  if (!offerPlayer) {
+    const candidate = [...fromTeam.players]
+      .sort((a, b) => Math.abs(overall(a) - overall(player)) - Math.abs(overall(b) - overall(player)))[0];
+    if (!candidate) return null;
+    const salaryDelta = playerSalary(candidate) - playerSalary(player);
+    offerPlayer = salaryDelta <= 0 || salaryDelta < 60 ? candidate : [...fromTeam.players].sort((a, b) => playerSalary(a) - playerSalary(b))[0];
+  }
+  // generateTradeProposals is a pure function of (year, dayIndex, roster) with no randomness --
+  // calling it again with nothing meaningfully changed would otherwise hand back the EXACT same
+  // offer the user just declined (user report #14: "我都拒绝报价了，怎么刷新报价后又出现相同的报价？").
+  // declineTradeProposal() remembers this exact team+player+offer shape, so it's permanently
+  // skipped here -- a genuinely different offer only resurfaces once the roster actually
+  // changes (a different candidate/offerPlayer naturally produces a different signature).
+  if (declined.has(tradeSignature(fromTeamId, player.id, offerPlayer.id))) return null;
+  let pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
+  // 选秀权倾向：重建队更愿意为即战力多搭选秀权
+  if (teamSituation(fromTeam) === "rebuilding") pickCount += 1;
+  pickCount = Math.max(0, Math.min(MAX_PROPOSAL_PICKS, pickCount + (shaped?.pickDelta || 0)));
+  const picks = Array.from({ length: pickCount }, (_, pickIndex) => makePickAsset(st, i + pickIndex));
+  // A listing preference decides the package itself (salary relief / win-now want no add-ons).
+  const prospect = shaped
+    ? shaped.prospect
+    : [...fromTeam.players]
+        .filter((item) => item.id !== offerPlayer.id && prospectScore(item) > prospectScore(offerPlayer))
+        .sort((a, b) => prospectScore(b) - prospectScore(a))[0] || null;
+
+  // A proposal the CPU can't actually afford is worse than no proposal: acceptTradeProposal()
+  // runs this exact apron math through executeTrade(), and a team already tight against the cap
+  // will fail it even on a deal it just "offered" (user report: "明明是对方发来的报价，接受却说
+  // 对方硬帽放不下"). Mirror that check here -- either patch the offer with one extra salary
+  // throw-in so it actually clears the cap, or don't dangle an offer that will bounce.
+  let sendBackIds = [offerPlayer.id, ...(prospect ? [prospect.id] : [])];
+  const capFits = (ids) => {
+    const outgoing = ids.reduce((sum, id) => sum + playerSalary(fromTeam.players.find((p) => p.id === id)), 0);
+    return teamPayroll(fromTeam) - outgoing + playerSalary(player) <= SEASON_APRON + 50;
+  };
+  if (!capFits(sendBackIds)) {
+    const throwIn = [...fromTeam.players]
+      .filter((item) => !sendBackIds.includes(item.id))
+      .sort((a, b) => playerSalary(b) - playerSalary(a))[0];
+    if (!throwIn || !capFits([...sendBackIds, throwIn.id])) return null;
+    sendBackIds = [...sendBackIds, throwIn.id];
+  }
+  const teamName = fromTeam.name || fromTeamId;
+  const prefText = listingPrefText(pref);
+  return {
+    id: `${st.year}:${st.dayIndex || 0}:${fromTeamId}:${player.id}`,
+    fromTeamId,
+    fromTeamName: teamName,
+    giveIds: [player.id],
+    wantIds: sendBackIds,
+    targetName: player.name,
+    receivePlayers: sendBackIds.map((id) => fromTeam.players.find((p) => p.id === id)),
+    offerPicks: picks,
+    listingPref: pref,
+    reason: !isListed
+      ? `${player.name} 最近表现突出（${perGame(row, "pts").toFixed(1)} 分 / ${perGame(row, "plusMinus").toFixed(1)} +/-），${teamName} 主动来谈。`
+      : pref === DEFAULT_LISTING_PREF
+        ? `${player.name} 已挂牌询价，${teamName} 前来问价。`
+        : `${player.name} 按「${prefText.label}」挂牌：${prefText.why}——${teamName} 前来问价。`,
+    createdYear: st.year,
+    createdDay: st.dayIndex || 0,
+  };
 }
 
 export function ensureTradeProposals(st) {

@@ -2544,6 +2544,18 @@ select, input[type="number"] {
   border-radius: 8px;
   background: #fff;
 }
+/* 挂牌出售倾向：和 .btn.small 同高，窄屏时按钮组可换行而不是撑宽行 */
+/* the row carrying the sale-preference dropdown right-aligns its (already wrapping) button group */
+.sm-row .btn-row:has(.sm-list-pref) { justify-content: flex-end; }
+.sm-row .chip.tiny { white-space: nowrap; }
+.sm-list-pref {
+  padding: 5px 6px;
+  font-size: .85rem;
+  max-width: 11em;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
 .sm-fa-head {
   display: flex;
   justify-content: space-between;
