@@ -105,7 +105,9 @@ test("declining one team's offer does not block a DIFFERENT team's offer for the
 // checked whether the OFFERING team's own books could absorb the deal.
 function capTightFixture() {
   const userPlayers = [
-    player("star", 86, 100),
+    // 300: the CPU club would take on MORE salary than it sends (110), which is what the hard cap still
+    // refuses once it is over the line. (At 100 it would shed salary and need no throw-in at all.)
+    player("star", 86, 300),
     ...Array.from({ length: 7 }, (_, i) => player(`u${i}`, 65, 40)),
   ];
   const cpuPlayers = [
@@ -137,7 +139,7 @@ test("an offer from a cap-tight team gets a salary throw-in added so it actually
   // Sanity-check the fixture actually reproduces the bug shape: the naive two-piece send-back
   // (closest-OVR match + best prospect) alone does NOT fit under the CPU's apron.
   const naiveOutgoing = 90 + 20; // cpu-star + junior
-  const naiveProjected = teamPayroll(st.teams.CPU) - naiveOutgoing + 100; // + the user star's salary
+  const naiveProjected = teamPayroll(st.teams.CPU) - naiveOutgoing + 300; // + the user star's salary
   assert.ok(naiveProjected > SEASON_APRON + 50, "fixture must actually be cap-tight for this test to mean anything");
 
   const proposals = generateTradeProposals(st);
@@ -152,10 +154,5 @@ test("an offer from a cap-tight team gets a salary throw-in added so it actually
   assert.equal(result.ok, true, result.reason);
 });
 
-test("a team that's hopelessly over the cap even with a throw-in does not get offered at all", () => {
-  const st = capTightFixture();
-  // Push CPU's books into territory no single throw-in can rescue.
-  st.teams.CPU.players.push(player("whale", 60, 5000));
-  const proposals = generateTradeProposals(st);
-  assert.equal(proposals.length, 0, "a deal that can never clear the cap should never be dangled in front of the user");
-});
+// ("hopelessly over the cap -> no offer" used to live here. Over-cap clubs can now shed salary, so that premise
+// is gone; "no offer when no throw-in suits both teams" is covered in cpuCapRule.test.js.)

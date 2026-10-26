@@ -18,6 +18,25 @@ function seasonTeamIds(st) {
 export const SEASON_SALARY_CAP = 2000;
 /** Hard apron — cannot sign FA above this without cutting first. */
 export const SEASON_APRON = 2300;
+/** CPU clubs may sit this far above the player's hard apron. */
+export const CPU_APRON_SLACK = 50;
+
+/**
+ * Does the hard cap stop a CPU club making this trade? One rule for every place that asks (two-team trades,
+ * three-team trades, and the offers the CPU makes), so an offer can never pass one check and fail another.
+ *
+ * Only a trade that makes the club's payroll go UP and leaves it above the line is blocked. A trade that
+ * cuts or holds the payroll is never refused on cap grounds: it is not making the problem worse, and in a
+ * freshly built league every CPU club starts far over the line (payrolls of 2500-5500 against 2350), so
+ * "refuse anything that ends above the line" made every trade impossible, even a swap of two equal
+ * second-round picks.
+ *
+ * Directions are from the CPU club's side: `takesOn` is the salary it receives, `sendsOut` what it gives up.
+ * @param {number} payroll the club's payroll before the trade
+ */
+export function cpuCapBlocksTrade(payroll, takesOn, sendsOut) {
+  return takesOn > sendsOut && payroll - sendsOut + takesOn > SEASON_APRON + CPU_APRON_SLACK;
+}
 export const SEASON_MAX_ROSTER = 15;
 export const SEASON_MIN_ROSTER = 8;
 export const FA_POOL_SIZE = 40;
@@ -516,7 +535,7 @@ export function executeTrade(
     return { ok: false, reason: "对方认为吃亏，拒绝交易" };
   }
   // CPU apron
-  if (teamPayroll(cpu) - salIn + salOut > SEASON_APRON + 50) {
+  if (cpuCapBlocksTrade(teamPayroll(cpu), salOut, salIn)) {
     return { ok: false, reason: "对方硬帽放不下，拒绝" };
   }
 
@@ -627,7 +646,7 @@ export function executeThreeTeamTrade(
     const needsSpace = teamPayroll(team) > SEASON_SALARY_CAP && salOut < salIn;
     if (!acceptedProposal && !salaryOk && !needsSpace) return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };
     if (!acceptedProposal && !valueOk && Math.random() > 0.25) return { ok: false, reason: "对方认为吃亏，拒绝交易" };
-    if (teamPayroll(team) - salOut + salIn > SEASON_APRON + 50) return { ok: false, reason: "对方硬帽放不下，拒绝" };
+    if (cpuCapBlocksTrade(teamPayroll(team), salIn, salOut)) return { ok: false, reason: "对方硬帽放不下，拒绝" };
     return { ok: true };
   };
   const a2 = cpuAccepts(t2, p2, give);

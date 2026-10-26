@@ -154,20 +154,29 @@ test("a proposal's sweeteners are real picks the proposing club owns today", () 
 
 test("one club making several offers in a batch never offers the same pick twice", () => {
   const st = listingLeague();
-  // The other clubs are far over the cap, so the rebuilding club is the only one that can call:
-  // every listed player gets an offer from it, and they must draw on its picks without repeating.
-  for (const id of ["WIN", "KID"]) for (const pl of st.teams[id].players) pl.salary = 900;
+  // Only the rebuilding club can call: my payroll sits just under the hard line, so I can only take back a small
+  // salary, and the other two clubs' cheapest players cost far more than that. Every listed player then gets an
+  // offer from the same club, and those offers have to share out its picks without repeating.
+  for (const pl of st.teams.USER.players.filter((x) => x.id.startsWith("u"))) pl.salary = 266;
+  for (const id of ["WIN", "KID"]) for (const pl of st.teams[id].players) pl.salary = Math.max(pl.salary, 400);
   for (const id of ["wing", "u0", "u1"]) {
     listPlayerForTrade(st, id);
     setListingPref(st, id, "picks");
   }
   const proposals = generateTradeProposals(st, 3);
-  assert.ok(proposals.length >= 2, "the same club made more than one offer");
-  assert.ok(proposals.every((p) => p.fromTeamId === "REB"), "and it was always the rebuilding club");
-  const all = proposals.flatMap((p) => ids(p.offerPicks));
-  assert.ok(all.length > 3, "more than one offer carried picks");
-  assert.equal(new Set(all).size, all.length, `no repeats in ${all.join(", ")}`);
-  assert.ok(all.length <= PICK_HORIZON * 2, "and never more picks than the club actually holds");
+  // Group by the club making the offer: a pick belongs to one club, so a repeat can only happen between two
+  // offers from the same club. (Which clubs call depends on the cap rule, so this test must not.)
+  const picksByClub = new Map();
+  const offersByClub = new Map();
+  for (const p of proposals) {
+    picksByClub.set(p.fromTeamId, [...(picksByClub.get(p.fromTeamId) || []), ...ids(p.offerPicks)]);
+    offersByClub.set(p.fromTeamId, (offersByClub.get(p.fromTeamId) || 0) + 1);
+  }
+  assert.ok(Math.max(...offersByClub.values()) >= 2, "some club made more than one offer, otherwise this proves nothing");
+  for (const [club, picks] of picksByClub) {
+    assert.equal(new Set(picks).size, picks.length, `${club} repeated a pick: ${picks.join(", ")}`);
+    assert.ok(picks.length <= PICK_HORIZON * 2, `${club} offered more picks than it holds`);
+  }
 });
 
 test("accepting a proposal hands over the picks through the ledger", () => {

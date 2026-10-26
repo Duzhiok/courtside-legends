@@ -1,5 +1,5 @@
 import { overall } from "../data/players.js";
-import { SEASON_APRON, executeTrade, playerSalary, teamDraftAssets, teamPayroll } from "./seasonMarket.js";
+import { SEASON_APRON, cpuCapBlocksTrade, executeTrade, playerSalary, teamDraftAssets, teamPayroll } from "./seasonMarket.js";
 import {
   DEFAULT_LISTING_PREF,
   MAX_PROPOSAL_PICKS,
@@ -147,21 +147,26 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
         .filter((item) => item.id !== offerPlayer.id && prospectScore(item) > prospectScore(offerPlayer))
         .sort((a, b) => prospectScore(b) - prospectScore(a))[0] || null;
 
-  // A proposal the CPU can't actually afford is worse than no proposal: acceptTradeProposal()
-  // runs this exact apron math through executeTrade(), and a team already tight against the cap
-  // will fail it even on a deal it just "offered" (user report: "明明是对方发来的报价，接受却说
-  // 对方硬帽放不下"). Mirror that check here -- either patch the offer with one extra salary
-  // throw-in so it actually clears the cap, or don't dangle an offer that will bounce.
+  // A proposal that can't be accepted is worse than no proposal: acceptTradeProposal() runs the real hard-cap
+  // checks through executeTrade() for BOTH clubs, so the offer is checked against both here (user report:
+  // "明明是对方发来的报价，接受却说对方硬帽放不下"). Either patch the offer with one extra salary throw-in
+  // so it clears both caps, or don't dangle an offer that will bounce.
+  const user = st.teams[st.userTeamId];
   let sendBackIds = [offerPlayer.id, ...(prospect ? [prospect.id] : [])];
   const capFits = (ids) => {
     const outgoing = ids.reduce((sum, id) => sum + playerSalary(fromTeam.players.find((p) => p.id === id)), 0);
-    return teamPayroll(fromTeam) - outgoing + playerSalary(player) <= SEASON_APRON + 50;
+    const incoming = playerSalary(player);
+    // The CPU club must be allowed to take this on, and the player must be able to hold what they would get.
+    return !cpuCapBlocksTrade(teamPayroll(fromTeam), incoming, outgoing) && teamPayroll(user) - incoming + outgoing <= SEASON_APRON;
   };
   if (!capFits(sendBackIds)) {
+    // The largest contract that works for both sides: a huge one would rescue the CPU's books but could never
+    // be absorbed by the player.
     const throwIn = [...fromTeam.players]
       .filter((item) => !sendBackIds.includes(item.id))
-      .sort((a, b) => playerSalary(b) - playerSalary(a))[0];
-    if (!throwIn || !capFits([...sendBackIds, throwIn.id])) return null;
+      .sort((a, b) => playerSalary(b) - playerSalary(a))
+      .find((item) => capFits([...sendBackIds, item.id]));
+    if (!throwIn) return null;
     sendBackIds = [...sendBackIds, throwIn.id];
   }
   for (const pick of picks) usedPickIds.add(pick.id);
