@@ -47,6 +47,7 @@ export const MATCH_BAND = 2; // team-OVR band for instant queue matches
 export const QUEUE_STALE_MS = 60000; // past this, a queued player matches anyone
 export const QUEUE_SWEEP_MS = 10000; // periodic re-check for stale pairs
 export const RATING_BAND = 100; // rating band for instant ranked matches
+export const MAX_MESSAGE_BYTES = 64 * 1024; // hard cap per client message (ws default is 100 MiB)
 
 function loadPresets() {
   const rows = JSON.parse(
@@ -422,7 +423,8 @@ export function createOnlineServer({
     return name && accounts.get(name) ? name : null;
   };
 
-  const wss = new WebSocketServer({ port });
+  // ws defaults to a 100 MiB cap; every real message here is a few hundred bytes.
+  const wss = new WebSocketServer({ port, maxPayload: MAX_MESSAGE_BYTES });
   wss.on("connection", (ws) => {
     send(ws, {
       type: "welcome",
@@ -433,12 +435,15 @@ export function createOnlineServer({
     // the shared reference, so handlers always read the current room.
     const ctx = { room: null, side: null, spectator: null };
 
-    ws.on("message", (raw) => {
+    const onMessage = (raw) => {
       let msg;
       try {
         msg = JSON.parse(raw);
       } catch {
         return send(ws, { type: "decision_rejected", reason: "消息不是 JSON" });
+      }
+      if (!msg || typeof msg !== "object") {
+        return send(ws, { type: "decision_rejected", reason: "消息格式不对" });
       }
 
       if (msg.type === "create") {
@@ -621,6 +626,9 @@ export function createOnlineServer({
 
       if (msg.type === "login") {
         const name = String(msg.name || "").trim();
+        if (accounts.isLocked(name)) {
+          return send(ws, { type: "decision_rejected", reason: "尝试过多，请 1 分钟后再试" });
+        }
         if (!accounts.verify(name, msg.password)) {
           return send(ws, { type: "decision_rejected", reason: "名字或密码不对" });
         }
@@ -651,6 +659,19 @@ export function createOnlineServer({
         broadcast(room, { type: "decision_applied", side: ctx.side, kind: d.kind, text });
         broadcastFrame(room);
         return;
+      }
+    };
+    // ws emits 'error' on a socket for protocol violations (oversize message, bad opcode, bad
+    // UTF-8). With no listener Node rethrows it and the whole process exits -- one malformed
+    // frame from any anonymous client used to kill every live match. ws closes the socket itself.
+    ws.on("error", (err) => console.warn("[online] socket error:", err.code || err.message));
+    // One bad message must never take the whole server (and every live match) down with it.
+    ws.on("message", (raw) => {
+      try {
+        onMessage(raw);
+      } catch (err) {
+        console.error("[online] message handler error:", err);
+        send(ws, { type: "decision_rejected", reason: "服务器处理这条消息时出错" });
       }
     });
 
@@ -689,6 +710,7 @@ export function createOnlineServer({
           if (r.graceTimer) clearTimeout(r.graceTimer);
           r.sim?.stop();
         }
+        for (const client of wss.clients) client.terminate(); // an open socket would stall close()
         wss.close(resolve);
       }),
   };

@@ -19,6 +19,10 @@ import { join, dirname } from "node:path";
 export const DEFAULT_ACCOUNTS_FILE = join(homedir(), ".courtside-online-accounts.json");
 export const ELO_K = 32;
 export const START_RATING = 1000;
+/** Wrong passwords before an account locks, and for how long. scryptSync is deliberately slow and
+ *  blocks the event loop, so unthrottled guessing is both a brute-force and a denial-of-service hole. */
+export const MAX_LOGIN_FAILURES = 5;
+export const LOGIN_LOCK_MS = 60_000;
 
 function hashPassword(password, salt) {
   return scryptSync(password, salt, 64).toString("hex");
@@ -28,9 +32,11 @@ function publicView(acct) {
   return { name: acct.name, rating: acct.rating, wins: acct.wins, losses: acct.losses };
 }
 
-export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE } = {}) {
+export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE, now = Date.now } = {}) {
   const accounts = new Map();
   const sessions = new Map();
+  // Only EXISTING accounts are tracked, so made-up names cannot grow this map.
+  const failures = new Map(); // name -> { count, lockedUntil }
   try {
     const raw = readFileSync(file, "utf8");
     for (const a of JSON.parse(raw)) accounts.set(a.name, a);
@@ -77,16 +83,28 @@ export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE } = {}) {
       save();
       return { ok: true, name: clean };
     },
+    isLocked: (name) => (failures.get(String(name || "").trim())?.lockedUntil ?? 0) > now(),
     verify: (name, password) => {
-      const acct = accounts.get(String(name || "").trim());
+      const clean = String(name || "").trim();
+      const acct = accounts.get(clean);
       if (!acct || typeof password !== "string") return false;
+      const record = failures.get(clean);
+      if (record && record.lockedUntil > now()) return false; // refuse before paying for scrypt
+      let ok = false;
       try {
         const expected = Buffer.from(acct.hash, "hex");
         const actual = Buffer.from(hashPassword(password, acct.salt), "hex");
-        return expected.length === actual.length && timingSafeEqual(expected, actual);
+        ok = expected.length === actual.length && timingSafeEqual(expected, actual);
       } catch {
-        return false;
+        ok = false;
       }
+      if (ok) {
+        failures.delete(clean);
+        return true;
+      }
+      const count = (record?.count || 0) + 1;
+      failures.set(clean, count >= MAX_LOGIN_FAILURES ? { count: 0, lockedUntil: now() + LOGIN_LOCK_MS } : { count, lockedUntil: 0 });
+      return false;
     },
     createSession: (name) => {
       const token = randomBytes(16).toString("hex");

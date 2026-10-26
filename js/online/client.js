@@ -119,7 +119,7 @@ function playerRow(framePlayer) {
   const st = framePlayer.stats || {};
   const hot = framePlayer.hot > 0 ? ` 手感+${framePlayer.hot}` : framePlayer.hot < 0 ? ` 手感${framePlayer.hot}` : "";
   const inj = framePlayer.injuredGames > 0 ? ` ${framePlayer.injuryStatus || "伤停"}` : "";
-  return `${name} ${framePlayer.playPos} · ${st.pts}分 ${st.reb}板 ${st.ast}助 · 体力${framePlayer.fatigue}${hot}${inj}`;
+  return `${esc(name)} ${esc(framePlayer.playPos)} · ${st.pts}分 ${st.reb}板 ${st.ast}助 · 体力${framePlayer.fatigue}${hot}${inj}`;
 }
 
 function renderFrame(frame) {
@@ -161,7 +161,7 @@ function renderFrame(frame) {
     `<option value="">不指定</option>` +
     mine.onCourt.map((p) => {
       const base = state.rosterById.get(p.id) || {};
-      return `<option value="${p.id}">${base.cardName || base.name || p.id}</option>`;
+      return `<option value="${p.id}">${esc(base.cardName || base.name || p.id)}</option>`;
     }).join("");
   focusSel.value = mine.focusId || prevFocus || "";
 
@@ -173,7 +173,7 @@ function renderFrame(frame) {
   const ownRoster = [...mine.onCourt, ...mine.bench];
   posPlayerSel.innerHTML = ownRoster.map((p) => {
     const base = state.rosterById.get(p.id) || {};
-    return `<option value="${p.id}">${base.cardName || base.name || p.id}（${p.playPos}）</option>`;
+    return `<option value="${p.id}">${esc(base.cardName || base.name || p.id)}（${esc(p.playPos)}）</option>`;
   }).join("");
   if (ownRoster.some((p) => p.id === prevPosPlayer)) {
     posPlayerSel.value = prevPosPlayer;
@@ -225,7 +225,7 @@ function connect(onOpen) {
 
 function fillTeamSelects(presets) {
   for (const sel of [$("team-create"), $("team-join")]) {
-    sel.innerHTML = presets.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+    sel.innerHTML = presets.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
   }
 }
 
@@ -235,7 +235,7 @@ function handleMessage(msg) {
       state.tactics = msg.tactics || [];
       fillTeamSelects(msg.presets || []);
       $("tactic-select").innerHTML = state.tactics
-        .map((t) => `<option value="${t.id}">${t.name}</option>`)
+        .map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`)
         .join("");
       setStatus("已连接。填名字、选球队，建房或输入房号加入。");
       break;

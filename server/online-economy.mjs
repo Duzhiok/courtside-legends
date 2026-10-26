@@ -51,12 +51,13 @@ function pickRandom(pool, n, rng = Math.random) {
 }
 
 export function createEconomyStore({ file = DEFAULT_ECONOMY_FILE, cardIds = [], cardOvr = new Map() } = {}) {
-  const state = { players: {}, listings: [], nextListingId: 1 };
+  // Null prototype: a player named "__proto__" / "constructor" must be an ordinary key, not Object.prototype.
+  const state = { players: Object.create(null), listings: [], nextListingId: 1 };
   try {
     const raw = JSON.parse(readFileSync(file, "utf8"));
     if (raw && typeof raw === "object") {
       Object.assign(state, raw);
-      state.players = raw.players || {};
+      state.players = Object.assign(Object.create(null), raw.players);
       state.listings = raw.listings || [];
       state.nextListingId = raw.nextListingId || 1;
     }
@@ -152,6 +153,7 @@ export function createEconomyStore({ file = DEFAULT_ECONOMY_FILE, cardIds = [], 
       return { ok: true };
     },
     reorderRoster: (name, cardIdsOrdered) => {
+      if (!Array.isArray(cardIdsOrdered)) return { ok: false, reason: "阵容顺序格式不对" };
       const p = ensurePlayer(name);
       const sorted = [...p.roster].sort();
       const given = [...cardIdsOrdered].sort();
