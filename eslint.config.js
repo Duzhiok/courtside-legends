@@ -54,6 +54,13 @@ export default [
     rules,
   },
   {
+    // The online server and its tests run on Node only. It was never listed here, so it was
+    // linted with NO rules at all -- an undefined variable in server/ passed silently.
+    files: ["server/**/*.mjs"],
+    languageOptions: nodeSource,
+    rules,
+  },
+  {
     files: ["scripts/qa/**/*.mjs"],
     languageOptions: qaSource,
     rules,
