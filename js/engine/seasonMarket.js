@@ -5,6 +5,7 @@
  */
 import { ASSISTANTS, COACHES, coachDrawWeight, coachSpecialtyLabel, coachTactics } from "../data/coaches.js";
 import { estimateDraftPickValue } from "./draftPickValue.js";
+import { parsePickId, reconcileTokens, setPickOwner } from "./pickLedger.js";
 import { playerPrice, marketMeta } from "../data/intangibles.js";
 import { PLAYERS, clonePlayer, overall } from "../data/players.js";
 
@@ -450,18 +451,35 @@ function seedPicks(st, teamId) {
   ];
 }
 
+/**
+ * Create every club's starter pool exactly once, league-wide. Pools used to be seeded lazily per
+ * club on "is the list empty?": a club that traded all its picks away looked unseeded and was
+ * refilled, and a token moved into a not-yet-seeded club suppressed that club's own picks.
+ * Seeding everyone up front fixes the second; the first is now ALSO covered by the ownership
+ * ledger, because a refilled token the ledger says belongs elsewhere is moved straight back by
+ * reconcileTokens(). The one-time flag keeps this from re-running on every call and leaves clubs
+ * whose list is already non-empty (older saves) as they are.
+ */
+function ensurePickPools(st) {
+  if (st.draftPoolsSeeded) return;
+  st.draftPoolsSeeded = true;
+  for (const id of new Set([st.userTeamId, ...Object.keys(st.teams || {})])) {
+    const holder = id === st.userTeamId ? st : st.teams?.[id];
+    if (!holder) continue;
+    if (!Array.isArray(holder.draftAssets)) holder.draftAssets = [];
+    if (!holder.draftAssets.length) holder.draftAssets.push(...seedPicks(st, id));
+  }
+}
+
 export function teamDraftAssets(st, teamId) {
   if (!st || !teamId) return [];
-  if (teamId === st.userTeamId) {
-    if (!Array.isArray(st.draftAssets)) st.draftAssets = [];
-    if (!st.draftAssets.length) st.draftAssets.push(...seedPicks(st, teamId));
-    return st.draftAssets;
-  }
-  const team = st.teams?.[teamId];
-  if (!team) return [];
-  if (!Array.isArray(team.draftAssets)) team.draftAssets = [];
-  if (!team.draftAssets.length) team.draftAssets.push(...seedPicks(st, teamId));
-  return team.draftAssets;
+  const holder = teamId === st.userTeamId ? st : st.teams?.[teamId];
+  if (!holder) return [];
+  ensurePickPools(st);
+  // The draft is the source of truth for who owns what; make the token lists agree with it.
+  reconcileTokens(st);
+  if (!Array.isArray(holder.draftAssets)) holder.draftAssets = [];
+  return holder.draftAssets;
 }
 
 export function pickValueOf(st, pick) {
@@ -540,17 +558,27 @@ export function executeTrade(
   for (const p of you.players) ensurePlayerSalary(p);
   for (const p of cpu.players) ensurePlayerSalary(p);
 
-  // Picks move pools too -- same pattern as players: pulled out of the giver's list, pushed into
-  // the receiver's. This is the thing that makes "ask for their 2nd rounder back" possible at all.
+  // Picks change hands in the ownership ledger first, and the token pools are then reconciled to
+  // it. (Moving tokens by hand AND reconciling would fight each other: reconcile would see a token
+  // in a pool its ledger entry says it should not be in, and put it back.) This is the thing that
+  // makes "ask for their 2nd rounder back" possible at all, and it makes the draft see the trade.
   if (givePicks.length || wantPicks.length) {
-    const givePickIdSet = new Set(givePickIds);
-    const wantPickIdSet = new Set(wantPickIds);
-    st.draftAssets = (teamDraftAssets(st, st.userTeamId) || [])
-      .filter((pk) => !givePickIdSet.has(pk.id))
-      .concat(wantPicks);
-    cpu.draftAssets = (teamDraftAssets(st, cpuTeamId) || [])
-      .filter((pk) => !wantPickIdSet.has(pk.id))
-      .concat(givePicks);
+    const handOver = (picks, toTeamId, from, to) => {
+      for (const pk of picks) {
+        const slot = parsePickId(pk.id);
+        if (slot) {
+          setPickOwner(st, slot, toTeamId);
+        } else {
+          // A synthetic sweetener is not tied to a source team, so it has no draft slot to
+          // reconcile: move the token itself.
+          from.draftAssets = (from.draftAssets || []).filter((x) => x.id !== pk.id);
+          to.draftAssets = [...(to.draftAssets || []), pk];
+        }
+      }
+    };
+    handOver(givePicks, cpuTeamId, st, cpu);
+    handOver(wantPicks, st.userTeamId, cpu, st);
+    reconcileTokens(st);
   }
 
   st.tradeLog.push({

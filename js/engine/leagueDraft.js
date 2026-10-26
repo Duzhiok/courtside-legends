@@ -1,4 +1,5 @@
 import { overall, PLAYERS } from "../data/players.js";
+import { reconcileTokens } from "./pickLedger.js";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
 const ATTRIBUTES = [
@@ -318,7 +319,8 @@ export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
   const ownership = season.pickOwnership?.[year] || {};
   const userOwner = ownership[userTeamId] || userTeamId;
   const cpuOwner = ownership[cpuTeamId] || cpuTeamId;
-  if (userOwner !== userTeamId || cpuOwner !== cpuTeamId) {
+  const r2 = season.pickOwnershipR2?.[year] || {};
+  if (userOwner !== userTeamId || cpuOwner !== cpuTeamId || r2[userTeamId] || r2[cpuTeamId]) {
     return { ok: false, reason: "已有过交易的签位暂不支持二次换签" };
   }
   const ranked = [...ids].sort(worseFirst(season, `${season.year}|pick-value`));
@@ -328,6 +330,7 @@ export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
   }
   season.pickOwnership = { ...(season.pickOwnership || {}) };
   season.pickOwnership[year] = { ...ownership, [userTeamId]: cpuTeamId, [cpuTeamId]: userTeamId };
+  reconcileTokens(season); // the market's pick tokens follow the swap
   return {
     ok: true,
     message: `换签成交：送出我方 ${year} 年首轮签，得到 ${season.teams[cpuTeamId]?.name || cpuTeamId} 的 ${year} 年首轮签`,
@@ -632,7 +635,10 @@ export function advanceDraftRoundIfNeeded(draft, season, players = PLAYERS) {
   if (!Array.isArray(draft.picks) || !draft.picks.length) return draft;
   const round2Order = [...draft.picks]
     .sort((a, b) => worseFirst(season, draft.seed)(a.sourceTeamId, b.sourceTeamId))
-    .map((pick) => pick.ownerTeamId);
+    // A second-rounder can be traded on its own (an explicit round-2 override); otherwise it follows
+    // whoever actually held the first-rounder in THIS draft -- pick.ownerTeamId, which callers may
+    // have set without going through the season ledger.
+    .map((pick) => season?.pickOwnershipR2?.[draft.year]?.[pick.sourceTeamId] || pick.ownerTeamId);
   if (!round2Order.length) return draft;
   const selectedIds = new Set((draft.selections || []).map((s) => s.prospectId));
   const selectedBrefs = new Set(
