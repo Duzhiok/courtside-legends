@@ -160,6 +160,7 @@ import {
 } from "./data/skills.js";
 import { lineupBallNote, lineupFit, teamChemistry } from "./engine/chemistry.js";
 import { shuffle } from "./core/seededRandom.js";
+import { meterText } from "./ui/teamStats.js";
 import {
   acceptTradeProposal,
   declineTradeProposal,
@@ -6968,12 +6969,12 @@ function paintLineups(snap) {
   const aBall = lineupBallNote(snap.home.onCourt, { primaryId: aPrimary });
   const bBall = lineupBallNote(snap.away.onCourt, { primaryId: bPrimary });
   if (aChem) {
-    aChem.textContent = `化学反应 ${snap.home.chem} · 士气 ${snap.home.morale} · 适配 ${snap.home.fit}${
+    aChem.textContent = `化学反应 ${snap.home.chem} · 士气 ${meterText(snap.home.morale)} · 适配 ${snap.home.fit}${
       aBall ? ` · ${aBall}` : ""
     }`;
   }
   if (bChem) {
-    bChem.textContent = `化学反应 ${snap.away.chem} · 士气 ${snap.away.morale} · 适配 ${snap.away.fit}${
+    bChem.textContent = `化学反应 ${snap.away.chem} · 士气 ${meterText(snap.away.morale)} · 适配 ${snap.away.fit}${
       bBall ? ` · ${bBall}` : ""
     }`;
   }
@@ -7005,9 +7006,9 @@ function paintLineups(snap) {
 function paintMeters(snap) {
   const you = snap.youSide === "home" ? snap.home : snap.away;
   const opp = snap.youSide === "home" ? snap.away : snap.home;
-  $("#morale").textContent = you.morale;
-  $("#chem").textContent = you.chem;
-  $("#fit").textContent = you.fit;
+  $("#morale").textContent = meterText(you.morale);
+  $("#chem").textContent = meterText(you.chem);
+  $("#fit").textContent = meterText(you.fit);
   $("#morale-bar").style.width = `${you.morale}%`;
   $("#chem-bar").style.width = `${you.chem}%`;
   $("#fit-bar").style.width = `${you.fit}%`;
@@ -7020,8 +7021,8 @@ function paintMeters(snap) {
   if (fitRow) fitRow.title = "适配度：战术需求、站位、持球/无球搭配；无球能力差时火力会被间接削弱";
   const oc = $("#opp-chem");
   const om = $("#opp-morale");
-  if (oc) oc.textContent = opp.chem;
-  if (om) om.textContent = opp.morale;
+  if (oc) oc.textContent = meterText(opp.chem);
+  if (om) om.textContent = meterText(opp.morale);
   const ocb = $("#opp-chem-bar");
   const omb = $("#opp-morale-bar");
   if (ocb) ocb.style.width = `${opp.chem}%`;
