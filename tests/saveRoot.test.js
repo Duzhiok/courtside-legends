@@ -169,6 +169,49 @@ test("root saves accept structured story-event decisions", () => {
   assert.deepEqual(readRootSave(storage).story.pendingDecision, root.story.pendingDecision);
 });
 
+// evaluateCareerEmployment() parks the career on {type: "contract-renewal", year}. The validator
+// only knew "story-event", so that state could never be saved: the renewal screen worked in
+// memory, the failure went to the console, and closing the tab lost the pending decision.
+function rootPendingOn(pendingDecision) {
+  return createRootState({
+    activeMode: "timeTravel",
+    leagueCareer: {
+      careerId: "tt-1991-renewal",
+      kind: "timeTravel",
+      storyId: "tt-1991-renewal",
+      phase: "regular",
+      season: validSeason(),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+    story: validStory({ storyId: "tt-1991-renewal", pendingDecision }),
+  });
+}
+
+test("root saves accept the pending contract-renewal decision", () => {
+  const storage = createMemoryStorage();
+  const root = rootPendingOn({ type: "contract-renewal", year: 1996 });
+  writeRootSave(root, storage);
+  assert.deepEqual(readRootSave(storage).story.pendingDecision, { type: "contract-renewal", year: 1996 });
+});
+
+test("root saves still reject malformed pending decisions", () => {
+  for (const bad of [
+    { type: "contract-renewal" }, // no year
+    { type: "contract-renewal", year: "1996" }, // year must be an integer
+    { type: "contract-renewal", year: 1996.5 },
+    { type: "made-up", year: 1996 },
+    { type: "story-event", year: 1996 }, // no eventId
+    42,
+    [],
+  ]) {
+    const storage = createMemoryStorage();
+    assert.throws(() => writeRootSave(rootPendingOn(bad), storage), /invalid root save/, JSON.stringify(bad));
+    assert.equal(storage.getItem(ROOT_SAVE_KEY), null, "a rejected save must not touch storage");
+  }
+});
+
 test("root persistence strips large ephemeral box snapshots but keeps schedule state", () => {
   const storage = createMemoryStorage();
   const root = createRootState({

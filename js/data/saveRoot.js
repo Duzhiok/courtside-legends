@@ -191,10 +191,11 @@ function validateTimeTravelStory(root) {
 
 function validPendingDecision(value) {
   if (value === null || typeof value === "string") return true;
-  return isObject(value)
-    && value.type === "story-event"
-    && isNonEmptyString(value.eventId)
-    && Number.isInteger(value.year);
+  if (!isObject(value) || !Number.isInteger(value.year)) return false;
+  // "contract-renewal" is what evaluateCareerEmployment() parks the career on after season five.
+  // It carries no event id; leaving it out of this check made the renewal state unsaveable.
+  if (value.type === "contract-renewal") return true;
+  return value.type === "story-event" && isNonEmptyString(value.eventId);
 }
 
 function validateLiveGame(liveGame) {
