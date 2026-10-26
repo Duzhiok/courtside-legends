@@ -1087,7 +1087,11 @@ export function simPlayoffSeries(st, series) {
   }
   const highId = series.high.id;
   const lowId = series.low.id;
-  let gi = 0;
+  // Resume from however many games are ALREADY on the board (series.winsHigh + series.winsLow),
+  // not always 0 -- a user who hand-played a couple of their own games via 亲自指挥 before
+  // clicking "一键打完季后赛" would otherwise have this loop restart the 2-2-1-1-1 home/away
+  // pattern from game 1, handing the wrong team home court for the games it fills in.
+  let gi = series.winsHigh + series.winsLow;
   while (series.winsHigh < 4 && series.winsLow < 4 && gi < 7) {
     const { homeId, awayId } = seriesHomeAway(highId, lowId, gi);
     const game = { homeId, awayId, played: false, result: null };
@@ -1104,6 +1108,73 @@ export function simPlayoffSeries(st, series) {
   series.winnerId = series.winsHigh >= 4 ? highId : lowId;
   series.winnerName = st.teams[series.winnerId]?.name || seasonLabelOf(st, series.winnerId);
   return series;
+}
+
+/** The user's current, still-undecided playoff series, or null (eliminated / not yet in one / playoffs over). */
+export function activeUserPlayoffSeries(st) {
+  const po = st?.playoffs;
+  if (!po || st.phase !== "playoffs") return null;
+  const blocks = [po.east, po.west, po.finals ? { series: [po.finals] } : null].filter(Boolean);
+  for (const block of blocks) {
+    for (const s of block.series || []) {
+      if (s.done) continue;
+      if (s.high?.id === st.userTeamId || s.low?.id === st.userTeamId) return s;
+    }
+  }
+  return null;
+}
+
+/** Next game (home/away + series) the user still has to play this round, or null. */
+export function nextUserPlayoffGame(st) {
+  const series = activeUserPlayoffSeries(st);
+  if (!series) return null;
+  const gameIndex = series.winsHigh + series.winsLow;
+  if (gameIndex >= 7) return null; // shouldn't happen -- someone should already have 4 wins by then
+  const { homeId, awayId } = seriesHomeAway(series.high.id, series.low.id, gameIndex);
+  return { series, gameIndex, homeId, awayId };
+}
+
+/**
+ * Applies ONE already-decided game's result onto its series (winsHigh/winsLow, done, winnerId),
+ * and -- only for the finals -- the same championship bookkeeping advancePlayoffs() does when it
+ * resolves the finals in one shot (st.phase -> "done", finals All-Team). Round-to-round reseeding
+ * (R1 -> R2 -> R3) stays exclusively advancePlayoffs()'s job: once the user's own series is done,
+ * clicking 模拟下一轮/一键打完季后赛 resolves whatever CPU-vs-CPU series are still open in the same
+ * block and reseeds normally -- simPlayoffSeries() already no-ops on a series that's done.
+ */
+function finishPlayoffGame(st, series, game) {
+  const winnerId = game.result.winnerId;
+  if (winnerId === series.high.id) series.winsHigh += 1;
+  else series.winsLow += 1;
+  if (series.winsHigh < 4 && series.winsLow < 4) return;
+  series.done = true;
+  series.winnerId = series.winsHigh >= 4 ? series.high.id : series.low.id;
+  series.winnerName = st.teams[series.winnerId]?.name || seasonLabelOf(st, series.winnerId);
+  if (series === st.playoffs.finals) {
+    st.playoffs.championId = series.winnerId;
+    st.phase = "done";
+    st.finalsAllTeam = computeFinalsAllTeam(st);
+  }
+}
+
+/** Quick-sim exactly one game of the user's active series (no live court, just the box score). */
+export function simUserNextPlayoffGame(st) {
+  const info = nextUserPlayoffGame(st);
+  if (!info) return null;
+  const { series, homeId, awayId } = info;
+  const game = { homeId, awayId, played: false, result: null };
+  const snap = simScheduledGame(st, game, { recordStandings: false });
+  finishPlayoffGame(st, series, game);
+  return { game, snap, series };
+}
+
+/** Records a manually-played (亲自指挥 live court) playoff game's result onto its series. Matches
+ * the quick-sim path above: recordLog:false, since playoff games aren't stored for schedule
+ * replay the way regular-season games are (simPlayoffSeries never has, either). */
+export function recordUserLivePlayoffResult(st, game, series, snap) {
+  if (!game || game.played || !series) return;
+  applyGameResult(st, game, snap, { recordStandings: false, recordLog: false });
+  finishPlayoffGame(st, series, game);
 }
 
 export function advancePlayoffs(st) {

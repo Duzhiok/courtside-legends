@@ -95,6 +95,7 @@ import {
   marketMeta,
   playerPrice,
   rollAdvancementInjuries,
+  systemFitNote,
   topIntangibles,
 } from "./data/intangibles.js";
 import {
@@ -138,6 +139,7 @@ import {
   exportRootSave,
   importRootSave,
   migrateLegacySaves,
+  purgeOrphanedLegacySaves,
   readRootSave,
   writeRootSave,
 } from "./data/saveRoot.js";
@@ -220,7 +222,9 @@ import {
   createSeason,
   loadSeason,
   nextUserGame,
+  nextUserPlayoffGame,
   prepareSeasonState,
+  recordUserLivePlayoffResult,
   recordUserLiveResult,
   saveSeason,
   seasonProgressLabel,
@@ -228,6 +232,7 @@ import {
   simAllPlayoffs,
   simScheduledGame,
   simUserNextGame,
+  simUserNextPlayoffGame,
   snapFromResultLog,
   standingsList,
   startPlayoffs,
@@ -330,6 +335,7 @@ import {
   hireAssistant,
   hireCoach,
   payrollSummary,
+  pickValueOf,
   playerSalary,
   refreshFreeAgency,
   refreshStaffMarket,
@@ -337,8 +343,10 @@ import {
   signFreeAgent,
   staffMarketLabel,
   staffSalary,
+  teamDraftAssets,
   upcomingUserGames,
 } from "./engine/seasonMarket.js";
+import { recommendTradePackage } from "./engine/tradeBuilder.js";
 import {
   autoFillSeasonDraft,
   drawFranchiseOffers,
@@ -558,15 +566,71 @@ function currentRootState({ liveGame = "preserve" } = {}) {
   });
 }
 
+function downloadLongCareerExport(root) {
+  const blob = new Blob([exportRootSave(root)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "courtside-legends-save.json";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * A failed long-career save almost never means "the save itself is too big" -- a full 30-team
+ * historical season plus years of career history compacts down to roughly 1MB, well under any
+ * normal browser quota. In practice this fires because something ELSE on the origin ate the
+ * quota first: private/incognito mode (some browsers give that ~0 bytes), a nearly-full device
+ * (mobile Safari shrinks site quotas hard when disk space is low), or -- before this fix --
+ * orphaned legacy save keys nobody ever deleted. saveLongCareer() already retries once after
+ * clearing those orphans, so if we're here it likely needs a human to free up real space. Don't
+ * just dead-end on an alert: offer an immediate export of the attempt that didn't make it in,
+ * so the player doesn't lose progress while they sort out storage.
+ */
+function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
+  const wantsExport = confirm(
+    "长期生涯保存失败，刚才的改动已撤销。\n\n" +
+      "常见原因：隐私/无痕浏览模式、设备存储空间快满了、或浏览器这个网站的存储配额被其他数据占满。\n\n" +
+      "要现在将这次未能保存的进度导出为文件吗？之后可用“导入长期生涯”恢复。",
+  );
+  if (!wantsExport) return;
+  try {
+    downloadLongCareerExport(unsavedAttempt);
+  } catch (error) {
+    console.error("[long-career-save] export-after-failure also failed", error);
+    alert("导出也失败了：" + (error?.message || "未知错误"));
+  }
+}
+
 function saveLongCareer({ liveGame = "preserve" } = {}) {
   if (!state.leagueCareer) return false;
+  const rootState = currentRootState({ liveGame });
   try {
-    const persisted = writeRootSave(currentRootState({ liveGame }));
+    const persisted = writeRootSave(rootState);
     state.longCareerRoot = clonePersistedState(persisted);
     refreshLongCareerHomeBar();
     return true;
   } catch (error) {
     console.error("[long-career-save]", error);
+    // A pre-root-save build could leave a legacy cls_season_v1/cls_savegame_v1 key sitting in
+    // localStorage forever after "migrating" it (see purgeOrphanedLegacySaves docs) -- that
+    // doubles this origin's footprint for anyone who's been playing since before that fix. If
+    // the write failed on quota, clearing those orphans costs nothing and might buy back just
+    // enough room to succeed without losing anything the player cares about. Try once more.
+    if (error?.name === "QuotaExceededError") {
+      try {
+        const freedChars = purgeOrphanedLegacySaves();
+        if (freedChars > 0) {
+          const persisted = writeRootSave(rootState);
+          state.longCareerRoot = clonePersistedState(persisted);
+          refreshLongCareerHomeBar();
+          console.info(`[long-career-save] retry succeeded after freeing ${freedChars} orphaned legacy chars`);
+          return true;
+        }
+      } catch (retryError) {
+        console.error("[long-career-save] retry after legacy cleanup also failed", retryError);
+      }
+    }
     return false;
   }
 }
@@ -1135,13 +1199,7 @@ $("#btn-long-career-export")?.addEventListener("click", () => {
   const root = state.longCareerRoot || readRootSave();
   if (!root?.leagueCareer) return;
   try {
-    const blob = new Blob([exportRootSave(root)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "courtside-legends-save.json";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadLongCareerExport(root);
   } catch (error) {
     alert(error?.message || "导出存档失败");
   }
@@ -1173,10 +1231,11 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
 function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) {
   if (state.leagueCareer && st === state.season) {
     const checkpoint = clonePersistedState(state.longCareerRoot);
+    const unsavedAttempt = currentRootState({ liveGame });
     state.leagueCareer = careerForPersistence(state.leagueCareer, st);
     if (!saveLongCareer({ liveGame })) {
       restoreLongCareerCheckpoint(checkpoint);
-      alert("长期生涯保存失败，刚才的改动已撤销。请检查浏览器存储空间后重试。");
+      offerLongCareerExportAfterSaveFailure(unsavedAttempt);
       return false;
     }
     if (!saveSeason(st)) {
@@ -7945,6 +8004,10 @@ function showResult(snap, { formNotes = [] } = {}) {
     handleSeasonResult(snap);
     return;
   }
+  if (isSeasonProgressMode(state.mode) && state.season && state.seasonPendingPlayoffGame) {
+    handleSeasonPlayoffResult(snap);
+    return;
+  }
   if (state.tournament) {
     setResultActionMode("tournament", { showContinue: true, continuePrimary: true });
     applyTournamentResult(snap);
@@ -8159,12 +8222,33 @@ function renderSeasonHub({ persist = true } = {}) {
         : isManagedCareer(state.leagueCareer)
           ? "赛季结束。可进入休赛期选秀。"
           : "赛季结束。可进入休赛期让球员按史实潜力成长。";
+      $("#btn-season-play").disabled = true;
+      $("#btn-season-sim-one").disabled = true;
     } else {
-      nextEl.textContent = champ ? `总冠军：${champ}` : "季后赛进行中——可一键模拟剩余轮次";
+      const info = nextUserPlayoffGame(st);
+      if (info) {
+        // User's series is still alive and it's their turn to play a game -- 亲自指挥/快速模拟本场
+        // used to be unconditionally disabled for the ENTIRE playoffs (user report: "季后赛我不能
+        // 手动打吗？？？"), forcing everyone through 模拟下一轮/一键打完季后赛 with zero personal
+        // control. Mirror the regular-season hub: show whose turn it is and let them play it.
+        const label = playoffSeriesLabel(st, info.series);
+        const youAreHigh = info.series.high?.id === st.userTeamId;
+        const myWins = youAreHigh ? info.series.winsHigh : info.series.winsLow;
+        const theirWins = youAreHigh ? info.series.winsLow : info.series.winsHigh;
+        const oppName = (youAreHigh ? info.series.low : info.series.high)?.name || "对手";
+        const atHome = info.homeId === st.userTeamId;
+        nextEl.textContent = `${label} 第 ${myWins + theirWins + 1} 场 · ${myWins}-${theirWins} vs ${oppName}（${atHome ? "主场" : "客场"}）`;
+        $("#btn-season-play").disabled = false;
+        $("#btn-season-sim-one").disabled = false;
+      } else {
+        nextEl.textContent = champ
+          ? `总冠军：${champ}`
+          : "你的系列赛暂无进行中的比赛——可能在等另一分区，或已被淘汰。可点「季后赛」页签模拟剩余赛事。";
+        $("#btn-season-play").disabled = true;
+        $("#btn-season-sim-one").disabled = true;
+      }
     }
-    $("#btn-season-play").disabled = true;
-    $("#btn-season-sim-one").disabled = true;
-    $("#btn-season-sim-week").disabled = true;
+    $("#btn-season-sim-week").disabled = true; // "模拟5场"是常规赛概念，对季后赛不适用
   }
 
   renderSeasonStandings();
@@ -8483,10 +8567,15 @@ function renderSeasonMarket() {
     .sort((a, b) => overall(b) - overall(a))
     .map((p) => {
       const isListed = listedSet.has(p.id);
+      const fit = systemFitNote(p, you.coach, null);
+      const upside = historicalUpsideHint(p);
+      const badge = valueBadgeHtml(valueBadge(p, { owned: true }));
       return `<div class="sm-row">
         <div>
-          <strong>${p.playPos || p.pos} ${p.name}</strong>${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
+          <strong>${p.playPos || p.pos} ${p.name}</strong> ${badge}${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
           <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p)}</div>
+          ${fit ? `<div class="tiny">${esc(fit)}</div>` : ""}
+          ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
         </div>
         <span class="btn-row"><button type="button" class="btn small ghost sm-list-trade" data-list-trade="${p.id}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
         <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">裁掉</button></span>
@@ -8523,14 +8612,6 @@ function renderSeasonMarket() {
     .map((id) => ({ id, name: st.teams[id].name || id }))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh"))
     .map((t) => `<option value="${t.id}">${t.name}</option>`)
-    .join("");
-
-  const myOpts = [...(you.players || [])]
-    .sort((a, b) => overall(b) - overall(a))
-    .map(
-      (p) =>
-        `<option value="${p.id}">${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}</option>`
-    )
     .join("");
 
   refreshStaffMarket(st);
@@ -8659,26 +8740,22 @@ function renderSeasonMarket() {
       </article>`).join("") || `<p class="tiny">最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。</p>`}
     </section>
     <section class="sm-trade">
-      <h4>交易（1 换 1 / 三方）</h4>
-      <p class="tiny">薪资大致匹配；对方会评估战力。交易后继续打当赛季赛程。三方循环：我方送出 → 对手球队 → 第三方球队 → 我方；不选第三方就是普通 1 换 1。</p>
+      <h4>交易（多对多 · 可含选秀权 · 可选三方）</h4>
+      <p class="tiny">勾选我方/对方要换的球员或未来选秀权，多选多。薪资/身价大致配平即可。选好想要的对方球员后点「推荐方案」自动配平。选了第三方就走三方循环：我方勾选 → 对手球队，对手勾选 → 第三方，第三方勾选 → 我方（三方暂不带选秀权）。</p>
       <div class="form-row">
-        <label>我方送出
-          <select id="sm-trade-give">${myOpts}</select>
-        </label>
         <label>对手球队
           <select id="sm-trade-cpu">${cpuOpts}</select>
         </label>
-        <label>对方球员
-          <select id="sm-trade-want"></select>
-        </label>
         <label>第三方球队（可选）
-          <select id="sm-trade-cpu3"><option value="">不选（1 换 1）</option>${cpuOpts}</select>
+          <select id="sm-trade-cpu3"><option value="">不选（普通双边）</option>${cpuOpts}</select>
         </label>
-        <label>第三方球员（给我的）
-          <select id="sm-trade-want3"></select>
-        </label>
+      </div>
+      <div class="sm-cols" id="sm-trade-cols"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <button type="button" class="btn small" id="btn-sm-trade-recommend">推荐方案</button>
         <button type="button" class="btn primary" id="btn-sm-trade">提出交易</button>
       </div>
+      <p class="tiny" id="sm-trade-summary"></p>
       <p class="tiny" id="sm-trade-hint"></p>
     </section>
     ${isManagedCareer(state.leagueCareer) ? `<section class="sm-picks">
@@ -8695,38 +8772,88 @@ function renderSeasonMarket() {
     </section>` : ""}
   `;
 
-  const fillCpuPlayers = () => {
-    const tid = $("#sm-trade-cpu")?.value;
-    const sel = $("#sm-trade-want");
-    if (!sel || !tid) return;
-    const cpu = st.teams[tid];
-    sel.innerHTML = [...(cpu?.players || [])]
-      .sort((a, b) => overall(b) - overall(a))
-      .map(
-        (p) =>
-          `<option value="${p.id}">${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}</option>`
-      )
-      .join("");
+  const pickLabel = (pk) => {
+    const v = estimateDraftPickValue(pk, { currentYear: st.year });
+    return `<span title="${esc(v.explanation)}">${esc(v.label)}（≈ +${v.ovrEquivalent} OVR）</span>`;
   };
-  fillCpuPlayers();
-  $("#sm-trade-cpu")?.addEventListener("change", fillCpuPlayers);
-  const fillTeam3Players = () => {
-    const tid = $("#sm-trade-cpu3")?.value;
-    const sel = $("#sm-trade-want3");
-    if (!sel) return;
-    const cpu = tid ? st.teams[tid] : null;
-    sel.innerHTML = cpu
-      ? [...(cpu.players || [])]
+  const tradeCheckboxRow = (cls, id, label) =>
+    `<label class="sm-row sm-trade-check"><span><input type="checkbox" class="${cls}" value="${id}"> ${label}</span></label>`;
+
+  const updateTradeSummary = () => {
+    const tid = $("#sm-trade-cpu")?.value;
+    const cpu = st.teams[tid];
+    const summary = $("#sm-trade-summary");
+    if (!cpu || !summary) return;
+    const myPicksPool = teamDraftAssets(st, st.userTeamId);
+    const cpuPicksPool = teamDraftAssets(st, tid);
+    const checkedVals = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
+    const give = checkedVals(".sm-give-player:checked").map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
+    const tid3 = $("#sm-trade-cpu3")?.value;
+    const cpu3 = tid3 && tid3 !== tid ? st.teams[tid3] : null;
+    // In a three-team cycle the user receives team 3's players, not team 2's.
+    const want = cpu3
+      ? checkedVals(".sm-want3-player:checked").map((id) => cpu3.players.find((p) => p.id === id)).filter(Boolean)
+      : checkedVals(".sm-want-player:checked").map((id) => cpu.players.find((p) => p.id === id)).filter(Boolean);
+    const givePicks = cpu3 ? [] : checkedVals(".sm-give-pick:checked").map((id) => myPicksPool.find((p) => p.id === id)).filter(Boolean);
+    const wantPicks = cpu3 ? [] : checkedVals(".sm-want-pick:checked").map((id) => cpuPicksPool.find((p) => p.id === id)).filter(Boolean);
+    const salOut = give.reduce((s, p) => s + playerSalary(p), 0);
+    const salIn = want.reduce((s, p) => s + playerSalary(p), 0);
+    const valOut = give.reduce((s, p) => s + overall(p), 0) + givePicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
+    const valIn = want.reduce((s, p) => s + overall(p), 0) + wantPicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
+    if (!give.length && !want.length && !givePicks.length && !wantPicks.length) {
+      summary.textContent = "勾选两边要换的东西后，这里会显示薪资/身价对比";
+      return;
+    }
+    summary.textContent = `送出：薪资 ${formatSalary(salOut)} · 身价≈${valOut.toFixed(1)}｜得到：薪资 ${formatSalary(salIn)} · 身价≈${valIn.toFixed(1)}`;
+  };
+
+  const renderTradeCols = () => {
+    const tid = $("#sm-trade-cpu")?.value;
+    const cols = $("#sm-trade-cols");
+    if (!cols || !tid) return;
+    const cpu = st.teams[tid];
+    const myPicksPool = teamDraftAssets(st, st.userTeamId);
+    const cpuPicksPool = teamDraftAssets(st, tid);
+    const myPlayerRows = [...(you.players || [])]
+      .sort((a, b) => overall(b) - overall(a))
+      .map((p) => tradeCheckboxRow("sm-give-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
+      .join("");
+    const myPickRows = myPicksPool.map((pk) => tradeCheckboxRow("sm-give-pick", pk.id, pickLabel(pk))).join("");
+    const cpuPlayerRows = [...(cpu?.players || [])]
+      .sort((a, b) => overall(b) - overall(a))
+      .map((p) => tradeCheckboxRow("sm-want-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
+      .join("");
+    const cpuPickRows = cpuPicksPool.map((pk) => tradeCheckboxRow("sm-want-pick", pk.id, pickLabel(pk))).join("");
+    const tid3 = $("#sm-trade-cpu3")?.value;
+    const cpu3 = tid3 && tid3 !== tid ? st.teams[tid3] : null;
+    // Three-team cycle: picks are not supported there yet, so hide pick rows rather than let the
+    // user tick something the engine will silently ignore.
+    const team3Rows = cpu3
+      ? [...(cpu3.players || [])]
           .sort((a, b) => overall(b) - overall(a))
-          .map(
-            (p) =>
-              `<option value="${p.id}">${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}</option>`
-          )
+          .map((p) => tradeCheckboxRow("sm-want3-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
           .join("")
       : "";
+    cols.innerHTML = `
+      <section>
+        <h5 class="tiny">我方送出${cpu3 ? `（→ ${esc(cpu.name)}）` : ""}</h5>
+        <div class="sm-list">${myPlayerRows}${cpu3 ? "" : myPickRows}</div>
+      </section>
+      <section>
+        <h5 class="tiny">对方送出${cpu3 ? `（→ ${esc(cpu3.name)}）` : ""}</h5>
+        <div class="sm-list">${cpuPlayerRows}${cpu3 ? "" : cpuPickRows}</div>
+      </section>
+      ${cpu3 ? `<section>
+        <h5 class="tiny">第三方送出（→ 我方）</h5>
+        <div class="sm-list">${team3Rows}</div>
+      </section>` : ""}
+    `;
+    cols.querySelectorAll("input[type=checkbox]").forEach((el) => el.addEventListener("change", updateTradeSummary));
+    updateTradeSummary();
   };
-  fillTeam3Players();
-  $("#sm-trade-cpu3")?.addEventListener("change", fillTeam3Players);
+  renderTradeCols();
+  $("#sm-trade-cpu")?.addEventListener("change", renderTradeCols);
+  $("#sm-trade-cpu3")?.addEventListener("change", renderTradeCols);
 
   box.querySelectorAll(".sm-list-trade").forEach((btn) => {
     btn.onclick = () => {
@@ -8867,22 +8994,50 @@ function renderSeasonMarket() {
     renderSeasonHub();
     showSeasonTab("market");
   });
+  $("#btn-sm-trade-recommend")?.addEventListener("click", () => {
+    const tid = $("#sm-trade-cpu")?.value;
+    const wantChecked = [...box.querySelectorAll(".sm-want-player:checked")];
+    const hint = $("#sm-trade-hint");
+    if ($("#sm-trade-cpu3")?.value) {
+      if (hint) hint.textContent = "推荐方案只支持双边交易，请先把第三方设为「不选」";
+      return;
+    }
+    if (!tid || !wantChecked.length) {
+      if (hint) hint.textContent = "先勾选你想要的对方球员，再点「推荐方案」";
+      return;
+    }
+    const rec = recommendTradePackage(st, { cpuTeamId: tid, wantPlayerId: wantChecked[0].value });
+    if (!rec.ok) {
+      if (hint) hint.textContent = rec.reason;
+      return;
+    }
+    box.querySelectorAll(".sm-give-player, .sm-give-pick").forEach((el) => {
+      el.checked = rec.giveIds.includes(el.value) || rec.givePickIds.includes(el.value);
+    });
+    if (hint) hint.textContent = `推荐方案：${rec.note}`;
+    updateTradeSummary();
+  });
   $("#btn-sm-trade")?.addEventListener("click", () => {
-    const giveId = $("#sm-trade-give")?.value;
-    const wantId = $("#sm-trade-want")?.value;
     const cpuId = $("#sm-trade-cpu")?.value;
     const cpu3Id = $("#sm-trade-cpu3")?.value;
-    const want3Id = $("#sm-trade-want3")?.value;
-    const res =
-      cpu3Id && want3Id
-        ? executeThreeTeamTrade(st, {
-            giveIds: [giveId],
-            team2Id: cpuId,
-            team2PlayerIds: [wantId],
-            team3Id: cpu3Id,
-            team3PlayerIds: [want3Id],
-          })
-        : executeTrade(st, { giveIds: [giveId], wantIds: [wantId], cpuTeamId: cpuId });
+    const checkedVals = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
+    const giveIds = checkedVals(".sm-give-player:checked");
+    const wantIds = checkedVals(".sm-want-player:checked");
+    const res = cpu3Id && cpu3Id !== cpuId
+      ? executeThreeTeamTrade(st, {
+          giveIds,
+          team2Id: cpuId,
+          team2PlayerIds: wantIds,
+          team3Id: cpu3Id,
+          team3PlayerIds: checkedVals(".sm-want3-player:checked"),
+        })
+      : executeTrade(st, {
+          giveIds,
+          givePickIds: checkedVals(".sm-give-pick:checked"),
+          wantIds,
+          wantPickIds: checkedVals(".sm-want-pick:checked"),
+          cpuTeamId: cpuId,
+        });
     const hint = $("#sm-trade-hint");
     if (!res.ok) {
       if (hint) hint.textContent = res.reason;
@@ -9276,7 +9431,9 @@ function showSeasonTab(tab) {
 
 function playSeasonUserGame() {
   const st = state.season;
-  if (!st || st.phase !== "regular") return;
+  if (!st) return;
+  if (st.phase === "playoffs") return playUserPlayoffGame();
+  if (st.phase !== "regular") return;
   advanceToUserGame(st, { stopBeforeUser: true });
   const info = nextUserGame(st);
   if (!info) {
@@ -9303,7 +9460,14 @@ function playSeasonUserGame() {
     excludeIds: [home?.coach?.id, home?.assistant?.id],
   });
   if (!saveSeasonAndCareer(st)) return;
-  const cloneSide = (t) => ({
+  openSetup(cloneLiveTeamSide(home), cloneLiveTeamSide(away), youHome ? "home" : "away");
+}
+
+/** Deep-clones a season team into the plain blob openSetup()/GameSim expect, detached from
+ * state.season so mid-game mutations (fatigue, form, etc.) don't leak back until the result is
+ * recorded. Shared by playSeasonUserGame() and playUserPlayoffGame() -- same shape either way. */
+function cloneLiveTeamSide(t) {
+  return {
     name: t.name,
     players: t.players.map((p) => clonePlayer(p)),
     coach: t.coach ? structuredClone(t.coach) : null,
@@ -9314,8 +9478,35 @@ function playSeasonUserGame() {
     starterIds: t.starterIds ? [...t.starterIds] : null,
     lineupPacks: t.lineupPacks ? structuredClone(t.lineupPacks) : null,
     rotation: t.rotation ? structuredClone(t.rotation) : null,
-  });
-  openSetup(cloneSide(home), cloneSide(away), youHome ? "home" : "away");
+  };
+}
+
+/**
+ * Playoffs used to be sim-only (快速模拟本场 / 一键打完季后赛), with 亲自指挥 unconditionally
+ * disabled the moment the regular season ended -- a user could never personally play a single
+ * playoff game. This mirrors playSeasonUserGame() one game at a time against the user's CURRENT
+ * series (nextUserPlayoffGame() walks the 2-2-1-1-1 home/away pattern); round-to-round reseeding
+ * remains advancePlayoffs()'s job once this series is done.
+ */
+function playUserPlayoffGame() {
+  const st = state.season;
+  if (!st || st.phase !== "playoffs") return;
+  const info = nextUserPlayoffGame(st);
+  if (!info) {
+    renderSeasonHub();
+    showSeasonTab("playoffs");
+    return;
+  }
+  const { series, homeId, awayId } = info;
+  const game = { homeId, awayId, played: false, result: null };
+  const youHome = homeId === st.userTeamId;
+  const home = st.teams[homeId];
+  const away = st.teams[awayId];
+  ensureTeamStaff(home, { preferStarter: true, excludeIds: [away?.coach?.id, away?.assistant?.id] });
+  ensureTeamStaff(away, { preferStarter: true, excludeIds: [home?.coach?.id, home?.assistant?.id] });
+  state.seasonPendingPlayoffGame = { game, series };
+  if (!saveSeasonAndCareer(st)) return;
+  openSetup(cloneLiveTeamSide(home), cloneLiveTeamSide(away), youHome ? "home" : "away");
 }
 
 function handleSeasonResult(snap) {
@@ -9347,8 +9538,38 @@ function handleSeasonResult(snap) {
   wireSeasonResultContinue(st, snap);
 }
 
+/** Playoff counterpart of handleSeasonResult() -- same fatigue/form bookkeeping, but the
+ * win/loss goes onto the pending series (recordUserLivePlayoffResult) instead of st.schedule. */
+function handleSeasonPlayoffResult(snap) {
+  const st = state.season;
+  const pending = state.seasonPendingPlayoffGame;
+  if (st && pending?.game && !pending.game.played) {
+    recordUserLivePlayoffResult(st, pending.game, pending.series, snap);
+  }
+  state.seasonPendingPlayoffGame = null;
+  if (st && snap) {
+    const youSide = snap.youSide;
+    const youSnap = youSide === "home" ? snap.home : snap.away;
+    const team = st.teams[st.userTeamId];
+    if (team && youSnap?.roster) {
+      for (const p of youSnap.roster) {
+        const live = team.players.find((x) => x.id === p.id);
+        if (live) {
+          live.form = p.form;
+          live.fatigue = Math.min(40, p.fatigue || 0);
+        }
+      }
+    }
+    if (!saveSeasonAndCareer(st, { liveGame: "clear" })) {
+      wireSeasonResultContinue(state.season, snap, { playoffSeries: pending?.series });
+      return;
+    }
+  }
+  wireSeasonResultContinue(st, snap, { playoffSeries: pending?.series });
+}
+
 /** Paint score + both-team box scores (instant sim or re-open from schedule). */
-function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false } = {}) {
+function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null } = {}) {
   if (!snap?.home || !snap?.away) return;
   const st = state.season;
   show("result");
@@ -9367,16 +9588,45 @@ function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false }
         ? L(`${winner} 获胜`, `${winner} wins`)
         : L(`${winner} 获胜 · ${youWin ? "我方胜" : "我方负"}`, `${winner} wins · ${youWin ? "You win" : "You lose"}`);
   $("#box-score").innerHTML = `${boxTable(snap.home)}${boxTable(snap.away)}`;
-  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory });
+  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory, playoffSeries });
 }
 
-function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false } = {}) {
+/** "东部 · R2"/"总决赛" 样式标签，跟 renderSeasonPlayoffs() 的 confBlock 标题保持一致。 */
+function playoffSeriesLabel(st, series) {
+  const po = st?.playoffs;
+  if (series === po?.finals) return "总决赛";
+  if (po?.east?.series?.includes(series)) return `东部 · R${series.round}`;
+  if (po?.west?.series?.includes(series)) return `西部 · R${series.round}`;
+  return "季后赛";
+}
+
+/** Playoff-flavored #result-summary text: series score if still going, outcome if just decided. */
+function playoffResultSummaryText(st, series) {
+  const label = playoffSeriesLabel(st, series);
+  const youAreHigh = series.high?.id === st.userTeamId;
+  const myWins = youAreHigh ? series.winsHigh : series.winsLow;
+  const theirWins = youAreHigh ? series.winsLow : series.winsHigh;
+  const oppName = (youAreHigh ? series.low : series.high)?.name || "对手";
+  if (!series.done) return `${label} 战至 ${myWins}-${theirWins}，可继续比赛。`;
+  if (series.winnerId !== st.userTeamId) {
+    return `${label} ${theirWins}-${myWins} 不敌 ${oppName}，本届季后赛到此结束。`;
+  }
+  return st.phase === "done"
+    ? `${label} ${myWins}-${theirWins} 淘汰 ${oppName}，夺得总冠军！可进入休赛期。`
+    : `${label} ${myWins}-${theirWins} 淘汰 ${oppName}，晋级下一轮！`;
+}
+
+function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null } = {}) {
   const cont = $("#btn-result-continue");
-  const rec = st?.standings?.[st.userTeamId];
-  const played = userGamesPlayed(st);
-  const base = `常规赛战绩 ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82。${
-    st?.phase === "awards" ? " 常规赛结束，可查看评奖。" : ""
-  }`;
+  const base = playoffSeries
+    ? playoffResultSummaryText(st, playoffSeries)
+    : (() => {
+        const rec = st?.standings?.[st.userTeamId];
+        const played = userGamesPlayed(st);
+        return `常规赛战绩 ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82。${
+          st?.phase === "awards" ? " 常规赛结束，可查看评奖。" : ""
+        }`;
+      })();
   $("#result-summary").textContent = summaryExtra ? `${summaryExtra} ${base}` : base;
   cont.textContent = viewingHistory ? "返回赛程" : "回到赛季主页";
   cont.onclick = () => {
@@ -9385,17 +9635,99 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
     show("season");
     if (viewingHistory) showSeasonTab("schedule");
     else if (st?.phase === "awards") showSeasonTab("awards");
+    else if (playoffSeries || st?.phase === "playoffs" || st?.phase === "done") showSeasonTab("playoffs");
   };
-  setResultActionMode("season", { showContinue: true, continuePrimary: true });
+
+  // #btn-again doubles as "继续模拟" here (user feedback: result screen only offered a trip back
+  // to the season hub to trigger the next game -- no way to just keep going from this screen).
+  // During playoffs this means "keep playing MY series one game at a time"; 模拟整个赛季 only ever
+  // makes sense for the regular season -- bulk-advancing playoff rounds already lives on the
+  // playoffs tab (模拟下一轮 / 一键打完季后赛), so it's deliberately NOT duplicated here.
+  const hasNextPlayoffGame = !viewingHistory && st?.phase === "playoffs" && !!nextUserPlayoffGame(st);
+  const canKeepSimming = (!viewingHistory && st?.phase === "regular") || hasNextPlayoffGame;
+  const canSimWholeSeason = !viewingHistory && st?.phase === "regular";
+  setResultActionMode("season", { showContinue: true, continuePrimary: !canKeepSimming });
   const again = $("#btn-again");
-  if (again) again.hidden = true;
+  if (again) {
+    again.hidden = !canKeepSimming;
+    again.classList.toggle("primary", canKeepSimming);
+    if (canKeepSimming) {
+      again.textContent = "模拟下一场";
+      again.onclick = () => simSeasonGames(1);
+    }
+  }
+  cont.classList.toggle("primary", !canKeepSimming);
+  const simSeasonBtn = $("#btn-result-sim-season");
+  if (simSeasonBtn) {
+    simSeasonBtn.hidden = !canSimWholeSeason;
+    if (canSimWholeSeason) {
+      simSeasonBtn.textContent = "模拟整个赛季";
+      simSeasonBtn.onclick = async () => {
+        if (
+          !(await confirmAction(
+            "一气模拟完剩余常规赛，过程中不能亲自指挥。全联盟每夜比赛都要跟着模拟，整赛季大约十幾秒，过程中不能交易/调整轮换。",
+            { title: "模拟整个赛季", acceptLabel: "模拟到底" },
+          ))
+        )
+          return;
+        await simRestOfSeason();
+      };
+    }
+  }
   const homeBtn = $("#btn-home");
   if (homeBtn) homeBtn.hidden = false;
 }
 
-function simSeasonGames(count = 1) {
+/**
+ * Simulating the whole rest of a 32-team season takes ~15-20s of real wall-clock time
+ * (every call to simUserNextGame() also advances every OTHER game around the league that
+ * night, so "82 games" is really more like 1000+ individual games under the hood). Doing
+ * that synchronously would freeze the tab for that whole stretch with zero feedback, so this
+ * yields to the browser after every simulated night and paints a running progress count.
+ */
+async function simRestOfSeason() {
   const st = state.season;
   if (!st || st.phase !== "regular") return;
+  const buttons = ["#btn-result-sim-season", "#btn-again", "#btn-result-continue", "#btn-home"]
+    .map((sel) => $(sel))
+    .filter(Boolean);
+  for (const b of buttons) b.disabled = true;
+  const summaryEl = $("#result-summary");
+  let last = null;
+  let n = 0;
+  const maxGames = 82;
+  for (let i = 0; i < maxGames; i++) {
+    const r = simUserNextGame(st);
+    if (!r) break;
+    last = r;
+    n += 1;
+    if (summaryEl) summaryEl.textContent = `正在模拟整个赛季…已完成 ${n} 个比赛日，请稍候`;
+    // Intentionally awaited inside the loop: yield one frame so the progress text above
+    // actually paints instead of the tab looking frozen for ~15-20s straight.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  for (const b of buttons) b.disabled = false;
+  if (!saveSeasonAndCareer(st)) return;
+  if (last?.snap) {
+    const extra = `已连续模拟 ${n} 场；下方为最近一场（${last.snap.home?.name} ${last.snap.score.home}-${last.snap.score.away} ${last.snap.away?.name}）的完整数据。`;
+    const youSide =
+      last.game?.homeId === st.userTeamId
+        ? "home"
+        : last.game?.awayId === st.userTeamId
+          ? "away"
+          : last.snap.youSide;
+    showSeasonSimResult({ ...last.snap, youSide }, { summaryExtra: extra });
+  } else {
+    renderSeasonHub();
+    if (st.phase === "awards") showSeasonTab("awards");
+  }
+}
+
+function simSeasonGames(count = 1) {
+  const st = state.season;
+  if (!st) return;
+  if (st.phase === "playoffs") return simUserPlayoffGameFromResult();
+  if (st.phase !== "regular") return;
   let last = null;
   let n = 0;
   for (let i = 0; i < count; i++) {
@@ -9422,6 +9754,25 @@ function simSeasonGames(count = 1) {
   }
   renderSeasonHub();
   if (st.phase === "awards") showSeasonTab("awards");
+}
+
+/** 「快速模拟本场」在季后赛阶段的对应物：只模拟我方当前系列赛的下一场，结果页复用和常规赛
+ * 完全相同的 showSeasonSimResult 渲染，只是摘要文案换成系列比分（wireSeasonResultContinue 里的
+ * playoffSeries 分支处理）。 */
+function simUserPlayoffGameFromResult() {
+  const st = state.season;
+  const result = simUserNextPlayoffGame(st);
+  if (!result) {
+    renderSeasonHub();
+    showSeasonTab("playoffs");
+    return;
+  }
+  if (!saveSeasonAndCareer(st)) return;
+  const youSide = result.game.homeId === st.userTeamId ? "home" : "away";
+  showSeasonSimResult(
+    { ...result.snap, youSide },
+    { summaryExtra: "快速模拟完成。下方为双方球员数据。", playoffSeries: result.series },
+  );
 }
 
 $("#btn-season-back")?.addEventListener("click", () => show("home"));

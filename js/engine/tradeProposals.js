@@ -1,5 +1,5 @@
 import { overall } from "../data/players.js";
-import { executeTrade, playerSalary } from "./seasonMarket.js";
+import { SEASON_APRON, executeTrade, playerSalary, teamPayroll } from "./seasonMarket.js";
 
 function perGame(row, key) {
   const gp = Number(row?.stats?.gp) || 0;
@@ -13,6 +13,13 @@ function isAttractive(row, player) {
 function prospectScore(player) {
   return (100 - overall(player)) + (Number(player.age) < 24 ? 18 : 0);
 }
+
+/** Young, cheap, high-upside roster filler -- worth suggesting as a trade sweetener. */
+export function isProspectCandidate(player) {
+  return overall(player) < 76 && Number(player.age) < 25;
+}
+
+export { prospectScore };
 
 function makePickAsset(st, index) {
   return {
@@ -93,14 +100,36 @@ export function generateTradeProposals(st, limit = 3) {
     const prospect = [...fromTeam.players]
       .filter((item) => item.id !== offerPlayer.id && prospectScore(item) > prospectScore(offerPlayer))
       .sort((a, b) => prospectScore(b) - prospectScore(a))[0] || null;
+
+    // A proposal the CPU can't actually afford is worse than no proposal: acceptTradeProposal()
+    // runs this exact apron math through executeTrade(), and a team already tight against the cap
+    // will fail it even on a deal it just "offered" (user report: "明明是对方发来的报价，接受却说
+    // 对方硬帽放不下"). Mirror that check here -- either patch the offer with one extra salary
+    // throw-in so it actually clears the cap, or don't dangle an offer that will bounce.
+    let sendBackIds = [offerPlayer.id, ...(prospect ? [prospect.id] : [])];
+    const capFits = (ids) => {
+      const outgoing = ids.reduce((sum, id) => sum + playerSalary(fromTeam.players.find((p) => p.id === id)), 0);
+      return teamPayroll(fromTeam) - outgoing + playerSalary(player) <= SEASON_APRON + 50;
+    };
+    if (!capFits(sendBackIds)) {
+      const throwIn = [...fromTeam.players]
+        .filter((item) => !sendBackIds.includes(item.id))
+        .sort((a, b) => playerSalary(b) - playerSalary(a))[0];
+      if (throwIn && capFits([...sendBackIds, throwIn.id])) {
+        sendBackIds = [...sendBackIds, throwIn.id];
+      } else {
+        continue;
+      }
+    }
+    const sendBackPlayers = sendBackIds.map((id) => fromTeam.players.find((p) => p.id === id));
     proposals.push({
       id: `${st.year}:${st.dayIndex || 0}:${fromTeamId}:${player.id}`,
       fromTeamId,
       fromTeamName: fromTeam.name || fromTeamId,
       giveIds: [player.id],
-      wantIds: [offerPlayer.id, ...(prospect ? [prospect.id] : [])],
+      wantIds: sendBackIds,
       targetName: player.name,
-      receivePlayers: [offerPlayer, ...(prospect ? [prospect] : [])],
+      receivePlayers: sendBackPlayers,
       offerPicks: picks,
       reason: isListed
         ? `${player.name} 已挂牌询价，${fromTeam.name || fromTeamId} 前来问价。`

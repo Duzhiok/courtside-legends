@@ -286,6 +286,7 @@ export const PHRASES = [
   ["比赛结束", "Final"],
   ["备战下一轮", "Prepare Next Round"],
   ["再来一局", "Play Again"],
+  ["模拟整个赛季", "Sim Rest of Season"],
   ["回主页", "Home"],
   ["设置 2–8 名本地玩家。每过一轮每人多一次选人机会，直到总决赛。", "Set up 2–8 local players. Each round everyone gets one more pick, until the Finals."],
   ["玩家数", "Players"],

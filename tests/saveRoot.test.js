@@ -9,6 +9,7 @@ import {
   exportRootSave,
   importRootSave,
   migrateLegacySaves,
+  purgeOrphanedLegacySaves,
 } from "../js/data/saveRoot.js";
 import { createMemoryStorage } from "./helpers/memoryStorage.js";
 
@@ -234,7 +235,9 @@ for (const version of [1, 2]) {
       recommendations: {},
     });
     assert.deepEqual(readRootSave(storage), migrated.root);
-    assert.equal(storage.getItem(LEGACY_SEASON_KEY), JSON.stringify(legacy));
+    // The data now lives in cls_root_v3 -- the legacy key must be dropped, not kept around
+    // forever as a silent duplicate eating into this origin's one storage budget.
+    assert.equal(storage.getItem(LEGACY_SEASON_KEY), null);
   });
 }
 
@@ -250,8 +253,51 @@ test("valid legacy live game is migrated when no valid season exists", () => {
 
   assert.equal(migrated.source, LEGACY_GAME_KEY);
   assert.deepEqual(migrated.root.liveGame.legacySession, legacySession);
-  assert.equal(storage.getItem(LEGACY_GAME_KEY), JSON.stringify(legacySession));
+  // The migrated key is dropped. The OTHER legacy key wasn't usable (invalid season), so it's
+  // left alone rather than silently discarding data migrateLegacySaves() never looked at again.
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), null);
   assert.equal(storage.getItem(LEGACY_SEASON_KEY), JSON.stringify(invalidSeason));
+});
+
+test("orphaned legacy keys from a pre-fix build are cleaned up once cls_root_v3 already exists", () => {
+  const root = createRootState();
+  const storage = createMemoryStorage({
+    [ROOT_SAVE_KEY]: JSON.stringify(root),
+    [LEGACY_SEASON_KEY]: JSON.stringify(validSeason()),
+    [LEGACY_GAME_KEY]: JSON.stringify({ v: 1, quarter: 1, score: [0, 0] }),
+  });
+
+  const migrated = migrateLegacySaves(storage);
+
+  assert.equal(migrated.source, ROOT_SAVE_KEY);
+  assert.deepEqual(migrated.root, root);
+  assert.equal(storage.getItem(LEGACY_SEASON_KEY), null);
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), null);
+  // The thing that actually matters -- the current root save -- is untouched.
+  assert.deepEqual(readRootSave(storage), root);
+});
+
+test("purgeOrphanedLegacySaves removes both legacy keys and reports bytes freed", () => {
+  const seasonJson = JSON.stringify(validSeason());
+  const gameJson = JSON.stringify({ v: 1, quarter: 2, score: [10, 8] });
+  const storage = createMemoryStorage({
+    [LEGACY_SEASON_KEY]: seasonJson,
+    [LEGACY_GAME_KEY]: gameJson,
+    [ROOT_SAVE_KEY]: "untouched",
+  });
+
+  const freed = purgeOrphanedLegacySaves(storage);
+
+  assert.equal(freed, seasonJson.length + gameJson.length);
+  assert.equal(storage.getItem(LEGACY_SEASON_KEY), null);
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), null);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), "untouched");
+});
+
+test("purgeOrphanedLegacySaves is a safe no-op when nothing is orphaned", () => {
+  const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: "untouched" });
+  assert.equal(purgeOrphanedLegacySaves(storage), 0);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), "untouched");
 });
 
 test("import rejects saves from a newer schema version", () => {

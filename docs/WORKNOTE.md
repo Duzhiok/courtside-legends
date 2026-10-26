@@ -614,6 +614,32 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 
 由于 roster card 的输出变了，`ROSTER_SCHEMA` 从 51 bump 到 52（否则已经打开过游戏的浏览器会继续从 IndexedDB 读旧的、带错误位置的缓存卡），跑了 `scripts/cards/update-schema-fixture.mjs` 重新生成 `tests/fixtures/cardSchema.json`。独立 node 脚本抽查确认 Pachulia 全部 16 季（2004–2019）现在都是 `C`，身高都在 219–222cm 区间，跟真实中锋体型完全吻合。全量 622/622、lint、diff --check 全绿。
 
+### R43（T4）：穿越生涯交易市场 —— 多对多 + 含选秀权 + 配平推荐 + 自由市场熟悉感/潜力/价值标签
+
+用户直接点名：穿越模式的交易 UI 只能 1 换 1、没有选秀权、没有配平推荐；还要求自由市场左侧裁人列表补上「熟悉感/未来潜力/妖人/高薪低能」（这些标签只在已拥有的屏幕显示，不会跳到还能挑选/抽卡的屏幕里）。
+
+**发现**：`js/engine/seasonMarket.js` 的 `executeTrade()` 其实早就支持 N-for-M 多球员交易（`giveIds`/`wantIds` 是数组，连注释都写着「1-for-1 or N-for-M」）——UI 层从来没暴露过一个以上的复选框。真正的缺口是选秀权：CPU 队从来没有自己的可交易选秀权池，选秀权只能通过已有的主动报价单向 CPU→用户流动。
+
+**实现**：新增 `teamDraftAssets(st, teamId)`（放在 `seasonMarket.js` 里，避免与新建的 `tradeBuilder.js` 形成循环 import）：用户自己的选秀权池复用现有 `st.draftAssets`（和 `tradeProposals.js` 共用字段，不分裂成两套），CPU 队懒加载到 `team.draftAssets`。两个起始选秀权确定性生成（同一 `st.year` 输入给同一轮次/保护形状）。`executeTrade` 扩展接受 `givePickIds`/`wantPickIds`，选秀权价值通过已有的 `estimateDraftPickValue` 计入 OVR 对比（选秀权不带薪资，只影响价值侧）。
+
+试验过程中抓到一个真 bug：初版 `executeTrade` 无论这笔交易是否涉及选秀权都会无条件调用 `teamDraftAssets()`，而它会懒加载种入两个起始选秀权——导致每次交易都偶然把两个选秀权注入 `st.draftAssets`，把旧的 `acceptTradeProposal` 回归测试抓出来了（期望 1 个却变成 3 个）。改成只在真正涉及选秀权时（`givePickIds.length || wantPickIds.length` 为真）才调用后修复。
+
+新建 `js/engine/tradeBuilder.js` 的 `recommendTradePackage(st, { cpuTeamId, wantPlayerId })`：按三档回退找匹配方案：
+1. 单件货，货值最接近对方要走的人；
+2. 锚点+潜力新秀的两件套装（复用 `tradeProposals.js` 已有的 `prospectScore`/`isProspectCandidate`，避免重写）；
+3. 在最接近的单件货上加送自己一个选秀权，弥补价值差。
+
+故意简单、非穷举搜索，跟 `draftPickValue.js` 自己注释里写的「故意简单可解释，不是黑盒 oracle」设计风格一致。
+
+前端 `js/app.js` 把「交易（1 换 1）」重写成「交易（多对多 · 可含选秀权）」：我方/对方球员+选秀权都是复选框，勾选后实时显示薪资/身价对比汇总，「推荐方案」按钮会先看用户勾了哪个对方球员，再自动勾选我方匹配项并在提示中给理由。另在自由市场左侧裁人列表（之前只显示 OVR/赛季/薪资）接上三样已有但没接上的东西：`systemFitNote()`（熟悉感/体系适配，文本故意不会透露「妖人」字样）、`historicalUpsideHint()`（未来潜力，右侧自由市场签约列表早就在用）、`valueBadge(p,{owned:true})`（妖人/高薪低能，这个门控本来就是为「已拥有才显示」设计的，只是这个屏幕之前没接上）。
+
+写了 14 条 `tests/tradeBuilder.test.js`，过程中有个有趣发现：`executeTrade` 的薪资匹配检查 `salIn<=salOut*1.25+40 || salOut<=salIn*1.25+40` 对任何非负薪资都是恒真——数学上找不到一对值能让两个方向同时失败，所以「薪资差太大」这个拒绝理由在当前实现下几乎不可能触发。这是预存行为，不是本轮引入的回归，没动它（改动核心交易平衡公式超出本轮请求范围，也没人要求改），只是把测试改成对真实行为的断言（真正能拦交易的是价值检查，不是薪资检查）。做了反向 mutation 验证（注掉选秀权搬运代码块，测试立刻报错）。
+
+真实浏览器全流程验证（账号用 15 张 OVR 55–70 的便宜球员卡搭进工资帽开局，因为几个真正的超级巨星单独就会把 ¤2000 软帽冲爆，连 8 人最低阵容都凑不齐）：左右两边正确渲染球员+选秀权复选框，点勾选后实时汇总更新，点「推荐方案」自动勾选并给出理由文案，提交交易后有明确反馈，左侧裁人列表真实渲染出「James Jones：与多数体系都合拍」和「潜力峰值 OVR 81（2018，约 +13）」这样的真实文案，32/32 检查点全部通过（桌面 1280×900 + 手机 390×844），无横向溢出、无 console 报错。636/636 测试、lint、diff --check 全绿。
+
+**未完成**（范围说明，留待后续）：
+- 「挂牌询价」——把我的球员挂出去收集外部报价，而不是我指定目标去谈；
+- 「3+ 队多方交易」——当前仍是两队一对一。
 ### R43：原始需求逐条审计（用户把立项时的原始要求原文发来，要求逐条核对）
 
 方法：不看 README 的自我描述，直接对代码和数据核查；能跑数的跑数（用项目自己的 `seasonToCard` 生成真实卡片）。
@@ -932,3 +958,102 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - **动画**：`CourtView.onShot` 从上一次渲染存下的投手站位出发（找不到投手时退回持球人位置），向进攻方向的篮筐飞二次贝塞尔弧线（0.75 秒），高度用球的大小变化表示（12px → 20px → 12px）；命中收尾 0.15 秒穿网缩小，打铁收尾 0.3 秒从篮筐弹向中场、落在筐前 4% 处。飞行中 `render` 不抢球的位置（球的 CSS transition 也会在动画期间关掉，否则每帧更新会被 0.55 秒缓动拖成拖影）；收尾时直接落到最终点，帧跳过也不会冻在半空。
 - **测试**：`tests/courtSimple.test.js` +4 个（命中弧线中段位置与峰值大小、打铁落点、飞行中 render 不抢球、未渲染时 onShot 静默）。全量套件确认 sim 的 meta 没破坏现有事件断言。
 - **没做的**：罚球弧线（罚球事件没带 meta.shot，故意不画——罚球线到筐的短弧线可以后续单独做）、扣篮弧线（扣篮已有高光弹窗，不重复）。
+
+> 合并说明：以下 4 条（R69–R72）原在 feature/time-travel-foundation 分支上以 R46–R49 编号提交，
+> 与 main 上的 R46–R49 撞号且从未进入 main。整合进 main 时统一顺延改号，内容未改。
+> 原提交：0d2366f（R69）、016a1c1（R70）、a97da34（R71）、3a88e1e（R72）。
+
+### R69：赛季结果页加「模拟下一场 / 模拟整个赛季」，修盒分表移动端溢出
+
+用户截图指出：赛季模式打完一场后，结果页只有「回到赛季主页」和「回主页」两个按钮，没有任何「继续模拟」的选项，每打完一场都得先回到赛季主页再点一次「快速模拟本场/模拟 5 场」，很烦。另问：能不能一次性模拟完整个赛季？
+
+**结果页加按钮**：`wireSeasonResultContinue()` 把之前被强制隐藏的 `#btn-again` 改造成「模拟下一场」（点了直接调 `simSeasonGames(1)`，留在结果页不跳回主页），另新增 `#btn-result-sim-season`（「模拟整个赛季」）。只在 `st.phase === "regular" && !viewingHistory` 时显示两个新按钮；常规赛结束（`phase === "awards"`）或在查看历史比赛时，回归到原来行为（只有「回到赛季主页/返回赛程」为 primary）。
+
+**「模拟整个赛季」的性能坑**：第一版写完直接同步调 `simSeasonGames(82)`，结果浏览器 E2E 跑到 60s 超时。实测发现单次 `simUserNextGame()` 不只模拟用户这一场，还要把那一夜全联盟其他所有比赛一起模拟了推进标准/数据，所以「82 场」其实是 1000+ 场单场比赛，实测单次完整常规赛耗时约 **18-19 秒**。这么长时间同步堵主线程会把标签页冒出「假死」——点击不响应、没有任何进度反馈。
+
+改成新的 `async function simRestOfSeason()`：每模拟完一个比赛日就 `await new Promise(requestAnimationFrame)` 让浏览器有机会渲染一帧，并把 `#result-summary` 文字换成「正在模拟整个赛季…已完成 N 个比赛日，请稍候」实时更新；运行期间把四个结果页按钮（模拟整个赛季/模拟下一场/回赛季主页/回主页）全部羁掉，防止中途点走导致 `state.season` 被并发改写。点「模拟整个赛季」之前先走 `confirmAction()` 二次确认，讲清楚会占用十几秒、过程中不能交易/调轮换。
+
+**顺带修了一个被这轮浏览器 E2E 顺带暴露的旧 bug**：390px 下赛后数据表把整个页面横向撑宽了。`boxTable()` 本来就有 `.table-scroll { overflow-x: auto; }` 包裹表格，但外层 `.box-score { display: grid; }` 的直接子项 `.box-wrap` 没有显式 `min-width: 0`——grid 项目默认 `min-width: auto`，会拒绝缩小到小于其内容的自然宽度，导致内层「表格自己滚动」永远没机会触发，整个页面只好横向滑动来補足（且这个 bug 和比赛場次多少无关，其实整个应用里所有结果页在 390px 都会被这个样）。给 `.box-wrap` 加 `min-width: 0` 后表格改成在自己容器内横向滚动，页面本身不再溢出。
+
+真实浏览器 E2E（`scripts/qa/season-sim-continue.mjs`，桌面+手机）：两个新按钮正确显示且 primary 正确，点「模拟下一场」停留在结果页不跳转，点「模拟整个赛季」后实测到进度文字和按钮禁用状态真实生效（非假死），18.6-19.0 秒后跑完整个常规赛并正确回归到「常规赛结束」状态，390px 无横向溢出。645/645 测试、lint、diff-check 全绿。
+
+### R70：CPU 主动报价生成器从不检查自己硬帽，导致「接受对方自己发来的报价」也会被自己拒绝
+
+用户截图：「太阳 想得到 Steve Francis」是太阳自己主动发来的报价，点「接受报价」却弹「对方硬帽放不下，拒绝」。用户问得对：都是对方自己提出的方案，为什么会被对方自己的帽拒绝？
+
+**根因**：`generateTradeProposals()`（`js/engine/tradeProposals.js`）挑选 CPU 要送回给用户的球员时完全只看 OVR 距离/工资距离这两个启发式指标，**从头到尾没有一行代码检查过报价方（CPU）自己的账本能不能装下这笔交易**。而真正执行交易的 `executeTrade()` 却有严格的 CPU 硬帽检查（`teamPayroll(cpu) - salIn + salOut > SEASON_APRON + 50` 就拒）。对一个已经贴近/超过硬帽的 CPU 队，生成器还是会把它配对到一个 OVR 接近的好球员，只稍微考虑了工资差，根本不知道自己还有没有帽空间装这笔交易，结果生成了一个「生下来就注定被自己拒绝」的报价。
+
+**修复**：在 `generateTradeProposals()` 里引入和 `executeTrade()` **完全一致**的硬帽公式（同样的 `SEASON_APRON + 50` 缓冲）做事前可行性检查，避免两处逻辑漂移。三档回退（跟 已有 `tradeBuilder.js` 的「三档回退」风格一致）：
+1. 先用原来的启发式选人（OVR 最近的球员 + 最高潜力分的年轻人）算一遍账；
+2. 不达标就在这两人之外再找一个工资最高的「换丁」带上（真实 NBA 交易里常见的「凑工资」做法）并重算；
+3. 连加一个换丁都装不下，说明这队真的已经没空间了，直接 `continue` 跳过这笔——宁可少一条报价，也不该挂一个注定弹回来的假货在用户面前。
+
+验证：新增 3 条测试（1）构造一个硬帽贴边的 CPU 队，确认球员被正确加上了换丁且最终 `acceptTradeProposal` 能成功；2）构造一个连换丁都救不了的「无待」队，确认根本不会生成报价；3）旧有回归测试照样全绿（说明正常预算内的 CPU 队不受影响）。变异检查：临时摘掉硬帽补丁逻辑，新增的两条测试立刻变红（「应该被打上换丁」和「不应该生成报价」分别失败），恢复后全绿。
+
+注：下游 UI（`js/app.js` 的「对方球员」展示）和 `tradeComparison.js` 对 `proposal.receivePlayers` 都是通用 `.map()/.reduce()` 遍历，本来就支持任意个数，所以这个「最多加一个换丁」的修复不需要改任何 UI 代码，647/647 全量测试（包括旧有 `tradeComparison.test.js`）依旧全绿。lint、diff-check 也全绿。
+
+### R71：季后赛新增「亲自指挥/快速模拟本场」—— 之前只能一键打完整个季后赛，没法像常规赛一样自己打
+
+用户截图反馈：季后赛页面只有「模拟下一轮」「一键打完季后赛」两个全局模拟入口，常规赛那个「亲自指挥」/「快速模拟本场」到了季后赛阶段就被完全硬禁用，玩家对自己班底的季后赛每一场比赛完全没有个人控制权。
+
+**设计**：季后赛没有 `standings`（范数 W-L），输赢是系列赛计分（`winsHigh`/`winsLow`），所以不能直接复用常规赛的 `recordUserLiveResult()`，得单独做一套平行 API（`js/engine/season.js`）：
+- `activeUserPlayoffSeries(st)`：找到用户当前所在且未结束的系列赛（遍历 east/west/finals）。
+- `nextUserPlayoffGame(st)`：根据 `winsHigh+winsLow` 算出下一场的主客场（复用现有 2-2-1-1-1 的 `seriesHomeAway()`）。
+- `simUserNextPlayoffGame(st)`：快速模拟这一场，内部复用 `simScheduledGame(..., {recordStandings:false})`，再调新增的内部辅助函数 `finishPlayoffGame()` 把输赢计入系列赛。
+- `recordUserLivePlayoffResult(st, game, series, snap)`：亲自指挥打完后把 live box score 结果应用到系列赛上，同样走 `finishPlayoffGame()`。
+- `finishPlayoffGame()`：统一处理输赢计数、`series.done/winnerId`，总决赛结束时设置 `st.playoffs.championId`、`st.phase = "done"`、`st.finalsAllTeam`。
+
+顺便修了一个潜在续接 bug：`simPlayoffSeries()`（「一键打完」的批量函数）之前总是从 `gi = 0` 开始模拟，如果用户先手动打过几场再点「一键打完」，主客场顺序会被重置。改成从 `series.winsHigh + series.winsLow` 续接。
+
+**UI 接入**（`js/app.js`）：
+- `playSeasonUserGame()`/`simSeasonGames()` 在 `st.phase === "playoffs"` 时分别分派到新增的 `playUserPlayoffGame()`/`simUserPlayoffGameFromResult()`，复用与常规赛完全相同的 `openSetup()`/`showSeasonSimResult()` 调用链路，没有另写一套 UI。
+- `renderSeasonHub()` 的 `playoffs` 分支不再无条件禁用两个按钮：有指 `nextUserPlayoffGame(st)` 返回非空时就启用，并显示当前系列赛比分/主客场；返回 `null`（被淘汰或等另一分区）时继续禁用并说明原因。
+- `wireSeasonResultContinue()` 新增 `playoffSeries` 选项：系列赛进行中显示比分（「东部 · R1 战至 X-Y，可继续比赛」），结束后显示晶级/淘汰/夺冠文案；「模拟下一场」在季后赛中也能用，但「模拟整个赛季」只在常规赛显示（它是 82 场概念，季后赛的「模拟到下一轮/一键打完」已经在季后赛页签里，没有必要在结果页重复一份）。
+- 回到赛季主页时会自动跳到季后赛页签，不会回到积分榜。
+
+**验证**：
+- 新增 `tests/playoffManualPlay.test.js`（14 条），覆盖主客场计算、两种改法路径的系列赛计分、总决赛夺冠相应状态转换、被淘汰后 `nextUserPlayoffGame` 返回 null、混合亲自指挥+批量模拟不会崩溃/重复计分。变异检查：摸掉总决赛 `st.phase="done"` 转换会让 2 条测试变红，恢复后全绿；但諹实地记录了一个诚实的覆盖缺口——`gi` 续接修复本身没有对应的变异测试（GameSim 是真随机，无法在不引入侥入式 stub 的前提下确定性地验证「恢复后哪队主场」），此修复仅经代码审查确认为正确的一行改动。
+- 新增 `scripts/qa/playoff-manual-play.mjs`（30 项检查，桌面+手机各 15 项，全部通过）：用资金上限内最强的账号班底跑完整个常规赛，直接改持久化的 `cls_season_v1` 存档把战绩改成确定性的第 1 种子后 reload+「继续已有赛季」恢复（设计意图是只干预输入条件，其余全程是真实 UI 点击）；验证了「亲自指挥」点击后真能打开 `openSetup()` 设置页并进入真实 `#screen-game`；验证了「快速模拟本场」所属的整条系列赛流程（按钮文案、结果摘要、输赢后回到季后赛页、输掉后「亲自指挥」正确禁用）；无横向溢出、无页面报错。过程中踩了两个坑：最初用便宜班底（OVR 55-70）跟不上其他队，打不进季后赛；改用「最高 OVR」贪心后又因单个传奇卡太贵只开到 5 人就花光预算，改成按「人均预算/12 人」封顶单卡购买上限才凑齐 12 人。
+- 661/661 全量测试、lint、`git diff --check` 全绿。
+
+### R72：长期生涯「保存失败」—— 不是单季数据太大，是 pre-root-save 旧存档 key 迁移后从不删除，永久翻倍占用同一份存储配额
+
+用户截图再次报「长期生涯保存失败，刚才的改动已撤销」（`历史赛季`模式，29 队当年阵容，已经打过好几个赛季，正准备从 2004-05 进入 2006 赛季）。上一轮的存储压缩（`compactSeasonForStorage`/`compactRootForStorage`）到底够不够？得先用真数据量出来，不能再靠猜。
+
+**实测**（用真实 `roster.json` 的 23,452 张卡 + `createSeason({mode:"historical", year:2005})` 跑一整个 30 队 2005 赛季）：
+- 刚建队：672.6 KB；
+- 打完 82 场常规赛（整联盟 1229 场比赛的 `resultsLog`）压缩前：**82.9 MB**；写入 `writeRootSave()` 之后（现有的 box/snapshot/feed 裁剪生效）：**965.8 KB**——现有压缩机制其实工作得很好，哪怕拿一个塞满真实球员属性/技能/薪资的完整历史赛季去压也只有不到 1MB。
+- 再用真实引擎跑 6 个连续赛季（`prepareCareerOffseason`→选秀→`completeCareerOffseason`，`historical`模式），压缩后的根存档从 841.9 KB（第 1 年）线性爬到 1013.3 KB（第 6 年），每年只增长约 10-15KB（`seasonHistory`/`draftHistory`/`history` 事件日志都是有界小对象）。按这个斜率推演，哪怕打 30-50 年也就 1.5-2MB 左右，远低于浏览器常见的 5-10MB 单 origin 配额。
+
+结论：**单赛季/多年累计的数据量本身不是问题，现有压缩修复依然有效**。那为什么真实用户还是会碰到配额错误？翻读 `js/data/saveRoot.js` 的 `migrateLegacySaves()` 才发现真正的根因——一个跟本轮存储量完全无关、从项目引入 `cls_root_v3` 那次迁移起就一直存在的旧 bug：
+
+```js
+// 旧代码（简化）
+const season = parseLegacy(target, LEGACY_SEASON_KEY, [1, 2]);
+if (season) {
+  const root = createRootState({ ... });
+  writeRootSave(root, target);
+  return { root, source: LEGACY_SEASON_KEY };   // <- cls_season_v1 从来没有被删掉！
+}
+```
+
+`cls_season_v1`（旧版赛季存档）、`cls_savegame_v1`（旧版比赛存档）这两个 legacy key，一旦某次启动把它们的数据"迁移"进了新的 `cls_root_v3`，**旧 key 本身被原样留在 localStorage 里，永远不会被删除**。对任何一个从"迁移到 `cls_root_v3`"之前就开始玩这个项目的用户（也就是说，几乎所有长期玩家），这意味着同一份赛季数据会同时占用两份独立的 localStorage key——而且 `cls_root_v3` 自己每次 `writeRootSave()` 内部还要临时写一份 `cls_root_v3_tmp` 做原子替换，三份加起来随时可能把同一个 origin 本就不富裕的配额吃穿，哪怕每一份单独看都不大。这完全可以解释「我的压缩修复明明有效，但用户还是报错」——我在修的是一个本来就没坏的东西，真正漏水的地方在旁边。
+
+**修复**（`js/data/saveRoot.js`）：
+- 新增导出 `purgeOrphanedLegacySaves(storage)`：删掉 `cls_season_v1`/`cls_savegame_v1`（如果存在），返回释放的字符数，方便调用方判断"清完有没有用"。
+- `migrateLegacySaves()` 的三个分支都在**成功迁移/确认当前 root 可读之后**调用它清掉对应的旧 key：
+  - 已经有 `cls_root_v3` 且能正常读出来 → 顺手清掉两个 legacy key（不管是不是这次迁移留下的，反正 root 已经是权威数据源了）；
+  - 刚把 `cls_season_v1` 迁移成新 root → 清掉 `cls_season_v1`（不碰 `cls_savegame_v1`，因为这次迁移根本没看过它，必须保持「没碰过的数据原样不动」这条既有不变量）；
+  - 刚把 `cls_savegame_v1` 迁移成新 root → 同理只清 `cls_savegame_v1`。
+  - 关键细节：root 存在但**读不出来**（JSON 损坏、或 `schemaVersion` 比当前版本新）时**绝不清理**——必须原样保留两份旧 key，不然等于在数据还没确认安全之前就把唯一的备份删了。这是从两条既有测试（`corrupt stored JSON is ignored without changing storage` / `future root prevents legacy migration and leaves all bytes unchanged`）反推出来的不变量，第一版实现图省事把 purge 调用放在了 `readRootSave` 判断*之前*，直接把这两条测试测崩了，调整顺序后才过。
+- `js/app.js` 的 `saveLongCareer()`：保存失败且错误是 `QuotaExceededError` 时，先调用 `purgeOrphanedLegacySaves()` 清理一次 orphan key，再重试写入一次——这样即使用户当前这局游戏早就过了应用启动时机（`migrateLegacySaves()` 只在启动时跑一次），也能在保存失败的瞬间原地自救，不用等下次刷新页面。
+- 保存彻底失败（清理+重试都救不回来）时，不再只弹一个死胡同式 `alert`：改为 `confirm()` 提示常见原因（隐私/无痕模式、设备存储快满、该网站配额被其他数据占满），并提供"现在导出这次没保存上的进度"选项——导出的是撤销 checkpoint *之前* 那次真实尝试写入的数据（`currentRootState()`），不是撤销后的旧状态，玩家不会因为这次失败白白丢掉进度。`#btn-long-career-export` 原本内联的下载逻辑顺手抽成了共享的 `downloadLongCareerExport(root)`，两处调用保持 DRY。
+
+**验证**：`tests/saveRoot.test.js` 新增/改写 5 条：
+- 两条既有迁移测试（`legacy season v1/v2 becomes...`、`valid legacy live game is migrated...`）原先的断言是"迁移后 legacy key 原样保留"——这其实是把 bug 编码成了"正确行为"，现在改成断言 legacy key 被删除（另一把没被这次迁移用到的 legacy key 则保持不动）。
+- 新增 `orphaned legacy keys from a pre-fix build are cleaned up once cls_root_v3 already exists`：模拟一个老版本遗留的场景（`cls_root_v3` + 两个 orphan legacy key 同时存在），确认 fast-path 分支会把它们都清掉。
+- 新增 `purgeOrphanedLegacySaves removes both legacy keys and reports bytes freed` / `...is a safe no-op when nothing is orphaned`：直接测试新导出函数本身。
+- 变异检查：临时注释掉 fast-path 分支里的 `purgeOrphanedLegacySaves(target)` 调用，新增的「orphaned legacy keys...」测试立刻变红，恢复后连同全部 29 条 `saveRoot.test.js` 测试一起转绿——证明这条测试真的在盯着这次修复，不是摆设。
+- 664/664 全量测试、lint、`git diff --check` 全绿。
+
+**诚实的覆盖缺口**：这个修复只解决了"legacy key 泄漏"这一个具体根因；用户的实际失败还可能叠加「设备存储接近写满」「隐私模式下 localStorage 配额被浏览器限制到接近 0」等环境因素——这些是本地单机 `localStorage` 架构的结构性限制，不是这次能修完的，长期仍然需要评估 IndexedDB/导出导入/云存档方案。另外，诊断过程中意外发现一个和本次修复无关的小问题：如果在应用之外的裸 Node 脚本里，`PLAYERS` 数组还没通过 `loadPlayers()`/手动灌入真实数据就直接调用 `createSeason({mode:"historical"})`，会陷入一个耗时数分钟甚至更久的病态慢路径（真实浏览器里不会触发，因为 UI 在名册加载完成前根本点不到这个入口）——值得记一笔但本轮不处理。

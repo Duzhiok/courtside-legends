@@ -384,6 +384,27 @@ export function clearRootSave(storage) {
   target.removeItem(TEMP_ROOT_SAVE_KEY);
 }
 
+/**
+ * Drop pre-root-save leftovers that writeRootSave() never needed to touch. A save made by an
+ * older build of migrateLegacySaves() copied a legacy key's data into cls_root_v3 but left the
+ * legacy key itself sitting in localStorage forever -- the exact same season/match then lives
+ * twice in the one storage budget this origin gets. Safe to call any time cls_root_v3 is the
+ * current source of truth (i.e. whenever a save -- successful or not -- has already run once).
+ * Returns the number of bytes freed, so a caller can decide whether a retry is worth it.
+ */
+export function purgeOrphanedLegacySaves(storage) {
+  const target = getStorage(storage);
+  let freed = 0;
+  for (const key of [LEGACY_SEASON_KEY, LEGACY_GAME_KEY]) {
+    const value = target.getItem(key);
+    if (value !== null) {
+      freed += value.length; // UTF-16 code units, good enough as a "was this worth it" signal
+      target.removeItem(key);
+    }
+  }
+  return freed;
+}
+
 export function exportRootSave(root) {
   const exportedRoot = validateRoot(cloneJson(root));
   return JSON.stringify({
@@ -430,7 +451,14 @@ export function migrateLegacySaves(storage) {
   const target = getStorage(storage);
   if (target.getItem(ROOT_SAVE_KEY) !== null) {
     const existingRoot = readRootSave(target);
-    return existingRoot ? { root: existingRoot, source: ROOT_SAVE_KEY } : null;
+    if (!existingRoot) return null;
+    // Belt-and-suspenders: a save created by the pre-fix version of this function migrated the
+    // legacy key's data into cls_root_v3 but never deleted the legacy key itself, so the SAME
+    // season/match lives twice in localStorage forever after -- silently eating into the one
+    // quota this origin gets. Only clean up once we know cls_root_v3 is genuinely readable --
+    // a corrupt or newer-schema root must leave every byte untouched, same as before this fix.
+    purgeOrphanedLegacySaves(target);
+    return { root: existingRoot, source: ROOT_SAVE_KEY };
   }
 
   const season = parseLegacy(target, LEGACY_SEASON_KEY, [1, 2]);
@@ -449,6 +477,9 @@ export function migrateLegacySaves(storage) {
     });
     validateRoot(root);
     writeRootSave(root, target);
+    // The data now lives in cls_root_v3 -- drop the legacy copy so it stops doubling this
+    // origin's storage footprint on every future save.
+    target.removeItem(LEGACY_SEASON_KEY);
     return { root, source: LEGACY_SEASON_KEY };
   }
 
@@ -459,6 +490,7 @@ export function migrateLegacySaves(storage) {
     });
     validateRoot(root);
     writeRootSave(root, target);
+    target.removeItem(LEGACY_GAME_KEY);
     return { root, source: LEGACY_GAME_KEY };
   }
 
