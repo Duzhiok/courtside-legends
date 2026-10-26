@@ -746,3 +746,45 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 - 新增 `tests/playoffManualPlay.test.js`（14 条），覆盖主客场计算、两种改法路径的系列赛计分、总决赛夺冠相应状态转换、被淘汰后 `nextUserPlayoffGame` 返回 null、混合亲自指挥+批量模拟不会崩溃/重复计分。变异检查：摸掉总决赛 `st.phase="done"` 转换会让 2 条测试变红，恢复后全绿；但諹实地记录了一个诚实的覆盖缺口——`gi` 续接修复本身没有对应的变异测试（GameSim 是真随机，无法在不引入侥入式 stub 的前提下确定性地验证「恢复后哪队主场」），此修复仅经代码审查确认为正确的一行改动。
 - 新增 `scripts/qa/playoff-manual-play.mjs`（30 项检查，桌面+手机各 15 项，全部通过）：用资金上限内最强的账号班底跑完整个常规赛，直接改持久化的 `cls_season_v1` 存档把战绩改成确定性的第 1 种子后 reload+「继续已有赛季」恢复（设计意图是只干预输入条件，其余全程是真实 UI 点击）；验证了「亲自指挥」点击后真能打开 `openSetup()` 设置页并进入真实 `#screen-game`；验证了「快速模拟本场」所属的整条系列赛流程（按钮文案、结果摘要、输赢后回到季后赛页、输掉后「亲自指挥」正确禁用）；无横向溢出、无页面报错。过程中踩了两个坑：最初用便宜班底（OVR 55-70）跟不上其他队，打不进季后赛；改用「最高 OVR」贪心后又因单个传奇卡太贵只开到 5 人就花光预算，改成按「人均预算/12 人」封顶单卡购买上限才凑齐 12 人。
 - 661/661 全量测试、lint、`git diff --check` 全绿。
+
+### R49：长期生涯「保存失败」—— 不是单季数据太大，是 pre-root-save 旧存档 key 迁移后从不删除，永久翻倍占用同一份存储配额
+
+用户截图再次报「长期生涯保存失败，刚才的改动已撤销」（`历史赛季`模式，29 队当年阵容，已经打过好几个赛季，正准备从 2004-05 进入 2006 赛季）。上一轮的存储压缩（`compactSeasonForStorage`/`compactRootForStorage`）到底够不够？得先用真数据量出来，不能再靠猜。
+
+**实测**（用真实 `roster.json` 的 23,452 张卡 + `createSeason({mode:"historical", year:2005})` 跑一整个 30 队 2005 赛季）：
+- 刚建队：672.6 KB；
+- 打完 82 场常规赛（整联盟 1229 场比赛的 `resultsLog`）压缩前：**82.9 MB**；写入 `writeRootSave()` 之后（现有的 box/snapshot/feed 裁剪生效）：**965.8 KB**——现有压缩机制其实工作得很好，哪怕拿一个塞满真实球员属性/技能/薪资的完整历史赛季去压也只有不到 1MB。
+- 再用真实引擎跑 6 个连续赛季（`prepareCareerOffseason`→选秀→`completeCareerOffseason`，`historical`模式），压缩后的根存档从 841.9 KB（第 1 年）线性爬到 1013.3 KB（第 6 年），每年只增长约 10-15KB（`seasonHistory`/`draftHistory`/`history` 事件日志都是有界小对象）。按这个斜率推演，哪怕打 30-50 年也就 1.5-2MB 左右，远低于浏览器常见的 5-10MB 单 origin 配额。
+
+结论：**单赛季/多年累计的数据量本身不是问题，现有压缩修复依然有效**。那为什么真实用户还是会碰到配额错误？翻读 `js/data/saveRoot.js` 的 `migrateLegacySaves()` 才发现真正的根因——一个跟本轮存储量完全无关、从项目引入 `cls_root_v3` 那次迁移起就一直存在的旧 bug：
+
+```js
+// 旧代码（简化）
+const season = parseLegacy(target, LEGACY_SEASON_KEY, [1, 2]);
+if (season) {
+  const root = createRootState({ ... });
+  writeRootSave(root, target);
+  return { root, source: LEGACY_SEASON_KEY };   // <- cls_season_v1 从来没有被删掉！
+}
+```
+
+`cls_season_v1`（旧版赛季存档）、`cls_savegame_v1`（旧版比赛存档）这两个 legacy key，一旦某次启动把它们的数据"迁移"进了新的 `cls_root_v3`，**旧 key 本身被原样留在 localStorage 里，永远不会被删除**。对任何一个从"迁移到 `cls_root_v3`"之前就开始玩这个项目的用户（也就是说，几乎所有长期玩家），这意味着同一份赛季数据会同时占用两份独立的 localStorage key——而且 `cls_root_v3` 自己每次 `writeRootSave()` 内部还要临时写一份 `cls_root_v3_tmp` 做原子替换，三份加起来随时可能把同一个 origin 本就不富裕的配额吃穿，哪怕每一份单独看都不大。这完全可以解释「我的压缩修复明明有效，但用户还是报错」——我在修的是一个本来就没坏的东西，真正漏水的地方在旁边。
+
+**修复**（`js/data/saveRoot.js`）：
+- 新增导出 `purgeOrphanedLegacySaves(storage)`：删掉 `cls_season_v1`/`cls_savegame_v1`（如果存在），返回释放的字符数，方便调用方判断"清完有没有用"。
+- `migrateLegacySaves()` 的三个分支都在**成功迁移/确认当前 root 可读之后**调用它清掉对应的旧 key：
+  - 已经有 `cls_root_v3` 且能正常读出来 → 顺手清掉两个 legacy key（不管是不是这次迁移留下的，反正 root 已经是权威数据源了）；
+  - 刚把 `cls_season_v1` 迁移成新 root → 清掉 `cls_season_v1`（不碰 `cls_savegame_v1`，因为这次迁移根本没看过它，必须保持「没碰过的数据原样不动」这条既有不变量）；
+  - 刚把 `cls_savegame_v1` 迁移成新 root → 同理只清 `cls_savegame_v1`。
+  - 关键细节：root 存在但**读不出来**（JSON 损坏、或 `schemaVersion` 比当前版本新）时**绝不清理**——必须原样保留两份旧 key，不然等于在数据还没确认安全之前就把唯一的备份删了。这是从两条既有测试（`corrupt stored JSON is ignored without changing storage` / `future root prevents legacy migration and leaves all bytes unchanged`）反推出来的不变量，第一版实现图省事把 purge 调用放在了 `readRootSave` 判断*之前*，直接把这两条测试测崩了，调整顺序后才过。
+- `js/app.js` 的 `saveLongCareer()`：保存失败且错误是 `QuotaExceededError` 时，先调用 `purgeOrphanedLegacySaves()` 清理一次 orphan key，再重试写入一次——这样即使用户当前这局游戏早就过了应用启动时机（`migrateLegacySaves()` 只在启动时跑一次），也能在保存失败的瞬间原地自救，不用等下次刷新页面。
+- 保存彻底失败（清理+重试都救不回来）时，不再只弹一个死胡同式 `alert`：改为 `confirm()` 提示常见原因（隐私/无痕模式、设备存储快满、该网站配额被其他数据占满），并提供"现在导出这次没保存上的进度"选项——导出的是撤销 checkpoint *之前* 那次真实尝试写入的数据（`currentRootState()`），不是撤销后的旧状态，玩家不会因为这次失败白白丢掉进度。`#btn-long-career-export` 原本内联的下载逻辑顺手抽成了共享的 `downloadLongCareerExport(root)`，两处调用保持 DRY。
+
+**验证**：`tests/saveRoot.test.js` 新增/改写 5 条：
+- 两条既有迁移测试（`legacy season v1/v2 becomes...`、`valid legacy live game is migrated...`）原先的断言是"迁移后 legacy key 原样保留"——这其实是把 bug 编码成了"正确行为"，现在改成断言 legacy key 被删除（另一把没被这次迁移用到的 legacy key 则保持不动）。
+- 新增 `orphaned legacy keys from a pre-fix build are cleaned up once cls_root_v3 already exists`：模拟一个老版本遗留的场景（`cls_root_v3` + 两个 orphan legacy key 同时存在），确认 fast-path 分支会把它们都清掉。
+- 新增 `purgeOrphanedLegacySaves removes both legacy keys and reports bytes freed` / `...is a safe no-op when nothing is orphaned`：直接测试新导出函数本身。
+- 变异检查：临时注释掉 fast-path 分支里的 `purgeOrphanedLegacySaves(target)` 调用，新增的「orphaned legacy keys...」测试立刻变红，恢复后连同全部 29 条 `saveRoot.test.js` 测试一起转绿——证明这条测试真的在盯着这次修复，不是摆设。
+- 664/664 全量测试、lint、`git diff --check` 全绿。
+
+**诚实的覆盖缺口**：这个修复只解决了"legacy key 泄漏"这一个具体根因；用户的实际失败还可能叠加「设备存储接近写满」「隐私模式下 localStorage 配额被浏览器限制到接近 0」等环境因素——这些是本地单机 `localStorage` 架构的结构性限制，不是这次能修完的，长期仍然需要评估 IndexedDB/导出导入/云存档方案。另外，诊断过程中意外发现一个和本次修复无关的小问题：如果在应用之外的裸 Node 脚本里，`PLAYERS` 数组还没通过 `loadPlayers()`/手动灌入真实数据就直接调用 `createSeason({mode:"historical"})`，会陷入一个耗时数分钟甚至更久的病态慢路径（真实浏览器里不会触发，因为 UI 在名册加载完成前根本点不到这个入口）——值得记一笔但本轮不处理。
