@@ -124,6 +124,7 @@ import {
   exportRootSave,
   importRootSave,
   migrateLegacySaves,
+  purgeOrphanedLegacySaves,
   readRootSave,
   writeRootSave,
 } from "./data/saveRoot.js";
@@ -537,15 +538,71 @@ function currentRootState({ liveGame = "preserve" } = {}) {
   });
 }
 
+function downloadLongCareerExport(root) {
+  const blob = new Blob([exportRootSave(root)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "courtside-legends-save.json";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * A failed long-career save almost never means "the save itself is too big" -- a full 30-team
+ * historical season plus years of career history compacts down to roughly 1MB, well under any
+ * normal browser quota. In practice this fires because something ELSE on the origin ate the
+ * quota first: private/incognito mode (some browsers give that ~0 bytes), a nearly-full device
+ * (mobile Safari shrinks site quotas hard when disk space is low), or -- before this fix --
+ * orphaned legacy save keys nobody ever deleted. saveLongCareer() already retries once after
+ * clearing those orphans, so if we're here it likely needs a human to free up real space. Don't
+ * just dead-end on an alert: offer an immediate export of the attempt that didn't make it in,
+ * so the player doesn't lose progress while they sort out storage.
+ */
+function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
+  const wantsExport = confirm(
+    "长期生涯保存失败，刚才的改动已撤销。\n\n" +
+      "常见原因：隐私/无痕浏览模式、设备存储空间快满了、或浏览器这个网站的存储配额被其他数据占满。\n\n" +
+      "要现在将这次未能保存的进度导出为文件吗？之后可用“导入长期生涯”恢复。",
+  );
+  if (!wantsExport) return;
+  try {
+    downloadLongCareerExport(unsavedAttempt);
+  } catch (error) {
+    console.error("[long-career-save] export-after-failure also failed", error);
+    alert("导出也失败了：" + (error?.message || "未知错误"));
+  }
+}
+
 function saveLongCareer({ liveGame = "preserve" } = {}) {
   if (!state.leagueCareer) return false;
+  const rootState = currentRootState({ liveGame });
   try {
-    const persisted = writeRootSave(currentRootState({ liveGame }));
+    const persisted = writeRootSave(rootState);
     state.longCareerRoot = clonePersistedState(persisted);
     refreshLongCareerHomeBar();
     return true;
   } catch (error) {
     console.error("[long-career-save]", error);
+    // A pre-root-save build could leave a legacy cls_season_v1/cls_savegame_v1 key sitting in
+    // localStorage forever after "migrating" it (see purgeOrphanedLegacySaves docs) -- that
+    // doubles this origin's footprint for anyone who's been playing since before that fix. If
+    // the write failed on quota, clearing those orphans costs nothing and might buy back just
+    // enough room to succeed without losing anything the player cares about. Try once more.
+    if (error?.name === "QuotaExceededError") {
+      try {
+        const freedChars = purgeOrphanedLegacySaves();
+        if (freedChars > 0) {
+          const persisted = writeRootSave(rootState);
+          state.longCareerRoot = clonePersistedState(persisted);
+          refreshLongCareerHomeBar();
+          console.info(`[long-career-save] retry succeeded after freeing ${freedChars} orphaned legacy chars`);
+          return true;
+        }
+      } catch (retryError) {
+        console.error("[long-career-save] retry after legacy cleanup also failed", retryError);
+      }
+    }
     return false;
   }
 }
@@ -1111,13 +1168,7 @@ $("#btn-long-career-export")?.addEventListener("click", () => {
   const root = state.longCareerRoot || readRootSave();
   if (!root?.leagueCareer) return;
   try {
-    const blob = new Blob([exportRootSave(root)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "courtside-legends-save.json";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadLongCareerExport(root);
   } catch (error) {
     alert(error?.message || "导出存档失败");
   }
@@ -1149,10 +1200,11 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
 function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) {
   if (state.leagueCareer && st === state.season) {
     const checkpoint = clonePersistedState(state.longCareerRoot);
+    const unsavedAttempt = currentRootState({ liveGame });
     state.leagueCareer = careerForPersistence(state.leagueCareer, st);
     if (!saveLongCareer({ liveGame })) {
       restoreLongCareerCheckpoint(checkpoint);
-      alert("长期生涯保存失败，刚才的改动已撤销。请检查浏览器存储空间后重试。");
+      offerLongCareerExportAfterSaveFailure(unsavedAttempt);
       return false;
     }
     if (!saveSeason(st)) {
