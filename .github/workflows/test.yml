@@ -17,4 +17,8 @@ jobs:
       # dependencies must be installed first. Without this step CI
       # failed with "Cannot find package 'ws'" while local runs passed.
       - run: npm ci
+      # Lint catches what the test runner cannot: an `import` that was pasted inside a
+      # JSDoc block left getLang undefined in gachaView.js, crashing every card reveal,
+      # while the whole suite stayed green because no test rendered a reveal.
+      - run: npm run lint
       - run: npm test

@@ -1,9 +1,9 @@
 /**
-import { getLang } from "../i18n.js";
  * HTML builders for the daily draw + collection screens. Pure string output;
  * app.js owns DOM wiring. View helpers (esc, photoImg, …) are injected so this
  * module never reaches into app.js globals.
  */
+import { getLang } from "../i18n.js";
 import { EXTRA_DRAW, MAX_STARS, NEWBIE, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
 import { CHALLENGE_TICKETS, MILESTONE_WINS, WELCOME_TICKETS } from "../data/dailyTasks.js";
 import { GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "../data/growthPaths.js";
