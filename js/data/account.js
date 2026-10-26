@@ -43,9 +43,12 @@ export const DRAW_BANDS = [
   { min: 0, max: 74, p: 0.3, label: "普通" },
 ];
 
-/** Pick a player using band probability, then soft weight inside the band. */
-export function pickPlayerByOdds(pool, { excludeIds = null } = {}) {
-  const list = (pool || []).filter((p) => p && !(excludeIds && excludeIds.has(p.id)));
+/** Pick a player using band probability, then soft weight inside the band.
+ *  `maxOvr` (exclusive) keeps the pick below a ceiling -- used by the onboarding star budget. */
+export function pickPlayerByOdds(pool, { excludeIds = null, maxOvr = Infinity } = {}) {
+  const list = (pool || []).filter(
+    (p) => p && !(excludeIds && excludeIds.has(p.id)) && overall(p) < maxOvr,
+  );
   if (!list.length) return null;
 
   const roll = Math.random();
@@ -318,17 +321,48 @@ export function weightedPick(list, weightFn) {
   return list[list.length - 1];
 }
 
-/** Random pool for onboarding — mix of scrub / solid / rare bait. */
-export function rollStarterOffers(count = 24, excludeIds = new Set()) {
+/**
+ * Onboarding star budget. The odds above give 28% per card at 85+, so a 7-card system roll
+ * plus the best 5 of a 20-card offer pool used to hand out ~7 All-Stars on day one. Now the
+ * whole starting 12 holds at most STARTER_STAR_CAP cards at OVR >= STARTER_STAR_OVR (the
+ * franchise face or two); everyone else is a role player you grow into.
+ */
+export const STARTER_STAR_OVR = 85;
+export const STARTER_STAR_CAP = 2;
+const SYSTEM_SEVEN_STAR_CAP = 1;
+
+const isStarterStar = (p) => overall(p) >= STARTER_STAR_OVR;
+export const countStarterStars = (players) => (players || []).filter(isStarterStar).length;
+
+/** What the 5-pick offer pool may contain, given the system seven already rolled:
+ *  never past the cap, and at least one star on offer if the seven rolled none. */
+export function starterStarBudget(systemSeven) {
+  const left = Math.max(0, STARTER_STAR_CAP - countStarterStars(systemSeven));
+  return { max: left, min: countStarterStars(systemSeven) === 0 ? Math.min(1, left) : 0 };
+}
+
+/** Random pool for onboarding — mostly role players, star count bounded by `starBudget`. */
+export function rollStarterOffers(count = 24, excludeIds = new Set(), starBudget = { max: STARTER_STAR_CAP, min: 0 }) {
   const pool = PLAYERS.filter((p) => !excludeIds.has(p.id));
   const picks = [];
   const used = new Set(excludeIds);
   const attempts = count * 8;
   for (let i = 0; i < attempts && picks.length < count; i++) {
-    const p = pickPlayerByOdds(pool, { excludeIds: used });
+    const capped = countStarterStars(picks) >= starBudget.max;
+    const p = pickPlayerByOdds(pool, { excludeIds: used, maxOvr: capped ? STARTER_STAR_OVR : Infinity });
     if (!p || used.has(p.id)) continue;
     used.add(p.id);
     picks.push(p);
+  }
+  // Guarantee the floor: swap the weakest offer for a star if the roll came up empty-handed.
+  const starPool = pool.filter(isStarterStar);
+  while (countStarterStars(picks) < starBudget.min) {
+    const star = pickPlayerByOdds(starPool, { excludeIds: used });
+    if (!star) break;
+    let weakest = 0;
+    picks.forEach((p, i) => { if (overall(p) < overall(picks[weakest])) weakest = i; });
+    used.add(star.id);
+    picks[weakest] = star;
   }
   return picks.map((p) => clonePlayer(p));
 }
@@ -358,14 +392,15 @@ export function rollSystemSeven(excludeIds = new Set()) {
     let guard = 0;
     while (left > 0 && pool.length && guard < pool.length * 4) {
       guard += 1;
-      const p = pickPlayerByOdds(pool, { excludeIds: used });
+      const maxOvr = countStarterStars(filled) >= SYSTEM_SEVEN_STAR_CAP ? STARTER_STAR_OVR : Infinity;
+      const p = pickPlayerByOdds(pool, { excludeIds: used, maxOvr });
       if (!p || used.has(p.id)) continue;
       used.add(p.id);
       filled.push(clonePlayer(p));
       left -= 1;
     }
     while (left > 0) {
-      const p = pickPlayerByOdds(PLAYERS, { excludeIds: used });
+      const p = pickPlayerByOdds(PLAYERS, { excludeIds: used, maxOvr: STARTER_STAR_OVR });
       if (!p || used.has(p.id)) break;
       used.add(p.id);
       filled.push(clonePlayer(p));
@@ -413,6 +448,9 @@ export function finalizeOnboarding(account, { playerIds, coachId, tacticId }) {
   if (!coachId) throw new Error("需选定教练");
   const coach = COACHES.find((c) => c.id === coachId);
   if (!isStarterCoach(coach)) throw new Error("开局只能选用菜鸟/边缘主帅");
+  if (countStarterStars(resolvePlayers(playerIds)) > STARTER_STAR_CAP) {
+    throw new Error(`开局阵容最多 ${STARTER_STAR_CAP} 名全明星以上（OVR ${STARTER_STAR_OVR}+）球员`);
+  }
   account.playerIds = [...playerIds];
   account.coachIds = Array.from(new Set([...(account.coachIds || []), coachId]));
   account.coachId = coachId;

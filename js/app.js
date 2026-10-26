@@ -15,6 +15,7 @@ import {
   rollCoachOffers,
   rollStarterOffers,
   rollSystemSeven,
+  starterStarBudget,
   setActiveAccountId,
   setAccountCoach,
   setAccountTactic,
@@ -2126,7 +2127,7 @@ $("#btn-onboard-next")?.addEventListener("click", () => {
   if (ob.step === 1) {
     if ((ob.autoFilled || []).length < 7) return;
     const exclude = ob._exclude || new Set(ob.autoFilled.map((p) => p.id));
-    ob.offers = rollStarterOffers(20, exclude);
+    ob.offers = rollStarterOffers(20, exclude, starterStarBudget(ob.autoFilled));
     ob.selected = new Set();
     ob.step = 2;
     renderOnboard();
