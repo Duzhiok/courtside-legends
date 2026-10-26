@@ -974,7 +974,7 @@ async function resolveCareerContract(offerId) {
     state.story = root.story;
     state.longCareerRoot = root;
     if (!saveLongCareer()) throw new Error("续约保存失败");
-    setTimeTravelStatus("续约已签署，薪资和特权已写入生涯记录。");
+    setTimeTravelStatus(careerStateNotice(root.story));
     renderTimeTravelStoryState();
   } catch (error) {
     setTimeTravelStatus(error?.message || "无法完成续约", true);
@@ -991,7 +991,9 @@ function renderTimeTravelStoryState({ showResolved = false } = {}) {
   if (create) create.hidden = !!state.leagueCareer;
   if (offers && !timeTravelPrologue) offers.hidden = true;
   if (decision) decision.hidden = !(pending || (showResolved && resolved));
-  if (continueButton) continueButton.hidden = !state.leagueCareer || !!state.story?.pendingDecision;
+  if (continueButton) {
+    continueButton.hidden = !state.leagueCareer || !!state.story?.pendingDecision || careerIsOver(state.story);
+  }
   renderTimeTravelResources();
   renderTimeTravelStepper();
   renderPendingStoryEvent();
@@ -1090,6 +1092,33 @@ function renderTimeTravelOffers() {
   box.hidden = false;
 }
 
+/** Employment states that end the five-year chapter: no more seasons to coach on this career. */
+const CAREER_OVER_STATUSES = new Set(["fired", "departed"]);
+const careerIsOver = (story) => CAREER_OVER_STATUSES.has(story?.employment?.status);
+
+/** What the player should read when they come back to a career in a given employment state. */
+function careerStateNotice(story) {
+  const en = getLang() === "en";
+  switch (story?.employment?.status) {
+    case "fired":
+      return en
+        ? "You were fired after two straight seasons under .400. Your five-year chapter ended early."
+        : "连续两个赛季胜率低于 40%，你被解雇了，五年篇章提前结束。";
+    case "departed":
+      return en
+        ? "You left the team with your results in hand. The five-year chapter is over."
+        : "你选择带着成果离开，五年篇章正式结束。";
+    case "renewed":
+      return en
+        ? "Contract renewed. Your salary and privileges are in the career record."
+        : "续约已签署，薪资和特权已写入生涯记录。";
+    default:
+      return en
+        ? "Career established. Continue to the season center."
+        : "生涯已经建立，可以继续进入赛季中心。";
+  }
+}
+
 function openTimeTravelScreen() {
   ensureTimeTravelYears();
   const hasCareer = state.leagueCareer?.kind === "timeTravel";
@@ -1101,8 +1130,12 @@ function openTimeTravelScreen() {
       $("#time-travel-create").hidden = true;
       $("#time-travel-offers").hidden = true;
       $("#time-travel-decision").hidden = true;
-      $("#btn-time-travel-continue").hidden = false;
-      setTimeTravelStatus("生涯已经建立，可以继续进入赛季中心。");
+      // A fired / departed career has no season left to coach: say so, show how it ended
+      // (report + share card), and don't offer a Continue that would contradict the ending.
+      $("#btn-time-travel-continue").hidden = careerIsOver(state.story);
+      renderTimeTravelReport();
+      renderTimeTravelShareCard();
+      setTimeTravelStatus(careerStateNotice(state.story));
     }
   } else {
     timeTravelPrologue = null;
@@ -1181,7 +1214,7 @@ $("#btn-time-travel-decline-contract")?.addEventListener("click", async () => {
     state.story = root.story;
     state.longCareerRoot = root;
     if (!saveLongCareer()) throw new Error("离队决定保存失败");
-    setTimeTravelStatus("你选择带着成果离开，五年篇章正式结束。");
+    setTimeTravelStatus(careerStateNotice(root.story));
     renderTimeTravelStoryState();
   } catch (error) {
     setTimeTravelStatus(error?.message || "无法处理离队决定", true);
