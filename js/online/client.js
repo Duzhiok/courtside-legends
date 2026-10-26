@@ -7,6 +7,7 @@
 
 import { applyFrameDelta } from "./delta.js";
 import { loadRecord, saveRecord, recordGame, formatRecord } from "./record.js";
+import { prizeNotice } from "./prizeNotice.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -277,7 +278,7 @@ function handleMessage(msg) {
         state.market.gold = msg.gold;
         renderMarket();
       }
-      feedLine(`联机生涯奖金到账，现有金币 ${msg.gold}`);
+      feedLine(prizeNotice(msg));
       break;
     case "account":
       if (state.account && state.account.name === msg.name) {

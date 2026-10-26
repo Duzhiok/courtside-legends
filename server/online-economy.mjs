@@ -4,7 +4,7 @@
  * The loop: log in -> get 1000 gold + a random 8-man 2020 roster ->
  * trade on the shared board (system listings + player listings) ->
  * order your roster (first 5 start) -> duel with it (casual or ranked)
- * -> win 200 / lose 50 gold -> trade again.
+ * -> the winner earns a prize (rationed, see online-prizes.mjs) -> trade again.
  *
  * Deliberate simplifications (see WORKNOTE R65):
  * - Cards are fungible templates, not unique instances: two players can
@@ -24,14 +24,15 @@
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
+import { createPrizeLedger, DAILY_PRIZE_CAP, PAIR_DAILY_PRIZE_LIMIT, WIN_PRIZE } from "./online-prizes.mjs";
+
+export { DAILY_PRIZE_CAP, PAIR_DAILY_PRIZE_LIMIT, WIN_PRIZE };
 
 export const DEFAULT_ECONOMY_FILE = join(homedir(), ".courtside-online-economy.json");
 export const START_GOLD = 1000;
 export const STARTER_SIZE = 8;
 export const ROSTER_CAP = 12;
 export const MIN_DUEL_ROSTER = 5;
-export const WIN_PRIZE = 200;
-export const LOSE_PRIZE = 50;
 export const MAX_LISTINGS_PER_PLAYER = 5;
 export const MIN_PRICE = 50;
 export const MAX_PRICE = 5000;
@@ -50,7 +51,13 @@ function pickRandom(pool, n, rng = Math.random) {
   return out;
 }
 
-export function createEconomyStore({ file = DEFAULT_ECONOMY_FILE, cardIds = [], cardOvr = new Map() } = {}) {
+export function createEconomyStore({
+  file = DEFAULT_ECONOMY_FILE,
+  cardIds = [],
+  cardOvr = new Map(),
+  now = Date.now,
+  dailyPrizeCap = DAILY_PRIZE_CAP,
+} = {}) {
   // Null prototype: a player named "__proto__" / "constructor" must be an ordinary key, not Object.prototype.
   const state = { players: Object.create(null), listings: [], nextListingId: 1 };
   try {
@@ -64,6 +71,9 @@ export function createEconomyStore({ file = DEFAULT_ECONOMY_FILE, cardIds = [], 
   } catch {
     // Missing/corrupt file: start empty (same caveat as accounts).
   }
+
+  // Rebuilt from whatever the file held (it is untrusted); persisted inside the same state object.
+  const prizes = createPrizeLedger({ saved: state.prizeDay, now, dailyCap: dailyPrizeCap });
 
   const save = () => {
     try {
@@ -168,10 +178,11 @@ export function createEconomyStore({ file = DEFAULT_ECONOMY_FILE, cardIds = [], 
       if (!winnerName || !loserName || winnerName === loserName) return null;
       const winner = ensurePlayer(winnerName);
       const loser = ensurePlayer(loserName);
-      winner.gold += WIN_PRIZE;
-      loser.gold += LOSE_PRIZE;
+      const { prize, limited } = prizes.award(winnerName, loserName);
+      winner.gold += prize;
+      state.prizeDay = prizes.snapshot();
       save();
-      return { winnerGold: winner.gold, loserGold: loser.gold };
+      return { winnerGold: winner.gold, loserGold: loser.gold, winnerPrize: prize, limited };
     },
   };
 }

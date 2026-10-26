@@ -29,7 +29,9 @@
  */
 
 import { readFileSync } from "node:fs";
-import WebSocket, { WebSocketServer } from "ws";
+import WebSocket from "ws";
+import { clientIp, createRegistrationGate } from "./online-ratelimit.mjs";
+import { createTransport, listeningInfo, loadTlsCredentials, parseServerConfig } from "./online-transport.mjs";
 import { GameSim } from "../js/engine/sim.js";
 import { seasonToCard, overall } from "../js/data/players.js";
 import { buildCareerSpanIndex } from "../js/data/careerArc.js";
@@ -95,6 +97,13 @@ function send(ws, obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
 }
 
+/** Tell the winner what was paid. `limited` says why a smaller prize (or none) was paid, so a cap is never silent. */
+function sendPrize(seat, prizes) {
+  if (seat?.ws) {
+    send(seat.ws, { type: "economy", gold: prizes.winnerGold, prize: prizes.winnerPrize, limited: prizes.limited });
+  }
+}
+
 export function createOnlineServer({
   port = 3001,
   autoResumeMs = AUTO_RESUME_MS,
@@ -105,8 +114,18 @@ export function createOnlineServer({
   ratingBand = RATING_BAND,
   accountsFile,
   economyFile,
+  // Registration limits ({ perIp, global, windowMs }; see online-ratelimit.mjs) and whether a reverse proxy
+  // you control sets X-Forwarded-For (otherwise that header is ignored: any client can forge it).
+  registerLimits = {},
+  trustProxy = false,
+  // Where to listen, and { certFile, keyFile } to serve wss:// (omit for plain ws://; see online-transport.mjs).
+  host,
+  tls,
 } = {}) {
+  // First: a wrong certificate path should fail at once, not after loading the whole card pool.
+  const credentials = loadTlsCredentials(tls);
   const presets = loadPresets();
+  const registrationGate = createRegistrationGate(registerLimits);
   const accounts = createAccountStore(accountsFile ? { file: accountsFile } : {});
   const { cardById, cardIds, cardOvr } = loadCardPool();
   const economy = createEconomyStore(
@@ -270,12 +289,7 @@ export function createOnlineServer({
             room.seats[winner].account,
             room.seats[loserSide].account
           );
-          if (prizes) {
-            const winnerSeat = room.seats[winner];
-            const loserSeat = room.seats[loserSide];
-            if (winnerSeat?.ws) send(winnerSeat.ws, { type: "economy", gold: prizes.winnerGold });
-            if (loserSeat?.ws) send(loserSeat.ws, { type: "economy", gold: prizes.loserGold });
-          }
+          if (prizes) sendPrize(room.seats[winner], prizes);
         }
       },
     });
@@ -382,10 +396,7 @@ export function createOnlineServer({
           room.seats[otherSide].account,
           room.seats[side].account
         );
-        if (prizes) {
-          const winnerSeat = room.seats[otherSide];
-          if (winnerSeat?.ws) send(winnerSeat.ws, { type: "economy", gold: prizes.winnerGold });
-        }
+        if (prizes) sendPrize(room.seats[otherSide], prizes);
       }
     }, graceMs);
   };
@@ -424,8 +435,10 @@ export function createOnlineServer({
   };
 
   // ws defaults to a 100 MiB cap; every real message here is a few hundred bytes.
-  const wss = new WebSocketServer({ port, maxPayload: MAX_MESSAGE_BYTES });
-  wss.on("connection", (ws) => {
+  const transport = createTransport({ port, host, credentials, maxPayload: MAX_MESSAGE_BYTES });
+  const { wss } = transport;
+  wss.on("connection", (ws, req) => {
+    const ip = clientIp(req, { trustProxy });
     send(ws, {
       type: "welcome",
       presets: presets.map((p) => ({ id: p.id, name: p.name })),
@@ -619,8 +632,16 @@ export function createOnlineServer({
       }
 
       if (msg.type === "register") {
+        // Ask before the (blocking) password hash, charge only once an account really exists.
+        const gate = registrationGate.check(ip);
+        if (!gate.ok) {
+          const minutes = Math.max(1, Math.ceil(gate.retryAfterMs / 60000));
+          const what = gate.scope === "ip" ? "注册太频繁" : "注册暂时太多";
+          return send(ws, { type: "decision_rejected", reason: `${what}，请 ${minutes} 分钟后再试` });
+        }
         const r = accounts.register(msg.name, msg.password);
         if (!r.ok) return send(ws, { type: "decision_rejected", reason: r.reason });
+        registrationGate.record(ip);
         return send(ws, { type: "registered", name: r.name });
       }
 
@@ -701,6 +722,7 @@ export function createOnlineServer({
   return {
     wss,
     presets,
+    secure: transport.secure,
     port: () => wss.address()?.port,
     close: () =>
       new Promise((resolve) => {
@@ -711,17 +733,24 @@ export function createOnlineServer({
           r.sim?.stop();
         }
         for (const client of wss.clients) client.terminate(); // an open socket would stall close()
-        wss.close(resolve);
+        wss.close(() => transport.closeServer(resolve));
       }),
   };
 }
 
 const isMain = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
 if (isMain) {
-  const portArg = process.argv.find((a) => a.startsWith("--port="));
-  const port = portArg ? Number(portArg.slice("--port=".length)) : Number(process.env.ONLINE_PORT || 3001);
-  const server = createOnlineServer({ port });
+  const config = parseServerConfig(process.argv.slice(2), process.env);
+  let server;
+  try {
+    server = createOnlineServer(config);
+  } catch (err) {
+    console.error(`[online] 启动失败：${err.message}`);
+    process.exit(1);
+  }
   server.wss.on("listening", () => {
-    console.log(`[online] listening on ws://localhost:${server.port()} (${server.presets.length} preset teams)`);
+    const { url, warning } = listeningInfo({ secure: server.secure, host: config.host, port: server.port() });
+    console.log(`[online] listening on ${url} (${server.presets.length} preset teams)`);
+    if (warning) console.warn(`[online] ${warning}`);
   });
 }

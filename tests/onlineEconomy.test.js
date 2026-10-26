@@ -8,7 +8,6 @@ import {
   createEconomyStore,
   START_GOLD,
   WIN_PRIZE,
-  LOSE_PRIZE,
   ROSTER_CAP,
   SYSTEM_BOARD_SIZE,
 } from "../server/online-economy.mjs";
@@ -88,10 +87,11 @@ test("economy store: buy moves gold and card, cancel returns the card", () => {
 test("economy store: roster cap blocks buys, system board restocks", () => {
   const file = tmpFile("cap");
   try {
-    const store = createEconomyStore({ file, cardIds: POOL, cardOvr: OVR });
-    // Fund Alice first: system prices run 200–580, so 1000 starter gold
-    // alone may not cover 4 buys. Duel prizes are the deterministic tap.
-    for (let i = 0; i < 10; i++) store.recordDuel("Alice", "Bob");
+    // Every card at OVR 60 sits at the price floor (100), so the 4 buys cost 400 and the starter gold covers
+    // them. (This used to farm duel prizes for the money; prizes are capped now, and have nothing to do with
+    // the roster cap anyway.)
+    const flatPrices = new Map(POOL.map((id) => [id, 60]));
+    const store = createEconomyStore({ file, cardIds: POOL, cardOvr: flatPrices });
     for (let i = 0; i < ROSTER_CAP - 8; i++) {
       const sys = store.getBoard().find((l) => l.seller === null);
       assert.equal(store.buyListing("Alice", sys.id).ok, true);
@@ -116,7 +116,7 @@ test("economy store: reorder needs an exact permutation, duel prizes pay out", (
     assert.equal(store.reorderRoster("Alice", reversed.slice(1)).ok, false);
     const prizes = store.recordDuel("Alice", "Bob");
     assert.equal(prizes.winnerGold, START_GOLD + WIN_PRIZE);
-    assert.equal(prizes.loserGold, START_GOLD + LOSE_PRIZE);
+    assert.equal(prizes.loserGold, START_GOLD, "the loser gets nothing");
     // Persistence: a new instance sees the same gold and roster.
     const store2 = createEconomyStore({ file, cardIds: POOL, cardOvr: OVR });
     assert.equal(store2.getPlayer("Alice").gold, START_GOLD + WIN_PRIZE);
