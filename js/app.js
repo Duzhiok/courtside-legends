@@ -8837,9 +8837,13 @@ function renderSeasonMarket() {
     </section>` : ""}
   `;
 
-  const pickLabel = (pk) => {
+  // A club can now hold other clubs' picks, so say whose pick it is when it is not the holder's own.
+  const pickLabel = (pk, holderId) => {
     const v = estimateDraftPickValue(pk, { currentYear: st.year });
-    return `<span title="${esc(v.explanation)}">${esc(v.label)}（≈ +${v.ovrEquivalent} OVR）</span>`;
+    const from = pk.sourceTeamId && pk.sourceTeamId !== holderId
+      ? `${esc(st.teams[pk.sourceTeamId]?.name || pk.sourceTeamId)} 的 `
+      : "";
+    return `<span title="${esc(v.explanation)}">${from}${esc(v.label)}（≈ +${v.ovrEquivalent} OVR）</span>`;
   };
   const tradeCheckboxRow = (cls, id, label) =>
     `<label class="sm-row sm-trade-check"><span><input type="checkbox" class="${cls}" value="${id}"> ${label}</span></label>`;
@@ -8883,12 +8887,21 @@ function renderSeasonMarket() {
       .sort((a, b) => overall(b) - overall(a))
       .map((p) => tradeCheckboxRow("sm-give-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
       .join("");
-    const myPickRows = myPicksPool.map((pk) => tradeCheckboxRow("sm-give-pick", pk.id, pickLabel(pk))).join("");
+    // Picks sit after the players inside a scrolling list, so they get their own heading (and the
+    // column title says they are there) -- otherwise they read as just more players, below the fold.
+    const pickBlock = (rows, count) => (count ? `<div class="sm-pick-head">选秀权 · ${count}</div>${rows}` : "");
+    const myPickRows = pickBlock(
+      myPicksPool.map((pk) => tradeCheckboxRow("sm-give-pick", pk.id, pickLabel(pk, st.userTeamId))).join(""),
+      myPicksPool.length,
+    );
     const cpuPlayerRows = [...(cpu?.players || [])]
       .sort((a, b) => overall(b) - overall(a))
       .map((p) => tradeCheckboxRow("sm-want-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
       .join("");
-    const cpuPickRows = cpuPicksPool.map((pk) => tradeCheckboxRow("sm-want-pick", pk.id, pickLabel(pk))).join("");
+    const cpuPickRows = pickBlock(
+      cpuPicksPool.map((pk) => tradeCheckboxRow("sm-want-pick", pk.id, pickLabel(pk, tid))).join(""),
+      cpuPicksPool.length,
+    );
     const tid3 = $("#sm-trade-cpu3")?.value;
     const cpu3 = tid3 && tid3 !== tid ? st.teams[tid3] : null;
     // Three-team cycle: picks are not supported there yet, so hide pick rows rather than let the
@@ -8899,13 +8912,15 @@ function renderSeasonMarket() {
           .map((p) => tradeCheckboxRow("sm-want3-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
           .join("")
       : "";
+    const countNote = (players, picks) =>
+      `<span class="sm-count"> · ${players || 0} 名球员${cpu3 || !picks ? "" : ` · ${picks} 个选秀权（列表下方）`}</span>`;
     cols.innerHTML = `
       <section>
-        <h5 class="tiny">我方送出${cpu3 ? `（→ ${esc(cpu.name)}）` : ""}</h5>
+        <h5 class="tiny">我方送出${cpu3 ? `（→ ${esc(cpu.name)}）` : ""}${countNote(you.players?.length, myPicksPool.length)}</h5>
         <div class="sm-list">${myPlayerRows}${cpu3 ? "" : myPickRows}</div>
       </section>
       <section>
-        <h5 class="tiny">对方送出${cpu3 ? `（→ ${esc(cpu3.name)}）` : ""}</h5>
+        <h5 class="tiny">对方送出${cpu3 ? `（→ ${esc(cpu3.name)}）` : ""}${countNote(cpu?.players?.length, cpuPicksPool.length)}</h5>
         <div class="sm-list">${cpuPlayerRows}${cpu3 ? "" : cpuPickRows}</div>
       </section>
       ${cpu3 ? `<section>

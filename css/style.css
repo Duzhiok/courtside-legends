@@ -2534,6 +2534,22 @@ select, input[type="number"] {
   max-height: 420px;
   overflow: auto;
 }
+/* heading that separates the draft picks from the players inside a trade list */
+.sm-pick-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 4px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted, #5b6a63);
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.sm-count {
+  font-weight: 400;
+  color: var(--muted, #5b6a63);
+}
 .sm-row {
   display: flex;
   justify-content: space-between;
@@ -2668,7 +2684,16 @@ select, input[type="number"] {
   font-size: .82rem;
   cursor: pointer;
 }
-.sm-trade-check input { flex-shrink: 0; }
+.sm-trade-check input { flex-shrink: 0; margin: 3px 0 0; }
+/* checkbox fixed on the left, label wrapping inside its own column: a label a few px too wide used to
+   shove its whole text onto a second line and leave the checkbox alone above it */
+.sm-trade-check > span {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 800px) {
   .sm-cols { grid-template-columns: 1fr; }
 }
