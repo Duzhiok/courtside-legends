@@ -3,8 +3,11 @@
  *
  * Tasks pay 抽卡券 (extra pulls), never gold or cards directly, so progress
  * always goes through the same pity / 成色 rules. Everything is capped:
- *  - daily tasks: at most 3 tickets a day (play 1 ranked + win 1 ranked +
- *    win 1 gold-ladder game). The career task exists because the ranked pair
+ *  - daily tasks: at most 3 tickets a day (play 3 ranked + win 2 ranked +
+ *    win 3 gold-ladder games). Targets were 1/1/1 until users pointed out a
+ *    single ranked game farmed two tickets in minutes; the target count now
+ *    drives both the label and the check, so they cannot drift apart.
+ *    The career task exists because the ranked pair
  *    alone made day one too cheap: a welcome gift + free pull + two ranked
  *    tickets handed out premium pulls before any real play (R47 rebalance --
  *    the gift was cut 4 -> 2 and the third daily ticket moved into the
@@ -19,13 +22,24 @@
 import { saveAccount, todayKey } from "./account.js";
 
 export const WELCOME_TICKETS = 2;
-export const MILESTONE_WINS = 5;
+export const MILESTONE_WINS = 10;
 export const CHALLENGE_TICKETS = 2;
 
+/** `key` is the day counter the task reads; `target` drives both the label and the check. */
+const dailyTask = (id, key, target, zh, en) => ({
+  id,
+  key,
+  target,
+  label: zh(target),
+  labelEn: en(target),
+  tickets: 1,
+  done: (day) => (day[key] || 0) >= target,
+});
+
 export const DAILY_TASKS = [
-  { id: "play", label: "打 1 场排位", labelEn: "Play 1 ranked game", tickets: 1, done: (day) => day.played >= 1 },
-  { id: "win", label: "排位赢 1 场", labelEn: "Win 1 ranked game", tickets: 1, done: (day) => day.won >= 1 },
-  { id: "careerWin", label: "金币挑战赛赢 1 场", labelEn: "Win 1 gold challenge game", tickets: 1, done: (day) => (day.careerWon || 0) >= 1 },
+  dailyTask("play", "played", 3, (n) => `打 ${n} 场排位`, (n) => `Play ${n} ranked games`),
+  dailyTask("win", "won", 2, (n) => `排位赢 ${n} 场`, (n) => `Win ${n} ranked games`),
+  dailyTask("careerWin", "careerWon", 3, (n) => `金币挑战赛赢 ${n} 场`, (n) => `Win ${n} gold challenge games`),
 ];
 
 /**
@@ -139,7 +153,14 @@ export function taskBoard(account, today = todayKey(), lang = "zh") {
   const milestone = winMilestone(account);
   const challengeDef = DAILY_CHALLENGES.find((c) => c.id === day.challengeId) || DAILY_CHALLENGES[0];
   return {
-    tasks: DAILY_TASKS.map((task) => ({ id: task.id, label: taskLabel(task, lang), tickets: task.tickets, claimed: day.claimed.includes(task.id) })),
+    tasks: DAILY_TASKS.map((task) => ({
+      id: task.id,
+      label: taskLabel(task, lang),
+      tickets: task.tickets,
+      claimed: day.claimed.includes(task.id),
+      progress: Math.min(day[task.key] || 0, task.target),
+      target: task.target,
+    })),
     challenge: { id: challengeDef.id, label: taskLabel(challengeDef, lang), tickets: challengeDef.tickets, claimed: day.claimed.includes(challengeDef.id) },
     milestone: { wins: milestone.wins, next: milestone.next, perTicket: MILESTONE_WINS },
     tickets: account.tickets || 0,

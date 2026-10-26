@@ -7,6 +7,7 @@ globalThis.localStorage = createMemoryStorage();
 const { recordRankedResult } = await import("../js/data/account.js");
 const {
   MILESTONE_WINS,
+  DAILY_TASKS,
   WELCOME_TICKETS,
   CHALLENGE_TICKETS,
   DAILY_CHALLENGES,
@@ -39,32 +40,39 @@ test("welcome tickets are granted exactly once", () => {
   assert.equal(acc.tickets, WELCOME_TICKETS);
 });
 
-test("first ranked game of the day pays the 'play' ticket, a win pays 'win'", () => {
+test("daily targets are 3 played / 2 won ranked and 3 gold-challenge wins (harder than the old 1/1/1)", () => {
+  assert.deepEqual(DAILY_TASKS.map((t) => [t.id, t.target]), [["play", 3], ["win", 2], ["careerWin", 3]]);
+  assert.equal(MILESTONE_WINS, 10);
+});
+
+test("ranked tasks pay only once the day's count reaches the target", () => {
   const acc = account();
-  const loss = playRanked(acc, false, DAY1);
-  assert.deepEqual(loss.map((g) => g.id), ["play"]);
-  const win = playRanked(acc, true, DAY1);
-  assert.deepEqual(win.map((g) => g.id), ["win"]);
+  assert.deepEqual(playRanked(acc, true, DAY1).map((g) => g.id), [], "1 game, 1 win: nothing yet");
+  assert.deepEqual(playRanked(acc, true, DAY1).map((g) => g.id), ["win"], "2nd win pays 'win'");
+  assert.deepEqual(playRanked(acc, false, DAY1).map((g) => g.id), ["play"], "3rd game pays 'play'");
   assert.equal(acc.tickets, 2);
+  const board = taskBoard(acc, DAY1);
+  assert.deepEqual(board.tasks.map((t) => [t.id, t.progress, t.target]), [["play", 3, 3], ["win", 2, 2], ["careerWin", 0, 3]]);
 });
 
 test("daily tasks pay once per day, no matter how many games", () => {
   const acc = account();
   for (let i = 0; i < 6; i++) playRanked(acc, i % 2 === 0, DAY1);
-  // 3 wins → no milestone yet (needs 5); only the two daily tickets
+  // 3 wins → no milestone yet (needs 10); only the two ranked daily tickets
   assert.equal(acc.tickets, 2);
 });
 
 test("a new day resets the tasks", () => {
   const acc = account();
-  playRanked(acc, true, DAY1);
+  for (let i = 0; i < 3; i++) playRanked(acc, true, DAY1);
   assert.equal(acc.tickets, 2);
   playRanked(acc, true, DAY2);
-  assert.equal(acc.tickets, 4);
-  assert.equal(taskBoard(acc, "2026-03-03").tasks.every((t) => !t.claimed), true);
+  assert.equal(acc.tickets, 2, "day 2 starts from zero, one game pays nothing");
+  const fresh = taskBoard(acc, "2026-03-03").tasks;
+  assert.equal(fresh.every((t) => !t.claimed && t.progress === 0), true);
 });
 
-test("every 5 lifetime ranked wins grants one ticket, never twice", () => {
+test("every MILESTONE_WINS lifetime ranked wins grants one ticket, never twice", () => {
   const acc = account();
   let milestoneTickets = 0;
   for (let i = 0; i < MILESTONE_WINS * 2; i++) {
@@ -176,24 +184,24 @@ test("welcome gift is the rebalanced 2 tickets", () => {
   assert.equal(WELCOME_TICKETS, 2);
 });
 
-test("career win pays the 金币挑战赛 ticket once a day; a loss pays nothing", () => {
+test("career wins pay the 金币挑战赛 ticket once the day reaches 3 wins; losses pay nothing", () => {
   const acc = account();
   assert.deepEqual(recordCareerTasks(acc, false, DAY1), [], "a loss must not pay");
-  assert.equal(acc.tickets || 0, 0);
-  const grant = recordCareerTasks(acc, true, DAY1);
-  assert.deepEqual(grant.map((g) => g.id), ["careerWin"]);
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "1 win: not yet");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "2 wins: not yet");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1).map((g) => g.id), ["careerWin"], "3rd win pays");
   assert.equal(acc.tickets, 1);
-  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "second win the same day pays nothing more");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "4th win the same day pays nothing more");
   assert.equal(acc.tickets, 1);
-  const nextDay = recordCareerTasks(acc, true, DAY2);
-  assert.deepEqual(nextDay.map((g) => g.id), ["careerWin"], "a new day pays again");
+  for (let i = 0; i < 2; i++) recordCareerTasks(acc, true, DAY2);
+  assert.deepEqual(recordCareerTasks(acc, true, DAY2).map((g) => g.id), ["careerWin"], "a new day pays again");
   assert.equal(acc.tickets, 2);
 });
 
 test("ranked pair + career task stack to 3 daily task tickets, each once", () => {
   const acc = account();
-  playRanked(acc, true, DAY1); // play + win
-  recordCareerTasks(acc, true, DAY1); // careerWin
+  for (let i = 0; i < 3; i++) playRanked(acc, true, DAY1); // play + win
+  for (let i = 0; i < 3; i++) recordCareerTasks(acc, true, DAY1); // careerWin
   assert.equal(acc.tickets, 3);
   const board = taskBoard(acc, DAY1);
   assert.deepEqual(board.tasks.map((t) => t.id), ["play", "win", "careerWin"]);
@@ -202,4 +210,14 @@ test("ranked pair + career task stack to 3 daily task tickets, each once", () =>
 
 test("recordCareerTasks is a safe no-op without an account", () => {
   assert.deepEqual(recordCareerTasks(null, true, DAY1), []);
+});
+
+test("task board renders progress, and English mode has no Chinese left", async () => {
+  const { tasksHtml } = await import("../js/ui/gachaView.js");
+  const acc = account();
+  playRanked(acc, true, DAY1);
+  const en = tasksHtml(taskBoard(acc, DAY1, "en"), "en");
+  assert.match(en, /Play 3 ranked games <span class="tiny">1\/3<\/span>/);
+  assert.doesNotMatch(en, /[\u4e00-\u9fff]/, "no CJK characters in the English task board");
+  assert.match(tasksHtml(taskBoard(acc, DAY1), "zh"), /排位赢 2 场 <span class="tiny">1\/2<\/span>/);
 });

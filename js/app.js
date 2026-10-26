@@ -10220,7 +10220,7 @@ function handleCareerResult(youWin, snap) {
   const kind = match?.kind ? kindLabel(match.kind) : "对决";
   const wasFinals = !!(c.finals || c.stageSize === 2);
   const result = resolveCareerYourResult(youWin, opp);
-  // 每日任务「金币挑战赛」：晋级赛赢 1 场 +1 抽卡券；奖励说明并进 injLine，各分支结算文案都会带上。
+  // 每日任务「金币挑战赛」：当日晋级赛累计赢满目标场数（见 DAILY_TASKS）+1 抽卡券；奖励说明并进 injLine，各分支结算文案都会带上。
   const taskGrants = recordCareerTasks(activeAccount(), youWin, undefined, getLang());
   const taskNote = taskGrants.length
     ? ` 🎫 每日任务达成：${taskGrants.map((g) => g.label).join("、")}，抽卡券 +${taskGrants.reduce((s, g) => s + g.tickets, 0)}。`
