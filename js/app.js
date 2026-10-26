@@ -200,7 +200,9 @@ import {
   createSeason,
   loadSeason,
   nextUserGame,
+  nextUserPlayoffGame,
   prepareSeasonState,
+  recordUserLivePlayoffResult,
   recordUserLiveResult,
   saveSeason,
   seasonProgressLabel,
@@ -208,6 +210,7 @@ import {
   simAllPlayoffs,
   simScheduledGame,
   simUserNextGame,
+  simUserNextPlayoffGame,
   snapFromResultLog,
   standingsList,
   startPlayoffs,
@@ -7796,6 +7799,10 @@ function showResult(snap, { formNotes = [] } = {}) {
     handleSeasonResult(snap);
     return;
   }
+  if (isSeasonProgressMode(state.mode) && state.season && state.seasonPendingPlayoffGame) {
+    handleSeasonPlayoffResult(snap);
+    return;
+  }
   if (state.tournament) {
     setResultActionMode("tournament", { showContinue: true, continuePrimary: true });
     applyTournamentResult(snap);
@@ -8010,12 +8017,33 @@ function renderSeasonHub({ persist = true } = {}) {
         : isManagedCareer(state.leagueCareer)
           ? "赛季结束。可进入休赛期选秀。"
           : "赛季结束。可进入休赛期让球员按史实潜力成长。";
+      $("#btn-season-play").disabled = true;
+      $("#btn-season-sim-one").disabled = true;
     } else {
-      nextEl.textContent = champ ? `总冠军：${champ}` : "季后赛进行中——可一键模拟剩余轮次";
+      const info = nextUserPlayoffGame(st);
+      if (info) {
+        // User's series is still alive and it's their turn to play a game -- 亲自指挥/快速模拟本场
+        // used to be unconditionally disabled for the ENTIRE playoffs (user report: "季后赛我不能
+        // 手动打吗？？？"), forcing everyone through 模拟下一轮/一键打完季后赛 with zero personal
+        // control. Mirror the regular-season hub: show whose turn it is and let them play it.
+        const label = playoffSeriesLabel(st, info.series);
+        const youAreHigh = info.series.high?.id === st.userTeamId;
+        const myWins = youAreHigh ? info.series.winsHigh : info.series.winsLow;
+        const theirWins = youAreHigh ? info.series.winsLow : info.series.winsHigh;
+        const oppName = (youAreHigh ? info.series.low : info.series.high)?.name || "对手";
+        const atHome = info.homeId === st.userTeamId;
+        nextEl.textContent = `${label} 第 ${myWins + theirWins + 1} 场 · ${myWins}-${theirWins} vs ${oppName}（${atHome ? "主场" : "客场"}）`;
+        $("#btn-season-play").disabled = false;
+        $("#btn-season-sim-one").disabled = false;
+      } else {
+        nextEl.textContent = champ
+          ? `总冠军：${champ}`
+          : "你的系列赛暂无进行中的比赛——可能在等另一分区，或已被淘汰。可点「季后赛」页签模拟剩余赛事。";
+        $("#btn-season-play").disabled = true;
+        $("#btn-season-sim-one").disabled = true;
+      }
     }
-    $("#btn-season-play").disabled = true;
-    $("#btn-season-sim-one").disabled = true;
-    $("#btn-season-sim-week").disabled = true;
+    $("#btn-season-sim-week").disabled = true; // "模拟5场"是常规赛概念，对季后赛不适用
   }
 
   renderSeasonStandings();
@@ -9111,7 +9139,9 @@ function showSeasonTab(tab) {
 
 function playSeasonUserGame() {
   const st = state.season;
-  if (!st || st.phase !== "regular") return;
+  if (!st) return;
+  if (st.phase === "playoffs") return playUserPlayoffGame();
+  if (st.phase !== "regular") return;
   advanceToUserGame(st, { stopBeforeUser: true });
   const info = nextUserGame(st);
   if (!info) {
@@ -9138,7 +9168,14 @@ function playSeasonUserGame() {
     excludeIds: [home?.coach?.id, home?.assistant?.id],
   });
   if (!saveSeasonAndCareer(st)) return;
-  const cloneSide = (t) => ({
+  openSetup(cloneLiveTeamSide(home), cloneLiveTeamSide(away), youHome ? "home" : "away");
+}
+
+/** Deep-clones a season team into the plain blob openSetup()/GameSim expect, detached from
+ * state.season so mid-game mutations (fatigue, form, etc.) don't leak back until the result is
+ * recorded. Shared by playSeasonUserGame() and playUserPlayoffGame() -- same shape either way. */
+function cloneLiveTeamSide(t) {
+  return {
     name: t.name,
     players: t.players.map((p) => clonePlayer(p)),
     coach: t.coach ? structuredClone(t.coach) : null,
@@ -9149,8 +9186,35 @@ function playSeasonUserGame() {
     starterIds: t.starterIds ? [...t.starterIds] : null,
     lineupPacks: t.lineupPacks ? structuredClone(t.lineupPacks) : null,
     rotation: t.rotation ? structuredClone(t.rotation) : null,
-  });
-  openSetup(cloneSide(home), cloneSide(away), youHome ? "home" : "away");
+  };
+}
+
+/**
+ * Playoffs used to be sim-only (快速模拟本场 / 一键打完季后赛), with 亲自指挥 unconditionally
+ * disabled the moment the regular season ended -- a user could never personally play a single
+ * playoff game. This mirrors playSeasonUserGame() one game at a time against the user's CURRENT
+ * series (nextUserPlayoffGame() walks the 2-2-1-1-1 home/away pattern); round-to-round reseeding
+ * remains advancePlayoffs()'s job once this series is done.
+ */
+function playUserPlayoffGame() {
+  const st = state.season;
+  if (!st || st.phase !== "playoffs") return;
+  const info = nextUserPlayoffGame(st);
+  if (!info) {
+    renderSeasonHub();
+    showSeasonTab("playoffs");
+    return;
+  }
+  const { series, homeId, awayId } = info;
+  const game = { homeId, awayId, played: false, result: null };
+  const youHome = homeId === st.userTeamId;
+  const home = st.teams[homeId];
+  const away = st.teams[awayId];
+  ensureTeamStaff(home, { preferStarter: true, excludeIds: [away?.coach?.id, away?.assistant?.id] });
+  ensureTeamStaff(away, { preferStarter: true, excludeIds: [home?.coach?.id, home?.assistant?.id] });
+  state.seasonPendingPlayoffGame = { game, series };
+  if (!saveSeasonAndCareer(st)) return;
+  openSetup(cloneLiveTeamSide(home), cloneLiveTeamSide(away), youHome ? "home" : "away");
 }
 
 function handleSeasonResult(snap) {
@@ -9182,8 +9246,38 @@ function handleSeasonResult(snap) {
   wireSeasonResultContinue(st, snap);
 }
 
+/** Playoff counterpart of handleSeasonResult() -- same fatigue/form bookkeeping, but the
+ * win/loss goes onto the pending series (recordUserLivePlayoffResult) instead of st.schedule. */
+function handleSeasonPlayoffResult(snap) {
+  const st = state.season;
+  const pending = state.seasonPendingPlayoffGame;
+  if (st && pending?.game && !pending.game.played) {
+    recordUserLivePlayoffResult(st, pending.game, pending.series, snap);
+  }
+  state.seasonPendingPlayoffGame = null;
+  if (st && snap) {
+    const youSide = snap.youSide;
+    const youSnap = youSide === "home" ? snap.home : snap.away;
+    const team = st.teams[st.userTeamId];
+    if (team && youSnap?.roster) {
+      for (const p of youSnap.roster) {
+        const live = team.players.find((x) => x.id === p.id);
+        if (live) {
+          live.form = p.form;
+          live.fatigue = Math.min(40, p.fatigue || 0);
+        }
+      }
+    }
+    if (!saveSeasonAndCareer(st, { liveGame: "clear" })) {
+      wireSeasonResultContinue(state.season, snap, { playoffSeries: pending?.series });
+      return;
+    }
+  }
+  wireSeasonResultContinue(st, snap, { playoffSeries: pending?.series });
+}
+
 /** Paint score + both-team box scores (instant sim or re-open from schedule). */
-function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false } = {}) {
+function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null } = {}) {
   if (!snap?.home || !snap?.away) return;
   const st = state.season;
   show("result");
@@ -9202,16 +9296,45 @@ function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false }
         ? `${winner} 获胜`
         : `${winner} 获胜 · ${youWin ? "我方胜" : "我方负"}`;
   $("#box-score").innerHTML = `${boxTable(snap.home)}${boxTable(snap.away)}`;
-  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory });
+  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory, playoffSeries });
 }
 
-function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false } = {}) {
+/** "东部 · R2"/"总决赛" 样式标签，跟 renderSeasonPlayoffs() 的 confBlock 标题保持一致。 */
+function playoffSeriesLabel(st, series) {
+  const po = st?.playoffs;
+  if (series === po?.finals) return "总决赛";
+  if (po?.east?.series?.includes(series)) return `东部 · R${series.round}`;
+  if (po?.west?.series?.includes(series)) return `西部 · R${series.round}`;
+  return "季后赛";
+}
+
+/** Playoff-flavored #result-summary text: series score if still going, outcome if just decided. */
+function playoffResultSummaryText(st, series) {
+  const label = playoffSeriesLabel(st, series);
+  const youAreHigh = series.high?.id === st.userTeamId;
+  const myWins = youAreHigh ? series.winsHigh : series.winsLow;
+  const theirWins = youAreHigh ? series.winsLow : series.winsHigh;
+  const oppName = (youAreHigh ? series.low : series.high)?.name || "对手";
+  if (!series.done) return `${label} 战至 ${myWins}-${theirWins}，可继续比赛。`;
+  if (series.winnerId !== st.userTeamId) {
+    return `${label} ${theirWins}-${myWins} 不敌 ${oppName}，本届季后赛到此结束。`;
+  }
+  return st.phase === "done"
+    ? `${label} ${myWins}-${theirWins} 淘汰 ${oppName}，夺得总冠军！可进入休赛期。`
+    : `${label} ${myWins}-${theirWins} 淘汰 ${oppName}，晋级下一轮！`;
+}
+
+function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null } = {}) {
   const cont = $("#btn-result-continue");
-  const rec = st?.standings?.[st.userTeamId];
-  const played = userGamesPlayed(st);
-  const base = `常规赛战绩 ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82。${
-    st?.phase === "awards" ? " 常规赛结束，可查看评奖。" : ""
-  }`;
+  const base = playoffSeries
+    ? playoffResultSummaryText(st, playoffSeries)
+    : (() => {
+        const rec = st?.standings?.[st.userTeamId];
+        const played = userGamesPlayed(st);
+        return `常规赛战绩 ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82。${
+          st?.phase === "awards" ? " 常规赛结束，可查看评奖。" : ""
+        }`;
+      })();
   $("#result-summary").textContent = summaryExtra ? `${summaryExtra} ${base}` : base;
   cont.textContent = viewingHistory ? "返回赛程" : "回到赛季主页";
   cont.onclick = () => {
@@ -9220,11 +9343,17 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
     show("season");
     if (viewingHistory) showSeasonTab("schedule");
     else if (st?.phase === "awards") showSeasonTab("awards");
+    else if (playoffSeries || st?.phase === "playoffs" || st?.phase === "done") showSeasonTab("playoffs");
   };
 
   // #btn-again doubles as "继续模拟" here (user feedback: result screen only offered a trip back
   // to the season hub to trigger the next game -- no way to just keep going from this screen).
-  const canKeepSimming = !viewingHistory && st?.phase === "regular";
+  // During playoffs this means "keep playing MY series one game at a time"; 模拟整个赛季 only ever
+  // makes sense for the regular season -- bulk-advancing playoff rounds already lives on the
+  // playoffs tab (模拟下一轮 / 一键打完季后赛), so it's deliberately NOT duplicated here.
+  const hasNextPlayoffGame = !viewingHistory && st?.phase === "playoffs" && !!nextUserPlayoffGame(st);
+  const canKeepSimming = (!viewingHistory && st?.phase === "regular") || hasNextPlayoffGame;
+  const canSimWholeSeason = !viewingHistory && st?.phase === "regular";
   setResultActionMode("season", { showContinue: true, continuePrimary: !canKeepSimming });
   const again = $("#btn-again");
   if (again) {
@@ -9238,8 +9367,8 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
   cont.classList.toggle("primary", !canKeepSimming);
   const simSeasonBtn = $("#btn-result-sim-season");
   if (simSeasonBtn) {
-    simSeasonBtn.hidden = !canKeepSimming;
-    if (canKeepSimming) {
+    simSeasonBtn.hidden = !canSimWholeSeason;
+    if (canSimWholeSeason) {
       simSeasonBtn.textContent = "模拟整个赛季";
       simSeasonBtn.onclick = async () => {
         if (
@@ -9304,7 +9433,9 @@ async function simRestOfSeason() {
 
 function simSeasonGames(count = 1) {
   const st = state.season;
-  if (!st || st.phase !== "regular") return;
+  if (!st) return;
+  if (st.phase === "playoffs") return simUserPlayoffGameFromResult();
+  if (st.phase !== "regular") return;
   let last = null;
   let n = 0;
   for (let i = 0; i < count; i++) {
@@ -9331,6 +9462,25 @@ function simSeasonGames(count = 1) {
   }
   renderSeasonHub();
   if (st.phase === "awards") showSeasonTab("awards");
+}
+
+/** 「快速模拟本场」在季后赛阶段的对应物：只模拟我方当前系列赛的下一场，结果页复用和常规赛
+ * 完全相同的 showSeasonSimResult 渲染，只是摘要文案换成系列比分（wireSeasonResultContinue 里的
+ * playoffSeries 分支处理）。 */
+function simUserPlayoffGameFromResult() {
+  const st = state.season;
+  const result = simUserNextPlayoffGame(st);
+  if (!result) {
+    renderSeasonHub();
+    showSeasonTab("playoffs");
+    return;
+  }
+  if (!saveSeasonAndCareer(st)) return;
+  const youSide = result.game.homeId === st.userTeamId ? "home" : "away";
+  showSeasonSimResult(
+    { ...result.snap, youSide },
+    { summaryExtra: "快速模拟完成。下方为双方球员数据。", playoffSeries: result.series },
+  );
 }
 
 $("#btn-season-back")?.addEventListener("click", () => show("home"));

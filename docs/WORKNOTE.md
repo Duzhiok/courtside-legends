@@ -722,3 +722,27 @@ mutation 验证：把加成接入点临时改成 `chem += 0`，集成测试立�
 验证：新增 3 条测试（1）构造一个硬帽贴边的 CPU 队，确认球员被正确加上了换丁且最终 `acceptTradeProposal` 能成功；2）构造一个连换丁都救不了的「无待」队，确认根本不会生成报价；3）旧有回归测试照样全绿（说明正常预算内的 CPU 队不受影响）。变异检查：临时摘掉硬帽补丁逻辑，新增的两条测试立刻变红（「应该被打上换丁」和「不应该生成报价」分别失败），恢复后全绿。
 
 注：下游 UI（`js/app.js` 的「对方球员」展示）和 `tradeComparison.js` 对 `proposal.receivePlayers` 都是通用 `.map()/.reduce()` 遍历，本来就支持任意个数，所以这个「最多加一个换丁」的修复不需要改任何 UI 代码，647/647 全量测试（包括旧有 `tradeComparison.test.js`）依旧全绿。lint、diff-check 也全绿。
+
+### R48：季后赛新增「亲自指挥/快速模拟本场」—— 之前只能一键打完整个季后赛，没法像常规赛一样自己打
+
+用户截图反馈：季后赛页面只有「模拟下一轮」「一键打完季后赛」两个全局模拟入口，常规赛那个「亲自指挥」/「快速模拟本场」到了季后赛阶段就被完全硬禁用，玩家对自己班底的季后赛每一场比赛完全没有个人控制权。
+
+**设计**：季后赛没有 `standings`（范数 W-L），输赢是系列赛计分（`winsHigh`/`winsLow`），所以不能直接复用常规赛的 `recordUserLiveResult()`，得单独做一套平行 API（`js/engine/season.js`）：
+- `activeUserPlayoffSeries(st)`：找到用户当前所在且未结束的系列赛（遍历 east/west/finals）。
+- `nextUserPlayoffGame(st)`：根据 `winsHigh+winsLow` 算出下一场的主客场（复用现有 2-2-1-1-1 的 `seriesHomeAway()`）。
+- `simUserNextPlayoffGame(st)`：快速模拟这一场，内部复用 `simScheduledGame(..., {recordStandings:false})`，再调新增的内部辅助函数 `finishPlayoffGame()` 把输赢计入系列赛。
+- `recordUserLivePlayoffResult(st, game, series, snap)`：亲自指挥打完后把 live box score 结果应用到系列赛上，同样走 `finishPlayoffGame()`。
+- `finishPlayoffGame()`：统一处理输赢计数、`series.done/winnerId`，总决赛结束时设置 `st.playoffs.championId`、`st.phase = "done"`、`st.finalsAllTeam`。
+
+顺便修了一个潜在续接 bug：`simPlayoffSeries()`（「一键打完」的批量函数）之前总是从 `gi = 0` 开始模拟，如果用户先手动打过几场再点「一键打完」，主客场顺序会被重置。改成从 `series.winsHigh + series.winsLow` 续接。
+
+**UI 接入**（`js/app.js`）：
+- `playSeasonUserGame()`/`simSeasonGames()` 在 `st.phase === "playoffs"` 时分别分派到新增的 `playUserPlayoffGame()`/`simUserPlayoffGameFromResult()`，复用与常规赛完全相同的 `openSetup()`/`showSeasonSimResult()` 调用链路，没有另写一套 UI。
+- `renderSeasonHub()` 的 `playoffs` 分支不再无条件禁用两个按钮：有指 `nextUserPlayoffGame(st)` 返回非空时就启用，并显示当前系列赛比分/主客场；返回 `null`（被淘汰或等另一分区）时继续禁用并说明原因。
+- `wireSeasonResultContinue()` 新增 `playoffSeries` 选项：系列赛进行中显示比分（「东部 · R1 战至 X-Y，可继续比赛」），结束后显示晶级/淘汰/夺冠文案；「模拟下一场」在季后赛中也能用，但「模拟整个赛季」只在常规赛显示（它是 82 场概念，季后赛的「模拟到下一轮/一键打完」已经在季后赛页签里，没有必要在结果页重复一份）。
+- 回到赛季主页时会自动跳到季后赛页签，不会回到积分榜。
+
+**验证**：
+- 新增 `tests/playoffManualPlay.test.js`（14 条），覆盖主客场计算、两种改法路径的系列赛计分、总决赛夺冠相应状态转换、被淘汰后 `nextUserPlayoffGame` 返回 null、混合亲自指挥+批量模拟不会崩溃/重复计分。变异检查：摸掉总决赛 `st.phase="done"` 转换会让 2 条测试变红，恢复后全绿；但諹实地记录了一个诚实的覆盖缺口——`gi` 续接修复本身没有对应的变异测试（GameSim 是真随机，无法在不引入侥入式 stub 的前提下确定性地验证「恢复后哪队主场」），此修复仅经代码审查确认为正确的一行改动。
+- 新增 `scripts/qa/playoff-manual-play.mjs`（30 项检查，桌面+手机各 15 项，全部通过）：用资金上限内最强的账号班底跑完整个常规赛，直接改持久化的 `cls_season_v1` 存档把战绩改成确定性的第 1 种子后 reload+「继续已有赛季」恢复（设计意图是只干预输入条件，其余全程是真实 UI 点击）；验证了「亲自指挥」点击后真能打开 `openSetup()` 设置页并进入真实 `#screen-game`；验证了「快速模拟本场」所属的整条系列赛流程（按钮文案、结果摘要、输赢后回到季后赛页、输掉后「亲自指挥」正确禁用）；无横向溢出、无页面报错。过程中踩了两个坑：最初用便宜班底（OVR 55-70）跟不上其他队，打不进季后赛；改用「最高 OVR」贪心后又因单个传奇卡太贵只开到 5 人就花光预算，改成按「人均预算/12 人」封顶单卡购买上限才凑齐 12 人。
+- 661/661 全量测试、lint、`git diff --check` 全绿。
