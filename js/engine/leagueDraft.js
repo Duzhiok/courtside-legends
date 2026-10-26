@@ -1,5 +1,5 @@
 import { overall, PLAYERS } from "../data/players.js";
-import { reconcileTokens } from "./pickLedger.js";
+import { ensurePickLedger } from "./pickLedger.js";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
 const ATTRIBUTES = [
@@ -310,6 +310,7 @@ export function picksOwnedBy(season, year, teamId) {
  */
 export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
   requireYear(year, "year");
+  ensurePickLedger(season); // an older save may have traded this pick as a token
   const ids = seasonTeamIds(season);
   const userTeamId = season.userTeamId;
   if (!userTeamId || !ids.includes(userTeamId)) return { ok: false, reason: "用户球队无效" };
@@ -330,7 +331,6 @@ export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
   }
   season.pickOwnership = { ...(season.pickOwnership || {}) };
   season.pickOwnership[year] = { ...ownership, [userTeamId]: cpuTeamId, [cpuTeamId]: userTeamId };
-  reconcileTokens(season); // the market's pick tokens follow the swap
   return {
     ok: true,
     message: `换签成交：送出我方 ${year} 年首轮签，得到 ${season.teams[cpuTeamId]?.name || cpuTeamId} 的 ${year} 年首轮签`,

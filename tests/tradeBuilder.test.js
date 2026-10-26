@@ -54,15 +54,15 @@ function fixture() {
   };
 }
 
-test("teamDraftAssets: lazily seeds two deterministic picks, same array reference every call", () => {
+test("teamDraftAssets: a club's picks are derived from the draft calendar, deterministic, and stored nowhere", () => {
   const st = fixture();
   const a = teamDraftAssets(st, "USER");
-  assert.equal(a.length, 2);
+  assert.equal(a.length, 6, "a first and a second for each of the next three drafts");
   assert.equal(a[0].round, 1);
+  assert.equal(a[0].year, 1994, "this summer's draft is tradable too");
   assert.equal(a[1].round, 2);
-  const b = teamDraftAssets(st, "USER");
-  assert.strictEqual(a, b, "must not reseed/duplicate on a second call");
-  assert.strictEqual(a, st.draftAssets, "the user's pool IS st.draftAssets, not a separate copy");
+  assert.deepEqual(teamDraftAssets(st, "USER"), a, "same picks, in the same order, on every call");
+  assert.ok(!st.draftAssets.length, "nothing is stored: the list is a view of the ledger");
 });
 
 test("teamDraftAssets: CPU teams get their own independent pool, not the user's", () => {
@@ -73,21 +73,19 @@ test("teamDraftAssets: CPU teams get their own independent pool, not the user's"
   assert.ok(theirs.every((p) => p.id.startsWith("CPU-")));
 });
 
-test("executeTrade: not touching picks at all does NOT side-effect-seed a pick pool (regression)", () => {
-  // acceptTradeProposal's own test asserts st.draftAssets.length === the picks IT added; if
-  // executeTrade eagerly called teamDraftAssets() for every trade regardless of whether picks
-  // were involved, that assertion would silently start failing because draftAssets would already
-  // have 2 seeded picks in it before the proposal's own picks were ever pushed.
+test("executeTrade: not touching picks at all leaves no pick state behind (regression)", () => {
+  // A player-only trade must not create ledger entries or stored pools as a side effect.
   const st = fixture();
   const result = executeTrade(st, { giveIds: ["role1"], wantIds: ["cpuRole"], cpuTeamId: "CPU" });
   assert.equal(result.ok, true);
   assert.deepEqual(st.draftAssets, []);
+  assert.equal(st.pickOwnership, undefined);
+  assert.equal(st.pickOwnershipR2, undefined);
 });
 
-test("executeTrade: a pick-for-player trade moves the pick into the user's pool and off the CPU's", () => {
+test("executeTrade: a pick-for-player trade moves the pick into the user's hands and off the CPU's", () => {
   const st = fixture();
-  const cpuPicks = teamDraftAssets(st, "CPU"); // seed so there's something to ask for
-  const theirFirst = cpuPicks.find((p) => p.round === 1);
+  const theirFirst = teamDraftAssets(st, "CPU").find((p) => p.round === 1);
   const result = executeTrade(st, {
     giveIds: ["role1"],
     wantIds: [],
@@ -95,17 +93,15 @@ test("executeTrade: a pick-for-player trade moves the pick into the user's pool 
     cpuTeamId: "CPU",
   });
   assert.equal(result.ok, true, result.reason);
-  assert.ok(st.draftAssets.some((p) => p.id === theirFirst.id), "pick should land in my pool");
+  assert.ok(teamDraftAssets(st, "USER").some((p) => p.id === theirFirst.id), "pick should land with me");
   assert.ok(!teamDraftAssets(st, "CPU").some((p) => p.id === theirFirst.id), "and leave theirs");
   assert.ok(!st.teams.USER.players.some((p) => p.id === "role1"), "role1 was actually traded away");
 });
 
-test("executeTrade: swapping just picks (no players at all) moves each pick onto the right pool", () => {
+test("executeTrade: swapping just picks (no players at all) puts each pick with its new club", () => {
   const st = fixture();
-  const myPicks = teamDraftAssets(st, "USER");
-  const cpuPicks = teamDraftAssets(st, "CPU");
-  const mySecond = myPicks.find((p) => p.round === 2);
-  const theirSecond = cpuPicks.find((p) => p.round === 2);
+  const mySecond = teamDraftAssets(st, "USER").find((p) => p.round === 2);
+  const theirSecond = teamDraftAssets(st, "CPU").find((p) => p.round === 2);
   const result = executeTrade(st, {
     giveIds: [],
     givePickIds: [mySecond.id],
@@ -114,9 +110,9 @@ test("executeTrade: swapping just picks (no players at all) moves each pick onto
     cpuTeamId: "CPU",
   });
   assert.equal(result.ok, true, result.reason);
-  assert.ok(!st.draftAssets.some((p) => p.id === mySecond.id), "my pick left my pool");
-  assert.ok(st.draftAssets.some((p) => p.id === theirSecond.id), "their pick landed in mine");
-  assert.ok(teamDraftAssets(st, "CPU").some((p) => p.id === mySecond.id), "and mine landed in theirs");
+  assert.ok(!teamDraftAssets(st, "USER").some((p) => p.id === mySecond.id), "my pick left me");
+  assert.ok(teamDraftAssets(st, "USER").some((p) => p.id === theirSecond.id), "their pick landed with me");
+  assert.ok(teamDraftAssets(st, "CPU").some((p) => p.id === mySecond.id), "and mine landed with them");
 });
 
 test("executeTrade: rejects a pick id that doesn't exist in either pool", () => {

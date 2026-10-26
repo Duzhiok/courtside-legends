@@ -25,6 +25,7 @@ import {
 import { allTeamFromSeasonRows } from "./allTeam.js";
 import { GameSim } from "./sim.js";
 import { shuffle } from "../core/seededRandom.js";
+import { prunePickLedger } from "./pickLedger.js";
 
 const RS_GAMES = 82;
 const SAVE_KEY = "cls_season_v1";
@@ -1406,6 +1407,10 @@ export function advanceLeagueOffseason(st, options = {}) {
       options.developmentPlans === undefined ? {} : options.developmentPlans,
   });
   st.year = Number(st.year) + 1;
+  // The calendar rolls with the year: picks for the draft that just happened are used up, and last
+  // year's trade offers (which may mention them) no longer apply.
+  prunePickLedger(st);
+  delete st.tradeProposals;
   if (st.mode === "historical") {
     const hist = historicalSeason(st.year);
     if (hist && st.league) {

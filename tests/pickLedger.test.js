@@ -51,37 +51,30 @@ test("parsePickId reads source team, round and year out of a token id", () => {
   }
 });
 
-test("trading a first-round pick away in the market removes it from the real draft", () => {
+test("trading this summer's first-round pick away in the market removes it from the real draft", () => {
   const st = fixture();
-  const [r1] = pickIdsOf(st, "USER", 1);
-  assert.equal(r1, "USER-r1-2026");
-  const aaaR2 = pickIdsOf(st, "AAA", 2)[0];
-  const res = executeTrade(st, { givePickIds: [r1], wantPickIds: [aaaR2], cpuTeamId: "AAA", acceptedProposal: true });
+  const res = executeTrade(st, { givePickIds: ["USER-r1-2024"], wantPickIds: ["AAA-r2-2024"], cpuTeamId: "AAA", acceptedProposal: true });
   assert.equal(res.ok, true, res.reason);
   // The draft reads ownership, not the token lists.
-  assert.deepEqual(picksOwnedBy(st, 2026, "USER"), [], "the user no longer owns a 2026 first-rounder");
-  assert.deepEqual(picksOwnedBy(st, 2026, "AAA").sort(), ["AAA", "USER"], "AAA owns its own and the user's");
-  const draft = createDraftState({ season: st, seed: "s", picks: owners(st, 2026), rounds: 1 });
+  assert.deepEqual(picksOwnedBy(st, 2024, "USER"), [], "the user no longer owns a 2024 first-rounder");
+  assert.deepEqual(picksOwnedBy(st, 2024, "AAA").sort(), ["AAA", "USER"], "AAA owns its own and the user's");
+  const draft = createDraftState({ season: st, seed: "s", picks: owners(st, 2024), rounds: 1 });
   assert.equal(draft.order.filter((id) => id === "AAA").length, 2, "AAA picks twice on draft night");
   assert.equal(draft.order.includes("USER"), false, "the user does not pick at all");
 });
 
 test("acquiring a CPU first-round pick gives the user a second slot in that draft", () => {
   const st = fixture();
-  const cpuR1 = pickIdsOf(st, "BBB", 1)[0];
-  const mine = pickIdsOf(st, "USER", 2)[0];
-  const res = executeTrade(st, { givePickIds: [mine], wantPickIds: [cpuR1], cpuTeamId: "BBB", acceptedProposal: true });
+  const res = executeTrade(st, { givePickIds: ["USER-r2-2024"], wantPickIds: ["BBB-r1-2024"], cpuTeamId: "BBB", acceptedProposal: true });
   assert.equal(res.ok, true, res.reason);
-  assert.deepEqual(picksOwnedBy(st, 2026, "USER").sort(), ["BBB", "USER"]);
-  const draft = createDraftState({ season: st, seed: "s", picks: owners(st, 2026), rounds: 1 });
+  assert.deepEqual(picksOwnedBy(st, 2024, "USER").sort(), ["BBB", "USER"]);
+  const draft = createDraftState({ season: st, seed: "s", picks: owners(st, 2024), rounds: 1 });
   assert.equal(draft.order.filter((id) => id === "USER").length, 2);
 });
 
 test("a second-round-only trade moves the 2nd rounder and leaves the 1st where it was", () => {
   const st = fixture();
-  const myR2 = pickIdsOf(st, "USER", 2)[0]; // USER-r2-2025
-  const theirR1 = pickIdsOf(st, "CCC", 1)[0];
-  assert.equal(executeTrade(st, { givePickIds: [myR2], wantPickIds: [theirR1], cpuTeamId: "CCC", acceptedProposal: true }).ok, true);
+  assert.equal(executeTrade(st, { givePickIds: ["USER-r2-2025"], wantPickIds: ["CCC-r1-2026"], cpuTeamId: "CCC", acceptedProposal: true }).ok, true);
   assert.equal(pickOwnerOf(st, { sourceTeamId: "USER", year: 2025, round: 2 }), "CCC", "round 2 moved");
   assert.equal(pickOwnerOf(st, { sourceTeamId: "USER", year: 2025, round: 1 }), "USER", "round 1 of the same year did not");
   assert.equal(pickOwnerOf(st, { sourceTeamId: "CCC", year: 2026, round: 1 }), "USER");
@@ -109,22 +102,17 @@ test("the real round-2 order honours a traded second-rounder", () => {
   assert.equal(round2.filter((id) => id === "AAA").length, 2, "AAA has two");
 });
 
-test("giving every pick away does not mint new ones", () => {
+test("giving every pick away leaves the pool empty, and nothing is ever re-issued", () => {
   const st = fixture();
   const mine = teamDraftAssets(st, "USER").map((p) => p.id);
-  assert.equal(mine.length, 2);
-  // Trade both away for one of AAA's.
-  const res = executeTrade(st, { givePickIds: mine, wantPickIds: [pickIdsOf(st, "AAA", 2)[0]], cpuTeamId: "AAA", acceptedProposal: true });
+  assert.equal(mine.length, 6);
+  const res = executeTrade(st, { givePickIds: mine, wantIds: ["AAA0"], cpuTeamId: "AAA", acceptedProposal: true });
   assert.equal(res.ok, true, res.reason);
-  assert.deepEqual(teamDraftAssets(st, "USER").map((p) => p.id), ["AAA-r2-2025"]);
-  // Now give that last one away too: the pool is empty and must STAY empty.
-  const res2 = executeTrade(st, { givePickIds: ["AAA-r2-2025"], wantPickIds: [pickIdsOf(st, "BBB", 2)[0]], cpuTeamId: "BBB", acceptedProposal: true });
-  assert.equal(res2.ok, true, res2.reason);
-  assert.equal(teamDraftAssets(st, "USER").length, 1);
-  const res3 = executeTrade(st, { givePickIds: teamDraftAssets(st, "USER").map((p) => p.id), wantIds: ["BBB0"], cpuTeamId: "BBB", acceptedProposal: true });
-  assert.equal(res3.ok, true, res3.reason);
-  assert.deepEqual(teamDraftAssets(st, "USER"), [], "an emptied pool is empty, not 'unseeded'");
+  assert.deepEqual(teamDraftAssets(st, "USER"), [], "an emptied pool is empty");
   assert.deepEqual(teamDraftAssets(st, "USER"), [], "and still empty on the next call");
+  const all = IDS.flatMap((id) => teamDraftAssets(st, id).map((p) => p.id));
+  assert.equal(all.length, IDS.length * 6, "the league still holds exactly the same number of picks");
+  assert.equal(new Set(all).size, all.length, "none duplicated");
 });
 
 test("a pick swap keeps the market tokens in step with the draft", () => {
@@ -162,18 +150,20 @@ test("legacy saves: a token already traded away in the old model is adopted, not
   assert.equal(pickOwnerOf(st, { sourceTeamId: "USER", year: 2026, round: 1 }), "AAA", "and the draft now agrees");
 });
 
-test("synthetic sweetener tokens (not tied to a team) are left alone", () => {
+test("older invented sweetener tokens are kept until they expire, and are not duplicated", () => {
   const st = fixture();
   st.draftAssets = [{ id: "2024-USER-incoming-1", year: 2025, round: 1, source: "trade", protection: "lottery-protected" }];
-  assert.deepEqual(teamDraftAssets(st, "USER").map((p) => p.id), ["2024-USER-incoming-1"]);
-  assert.deepEqual(teamDraftAssets(st, "USER").map((p) => p.id), ["2024-USER-incoming-1"], "stable across calls");
+  const first = teamDraftAssets(st, "USER");
+  assert.ok(first.some((p) => p.id === "2024-USER-incoming-1"));
+  assert.equal(first.length, 7, "six calendar picks plus the old sweetener");
+  assert.equal(teamDraftAssets(st, "USER").length, 7, "stable across calls");
+  st.year = 2026; // its draft (2025) has now been played
+  assert.ok(!teamDraftAssets(st, "USER").some((p) => p.id === "2024-USER-incoming-1"), "expired");
 });
 
 test("end to end: a first-rounder sold in the market is gone on draft night in a real career draft", () => {
   const st = fixture();
-  const sold = pickIdsOf(st, "USER", 1)[0]; // USER-r1-2026
-  const got = pickIdsOf(st, "AAA", 2)[0];
-  assert.equal(executeTrade(st, { givePickIds: [sold], wantPickIds: [got], cpuTeamId: "AAA", acceptedProposal: true }).ok, true);
+  assert.equal(executeTrade(st, { givePickIds: ["USER-r1-2026"], wantPickIds: ["AAA-r2-2025"], cpuTeamId: "AAA", acceptedProposal: true }).ok, true);
   // Two seasons later the 2026 draft arrives; the same season object carries the ledger forward.
   st.year = 2026;
   st.phase = "done";

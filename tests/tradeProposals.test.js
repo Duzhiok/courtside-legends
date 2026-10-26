@@ -6,7 +6,7 @@ import {
   ensureTradeProposals,
   generateTradeProposals,
 } from "../js/engine/tradeProposals.js";
-import { SEASON_APRON, teamPayroll } from "../js/engine/seasonMarket.js";
+import { SEASON_APRON, teamDraftAssets, teamPayroll } from "../js/engine/seasonMarket.js";
 
 function player(id, ovr, salary = 100) {
   return { id, name: id, season: 1994, ovr2k: ovr, ratingSource: "anchor", salary, age: ovr < 80 ? 22 : 28 };
@@ -58,7 +58,9 @@ test("accepting a proposal moves players and adds future draft assets", () => {
   assert.equal(result.ok, true);
   assert.ok(st.teams.USER.players.some((p) => p.id === proposal.receivePlayers[0].id));
   assert.equal(st.teams.USER.players.some((p) => p.id === "star"), false);
-  assert.equal(st.draftAssets.length, proposal.offerPicks.length);
+  const mine = new Set(teamDraftAssets(st, "USER").map((p) => p.id));
+  assert.ok(proposal.offerPicks.length >= 1);
+  for (const pick of proposal.offerPicks) assert.ok(mine.has(pick.id), `${pick.id} is now mine`);
   assert.equal(st.tradeLog.at(-1).proposalId, proposal.id);
 });
 

@@ -1,5 +1,5 @@
 import { overall } from "../data/players.js";
-import { SEASON_APRON, executeTrade, playerSalary, teamPayroll } from "./seasonMarket.js";
+import { SEASON_APRON, executeTrade, playerSalary, teamDraftAssets, teamPayroll } from "./seasonMarket.js";
 import {
   DEFAULT_LISTING_PREF,
   MAX_PROPOSAL_PICKS,
@@ -27,14 +27,22 @@ export function isProspectCandidate(player) {
 
 export { prospectScore };
 
-function makePickAsset(st, index) {
-  return {
-    id: `${st.year}-${st.userTeamId}-incoming-${index + 1}`,
-    year: Number(st.year) + 1 + (index % 2),
-    round: index % 2 === 0 ? 1 : 2,
-    source: "trade",
-    protection: index % 2 === 0 ? "lottery-protected" : "unprotected",
-  };
+/**
+ * Pick `count` sweeteners from the picks `fromTeamId` really holds. First and second rounders
+ * alternate, nearest draft first, and nothing in `used` (already offered in this batch) repeats.
+ * A club that has traded its picks away simply offers fewer.
+ */
+function chooseOfferPicks(st, fromTeamId, count, used) {
+  const held = teamDraftAssets(st, fromTeamId).filter((pick) => !used.has(pick.id));
+  const queues = [held.filter((p) => p.round === 1), held.filter((p) => p.round === 2)];
+  const chosen = [];
+  while (chosen.length < count && (queues[0].length || queues[1].length)) {
+    const preferred = queues[chosen.length % 2];
+    const pick = (preferred.length ? preferred : queues[0].length ? queues[0] : queues[1]).shift();
+    chosen.push(pick);
+    used.add(pick.id);
+  }
+  return chosen;
 }
 
 function tradeSignature(fromTeamId, playerId, offerPlayerId) {
@@ -84,6 +92,7 @@ export function generateTradeProposals(st, limit = 3) {
     .sort((a, b) => overall(b.player) - overall(a.player));
   const targets = [...listed, ...attractive];
   const proposals = [];
+  const usedPickIds = new Set();
   const cpuTeams = Object.entries(st.teams).filter(([id, team]) => id !== st.userTeamId && team?.players?.length);
   for (let i = 0; i < Math.min(limit, targets.length, cpuTeams.length); i++) {
     const target = targets[i];
@@ -95,7 +104,7 @@ export function generateTradeProposals(st, limit = 3) {
       ? [cpuTeams[rotate % cpuTeams.length]]
       : rankTeams(cpuTeams, pref).slice(0, 3).map((_, k, top) => top[(k + rotate) % top.length]);
     for (const [fromTeamId, fromTeam] of callers) {
-      const proposal = buildProposal(st, { ...target, pref, index: i, fromTeamId, fromTeam, declined });
+      const proposal = buildProposal(st, { ...target, pref, index: i, fromTeamId, fromTeam, declined, usedPickIds });
       if (proposal) {
         proposals.push(proposal);
         break;
@@ -106,7 +115,7 @@ export function generateTradeProposals(st, limit = 3) {
 }
 
 /** One CPU team's offer for one of the user's players, or null if it can't make a valid one. */
-function buildProposal(st, { player, row, listed: isListed, pref, index: i, fromTeamId, fromTeam, declined }) {
+function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fromTeam, declined, usedPickIds }) {
   const shaped = shapeOffer(pref, fromTeam, player);
   if (pref !== DEFAULT_LISTING_PREF && !shaped) return null;
   let offerPlayer = shaped?.offer;
@@ -128,7 +137,9 @@ function buildProposal(st, { player, row, listed: isListed, pref, index: i, from
   // 选秀权倾向：重建队更愿意为即战力多搭选秀权
   if (teamSituation(fromTeam) === "rebuilding") pickCount += 1;
   pickCount = Math.max(0, Math.min(MAX_PROPOSAL_PICKS, pickCount + (shaped?.pickDelta || 0)));
-  const picks = Array.from({ length: pickCount }, (_, pickIndex) => makePickAsset(st, i + pickIndex));
+  // Chosen on a copy of the batch's used set: they are only reserved (below) once this offer is
+  // certain to go out, so an offer dropped on the cap check does not use up picks others could offer.
+  const picks = chooseOfferPicks(st, fromTeamId, pickCount, new Set(usedPickIds));
   // A listing preference decides the package itself (salary relief / win-now want no add-ons).
   const prospect = shaped
     ? shaped.prospect
@@ -153,6 +164,7 @@ function buildProposal(st, { player, row, listed: isListed, pref, index: i, from
     if (!throwIn || !capFits([...sendBackIds, throwIn.id])) return null;
     sendBackIds = [...sendBackIds, throwIn.id];
   }
+  for (const pick of picks) usedPickIds.add(pick.id);
   const teamName = fromTeam.name || fromTeamId;
   const prefText = listingPrefText(pref);
   return {
@@ -175,8 +187,18 @@ function buildProposal(st, { player, row, listed: isListed, pref, index: i, from
   };
 }
 
+/** Every pick attached to an offer is one the proposing club still holds (not traded on, not expired). */
+function picksStillHeld(st, proposal) {
+  const held = new Set(teamDraftAssets(st, proposal.fromTeamId).map((pick) => pick.id));
+  return (proposal.offerPicks || []).every((pick) => held.has(pick.id));
+}
+
 export function ensureTradeProposals(st) {
-  if (!Array.isArray(st.tradeProposals)) st.tradeProposals = generateTradeProposals(st);
+  // Saved offers can go stale: the club traded a pick on, a season rolled over, or the offer came
+  // from a version that attached invented picks. Refresh instead of letting an accept fail later.
+  if (!Array.isArray(st.tradeProposals) || !st.tradeProposals.every((p) => picksStillHeld(st, p))) {
+    st.tradeProposals = generateTradeProposals(st);
+  }
   return st.tradeProposals;
 }
 
@@ -202,16 +224,17 @@ export function acceptTradeProposal(st, proposalId) {
   const proposals = ensureTradeProposals(st);
   const proposal = proposals.find((item) => item.id === proposalId);
   if (!proposal) return { ok: false, reason: "报价已不存在" };
+  // The sweeteners are real picks, so they travel inside the trade itself (one all-or-nothing
+  // validation, and the ledger records the new owner) instead of being added afterwards.
   const result = executeTrade(st, {
     giveIds: proposal.giveIds,
     wantIds: proposal.wantIds,
+    wantPickIds: proposal.offerPicks.map((pick) => pick.id),
     cpuTeamId: proposal.fromTeamId,
     acceptedProposal: true,
   });
   if (!result.ok) return result;
-  st.draftAssets = Array.isArray(st.draftAssets) ? st.draftAssets : [];
-  st.draftAssets.push(...proposal.offerPicks);
-  result.message = `${result.message}；另获 ${proposal.offerPicks.length} 个未来选秀权`;
+  if (proposal.offerPicks.length) result.message = `${result.message}；另获 ${proposal.offerPicks.length} 个未来选秀权`;
   st.tradeLog.at(-1).proposalId = proposal.id;
   proposals.splice(proposals.indexOf(proposal), 1);
   return { ...result, proposal };

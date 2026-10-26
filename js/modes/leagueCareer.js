@@ -1,4 +1,5 @@
 import { advanceLeagueOffseason } from "../engine/season.js";
+import { withPickLedger } from "../engine/pickLedger.js";
 import {
   advanceDraftToUserPick,
   applyPickOwnership,
@@ -487,9 +488,13 @@ function withCompletedDraft(career, draft, management, history) {
  * Career wrappers are immutable. Draft selections intentionally mutate the
  * nested season rosters for compatibility with the existing season engines.
  */
-export function beginCareerDraft(career) {
-  requireCareer(career);
-  requireSeason(career.season);
+export function beginCareerDraft(input) {
+  requireCareer(input);
+  requireSeason(input.season);
+  // An older save may have traded picks as per-club tokens; bring its ledger up to date first so the
+  // draft sees those trades even if the trade market was never opened. The result is carried in the
+  // returned career, so this happens once.
+  const career = { ...input, season: withPickLedger(input.season) };
   if (career.season.phase !== "done") {
     throw new Error("career season must be done before beginning the draft");
   }

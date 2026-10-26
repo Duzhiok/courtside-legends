@@ -5,7 +5,7 @@
  */
 import { ASSISTANTS, COACHES, coachDrawWeight, coachSpecialtyLabel, coachTactics } from "../data/coaches.js";
 import { estimateDraftPickValue } from "./draftPickValue.js";
-import { parsePickId, reconcileTokens, setPickOwner } from "./pickLedger.js";
+import { ensurePickLedger, parsePickId, picksHeldBy, setPickOwner } from "./pickLedger.js";
 import { playerPrice, marketMeta } from "../data/intangibles.js";
 import { PLAYERS, clonePlayer, overall } from "../data/players.js";
 
@@ -438,48 +438,16 @@ function teamByPlayer(st, playerId) {
 }
 
 /**
- * Two deterministic starter picks per team: a protected 1st a couple years out, a 2nd next year.
- * The user's own pool lives at st.draftAssets (tradeProposals.js already reads/writes that field
- * for accepted-proposal sweeteners -- reusing it keeps those two code paths from drifting out of
- * sync). CPU teams get a pool on the team object itself, since nothing else owns that space yet.
+ * The picks a club holds right now. They are not stored: the draft calendar (every club holds a
+ * first and a second for each of the next few drafts) plus the ownership ledger determine them, so
+ * trading a pick is just a ledger entry and the window rolls forward with the season on its own.
+ * Returns a fresh array each call; change ownership through executeTrade(), not by editing it.
  */
-function seedPicks(st, teamId) {
-  const year = Number(st?.year) || 2024;
-  return [
-    { id: `${teamId}-r1-${year + 2}`, year: year + 2, round: 1, protection: "lottery-protected", source: "own" },
-    { id: `${teamId}-r2-${year + 1}`, year: year + 1, round: 2, protection: "unprotected", source: "own" },
-  ];
-}
-
-/**
- * Create every club's starter pool exactly once, league-wide. Pools used to be seeded lazily per
- * club on "is the list empty?": a club that traded all its picks away looked unseeded and was
- * refilled, and a token moved into a not-yet-seeded club suppressed that club's own picks.
- * Seeding everyone up front fixes the second; the first is now ALSO covered by the ownership
- * ledger, because a refilled token the ledger says belongs elsewhere is moved straight back by
- * reconcileTokens(). The one-time flag keeps this from re-running on every call and leaves clubs
- * whose list is already non-empty (older saves) as they are.
- */
-function ensurePickPools(st) {
-  if (st.draftPoolsSeeded) return;
-  st.draftPoolsSeeded = true;
-  for (const id of new Set([st.userTeamId, ...Object.keys(st.teams || {})])) {
-    const holder = id === st.userTeamId ? st : st.teams?.[id];
-    if (!holder) continue;
-    if (!Array.isArray(holder.draftAssets)) holder.draftAssets = [];
-    if (!holder.draftAssets.length) holder.draftAssets.push(...seedPicks(st, id));
-  }
-}
-
 export function teamDraftAssets(st, teamId) {
   if (!st || !teamId) return [];
-  const holder = teamId === st.userTeamId ? st : st.teams?.[teamId];
-  if (!holder) return [];
-  ensurePickPools(st);
-  // The draft is the source of truth for who owns what; make the token lists agree with it.
-  reconcileTokens(st);
-  if (!Array.isArray(holder.draftAssets)) holder.draftAssets = [];
-  return holder.draftAssets;
+  if (teamId !== st.userTeamId && !st.teams?.[teamId]) return [];
+  ensurePickLedger(st);
+  return picksHeldBy(st, teamId);
 }
 
 export function pickValueOf(st, pick) {
@@ -558,10 +526,9 @@ export function executeTrade(
   for (const p of you.players) ensurePlayerSalary(p);
   for (const p of cpu.players) ensurePlayerSalary(p);
 
-  // Picks change hands in the ownership ledger first, and the token pools are then reconciled to
-  // it. (Moving tokens by hand AND reconciling would fight each other: reconcile would see a token
-  // in a pool its ledger entry says it should not be in, and put it back.) This is the thing that
-  // makes "ask for their 2nd rounder back" possible at all, and it makes the draft see the trade.
+  // Picks change hands in the ownership ledger, which is also what the draft reads, so a traded
+  // pick really is gone from its old owner on draft night. Older invented sweeteners are not tied
+  // to a club and have no draft slot; those move as tokens.
   if (givePicks.length || wantPicks.length) {
     const handOver = (picks, toTeamId, from, to) => {
       for (const pk of picks) {
@@ -569,8 +536,6 @@ export function executeTrade(
         if (slot) {
           setPickOwner(st, slot, toTeamId);
         } else {
-          // A synthetic sweetener is not tied to a source team, so it has no draft slot to
-          // reconcile: move the token itself.
           from.draftAssets = (from.draftAssets || []).filter((x) => x.id !== pk.id);
           to.draftAssets = [...(to.draftAssets || []), pk];
         }
@@ -578,7 +543,6 @@ export function executeTrade(
     };
     handOver(givePicks, cpuTeamId, st, cpu);
     handOver(wantPicks, st.userTeamId, cpu, st);
-    reconcileTokens(st);
   }
 
   st.tradeLog.push({
