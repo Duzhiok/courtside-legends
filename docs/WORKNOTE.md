@@ -1175,3 +1175,20 @@ if (season) {
 - 截图要等页面切换的 0.25s 淡入结束再截，否则是一张发白的图，什么也证明不了；还要拦掉外网请求，否则等网络字体会让截图挂住 30 秒。我一度把这个误判成「页面有 bug」又误判成「解释被证伪」，原因是看了旧文件。
 
 **已知未处理（原有，没动）**：设置页里「球队名」输入框是浏览器默认样式（细黑边小框），标签字号也比旁边的「赛季模式/阵容来源」大，和胶囊风格不一致。
+
+### R79：「存档失败，导出也失败了：invalid root save」—— 这不是你的设备问题，是这局代码的 bug
+
+**用户报的现象**：赛季打完进入历史战绩页，弹窗「长期生涯保存失败，刚才的改动已撤销」，点「是」想导出兜底，又弹「导出也失败了：invalid root save」——两条路都堵死，进度卡死拿不出来。
+
+**这个弹窗一直在说谎**：`writeRootSave()` 真正写 `localStorage`之前，先跑 `validateRoot(persisted)`，这一步失败就直接 `throw`，根本没碰存储。但是失败提示永远在怪「隐私模式/设备空间/存储配额」——这条路径走的时候 `localStorage` 还没摸过。「导出」更干脆：`exportRootSave()` 对同一份数据跑同一个 `validateRoot()`，跟存储一点关系都没有，它失败只可能是数据本身不合法。两条路用同一个校验器校验同一份坏数据，当然会死在同一个地方，这跟设备、浏览器、无痕模式毫无关系。
+
+**真正原因**：`saveRoot.js` 里校验一个赛季的交易记录（`seasonHistory[].transactions`）用了一份类型白名单，只认 `sign/cut/trade/hire_coach/hire_assistant/fire_coach/fire_assistant` 七种。但 `seasonMarket.js` 早就会写 `trade_3team`（三方交易），`tradeProposals.js` 会写 `trade_declined`（拒绝一个主动报价）——这两种类型压根没进过这份白名单。只要这赛季打过一笔三方交易，或者拒绝过一次 AI 主动报价，赛季结束生成战绩摘要时，这条交易记录类型校验不过，**整个根存档**（不只是这一条交易）被判定非法，从此这个赛季怎么存都存不出去，导出也救不了，因为导出用的是同一个校验器。
+
+**修复**：
+- `saveRoot.js`：白名单补上 `trade_3team`、`trade_declined`。
+- `leagueCareer.js` 的 `transactionDescription()`：这两种类型之前没有专门分支，会落到兜底的「未知职员」——顺手给了像样的描述（「三方交易（经 XX）：送出 A，得到 B」「拒绝了 XX 的交易报价」）。
+- `app.js`：加了 `lastLongCareerSaveError`，失败弹窗据此判断——`invalid root save` / 版本不匹配这类校验失败，弹窗明确告诉玩家「这是游戏本身的存档格式 bug，不是你的设备或浏览器问题，清缓存换设备都没用，把报错截图发给开发者」；真的是 `QuotaExceededError` 才继续说存储空间/隐私模式那套话。
+
+**验证**：`tests/saveRoot.test.js` 新增一条——`trade_3team`/`trade_declined` 能存能导，瞎编的 `trade_4team` 继续被拒（证明白名单不是"放行一切"）。`tests/longCareer.test.js` 新增端到端回归——走真实的 `prepareCareerOffseason()` + `writeRootSave()`/`exportRootSave()`，而不是直接戳 summary 对象，复现用户的原始路径。**反向验证**：把白名单改回原样，这两条新测试准确报错在 `invalid root save`/`invalid save file`；恢复后 896/896 全绿。
+
+**没处理但要留意**：这份白名单是手抄的第二份"真相"（`compactTransactions()` 实际能写出什么类型，和这里校验允许什么类型，是两处要手动保持同步的代码）。以后 `tradeLog` 再加新类型，这里不跟着补，同一个坑会再摔一次。更根本的修法是让白名单从 `compactTransactions()` 实际写入的类型集合自动生成，而不是两边各写一份——这次先堵住已知的两个洞，没做这层重构。

@@ -591,9 +591,19 @@ function downloadLongCareerExport(root) {
  * so the player doesn't lose progress while they sort out storage.
  */
 function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
+  // "invalid root save" (and the two version-mismatch messages) are thrown by validateRoot()
+  // *before* writeRootSave() ever touches localStorage -- that is a bug in this build's save
+  // data, not the browser or the device. Blaming storage for it sends the player off clearing a
+  // cache that was never the problem (and risks them nuking real saves chasing a ghost).
+  const schemaBug = /invalid root save|unsupported older game version|newer game version/.test(
+    lastLongCareerSaveError?.message || "",
+  );
+  const reason = schemaBug
+    ? "这是游戏本身的存档格式 bug，不是你的设备或浏览器问题——清缓存、换设备都没用，请把这条报错告诉开发者。"
+    : "常见原因：隐私/无痕浏览模式、设备存储空间快满了、或浏览器这个网站的存储配额被其他数据占满。";
   const wantsExport = confirm(
     "长期生涯保存失败，刚才的改动已撤销。\n\n" +
-      "常见原因：隐私/无痕浏览模式、设备存储空间快满了、或浏览器这个网站的存储配额被其他数据占满。\n\n" +
+      `${reason}\n\n` +
       "要现在将这次未能保存的进度导出为文件吗？之后可用“导入长期生涯”恢复。",
   );
   if (!wantsExport) return;
@@ -601,9 +611,17 @@ function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
     downloadLongCareerExport(unsavedAttempt);
   } catch (error) {
     console.error("[long-career-save] export-after-failure also failed", error);
-    alert("导出也失败了：" + (error?.message || "未知错误"));
+    alert(
+      "导出也失败了：" +
+        (error?.message || "未知错误") +
+        (schemaBug ? "\n\n这就是上面说的存档格式 bug，请把这条报错截图发给开发者，不要清空浏览器数据。" : ""),
+    );
   }
 }
+
+// Set by saveLongCareer() so the failure dialog that follows it can tell a schema bug in THIS
+// build's save data apart from a real browser-storage problem, instead of always blaming storage.
+let lastLongCareerSaveError = null;
 
 function saveLongCareer({ liveGame = "preserve" } = {}) {
   if (!state.leagueCareer) return false;
@@ -612,9 +630,11 @@ function saveLongCareer({ liveGame = "preserve" } = {}) {
     const persisted = writeRootSave(rootState);
     state.longCareerRoot = clonePersistedState(persisted);
     refreshLongCareerHomeBar();
+    lastLongCareerSaveError = null;
     return true;
   } catch (error) {
     console.error("[long-career-save]", error);
+    lastLongCareerSaveError = error;
     // A pre-root-save build could leave a legacy cls_season_v1/cls_savegame_v1 key sitting in
     // localStorage forever after "migrating" it (see purgeOrphanedLegacySaves docs) -- that
     // doubles this origin's footprint for anyone who's been playing since before that fix. If
@@ -628,10 +648,12 @@ function saveLongCareer({ liveGame = "preserve" } = {}) {
           state.longCareerRoot = clonePersistedState(persisted);
           refreshLongCareerHomeBar();
           console.info(`[long-career-save] retry succeeded after freeing ${freedChars} orphaned legacy chars`);
+          lastLongCareerSaveError = null;
           return true;
         }
       } catch (retryError) {
         console.error("[long-career-save] retry after legacy cleanup also failed", retryError);
+        lastLongCareerSaveError = retryError;
       }
     }
     return false;

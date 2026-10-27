@@ -15,7 +15,9 @@ import {
   createRootState,
   exportRootSave,
   importRootSave,
+  writeRootSave,
 } from "../js/data/saveRoot.js";
+import { createMemoryStorage } from "./helpers/memoryStorage.js";
 import { advanceLeagueOffseason } from "../js/engine/season.js";
 import { invalidateDevelopLadder } from "../js/engine/develop.js";
 import { overall, PLAYERS } from "../js/data/players.js";
@@ -187,6 +189,58 @@ test("preparation snapshots a compact summary and opens the same-year draft", ()
   );
   assert.ok(prepared.history[0].at < prepared.history[1].at);
   assert.deepEqual(original, managedCareer());
+});
+
+// Regression: a season with a 3-team trade or a declined inbound offer logged this year used to
+// come out of prepareCareerOffseason looking fine, then fail writeRootSave() with "invalid root
+// save" -- saveRoot.js's transaction-type whitelist had never heard of "trade_3team" or
+// "trade_declined", so the whole root (not just that one transaction) was rejected. The
+// "export as a fallback" path runs the identical validator on the identical data, so it failed
+// the same way, leaving a played-out season with nowhere to go. Go through the real entry points
+// (seasonMarket.js's own tradeLog shape, prepareCareerOffseason, then an actual writeRootSave)
+// instead of poking the summary object directly, so this breaks again if either piece regresses.
+test("a season with a 3-team trade or a declined offer can still be saved and exported", () => {
+  const original = managedCareer();
+  original.season.tradeLog = [
+    {
+      type: "trade_3team",
+      year: 2030,
+      day: 40,
+      with: "A",
+      withName: "A",
+      with3: "C",
+      with3Name: "C",
+      give: [{ id: "B-1", name: "Outgoing", salary: 5 }],
+      get: [{ id: "C-1", name: "Incoming", salary: 5 }],
+    },
+    {
+      type: "trade_declined",
+      year: 2030,
+      day: 41,
+      proposalId: "p-1",
+      from: "D",
+      target: "D",
+    },
+  ];
+
+  const prepared = prepareCareerOffseason(original);
+  const [summary] = prepared.management.seasonHistory;
+  assert.deepEqual(
+    summary.transactions.map((entry) => entry.type),
+    ["trade_3team", "trade_declined"],
+  );
+  assert.match(summary.transactions[0].description, /三方交易/);
+  assert.match(summary.transactions[1].description, /拒绝/);
+
+  const root = createRootState({
+    activeMode: "franchise",
+    leagueCareer: prepared,
+  });
+  const storage = createMemoryStorage();
+  // This is the exact call that threw "invalid root save" for the user: not a storage-quota
+  // error, a schema rejection, on the very first attempt, before localStorage is even touched.
+  assert.doesNotThrow(() => writeRootSave(root, storage));
+  assert.doesNotThrow(() => exportRootSave(root));
 });
 
 test("preparation is atomic on invalid draft state and cannot repeat a year", () => {

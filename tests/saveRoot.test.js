@@ -656,3 +656,41 @@ test("season summary transactions are optional, compact, and validated", () => {
     assert.throws(() => importRootSave(exportEnvelope(malformed)), /invalid save file/);
   }
 });
+
+// Regression: seasonMarket.js logs 3-team trades as "trade_3team" and tradeProposals.js logs a
+// declined inbound offer as "trade_declined", but this whitelist never grew those two types --
+// any season containing either could never be saved (or exported) again. "made up" type names
+// must stay rejected so this isn't just "allow everything".
+test("season summary transactions accept trade_3team and trade_declined, still reject unknown types", () => {
+  for (const type of ["trade_3team", "trade_declined"]) {
+    const root = managedRoot({
+      draft: null,
+      draftHistory: [],
+      seasonHistory: [{
+        year: 1991,
+        teamId: "POR",
+        record: { w: 50, l: 32 },
+        championId: "CHI",
+        finish: "playoffs",
+        awards: {},
+        transactions: [{ type, year: 1991, day: 12, description: `a real ${type}` }],
+      }],
+    });
+    assert.deepEqual(importRootSave(exportEnvelope(root)), root);
+  }
+
+  const madeUp = managedRoot({
+    draft: null,
+    draftHistory: [],
+    seasonHistory: [{
+      year: 1991,
+      teamId: "POR",
+      record: { w: 50, l: 32 },
+      championId: "CHI",
+      finish: "playoffs",
+      awards: {},
+      transactions: [{ type: "trade_4team", year: 1991, day: 12, description: "not a real type" }],
+    }],
+  });
+  assert.throws(() => importRootSave(exportEnvelope(madeUp)), /invalid save file/);
+});

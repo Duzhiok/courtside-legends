@@ -61,10 +61,20 @@ function validateSeasonSummary(summary) {
     throw new Error("invalid root save");
   }
   if (summary.transactions === undefined) return;
+  // Every type leagueCareer.js's compactTransactions() can actually write into a season summary's
+  // tradeLog -- this whitelist is a second copy of that set by necessity (the whole point of a
+  // save validator is to not trust the writer), but when seasonMarket.js grew trade_3team and
+  // tradeProposals.js grew trade_declined, nobody updated this list. That silently turned any
+  // season with a three-team trade or a declined inbound offer into an unsavable season: the
+  // whole root fails validateRoot() (not just this one transaction), the "export as a fallback"
+  // button calls the exact same validateRoot() on the exact same data, so it fails identically,
+  // and the save-failure dialog blames browser storage for a bug that has nothing to do with it.
   const transactionTypes = new Set([
     "sign",
     "cut",
     "trade",
+    "trade_3team",
+    "trade_declined",
     "hire_coach",
     "hire_assistant",
     "fire_coach",

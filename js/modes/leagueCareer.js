@@ -267,6 +267,18 @@ export function transactionDescription(entry, lang = "zh") {
       ? `${entry.withName || entry.with || "Opponent"}: sent ${outgoing}, got ${incoming}`
       : `${entry.withName || entry.with || "对手球队"}：送出 ${outgoing}，得到 ${incoming}`;
   }
+  if (entry.type === "trade_3team") {
+    const outgoing = (entry.give || []).map((player) => player?.name).filter(Boolean).join(en ? ", " : "、") || "—";
+    const incoming = (entry.get || []).map((player) => player?.name).filter(Boolean).join(en ? ", " : "、") || "—";
+    const via = entry.withName || entry.with || (en ? "a third team" : "第二支球队");
+    return en
+      ? `3-team deal via ${via}: sent ${outgoing}, got ${incoming}`
+      : `三方交易（经 ${via}）：送出 ${outgoing}，得到 ${incoming}`;
+  }
+  if (entry.type === "trade_declined") {
+    const from = entry.target || entry.from || (en ? "a team" : "对方球队");
+    return en ? `Declined an offer from ${from}` : `拒绝了 ${from} 的交易报价`;
+  }
   if (entry.type === "hire_coach" || entry.type === "hire_assistant") {
     return entry.replaced
       ? en
