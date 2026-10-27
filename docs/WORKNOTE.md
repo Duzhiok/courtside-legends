@@ -196,7 +196,7 @@
 
 - `feature/time-travel-foundation` 从未推送过（`git ls-remote` 确认远端只有 `main`）。
 - 经核实：**origin/main 是 `feature/time-travel-foundation` 的纯祖先**（`git rev-list --left-right --count origin/main...feature/time-travel-foundation` = `0 29`，origin/main 没有任何本分支不包含的提交）——也就是说把这个分支推上去是一次干净的 fast-forward，不会和 main 产生任何冲突。
-- 本地 `main`（另一个 worktree，`~/Myproject/nba-coach-sim`）落后 origin/main 44 个提交，是另一条独立的陈旧状态，这轮不处理（不碰 main checkout）。
+- 本地 `main`（另一个 worktree）落后 origin/main 44 个提交，是另一条独立的陈旧状态，这轮不处理（不碰 main checkout）。
 - 本轮按用户明确指示：只推 `feature/time-travel-foundation` 分支本身到远端作为备份/同步，**不触碰、不合并、不快进 `main`**，合并到 main 留给用户自己决定。
 
 
