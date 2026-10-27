@@ -8147,15 +8147,31 @@ function refreshSeasonYearBlurb() {
   el.textContent = `${h.label} · 当年 ${h.teamCount} 支球队真实阵容 · 打满 82 场常规赛后再进季后赛；总决赛对手由本存档战绩决定，不剧透史实冠军。`;
 }
 
+/**
+ * Where a season to continue lives. In this tab's memory or under the legacy key while you are playing; after
+ * any reload only in the root save, because the first start migrates the legacy key into it and deletes the key.
+ * Looking only at the legacy key made "继续已有赛季" vanish after every reload.
+ * @returns {{ live?: object, root?: object }}
+ */
+function savedSeasonSource() {
+  const live = state.season || loadSeason();
+  if (live) return { live };
+  const root = state.longCareerRoot || readRootSave();
+  return root?.leagueCareer?.season ? { root } : {};
+}
+
 function openSeasonScreen() {
   show("season");
   ensureSeasonYearSelect();
   syncSeasonModeUi();
   syncSeasonStartButtonLabel();
-  const existing = state.season || loadSeason();
+  const { live, root } = savedSeasonSource();
+  const existing = live || root?.leagueCareer.season;
   const resumeBtn = $("#btn-season-resume");
-  if (existing && existing.phase !== "done") {
-    state.season = existing;
+  // A finished season in memory has nothing to continue. One in the root save may be a career between
+  // seasons (draft, offseason), and resumeLongCareer knows how to pick up every phase of that.
+  if (existing && (root || existing.phase !== "done")) {
+    if (live) state.season = live;
     if (resumeBtn) {
       resumeBtn.hidden = false;
       resumeBtn.textContent = `继续：${seasonProgressLabel(existing)}`;
@@ -9871,7 +9887,13 @@ function simUserPlayoffGameFromResult() {
 
 $("#btn-season-back")?.addEventListener("click", () => show("home"));
 $("#btn-season-resume")?.addEventListener("click", () => {
-  const st = prepareSeasonState(state.season || loadSeason());
+  const { live, root } = savedSeasonSource();
+  if (!live && root) {
+    // Put the whole career back (not just its season) so later saves go to the root save again.
+    resumeLongCareer(root);
+    return;
+  }
+  const st = prepareSeasonState(live);
   if (!st) return;
   state.season = st;
   state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
