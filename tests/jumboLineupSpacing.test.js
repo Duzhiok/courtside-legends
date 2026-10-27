@@ -12,6 +12,16 @@
  * instead of asserting on formula constants. Bands are wide because this is a genuinely random
  * system -- the point is to catch "the mismatch bonus got deleted/neutered again", not to pin an
  * exact number.
+ *
+ * That one fix (opening up the perimeter-defense discount and the three-point ceiling for a
+ * mismatched big) turned out to not be enough on its own: a shooting team could hit a better 3P%
+ * against four centers and still lose by 40, because the same lineup's PAINT and MID-RANGE shots
+ * were untouched -- a defense that is entirely non-shooting bigs should also clog the paint it's
+ * standing in, which nothing modeled. paintCrowdPenalty() (sim.js) covers that half: it costs
+ * every shot except a three a flat penalty per non-shooting big beyond the two a normal lineup
+ * carries, applied on offense (who's shooting into a crowd) rather than on D (who's crowding it).
+ * See tests/paintCrowding.test.js for the unit-level coverage of that function in isolation; the
+ * scenario test below is the "does this actually fix the user's five-center blowout" check.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -47,6 +57,17 @@ const QUAD_TOWER = [
   ["townska01", 2019],
   ["goberru01", 2019],
   ["parketo01", 2013],
+].map(([b, s]) => cardFor(b, s));
+
+// The follow-up complaint: FIVE true centers, not four-plus-a-guard -- no perimeter defender on
+// the floor at all. A composite roughly as strong individually as QUAD_TOWER (peak-ish seasons),
+// stacked at the position that does the least against a team that never shoots from the paint.
+const QUINT_TOWER = [
+  ["abdulka01", 1981],
+  ["olajuha01", 1990],
+  ["robinda01", 1993],
+  ["onealsh01", 1996],
+  ["duncati01", 2002],
 ].map(([b, s]) => cardFor(b, s));
 
 // Same four elite defenders' overall quality, but spread across the normal five positions
@@ -86,6 +107,41 @@ function simulateGames(home, away, games) {
   }
   return { tpa, tpm, rate: tpm / tpa, wins, winRate: wins / games };
 }
+
+function playFullGames(home, away, homeTactic, awayTactic, games) {
+  const homeCoach = { id: "t-h", name: "T", specialTactics: [homeTactic], preferred: [], buffs: {} };
+  const awayCoach = { id: "t-a", name: "T", specialTactics: [awayTactic], preferred: [], buffs: {} };
+  let wins = 0;
+  let margin = 0;
+  for (let i = 0; i < games; i++) {
+    const sim = new GameSim({
+      home: { players: structuredClone(home), starterIds: home.map((p) => p.id), coach: homeCoach },
+      away: { players: structuredClone(away), starterIds: away.map((p) => p.id), coach: awayCoach },
+      youSide: "home",
+      injuries: false,
+      speed: 3,
+      onEvent: () => {},
+      onTick: () => {},
+      onEnd: () => {},
+    });
+    sim.setTactic(homeTactic, "home");
+    sim.setTactic(awayTactic, "away");
+    const snap = sim.runFast();
+    wins += snap.score.home > snap.score.away ? 1 : 0;
+    margin += snap.score.home - snap.score.away;
+  }
+  return { winRate: wins / games, avgMargin: margin / games };
+}
+
+test("five real centers playing their best defense cannot blow out a comparable shooting team by 30+", () => {
+  // This is the user-reported scene itself: a five-out shooting team should not get run off the
+  // floor 117-155 by a defense that is five true centers and nothing else. "Comparable" matters --
+  // this isn't claiming a jumbo lineup can never lose badly, only that the loss has to come from
+  // being out-talented, not from a spacing exploit the game never modeled.
+  const { winRate, avgMargin } = playFullGames(SPACING_TEAM, QUINT_TOWER, "five_out", "twin_towers", 80);
+  assert.ok(winRate > 0.35, `expected the shooting team to win more than 35% of the time, got ${(winRate * 100).toFixed(0)}% -- five centers are still steamrolling five-out`);
+  assert.ok(avgMargin > -15, `expected an average margin no worse than -15, got ${avgMargin.toFixed(1)} -- still a blowout-level exploit`);
+});
 
 test("a real shooting lineup's 3P% against a stacked quad-center defense lands in a realistic exploited-mismatch band", () => {
   const { rate } = simulateGames(SPACING_TEAM, QUAD_TOWER, 60);

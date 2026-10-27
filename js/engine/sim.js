@@ -3899,6 +3899,27 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
   return clamp(open, 0.08, 0.92);
 }
 
+/**
+ * A normal lineup carries at most two bigs who cannot shoot (a center and a power forward). A season card's
+ * paint% was earned with shooters and ball handlers around the player, which is what keeps the paint open;
+ * put three, four or five non-shooting bigs on the floor together and that is gone: the defense packs the
+ * paint and sags off everyone. Before this, nothing in the shot model noticed: a five-center lineup shot
+ * ~67% against a five-out defense (1.46 points per shot, against 1.23 for a balanced lineup of equal
+ * strength) and the only cost was a 0.2% fit penalty, so "play five out against them" did not work.
+ *
+ * Counted by natural position (`pos`), not `playPos`: a center slotted at the wing is still a center.
+ * A big who shoots (a stretch four) is a spacer, not a cost. Threes are not affected: they are exactly the
+ * shots a packed paint gives up.
+ */
+export const NORMAL_NON_SHOOTING_BIGS = 2;
+export const PAINT_CROWD_PER_BIG = 0.035;
+export function paintCrowdPenalty(onCourt, zone) {
+  if (zone === "three" || !onCourt?.length) return 0;
+  const clogging = onCourt.filter((p) => ["C", "PF"].includes(p.pos) && !isFloorShooter(p)).length;
+  const extra = Math.max(0, clogging - NORMAL_NON_SHOOTING_BIGS);
+  return extra * PAINT_CROWD_PER_BIG * (zone === "paint" ? 1 : 0.5);
+}
+
 function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = null, gameCtx = {}) {
   // Start from zone FG% with a slight haircut — raw season % already assumes real contests
   let base =
@@ -4034,6 +4055,8 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
     // matchup push a bit past the normal cap instead of being thrown away by it.
     base = Math.min(base, gameCtx.sigMakeBoost ? 0.62 : 0.45 + bigMismatch);
   }
+  // Applied after the zone ceilings on purpose: a lineup already pinned at the ceiling must still pay for it.
+  base -= paintCrowdPenalty(off.onCourt, shot.zone);
   // League-env ceiling: keep team PPP near modern NBA (~1.10–1.15)
   return clamp(base, 0.1, gameCtx.sigMakeBoost ? 0.82 : 0.68);
 }
