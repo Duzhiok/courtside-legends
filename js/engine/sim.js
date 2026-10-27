@@ -866,6 +866,16 @@ export class GameSim {
       hunt >= 0.5 && playerOffenseSkill(baller) < 74 && aggressionLevel(baller) >= 0.45;
     const stillDoubled = plan?.scheme === "double" && plan?.targetId === baller.id;
     const wrapTov = skillDefenderTovBonus(defender);
+    // Big handling the ball himself: a center/power forward who dribbles the
+    // possession up (no kick-out, not a putback) pays a dribbling tax that
+    // scales with how bad a passer he is. Skilled passing bigs barely pay;
+    // catch-and-finish bigs (kickedOut) don't pay at all — that isn't dribbling.
+    // (Note: sideCtx.organizerId is only set when the ball is given up, so a
+    // self-handled possession is identified by kickedOut/putback being false,
+    // not by organizerId === baller.id.)
+    const bigHandler =
+      ["C", "PF"].includes(baller.playPos || baller.pos) && !sideCtx?.kickedOut && !sideCtx?.putback;
+    const bigHandlerTov = bigHandler ? (100 - baller.pass) * 0.0004 : 0;
     const tempoTov = off === this.you() ? getTempoDef(off.gameplan?.tempo)?.tovMult ?? 1 : 1;
     const tovChance = Math.max(
       0.012,
@@ -877,6 +887,7 @@ export class GameSim {
         (forcedHunt ? hunt * 0.035 : 0) +
         skillTunnelVisionTov(baller, { doubled: stillDoubled, open: 0.4 }) +
         skillPassCareTov(baller) +
+        bigHandlerTov +
         wrapTov) *
         tempoTov
     );
