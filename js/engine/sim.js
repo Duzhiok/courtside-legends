@@ -1001,6 +1001,7 @@ export class GameSim {
           defPress,
           skillBonus: skillBlockBonus(defender, shot, def.onCourt),
           sigBoost: sigBlk?.blockBoost || 0,
+          packPaint: def.tactic?.packPaint,
         }) * skillBlockResist(baller);
     if (Math.random() < blkChance) {
       baller.stats.fga += 1;
@@ -1018,7 +1019,7 @@ export class GameSim {
       // 被帽方略受挫
       off.morale = clamp((off.morale || 50) - 1.5, 0, 100);
       if (baller) baller.mood = clamp((baller.mood ?? 50) - 3, 15, 95);
-      applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
+      applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt, zone: shot.zone }));
       // often stays live → rebound
       resolveRebound(off, def, this, true);
       return;
@@ -1164,7 +1165,7 @@ export class GameSim {
           def,
           baller,
           defender,
-          fatOpts({ wasted: false, assisterId: primaryAst?.id || null })
+          fatOpts({ wasted: false, assisterId: primaryAst?.id || null, zone: shot.zone })
         );
         shootFts(baller, off, this, 1);
         return;
@@ -1174,7 +1175,7 @@ export class GameSim {
         def,
         baller,
         defender,
-        fatOpts({ wasted: false, assisterId: primaryAst?.id || null })
+        fatOpts({ wasted: false, assisterId: primaryAst?.id || null, zone: shot.zone })
       );
       this.possession = flip(this.possession);
     } else {
@@ -1188,7 +1189,7 @@ export class GameSim {
         gradeFoul(defender);
         const foulStory = matchupFeedStory(baller, defender, shot, open, label, { made: false, fouled: true, lang: this.lang });
         this.emit("miss", this.lang === "en" ? `${foulStory} (${pct(makeP)})` : `${foulStory}（${pct(makeP)}）`);
-        applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
+        applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt, zone: shot.zone }));
         shootFts(baller, off, this, shot.pts === 3 ? 3 : 2);
         return;
       }
@@ -1200,7 +1201,7 @@ export class GameSim {
           : this.S(`${missStory}（${pct(makeP)} · ${hotLabel(baller.hot)}）—— 空位也会打铁`, `${missStory} (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}) — even open looks clang`),
         { shot: { shooterId: baller.id, made: false, pts: shot.pts } }
       );
-      applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
+      applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt, zone: shot.zone }));
       resolveRebound(off, def, this, false);
     }
   }
@@ -3086,6 +3087,7 @@ function applyPossessionFatigue(
     tempoId = "normal",
     slowFocus = false,
     pushFocus = false,
+    zone = null,
   } = {}
 ) {
   const load = off.coach?.buffs?.stamina < 0 ? 1.12 : off.coach?.buffs?.stamina > 4 ? 0.92 : 1;
@@ -3158,7 +3160,11 @@ function applyPossessionFatigue(
     // （baller 仍是终结者时走 CREATE）
     let tax;
     if (isBaller) {
-      tax = (CREATE + huntCost) * styleMult * m;
+      // Finishing in the paint costs more than a jumper, whatever the
+      // orders say: contact, wrestling for position, landing in traffic.
+      // (Post/iso orders add their own +12% on top via styleMult.)
+      const paintMult = zone === "paint" ? 1.25 : 1;
+      tax = (CREATE + huntCost) * styleMult * paintMult * m;
     } else if (isOrganizer || isAssister) {
       // 只传球 / 发动：降速时近乎走路传球
       const pnrBump = scheme === "pnr" || scheme === "drive_kick" ? 1.08 : 1;
@@ -3408,7 +3414,7 @@ function estHeightCm(p) {
  * Block odds with severe size/position mismatch penalties.
  * A PG rejecting Howard at the rim should be extremely rare.
  */
-function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonus = 0, sigBoost = 0 } = {}) {
+function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonus = 0, sigBoost = 0, packPaint = false } = {}) {
   const blk = defender.block || 40;
   // Base rates tuned up from the original ~2% league-wide realized block rate (measured via
   // full-game sims) toward the real NBA's ~5.5% of all FGA -- the zone multipliers below
@@ -3434,6 +3440,7 @@ function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonu
   const switchGod = (defender.skills || []).includes("positionless");
 
   if (shot.zone === "paint") {
+    if (packPaint) chance *= 1.25; // packed paint: more bodies at the rim
     // Vertical + strength mismatch
     if (htGap >= 20) chance *= switchGod ? 0.35 : 0.08;
     else if (htGap >= 12) chance *= switchGod ? 0.55 : 0.18;
@@ -3877,6 +3884,10 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
   if (defender.orders?.defFocus === "deny") open -= 0.05;
   if (defender.orders?.defFocus === "allout") open -= 0.07;
   if (defender.orders?.defFocus === "help") open -= 0.025;
+  // Pack the paint concedes the kick-out: collapsing inside leaves shooters open.
+  // Only when the ball actually moved (kicked out) — packing does not gift
+  // standstill jumpers, and it never applies to paint finishes themselves.
+  if (def.tactic?.packPaint && sideCtx?.kickedOut && shot?.zone !== "paint") open += 0.08;
   if ((defender.orders?.usage || "auto") === "defend") open -= 0.025;
   if ((defender.orders?.usage || "auto") === "hustle") open -= 0.03;
   if (isAllOutDefense(defender)) open -= 0.02;
@@ -4021,6 +4032,12 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
   }
   if (shot.zone === "paint") {
     base += (baller.strength - 70) * 0.0005;
+    // Pack the paint: collapsing inside makes the rim crowded.
+    if (def.tactic?.packPaint) base -= 0.07;
+    // Rim-protection depth: each additional big on the floor helps a little.
+    // (Symmetric: a 5-big team also protects its own rim better.)
+    const defBigs = (def.onCourt || []).filter((p) => ["C", "PF"].includes(p.playPos || p.pos)).length;
+    base -= Math.min(3, Math.max(0, defBigs - 1)) * 0.01;
     // Signature paint moves (霸王步/泰山压顶等) can climb higher — still not automatic
     base = Math.min(base, gameCtx.sigMakeBoost ? 0.8 : 0.68);
   }

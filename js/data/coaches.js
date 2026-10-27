@@ -50,6 +50,19 @@ export const TACTICS = {
     threeRate: 0.95,
     needs: ["iso_scorer", "iso_creator", "mamba", "creator"],
   },
+  pack_paint: {
+    id: "pack_paint",
+    name: "收缩篮下",
+    desc: "全员收缩禁区：篮下更难打、更容易被帽；代价是分球后的外线大空位。对面没三分时纯赚，对面有射手群时会被惩罚。",
+    nameEn: "Pack the Paint",
+    descEn: "Everyone collapses inside: the rim gets crowded and blocks go up — but kick-out shooters get wide open. Free against teams with no shooting, punished by real spacing.",
+    offense: 1,
+    defense: 1,
+    pace: 1,
+    threeRate: 1,
+    // Defensive stance, not a system: the sim reads this flag, never the flat multipliers.
+    packPaint: true,
+  },
   grind: {
     id: "grind",
     name: "铁血半场",
@@ -383,7 +396,8 @@ export function rosterTacticUnlocks(players = [], lang = "zh") {
 export function availableTactics(coach, players = null) {
   const fromCoach = coachTactics(coach).map((t) => t.id);
   const fromRoster = players?.length ? rosterTacticUnlocks(players).ids : [];
-  const ids = [...new Set(["balanced", ...fromCoach, ...fromRoster])];
+  // Pack the paint is a stance, not a coach system: every team can choose it.
+  const ids = [...new Set(["balanced", "pack_paint", ...fromCoach, ...fromRoster])];
   return ids.map((id) => TACTICS[id]).filter(Boolean);
 }
 
