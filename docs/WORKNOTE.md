@@ -1254,8 +1254,15 @@ Muse 和我各自从同一个用户反馈（金币赛五中锋碾压五外）出
 **合并后重新实测**（五个真中锋 vs 五外，真实卡牌，`GameSim.runFast()`，300 场/条件）：用户原始场景（五外 vs `twin_towers` 四中锋+一后卫）赢率 60%、均分差 +4.5；对照组（普通阵容 vs 五外，不涉多塔）赢率 54%、均分差 +1.4，跟基线互打（55%）基本持平——说明叠加后没有把五外调成对非多塔阵容也占便宜。对 `pack_paint` 自己的回归测试有一处受影响：`packing the paint suppresses a paint-heavy offense` 原本 120 场安全边距 +3，合并后因为 `paintCrowdPenalty` 也会不分战术地压低 CENTERS 自己的篮下进攻，两条柱子一起下沉，间隙从 4-7 压缩到 4.5-6.5，120 场偶尔会跳回 3 以下（实测跳过一次 2.7）。按本项目对噪音的标准做法把这条测试的场次从 120 换成 300（不是放宽阈值），连跑 3 次稳定通过。
 
 **全量 909/909，lint 0 错误（2 条原有 warning），`git diff --check` 通过。**
+### R84：英格拉姆不再摇到传球魔术（Muse 提交，与本机 R85 独立合并）
 
-### R84：战术契合改成真数据分析师，防守托管对位表改成每次换人实时重建，新增七项细分属性，比赛页左右不再跳
+用户指出布兰登·英格拉姆不应该有传球魔术（dime_dropper）。核查：他不在任何手动技能表里，是 2024 赛季卡从明星骰子里摇到的（原型 connector/playmaking 进候选池，28% 的骰子选中）。修复：新增 `SKILL_ROLL_DENY`（`js/data/skills.js`），只在通用摇骰子时排除指定人的指定技能——不改阈值（不连累其他同类传球手），不用 SKILL_FREE_BREFS（不剥夺他 2022 的 iron_lungs），不影响手动技能和商店买来的技能。2024 卡摇到的是 motor_engine，其他赛季不变。
+
+卡面变了就触发指纹保护：`tests/cardSchema.test.js` 要求升 ROSTER_SCHEMA（52→53）并重跑 `node scripts/cards/update-schema-fixture.mjs`（23452 张卡），已照做。合并时发现本机的 R85 也独立把 schema 打到了 53（不同原因），两边没共享基础独立撕到同一版本号，合并后改成 54，同时覆盖两边的卡片变化。
+
+验证：`tests/ingramSkills.test.js`（全部 9 个赛季卡都不带 dime_dropper）。全量 910/910，lint 0 错误（2 条原有 warning）。
+
+### R85：战术契合改成真数据分析师，防守托管对位表改成每次换人实时重建，新增七项细分属性，比赛页左右不再跳
 
 本轮四件事，都是用户直接报的具体痛点，不是自己想要做的功能：
 
@@ -1266,9 +1273,11 @@ Muse 和我各自从同一个用户反馈（金币赛五中锋碾压五外）出
    - `calcMakeProb` 的技术分微调换成：空位或被分球制造的好出手（`open>=0.55` 或 `gameCtx.kickedOut`）用 `catchShoot`，否则用 `offDribble`；篮下仍用 `paint`。
    - `reboundContestWeight()` 进攻篮板用 `offReb`，防守篮板用 `defReb`，不再两边共用一个 `rebound`。
    - 大个子自己运球的失误税（`bigHandlerTov`）优先用 `handle` 而不是 `pass`。
-   带真实球员样本验证：戈贝尔的 `interiorDef > perimDef`，CP3 的 `handle > 戈贝尔`，CP3 的 `perimDef` 不被戈贝尔碾死。`ROSTER_SCHEMA` 52→53，卡片 fixture 已重生。
+   带真实球员样本验证：戈贝尔的 `interiorDef > perimDef`，CP3 的 `handle > 戈贝尔`，CP3 的 `perimDef` 不被戈贝尔碾死。
 4. **比赛页左右不再跳。** 根因不是文字本身，是 `.court-wrap` 原来只设了 `min-height`，单行隐式 grid 没显式 `grid-template-rows` 时行高是「谁内容最高」现算的，右侧教练席的轮换表/战术文字一重渲染换了高度，整行高就跟着重算，左侧球场+战报整块跟着一起跳。改成固定 `height`（不是 `min-height`），左右两侧各自靠 `overflow-y:auto` 内滑，不再把容器撑高；手机单列堆叠时 `height:auto` 不强行等高。新增 `scripts/qa/court-panel-height.mjs`，在真实 `#screen-game` 比赛页里跑了 5.5s，测左栏整栈（球场+注释+战报）vs 右侧教练框总高度——框高完全相等且 top 对齐，过了 5.5s 内容改变后高度一点没动。
 
-**测试总结**：新增 `tests/rosterFit.test.js`（4）`tests/autoDefenseMatchups.test.js`（5，含一个 mutation 验证）`tests/subAttributes.test.js`（7，全部用真实球员卡样本）。全量 925/925，lint 0 错误（2 条原有 warning），`git diff --check` 通过。浏览器实测（`court-panel-height.mjs`，1280×900 + 390×844）全部 PASS，包括「跟着内容不再跳」的关键断言。
+**和 R84 合并时的 schema 冲突**：两边都独立打升了 `ROSTER_SCHEMA`（52→53），但是不同原因、不同卡片变化，没有共享基础，合并时改成 54，重新生成 `tests/fixtures/cardSchema.json`（同时覆盖两边的卡片变化）。
+
+**测试总结**：新增 `tests/rosterFit.test.js`（4）`tests/autoDefenseMatchups.test.js`（5，含一个 mutation 验证）`tests/subAttributes.test.js`（7，全部用真实球员卡样本）。浏览器实测（`court-panel-height.mjs`，1280×900 + 390×844）全部 PASS，包括「跟着内容不再跳」的关键断言。具体总测试数和 lint 结果见合并后重跑的最新一次。
 
 遗留：细分属性目前只在引擎层生效，UI 上还没有展示给玩家看（既没加到球员详情卡，也没设计 UI 位置），如果后续要把这七项暂给玩家看，需要单独设计展示位置和文案。

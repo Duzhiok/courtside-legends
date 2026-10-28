@@ -1173,6 +1173,15 @@ export const SKILL_TEAM_GATES = {
 /** 明确不需要任何身份技能的球员（也不吃随机通用技） */
 export const SKILL_FREE_BREFS = new Set(["brownja02"]);
 
+/**
+ * Per-player exclusions from the generic skill roll only. A judgment call
+ * about a specific player (e.g. Ingram is a good wing passer, not a passing
+ * magician) — this never touches named kits or skills bought in the shop.
+ */
+export const SKILL_ROLL_DENY = {
+  ingrabr01: ["dime_dropper"],
+};
+
 function athleteScore(p) {
   if (!p) return 50;
   const motor = p.intangibles?.motor ?? 50;
@@ -1517,6 +1526,7 @@ function candidateSkills(p) {
     cands.add("clutch_killer");
     cands.add("motor_engine");
   }
+  for (const id of SKILL_ROLL_DENY[String(p.bref || "").toLowerCase()] || []) cands.delete(id);
   return [...cands];
 }
 
