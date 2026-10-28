@@ -1254,3 +1254,10 @@ Muse 和我各自从同一个用户反馈（金币赛五中锋碾压五外）出
 **合并后重新实测**（五个真中锋 vs 五外，真实卡牌，`GameSim.runFast()`，300 场/条件）：用户原始场景（五外 vs `twin_towers` 四中锋+一后卫）赢率 60%、均分差 +4.5；对照组（普通阵容 vs 五外，不涉多塔）赢率 54%、均分差 +1.4，跟基线互打（55%）基本持平——说明叠加后没有把五外调成对非多塔阵容也占便宜。对 `pack_paint` 自己的回归测试有一处受影响：`packing the paint suppresses a paint-heavy offense` 原本 120 场安全边距 +3，合并后因为 `paintCrowdPenalty` 也会不分战术地压低 CENTERS 自己的篮下进攻，两条柱子一起下沉，间隙从 4-7 压缩到 4.5-6.5，120 场偶尔会跳回 3 以下（实测跳过一次 2.7）。按本项目对噪音的标准做法把这条测试的场次从 120 换成 300（不是放宽阈值），连跑 3 次稳定通过。
 
 **全量 909/909，lint 0 错误（2 条原有 warning），`git diff --check` 通过。**
+### R84：英格拉姆不再摇到传球魔术（单独提交）
+
+用户指出布兰登·英格拉姆不应该有传球魔术（dime_dropper）。核查：他不在任何手动技能表里，是 2024 赛季卡从明星骰子里摇到的（原型 connector/playmaking 进候选池，28% 的骰子选中）。修复：新增 `SKILL_ROLL_DENY`（`js/data/skills.js`），只在通用摇骰子时排除指定人的指定技能——不改阈值（不连累其他同类传球手），不用 SKILL_FREE_BREFS（不剥夺他 2022 的 iron_lungs），不影响手动技能和商店买来的技能。2024 卡摇到的是 motor_engine，其他赛季不变。
+
+卡面变了就触发指纹保护：`tests/cardSchema.test.js` 要求升 ROSTER_SCHEMA（52→53）并重跑 `node scripts/cards/update-schema-fixture.mjs`（23452 张卡），已照做。
+
+验证：`tests/ingramSkills.test.js`（全部 9 个赛季卡都不带 dime_dropper）。全量 910/910，lint 0 错误（2 条原有 warning）。
