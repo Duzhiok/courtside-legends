@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 52; // bump: Zaza Pachulia whole-career C override (2004-11 talldata rows mistagged SF)
+export const ROSTER_SCHEMA = 53; // bump: R84 sub-attributes (handle/perimDef/interiorDef/catchShoot/offDribble/offReb/defReb)
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good

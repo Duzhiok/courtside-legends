@@ -2,6 +2,7 @@ import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/co
 import { getLang, skillNameL } from "../i18n.js";
 import { overall } from "../data/players.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
+import { buildSamePosMatchups } from "./matchups.js";
 import { applyLineupPositionEffects, inGameInjuryChance, systemFitScore } from "../data/intangibles.js";
 import {
   activeDuoIds,
@@ -456,6 +457,9 @@ export class GameSim {
     const next = !!on;
     this[key] = next;
     if (key === "autoRotation") this._manageCd = 0;
+    // 开启防守托管时立即重建对位表，不等下一次 managedDefense() 的随机 tick
+    // （20%~35% 概率），否则刚开托管那几回合还是沿用开关前的旧对位。
+    if (key === "autoDefense" && next) this.refreshDefenseAssignments();
     const copy = GameSim.AUTOPILOT_LABELS[key];
     this.emit("coach", this.lang === "en" ? (next ? copy.onEn : copy.offEn) : next ? copy.on : copy.off);
     // 开启且正停在节间/中场 → 助手代劳后继续；玩家暂停不自动跳过
@@ -875,7 +879,10 @@ export class GameSim {
     // not by organizerId === baller.id.)
     const bigHandler =
       ["C", "PF"].includes(baller.playPos || baller.pos) && !sideCtx?.kickedOut && !sideCtx?.putback;
-    const bigHandlerTov = bigHandler ? (100 - baller.pass) * 0.0004 : 0;
+    // R84: prefer the dedicated 控球 (ball-handling) rating over the broader passing rating
+    // for the literal "can he dribble it up without coughing it up" tax -- falls back to
+    // `pass` for old save snapshots that predate `handle`.
+    const bigHandlerTov = bigHandler ? (100 - (baller.handle ?? baller.pass)) * 0.0004 : 0;
     const tempoTov = off === this.you() ? getTempoDef(off.gameplan?.tempo)?.tovMult ?? 1 : 1;
     const tovChance = Math.max(
       0.012,
@@ -1674,11 +1681,31 @@ export class GameSim {
     }
   }
 
+  /**
+   * Rebuild the full man-to-man table from scratch (same-position-first,
+   * adjacent-position fallback -- same algorithm the pre-game setup screen
+   * uses) for whoever is actually on the floor right now. Autopilot owns
+   * this table while it's on, so it deliberately does NOT treat the old
+   * table as "saved/manual" input: a stale assignment left over from a
+   * fatigue sub (substitute() just carries the old slot over 1:1, with no
+   * positional sanity check) would otherwise get rubber-stamped as "the
+   * user's choice" forever. Only called while autoDefense is on; manual
+   * mode keeps the old carry-over behavior untouched.
+   */
+  refreshDefenseAssignments() {
+    const you = this.you();
+    const opp = this.opp();
+    if (!you?.onCourt?.length || !opp?.onCourt?.length) return;
+    const assignments = buildSamePosMatchups(you.onCourt, opp.onCourt, {});
+    this.defensePlan = { ...(this.defensePlan || {}), assignments };
+  }
+
   /** Put a body on the opponent's hottest threat. */
   managedDefense() {
     const opp = this.opp();
     const you = this.you();
     if (!opp?.onCourt?.length) return;
+    if (this.autoDefense) this.refreshDefenseAssignments();
     const deficit = this.score[opp.side] - this.score[you.side];
     const protecting = deficit <= -6;
     const threat = [...opp.onCourt].sort((a, b) => {
@@ -2904,7 +2931,11 @@ function maybeTechnicalFoul(sim, off, def, baller, defender) {
 
 /** Who cleans the glass — size matters, but not 25-rpg monopolies. */
 function reboundContestWeight(p, { offensive = false } = {}) {
-  const rating = Math.max(12, p.rebound || 40);
+  // R84: offensive and defensive boards are genuinely different skills (crashing for a
+  // second chance vs. boxing out/securing a clean miss) -- use the split attribute when
+  // it's there, fall back to the shared `rebound` rating for old save snapshots.
+  const specialized = offensive ? p.offReb : p.defReb;
+  const rating = Math.max(12, (specialized != null ? specialized : p.rebound) || 40);
   // Milder curve: elite bigs win more boards without vacuuming every miss
   let w = Math.pow(rating / 50, 1.75) * 36;
   const pos = p.playPos || p.pos || "";
@@ -3809,7 +3840,11 @@ function chooseShot(p, off, focusPlay = null, sideCtx = null) {
  * specific matchup now actually bites instead of being treated as a tough post defender's shot.
  */
 function perimeterDefenseRating(defender, zone) {
-  if (!zone || zone === "paint") return defender.defense; // rim/post D fully counts near the rim
+  if (!zone || zone === "paint") return defender.interiorDef ?? defender.defense; // rim/post D fully counts near the rim
+  // R84: prefer the scouted perimDef attribute (derived from real steal rate + mobility,
+  // not recomputed on the fly) -- fall back to the old runtime discount for any player
+  // object saved before that field existed (old save snapshots).
+  if (defender.perimDef != null) return defender.perimDef;
   const pos = defender.playPos || defender.pos;
   if (pos !== "C" && pos !== "PF") return defender.defense;
   const discount = pos === "C" ? 0.4 : 0.25;
@@ -3948,8 +3983,26 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
     (shot.zone === "three" ? baller.threeFg : shot.zone === "paint" ? baller.paintFg : baller.midFg) *
     0.9;
   base += (open - 0.45) * 0.16;
+  // R84: a clean/kicked-out look is a catch-and-shoot shot, a contested or self-created one is
+  // off-the-dribble -- same raw three%/mid% doesn't mean the same guy is equally good at both
+  // (a spot-up shooter and a pull-up artist can share a shooting percentage and still be very
+  // different players). Falls back to the plain three/mid rating for old save snapshots that
+  // predate catchShoot/offDribble.
+  const isCatchAndShoot = shot.zone !== "paint" && (open >= 0.55 || gameCtx.kickedOut);
+  const specialized =
+    shot.zone === "paint"
+      ? null
+      : isCatchAndShoot
+        ? baller.catchShoot
+        : baller.offDribble;
   const skill =
-    shot.zone === "three" ? baller.three : shot.zone === "paint" ? baller.paint : baller.mid;
+    specialized != null
+      ? specialized
+      : shot.zone === "three"
+        ? baller.three
+        : shot.zone === "paint"
+          ? baller.paint
+          : baller.mid;
   base += (skill - 75) * 0.00055;
   const tough = baller.intangibles?.toughness || 50;
   // Fatigue curve: ~60 slight, ~80 slide, ~100 brick festival — iron lungs resist

@@ -9,6 +9,7 @@
  */
 import { isHiddenGem, isPlayerAvailable, playerPrice } from "../data/intangibles.js";
 import { overall, clonePlayer, PLAYERS } from "../data/players.js";
+import { teamChemistry, lineupFit } from "./chemistry.js";
 import { teamPowerLabel } from "./draft.js";
 import { nextEmptyPlayPos } from "./gameplan.js";
 import { GameSim } from "./sim.js";
@@ -127,6 +128,42 @@ export function shopFit(p, teamPlayers = [], tacticNeeds = []) {
   if (pos && deficitPositions(teamPlayers).includes(pos)) return "need";
   const needs = new Set(tacticNeeds || []);
   if (p.archetype && needs.has(p.archetype)) return "tactic";
+  return null;
+}
+
+/** Top-5-by-OVR stand-in for "the rotation this guy would actually join". */
+function likelyStarters(teamPlayers = []) {
+  return [...teamPlayers].sort((a, b) => overall(b) - overall(a)).slice(0, 5);
+}
+function effShopPos(p) {
+  return p?.playPos || p?.pos;
+}
+
+/**
+ * 「数据分析师」的真实适配度：不是「他够不够强」，而是「把他换进现有主力，
+ * 这支队会变强还是变弱」。做法：用他换下现有主力中同位置最弱的一人
+ * （没有同位就换整体最弱的一人），比较换前换后的球队化学反应 + 阵容适配。
+ * 这样「普通卡融入适合的体系/阵容」也能打分很高，不要求他是全队最强——
+ * 这正是用户说的「不一定是最强的，但一定是很有可能表现好」。
+ * 需要现有阵容至少有 5 人才有意义，否则返回 0（不乱下结论）。
+ */
+export function rosterFitDelta(candidate, teamPlayers = [], coach = null, tactic = null) {
+  const starters = likelyStarters(teamPlayers);
+  if (!candidate || starters.length < 5) return 0;
+  const samePos = starters.filter((p) => effShopPos(p) === effShopPos(candidate));
+  const outgoing = (samePos.length ? samePos : starters).reduce((worst, p) =>
+    overall(p) < overall(worst) ? p : worst
+  );
+  const after = starters.filter((p) => p.id !== outgoing.id).concat(candidate);
+  const before = teamChemistry(starters) + lineupFit(starters, coach, tactic);
+  const afterScore = teamChemistry(after) + lineupFit(after, coach, tactic);
+  return Math.round(afterScore - before);
+}
+
+/** Only call out genuinely good fits -- a report that flags everything is noise, not analysis. */
+export function rosterFitTier(delta) {
+  if (delta >= 14) return "great";
+  if (delta >= 6) return "good";
   return null;
 }
 

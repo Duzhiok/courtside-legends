@@ -727,8 +727,13 @@ html, body {
   grid-template-columns: minmax(0, 0.95fr) minmax(460px, 1.3fr);
   gap: 12px;
   align-items: stretch;
-  /* 940px 的硬上限在高屏幕上让教练席提前截断、下面留一大片空白，换成更高的绝对上限。 */
-  min-height: min(94vh, 1240px);
+  /* 之前只写了 min-height：单行隐式 grid 没有显式 grid-template-rows 时，行高是
+     「现在谁内容最高」现算的——每当右侧教练席里的轮换表/战术文字重渲染换了高度，整行高就跟着
+     重算一次，左侧球场+战报整块跟着一起跳——这就是用户截图里「右边框一直跳」的真回跟。
+     改成固定 height（不是 min-height），让这一行是个稳定值，不跟任何一侧内容重流；
+     两边各自靠 overflow-y:auto 内滚，不再把容器撑高。手机单列堆叠时在下方
+     media query 里改回 auto，因为单列堆叠不应该强行等高。 */
+  height: min(94vh, 1240px);
 }
 .court-column {
   display: grid;
@@ -737,6 +742,7 @@ html, body {
   gap: 10px;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   position: relative;
 }
 .court {
@@ -948,7 +954,9 @@ html, body {
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  max-height: min(94vh, 1240px);
+  /* 和 .court-column 共用 .court-wrap 的固定 height，不再只设 max-height任其
+     按内容缩短——这样左右两框才真正上下一样长，而不是左边高了右边矮一截。 */
+  height: 100%;
 }
 .coach-panel .tiny, .tiny { color: var(--muted); font-size: .88rem; }
 .meter { margin: 12px 0; display: grid; gap: 6px; font-size: .88rem; }
@@ -3387,11 +3395,12 @@ select, input[type="number"] {
   .court-wrap {
     grid-template-columns: 1fr;
     min-height: 0;
+    height: auto; /* 单列堆叠时不强行等高，每框按自己内容高度走 */
   }
-  .court-column { grid-template-rows: 260px minmax(140px, 28vh); }
+  .court-column { grid-template-rows: 260px minmax(140px, 28vh); height: auto; }
   .court { min-height: 240px; height: 260px; max-height: 260px; }
   .dunk-flash { height: 260px; }
-  .coach-panel { max-height: none; overflow-x: visible; }
+  .coach-panel { max-height: none; height: auto; overflow-x: visible; }
   .dunk-flash-bang { font-size: 2.1rem; }
   .dunk-flash.star .dunk-flash-bang { font-size: 2.4rem; }
   .topbar { flex-wrap: wrap; }

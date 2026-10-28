@@ -165,6 +165,23 @@ export function seasonToCard(r) {
     season: r.season,
   });
 
+  const subAttrs = deriveSubAttributes({
+    pos,
+    three,
+    mid,
+    paint,
+    defense,
+    rebound,
+    pass,
+    speed,
+    strength,
+    block,
+    steal,
+    scoring,
+    heightCm,
+    offenseStyle: tends.offenseStyle,
+  });
+
   const card = {
     id: r.id,
     name: displayName,
@@ -195,6 +212,8 @@ export function seasonToCard(r) {
     clutch,
     steal,
     block,
+    // NBA2K风格的细分子能力(R84): 控球/外线防守/内线防守/接球投/持球投/前场篮板/后场篮板
+    ...subAttrs,
     // 2K-style tendencies / offense style (drive shot selection, not just make%)
     shotTend: tends.shotTend,
     threeTend: tends.threeTend,
@@ -491,6 +510,66 @@ function deriveShotTendencies(r, a) {
   else if ((a.mid || 0) >= 82 && midTend >= 55) offenseStyle = "midiso";
 
   return { shotTend, threeTend, midTend, paintTend, offenseStyle };
+}
+
+/**
+ * NBA2K-style sub-attributes, additive on top of the 14 core ratings. We don't have real
+ * orb/drb, ast/tov, or shot-location splits in the source box scores (only aggregate
+ * rpg/apg/tpg/fga), so these are derived the same way the rest of this file already derives
+ * archetype/hiddenTier/shot tendencies from aggregate production + position priors, not new
+ * raw data. Every formula has a documented fallback to the matching core attribute so old
+ * save snapshots (serialized before this existed) keep working without these fields.
+ */
+function deriveSubAttributes({ pos, three, mid, paint, defense, rebound, pass, speed, strength, block, steal, scoring, heightCm, offenseStyle }) {
+  const p = pos || "SF";
+
+  // 控球 (ball-handling): position prior + pass/vision + quickness. Giants who still bring
+  // it up themselves (point-forwards) get a mild bump via offenseStyle="playmake".
+  const handlePosBase = { PG: 72, SG: 60, SF: 48, PF: 36, C: 26 }[p] ?? 50;
+  let handle = handlePosBase + (pass - 50) * 0.5 + (speed - 50) * 0.22;
+  if (offenseStyle === "playmake") handle += 10;
+  if (offenseStyle === "post") handle -= 8;
+  if ((heightCm || 198) >= 213) handle -= 6;
+  handle = clamp(Math.round(handle), 15, 99);
+
+  // 外线防守 / 内线防守: split the single `defense` rating by zone, same spirit as the old
+  // runtime-only perimeterDefenseRating() in sim.js -- except now it's a real, persisted,
+  // player-facing number instead of a hidden formula nobody could see or scout.
+  const perimDiscount = p === "C" ? 0.32 : p === "PF" ? 0.18 : 0;
+  const mobility = clamp(((speed || 50) - 50) / 40, 0, 1);
+  let perimDef = defense * (1 - perimDiscount * (1 - mobility * 0.5)) + (steal - 50) * 0.15;
+  perimDef = clamp(Math.round(perimDef), 15, 99);
+
+  const interiorBoost = { C: 1.15, PF: 1.05, SF: 0.9, SG: 0.72, PG: 0.68 }[p] ?? 0.85;
+  let interiorDef = defense * interiorBoost + (block - 50) * 0.3 + (strength - 50) * 0.15 + ((heightCm || 198) - 198) * 0.25;
+  interiorDef = clamp(Math.round(interiorDef), 15, 99);
+
+  // 接球投 / 持球投: split three+mid by shot creation style -- a spot-up shooter and an
+  // off-the-dribble pull-up artist can share the same raw three% and still play completely
+  // different roles on offense.
+  let catchShoot = three * 0.72 + mid * 0.28;
+  if (offenseStyle === "spot" || offenseStyle === "stretch") catchShoot += 10;
+  else if (offenseStyle === "playmake") catchShoot -= 4;
+  else if (offenseStyle === "post") catchShoot -= 10;
+  catchShoot = clamp(Math.round(catchShoot), 15, 99);
+
+  let offDribble = three * 0.4 + mid * 0.45 + scoring * 0.15;
+  if (offenseStyle === "midiso" || offenseStyle === "playmake") offDribble += 10;
+  else if (offenseStyle === "slash") offDribble += 4;
+  else if (offenseStyle === "spot") offDribble -= 10;
+  offDribble = clamp(Math.round(offDribble), 15, 99);
+
+  // 前场篮板(二次进攻) / 后场篮板: offensive boards reward size+motor far more unevenly by
+  // position than defensive boards do (bigs crash, guards mostly just box out/leak out).
+  const offRebPosMult = { C: 1.15, PF: 1.08, SF: 0.85, SG: 0.55, PG: 0.4 }[p] ?? 0.8;
+  let offReb = rebound * offRebPosMult + (strength - 50) * 0.2 + (paint - 50) * 0.1;
+  offReb = clamp(Math.round(offReb), 10, 99);
+
+  const defRebPosMult = { C: 1.08, PF: 1.04, SF: 0.95, SG: 0.85, PG: 0.8 }[p] ?? 0.9;
+  let defReb = rebound * defRebPosMult + ((heightCm || 198) - 198) * 0.15;
+  defReb = clamp(Math.round(defReb), 15, 99);
+
+  return { handle, perimDef, interiorDef, catchShoot, offDribble, offReb, defReb };
 }
 
 export const OFFENSE_STYLE_LABELS = {

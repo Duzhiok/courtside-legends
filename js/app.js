@@ -212,7 +212,8 @@ import {
   buildAffordableShop,
   careerRefreshCost,
   rollScoutPackOffer,
-  shopFit,
+  rosterFitDelta,
+  rosterFitTier,
   teamStarters,
 } from "./engine/careerEconomy.js";
 import {
@@ -5266,17 +5267,22 @@ function paintFreeAgentList(c, duel = false) {
     return;
   }
   const scoutOn = !!c.scoutActive;
-  const tacticNeeds = coachTactics(c.team?.coach).flatMap((t) => t.needs || []);
+  // 数据分析师报告：不是「位置缺人/战术标签命中」这种粗糙标签，而是真正把他换进现有
+  // 主力、比较换前换后的化学反应+阵容适配，只有真正会变强才标注。和隐藏能力一样
+  // 需要买过侦察包才显示，没侦察就不谎称知道谁适合。
+  const homeTactic = coachTactics(c.team?.coach)[0] || null;
   box.innerHTML = sortedMarketShop(c.shop)
     .map((p) => {
       const price = playerPrice(p);
       const afford = price <= budget;
       const badge = shopRevealBadge(p, scoutOn);
-      const fit = shopFit(p, c.team?.players || [], tacticNeeds);
-      const fitBadge = fit === "need"
-        ? ` <span class="fit-badge need">${getLang() === "en" ? "Fills a gap" : "缺位补强"}</span>`
-        : fit === "tactic"
-          ? ` <span class="fit-badge tactic">${getLang() === "en" ? "Tactic fit" : "战术契合"}</span>`
+      const fitTier = scoutOn
+        ? rosterFitTier(rosterFitDelta(p, c.team?.players || [], c.team?.coach, homeTactic))
+        : null;
+      const fitBadge = fitTier === "great"
+        ? ` <span class="fit-badge tactic">${getLang() === "en" ? "Analyst: great fit" : "数据分析师：极佳适配"}</span>`
+        : fitTier === "good"
+          ? ` <span class="fit-badge need">${getLang() === "en" ? "Analyst: good fit" : "数据分析师：适配良好"}</span>`
           : "";
       return `<div class="market-row ${afford ? "" : "unaffordable"}">
         ${photoImg(p)}

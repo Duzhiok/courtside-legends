@@ -1254,3 +1254,21 @@ Muse 和我各自从同一个用户反馈（金币赛五中锋碾压五外）出
 **合并后重新实测**（五个真中锋 vs 五外，真实卡牌，`GameSim.runFast()`，300 场/条件）：用户原始场景（五外 vs `twin_towers` 四中锋+一后卫）赢率 60%、均分差 +4.5；对照组（普通阵容 vs 五外，不涉多塔）赢率 54%、均分差 +1.4，跟基线互打（55%）基本持平——说明叠加后没有把五外调成对非多塔阵容也占便宜。对 `pack_paint` 自己的回归测试有一处受影响：`packing the paint suppresses a paint-heavy offense` 原本 120 场安全边距 +3，合并后因为 `paintCrowdPenalty` 也会不分战术地压低 CENTERS 自己的篮下进攻，两条柱子一起下沉，间隙从 4-7 压缩到 4.5-6.5，120 场偶尔会跳回 3 以下（实测跳过一次 2.7）。按本项目对噪音的标准做法把这条测试的场次从 120 换成 300（不是放宽阈值），连跑 3 次稳定通过。
 
 **全量 909/909，lint 0 错误（2 条原有 warning），`git diff --check` 通过。**
+
+### R84：战术契合改成真数据分析师，防守托管对位表改成每次换人实时重建，新增七项细分属性，比赛页左右不再跳
+
+本轮四件事，都是用户直接报的具体痛点，不是自己想要做的功能：
+
+1. **「缺位补强/战术契合」换成真正的数据分析师。** 旧逻辑 `shopFit()` 只看「他站哪个位置/战术需求有没命中」，跟他进来后球队到底变强还是变弱没关系，导致大量不怎么样的候选都被贴上标签。新增 `js/engine/careerEconomy.js` 的 `rosterFitDelta(candidate, teamPlayers, coach, tactic)`：用候选换下现有主力中同位置最弱的一人（没同位就换整体最弱的一人），比较换前换后的 `teamChemistry + lineupFit`，只有真正明显变强才标注（`rosterFitTier`：`≥6` good，`≥14` great）。和隐藏能力一样，没买侦察包不显示，避免谎称知道谁适合。不到 5 人的阵容直接返回 0，不乱下结论。测试用「四个 iso 明星 + 缺连接工具人」的阵容证明：再塑一个第四个 iso 得分点，分比一个老老实实的蓝领工人要差（配套现有的「明星堆簧没连接工具人」惩罚）。
+2. **防守托管的对位表不再信任陈旧的 1:1 继承，每次换人之后实时重建。** 旧流程：换人时 `substitute()` 把被换下那个人的对位直接原样交给替补（不管位置合不合理），防守托管从来不纠正，一次体能换人就能让后卫继承中锋的防守任务。`js/engine/sim.js` 新增 `refreshDefenseAssignments()`，复用赛前对位已有的 `buildSamePosMatchups()`，只看当前在场五人从头重建。`setAutoDefense(true)` 开启时立即执行一次（不等下一次 20%~35% 随机托管 tick），`managedDefense()` 在 `autoDefense` 开启时每次都重建。手动模式（`autoDefense` 关闭）完全不受影响，继续用旧的继承行为。测试用手工植入一个「对方中锋被我方后卫防守」的明显错误对位表，验证重建后结果和从零调用 `buildSamePosMatchups()` 完全一致——托管彻底接管对位表，不再半信任旧表。
+3. **NBA2K 风格的细分能力，七项新属性，都是公式推导不是装饰。** `js/data/players.js` 新增 `deriveSubAttributes()`，在 14 项核心评分 + 位置 + `offenseStyle`（已有的投篮风格分类）的基础上推导：`handle`（控球）`perimDef`（外线防守）`interiorDef`（内线防守）`catchShoot`（接球投）`offDribble`（持球投）`offReb`（前场篮板）`defReb`（后场篮板）。原始 box score 没有真实的控球/分区防守/分区篮板数据，所以这七项和现有的 `archetype`/`hiddenTier` 一样是公式推导，不是新抓的原始数据。实际接入模拟引擎四处（都有对旧存档的 fallback，不会因为老存档缺字段报错）：
+   - `calcOpenness` 的 `perimeterDefenseRating()` 优先用 `perimDef`/`interiorDef`，没有时回退到原来的运行时折扣公式。
+   - `calcMakeProb` 的技术分微调换成：空位或被分球制造的好出手（`open>=0.55` 或 `gameCtx.kickedOut`）用 `catchShoot`，否则用 `offDribble`；篮下仍用 `paint`。
+   - `reboundContestWeight()` 进攻篮板用 `offReb`，防守篮板用 `defReb`，不再两边共用一个 `rebound`。
+   - 大个子自己运球的失误税（`bigHandlerTov`）优先用 `handle` 而不是 `pass`。
+   带真实球员样本验证：戈贝尔的 `interiorDef > perimDef`，CP3 的 `handle > 戈贝尔`，CP3 的 `perimDef` 不被戈贝尔碾死。`ROSTER_SCHEMA` 52→53，卡片 fixture 已重生。
+4. **比赛页左右不再跳。** 根因不是文字本身，是 `.court-wrap` 原来只设了 `min-height`，单行隐式 grid 没显式 `grid-template-rows` 时行高是「谁内容最高」现算的，右侧教练席的轮换表/战术文字一重渲染换了高度，整行高就跟着重算，左侧球场+战报整块跟着一起跳。改成固定 `height`（不是 `min-height`），左右两侧各自靠 `overflow-y:auto` 内滑，不再把容器撑高；手机单列堆叠时 `height:auto` 不强行等高。新增 `scripts/qa/court-panel-height.mjs`，在真实 `#screen-game` 比赛页里跑了 5.5s，测左栏整栈（球场+注释+战报）vs 右侧教练框总高度——框高完全相等且 top 对齐，过了 5.5s 内容改变后高度一点没动。
+
+**测试总结**：新增 `tests/rosterFit.test.js`（4）`tests/autoDefenseMatchups.test.js`（5，含一个 mutation 验证）`tests/subAttributes.test.js`（7，全部用真实球员卡样本）。全量 925/925，lint 0 错误（2 条原有 warning），`git diff --check` 通过。浏览器实测（`court-panel-height.mjs`，1280×900 + 390×844）全部 PASS，包括「跟着内容不再跳」的关键断言。
+
+遗留：细分属性目前只在引擎层生效，UI 上还没有展示给玩家看（既没加到球员详情卡，也没设计 UI 位置），如果后续要把这七项暂给玩家看，需要单独设计展示位置和文案。
