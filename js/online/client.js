@@ -13,7 +13,7 @@ const $ = (id) => document.getElementById(id);
 
 const state = {
   ws: null,
-  url: "ws://localhost:3001",
+  url: "",
   name: "",
   code: "",
   side: null,
@@ -26,6 +26,20 @@ const state = {
   account: null,
   market: null,
 };
+
+/**
+ * ws://localhost:3001 only makes sense when THIS page is itself being served from the same
+ * dev machine over plain http (e.g. `python scripts/serve_nocache.py`) -- there, "localhost"
+ * really is the box running the online server. Once this ships inside a packaged mobile app
+ * (capacitor:// / https://localhost) or any real https:// deployment, "localhost" means the
+ * phone/browser itself, there is no server there, AND modern iOS/Android block a plain ws://
+ * socket from a secure page anyway (mixed content / App Transport Security / cleartext traffic
+ * policy). Leaving it blank there forces the user to type their actual wss:// server instead of
+ * silently failing against a server that was never going to exist.
+ */
+function defaultServerUrl() {
+  return window.location.protocol === "http:" ? "ws://localhost:3001" : "";
+}
 
 function esc(text) {
   return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -365,7 +379,8 @@ function handleMessage(msg) {
 
 function bind() {
   $("btn-connect").addEventListener("click", () => {
-    state.url = $("server-url").value.trim() || "ws://localhost:3001";
+    state.url = $("server-url").value.trim();
+    if (!state.url) return setStatus("请先填写服务器地址（wss://你的域名）。", true);
     state.name = $("player-name").value.trim();
     if (!state.name) return setStatus("请先填名字。", true);
     connect();
@@ -461,6 +476,7 @@ function bind() {
 }
 
 $("record-line").textContent = `联机战绩：${formatRecord(loadRecord(localStorage))}`;
+$("server-url").value = defaultServerUrl();
 
 marketAction();
 bind();

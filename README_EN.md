@@ -81,6 +81,22 @@ python3 scripts/build_full_roster.py
 
 Output: `js/data/roster.json` (loaded asynchronously at game start and written to the browser's local cache).
 
+### Packaging as an Android / iOS app
+
+The existing plain-ES-module front end gets wrapped as-is into a native shell using
+[Capacitor](https://capacitorjs.com/) -- no framework rewrite.
+
+```bash
+npm install
+npm run mobile:sync      # copies index.html/css/js/assets into mobile/www, then syncs both native projects
+npm run mobile:android   # opens the Android project in Android Studio
+npm run mobile:ios       # opens the iOS project in Xcode (requires full Xcode, not just CLT)
+```
+
+The full packaging/publishing guide (store account setup, signing, review process on both
+stores, **and a publicity-rights warning you must read before any public store listing**)
+is in `docs/MOBILE_APPS.md`.
+
 ---
 
 ## Game modes
@@ -351,7 +367,7 @@ The launch requirements, checked against the code one by one:
 
 - Background music must be provided by the user from a legal source; the repo grants no third-party music license.
 - Home-page and player-card era photos prefer freely licensed images from Wikimedia Commons (each under its original license, referenced by link, not distributed with the repo).
-- NBA, team names / marks, player names and photos, etc. belong to their respective rights holders. This is an unofficial fan project; the MIT code license does not cover those third-party brands, likenesses, or data.
+- NBA, team names / marks, player names and photos, etc. belong to their respective rights holders. This is an unofficial fan project; the MIT code license does not cover those third-party brands, likenesses, or data. **That's fine for local/private use, but if you plan to package this as an app and list it publicly on the App Store / Google Play, that's a real legal risk -- see the warning at the top of `docs/MOBILE_APPS.md`.**
 
 ## Author
 

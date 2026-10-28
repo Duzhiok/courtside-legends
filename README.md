@@ -81,6 +81,18 @@ python3 scripts/build_full_roster.py
 
 输出：`js/data/roster.json`（游戏启动时异步加载，并写入浏览器本地缓存）。
 
+### 打包成 Android / iOS App
+
+用 [Capacitor](https://capacitorjs.com/) 把这套纯前端代码装进原生壳子，不需要重写。
+
+```bash
+npm install
+npm run mobile:sync      # 把 index.html/css/js/assets 打包进 mobile/www，再同步到两个原生工程
+npm run mobile:android   # 用 Android Studio 打开
+npm run mobile:ios       # 用 Xcode 打开（需要完整版 Xcode，不是命令行工具）
+```
+
+完整的打包/上架指南（包括两边商店的账号注册、签名、审核流程，**以及上架前必须看的球员肖像权说明**）见 `docs/MOBILE_APPS.md`。
 ---
 
 ## 游戏模式
@@ -350,7 +362,7 @@ courtside-legends/
 
 - 背景音乐必须由使用者提供合法音源；仓库不授予任何第三方音乐许可。
 - 主页与球员卡的年代照片优先使用 Wikimedia Commons 上的自由授权图片（各自遵循原始授权协议，以链接方式引用，不随仓库分发）。
-- NBA、球队名称/标识、球员姓名与照片等归各自权利人所有。本项目为非官方球迷作品，MIT 代码许可不包含这些第三方品牌、肖像或数据内容的授权。
+- NBA、球队名称/标识、球员姓名与照片等归各自权利人所有。本项目为非官方球迷作品，MIT 代码许可不包含这些第三方品牌、肖像或数据内容的授权。**这个限制在本地/私下分享时不影响任何人，但如果打算打包成 App 公开上架到 App Store / Google Play，这就是个真实的法律风险，详见 `docs/MOBILE_APPS.md` 开头的警示。**
 
 ## 作者
 

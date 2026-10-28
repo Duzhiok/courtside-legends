@@ -10,3 +10,23 @@ node_modules/
 data/raw/
 __pycache__/
 *.pyc
+
+# Capacitor mobile wrapper (see docs/MOBILE_APPS.md)
+# mobile/www is a generated copy of index.html/css/js/assets -- see scripts/mobile/sync-www.mjs.
+# android/ and ios/ ARE committed (standard Capacitor practice: they hold app-specific config
+# like icons, permissions, and signing references that `cap add` alone won't reproduce), but
+# their own machine-specific / regenerable build output is not.
+mobile/www/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+android/**/build/
+android/captures/
+ios/App/Pods/
+ios/App/build/
+ios/App/output/
+ios/App/*.xcworkspace/xcuserdata/
+ios/App/*.xcodeproj/xcuserdata/
+*.xcuserstate
+DerivedData/
