@@ -3877,6 +3877,8 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
   if (sideCtx?.kickedOut) {
     const organizer = (off.onCourt || []).find((x) => x.id === sideCtx.organizerId) || null;
     open += formSpacingBonus(baller, organizer);
+    // 传球魔术：分球找到更大空位（此前该技能在模拟器里没有任何效果）
+    if ((organizer?.skills || []).includes("dime_dropper")) open += 0.05;
     open += (formTactical(baller) - 50) * 0.00035;
   }
   // 挡拆 / 突破分球：压缩禁区 → 射手大空位；持球中投口袋也更干净
