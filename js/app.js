@@ -300,6 +300,7 @@ import {
 } from "./modes/playerDevelopment.js";
 import {
   acceptCareerContract,
+  advanceSeasonGoal,
   declineCareerContracts,
   evaluateCareerEmployment,
 } from "./modes/careerContract.js";
@@ -947,16 +948,23 @@ function renderPendingStoryEvent() {
 }
 
 function queueNextTimeTravelEvent() {
-  if (state.leagueCareer?.kind !== "timeTravel" || !state.story) return;
+  if (state.leagueCareer?.kind !== "timeTravel" || !state.story) return null;
   const root = state.longCareerRoot || currentRootState();
-  const next = queueNextStoryEvent(root, { year: state.season?.year });
-  const progressed = next === root ? root : next;
+  // Resolve the just-finished season's board goal (and hand down the next one) before picking the
+  // next story beat -- B1 of the roadmap -- so a trust swing from hitting/missing the goal can
+  // actually affect which event the condition pool (A2) considers eligible this round.
+  const goaled = advanceSeasonGoal(root);
+  const lastGoalLogEntry = goaled.story.eventLog.at(-1);
+  const resolvedGoal = lastGoalLogEntry?.type === "season-goal-result" ? lastGoalLogEntry : null;
+  const next = queueNextStoryEvent(goaled, { year: state.season?.year });
+  const progressed = next === goaled ? goaled : next;
   const employed = evaluateCareerEmployment(progressed);
   const finalized = employed === progressed ? finalizeCareerEnding(progressed) : employed;
-  if (finalized === root) return;
+  if (finalized === root) return null;
   state.story = finalized.story;
   state.longCareerRoot = finalized;
   saveLongCareer();
+  return { resolvedGoal, nextGoal: finalized.story.seasonGoal || null };
 }
 
 function resolvePendingStoryEvent(choiceId) {
@@ -8500,7 +8508,7 @@ function renderLeagueManagement() {
         try {
           const completed = completeCareerOffseason(state.leagueCareer);
           if (!commitManagedCareer(completed.career, "standings")) return;
-          queueNextTimeTravelEvent();
+          const { resolvedGoal, nextGoal } = queueNextTimeTravelEvent() || {};
           const highlights = (completed.result?.log || [])
             .filter((entry) => entry.delta > 0 || (entry.salaryAfter || 0) > (entry.salaryBefore || 0) + 10)
             .slice(0, 8);
@@ -8515,7 +8523,15 @@ function renderLeagueManagement() {
           const retiredSummary = retirements.length
             ? `\n\n本队退役：\n${retirements.join("\n")}`
             : "";
-          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}`);
+          // B1 of docs/CAREER_LIFE_ROADMAP.md: surface the board goal result the same way every
+          // other offseason outcome already gets surfaced here -- a plain recap alert, not a new
+          // UI surface, since root.story.promises (the old home for this) was never rendered
+          // anywhere either.
+          const goalSummary = resolvedGoal
+            ? `\n\n赛季目标【${resolvedGoal.goal.label}】：${resolvedGoal.achieved ? "达成 ✅" : "未达成 ❌"}（信任度 ${resolvedGoal.trustDelta > 0 ? "+" : ""}${resolvedGoal.trustDelta}）`
+            : "";
+          const nextGoalSummary = nextGoal ? `\n\n新赛季目标：${nextGoal.label}` : "";
+          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}`);
         } catch (error) {
           alert(error?.message || "无法开始新赛季");
         }

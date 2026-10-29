@@ -1500,3 +1500,73 @@ check 都被抓住（周边界判断从 `=== 0` 改成 `>= 0`、`grantEnergy` �
 **阶段 A（地基）到此全部完成**：教练档案（R95）+ 事件池 v2（R96）+ 日历精力（R97），全是纯函数、
 零游戏代码接线、全部可独立回滚。下一步两个方向都可以走：阶段 B（多段执教，依赖 A 全部三步）或者提前插队
 做阶段 C（每场有收获，C 只依赖 A，不依赖 B，用户之前明确说过常规赛/季后赛缺可玩性是最直接的不满）。
+
+### R98：穿越生涯 2.0 · B1 赛季目标（Code 提交，阶段 B 第一步）
+
+用户明确说“按原计划先做 B”。路线图 B1 行写着：每季开始老板按球队实力给目标，季末判定达成与否 → 信任度
+涨跌，把一直没人读的 `firstYearGoal` 用起来。先把现有代码读透：`js/modes/careerContract.js` 已有
+`careerPerformance(root)`/`evaluateCareerEmployment(root)`，`js/modes/timeTravelCareer.js` 的
+`acceptInterviewOffer()` 已经按球队实力分桥位生成面试 offer（`archetype`），但那套三分算法只用于开局，
+以后每季应该重算而不是沿用开局那一次快照。
+
+新 `js/career/seasonGoals.js`，全部纯函数：
+
+- `teamRosterStrength(team)`：取球队 top-8（`GOAL_ROSTER_STRENGTH_SAMPLE`，跟开局面试的 `teamStrength()`
+  同一套采样数）的 `overall()` 均值，空/缺失阵容返回 0 而不报错。
+- `rosterTier(teams, userTeamId)`：把该均值在联盟全部球队里排序，求三分位桥位（rebuild/middle/contender）。
+  注意：这套三分算法在队伍少于 3 支时会退化（`floor(n/3)` 变 0），和现有的面试 archetype 划分同样没
+  处理这个边界——但真实调用时联盟总是全队（最少 8+ 支），不值得为不会发生的极端情况写防御代码，
+  测试里用的是现实规模的假联盟，不是 2 支队。
+- `buildSeasonGoal(teams, userTeamId)`：按桥位取模板，rebuild=常规赛胜率≥.35（`REBUILD_WIN_RATE_GOAL`，
+  避免强迫全输的摆烂目标），middle=进季后赛，contender=进总决赛。
+- `goalAchieved(goal, summary)`：`win-rate` 比实际胜负，`finish` 比 `FINISH_TIERS`（lottery < playoffs <
+  finals < champion，和 `annualSummary()` 实际产出的四档一一对应）里的名次，达到目标档或更好都算完成。
+
+`js/modes/careerContract.js` 新增 `advanceSeasonGoal(root)`，是真正接线的地方：先看 `story.seasonGoal`
+这个待定目标，去 `leagueCareer.management.seasonHistory` 里找对应年份的摘要——找不到就说明那赛季还没打完，
+什么都不做（防止用错误的年份误判）；找到了就用 `goalAchieved()` 判定，信任度 `+SEASON_GOAL_TRUST_BONUS`
+(6) 或 `+SEASON_GOAL_TRUST_PENALTY`(-8，两个数值都进了 `balance.js`)，下限夹到 0，写一条
+`season-goal-result` 事件日志。然后不管上一步有没有东西可判，只要 `leagueCareer.season.teams`/`userTeamId`
+还在，就用**当下的实时阵容**（不是开局快照）派下一个新赛季的目标；派不出来（没有 teams/userTeamId，理论上
+不会发生，但宁可保留旧目标也不让它崩）就原样保留旧的 `seasonGoal`。
+
+接线时机选得很讲究：目标结算会改信任度，而信任度正好是 A2 事件池的触发条件之一，所以如果先选下一个故事
+事件再结算目标，这次刚产生的信任度变化就赶不上这轮事件池筛选。所以在 `js/app.js` 的
+`queueNextTimeTravelEvent()` 里把调用顺序定成 `advanceSeasonGoal → queueNextStoryEvent →
+evaluateCareerEmployment → finalizeCareerEnding`，让后面的每一步都能看到最新信任度。
+
+`timeTravelCareer.js` 的 `acceptInterviewOffer()` 第一年目标也改用同一套 `buildSeasonGoal()` 现算，
+不再直接抄 offer 模板里的静态 `firstYearGoal` 文案——这样界面上显示的目标文字和真正被判定的目标永远是
+同一句话，不会出现“面试说要进季后赛，结算却按别的标准算”的割裂。
+
+**顺手发现一个被晾在一边的事实**：`root.story.promises` 这个字段从 A1 之前就存在，存档校验器一直在严格
+校验它的形状（必须是数组），但全仓库搜了一遍，从来没有任何 UI 代码读过它、渲染过它——纯粹是“写进去、
+校验通过、然后没人管”的死字段。所以这轮没有新建一个独立的“赛季目标”面板（那个优先级不对，是后续 UI
+接线阶段该干的事），而是把目标结算结果和下一赛季新目标接进了 `completeOffseason()` 已有的休赛期总结
+alert 里，跟成长亮点、退役提示走同一个制式——这是目前项目里“赛季过渡总结”的唯一既有 UI 惯例，新信息
+插进去最自然，不是发明一套新展示方式。`queueNextTimeTravelEvent()` 顺便改成有返回值
+（`{ resolvedGoal, nextGoal }`），原来是纯 `void` 调用。
+
+存档校验按 A1 给 `root.coach` 立的规矩来：`story.seasonGoal` 是可选字段，存在时严格校验（`year`/`tier`/
+`kind`/`status`/`label`/`labelEn`/`target` 的类型和取值范围都卡死），缺失时完全放行——老存档没有这个字段
+必须继续无痛加载。校验用的 `SEASON_GOAL_TIERS`/`SEASON_GOAL_KINDS`/`SEASON_GOAL_STATUSES`/`FINISH_TIERS`
+都从 `seasonGoals.js` 里导入，没有在 `saveRoot.js` 里另抄一份词表（跟 A1 从 `balance.js` 导入
+`COACH_PERK_LINES` 是同一个原则）。
+
+新增 20 条测试：`tests/seasonGoals.test.js`（11 条，纯函数）+ `tests/careerContract.test.js`
+（8 条 `advanceSeasonGoal` 场景：达成/未达成/信任度下限夹 0/派新目标/无待定目标/摘要还没写进去/
+下赛季阵容不可用/不改原对象）+ `tests/saveRoot.test.js`（1 条，good + 10 种 malformed 的往返测试）。
+`tests/timeTravelCareer.test.js` 原有一条断言 `promises[0].text === offer.firstYearGoal` 跟着改成
+`=== root.story.seasonGoal.label`（这是本轮故意改变的行为，不是回归）。三个 mutation check 都被抓住
+（跳过目标结算分支、`goalAchieved` 的 finish 比较符号反过来、saveRoot 的校验分支直接短路掉）。全量
+1012/1012，lint 0 错误（跑完整测试套件时撞到一次 `packPaint.test.js` 的 flake——该文件自己文档里写明
+“Bands are wide because this is a genuinely random system”，单独跑 3/3 稳定通过，和本轮改动的文件毫无
+交集，判定为既有模拟随机性噪声，不是回归）。
+
+**诚实的缺口**：`completeOffseason()` 是 `renderLeagueManagement()` 里的一个内联闭包，没有独立导出，
+目标结算 alert 的文案本身没有做浏览器 E2E——只验证了底层纯函数（`advanceSeasonGoal`/`buildSeasonGoal`/
+`goalAchieved`）和 `js/app.js` 的语法检查。下一步做 B2（解雇判定升级）时如果要顺手给这块接线做浏览器
+回归，可以一起补。
+
+下一步：B2——把解雇判定从“只看连续两季胜率”升级成也看信任度跌破底线，让这轮刚做真的信任度机制
+真正产生后果。

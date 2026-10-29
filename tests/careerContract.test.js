@@ -2,15 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   acceptCareerContract,
+  advanceSeasonGoal,
   careerPerformance,
   declineCareerContracts,
   evaluateCareerEmployment,
 } from "../js/modes/careerContract.js";
+import { SEASON_GOAL_TRUST_BONUS, SEASON_GOAL_TRUST_PENALTY } from "../js/career/balance.js";
 
-function rootWithHistory(history) {
+function rootWithHistory(history, seasonOverrides = {}) {
   return {
     leagueCareer: {
-      season: { year: 1996 },
+      season: { year: 1996, ...seasonOverrides },
       management: { seasonHistory: history },
     },
     story: {
@@ -24,6 +26,42 @@ function rootWithHistory(history) {
     },
   };
 }
+
+/** A player card overall() can score deterministically, same trick seasonGoals.test.js uses. */
+function player(ovr) {
+  return { ovr2k: ovr, ratingSource: "anchor" };
+}
+
+function league(ovrByTeam) {
+  return Object.fromEntries(
+    Object.entries(ovrByTeam).map(([id, ovrs]) => [id, { players: ovrs.map(player) }]),
+  );
+}
+
+// A realistic-size league so the rebuild/middle/contender thirds split doesn't degenerate (same
+// note as seasonGoals.test.js).
+const WEAK_LEAGUE = league({
+  USER: Array(8).fill(45),
+  STRONG: Array(8).fill(95),
+  F1: Array(8).fill(55),
+  F2: Array(8).fill(60),
+  F3: Array(8).fill(65),
+  F4: Array(8).fill(70),
+  F5: Array(8).fill(75),
+  F6: Array(8).fill(80),
+  F7: Array(8).fill(85),
+});
+const STRONG_LEAGUE = league({
+  USER: Array(8).fill(95),
+  WEAK: Array(8).fill(45),
+  F1: Array(8).fill(55),
+  F2: Array(8).fill(60),
+  F3: Array(8).fill(65),
+  F4: Array(8).fill(70),
+  F5: Array(8).fill(75),
+  F6: Array(8).fill(80),
+  F7: Array(8).fill(85),
+});
 
 function summary(year, w, l, championId = "LAL", teamId = "CHI") {
   return { year, teamId, teamName: "Bulls", record: { w, l }, championId };
@@ -120,4 +158,87 @@ test("getting fired early still carries a narrative verdict, not just the bare f
   );
   assert.ok(fired.story.ending.narrativeTier, "fired endings should also carry a deriveEnding() verdict");
   assert.equal(fired.story.ending.narrativeTier.id, "unfinished-revolution");
+});
+
+// B1 of docs/CAREER_LIFE_ROADMAP.md: the season goal that used to be dead flavor text
+// (firstYearGoal) now actually swings frontOfficeTrust at year's end.
+test("advanceSeasonGoal grants trust and logs a hit when the pending goal was achieved", () => {
+  const root = rootWithHistory(
+    [summary(1995, 55, 27)],
+    { year: 1996, teams: WEAK_LEAGUE, userTeamId: "USER" },
+  );
+  root.story.seasonGoal = { year: 1995, tier: "rebuild", kind: "win-rate", target: 0.35, label: "x", labelEn: "x", status: "active" };
+  const next = advanceSeasonGoal(root);
+  assert.equal(next.story.frontOfficeTrust, 50 + SEASON_GOAL_TRUST_BONUS);
+  const logged = next.story.eventLog.at(-1);
+  assert.equal(logged.type, "season-goal-result");
+  assert.equal(logged.year, 1995);
+  assert.equal(logged.achieved, true);
+  assert.equal(logged.trustDelta, SEASON_GOAL_TRUST_BONUS);
+});
+
+test("advanceSeasonGoal penalizes trust and logs a miss when the pending goal was not achieved", () => {
+  const root = rootWithHistory(
+    [summary(1995, 10, 72)],
+    { year: 1996, teams: WEAK_LEAGUE, userTeamId: "USER" },
+  );
+  root.story.seasonGoal = { year: 1995, tier: "rebuild", kind: "win-rate", target: 0.35, label: "x", labelEn: "x", status: "active" };
+  const next = advanceSeasonGoal(root);
+  assert.equal(next.story.frontOfficeTrust, 50 + SEASON_GOAL_TRUST_PENALTY);
+  assert.equal(next.story.eventLog.at(-1).achieved, false);
+});
+
+test("advanceSeasonGoal never drops trust below zero", () => {
+  const root = rootWithHistory(
+    [summary(1995, 10, 72)],
+    { year: 1996, teams: WEAK_LEAGUE, userTeamId: "USER" },
+  );
+  root.story.frontOfficeTrust = 2;
+  root.story.seasonGoal = { year: 1995, tier: "rebuild", kind: "win-rate", target: 0.9, label: "x", labelEn: "x", status: "active" };
+  assert.equal(advanceSeasonGoal(root).story.frontOfficeTrust, 0);
+});
+
+test("advanceSeasonGoal assigns a new goal for the upcoming season, sized to the current roster", () => {
+  const root = rootWithHistory([], { year: 1996, teams: STRONG_LEAGUE, userTeamId: "USER" });
+  root.story.seasonGoal = null;
+  const next = advanceSeasonGoal(root);
+  assert.equal(next.story.seasonGoal.year, 1996);
+  assert.equal(next.story.seasonGoal.status, "active");
+  assert.equal(next.story.seasonGoal.tier, "contender", "USER is the strongest roster in STRONG_LEAGUE");
+});
+
+test("advanceSeasonGoal with no pending goal yet still assigns one without touching trust", () => {
+  const root = rootWithHistory([], { year: 1996, teams: WEAK_LEAGUE, userTeamId: "USER" });
+  delete root.story.seasonGoal;
+  const next = advanceSeasonGoal(root);
+  assert.equal(next.story.frontOfficeTrust, 50, "no pending goal means nothing to judge");
+  assert.ok(next.story.seasonGoal, "a goal for the upcoming season must still be assigned");
+  assert.equal(next.story.eventLog.length, 0, "nothing to log when there was no prior goal to resolve");
+});
+
+test("advanceSeasonGoal does not resolve a goal whose season summary hasn't been recorded yet", () => {
+  // Pending goal is for 1996, but seasonHistory only has 1995 -- the 1996 season isn't over, so
+  // there's nothing to judge yet. Must not silently "achieve" or "miss" against the wrong year.
+  const root = rootWithHistory([summary(1995, 50, 32)], { year: 1996, teams: WEAK_LEAGUE, userTeamId: "USER" });
+  root.story.seasonGoal = { year: 1996, tier: "middle", kind: "finish", target: "playoffs", label: "x", labelEn: "x", status: "active" };
+  const next = advanceSeasonGoal(root);
+  assert.equal(next.story.frontOfficeTrust, 50, "no summary for the pending goal's year yet");
+  assert.equal(next.story.eventLog.length, 0);
+});
+
+test("advanceSeasonGoal leaves the pending goal untouched if the next season's roster isn't available", () => {
+  const root = rootWithHistory([summary(1995, 55, 27)]); // no teams/userTeamId on this season
+  const goal = { year: 1995, tier: "rebuild", kind: "win-rate", target: 0.35, label: "x", labelEn: "x", status: "active" };
+  root.story.seasonGoal = goal;
+  const next = advanceSeasonGoal(root);
+  assert.equal(next.story.frontOfficeTrust, 50 + SEASON_GOAL_TRUST_BONUS, "the finished season's goal is still judged");
+  assert.deepEqual(next.story.seasonGoal, goal, "but no new goal can be computed without a roster");
+});
+
+test("advanceSeasonGoal does not mutate the input root", () => {
+  const root = rootWithHistory([summary(1995, 55, 27)], { year: 1996, teams: WEAK_LEAGUE, userTeamId: "USER" });
+  root.story.seasonGoal = { year: 1995, tier: "rebuild", kind: "win-rate", target: 0.35, label: "x", labelEn: "x", status: "active" };
+  const before = JSON.stringify(root);
+  advanceSeasonGoal(root);
+  assert.equal(JSON.stringify(root), before);
 });

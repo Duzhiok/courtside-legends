@@ -116,7 +116,7 @@
 
 | 步骤 | 内容 | 新/改文件 | 验收 | 状态 |
 |---|---|---|---|---|
-| **B1** | **赛季目标（董事会目标）**：每季开始老板按球队实力给目标（进季后赛 / 进次轮 / 争冠 / 培养新秀），季末判定达成与否 → 信任度涨跌。把一直没人读的 `firstYearGoal` 用起来 | 新 `js/career/seasonGoals.js`；改 `careerContract.js` | 目标随球队实力合理；达成/未达成都有记录和 UI | 📋 |
+| **B1** | **赛季目标（董事会目标）**：每季开始老板按球队实力给目标（进季后赛 / 进次轮 / 争冠 / 培养新秀），季末判定达成与否 → 信任度涨跌。把一直没人读的 `firstYearGoal` 用起来 | 新 `js/career/seasonGoals.js`；改 `careerContract.js` | 目标随球队实力合理；达成/未达成都有记录和 UI | ✅ 完成（R98） |
 | **B2** | **解雇判定升级**：从「只看连续两季胜率」改为「信任度跌破底线」或「连续两季未达目标」或原有的连续两季 < 40%（保留，作为兜底） | 改 `careerContract.js` | 原有被裁测试仍过；新增信任度/目标路径测试 | 📋 |
 | **B3** | **续约 offer 动态化**：按冠军数、目标达成率、声望生成 1–3 个方案（冠军越多条件越好，表现差可能只有一个「试用期」方案或没有续约） | 改 `careerContract.js` | 0 冠和 2 冠看到的方案明显不同；数值来自 `balance.js` | 📋 |
 | **B4** | **执教段落 stints**：生涯从「一段五年」改为「多段执教」：`root.coach.stints[]`（球队、起止年、战绩、冠军、离开原因）；五年不再是硬上限，合同年限才是 | 改 `careerContract.js`、`eventEngine.js`；新 `js/career/stints.js` | 旧存档的五年生涯迁移为第一段 stint | 📋 |
@@ -220,3 +220,12 @@
   新增 13 条 `calendar.test.js` + 5 条 `coachProfile.test.js` 精力测试，两个 mutation 都被抓住（周边界判断改成
   `>= 0`、`grantEnergy` 改成累加）。全量 992/992，lint 0 错误。**阶段 A（地基）全部完成**，下一步进阶段 B
   （多段执教）或提前做 C（每场有收获，C 只依赖 A，不依赖 B）。
+- 2026-10-29：B1 完成。新 `js/career/seasonGoals.js`：按球队 top-8 OVR 均值在联盟内排名求三分桥位（rebuild/middle/contender，
+  与开局面试同一套 thirds 算法，但每季重算不是只算一次），生成对应难度的目标（含胜率底线/进季后赛/进总决赛三档），
+  全是纯函数。`careerContract.js` 新增 `advanceSeasonGoal(root)` 负责接线：季末结算上一个目标（达成 +6/未达成 -8 信任度，
+  数值在 `balance.js`），再按现在的阵容实力派下新赛季的目标。`timeTravelCareer.js` 的 `acceptInterviewOffer()` 第一年目标改用
+  同一套 `buildSeasonGoal()` 生成，不再直接用 offer 模板里的静态 `firstYearGoal` 文字，避免两者漂移。UI 方面没做独立
+  目标面板（这个优先级不对等），而是接在现有的季后转场 alert 里，跟现有的成长/退役亮点提示同一套制式，
+  因为旧的 `story.promises` 根本从没在任何地方被渲染过。导入存档校验按 A1 的 `root.coach` 规则：新增 `story.seasonGoal`
+  为可选字段，存在时严格校验、缺失时容许，旧存档继续加载。新增 20 条测试（3 个 mutation 都被抓住），全量 1012/1012，lint 0 错误。
+  下一步：B2（解雇判定升级，让这轮刚成真的信任度开始影响解雇评估）。

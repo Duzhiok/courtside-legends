@@ -91,6 +91,15 @@
   函数）。**还是没有接入任何游戏代码**，三步全是纯函数地基。接下来要做阶段 B（多段执教，T11）或者
   提前做阶段 C（每场有收获，T12），谁先谁后还未定，两者都只依赖阶段 A。如果 Luna 想接手其中一个，
   先在这里啦一声避免撞车。992/992，lint 0 错误。
+- [2026-10-29] Code：用户拍板按原计划先做阶段 B。**B1（赛季目标）已完成（WORKNOTE R98）**——新 `js/career/seasonGoals.js`
+  （球队实力排序 → rebuild/middle/contender 桥位 → 生成对应难度目标 → 判定完成度，全是纯函数），
+  `careerContract.js` 新增 `advanceSeasonGoal(root)` 负责季后结算上一个目标 + 派下下一个。**注意给 Luna：
+  如果你正在改 `js/app.js` 的 `queueNextTimeTravelEvent()`，这个函数现在从纯 `void` 调用改成有返回值
+  `{ resolvedGoal, nextGoal }`，调用处在 `completeOffseason()` 里用来拼季后 alert 文案**。导入存档新增
+  `story.seasonGoal`（可选字段，和 `root.coach` 同规则：存在严格校、缺失容许）。顺手把 `timeTravelCareer.js`
+  里一直没人读的静态 `firstYearGoal` 文字换成了同一套计算出来的目标标签，两者不再可能漂移。诚实缺口：
+  目标结算 alert 文案没做浏览器 E2E（`completeOffseason` 是闭包没导出），只有底层纯函数测试和语法检查。
+  1012/1012，lint 0 错误。下一步 B2（解雇判定升级，让信任度真正影响解雇）。
 
 ## 📝 会话记录
 

@@ -3,6 +3,7 @@ import { PLAYERS, overall } from "../data/players.js";
 import { buildCpuTeamForYear, createSeason } from "../engine/season.js";
 import { createRootState } from "../data/saveRoot.js";
 import { createLeagueCareer, recordCareerEvent } from "./leagueCareer.js";
+import { buildSeasonGoal } from "../career/seasonGoals.js";
 
 const PHILOSOPHIES = new Set([
   "analytics",
@@ -199,6 +200,13 @@ export function acceptInterviewOffer(prologue, offerId) {
     0,
   );
 
+  // B1 of docs/CAREER_LIFE_ROADMAP.md: the first season's goal is sized the same way every later
+  // season's is (buildSeasonGoal off the actual constructed roster), not just copied from the
+  // interview offer's static firstYearGoal text -- which stays in `promises` below purely as the
+  // original flavor-text summary shown on the offer card, now driven by the same computed goal so
+  // the two can't drift out of sync.
+  const seasonGoal = { ...buildSeasonGoal(season.teams, offer.teamId), year: prologue.year, status: "active" };
+
   return createRootState({
     activeMode: "timeTravel",
     leagueCareer,
@@ -214,9 +222,10 @@ export function acceptInterviewOffer(prologue, offerId) {
       timelineDivergence: 0,
       relationships: { owner: 0, gm: 0, coach: 0, players: 0, media: 0 },
       promises: [
-        { id: "first-year-goal", text: offer.firstYearGoal, status: "active" },
+        { id: "first-year-goal", text: seasonGoal.label, status: "active" },
       ],
       flags: {},
+      seasonGoal,
       eventLog: [
         {
           type: "accepted-offer",

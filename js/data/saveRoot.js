@@ -1,5 +1,6 @@
 import { createCoachProfile } from "../career/coachProfile.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
+import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
 
 export const ROOT_SAVE_KEY = "cls_root_v3";
 export const ROOT_SAVE_VERSION = 3;
@@ -197,6 +198,28 @@ function validateTimeTravelStory(root) {
     || !Array.isArray(story.eventLog)
     || !isObject(story.flags)
     || !validPendingDecision(story.pendingDecision)
+  ) {
+    throw new Error("invalid root save");
+  }
+  // Optional (root.story.seasonGoal, roadmap B1): old saves predate season goals entirely, and
+  // must keep loading unchanged, so this is only checked when present -- same rule A1 established
+  // for root.coach.
+  if (story.seasonGoal !== undefined) {
+    validateSeasonGoal(story.seasonGoal);
+  }
+}
+
+function validateSeasonGoal(goal) {
+  if (
+    !isObject(goal)
+    || !Number.isInteger(goal.year)
+    || !SEASON_GOAL_TIERS.includes(goal.tier)
+    || !SEASON_GOAL_KINDS.includes(goal.kind)
+    || !SEASON_GOAL_STATUSES.includes(goal.status)
+    || !isNonEmptyString(goal.label)
+    || !isNonEmptyString(goal.labelEn)
+    || (goal.kind === "win-rate" && !Number.isFinite(goal.target))
+    || (goal.kind === "finish" && !FINISH_TIERS.includes(goal.target))
   ) {
     throw new Error("invalid root save");
   }

@@ -115,8 +115,14 @@ test("time-travel prologue accepts an offer into a historical career", () => {
   assert.equal(root.leagueCareer.season.userTeamId, offer.teamId);
   assert.equal(root.story.storyId, "tt-1991-42");
   assert.equal(root.story.employer, offer.teamId);
+  // B1 of docs/CAREER_LIFE_ROADMAP.md: the tracked promise text now comes from the same computed
+  // seasonGoal every later season also uses (buildSeasonGoal off the constructed roster), not the
+  // offer's static firstYearGoal copy -- so the two can never drift out of sync with each other.
+  assert.ok(root.story.seasonGoal, "accepting an offer must set an initial season goal");
+  assert.equal(root.story.seasonGoal.year, 1991);
+  assert.equal(root.story.seasonGoal.status, "active");
   assert.deepEqual(root.story.promises, [
-    { id: "first-year-goal", text: offer.firstYearGoal, status: "active" },
+    { id: "first-year-goal", text: root.story.seasonGoal.label, status: "active" },
   ]);
   assert.deepEqual(root.story.eventLog, [
     { type: "accepted-offer", year: 1991, teamId: offer.teamId, teamName: offer.teamName },

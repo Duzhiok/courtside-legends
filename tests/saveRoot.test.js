@@ -172,6 +172,75 @@ test("root saves reject a malformed coach profile", () => {
   }
 });
 
+test("root saves accept a well-formed season goal and reject malformed ones", () => {
+  // B1 of docs/CAREER_LIFE_ROADMAP.md: story.seasonGoal is optional (old saves predate it, same
+  // rule as root.coach), but a save that does carry one must have it checked, not silently
+  // trusted -- a save is untrusted input, same as anything else that round-trips through storage.
+  const validWinRateGoal = {
+    year: 1991,
+    tier: "rebuild",
+    kind: "win-rate",
+    target: 0.35,
+    label: "x",
+    labelEn: "x",
+    status: "active",
+  };
+  const goodStorage = createMemoryStorage();
+  const goodRoot = createRootState({
+    activeMode: "timeTravel",
+    leagueCareer: {
+      careerId: "tt-1991-goal",
+      kind: "timeTravel",
+      storyId: "tt-1991-goal",
+      phase: "regular",
+      season: validSeason(),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+    story: validStory({ storyId: "tt-1991-goal", seasonGoal: validWinRateGoal }),
+  });
+  writeRootSave(goodRoot, goodStorage);
+  assert.deepEqual(readRootSave(goodStorage).story.seasonGoal, validWinRateGoal);
+
+  const validFinishGoal = { ...validWinRateGoal, kind: "finish", target: "playoffs" };
+  const malformedGoals = [
+    { ...validWinRateGoal, year: 1991.5 },
+    { ...validWinRateGoal, tier: "tanking" },
+    { ...validWinRateGoal, kind: "mystery" },
+    { ...validWinRateGoal, status: "pending" },
+    { ...validWinRateGoal, label: "" },
+    { ...validWinRateGoal, labelEn: 42 },
+    { ...validWinRateGoal, target: "not-a-number" }, // win-rate goal needs a numeric target
+    { ...validFinishGoal, target: "second-round" }, // finish goal needs a real finish tier
+    "not-an-object",
+    42,
+  ];
+  for (const goal of malformedGoals) {
+    const storage = createMemoryStorage();
+    const root = createRootState({
+      activeMode: "timeTravel",
+      leagueCareer: {
+        careerId: "tt-1991-goal",
+        kind: "timeTravel",
+        storyId: "tt-1991-goal",
+        phase: "regular",
+        season: validSeason(),
+        history: [],
+        manualOverrides: {},
+        recommendations: {},
+      },
+      story: validStory({ storyId: "tt-1991-goal", seasonGoal: goal }),
+    });
+    assert.throws(
+      () => writeRootSave(root, storage),
+      /invalid root save/,
+      JSON.stringify(goal),
+    );
+    assert.equal(storage.getItem(ROOT_SAVE_KEY), null, "a rejected save must not touch storage");
+  }
+});
+
 test("time-travel resume preserves career story and pending decision", () => {
   const storage = createMemoryStorage();
   const root = createRootState({

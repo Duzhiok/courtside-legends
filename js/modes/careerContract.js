@@ -1,4 +1,6 @@
 import { deriveEnding } from "../story/eventEngine.js";
+import { SEASON_GOAL_TRUST_BONUS, SEASON_GOAL_TRUST_PENALTY } from "../career/balance.js";
+import { buildSeasonGoal, goalAchieved } from "../career/seasonGoals.js";
 
 const OFFER_TEMPLATES = [
   {
@@ -58,6 +60,60 @@ export function careerPerformance(root) {
     championships,
     lastSeasonRate: rates.at(-1) || 0,
     consecutiveBadSeasons: lastTwo.length === 2 && lastTwo.every((rate) => rate < 0.4),
+  };
+}
+
+/**
+ * Resolve the season goal that was pending for the year that just finished (trust up on a hit,
+ * down on a miss -- B1 of the roadmap), then hand down a new one sized to the roster as it
+ * stands right now for the season about to be played. Safe to call every offseason transition:
+ * if there's no pending goal yet (very old saves, or called before a goal was ever set) it just
+ * assigns one without touching trust. If the next season's teams/userTeamId aren't available yet
+ * for some reason, the pending goal is left as-is rather than crashing -- this is called from a
+ * UI flow, not a place that should blow up the whole offseason over a goal.
+ */
+export function advanceSeasonGoal(root) {
+  requireCareerRoot(root);
+  const history = root.leagueCareer.management?.seasonHistory || [];
+  const pending = root.story.seasonGoal;
+  let trust = root.story.frontOfficeTrust || 0;
+  let eventLog = root.story.eventLog;
+
+  if (pending?.status === "active") {
+    const summary = history.find((entry) => entry.year === pending.year);
+    if (summary) {
+      const achieved = goalAchieved(pending, summary);
+      const trustDelta = achieved ? SEASON_GOAL_TRUST_BONUS : SEASON_GOAL_TRUST_PENALTY;
+      trust += trustDelta;
+      eventLog = [
+        ...eventLog,
+        {
+          type: "season-goal-result",
+          year: pending.year,
+          goal: clone(pending),
+          achieved,
+          trustDelta,
+          at: Date.now(),
+        },
+      ];
+    }
+  }
+
+  const season = root.leagueCareer.season;
+  const nextYear = season?.year;
+  const nextGoal =
+    Number.isInteger(nextYear) && season?.teams && season?.userTeamId
+      ? { ...buildSeasonGoal(season.teams, season.userTeamId), year: nextYear, status: "active" }
+      : pending;
+
+  return {
+    ...root,
+    story: {
+      ...root.story,
+      frontOfficeTrust: Math.max(0, trust),
+      seasonGoal: nextGoal,
+      eventLog,
+    },
   };
 }
 
