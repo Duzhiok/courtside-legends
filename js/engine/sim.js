@@ -1424,6 +1424,57 @@ export class GameSim {
   }
 
   /** Sub players who blew past target minutes when fresher bench exists. */
+  /**
+   * Live-game garbage time: 4th quarter (or OT) and up by 20+.
+   * Live only — quick sims keep their existing rotation behavior, so
+   * season-sim outputs don't move. While it holds for a team, the mass
+   * sub below sits the starters and the put-back / rested-return /
+   * fresh-pick paths refuse to bring them back.
+   */
+  isGarbageTime(team) {
+    if (!team || this._quiet || this.quarter < 4) return false;
+    const oppSide = team.side === "home" ? "away" : "home";
+    return (this.score?.[team.side] || 0) - (this.score?.[oppSide] || 0) >= 20;
+  }
+
+  /**
+   * Edge-triggered garbage-time mass sub: every on-court starter sits
+   * for the least-played healthy non-starter. Fires once per episode —
+   * if the user manually puts a starter back in mid-episode, autopilot
+   * leaves him there (manual override wins); a new episode (lead dipped
+   * under 20 and back up) fires again.
+   */
+  garbageTimeSubs(team) {
+    if (!team?.onCourt?.length || !team.bench?.length) return;
+    this._garbageApplied = this._garbageApplied || {};
+    if (!this.isGarbageTime(team)) {
+      this._garbageApplied[team.side] = false;
+      return;
+    }
+    if (this._garbageApplied[team.side]) return;
+    const starterIds = new Set(team.starterIds || []);
+    const label = team.side === "home" ? "主队" : "客队";
+    const labelEn = team.side === "home" ? "Home" : "Away";
+    let swapped = 0;
+    for (const starter of [...team.onCourt].filter((p) => starterIds.has(p.id))) {
+      const fresh = [...team.bench]
+        .filter((p) => !(p.injuredGames > 0) && !starterIds.has(p.id))
+        .sort((a, b) => (a.stats.min || 0) - (b.stats.min || 0))[0];
+      if (!fresh) continue;
+      if (this.substitute(starter.id, fresh.id, team.side)) swapped++;
+    }
+    if (swapped) {
+      this.emit(
+        "coach",
+        this.S(
+          `垃圾时间：${label}已领先 20 分以上，主力下场休息，替补接管比赛`,
+          `Garbage time: ${labelEn} up 20+, starters sit — bench takes over`
+        )
+      );
+    }
+    this._garbageApplied[team.side] = true;
+  }
+
   autoRotateByMinutes(team, aggressive = false) {
     if (!team?.onCourt?.length) return;
     // Progress through regulation (0→1). Stars may run slightly ahead of pace early.
@@ -1468,7 +1519,8 @@ export class GameSim {
       this.substitute(tired.id, fresh.id, team.side);
     }
     // Late game: put alphas back if they still have budget and a low-budget body is on the floor
-    if (this.quarter >= 3 || aggressive) {
+    // (never during garbage time — the starters just sat down for a reason)
+    if (!this.isGarbageTime(team) && (this.quarter >= 3 || aggressive)) {
       const needy = [...team.bench]
         .filter((p) => !(p.injuredGames > 0))
         .filter((p) => (p.stats.min || 0) + 3 < (p.targetMinutes ?? 22))
@@ -1502,6 +1554,8 @@ export class GameSim {
     if (this.paused) return;
     const cpu = this.opp();
     if (!cpu?.onCourt?.length) return;
+    // 垃圾时间不等节流：领先一到 20 分，下个回合就换替补
+    this.garbageTimeSubs(cpu);
     // throttle: ~1 check / few possessions
     if (Math.random() > 0.22) return;
 
@@ -1553,6 +1607,7 @@ export class GameSim {
     if (this._manageCd <= 0) {
       // 轮换只归 autoRotation 管：这样单独开它（“沿用当前策略”）不会顺带动进攻/防守改战术
       if (this.autoRotation) this.autoSubsByFatigue();
+      if (this.autoRotation) this.garbageTimeSubs(you);
       this._manageCd = this._quiet ? 1 : 2;
     }
 
@@ -1609,6 +1664,7 @@ export class GameSim {
     const did = [];
     if (this.autoRotation) {
       this.autoSubsByFatigue();
+      this.garbageTimeSubs(you);
       // 领先时节间别按分钟硬轮转把核换下去；追分/中场再轮
       if (aggressive && !protecting) this.autoRotateByMinutes(you, true);
       did.push(this.S("轮换", "rotation"));
@@ -1655,9 +1711,12 @@ export class GameSim {
     if (!healthyBench.length) return;
 
     const starterIds = new Set(you.starterIds || []);
-    const rested = healthyBench
-      .filter((p) => starterIds.has(p.id) && (p.fatigue || 0) <= ROTATION_FATIGUE_IN)
-      .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
+    // 垃圾时间不把休息好的主力换回来（下面体力换人分支仍可替补换替补）
+    const rested = this.isGarbageTime(you)
+      ? null
+      : healthyBench
+          .filter((p) => starterIds.has(p.id) && (p.fatigue || 0) <= ROTATION_FATIGUE_IN)
+          .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
     if (rested) {
       const outgoing = [...you.onCourt].sort((a, b) => (b.fatigue || 0) - (a.fatigue || 0))[0];
       if (outgoing && this.substitute(outgoing.id, rested.id, you.side)) {
@@ -1849,6 +1908,11 @@ export class GameSim {
     if (!team?.onCourt?.length || !team.bench?.length) return;
     const bench = team.bench.filter((p) => !(p.injuredGames > 0));
     if (!bench.length) return;
+    // 垃圾时间：候选只能是替补，休息好的主力也不能被换回来
+    const pool = this.isGarbageTime(team)
+      ? bench.filter((p) => !(team.starterIds || []).includes(p.id))
+      : bench;
+    if (!pool.length) return;
     const tired = [...team.onCourt].sort(
       (a, b) =>
         fatiguePerfMult(a) - fatiguePerfMult(b) || (b.fatigue || 0) - (a.fatigue || 0)
@@ -1860,7 +1924,7 @@ export class GameSim {
     const gassed =
       (tired.fatigue || 0) >= thresh || fatiguePerfMult(tired) <= perfFloor;
     if (!gassed) return;
-    const fresh = [...bench].sort(
+    const fresh = [...pool].sort(
       (a, b) => (a.fatigue || 0) - (b.fatigue || 0) || overall(b) - overall(a)
     )[0];
     if (!fresh) return;
@@ -1871,7 +1935,7 @@ export class GameSim {
     }
     // Prefer same-ish position
     const samePos =
-      bench
+      pool
         .filter((p) => p.pos === tired.pos || p.playPos === tired.pos || p.playPos === tired.playPos)
         .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0) || overall(b) - overall(a))[0] || fresh;
     // 领先时：替补明显更弱就别换
