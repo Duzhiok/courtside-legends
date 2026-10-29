@@ -119,6 +119,7 @@ import {
   tendencyLabel,
   PLAYERS,
   clonePlayer,
+  deriveSubAttributes,
 } from "./data/players.js";
 import { initBgm } from "./data/bgm.js";
 import { clearRosterCache } from "./data/rosterCache.js";
@@ -6099,8 +6100,19 @@ function renderSetupGameplan() {
       5
     )
   );
-  const saved =
-    you.gameplan?.matchup?.assignments || you.gameplan?.matchupAssignments || {};
+  const saved = {
+    ...(you.gameplan?.matchup?.assignments || you.gameplan?.matchupAssignments || {}),
+    // Preserve board tweaks made in the DOM (setup board selects have no
+    // onchange write-back; they are only read at game start), so a
+    // refresh after a drag-swap does not wipe them. Stale defenders are
+    // still dropped by buildSamePosMatchups.
+    ...Object.fromEntries(
+      [...($("#setup-matchup-board")?.querySelectorAll("select[data-matchup-opp]") || [])].map((sel) => [
+        sel.dataset.matchupOpp,
+        sel.value || "",
+      ]),
+    ),
+  };
   const resolved = renderMatchupBoard($("#setup-matchup-board"), youPool, boardOpp, saved, {
     live: false,
   });
@@ -6404,6 +6416,13 @@ function setupStatGridHtml(p) {
     const tone = n >= 80 ? "hi" : n >= 65 ? "mid" : "lo";
     return `<span class="setup-stat ${tone}" title="${label}"><em>${label}</em>${n || "—"}</span>`;
   };
+  // R85 derived these 7 sub-attributes into card data and the sim, but no
+  // UI ever rendered them. Show them as a second block; old saves without
+  // stored values fall back to deriving them on the fly.
+  const sa =
+    p.handle != null && p.perimDef != null
+      ? p
+      : deriveSubAttributes(p);
   return `<div class="setup-stat-grid">
     ${row(L("攻", "ATK"), p.scoring)}
     ${row(L("三分", "3PT"), p.three)}
@@ -6417,6 +6436,15 @@ function setupStatGridHtml(p) {
     ${row(L("速", "SPD"), p.speed)}
     ${row(L("力", "STR"), p.strength)}
     ${row(L("球商", "IQ"), p.iq)}
+  </div>
+  <div class="setup-stat-grid sub-attrs">
+    ${row(L("控球", "HDL"), sa.handle)}
+    ${row(L("外防", "PD"), sa.perimDef)}
+    ${row(L("内防", "ID"), sa.interiorDef)}
+    ${row(L("接球投", "CS"), sa.catchShoot)}
+    ${row(L("持球投", "OD"), sa.offDribble)}
+    ${row(L("前板", "ORB"), sa.offReb)}
+    ${row(L("后板", "DRB"), sa.defReb)}
   </div>`;
 }
 
@@ -6680,6 +6708,10 @@ function renderSetupRoster() {
     renderSetupRoster();
     renderSetupRoles();
     renderSetupOrders();
+    // Matchup board + key-defense selects are built from the selected
+    // starters: without this they kept showing the lineup from when
+    // setup was entered, even after drag-swaps changed the five.
+    renderSetupGameplan();
     if (state.setup?.you) {
       renderPhilTactics(state.setup.you);
       syncPhilRosterHint();
@@ -7216,8 +7248,16 @@ function paintPlayerOrders(snap, { force = false } = {}) {
     actionSel.disabled = !focusId || !state.sim.paused;
     if (!actionSel._ballBound) {
       actionSel._ballBound = true;
+      // Save immediately on change (like the pre-game panel and the
+      // per-player order selects): previously this was a no-op and the
+      // pick evaporated on the next repaint, which forced the dropdown
+      // back to the suggested action.
       actionSel.onchange = () => {
-        /* applied on confirm */
+        const fid = $("#offense-focus-select")?.value || state.sim?.offenseFocusId || "";
+        if (!fid || !state.sim?.paused) return;
+        state.sim.setPlayerOrders(fid, { action: actionSel.value });
+        paintPlayerOrders(state.sim.snapshot(), { force: true });
+        paintMeters(state.sim.snapshot());
       };
     }
   }
@@ -7639,8 +7679,8 @@ function syncPauseUI(snap) {
     if (paused) {
       const labels = {
         timeout: "暂停窗口——双方都可以调整。改完点「继续比赛」。",
-        quarter: "节间休息——恢复 25 点疲劳。可调整战术、沟通、换人与站位。",
-        half: "中场休息——恢复 50 点疲劳。可调整战术与阵容。",
+        quarter: "节间休息——恢复 15 点疲劳。可调整战术、沟通、换人与站位。",
+        half: "中场休息——恢复 35 点疲劳。可调整战术与阵容。",
         manual: "模拟已暂停——可调整后点「继续比赛」。",
         injury: "有人受伤——请立刻把伤员换下，再点「继续比赛」。",
       };

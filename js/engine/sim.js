@@ -581,7 +581,7 @@ export class GameSim {
       }
     }
     if (this._quiet) {
-      if (isHalf) this.emit("coach", this.S("中场休息——恢复 50 点疲劳", "Halftime — 50 fatigue restored"));
+      if (isHalf) this.emit("coach", this.S("中场休息——恢复 35 点疲劳", "Halftime — 35 fatigue restored"));
       this.emit("coach", this.S(`第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`, `${this.quarter > 4 ? "Overtime" : `Q${this.quarter}`} begins`));
       return;
     }
@@ -593,12 +593,12 @@ export class GameSim {
     for (const side of [this.home, this.away]) this.autoRotateByMinutes(side, isHalf);
 
     if (isHalf) {
-      this.emit("coach", this.S("中场休息——恢复 50 点疲劳。可调整战术、沟通、换人与站位", "Halftime — 50 fatigue restored. Adjust tactics, talk, subs and positioning"));
+      this.emit("coach", this.S("中场休息——恢复 35 点疲劳。可调整战术、沟通、换人与站位", "Halftime — 35 fatigue restored. Adjust tactics, talk, subs and positioning"));
       this.setPaused(true, "half");
     } else {
       this.emit(
         "coach",
-        this.S(`第${leaving}节结束，节间休息——恢复 25 点疲劳。可调整战术、沟通、换人与站位`, `End of Q${leaving} — quarter break, 25 fatigue restored. Adjust tactics, talk, subs and positioning`)
+        this.S(`第${leaving}节结束，节间休息——恢复 15 点疲劳。可调整战术、沟通、换人与站位`, `End of Q${leaving} — quarter break, 15 fatigue restored. Adjust tactics, talk, subs and positioning`)
       );
       this.setPaused(true, "quarter");
     }
@@ -1424,6 +1424,57 @@ export class GameSim {
   }
 
   /** Sub players who blew past target minutes when fresher bench exists. */
+  /**
+   * Live-game garbage time: 4th quarter (or OT) and up by 20+.
+   * Live only — quick sims keep their existing rotation behavior, so
+   * season-sim outputs don't move. While it holds for a team, the mass
+   * sub below sits the starters and the put-back / rested-return /
+   * fresh-pick paths refuse to bring them back.
+   */
+  isGarbageTime(team) {
+    if (!team || this._quiet || this.quarter < 4) return false;
+    const oppSide = team.side === "home" ? "away" : "home";
+    return (this.score?.[team.side] || 0) - (this.score?.[oppSide] || 0) >= 20;
+  }
+
+  /**
+   * Edge-triggered garbage-time mass sub: every on-court starter sits
+   * for the least-played healthy non-starter. Fires once per episode —
+   * if the user manually puts a starter back in mid-episode, autopilot
+   * leaves him there (manual override wins); a new episode (lead dipped
+   * under 20 and back up) fires again.
+   */
+  garbageTimeSubs(team) {
+    if (!team?.onCourt?.length || !team.bench?.length) return;
+    this._garbageApplied = this._garbageApplied || {};
+    if (!this.isGarbageTime(team)) {
+      this._garbageApplied[team.side] = false;
+      return;
+    }
+    if (this._garbageApplied[team.side]) return;
+    const starterIds = new Set(team.starterIds || []);
+    const label = team.side === "home" ? "主队" : "客队";
+    const labelEn = team.side === "home" ? "Home" : "Away";
+    let swapped = 0;
+    for (const starter of [...team.onCourt].filter((p) => starterIds.has(p.id))) {
+      const fresh = [...team.bench]
+        .filter((p) => !(p.injuredGames > 0) && !starterIds.has(p.id))
+        .sort((a, b) => (a.stats.min || 0) - (b.stats.min || 0))[0];
+      if (!fresh) continue;
+      if (this.substitute(starter.id, fresh.id, team.side)) swapped++;
+    }
+    if (swapped) {
+      this.emit(
+        "coach",
+        this.S(
+          `垃圾时间：${label}已领先 20 分以上，主力下场休息，替补接管比赛`,
+          `Garbage time: ${labelEn} up 20+, starters sit — bench takes over`
+        )
+      );
+    }
+    this._garbageApplied[team.side] = true;
+  }
+
   autoRotateByMinutes(team, aggressive = false) {
     if (!team?.onCourt?.length) return;
     // Progress through regulation (0→1). Stars may run slightly ahead of pace early.
@@ -1468,7 +1519,8 @@ export class GameSim {
       this.substitute(tired.id, fresh.id, team.side);
     }
     // Late game: put alphas back if they still have budget and a low-budget body is on the floor
-    if (this.quarter >= 3 || aggressive) {
+    // (never during garbage time — the starters just sat down for a reason)
+    if (!this.isGarbageTime(team) && (this.quarter >= 3 || aggressive)) {
       const needy = [...team.bench]
         .filter((p) => !(p.injuredGames > 0))
         .filter((p) => (p.stats.min || 0) + 3 < (p.targetMinutes ?? 22))
@@ -1502,6 +1554,8 @@ export class GameSim {
     if (this.paused) return;
     const cpu = this.opp();
     if (!cpu?.onCourt?.length) return;
+    // 垃圾时间不等节流：领先一到 20 分，下个回合就换替补
+    this.garbageTimeSubs(cpu);
     // throttle: ~1 check / few possessions
     if (Math.random() > 0.22) return;
 
@@ -1553,6 +1607,7 @@ export class GameSim {
     if (this._manageCd <= 0) {
       // 轮换只归 autoRotation 管：这样单独开它（“沿用当前策略”）不会顺带动进攻/防守改战术
       if (this.autoRotation) this.autoSubsByFatigue();
+      if (this.autoRotation) this.garbageTimeSubs(you);
       this._manageCd = this._quiet ? 1 : 2;
     }
 
@@ -1609,6 +1664,7 @@ export class GameSim {
     const did = [];
     if (this.autoRotation) {
       this.autoSubsByFatigue();
+      this.garbageTimeSubs(you);
       // 领先时节间别按分钟硬轮转把核换下去；追分/中场再轮
       if (aggressive && !protecting) this.autoRotateByMinutes(you, true);
       did.push(this.S("轮换", "rotation"));
@@ -1655,9 +1711,12 @@ export class GameSim {
     if (!healthyBench.length) return;
 
     const starterIds = new Set(you.starterIds || []);
-    const rested = healthyBench
-      .filter((p) => starterIds.has(p.id) && (p.fatigue || 0) <= ROTATION_FATIGUE_IN)
-      .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
+    // 垃圾时间不把休息好的主力换回来（下面体力换人分支仍可替补换替补）
+    const rested = this.isGarbageTime(you)
+      ? null
+      : healthyBench
+          .filter((p) => starterIds.has(p.id) && (p.fatigue || 0) <= ROTATION_FATIGUE_IN)
+          .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
     if (rested) {
       const outgoing = [...you.onCourt].sort((a, b) => (b.fatigue || 0) - (a.fatigue || 0))[0];
       if (outgoing && this.substitute(outgoing.id, rested.id, you.side)) {
@@ -1849,6 +1908,11 @@ export class GameSim {
     if (!team?.onCourt?.length || !team.bench?.length) return;
     const bench = team.bench.filter((p) => !(p.injuredGames > 0));
     if (!bench.length) return;
+    // 垃圾时间：候选只能是替补，休息好的主力也不能被换回来
+    const pool = this.isGarbageTime(team)
+      ? bench.filter((p) => !(team.starterIds || []).includes(p.id))
+      : bench;
+    if (!pool.length) return;
     const tired = [...team.onCourt].sort(
       (a, b) =>
         fatiguePerfMult(a) - fatiguePerfMult(b) || (b.fatigue || 0) - (a.fatigue || 0)
@@ -1860,7 +1924,7 @@ export class GameSim {
     const gassed =
       (tired.fatigue || 0) >= thresh || fatiguePerfMult(tired) <= perfFloor;
     if (!gassed) return;
-    const fresh = [...bench].sort(
+    const fresh = [...pool].sort(
       (a, b) => (a.fatigue || 0) - (b.fatigue || 0) || overall(b) - overall(a)
     )[0];
     if (!fresh) return;
@@ -1871,7 +1935,7 @@ export class GameSim {
     }
     // Prefer same-ish position
     const samePos =
-      bench
+      pool
         .filter((p) => p.pos === tired.pos || p.playPos === tired.pos || p.playPos === tired.playPos)
         .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0) || overall(b) - overall(a))[0] || fresh;
     // 领先时：替补明显更弱就别换
@@ -3877,10 +3941,16 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
   if (sideCtx?.kickedOut) {
     const organizer = (off.onCourt || []).find((x) => x.id === sideCtx.organizerId) || null;
     open += formSpacingBonus(baller, organizer);
+    // 传球魔术：分球找到更大空位（此前该技能在模拟器里没有任何效果）
+    if ((organizer?.skills || []).includes("dime_dropper")) open += 0.05;
+    // 挡拆高手：挡拆分球找到更大空位（顺下接球、分球射手都算）
+    if (sideCtx.scheme === "pnr" && (organizer?.skills || []).includes("pnr_master")) open += 0.05;
     open += (formTactical(baller) - 50) * 0.00035;
   }
   // 挡拆 / 突破分球：压缩禁区 → 射手大空位；持球中投口袋也更干净
   if (sideCtx?.scheme === "drive_kick" || sideCtx?.scheme === "pnr") {
+    // 挡拆高手：挡拆发起者自己终结（持球中投）更干净
+    if (sideCtx.scheme === "pnr" && (baller.skills || []).includes("pnr_master")) open += 0.05;
     if (sideCtx.kickedOut && isFloorShooter(baller)) {
       open += sideCtx.scheme === "drive_kick" ? 0.1 : 0.085;
     } else if (sideCtx.scheme === "pnr" && !sideCtx.kickedOut && isMidHandler(baller)) {
@@ -4344,7 +4414,7 @@ function tickBenchRecovery(side, usedSec) {
   if (!side || !(usedSec > 0)) return;
   const restMin = usedSec / 60;
   for (const p of side.bench || []) {
-    recoverPlayerByRestMinutes(p, restMin, 1.12);
+    recoverPlayerByRestMinutes(p, restMin, 1.0);
     p.benchSinceElapsed = null; // synced continuously while sitting
   }
 }
@@ -4353,21 +4423,21 @@ function tickBenchRecovery(side, usedSec) {
 function applyBenchRecoveryForPlayer(p, sim) {
   if (!p || p.benchSinceElapsed == null || !sim) return;
   const sat = Math.max(0, (sim.elapsedSec || 0) - p.benchSinceElapsed);
-  if (sat > 0) recoverPlayerByRestMinutes(p, sat / 60, 1.12);
+  if (sat > 0) recoverPlayerByRestMinutes(p, sat / 60, 1.0);
   p.benchSinceElapsed = null;
 }
 
 function recoverPlayerByRestMinutes(p, restMin, benchMult = 1) {
   if (!(restMin > 0) || !p) return;
   const resist = fatigueResist(p);
-  const fullMins = clamp(10.3 - (resist - 35) * 0.055, 6, 10.5);
+  const fullMins = clamp(14 - (resist - 35) * 0.055, 8, 14);
   const rate = (100 / fullMins) * benchMult;
   p.fatigue = Math.max(0, (p.fatigue || 0) - restMin * rate);
 }
 
 /**
  * Fatigue recovery.
- * 中场固定回 50；节间（Q1→Q2 / Q3→Q4）固定回 25；
+ * 中场固定回 35；节间（Q1→Q2 / Q3→Q4）固定回 15；
  * 暂停 / 死球仍只是小口喘息。
  */
 function recoverFatigue(side, kind) {
@@ -4375,7 +4445,7 @@ function recoverFatigue(side, kind) {
 
   // 节间 / 中场：固定额度（不按体质放大）
   if (kind === "half" || kind === "quarter") {
-    const flat = kind === "half" ? 50 : 25;
+    const flat = kind === "half" ? 35 : 15;
     for (const p of side.roster || []) {
       p.fatigue = Math.max(0, (p.fatigue || 0) - flat);
       if (moodAmt) p.mood = clamp((p.mood ?? 50) + moodAmt, 15, 95);
@@ -4388,11 +4458,10 @@ function recoverFatigue(side, kind) {
 
   for (const p of side.roster || []) {
     const resist = fatigueResist(p);
-    const fullMins = clamp(10.3 - (resist - 35) * 0.055, 6, 10.5);
+    const fullMins = clamp(14 - (resist - 35) * 0.055, 8, 14);
     let rate = 100 / fullMins;
     const onCourt = onIds.has(p.id);
     if (onCourt && (kind === "timeout" || kind === "deadball")) rate *= 0.82;
-    else if (!onCourt) rate *= 1.12;
 
     let amt = restMin * rate;
     if (kind === "timeout") amt = Math.min(amt, 2.2 + resist * 0.028);

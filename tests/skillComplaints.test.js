@@ -131,3 +131,54 @@ test("Draymond Green's three rating tracks his real season-by-season accuracy, n
   }
   assert.ok(!cardOf(2019).skills.some((id) => ["rainmaker", "splash_spot"].includes(id)), "still no shooter skills tacked on");
 });
+
+test("Tony Parker has 中投刺客 in every season", () => {
+  const cards = cardsOf("parketo01");
+  assert.equal(cards.length, 18);
+  for (const card of cards) {
+    assert.ok(card.skills.includes("midrange_assassin"), `${card.season} lacks 中投刺客`);
+  }
+});
+
+test("Reggie Jackson never has 传球魔术 (his 2016/2018/2019 cards rolled it from the generic pool)", () => {
+  const cards = cardsOf("jacksre01");
+  assert.equal(cards.length, 14);
+  for (const card of cards) {
+    assert.ok(!card.skills.includes("dime_dropper"), `${card.season} has 传球魔术`);
+  }
+});
+
+test("传球魔术 stays scarce: no name-bleed kits, no generic roll holders", () => {
+  // Luka Garza / Luka Samanic must not inherit Doncic's kit via the /luka/
+  // alias, Scottie Pippen Jr. must not inherit Pippen Sr.'s, Gary Payton II
+  // must not inherit Payton Sr.'s — same name-bleed class as the Thomas
+  // brothers above, fixed with the alias table's exclude mechanism.
+  for (const bref of ["garzalu01", "samanlu01", "pippesc02", "paytoga02"]) {
+    for (const card of cardsOf(bref)) {
+      assert.ok(!card.skills.includes("dime_dropper"), `${bref} ${card.season} has 传球魔术`);
+    }
+  }
+  // Holder count pins the principle: only manual holders remain (was 225
+  // players / 548 cards from the generic roll pool). The bound leaves room
+  // for future manual additions but catches any pool regression.
+  const holders = new Set();
+  for (const row of rows) {
+    if (seasonToCard(row).skills.includes("dime_dropper")) holders.add(row.bref);
+  }
+  assert.ok(holders.size <= 24, `dime_dropper holders blew up to ${holders.size}: ${[...holders].join(", ")}`);
+});
+
+test("Tony Parker has 挡拆高手 in every season, and it stays his alone", () => {
+  const cards = cardsOf("parketo01");
+  assert.equal(cards.length, 18);
+  for (const card of cards) {
+    assert.ok(card.skills.includes("pnr_master"), `${card.season} lacks 挡拆高手`);
+  }
+  // signature-only: nobody rolls it, nobody inherits it via an alias.
+  for (const row of rows) {
+    const card = seasonToCard(row);
+    if (card.skills.includes("pnr_master")) {
+      assert.equal(row.bref, "parketo01", `${row.bref} ${card.season} should not hold 挡拆高手`);
+    }
+  }
+});

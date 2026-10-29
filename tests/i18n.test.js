@@ -246,7 +246,7 @@ test("i18n: the default (zh) game still reads Chinese, and lang defaults to zh",
 test("R59 skill descriptions: every pack has a CJK-free descEn", async () => {
   const { SKILL_PACKS, skillDesc } = await import("../js/data/skills.js");
   const ids = Object.keys(SKILL_PACKS);
-  assert.equal(ids.length, 93);
+  assert.equal(ids.length, 94);
   for (const id of ids) {
     const pack = SKILL_PACKS[id];
     assert.ok(pack.descEn, `${id} missing descEn`);
