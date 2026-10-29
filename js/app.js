@@ -7152,8 +7152,16 @@ function paintPlayerOrders(snap, { force = false } = {}) {
     actionSel.disabled = !focusId || !state.sim.paused;
     if (!actionSel._ballBound) {
       actionSel._ballBound = true;
+      // Save immediately on change (like the pre-game panel and the
+      // per-player order selects): previously this was a no-op and the
+      // pick evaporated on the next repaint, which forced the dropdown
+      // back to the suggested action.
       actionSel.onchange = () => {
-        /* applied on confirm */
+        const fid = $("#offense-focus-select")?.value || state.sim?.offenseFocusId || "";
+        if (!fid || !state.sim?.paused) return;
+        state.sim.setPlayerOrders(fid, { action: actionSel.value });
+        paintPlayerOrders(state.sim.snapshot(), { force: true });
+        paintMeters(state.sim.snapshot());
       };
     }
   }
