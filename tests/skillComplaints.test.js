@@ -167,3 +167,18 @@ test("传球魔术 stays scarce: no name-bleed kits, no generic roll holders", (
   }
   assert.ok(holders.size <= 24, `dime_dropper holders blew up to ${holders.size}: ${[...holders].join(", ")}`);
 });
+
+test("Tony Parker has 挡拆高手 in every season, and it stays his alone", () => {
+  const cards = cardsOf("parketo01");
+  assert.equal(cards.length, 18);
+  for (const card of cards) {
+    assert.ok(card.skills.includes("pnr_master"), `${card.season} lacks 挡拆高手`);
+  }
+  // signature-only: nobody rolls it, nobody inherits it via an alias.
+  for (const row of rows) {
+    const card = seasonToCard(row);
+    if (card.skills.includes("pnr_master")) {
+      assert.equal(row.bref, "parketo01", `${row.bref} ${card.season} should not hold 挡拆高手`);
+    }
+  }
+});

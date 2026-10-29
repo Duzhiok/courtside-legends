@@ -3943,10 +3943,14 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
     open += formSpacingBonus(baller, organizer);
     // 传球魔术：分球找到更大空位（此前该技能在模拟器里没有任何效果）
     if ((organizer?.skills || []).includes("dime_dropper")) open += 0.05;
+    // 挡拆高手：挡拆分球找到更大空位（顺下接球、分球射手都算）
+    if (sideCtx.scheme === "pnr" && (organizer?.skills || []).includes("pnr_master")) open += 0.05;
     open += (formTactical(baller) - 50) * 0.00035;
   }
   // 挡拆 / 突破分球：压缩禁区 → 射手大空位；持球中投口袋也更干净
   if (sideCtx?.scheme === "drive_kick" || sideCtx?.scheme === "pnr") {
+    // 挡拆高手：挡拆发起者自己终结（持球中投）更干净
+    if (sideCtx.scheme === "pnr" && (baller.skills || []).includes("pnr_master")) open += 0.05;
     if (sideCtx.kickedOut && isFloorShooter(baller)) {
       open += sideCtx.scheme === "drive_kick" ? 0.1 : 0.085;
     } else if (sideCtx.scheme === "pnr" && !sideCtx.kickedOut && isMidHandler(baller)) {

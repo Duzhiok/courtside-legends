@@ -901,6 +901,14 @@ export const SKILL_PACKS = {
     makeBoost: 0.26,
     openBoost: 0.05,
   },
+  pnr_master: {
+    id: "pnr_master",
+    name: "挡拆高手",
+    desc: "挡拆发起者：挡拆后的中投、顺下、分球都更干净",
+    descEn: "Pick-and-roll initiator: pull-ups, rolls and kick-outs after the screen all come cleaner",
+    tone: "gold",
+    signature: true,
+  },
   glove: {
     id: "glove",
     name: "手套",
@@ -977,8 +985,8 @@ export const SIGNATURE_SKILLS = {
   nashst01: ["teardrop", "dime_dropper", "rainmaker", "motor_engine"],
   stockjo01: ["teardrop", "dime_dropper", "thief", "lockdown"],
   paytoga01: ["glove", "thief", "lockdown", "dime_dropper"],
-  // Tony Parker — 中投刺客：抛投 + 中距离是他的招牌杀招
-  parketo01: ["midrange_assassin"],
+  // Tony Parker — 中投刺客：抛投 + 中距离是他的招牌杀招；挡拆高手：马刺挡拆体系的发起者
+  parketo01: ["midrange_assassin", "pnr_master"],
   mutomdi01: ["not_in_my_house", "rim_protector", "lockdown"],
   olajuha01: ["dream_shake", "rim_protector", "ankle_breaker"],
   robinda01: ["rim_protector", "lockdown", "motor_engine"],
