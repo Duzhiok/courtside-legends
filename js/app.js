@@ -119,6 +119,7 @@ import {
   tendencyLabel,
   PLAYERS,
   clonePlayer,
+  deriveSubAttributes,
 } from "./data/players.js";
 import { initBgm } from "./data/bgm.js";
 import { clearRosterCache } from "./data/rosterCache.js";
@@ -6340,6 +6341,13 @@ function setupStatGridHtml(p) {
     const tone = n >= 80 ? "hi" : n >= 65 ? "mid" : "lo";
     return `<span class="setup-stat ${tone}" title="${label}"><em>${label}</em>${n || "—"}</span>`;
   };
+  // R85 derived these 7 sub-attributes into card data and the sim, but no
+  // UI ever rendered them. Show them as a second block; old saves without
+  // stored values fall back to deriving them on the fly.
+  const sa =
+    p.handle != null && p.perimDef != null
+      ? p
+      : deriveSubAttributes(p);
   return `<div class="setup-stat-grid">
     ${row(L("攻", "ATK"), p.scoring)}
     ${row(L("三分", "3PT"), p.three)}
@@ -6353,6 +6361,15 @@ function setupStatGridHtml(p) {
     ${row(L("速", "SPD"), p.speed)}
     ${row(L("力", "STR"), p.strength)}
     ${row(L("球商", "IQ"), p.iq)}
+  </div>
+  <div class="setup-stat-grid sub-attrs">
+    ${row(L("控球", "HDL"), sa.handle)}
+    ${row(L("外防", "PD"), sa.perimDef)}
+    ${row(L("内防", "ID"), sa.interiorDef)}
+    ${row(L("接球投", "CS"), sa.catchShoot)}
+    ${row(L("持球投", "OD"), sa.offDribble)}
+    ${row(L("前板", "ORB"), sa.offReb)}
+    ${row(L("后板", "DRB"), sa.defReb)}
   </div>`;
 }
 
@@ -6616,6 +6633,10 @@ function renderSetupRoster() {
     renderSetupRoster();
     renderSetupRoles();
     renderSetupOrders();
+    // Matchup board + key-defense selects are built from the selected
+    // starters: without this they kept showing the lineup from when
+    // setup was entered, even after drag-swaps changed the five.
+    renderSetupGameplan();
     if (state.setup?.you) {
       renderPhilTactics(state.setup.you);
       syncPhilRosterHint();

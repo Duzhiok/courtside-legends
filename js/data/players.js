@@ -520,7 +520,7 @@ function deriveShotTendencies(r, a) {
  * raw data. Every formula has a documented fallback to the matching core attribute so old
  * save snapshots (serialized before this existed) keep working without these fields.
  */
-function deriveSubAttributes({ pos, three, mid, paint, defense, rebound, pass, speed, strength, block, steal, scoring, heightCm, offenseStyle }) {
+export function deriveSubAttributes({ pos, three, mid, paint, defense, rebound, pass, speed, strength, block, steal, scoring, heightCm, offenseStyle }) {
   const p = pos || "SF";
 
   // 控球 (ball-handling): position prior + pass/vision + quickness. Giants who still bring
