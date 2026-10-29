@@ -109,7 +109,7 @@
 | 步骤 | 内容 | 新/改文件 | 验收 | 状态 |
 |---|---|---|---|---|
 | **A1** | 教练档案 `root.coach`：年龄、声望、个人资产、心情、精力、等级/XP、天赋点、`version`；旧存档自动补默认值；`saveRoot.js` 校验扩充 | 新 `js/career/coachProfile.js`、`js/career/balance.js`；改 `js/data/saveRoot.js` | 新旧存档都能读写；校验拒绝非法值；单测覆盖迁移 | ✅ 完成（R95） |
-| **A2** | 事件系统 v2：从「6 个写死的线性事件」改为「带触发条件的事件池」（条件：任期第几年、战绩、信任、声望、心情、flags、冷却、权重）；**原 6 个事件原样迁入、旧存档 `eventLog` 继续有效** | 新 `js/career/eventPool.js`；改 `js/story/eventEngine.js`（保留导出 API 不变） | 原 `storyEventEngine.test.js` 全过；新条件触发单测 | 📋 |
+| **A2** | 事件系统 v2：从「6 个写死的线性事件」改为「带触发条件的事件池」（条件：任期第几年、战绩、信任、声望、心情、flags、冷却、权重）；**原 6 个事件原样迁入、旧存档 `eventLog` 继续有效** | 新 `js/career/eventPool.js`；改 `js/story/eventEngine.js`（保留导出 API 不变） | 原 `storyEventEngine.test.js` 全过；新条件触发单测 | ✅ 完成（R96） |
 | **A3** | 日历与精力：比赛日 / 周 / 休赛期三种时间点；精力发放与过期；批量模拟时的「日程预设」接口（先只有空实现，阶段 E 填内容） | 新 `js/career/calendar.js` | 82 场赛季正好产生约 20 个周窗口；批量模拟不弹窗 | 📋 |
 
 ### 阶段 B：多段执教生涯（第 1 条）
@@ -208,3 +208,7 @@
 - 2026-10-29：路线图定稿，尚未开始实施。下一步：A1。
 - 2026-10-29：A1 完成。`root.coach`（年龄/声望/资产/心情/精力/等级+XP/天赋点）成形，没在任何游戏代码里接线（按计划指示，
   下一步才是用它的地方）。下一步：A2（事件池 v2）或 A3（日历精力）。
+- 2026-10-29：A2 完成。`js/career/eventPool.js`：事件条件匹配/冷却/权重随机都是纯函数，与 `js/story/eventEngine.js`
+  解耦。原 6 个事件原样保留在 `eventEngine.js` 里，`startOffset` 改成 `conditions.minTenureYear`，选人算法从
+  `.find()` 改成按 `order` 排序，行为完全一致（原 5 条 `storyEventEngine.test.js` 零改动全过）。新增 17 条
+  `eventPool.test.js` 纯机制测试，mutation check 过。全量 974/974，lint 0 错误。下一步：A3（日历精力）。

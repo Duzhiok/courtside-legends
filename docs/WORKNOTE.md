@@ -1438,3 +1438,32 @@ Code 决定的"每场有收获"方案（路线图 2.2）：每场结算球员 XP
 
 下一步：A2（事件池 v2，按条件触发，原有 6 个线性事件原样迁入）或 A3（日历/精力模型），两者互相独立，
 谁先谁后不影响正确性。
+
+### R96：穿越生涯 2.0 · A2 事件池 v2（Code 提交）
+
+路线图第二步。新 `js/career/eventPool.js`——纯机制模块，不包含任何具体事件内容：`eventMatches()`
+按任期年份区间、信任/压力/心情/声望区间、必需/禁止 flags 判断一个事件是否符合触发条件；
+`eventOnCooldown()` 区分非重复事件（打过一次就永久拉黑，跟旧的 `isEventResolved()` 行为完全一致）和
+重复事件（按 `cooldownYears` 解冻，满足冷却天数后即可再次触发，不是严格大于）；`eligibleEvents()`
+合并两者过滤；`pickNextEvent()` 按 `order` 升序确定性选人，`order` 相同时靠 `Array.sort` 的稳定排序
+保留池内原始顺序；`pickWeightedRandom()` 是给后面阶段（比如 E2 发布会）用的概率选人 helper，这轮没人调用。
+
+`js/story/eventEngine.js` 内部换成这套机制，但**原 6 个事件原封不动留在这个文件里**（用户要求的
+"原样迁入"）——只是把 `startOffset: N` 换成等价的 `conditions: { minTenureYear: N + 1 }`
+（`tenureYear` 是 1-indexed，`startOffset` 原来是 0-indexed），给每个事件标上 `order: 0..5`，
+原来靠数组 `.find()` 第一个命中决定的先后顺序现在靠 `order` 排序决定，结果完全一样。
+删掉了换下来的 `isEventResolved()` 死代码。对外导出的八个函数（`listStoryEvents`、`getStoryEvent`、
+`queueStoryEvent`、`resolveStoryEvent`、`queueNextStoryEvent`、`finalizeCareerEnding`、
+`buildCareerReport`、`deriveEnding`、`localizeStoryEvent`）签名和行为一字未改。
+
+原有 `tests/storyEventEngine.test.js` 的 5 条测试**零改动全过**——这是证明新选人算法和旧
+`startOffset + .find()` 行为完全等价的直接证据（五年线性剧情按原顺序一个不漏地走完）。新增
+`tests/eventPool.test.js` 17 条纯机制测试，mutation check 验证过两处（把"非重复事件打一次永久拉黑"
+改成"立刻解冻"、把 `order` 排序方向反过来），两处都被新测试抓住。974/974，lint 0 错误，
+`git diff --check` 通过。
+
+遗留给后面阶段：`finalizeCareerEnding()`/`buildCareerReport()` 里硬编码的 `history.length >= 5`、
+`maxSeasons: 5` 这轮**故意没动**——那是"五年封顶"的具体业务逻辑，属于 B4（多段执教生涯）的范围，
+不应该混进这轮纯机制重构里。
+
+下一步：A3（日历/精力模型），之后进入阶段 B。

@@ -1,10 +1,19 @@
 import { historicalSeason } from "../data/historicalSeasons.js";
+import { eventOnCooldown, pickNextEvent } from "../career/eventPool.js";
 
-const EVENT_DEFINITIONS = [
+// EVENT_POOL: each event's `order` plus `conditions` (see js/career/eventPool.js for the matching
+// rules) replace what used to be a single `startOffset` -- conditions.minTenureYear carries the
+// exact same "years since this job started" meaning startOffset had (minTenureYear = startOffset
+// + 1, since tenureYear is 1-indexed and startOffset was 0-indexed). The six events below are
+// unchanged in content and behavior; this is a pure mechanism swap (A2 of
+// docs/CAREER_LIFE_ROADMAP.md), not a redesign of the story itself. Later phases add more events
+// to this same array with richer conditions (trust/pressure/mood/reputation/flags/repeatable).
+const EVENT_POOL = [
   {
     id: "first-year-owner-test",
     chapter: "year-one",
-    startOffset: 0,
+    order: 0,
+    conditions: { minTenureYear: 1 },
     title: "老板要看见方向",
     titleEn: "The Owner Wants a Direction",
     prompt: "球队开局不顺，老板要求你在短期成绩和长期培养之间做出公开选择。你的回答会改变管理层对你的授权方式。",
@@ -43,7 +52,8 @@ const EVENT_DEFINITIONS = [
   {
     id: "core-player-commitment",
     chapter: "year-one",
-    startOffset: 0,
+    order: 1,
+    conditions: { minTenureYear: 1 },
     title: "核心球员的承诺",
     titleEn: "The Core Player's Commitment",
     prompt: "核心球员愿意留下，但希望你明确他的角色。这个选择会影响球员关系，也会影响未来的球队文化。",
@@ -73,7 +83,8 @@ const EVENT_DEFINITIONS = [
   {
     id: "second-year-trade-pressure",
     chapter: "year-two",
-    startOffset: 1,
+    order: 2,
+    conditions: { minTenureYear: 2 },
     title: "交易截止日前的压力",
     titleEn: "Trade-Deadline Pressure",
     prompt: "球队进入竞争窗口，市场上出现一名明星球员。交易会提高短期上限，也可能拆散你正在建立的体系。",
@@ -103,7 +114,8 @@ const EVENT_DEFINITIONS = [
   {
     id: "third-year-butterfly",
     chapter: "year-three",
-    startOffset: 2,
+    order: 3,
+    conditions: { minTenureYear: 3 },
     title: "历史开始偏离",
     titleEn: "History Starts to Diverge",
     prompt: "联盟已经注意到你的球队。媒体发现你提前押中了某些趋势，继续使用未来知识可能带来优势，也可能让时间线彻底失控。",
@@ -133,7 +145,8 @@ const EVENT_DEFINITIONS = [
   {
     id: "fourth-year-commitment",
     chapter: "year-four",
-    startOffset: 3,
+    order: 4,
+    conditions: { minTenureYear: 4 },
     title: "争冠窗口的代价",
     titleEn: "The Price of the Window",
     prompt: "球队终于进入争冠窗口，但核心球员的合同、伤病和忠诚开始互相冲突。你只能优先保护一个目标。",
@@ -163,7 +176,8 @@ const EVENT_DEFINITIONS = [
   {
     id: "fifth-year-final-call",
     chapter: "year-five",
-    startOffset: 4,
+    order: 5,
+    conditions: { minTenureYear: 5 },
     title: "最后一通电话",
     titleEn: "The Final Call",
     prompt: "五年合同即将结束。你可以留下继续守护这支球队，也可以带着已经验证的理念去开启下一段职业生涯。",
@@ -206,7 +220,7 @@ function requireStory(root) {
 }
 
 function definitionFor(eventId) {
-  const definition = EVENT_DEFINITIONS.find((event) => event.id === eventId);
+  const definition = EVENT_POOL.find((event) => event.id === eventId);
   if (!definition) throw new RangeError(`unknown story event: ${eventId}`);
   return definition;
 }
@@ -224,10 +238,6 @@ export function localizeStoryEvent(event, lang = "zh") {
       description: c.descriptionEn || c.description,
     })),
   };
-}
-
-function isEventResolved(story, eventId) {
-  return story.eventLog.some((entry) => entry.type === "story-choice" && entry.eventId === eventId);
 }
 
 function applyEffects(story, choice, year) {
@@ -260,7 +270,7 @@ function applyEffects(story, choice, year) {
 }
 
 export function listStoryEvents() {
-  return EVENT_DEFINITIONS.map((event) => ({
+  return EVENT_POOL.map((event) => ({
     id: event.id,
     chapter: event.chapter,
     title: event.title,
@@ -288,7 +298,8 @@ export function queueStoryEvent(root, eventId, { year } = {}) {
   if (root.story.pendingDecision) {
     throw new Error("another story decision is already pending");
   }
-  if (isEventResolved(root.story, eventId)) {
+  const queueYear = Number.isInteger(year) ? year : root.story.startYear;
+  if (eventOnCooldown(event, root.story.eventLog, queueYear)) {
     throw new Error(`story event already resolved: ${eventId}`);
   }
   return {
@@ -299,7 +310,7 @@ export function queueStoryEvent(root, eventId, { year } = {}) {
       pendingDecision: {
         type: "story-event",
         eventId,
-        year: Number.isInteger(year) ? year : root.story.startYear,
+        year: queueYear,
       },
     },
   };
@@ -326,12 +337,16 @@ export function queueNextStoryEvent(root, { year } = {}) {
   const currentYear = Number.isInteger(year)
     ? year
     : root.leagueCareer?.season?.year;
+  if (!Number.isInteger(currentYear)) return root;
   const startYear = root.story.startYear;
-  const next = EVENT_DEFINITIONS.find((event) =>
-    !isEventResolved(root.story, event.id)
-    && Number.isInteger(currentYear)
-    && currentYear >= startYear + (event.startOffset || 0),
-  );
+  const ctx = {
+    currentYear,
+    tenureYear: currentYear - startYear + 1,
+    trust: root.story.frontOfficeTrust || 0,
+    pressure: root.story.mediaPressure || 0,
+    flags: root.story.flags || {},
+  };
+  const next = pickNextEvent(EVENT_POOL, root.story.eventLog, ctx);
   if (!next) return root;
   return queueStoryEvent(root, next.id, { year: currentYear });
 }

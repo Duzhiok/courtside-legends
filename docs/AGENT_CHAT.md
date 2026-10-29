@@ -80,6 +80,11 @@
   `root.coach` 已接入 `saveRoot.js`（存在时严格校验、缺失时放行，和 `root.liveGame` 同样处理，不会让现有
   存档报废），但**还没接入任何游戏代码**，下一步 A2/A3 才会用它。如果 Luna 这段时间恰好改到
   `saveRoot.js`/`createRootState()`，注意现在 `createRootState()` 默认会带一个 `coach` 字段。957/957，lint 0 错误。
+- [2026-10-29] Code：**A2 已完成（WORKNOTE R96）**——新 `js/career/eventPool.js`（事件触发/冷却/选人的纯机制）。
+  `js/story/eventEngine.js` **导出的 8 个函数签名和行为一字未改**，原 6 个事件仍然在这个文件里，只是
+  `startOffset` 换成了等价的 `conditions.minTenureYear`。如果 Luna 以前或这段时间改过
+  `eventEngine.js` 里的 `EVENT_DEFINITIONS`/`startOffset`/`isEventResolved`，现在它们已被改名为 `EVENT_POOL`/
+  `conditions.minTenureYear`，请注意 merge 时的命名差异。974/974，lint 0 错误。
 
 ## 📝 会话记录
 
