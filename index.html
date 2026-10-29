@@ -533,23 +533,17 @@
       <p class="tiny" id="market-hint">买卖调整阵容，备战下一轮。左侧球员会列出近几场表现与状态，方便决定卖谁。最多 12 人。</p>
       <div class="btn-row" style="margin-bottom:10px">
         <button class="btn" id="btn-refresh-market">刷新自由市场（¤50）</button>
+        <button type="button" class="btn small" id="btn-refresh-coaches">只刷教练（¤30）</button>
+        <button type="button" class="btn small" id="btn-refresh-skills">只刷技能包（¤25）</button>
         <span class="tiny" id="shop-budget-hint"></span>
       </div>
       <div id="career-coach-panel" class="career-coach-panel" hidden>
-        <div class="career-coach-head">
-          <div>
-            <h3>执教席 · 技能包</h3>
-            <p class="tiny" id="career-coach-current">当前教练：—</p>
-          </div>
-          <div class="btn-row">
-            <button type="button" class="btn small" id="btn-refresh-coaches">刷新教练（¤30）</button>
-            <button type="button" class="btn small" id="btn-refresh-skills">刷新技能包（¤25）</button>
-          </div>
-        </div>
-        <div id="career-coach-shop" class="career-coach-shop"></div>
-        <h4 class="career-skill-heading">技能包货架</h4>
-        <p class="tiny" id="career-skill-hint">可先买入入库，稍后再装到球员身上。组合技（如詹韦连线）不可购买，须搭档同队才显示。</p>
-        <div id="career-skill-shop" class="career-skill-shop"></div>
+        <p class="tiny" id="career-coach-current">当前教练：—</p>
+        <!-- 教练/技能包货架已并入右侧「自由市场」列表随机穿插显示，这两格只保留给 JS 内部数据渲染，不再单独展示 -->
+        <div id="career-coach-shop" class="career-coach-shop" hidden></div>
+        <h4 class="career-skill-heading" hidden>技能包货架</h4>
+        <p class="tiny" id="career-skill-hint" hidden></p>
+        <div id="career-skill-shop" class="career-skill-shop" hidden></div>
         <h4 class="career-skill-heading">已购技能库</h4>
         <p class="tiny">入库技能可随时装给名单球员（每卡约 6–7 格）。</p>
         <div id="career-skill-inventory" class="career-skill-shop"></div>

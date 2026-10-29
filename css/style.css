@@ -3389,7 +3389,9 @@ select, input[type="number"] {
 }
 
 @media (max-width: 800px) {
-  .court-wrap, .draft-teams, .lineups, .setup-grid, .setup-grid-3, .setup-grid-simple, .market-grid { grid-template-columns: 1fr; }
+  /* .market-grid 故意不在这里折成单列——用户明确要求竖屏下阵容/可选球员也要左右并排，
+     否则比较起来要上下滑太多次。窄屏紧凑样式见下方单独的 480px 断点。 */
+  .court-wrap, .draft-teams, .lineups, .setup-grid, .setup-grid-3, .setup-grid-simple { grid-template-columns: 1fr; }
   .setup-slots-row { grid-template-columns: 1fr; }
   .team-score strong { font-size: 2.2rem; }
   .court-wrap {
@@ -3404,6 +3406,29 @@ select, input[type="number"] {
   .dunk-flash-bang { font-size: 2.1rem; }
   .dunk-flash.star .dunk-flash-bang { font-size: 2.4rem; }
   .topbar { flex-wrap: wrap; }
+}
+
+/* —— 竖屏手机下转会市场仍保持左右两栏（「我的球队」 vs 「自由市场」），
+   不再折成单列——用户明确要求不要为了比较一直上下滑。卷宽变窄后球员/教练/技能卡
+   改成竖向堆叠，避免头像+文字+按钮挤在一行里挤爆。 —— */
+@media (max-width: 480px) {
+  .market-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .roster-box { padding: 6px; min-height: 0; }
+  .roster-box h3 { font-size: 0.82rem; }
+  .market-right-head { flex-wrap: wrap; gap: 4px; }
+  .market-sort-wrap select { font-size: 0.78rem; }
+  .setup-player, .market-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 6px;
+    font-size: 0.82rem;
+  }
+  .market-row .headshot { width: 28px; height: 28px; }
+  .market-row .tiny { font-size: 0.74rem; }
+  .market-row .btn.small { width: 100%; }
+  .career-coach-card, .career-skill-card { padding: 6px; font-size: 0.82rem; }
+  .career-coach-card .tiny, .career-skill-card .tiny { font-size: 0.74rem; }
 }
 
 /* —— 五年结局分享卡（截图友好） —— */

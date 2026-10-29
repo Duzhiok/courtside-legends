@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 54; // bump: merges R84 sub-attributes (handle/perimDef/interiorDef/catchShoot/offDribble/offReb/defReb) with Ingram roll exclusion (ingrabr01 never rolls dime_dropper) -- both landed on 53 independently, 54 covers both card changes
+export const ROSTER_SCHEMA = 55; // bump: Cousins paint_bully was registered in TRAIT_SKILLS but curatedOnly gating only checks SIGNATURE_SKILLS, so it was silently dropped -- moved him + soft_touch into SIGNATURE_SKILLS; added new LeBron signature skill rim_rush (冲框)
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good

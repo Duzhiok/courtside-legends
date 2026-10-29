@@ -564,6 +564,19 @@ export const SKILL_PACKS = {
     makeBoost: 0.24,
     openBoost: 0.08,
   },
+  rim_rush: {
+    id: "rim_rush",
+    name: "冲框",
+    desc: "詹姆斯式一步起速：正面突破防守人直冲篮下终结，靠的是速度让人追不上，不是硬撞",
+    descEn: "LeBron's downhill burst: one explosive step blows past the defender for a rim finish — speed, not brute force",
+    tone: "gold",
+    signature: true,
+    kind: "offense",
+    proc: 0.12,
+    zone: "paint",
+    makeBoost: 0.2,
+    openBoost: 0.12,
+  },
   dream_shake: {
     id: "dream_shake",
     name: "梦幻脚步",
@@ -950,6 +963,7 @@ export const SIGNATURE_SKILLS = {
   jamesle01: [
     "positionless",
     "bully_step",
+    "rim_rush",
     "chase_down_block",
     "dime_dropper",
     "clutch_killer",
@@ -968,6 +982,10 @@ export const SIGNATURE_SKILLS = {
   barklch01: ["paint_bully", "board_man", "coast_to_coast"],
   malonka01: ["paint_bully", "mid_maestro", "motor_engine"],
   malonmo01: ["paint_bully", "board_man", "motor_engine"],
+  // DeMarcus Cousins — 天赋内线 + 暴躁，既能砸进禁区硬碰硬，也有真实历史上被低估的指尖柔拨手感。
+  // 注意：paint_bully 是 curatedOnly 技能，必须登记在这张 SIGNATURE_SKILLS 表里才能存活，
+  // 之前整个列表被放在下面的 TRAIT_SKILLS 里，导致 paint_bully 一直被 canRetainSkill 悔掉。
+  couside01: ["paint_bully", "soft_touch", "hothead", "enforcer"],
   // Dwight Howard — 魔兽：暴扣王 / 护框 / 板霸（巅峰另有赛季叠加）
   howardw01: ["poster_slam", "rim_protector", "board_man", "paint_bully"],
   duncati01: ["bank_45", "rim_protector", "lockdown", "mid_maestro"],
@@ -1107,6 +1125,7 @@ export const SKILL_ATHLETE_GATES = {
   motor_engine: { maxAge: 36, minStamina: 60, minAth: 52 },
   mountain_slam: { maxAge: 36, minStrength: 84, minSpeed: 36 },
   bully_step: { maxAge: 40, minStrength: 72, minSpeed: 48 },
+  rim_rush: { maxAge: 37, minSpeed: 70, minAth: 60 },
   freeze_iso: { maxAge: 38, minSpeed: 58, minAth: 55 },
   uncle_drew: { maxAge: 35, minSpeed: 72, minAth: 68 },
   thief: { maxAge: 36, minSpeed: 66, minAth: 58 },
@@ -1445,8 +1464,6 @@ export const TRAIT_SKILLS = {
   artesro01: ["sticky_wrap", "lockdown", "hothead", "enforcer"],
   // Matt Barnes — 场上恶汉：硬碰硬、干扰强、对抗凶悍
   barnema02: ["sticky_wrap", "lockdown", "enforcer"],
-  // DeMarcus Cousins — 天赋内线 + 暴躁
-  couside01: ["paint_bully", "hothead", "enforcer"],
   // Bruce Bowen — 脏防 / 底角三分
   bowenbr01: ["stopper_3d", "sticky_wrap", "rainmaker"],
   // Isaiah Thomas（微笑刺客，bref: thomais02 —— 注意别和活塞名宿 Isiah Thomas/thomais01 搞混，
@@ -1863,6 +1880,7 @@ const SIG_FLAVOR_EN = {
     logo_range: ["fires from half-court — good", "ultra-deep three splashes", "logo three — good", "from way downtown"],
     splash_spot: ["catch-and-shoot — good", "runs free off-ball — instant shot falls", "splash spot-up — good"],
     bully_step: ["bully step through contact — layup", "powers through the weak defence — layup"],
+    rim_rush: ["downhill burst — rim finish", "blows past the defender for a slam", "one step and he's gone — rim finish"],
     coast_to_coast: ["coast-to-coast slam", "full-court drive — jam", "one-man fast break dunk"],
     teardrop: ["teardrop — good", "high soft floater drops"],
     soft_touch: ["soft touch — good", "fingertip tap falls", "feather touch rolls in"],
@@ -1890,6 +1908,7 @@ export function signatureFeedFlavor(sigId, lang = "zh") {
     logo_range: ["半场开火命中", "超远三分砸进", "LOGO 三分打进", "百步穿杨"],
     splash_spot: ["接球就投命中", "无球跑出空位瞬投", "水花接投打进"],
     bully_step: ["霸王步挤抗上篮", "强推弱防杀入上篮"],
+    rim_rush: ["一步起速冲篮下终结", "正面极速突破打进"],
     coast_to_coast: ["全场推进暴扣", "长驱直入砸筐", "一条龙灌进"],
     teardrop: ["抛投打进", "高抛软打进筐"],
     soft_touch: ["柔拨打进", "指尖轻点入网", "柔顺手感拨进"],
@@ -2250,6 +2269,7 @@ export const SKILL_RARITY = {
   def_captain: "mythic",
   gravity_well: "mythic",
   bully_step: "mythic",
+  rim_rush: "mythic",
   dream_shake: "mythic",
   high_tower: "mythic",
   skyhook: "mythic",

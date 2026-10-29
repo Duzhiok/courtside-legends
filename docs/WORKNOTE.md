@@ -1281,3 +1281,16 @@ Muse 和我各自从同一个用户反馈（金币赛五中锋碾压五外）出
 **测试总结**：新增 `tests/rosterFit.test.js`（4）`tests/autoDefenseMatchups.test.js`（5，含一个 mutation 验证）`tests/subAttributes.test.js`（7，全部用真实球员卡样本）。浏览器实测（`court-panel-height.mjs`，1280×900 + 390×844）全部 PASS，包括「跟着内容不再跳」的关键断言。具体总测试数和 lint 结果见合并后重跑的最新一次。
 
 遗留：细分属性目前只在引擎层生效，UI 上还没有展示给玩家看（既没加到球员详情卡，也没设计 UI 位置），如果后续要把这七项暂给玩家看，需要单独设计展示位置和文案。
+
+### R86：金币晋级赛市场合并教练/技能包货架到同一列表；考辛斯补上一直被静默吞掉的篮下暴君；詹姆斯新增冲框
+
+三件事，都是用户直接报的：
+
+1. **金币晋级赛的教练货架、技能包货架不再单独占顶部一块，并进自由市场列表。** 之前球员走 `paintFreeAgentList`，教练走 `renderCareerCoachPanel` 单独一个货架网格，技能包走赛前/暂停页同一套货架组件，三处各自维护一份卡片 HTML，样式容易漂移。抽出三个独立模板——`playerMarketCardHtml`/`coachMarketCardHtml`/`skillOfferCardHtml`（`js/app.js`）——永久市场、金币晋级赛市场、赛前技能货架、暂停页技能货架全部复用，不再各写各的。金币晋级赛新增 `paintCareerMarketList(c)`：球员仍按市场排序选项排序，教练和技能包用 `interleaveRandom()` 随机插空、不改变球员之间的相对顺序。货架数量从「教练/技能包各自一块」改成在同一列表里各出 `CAREER_SHOP_SIZE=5` 球员 + `CAREER_COACH_SHOP_SIZE=2` 教练 + `SKILL_SHOP_SIZE=3` 技能包。双人竞价市场不受影响，仍是原来的 12 人球员列表，不走这条新路径。
+2. **手机竖屏不再把「我的球队」和「自由市场」拆成上下一列。** `.market-grid` 原来在 `max-width:800px` 时强制单列，在新的合并列表（球员+教练+技能包三种卡混排、高度不一）下滚动会变得很长。去掉这条单列规则，改成在 `max-width:480px` 新增一套压缩布局：卡片内边距、头像（压到 28px）、字体、按钮都缩小，`.setup-player`/`.market-row` 改纵向堆叠，小按钮占满卡片宽度，教练卡/技能卡同步压缩——两栏在窄屏下依然并排，不靠多滚一屏换取信息密度。
+3. **考辛斯的篮下暴君一直被静默吞掉，顺手修了。** 用户要考辛斯有「篮下暴君＋柔顺手感」，查下来 `paint_bully` 其实早就写在他的技能数组里了——但写错了表：`paint_bully` 定义里标了 `curatedOnly:true`，`canRetainSkill()` 只认 `SIGNATURE_SKILLS`/`SEASON_SIGNATURE_SKILLS` 两张表来判断「是否人工指定」，而考辛斯那一条被放进了完全不同的 `TRAIT_SKILLS`，根本不在白名单检查范围内，所以从写上那天起这个技能就一直被 `canRetainSkill` 悄悄摘掉，从没真正生效过。同样拥有 `paint_bully` 的奥尼尔/巴克利/马龙/霍华德/张伯伦/格里芬都是正确注册在 `SIGNATURE_SKILLS` 里的，对照着改：把考辛斯整条移进 `SIGNATURE_SKILLS`，顺带补上 `soft_touch`（柔顺手感，约基奇/姚明同款）。验证：`seasonToCard()` 过一遍他全部 11 张赛季卡，每张都稳定输出 `['paint_bully','soft_touch','hothead','enforcer']`。
+4. **詹姆斯新增「冲框」（`rim_rush`）。** 跟他已有的「霸王步」（`bully_step`，强推硬撞禁区上篮）刻意区分开——冲框强调的是一步提速、靠速度甩开正面防守人，不是硬碰硬；门槛上也对应给了偏速度的 `minSpeed:70/minAth:60`（`bully_step` 是偏力量的 `minStrength:72`），37 岁封顶比霸王步的 40 岁早一点，呼应生涯晚期速度先于力量下滑。标准 `signature offense` 技能结构（`proc/zone/makeBoost/openBoost`），走现成的签名技通用 proc 选择逻辑，没有另写特判代码。
+
+卡面变了，`ROSTER_SCHEMA` 52→... 不对，是 54→55（上一轮 R84/R85 合并后落在 54），重新生成 `tests/fixtures/cardSchema.json`（23452 张卡）。`tests/i18n.test.js` 的技能总数硬编码断言从 92 改成 93（新增 `rim_rush`）；市场按钮文案从「刷新教练/刷新技能包」改成「只刷教练/只刷技能包」后，同步更新了 `js/i18n-phrases.js` 里对应的英文翻译条目，没有留下孤立的旧词条。
+
+验证：全量 926/926，lint 0 错误（2 条已知旧 warning，`coachSpecialty` 和 `fakeStore` 未使用，都不是本轮引入的），`git diff --check` 通过。浏览器实测（390×844 + 1280×900，真实点「金币晋级赛」直接进市场页）：合并列表里 5 球员+2 教练+3 技能包共 10 张卡混排、旧的教练/技能货架网格确认隐藏（「当前教练」信息行和「已购技能库」仍保留）、`.market-grid` 手机端仍是 `1fr 1fr` 两列、无横向溢出、无页面报错（页面唯一的 404 是背景音乐文件缺失，跟本轮改动无关，是早就存在的问题）。
