@@ -19,7 +19,7 @@
 | T7 | 完整英文双语版 | ✅ 完成（R59） | v1（R50）+ v2（R53）+ 收尾（R59）：技能描述 92 条、生涯报告交易/聘任叙事、分享卡动态交易/合同叙事全部双语；旧存档无 descriptionEn 时回退中文 |
 | T9 | 晋级赛首轮赛制与原始需求对齐（一负淘汰 vs 两败出局） | ✅ 完成（R58） | 用户 2026-10-24 拍板：保持两败出局 + 复活赛，原始「输了就淘汰」设想作废；只对齐文档，未改代码 |
 | T10 | 穿越生涯 2.0 · 阶段 A：地基（教练档案 / 事件池 v2 / 日历精力） | ✅ 完成（R95–R97） | 总计划见 `docs/CAREER_LIFE_ROADMAP.md`；后续 T11–T15 都依赖它 |
-| T11 | 穿越生涯 2.0 · 阶段 B：多段执教（赛季目标 / 解雇升级 / 动态续约 / 再就业 / 挖角 / 退休） | 🔜 进行中（B1 完成，下一步 B2） | 用户 2026-10-29 拍板扩大范围，取消五年封顶 |
+| T11 | 穿越生涯 2.0 · 阶段 B：多段执教（赛季目标 / 解雇升级 / 动态续约 / 再就业 / 挖角 / 退休） | 🔜 进行中（B1-B2 完成，下一步 B3） | 用户 2026-10-29 拍板扩大范围，取消五年封顶 |
 | T12 | 穿越生涯 2.0 · 阶段 C：每场有收获（XP 成长 / 领悟 / 高光热度 / 教练天赋 / 本场目标 / 特殊比赛 / 季后赛调整） | 📋 排队中 | 用户反馈常规赛+季后赛没可玩性，具体方案由 Code 决定（见路线图 2.2） |
 | T13 | 穿越生涯 2.0 · 阶段 D：球探与选秀情报（真实潜力 / 情报板 / 高中球探 / 试训 / 允诺 / 劝说） | 📋 排队中 | 潜力改用名册里的真实未来生涯；没有高中/大学数据，不编造 |
 | T14 | 穿越生涯 2.0 · 阶段 E：场外人生（发布会 / 财务 / 休闲 / 赌博 / 感情家庭） | 📋 排队中 | 养成系；赌博只做文字事件且可关闭（应用商店分级风险） |
@@ -60,3 +60,11 @@
 - 2026-10-29 · R96：A2 完成。新 `js/career/eventPool.js`：事件触发条件匹配（任期年/信任/压力/心情/声望/flags）、冷却（非重复事件永远打一次，重复事件按 `cooldownYears` 解冻）、确定性按 `order` 排序选人、选做的权重随机 helper（暂无谁调），全是纯函数。`js/story/eventEngine.js` 内部换用这套机制，原 6 个事件原样保留在该文件里，只是 `startOffset` 改成 `conditions.minTenureYear`（`minTenureYear = startOffset + 1`），导出 API 一字未改。原 5 条 `storyEventEngine.test.js` 零改动全过，证明选人结果与旧版 `.find()` 完全一致。新增 17 条 `eventPool.test.js`，两个 mutation 都被抓住。974/974，lint 0 错误。下一步：A3（日历精力模型）。
 - 2026-10-29 · R97：A3 完成。新 `js/career/calendar.js`：每 4 场用户比赛 = 1 周，满周发 3 点精力（重置而非累加，许多未用完的精力下周会被换掉），休赛期一次性发 10 点。「日程预设」接口定为 `{id, apply(coach)}` 形状，现在只有空实现 `NULL_SCHEDULE_PRESET`，等阶段 E 填内容。精力直接读写（`grantEnergy`/`spendEnergy`/`canAffordEnergy`）归入 `coachProfile.js`（和 A1 的升级/天赋点函数同一文件，都是改教练对象本身的字段），`calendar.js` 只管时机。验证了 82 场赛季恰好产生 20 次周边界（验收标准）。新增 13+5 条测试，两个 mutation 被抓住。全量 992/992，lint 0 错误。**阶段 A 全部完成**，下一步阶段 B 或提前做 C。
 - 2026-10-29 · R98：B1（赛季目标）完成。新 `js/career/seasonGoals.js`：`teamRosterStrength()` 取球队 top-8 OVR 均值，`rosterTier()` 按该均值在联盟全部球队里求三分位桥位（rebuild/middle/contender，和开局面试的三分 archetype 同一套数学，但每季实时重算不是只算一次），`buildSeasonGoal()` 按桥位取模板生成目标（rebuild=胜率≥.35，middle=进季后赛，contender=进总决赛），`goalAchieved()` 判定完成度，全是纯函数。`careerContract.js` 新增 `advanceSeasonGoal(root)`：在季后转场那一刻先用刚写进 `seasonHistory` 的摘要结算上一个待定目标（达成 +6/未达成 -8 信任度，数值进了 `balance.js`），再用新赛季的实时阵容派下下一个目标。这样一次时机选对了：解决了目标条件会影响当下信任度，进而影响 A2 事件池的触发条件，所以在 `queueNextTimeTravelEvent()` 里把 `advanceSeasonGoal` 放在 `queueNextStoryEvent` 之前。`timeTravelCareer.js` 的 `acceptInterviewOffer()` 第一年目标改用同一套 `buildSeasonGoal()`，不再直接用 offer 模板的静态 `firstYearGoal` 文字，避免两者漂移。**发现一个被忽略的事实**：`root.story.promises` 这个字段从来没在任何地方被渲染过，纯纯是写进存档校验通过就没人管了，所以没做独立目标面板，而是把目标结算/新目标接在现有的季后转场 alert 里，跟成长/退役亮点同一套制式。导入存档新增 `story.seasonGoal` 按 A1 的 `root.coach` 规则校验（存在严格校，缺失容许，旧存档继续加载）。新增 20 条测试（3 个 mutation 都被抓住），全量 1012/1012，lint 0 错误。诚实缺口：目标结算 alert 没做浏览器 E2E（`completeOffseason()` 是闭包，没独立导出），只有底层纯函数和语法校验。下一步：B2（解雇判定升级）。
+- 2026-10-29 · R99：B2（解雇判定升级）完成。`careerPerformance(root)` 新增 `consecutiveMissedGoals`（过滤 `eventLog` 里
+  `season-goal-result` 类型，取最后两条是否都 `achieved: false`，和既有 `consecutiveBadSeasons` 一样是纯派生值，
+  不另开计数器）。`evaluateCareerEmployment()` 的解雇分支拆成 `resolveFiringReason(root, performance)`，按优先级
+  检查三条触发：信任度跌破 `FIRING_TRUST_FLOOR`（15，数值进了 `balance.js`）最优先，其次连续两季目标落空，
+  最后才是原有的连续两季胜率 < 40%（没有目标历史的老存档的兜底）。三种触发对应不同 `employment.reason`
+  （`trust-collapsed`/`missed-goals`/`two-bad-seasons`）和不同 `ending.label` 文案，方便玩家分清自己到底是怎么
+  丢的工作。旧测试一行代码没改全过。新增 6 条测试（3 个 mutation 都被抓住），全量 1018/1018，lint 0 错误。
+  下一步：B3（续约 offer 动态化，按冠军数/目标达成率/声望生成 1–3 个方案）。

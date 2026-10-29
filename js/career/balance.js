@@ -44,3 +44,11 @@ export const REBUILD_WIN_RATE_GOAL = 0.35;
 /** Front-office trust swing when a season goal is judged at year's end. */
 export const SEASON_GOAL_TRUST_BONUS = 6;
 export const SEASON_GOAL_TRUST_PENALTY = -8;
+
+/** --- Phase B2: firing escalation (roadmap B2) --- */
+
+/** Front office trust below this floor is fireable on its own, independent of win rate or goals.
+ * Starting trust across the three interview archetypes is 45-58 (timeTravelCareer.js's
+ * OFFER_DETAILS) and a single missed season goal costs SEASON_GOAL_TRUST_PENALTY (-8), so this
+ * floor takes a real sustained slide to reach -- not one bad event. */
+export const FIRING_TRUST_FLOOR = 15;

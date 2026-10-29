@@ -242,3 +242,71 @@ test("advanceSeasonGoal does not mutate the input root", () => {
   advanceSeasonGoal(root);
   assert.equal(JSON.stringify(root), before);
 });
+
+// B2 of docs/CAREER_LIFE_ROADMAP.md: firing escalates beyond the original win-rate-only check.
+function goalResultEntry(year, achieved) {
+  return { type: "season-goal-result", year, achieved, goal: {}, trustDelta: achieved ? 6 : -8, at: 0 };
+}
+
+test("careerPerformance flags consecutiveMissedGoals only on two goal misses in a row", () => {
+  const base = rootWithHistory([summary(1991, 50, 32)]);
+  assert.equal(careerPerformance(base).consecutiveMissedGoals, false, "fewer than two results yet");
+
+  const oneMiss = rootWithHistory([summary(1991, 50, 32)]);
+  oneMiss.story.eventLog = [goalResultEntry(1990, false)];
+  assert.equal(careerPerformance(oneMiss).consecutiveMissedGoals, false, "a single miss is pressure, not two in a row");
+
+  const twoMisses = rootWithHistory([summary(1991, 50, 32)]);
+  twoMisses.story.eventLog = [goalResultEntry(1989, false), goalResultEntry(1990, false)];
+  assert.equal(careerPerformance(twoMisses).consecutiveMissedGoals, true);
+
+  const hitThenMiss = rootWithHistory([summary(1991, 50, 32)]);
+  hitThenMiss.story.eventLog = [goalResultEntry(1989, true), goalResultEntry(1990, false)];
+  assert.equal(careerPerformance(hitThenMiss).consecutiveMissedGoals, false, "only the trailing two count");
+
+  const missThenHit = rootWithHistory([summary(1991, 50, 32)]);
+  missThenHit.story.eventLog = [goalResultEntry(1989, false), goalResultEntry(1990, true)];
+  assert.equal(careerPerformance(missThenHit).consecutiveMissedGoals, false, "most recent result breaks the streak");
+});
+
+test("trust collapsing below the floor fires the coach even with a fine win rate and no missed goals", () => {
+  const root = rootWithHistory([summary(1991, 55, 27), summary(1992, 58, 24)]); // both well above 40%
+  root.story.frontOfficeTrust = 10; // below FIRING_TRUST_FLOOR (15)
+  const next = evaluateCareerEmployment(root);
+  assert.equal(next.story.employment.status, "fired");
+  assert.equal(next.story.employment.reason, "trust-collapsed");
+  assert.equal(next.story.eventLog.at(-1).reason, "trust-collapsed");
+});
+
+test("two straight missed season goals fire the coach even with a fine win rate and healthy trust", () => {
+  const root = rootWithHistory([summary(1991, 55, 27), summary(1992, 58, 24)]);
+  root.story.frontOfficeTrust = 50; // well above the floor
+  root.story.eventLog = [goalResultEntry(1991, false), goalResultEntry(1992, false)];
+  const next = evaluateCareerEmployment(root);
+  assert.equal(next.story.employment.status, "fired");
+  assert.equal(next.story.employment.reason, "missed-goals");
+});
+
+test("a single missed goal alone does not fire the coach", () => {
+  const root = rootWithHistory([summary(1991, 55, 27)]);
+  root.story.frontOfficeTrust = 50;
+  root.story.eventLog = [goalResultEntry(1991, false)];
+  assert.equal(evaluateCareerEmployment(root), root, "one miss is pressure, not a firing");
+});
+
+test("trust-collapsed takes priority when multiple firing conditions are true at once", () => {
+  const root = rootWithHistory([summary(1991, 20, 62), summary(1992, 18, 64)]); // also under 40%
+  root.story.frontOfficeTrust = 5; // also below the floor
+  root.story.eventLog = [goalResultEntry(1991, false), goalResultEntry(1992, false)]; // also two misses
+  const next = evaluateCareerEmployment(root);
+  assert.equal(next.story.employment.reason, "trust-collapsed", "most personal reason wins when stacked");
+});
+
+test("the original bad-win-rate firing still works as the fallback when trust and goals are both fine", () => {
+  const root = rootWithHistory([summary(1991, 30, 52), summary(1992, 28, 54)]);
+  root.story.frontOfficeTrust = 50; // above the floor
+  root.story.eventLog = []; // no goal history at all (e.g. a save that predates B1)
+  const next = evaluateCareerEmployment(root);
+  assert.equal(next.story.employment.status, "fired");
+  assert.equal(next.story.employment.reason, "two-bad-seasons");
+});

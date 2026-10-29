@@ -132,3 +132,9 @@
 - 穿越生涯扩大范围（用户 2026-10-29）：取消五年封顶，支持多段执教；「每场有收获」的具体设计
   由 Code 决定；场外人生做成养成系。编码约束：名册里没有高中/大学数据，不编造；负面剧情
   只给教练本人，不给真实球员编丑闻；赌博只做文字事件且可关闭。细节见 `docs/CAREER_LIFE_ROADMAP.md`。
+- [2026-10-29] Code：**B2（解雇判定升级）已完成（WORKNOTE R99）**——`careerContract.js` 的解雇逻辑从「只看连续两季
+  胜率<40%」升级成三条优先级触发：信任度跌破 `FIRING_TRUST_FLOOR`(15) 最优先、连续两季目标落空次之、原来的
+  连续两季胜率<40%保留作老存档兜底。`employment.reason` 新增 `trust-collapsed`/`missed-goals` 两个值（原
+  `two-bad-seasons` 没改名）。**注意给 Luna**：如果你正在改 `careerContract.js` 的 `evaluateCareerEmployment`
+  或 `careerPerformance`，这两个函数现在多了 `resolveFiringReason()` helper 和 `consecutiveMissedGoals` 字段，
+  注意 merge 冲突。旧测试零改动全过。1018/1018，lint 0 错误。下一步 B3（续约 offer 动态化）。

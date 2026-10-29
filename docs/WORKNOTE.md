@@ -1570,3 +1570,36 @@ alert 里，跟成长亮点、退役提示走同一个制式——这是目前�
 
 下一步：B2——把解雇判定从“只看连续两季胜率”升级成也看信任度跌破底线，让这轮刚做真的信任度机制
 真正产生后果。
+
+### R99：穿越生涯 2.0 · B2 解雇判定升级（Code 提交）
+
+路线图 B2：把解雇从「只看连续两季胜率 < 40%」升级成三条独立触发，按优先级检查，命中第一条就不用再看后面的：
+
+1. **信任度跌破底线**（`FIRING_TRUST_FLOOR = 15`，数值进了 `balance.js`）——不管战绩多好，董事会就是不信你了，
+   直接走人。这是本轮最想做的一条：B1 刚把信任度从「写了没人用」变成「真的会涨跌」，但如果它不接到任何后果上，
+   涨跌本身毫无意义——现在它接上了。
+2. **连续两季目标落空**——哪怕胜率没崩，连续两年完不成董事会定的目标（B1 的 `seasonGoal`）照样下课。
+3. **原有的连续两季胜率 < 40%**，保留作兜底——主要是给没有目标历史的老存档（`eventLog` 里没有
+   `season-goal-result` 记录）兜底，防止 B2 上线前就开始的生涯突然变得解雇不了人。
+
+`careerPerformance(root)` 新增 `consecutiveMissedGoals`：过滤 `eventLog` 里 `season-goal-result` 类型的条目
+（`advanceSeasonGoal` 只会往后追加，天然按时间顺序），取最后两条是否都 `achieved: false`。这是纯派生值，跟
+`consecutiveBadSeasons` 同一个套路——不另开一个计数字段去重复维护状态，单一数据源（`eventLog`）算出来。
+
+解雇分支原来是一段 if，现在拆成 `resolveFiringReason(root, performance)`：返回 `{ reason, label }` 或 `null`，
+调用方只管「有没有触发、触发原因是什么」。三种触发各自写进 `employment.reason`
+（`trust-collapsed`/`missed-goals`/`two-bad-seasons`，旧字段值 `two-bad-seasons` 原样保留没改名，不破坏任何
+读这个字段的旧代码）和不同的 `ending.label` 文案（「信任破产下课」/「连续两季目标落空下课」/「在低谷中下课」），
+让玩家能分清自己到底是怎么丢的饭碗，而不是永远看到同一句「在低谷中下课」。
+
+旧测试一行代码没改全过——因为原来的测试夹具 `frontOfficeTrust: 50`（高于 15 的底线）、`eventLog: []`
+（不够两条 goal-result，凑不齐 `consecutiveMissedGoals`），天然不会误触发任何新条件，继续走原来的
+`two-bad-seasons` 分支。
+
+新增 6 条测试：`consecutiveMissedGoals` 的四种边界（没数据/单次落空/连续两次落空/落空夹一次达成，顺序两种都测了）
++ 信任度单独触发 + 目标单独触发 + 单次落空不解雇 + 三条同时满足时信任度优先 + 老存档兜底路径仍可用。三个
+mutation check（删掉信任度检查、翻转优先级顺序、把 `consecutiveMissedGoals` 写死成 false）都被抓住。全量
+1018/1018，lint 0 错误，diff-check 过。
+
+下一步：B3——续约 offer 动态化，按冠军数、目标达成率、声望生成 1–3 个方案（冠军越多条件越好，表现差可能只有
+一个「试用期」方案或者压根没有续约）。

@@ -117,7 +117,7 @@
 | 步骤 | 内容 | 新/改文件 | 验收 | 状态 |
 |---|---|---|---|---|
 | **B1** | **赛季目标（董事会目标）**：每季开始老板按球队实力给目标（进季后赛 / 进次轮 / 争冠 / 培养新秀），季末判定达成与否 → 信任度涨跌。把一直没人读的 `firstYearGoal` 用起来 | 新 `js/career/seasonGoals.js`；改 `careerContract.js` | 目标随球队实力合理；达成/未达成都有记录和 UI | ✅ 完成（R98） |
-| **B2** | **解雇判定升级**：从「只看连续两季胜率」改为「信任度跌破底线」或「连续两季未达目标」或原有的连续两季 < 40%（保留，作为兜底） | 改 `careerContract.js` | 原有被裁测试仍过；新增信任度/目标路径测试 | 📋 |
+| **B2** | **解雇判定升级**：从「只看连续两季胜率」改为「信任度跌破底线」或「连续两季未达目标」或原有的连续两季 < 40%（保留，作为兜底） | 改 `careerContract.js` | 原有被裁测试仍过；新增信任度/目标路径测试 | ✅ 完成（R99） |
 | **B3** | **续约 offer 动态化**：按冠军数、目标达成率、声望生成 1–3 个方案（冠军越多条件越好，表现差可能只有一个「试用期」方案或没有续约） | 改 `careerContract.js` | 0 冠和 2 冠看到的方案明显不同；数值来自 `balance.js` | 📋 |
 | **B4** | **执教段落 stints**：生涯从「一段五年」改为「多段执教」：`root.coach.stints[]`（球队、起止年、战绩、冠军、离开原因）；五年不再是硬上限，合同年限才是 | 改 `careerContract.js`、`eventEngine.js`；新 `js/career/stints.js` | 旧存档的五年生涯迁移为第一段 stint | 📋 |
 | **B5** | **再就业面试**：被裁 / 合同到期 / 主动离开 → 进入「求职期」，按声望收到 0–3 份当前年份的工作邀请（不是重新穿越），复用现有面试 UI；声望太低可能要从烂队做起 | 改 `timeTravelCareer.js` 的面试生成；改面试 UI | 被裁后能接新工作并继续打下一季；声望影响 offer 质量 | 📋 |
@@ -229,3 +229,13 @@
   因为旧的 `story.promises` 根本从没在任何地方被渲染过。导入存档校验按 A1 的 `root.coach` 规则：新增 `story.seasonGoal`
   为可选字段，存在时严格校验、缺失时容许，旧存档继续加载。新增 20 条测试（3 个 mutation 都被抓住），全量 1012/1012，lint 0 错误。
   下一步：B2（解雇判定升级，让这轮刚成真的信任度开始影响解雇评估）。
+- 2026-10-29：B2 完成。`careerPerformance(root)` 新增 `consecutiveMissedGoals`（过滤 `eventLog` 里 `season-goal-result`
+  类型的条目，取最后两条是否都 `achieved: false`，和现有的 `consecutiveBadSeasons` 同样是纯派生值，没引入
+  第二个计数器）。`evaluateCareerEmployment()` 的解雇分支拆成 `resolveFiringReason(root, performance)`，按优先级检查三条触发
+  条件：信任度跌破 `FIRING_TRUST_FLOOR`（15，数值进了 `balance.js`）最优先（这是董事会不再信任你了，最直接），
+  其次连续两季目标落空（连最起码的胜率都不显著崩盘，但连续两年没达成董事会开的目标），最后才是原来的连续两季胜率 < 40%
+  （作为没有目标历史的老存档的兜底）。三种触发对应不同的 `employment.reason`（`trust-collapsed`/`missed-goals`/
+  `two-bad-seasons`）和不同的 `ending.label` 文案，让玩家能分清自己到底是怎么丢的工作。旧测试一行代码没改全过
+  （旧测试的 `frontOfficeTrust: 50`/`eventLog: []` 都在安全范围内，早就不会触发新条件）。新增 6 条测试（3 个
+  mutation 都被抓住），全量 1018/1018，lint 0 错误。下一步：B3（续约 offer 动态化，按冠军数/目标达成率/声望
+  生成 1–3 个方案）。

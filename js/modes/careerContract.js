@@ -1,5 +1,5 @@
 import { deriveEnding } from "../story/eventEngine.js";
-import { SEASON_GOAL_TRUST_BONUS, SEASON_GOAL_TRUST_PENALTY } from "../career/balance.js";
+import { FIRING_TRUST_FLOOR, SEASON_GOAL_TRUST_BONUS, SEASON_GOAL_TRUST_PENALTY } from "../career/balance.js";
 import { buildSeasonGoal, goalAchieved } from "../career/seasonGoals.js";
 
 const OFFER_TEMPLATES = [
@@ -52,6 +52,12 @@ export function careerPerformance(root) {
   );
   const championships = history.filter((summary) => summary.championId === summary.teamId).length;
   const lastTwo = rates.slice(-2);
+  // B1 logs one "season-goal-result" entry per resolved goal (chronological, since advanceSeasonGoal
+  // only ever appends). Filtering eventLog rather than tracking a separate counter keeps this a
+  // read-only derived value with a single source of truth, same as how wins/games/championships
+  // above are all derived from seasonHistory rather than duplicated counters.
+  const goalResults = (root.story.eventLog || []).filter((entry) => entry.type === "season-goal-result");
+  const lastTwoGoals = goalResults.slice(-2);
   return {
     seasons: history.length,
     wins,
@@ -60,6 +66,7 @@ export function careerPerformance(root) {
     championships,
     lastSeasonRate: rates.at(-1) || 0,
     consecutiveBadSeasons: lastTwo.length === 2 && lastTwo.every((rate) => rate < 0.4),
+    consecutiveMissedGoals: lastTwoGoals.length === 2 && lastTwoGoals.every((entry) => !entry.achieved),
   };
 }
 
@@ -117,18 +124,39 @@ export function advanceSeasonGoal(root) {
   };
 }
 
+// B2 of the roadmap: firing used to be a single hardcoded win-rate check. Now there are three
+// independent triggers, checked in this order (most personal/direct reason first):
+//   1. Front-office trust has collapsed below the floor -- the board has simply stopped believing
+//      in you, regardless of the scoreboard (this is what makes B1's trust swings actually matter).
+//   2. Two straight missed season goals -- you keep failing what the board explicitly asked for,
+//      even if the raw win rate isn't catastrophic.
+//   3. Two straight seasons under a 40% win rate -- the original blunt safety net, kept as a
+//      fallback for saves/situations with no goal history yet (very old saves predate B1 entirely).
+// Returns null when none apply (still employed).
+function resolveFiringReason(root, performance) {
+  if ((root.story.frontOfficeTrust || 0) < FIRING_TRUST_FLOOR) {
+    return { reason: "trust-collapsed", label: "信任破产下课" };
+  }
+  if (performance.consecutiveMissedGoals) {
+    return { reason: "missed-goals", label: "连续两季目标落空下课" };
+  }
+  if (performance.consecutiveBadSeasons) {
+    return { reason: "two-bad-seasons", label: "在低谷中下课" };
+  }
+  return null;
+}
+
 export function evaluateCareerEmployment(root) {
   requireCareerRoot(root);
   const performance = careerPerformance(root);
   const employment = root.story.employment || { status: "active" };
   if (employment.status !== "active") return root;
 
-  // Two consecutive bottom-tier seasons are enough for a firing. A single bad
-  // season is pressure, not an automatic game-over.
-  if (performance.consecutiveBadSeasons) {
+  const firing = resolveFiringReason(root, performance);
+  if (firing) {
     const ending = {
       id: "fired-before-finale",
-      label: "在低谷中下课",
+      label: firing.label,
       tone: "hard",
       // Without this the rich 4-tier narrative verdict (deriveEnding: Dynasty
       // Builder / History Maker / Unfinished Revolution / Departed Under
@@ -140,13 +168,13 @@ export function evaluateCareerEmployment(root) {
       ...root,
       story: {
         ...root.story,
-        employment: { status: "fired", reason: "two-bad-seasons", performance },
+        employment: { status: "fired", reason: firing.reason, performance },
         currentChapter: "epilogue",
         ending,
         pendingDecision: null,
         eventLog: [
           ...root.story.eventLog,
-          { type: "employment-ended", reason: "fired", year: root.leagueCareer.season.year, ending: clone(ending), at: Date.now() },
+          { type: "employment-ended", reason: firing.reason, year: root.leagueCareer.season.year, ending: clone(ending), at: Date.now() },
         ],
       },
     };
