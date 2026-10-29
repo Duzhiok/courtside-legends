@@ -59,15 +59,22 @@
   lint 0 错误。另外回复了你问的 perimDef 常数问题（详见上方「已解决的问题」），schema 再 bump 到 58。
   没有未提交/未推送的尾巴了，main 和 origin/main 已完全同步。
 - Code：2026-10-29 用户反馈「穿越模式好多 bug」，没截图，直接读代码+跑复现脚本找。找到一个真 bug：
-  `deriveEnding()` 的四档叛事结局（王朝建筑师/历史改写者/未完的革命/在压力中离任）自从写好就
+  `deriveEnding()` 的四档叙事结局（王朝建筑师/历史改写者/未完的革命/在压力中离任）自从写好就
   没被真实游戏流程调用过（`app.js` 的 `queueNextTimeTravelEvent()` 用引用相等判断要不要退回 `finalizeCareerEnding()`，
   但 `evaluateCareerEmployment()` 只要真发生终局必然返回新对象，这条分支永远走不到）——导致五年打得再好，
-  看到的都只是平淡的「续约/被裁/离开」标签。已修（`careerContract.js` 三个分支都挺上
+  看到的都只是平淡的「续约/被裁/离开」标签。已修（`careerContract.js` 三个分支都挂上
   `ending.narrativeTier`），新增 3 条回归测试 + mutation check。顺手改了「擅自执教」文案。
   输出了对照 2K MyGM/FIFA Career Mode 的分析文档 `docs/TIME_TRAVEL_BENCHMARK.md`，最关键发现：
   `frontOfficeTrust`/`mediaPressure`/`firstYearGoal` 玩家能看见、会变化，但在解雇/续约机制里几乎是
   摆设（解雇只看胜率，续约 offer 永远固定，`firstYearGoal` 从没被检查过有没完成）。文档里列了
   P0/P1/P2 优先级建议，没直接动手实现，等用户确认方向。全量 937/937，lint 0 错误。
+- [2026-10-29] Code：**穿越生涯 2.0 总路线图已定稿**，见 `docs/CAREER_LIFE_ROADMAP.md`（WORKNOTE R94，TASKS T10–T15）。
+  6 个阶段、约 30 步，每步一个提交，按 A→B→C→D→E→F 顺序做，下一步是 A1（教练档案 `root.coach`
+  + `saveRoot.js` 校验 + 旧存档迁移）。**卡位提醒（避免撞车）**：这条线会动
+  `js/modes/careerContract.js`、`js/story/eventEngine.js`、`js/modes/timeTravelCareer.js`、`js/data/saveRoot.js`、
+  `js/engine/leagueDraft.js`、`js/engine/tradeProposals.js`，并新建 `js/career/` 目录；Luna 如果要改这些文件，
+  请先在这里留言。「每场有收获」（阶段 C）和 Luna 的 `PLAYABLE_MOMENTS_PLAN.md` 不冲突：那边是比赛内玩法层，
+  这边是赛后奖励层，关键球命中照常计入 XP/高光。
 
 ## 📝 会话记录
 
@@ -97,3 +104,6 @@
   在此之前只走私下发布 / TestFlight 内部测试（见 `docs/MOBILE_APPS.md` 开头的警告）。
 - 方向已定（用户 2026-10-28）：不搬到 Godot 重做、不另做动作游戏；
   在现有网页游戏里加“上手打的回合”（玩法层），3D 播报仍是表现层升级，两者不冲突。
+- 穿越生涯扩大范围（用户 2026-10-29）：取消五年封顶，支持多段执教；「每场有收获」的具体设计
+  由 Code 决定；场外人生做成养成系。编码约束：名册里没有高中/大学数据，不编造；负面剧情
+  只给教练本人，不给真实球员编丑闻；赌博只做文字事件且可关闭。细节见 `docs/CAREER_LIFE_ROADMAP.md`。
