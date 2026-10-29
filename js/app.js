@@ -6036,8 +6036,19 @@ function renderSetupGameplan() {
       5
     )
   );
-  const saved =
-    you.gameplan?.matchup?.assignments || you.gameplan?.matchupAssignments || {};
+  const saved = {
+    ...(you.gameplan?.matchup?.assignments || you.gameplan?.matchupAssignments || {}),
+    // Preserve board tweaks made in the DOM (setup board selects have no
+    // onchange write-back; they are only read at game start), so a
+    // refresh after a drag-swap does not wipe them. Stale defenders are
+    // still dropped by buildSamePosMatchups.
+    ...Object.fromEntries(
+      [...($("#setup-matchup-board")?.querySelectorAll("select[data-matchup-opp]") || [])].map((sel) => [
+        sel.dataset.matchupOpp,
+        sel.value || "",
+      ]),
+    ),
+  };
   const resolved = renderMatchupBoard($("#setup-matchup-board"), youPool, boardOpp, saved, {
     live: false,
   });
