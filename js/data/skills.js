@@ -977,6 +977,8 @@ export const SIGNATURE_SKILLS = {
   nashst01: ["teardrop", "dime_dropper", "rainmaker", "motor_engine"],
   stockjo01: ["teardrop", "dime_dropper", "thief", "lockdown"],
   paytoga01: ["glove", "thief", "lockdown", "dime_dropper"],
+  // Tony Parker — 中投刺客：抛投 + 中距离是他的招牌杀招
+  parketo01: ["midrange_assassin"],
   mutomdi01: ["not_in_my_house", "rim_protector", "lockdown"],
   olajuha01: ["dream_shake", "rim_protector", "ankle_breaker"],
   robinda01: ["rim_protector", "lockdown", "motor_engine"],
@@ -1509,7 +1511,8 @@ function candidateSkills(p) {
     cands.add("ankle_breaker");
     cands.add("mid_maestro");
   }
-  if (/floor_general|connector|playmaking/.test(a)) cands.add("dime_dropper");
+  // dime_dropper is manual-only (SIGNATURE_SKILLS): passing magic must stay
+  // scarce — the generic roll pool used to hand it to 225 players.
   if (/shooter|spacing/.test(a) || (p.three || 0) >= 88) cands.add("rainmaker");
   if (/pest|two_way/.test(a) || (p.defense || 0) >= 88) cands.add("lockdown");
   if ((p.steal || 0) >= 85 || (p.raw?.spg || 0) >= 2.2) cands.add("thief");
@@ -1777,17 +1780,17 @@ const SIGNATURE_NAME_TO_BREF = [
   [/nowitzki|诺维茨基|dirk/, "nowitdi01"],
   [/giannis|字母|antetokounmpo/, "antetgi01"],
   [/joki[cć]|约基奇/, "jokicni01"],
-  [/donci[cć]|东契奇|luka/, "doncilu01"],
+  [/donci[cć]|东契奇|luka/, "doncilu01", /garza|amani/],
   [/kawhi|伦纳德|卡哇伊/, "leonaka01"],
   [/chris paul|保罗/, "paulch01", /battier|george|millsap|pierce|皮尔斯/i],
   [/kyle anderson|凯尔.?安德森|slow.?mo|慢三步/, "anderky01"],
   [/haliburton|哈利伯顿/, "halibty01"],
   [/rodman|罗德曼/, "rodmade01"],
-  [/pippen|皮蓬/, "pippesc01"],
+  [/pippen|皮蓬/, "pippesc01", /jr/],
   [/mcgrady|麦迪|t-?mac/, "mcgratr01"],
   [/billups|比卢普斯/, "billuch01"],
   [/horry|霍里/, "horryro01"],
-  [/gary payton|加里.?佩顿|手套/, "paytoga01"],
+  [/gary payton|加里.?佩顿|手套/, "paytoga01", / ii/],
   [/faried|法里埃德|半兽人|manimal/, "farieke01"],
   [/zion|锡安|williamson/, "willizi01"],
   [/yao ming|姚明/, "mingya01"],
