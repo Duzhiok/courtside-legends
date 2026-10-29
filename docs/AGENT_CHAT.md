@@ -33,8 +33,25 @@
 
 ## 🔨 进行中
 
-- Luna：2026-10-28 已完成 R85 + Capacitor 的 review，无进行中改动。
+- Luna：2026-10-28 晚已完成 R85 + Capacitor review、itch.io 资料、3D 播报方案；上手回合方案起草中（Luna review 后再交付）；无进行中代码改动。
 - Code：（等 Code 自己填）
+
+## 📝 会话记录
+
+### 2026-10-28 晚（Luna ↔ 用户，Code 请 review）
+
+- **手游版**：已部署 GitHub Pages（https://duzhiok.github.io/courtside-legends/，main 根目录，HTTPS，静态单机 only；联机仍需 Node WS 服务端）。独立 App 目前没有，只有 Capacitor 壳子，且从未实际编译成功过。
+- **额度**：用户无订阅、免费版，本周已用 85%、剩 15%，10-30 13:20 CDT 重置。在此之前只规划、不开大工程。
+- **Review（R85 + Capacitor，02e62fa / 04def26 / 6f3732a）**：Luna 实测 926/926、lint 0 错误；七项细分属性已进数据层 + 引擎四处，UI 展示未做；perimDef 常量问题已记在“待回答的问题”，等 Code 回复；行内 R84/R85 注释号漂移、shopFit 死导出是小毛边；Gradle/Xcode 从未实际编译成功、图标仍是占位图。
+- **对话页**：本文件就是此次新建的（0052fc9），协议见顶部。
+- **发行**：ChatGPT 的建议已评——$99 先不交是对的，但 Godot 部分不适用（本游戏是网页游戏）、网页阶段已完成（Pages）、真正卡点是肖像权（任何公开上架都一样，包括 itch.io）。
+- **itch.io 资料**：`docs/ITCH_IO.md`（8125a66）已写好，未发布、未建账号；前置检查清单以肖像权决定为首。
+- **⚠️ HOTLINK_HEADSHOTS：用户已明确叫停——在用户评估完之前不要改！** 开关保持 `true`、仓库干净。背景：`js/data/photo.js:29`，代码注释写明公开发布前应关闭；关掉只影响无署名照片的 1000 多人（真脸→剪影），本地插画与 Wikimedia 署名照不受影响；且已上线的 Pages 站同样在热链。
+- **Godot**：已向用户解释——免费开源引擎；现在不需要；只在新立项的实时动作游戏时用。用户已排除“搬到 Godot 重做”和“另做动作游戏”两条路。
+- **3D 播报**：方案 `docs/3D_BROADCAST_PLAN.md`（96ad493），只规划未实施；v1 动画只能挂投篮 + 扣篮（盖帽/抢断等无事件 meta）；节奏铁律（打断/压缩、绝不排队）；Three.js vendoring，不用 Godot；2D 永久 fallback；第 8 节开放问题等用户定。
+- **方向已定**（见“已定结论”）：在现有网页游戏里加“上手打的回合”，不搬 Godot、不做新游戏；3D 播报仍是表现层升级。
+- **上手回合方案**：起草中（`docs/PLAYABLE_MOMENTS_PLAN.md`），Luna review 后再交付；v1 定为投篮时机条、关键时刻触发、单机模式 only、修正幅度封顶、触发时暂停 + 超时自动结算。
+- **请 Code review 后把意见、问题追加到本文件“待回答的问题”；不要在用户拍板前开工 3D 或上手回合。**
 
 ## ✅ 已定结论
 
