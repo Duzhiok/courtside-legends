@@ -1,3 +1,6 @@
+import { createCoachProfile } from "../career/coachProfile.js";
+import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
+
 export const ROOT_SAVE_KEY = "cls_root_v3";
 export const ROOT_SAVE_VERSION = 3;
 
@@ -208,6 +211,42 @@ function validPendingDecision(value) {
   return value.type === "story-event" && isNonEmptyString(value.eventId);
 }
 
+// Optional field (root.coach): every root this build creates now carries one
+// (createRootState() below), but any save made before this field existed has
+// none, and that must keep loading unchanged -- so only validate it when
+// present, never require it. js/career/coachProfile.js's ensureCoachProfile()
+// is how callers backfill a default for those older saves.
+function validateCoachProfile(coach) {
+  if (
+    !isObject(coach)
+    || !Number.isInteger(coach.version)
+    || !Number.isInteger(coach.age) || coach.age < 0 || coach.age > 120
+    || !Number.isFinite(coach.reputation) || coach.reputation < 0 || coach.reputation > 100
+    || !Number.isFinite(coach.cash)
+    || !Number.isFinite(coach.mood) || coach.mood < 0 || coach.mood > 100
+    || !Number.isFinite(coach.energy) || coach.energy < 0
+    || !Number.isInteger(coach.level) || coach.level < 1
+    || !Number.isFinite(coach.xp) || coach.xp < 0
+    || !Number.isInteger(coach.perkPoints) || coach.perkPoints < 0
+    || !isObject(coach.perks)
+  ) {
+    throw new Error("invalid root save");
+  }
+  // Every key must be one of the known perk lines (not more, not fewer) -- a save
+  // from a future build with an extra perk line this build has no UI for must be
+  // rejected rather than silently dropping that line's progress on the next write.
+  const perkKeys = Object.keys(coach.perks).sort();
+  if (perkKeys.join(",") !== [...COACH_PERK_LINES].sort().join(",")) {
+    throw new Error("invalid root save");
+  }
+  for (const line of COACH_PERK_LINES) {
+    const value = coach.perks[line];
+    if (!Number.isInteger(value) || value < 0 || value > COACH_PERK_MAX_LEVEL) {
+      throw new Error("invalid root save");
+    }
+  }
+}
+
 function validateLiveGame(liveGame) {
   if (isObject(liveGame.legacySession)) {
     return;
@@ -256,6 +295,9 @@ function validateRoot(root) {
     || (root.liveGame !== null && !isObject(root.liveGame))
   ) {
     throw new Error("invalid root save");
+  }
+  if (root.coach !== undefined && root.coach !== null) {
+    validateCoachProfile(root.coach);
   }
   if (root.leagueCareer) {
     validateLeagueCareer(root.leagueCareer);
@@ -342,6 +384,7 @@ export function createRootState(overrides = {}) {
     savedAt: 0,
     activeMode: null,
     profile: { accountId: null, settings: {}, accessibility: {} },
+    coach: createCoachProfile(),
     leagueCareer: null,
     story: null,
     liveGame: null,

@@ -99,6 +99,79 @@ test("time-travel root saves round-trip through storage", () => {
   assert.equal(storage.getItem(TEMP_ROOT_SAVE_KEY), null);
 });
 
+// A1 of docs/CAREER_LIFE_ROADMAP.md: root.coach must round-trip like every other field, and
+// every brand-new root must already carry a default profile rather than requiring every caller
+// to remember to add one.
+test("createRootState includes a default coach profile and it round-trips", () => {
+  const storage = createMemoryStorage();
+  const root = createRootState({ activeMode: "timeTravel" });
+  assert.ok(root.coach, "createRootState must populate coach by default");
+  assert.equal(root.coach.level, 1);
+  writeRootSave(root, storage);
+  assert.deepEqual(readRootSave(storage).coach, root.coach);
+});
+
+// The whole point of this field being additive: a save made by a build before root.coach
+// existed must keep loading, unchanged, forever. Simulating that by deleting the field after
+// createRootState() populated it (not by hand-building a root some other way).
+test("a root saved before the coach field existed still round-trips without it", () => {
+  const storage = createMemoryStorage();
+  const root = createRootState({ activeMode: "timeTravel" });
+  delete root.coach;
+  writeRootSave(root, storage);
+  const resumed = readRootSave(storage);
+  assert.equal(resumed.coach, undefined);
+  assert.equal(resumed.activeMode, "timeTravel");
+});
+
+test("root saves reject a malformed coach profile", () => {
+  const base = () => ({
+    version: 1,
+    age: 40,
+    reputation: 55,
+    cash: 1000,
+    mood: 60,
+    energy: 2,
+    level: 3,
+    xp: 10,
+    perkPoints: 1,
+    perks: { tactics: 1, development: 0, negotiation: 0, media: 0 },
+  });
+  const malformedCoaches = [
+    { ...base(), age: -1 },
+    { ...base(), age: 1.5 },
+    { ...base(), reputation: 101 },
+    { ...base(), reputation: -1 },
+    { ...base(), cash: "a lot" },
+    { ...base(), mood: 101 },
+    { ...base(), energy: -1 },
+    { ...base(), level: 0 },
+    { ...base(), level: 1.5 },
+    { ...base(), xp: -1 },
+    { ...base(), perkPoints: -1 },
+    { ...base(), perkPoints: 1.5 },
+    { ...base(), perks: { tactics: 4, development: 0, negotiation: 0, media: 0 } }, // over max level
+    { ...base(), perks: { tactics: -1, development: 0, negotiation: 0, media: 0 } },
+    { ...base(), perks: { tactics: 0, development: 0, negotiation: 0 } }, // missing a line
+    { ...base(), perks: { tactics: 0, development: 0, negotiation: 0, media: 0, extra: 0 } }, // unknown line
+    { ...base(), perks: "not-an-object" },
+    { ...base(), version: "1" },
+    "not-an-object",
+    42,
+    [],
+  ];
+  for (const coach of malformedCoaches) {
+    const storage = createMemoryStorage();
+    const root = createRootState({ activeMode: "timeTravel", coach });
+    assert.throws(
+      () => writeRootSave(root, storage),
+      /invalid root save/,
+      JSON.stringify(coach),
+    );
+    assert.equal(storage.getItem(ROOT_SAVE_KEY), null, "a rejected save must not touch storage");
+  }
+});
+
 test("time-travel resume preserves career story and pending decision", () => {
   const storage = createMemoryStorage();
   const root = createRootState({

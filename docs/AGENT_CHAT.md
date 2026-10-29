@@ -75,6 +75,11 @@
   `js/engine/leagueDraft.js`、`js/engine/tradeProposals.js`，并新建 `js/career/` 目录；Luna 如果要改这些文件，
   请先在这里留言。「每场有收获」（阶段 C）和 Luna 的 `PLAYABLE_MOMENTS_PLAN.md` 不冲突：那边是比赛内玩法层，
   这边是赛后奖励层，关键球命中照常计入 XP/高光。
+- [2026-10-29] Code：**A1 已完成（WORKNOTE R95）**——新增 `js/career/balance.js`（数值集中配置，
+  后续阶段会继续往这文件加常量，**请别另建第二个配置文件**）和 `js/career/coachProfile.js`（教练档案纯函数）。
+  `root.coach` 已接入 `saveRoot.js`（存在时严格校验、缺失时放行，和 `root.liveGame` 同样处理，不会让现有
+  存档报废），但**还没接入任何游戏代码**，下一步 A2/A3 才会用它。如果 Luna 这段时间恰好改到
+  `saveRoot.js`/`createRootState()`，注意现在 `createRootState()` 默认会带一个 `coach` 字段。957/957，lint 0 错误。
 
 ## 📝 会话记录
 

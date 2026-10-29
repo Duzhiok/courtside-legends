@@ -1414,3 +1414,27 @@ Code 决定的"每场有收获"方案（路线图 2.2）：每场结算球员 XP
 风险已写进路线图第 4 节：赌博会抬高 App Store / Google Play 年龄分级（只做文字事件、可整体关闭）；
 投资不点名真实公司；负面剧情只给教练本人，不给真实球员编丑闻。开放问题都给了默认值（第 5 节），用户
 不反对就按默认走。下一步：A1（教练档案 `root.coach` + `saveRoot.js` 校验 + 旧存档迁移）。
+
+### R95：穿越生涯 2.0 · A1 教练档案（Code 提交）
+
+路线图第一步。`js/career/balance.js`——新模块，把 A 阶段要用到的数值集中到一处（开局 35 岁、70 岁
+强制退休、声望/心情默认值、四条天赋线、每线封顶 3 级、XP 曲线、周/休赛期精力发放量），后面阶段会继续
+往这个文件加，不在各处散落魔法数字。`js/career/coachProfile.js`——纯函数模块：`createCoachProfile()`
+给新生涯建档，`ensureCoachProfile(root)` 给没有这个字段的旧存档现场兜默认值（不改 root 本身，调用方
+自己决定要不要存回去，跟 `careerContract.js` 里 `employment || { status: "active" }` 的写法一致）、
+`clampCoachProfile()` 防御性夹位、`applyCoachXp()`/`spendPerkPoint()` 是后面 C5（教练经验/天赋点）要用
+的升级数学，这轮先写好、先测好，还没有任何代码调用它们。
+
+`js/data/saveRoot.js` 扩校验：`root.coach` 的处理方式照抄 `root.liveGame` 的先例——存在时严格校验
+（version/age/reputation/cash/mood/energy/level/xp/perkPoints 范围 + perks 的四条天赋线一个不多一个
+不少），**缺失时直接放行**，因为现在所有玩家的存档都还没有这个字段，真要强制必填的话等于让所有人
+存档瞬间报废。`createRootState()` 从现在起默认带一份 `createCoachProfile()`，往后新建的生涯都会有，
+旧存档靠 `ensureCoachProfile()` 在读取点补。
+
+新增 20 条测试（`tests/coachProfile.test.js` 17 条纯函数测试 + `tests/saveRoot.test.js` 3 条迁移/校验
+测试），mutation check 验证过（砍掉 perks 字段穷举校验那三行，专门测"多一个/少一个天赋线必须拒绝"的
+用例立刻报错）。这一步**完全没有接入任何游戏代码**，纯粹是地基，35/35（saveRoot 专项）+ 17/17
+（coachProfile 专项）+ 全量 957/957（原 937 + 新 20），lint 0 错误，`git diff --check` 通过。
+
+下一步：A2（事件池 v2，按条件触发，原有 6 个线性事件原样迁入）或 A3（日历/精力模型），两者互相独立，
+谁先谁后不影响正确性。
