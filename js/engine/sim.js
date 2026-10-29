@@ -581,7 +581,7 @@ export class GameSim {
       }
     }
     if (this._quiet) {
-      if (isHalf) this.emit("coach", this.S("中场休息——恢复 50 点疲劳", "Halftime — 50 fatigue restored"));
+      if (isHalf) this.emit("coach", this.S("中场休息——恢复 35 点疲劳", "Halftime — 35 fatigue restored"));
       this.emit("coach", this.S(`第 ${this.quarter > 4 ? "加时" : this.quarter} 节开始`, `${this.quarter > 4 ? "Overtime" : `Q${this.quarter}`} begins`));
       return;
     }
@@ -593,12 +593,12 @@ export class GameSim {
     for (const side of [this.home, this.away]) this.autoRotateByMinutes(side, isHalf);
 
     if (isHalf) {
-      this.emit("coach", this.S("中场休息——恢复 50 点疲劳。可调整战术、沟通、换人与站位", "Halftime — 50 fatigue restored. Adjust tactics, talk, subs and positioning"));
+      this.emit("coach", this.S("中场休息——恢复 35 点疲劳。可调整战术、沟通、换人与站位", "Halftime — 35 fatigue restored. Adjust tactics, talk, subs and positioning"));
       this.setPaused(true, "half");
     } else {
       this.emit(
         "coach",
-        this.S(`第${leaving}节结束，节间休息——恢复 25 点疲劳。可调整战术、沟通、换人与站位`, `End of Q${leaving} — quarter break, 25 fatigue restored. Adjust tactics, talk, subs and positioning`)
+        this.S(`第${leaving}节结束，节间休息——恢复 15 点疲劳。可调整战术、沟通、换人与站位`, `End of Q${leaving} — quarter break, 15 fatigue restored. Adjust tactics, talk, subs and positioning`)
       );
       this.setPaused(true, "quarter");
     }
@@ -4344,7 +4344,7 @@ function tickBenchRecovery(side, usedSec) {
   if (!side || !(usedSec > 0)) return;
   const restMin = usedSec / 60;
   for (const p of side.bench || []) {
-    recoverPlayerByRestMinutes(p, restMin, 1.12);
+    recoverPlayerByRestMinutes(p, restMin, 1.0);
     p.benchSinceElapsed = null; // synced continuously while sitting
   }
 }
@@ -4353,21 +4353,21 @@ function tickBenchRecovery(side, usedSec) {
 function applyBenchRecoveryForPlayer(p, sim) {
   if (!p || p.benchSinceElapsed == null || !sim) return;
   const sat = Math.max(0, (sim.elapsedSec || 0) - p.benchSinceElapsed);
-  if (sat > 0) recoverPlayerByRestMinutes(p, sat / 60, 1.12);
+  if (sat > 0) recoverPlayerByRestMinutes(p, sat / 60, 1.0);
   p.benchSinceElapsed = null;
 }
 
 function recoverPlayerByRestMinutes(p, restMin, benchMult = 1) {
   if (!(restMin > 0) || !p) return;
   const resist = fatigueResist(p);
-  const fullMins = clamp(10.3 - (resist - 35) * 0.055, 6, 10.5);
+  const fullMins = clamp(14 - (resist - 35) * 0.055, 8, 14);
   const rate = (100 / fullMins) * benchMult;
   p.fatigue = Math.max(0, (p.fatigue || 0) - restMin * rate);
 }
 
 /**
  * Fatigue recovery.
- * 中场固定回 50；节间（Q1→Q2 / Q3→Q4）固定回 25；
+ * 中场固定回 35；节间（Q1→Q2 / Q3→Q4）固定回 15；
  * 暂停 / 死球仍只是小口喘息。
  */
 function recoverFatigue(side, kind) {
@@ -4375,7 +4375,7 @@ function recoverFatigue(side, kind) {
 
   // 节间 / 中场：固定额度（不按体质放大）
   if (kind === "half" || kind === "quarter") {
-    const flat = kind === "half" ? 50 : 25;
+    const flat = kind === "half" ? 35 : 15;
     for (const p of side.roster || []) {
       p.fatigue = Math.max(0, (p.fatigue || 0) - flat);
       if (moodAmt) p.mood = clamp((p.mood ?? 50) + moodAmt, 15, 95);
@@ -4388,11 +4388,10 @@ function recoverFatigue(side, kind) {
 
   for (const p of side.roster || []) {
     const resist = fatigueResist(p);
-    const fullMins = clamp(10.3 - (resist - 35) * 0.055, 6, 10.5);
+    const fullMins = clamp(14 - (resist - 35) * 0.055, 8, 14);
     let rate = 100 / fullMins;
     const onCourt = onIds.has(p.id);
     if (onCourt && (kind === "timeout" || kind === "deadball")) rate *= 0.82;
-    else if (!onCourt) rate *= 1.12;
 
     let amt = restMin * rate;
     if (kind === "timeout") amt = Math.min(amt, 2.2 + resist * 0.028);
