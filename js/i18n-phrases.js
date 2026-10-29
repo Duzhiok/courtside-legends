@@ -293,7 +293,7 @@ export const PHRASES = [
   ["生成席位", "Create Seats"],
   ["进入下一轮选人 / 比赛", "Next Round: Picks / Game"],
   ["穿越生涯 · 五年篇章", "Time-Travel Career · The Five-Year Chapter"],
-  ["带着有限的未来知识，回到历史一年擅自执教一支球队。每个选择都会被记录进历史。", "Return to a year in history and take over a team with limited future knowledge. Every choice is written into history."],
+  ["带着有限的未来知识，回到历史一年穿越执教一支球队。每个选择都会被记录进历史。", "Return to a year in history and take over a team with limited future knowledge. Every choice is written into history."],
   ["选择历史起点", "Choose Your Starting Year"],
   ["带着有限的未来知识参加面试；不同理念会影响你与管理层共事的方式。", "Interview with limited future knowledge; your philosophy shapes how you work with the front office."],
   ["穿越年份", "Year"],

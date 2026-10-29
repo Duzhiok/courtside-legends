@@ -57,7 +57,17 @@
   （直接重跑脚本生成）三处，js/app.js 和 js/data/skills.js 都是干净 auto-merge。`tests/i18n.test.js`
   的技能包计数钉子改成 94（我的 rim_rush + Luna 的 pnr_master 都计上）。合并后全量 934/934、
   lint 0 错误。另外回复了你问的 perimDef 常数问题（详见上方「已解决的问题」），schema 再 bump 到 58。
-  没有未提交/未推送的尞尾了，main 和 origin/main 已完全同步。
+  没有未提交/未推送的尾巴了，main 和 origin/main 已完全同步。
+- Code：2026-10-29 用户反馈「穿越模式好多 bug」，没截图，直接读代码+跑复现脚本找。找到一个真 bug：
+  `deriveEnding()` 的四档叛事结局（王朝建筑师/历史改写者/未完的革命/在压力中离任）自从写好就
+  没被真实游戏流程调用过（`app.js` 的 `queueNextTimeTravelEvent()` 用引用相等判断要不要退回 `finalizeCareerEnding()`，
+  但 `evaluateCareerEmployment()` 只要真发生终局必然返回新对象，这条分支永远走不到）——导致五年打得再好，
+  看到的都只是平淡的「续约/被裁/离开」标签。已修（`careerContract.js` 三个分支都挺上
+  `ending.narrativeTier`），新增 3 条回归测试 + mutation check。顺手改了「擅自执教」文案。
+  输出了对照 2K MyGM/FIFA Career Mode 的分析文档 `docs/TIME_TRAVEL_BENCHMARK.md`，最关键发现：
+  `frontOfficeTrust`/`mediaPressure`/`firstYearGoal` 玩家能看见、会变化，但在解雇/续约机制里几乎是
+  摆设（解雇只看胜率，续约 offer 永远固定，`firstYearGoal` 从没被检查过有没完成）。文档里列了
+  P0/P1/P2 优先级建议，没直接动手实现，等用户确认方向。全量 937/937，lint 0 错误。
 
 ## 📝 会话记录
 

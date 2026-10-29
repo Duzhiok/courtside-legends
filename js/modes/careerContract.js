@@ -1,3 +1,5 @@
+import { deriveEnding } from "../story/eventEngine.js";
+
 const OFFER_TEMPLATES = [
   {
     id: "rebuild-extension",
@@ -72,6 +74,11 @@ export function evaluateCareerEmployment(root) {
       id: "fired-before-finale",
       label: "在低谷中下课",
       tone: "hard",
+      // Without this the rich 4-tier narrative verdict (deriveEnding: Dynasty
+      // Builder / History Maker / Unfinished Revolution / Departed Under
+      // Pressure) was 100% dead code -- getting fired always showed this same
+      // flat label no matter how the tenure actually went up to that point.
+      narrativeTier: deriveEnding(root),
     };
     return {
       ...root,
@@ -133,6 +140,7 @@ export function acceptCareerContract(root, offerId) {
         id: "renewed-career",
         label: `${offer.title} · ${offer.years}年${offer.salary}薪资`,
         tone: "success",
+        narrativeTier: deriveEnding(root),
       },
       frontOfficeTrust: (root.story.frontOfficeTrust || 0) + offer.effects.trust,
       mediaPressure: Math.max(0, (root.story.mediaPressure || 0) + offer.effects.pressure),
@@ -156,6 +164,7 @@ export function declineCareerContracts(root) {
     id: "left-as-legend",
     label: "带着成果离开",
     tone: "success",
+    narrativeTier: deriveEnding(root),
   };
   return {
     ...root,

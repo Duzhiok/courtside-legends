@@ -858,13 +858,20 @@ function renderTimeTravelReport() {
   card.hidden = report.choices === 0;
   if (card.hidden) return;
   const record = latest?.record ? `${latest.record.w}胜${latest.record.l}负` : "赛季尚未结算";
-  const ending = report.ending ? (getLang() === "en" ? ` · Projected ending: ${report.ending.labelEn || report.ending.label}` : ` · 当前结局倾向：${report.ending.label}`) : "";
+  const tier = report.ending?.narrativeTier;
+  const tierLabel = tier ? (getLang() === "en" ? tier.labelEn || tier.label : tier.label) : "";
+  const endingLabel = report.ending ? (getLang() === "en" ? report.ending.labelEn || report.ending.label : report.ending.label) : "";
+  const ending = report.ending
+    ? (getLang() === "en"
+      ? ` · Ending: ${endingLabel}${tierLabel ? ` (${tierLabel})` : ""}`
+      : ` · 当前结局倾向：${endingLabel}${tierLabel ? `（${tierLabel}）` : ""}`)
+    : "";
   text.textContent = `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}${ending}`;
   if (status) {
     status.textContent = report.finished
       ? getLang() === "en"
-        ? `Five-year arc complete · ${report.championships} titles${report.ending ? ` · Ending: ${report.ending.labelEn || report.ending.label}` : ""}`
-        : `五年篇章已完成 · 冠军 ${report.championships} 次${report.ending ? ` · 结局：${report.ending.label}` : ""}`
+        ? `Five-year arc complete · ${report.championships} titles${endingLabel ? ` · Ending: ${endingLabel}${tierLabel ? ` (${tierLabel})` : ""}` : ""}`
+        : `五年篇章已完成 · 冠军 ${report.championships} 次${endingLabel ? ` · 结局：${endingLabel}${tierLabel ? `（${tierLabel}）` : ""}` : ""}`
       : `五年篇章进度：${report.seasonCount}/${report.maxSeasons}`;
   }
   if (seasons) {
@@ -1123,19 +1130,21 @@ const careerIsOver = (story) => CAREER_OVER_STATUSES.has(story?.employment?.stat
 /** What the player should read when they come back to a career in a given employment state. */
 function careerStateNotice(story) {
   const en = getLang() === "en";
+  const tier = story?.ending?.narrativeTier;
+  const tierSuffix = tier ? (en ? ` Verdict: ${tier.labelEn || tier.label}.` : ` 成绩评级：${tier.label}。`) : "";
   switch (story?.employment?.status) {
     case "fired":
-      return en
+      return (en
         ? "You were fired after two straight seasons under .400. Your five-year chapter ended early."
-        : "连续两个赛季胜率低于 40%，你被解雇了，五年篇章提前结束。";
+        : "连续两个赛季胜率低于 40%，你被解雇了，五年篇章提前结束。") + tierSuffix;
     case "departed":
-      return en
+      return (en
         ? "You left the team with your results in hand. The five-year chapter is over."
-        : "你选择带着成果离开，五年篇章正式结束。";
+        : "你选择带着成果离开，五年篇章正式结束。") + tierSuffix;
     case "renewed":
-      return en
+      return (en
         ? "Contract renewed. Your salary and privileges are in the career record."
-        : "续约已签署，薪资和特权已写入生涯记录。";
+        : "续约已签署，薪资和特权已写入生涯记录。") + tierSuffix;
     default:
       return en
         ? "Career established. Continue to the season center."
