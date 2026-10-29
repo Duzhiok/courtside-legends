@@ -1,0 +1,13 @@
+{
+  "object" : [
+    {
+      "mirror" : "file:///tmp/spm-artifacts/Cordova.xcframework.zip",
+      "original" : "https://github.com/ionic-team/capacitor-swift-pm/releases/download/8.6.0/Cordova.xcframework.zip"
+    },
+    {
+      "mirror" : "file:///tmp/spm-artifacts/Capacitor.xcframework.zip",
+      "original" : "https://github.com/ionic-team/capacitor-swift-pm/releases/download/8.6.0/Capacitor.xcframework.zip"
+    }
+  ],
+  "version" : 1
+}
