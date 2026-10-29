@@ -110,7 +110,7 @@
 |---|---|---|---|---|
 | **A1** | 教练档案 `root.coach`：年龄、声望、个人资产、心情、精力、等级/XP、天赋点、`version`；旧存档自动补默认值；`saveRoot.js` 校验扩充 | 新 `js/career/coachProfile.js`、`js/career/balance.js`；改 `js/data/saveRoot.js` | 新旧存档都能读写；校验拒绝非法值；单测覆盖迁移 | ✅ 完成（R95） |
 | **A2** | 事件系统 v2：从「6 个写死的线性事件」改为「带触发条件的事件池」（条件：任期第几年、战绩、信任、声望、心情、flags、冷却、权重）；**原 6 个事件原样迁入、旧存档 `eventLog` 继续有效** | 新 `js/career/eventPool.js`；改 `js/story/eventEngine.js`（保留导出 API 不变） | 原 `storyEventEngine.test.js` 全过；新条件触发单测 | ✅ 完成（R96） |
-| **A3** | 日历与精力：比赛日 / 周 / 休赛期三种时间点；精力发放与过期；批量模拟时的「日程预设」接口（先只有空实现，阶段 E 填内容） | 新 `js/career/calendar.js` | 82 场赛季正好产生约 20 个周窗口；批量模拟不弹窗 | 📋 |
+| **A3** | 日历与精力：比赛日 / 周 / 休赛期三种时间点；精力发放与过期；批量模拟时的「日程预设」接口（先只有空实现，阶段 E 填内容） | 新 `js/career/calendar.js` | 82 场赛季正好产生约 20 个周窗口；批量模拟不弹窗 | ✅ 完成（R97） |
 
 ### 阶段 B：多段执教生涯（第 1 条）
 
@@ -212,3 +212,11 @@
   解耦。原 6 个事件原样保留在 `eventEngine.js` 里，`startOffset` 改成 `conditions.minTenureYear`，选人算法从
   `.find()` 改成按 `order` 排序，行为完全一致（原 5 条 `storyEventEngine.test.js` 零改动全过）。新增 17 条
   `eventPool.test.js` 纯机制测试，mutation check 过。全量 974/974，lint 0 错误。下一步：A3（日历精力）。
+- 2026-10-29：A3 完成。`js/career/calendar.js`：每 4 场比赛 = 1 周，满周发 3 点精力（不累加，上周用剩下的会在
+  下次发放时被换掉），休赛期一次性发 10 点；「日程预设」接口是 `{id, apply(coach)}` 形状，现在只有空实现
+  `NULL_SCHEDULE_PRESET`，等阶段 E 填内容。精力的直接读写（`grantEnergy`/`spendEnergy`/`canAffordEnergy`）放进了
+  `coachProfile.js`（跟 A1 的升级/天赋点函数同一文件，因为都是“改教练对象本身的字段”），`calendar.js` 只管
+  “什么时候该发”，不重复实现。若 82 场赛季循环 `onGameCompleted` 恰好触发 20 次周边界（符合验收标准）。
+  新增 13 条 `calendar.test.js` + 5 条 `coachProfile.test.js` 精力测试，两个 mutation 都被抓住（周边界判断改成
+  `>= 0`、`grantEnergy` 改成累加）。全量 992/992，lint 0 错误。**阶段 A（地基）全部完成**，下一步进阶段 B
+  （多段执教）或提前做 C（每场有收获，C 只依赖 A，不依赖 B）。

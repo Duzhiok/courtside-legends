@@ -141,3 +141,31 @@ export function spendPerkPoint(coach, line) {
     perks: { ...coach.perks, [line]: current + 1 },
   };
 }
+
+/**
+ * Set energy to exactly `amount` (not add to it). Used at week/offseason boundaries
+ * (js/career/calendar.js) -- unspent energy from the previous window is intentionally lost, not
+ * carried over, per roadmap §2.1 ("不用的精力不累积，逼你做出选择").
+ */
+export function grantEnergy(coach, amount) {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new RangeError(`energy grant must be a non-negative number, got ${amount}`);
+  }
+  return { ...coach, energy: amount };
+}
+
+export function canAffordEnergy(coach, cost) {
+  return Number.isFinite(cost) && cost >= 0 && coach.energy >= cost;
+}
+
+/** Spend `cost` energy. Callers should check canAffordEnergy() first; this throws rather than
+ * clamping, so a bug that tries to overspend fails loudly instead of silently going negative. */
+export function spendEnergy(coach, cost) {
+  if (!Number.isFinite(cost) || cost <= 0) {
+    throw new RangeError(`energy cost must be a positive number, got ${cost}`);
+  }
+  if (!canAffordEnergy(coach, cost)) {
+    throw new Error("not enough energy");
+  }
+  return { ...coach, energy: coach.energy - cost };
+}

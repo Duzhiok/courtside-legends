@@ -4,10 +4,13 @@ import {
   COACH_PROFILE_VERSION,
   advanceCoachAge,
   applyCoachXp,
+  canAffordEnergy,
   clampCoachProfile,
   createCoachProfile,
   ensureCoachProfile,
+  grantEnergy,
   isRetirementAge,
+  spendEnergy,
   spendPerkPoint,
   withCoachProfile,
   xpToNextLevel,
@@ -164,4 +167,40 @@ test("spendPerkPoint rejects spending with no points available", () => {
 test("spendPerkPoint rejects spending past the max level for a line", () => {
   const coach = createCoachProfile({ perkPoints: 1, perks: { tactics: 3, development: 0, negotiation: 0, media: 0 } });
   assert.throws(() => spendPerkPoint(coach, "tactics"), /already maxed/);
+});
+
+test("grantEnergy sets energy to exactly the given amount, not additive", () => {
+  const coach = createCoachProfile({ energy: 7 });
+  const next = grantEnergy(coach, 3);
+  assert.equal(next.energy, 3, "leftover energy from before the grant must not carry over");
+  assert.equal(coach.energy, 7, "grantEnergy does not mutate its input");
+});
+
+test("grantEnergy rejects a negative or non-finite amount", () => {
+  const coach = createCoachProfile();
+  for (const bad of [-1, NaN, Infinity, "3"]) {
+    assert.throws(() => grantEnergy(coach, bad), RangeError, String(bad));
+  }
+  assert.doesNotThrow(() => grantEnergy(coach, 0));
+});
+
+test("canAffordEnergy / spendEnergy happy path", () => {
+  const coach = createCoachProfile({ energy: 3 });
+  assert.equal(canAffordEnergy(coach, 3), true);
+  assert.equal(canAffordEnergy(coach, 4), false);
+  const next = spendEnergy(coach, 2);
+  assert.equal(next.energy, 1);
+  assert.equal(coach.energy, 3, "spendEnergy does not mutate its input");
+});
+
+test("spendEnergy throws rather than going negative when overspending", () => {
+  const coach = createCoachProfile({ energy: 1 });
+  assert.throws(() => spendEnergy(coach, 2), /not enough energy/);
+});
+
+test("spendEnergy rejects a non-positive cost", () => {
+  const coach = createCoachProfile({ energy: 5 });
+  for (const bad of [0, -1, NaN]) {
+    assert.throws(() => spendEnergy(coach, bad), RangeError);
+  }
 });

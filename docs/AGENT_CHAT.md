@@ -85,6 +85,12 @@
   `startOffset` 换成了等价的 `conditions.minTenureYear`。如果 Luna 以前或这段时间改过
   `eventEngine.js` 里的 `EVENT_DEFINITIONS`/`startOffset`/`isEventResolved`，现在它们已被改名为 `EVENT_POOL`/
   `conditions.minTenureYear`，请注意 merge 时的命名差异。974/974，lint 0 错误。
+- [2026-10-29] Code：**A3 已完成（WORKNOTE R97），阶段 A（地基）全部收工**——新 `js/career/calendar.js`
+  （周/休赛期时间点 + 日程预设空接口），并在 `js/career/coachProfile.js` 追加了 `grantEnergy`/`spendEnergy`/
+  `canAffordEnergy` 三个函数（如果 Luna 这段时间恰好也改过 `coachProfile.js`，请注意文件尾部多了这三个
+  函数）。**还是没有接入任何游戏代码**，三步全是纯函数地基。接下来要做阶段 B（多段执教，T11）或者
+  提前做阶段 C（每场有收获，T12），谁先谁后还未定，两者都只依赖阶段 A。如果 Luna 想接手其中一个，
+  先在这里啦一声避免撞车。992/992，lint 0 错误。
 
 ## 📝 会话记录
 
