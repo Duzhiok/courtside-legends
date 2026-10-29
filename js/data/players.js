@@ -535,7 +535,7 @@ export function deriveSubAttributes({ pos, three, mid, paint, defense, rebound, 
   // 外线防守 / 内线防守: split the single `defense` rating by zone, same spirit as the old
   // runtime-only perimeterDefenseRating() in sim.js -- except now it's a real, persisted,
   // player-facing number instead of a hidden formula nobody could see or scout.
-  const perimDiscount = p === "C" ? 0.32 : p === "PF" ? 0.18 : 0;
+  const perimDiscount = p === "C" ? 0.4 : p === "PF" ? 0.25 : 0;
   const mobility = clamp(((speed || 50) - 50) / 40, 0, 1);
   let perimDef = defense * (1 - perimDiscount * (1 - mobility * 0.5)) + (steal - 50) * 0.15;
   perimDef = clamp(Math.round(perimDef), 15, 99);

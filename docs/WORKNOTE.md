@@ -1328,3 +1328,30 @@ Muse 和我各自从同一个用户反馈（金币赛五中锋碾压五外）出
 3. **测试插曲（86269fc）。** 本批全量第一次跑挂了 1 个断言，这次不是抖动——两次重跑挂在同一条（`tests/i18n.test.js` 的 R59 技能描述测试）：它把技能包总数钉在 92，新技能让总数变 93；`pnr_master` 的 `descEn` 本来就是无 CJK 的，只有计数钉子过期。钉子改 92→93，针对文件 19/19，全量重跑 934/934，lint 0 错误（2 条原有 warning）。教训：以后新增技能包要同步改这处计数钉子，跟改卡面升 schema 同一条规矩。
 
 **测试总结**：全量 934/934，lint 0 错误（2 条原有 warning）。
+
+### R92：合并本地 main 与 Luna 的 20 个远程提交；修复 perimDef 折扣常数漂移（Code 提交）
+
+两件事：
+
+1. **本地 `main`（3 个未推提交）与 `origin/main`（Luna 的 20 个提交，含 R89/R90/R91 和多份计划文档）分岔。`git merge origin/main`
+   冲突集中在三处都是“两边同时改同一个计数/版本号”，不是真正的逻辑冲突：`docs/WORKNOTE.md`（两边都用了
+   「R86」标题，Luna 的三条往后改成 R89/R90/R91）、`js/data/rosterCache.js`（我 bump 到 55、Luna bump 到 56，
+   合并成 57）、`tests/fixtures/cardSchema.json`（直接重跑 `update-schema-fixture.mjs` 重生成，不手工合 JSON）。
+   `js/app.js` 和 `js/data/skills.js` 两边都改了但行没重叠，干净 auto-merge（`SKILL_PACKS` 最终 94 个：我的
+   `rim_rush` + Luna 的 `pnr_master` 都在）。`tests/i18n.test.js` 的技能包计数钉子我和 Luna 各自独立改成了 93
+   （各自只算了自己新增那一个），合并后两个新技能都在所以重新改为 94。合并提交 `dcdb1c4`，`npm test` 重跑
+   934/934、lint 0 错误、`git diff --check` 通过后推送。另检查了 `integrate/main-plus-feature`、
+   `backup/integrate-before-identity-rewrite` 两个老分支：前者用 `git cherry` 查出只有 3 个 main 没有的提交，
+   都是很早以前 R24-R27 阶段的文档提交（引用的测试数/R 编号早已过时），判定为已被后续工作彻底覆盖的
+   死分支，不合并。`feature/time-travel-foundation` 与其远程分支完全同步（0 ahead/0 behind），无需处理。
+2. **回答 Luna 在 `docs/AGENT_CHAT.md` 里问的问题并修正。** Luna review R85 时发现 `deriveSubAttributes()` 的
+   `perimDiscount`（C 0.32 / PF 0.18）与 `sim.js` 里作为旧存档 fallback 保留的真正老公式（C 0.4 / PF 0.25）
+   对不上，问是手滑还是故意重调。查 `git log -S perimDiscount`：0.32/0.18 从引入它的第一个提交
+   （`02e62fa`）开始就是这个数，没有中途被改过的历史；代码注释写的是“same spirit as the old runtime-only
+   perimeterDefenseRating()”，提交信息也只说要把隐藏公式暴露成可见属性，没有任何地方解释过为什么要把
+   折扣改弱（C 弱 20%、PF 弱 28%，不是舍入误差）。判定为记错数字，改回旧常数：`perimDiscount`
+   改为 `p === "C" ? 0.4 : p === "PF" ? 0.25 : 0`，与老公式完全对齐。`tests/subAttributes.test.js` 的断言都是
+   相对比较，对新常数 7/7 仍然全绿。卡面变了，schema 57→58，`cardSchema.json` 重生成。回复已写入
+   `docs/AGENT_CHAT.md` 的「已解决的问题」节，没改写删除 Luna 的原话。
+
+**测试总结**：待全量重跑确认。
