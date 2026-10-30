@@ -3721,10 +3721,11 @@ $("#btn-legend-finish").onclick = () => {
 const MARKET_REFRESH_COST = 50;
 const COACH_REFRESH_COST = 30;
 const SKILL_REFRESH_COST = 25;
-// 金币晋级赛现在把球员/教练/技能包合并成一个列表，每样少而精，避免一次刷出二十几张卡要一直滚动条。
-const CAREER_SHOP_SIZE = 5;
-const CAREER_COACH_SHOP_SIZE = 2;
-const SKILL_SHOP_SIZE = 3;
+// 金币晋级赛合并列表固定 10 行：1 教练 + 1 技能包 + 8 球员（教练/技能包固定在第 1、2 行，
+// 球员在后按排序下拉框排好），不再随机穿插。
+const CAREER_SHOP_SIZE = 8;
+const CAREER_COACH_SHOP_SIZE = 1;
+const SKILL_SHOP_SIZE = 1;
 
 /** 刷新教练货架 + 技能包货架（可只刷其一） */
 function rollCareerStaffShops(c, { coaches = true, skills = true } = {}) {
@@ -5455,17 +5456,6 @@ function playerMarketCardHtml(p, c, { duel = false, scoutOn = false, homeTactic 
   </div>`;
 }
 
-/** 把额外的卡（教练/技能包）随机插入已排序的主列表中，不打乱主列表内部相对顺序
- * （球员仍按排序下拉框排好，方便比较；只是教练/技能卡穿插的位置是随机的）。 */
-function interleaveRandom(primary, extras) {
-  const result = [...primary];
-  for (const item of extras) {
-    const idx = Math.floor(Math.random() * (result.length + 1));
-    result.splice(idx, 0, item);
-  }
-  return result;
-}
-
 function paintFreeAgentList(c, duel = false) {
   const box = $("#free-agent-list");
   if (!box) return;
@@ -5519,7 +5509,7 @@ function paintCareerMarketList(c) {
   );
   const coachCards = (c.coachShop || []).map((offer) => coachMarketCardHtml(offer, budget, c.team?.coach));
   const skillCards = (c.skillShop || []).map((offer) => skillOfferCardHtml(offer, budget));
-  box.innerHTML = interleaveRandom(playerCards, [...coachCards, ...skillCards]).join("");
+  box.innerHTML = [...coachCards, ...skillCards, ...playerCards].join("");
   box.querySelectorAll("[data-buy]").forEach((btn) => {
     if (btn.disabled) return;
     btn.onclick = () => buyPlayer(btn.dataset.buy);
