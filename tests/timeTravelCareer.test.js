@@ -96,6 +96,52 @@ test("interview generation rejects unsupported inputs", () => {
     () => generateInterviewOffers({ ...INPUT, seed: Infinity }),
     /seed|integer|finite/i,
   );
+  assert.throws(
+    () => generateInterviewOffers({ ...INPUT, origin: "madeUpOrigin" }),
+    /origin/i,
+  );
+});
+
+test("an unspecified origin behaves identically to the explicit default", () => {
+  const withDefault = generateInterviewOffers({ ...INPUT, origin: "generalist" });
+  const omitted = generateInterviewOffers(INPUT);
+  assert.deepEqual(withDefault, omitted);
+});
+
+test("a non-default origin nudges every offer on the board, not just the one accepted", () => {
+  const plain = generateInterviewOffers(INPUT);
+  const grounded = generateInterviewOffers({ ...INPUT, origin: "grassroots" });
+  assert.equal(grounded.length, plain.length);
+  for (let i = 0; i < plain.length; i++) {
+    assert.equal(grounded[i].id, plain[i].id, "origin must not change which teams/archetypes appear");
+    assert.equal(grounded[i].trust, plain[i].trust + 6, "grassroots origin trust delta");
+    assert.equal(grounded[i].pressure, plain[i].pressure - 5, "grassroots origin pressure delta");
+    assert.equal(grounded[i].authority, plain[i].authority - 5, "grassroots origin authority delta");
+  }
+});
+
+test("accepting an offer persists the chosen origin on story.origin and story.flags.origin", () => {
+  const prologue = createTimeTravelPrologue({ ...INPUT, origin: "overseas" });
+  const root = acceptInterviewOffer(prologue, prologue.offers[0].id);
+  assert.equal(root.story.origin, "overseas");
+  assert.equal(root.story.flags.origin, "overseas");
+});
+
+test("accepting an offer with no origin specified defaults story.origin to generalist", () => {
+  const prologue = createTimeTravelPrologue(INPUT);
+  const root = acceptInterviewOffer(prologue, prologue.offers[0].id);
+  assert.equal(root.story.origin, "generalist");
+  assert.equal(root.coach.reputation, 50, "generalist applies zero reputation delta to the default starting reputation");
+});
+
+test("accepting an offer applies the origin's reputation delta to the starting coach profile", () => {
+  const prologue = createTimeTravelPrologue({ ...INPUT, origin: "formerPlayer" });
+  const root = acceptInterviewOffer(prologue, prologue.offers[0].id);
+  assert.equal(root.coach.reputation, 60, "formerPlayer: default starting reputation 50 + delta 10");
+  // The origin must only touch reputation -- not coach.perks or story.relationships, neither of
+  // which any gameplay logic reads yet (see coachOrigins.js's applyOriginToCoach comment).
+  assert.deepEqual(root.coach.perks, { tactics: 0, development: 0, negotiation: 0, media: 0 });
+  assert.deepEqual(root.story.relationships, { owner: 0, gm: 0, coach: 0, players: 0, media: 0 });
 });
 
 test("time-travel prologue accepts an offer into a historical career", () => {
@@ -105,7 +151,7 @@ test("time-travel prologue accepts an offer into a historical career", () => {
 
   assert.deepEqual(
     { ...prologue, offers: undefined },
-    { ...INPUT, offers: undefined, selectedOfferId: null },
+    { ...INPUT, origin: "generalist", offers: undefined, selectedOfferId: null },
   );
   assert.equal(root.activeMode, "timeTravel");
   assert.equal(root.leagueCareer.kind, "timeTravel");

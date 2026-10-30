@@ -1743,3 +1743,49 @@ border 简写报告不准——明明样式表里的值是对的、截图里颜�
 下一步：轻量版教练出身系统（本土草根 / 海外经历 / NBA 球员转型 / 名校助教，不新增真实海外
 球员数据库，主要影响初始声望/信任/面试 offer 质量和叙事标签），然后回到 B4（执教段落 stints，取消
 五年硬上限）。
+
+### T16：轻量版教练出身故事（E3 之后、B4 之前的插队项）
+
+新 `js/career/coachOrigins.js`，完全无依赖的纯函数模块（5 个候选：通才教练/本土草根/海外执教经历/
+NBA 球员转型/名校助教，每个都有中英双语标题+描述）。故意没改扩展 `roster.json`——用户原话是“不新增真实
+海外球员数据库，海外经历只当背景和数值 modifier”，所以整个系统就是个纯数值/文本层，不模拟任何
+欧洲/亚洲/G 联赛的比赛。
+
+**数值效果只绑在两个已经被真实消费的字段上**，这是设计前先核实过的：
+
+- `applyOriginToOffer(offer, originId)`：给面试阶段生成的**每一份** offer（不只是最终接受的那一份）
+  的 `trust`/`pressure`/`authority` 加上来自该出身的偏移量，满 0-100 满打的那种 clamp。
+- `applyOriginToCoach(coach, originId)`：只改 `coach.reputation`（R101 已接进 B3 续约菜单的那个字段）。
+
+**故意没摸的两个字段**（虽然路线图原文写的是“可选初始 perk 或哲学偏好”）：
+
+- `coach.perks.<line>`：全仓库 grep 确认没任何代码读过这四条线，A1 当初就留了这个注释；
+- `root.story.relationships`：本以为是已接通的字段（`eventEngine.js` 的故事事件效果确实会累加它），
+  但再深查一层发现**没有任何地方读过它**（只写不读）。给这两个字段导入初始值等于在已经不被消费的
+  字段上再堆一层静态数据，和 E3 拒绝新开“家庭满意度”字段是同一个闸门，这次直接在
+  `applyOriginToCoach` 的注释里写清楚了原因。
+
+**叙事标签**：`acceptInterviewOffer()` 现在把 `origin` 同时写入 `root.story.origin`（显示用）和
+`root.story.flags.origin`（让 A2 现有的 `eventPool.js` 条件匹配器以后能直接读这个 flag，不用改那边的引
+擎代码，是为未来特定出身的剧情事件预留的接口）。
+
+**向后兼容**：`origin` 是全链路可选字段，默认值 `generalist`（零修正）——`generateInterviewOffers`/
+`createTimeTravelPrologue` 未传 `origin` 时行为与之前完全一致，因为现有大量调用方（单测、QA 脚本、
+未来可能的旧存档 resume 流程）都从来没传过这个参数。`saveRoot.js` 的 `validateTimeTravelStory` 同样按
+选填字段处理（跟 B1 `seasonGoal` 同一套规则）——早届存档没有 `story.origin` 也不会被判定为非法。
+
+**UI**：`index.html` 在执教理念下方加了一个 “教练出身” 下拉框 + 描述段落。过程中抓到一个真正的
+**i18n 集成问题**（不是 mock 出来的）：都是通过真实浏览器在英文模式下打开过穿越页，再切回中文才发
+现的：`applyStaticLang()` 的 DOM 遍历器只会回复它当初见过包含中文的文本节点；我的 origin `<option>`
+是用 `L(zh, en)` 在 JS 源头生成的（跟 i18n 文档注释要求的一致），英文模式下生成的文本根本没有中文字符，
+这个遍历器永远不会没没记得它——所以切回中文时它站那不动了。与 `ensureTimeTravelYears()`（纯数字，
+无需翻译）不同，我把 `ensureTimeTravelOrigins()` 改成每次打开都重建选项（保留已选中的值），
+而不是「只填一次」的守卫条件。
+
+新增 12 条 `tests/coachOrigins.test.js` + `tests/timeTravelCareer.test.js` 里 7 条集成测试（2 个 mutation
+（offer 未被改、coach 未被改）都被抓住）+ 新增 `scripts/qa/coach-origins.mjs`（26/26，框住了上述
+语言切换的 i18n 问题）。
+
+全量 1075/1075，lint 0 错误，diff-check 过。
+
+下一步：正式回到 B4——执教段落 stints，取消五年硬上限，合同年限才是真正的上限。

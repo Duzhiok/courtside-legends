@@ -260,6 +260,7 @@ import {
   createTimeTravelPrologue,
   resolveFutureKnowledgeChoice,
 } from "./modes/timeTravelCareer.js";
+import { DEFAULT_COACH_ORIGIN, coachOrigin, listCoachOrigins } from "./career/coachOrigins.js";
 import {
   buildCareerReport,
   finalizeCareerEnding,
@@ -818,6 +819,42 @@ function ensureTimeTravelYears() {
   select.value = years.includes(1991) ? "1991" : String(years[0] || "");
 }
 
+function renderTimeTravelOriginDesc() {
+  const select = $("#time-travel-origin");
+  const desc = $("#time-travel-origin-desc");
+  if (!select || !desc) return;
+  const origin = coachOrigin(select.value);
+  desc.textContent = L(origin.description, origin.descriptionEn);
+}
+
+function ensureTimeTravelOrigins() {
+  const select = $("#time-travel-origin");
+  if (!select) return;
+  // Unlike ensureTimeTravelYears() (plain numbers, no translation needed), these labels are
+  // picked via L() at creation time -- so unlike the static HTML <option>s for philosophy, they
+  // will NOT get retranslated by applyStaticLang()'s DOM walker on a language toggle (that walker
+  // only restores text it originally saw contain CJK). Rebuilding from scratch on every call,
+  // instead of a populate-once guard, keeps the options correct for whatever language is active
+  // right now, including "opened once in en, came back after switching to zh".
+  const previousValue = select.value;
+  const origins = listCoachOrigins();
+  select.innerHTML = "";
+  for (const origin of origins) {
+    const option = document.createElement("option");
+    option.value = origin.id;
+    option.textContent = L(origin.label, origin.labelEn);
+    select.appendChild(option);
+  }
+  select.value = origins.some((origin) => origin.id === previousValue)
+    ? previousValue
+    : DEFAULT_COACH_ORIGIN;
+  if (!select.dataset.wired) {
+    select.dataset.wired = "1";
+    select.addEventListener("change", renderTimeTravelOriginDesc);
+  }
+  renderTimeTravelOriginDesc();
+}
+
 function renderTimeTravelResources() {
   const story = state.story;
   const resources = $("#time-travel-resources");
@@ -1276,6 +1313,7 @@ function careerStateNotice(story) {
 
 function openTimeTravelScreen() {
   ensureTimeTravelYears();
+  ensureTimeTravelOrigins();
   const hasCareer = state.leagueCareer?.kind === "timeTravel";
   if (hasCareer) {
     if (state.story?.pendingDecision) {
@@ -1311,8 +1349,9 @@ $("#btn-time-travel-interview")?.addEventListener("click", () => {
   try {
     const year = Number($("#time-travel-year")?.value);
     const philosophy = $("#time-travel-philosophy")?.value;
+    const origin = $("#time-travel-origin")?.value || DEFAULT_COACH_ORIGIN;
     const seed = Date.now() >>> 0;
-    timeTravelPrologue = createTimeTravelPrologue({ year, philosophy, seed });
+    timeTravelPrologue = createTimeTravelPrologue({ year, philosophy, origin, seed });
     renderTimeTravelOffers();
     setTimeTravelStatus("收到三份面试邀请，请选择你的历史起点。");
   } catch (error) {

@@ -1,6 +1,7 @@
 import { createCoachProfile } from "../career/coachProfile.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
 import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
+import { isKnownCoachOrigin } from "../career/coachOrigins.js";
 
 export const ROOT_SAVE_KEY = "cls_root_v3";
 export const ROOT_SAVE_VERSION = 3;
@@ -206,6 +207,12 @@ function validateTimeTravelStory(root) {
   // for root.coach.
   if (story.seasonGoal !== undefined) {
     validateSeasonGoal(story.seasonGoal);
+  }
+  // Optional (root.story.origin, lightweight coach origin stories): old saves predate it entirely
+  // (and story.philosophy itself has never been validated here either), so this is only checked
+  // when present -- same optional-field rule as seasonGoal/root.coach above.
+  if (story.origin !== undefined && !isKnownCoachOrigin(story.origin)) {
+    throw new Error("invalid root save");
   }
 }
 

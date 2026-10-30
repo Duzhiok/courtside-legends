@@ -4,6 +4,13 @@ import { buildCpuTeamForYear, createSeason } from "../engine/season.js";
 import { createRootState } from "../data/saveRoot.js";
 import { createLeagueCareer, recordCareerEvent } from "./leagueCareer.js";
 import { buildSeasonGoal } from "../career/seasonGoals.js";
+import { createCoachProfile } from "../career/coachProfile.js";
+import {
+  DEFAULT_COACH_ORIGIN,
+  applyOriginToCoach,
+  applyOriginToOffer,
+  isKnownCoachOrigin,
+} from "../career/coachOrigins.js";
 
 const PHILOSOPHIES = new Set([
   "analytics",
@@ -76,7 +83,7 @@ function mulberry32(seed) {
   };
 }
 
-function validateInput({ year, philosophy, seed } = {}) {
+function validateInput({ year, philosophy, seed, origin } = {}) {
   if (!Number.isInteger(year)) {
     throw new TypeError("year must be an integer");
   }
@@ -89,6 +96,12 @@ function validateInput({ year, philosophy, seed } = {}) {
   }
   if (!Number.isFinite(seed) || !Number.isInteger(seed)) {
     throw new TypeError("seed must be a finite integer");
+  }
+  // origin is optional (defaults to the zero-modifier "generalist") so every existing caller that
+  // predates this feature -- tests, QA scripts, old saves resuming a prologue -- keeps working
+  // unchanged; only an explicitly-passed unknown id is rejected.
+  if (origin !== undefined && !isKnownCoachOrigin(origin)) {
+    throw new TypeError("origin is not supported");
   }
   return historical;
 }
@@ -121,7 +134,7 @@ function selectFromThird(rng, teams) {
 
 export function generateInterviewOffers(input) {
   const historical = validateInput(input);
-  const { year, philosophy, seed } = input;
+  const { year, philosophy, seed, origin } = input;
   const rng = mulberry32((seed >>> 0) ^ hashString(`${year}:${philosophy}`));
   const ranked = historical.teams
     .map((team) => ({ team, score: teamStrength(year, team) }))
@@ -141,22 +154,26 @@ export function generateInterviewOffers(input) {
   return thirds.map((third, index) => {
     const team = selectFromThird(rng, third).team;
     const archetype = archetypes[index];
-    return {
+    const offer = {
       id: `${year}-${team.id}-${archetype}`,
       teamId: team.id,
       teamName: team.name,
       archetype,
       ...OFFER_DETAILS[archetype],
     };
+    // Every offer on the board reads the origin's spin, not just the one the player eventually
+    // accepts -- a grassroots climber looks more trustworthy-but-lower-authority across the board.
+    return applyOriginToOffer(offer, origin ?? DEFAULT_COACH_ORIGIN);
   });
 }
 
 export function createTimeTravelPrologue(input) {
-  const { year, philosophy, seed } = input || {};
+  const { year, philosophy, seed, origin } = input || {};
   return {
     year,
     philosophy,
     seed,
+    origin: origin ?? DEFAULT_COACH_ORIGIN,
     offers: generateInterviewOffers(input),
     selectedOfferId: null,
   };
@@ -206,15 +223,21 @@ export function acceptInterviewOffer(prologue, offerId) {
   // original flavor-text summary shown on the offer card, now driven by the same computed goal so
   // the two can't drift out of sync.
   const seasonGoal = { ...buildSeasonGoal(season.teams, offer.teamId), year: prologue.year, status: "active" };
+  const origin = prologue.origin ?? DEFAULT_COACH_ORIGIN;
 
   return createRootState({
     activeMode: "timeTravel",
+    // The origin only ever touches reputation (wired into B3's renewal menu since R101) -- not
+    // coach.perks or story.relationships, which no gameplay code reads yet (see coachOrigins.js's
+    // applyOriginToCoach comment for why that's deliberate, not an oversight).
+    coach: applyOriginToCoach(createCoachProfile(), origin),
     leagueCareer,
     story: {
       storyId,
       startYear: prologue.year,
       currentChapter: "prologue",
       philosophy: prologue.philosophy,
+      origin,
       employer: offer.teamId,
       futureKnowledge: 3,
       frontOfficeTrust: offer.trust,
@@ -224,7 +247,10 @@ export function acceptInterviewOffer(prologue, offerId) {
       promises: [
         { id: "first-year-goal", text: seasonGoal.label, status: "active" },
       ],
-      flags: {},
+      // origin is mirrored into flags too (not just the top-level story.origin field above) so A2's
+      // existing eventPool.js condition matcher -- which only knows how to read story.flags -- can
+      // gate a future origin-flavored event without any changes to that engine.
+      flags: { origin },
       seasonGoal,
       eventLog: [
         {

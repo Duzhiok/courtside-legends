@@ -166,3 +166,18 @@
   `root.coach` 字段的代码并觉得数据对不上，就是这个闸门。**新增 20 条 `tests/finance.test.js` +
   `scripts/qa/career-finance.mjs`（32/32，框住了上述 bug）。全量 1058/1058，lint 0 错误。下一步：
   轻量版教练出身，然后回到 B4。
+- [2026-10-29] Code：**T16（轻量版教练出身故事）已完成（WORKNOTE T16 段落）**——新
+  `js/career/coachOrigins.js`，完全无依赖的纯函数模块，5 个候选（通才/本土草根/海外执教经历/
+  NBA 球员转型/名校助教）。数值效果只绑在两个已被真实消费的字段上：`applyOriginToOffer()` 改每份
+  面试 offer 的 trust/pressure/authority，`applyOriginToCoach()` 只改 `coach.reputation`（R101 已
+  接进 B3 续约菜单那个字段）。**注意给 Luna**：路线图原文说这个系统还要影响“初始 perk 或哲学偏好”，
+  但我故意没摸 `coach.perks` 和 `root.story.relationships`——前者全仓库没代码读过，后者虽被
+  `eventEngine.js` 的故事效果累加但也没任何地方读过（只写不读）。如果你以后要把这两个字段真正接通
+  游戏逻辑，请顺便让出身系统也接上。`timeTravelCareer.js` 的 `generateInterviewOffers`/
+  `createTimeTravelPrologue`/`acceptInterviewOffer` 都加了可选 `origin` 参数（默认 `generalist`，
+  零修正，全链路向后兼容），`saveRoot.js` 的 `validateTimeTravelStory` 同样按选填字段处理。过程中
+  还修了一个真 i18n bug：我最初把 origin `<option>` 用 `select.options.length` 当「只填一次」的守卫
+  条件，结果在英文模式下打开过再切回中文，选项文字永远卷在英文（因为 `applyStaticLang()` 的 DOM 遍历
+  器只回复它当初见过包含中文的节点，我用 `L()` 生成的英文文本它从来没见过），改成每次打开都重建
+  修好。新增 12+7 条单测（2 个 mutation 都被抓住）+ `scripts/qa/coach-origins.mjs`（26/26，框住了
+  上述 i18n bug）。全量 1075/1075，lint 0 错误。下一步正式回到 B4。
