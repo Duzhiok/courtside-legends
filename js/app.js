@@ -305,6 +305,19 @@ import {
   evaluateCareerEmployment,
 } from "./modes/careerContract.js";
 import {
+  availableAssetClasses,
+  buyHouse,
+  canAffordHouse,
+  canAffordInvestment,
+  currentCoachSalary,
+  houseTiers,
+  investmentForecast,
+  placeInvestment,
+  settleCoachFinances,
+} from "./career/finance.js";
+import { INVESTMENT_STAKE } from "./career/balance.js";
+import { ensureCoachProfile } from "./career/coachProfile.js";
+import {
   renderCareerHistory,
   renderDevelopmentPlans,
   renderDraftBoard,
@@ -562,6 +575,12 @@ function currentRootState({ liveGame = "preserve" } = {}) {
       settings: {},
       accessibility: {},
     },
+    // Like liveGame below: `state` has no top-level mirror of root.coach (only finance.js's
+    // handlers and resumeLongCareer() ever touch it), so without this fallback every snapshot
+    // here would silently reset the coach's cash/housing/investments back to
+    // createRootState()'s brand-new default -- E3's whole point is that salary/purchases
+    // persist, so this must read whatever was last written to state.longCareerRoot.
+    coach: state.longCareerRoot?.coach,
     leagueCareer,
     story: state.story,
     liveGame: resolveRootLiveGame(
@@ -846,6 +865,93 @@ function renderTimeTravelStepper() {
   box.innerHTML = steps.join('<span class="tt-step-line"></span>');
 }
 
+/** E3 of the roadmap: cash, housing, and this year's investable asset classes. Visible whenever
+ * there's an active (not-yet-ended) career -- not gated behind the one-time intro decision like
+ * renderTimeTravelResources()'s trust/pressure meters are. */
+function renderTimeTravelFinance() {
+  const card = $("#time-travel-finance");
+  const summary = $("#time-travel-finance-summary");
+  const houseList = $("#time-travel-house-list");
+  const investList = $("#time-travel-invest-list");
+  if (!card || !summary || !houseList || !investList) return;
+  if (!state.leagueCareer || !state.story || careerIsOver(state.story)) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  const root = currentRootState();
+  const coach = ensureCoachProfile(root);
+  const cash = Math.round(coach.cash ?? 0);
+  const salary = currentCoachSalary(root);
+  const tiers = houseTiers();
+  const ownedTier = tiers[coach.housing];
+  summary.textContent = `现金 ¤${cash} · 年薪 ¤${salary} · 住房：${ownedTier ? ownedTier.label : "暂无"}`;
+
+  houseList.innerHTML = "";
+  for (const [tierId, tier] of Object.entries(tiers)) {
+    const owned = coach.housing === tierId;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn story-event-choice";
+    button.disabled = owned || !canAffordHouse(coach, tierId);
+    button.innerHTML = `<strong>${tier.label}${owned ? "（已拥有）" : ""}</strong><span>花费 ¤${tier.cost} · 每季心情 +${tier.moodBonus}</span>`;
+    button.addEventListener("click", () => buyTimeTravelHouse(tierId));
+    houseList.appendChild(button);
+  }
+
+  const year = root.leagueCareer?.season?.year;
+  const divergence = root.story?.timelineDivergence ?? 0;
+  const classes = availableAssetClasses(year);
+  const pendingByAsset = new Map();
+  for (const position of coach.pendingInvestments || []) {
+    pendingByAsset.set(position.assetId, (pendingByAsset.get(position.assetId) || 0) + position.amount);
+  }
+  investList.innerHTML = classes.length
+    ? ""
+    : `<p class="tiny">这个年代还没有任何可投资的资产类别。</p>`;
+  for (const assetClass of classes) {
+    const forecast = investmentForecast(assetClass.id, divergence);
+    const pendingAmount = pendingByAsset.get(assetClass.id) || 0;
+    const forecastPct = (forecast * 100).toFixed(1);
+    const forecastSign = forecast >= 0 ? "+" : "";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn story-event-choice";
+    button.disabled = !canAffordInvestment(coach, INVESTMENT_STAKE);
+    button.innerHTML = `<strong>${assetClass.label}</strong><span>预期走势 ${forecastSign}${forecastPct}%（时间线偏离越大越不准）</span><span>投入 ¤${INVESTMENT_STAKE}${pendingAmount ? ` · 本季已投入 ¤${pendingAmount}` : ""}</span>`;
+    button.addEventListener("click", () => investTimeTravelAsset(assetClass.id));
+    investList.appendChild(button);
+  }
+}
+
+function buyTimeTravelHouse(tierId) {
+  try {
+    const root = currentRootState();
+    const coach = buyHouse(ensureCoachProfile(root), tierId);
+    const updated = { ...root, coach };
+    state.story = updated.story;
+    state.longCareerRoot = updated;
+    if (!saveLongCareer()) throw new Error("买房保存失败");
+    renderTimeTravelFinance();
+  } catch (error) {
+    alert(error?.message || "无法买这套房子");
+  }
+}
+
+function investTimeTravelAsset(assetId) {
+  try {
+    const root = currentRootState();
+    const year = root.leagueCareer?.season?.year;
+    const coach = placeInvestment(ensureCoachProfile(root), assetId, INVESTMENT_STAKE, year);
+    const updated = { ...root, coach };
+    state.story = updated.story;
+    state.longCareerRoot = updated;
+    if (!saveLongCareer()) throw new Error("投资保存失败");
+    renderTimeTravelFinance();
+  } catch (error) {
+    alert(error?.message || "无法完成这笔投资");
+  }
+}
 
 function renderTimeTravelReport() {
   const card = $("#time-travel-report");
@@ -956,15 +1062,21 @@ function queueNextTimeTravelEvent() {
   const goaled = advanceSeasonGoal(root);
   const lastGoalLogEntry = goaled.story.eventLog.at(-1);
   const resolvedGoal = lastGoalLogEntry?.type === "season-goal-result" ? lastGoalLogEntry : null;
-  const next = queueNextStoryEvent(goaled, { year: state.season?.year });
-  const progressed = next === goaled ? goaled : next;
+  // E3 of the roadmap: pay this season's salary and settle any pending investment before moving
+  // on, same cadence as the goal above and fully independent of it (finance never touches
+  // frontOfficeTrust, the goal never touches cash).
+  const financed = settleCoachFinances(goaled);
+  const financeLogEntry = financed.story.eventLog.at(-1);
+  const settledFinances = financeLogEntry?.type === "finances-settled" ? financeLogEntry : null;
+  const next = queueNextStoryEvent(financed, { year: state.season?.year });
+  const progressed = next === financed ? financed : next;
   const employed = evaluateCareerEmployment(progressed);
   const finalized = employed === progressed ? finalizeCareerEnding(progressed) : employed;
   if (finalized === root) return null;
   state.story = finalized.story;
   state.longCareerRoot = finalized;
   saveLongCareer();
-  return { resolvedGoal, nextGoal: finalized.story.seasonGoal || null };
+  return { resolvedGoal, settledFinances, nextGoal: finalized.story.seasonGoal || null };
 }
 
 function resolvePendingStoryEvent(choiceId) {
@@ -1036,6 +1148,7 @@ function renderTimeTravelStoryState({ showResolved = false } = {}) {
   }
   renderTimeTravelResources();
   renderTimeTravelStepper();
+  renderTimeTravelFinance();
   renderPendingStoryEvent();
   renderCareerContract();
   renderTimeTravelReport();

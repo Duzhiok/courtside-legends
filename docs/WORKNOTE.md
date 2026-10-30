@@ -1688,3 +1688,58 @@ border 简写报告不准——明明样式表里的值是对的、截图里颜�
 全量 1038/1038，lint 0 错误，diff-check 过。
 
 下一步：B4——执教段落 stints，把「一段五年」改成「多段执教」，取消五年硬上限，合同年限才是真正的上限。
+
+### R102：用户指定插队——B4 前先做 E3（个人财务）+ 轻量教练出身
+
+用户确认顺序：先 E3，再轻量出身，最后 B4。本轮完成 E3，轻量出身和 B4 没来得及做。
+
+**设计**：新 `js/career/finance.js`，和 `coachProfile.js` 同一套契约——纯函数，输入输出都是
+`coach`/`root`，不改可变。
+
+- `currentCoachSalary(root)`：优先读 `root.story.employment.offer.salary`（B3 续约历程已接受的方案），
+  没有的话回退到新增常量 `COACH_BASE_SALARY = 5`。开局面试（`timeTravelCareer.js` 的 `OFFER_DETAILS`）
+  只谈权限/信任/压力，从来没谈过具体工资数字，所以前五年（或直到第一次续约）没有按 archetype 差异化的
+  薪资可读。
+- `settleCoachFinances(root, rng)`：一次赛季结算——发薪资 + 结算所有 `pendingInvestments`（投入本金 ×
+  （1+真实收益），关仓，不跨季复利）+ 发放住房每季心情奖金。接在 `app.js` 的
+  `queueNextTimeTravelEvent()` 里，紧跃在 `advanceSeasonGoal(root)` 后面、`queueNextStoryEvent` 前面——
+  同一个转场时机，两者彼此独立（财务不摸 `frontOfficeTrust`，目标不摸 `cash`）。被裁/离队前仍然会
+  结算完整的本季薪资（你已经把活干完了），因为调用顺序是先结算再判解雇。
+- 投资故意拆成两个独立环节：`investmentForecast(assetId, divergence, rng)` 是投资前的预测提示，
+  准确度随 `timelineDivergence` 按 `INVESTMENT_FORECAST_DIVERGENCE_FALLOFF` 衰减到地板
+  `INVESTMENT_FORECAST_MIN_ACCURACY`（永远不归零，总有点信号）；`rollInvestmentReturn(assetId, rng)` 是真实
+  结算，**不接受偏离度参数**——时间线改得再多，市场本身不会因此转变，只有你预测它的能力会受影响。
+  资产类别（`INVESTMENT_ASSET_CLASSES`）按年代解锁：1950 国债、1980 蓝筹股、2000 科技股、2012 加密货币。
+- 住房（`HOUSE_TIERS`：公寓/独栋/豪宅）只给现有的 `coach.mood` 加每季回循奖金。**滔诚缩范围**：没按
+  路线图原文另开一个没人读的“家庭满意度”字段——现在没任何其他系统读它，和 A1 `coachProfile.js` 留空字段
+  等阶段用同一个理由。这块留给未来真正做关系系统时再接。
+
+**数据形状**：`coachProfile.js` 的 `createCoachProfile`/`clampCoachProfile` 两处都补了 `housing`（tier id 或
+`null`）和 `pendingInvestments`（数组）。特别注意 `clampCoachProfile` 之前对未知字段是**整个重建丢弃**的行为
+（字段列了就保留，没列就消失）——这次顺便补上，否则未来哪天有人真的接通 `clampCoachProfile`（当前它
+还是个没调用点的 A1 摆件）会静静丢掉住房和投资数据。
+
+**UI**：`index.html` 新增常驻 `#time-travel-finance` 卡片（现金/年薪/住房汇总 + 三个住房按钮 + 当年
+代开放的投资按钮，每个按钮显示预测走势）。故意不放在 `#time-travel-resources` 旁边——那个 div 实际被锁在
+`#time-travel-decision`（只有开局未来知识那一次性决定卡片里），不是真正的常驻 HUD；财务需要整个生涯都能看到，
+所以獨立成一个不被这个闸门锁住的卡片。投资步长是固定金额 `INVESTMENT_STAKE = 10`（和自由输入金额比，少一层
+输入校验 UI）。
+
+**过程中抓到一个真 bug**（不是 finance.js 的问题，是 `app.js` 的集成问题）：`currentRootState()`
+重建快照时把 `activeMode`/`leagueCareer`/`story`/`liveGame` 都带上了，**唯独漏掉 `coach`**——传给
+`createRootState()` 的 overrides 没有 `coach` 键，所以每次调用都会静静回退到 `createCoachProfile()`
+的全新默认值（`cash` 歸零）。单测根本抓不到这种问题（`finance.js` 纯函数本身都是对的）——是用
+`scripts/qa/career-finance.mjs` 在真实浏览器里模拟“财务充足的生涯点击买房按钮”才找到。修法跟同函数里
+`liveGame` 早就在用的现成模式一致：让它捳 `state.longCareerRoot?.coach` 作为回退，而不是像 `state.story`
+那样改动十多个赋值点。
+
+新增 20 条 `tests/finance.test.js`（3 个 mutation 都被抓住：清空 pendingInvestments、伪造准确度、不扣
+房价）+ 新增 `scripts/qa/career-finance.mjs`（32/32，框住了上述 `currentRootState` bug）。i18n 注意
+事项：除了代码注释里写清楚设计原因之外，新增的 3 条 HTML 静态文案（个人财务/住房/投资标题）必须进
+`js/i18n-phrases.js` 的 `PHRASES` 表，否则 `i18n.test.js` 会报未覆盖中文段落。
+
+全量 1058/1058，lint 0 错误（仍保留 2 个和本轮无关的旧 warning），diff-check 过。
+
+下一步：轻量版教练出身系统（本土草根 / 海外经历 / NBA 球员转型 / 名校助教，不新增真实海外
+球员数据库，主要影响初始声望/信任/面试 offer 质量和叙事标签），然后回到 B4（执教段落 stints，取消
+五年硬上限）。

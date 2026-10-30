@@ -69,3 +69,48 @@ export const RENEWAL_TRIAL_REPUTATION_CEILING = 40;
  * of the usual pair -- the menu only ever adds a better option for a great tenure, it never
  * removes the familiar rebuild/contender choice. */
 export const RENEWAL_DYNASTY_CHAMPIONSHIPS = 2;
+
+/** --- Phase E3: personal finance (roadmap E3) --- */
+
+/** Flat annual pay before any B3 renewal has ever set a real contract salary -- the initial
+ * five-year hire (timeTravelCareer.js's OFFER_DETAILS) negotiates authority/trust/pressure but
+ * never a dollar figure, so this is what's paid in the meantime. Scaled to sit between
+ * trial-extension (4) and rebuild-extension (7) in careerContract.js's OFFER_TEMPLATES. */
+export const COACH_BASE_SALARY = 5;
+
+/** House tiers: a one-time purchase cost and a small recurring per-season mood bump paid out
+ * alongside salary (see js/career/finance.js's settleCoachFinances()). Deliberately does NOT
+ * touch a "family satisfaction" stat -- nothing in the game reads one yet, so inventing it here
+ * would be the same unwired-field mistake A1 warns against; that belongs with a future
+ * relationships-focused increment. */
+export const HOUSE_TIERS = {
+  apartment: { label: "公寓", cost: 20, moodBonus: 2 },
+  house: { label: "独栋别墅", cost: 60, moodBonus: 5 },
+  mansion: { label: "豪宅", cost: 150, moodBonus: 9 },
+};
+
+/**
+ * Investment asset classes, keyed by the in-story year they become available (an era can't
+ * invest in something that doesn't exist yet -- 1960 has no tech stocks, let alone crypto).
+ * baseReturn/volatility drive the REAL roll (finance.js's rollInvestmentReturn), which is always
+ * divergence-independent -- divergence only blurs the forecast preview, never the market itself.
+ */
+export const INVESTMENT_ASSET_CLASSES = {
+  1950: [{ id: "bonds", label: "国债", baseReturn: 0.03, volatility: 0.02 }],
+  1980: [{ id: "blue-chip", label: "蓝筹股", baseReturn: 0.08, volatility: 0.12 }],
+  2000: [{ id: "tech-stocks", label: "科技股", baseReturn: 0.11, volatility: 0.25 }],
+  2012: [{ id: "crypto", label: "加密货币", baseReturn: 0.18, volatility: 0.55 }],
+};
+
+/** Forecast accuracy decays to this floor as timelineDivergence climbs -- never hits exactly 0,
+ * so there is always SOME signal in the hint, just a very noisy one. */
+export const INVESTMENT_FORECAST_MIN_ACCURACY = 0.15;
+
+/** Divergence at which forecast accuracy would hit 0 before the floor above clamps it -- i.e. how
+ * fast "you've changed history too much to remember how this market went" sets in. */
+export const INVESTMENT_FORECAST_DIVERGENCE_FALLOFF = 40;
+
+/** Fixed stake per investment click -- keeps the UI to one button per asset class instead of a
+ * free-form amount input. Scaled against HOUSE_TIERS.apartment's cost (20) so a few seasons of
+ * investing is a meaningful alternative to saving straight for a house, not a rounding error. */
+export const INVESTMENT_STAKE = 10;

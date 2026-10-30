@@ -5,6 +5,10 @@
  */
 export const PHRASES = [
   ["中投", "MID"],
+  ["💰 个人财务", "💰 Personal Finance"],
+  ["🏠 住房", "🏠 Housing"],
+  ["📈 投资（本年代开放的资产类别，未来知识只能模糊预测趋势，实际输赢总是真正随机）",
+    "📈 Investing (asset classes open up by era; future knowledge only blurs a forecast -- real outcomes are always genuinely random)"],
   ["场边传奇 · Courtside Legends", "Courtside Legends"],
   ["场边传奇", "Courtside Legends"],
   ["♪ 音乐", "♪ Music"],

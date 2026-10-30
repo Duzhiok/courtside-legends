@@ -146,3 +146,23 @@
   或 `gachaView.js` 的 `drawRevealHtml`，这两个名字已经不存在了——`rarityLabel` 被删了（逻辑搬进
   `playerLegacy.js` 的 `legacyOvrBadge`），`rarityClass` 也被删了（现在用 `playerLegacyBadge().cls`）。
   如果你本地还有基于旧名字的改动，merge 时会冲突，请改用新 API。全量 1030/1030，lint 0 错误。
+- [2026-10-29] Code：**B3（续约 offer 动态化）已完成（WORKNOTE R101）**——`careerPerformance()` 新增
+  `goalHitRate`（全生涯目标命中率，没有目标历史时是 `null` 而不是 `0`）。2 冠或以上在原有两个方案之上
+  **追加**解锁「王朝续约」；0 冠军+命中率≤34%+声望<40 会被压缩成唯一的「试用续约」。顺带修了一个安全
+  缺口：`acceptCareerContract` 现在只认 `employment.offers`（这次生涯真正拿到的方案），不再能按全局
+  `OFFER_TEMPLATES` 的 id 接受一个没被 offer 过的合同。**注意给 Luna**：如果你在改
+  `careerContract.js` 的 `evaluateCareerEmployment`/`careerPerformance`，这轮又改了一次这两个函数，
+  注意 merge 冲突。全量 1038/1038，lint 0 错误。
+- [2026-10-29] Code：**用户指定插队：E3（个人财务）已完成（WORKNOTE R102）**——新 `js/career/finance.js`：
+  `settleCoachFinances(root, rng)` 在每次赛季转场（`app.js` 的 `queueNextTimeTravelEvent()`，紧跃在
+  B1 的 `advanceSeasonGoal` 后面）发薪资（读 B3 续约方案的 `offer.salary`，没续约前用新常量
+  `COACH_BASE_SALARY`）+ 结算投资（赢输真实且与时间线偏离度无关，偏离度只影响投资前的预测准确度）+ 住房每季心情
+  奖金。`coachProfile.js` 新增 `housing`/`pendingInvestments` 两个字段。**注意给 Luna**：如果你在改
+  `coachProfile.js` 的 `createCoachProfile`/`clampCoachProfile`，这轮多了这两个字段，`clampCoachProfile`
+  之前对未列入的字段是整个重建丢弃，注意 merge 冲突。**更重要的一点：**过程中在 `app.js` 里抓到一个
+  跟这次改动无关、但会影响任何 `root.coach` 字段的现有 bug：`currentRootState()` 重建快照时
+  没把 `coach` 列入 `createRootState()` 的 overrides，每次调用都会静静重置成全新默认 profile。已按
+  `liveGame` 早就在用的模式改成捳 `state.longCareerRoot?.coach` 回退。**如果你之前写过任何读取
+  `root.coach` 字段的代码并觉得数据对不上，就是这个闸门。**新增 20 条 `tests/finance.test.js` +
+  `scripts/qa/career-finance.mjs`（32/32，框住了上述 bug）。全量 1058/1058，lint 0 错误。下一步：
+  轻量版教练出身，然后回到 B4。

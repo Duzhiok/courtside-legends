@@ -45,6 +45,11 @@ export function createCoachProfile(overrides = {}) {
     xp: 0,
     perkPoints: 0,
     perks: Object.fromEntries(COACH_PERK_LINES.map((line) => [line, 0])),
+    // E3: no house yet, nothing invested. housing is a tier id (see balance.js's HOUSE_TIERS) or
+    // null; pendingInvestments is cleared every settleCoachFinances() call (js/career/finance.js)
+    // so it never grows unbounded -- it only ever holds bets placed since the last settlement.
+    housing: null,
+    pendingInvestments: [],
     ...overrides,
   };
 }
@@ -87,6 +92,16 @@ export function clampCoachProfile(coach) {
     xp: Math.max(0, Number(coach?.xp) || 0),
     perkPoints: Math.max(0, Math.round(Number(coach?.perkPoints) || 0)),
     perks,
+    // E3: shape-only validation here (string / finite-number checks). Whether a housing id or
+    // assetId is actually a REAL tier/asset class is finance.js's job at the point of use
+    // (buyHouse/placeInvestment both throw on an unknown id) -- this module stays generic about
+    // what a "coach profile" looks like, same as it already is for the rest of the fields above.
+    housing: typeof coach?.housing === "string" ? coach.housing : null,
+    pendingInvestments: Array.isArray(coach?.pendingInvestments)
+      ? coach.pendingInvestments.filter(
+          (p) => p && typeof p.assetId === "string" && Number.isFinite(p.amount) && p.amount > 0,
+        )
+      : [],
   };
 }
 
