@@ -22,7 +22,7 @@ import {
   refreshFreeAgency,
   refreshStaffMarket,
 } from "./seasonMarket.js";
-import { allTeamFromSeasonRows } from "./allTeam.js";
+import { accumulateGameToAllTeamBoard, allTeamFromSeasonRows, selectFinalsMvp } from "./allTeam.js";
 import { GameSim } from "./sim.js";
 import { shuffle } from "../core/seededRandom.js";
 import { prunePickLedger } from "./pickLedger.js";
@@ -1097,6 +1097,14 @@ export function simPlayoffSeries(st, series) {
     const { homeId, awayId } = seriesHomeAway(highId, lowId, gi);
     const game = { homeId, awayId, played: false, result: null };
     const snap = simScheduledGame(st, game, { recordStandings: false });
+    if (st.playoffs && series === st.playoffs.finals) {
+      st.finalsBoard = accumulateGameToAllTeamBoard(
+        st.finalsBoard || {},
+        snap,
+        { id: homeId, name: st.teams[homeId]?.name },
+        { id: awayId, name: st.teams[awayId]?.name },
+      );
+    }
     const hs = snap.score.home;
     const as = snap.score.away;
     const homeWin = hs > as;
@@ -1143,10 +1151,23 @@ export function nextUserPlayoffGame(st) {
  * clicking 模拟下一轮/一键打完季后赛 resolves whatever CPU-vs-CPU series are still open in the same
  * block and reseeds normally -- simPlayoffSeries() already no-ops on a series that's done.
  */
-function finishPlayoffGame(st, series, game) {
+function finishPlayoffGame(st, series, game, snap) {
   const winnerId = game.result.winnerId;
   if (winnerId === series.high.id) series.winsHigh += 1;
   else series.winsLow += 1;
+  // R89: Finals games accumulate onto a series-only board (not season totals),
+  // so the Finals MVP is judged on Finals performance alone.
+  if (series === st.playoffs.finals) {
+    const gameSnap = snap || game._lastSnap;
+    if (gameSnap) {
+      st.finalsBoard = accumulateGameToAllTeamBoard(
+        st.finalsBoard || {},
+        gameSnap,
+        { id: game.homeId, name: st.teams[game.homeId]?.name },
+        { id: game.awayId, name: st.teams[game.awayId]?.name },
+      );
+    }
+  }
   if (series.winsHigh < 4 && series.winsLow < 4) return;
   series.done = true;
   series.winnerId = series.winsHigh >= 4 ? series.high.id : series.low.id;
@@ -1155,6 +1176,7 @@ function finishPlayoffGame(st, series, game) {
     st.playoffs.championId = series.winnerId;
     st.phase = "done";
     st.finalsAllTeam = computeFinalsAllTeam(st);
+    st.finalsMvp = computeFinalsMvp(st);
   }
 }
 
@@ -1165,7 +1187,7 @@ export function simUserNextPlayoffGame(st) {
   const { series, homeId, awayId } = info;
   const game = { homeId, awayId, played: false, result: null };
   const snap = simScheduledGame(st, game, { recordStandings: false });
-  finishPlayoffGame(st, series, game);
+  finishPlayoffGame(st, series, game, snap);
   return { game, snap, series };
 }
 
@@ -1175,7 +1197,7 @@ export function simUserNextPlayoffGame(st) {
 export function recordUserLivePlayoffResult(st, game, series, snap) {
   if (!game || game.played || !series) return;
   applyGameResult(st, game, snap, { recordStandings: false, recordLog: false });
-  finishPlayoffGame(st, series, game);
+  finishPlayoffGame(st, series, game, snap);
 }
 
 export function advancePlayoffs(st) {
@@ -1285,6 +1307,7 @@ export function advancePlayoffs(st) {
     po.championId = po.finals.winnerId;
     st.phase = "done";
     st.finalsAllTeam = computeFinalsAllTeam(st);
+    st.finalsMvp = computeFinalsMvp(st);
   }
   return st.playoffs;
 }
@@ -1301,6 +1324,24 @@ export function computeFinalsAllTeam(st) {
   const team = allTeamFromSeasonRows(rows, ids);
   st.finalsAllTeam = team;
   return team;
+}
+
+/**
+ * R89 Finals MVP: champion team's best performer on the Finals-only board
+ * (accumulated in finishPlayoffGame / simPlayoffSeries). Falls back to the best
+ * champion-team entry of the Finals All-Team for saves whose Finals predate the
+ * board (their Finals games were never accumulated). Null when there is no
+ * champion or no candidate at all.
+ */
+export function computeFinalsMvp(st) {
+  const championId = st?.playoffs?.championId;
+  if (!championId) return null;
+  const fromBoard = selectFinalsMvp(st.finalsBoard, championId);
+  if (fromBoard) return fromBoard;
+  const team = st.finalsAllTeam || [];
+  const fromTeam = team.filter((p) => p.teamId === championId);
+  if (!fromTeam.length) return null;
+  return fromTeam.slice().sort((a, b) => (b.score || 0) - (a.score || 0))[0] || null;
 }
 
 /** Sim entire playoffs in one go. */

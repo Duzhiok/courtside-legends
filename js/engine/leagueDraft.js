@@ -600,6 +600,30 @@ export function selectDraftProspect(
   };
 }
 
+/**
+ * R89: forfeit the active pick. Only the user team can pass (CPU teams always
+ * pick via advanceDraftToUserPick); the slot is consumed, no prospect is taken,
+ * no roster spot is used and no cut is required — the answer to "too many picks,
+ * forced to waive". Prospects are untouched so later picks still see the full pool.
+ */
+export function forfeitDraftPick(draft, season) {
+  const { teamId } = activePick(draft, season);
+  if (teamId !== season?.userTeamId) {
+    throw new Error("only the user team can forfeit a draft pick");
+  }
+  const pickNumber = draft.currentPick + 1;
+  const nextPick = draft.currentPick + 1;
+  return {
+    ...draft,
+    selections: [
+      ...(draft.selections || []),
+      { pickNumber, teamId, forfeited: true },
+    ],
+    currentPick: nextPick,
+    status: nextPick >= draft.order.length ? "complete" : "in_progress",
+  };
+}
+
 function positionCount(team, position) {
   return team.players.filter(
     (player) => (player.pos || player.playPos) === position,

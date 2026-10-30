@@ -39,6 +39,41 @@ export function cpuCapBlocksTrade(payroll, takesOn, sendsOut) {
 }
 export const SEASON_MAX_ROSTER = 15;
 export const SEASON_MIN_ROSTER = 8;
+/** R89: trades close once the regular season is 70% played (fraction of schedule days). */
+export const TRADE_DEADLINE_FRACTION = 0.7;
+/** R89: user-team trades allowed per regular season (two-team, three-team, accepted proposals). */
+export const TRADE_LIMIT_PER_SEASON = 5;
+
+/** Day index after which trades close, or null when the season has no schedule (tests, stubs). */
+export function tradeDeadlineDay(st) {
+  if (!Array.isArray(st?.schedule) || !st.schedule.length) return null;
+  return Math.floor(st.schedule.length * TRADE_DEADLINE_FRACTION);
+}
+
+/**
+ * Trades already executed this season, derived from the trade log so old saves
+ * (which predate any counter field) count correctly and save/load needs no migration.
+ * Pick swaps (swapDraftPicks) are 1-for-1 and never logged as trades, so they don't count.
+ */
+export function seasonTradeCount(st) {
+  const year = st?.year;
+  return (st?.tradeLog || []).filter(
+    (e) => (e.type === "trade" || e.type === "trade_3team") && (year == null || e.year === year),
+  ).length;
+}
+
+/** Shared window gates for every user-team trade path (deadline, then count). */
+function tradeWindowCheck(st) {
+  const deadline = tradeDeadlineDay(st);
+  if (deadline != null && (st.dayIndex || 0) > deadline) {
+    return { ok: false, reason: `交易截止日已过（常规赛第 ${deadline} 天后关闭）` };
+  }
+  const count = seasonTradeCount(st);
+  if (count >= TRADE_LIMIT_PER_SEASON) {
+    return { ok: false, reason: `本赛季交易已达上限（${TRADE_LIMIT_PER_SEASON} 次）` };
+  }
+  return { ok: true };
+}
 export const FA_POOL_SIZE = 40;
 export const STAFF_COACH_POOL = 10;
 export const STAFF_ASST_POOL = 8;
@@ -484,6 +519,8 @@ export function executeTrade(
 ) {
   ensureSeasonMarket(st);
   if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可交易" };
+  const window = tradeWindowCheck(st);
+  if (!window.ok) return window;
   const you = st.teams[st.userTeamId];
   const cpu = st.teams[cpuTeamId];
   if (!you || !cpu || cpuTeamId === st.userTeamId) return { ok: false, reason: "对手无效" };
@@ -524,14 +561,18 @@ export function executeTrade(
     return { ok: false, reason: `交易后将超过硬帽 ${SEASON_APRON}` };
   }
 
-  // CPU acceptance
+  // CPU acceptance. R89: the value rejection is deterministic now — a value-losing
+  // trade no longer has a 25% luck pass. acceptedProposal still bypasses these two
+  // checks, but only CPU-dangled offers (which buildProposal pre-filters to compliant
+  // packages, so the bypass is a no-op for them in practice) and ledger tests ever pass
+  // it; the market UI never does, so no gameplay trade can skip the checks.
   const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
   const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80; // dumping salary helps
   const cpuNeedsSpace = teamPayroll(cpu) > SEASON_SALARY_CAP && salOut < salIn;
   if (!acceptedProposal && !salaryOk && !cpuNeedsSpace) {
     return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };
   }
-  if (!acceptedProposal && !valueOk && Math.random() > 0.25) {
+  if (!acceptedProposal && !valueOk) {
     return { ok: false, reason: "对方认为吃亏，拒绝交易" };
   }
   // CPU apron
@@ -604,6 +645,8 @@ export function executeThreeTeamTrade(
 ) {
   ensureSeasonMarket(st);
   if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可交易" };
+  const window = tradeWindowCheck(st);
+  if (!window.ok) return window;
   const you = st.teams[st.userTeamId];
   const t2 = st.teams[team2Id];
   const t3 = st.teams[team3Id];
@@ -645,7 +688,7 @@ export function executeThreeTeamTrade(
     const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80;
     const needsSpace = teamPayroll(team) > SEASON_SALARY_CAP && salOut < salIn;
     if (!acceptedProposal && !salaryOk && !needsSpace) return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };
-    if (!acceptedProposal && !valueOk && Math.random() > 0.25) return { ok: false, reason: "对方认为吃亏，拒绝交易" };
+    if (!acceptedProposal && !valueOk) return { ok: false, reason: "对方认为吃亏，拒绝交易" };
     if (cpuCapBlocksTrade(teamPayroll(team), salIn, salOut)) return { ok: false, reason: "对方硬帽放不下，拒绝" };
     return { ok: true };
   };

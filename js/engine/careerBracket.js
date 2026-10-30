@@ -286,6 +286,17 @@ export function noteCareerAllTeamGame(c, snap, homeTeam, awayTeam) {
   accumulateGameToAllTeamBoard(c.allTeamBoard, snap, homeTeam, awayTeam);
 }
 
+/**
+ * R89: Finals-only board. The main allTeamBoard covers the whole bracket run, so
+ * it can't judge a Finals MVP; Finals games (user matches at stageSize 2) are
+ * additionally accumulated here, and only here, for the Finals MVP selection.
+ */
+export function noteCareerFinalsGame(c, snap, homeTeam, awayTeam) {
+  if (!c || !snap) return;
+  if (!c.finalsBoard) c.finalsBoard = {};
+  accumulateGameToAllTeamBoard(c.finalsBoard, snap, homeTeam, awayTeam);
+}
+
 /** Fast-forward a CPU-vs-CPU match the human isn't in and record the result onto it. */
 export function runCpuMatchInto(c, match) {
   if (!match || match.done || match.yours) return;

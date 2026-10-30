@@ -1,10 +1,11 @@
-import { advanceLeagueOffseason } from "../engine/season.js";
+import { advanceLeagueOffseason, computeFinalsMvp } from "../engine/season.js";
 import { withPickLedger } from "../engine/pickLedger.js";
 import {
   advanceDraftToUserPick,
   applyPickOwnership,
   buildNaturalPicks,
   createDraftState,
+  forfeitDraftPick,
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
 import {
@@ -310,7 +311,7 @@ function compactTransactions(season, includeLegacy) {
     });
 }
 
-function annualSummary(season, { includeLegacyTransactions = false } = {}) {
+export function annualSummary(season, { includeLegacyTransactions = false } = {}) {
   const teamId = season.userTeamId;
   const record = season.standings?.[teamId];
   if (
@@ -346,6 +347,9 @@ function annualSummary(season, { includeLegacyTransactions = false } = {}) {
       mvp: compactAward(season.awards?.mvp),
       dpoy: compactAward(season.awards?.dpoy),
       roy: compactAward(season.awards?.roy),
+      finalsMvp: season.finalsMvp
+        ? { playerId: season.finalsMvp.id, name: season.finalsMvp.name, teamId: season.finalsMvp.teamId }
+        : null,
     },
     transactions: compactTransactions(season, includeLegacyTransactions),
   };
@@ -397,6 +401,10 @@ export function prepareCareerOffseason(career) {
   }
 
   const working = structuredClone(career);
+  // R89: make sure the season carries its Finals MVP before the summary is taken,
+  // so old saves (Finals played before the Finals board existed) still record one
+  // via the Finals All-Team fallback.
+  if (!working.season.finalsMvp) working.season.finalsMvp = computeFinalsMvp(working.season);
   const summary = annualSummary(working.season, {
     includeLegacyTransactions:
       (working.management?.seasonHistory || []).length === 0,
@@ -562,6 +570,28 @@ export function makeCareerDraftPick(career, prospectId, options = {}) {
     options,
   );
   const advanced = advanceDraftToUserPick(selected, career.season);
+  const management = careerManagement(career);
+  return withCompletedDraft(
+    career,
+    advanced,
+    management,
+    [...(career.history || [])],
+  );
+}
+
+/** R89: give up the user's current pick (see forfeitDraftPick). Mirrors makeCareerDraftPick. */
+export function forfeitCareerDraftPick(career) {
+  requireCareer(career);
+  requireSeason(career.season);
+  const draft = career.management?.draft;
+  if (!draft || draft.status !== "in_progress") {
+    throw new Error("career requires an active draft in progress");
+  }
+  if (draft.order[draft.currentPick] !== career.season.userTeamId) {
+    throw new Error("draft pick is not the user's turn");
+  }
+  const forfeited = forfeitDraftPick(draft, career.season);
+  const advanced = advanceDraftToUserPick(forfeited, career.season);
   const management = careerManagement(career);
   return withCompletedDraft(
     career,

@@ -344,6 +344,9 @@ const POS_OVERRIDES = {
   brandte01: "PG", // Terrell Brandon
   vanexni01: "PG", // Nick Van Exel
   marbust01: "PG", // Stephon Marbury
+  nashst01: "PG", // Steve Nash — 1997–2011 全标 SG，2012 起数据源才正确标 PG
+  paulch01: "PG", // Chris Paul — 2006–2011 全标 SG
+  kiddja01: "PG", // Jason Kidd — 除 2012 外全标 SG
 };
 
 /**

@@ -8,10 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 58; // bump: fixed perimDef discount drift -- deriveSubAttributes() shipped with C 0.32/PF 0.18
-// while the formula it claims to mirror (sim.js perimeterDefenseRating, kept as the legacy-save fallback)
-// has always been C 0.4/PF 0.25; no commit or doc ever justified a deliberate retune, so this was drift,
-// not intent -- reverted to match the legacy constants exactly (see docs/AGENT_CHAT.md for the Luna Q&A).
+export const ROSTER_SCHEMA = 59; // bump: Nash/Paul/Kidd added to POS_OVERRIDES (G->SG normalize mislabeled their early seasons)
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good

@@ -49,6 +49,14 @@ function invoke(handler, button, ...args) {
 }
 
 function selectionRow(selection, career, teamNames) {
+  if (selection?.forfeited) {
+    return `<div class="sm-row draft-board-selection">
+    <div>
+      <strong>#${escapeHtml(selection?.pickNumber)} ${escapeHtml(teamName(career, teamNames, selection?.teamId))}</strong>
+      <div>放弃此签 · 未选人，不占名单</div>
+    </div>
+  </div>`;
+  }
   const contract = selection?.contract || {};
   const years = contract.yearsRemaining ?? contract.years ?? 4;
   const contractLength = Number(years) === 4 ? "四年" : `${escapeHtml(years)}年`;
@@ -97,7 +105,7 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
     if (draft.status === "complete") {
       container.innerHTML = `<section class="draft-board-panel">
         <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀完成</h4>
-        <p class="tiny">你的选择：${escapeHtml(userPicks.map((s) => s.name).join("、") || "—")}</p></div></header>
+        <p class="tiny">你的选择：${escapeHtml(userPicks.map((s) => (s.forfeited ? "放弃此签" : s.name)).join("、") || "—")}</p></div></header>
         <div class="draft-board-selections">${selections || "<p class=\"tiny\">暂无选择记录</p>"}</div>
         <div class="btn-row"><button type="button" class="btn primary" data-action="complete-offseason">开始新赛季</button></div>
       </section>`;
@@ -137,13 +145,19 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
             .join("")
         : `<p class="draft-board-recovery">电脑球队仍在选秀计时中，暂时不能代替其选人。请重新载入存档以恢复自动推进。</p>`;
       const userSlots = (draft.order || []).filter((id) => id === career.season?.userTeamId).length;
-      const userPicked = (draft.selections || []).filter((s) => s.teamId === career.season?.userTeamId).length;
+      const userSelections = (draft.selections || []).filter((s) => s.teamId === career.season?.userTeamId);
+      const userPicked = userSelections.filter((s) => !s.forfeited).length;
+      const userForfeited = userSelections.filter((s) => s.forfeited).length;
       const slotsLine =
-        userSlots > 1 ? `<p class="tiny">我方本届签位共 ${userSlots} 个，已选 ${userPicked} 个</p>` : "";
+        userSlots > 1 ? `<p class="tiny">我方本届签位共 ${userSlots} 个，已选 ${userPicked} 个${userForfeited ? `，放弃 ${userForfeited} 个` : ""}</p>` : "";
+      const forfeitControl = userTurn
+        ? `<div class="btn-row"><button type="button" class="btn small ghost" data-action="forfeit">放弃此签（不选人，不占名单）</button></div>`
+        : "";
       container.innerHTML = `<section class="draft-board-panel">
         <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀</h4>
         <p>${draft.round > 1 ? `第 ${escapeHtml(draft.round)} 轮 · ` : ""}当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择</p>${slotsLine}</div></header>
         ${waiverControl}
+        ${forfeitControl}
         <div class="draft-board-prospects">${cards}</div>
         <h4>已完成选择</h4>
         <div class="draft-board-selections">${selections || "<p class=\"tiny\">尚无选择</p>"}</div>
@@ -174,6 +188,9 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
         button.dataset.prospectId,
         waivePlayerId ? { waivePlayerId } : {},
       );
+    }
+    if (button.dataset.action === "forfeit") {
+      return invoke(handlers.forfeitPick, button);
     }
     if (button.dataset.action === "complete-offseason") {
       return invoke(handlers.completeOffseason, button);
