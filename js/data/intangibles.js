@@ -39,7 +39,7 @@ export const INTANGIBLE_DEFS = {
 export const BALL_HOG_BREF = {
   westbru01: 28, // Westbrook
   doncilu01: 26, // Doncic
-  hardeti01: 24, // Harden
+  hardeja01: 24, // Harden
   irvinky01: 18,
   iversal01: 22,
   paulch01: 16,
@@ -48,9 +48,8 @@ export const BALL_HOG_BREF = {
   youngtr01: 20,
   lillada01: 17,
   walljo01: 16,
-  roseede01: 14,
   rosede01: 18,
-  bryantko01: 14,
+  bryanko01: 14,
   jordami01: 12,
   onealsh01: 10,
 };
@@ -68,7 +67,7 @@ export const OFF_BALL_BREF = {
   ginobem01: 14,
   belinma01: 16,
   batumni01: 12,
-  harruto01: 11,
+  harrito02: 11,
   duranke01: 18, // KD: catch-and-shoot / size spacer — true plug-and-play
   jamesle01: 6, // can play off-ball but prefers creation
   antetgi01: 5,
@@ -99,7 +98,6 @@ export const LEAGUE_AVG_SALARY = [
 /** 妖人候选加成：只有够高才会进「妖人」档（其余只是略便宜的好轮换） */
 export const BARGAIN_BREF = {
   ginobem01: 22, // Manu
-  ginobili: 22,
   bowenbr01: 18,
   battish01: 16,
   korveky01: 15,
@@ -108,11 +106,10 @@ export const BARGAIN_BREF = {
   millspa01: 13,
   arizatr01: 13,
   lowryky01: 12,
-  crowdae01: 11,
-  crowdda01: 11,
-  fisherde01: 10,
-  conleymi01: 10,
-  dragicg01: 9,
+  crowdja01: 11,
+  fishede01: 10,
+  conlemi01: 10,
+  dragigo01: 9,
   millspa02: 9,
   hilarne01: 9,
   billuro01: 8,
@@ -130,7 +127,7 @@ export const OVERPAID_BREF = {
   walljo01: 14,
   simmobe01: 18,
   aytonde01: 17,
-  wisemde01: 19,
+  wisemja01: 19,
   fultzma01: 18,
   wiggian01: 12, // early max years
   irvinky01: 10,
@@ -138,7 +135,7 @@ export const OVERPAID_BREF = {
   ballla01: 12,
   smithja08: 10, // Jabari late?
   porzikr01: 8, // also glass — expensive when healthy on paper
-  bamba01: 14,
+  bambamo01: 14,
 };
 
 /** Known fragile / load-managed stars — bref id → risk bump */
@@ -150,21 +147,18 @@ export const GLASS_CANNON_BREF = {
   griffbl01: 17,
   walljo01: 20,
   bargnan01: 14,
-  yao01: 22,
   mingya01: 22,
-  ballzi01: 19, // Zion
-  wembyvi01: 15,
-  wembany01: 15,
-  leonardk01: 14, // Kawhi load management
+  willizi01: 19, // Zion
+  wembavi01: 15,
+  leonaka01: 14, // Kawhi load management
   duranke01: 12,
-  ilyasbe01: 16,
-  bargoke01: 14,
+  ilyaser01: 16,
   gasolpa01: 10,
   cityge01: 12,
   boshch01: 14,
   oquinky01: 13,
   bolbo01: 18,
-  shaunli01: 11,
+  livinsh01: 11,
 };
 
 function hashSeed(str) {

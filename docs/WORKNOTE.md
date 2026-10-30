@@ -1884,3 +1884,11 @@ departed 都正确写入 `coach.stints`，续约**不**写入。mutation check�
 5. **测试与 schema。** 新增 `tests/auditR106.test.js` 11 条（合并/归一/回退/技能/位置/锚点合并/产量地板/速度锁/三分封顶/力量全库 invariant/合成卡摇奖门槛）；schema 59→60，卡表快照重跑（23450 张）。全量 1081/1081（1070 + 11），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。
 
 **本轮未动、留给以后定的两处新发现**：① careerArc/nicknames/intangibles 里也有 hardeti01/leonard01/stephcu01 旧键（出生年/昵称/数值查不到真 bref），与 skills.js 死键同源，但改动会改年龄与昵称显示，超出本次审计口径，未动；② 除审计三组外还有两组同模式拆 bref（Ed Davis davised02/davised01、Mbah a Moute mbahlu01/mbahalu01），若日后合并姓名，Ed Davis 2011 季与 Mbah a Moute 2009–2011 季需各补 PF 补丁——合并前按现有 bref 口径两人均不进本次位置清单。
+
+### R107：R106 遗留两处补完——旧键清零 + Davis/Mbah 拆分合并（Luna 提交）
+
+用户 2026-10-30 拍板“都按你推荐的去修补”，把 R106 末尾留的两处新发现一次清掉。动手前先全库扫了一遍：旧键不止 R106 点名的 3 个，隐藏属性表里还有一整批同类错键，一并按“能确证的改、不能确证的留”处理；所有改动先走带断言的脚本，前提不符就一字不写（实测拦住两处，见下）。
+
+1. **旧键（careerArc/nicknames/intangibles）。** 出生年表 3 处改键：hardeti01→hardeja01（哈登 1989）、leonard01→leonaka01（莱昂纳德 1991）、embiiijo01→embiijo01（恩比德 1994，多一个 i，是扫表新发现的）；昵称表 2 处删除：stephcu01、hardeti01（真名下已有相同昵称，纯冗余）；隐藏属性 5 张表 14 改 + 6 删：球权表哈登 24、科比 14（bryantko01 改 bryanko01），无球表 harruto01→harrito02，妖人表克劳德 11（crowdae01 改 crowdja01，另一错键 crowdda01 删）、费舍尔 10、康利 10、德拉季奇 9，高薪低能表怀斯曼 19、班巴 14，玻璃人表锡安 19（ballzi01 改 willizi01，注释点名锡安）、文班 15（两错键留一删一）、莱昂纳德 14、伊利亚索瓦 16、利文斯顿 11；冗余删除 6 处（roseede01、ginobili、yao01、bargoke01 均因真名下已有同值或已有条目，删后行为不变）。**断言拦住的两处**：第一版脚本把克劳德目标写成 crowdeja01、Tobias Harris 写成 harrito01，全库查证后纠正——克劳德真名是 crowdja01，harrito01 是 Tony Harris，Tobias 是 harrito02；脚本在写任何文件前就因断言失败停住，工作树分毫未动，改对后重跑才落地。**仍未动、留给以后定的 4 个**：billuro01、greenege02、smithja08、cityge01——对不上任何现役/退役球员，不猜。另有一处存疑：无球表 harruto01 按错键机理（u/i 相邻键一位之差）判给 Tobias Harris，但 Joe Harris（harrijo01）在主题上也 plausible，用户若觉得是 Joe 说一声就改。
+2. **拆分合并（roster.json + 照片引用 + 位置补丁）。** Ed Davis：davised02 的 2012 TOR 与 davised01 同季 13 项统计全同（仅 bref/位置/来源不同），删 talldata 行留 bref 行；2011 季改键并入，补 PF 补丁（rpg 7.1/bpg 1.0，分流规则给 PF）。Mbah a Moute：mbahlu01 的 2012 MIL 同样与 bref 行统计全同，删 talldata 行；2009–2011 三季改键并入，姓名统一到 2012 后形式“Luc Mbah a Moute”（slug lucmbahamoute），三季各补 PF 补丁。照片 wiki 与 photoCredits 里两处死 bref 均为与保留键共列/同 URL，直接删死键。全表 23450→23448 行；Davis 连成 2011–2022（12 季）、Mbah 连成 2009–2018（10 季）。
+3. **测试收紧与 schema。** R106 删掉技能表死键后，starSkills 测试里“老存档别名”豁免已无豁免对象，随手删掉（测试从此对错键零容忍）。新增 `tests/auditR107.test.js` 5 条（两组合并/赛季连续/位置/姓名、出生年表、昵称表、5 张隐藏属性表全量无死键）。schema 60→61，卡表快照重跑（23448 张）。全量 1113/1113（1108 + 5），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。

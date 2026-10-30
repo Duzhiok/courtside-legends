@@ -781,6 +781,11 @@ const POS_OVERRIDES_BY_SEASON = {
   "wrighbr03:2008": "PF",
   "wrighbr03:2009": "PF",
   "wrighbr03:2011": "PF",
+  // R107 拆 bref 合并后补丁（talldata 季原标 SF，按 R106 分流规则应为 PF）
+  "davised01:2011": "PF",
+  "mbahalu01:2009": "PF",
+  "mbahalu01:2010": "PF",
+  "mbahalu01:2011": "PF",
 };
 
 /** Recover wiped box-score fields (some scrape rows lost PPG/FGA/BPG/…). */

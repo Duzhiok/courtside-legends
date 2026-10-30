@@ -9122,8 +9122,7 @@ export const PHOTO_CREDITS = {
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
     "page": "https://commons.wikimedia.org/wiki/File:Ed_Davis_basketball_2021.jpg",
     "brefs": [
-      "davised01",
-      "davised02"
+      "davised01"
     ]
   },
   "Ed Gayda.jpg": {
@@ -17045,8 +17044,7 @@ export const PHOTO_CREDITS = {
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
     "page": "https://commons.wikimedia.org/wiki/File:Luc_Mbah_a_Moute_(30924863043)_(cropped).jpg",
     "brefs": [
-      "mbahalu01",
-      "mbahlu01"
+      "mbahalu01"
     ]
   },
   "Luka Dončić 2021.jpg": {
