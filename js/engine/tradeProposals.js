@@ -1,5 +1,5 @@
 import { overall } from "../data/players.js";
-import { SEASON_APRON, cpuCapBlocksTrade, executeTrade, playerSalary, teamDraftAssets, teamPayroll } from "./seasonMarket.js";
+import { SEASON_APRON, cpuCapBlocksTrade, executeTrade, pickValueOf, playerSalary, teamDraftAssets, teamPayroll } from "./seasonMarket.js";
 import {
   DEFAULT_LISTING_PREF,
   MAX_PROPOSAL_PICKS,
@@ -169,6 +169,18 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
     if (!throwIn) return null;
     sendBackIds = [...sendBackIds, throwIn.id];
   }
+  // R89: an offer that can't be accepted is worse than no offer. executeTrade() runs
+  // the same salary/value math on accept, so a dangled offer must already clear it —
+  // same formulas, CPU perspective (salOut/ovrOut = what the CPU sends incl. picks).
+  // Offers that fail here are never dangled instead of bouncing on accept.
+  const pkgSalary = sendBackIds.reduce((sum, id) => sum + playerSalary(fromTeam.players.find((p) => p.id === id)), 0);
+  const pkgOvr = sendBackIds.reduce((sum, id) => sum + overall(fromTeam.players.find((p) => p.id === id)), 0)
+    + picks.reduce((sum, pick) => sum + pickValueOf(st, pick), 0);
+  const mySalary = playerSalary(player);
+  const myOvr = overall(player);
+  const salaryOk = pkgSalary <= mySalary * 1.25 + 40 || mySalary <= pkgSalary * 1.25 + 40;
+  const valueOk = pkgOvr + 4 >= myOvr * 0.9 || mySalary >= pkgSalary + 80;
+  if (!salaryOk || !valueOk) return null;
   for (const pick of picks) usedPickIds.add(pick.id);
   const teamName = fromTeam.name || fromTeamId;
   const prefText = listingPrefText(pref);

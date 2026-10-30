@@ -184,6 +184,7 @@ import {
   pickCost,
   teamPowerLabel,
 } from "./engine/draft.js";
+import { selectFinalsMvp } from "./engine/allTeam.js";
 import {
   allPodsDone,
   applyCareerInjuryWave,
@@ -199,6 +200,7 @@ import {
   listPodMatches,
   nextStageSize,
   noteCareerAllTeamGame,
+  noteCareerFinalsGame,
   noteCareerLoss,
   recordFinalsGame,
   runCpuMatchInto,
@@ -224,6 +226,7 @@ import {
   clearSeasonSave,
   buildCpuTeamForYear,
   computeFinalsAllTeam,
+  computeFinalsMvp,
   createSeason,
   loadSeason,
   nextUserGame,
@@ -279,6 +282,7 @@ import {
   advanceCareerOffseason,
   completeCareerOffseason,
   createLeagueCareer,
+  forfeitCareerDraftPick,
   hasExistingCareerRoot,
   isSeasonProgressMode,
   makeCareerDraftPick,
@@ -359,11 +363,14 @@ import {
   refreshFreeAgency,
   refreshStaffMarket,
   salaryLine,
+  seasonTradeCount,
   signFreeAgent,
   staffMarketLabel,
   staffSalary,
   teamDraftAssets,
+  tradeDeadlineDay,
   upcomingUserGames,
+  TRADE_LIMIT_PER_SEASON,
 } from "./engine/seasonMarket.js";
 import { recommendTradePackage } from "./engine/tradeBuilder.js";
 import {
@@ -4619,7 +4626,7 @@ function careerRoundLabel(roundOrStage, finals = false) {
   return lang === "en" ? `Round ${roundOrStage}` : CAREER_ROUND_LABELS[roundOrStage] || `第 ${roundOrStage} 轮`;
 }
 
-function renderResultAllTeam(team, title = "总决赛最佳阵容") {
+function renderResultAllTeam(team, title = "总决赛最佳阵容", mvp = null) {
   const box = $("#result-all-team");
   if (!box) return;
   if (!team?.length) {
@@ -4628,8 +4635,15 @@ function renderResultAllTeam(team, title = "总决赛最佳阵容") {
     return;
   }
   box.hidden = false;
+  const mvpLine = mvp
+    ? `<p class="tiny">${L(
+        `总决赛 MVP：${mvp.name}${mvp.teamName ? `（${mvp.teamName}）` : ""} · ${mvp.ppg}分 ${mvp.rpg}板 ${mvp.apg}助 · ${mvp.gp}场`,
+        `Finals MVP: ${mvp.name}${mvp.teamName ? ` (${mvp.teamName})` : ""} · ${mvp.ppg} PTS ${mvp.rpg} REB ${mvp.apg} AST · ${mvp.gp} G`,
+      )}</p>`
+    : "";
   box.innerHTML = `
     <h3>${title}</h3>
+    ${mvpLine}
     <p class="tiny">按位置 PG → C 各选一人（本届出场表现 + 实力）</p>
     <div class="all-team-row">
       ${team
@@ -8627,6 +8641,20 @@ function renderLeagueManagement() {
           alert(error?.message || "无法完成这次选秀");
         }
       },
+      forfeitPick() {
+        try {
+          const next = runCareerTransition(
+            state.leagueCareer,
+            (working) =>
+              reconcileDevelopmentPlans(
+                forfeitCareerDraftPick(working),
+              ),
+          );
+          commitManagedCareer(next, "draftBoard");
+        } catch (error) {
+          alert(error?.message || "无法放弃此签");
+        }
+      },
       completeOffseason() {
         try {
           const completed = completeCareerOffseason(state.leagueCareer);
@@ -9103,6 +9131,7 @@ function renderSeasonMarket() {
     <section class="sm-trade">
       <h4>交易（多对多 · 可含选秀权 · 可选三方）</h4>
       <p class="tiny">勾选我方/对方要换的球员或未来选秀权，多选多。薪资/身价大致配平即可。选好想要的对方球员后点「推荐方案」自动配平。选了第三方就走三方循环：我方勾选 → 对手球队，对手勾选 → 第三方，第三方勾选 → 我方（三方暂不带选秀权）。</p>
+      <p class="tiny">交易窗口：${(() => { const d = tradeDeadlineDay(st); return d == null ? "本赛季无截止日" : `常规赛第 ${d} 天后关闭（当前第 ${st.dayIndex || 0} 天）`; })()} · 本赛季已交易 ${seasonTradeCount(st)}/${TRADE_LIMIT_PER_SEASON} 次（换签不计）。</p>
       <div class="form-row">
         <label>对手球队
           <select id="sm-trade-cpu">${cpuOpts}</select>
@@ -9636,6 +9665,9 @@ function renderSeasonPlayoffs() {
   if (st.phase === "done" && !st.finalsAllTeam?.length) {
     computeFinalsAllTeam(st);
   }
+  if (st.phase === "done" && !st.finalsMvp) {
+    st.finalsMvp = computeFinalsMvp(st);
+  }
   const finalsTeamHtml = (st.finalsAllTeam || []).length
     ? `<div class="season-award-card"><h4>总决赛最佳阵容 · PG → C</h4>
         <div class="all-team-row season">
@@ -9650,6 +9682,10 @@ function renderSeasonPlayoffs() {
             )
             .join("")}
         </div></div>`
+    : "";
+  const finalsMvpHtml = st.finalsMvp
+    ? `<div class="season-award-card"><h4>总决赛 MVP</h4>
+        <p><strong>${st.finalsMvp.name}</strong>${st.finalsMvp.teamName ? ` · ${st.finalsMvp.teamName}` : ""} · ${st.finalsMvp.gp ? `${st.finalsMvp.ppg}分 ${st.finalsMvp.rpg}板 ${st.finalsMvp.apg}助（${st.finalsMvp.gp}场）` : `OVR ${st.finalsMvp.ovr}`}</p></div>`
     : "";
   const userRecord = st.standings?.[st.userTeamId];
   const playoffStats = Object.values(st.playerSeason || {})
@@ -9674,6 +9710,7 @@ function renderSeasonPlayoffs() {
         : ""
     }
     ${finalsTeamHtml}
+    ${finalsMvpHtml}
     <div class="btn-row">
       <button type="button" class="btn primary" id="btn-season-advance-po" ${
         st.phase === "done" ? "disabled" : ""
@@ -10598,17 +10635,23 @@ function handleCareerResult(youWin, snap) {
 
   const match = findYourOpenMatch(c.pods) || yourCareerMatch(c);
   const opp = match ? (match.a.bracketId === "you" ? match.b : match.a) : null;
+  // R89: Finals games feed a Finals-only board for the Finals MVP (the main board
+  // covers the whole bracket run, so it can't judge one). Same condition the result
+  // screens use to call a match a Finals match.
+  const matchIsFinals = !!(c.finals || c.stageSize === 2);
   if (match && snap) {
     if (match.a.bracketId === "you") {
       match.score = { home: snap.score.home, away: snap.score.away };
       match.startersA = snap.home?.onCourt?.slice(0, 5) || match.startersA;
       match.startersB = snap.away?.onCourt?.slice(0, 5) || match.startersB;
       noteCareerAllTeamGame(c, snap, match.a, match.b);
+      if (matchIsFinals) noteCareerFinalsGame(c, snap, match.a, match.b);
     } else {
       match.score = { home: snap.score.away, away: snap.score.home };
       match.startersA = snap.away?.onCourt?.slice(0, 5) || match.startersA;
       match.startersB = snap.home?.onCourt?.slice(0, 5) || match.startersB;
       noteCareerAllTeamGame(c, snap, match.b, match.a);
+      if (matchIsFinals) noteCareerFinalsGame(c, snap, match.b, match.a);
     }
   }
 
@@ -10652,7 +10695,7 @@ function handleCareerResult(youWin, snap) {
         `${finalsSeriesLabel(c.series, getLang())} · ${$("#result-summary").textContent}`;
     }
     const allTeam = computeCareerAllTeam(c);
-    renderResultAllTeam(allTeam, L("本届最佳阵容 · PG → C", "All-Tournament Team · PG → C"));
+    renderResultAllTeam(allTeam, L("本届最佳阵容 · PG → C", "All-Tournament Team · PG → C"), selectFinalsMvp(c.finalsBoard, "you"));
     if (nextTier === "playoff15" || nextTier === "champ7") {
       c.pendingChallenge = nextTier;
       cont.textContent = tier.nextLabel;
@@ -10692,7 +10735,8 @@ function handleCareerResult(youWin, snap) {
         : `${careerRoundLabel(c.round)} · ${kind}失利后出局（负场 ${losses}）。可回看其他对决。${injLine}`;
     if (wasFinals) {
       const allTeam = computeCareerAllTeam(c);
-      renderResultAllTeam(allTeam, "总决赛最佳阵容 · PG → C");
+      const oppId = c.series?.opp?.bracketId;
+      renderResultAllTeam(allTeam, "总决赛最佳阵容 · PG → C", oppId ? selectFinalsMvp(c.finalsBoard, oppId) : null);
     }
     cont.textContent = "回主页";
     cont.onclick = () => {

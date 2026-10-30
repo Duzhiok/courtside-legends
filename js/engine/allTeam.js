@@ -190,6 +190,49 @@ export function selectAllTeamByPos(pool) {
   return out;
 }
 
+/**
+ * R89 Finals MVP: the champion team's best performer on the same series board
+ * the All-Team selection uses (per-game stats + wins + OVR + grade). Entries that
+ * already carry a score (e.g. finalsAllTeam picks) reuse it; raw board rows are
+ * scored with entryScore. Returns null when the champion has no board entry.
+ */
+export function selectFinalsMvp(pool, championTeamId) {
+  const list = (Array.isArray(pool) ? pool : Object.values(pool || {}))
+    .filter((r) => r && r.id && r.name && (!championTeamId || r.teamId === championTeamId));
+  if (!list.length) return null;
+  let best = null;
+  let bestScore = -Infinity;
+  for (const row of list) {
+    const score = typeof row.score === "number" ? row.score : entryScore(row);
+    if (score > bestScore) {
+      bestScore = score;
+      best = row;
+    }
+  }
+  if (!best) return null;
+  return {
+    id: best.id,
+    name: best.name,
+    pos: best.pos,
+    teamName: best.teamName || "",
+    teamId: best.teamId || "",
+    ovr: best.ovr,
+    gp: best.gp || 0,
+    pts: best.pts || 0,
+    reb: best.reb || 0,
+    ast: best.ast || 0,
+    ppg: best.gp ? +(best.pts / best.gp).toFixed(1) : 0,
+    rpg: best.gp ? +(best.reb / best.gp).toFixed(1) : 0,
+    apg: best.gp ? +(best.ast / best.gp).toFixed(1) : 0,
+    score: +bestScore.toFixed(1),
+    bref: best.bref,
+    nbaId: best.nbaId,
+    photo: best.photo,
+    photoCareerDefault: best.photoCareerDefault,
+    season: best.season,
+  };
+}
+
 /** 用两支决赛球队阵容（无累计数据时）按 OVR 评一阵。 */
 export function allTeamFromRosters(teams = []) {
   const board = {};

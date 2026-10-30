@@ -178,6 +178,7 @@ test("preparation snapshots a compact summary and opens the same-year draft", ()
       mvp: { playerId: "D-3", name: "D-3", teamId: "D" },
       dpoy: null,
       roy: { playerId: "A-0", name: "A-0", teamId: "A" },
+      finalsMvp: null,
     },
     transactions: [],
   }]);
