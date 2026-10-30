@@ -103,9 +103,11 @@ test("accepting or declining a renewal is immutable and recorded", () => {
   const root = evaluateCareerEmployment(rootWithHistory(history));
   const accepted = acceptCareerContract(root, "rebuild-extension");
   assert.equal(root.story.employment.status, "renewal");
-  assert.equal(accepted.story.employment.status, "renewed");
+  // B4: a signed contract keeps the tenure going -- status goes back to "active", not a terminal
+  // "renewed", and no ending is recorded. Five years is the starting contract's length, not a cap.
+  assert.equal(accepted.story.employment.status, "active");
   assert.equal(accepted.story.employment.offer.salary, 7);
-  assert.equal(accepted.story.ending.id, "renewed-career");
+  assert.equal(accepted.story.ending, undefined, "the career continues; nothing has ended");
   assert.equal(accepted.story.pendingDecision, null);
 
   const departed = declineCareerContracts(root);
@@ -129,18 +131,95 @@ test("employment evaluation is idempotent after firing or renewal", () => {
 // tenure actually went, players only ever saw the flat contract-mechanic labels.
 // Fixed by having careerContract.js attach deriveEnding()'s verdict onto
 // `ending.narrativeTier` directly in the firing/accept/decline branches.
-test("a dominant tenure surfaces the Dynasty Builder narrative tier on renewal, not just the flat contract label", () => {
+test("a dominant tenure surfaces the Dynasty Builder narrative tier on departure, not just a flat label", () => {
+  const history = Array.from({ length: 5 }, (_, index) =>
+    summary(1991 + index, 60, 22, index < 2 ? "CHI" : "LAL", "CHI"));
+  const root = rootWithHistory(history);
+  root.story.frontOfficeTrust = 70;
+  const renewal = evaluateCareerEmployment(root);
+
+  const departed = declineCareerContracts(renewal);
+  assert.equal(departed.story.ending.id, "left-as-legend", "mechanic outcome is still the departure choice");
+  assert.equal(departed.story.ending.narrativeTier.id, "dynasty-builder", "but the 5-year verdict now actually shows up");
+});
+
+// B4 of docs/CAREER_LIFE_ROADMAP.md: five years used to be a hard cap -- accepting a renewal always
+// ended the chapter with a "renewed-career" ending, even though the career clearly wasn't over.
+test("accepting a renewal keeps the tenure going at the same team instead of ending the career", () => {
   const history = Array.from({ length: 5 }, (_, index) =>
     summary(1991 + index, 60, 22, index < 2 ? "CHI" : "LAL", "CHI"));
   const root = rootWithHistory(history);
   root.story.frontOfficeTrust = 70;
   const renewal = evaluateCareerEmployment(root);
   const accepted = acceptCareerContract(renewal, "rebuild-extension");
-  assert.equal(accepted.story.ending.id, "renewed-career", "mechanic outcome is still the contract pick");
-  assert.equal(accepted.story.ending.narrativeTier.id, "dynasty-builder", "but the 5-year verdict now actually shows up");
+  assert.equal(accepted.story.employment.status, "active", "back to work, not game over");
+  assert.equal(accepted.story.ending, undefined, "no ending while the tenure continues");
+  assert.equal(accepted.story.employment.contractYears, 4, "rebuild-extension is a 4-year deal");
+  assert.equal(accepted.story.employment.tenureStartSeasonCount, 5, "the new contract starts counting from season 5");
+});
 
+test("a new contract's own length governs the next renewal, not the original hire's", () => {
+  const history = Array.from({ length: 5 }, (_, index) => summary(1991 + index, 50, 32));
+  const root = rootWithHistory(history);
+  const renewal = evaluateCareerEmployment(root);
+  // rebuild-extension is 4 years -- 2 seasons into it should still be active, not up for renewal.
+  const accepted = acceptCareerContract(renewal, "rebuild-extension");
+  const twoMoreSeasons = {
+    ...accepted,
+    leagueCareer: {
+      ...accepted.leagueCareer,
+      management: {
+        seasonHistory: [...history, summary(1996, 50, 32), summary(1997, 50, 32)],
+      },
+    },
+  };
+  assert.equal(
+    evaluateCareerEmployment(twoMoreSeasons),
+    twoMoreSeasons,
+    "only 2 of the 4 contracted seasons have passed",
+  );
+  const fourMoreSeasons = {
+    ...accepted,
+    leagueCareer: {
+      ...accepted.leagueCareer,
+      management: {
+        seasonHistory: [
+          ...history,
+          summary(1996, 50, 32),
+          summary(1997, 50, 32),
+          summary(1998, 50, 32),
+          summary(1999, 50, 32),
+        ],
+      },
+    },
+  };
+  const nextRenewal = evaluateCareerEmployment(fourMoreSeasons);
+  assert.equal(nextRenewal.story.employment.status, "renewal", "the 4-year rebuild-extension is up");
+});
+
+test("a fired or departed stint is archived onto root.coach.stints", () => {
+  const fired = evaluateCareerEmployment(
+    rootWithHistory([summary(1991, 30, 52), summary(1992, 28, 54)]),
+  );
+  assert.equal(fired.coach.stints.length, 1);
+  assert.equal(fired.coach.stints[0].reason, "two-bad-seasons");
+  assert.equal(fired.coach.stints[0].seasons, 2);
+  assert.equal(fired.coach.stints[0].wins, 58);
+  assert.equal(fired.coach.stints[0].losses, 106);
+
+  const history = Array.from({ length: 5 }, (_, index) => summary(1991 + index, 50, 32));
+  const renewal = evaluateCareerEmployment(rootWithHistory(history));
   const departed = declineCareerContracts(renewal);
-  assert.equal(departed.story.ending.narrativeTier.id, "dynasty-builder", "same verdict regardless of accept/decline choice");
+  assert.equal(departed.coach.stints.length, 1);
+  assert.equal(departed.coach.stints[0].reason, "departed");
+  assert.equal(departed.coach.stints[0].seasons, 5);
+});
+
+test("accepting a renewal does NOT archive a stint -- the tenure at this team is still going", () => {
+  const history = Array.from({ length: 5 }, (_, index) => summary(1991 + index, 50, 32));
+  const renewal = evaluateCareerEmployment(rootWithHistory(history));
+  const accepted = acceptCareerContract(renewal, "rebuild-extension");
+  assert.deepEqual(accepted.coach?.stints || [], []);
 });
 
 test("a mediocre tenure that still survives to year 5 does not falsely claim a dynasty", () => {
@@ -148,8 +227,11 @@ test("a mediocre tenure that still survives to year 5 does not falsely claim a d
   const root = rootWithHistory(history);
   root.story.frontOfficeTrust = 30;
   const renewal = evaluateCareerEmployment(root);
-  const accepted = acceptCareerContract(renewal, "rebuild-extension");
-  assert.equal(accepted.story.ending.narrativeTier.id, "unfinished-revolution");
+  // B4: accepting no longer ends the career, so the narrative verdict can only be checked against
+  // an actual ending -- decline it instead (deriveEnding() itself only cares about performance,
+  // not which choice is made, same as the departure-vs-firing tests elsewhere in this file).
+  const departed = declineCareerContracts(renewal);
+  assert.equal(departed.story.ending.narrativeTier.id, "unfinished-revolution");
 });
 
 test("getting fired early still carries a narrative verdict, not just the bare firing label", () => {

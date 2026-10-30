@@ -1,5 +1,6 @@
 import { historicalSeason } from "../data/historicalSeasons.js";
 import { eventOnCooldown, pickNextEvent } from "../career/eventPool.js";
+import { INITIAL_CONTRACT_YEARS } from "../career/balance.js";
 
 // EVENT_POOL: each event's `order` plus `conditions` (see js/career/eventPool.js for the matching
 // rules) replace what used to be a single `startOffset` -- conditions.minTenureYear carries the
@@ -351,25 +352,20 @@ export function queueNextStoryEvent(root, { year } = {}) {
   return queueStoryEvent(root, next.id, { year: currentYear });
 }
 
+/**
+ * B4 of the roadmap: this used to force an ending the instant seasonHistory hit 5 entries,
+ * regardless of what careerContract.js's evaluateCareerEmployment() had actually decided -- which
+ * is exactly the "five years is a hard cap" bug a multi-stint career can no longer afford (a
+ * renewed coach happily playing a 6th, 7th, 20th season would still have had THIS function force
+ * a premature ending on every single later transition, since `history.length >= 5` never stops
+ * being true). evaluateCareerEmployment() is now the only place that decides a stint is over
+ * (fired/departed, both of which already set root.story.ending themselves); this stays only as an
+ * idempotent no-op guard for callers that always chain it afterwards (js/app.js's
+ * queueNextTimeTravelEvent()), not as a second source of truth about when a career ends.
+ */
 export function finalizeCareerEnding(root) {
   requireStory(root);
-  const history = root.leagueCareer?.management?.seasonHistory || [];
-  if (history.length < 5) return root;
-  if (root.story.ending) return root;
-  const ending = deriveEnding(root);
-  return {
-    ...root,
-    story: {
-      ...root.story,
-      currentChapter: "epilogue",
-      ending,
-      pendingDecision: null,
-      eventLog: [
-        ...root.story.eventLog,
-        { type: "career-ending", year: root.leagueCareer?.season?.year, ending: clone(ending), at: Date.now() },
-      ],
-    },
-  };
+  return root;
 }
 
 export function buildCareerReport(root) {
@@ -397,7 +393,15 @@ export function buildCareerReport(root) {
         career?.season?.league?.labels?.[currentChampion] || currentChampion,
     }];
   });
-  const ending = root.story.ending || (history.length >= 5 ? deriveEnding(root) : null);
+  // B4: preview the narrative verdict whenever the coach is at (or past) a decision point for
+  // this stint -- a pending renewal, or an already-terminal fired/departed/legacy-renewed status
+  // -- not just "5 seasons have gone by", which used to force the SAME preview onto a coach who's
+  // 2 seasons into a brand new contract just because their lifetime total happened to cross 5.
+  const employment = root.story.employment || {};
+  const ending = root.story.ending || (employment.status && employment.status !== "active" ? deriveEnding(root) : null);
+  const contractYears = employment.contractYears ?? INITIAL_CONTRACT_YEARS;
+  const tenureStartSeasonCount = employment.tenureStartSeasonCount ?? 0;
+  const seasonsIntoContract = Math.max(0, seasons.length - tenureStartSeasonCount);
   const rankedSeasons = seasons
     .filter((season) => season.record)
     .sort((left, right) => (right.record.w - right.record.l) - (left.record.w - left.record.l));
@@ -406,8 +410,13 @@ export function buildCareerReport(root) {
     currentYear: career?.season?.year ?? root.story.startYear,
     seasons,
     seasonCount: seasons.length,
-    maxSeasons: 5,
-    finished: seasons.length >= 5,
+    // B4: these describe the CURRENT contract, not a lifetime cap -- a renewal resets
+    // seasonsIntoContract to (close to) 0 under its own contractYears, same idea as
+    // careerContract.js's contractExpired(). finished means "this story is over" (an actual
+    // ending is recorded), independent of any season count.
+    maxSeasons: contractYears,
+    seasonsIntoContract,
+    finished: Boolean(root.story.ending),
     bestSeason: rankedSeasons[0] || null,
     championships,
     choices,

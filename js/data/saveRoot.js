@@ -235,7 +235,9 @@ function validateSeasonGoal(goal) {
 function validPendingDecision(value) {
   if (value === null || typeof value === "string") return true;
   if (!isObject(value) || !Number.isInteger(value.year)) return false;
-  // "contract-renewal" is what evaluateCareerEmployment() parks the career on after season five.
+  // "contract-renewal" is what evaluateCareerEmployment() parks the career on once the current
+  // contract's years are up (see careerContract.js's contractExpired() -- B4 made this a
+  // per-contract check, not a fixed "season five").
   // It carries no event id; leaving it out of this check made the renewal state unsaveable.
   if (value.type === "contract-renewal") return true;
   return value.type === "story-event" && isNonEmptyString(value.eventId);

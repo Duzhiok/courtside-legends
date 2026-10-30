@@ -96,6 +96,18 @@ test("clampCoachProfile tolerates a completely empty input", () => {
   const repaired = clampCoachProfile({});
   assert.equal(repaired.level, 1);
   assert.equal(repaired.perkPoints, 0);
+  assert.deepEqual(repaired.stints, [], "B4: no coach.stints yet defaults to an empty array");
+});
+
+// B4 of docs/CAREER_LIFE_ROADMAP.md: root.coach.stints holds completed tenures (see
+// js/career/stints.js). Only buildStintRecord() ever creates a real one, so the only malformed
+// shape worth guarding against here is a hand-edited/corrupted save.
+test("clampCoachProfile keeps well-formed stints and drops malformed ones", () => {
+  const good = { teamId: "CHI", startYear: 1991, endYear: 1995, seasons: 5, wins: 200, losses: 60, championships: 2, reason: "departed" };
+  const repaired = clampCoachProfile({
+    stints: [good, { teamId: "CHI" }, null, "nope", { reason: "fired" }],
+  });
+  assert.deepEqual(repaired.stints, [good]);
 });
 
 test("isRetirementAge / advanceCoachAge", () => {

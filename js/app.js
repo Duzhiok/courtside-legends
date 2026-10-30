@@ -885,7 +885,9 @@ function ttMeterHtml(label, value, tone) {
   return `<span class="tt-meter"><span class="tt-meter-label">${label} <strong>${value}</strong></span><span class="tt-meter-track"><span class="tt-meter-fill tt-meter-${tone}" style="width:${pct}%"></span></span></span>`;
 }
 
-/** 年度进度条：5 个赛季 + 结局，已完成/当前/待进行三种状态 */
+/** 合同进度条：本份合同各赛季 + 结局，已完成/当前/待进行三种状态。
+ * B4: 这是当前合同的进度（seasonsIntoContract/maxSeasons），不是生涯总计数；续约后这个条会重新从头走，
+ * 因为新合同自己的 years 才是下一次判定的依据。 */
 function renderTimeTravelStepper() {
   const box = $("#time-travel-stepper");
   if (!box) return;
@@ -896,8 +898,8 @@ function renderTimeTravelStepper() {
   const report = buildCareerReport(currentRootState());
   const steps = [];
   for (let year = 1; year <= report.maxSeasons; year++) {
-    const done = year <= report.seasonCount;
-    const current = year === report.seasonCount + 1 && !report.finished;
+    const done = year <= report.seasonsIntoContract;
+    const current = year === report.seasonsIntoContract + 1 && !report.finished;
     steps.push(
       `<span class="tt-step ${done ? "done" : ""} ${current ? "current" : ""}"><span class="tt-step-dot">${done ? "✓" : year}</span><span class="tt-step-label">第${year}年</span></span>`
     );
@@ -1021,9 +1023,13 @@ function renderTimeTravelReport() {
   if (status) {
     status.textContent = report.finished
       ? getLang() === "en"
-        ? `Five-year arc complete · ${report.championships} titles${endingLabel ? ` · Ending: ${endingLabel}${tierLabel ? ` (${tierLabel})` : ""}` : ""}`
-        : `五年篇章已完成 · 冠军 ${report.championships} 次${endingLabel ? ` · 结局：${endingLabel}${tierLabel ? `（${tierLabel}）` : ""}` : ""}`
-      : `五年篇章进度：${report.seasonCount}/${report.maxSeasons}`;
+        ? `Career over after ${report.seasonCount} seasons · ${report.championships} titles${endingLabel ? ` · Ending: ${endingLabel}${tierLabel ? ` (${tierLabel})` : ""}` : ""}`
+        : `生涯已结束，共执教 ${report.seasonCount} 个赛季 · 冠军 ${report.championships} 次${endingLabel ? ` · 结局：${endingLabel}${tierLabel ? `（${tierLabel}）` : ""}` : ""}`
+      // B4: this is progress on the CURRENT contract (seasonsIntoContract/maxSeasons), not a
+      // lifetime count -- a renewal resets the numerator without ending anything.
+      : getLang() === "en"
+        ? `Current contract: year ${report.seasonsIntoContract}/${report.maxSeasons} (career season ${report.seasonCount})`
+        : `本份合同进度：第 ${report.seasonsIntoContract}/${report.maxSeasons} 年（生涯共 ${report.seasonCount} 季）`;
   }
   if (seasons) {
     seasons.innerHTML = "";
@@ -1170,7 +1176,18 @@ async function resolveCareerContract(offerId) {
     state.story = root.story;
     state.longCareerRoot = root;
     if (!saveLongCareer()) throw new Error("续约保存失败");
-    setTimeTravelStatus(careerStateNotice(root.story));
+    // B4: a signed contract keeps the career going (employment.status goes back to "active"), so
+    // careerStateNotice()'s terminal-flavored messages don't fit here anymore -- build the notice
+    // straight from the offer this call just accepted, which app.js already has in scope.
+    const offer = root.story.employment?.offer;
+    const en = getLang() === "en";
+    setTimeTravelStatus(
+      offer
+        ? (en
+          ? `Contract signed: ${offer.title} · ${offer.years} years · salary ${offer.salary}. Back to work.`
+          : `续约已签署：${offer.title} · ${offer.years} 年 · 薪资 ${offer.salary}，继续征战。`)
+        : careerStateNotice(root.story),
+    );
     renderTimeTravelStoryState();
   } catch (error) {
     setTimeTravelStatus(error?.message || "无法完成续约", true);

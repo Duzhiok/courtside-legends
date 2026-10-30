@@ -185,3 +185,12 @@
   器只回复它当初见过包含中文的节点，我用 `L()` 生成的英文文本它从来没见过），改成每次打开都重建
   修好。新增 12+7 条单测（2 个 mutation 都被抓住）+ `scripts/qa/coach-origins.mjs`（26/26，框住了
   上述 i18n bug）。全量 1075/1075，lint 0 错误。下一步正式回到 B4。
+- [2026-10-30] Code：**B4 已完成（WORKNOTE R106）**——取消了"五年硬上限"。`acceptCareerContract()` 现在把生涯
+  导回 `active`（继续打球），不再终局；只有 `fired`/`departed` 还是终态，且会把这段执教存进新启用的
+  `root.coach.stints[]`（新文件 `js/career/stints.js`）。**给 Luna 的重要提醒**：如果你改过或正在改
+  `eventEngine.js` 的 `finalizeCareerEnding()`/`buildCareerReport()`——前者现在是纯 no-op（原来那套
+  `seasonHistory.length >= 5` 强制终局逻辑整个删了，终局只由 `careerContract.js` 决定）；后者的返回值里
+  `maxSeasons` 含义从"固定 5"变成"当前合同年限"，新增了 `seasonsIntoContract`（当前合同打了几年），
+  `finished` 从"满 5 季"改成"`root.story.ending` 真的存在"。如果你的代码读过这几个字段，请对一下新语义。
+  顺手清掉了 WORKNOTE.md 末尾一条孤立的 `>>>>>>> origin/main`（上次合并漏删的垃圾行）。1097/1097，lint 0 错误。
+  下一步 B5（再就业面试）。

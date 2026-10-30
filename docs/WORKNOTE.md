@@ -1809,4 +1809,66 @@ NBA 球员转型/名校助教，每个都有中英双语标题+描述）。故�
 ### R105：晋级赛合并列表改成 1 教练 + 1 技能包 + 8 球员固定顺序（Luna 提交）
 
 用户定：每次刷新只出 1 个教练、1 个技能包，放在列表第 1、2 行，后面再随机刷 8 个球员。此前是 5 球员 + 2 教练 + 3 技能包随机穿插（`interleaveRandom`）。改动：`CAREER_SHOP_SIZE` 5→8、`CAREER_COACH_SHOP_SIZE` 2→1、`SKILL_SHOP_SIZE` 3→1（技能货架提示文案用常量插值，自动变成“货架 1 格”）；合并列表渲染改成教练卡、技能包卡、球员卡固定拼接，不再随机穿插；`interleaveRandom` 已无调用点，随手删掉。刷新按钮与费用不动：刷新自由市场（¤50）一次换整单，教练/技能包单独刷新（¤30/¤25）只换各自那一格，球探包仍随机出现；对决模式（12 张）不受影响。全量 1070/1070，lint 0 错误。
->>>>>>> origin/main
+
+### R106：B4——执教段落 stints，取消五年硬上限
+
+回到路线图正轨：B1→B3 都做完了，现在把"一段生涯固定五年"的硬编码拆掉，改成"合同年限才是真正的上限"。
+
+- `balance.js` 新增 `INITIAL_CONTRACT_YEARS = 5`——首份合同仍然是 5 年（叙事上与穿越开局的面试一致），
+  但现在这是"当前合同的长度"，不是"整段生涯的长度"。
+- `careerContract.js` 新增内部 `contractExpired(employment, performance)`：读
+  `employment.contractYears ?? INITIAL_CONTRACT_YEARS` 和 `employment.tenureStartSeasonCount ?? 0`，
+  判断 `performance.seasons - tenureStartSeasonCount >= contractYears`。取代了原来写死的
+  `performance.seasons >= 5`。`tenureStartSeasonCount` 由 `timeTravelCareer.js` 的
+  `acceptInterviewOffer()`（新教练生涯开局，置 0）和 `acceptCareerContract()`（每次续约，重新快照当前
+  `seasons`）两处维护——续约不需要碰 `seasonHistory`，只需要把计数器挪到"现在"。
+- **行为上最大的变化**：`acceptCareerContract()` 不再把生涯导向终局。原来接受续约会把
+  `employment.status` 置为 `"renewed"`（一个终态）并立刻写 `story.ending`——等于"续约"和"生涯结束"是
+  同一件事，续约方案里明明写着"4 年合同"，但签完当场就终局了，非常荒谬。现在接受续约把 `status` 置回
+  `"active"`（继续打球），`currentChapter` 改 `"active-tenure"`，不写 `ending`。被裁 (`fired`) 和主动离队
+  (`declineCareerContracts` → `departed`) 仍然是终态，行为不变。
+- `root.coach.stints[]` 正式启用（A1 当时就留了这个字段，一直是摆设）：`fired` 和 `departed` 两个终态
+  分支现在会调用新的 `buildStintRecord(root, performance, reason)`（新文件 `js/career/stints.js`）把这一
+  段执教存档——球队、起止年、赛季数、胜负、冠军数、离开原因——追加进 `stints[]`。**续约分支不追加**，
+  因为那段执教还没结束，只是换了份新合同继续打。
+- `js/career/coachProfile.js`：`createCoachProfile()` 默认带 `stints: []`；`clampCoachProfile()` 过滤非法
+  条目（缺 `teamId`/`reason` 等必填字段的一律丢弃），旧存档没有这个字段时正常补空数组，不会炸。
+- `eventEngine.js` 的 `finalizeCareerEnding()` 和 `buildCareerReport()` 原来都硬编码
+  `seasonHistory.length >= 5` 当"该结束了"的信号——这是比 `careerContract.js` 那处更隐蔽的第二个五年硬
+  上限，如果不改，一个续约后打到第 6、7 季的生涯每次转场都会被强行安上结局。改动：
+  - `finalizeCareerEnding()` 整个变成纯粹的 no-op（`requireStory` 校验后直接 `return root`）。
+    `evaluateCareerEmployment()` 现在是唯一能真正终结一段执教的地方（它自己的 fired/departed 分支已经写
+    `ending`），这个函数留着只是因为 `app.js` 的 `queueNextTimeTravelEvent()` orchestration 链还在按老
+    顺序调用它（`employed === progressed ? finalizeCareerEnding(progressed) : employed`）——保留调用点，
+    去掉它的副作用。
+  - `buildCareerReport()` 的结局预览逻辑从"`history.length >= 5` 就强行 `deriveEnding()`"改成
+    "`employment.status` 存在且不是 `"active"`"（即正在等续约决定、或已经是终态）才预览——这其实比原来
+    的触发条件更准确：玩家在续约决策页本来就能看到结局倾向预览，这个体验保留，只是触发条件从"固定第
+    5 季"改成"真正到了决策点"。`maxSeasons`/`seasonCount` 也拆成了 `maxSeasons`（当前合同年限）和新增的
+    `seasonsIntoContract`（当前合同已经打了几年），`seasonCount` 继续表示生涯总季数不变；`finished` 改成
+    `Boolean(root.story.ending)`（真正终局才算完成，不再是"满 5 季"）。
+- `app.js`：`renderTimeTravelStepper()` 的年度进度条、`renderTimeTravelReport()` 的状态文案都从
+  `seasonCount/maxSeasons` 改用 `seasonsIntoContract/maxSeasons`；续约成功后的提示文案不再读
+  `careerStateNotice()`（那是给终态设计的文案，"生涯已结束"类），改成直接拼当次签的合同信息（年限/薪
+  资），因为签完合同生涯根本没结束。
+- 命名顺手理了一下：`acceptCareerContract()` 挂在 `employment` 上的字段沿用现有的 `offer`（不是我原本
+  想叫的 `lastOffer`）——`endingShareCard.js` 的 `contractResult()` 给旧存档的终态 `"renewed"` 读的就是
+  `employment.offer`，两边统一叫 `offer` 省得以后维护两个名字对应同一件事。
+
+测试：`tests/careerContract.test.js` 里两处断言"续约=终局"的老测试改成验证"续约=继续"（含一条新增的
+"4 年合同打了 2 年还不该进续约页，打满 4 年才该进"的专门回归，直接用真实的
+`evaluateCareerEmployment()`/`acceptCareerContract()` 走两轮）；`storyEventEngine.test.js` 的
+`buildCareerReport`/`finalizeCareerEnding` 测试按新语义重写，新增一条"7 季的 active 生涯不该被强行安结
+局"。新文件 `tests/stints.test.js`（4 条，`buildStintRecord` 的正常/负数防呆/缺字段 fallback/非法 root
+输入）。`coachProfile.test.js` 补一条 `stints` 的 clamp 测试。`careerContract.test.js` 再加两条：fired/
+departed 都正确写入 `coach.stints`，续约**不**写入。mutation check：把 `contractExpired(...)` 换回老的
+`performance.seasons >= 5`，新增的"4 年合同只打 2 年"测试立刻失败（34 个测试里挂了 1 个），改回来复原。
+
+顺手处理：`docs/WORKNOTE.md` 末尾有一条孤立的 `>>>>>>> origin/main` 冲突标记，是上次 R103-R105 合并时手
+动解冲突漏删的残留，一并清掉（没有对应的 `<<<<<<<`/`=======`，纯粹是垃圾行，不影响任何已记录的内容）。
+
+全量 1097/1097（新增 9 条：`stints.test.js` 4 条 + `coachProfile.test.js` 1 条 + `careerContract.test.js`
+3 条新增/净增 + `storyEventEngine.test.js` 1 条），lint 0 错误（2 个老 warning 不动），diff-check 过。
+
+下一步：B5——再就业面试。被裁/合同到期/主动离开后进入"求职期"，按声望收到 0–3 份当前年份的工作邀请
+（复用现有面试 UI，不是重新穿越）；声望太低可能只能从烂队做起。

@@ -1,6 +1,7 @@
 import { deriveEnding } from "../story/eventEngine.js";
 import {
   FIRING_TRUST_FLOOR,
+  INITIAL_CONTRACT_YEARS,
   RENEWAL_DYNASTY_CHAMPIONSHIPS,
   RENEWAL_TRIAL_GOAL_RATE,
   RENEWAL_TRIAL_REPUTATION_CEILING,
@@ -8,6 +9,7 @@ import {
   SEASON_GOAL_TRUST_PENALTY,
 } from "../career/balance.js";
 import { buildSeasonGoal, goalAchieved } from "../career/seasonGoals.js";
+import { buildStintRecord } from "../career/stints.js";
 
 // B3 of the roadmap: the menu is sized to the actual tenure, not a fixed two-option pair for
 // everyone. trial-extension and dynasty-extension are the new floor/ceiling; rebuild-extension and
@@ -201,6 +203,20 @@ function resolveFiringReason(root, performance) {
   return null;
 }
 
+/**
+ * B4: seasons left on the CURRENT contract, not the whole career. tenureStartSeasonCount
+ * snapshots careerPerformance(root).seasons at the moment this contract began (set by
+ * acceptInterviewOffer() for the very first hire, and by acceptCareerContract() on every renewal
+ * after that) -- so a renewal resets the clock to 0 without needing to touch seasonHistory at
+ * all. Both fields default for saves from before this existed, reproducing the old hardcoded
+ * "always a 5-year chapter starting at hire" behavior exactly.
+ */
+function contractExpired(employment, performance) {
+  const contractYears = employment.contractYears ?? INITIAL_CONTRACT_YEARS;
+  const tenureStartSeasonCount = employment.tenureStartSeasonCount ?? 0;
+  return performance.seasons - tenureStartSeasonCount >= contractYears;
+}
+
 export function evaluateCareerEmployment(root) {
   requireCareerRoot(root);
   const performance = careerPerformance(root);
@@ -219,8 +235,14 @@ export function evaluateCareerEmployment(root) {
       // flat label no matter how the tenure actually went up to that point.
       narrativeTier: deriveEnding(root),
     };
+    // B4: this tenure at this team is over -- record it as a completed stint (root.coach.stints)
+    // before the terminal employment status replaces the active one. B5/B6/B7 build the "now go
+    // find a new job / retire" flow on top of this record; for now the chapter still ends here,
+    // same as before, just with the stint properly archived for later.
+    const stint = buildStintRecord(root, performance, firing.reason);
     return {
       ...root,
+      coach: { ...(root.coach || {}), stints: [...(root.coach?.stints || []), stint] },
       story: {
         ...root.story,
         employment: { status: "fired", reason: firing.reason, performance },
@@ -235,7 +257,7 @@ export function evaluateCareerEmployment(root) {
     };
   }
 
-  if (performance.seasons >= 5) {
+  if (contractExpired(employment, performance)) {
     const offerIds = renewalOfferIds(performance, root.coach?.reputation ?? 50);
     const offers = offerIds.map((id) => clone(OFFER_TEMPLATES.find((offer) => offer.id === id)));
     return {
@@ -270,22 +292,25 @@ export function acceptCareerContract(root, offerId) {
   // "dynasty-extension" just because that id exists somewhere in the module.
   const offer = (employment.offers || []).find((candidate) => candidate.id === offerId);
   if (!offer) throw new RangeError("unknown career contract offer");
+  // B4: signing a new contract no longer ends the career -- it starts a fresh term at the SAME
+  // team (the stint continues; nothing is appended to root.coach.stints here, only a real
+  // departure does that). tenureStartSeasonCount snapshots the season count right now so the
+  // NEXT contractExpired() check measures from this moment, under this contract's own `years`,
+  // not from whenever the whole tenure first began.
   return {
     ...root,
     story: {
       ...root.story,
       employment: {
-        status: "renewed",
+        status: "active",
+        contractYears: offer.years,
+        tenureStartSeasonCount: employment.performance.seasons,
+        // Same field name the legacy "renewed" terminal status already used (endingShareCard.js's
+        // contractResult() reads it for old saves) -- just carried on an "active" employment now
+        // instead of a terminal one.
         offer: clone(offer),
-        performance: employment.performance,
       },
-      currentChapter: "postscript",
-      ending: {
-        id: "renewed-career",
-        label: `${offer.title} · ${offer.years}年${offer.salary}薪资`,
-        tone: "success",
-        narrativeTier: deriveEnding(root),
-      },
+      currentChapter: "active-tenure",
       frontOfficeTrust: (root.story.frontOfficeTrust || 0) + offer.effects.trust,
       mediaPressure: Math.max(0, (root.story.mediaPressure || 0) + offer.effects.pressure),
       timelineDivergence: (root.story.timelineDivergence || 0) + offer.effects.divergence,
@@ -310,8 +335,13 @@ export function declineCareerContracts(root) {
     tone: "success",
     narrativeTier: deriveEnding(root),
   };
+  // B4: declining ends this stint too (same as being fired, just a voluntary "departed" reason) --
+  // archive it before the terminal status replaces the active one. See the firing branch above for
+  // the same comment about B5/B6/B7 eventually turning this into a "go find a new job" moment.
+  const stint = buildStintRecord(root, employment.performance, "departed");
   return {
     ...root,
+    coach: { ...(root.coach || {}), stints: [...(root.coach?.stints || []), stint] },
     story: {
       ...root.story,
       employment: { status: "departed", performance: employment.performance },

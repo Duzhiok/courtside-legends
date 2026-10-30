@@ -50,6 +50,11 @@ export function createCoachProfile(overrides = {}) {
     // so it never grows unbounded -- it only ever holds bets placed since the last settlement.
     housing: null,
     pendingInvestments: [],
+    // B4: completed tenures only -- see js/career/stints.js's module doc. The one currently in
+    // progress is never pushed here; it's derived live from careerContract.js's careerPerformance()
+    // plus root.story.employment, same "don't duplicate what's already derivable" rule the rest of
+    // this profile follows (e.g. age/reputation never re-store anything performance.js computes).
+    stints: [],
     ...overrides,
   };
 }
@@ -101,6 +106,12 @@ export function clampCoachProfile(coach) {
       ? coach.pendingInvestments.filter(
           (p) => p && typeof p.assetId === "string" && Number.isFinite(p.amount) && p.amount > 0,
         )
+      : [],
+    // B4: shape-only here too -- same reasoning as housing/pendingInvestments above. A stint only
+    // needs enough shape to be displayable; js/career/stints.js's buildStintRecord() is the only
+    // thing that ever creates one, so a malformed entry only happens via a hand-edited save.
+    stints: Array.isArray(coach?.stints)
+      ? coach.stints.filter((s) => s && typeof s.teamId === "string" && typeof s.reason === "string")
       : [],
   };
 }

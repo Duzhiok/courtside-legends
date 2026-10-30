@@ -5,6 +5,7 @@ import { createRootState } from "../data/saveRoot.js";
 import { createLeagueCareer, recordCareerEvent } from "./leagueCareer.js";
 import { buildSeasonGoal } from "../career/seasonGoals.js";
 import { createCoachProfile } from "../career/coachProfile.js";
+import { INITIAL_CONTRACT_YEARS } from "../career/balance.js";
 import {
   DEFAULT_COACH_ORIGIN,
   applyOriginToCoach,
@@ -239,6 +240,11 @@ export function acceptInterviewOffer(prologue, offerId) {
       philosophy: prologue.philosophy,
       origin,
       employer: offer.teamId,
+      // B4: an explicit contract from day one, instead of leaving employment undefined and letting
+      // careerContract.js's `employment || { status: "active" }` default paper over it. years is
+      // the STARTING contract's length (not a lifetime cap -- every renewal after this one carries
+      // its own years); tenureStartSeasonCount is 0 because no season has been coached yet.
+      employment: { status: "active", contractYears: INITIAL_CONTRACT_YEARS, tenureStartSeasonCount: 0 },
       futureKnowledge: 3,
       frontOfficeTrust: offer.trust,
       mediaPressure: offer.pressure,

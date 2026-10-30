@@ -114,3 +114,14 @@ export const INVESTMENT_FORECAST_DIVERGENCE_FALLOFF = 40;
  * free-form amount input. Scaled against HOUSE_TIERS.apartment's cost (20) so a few seasons of
  * investing is a meaningful alternative to saving straight for a house, not a rounding error. */
 export const INVESTMENT_STAKE = 10;
+
+/** --- Phase B4: multi-stint careers (roadmap B4) --- */
+
+/** Contract length (years) for the very first hire. The opening interview offer
+ * (timeTravelCareer.js's OFFER_DETAILS) negotiates authority/trust/pressure but never a contract
+ * length, so this is what governs when the first renewal-or-firing decision comes due. This used
+ * to be a literal lifetime cap ("the chapter always ends at season 5"); now it's just the
+ * STARTING contract's length -- every renewal after that is governed by its own `years` from
+ * careerContract.js's OFFER_TEMPLATES, and a tenure can run through as many contracts, at the
+ * same team, as the coach keeps earning. */
+export const INITIAL_CONTRACT_YEARS = 5;

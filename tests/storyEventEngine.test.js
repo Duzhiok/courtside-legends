@@ -100,7 +100,7 @@ test("event engine rejects duplicate events and invalid choices", () => {
   );
 });
 
-test("career report summarizes history and derives a meaningful ending", () => {
+test("career report summarizes history and derives a meaningful ending preview", () => {
   const summaries = Array.from({ length: 5 }, (_, index) => ({
     year: 1991 + index,
     teamId: index === 0 ? "LAL" : "CHI",
@@ -117,13 +117,16 @@ test("career report summarizes history and derives a meaningful ending", () => {
       },
       management: { seasonHistory: summaries },
     },
-    story: { ...rootFixture().story, frontOfficeTrust: 60 },
+    // B4: the preview ending now shows up whenever there's an active decision point (here: a
+    // pending renewal), not just because 5 seasons of history happen to exist -- a continuing
+    // tenure can run well past 5 seasons without ever showing a preview until it reaches one.
+    story: { ...rootFixture().story, frontOfficeTrust: 60, employment: { status: "renewal" } },
   });
   const report = buildCareerReport(root);
   assert.equal(report.championships, 2);
   assert.equal(report.seasons.length, 5);
   assert.equal(report.seasonCount, 5);
-  assert.equal(report.finished, true);
+  assert.equal(report.finished, false, "finished means an ending is actually recorded, not just previewed");
   assert.equal(report.bestSeason.year, 1995);
   assert.deepEqual(report.historyChanges, [
     { year: 1991, historicalChampion: "公牛", currentChampion: "Lakers" },
@@ -135,9 +138,25 @@ test("career report summarizes history and derives a meaningful ending", () => {
     tone: "success",
   });
   assert.deepEqual(deriveEnding(root), report.ending);
-  const finalized = finalizeCareerEnding(root);
-  assert.deepEqual(finalized.story.ending, report.ending);
-  assert.equal(finalized.story.currentChapter, "epilogue");
-  assert.equal(finalized.story.eventLog.at(-1).type, "career-ending");
-  assert.equal(finalizeCareerEnding(finalized), finalized);
+});
+
+// B4 of docs/CAREER_LIFE_ROADMAP.md: finalizeCareerEnding() used to force an ending onto ANY
+// career with 5+ seasons of history -- which would wrongly re-fire on every later season of a
+// renewed, still-active multi-stint career, since seasonHistory.length >= 5 never stops being
+// true. evaluateCareerEmployment() (careerContract.js) is now the only thing that ends a stint;
+// this is just an idempotent no-op kept for the orchestration chain that still calls it.
+test("finalizeCareerEnding is a no-op -- evaluateCareerEmployment owns ending the career now", () => {
+  const summaries = Array.from({ length: 7 }, (_, index) => ({
+    year: 1991 + index,
+    teamId: "CHI",
+    teamName: "Bulls",
+    record: { w: 50, l: 32 },
+    finish: "playoffs",
+    championId: "CHI",
+  }));
+  const root = rootFixture({
+    leagueCareer: { season: { year: 1998 }, management: { seasonHistory: summaries } },
+    story: { ...rootFixture().story, employment: { status: "active" } },
+  });
+  assert.equal(finalizeCareerEnding(root), root, "7 seasons of an ACTIVE tenure must not force an ending");
 });
