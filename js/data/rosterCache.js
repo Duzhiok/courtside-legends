@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 59; // bump: Nash/Paul/Kidd added to POS_OVERRIDES (G->SG normalize mislabeled their early seasons)
+export const ROSTER_SCHEMA = 60; // bump: R106 audit fixes — names merged/normalized, 189 position blankets + 187 season patches, skill name-fallback tightening, 2K anchor/formula fixes
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good

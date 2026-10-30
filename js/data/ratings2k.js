@@ -517,12 +517,15 @@ const HAND_ANCHORS_2K = {
 
 /**
  * Final anchor table: hand peaks first, then scraped 2K archive (2014+).
- * Same bref:season → scraped overwrites (later 2K edition already won inside scrape).
+ * Merge is PER ATTRIBUTE KEY, not per card: scraped wins on keys it
+ * provides, hand-tuned keys survive. The old whole-object spread wiped
+ * hand peaks (LeBron 2013/2018, Curry 2016/2021, Jokic 2023…) whenever a
+ * partial scraped entry existed for the same card.
  */
-export const RATING_ANCHORS_2K = {
-  ...HAND_ANCHORS_2K,
-  ...SCRAPED_ANCHORS_2K,
-};
+export const RATING_ANCHORS_2K = {};
+for (const key of new Set([...Object.keys(HAND_ANCHORS_2K), ...Object.keys(SCRAPED_ANCHORS_2K)])) {
+  RATING_ANCHORS_2K[key] = { ...HAND_ANCHORS_2K[key], ...SCRAPED_ANCHORS_2K[key] };
+}
 
 const ATTR_KEYS = [
   "scoring",
@@ -540,6 +543,18 @@ const ATTR_KEYS = [
   "steal",
   "block",
 ];
+
+/**
+ * Era eFG% baseline: pre-3PT eras shot lower league-wide, so judging a
+ * 1962 star against the modern .48 line punishes him twice (efg term +
+ * volume tax). Only pre-1980 seasons shift; 1980+ keeps .48 exactly.
+ */
+function eraEfgBaseline(season) {
+  const s = Number(season) || 2024;
+  if (s < 1970) return 0.42;
+  if (s < 1980) return 0.45;
+  return 0.48;
+}
 
 /**
  * Approximate advanced rates from box score (no team-context RAPM dump available).
@@ -564,8 +579,11 @@ export function advancedFromBox(r) {
   const pps = clamp(ppg / fga, 0.7, 1.85);
   const astTo = apg / Math.max(tpg, 0.45);
   const stocks = spg + bpg;
-  // High FGA with mediocre eFG = volume tax (stat-padding on bad teams)
-  const volumeTax = Math.max(0, fga - 18) * Math.max(0, 0.535 - efg) * 55;
+  // High FGA with mediocre eFG = volume tax (stat-padding on bad teams).
+  // Threshold follows the era baseline: a .43 eFG in 1962 is league-average,
+  // not empty volume.
+  const volumeTax =
+    Math.max(0, fga - 18) * Math.max(0, eraEfgBaseline(r.season) + 0.055 - efg) * 55;
   // Multi-category impact — efficiency weighted, not raw counting
   // Efficient 34/9/10 ≈ mid-50s peri; empty 32ppg chucker stays lower after tax
   const periVal =
@@ -602,6 +620,9 @@ export function attrsFromBoxScore2K(r) {
   const isBig = pos === "C" || pos === "PF";
   const isGuard = pos === "PG" || pos === "SG";
   const adv = advancedFromBox(r);
+  // Era-relative efficiency: pre-1980 cards compare against their own era.
+  const eraBase = eraEfgBaseline(r.season);
+  const eraShift = eraBase - 0.48;
 
   // —— Scoring: efficiency-first. High FGA alone no longer buys mid-90s. ——
   // Anchors: efficient 22→84, 27/efg.54→91, empty 32/efg.48→88, elite 30/efg.56→94
@@ -609,13 +630,18 @@ export function attrsFromBoxScore2K(r) {
     40 +
     adv.periVal * 0.48 +
     ppg * 0.62 +
-    (adv.efg - 0.48) * 65 +
+    (adv.efg - eraBase) * 65 +
     (adv.pps - 1.18) * 26 +
     Math.min(fga, 20) * 0.2;
   scoring += ft >= 0.85 ? 2 : ft < 0.65 ? -2.5 : 0;
   scoring -= adv.volumeTax * 0.5;
   // Formula almost never hands out 97–100 scoring without an anchor
   scoring = clamp(Math.round(softCap(scoring, 92, 97)), 25, 97);
+  // R106: 产量地板——再低效的 30+ 得分手也不该是角色球员级 scoring。
+  // volume tax 曾把 Iverson 2002（31.4 分）压到 25 地板、Baylor 1962
+  //（38.2 分）压到 25 地板；地板 80 仍低于公式自述的“空砍 32 分→88”
+  // 锚位，是保守修正，不是通胀。
+  if (ppg >= 30) scoring = Math.max(scoring, 80);
 
   // —— Three-Point Shot ——
   // Volume + accuracy. Non-shooting bigs crushed (Howard/Shaq band 25–35).
@@ -623,7 +649,9 @@ export function attrsFromBoxScore2K(r) {
   if (tp >= 0.37 && tpa >= 2) three += 6;
   if (tp >= 0.4 && tpa >= 4) three += 5;
   if (tp >= 0.42 && tpa >= 6) three += 4;
-  if (tpa < 0.4) three = Math.min(three, isBig ? 32 : 42);
+  // R106: tiny-sample guard is tpa < 0.5 — at exactly 0.4 a 100% shooter
+  // previously escaped the cap entirely (e.g. Lichti three 97).
+  if (tpa < 0.5) three = Math.min(three, isBig ? 32 : 42);
   if (tpa < 1.0 && isBig) three = Math.min(three, 38);
   if (tpa < 0.2) three = Math.min(three, 28);
   if (tp < 0.3 && tpa >= 2) three -= 8;
@@ -726,7 +754,7 @@ export function attrsFromBoxScore2K(r) {
   let iq =
     44 +
     apg * 2.2 +
-    (adv.efg >= 0.54 ? 7 : adv.efg >= 0.5 ? 4 : adv.efg < 0.46 ? -4 : 0) +
+    (adv.efg >= 0.54 + eraShift ? 7 : adv.efg >= 0.5 + eraShift ? 4 : adv.efg < 0.46 + eraShift ? -4 : 0) +
     (adv.astTo >= 2.5 ? 5 : adv.astTo < 1.5 ? -3 : 0) +
     (tpg > 4 ? -5 : tpg < 2.2 ? 3 : 0) +
     Math.min(adv.periVal, 48) * 0.22;
@@ -736,10 +764,10 @@ export function attrsFromBoxScore2K(r) {
   let clutch =
     38 +
     Math.min(adv.periVal, 50) * 0.55 +
-    (adv.efg - 0.48) * 40 +
+    (adv.efg - eraBase) * 40 +
     apg * 0.7 +
     (adv.astTo >= 2.3 ? 3 : 0);
-  if (ppg >= 28 && adv.efg < 0.5) clutch -= 6; // volume star ≠ automatic ice
+  if (ppg >= 28 && adv.efg < 0.5 + eraShift) clutch -= 6; // volume star ≠ automatic ice
   clutch = clamp(Math.round(softCap(clutch, 92, 97)), 30, 97);
 
   // —— Steal / Block (2K lateral ratings) ——
@@ -890,6 +918,9 @@ export function resolve2KRatings(r) {
     attrs,
     ovrHint,
     source,
+    // Anchor speed (when the anchor provides one) lets the card clamp its
+    // final speed after career-arc + physique stacking (R106).
+    anchorSpeed: anchor?.speed ?? null,
     age: arc.age,
     careerPhase: arc.careerPhase,
     careerPhaseLabel: arc.careerPhaseLabel,

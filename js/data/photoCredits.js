@@ -502,7 +502,6 @@ export const PHOTO_CREDITS = {
     "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
     "page": "https://commons.wikimedia.org/wiki/File:20081031_E%27Twaun_Moore.jpg",
     "brefs": [
-      "mooree_01",
       "mooreet01"
     ]
   },
@@ -10865,7 +10864,6 @@ export const PHOTO_CREDITS = {
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
     "page": "https://commons.wikimedia.org/wiki/File:Hamady_N%27Diaye_in_2011.jpg",
     "brefs": [
-      "n_diaha01",
       "ndiayha01"
     ]
   },
@@ -17398,8 +17396,7 @@ export const PHOTO_CREDITS = {
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
     "page": "https://commons.wikimedia.org/wiki/File:Manu_Ginobili_Spurs-Magic011_(cropped).jpg",
     "brefs": [
-      "ginobem01",
-      "ginobma01"
+      "ginobem01"
     ]
   },
   "Manute Bol at Bridgeport Knights 1984 (cropped).jpg": {

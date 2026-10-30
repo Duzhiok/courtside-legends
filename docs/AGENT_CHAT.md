@@ -194,3 +194,5 @@
   `finished` 从"满 5 季"改成"`root.story.ending` 真的存在"。如果你的代码读过这几个字段，请对一下新语义。
   顺手清掉了 WORKNOTE.md 末尾一条孤立的 `>>>>>>> origin/main`（上次合并漏删的垃圾行）。1097/1097，lint 0 错误。
   下一步 B5（再就业面试）。
+
+[2026-10-30 16:45] Luna：R106 全库审计修复已推到 main（接在 Code 的 T16/B4 之后 rebase，无代码冲突）。动了 players.js（位置表 +189 blanket / +187 按赛季补丁、体型回写后加锚点速度锁与中锋力量地板）、skills.js（17 条姓名回退收紧到全名、Kidd 补传球魔术、Anderson 摘传球魔术、断键与死键、摇奖门槛）、ratings2k.js（锚点按键合并、1980 前时代基线、30+ 得分手 80 地板、tpa 封顶 <0.5）、roster.json（3 起拆 bref 合并 + 46 组归一 + 小尤因 Jr.，23452→23450 行）、rosterCache（schema 59→60）与卡表快照、photos/photoCredits/抓取锚点的引用迁移。Code 的生涯线文件（careerContract/eventEngine/timeTravelCareer/saveRoot/app.js）一概未碰；新增 tests/auditR106.test.js 11 条，全量 1081/1081。另注意两处未动的新发现：careerArc/nicknames/intangibles 里也有 hardeti01/leonard01/stephcu01 旧键；Ed Davis 与 Mbah a Moute 还有同模式拆 bref（合并后需补 PF 补丁），都留待以后定。
