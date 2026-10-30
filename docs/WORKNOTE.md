@@ -1743,3 +1743,14 @@ border 简写报告不准——明明样式表里的值是对的、截图里颜�
 下一步：轻量版教练出身系统（本土草根 / 海外经历 / NBA 球员转型 / 名校助教，不新增真实海外
 球员数据库，主要影响初始声望/信任/面试 offer 质量和叙事标签），然后回到 B4（执教段落 stints，取消
 五年硬上限）。
+### R103：交易收紧 + 总决赛 MVP + 选秀弃签（Luna 提交）
+
+用户 2026-10-30 凌晨拍板三项（此前一天连报的五处问题里已定性的三项；最佳阵容赛季 fallback 与穿越模式位置配额两项仍等用户发截图/年队信息，未动手）：
+
+1. **交易收紧（seasonMarket.js + tradeProposals.js + app.js 市场页）。** 先核对了现状再动手：双边/三方交易的唯一时间门确实只有“常规赛期间”，身价不过有 25% 随机放行；另发现薪资检查本身恒真（OR 两边不可能同时不成立，属历史遗留宽松，不在本批动它）。改动：① 截止日——常规赛赛程 70% 处关闭（`TRADE_DEADLINE_FRACTION = 0.7`，按 `schedule.length` 现算，82 天赛程即第 57 天后关闭；无赛程的测试桩跳过）；② 每赛季 5 次上限（`TRADE_LIMIT_PER_SEASON = 5`，双边/三方/接受报价都计，从 tradeLog 现算，`trade` + `trade_3team` 且同年——老存档无需迁移，1 换 1 换签不计）；③ 身价不过不再掷骰子，直接拒绝（双边与三方两处 `Math.random() > 0.25` 都删）；④ 市场页交易区加一行窗口状态（截止第几天/当前第几天、本赛季已交易 N/5 次）。CPU 还价检查一事走了“生成时预审”而不是“删 flag”：`acceptedProposal` 的跳过只对 CPU 摆出的报价和选秀权账本测试可达（市场 UI 从不传它），而报价生成器此前只验硬帽不验身价/薪资——直接删 flag 会让已摆出的报价在接受时弹“对方认为吃亏”（等于承诺了又反悔），还会打破账本测试里故意不等价换签的用例；所以 `buildProposal` 里用同一套公式先验（薪资带 + 身价带 + 倒贴薪资条款，选秀权按 `pickValueOf` 折算），不合规的报价根本不摆出来，游戏里实际已无可绕过检查的交易路径。新增 `tests/tradeLimits.test.js` 5 条（截止日前后/无赛程、5 次封顶且三方计入、身价不过 10 次全拒、每个生成报价都过审、弱队给 99 星摆不出报价）。
+2. **总决赛 MVP（allTeam.js + season.js + leagueCareer.js + careerBracket.js + app.js）。** 此前确实全无：FMVP 只出现在历史赛季文字简介里。评法与最佳阵容同一块板子（场均 + 胜场 + OVR + 评分），但只取冠军队：赛季模式在总决赛三条完赛路径（亲自快打、亲自指挥、一键打完）都把每场 snap 累进新增的 `st.finalsBoard`（只含总决赛场次，不用赛季累计——否则评出来的是赛季 MVP）；夺冠分支（`finishPlayoffGame` 与 `advancePlayoffs` 的总决赛分支）算 `st.finalsMvp = computeFinalsMvp(st)`；老存档（总决赛打在板子之前）回落到总决赛最佳阵容里冠军队得分最高者；`prepareCareerOffseason` 在取总结前先补算一次，保证总结里一定有。展示三处：赛季奖项页“总决赛 MVP”卡、晋级赛夺冠/总决赛出局结果页最佳阵容上方一行（晋级赛另有 `c.finalsBoard`，因主板子是整届累计、不能评总决赛 MVP）、赛季总结 `awards.finalsMvp`（`validateSeasonSummary` 不验 awards，安全；`longCareer` 的 deepEqual 期望补 `finalsMvp: null`）。新增 `tests/finalsMvp.test.js` 3 条（败方明星分再高也不当选、板子优先/无板回落/无冠军为 null、总结带 finalsMvp）。
+3. **选秀弃签（leagueDraft.js + leagueCareer.js + leagueManagementView.js + app.js）。** 根因：名单上限 15 人，选秀时满员必须传 `waivePlayerId` 才让选，签本身无持有上限、无跳过。改动：引擎新增 `forfeitDraftPick`（仅用户回合可弃；弃掉的顺位记一条 `{forfeited: true}`，不耗新秀池、不占名单、不需要裁人），生涯层加 `forfeitCareerDraftPick`（与选秀完全同路径：弃 → 推进到下一用户顺位 → 轮次过渡 → 完成判定）；选秀板用户回合多一个“放弃此签（不选人，不占名单）”按钮（满员时裁人下拉照常存在，弃签按钮不受其禁用逻辑影响）；已选记录里弃签显示“放弃此签”，完成页“你的选择”同样标注，签位数统计区分“已选/放弃”。新增 `tests/draftForfeit.test.js` 4 条（弃签不耗池不占名单、满员 15 人无需裁人、CPU 回合弃签抛错 + 弃最后一签即完成、生涯层推进后仍停在用户顺位）。
+
+**测试插曲**：本批全量第一次跑挂 2 条——① `longCareer` 的总结 deepEqual（新增 `awards.finalsMvp` 字段所致，期望补 null 后 23/23）；② `packPaint` 的包夹油漆区带宽测试（92.3 vs 95.2，分差 2.9 未够 3.0 门槛；本批没动模拟器得分逻辑，单跑 4/4 全绿，定性为随机带宽抖动，与 R90（传球技能收紧）那次同类）。
+
+**测试总结（rebase 后终版）**：远端在 R88 之后已推进到 R102（Code 的穿越生涯 2.0 等工作），本批 rebase 到 `b26d44d` 之上后重跑：全量 1070/1070（Code 的 1058 + 本批 12），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。另注意编号：Code 在 R92 合并时把 Luna 旧的三条顺延为 R89/R90/R91，故本批改称 R103，不再是 R89。
