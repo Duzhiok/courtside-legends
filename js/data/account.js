@@ -75,17 +75,10 @@ export function pickPlayerByOdds(pool, { excludeIds = null, maxOvr = Infinity } 
   return weightedPick(bandPool, (p) => drawWeight(overall(p)));
 }
 
-export function rarityLabel(ovr) {
-  if (ovr >= 100) return "满值";
-  if (ovr >= 96) return "神话";
-  if (ovr >= 93) return "传奇";
-  if (ovr >= 90) return "超巨";
-  if (ovr >= 85) return "全明星";
-  if (ovr >= 80) return "先发";
-  if (ovr >= 74) return "轮换";
-  if (ovr >= 68) return "角色";
-  return ""; // no「边缘」tag — low cards just show OVR
-}
+// rarityLabel(ovr) used to live here (pure-OVR tag text). It is now data/playerLegacy.js's
+// legacyOvrBadge(), the fallback tier inside playerLegacyBadge() -- moved so the OVR-only bands
+// and the real-basketball-identity tiers (Legendary/Superstar/All-Star/...) share one function
+// and one priority order instead of two call sites picking different labels for the same card.
 
 export function todayKey(d = new Date()) {
   const y = d.getFullYear();

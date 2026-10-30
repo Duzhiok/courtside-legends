@@ -17,9 +17,9 @@
  */
 import { COACHES, coachDrawWeight, isLegendCoach } from "./coaches.js";
 import { clonePlayer, overall, PLAYERS } from "./players.js";
+import { playerLegacyBadge } from "./playerLegacy.js";
 import {
   applyCardMods,
-  rarityLabel,
   resolvePlayers,
   saveAccount,
   todayKey,
@@ -205,6 +205,7 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
   pushHistory(account, { kind: "player", id: pull.player.id, at: Date.now(), outcome, banner: banner.id, pity: pull.pityHit, wish: pull.wishHit });
   saveAccount(account);
   const mod = account.cardMods?.[pull.player.id];
+  const badge = playerLegacyBadge(pull.player, ovr);
   return {
     kind: "player",
     player: applyCardMods(pull.player, mod, legacyRollSeed(account.id, pull.player.id)),
@@ -212,7 +213,9 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
     stars: mod?.merges || 0,
     souls,
     goldGain,
-    rarity: rarityLabel(ovr),
+    rarity: badge.label,
+    rarityCls: badge.cls,
+    cardStyle: badge.cardStyle,
     ovr,
     banner,
     pityHit: pull.pityHit,

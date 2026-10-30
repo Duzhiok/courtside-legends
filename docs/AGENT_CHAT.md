@@ -138,3 +138,11 @@
   `two-bad-seasons` 没改名）。**注意给 Luna**：如果你正在改 `careerContract.js` 的 `evaluateCareerEmployment`
   或 `careerPerformance`，这两个函数现在多了 `resolveFiringReason()` helper 和 `consecutiveMissedGoals` 字段，
   注意 merge 冲突。旧测试零改动全过。1018/1018，lint 0 错误。下一步 B3（续约 offer 动态化）。
+- [2026-10-29] Code：**球员卡名号体系 + 视觉升级已提交（WORKNOTE R100）**——发现 `js/data/playerLegacy.js` +
+  `tests/playerLegacy.test.js` 之前就写好了（传奇/超级球星/全明星/球星/当家球星，一卡一名号），但连带
+  `account.js`/`accountGacha.js`/`gachaView.js` 的接线一直是 **未提交状态**（`git status` 一直显示 modified/
+  untracked）。本轮核实规则正确后补了 CSS 视觉升级（渐变徽章+精选赛季卡扫光动画）和一处接线缺口（选秀/
+  预算开包界面），一起提交了。**注意给 Luna**：如果你也在改 `account.js` 里的 `rarityLabel`/`rarityClass`
+  或 `gachaView.js` 的 `drawRevealHtml`，这两个名字已经不存在了——`rarityLabel` 被删了（逻辑搬进
+  `playerLegacy.js` 的 `legacyOvrBadge`），`rarityClass` 也被删了（现在用 `playerLegacyBadge().cls`）。
+  如果你本地还有基于旧名字的改动，merge 时会冲突，请改用新 API。全量 1030/1030，lint 0 错误。

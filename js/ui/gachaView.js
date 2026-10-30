@@ -166,7 +166,7 @@ function paymentFlagsHtml(result) {
 }
 
 export function drawRevealHtml(result, view) {
-  const { esc, photoImg, rarityClass, skillChipsHtml } = view;
+  const { esc, photoImg, skillChipsHtml } = view;
   if (result.kind === "coach") {
     const c = result.coach;
     return `<div class="draw-reveal">
@@ -185,9 +185,11 @@ export function drawRevealHtml(result, view) {
     paymentFlagsHtml(result),
     result.goldGain ? `<span class="draw-flag">+¤${result.goldGain}</span>` : "",
   ].join("");
-  return `<div class="draw-reveal">
+  const cardStyleAttr = result.cardStyle ? ` style="${result.cardStyle}"` : "";
+  const cardClass = result.cardStyle ? " legend-season" : "";
+  return `<div class="draw-reveal${cardClass}"${cardStyleAttr}>
       ${photoImg(p, "headshot xl")}
-      <div class="name">${esc(p.name)}${result.rarity ? ` <span class="rarity-tag ${rarityClass(result.ovr)}">${esc(result.rarity)}</span>` : ""}</div>
+      <div class="name">${esc(p.name)}${result.rarity ? ` <span class="rarity-tag ${result.rarityCls || ""}">${esc(result.rarity)}</span>` : ""}</div>
       <div class="meta">${p.season} · ${p.pos} · OVR ${result.ovr} · ${esc(result.banner?.name || "")}</div>
       <div class="draw-flags">${flags}</div>
       <p class="tiny">${OUTCOME_TEXT[result.outcome](result)}</p>

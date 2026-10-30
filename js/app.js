@@ -7,7 +7,6 @@ import {
   getAccount,
   getActiveAccountId,
   listAccounts,
-  rarityLabel,
   recordRankedResult,
   resolveCoach,
   resolvePlayers,
@@ -32,6 +31,7 @@ import {
 } from "./data/accountGacha.js";
 import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js";
 import { searchPeople } from "./data/cardSearch.js";
+import { playerLegacyBadge } from "./data/playerLegacy.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
@@ -2061,9 +2061,11 @@ function onboardCardHtml(p, { selectable = false, selected = false } = {}) {
   const el = selectable ? "button" : "div";
   const type = selectable ? ' type="button"' : "";
   const view = selectable ? "" : " view-only";
-  return `<${el}${type} class="player-card${sel}${view}"${tag}>
+  const badge = legacyBadgeHtml(p, ovr);
+  const styleAttr = badge.cardStyle ? ` style="${badge.cardStyle}"` : "";
+  return `<${el}${type} class="player-card${sel}${view}${badge.cardClass}"${tag}${styleAttr}>
     ${photoImg(p, "headshot lg")}
-    <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
+    <div class="name">${esc(p.name)}${badge.tagHtml}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
     <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.twilight ? " · 头像为生涯照" : ""}</div>
   </${el}>`;
 }
@@ -2188,13 +2190,15 @@ function renderOnboard() {
   }
 }
 
-function rarityClass(ovr) {
-  if (ovr >= 100) return "myth";
-  if (ovr >= 96) return "myth";
-  if (ovr >= 93) return "legend";
-  if (ovr >= 90) return "super";
-  if (ovr >= 85) return "allstar";
-  return "";
+/** Real-basketball status badge for a player card -- see data/playerLegacy.js for the full
+ * priority rules (curated iconic season > NBA50 fallback > curated superstar > generic bucket
+ * off hiddenTier > plain OVR bands). Returns the `<span>` markup plus an optional inline style
+ * for the card wrapper (only set for hand-picked iconic seasons, e.g. 96 Jordan in Bulls red). */
+function legacyBadgeHtml(p, ovr) {
+  const badge = playerLegacyBadge(p, ovr);
+  if (!badge.label) return { tagHtml: "", cardStyle: "", cardClass: "" };
+  const tagHtml = ` <span class="rarity-tag ${badge.cls}">${esc(badge.label)}</span>`;
+  return { tagHtml, cardStyle: badge.cardStyle || "", cardClass: badge.cardStyle ? " legend-season" : "" };
 }
 
 $("#btn-onboard-next")?.addEventListener("click", () => {
@@ -2263,9 +2267,11 @@ function paintCollectionGrid(acc, players) {
     ? view
         .map((p) => {
           const ovr = overall(p);
-          return `<div class="player-card">
+          const badge = legacyBadgeHtml(p, ovr);
+          const styleAttr = badge.cardStyle ? ` style="${badge.cardStyle}"` : "";
+          return `<div class="player-card${badge.cardClass}"${styleAttr}>
           ${photoImg(p, "headshot lg")}
-          <div class="name">${esc(p.name)}${rarityLabel(ovr) ? ` <span class="rarity-tag ${rarityClass(ovr)}">${rarityLabel(ovr)}</span>` : ""}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
+          <div class="name">${esc(p.name)}${badge.tagHtml}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
           <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
           <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
           ${skillChipsHtml(p, getLang())}
@@ -2501,7 +2507,7 @@ $("#collection-manage")?.addEventListener("change", (event) => {
   if (acc) openCollection();
 });
 
-const drawView = () => ({ esc, photoImg, rarityClass, skillChipsHtml, ovrOf: overall });
+const drawView = () => ({ esc, photoImg, skillChipsHtml, ovrOf: overall });
 let drawBannerId = "standard";
 
 function renderDrawStatus(acc) {
@@ -2932,11 +2938,14 @@ function renderPack() {
         : `¤${playerPrice(p)}`;
       const compact = d.budgetMode && d.customPhase === "spend";
       const valueTag = valueBadgeHtml(valueBadge(p)); // nothing while this card can still be picked
+      const legacy = legacyBadgeHtml(p, overall(p));
+      if (legacy.cardClass) el.className += legacy.cardClass;
+      if (legacy.cardStyle) el.style.cssText += legacy.cardStyle;
       el.innerHTML = `
         <div class="card-head">
           ${photoImg(p, compact ? "headshot" : "headshot lg")}
           <div>
-            <div class="name">${p.name} <span class="pos-badge">${normalizePos(p.pos)}</span>${
+            <div class="name">${p.name} <span class="pos-badge">${normalizePos(p.pos)}</span>${legacy.tagHtml}${
               valueTag ? ` ${valueTag}` : ""
             }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}</div>
             <div class="meta">${p.season} · ${p.team} · ${p.pos} · OVR ${overall(p)} · ${priceTxt}</div>
