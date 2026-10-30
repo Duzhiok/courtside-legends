@@ -52,3 +52,20 @@ export const SEASON_GOAL_TRUST_PENALTY = -8;
  * OFFER_DETAILS) and a single missed season goal costs SEASON_GOAL_TRUST_PENALTY (-8), so this
  * floor takes a real sustained slide to reach -- not one bad event. */
 export const FIRING_TRUST_FLOOR = 15;
+
+/** --- Phase B3: dynamic renewal offers (roadmap B3) --- */
+
+/** Full-tenure (not just the last two seasons, unlike B2's firing check) goal hit rate at or
+ * below which a ringless tenure gets boiled down to a single one-year trial offer instead of the
+ * usual rebuild/contender pair. */
+export const RENEWAL_TRIAL_GOAL_RATE = 0.34;
+
+/** Coach reputation (root.coach.reputation, 0-100, starts at COACH_START_REPUTATION) below this
+ * is also required for the trial-only outcome -- a ringless but well-regarded coach (good goal
+ * record elsewhere, strong reputation from other phases) still gets the normal menu. */
+export const RENEWAL_TRIAL_REPUTATION_CEILING = 40;
+
+/** Two or more championships during the tenure unlocks a third, stronger "dynasty" offer on top
+ * of the usual pair -- the menu only ever adds a better option for a great tenure, it never
+ * removes the familiar rebuild/contender choice. */
+export const RENEWAL_DYNASTY_CHAMPIONSHIPS = 2;

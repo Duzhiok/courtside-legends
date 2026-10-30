@@ -1001,7 +1001,8 @@ function renderCareerContract() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "btn story-event-choice";
-    button.innerHTML = `<strong>${offer.title}</strong><span>${offer.description}</span><span>${offer.years} 年 · 薪资 ${offer.salary} · 权限 ${offer.authority}</span><span>特权：${offer.privileges.join("、")}</span>`;
+    const privilegeText = offer.privileges.length ? offer.privileges.join("、") : "无（先证明自己）";
+    button.innerHTML = `<strong>${offer.title}</strong><span>${offer.description}</span><span>${offer.years} 年 · 薪资 ${offer.salary} · 权限 ${offer.authority}</span><span>特权：${privilegeText}</span>`;
     button.addEventListener("click", () => resolveCareerContract(offer.id));
     options.appendChild(button);
   }

@@ -1657,3 +1657,34 @@ border 简写报告不准——明明样式表里的值是对的、截图里颜�
 先怀疑测量工具，别急着改 CSS。）
 
 全量 1030/1030，lint 0 错误（仍是那两条旧 warning），diff-check 过。
+
+### R101：B3——续约 offer 动态化
+
+把一直固定不变的「重建续约 / 争冠续约」两选一菜单，改成真正读战绩的菜单：
+
+- `careerPerformance()` 新增 `goalHitRate`——全生涯（不是 B2 那个只看最近两季的 `consecutiveMissedGoals`）
+  的目标命中率，没有目标历史时是 `null` 而不是 `0`，这样「从没被判定过」和「判定了但全部失败」不会被
+  混为一谈。
+- 新增 `renewalOfferIds(performance, reputation)`：2 冠或以上在原有两个方案之上**追加**「王朝续约」
+  （5年/薪资20/权限96/三项特权），不是替换；0 冠 + 全生涯目标命中率 ≤34%（`RENEWAL_TRIAL_GOAL_RATE`）
+  + 声望 <40（`RENEWAL_TRIAL_REPUTATION_CEILING`）才会被压成唯一的「试用续约」（1年/薪资4/权限30/
+  无特权）；其余情况——也就是绝大多数生涯，包括老存档完全没有目标历史的情况——维持原来两选一不变。
+  两个阈值和冠军门槛都进了 `balance.js`。
+- `root.coach.reputation` 是 A1 就加进存档但从来没被任何玩法读过的字段（注释原话：「Nothing in here
+  is wired into gameplay yet」）——这是它第一次真正影响游戏结果。`root.coach` 缺失时按 `?? 50`
+  （`COACH_START_REPUTATION` 的默认值）处理，不会让老存档崩或者意外吃到试用续约。
+- 顺手补了一个安全缺口：`acceptCareerContract` 原本从全局 `OFFER_TEMPLATES` 里按 id 查找，而不是从
+  `employment.offers`（这次生涯真正拿到的方案列表）查找——意味着理论上可以接受一个从没被 offer 过的
+  合同 id。现在改成只认 `employment.offers`，新增测试验证接受一个没被 offer 的 id 会被拒绝。
+- UI（`renderTimeTravelStoryState`）本来就是 `for (const offer of employment.offers)` 动态渲染，不需要
+  改；只补了一处小体验：`特权：${privileges.join('、')}` 在空数组时会渲染成光秃秃的「特权：」，现在空
+  数组显示「无（先证明自己）」。
+
+新增 8 条测试：王朝续约解锁第三方案、王朝续约仍可接受原有的 rebuild-extension、试用续约压缩、高声望
+豁免试用、高目标命中率豁免试用、`root.coach` 缺失时正确回退默认声望、接受未被 offer 的方案被拒绝、
+无目标历史的老存档不会被误判为试用。mutation check：把 `renewalOfferIds` 的两个分支硬性 disable 后，
+新增的 3 条断言正确失败；恢复后全绿。
+
+全量 1038/1038，lint 0 错误，diff-check 过。
+
+下一步：B4——执教段落 stints，把「一段五年」改成「多段执教」，取消五年硬上限，合同年限才是真正的上限。

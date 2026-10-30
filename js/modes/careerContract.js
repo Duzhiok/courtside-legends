@@ -1,8 +1,28 @@
 import { deriveEnding } from "../story/eventEngine.js";
-import { FIRING_TRUST_FLOOR, SEASON_GOAL_TRUST_BONUS, SEASON_GOAL_TRUST_PENALTY } from "../career/balance.js";
+import {
+  FIRING_TRUST_FLOOR,
+  RENEWAL_DYNASTY_CHAMPIONSHIPS,
+  RENEWAL_TRIAL_GOAL_RATE,
+  RENEWAL_TRIAL_REPUTATION_CEILING,
+  SEASON_GOAL_TRUST_BONUS,
+  SEASON_GOAL_TRUST_PENALTY,
+} from "../career/balance.js";
 import { buildSeasonGoal, goalAchieved } from "../career/seasonGoals.js";
 
+// B3 of the roadmap: the menu is sized to the actual tenure, not a fixed two-option pair for
+// everyone. trial-extension and dynasty-extension are the new floor/ceiling; rebuild-extension and
+// contender-extension are untouched so every save/test built around those two ids keeps working.
 const OFFER_TEMPLATES = [
+  {
+    id: "trial-extension",
+    title: "试用续约",
+    description: "战绩和目标完成度都不够亮眼，老板只愿意给一年观察期——证明自己才能换来下一份合同。",
+    years: 1,
+    salary: 4,
+    authority: 30,
+    privileges: [],
+    effects: { trust: -2, pressure: 10, divergence: 1 },
+  },
   {
     id: "rebuild-extension",
     title: "重建续约",
@@ -23,7 +43,37 @@ const OFFER_TEMPLATES = [
     privileges: ["额外教练预算", "季中补强额度"],
     effects: { trust: 3, pressure: 8, divergence: 5 },
   },
+  {
+    id: "dynasty-extension",
+    title: "王朝续约",
+    description: "你已经证明自己能带队夺冠——老板给你近乎无限的信任、预算和人事权。",
+    years: 5,
+    salary: 20,
+    authority: 96,
+    privileges: ["完全人事决定权", "顶薪续约优先权", "专属训练设施预算"],
+    effects: { trust: 8, pressure: 2, divergence: 8 },
+  },
 ];
+
+/**
+ * B3: which offer ids a tenure actually earns, from worst to best. A great tenure (2+ rings)
+ * only ever ADDS a stronger option on top of the familiar rebuild/contender pair; a tenure with
+ * zero rings AND a poor full-career goal record AND below-average reputation gets boiled down to
+ * a single trial offer -- everything in between (most careers) sees exactly what the game always
+ * offered, so this only changes outcomes at the two tails.
+ */
+function renewalOfferIds(performance, reputation) {
+  if (performance.championships >= RENEWAL_DYNASTY_CHAMPIONSHIPS) {
+    return ["dynasty-extension", "contender-extension", "rebuild-extension"];
+  }
+  const roughRide =
+    performance.championships === 0 &&
+    performance.goalHitRate !== null &&
+    performance.goalHitRate <= RENEWAL_TRIAL_GOAL_RATE &&
+    reputation < RENEWAL_TRIAL_REPUTATION_CEILING;
+  if (roughRide) return ["trial-extension"];
+  return ["contender-extension", "rebuild-extension"];
+}
 
 function clone(value) {
   return structuredClone(value);
@@ -67,6 +117,11 @@ export function careerPerformance(root) {
     lastSeasonRate: rates.at(-1) || 0,
     consecutiveBadSeasons: lastTwo.length === 2 && lastTwo.every((rate) => rate < 0.4),
     consecutiveMissedGoals: lastTwoGoals.length === 2 && lastTwoGoals.every((entry) => !entry.achieved),
+    // B3: the full-tenure hit rate (not just the last two like consecutiveMissedGoals above) is
+    // what sizes the renewal menu. null -- not 0 -- when there's no goal history at all (very old
+    // saves, or a tenure that never got far enough for a goal to resolve), so renewalOfferIds()
+    // can tell "never had a goal judged" apart from "had goals and whiffed every one".
+    goalHitRate: goalResults.length ? goalResults.filter((entry) => entry.achieved).length / goalResults.length : null,
   };
 }
 
@@ -181,20 +236,22 @@ export function evaluateCareerEmployment(root) {
   }
 
   if (performance.seasons >= 5) {
+    const offerIds = renewalOfferIds(performance, root.coach?.reputation ?? 50);
+    const offers = offerIds.map((id) => clone(OFFER_TEMPLATES.find((offer) => offer.id === id)));
     return {
       ...root,
       story: {
         ...root.story,
         employment: {
           status: "renewal",
-          offers: OFFER_TEMPLATES.map(clone),
+          offers,
           performance,
         },
         currentChapter: "contract",
         pendingDecision: { type: "contract-renewal", year: root.leagueCareer.season.year },
         eventLog: [
           ...root.story.eventLog,
-          { type: "renewal-offers", year: root.leagueCareer.season.year, offers: OFFER_TEMPLATES.map((offer) => offer.id), at: Date.now() },
+          { type: "renewal-offers", year: root.leagueCareer.season.year, offers: offerIds, at: Date.now() },
         ],
       },
     };
@@ -208,7 +265,10 @@ export function acceptCareerContract(root, offerId) {
   if (employment?.status !== "renewal" || root.story.pendingDecision?.type !== "contract-renewal") {
     throw new Error("career renewal is not pending");
   }
-  const offer = OFFER_TEMPLATES.find((candidate) => candidate.id === offerId);
+  // B3: validate against the offers this tenure actually earned (employment.offers), not the
+  // full OFFER_TEMPLATES catalog -- a trial-only tenure should not be able to accept
+  // "dynasty-extension" just because that id exists somewhere in the module.
+  const offer = (employment.offers || []).find((candidate) => candidate.id === offerId);
   if (!offer) throw new RangeError("unknown career contract offer");
   return {
     ...root,

@@ -310,3 +310,103 @@ test("the original bad-win-rate firing still works as the fallback when trust an
   assert.equal(next.story.employment.status, "fired");
   assert.equal(next.story.employment.reason, "two-bad-seasons");
 });
+
+// B3 of docs/CAREER_LIFE_ROADMAP.md: the renewal menu used to be the same fixed two-option pair
+// no matter how the tenure actually went. Now a real dynasty earns a third, stronger option, and
+// a ringless tenure with a poor full-career goal record and below-average reputation gets boiled
+// down to a single trial offer. Everything in between still sees exactly the old two-offer menu
+// (covered by the pre-existing tests above, which all still pass unchanged).
+
+function goalResultEntries(hits) {
+  // hits: array of booleans, oldest first -- same chronological order advanceSeasonGoal appends in.
+  return hits.map((achieved) => ({ type: "season-goal-result", achieved }));
+}
+
+test("two or more championships unlock a third, stronger dynasty offer on top of the usual pair", () => {
+  const history = Array.from({ length: 5 }, (_, index) =>
+    summary(1991 + index, 60, 22, index < 2 ? "CHI" : "LAL", "CHI"));
+  const root = rootWithHistory(history);
+  const renewal = evaluateCareerEmployment(root);
+  const ids = renewal.story.employment.offers.map((offer) => offer.id);
+  assert.deepEqual(ids, ["dynasty-extension", "contender-extension", "rebuild-extension"]);
+  assert.equal(renewal.story.eventLog.at(-1).offers.length, 3);
+});
+
+test("a dynasty tenure can still accept the familiar rebuild-extension, not just the new top offer", () => {
+  const history = Array.from({ length: 5 }, (_, index) =>
+    summary(1991 + index, 60, 22, index < 2 ? "CHI" : "LAL", "CHI"));
+  const renewal = evaluateCareerEmployment(rootWithHistory(history));
+  const accepted = acceptCareerContract(renewal, "rebuild-extension");
+  assert.equal(accepted.story.employment.offer.id, "rebuild-extension");
+});
+
+test("zero rings + a poor full-career goal record + low reputation collapses the menu to one trial offer", () => {
+  const records = [
+    [25, 57],
+    [28, 54],
+    [30, 52],
+    [35, 47],
+    [42, 40],
+  ]; // last two seasons are NOT both sub-.400, so B2's bad-season firing never triggers
+  const history = records.map(([w, l], index) => summary(1991 + index, w, l));
+  const root = rootWithHistory(history);
+  root.coach = { reputation: 20 };
+  root.story.eventLog = goalResultEntries([false, false, false, false, true]); // 1/5 = 0.2 hit rate
+  const renewal = evaluateCareerEmployment(root);
+  assert.equal(renewal.story.employment.status, "renewal", "a losing-ish but not B2-fireable record should still reach year 5");
+  assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["trial-extension"]);
+  assert.equal(renewal.story.employment.offers[0].privileges.length, 0, "a trial offer carries no extra privileges");
+});
+
+test("the same poor record does NOT collapse to trial-only when reputation is high enough", () => {
+  const records = [[25, 57], [28, 54], [30, 52], [35, 47], [42, 40]];
+  const history = records.map(([w, l], index) => summary(1991 + index, w, l));
+  const root = rootWithHistory(history);
+  root.coach = { reputation: 70 };
+  root.story.eventLog = goalResultEntries([false, false, false, false, true]);
+  const renewal = evaluateCareerEmployment(root);
+  assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["contender-extension", "rebuild-extension"]);
+});
+
+test("the same low reputation does NOT collapse to trial-only when the goal hit rate is decent", () => {
+  const records = [[25, 57], [28, 54], [30, 52], [35, 47], [42, 40]];
+  const history = records.map(([w, l], index) => summary(1991 + index, w, l));
+  const root = rootWithHistory(history);
+  root.coach = { reputation: 20 };
+  root.story.eventLog = goalResultEntries([true, false, true, false, true]); // 3/5 = 0.6, above the trial floor
+  const renewal = evaluateCareerEmployment(root);
+  assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["contender-extension", "rebuild-extension"]);
+});
+
+test("missing root.coach falls back to the default reputation (50) rather than crashing or auto-trialing", () => {
+  const records = [[25, 57], [28, 54], [30, 52], [35, 47], [42, 40]];
+  const history = records.map(([w, l], index) => summary(1991 + index, w, l));
+  const root = rootWithHistory(history); // no root.coach at all -- pre-A1 saves
+  root.story.eventLog = goalResultEntries([false, false, false, false, true]);
+  const renewal = evaluateCareerEmployment(root);
+  // default reputation 50 is above RENEWAL_TRIAL_REPUTATION_CEILING (40), so this is the standard menu
+  assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["contender-extension", "rebuild-extension"]);
+});
+
+test("accepting an offer id that wasn't actually part of this tenure's menu is rejected", () => {
+  const records = [[25, 57], [28, 54], [30, 52], [35, 47], [42, 40]];
+  const history = records.map(([w, l], index) => summary(1991 + index, w, l));
+  const root = rootWithHistory(history);
+  root.coach = { reputation: 20 };
+  root.story.eventLog = goalResultEntries([false, false, false, false, true]); // trial-only tenure
+  const renewal = evaluateCareerEmployment(root);
+  assert.throws(() => acceptCareerContract(renewal, "dynasty-extension"), RangeError);
+  // the one offer actually on the table still works
+  const accepted = acceptCareerContract(renewal, "trial-extension");
+  assert.equal(accepted.story.employment.offer.id, "trial-extension");
+});
+
+test("no goal history at all (ancient pre-B1 save) never qualifies for the trial-only outcome", () => {
+  const records = [[25, 57], [28, 54], [30, 52], [35, 47], [42, 40]];
+  const history = records.map(([w, l], index) => summary(1991 + index, w, l));
+  const root = rootWithHistory(history);
+  root.coach = { reputation: 10 }; // even with rock-bottom reputation...
+  // ...eventLog is empty, so goalHitRate is null, not 0 -- "never judged" must not read as "always failed"
+  const renewal = evaluateCareerEmployment(root);
+  assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["contender-extension", "rebuild-extension"]);
+});
