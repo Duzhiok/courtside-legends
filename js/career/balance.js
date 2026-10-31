@@ -125,3 +125,17 @@ export const INVESTMENT_STAKE = 10;
  * careerContract.js's OFFER_TEMPLATES, and a tenure can run through as many contracts, at the
  * same team, as the coach keeps earning. */
 export const INITIAL_CONTRACT_YEARS = 5;
+
+/** --- Phase B5: re-employment after being fired/departing (roadmap B5) --- */
+
+/** root.coach.reputation at or above which a fired/departed coach sees the full 3-offer board
+ * (rebuild/middle/contender), identical to a brand-new hire. Below it, nobody trusts you with a
+ * contender yet; below REEMPLOYMENT_LIMITED_BOARD_REPUTATION, only a bottom-feeder will take a
+ * chance on you at all. The board is NEVER empty, even at reputation 0 -- a true zero-offer dead
+ * end would permanently soft-lock the save with no way to ever coach again, which is worse than
+ * a bad offer. */
+export const REEMPLOYMENT_FULL_BOARD_REPUTATION = 55;
+
+/** Below REEMPLOYMENT_FULL_BOARD_REPUTATION but at or above this: rebuild + middle offers only.
+ * Below this floor: a single rebuild offer, guaranteed. */
+export const REEMPLOYMENT_LIMITED_BOARD_REPUTATION = 30;

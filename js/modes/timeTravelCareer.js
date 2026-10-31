@@ -5,7 +5,12 @@ import { createRootState } from "../data/saveRoot.js";
 import { createLeagueCareer, recordCareerEvent } from "./leagueCareer.js";
 import { buildSeasonGoal } from "../career/seasonGoals.js";
 import { createCoachProfile } from "../career/coachProfile.js";
-import { INITIAL_CONTRACT_YEARS } from "../career/balance.js";
+import {
+  COACH_START_REPUTATION,
+  INITIAL_CONTRACT_YEARS,
+  REEMPLOYMENT_FULL_BOARD_REPUTATION,
+  REEMPLOYMENT_LIMITED_BOARD_REPUTATION,
+} from "../career/balance.js";
 import {
   DEFAULT_COACH_ORIGIN,
   applyOriginToCoach,
@@ -64,6 +69,13 @@ const KNOWLEDGE_CHOICES = {
     divergence: 0,
   },
 };
+
+/** Read-only copy of what each opening future-knowledge choice does, so the UI's consequence chips
+ * read the SAME numbers resolveFutureKnowledgeChoice() applies (they can't drift apart). */
+export function futureKnowledgeEffects(choiceId) {
+  const effects = KNOWLEDGE_CHOICES[choiceId];
+  return effects ? { ...effects } : null;
+}
 
 function hashString(value) {
   let hash = 2166136261;
@@ -135,9 +147,13 @@ function selectFromThird(rng, teams) {
 
 export function generateInterviewOffers(input) {
   const historical = validateInput(input);
-  const { year, philosophy, seed, origin } = input;
+  const { year, philosophy, seed, origin, excludeTeamIds } = input;
   const rng = mulberry32((seed >>> 0) ^ hashString(`${year}:${philosophy}`));
-  const ranked = historical.teams
+  const excluded = excludeTeamIds instanceof Set ? excludeTeamIds : new Set(excludeTeamIds || []);
+  const candidates = excluded.size
+    ? historical.teams.filter((team) => !excluded.has(team.id))
+    : historical.teams;
+  const ranked = candidates
     .map((team) => ({ team, score: teamStrength(year, team) }))
     .sort(
       (left, right) =>
@@ -308,6 +324,138 @@ export function resolveFutureKnowledgeChoice(root, choiceId) {
         { type: "future-knowledge-intro", choiceId, effects: { ...effects } },
       ],
       pendingDecision: null,
+    },
+  };
+}
+
+/**
+ * B5 of docs/CAREER_LIFE_ROADMAP.md: how many offers a fired/departed coach's reputation buys
+ * them. Always at least 1 -- a true zero-offer board would permanently soft-lock the save (see
+ * REEMPLOYMENT_FULL_BOARD_REPUTATION's comment in balance.js), so the worst case is "only a
+ * rebuild job wants you", never "nobody wants you, forever".
+ */
+function reemploymentOfferCount(reputation) {
+  if (reputation >= REEMPLOYMENT_FULL_BOARD_REPUTATION) return 3;
+  if (reputation >= REEMPLOYMENT_LIMITED_BOARD_REPUTATION) return 2;
+  return 1;
+}
+
+/**
+ * B5: the job-search board for a coach whose last stint just ended (fired or departed). This is
+ * a PURE, deterministic read of `root` -- nothing is persisted here, the same way
+ * buildCareerReport() is recomputed on demand rather than cached. Calling this twice on the same
+ * root (same storyId, same upcoming year, same stint count) always returns the same offers, so
+ * there is no "stale offer board that doesn't match the current save" class of bug to worry about.
+ *
+ * Reuses generateInterviewOffers() (the exact same archetype-bucketing machinery a brand-new
+ * hire sees) rather than inventing a second offer-generation algorithm -- the only differences
+ * are: the candidate pool excludes the team that just let the coach go, and reputation trims how
+ * much of the 3-offer board is actually shown.
+ */
+export function generateReemploymentOffers(root) {
+  if (!root?.story || !root?.leagueCareer) {
+    throw new TypeError("root with a career story is required");
+  }
+  const year = root.leagueCareer.season?.year;
+  if (!Number.isInteger(year)) {
+    throw new RangeError("root has no upcoming season year to search for a job in");
+  }
+  const reputation = root.coach?.reputation ?? COACH_START_REPUTATION;
+  const stintsPlayed = Array.isArray(root.coach?.stints) ? root.coach.stints.length : 0;
+  // Deterministic rather than Math.random() so the board doesn't reshuffle on every re-render,
+  // but still different from the ORIGINAL hire's seed (which the player chose at career start) and
+  // different again after every subsequent stint -- folding in stintsPlayed means getting fired a
+  // second time doesn't just redraw the exact same three teams from the first firing.
+  const seed = hashString(`${root.story.storyId}:reemployment:${year}:${stintsPlayed}`);
+  const board = generateInterviewOffers({
+    year,
+    philosophy: root.story.philosophy,
+    seed,
+    origin: root.story.origin,
+    excludeTeamIds: root.story.employer ? [root.story.employer] : [],
+  });
+  return board.slice(0, reemploymentOfferCount(reputation));
+}
+
+/**
+ * B5: accept a re-employment offer and start the next stint at a new team, in the same timeline.
+ * Unlike acceptInterviewOffer() (a brand-new career), this carries the coach and the overarching
+ * timeline forward -- root.coach (age/reputation/cash/stints/perks, the PERSON) and
+ * story.origin/philosophy/futureKnowledge/timelineDivergence/storyId (the TIMELINE) are untouched.
+ * Everything scoped to the PREVIOUS job -- leagueCareer, employment, startYear, trust/pressure,
+ * relationships, promises, flags, eventLog -- starts fresh, exactly like a new hire's does. This
+ * composes for free with B1-B4's season-goal/firing/renewal machinery: those all read from
+ * root.leagueCareer.management.seasonHistory, which is empty again once createLeagueCareer()
+ * below builds a brand new one, so the new stint's goals/firing-risk/contract clock all start at
+ * zero without this function needing to reset any of them itself.
+ */
+export function acceptReemploymentOffer(root, offerId) {
+  if (!root?.story || !root?.leagueCareer) {
+    throw new TypeError("root with a career story is required");
+  }
+  if (!["fired", "departed"].includes(root.story.employment?.status)) {
+    throw new Error("not currently looking for a job");
+  }
+  const offer = generateReemploymentOffers(root).find((candidate) => candidate.id === offerId);
+  if (!offer) {
+    throw new RangeError("unknown reemployment offer");
+  }
+  const year = root.leagueCareer.season.year;
+  const historical = historicalSeason(year);
+  const teamMeta = historical.teams.find((team) => team.id === offer.teamId);
+  if (!teamMeta) {
+    throw new RangeError("reemployment offer references an unknown historical team");
+  }
+
+  const userTeam = buildCpuTeamForYear(year, teamMeta, new Set());
+  const season = createSeason({
+    userTeamId: offer.teamId,
+    userTeamName: offer.teamName,
+    userTeam,
+    mode: "historical",
+    year,
+    seed: hashString(`${root.story.storyId}:reemployment:${year}:${offer.teamId}`),
+  });
+  let leagueCareer = createLeagueCareer({
+    kind: "timeTravel",
+    season,
+    storyId: root.story.storyId,
+    careerId: root.story.storyId,
+  });
+  leagueCareer = recordCareerEvent(
+    leagueCareer,
+    { type: "re-employed", year, teamId: offer.teamId, teamName: offer.teamName },
+    0,
+  );
+
+  // Same reasoning as acceptInterviewOffer(): size the first goal off the actual constructed
+  // roster rather than trusting the offer card's static firstYearGoal text.
+  const seasonGoal = { ...buildSeasonGoal(season.teams, offer.teamId), year, status: "active" };
+
+  return {
+    ...root,
+    leagueCareer,
+    story: {
+      ...root.story,
+      // B4's stint model reads story.startYear as THIS stint's start year (see
+      // js/career/stints.js's buildStintRecord and eventEngine.js's tenureYear calculation) -- not
+      // the year the coach first arrived from the future, which story.storyId/the share card's
+      // overall timeline framing still remembers separately.
+      startYear: year,
+      currentChapter: "active-tenure",
+      employer: offer.teamId,
+      employment: { status: "active", contractYears: INITIAL_CONTRACT_YEARS, tenureStartSeasonCount: 0 },
+      frontOfficeTrust: offer.trust,
+      mediaPressure: offer.pressure,
+      relationships: { owner: 0, gm: 0, coach: 0, players: 0, media: 0 },
+      promises: [{ id: "first-year-goal", text: seasonGoal.label, status: "active" }],
+      // Flags from the old job (e.g. a story choice's longPlanProtected) were about a relationship
+      // with a front office that no longer employs this coach -- only origin survives the move.
+      flags: { origin: root.story.origin },
+      seasonGoal,
+      eventLog: [{ type: "re-employed", year, teamId: offer.teamId, teamName: offer.teamName }],
+      pendingDecision: null,
+      ending: null,
     },
   };
 }
