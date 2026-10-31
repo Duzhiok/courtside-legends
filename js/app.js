@@ -7891,9 +7891,19 @@ function renderSeasonHub({ persist = true } = {}) {
   $("#season-hub-title").textContent = `${you?.name || "我方"} · ${eraTitle}`;
   const histNote =
     st.mode === "historical" ? ` · ${seasonTeamIds(st).length} 队当年阵容` : "";
-  $("#season-hub-meta").textContent = `${seasonProgressLabel(st)}${histNote} · 薪资 ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}${
+  const metaText = `${seasonProgressLabel(st)}${histNote} · 薪资 ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}${
     pay.overCap ? "（超软帽）" : ""
   } · 空间 ${formatSalary(pay.space)}`;
+  // R111：同一串信息拆成 pill（DOM 拼装，不走 innerHTML，队名原样当文本），只改外观。
+  const metaEl = $("#season-hub-meta");
+  metaEl.replaceChildren();
+  for (const part of metaText.split(" · ")) {
+    if (!part) continue;
+    const pill = document.createElement("span");
+    pill.className = "hub-meta-pill";
+    pill.textContent = part;
+    metaEl.appendChild(pill);
+  }
 
   const nextCard = $("#season-next-card");
   const nextEl = $("#season-next-match");
@@ -8950,17 +8960,17 @@ function renderSeasonStandings() {
   if (!st || !box) return;
   const table = (conf, title) => {
     const rows = standingsList(st, conf);
-    return `<div>
+    return `<div class="season-stand-card">
       <h4>${title}</h4>
       <table class="season-table">
-        <thead><tr><th>#</th><th>球队</th><th>胜</th><th>负</th><th>胜率</th><th>净胜</th></tr></thead>
+        <thead><tr><th class="num rank">#</th><th>球队</th><th class="num">胜</th><th class="num">负</th><th class="num">胜率</th><th class="num">净胜</th></tr></thead>
         <tbody>
           ${rows
             .map((r, i) => {
               const you = r.id === st.userTeamId ? " you" : "";
-              return `<tr class="${you}"><td>${i + 1}</td><td>${r.name}</td><td>${r.w}</td><td>${r.l}</td><td>${(
+              return `<tr class="${you}"><td class="num rank">${i + 1}</td><td class="team">${r.name}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${(
                 r.pct * 100
-              ).toFixed(1)}%</td><td>${r.diff > 0 ? "+" : ""}${r.diff}</td></tr>`;
+              ).toFixed(1)}%</td><td class="num">${r.diff > 0 ? "+" : ""}${r.diff}</td></tr>`;
             })
             .join("")}
         </tbody>

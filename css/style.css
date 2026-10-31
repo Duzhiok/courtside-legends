@@ -2931,6 +2931,75 @@ select, input[type="number"] {
   background: rgba(42, 157, 143, .12);
   font-weight: 700;
 }
+/* R111 赛季页美化：与轮换屏同一套视觉语言（卡片 + pill + 青色强调），只改外观，
+   不动任何功能、按钮、选择器与表格列顺序。 */
+.season-hub-head h3 { font-size: 1.25rem; }
+#season-hub-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 0;
+}
+.hub-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: .82rem;
+  font-weight: 600;
+}
+.season-next-card { box-shadow: 0 2px 10px rgba(15, 28, 20, .06); }
+.season-next-card h4 {
+  font-size: .8rem;
+  letter-spacing: .08em;
+  color: #6b7a6e;
+}
+.season-next-card #season-next-match { font-size: 1.12rem; }
+.season-tabs { gap: 6px; }
+.season-tabs .btn {
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: #fff;
+}
+.season-tabs .btn.active {
+  background: #2a9d8f;
+  border-color: #2a9d8f;
+  color: #fff;
+}
+.season-stand-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px 6px;
+  box-shadow: 0 2px 10px rgba(15, 28, 20, .05);
+}
+.season-stand-card h4 { margin: 0 0 6px; font-size: .95rem; }
+.season-table th {
+  font-size: .78rem;
+  color: #6b7a6e;
+  font-weight: 600;
+  border-bottom: 2px solid var(--line);
+}
+.season-table td { padding: 6px; }
+.season-table tbody tr:nth-child(even) td { background: #f8faf8; }
+.season-table td.num,
+.season-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.season-table td.team { font-weight: 600; }
+.season-table td.rank { color: #8a938c; font-weight: 600; }
+.season-table tbody tr.you td {
+  background: rgba(42, 157, 143, .16);
+  font-weight: 700;
+}
+.season-table tbody tr.you td:first-child { box-shadow: inset 3px 0 0 #2a9d8f; }
+@media (max-width: 720px) {
+  .season-standings { grid-template-columns: 1fr; }
+  .season-tabs .btn { padding: 5px 10px; }
+}
 .season-awards {
   display: grid;
   gap: 10px;
