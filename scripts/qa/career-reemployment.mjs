@@ -103,7 +103,10 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   check(`[${tag}] event log was reset for the new job`, after.log?.[0] === "re-employed", JSON.stringify(after.log));
   const newTeam = await page.$eval(".tt-hq-name", (el) => el.textContent.trim());
   check(`[${tag}] HQ now shows the new team`, newTeam === pickedTeam && newTeam !== oldTeam, `${oldTeam} -> ${newTeam} (picked ${pickedTeam})`);
-  check(`[${tag}] verdict/job board are gone, Continue is back`, !(await visible(page, "#tt-over")) && !(await visible(page, "#tt-jobs")) && (await visible(page, "#btn-time-travel-continue")));
+  // B6 changed this on purpose: the coaching RECORD now stays after a re-hire (it used to vanish with
+  // the verdict). Only the "how it ended" banner and the job board go away.
+  check(`[${tag}] job board + verdict banner are gone, Continue is back`, !(await visible(page, "#tt-jobs")) && (await page.$eval("#tt-verdict", (el) => el.innerHTML.trim())) === "" && (await visible(page, "#btn-time-travel-continue")));
+  check(`[${tag}] ...but the finished job stays on the coaching record`, (await visible(page, "#tt-over")) && (await page.$$("#tt-stints .tt-stint")).length === 1 && /被解雇/.test(await page.$eval("#tt-stints", (el) => el.textContent)));
   check(`[${tag}] goal + finance cards are back (cash/house carry over)`, (await visible(page, "#tt-goal")) && (await visible(page, "#time-travel-finance")));
   const goalText = await page.$eval("#tt-goal", (el) => el.textContent);
   check(`[${tag}] goal card shows "−8" for a miss, not a doubled sign`, /落空.*−8/.test(goalText) && !/[−-]{2}\d/.test(goalText), goalText.replace(/\s+/g, " ").slice(0, 90));

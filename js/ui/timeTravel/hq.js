@@ -1,4 +1,5 @@
 import { icon } from "./icons.js";
+import { teamNameL } from "../../i18n.js";
 import { esc, readableInk, tr } from "./format.js";
 
 const NEUTRAL = { primary: "#1a3a2a", secondary: "#f3efe4" };
@@ -77,7 +78,7 @@ export function careerHeaderHtml(vm, lang = "zh") {
       ${crestHtml(vm.teamId, vm.colors, { size: "lg" })}
       <div class="tt-hq-id">
         <p class="tt-kicker">${esc(tr(lang, `${vm.year} 赛季 · 主教练`, `${vm.year} season · Head coach`))}</p>
-        <h3 class="tt-hq-name">${esc(vm.teamName)}</h3>
+        <h3 class="tt-hq-name">${esc(teamNameL(vm.teamName, lang))}</h3>
         <div class="tt-hq-pills">${pills.join("")}</div>
       </div>
     </div>

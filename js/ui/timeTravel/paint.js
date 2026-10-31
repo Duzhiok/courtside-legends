@@ -140,16 +140,19 @@ export function paintReport(report, lang) {
     : `<li class="tt-change tt-change-empty">${esc(tr(lang, "目前还没有改写史实冠军，分叉仍在积累。", "No real-world champion rewritten yet — the fork is still building."))}</li>`;
 }
 
-/** "How it ended": verdict banner + the career-so-far stint cards (completed stints only). */
-export function paintEpilogue(root, report, lang) {
+/**
+ * "How it ended": verdict banner + the career-so-far stint cards (completed stints only). While the
+ * coach is still employed (`over: false`) only the record is drawn -- there is no verdict yet.
+ */
+export function paintEpilogue(root, report, lang, { over = true } = {}) {
   const story = root.story;
   const tier = report.ending?.narrativeTier;
-  $("#tt-verdict").innerHTML = verdictHtml({
+  $("#tt-verdict").innerHTML = over ? verdictHtml({
     status: story.employment?.status,
     tone: tier?.tone || report.ending?.tone,
     tierLabel: tier ? tr(lang, tier.label, tier.labelEn || tier.label) : "",
     endingLabel: report.ending ? tr(lang, report.ending.label, report.ending.labelEn || report.ending.label) : "",
-  }, lang);
+  }, lang) : "";
   const stints = root.coach?.stints || [];
   $("#tt-stints").innerHTML = stints.map((stint) => {
     const year = stint.startYear ?? report.startYear;

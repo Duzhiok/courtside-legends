@@ -6,13 +6,16 @@
  * Extracted from app.js (which had grown this screen inline); app.js injects the few pieces of
  * global state/behaviour it owns, everything else is imported directly.
  */
-import { getLang, L } from "../../i18n.js";
+import { getLang, L, teamNameL } from "../../i18n.js";
 import { PLAYERS, overall } from "../../data/players.js";
 import { listHistoricalYears } from "../../data/historicalSeasons.js";
 import { readRootSave } from "../../data/saveRoot.js";
 import { DEFAULT_COACH_ORIGIN, listCoachOrigins } from "../../career/coachOrigins.js";
 import { ensureCoachProfile } from "../../career/coachProfile.js";
-import { INVESTMENT_STAKE } from "../../career/balance.js";
+import {
+  INVESTMENT_STAKE, POACH_ACCEPT_REPUTATION_DELTA, POACH_DECLINE_TRUST_BONUS, POACH_SIGNING_SALARY,
+  POACH_SIGNING_TRUST_BONUS,
+} from "../../career/balance.js";
 import {
   availableAssetClasses, buyHouse, canAffordHouse, canAffordInvestment, currentCoachSalary,
   houseTiers, investmentForecast, placeInvestment, settleCoachFinances,
@@ -20,7 +23,11 @@ import {
 import {
   acceptCareerContract, advanceSeasonGoal, declineCareerContracts, evaluateCareerEmployment,
 } from "../../modes/careerContract.js";
+import { settleSeasonReputation } from "../../career/reputation.js";
 import { hasExistingCareerRoot } from "../../modes/leagueCareer.js";
+import {
+  acceptPoachOffer, declinePoachOffer, expirePoachOffer, maybeCreatePoachOffer, poachWindowOpen,
+} from "../../modes/poaching.js";
 import {
   acceptInterviewOffer, acceptReemploymentOffer, createTimeTravelPrologue, futureKnowledgeEffects,
   generateReemploymentOffers, resolveFutureKnowledgeChoice,
@@ -33,12 +40,13 @@ import { buildEndingShareCard, renderEndingShareCardHtml, shareCardText } from "
 import { confirmAction } from "../confirmModal.js";
 import { choiceDeckHtml, confirmBarHtml, mountDeck } from "./choices.js";
 import { ASSET_LABELS_EN, HOUSE_LABELS_EN, INTRO_CHOICES, paintStaticText } from "./copy.js";
-import { tr } from "./format.js";
-import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml } from "./offers.js";
+import { esc, tr } from "./format.js";
+import { icon } from "./icons.js";
+import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml, poachCardHtml } from "./offers.js";
 import {
   hideHq, paintEpilogue, paintFinance, paintGoal, paintHq, paintKpis, paintReport, paintWizard,
 } from "./paint.js";
-import { hqModel, kpiModel, teamColorsFor, teamCore } from "./viewModel.js";
+import { hqModel, kpiModel, teamColorsFor, teamCore, teamNameFor } from "./viewModel.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -208,7 +216,9 @@ export function createTimeTravelScreen({
       commit(root, tr(lang(), "存档写入失败，尚未接受球队邀请", "Save failed — the offer was not accepted"));
       prologue.selectedOfferId = offerId;
       const offer = prologue.offers.find((candidate) => candidate.id === offerId);
-      setStatus(tr(lang(), `已接受 ${offer.teamName} 的邀请，先决定如何使用未来知识。`, `You accepted ${offer.teamName}'s offer. First: how will you use your foresight?`));
+      const l = lang();
+      const team = teamNameL(offer.teamName, l);
+      setStatus(tr(l, `已接受 ${team} 的邀请，先决定如何使用未来知识。`, `You accepted ${team}'s offer. First: how will you use your foresight?`));
       renderScreen();
       focusDecision();
     } catch (error) {
@@ -241,6 +251,76 @@ export function createTimeTravelScreen({
       confirmText: (team) => tr(l, `接受 ${team} 的邀请，开始新的执教生涯？`, `Accept ${team}'s offer and start a new chapter?`),
       onConfirm: (offerId, el) => acceptReemployment(offerId, el.dataset.team),
     });
+  }
+
+  /** B6: a rival club's offer. Only shown while it can still be acted on (before the season's first game). */
+  function renderPoach(root) {
+    const card = $("#tt-poach");
+    const open = poachWindowOpen(root);
+    card.hidden = !open;
+    if (!open) return;
+    const l = lang();
+    const offer = root.story.poachOffer;
+    const offerTeam = teamNameL(offer.teamName, l);
+    const year = root.leagueCareer.season.year;
+    const mine = teamNameL(teamNameFor(year, root.story.employer), l);
+    $("#tt-poach-title").textContent = tr(l, `${offerTeam} 想请你过去执教`, `${offerTeam} wants you as head coach`);
+    $("#tt-poach-note").textContent = tr(
+      l,
+      `你在 ${mine} 的成绩被别的球队看在眼里。你的教练声望是 ${Math.round(ensureCoachProfile(root).reputation ?? 0)}。这份邀请只在本赛季第一场比赛之前有效——开赛后自动作废。`,
+      `Other clubs have noticed your work at ${mine}. Your coaching reputation is ${Math.round(ensureCoachProfile(root).reputation ?? 0)}. The offer only stands until this season's first game — it lapses once play begins.`,
+    );
+    $("#tt-poach-card").innerHTML = poachCardHtml(offer, {
+      colors: teamColorsFor(year, offer.teamId),
+      core: teamCore({ players: PLAYERS, overall, year, teamId: offer.teamId }),
+      lang: l,
+    });
+    const gain = (text) => `<li class="tt-stake tt-stake-good">${icon("check", { size: 14 })}<span>${esc(text)}</span></li>`;
+    const cost = (text) => `<li class="tt-stake tt-stake-bad">${icon("flag", { size: 14 })}<span>${esc(text)}</span></li>`;
+    $("#tt-poach-stakes").innerHTML = [
+      cost(tr(l,
+        `接受的代价：在 ${mine} 的这段执教就此归档，教练声望 ${POACH_ACCEPT_REPUTATION_DELTA}，今后 ${mine} 不会再聘用你；新赛季从零开始，压力和权限按新队的来。`,
+        `Accept — the cost: your time at ${mine} is closed out, reputation ${POACH_ACCEPT_REPUTATION_DELTA}, and ${mine} won't hire you again. A fresh season starts, with the new club's pressure and authority.`)),
+      gain(tr(l,
+        `接受的回报：签约年薪 ¤${POACH_SIGNING_SALARY}（现在 ¤${currentCoachSalary(root)}），新管理层起始信任 +${POACH_SIGNING_TRUST_BONUS}；积蓄、住房和过往履历都带走。`,
+        `Accept — the reward: a signing salary of ¤${POACH_SIGNING_SALARY} (now ¤${currentCoachSalary(root)}) and +${POACH_SIGNING_TRUST_BONUS} starting trust with the new front office. Savings, home and record come with you.`)),
+      gain(tr(l,
+        `婉拒：现任管理层信任 +${POACH_DECLINE_TRUST_BONUS}，你留在 ${mine} 继续这份合同。`,
+        `Decline: front-office trust +${POACH_DECLINE_TRUST_BONUS}, and you stay at ${mine} on your current deal.`)),
+    ].join("");
+  }
+
+  async function acceptPoach() {
+    const l = lang();
+    const offer = state.longCareerRoot?.story?.poachOffer;
+    if (!offer) return;
+    const offerTeam = teamNameL(offer.teamName, l);
+    if (!(await confirmAction(
+      tr(l, `接受 ${offerTeam} 的挖角？你会离开现在的球队，这一季从新球队重新开始。`, `Accept ${offerTeam}'s offer? You leave your current team and start this season fresh at the new club.`),
+      { title: tr(l, "转投新东家？", "Move to a new club?"), acceptLabel: tr(l, "确认转投", "Move") },
+    ))) return;
+    try {
+      const root = acceptPoachOffer(currentRootState());
+      commit(root, tr(l, "存档写入失败，尚未转投", "Save failed — you haven't moved yet"));
+      setStatus(tr(l, `你转投了 ${offerTeam}。新的执教阶段开始，声望、积蓄和过往战绩都带在身上。`, `You joined ${offerTeam}. A new chapter starts — your reputation, savings and record come with you.`));
+      renderScreen();
+      window.scrollTo?.({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      setStatus(error?.message || tr(l, "无法接受挖角", "Couldn't accept the offer"), true);
+      renderScreen();
+    }
+  }
+
+  function declinePoach() {
+    const l = lang();
+    try {
+      const root = declinePoachOffer(currentRootState());
+      commit(root, tr(l, "存档写入失败，婉拒尚未生效", "Save failed — your refusal wasn't recorded"), { full: false });
+      setStatus(tr(l, "你婉拒了邀请，管理层看在眼里。", "You turned the offer down — and the front office noticed."));
+      renderScreen();
+    } catch (error) {
+      setStatus(error?.message || tr(l, "无法婉拒这份邀请", "Couldn't decline the offer"), true);
+    }
   }
 
   function acceptReemployment(offerId, teamName) {
@@ -478,7 +558,7 @@ export function createTimeTravelScreen({
     renderOffers();
     const career = hasCareer();
     $("#time-travel-create").hidden = career;
-    const sections = ["#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
+    const sections = ["#tt-poach", "#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
     if (!career) {
       hideHq();
       for (const selector of sections) $(selector).hidden = true;
@@ -493,10 +573,14 @@ export function createTimeTravelScreen({
     renderEvent();
     renderContract();
     $("#tt-grid").dataset.over = over ? "1" : "";
-    $("#tt-over").hidden = !over;
+    // The coaching record stays on screen after a re-hire or a poaching, not just in the epilogue:
+    // a coach with past stints should always be able to see them.
+    const hasPastStints = (root.coach?.stints || []).length > 0;
+    $("#tt-over").hidden = !(over || hasPastStints);
     $("#tt-jobs").hidden = !over;
+    if (over || hasPastStints) paintEpilogue(root, report, l, { over });
+    renderPoach(root);
     if (over) {
-      paintEpilogue(root, report, l);
       renderJobs(root);
     }
     if (over) $("#tt-goal").hidden = true;
@@ -522,14 +606,29 @@ export function createTimeTravelScreen({
     const financed = settleCoachFinances(goaled);
     const lastFinance = financed.story.eventLog.at(-1);
     const settledFinances = lastFinance?.type === "finances-settled" ? lastFinance : null;
-    const next = queueNextStoryEvent(financed, { year: state.season?.year });
+    // B6: settle the season's reputation change BEFORE the employment check, so a renewal menu (which
+    // is priced off reputation) sees the title / the bad year that was just earned.
+    const reputed = settleSeasonReputation(financed);
+    const lastRep = reputed.story.eventLog.at(-1);
+    const settledReputation = lastRep?.type === "reputation-settled" ? lastRep : null;
+    // An offer left over from a previous season can't be acted on any more: clear it first.
+    const next = queueNextStoryEvent(expirePoachOffer(reputed), { year: state.season?.year });
     const employed = evaluateCareerEmployment(next);
     const finalized = employed === next ? finalizeCareerEnding(next) : employed;
-    if (finalized === root) return null;
-    state.story = finalized.story;
-    state.longCareerRoot = finalized;
+    // Last, because it only fires for a coach who is still in a normal job with a clear desk: not
+    // one who was just fired, nor one facing a renewal or a story decision.
+    const result = maybeCreatePoachOffer(finalized);
+    if (result === root) return null;
+    state.story = result.story;
+    state.longCareerRoot = result;
     saveLongCareer();
-    return { resolvedGoal, settledFinances, nextGoal: finalized.story.seasonGoal || null };
+    return {
+      resolvedGoal,
+      settledFinances,
+      settledReputation,
+      poachOffer: result !== finalized ? result.story.poachOffer : null,
+      nextGoal: result.story.seasonGoal || null,
+    };
   }
 
   function open() {
@@ -566,6 +665,8 @@ export function createTimeTravelScreen({
 
   $("#btn-time-travel-back")?.addEventListener("click", () => show("home"));
   $("#btn-time-travel-decline-contract")?.addEventListener("click", declineContract);
+  $("#btn-poach-accept")?.addEventListener("click", acceptPoach);
+  $("#btn-poach-decline")?.addEventListener("click", declinePoach);
   $("#btn-time-travel-continue")?.addEventListener("click", () => {
     if (!state.leagueCareer?.season) return;
     state.season = state.leagueCareer.season;

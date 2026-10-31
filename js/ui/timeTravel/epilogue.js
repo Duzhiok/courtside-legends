@@ -1,4 +1,5 @@
 import { icon } from "./icons.js";
+import { teamNameL } from "../../i18n.js";
 import { crestHtml } from "./hq.js";
 import { esc, tr } from "./format.js";
 
@@ -9,6 +10,7 @@ const REASON = {
   "missed-goals": ["目标落空被解雇", "Fired: missed goals"],
   "two-bad-seasons": ["战绩低迷被解雇", "Fired: losing seasons"],
   departed: ["主动离队", "Walked away"],
+  poached: ["被挖角", "Poached away"],
 };
 /** Never leak a raw id to the player: unknown reasons fall back to a neutral "left the team". */
 export const reasonLabel = (reason, lang) => tr(lang, REASON[reason]?.[0] ?? "已离任", REASON[reason]?.[1] ?? "Left the team");
@@ -26,10 +28,10 @@ export function stintCardHtml(stint, { teamName, colors }, lang = "zh") {
   const titles = stint.championships
     ? `<span class="tt-pill tt-pill-gold">${icon("trophy", { size: 13 })}×${stint.championships}</span>`
     : "";
-  return `<li class="tt-stint" data-reason="${esc(stint.reason === "departed" ? "departed" : "fired")}">
+  return `<li class="tt-stint" data-reason="${esc(["departed", "poached"].includes(stint.reason) ? stint.reason : "fired")}">
     ${crestHtml(stint.teamId, colors)}
     <span class="tt-stint-main">
-      <strong>${esc(teamName || stint.teamId)}</strong>
+      <strong>${esc(teamNameL(teamName || stint.teamId, lang))}</strong>
       <span class="tt-stint-years">${esc(stintSpan(stint))} · ${esc(tr(lang, `${stint.seasons} 个赛季`, `${stint.seasons} seasons`))}</span>
     </span>
     <span class="tt-stint-stats"><b>${esc(record)}</b>${titles}<span class="tt-stint-reason">${esc(reasonLabel(stint.reason, lang))}</span></span>

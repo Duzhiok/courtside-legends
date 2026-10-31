@@ -885,6 +885,21 @@
 
         <div class="tt-grid" id="tt-grid">
           <div class="tt-main">
+            <section id="tt-poach" class="tt-card tt-decision tt-poach" hidden aria-label="挖角邀请">
+              <div class="tt-card-head">
+                <span class="tt-badge tt-badge-urgent" data-tt="poach-badge"></span>
+                <span class="tt-kicker" data-tt="poach-kicker"></span>
+              </div>
+              <h3 id="tt-poach-title"></h3>
+              <p id="tt-poach-note" class="tt-prose"></p>
+              <div id="tt-poach-card"></div>
+              <ul id="tt-poach-stakes" class="tt-stakes"></ul>
+              <div class="tt-poach-actions">
+                <button type="button" class="tt-btn tt-btn-primary" id="btn-poach-accept" data-tt="poach-accept"></button>
+                <button type="button" class="tt-btn tt-btn-ghost" id="btn-poach-decline" data-tt="poach-decline"></button>
+              </div>
+            </section>
+
             <section id="time-travel-decision" class="tt-card tt-decision" hidden>
               <div class="tt-card-head">
                 <span class="tt-badge tt-badge-urgent" data-tt="urgent"></span>
@@ -1132,6 +1147,6 @@
       }, 15000);
     })();
   </script>
-  <script type="module" src="js/app.js?v=20261024t8"></script>
+  <script type="module" src="js/app.js?v=20261024t9"></script>
 </body>
 </html>

@@ -1,17 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { YEAR, badSeasons, firedRoot, hiredRoot, withHistory } from "./helpers/careerFixtures.js";
+import { YEAR, badSeasons, firedRoot, hiredRoot, poachReadyRoot, rootWithPoachRoll, withHistory } from "./helpers/careerFixtures.js";
 import { REEMPLOYMENT_FULL_BOARD_REPUTATION, REEMPLOYMENT_LIMITED_BOARD_REPUTATION } from "../js/career/balance.js";
 import {
   declineCareerContracts, evaluateCareerEmployment,
 } from "../js/modes/careerContract.js";
-import { futureKnowledgeEffects, generateReemploymentOffers, resolveFutureKnowledgeChoice } from "../js/modes/timeTravelCareer.js";
+import { acceptPoachOffer, maybeCreatePoachOffer } from "../js/modes/poaching.js";
+import { createTimeTravelPrologue, futureKnowledgeEffects, generateReemploymentOffers, resolveFutureKnowledgeChoice } from "../js/modes/timeTravelCareer.js";
 import { buildCareerReport } from "../js/story/eventEngine.js";
 import { INTRO_CHOICES } from "../js/ui/timeTravel/copy.js";
 import { effectChipsHtml, esc, magnitudeTier } from "../js/ui/timeTravel/format.js";
 import { choiceDeckHtml } from "../js/ui/timeTravel/choices.js";
 import { timelineHtml } from "../js/ui/timeTravel/hq.js";
-import { contractOfferCardHtml, jobBoardHtml } from "../js/ui/timeTravel/offers.js";
+import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml, poachCardHtml } from "../js/ui/timeTravel/offers.js";
 import { reasonLabel, stintCardHtml } from "../js/ui/timeTravel/epilogue.js";
 import { hqModel, kpiModel, onThinIce } from "../js/ui/timeTravel/viewModel.js";
 import { careerStateNotice } from "../js/ui/timeTravel/screen.js";
@@ -109,6 +110,55 @@ test("every reason the engine can write has a human label in both languages", ()
     }
   }
   assert.deepEqual([...new Set(seen)].sort(), ["departed", "missed-goals", "trust-collapsed", "two-bad-seasons"]);
+});
+
+test("a poached stint has its own label in both languages and its own card styling", () => {
+  const root = acceptPoachOffer(rootWithPoachRoll(poachReadyRoot(), maybeCreatePoachOffer));
+  const stint = root.coach.stints.at(-1);
+  assert.equal(stint.reason, "poached");
+  for (const lang of ["zh", "en"]) {
+    assert.notEqual(reasonLabel("poached", lang), reasonLabel("not-a-real-reason", lang), `fell through to the fallback (${lang})`);
+  }
+  const colors = { primary: "#112233", secondary: "#ffffff" };
+  assert.match(stintCardHtml(stint, { teamName: "T", colors }), /data-reason="poached"/);
+  assert.match(stintCardHtml({ ...stint, reason: "never-heard-of-it" }, { teamName: "T", colors }), /data-reason="fired"/, "unknown reasons keep the old red default");
+});
+
+test("poach card: informational (not a radio), escaped, and built from the same body as an interview card", () => {
+  const offer = rootWithPoachRoll(poachReadyRoot(), maybeCreatePoachOffer).story.poachOffer;
+  const ctx = { colors: { primary: "#112233", secondary: "#ffffff" }, core: [{ name: "A. Player", ovr: 88 }], lang: "zh" };
+  const poach = poachCardHtml(offer, ctx);
+  assert.match(poach, /^<article /);
+  assert.doesNotMatch(poach, /role="radio"|data-offer-id|<button/, "the buttons live outside the card; the card itself must not be selectable");
+  assert.ok(poach.includes(esc(offer.teamName)));
+  assert.match(poach, /争冠队/);
+  assert.match(poachCardHtml(offer, { ...ctx, lang: "en" }), /Contender/);
+
+  const hostile = poachCardHtml({ ...offer, teamName: "<script>x</script>" }, ctx);
+  assert.doesNotMatch(hostile, /<script>/);
+
+  // Refactor guard: both card kinds draw the identical inside, so they can't drift apart.
+  const inner = (html) => html.replace(/^<[^>]+>/, "").replace(/<\/(button|article)>$/, "").trim();
+  assert.equal(inner(poach), inner(interviewOfferCardHtml(offer, ctx)));
+  assert.match(interviewOfferCardHtml(offer, ctx), /role="radio"[^>]*data-team="/, "the selectable card is still a radio");
+});
+
+test("English mode: no Chinese left in an offer card, for every archetype and every card kind", () => {
+  const offers = createTimeTravelPrologue({ year: YEAR, philosophy: "analytics", seed: 7 }).offers;
+  assert.deepEqual(offers.map((o) => o.archetype).sort(), ["contender", "middle", "rebuild"]);
+  const ctx = { colors: { primary: "#112233", secondary: "#ffffff" }, core: [{ name: "A. Player", ovr: 88 }] };
+  const cjk = /[\u4e00-\u9fff]/;
+  for (const offer of offers) {
+    for (const [kind, render] of [["interview", interviewOfferCardHtml], ["poach", poachCardHtml]]) {
+      const en = render(offer, { ...ctx, lang: "en" });
+      assert.doesNotMatch(en, cjk, `${offer.archetype} ${kind} card leaks Chinese in English mode: ${en.match(/.{20}[\u4e00-\u9fff]+.{10}/)?.[0]}`);
+      const zh = render(offer, { ...ctx, lang: "zh" });
+      assert.ok(zh.includes(esc(offer.summary)) && zh.includes(esc(offer.firstYearGoal)), `${offer.archetype} ${kind}: Chinese mode must show the stored text`);
+    }
+  }
+  // An archetype the table doesn't know falls back to the stored text rather than printing "undefined".
+  const odd = interviewOfferCardHtml({ ...offers[0], archetype: "wildcard" }, { ...ctx, lang: "en" });
+  assert.ok(odd.includes(esc(offers[0].summary)) && !/undefined/.test(odd));
 });
 
 test("an unknown reason degrades to neutral text instead of printing the raw id", () => {

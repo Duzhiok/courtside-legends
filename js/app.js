@@ -8037,7 +8037,7 @@ function renderLeagueManagement() {
         try {
           const completed = completeCareerOffseason(state.leagueCareer);
           if (!commitManagedCareer(completed.career, "standings")) return;
-          const { resolvedGoal, nextGoal } = queueNextTimeTravelEvent() || {};
+          const { resolvedGoal, nextGoal, settledReputation, poachOffer } = queueNextTimeTravelEvent() || {};
           const highlights = (completed.result?.log || [])
             .filter((entry) => entry.delta > 0 || (entry.salaryAfter || 0) > (entry.salaryBefore || 0) + 10)
             .slice(0, 8);
@@ -8060,7 +8060,15 @@ function renderLeagueManagement() {
             ? `\n\n赛季目标【${resolvedGoal.goal.label}】：${resolvedGoal.achieved ? "达成 ✅" : "未达成 ❌"}（信任度 ${resolvedGoal.trustDelta > 0 ? "+" : ""}${resolvedGoal.trustDelta}）`
             : "";
           const nextGoalSummary = nextGoal ? `\n\n新赛季目标：${nextGoal.label}` : "";
-          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}`);
+          // B6: reputation now moves with results, and a well-regarded coach can be poached. Both are
+          // surfaced in this same recap; the offer also says where to find it and when it lapses.
+          const repSummary = settledReputation
+            ? `\n\n${L("教练声望", "Coaching reputation")}：${settledReputation.from} → ${settledReputation.to}`
+            : "";
+          const poachSummary = poachOffer
+            ? `\n\n📨 ${L(`${poachOffer.teamName} 想挖你！请到「穿越生涯」页查看并决定——本赛季第一场比赛开打后，邀请自动作废。`, `${poachOffer.teamName} wants to hire you away! Open the Time-travel career page to decide — the offer lapses once this season's first game is played.`)}`
+            : "";
+          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${poachSummary}`);
         } catch (error) {
           alert(error?.message || "无法开始新赛季");
         }

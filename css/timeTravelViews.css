@@ -238,6 +238,7 @@
 .tt-stint-stats { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; font-variant-numeric: tabular-nums; }
 .tt-stint-stats b { font-size: 1.05rem; }
 .tt-stint-reason { font-size: 0.74rem; padding: 2px 9px; border-radius: 999px; background: rgba(255, 128, 128, 0.14); color: var(--tt-bad); font-weight: 700; }
+.tt-stint[data-reason="poached"] .tt-stint-reason { background: color-mix(in srgb, var(--tt-gold) 20%, transparent); color: var(--tt-gold); }
 .tt-stint[data-reason="departed"] .tt-stint-reason { background: rgba(243, 239, 228, 0.1); color: var(--tt-dim); }
 .tt-share-card { display: grid; justify-items: center; }
 
@@ -256,3 +257,14 @@
   .tt-stint-stats { grid-column: 1 / -1; justify-content: flex-start; }
   .tt-verdict h3 { font-size: 1.6rem; }
 }
+
+/* B6 poaching card: the team card is informational here (the buttons below decide), so no lift on hover. */
+.tt-poach .tt-offer-static { cursor: default; }
+.tt-poach .tt-offer-static:hover { transform: none; border-color: inherit; }
+.tt-stakes { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.tt-stake { display: flex; align-items: flex-start; gap: 8px; font-size: 0.86rem; line-height: 1.55; color: var(--tt-dim); }
+.tt-stake .tt-ico { flex: none; margin-top: 3px; }
+.tt-stake-good .tt-ico { color: var(--tt-good, #7fe0a8); }
+.tt-stake-bad .tt-ico { color: var(--tt-bad); }
+.tt-poach-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+@media (max-width: 640px) { .tt-poach-actions .tt-btn { flex: 1 1 100%; } }
