@@ -40,3 +40,13 @@ export function buildStintRecord(root, performance, reason) {
     reason,
   };
 }
+
+/**
+ * B6: teams this coach walked out on for another job (stint reason "poached"). Derived from the
+ * completed-stint list rather than stored separately, so there is one source of truth. Callers use
+ * it to keep those teams off later boards: you don't get re-hired by the club you left mid-contract.
+ */
+export function burnedBridgeTeamIds(root) {
+  const stints = Array.isArray(root?.coach?.stints) ? root.coach.stints : [];
+  return stints.filter((stint) => stint.reason === "poached").map((stint) => stint.teamId);
+}

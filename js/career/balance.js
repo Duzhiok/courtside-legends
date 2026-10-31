@@ -139,3 +139,48 @@ export const REEMPLOYMENT_FULL_BOARD_REPUTATION = 55;
 /** Below REEMPLOYMENT_FULL_BOARD_REPUTATION but at or above this: rebuild + middle offers only.
  * Below this floor: a single rebuild offer, guaranteed. */
 export const REEMPLOYMENT_LIMITED_BOARD_REPUTATION = 30;
+
+/** --- Phase B6: coach reputation moves, and poaching (roadmap B6) --- */
+
+/** Until B6 nothing ever CHANGED root.coach.reputation: it was set once at hire (50 + the origin's
+ * nudge) and then read by B3's renewal menu and B5's job board -- so those tiers only ever saw the
+ * starting value, and a championship coach was treated like a rookie. Reputation is now settled
+ * once per finished season from how it went. A title is worth more than any record band (they don't
+ * stack), and the board goal stacks on top. */
+export const REPUTATION_CHAMPIONSHIP = 8;
+/** Win rate at/above this earns REPUTATION_GOOD_SEASON ... */
+export const REPUTATION_GOOD_WIN_RATE = 0.6;
+export const REPUTATION_GOOD_SEASON = 4;
+/** ... at/above this (but below the line above) earns REPUTATION_WINNING_SEASON ... */
+export const REPUTATION_WINNING_WIN_RATE = 0.5;
+export const REPUTATION_WINNING_SEASON = 2;
+/** ... and below this costs REPUTATION_BAD_SEASON (negative). Between .400 and .500: no change. */
+export const REPUTATION_BAD_WIN_RATE = 0.4;
+export const REPUTATION_BAD_SEASON = -3;
+export const REPUTATION_GOAL_HIT = 2;
+export const REPUTATION_GOAL_MISS = -2;
+
+/** Reputation below this never attracts a poacher. Starting reputation is 50, so the first offer
+ * has to be EARNED -- roughly two strong seasons, or one title plus a decent year. */
+export const POACH_MIN_REPUTATION = 65;
+/** A coach who just arrived hasn't proven anything: at least this many finished seasons in the
+ * CURRENT stint before another team comes calling. */
+export const POACH_MIN_SEASONS_IN_STINT = 2;
+/** After any offer (accepted, declined or lapsed) no new one for this many seasons. */
+export const POACH_COOLDOWN_SEASONS = 2;
+/** Chance an eligible coach gets an offer in a given offseason: BASE at the threshold, plus
+ * PER_REPUTATION for every point above it, never more than MAX (no guaranteed offers). */
+export const POACH_BASE_CHANCE = 0.4;
+export const POACH_CHANCE_PER_REPUTATION = 0.01;
+export const POACH_MAX_CHANCE = 0.75;
+/** Walking out on a team mid-contract costs a little standing... */
+export const POACH_ACCEPT_REPUTATION_DELTA = -3;
+/** ...while turning the offer down is noticed upstairs: front-office trust goes up. */
+export const POACH_DECLINE_TRUST_BONUS = 5;
+/** A club that goes out of its way to hire you pays for it. Without these two the move was pure
+ * loss (a contender's offer carries trust 45 / pressure 80, and the salary never changed), so no
+ * sensible player would ever say yes. The trust bonus roughly cancels the cold start (45 -> 60);
+ * the pressure and low authority of a contender job stay as the real price. Salary sits above the
+ * ¤5 base and the rebuild renewal (7), below the contender renewal (13). */
+export const POACH_SIGNING_TRUST_BONUS = 15;
+export const POACH_SIGNING_SALARY = 9;

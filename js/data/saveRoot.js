@@ -214,6 +214,24 @@ function validateTimeTravelStory(root) {
   if (story.origin !== undefined && !isKnownCoachOrigin(story.origin)) {
     throw new Error("invalid root save");
   }
+  // Optional (root.story.poachOffer, roadmap B6): absent on every older save, null when no offer
+  // is outstanding. When present it is a poaching team's offer plus the year it was made.
+  if (story.poachOffer !== undefined && story.poachOffer !== null) {
+    validatePoachOffer(story.poachOffer);
+  }
+}
+
+function validatePoachOffer(offer) {
+  if (
+    !isObject(offer)
+    || !Number.isInteger(offer.year)
+    || !isNonEmptyString(offer.id)
+    || !isNonEmptyString(offer.teamId)
+    || !isNonEmptyString(offer.teamName)
+    || !SEASON_GOAL_TIERS.includes(offer.archetype)
+  ) {
+    throw new Error("invalid root save");
+  }
 }
 
 function validateSeasonGoal(goal) {

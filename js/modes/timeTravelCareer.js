@@ -5,6 +5,7 @@ import { createRootState } from "../data/saveRoot.js";
 import { createLeagueCareer, recordCareerEvent } from "./leagueCareer.js";
 import { buildSeasonGoal } from "../career/seasonGoals.js";
 import { createCoachProfile } from "../career/coachProfile.js";
+import { burnedBridgeTeamIds } from "../career/stints.js";
 import {
   COACH_START_REPUTATION,
   INITIAL_CONTRACT_YEARS,
@@ -372,7 +373,7 @@ export function generateReemploymentOffers(root) {
     philosophy: root.story.philosophy,
     seed,
     origin: root.story.origin,
-    excludeTeamIds: root.story.employer ? [root.story.employer] : [],
+    excludeTeamIds: [...(root.story.employer ? [root.story.employer] : []), ...burnedBridgeTeamIds(root)],
   });
   return board.slice(0, reemploymentOfferCount(reputation));
 }
@@ -400,6 +401,17 @@ export function acceptReemploymentOffer(root, offerId) {
   if (!offer) {
     throw new RangeError("unknown reemployment offer");
   }
+  return startNewStint(root, offer);
+}
+
+/**
+ * Begin a fresh stint at the team in `offer`, carrying the coach and the timeline forward (see
+ * acceptReemploymentOffer's notes on what resets and what survives). Shared by B5 (hired after a
+ * firing / walk-out) and B6 (poached mid-career): both build the same new season + league career,
+ * they differ only in the preconditions and consequences their callers apply FIRST, and in the
+ * `eventType` that marks the start of the new stint in the log ("re-employed" | "poached-in").
+ */
+export function startNewStint(root, offer, eventType = "re-employed") {
   const year = root.leagueCareer.season.year;
   const historical = historicalSeason(year);
   const teamMeta = historical.teams.find((team) => team.id === offer.teamId);
@@ -424,7 +436,7 @@ export function acceptReemploymentOffer(root, offerId) {
   });
   leagueCareer = recordCareerEvent(
     leagueCareer,
-    { type: "re-employed", year, teamId: offer.teamId, teamName: offer.teamName },
+    { type: eventType, year, teamId: offer.teamId, teamName: offer.teamName },
     0,
   );
 
@@ -453,8 +465,9 @@ export function acceptReemploymentOffer(root, offerId) {
       // with a front office that no longer employs this coach -- only origin survives the move.
       flags: { origin: root.story.origin },
       seasonGoal,
-      eventLog: [{ type: "re-employed", year, teamId: offer.teamId, teamName: offer.teamName }],
+      eventLog: [{ type: eventType, year, teamId: offer.teamId, teamName: offer.teamName }],
       pendingDecision: null,
+      poachOffer: null,
       ending: null,
     },
   };
