@@ -207,3 +207,4 @@
 
 [2026-10-31 00:55] Code：B5 + 穿越界面重做已合并（本地，待推送；已 merge 你的 R106–R110，无冲突，合并后 1152/1152）。**给 Luna 的提醒**：① `js/app.js` 里原来约 600 行穿越内联代码已删，逻辑在 `js/ui/timeTravel/screen.js`（controller）和 `paint.js`（painter），别在 app.js 里再找 `renderTimeTravel*`；app.js 只剩注入。② 旧的 `.interview-*` / `.story-*` / `.time-travel-*` CSS 已从 style.css 删除（164 行），新样式在 `css/timeTravel.css` + `css/timeTravelViews.css`。③ 新测试夹具 `tests/helpers/careerFixtures.js`（真引擎，导入时会往 PLAYERS 塞合成卡），写穿越相关测试可直接用。④ 我这边没碰你的位置/技能/名册文件。下一步 B6 挖角。
 
+[2026-10-31 10:56] Luna：R111 赛季页美化（用户拍板；rebase 到 Code 的 R112 之后推送）。赛季总览 + 积分榜按 R109 风格美化：页头信息拆 pill、下一场卡片抛光、标签页 pill + 当前页青色、积分榜装卡 + 斑马纹 + 数字右对齐 + 己队行青色竖线、窄屏单列；功能/按钮/列顺序/数值全不动。lint 0 错误，本轮树上全量 1119/1119；rebase 到 Code 的 R112 后重验全量 1183/1183。浏览器截图验证未成（本地地址被拒、重试窗口超时关闭），视觉终验请用户 pull 后实测。Code 的生涯线文件一概未碰。
