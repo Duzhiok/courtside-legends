@@ -6,6 +6,7 @@
 import { SEASON_GOAL_TRUST_BONUS, SEASON_GOAL_TRUST_PENALTY, FIRING_TRUST_FLOOR } from "../../career/balance.js";
 import { listCoachOrigins, coachOrigin } from "../../career/coachOrigins.js";
 import { stintCardHtml, verdictHtml } from "./epilogue.js";
+import { $ } from "./dom.js";
 import { esc, tr } from "./format.js";
 import { houseRowHtml, investRowHtml } from "./finance.js";
 import { careerHeaderHtml, teamThemeStyle, timelineHtml } from "./hq.js";
@@ -16,7 +17,6 @@ import {
   decadeChipsHtml, eraNote, originChipsHtml, originDeltasHtml, philosophyCardsHtml,
 } from "./wizard.js";
 
-const $ = (selector, root = document) => root.querySelector(selector);
 
 /** Re-theme the whole screen to one team (or back to neutral when there is no career). */
 export function paintTheme(colors) {
