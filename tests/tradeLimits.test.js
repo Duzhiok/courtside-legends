@@ -1,9 +1,10 @@
-// R89 trade tightening: deadline, per-season count cap, deterministic value rejection,
+// R89 trade tightening: deadline, deterministic value rejection,
 // and pre-filtered CPU proposals (every dangled offer clears the acceptance math).
+// R109: the R103 per-season count cap is gone — the NBA has no trade count limit,
+// only a deadline plus salary/roster rules, so a count cap is not realism.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  TRADE_LIMIT_PER_SEASON,
   executeThreeTeamTrade,
   executeTrade,
   pickValueOf,
@@ -54,7 +55,7 @@ test("deadline: trades close past 70% of the schedule, open before it, ignored w
   assert.equal(compliantSwap(noSchedule, "u0", "t2_0").ok, true);
 });
 
-test("count cap: five trades per season, the sixth is refused, three-team trades count too", () => {
+test("no count cap: the sixth trade — and beyond — still goes through (R109)", () => {
   const st = seasonFixture();
   for (let i = 0; i < 4; i++) {
     const res = compliantSwap(st, `u${i}`, `t2_${i}`);
@@ -70,10 +71,10 @@ test("count cap: five trades per season, the sixth is refused, three-team trades
   });
   assert.equal(three.ok, true, three.reason);
   assert.equal(seasonTradeCount(st), 5);
+  // R103 used to refuse this; the NBA has no per-season trade count limit.
   const sixth = compliantSwap(st, "u5", "t2_5");
-  assert.equal(sixth.ok, false);
-  assert.match(sixth.reason, /上限/);
-  assert.equal(seasonTradeCount(st), 5);
+  assert.equal(sixth.ok, true, sixth.reason);
+  assert.equal(seasonTradeCount(st), 6);
 });
 
 test("value rejection is deterministic: a value-losing trade never sneaks through on luck", () => {
@@ -118,5 +119,4 @@ test("filter: a CPU too weak to make a compliant offer dangles nothing for that 
   const proposals = generateTradeProposals(st, 3);
   const forGiant = proposals.filter((p) => p.targetName === "giant");
   assert.equal(forGiant.length, 0);
-  assert.equal(TRADE_LIMIT_PER_SEASON, 5);
 });

@@ -2672,25 +2672,104 @@ select, input[type="number"] {
 .sm-staff > .sm-list {
   max-height: none;
 }
+/* 排兵布阵（默认轮换）R109 美化：对齐的列、位置色块、首发 pill、吸顶表头 */
 .season-rotation .rot-list {
   display: grid;
   gap: 6px;
   margin-top: 10px;
   max-height: min(70vh, 720px);
   overflow: auto;
+  padding: 2px;
 }
-.rot-row {
-  display: grid;
-  grid-template-columns: auto minmax(140px, 1.4fr) 72px 110px 72px;
+.rot-card .rot-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.rot-stats {
+  display: flex;
   gap: 8px;
-  align-items: center;
-  padding: 8px 10px;
+  flex-wrap: wrap;
+}
+.rot-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.85rem;
+}
+.rot-stat em {
+  font-style: normal;
+  color: var(--muted, #5b6a63);
+  font-size: 0.75rem;
+}
+.rot-stat strong { font-size: 1rem; }
+.rot-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 14px;
+  margin-top: 10px;
+}
+.rot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--muted, #5b6a63);
+}
+.rot-field select {
+  padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+  font-size: 0.9rem;
+}
+.rot-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.rot-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(170px, 1.7fr) 104px 132px 84px;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 12px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted, #5b6a63);
+  background: #dde8dd;
+  border-radius: 6px;
+}
+.rot-row {
+  display: grid;
+  grid-template-columns: auto minmax(170px, 1.7fr) 104px 132px 84px;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rot-row:hover {
+  border-color: rgba(60, 60, 60, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .rot-row.starter {
-  border-color: rgba(42, 157, 143, 0.55);
+  border-color: rgba(42, 157, 143, 0.6);
+  border-left-width: 4px;
   background: #f3fbf9;
 }
 .rot-row.over-min,
@@ -2699,11 +2778,65 @@ select, input[type="number"] {
   background: #fff7ed;
 }
 .rot-starter {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fafcfb;
   font-size: 0.75rem;
   white-space: nowrap;
+  cursor: pointer;
+}
+.rot-row.starter .rot-starter {
+  border-color: rgba(42, 157, 143, 0.7);
+  background: #2a9d8f;
+  color: #fff;
+}
+.rot-name-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.rot-pos-chip {
+  display: inline-block;
+  min-width: 1.9em;
+  text-align: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.rot-pos-chip.pos-pg { background: #e0f2f1; color: #00695c; }
+.rot-pos-chip.pos-sg { background: #e3f2fd; color: #1565c0; }
+.rot-pos-chip.pos-sf { background: #fff8e1; color: #8d6e00; }
+.rot-pos-chip.pos-pf { background: #fbe9e7; color: #bf360c; }
+.rot-pos-chip.pos-c { background: #f3e5f5; color: #6a1b9a; }
+.rot-pos,
+.rot-role {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.9rem;
+}
+.rot-min-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted, #5b6a63);
+  white-space: nowrap;
+}
+.rot-min {
+  width: 56px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.9rem;
 }
 .stamina-min-hint {
   color: #5b6470;
@@ -2714,12 +2847,14 @@ select, input[type="number"] {
   font-weight: 600;
 }
 @media (max-width: 720px) {
+  .rot-head { display: none; }
   .rot-row {
     grid-template-columns: 1fr 1fr;
   }
   .rot-name {
     grid-column: 1 / -1;
   }
+  .rot-actions { margin-left: 0; }
 }
 .sm-proposals {
   margin: 12px 0;
