@@ -1,5 +1,5 @@
 /**
- * Five-year ending share card: a compact, screenshot-friendly summary of a
+ * Career ending share card: a compact, screenshot-friendly summary of a
  * time-travel tenure. Pure builders only — rendering returns an HTML string.
  */
 import { buildCareerReport } from "./eventEngine.js";
@@ -110,7 +110,7 @@ export function shareCardText(card, lang = "zh") {
   if (!card) return "";
   const en = lang === "en";
   const lines = [
-    en ? `[Courtside Legends · Five-Year Journey] ${card.ending.labelEn || card.ending.label}` : `【场边传奇 · 穿越五年】${card.ending.label}`,
+    en ? `[Courtside Legends · Time-Travel Career] ${card.ending.labelEn || card.ending.label}` : `【场边传奇 · 穿越生涯】${card.ending.label}`,
     en ? `${card.teamName} · ${card.yearSpan} · ${card.seasonCount} seasons` : `${card.teamName} · ${card.yearSpan} · ${card.seasonCount} 个赛季`,
     en ? `Record ${card.record.w}-${card.record.l} (Win ${(card.record.pct * 100).toFixed(1)}%) · Championships ${card.championships}` : `总战绩 ${card.record.w}胜${card.record.l}负（胜率 ${(card.record.pct * 100).toFixed(1)}%）· 总冠军 ${card.championships} 次`,
   ];
@@ -131,14 +131,14 @@ export function renderEndingShareCardHtml(card, lang = "zh") {
     .join("");
   const trades = card.signatureTrades.length
     ? card.signatureTrades.map((trade) => `<li>${escapeHtml(trade.year)}${en ? ": " : "："}${escapeHtml(en ? trade.descriptionEn || trade.description : trade.description)}</li>`).join("")
-    : `<li>${en ? "No trades in five years — kept the core intact." : "五年里没有完成交易，坚持原班底。"}</li>`;
+    : `<li>${en ? "No trades this stint — kept the core intact." : "这段执教没有完成交易，坚持原班底。"}</li>`;
   const privilegeItems = en ? card.contract.privilegesEn || card.contract.privileges : card.contract.privileges;
   const privileges = privilegeItems.length
     ? `<div class="share-card-privileges">${privilegeItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>`
     : "";
-  return `<article class="ending-share-card tone-${escapeHtml(card.ending.tone)}" aria-label="${en ? "Five-year tenure ending card" : "五年任期结局卡"}">
+  return `<article class="ending-share-card tone-${escapeHtml(card.ending.tone)}" aria-label="${en ? "Time-travel career ending card" : "穿越生涯结局卡"}">
     <header>
-      <div class="share-card-kicker">${en ? "Courtside Legends · Five-Year Journey" : "场边传奇 · 穿越五年"}</div>
+      <div class="share-card-kicker">${en ? "Courtside Legends · Time-Travel Career" : "场边传奇 · 穿越生涯"}</div>
       <h3>${escapeHtml(card.ending.labelEn && en ? card.ending.labelEn : card.ending.label)}</h3>
       <p>${escapeHtml(card.teamName)} · ${escapeHtml(card.yearSpan)}</p>
     </header>

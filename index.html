@@ -12,7 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css?v=20261024t3fit" />
   <link rel="stylesheet" href="css/home.css?v=20261021home1" />
-  <link rel="stylesheet" href="css/timeTravel.css?v=1" />
+  <link rel="stylesheet" href="css/timeTravel.css?v=5" />
+  <link rel="stylesheet" href="css/timeTravelViews.css?v=4" />
   <link rel="stylesheet" href="css/gacha.css?v=20261023search1" />
   <link rel="stylesheet" href="css/credits.css?v=1" />
 </head>
@@ -805,97 +806,174 @@
       </div>
     </main>
 
-    <main id="screen-time-travel" class="screen">
-      <div class="panel-head tt-hero">
-        <div>
-          <div class="tt-hero-kicker">COURTSIDE LEGENDS · TIME TRAVEL</div>
-          <h2>穿越生涯 · 五年篇章</h2>
-          <p class="tt-hero-sub">带着有限的未来知识，回到历史一年穿越执教一支球队。每个选择都会被记录进历史。</p>
-        </div>
-        <button type="button" class="btn ghost" id="btn-time-travel-back">返回</button>
-      </div>
-      <div id="time-travel-stepper" class="tt-stepper" hidden></div>
-      <section id="time-travel-create" class="time-travel-create">
-        <h3>选择历史起点</h3>
-        <p class="tiny">带着有限的未来知识参加面试；不同理念会影响你与管理层共事的方式。</p>
-        <div class="time-travel-form">
-          <label>穿越年份
-            <select id="time-travel-year"></select>
-          </label>
-          <label>执教理念
-            <select id="time-travel-philosophy">
-              <option value="analytics">数据分析</option>
-              <option value="relationships">关系管理</option>
-              <option value="tactics">临场战术</option>
-              <option value="scouting">球探眼光</option>
-            </select>
-          </label>
-          <label>教练出身
-            <select id="time-travel-origin"></select>
-          </label>
-          <p id="time-travel-origin-desc" class="tiny"></p>
-          <button type="button" class="btn primary" id="btn-time-travel-interview">参加球队面试</button>
-        </div>
-      </section>
-      <p id="time-travel-status" class="tiny" role="status" aria-live="polite"></p>
-      <section id="time-travel-offers" class="interview-grid" aria-label="球队面试邀请" hidden></section>
-      <section id="time-travel-decision" class="story-decision" hidden>
-        <h3>🔮 第一次使用未来知识</h3>
-        <p>新工作刚开始，你必须决定是否提前透露一些超越时代的判断。每次干预都会消耗筹码，也可能改变管理层与媒体的态度。</p>
-        <div id="time-travel-resources" class="time-travel-resources"></div>
-        <div class="story-choice-list">
-          <button type="button" class="btn" data-story-choice="share-draft-sleeper">
-            <strong>分享一名选秀遗珠</strong>
-            <span>可能快速赢得管理层信任，但越精准的预言越会推动时间线偏离。</span>
+    <main id="screen-time-travel" class="screen tt-screen">
+      <div class="tt-shell">
+        <header class="tt-topbar">
+          <button type="button" class="tt-icon-btn" id="btn-time-travel-back" aria-label="返回">
+            <svg class="tt-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+            <span>返回</span>
           </button>
-          <button type="button" class="btn" data-story-choice="introduce-load-management">
-            <strong>引入负荷管理</strong>
-            <span>有望保护核心球员并建立信任，却可能被媒体质疑你在回避竞争。</span>
-          </button>
-          <button type="button" class="btn" data-story-choice="keep-quiet">
-            <strong>暂时保持沉默</strong>
-            <span>保留未来知识且不扰动历史，但管理层可能怀疑你缺少明确主张。</span>
-          </button>
+          <div class="tt-topbar-title">
+            <p class="tt-kicker">TIME TRAVEL</p>
+            <h2>穿越生涯</h2>
+          </div>
+        </header>
+        <p id="time-travel-status" class="tt-status" role="status" aria-live="polite"></p>
+
+        <section id="tt-hq" class="tt-hq" hidden aria-label="教练总部">
+          <div id="tt-hq-head" class="tt-hq-head"></div>
+          <ol id="time-travel-stepper" class="tt-timeline" hidden aria-label="合同进度"></ol>
+        </section>
+        <div id="time-travel-resources" class="tt-kpis" hidden></div>
+
+        <section id="time-travel-create" class="tt-card tt-wizard">
+          <div class="tt-wizard-grid">
+            <div class="tt-wstep">
+              <header class="tt-wstep-head">
+                <span class="tt-wstep-no">01</span>
+                <h3 data-tt="w1-title"></h3>
+              </header>
+              <div class="tt-dial">
+                <output id="tt-year-readout" class="tt-year" for="tt-year-range"></output>
+                <p id="tt-era-note" class="tt-era"></p>
+                <input id="tt-year-range" class="tt-range" type="range" min="0" max="0" step="1" value="0" />
+                <div id="tt-decade-chips" class="tt-chips"></div>
+              </div>
+              <select id="time-travel-year" class="tt-sr" tabindex="-1" aria-hidden="true"></select>
+            </div>
+            <div class="tt-wstep">
+              <header class="tt-wstep-head">
+                <span class="tt-wstep-no">02</span>
+                <h3 data-tt="w2-title"></h3>
+              </header>
+              <div id="tt-philosophy-cards" class="tt-picks" role="radiogroup"></div>
+              <p class="tt-faint" data-tt="w2-note"></p>
+              <select id="time-travel-philosophy" class="tt-sr" tabindex="-1" aria-hidden="true">
+                <option value="analytics">数据分析</option>
+                <option value="relationships">关系管理</option>
+                <option value="tactics">临场战术</option>
+                <option value="scouting">球探眼光</option>
+              </select>
+            </div>
+            <div class="tt-wstep">
+              <header class="tt-wstep-head">
+                <span class="tt-wstep-no">03</span>
+                <h3 data-tt="w3-title"></h3>
+              </header>
+              <div id="tt-origin-chips" class="tt-chips" role="radiogroup"></div>
+              <div class="tt-origin-box">
+                <p id="time-travel-origin-desc" class="tt-origin-desc"></p>
+                <div id="tt-origin-deltas"></div>
+              </div>
+              <select id="time-travel-origin" class="tt-sr" tabindex="-1" aria-hidden="true"></select>
+            </div>
+          </div>
+          <div class="tt-wizard-foot">
+            <p class="tt-faint" id="tt-wizard-summary"></p>
+            <button type="button" class="tt-btn tt-btn-primary tt-btn-lg" id="btn-time-travel-interview">参加球队面试</button>
+          </div>
+        </section>
+
+        <section id="tt-offers-zone" class="tt-offers-zone" hidden aria-label="球队面试邀请">
+          <div class="tt-offers-head">
+            <p class="tt-kicker" data-tt="offers-kicker"></p>
+            <h3 data-tt="offers-title"></h3>
+          </div>
+          <div id="time-travel-offers" class="tt-deck" role="radiogroup"></div>
+          <div class="tt-confirm-slot"></div>
+        </section>
+
+        <div class="tt-grid" id="tt-grid">
+          <div class="tt-main">
+            <section id="time-travel-decision" class="tt-card tt-decision" hidden>
+              <div class="tt-card-head">
+                <span class="tt-badge tt-badge-urgent" data-tt="urgent"></span>
+                <span class="tt-kicker" data-tt="intro-kicker"></span>
+              </div>
+              <h3 data-tt="intro-title"></h3>
+              <p class="tt-prose" data-tt="intro-text"></p>
+              <div id="time-travel-decision-choices" class="tt-deck" role="radiogroup"></div>
+              <div class="tt-confirm-slot"></div>
+            </section>
+
+            <section id="time-travel-event" class="tt-card tt-decision" hidden aria-live="polite">
+              <div class="tt-card-head">
+                <span class="tt-badge tt-badge-urgent" data-tt="urgent"></span>
+                <span class="tt-kicker" id="time-travel-event-kicker"></span>
+              </div>
+              <h3 id="time-travel-event-title">—</h3>
+              <p id="time-travel-event-prompt" class="tt-prose">—</p>
+              <div id="time-travel-event-choices" class="tt-deck" role="radiogroup"></div>
+              <div class="tt-confirm-slot"></div>
+            </section>
+
+            <section id="time-travel-contract" class="tt-card tt-decision" hidden>
+              <div class="tt-card-head">
+                <span class="tt-badge tt-badge-urgent" data-tt="urgent"></span>
+                <span class="tt-kicker" data-tt="contract-kicker"></span>
+              </div>
+              <h3 id="time-travel-contract-title">—</h3>
+              <p id="time-travel-contract-prompt" class="tt-prose">—</p>
+              <div id="time-travel-contract-options" class="tt-deck" role="radiogroup"></div>
+              <div class="tt-confirm-slot"></div>
+              <button type="button" class="tt-btn tt-btn-danger tt-decline" id="btn-time-travel-decline-contract" data-tt="decline"></button>
+            </section>
+
+            <section id="tt-over" class="tt-card" hidden aria-label="执教结局">
+              <div id="tt-verdict"></div>
+              <div class="tt-title-row"><h3 data-tt="stints-title"></h3></div>
+              <ul id="tt-stints" class="tt-stints"></ul>
+            </section>
+
+            <section id="tt-jobs" class="tt-card tt-decision" hidden aria-label="求职">
+              <div class="tt-card-head">
+                <span class="tt-badge tt-badge-urgent" data-tt="jobs-badge"></span>
+                <span class="tt-kicker" data-tt="jobs-kicker"></span>
+              </div>
+              <h3 data-tt="jobs-title"></h3>
+              <p id="tt-jobs-note" class="tt-prose"></p>
+              <div id="tt-jobs-board" class="tt-deck" role="radiogroup"></div>
+              <div class="tt-confirm-slot"></div>
+            </section>
+
+            <section id="time-travel-report" class="tt-card" hidden>
+              <div class="tt-title-row"><h3 data-tt="report-title"></h3></div>
+              <p id="time-travel-report-text" class="tt-report-sum">—</p>
+              <p id="time-travel-report-status" class="tt-report-status">—</p>
+              <ul id="time-travel-report-seasons" class="tt-seasons"></ul>
+              <ul id="time-travel-report-list" class="tt-changes"></ul>
+            </section>
+
+            <section id="time-travel-share" class="tt-card" hidden>
+              <div class="tt-title-row"><h3 data-tt="share-title"></h3></div>
+              <div id="time-travel-share-card" class="tt-share-card"></div>
+              <div class="btn-row">
+                <button type="button" class="tt-btn tt-btn-ghost" id="btn-time-travel-share-copy" data-tt="share-copy"></button>
+                <span id="time-travel-share-status" class="tt-faint" role="status"></span>
+              </div>
+            </section>
+          </div>
+
+          <aside class="tt-side">
+            <section id="tt-goal" class="tt-card" hidden>
+              <div class="tt-title-row" id="tt-goal-title"></div>
+              <div id="tt-goal-body"></div>
+            </section>
+            <section id="time-travel-finance" class="tt-card" hidden>
+              <div class="tt-title-row" id="tt-finance-title"></div>
+              <p id="time-travel-finance-summary" class="tt-faint">—</p>
+              <p class="tt-section-label" data-tt="housing"></p>
+              <div id="time-travel-house-list" class="tt-assets"></div>
+              <p class="tt-section-label" data-tt="investing"></p>
+              <p class="tt-faint" data-tt="investing-note"></p>
+              <div id="time-travel-invest-list" class="tt-assets"></div>
+            </section>
+          </aside>
         </div>
-      </section>
-      <section id="time-travel-finance" class="story-report-card" hidden>
-        <div class="story-event-kicker">💰 个人财务</div>
-        <p id="time-travel-finance-summary" class="tiny">—</p>
-        <div class="story-event-kicker">🏠 住房</div>
-        <div id="time-travel-house-list" class="story-choice-list"></div>
-        <div class="story-event-kicker">📈 投资（本年代开放的资产类别，未来知识只能模糊预测趋势，实际输赢总是真正随机）</div>
-        <div id="time-travel-invest-list" class="story-choice-list"></div>
-      </section>
-      <section id="time-travel-event" class="story-event-card" hidden aria-live="polite">
-        <div class="story-event-kicker" id="time-travel-event-kicker">✨ 本季关键事件</div>
-        <h3 id="time-travel-event-title">—</h3>
-        <p id="time-travel-event-prompt" class="tiny">—</p>
-        <div id="time-travel-event-choices" class="story-choice-list"></div>
-      </section>
-      <section id="time-travel-report" class="story-report-card" hidden>
-        <div class="story-event-kicker">📜 历史改写记录</div>
-        <p id="time-travel-report-text" class="tiny">—</p>
-        <p id="time-travel-report-status" class="story-report-status">—</p>
-        <ul id="time-travel-report-seasons" class="story-report-list"></ul>
-        <ul id="time-travel-report-list" class="story-report-list"></ul>
-      </section>
-      <section id="time-travel-share" class="story-report-card" hidden>
-        <div class="story-event-kicker">🏅 结局分享卡 · 可直接截图</div>
-        <div id="time-travel-share-card"></div>
-        <div class="btn-row">
-          <button type="button" class="btn small" id="btn-time-travel-share-copy">复制战报文字</button>
-          <span id="time-travel-share-status" class="tiny" role="status"></span>
+
+        <div class="tt-cta">
+          <button type="button" class="tt-btn tt-btn-primary tt-btn-lg" id="btn-time-travel-continue" hidden>进入赛季中心</button>
         </div>
-      </section>
-      <section id="time-travel-contract" class="story-event-card" hidden>
-        <div class="story-event-kicker">📝 五年合同决定</div>
-        <h3 id="time-travel-contract-title">球队愿意继续合作吗？</h3>
-        <p id="time-travel-contract-prompt" class="tiny">你的战绩、压力和特权会影响续约条件。</p>
-        <div id="time-travel-contract-options" class="story-choice-list"></div>
-        <button type="button" class="btn ghost" id="btn-time-travel-decline-contract">不接受续约，离开球队</button>
-      </section>
-      <div class="actions">
-        <button type="button" class="btn primary" id="btn-time-travel-continue" hidden>进入赛季中心</button>
       </div>
     </main>
 

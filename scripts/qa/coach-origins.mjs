@@ -37,7 +37,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await page.click("#btn-time-travel-interview");
   await page.waitForSelector("#time-travel-offers button", { timeout: 10000 });
   const plainOffers = await page.$$eval("#time-travel-offers button", (els) =>
-    els.map((e) => e.textContent.replace(/\s+/g, " ")));
+    els.map((e) => e.getAttribute("aria-label")));
 
   // Go back and redo with the former-player origin; same teams/archetypes, nudged numbers.
   await page.evaluate(() => document.querySelector("#btn-time-travel-back")?.click());
@@ -50,7 +50,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await page.click("#btn-time-travel-interview");
   await page.waitForSelector("#time-travel-offers button", { timeout: 10000 });
   const nudgedOffers = await page.$$eval("#time-travel-offers button", (els) =>
-    els.map((e) => e.textContent.replace(/\s+/g, " ")));
+    els.map((e) => e.getAttribute("aria-label")));
   check(`[${tag}] origin choice doesn't change which 3 offers appear`, nudgedOffers.length === plainOffers.length && nudgedOffers.length === 3);
   const trustOf = (text) => Number(text.match(/信任 (\d+)/)?.[1]);
   const trustsDiffer = plainOffers.every((text, i) => trustOf(nudgedOffers[i]) === trustOf(text) + 10);
@@ -58,6 +58,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
 
   // Accept the first offer and confirm the origin's reputation delta landed in the save.
   await page.click("#time-travel-offers button");
+  await page.click("#tt-offers-zone .tt-confirm [data-act=confirm]");
   await page.waitForSelector("#time-travel-decision:not([hidden])", { timeout: 10000 }).catch(() => {});
   const saved = await page.evaluate(() => {
     const root = JSON.parse(localStorage.getItem("cls_root_v3") || "null");

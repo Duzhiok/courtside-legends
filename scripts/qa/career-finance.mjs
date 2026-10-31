@@ -57,7 +57,10 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   // first (same as a real player would) so the finance panel (which isn't behind that gate) is
   // actually what we're inspecting, not some earlier screen.
   await page.waitForSelector("#time-travel-decision:not([hidden])", { timeout: 10000 }).catch(() => {});
-  await page.evaluate(() => document.querySelector('[data-story-choice="keep-quiet"]')?.click());
+  await page.evaluate(() => {
+    document.querySelector('[data-story-choice="keep-quiet"]')?.click();
+    document.querySelector("#time-travel-decision .tt-confirm [data-act=confirm]")?.click();
+  });
 
   await page.waitForSelector("#time-travel-finance:not([hidden])", { timeout: 10000 });
   const summary = await page.$eval("#time-travel-finance-summary", (e) => e.textContent);
@@ -80,7 +83,10 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   // ---- a career with some money in the bank (simulating a few paid seasons) ----
   const { page: funded, errors: fundedErrors } = await openScenario(width, height, 100);
   await funded.waitForSelector("#time-travel-decision:not([hidden])", { timeout: 10000 }).catch(() => {});
-  await funded.evaluate(() => document.querySelector('[data-story-choice="keep-quiet"]')?.click());
+  await funded.evaluate(() => {
+    document.querySelector('[data-story-choice="keep-quiet"]')?.click();
+    document.querySelector("#time-travel-decision .tt-confirm [data-act=confirm]")?.click();
+  });
   await funded.waitForSelector("#time-travel-finance:not([hidden])", { timeout: 10000 });
 
   await funded.evaluate(() => {

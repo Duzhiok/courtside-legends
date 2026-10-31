@@ -95,7 +95,7 @@ test("rendered card escapes user-facing text and share text is copy-ready", () =
   const card = buildEndingShareCard(root);
   const html = renderEndingShareCardHtml(card);
   assert.doesNotMatch(html, /<script>/);
-  assert.match(html, /五年任期结局卡/);
+  assert.match(html, /穿越生涯结局卡/);
   const text = shareCardText(card);
   assert.match(text, /总战绩 250胜160负/);
   assert.match(text, /合同结果：拒绝续约/);

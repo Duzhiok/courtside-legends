@@ -55,14 +55,15 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     await page.waitForSelector("#time-travel-contract:not([hidden])", { timeout: 10000 });
     const offers = await page.$$eval("#time-travel-contract-options button", (els) => els.map((e) => e.textContent.replace(/\s+/g, " ")));
     check(`[${tag}] renewal card shows two offers`, offers.length === 2, `${offers.length} offers`);
-    check(`[${tag}] each offer shows years, salary and authority`, offers.every((t) => /\d+ 年/.test(t) && /薪资 \d+/.test(t) && /权限 \d+/.test(t)), offers.map((t) => t.slice(-30)).join(" | "));
+    check(`[${tag}] each offer shows years, salary and authority`, offers.every((t) => /\d+\s*年/.test(t) && /¤\d+/.test(t) && /权限/.test(t)), offers.map((t) => t.slice(-30)).join(" | "));
     check(`[${tag}] both offers list their privileges`, offers.every((t) => /特权|训练|预算|优先|补强|额度/.test(t)), offers[0]?.slice(0, 90));
     check(`[${tag}] renewal card has no horizontal overflow`, await noOverflow(page));
     await page.screenshot({ path: `${OUT}/${tag}-renewal.png` });
     await page.click("#time-travel-contract-options button:first-child");
+    await page.click("#time-travel-contract .tt-confirm [data-act=confirm]");
     await page.waitForFunction(() => document.querySelector("#time-travel-contract")?.hidden, null, { timeout: 5000 });
     const saved = await rootStatus(page);
-    check(`[${tag}] accepting writes a renewed career to the save`, saved.status === "renewed" && !!saved.offer, JSON.stringify(saved));
+    check(`[${tag}] accepting records the offer and keeps the career going (B4: status "active")`, saved.status === "active" && !!saved.offer, JSON.stringify(saved));
     check(`[${tag}] status line confirms the signing`, /续约已签署/.test(await page.$eval("#time-travel-status", (e) => e.textContent)));
     check(`[${tag}] a renewed career can still Continue`, await page.$eval("#btn-time-travel-continue", (b) => !b.hidden));
     await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
@@ -86,7 +87,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     await page.waitForFunction(() => document.querySelector("#time-travel-contract")?.hidden, null, { timeout: 5000 });
     const saved = await rootStatus(page);
     check(`[${tag}] confirming the exit records the decline`, saved.status !== "renewal" && saved.status !== "renewed", JSON.stringify(saved));
-    check(`[${tag}] status line says the five-year chapter is over`, /五年篇章正式结束/.test(await page.$eval("#time-travel-status", (e) => e.textContent)));
+    check(`[${tag}] status line says the stint is over and points at the job hunt`, /去找下一份工作/.test(await page.$eval("#time-travel-status", (e) => e.textContent)));
     check(`[${tag}] a departed career offers no Continue button`, await page.$eval("#btn-time-travel-continue", (b) => b.hidden));
     check(`[${tag}] no page errors (decline)`, errors.length === 0, errors.join(" | "));
     await page.close();
