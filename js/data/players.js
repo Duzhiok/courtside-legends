@@ -355,6 +355,10 @@ const POS_OVERRIDES = {
   nashst01: "PG", // Steve Nash — 1997–2011 全标 SG，2012 起数据源才正确标 PG
   paulch01: "PG", // Chris Paul — 2006–2011 全标 SG
   kiddja01: "PG", // Jason Kidd — 除 2012 外全标 SG
+  // R108 1995 森林狼无控卫：三人现实里全是正牌控卫，老数据 "G" 一律被归成 SG，且都在 2012 换数据源前退役、R106 审计无法对照
+  garlawi01: "PG", // Winston Garland — 生涯全程 PG
+  martida01: "PG", // Darrick Martin — 生涯全程 PG
+  eisleho01: "PG", // Howard Eisley — 生涯全程 PG
   // R106 审计修复（P0-PG，21 人）
   adamsmi01: "PG", // Michael Adams
   anderke01: "PG", // Kenny Anderson
