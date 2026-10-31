@@ -1,3 +1,4 @@
+import { buildLegacy } from "../career/legacy.js";
 import { historicalSeason } from "../data/historicalSeasons.js";
 import { eventOnCooldown, pickNextEvent } from "../career/eventPool.js";
 import { INITIAL_CONTRACT_YEARS } from "../career/balance.js";
@@ -425,6 +426,9 @@ export function buildCareerReport(root) {
     frontOfficeTrust: root.story.frontOfficeTrust || 0,
     mediaPressure: root.story.mediaPressure || 0,
     ending,
+    // B7: a retired career is rated as a whole. The seasons above only cover the LAST job (every new
+    // stint starts a fresh history), so the lifetime view comes from the archived stints instead.
+    legacy: employment.status === "retired" ? buildLegacy(root.coach) : null,
   };
 }
 

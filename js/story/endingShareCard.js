@@ -2,6 +2,9 @@
  * Career ending share card: a compact, screenshot-friendly summary of a
  * time-travel tenure. Pure builders only — rendering returns an HTML string.
  */
+import { teamNameL } from "../i18n.js";
+import { stintSpan } from "../ui/timeTravel/epilogue.js";
+import { teamNameFor } from "../ui/timeTravel/viewModel.js";
 import { buildCareerReport } from "./eventEngine.js";
 
 const MAX_SIGNATURE_TRADES = 3;
@@ -60,6 +63,12 @@ function contractResult(employment) {
         offer.privileges || [],
       );
     }
+    case "retired": {
+      const age = employment.age;
+      return employment.reason === "forced"
+        ? withEn("neutral", `${age} 岁，到龄退休`, `Retired at ${age}: the age limit`)
+        : withEn("neutral", `${age} 岁，自己决定挂靴`, `Retired at ${age}, by choice`);
+    }
     case "departed":
       return withEn("neutral", "拒绝续约，带着成果离开", "Declined renewal, left with results in hand");
     case "fired":
@@ -79,9 +88,24 @@ function signatureTrades(history) {
     .slice(0, MAX_SIGNATURE_TRADES);
 }
 
+/** One row per finished job that actually coached a season (a job lost before opening night isn't a line on a CV). */
+function stintRows(coach) {
+  return (coach?.stints || []).filter((stint) => stint.seasons > 0).map((stint) => ({
+    teamName: teamNameFor(stint.startYear ?? stint.endYear, stint.teamId),
+    span: stintSpan(stint),
+    seasons: stint.seasons,
+    record: { w: stint.wins, l: stint.losses },
+    titles: stint.championships || 0,
+  }));
+}
+
 export function buildEndingShareCard(root) {
   const report = buildCareerReport(root);
   if (!report.ending) return null;
+  // B7: a retired career is one card for the WHOLE career. The per-season list, record and trades
+  // below only know the last job (each new stint starts a fresh history), so they are swapped for
+  // the lifetime numbers and one row per job.
+  if (report.legacy) return buildLegacyShareCard(root, report);
   const history = root.leagueCareer?.management?.seasonHistory || [];
   const wins = report.seasons.reduce((sum, season) => sum + (season.record?.w || 0), 0);
   const losses = report.seasons.reduce((sum, season) => sum + (season.record?.l || 0), 0);
@@ -106,12 +130,49 @@ export function buildEndingShareCard(root) {
   };
 }
 
+function buildLegacyShareCard(root, report) {
+  const legacy = report.legacy;
+  const rows = stintRows(root.coach);
+  return {
+    ending: { ...report.ending },
+    legacy: { ...legacy },
+    stints: rows,
+    teamName: rows.length === 1 ? rows[0].teamName : "",
+    yearSpan: Number.isInteger(legacy.firstYear) ? `${legacy.firstYear}–${legacy.lastYear}` : "",
+    seasonCount: legacy.seasons,
+    record: { w: legacy.wins, l: legacy.losses, pct: legacy.winPct },
+    championships: legacy.titles,
+    historyChanges: report.historyChanges.length,
+    seasons: [],
+    signatureTrades: [],
+    contract: contractResult(root.story.employment),
+    story: { trust: report.frontOfficeTrust, pressure: report.mediaPressure, divergence: report.timelineDivergence },
+  };
+}
+
+function legacyShareText(card, en) {
+  const { legacy } = card;
+  const clubs = en ? `${legacy.teams} club${legacy.teams === 1 ? "" : "s"}` : `${legacy.teams} 支球队`;
+  const lines = [
+    en ? `[Courtside Legends · Time-Travel Career] ${card.ending.labelEn || card.ending.label}` : `【场边传奇 · 穿越生涯】${card.ending.label}`,
+    en ? `${card.yearSpan} · ${legacy.seasons} seasons · ${clubs} · legacy score ${legacy.score}` : `${card.yearSpan} · ${legacy.seasons} 个赛季 · ${clubs} · 生涯评分 ${legacy.score}`,
+    en ? `Career record ${card.record.w}-${card.record.l} (Win ${(card.record.pct * 100).toFixed(1)}%) · Championships ${card.championships}` : `生涯战绩 ${card.record.w}胜${card.record.l}负（胜率 ${(card.record.pct * 100).toFixed(1)}%）· 总冠军 ${card.championships} 次`,
+  ];
+  for (const row of card.stints) {
+    const titles = row.titles ? (en ? ` · ${row.titles} title${row.titles === 1 ? "" : "s"}` : ` · ${row.titles} 冠`) : "";
+    lines.push(`${row.span} ${teamNameL(row.teamName, en ? "en" : "zh")} ${row.record.w}-${row.record.l}${titles}`);
+  }
+  lines.push(en ? `Retirement: ${card.contract.textEn || card.contract.text}` : `退休：${card.contract.text}`);
+  return lines.join("\n");
+}
+
 export function shareCardText(card, lang = "zh") {
   if (!card) return "";
   const en = lang === "en";
+  if (card.legacy) return legacyShareText(card, en);
   const lines = [
     en ? `[Courtside Legends · Time-Travel Career] ${card.ending.labelEn || card.ending.label}` : `【场边传奇 · 穿越生涯】${card.ending.label}`,
-    en ? `${card.teamName} · ${card.yearSpan} · ${card.seasonCount} seasons` : `${card.teamName} · ${card.yearSpan} · ${card.seasonCount} 个赛季`,
+    en ? `${teamNameL(card.teamName, lang)} · ${card.yearSpan} · ${card.seasonCount} seasons` : `${card.teamName} · ${card.yearSpan} · ${card.seasonCount} 个赛季`,
     en ? `Record ${card.record.w}-${card.record.l} (Win ${(card.record.pct * 100).toFixed(1)}%) · Championships ${card.championships}` : `总战绩 ${card.record.w}胜${card.record.l}负（胜率 ${(card.record.pct * 100).toFixed(1)}%）· 总冠军 ${card.championships} 次`,
   ];
   if (card.bestSeason) {
@@ -121,6 +182,24 @@ export function shareCardText(card, lang = "zh") {
   for (const trade of card.signatureTrades) lines.push(en ? `Signature trade ${trade.year}: ${trade.descriptionEn || trade.description}` : `标志性交易 ${trade.year}：${trade.description}`);
   lines.push(en ? `Contract: ${card.contract.textEn || card.contract.text}` : `合同结果：${card.contract.text}`);
   return lines.join("\n");
+}
+
+/** "Lakers · 1995–2003" for one club, "3 clubs · 1995–2021" for a journeyman; the age sits on the end. */
+function cardSubtitle(card, lang) {
+  const en = lang === "en";
+  const where = card.legacy && !card.teamName
+    ? (en ? `${card.legacy.teams} clubs` : `${card.legacy.teams} 支球队`)
+    : teamNameL(card.teamName, lang);
+  const age = card.legacy && Number.isFinite(card.legacy.age) ? (en ? `age ${card.legacy.age}` : `${card.legacy.age} 岁`) : "";
+  return [where, card.yearSpan, age].filter(Boolean).join(" · ");
+}
+
+/** The retired card's middle: the legacy verdict line and one row per job (years · club · record). */
+function legacySectionsHtml(card, lang) {
+  const en = lang === "en";
+  const rows = card.stints.map((row) => `<li><span>${escapeHtml(row.span)}</span><span>${escapeHtml(teamNameL(row.teamName, lang))}</span><span>${row.record.w}-${row.record.l}${row.titles ? ` · 🏆×${row.titles}` : ""}</span></li>`).join("");
+  return `<h4>${en ? `Career by job · legacy score ${card.legacy.score}` : `逐段履历 · 生涯评分 ${card.legacy.score}`}</h4>
+    <ul class="share-card-seasons share-card-jobs">${rows}</ul>`;
 }
 
 export function renderEndingShareCardHtml(card, lang = "zh") {
@@ -140,19 +219,21 @@ export function renderEndingShareCardHtml(card, lang = "zh") {
     <header>
       <div class="share-card-kicker">${en ? "Courtside Legends · Time-Travel Career" : "场边传奇 · 穿越生涯"}</div>
       <h3>${escapeHtml(card.ending.labelEn && en ? card.ending.labelEn : card.ending.label)}</h3>
-      <p>${escapeHtml(card.teamName)} · ${escapeHtml(card.yearSpan)}</p>
+      <p>${escapeHtml(cardSubtitle(card, lang))}</p>
     </header>
     <div class="share-card-stats">
       <div><strong>${card.record.w}-${card.record.l}</strong><span>${en ? "Record" : "总战绩"}</span></div>
       <div><strong>${(card.record.pct * 100).toFixed(1)}%</strong><span>${en ? "Win %" : "胜率"}</span></div>
       <div><strong>${card.championships}</strong><span>${en ? "Titles" : "总冠军"}</span></div>
-      <div><strong>${card.historyChanges}</strong><span>${en ? "Rewrites" : "改写史实"}</span></div>
+      ${card.legacy
+    ? `<div><strong>${card.legacy.seasons}</strong><span>${en ? "Seasons" : "执教赛季"}</span></div>`
+    : `<div><strong>${card.historyChanges}</strong><span>${en ? "Rewrites" : "改写史实"}</span></div>`}
     </div>
-    <h4>${en ? "Season by season" : "逐季战绩"}</h4>
+    ${card.legacy ? legacySectionsHtml(card, lang) : `<h4>${en ? "Season by season" : "逐季战绩"}</h4>
     <ul class="share-card-seasons">${seasonRows}</ul>
     <h4>${en ? "Signature trades" : "标志性交易"}</h4>
-    <ul class="share-card-trades">${trades}</ul>
-    <h4>${en ? "Contract outcome" : "合同结果"}</h4>
+    <ul class="share-card-trades">${trades}</ul>`}
+    <h4>${card.legacy ? (en ? "Retirement" : "退休") : (en ? "Contract outcome" : "合同结果")}</h4>
     <p class="share-card-contract tone-${escapeHtml(card.contract.tone)}">${escapeHtml(en ? card.contract.textEn || card.contract.text : card.contract.text)}</p>
     ${privileges}
     <footer>${en ? `Front office trust ${card.story.trust} · Media pressure ${card.story.pressure} · Timeline divergence ${card.story.divergence}` : `管理层信任 ${card.story.trust} · 媒体压力 ${card.story.pressure} · 时间线偏离 ${card.story.divergence}`}</footer>

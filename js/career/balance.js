@@ -184,3 +184,18 @@ export const POACH_DECLINE_TRUST_BONUS = 5;
  * ¤5 base and the rebuild renewal (7), below the contender renewal (13). */
 export const POACH_SIGNING_TRUST_BONUS = 15;
 export const POACH_SIGNING_SALARY = 9;
+
+// ---------------------------------------------------------------- B7: retirement and legacy
+/** Legacy score = titles + win rate + longevity + standing. Every term has a ceiling in practice
+ * (win rate above .500 is the only open-ended one and is physically bounded by 1.000), so a tier is
+ * earned by a mix, not by farming a single stat. Worked examples live in tests/legacy.test.js. */
+export const LEGACY_TITLE_POINTS = 12;
+/** Points per 1.000 of career win rate ABOVE .500 (a .650 career is worth 15). Below .500 is 0, not negative. */
+export const LEGACY_WIN_PCT_POINTS = 100;
+export const LEGACY_SEASON_POINTS = 0.5;
+/** Seasons past this stop adding points: longevity helps, it doesn't buy a Hall of Fame plaque. */
+export const LEGACY_SEASON_CAP = 30;
+/** Reputation is 0-100, so at most 25 points. */
+export const LEGACY_REPUTATION_POINTS = 0.25;
+/** Lowest score of each tier above "brief". */
+export const LEGACY_TIER_MIN = { hallOfFame: 80, great: 55, solid: 35, journeyman: 15 };

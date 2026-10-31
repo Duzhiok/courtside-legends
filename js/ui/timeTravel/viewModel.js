@@ -49,8 +49,10 @@ export function hqModel(root, report, lang = "zh") {
   let label = "";
   if (status === "fired") label = tr(lang, "已被解雇", "Fired");
   else if (status === "departed") label = tr(lang, "已离任", "Departed");
+  else if (status === "retired") label = tr(lang, "已退休", "Retired");
   else if (story.pendingDecision?.type === "contract-renewal") label = tr(lang, "续约谈判中", "Renewal talks");
   return {
+    labelTone: status === "retired" ? "gold" : "alert",
     teamId,
     teamName: season?.teams?.[teamId]?.name || season?.userTeamName || teamId,
     year: report.currentYear,

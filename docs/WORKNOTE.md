@@ -1950,3 +1950,34 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **验证**：全量 1183/1183（B5 后 1152 → +31）；lint 0 错误；变异检查：引擎 16 + 签约条件 4 + 视图 2，共 22 个全部被抓住（其中视图那个第一次因 macOS `sed` 没打上、0 失败是假的，改 python 并断言命中后重做）；浏览器 QA 桌面+手机共 240 项：`career-poach` 86（新）/ `career-reemployment` 54 / `career-contract` 42 / `coach-origins` 26 / `career-finance` 32。`career-reemployment` 里一条旧断言（“再就业后履历区不可见”）与上面的有意改动冲突，已改成“求职板与结局横幅消失、履历仍在”。
 
 **未做 / 下一步**：B7 退休（年龄 ≥ 强制退休线、主动退休、名人堂式总评）；挖角目前只在**休赛期/新赛季开赛前**触发，没做“季中挖角”（路线图原文写的“季中/季后”，季中需要处理进行中的赛季，风险大，留作后话）；Capacitor 原生壳（android/ios 工程、wss://、商店材料）仍未开始。
+
+
+### R113：B7 退休与传奇结算（阶段 B 收官）
+
+**先补地基（同 B6 的套路）**：`advanceCoachAge` / `isRetirementAge` 早就写好但**没有任何调用方**——教练从来不会变老，70 岁强制退休线根本到不了。`js/modes/retirement.js` 的 `settleCoachAge` 是缺的那个调用方，按赛季年份用 `coach-aged` 日志幂等（重载/重复结算不会老两岁）。
+
+**退休** `js/modes/retirement.js`：`retireCoach(root, "voluntary"|"forced")`。终态 `employment.status = "retired"`（和 fired/departed 并列，不是它们的变体）。在职时把进行中的 stint 以 `reason:"retired"` 归档；已被解雇/离队则**不重复归档**。主动退休必须过 `retirementBlocker`：至少完成过一个赛季、没有待决事项、本赛季第一场比赛前（或空窗期）——和挖角同一个"桌面干净"窗口，所以不会丢进行中的赛季。强制退休无视这些，70 岁就是 70 岁。
+
+**传奇评分** `js/career/legacy.js`（常量全在 `balance.js`）：`冠军×12 + (胜率−.5)×100（低于 .500 记 0，不扣分）+ min(赛季,30)×0.5 + 声望×0.25`，四舍五入；档位 名人堂≥80 / 一代名帅≥55 / 稳健≥35 / 江湖老教头≥15 / 昙花一现。**只读 `root.coach.stints`**，不读 `leagueCareer.seasonHistory`——后者每个新 stint 都重建，只覆盖当前这份工作。预览（退休前）= 已归档 stints + 进行中的那段，测试断言"预览 == 退休后实际"。名人堂必须有冠军：零冠军的满配生涯（30 季、.800、声望 100）也只有 70；3 冠 + 12 季 + .650 + 声望 90 刚好 80（均用 `legacyScore` 实算）。
+
+**抽出结算流水线** `js/modes/seasonRollover.js`：原来在 `screen.js` 的 `queueNextTimeTravelEvent` 里（绑 DOM 和全局状态，单测碰不到）。顺序：目标 → 发薪 → 声望 → **年龄** → 清旧邀请 → 故事 → 解雇检查 → **退休年龄关** → 挖角。年龄关在解雇检查之后，所以"又被炒又到龄"的教练先记解雇再退休；已退休的生涯直接封存（不发薪、不排事件、不老）。
+
+**界面**：结局页新增生涯总评（4 格数据 + 年份/年龄/评分脚注）；`#tt-retire` 是个安静的虚线卡（仅在允许退休时出现，带"今天挂靴会被记作…"预览，二次确认写明不可撤销）；退休后无求职板/挖角/继续/目标；分享卡升级为**全生涯版**（逐段履历、总战绩、评级，中英文本）。为让 `screen.js` 不超 600 行，拆出 `poachCard.js`、`financeCard.js`、`retireCard.js`、`dom.js`（共用 `$`）。
+
+**浏览器 QA / 复盘抓到的问题**：
+1. **我自己引入的回归**：把两个 `$` 合并成 `dom.js` 后，`screen.js` 里一处 `.map($)` 把数组下标当成了 `root` 参数 → 手机宽度报 `root.querySelector is not a function`（桌面提前 return 所以全绿，单测也碰不到）。`career-finance`/`career-contract` 手机端抓到，改成 `.map((s) => $(s))`。
+2. **老 bug 顺手修**：赛季小卡在中文界面显示原始 id（`playoffs`）——`paintReport` 直接输出 `season.finish`。改用现成的 `finishLabel`。
+3. 截图里发现：分享卡逐段履历年份折行（`1988–`/`1992`，复用了 3.5em 窄列）；总部卡"已退休"徽章是警示红（和被解雇一样）→ 改金色。
+4. 断言空转教训：我写的"折行"断言比较各格高度——grid 子项默认 stretch，**同一行高度永远相等**，怎么都过。变异检查才发现；改成数文字行盒数 + 不溢出自己的格子，并分别验证"删列宽规则"（抓到）。`white-space:nowrap` 删掉**不会**让任何测试变红（1280/390 下列宽本来够），它是未被证明必要的保险，留着。
+5. 夹具太干净：没有故事选择时 `#time-travel-report` 整张卡隐藏，"生涯已结束"那行没渲染。真实生涯早有选择；QA 夹具补了 2 条 `story-choice`。
+
+**验证**：全量 1229/1229（B6 后 1183，+46）；lint 0 错误（2 条老 warning）；变异检查 21 个——单元 17 个全抓住（先断言补丁命中）+ 浏览器 4 个（徽章/原始 id/求职板/折行）；浏览器 QA 桌面+手机共 390 项：`career-retire` 150（新）/ `career-poach` 86 / `career-reemployment` 54 / `career-contract` 42 / `coach-origins` 26 / `career-finance` 32。
+
+**发现但没动（需要你定）**：
+- **被解雇后空窗期仍按基础薪资发工资、仍会排故事事件**：`currentCoachSalary` 是 `offer?.salary ?? COACH_BASE_SALARY`，没有合同也发钱（B5 遗留）。已退休的我用封存挡住了，fired/departed 没改，因为"空窗期有没有收入"是设计决定。
+- **一代名帅门槛偏松**：7 个赛季 + 2 冠 + 声望 80 = 58 分，就是"一代名帅"（线 55）。想收紧改 `LEGACY_TIER_MIN`。
+- 退休后赛季中心本身没做拦截（和 fired/departed 现状一致）；也没有"退休后开新教练"的流程，目前停在总评页。
+- 名人堂只是 `legacy.hallOfFame` 标志位，演讲/名人堂页是路线图 F3。
+- 主动退休不支持赛季中（同挖角，进行中的赛季处理风险大）。
+
+**未做 / 下一步**：阶段 B 全部完成。后续按路线图是阶段 C（球探与选秀情报）。Capacitor 原生壳（android/ios 工程、`wss://`、商店材料）仍未开始。

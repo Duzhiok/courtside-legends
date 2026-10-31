@@ -3522,6 +3522,10 @@ select, input[type="number"] {
   padding: 3px 0;
   border-bottom: 1px dashed rgba(243, 239, 228, .15);
 }
+/* One row per job: "1988–1992" never fits the 3.5em season column, so it gets its own widths. */
+.share-card-jobs li { grid-template-columns: 6.4em 1fr auto; }
+.share-card-jobs li span:first-child,
+.share-card-jobs li span:last-child { white-space: nowrap; }
 .share-card-trades li { padding: 2px 0; }
 .share-card-contract { margin: 0; font-size: .85rem; font-weight: 600; }
 .share-card-contract.tone-hard { color: #f08a7a; }

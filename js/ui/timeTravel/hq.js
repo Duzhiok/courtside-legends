@@ -66,7 +66,8 @@ export function careerHeaderHtml(vm, lang = "zh") {
   const pills = [`<span class="tt-pill">${icon("clock", { size: 13 })}${esc(contractPill)}</span>`];
   if (vm.record) pills.push(`<span class="tt-pill">${esc(tr(lang, "上季", "Last"))} ${vm.record.w}-${vm.record.l}</span>`);
   if (vm.titles) pills.push(`<span class="tt-pill tt-pill-gold">${icon("trophy", { size: 13 })}×${vm.titles}</span>`);
-  if (vm.label) pills.push(`<span class="tt-pill tt-pill-alert">${esc(vm.label)}</span>`);
+  // Retiring is a dignified exit, not a warning: gold, where a firing / a pending decision is red.
+  if (vm.label) pills.push(`<span class="tt-pill ${vm.labelTone === "gold" ? "tt-pill-gold" : "tt-pill-alert"}">${esc(vm.label)}</span>`);
   const c = vm.coach || {};
   const stats = [
     [tr(lang, "等级", "Level"), `Lv.${c.level ?? 1}`],

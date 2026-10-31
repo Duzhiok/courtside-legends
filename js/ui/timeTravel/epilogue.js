@@ -11,6 +11,7 @@ const REASON = {
   "two-bad-seasons": ["战绩低迷被解雇", "Fired: losing seasons"],
   departed: ["主动离队", "Walked away"],
   poached: ["被挖角", "Poached away"],
+  retired: ["已退休", "Retired"],
 };
 /** Never leak a raw id to the player: unknown reasons fall back to a neutral "left the team". */
 export const reasonLabel = (reason, lang) => tr(lang, REASON[reason]?.[0] ?? "已离任", REASON[reason]?.[1] ?? "Left the team");
@@ -28,7 +29,7 @@ export function stintCardHtml(stint, { teamName, colors }, lang = "zh") {
   const titles = stint.championships
     ? `<span class="tt-pill tt-pill-gold">${icon("trophy", { size: 13 })}×${stint.championships}</span>`
     : "";
-  return `<li class="tt-stint" data-reason="${esc(["departed", "poached"].includes(stint.reason) ? stint.reason : "fired")}">
+  return `<li class="tt-stint" data-reason="${esc(["departed", "poached", "retired"].includes(stint.reason) ? stint.reason : "fired")}">
     ${crestHtml(stint.teamId, colors)}
     <span class="tt-stint-main">
       <strong>${esc(teamNameL(teamName || stint.teamId, lang))}</strong>
@@ -39,13 +40,14 @@ export function stintCardHtml(stint, { teamName, colors }, lang = "zh") {
 }
 
 /**
- * The "how it ended" banner. vm: { tierLabel, endingLabel, tone, status, seasons, titles, record }
+ * The "how it ended" banner. vm: { tierLabel, endingLabel, note?, tone, status }. `note` (retirement:
+ * the age and whether it was your choice) replaces the usual sub-line.
  */
 export function verdictHtml(vm, lang = "zh") {
   const headline = vm.tierLabel || vm.endingLabel || tr(lang, "这一段执教结束了", "This chapter is over");
-  const sub = vm.tierLabel && vm.endingLabel ? vm.endingLabel : "";
+  const sub = vm.note || (vm.tierLabel && vm.endingLabel ? vm.endingLabel : "");
   return `<div class="tt-verdict" data-tone="${esc(vm.tone || "neutral")}" data-status="${esc(vm.status)}">
-    <span class="tt-verdict-ico">${icon(vm.status === "fired" ? "briefcase" : "flag", { size: 26 })}</span>
+    <span class="tt-verdict-ico">${icon(vm.status === "fired" ? "briefcase" : vm.status === "retired" && vm.tone === "success" ? "trophy" : "flag", { size: 26 })}</span>
     <div>
       <p class="tt-kicker">${esc(reasonLabel(vm.status, lang))}</p>
       <h3>${esc(headline)}</h3>

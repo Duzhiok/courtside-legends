@@ -936,6 +936,7 @@
 
             <section id="tt-over" class="tt-card" hidden aria-label="执教结局">
               <div id="tt-verdict"></div>
+              <div id="tt-legacy" class="tt-legacy" hidden></div>
               <div class="tt-title-row"><h3 data-tt="stints-title"></h3></div>
               <ul id="tt-stints" class="tt-stints"></ul>
             </section>
@@ -949,6 +950,16 @@
               <p id="tt-jobs-note" class="tt-prose"></p>
               <div id="tt-jobs-board" class="tt-deck" role="radiogroup"></div>
               <div class="tt-confirm-slot"></div>
+            </section>
+
+            <section id="tt-retire" class="tt-card tt-retire" hidden aria-label="退休">
+              <div class="tt-card-head"><span class="tt-kicker" data-tt="retire-kicker"></span></div>
+              <h3 data-tt="retire-title"></h3>
+              <p id="tt-retire-note" class="tt-prose"></p>
+              <div id="tt-retire-preview"></div>
+              <div class="tt-poach-actions">
+                <button type="button" class="tt-btn tt-btn-danger" id="btn-retire" data-tt="retire-btn"></button>
+              </div>
             </section>
 
             <section id="time-travel-report" class="tt-card" hidden>

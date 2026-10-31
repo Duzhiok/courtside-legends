@@ -6,6 +6,8 @@
 import { SEASON_GOAL_TRUST_BONUS, SEASON_GOAL_TRUST_PENALTY, FIRING_TRUST_FLOOR } from "../../career/balance.js";
 import { listCoachOrigins, coachOrigin } from "../../career/coachOrigins.js";
 import { stintCardHtml, verdictHtml } from "./epilogue.js";
+import { legacyTilesHtml } from "./legacy.js";
+import { finishLabel } from "../../story/endingShareCard.js";
 import { $ } from "./dom.js";
 import { esc, tr } from "./format.js";
 import { houseRowHtml, investRowHtml } from "./finance.js";
@@ -129,7 +131,7 @@ export function paintGoal(root, lang) {
 export function paintReport(report, lang) {
   const finish = (season) => (season.champion
     ? `${icon("trophy", { size: 13 })}${esc(tr(lang, "夺冠", "Champions"))}`
-    : esc(season.finish || tr(lang, "赛季进行中", "In progress")));
+    : esc(season.finish ? finishLabel(season, lang) : tr(lang, "赛季进行中", "In progress")));
   $("#time-travel-report-seasons").innerHTML = report.seasons.map((season) => `<li class="tt-season" data-champ="${season.champion}">
       <span class="tt-season-year">${esc(season.year)}</span>
       <span class="tt-season-rec">${season.record ? `${season.record.w}-${season.record.l}` : "—"}</span>
@@ -140,6 +142,14 @@ export function paintReport(report, lang) {
     : `<li class="tt-change tt-change-empty">${esc(tr(lang, "目前还没有改写史实冠军，分叉仍在积累。", "No real-world champion rewritten yet — the fork is still building."))}</li>`;
 }
 
+/** "Retired at 61 — your call" / "Retired at 70 — the age limit". */
+function retirementNote(employment, lang) {
+  const age = Number.isFinite(employment.age) ? employment.age : "";
+  return employment.reason === "forced"
+    ? tr(lang, `${age} 岁，到了退休年龄，依规挂靴`, `Age ${age}: the retirement age — the whistle goes up for you`)
+    : tr(lang, `${age} 岁，自己决定挂靴`, `Age ${age}: your call to hang up the whistle`);
+}
+
 /**
  * "How it ended": verdict banner + the career-so-far stint cards (completed stints only). While the
  * coach is still employed (`over: false`) only the record is drawn -- there is no verdict yet.
@@ -147,12 +157,17 @@ export function paintReport(report, lang) {
 export function paintEpilogue(root, report, lang, { over = true } = {}) {
   const story = root.story;
   const tier = report.ending?.narrativeTier;
+  const retired = story.employment?.status === "retired";
   $("#tt-verdict").innerHTML = over ? verdictHtml({
     status: story.employment?.status,
     tone: tier?.tone || report.ending?.tone,
     tierLabel: tier ? tr(lang, tier.label, tier.labelEn || tier.label) : "",
     endingLabel: report.ending ? tr(lang, report.ending.label, report.ending.labelEn || report.ending.label) : "",
+    note: retired ? retirementNote(story.employment, lang) : "",
   }, lang) : "";
+  // B7: a retired career is summed up as a whole (the seasons report below only covers the last job).
+  $("#tt-legacy").hidden = !(retired && report.legacy);
+  $("#tt-legacy").innerHTML = retired && report.legacy ? legacyTilesHtml(report.legacy, lang) : "";
   const stints = root.coach?.stints || [];
   $("#tt-stints").innerHTML = stints.map((stint) => {
     const year = stint.startYear ?? report.startYear;

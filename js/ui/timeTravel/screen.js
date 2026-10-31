@@ -12,41 +12,36 @@ import { listHistoricalYears } from "../../data/historicalSeasons.js";
 import { readRootSave } from "../../data/saveRoot.js";
 import { DEFAULT_COACH_ORIGIN, listCoachOrigins } from "../../career/coachOrigins.js";
 import { ensureCoachProfile } from "../../career/coachProfile.js";
-import { INVESTMENT_STAKE } from "../../career/balance.js";
-import {
-  availableAssetClasses, buyHouse, canAffordHouse, canAffordInvestment, currentCoachSalary,
-  houseTiers, investmentForecast, placeInvestment, settleCoachFinances,
-} from "../../career/finance.js";
-import {
-  acceptCareerContract, advanceSeasonGoal, declineCareerContracts, evaluateCareerEmployment,
-} from "../../modes/careerContract.js";
-import { settleSeasonReputation } from "../../career/reputation.js";
+import { acceptCareerContract, declineCareerContracts } from "../../modes/careerContract.js";
 import { hasExistingCareerRoot } from "../../modes/leagueCareer.js";
-import { expirePoachOffer, maybeCreatePoachOffer } from "../../modes/poaching.js";
+import { settleSeasonRollover } from "../../modes/seasonRollover.js";
 import {
   acceptInterviewOffer, acceptReemploymentOffer, createTimeTravelPrologue, futureKnowledgeEffects,
   generateReemploymentOffers, resolveFutureKnowledgeChoice,
 } from "../../modes/timeTravelCareer.js";
 import {
-  buildCareerReport, finalizeCareerEnding, getStoryEvent, localizeStoryEvent, queueNextStoryEvent,
-  queueStoryEvent, resolveStoryEvent,
+  buildCareerReport, getStoryEvent, localizeStoryEvent, queueNextStoryEvent, queueStoryEvent, resolveStoryEvent,
 } from "../../story/eventEngine.js";
 import { buildEndingShareCard, renderEndingShareCardHtml, shareCardText } from "../../story/endingShareCard.js";
 import { confirmAction } from "../confirmModal.js";
 import { $ } from "./dom.js";
 import { choiceDeckHtml, confirmBarHtml, mountDeck } from "./choices.js";
-import { ASSET_LABELS_EN, HOUSE_LABELS_EN, INTRO_CHOICES, paintStaticText } from "./copy.js";
+import { INTRO_CHOICES, paintStaticText } from "./copy.js";
 import { tr } from "./format.js";
 import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml } from "./offers.js";
+import { createFinanceCard } from "./financeCard.js";
 import { createPoachCard } from "./poachCard.js";
+import { createRetireCard } from "./retireCard.js";
 import {
-  hideHq, paintEpilogue, paintFinance, paintGoal, paintHq, paintKpis, paintReport, paintWizard,
+  hideHq, paintEpilogue, paintGoal, paintHq, paintKpis, paintReport, paintWizard,
 } from "./paint.js";
 import { hqModel, kpiModel, teamColorsFor, teamCore } from "./viewModel.js";
 
-/** Employment states that end a stint: no season left to coach on this career until you re-hire. */
-const CAREER_OVER_STATUSES = new Set(["fired", "departed"]);
+/** Employment states that end a stint: no season left to coach on this career until you re-hire
+ * (or, for "retired", ever: there is no job board after the last whistle). */
+const CAREER_OVER_STATUSES = new Set(["fired", "departed", "retired"]);
 export const careerIsOver = (story) => CAREER_OVER_STATUSES.has(story?.employment?.status);
+export const careerIsRetired = (story) => story?.employment?.status === "retired";
 
 /** What the player should read when they come back to a career in a given employment state. */
 export function careerStateNotice(story, lang = getLang()) {
@@ -64,6 +59,12 @@ export function careerStateNotice(story, lang = getLang()) {
         lang,
         "你带着成果离开了这支球队。经验、声望和积蓄都还在 — 去找下一份工作吧。",
         "You left the team with your results in hand. Experience, reputation and savings come with you — go find the next job.",
+      ) + suffix;
+    case "retired":
+      return tr(
+        lang,
+        "你已经挂靴退休。这一生的执教生涯封存在这里，下面是完整的总评。",
+        "You've retired. Your coaching career is sealed here — the full verdict is below.",
       ) + suffix;
     case "renewed":
       return tr(lang, "续约已签署，薪资和特权已写入生涯记录。", "Contract renewed. Your salary and privileges are in the career record.") + suffix;
@@ -108,7 +109,7 @@ export function createTimeTravelScreen({
   function focusDecision() {
     if (window.innerWidth > 900) return;
     const target = ["#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-jobs"]
-      .map($).find((el) => el && !el.hidden);
+      .map((selector) => $(selector)).find((el) => el && !el.hidden);
     target?.scrollIntoView?.({ block: "start", behavior: "smooth" });
   }
 
@@ -221,6 +222,8 @@ export function createTimeTravelScreen({
   }
 
   const poachCard = createPoachCard({ state, lang, setStatus, commit, currentRootState, renderScreen });
+  const financeCard = createFinanceCard({ lang, commit, currentRootState });
+  const retireCard = createRetireCard({ lang, setStatus, commit, currentRootState, renderScreen });
 
   /** B5: after a firing / walk-out the coach lands on a job board sized by reputation. */
   function renderJobs(root) {
@@ -386,45 +389,6 @@ export function createTimeTravelScreen({
   }
 
   // ---------------------------------------------------------------- side cards
-  function financeModel(root, l) {
-    const coach = ensureCoachProfile(root);
-    const tiers = houseTiers();
-    const divergence = root.story?.timelineDivergence ?? 0;
-    const pending = new Map();
-    for (const position of coach.pendingInvestments || []) {
-      pending.set(position.assetId, (pending.get(position.assetId) || 0) + position.amount);
-    }
-    const houseName = (id) => (l === "en" ? HOUSE_LABELS_EN[id] : null) ?? tiers[id].label;
-    return {
-      cash: Math.round(coach.cash ?? 0),
-      salary: currentCoachSalary(root),
-      housingLabel: tiers[coach.housing] ? houseName(coach.housing) : "",
-      houses: Object.entries(tiers).map(([id, tier]) => ({
-        id, label: houseName(id), cost: tier.cost, moodBonus: tier.moodBonus,
-        owned: coach.housing === id, affordable: canAffordHouse(coach, id),
-      })),
-      investments: availableAssetClasses(root.leagueCareer?.season?.year).map((asset) => ({
-        id: asset.id,
-        label: (l === "en" ? ASSET_LABELS_EN[asset.id] : null) ?? asset.label,
-        forecast: investmentForecast(asset.id, divergence),
-        stake: INVESTMENT_STAKE,
-        pending: pending.get(asset.id) || 0,
-        affordable: canAffordInvestment(coach, INVESTMENT_STAKE),
-      })),
-    };
-  }
-
-  function financeAction(build, failure) {
-    try {
-      const root = currentRootState();
-      commit({ ...root, coach: build(ensureCoachProfile(root), root) }, failure, { full: false });
-      paintFinance(financeModel(currentRootState(), lang()), lang());
-      paintKpis(kpiModel(currentRootState()), lang());
-    } catch (error) {
-      alert(error?.message || failure);
-    }
-  }
-
   function renderReport(root, report) {
     const l = lang();
     const card = $("#time-travel-report");
@@ -441,7 +405,14 @@ export function createTimeTravelScreen({
       `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}`,
       `${report.currentYear} · ${record} · ${report.choices} story choices · timeline drift ${report.timelineDivergence} · front-office trust ${report.frontOfficeTrust}`,
     );
-    $("#time-travel-report-status").textContent = report.finished
+    const lifetime = report.legacy;
+    $("#time-travel-report-status").textContent = lifetime
+      ? tr(
+        l,
+        `生涯已结束，共执教 ${lifetime.seasons} 个赛季 · 冠军 ${lifetime.titles} 次${endingLabel ? ` · 评级：${endingLabel}` : ""}（下面的逐季记录只是最后一份工作）`,
+        `Career over: ${lifetime.seasons} seasons · ${lifetime.titles} titles${endingLabel ? ` · Verdict: ${endingLabel}` : ""} (the season list below is only the last job)`,
+      )
+      : report.finished
       ? tr(
         l,
         `这一段执教已结束，共 ${report.seasonCount} 个赛季 · 冠军 ${report.championships} 次${endingLabel ? ` · 结局：${endingLabel}${endingTail}` : ""}`,
@@ -484,7 +455,7 @@ export function createTimeTravelScreen({
     renderOffers();
     const career = hasCareer();
     $("#time-travel-create").hidden = career;
-    const sections = ["#tt-poach", "#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
+    const sections = ["#tt-poach", "#tt-retire", "#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
     if (!career) {
       hideHq();
       for (const selector of sections) $(selector).hidden = true;
@@ -503,58 +474,33 @@ export function createTimeTravelScreen({
     // a coach with past stints should always be able to see them.
     const hasPastStints = (root.coach?.stints || []).length > 0;
     $("#tt-over").hidden = !(over || hasPastStints);
-    $("#tt-jobs").hidden = !over;
+    // A retired coach has nobody left to interview with: the job board is for fired / walked-away only.
+    const retired = careerIsRetired(root.story);
+    $("#tt-jobs").hidden = !over || retired;
     if (over || hasPastStints) paintEpilogue(root, report, l, { over });
     poachCard.render(root);
-    if (over) {
-      renderJobs(root);
-    }
+    retireCard.render(root);
+    if (over && !retired) renderJobs(root);
     if (over) $("#tt-goal").hidden = true;
     else paintGoal(root, l);
     $("#time-travel-finance").hidden = over;
-    if (!over) paintFinance(financeModel(root, l), l);
+    if (!over) financeCard.render(root);
     renderReport(root, report);
     renderShareCard(root);
     $("#btn-time-travel-continue").hidden = !!root.story.pendingDecision || over;
   }
 
-  /** Called by the season flow between seasons: settle goal + finances, then queue the next beat. */
+  /** Called by the season flow between seasons: run the rollover pipeline (modes/seasonRollover.js)
+   * on the saved career, persist the result, and hand the caller the facts to recap. */
   function queueNextTimeTravelEvent() {
     if (state.leagueCareer?.kind !== "timeTravel" || !state.story) return null;
     const root = state.longCareerRoot || currentRootState();
-    // Resolve the just-finished season's board goal first (B1) so a trust swing from hitting or
-    // missing it can affect which event the condition pool (A2) considers eligible this round.
-    const goaled = advanceSeasonGoal(root);
-    const lastGoal = goaled.story.eventLog.at(-1);
-    const resolvedGoal = lastGoal?.type === "season-goal-result" ? lastGoal : null;
-    // E3: pay this season's salary and settle any pending investment. Independent of the goal above
-    // (finance never touches trust, the goal never touches cash).
-    const financed = settleCoachFinances(goaled);
-    const lastFinance = financed.story.eventLog.at(-1);
-    const settledFinances = lastFinance?.type === "finances-settled" ? lastFinance : null;
-    // B6: settle the season's reputation change BEFORE the employment check, so a renewal menu (which
-    // is priced off reputation) sees the title / the bad year that was just earned.
-    const reputed = settleSeasonReputation(financed);
-    const lastRep = reputed.story.eventLog.at(-1);
-    const settledReputation = lastRep?.type === "reputation-settled" ? lastRep : null;
-    // An offer left over from a previous season can't be acted on any more: clear it first.
-    const next = queueNextStoryEvent(expirePoachOffer(reputed), { year: state.season?.year });
-    const employed = evaluateCareerEmployment(next);
-    const finalized = employed === next ? finalizeCareerEnding(next) : employed;
-    // Last, because it only fires for a coach who is still in a normal job with a clear desk: not
-    // one who was just fired, nor one facing a renewal or a story decision.
-    const result = maybeCreatePoachOffer(finalized);
+    const { root: result, ...recap } = settleSeasonRollover(root, { year: state.season?.year });
     if (result === root) return null;
     state.story = result.story;
     state.longCareerRoot = result;
     saveLongCareer();
-    return {
-      resolvedGoal,
-      settledFinances,
-      settledReputation,
-      poachOffer: result !== finalized ? result.story.poachOffer : null,
-      nextGoal: result.story.seasonGoal || null,
-    };
+    return recap;
   }
 
   function open() {
@@ -592,6 +538,8 @@ export function createTimeTravelScreen({
   $("#btn-time-travel-back")?.addEventListener("click", () => show("home"));
   $("#btn-time-travel-decline-contract")?.addEventListener("click", declineContract);
   poachCard.wire();
+  retireCard.wire();
+  financeCard.wire();
   $("#btn-time-travel-continue")?.addEventListener("click", () => {
     if (!state.leagueCareer?.season) return;
     state.season = state.leagueCareer.season;
@@ -599,19 +547,5 @@ export function createTimeTravelScreen({
     show("season");
     showSeasonTab("standings");
   });
-  $("#time-travel-house-list")?.addEventListener("click", (event) => {
-    const id = event.target.closest("[data-house]")?.dataset.house;
-    if (id) financeAction((coach) => buyHouse(coach, id), tr(lang(), "无法买这套房子", "Couldn't buy that home"));
-  });
-  $("#time-travel-invest-list")?.addEventListener("click", (event) => {
-    const id = event.target.closest("[data-asset]")?.dataset.asset;
-    if (id) {
-      financeAction(
-        (coach, root) => placeInvestment(coach, id, INVESTMENT_STAKE, root.leagueCareer?.season?.year),
-        tr(lang(), "无法完成这笔投资", "Couldn't place that investment"),
-      );
-    }
-  });
-
   return { open, resume, repaint, queueNextTimeTravelEvent };
 }
