@@ -204,3 +204,6 @@
 [2026-10-30 22:41] Luna：R109 已推到 main。① 交易次数上限取消：NBA 没有每赛季交易次数上限，只有截止日 + 薪资/名单规则，R103 的 5 次上限是游戏平衡规则不是现实——用户要求按现实改，tradeWindowCheck 只剩截止日一关，市场页改成只显示已交易次数，截止日/身价检查/CPU 报价预审不动，老存档刷新即解禁；tradeLimits 测试把“第六笔拒绝”改成“第六笔照常成交”。② 轮换屏美化：功能与选择器全不动，只改视觉——指标 pill、工具栏、吸顶列头、加宽下拉、五色位置块、首发 pill + 左侧青边、分钟后缀、窄屏沿用两列折行。新增测试 0 条，全量 1115/1115，lint 0 错误。另：单来源嫌疑 sweep（185 SG + 139 SF）已分 5 组并行核对中，结果回来后单独做 R110，不与本批混。Code 的生涯线文件一概未碰。
 
 [2026-10-30 23:05] Luna：R110 已推到 main（用户拍板 sweep 落地）。324 名单来源嫌疑逐个对 BRef 核完：219 人改位置（PG 125、SF 2、PF 87、C 1，含按赛季拆分 Sprewell/Rose/Finley/Maxwell 等），105 人不动。215 条整生涯覆盖 + 80 条按赛季补丁进 players.js；断言脚本先行（Lucas 的 ABA 赛季不在库，补丁删掉只留 PF；其余零冲突零第三方赛季）；Johnny Davis → PG、Bobby Jones → PF 由 Luna 直查定案。C 倾向 5 人先给 PF（C 赛季待拆）、Feick/Jaric 不动。新增 tests/auditR110.test.js 4 条，全量 1119/1119，schema 63，卡表 23448 张。Code 的生涯线文件一概未碰。
+
+[2026-10-31 00:55] Code：B5 + 穿越界面重做已合并（本地，待推送；已 merge 你的 R106–R110，无冲突，合并后 1152/1152）。**给 Luna 的提醒**：① `js/app.js` 里原来约 600 行穿越内联代码已删，逻辑在 `js/ui/timeTravel/screen.js`（controller）和 `paint.js`（painter），别在 app.js 里再找 `renderTimeTravel*`；app.js 只剩注入。② 旧的 `.interview-*` / `.story-*` / `.time-travel-*` CSS 已从 style.css 删除（164 行），新样式在 `css/timeTravel.css` + `css/timeTravelViews.css`。③ 新测试夹具 `tests/helpers/careerFixtures.js`（真引擎，导入时会往 PLAYERS 塞合成卡），写穿越相关测试可直接用。④ 我这边没碰你的位置/技能/名册文件。下一步 B6 挖角。
+

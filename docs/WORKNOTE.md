@@ -1910,3 +1910,24 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 落地前用断言脚本逐项验过：每个 bref 在库、每个补丁赛季在库、无与既有覆盖冲突、无第三方位置赛季（即整生涯覆盖不会改错本来就对的赛季）；唯一报错是 Lucas 的 1975 补丁——他的 ABA 1974-75 赛季根本不在库中（库内从 1977 起），补丁直接删掉、只留整生涯 PF。写盘后重跑断言，全部条目均已存在且值正确。另有两处 sweep 未定项由 Luna 直查定案：Johnny Davis → PG（维基 + StatMuse 对 Proballers 的 SG 说法）、Bobby Jones → PF（维基 + StatMuse + Fandom 对 RealGM 的 SF 说法；BRef 原页仍被小 Bobby Jones 的页面挡住未直接看到）。
 
 刻意不动的：C 倾向 5 人（Cage、Dele、Dale Davis、Warner、Lorenzo Williams）先给 PF 作前锋位修正——SF 肯定错、PF 至少对一半，C 赛季待完整赛季表再拆；Feick、Jaric 证据混杂不动；单赛季旗标（如 Hornacek 92-94 的 PG 赛季、Bob Harris 51-52 的 PF 赛季）不追，只动主位置；Haskins、Sobers 按“列前即主”规则留 SG（维基称 PG，是最可能翻案的两处）；Maravich 留 SG（StatMuse 的 3 个 PG 赛季不敌 BRef 标题）。新增 `tests/auditR110.test.js` 4 条（整生涯覆盖全季断言、覆盖 + 例外逐季断言、无覆盖拆分精确赛季断言、14 名确认不动者断言）；schema 62→63，卡表快照重跑（23448 张，行数未变）。全量 1119/1119（1115 + 4），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。
+
+### R111：B5 再就业求职板 + 穿越界面重做（painter/controller 拆分）
+
+**B5（引擎）**：被裁/离队后进入求职期。声望决定求职板：低声望只有部分档位（`REEMPLOYMENT_LIMITED_BOARD_REPUTATION`），≥ `REEMPLOYMENT_FULL_BOARD_REPUTATION` 才有争冠队；刚解雇你的球队永不上榜；接受后开新 stint，声望、现金、房产、已完成 stint 履历全部保留，事件日志重置为 `re-employed`。12 条引擎测试（`tests/reemployment.test.js`），真引擎夹具抽到 `tests/helpers/careerFixtures.js` 供视图测试复用。
+
+**界面**：`app.js` 里约 600 行内联穿越代码拆成 `js/ui/timeTravel/screen.js`（controller：状态编排、存档、调引擎）和 `paint.js`（无状态 painter）+ 一组纯函数视图模块（`hq/kpis/offers/epilogue/wizard/finance/choices/format/viewModel`）。`app.js` 只注入全局状态。所有“选一个”的场景（面试 offer、故事事件、续约、再就业）统一成“先选中 → 底部确认条 → 再提交”两步。总部卡 + 合同时间轴 + KPI 条；手机端 KPI 条可横滑，右缘渐隐提示。后果标签只显示方向和大小（▲▲▲），数值来自引擎自己的 `futureKnowledgeEffects()`，有测试保证 UI 与引擎同源。
+
+**这轮靠真浏览器 + 读测试抓到的 bug**（单测之前都看不见）：
+1. `落空 信任 −−8`：`SEASON_GOAL_TRUST_PENALTY` 本身是负数，UI 又加了一个负号 → `Math.abs`。E2E 现已断言。
+2. 目标预警是死代码：`careerPerformance().consecutiveMissedGoals` 是**布尔值**（“连续两次落空”，此时已被解雇），不是次数；预警永远不会出现。改成读事件日志里最近一次目标结果（`viewModel.onThinIce`）。
+3. 履历卡露出原始键名 `two-bad-seasons`：引擎写入的 stint reason 是具体解雇原因而不只是 fired/departed。映射表补全，测试遍历真引擎能产生的全部 reason（trust-collapsed / missed-goals / two-bad-seasons / departed），未知值回落成中性文案。
+4. 旧类名 `interview-offer` 命中 style.css 的旧规则，把新卡片文字染灰；删了 164 行已死的旧穿越 CSS。
+5. 英文模式下 4 个新 landmark 的 `aria-label` 没进 PHRASES（读屏会念中文）；i18n 测试抓到。
+6. 结束态总部卡还写“合同第 3/5 年”→ 改“执教 N 个赛季”；解雇后右栏空着 → 结束态改单列。
+7. 分享卡写“穿越五年 / 五年里没有完成交易”，B4 之后过时 → “穿越生涯 / 这段执教没有完成交易”。
+8. 变异检查中发现一个“空转”变异（替换串用了半角括号没打上、0 失败是假的）→ 补了对应断言后重做才算数。
+
+**验证**：全量 1152/1152（含 Luna R106–R110 合并后）；lint 0 错误；浏览器 QA 桌面+手机共 152 项：`career-reemployment` 52（新）/ `career-contract` 42 / `coach-origins` 26 / `career-finance` 32；`tt-shots.mjs` 用真引擎写存档截 8 个状态（创建/面试/开局决策/进行中/故事事件/财务/续约/被解雇）。`career-contract` 里 4 条断言是 B4 之后就过期的（续约后状态已是 `active`、状态文案已变），一并更新。6 个变异（删 reason 映射 / 续约节点不高亮 / 预警恒 false / 压力色调反转 / 锁定卡隐去当前声望 / 权限重复显示）全部被单测抓住。
+
+**未做 / 下一步**：B6 挖角（高声望时季中收到邀请，跳槽影响老东家关系）；B7 退休。`PHRASES` 里还留着旧穿越页的几条静态短语（💰/🏠/📈 等），确认无引用后可清。
+
