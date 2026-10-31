@@ -980,7 +980,6 @@ export const SIGNATURE_SKILLS = {
   duranke01: ["rainmaker", "mid_maestro", "freeze_iso", "midrange_assassin"],
   // 库里：百步穿杨（半场射程）+ 接投 + 自主变向创造 + 引力
   curryst01: ["logo_range", "splash_spot", "rainmaker", "gravity_well", "ankle_breaker"],
-  hardeti01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker", "rhythm_master"],
   hardeja01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker", "rhythm_master"],
   westbru01: ["motor_engine", "dime_dropper", "ankle_breaker", "coast_to_coast"],
   // Derrick Rose — 劲爆第一步 / 杀筐，不是传球核
@@ -1028,9 +1027,8 @@ export const SIGNATURE_SKILLS = {
   // 没有篮下暴君：他是技术流，伤病体质用玻璃人标签体现（见 GLASS_CANNON_BREF）
   embiijo01: ["stepback", "mid_maestro", "freeze_iso"],
   georgpa01: ["rhythm_master", "lockdown", "midrange_assassin"],
-  // Kawhi Leonard — BRef id is leonaka01（旧键 leonard01 保留兼容）
+  // Kawhi Leonard — BRef id is leonaka01
   leonaka01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
-  leonard01: ["death_wrap", "midrange_assassin", "lockdown", "clutch_killer"],
   greendr01: ["lockdown", "thief", "rim_protector", "dime_dropper"],
   // Splash / Dame / 经典射手
   // 克莱：百步穿杨 + 水花接投（接球投本色）
@@ -1073,7 +1071,7 @@ export const SIGNATURE_SKILLS = {
   billuch01: ["big_shot", "clutch_killer", "mid_maestro"],
   horryro01: ["big_shot", "clutch_killer", "rainmaker"],
   // 角色成名技
-  anderky01: ["slowmo", "dime_dropper"], // Kyle Anderson Slow-Mo
+  anderky01: ["slowmo"], // Kyle Anderson Slow-Mo
   ibakase01: ["rim_protector", "mid_maestro", "lockdown"], // OKC 护框 + 中投
   // Kenneth Faried — Manimal 半兽人：身体素质 +10% / 暴扣 / 空接 / 护框
   farieke01: ["manimal", "poster_slam", "lob_finisher", "spring_board", "rim_protector"],
@@ -1084,7 +1082,6 @@ export const SIGNATURE_SKILLS = {
   moranja01: ["coast_to_coast", "ankle_breaker"],
   gilgesh01: ["lean_in_jumper", "stepback", "rainmaker", "freeze_iso"],
   tatumja01: ["stepback", "mid_maestro", "freeze_iso"],
-  stephcu01: ["logo_range", "splash_spot", "rainmaker", "ankle_breaker"], // alias safety
   // Zion — 篮下暴力终结：暴扣为主，暴君是强打底子
   willizi01: ["poster_slam", "paint_bully", "coast_to_coast", "first_step"],
   // 姚明 — 柔顺手感 / 梦幻脚步 / 高塔
@@ -1487,10 +1484,12 @@ export const TRAIT_SKILLS = {
   // 著名的忍痛打法之一。他个人身材不大（185cm），靠的是读秒和手技穿越人群，不是硬碎型，
   // 所以也不给场上打手——那是布莉姆伯/马霍金等队友的活。
   thomais01: ["floor_commander", "dime_dropper", "clutch_killer", "first_step"],
+  // Jason Kidd — 生涯 8.7 助攻，R106 审计补传球魔术（此前名单遗漏）
+  kiddja01: ["dime_dropper"],
   // Draymond — already has D packs; temper is separate
   greendr01: ["hothead"],
   // Iggy
-  igoudan01: ["stopper_3d", "lockdown", "dime_dropper"],
+  iguodan01: ["stopper_3d", "lockdown", "dime_dropper"],
   // Avery Bradley / Jrue Holiday style stoppers (partial)
   bradlav01: ["sticky_wrap", "thief"],
   holidjr01: ["stopper_3d", "thief", "lockdown"],
@@ -1530,16 +1529,22 @@ function pickStable(key, list, n) {
 
 function candidateSkills(p) {
   const a = p.archetype || "";
+  const pos = p.pos || "";
+  // R106: 内线不摇外线技能——pest 原型本是高帽中锋，之前会摇到 lockdown；
+  // 持球单打类同理，只给非内线。
+  const isBig = pos === "C" || pos === "PF";
   const cands = new Set();
   if (/iso_|creator|mamba|scorer|versatile_scorer/.test(a)) {
-    cands.add("freeze_iso");
-    cands.add("ankle_breaker");
+    if (!isBig) {
+      cands.add("freeze_iso");
+      cands.add("ankle_breaker");
+    }
     cands.add("mid_maestro");
   }
   // dime_dropper is manual-only (SIGNATURE_SKILLS): passing magic must stay
   // scarce — the generic roll pool used to hand it to 225 players.
   if (/shooter|spacing/.test(a) || (p.three || 0) >= 88) cands.add("rainmaker");
-  if (/pest|two_way/.test(a) || (p.defense || 0) >= 88) cands.add("lockdown");
+  if (!isBig && (/pest|two_way/.test(a) || (p.defense || 0) >= 88)) cands.add("lockdown");
   if ((p.steal || 0) >= 85 || (p.raw?.spg || 0) >= 2.2) cands.add("thief");
   if ((p.block || 0) >= 85 || (p.raw?.bpg || 0) >= 2.5) cands.add("rim_protector");
   if ((p.clutch || 0) >= 85 || (p.intangibles?.killerInstinct || 0) >= 82) cands.add("clutch_killer");
@@ -1549,9 +1554,10 @@ function candidateSkills(p) {
   }
   if ((p.intangibles?.gravity || 0) >= 80) cands.add("gravity_well");
   if ((p.mid || 0) >= 88) cands.add("mid_maestro");
-  if ((p.scoring || 0) >= 92) cands.add("freeze_iso");
+  if (!isBig && (p.scoring || 0) >= 92) cands.add("freeze_iso");
   if (!cands.size) {
-    cands.add("clutch_killer");
+    // R106: 无候选兜底只给 motor_engine——此前会随机给 clutch_killer，
+    // 低关键球卡（如 Maravich clutch 52）也会中大心脏。
     cands.add("motor_engine");
   }
   for (const id of SKILL_ROLL_DENY[String(p.bref || "").toLowerCase()] || []) cands.delete(id);
@@ -1779,45 +1785,45 @@ function traitHeuristics(player) {
  * Order matters: more specific patterns first.
  */
 const SIGNATURE_NAME_TO_BREF = [
-  [/michael jordan|乔丹/, "jordami01"],
-  [/kobe|科比/, "bryanko01"],
+  [/michael jordan|迈克尔.?乔丹/, "jordami01"],
+  [/kobe bryant|科比.?布莱恩特/, "bryanko01"],
   [/lebron|勒布朗/, "jamesle01"],
   [/durant|杜兰特/, "duranke01"],
-  [/stephen curry|斯蒂芬.?库里|curry/, "curryst01"],
+  [/steph(?:en)? curry|斯蒂芬.?库里/, "curryst01"],
   [/lillard|利拉德/, "lillada01"],
-  [/klay|汤普森/, "thompkl01"],
-  [/wade|韦德|dwyane/, "wadedw01"],
+  [/klay thompson|克莱.?汤普森/, "thompkl01"],
+  [/dwyane wade|德维恩.?韦德/, "wadedw01"],
   [/harden|哈登/, "hardeja01"],
-  [/ginob|吉诺比利|manu/, "ginobem01"],
+  [/gin[oó]b|吉诺比利/, "ginobem01"],
   [/magic johnson|魔术师/, "johnsma02"],
   [/iverson|艾弗森/, "iversal01"],
   [/kyrie|欧文|uncle drew/, "irvinky01"],
-  [/shaq|奥尼尔|oneal|o'neal/, "onealsh01"],
-  [/dwight howard|霍华德|魔兽/, "howardw01", /juwan|jaylen|jaden|howarje|howarju|howarma/i],
+  [/shaquille o'neal|沙奎尔.?奥尼尔/, "onealsh01"],
+  [/dwight howard|德怀特.?霍华德|魔兽/, "howardw01", /juwan|jaylen|jaden|howarje|howarju|howarma/i],
   [/olajuwon|大梦|奥拉朱旺/, "olajuha01"],
-  [/duncan|邓肯/, "duncati01"],
+  [/tim duncan|蒂姆.?邓肯/, "duncati01"],
   [/abdul.?jabbar|kareem abdul|贾巴尔/, "abdulka01", /rush/],
   [/kevin garnett|加内特/, "garneke01", /bill|marlon/],
   [/russell westbrook|威斯布鲁克|威少/, "westbru01"],
   [/derrick rose|德里克.?罗斯/, "rosede01"],
-  [/wilt|chamberlain|张伯伦/, "chambwi01"],
+  [/wilt chamberlain|威尔特.?张伯伦/, "chambwi01"],
   [/mutombo|穆托姆博/, "mutomdi01"],
-  [/nowitzki|诺维茨基|dirk/, "nowitdi01"],
-  [/giannis|字母|antetokounmpo/, "antetgi01"],
+  [/dirk nowitzki|德克.?诺维茨基/, "nowitdi01"],
+  [/giannis antetokounmpo|扬尼斯.?安特托昆博|字母/, "antetgi01"],
   [/joki[cć]|约基奇/, "jokicni01"],
-  [/donci[cć]|东契奇|luka/, "doncilu01", /garza|amani/],
-  [/kawhi|伦纳德|卡哇伊/, "leonaka01"],
-  [/chris paul|保罗/, "paulch01", /battier|george|millsap|pierce|皮尔斯/i],
+  [/donci[cć]|东契奇/, "doncilu01", /garza|amani/],
+  [/kawhi leonard|科怀.?伦纳德|卡哇伊/, "leonaka01"],
+  [/chris paul|克里斯.?保罗/, "paulch01", /battier|george|millsap|pierce|皮尔斯/i],
   [/kyle anderson|凯尔.?安德森|slow.?mo|慢三步/, "anderky01"],
   [/haliburton|哈利伯顿/, "halibty01"],
   [/rodman|罗德曼/, "rodmade01"],
-  [/pippen|皮蓬/, "pippesc01", /jr/],
+  [/scottie pippen|斯科蒂.?皮蓬/, "pippesc01", /jr/],
   [/mcgrady|麦迪|t-?mac/, "mcgratr01"],
   [/billups|比卢普斯/, "billuch01"],
   [/horry|霍里/, "horryro01"],
   [/gary payton|加里.?佩顿|手套/, "paytoga01", / ii/],
   [/faried|法里埃德|半兽人|manimal/, "farieke01"],
-  [/zion|锡安|williamson/, "willizi01"],
+  [/zion|锡安/, "willizi01"],
   [/yao ming|姚明/, "mingya01"],
   [/marbury|马布里/, "marbust01"],
   [/gilgeous|吉尔杰斯|谢伊|\bsga\b/, "gilgesh01"],

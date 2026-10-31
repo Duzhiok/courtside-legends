@@ -67,6 +67,7 @@ export function seasonToCard(r) {
     attrs,
     ovrHint,
     source: ratingSource,
+    anchorSpeed,
     age,
     careerPhase,
     careerPhaseLabel,
@@ -100,6 +101,13 @@ export function seasonToCard(r) {
   );
   speed = ath.speed;
   strength = ath.strength;
+  // R106: 锚点卡速度不叠过头——生涯弧线 + 体型加分曾把 2K 锚点速度顶出 +15
+  //（Wiggins 锚点 84 → 卡面 99），最终速度锁在锚点 ±5 内。
+  if (ratingSource === "anchor" && anchorSpeed != null) {
+    speed = clamp(speed, anchorSpeed - 5, anchorSpeed + 5);
+  }
+  // R106: 场均篮板上双的中锋力量地板 60——护框型扣分叠加曾把壮汉压到 50 出头。
+  if (pos === "C" && rpg >= 10) strength = Math.max(strength, 60);
   const tends = deriveShotTendencies(r, {
     three,
     mid,
@@ -347,6 +355,429 @@ const POS_OVERRIDES = {
   nashst01: "PG", // Steve Nash — 1997–2011 全标 SG，2012 起数据源才正确标 PG
   paulch01: "PG", // Chris Paul — 2006–2011 全标 SG
   kiddja01: "PG", // Jason Kidd — 除 2012 外全标 SG
+  // R108 1995 森林狼无控卫：三人现实里全是正牌控卫，老数据 "G" 一律被归成 SG，且都在 2012 换数据源前退役、R106 审计无法对照
+  garlawi01: "PG", // Winston Garland — 生涯全程 PG
+  martida01: "PG", // Darrick Martin — 生涯全程 PG
+  eisleho01: "PG", // Howard Eisley — 生涯全程 PG
+  // R106 审计修复（P0-PG，21 人）
+  adamsmi01: "PG", // Michael Adams
+  anderke01: "PG", // Kenny Anderson
+  baglejo01: "PG", // John Bagley
+  bingda01: "PG", // Dave Bing
+  blaylmo01: "PG", // Mookie Blaylock
+  cassesa01: "PG", // Sam Cassell
+  davisba01: "PG", // Baron Davis
+  fordph01: "PG", // Phil Ford
+  francst01: "PG", // Steve Francis
+  fraziwa01: "PG", // Walt Frazier
+  knighbr01: "PG", // Brevin Knight
+  leverfa01: "PG", // Fat Lever
+  mcmilna01: "PG", // Nate McMillan
+  millean02: "PG", // Andre Miller
+  richami01: "PG", // Micheal Ray Richardson
+  richapo01: "PG", // Pooh Richardson
+  skilesc01: "PG", // Scott Skiles
+  stoudda01: "PG", // Damon Stoudamire
+  tinslja01: "PG", // Jamaal Tinsley
+  wattssl01: "PG", // Slick Watts
+  willide01: "PG", // Deron Williams
+  // R106 审计修复（P0-big，39 人）
+  boozeca01: "PF", // Carlos Boozer
+  bridgbi01: "PF", // Bill Bridges
+  campbel01: "C", // Elden Campbell
+  chandty01: "C", // Tyson Chandler
+  clarkke01: "C", // Keon Clark
+  colemde01: "PF", // Derrick Coleman
+  colemja01: "PF", // Jack Coleman
+  ellispe01: "C", // Pervis Ellison
+  gallaha01: "PF", // Harry Gallatin
+  griffed01: "PF", // Eddie Griffin
+  hairsha01: "PF", // Happy Hairston
+  hinsoro01: "PF", // Roy Hinson
+  howelba01: "PF", // Bailey Howell
+  hutchme01: "PF", // Mel Hutchins
+  johnsgu01: "PF", // Gus Johnson
+  jonesch01: "C", // Charles Jones
+  kellocl01: "PF", // Clark Kellogg
+  lafrera01: "C", // Raef LaFrentz
+  larusru01: "PF", // Rudy LaRusso
+  leecl01: "PF", // Clyde Lee
+  lucasje01: "PF", // Jerry Lucas
+  mcginge01: "PF", // George McGinnis
+  mikkeve01: "PF", // Vern Mikkelsen
+  nancela01: "PF", // Larry Nance
+  naullwi01: "PF", // Willie Naulls
+  okafoem01: "C", // Emeka Okafor
+  perrycu01: "PF", // Curtis Perry
+  randoza01: "PF", // Zach Randolph
+  ratlith01: "C", // Theo Ratliff
+  robintr01: "PF", // Truck Robinson
+  rogerro02: "PF", // Roy Rogers
+  roundda01: "PF", // Dan Roundfield
+  scottra01: "PF", // Ray Scott
+  smithjo03: "PF", // Josh Smith
+  smithla01: "PF", // Larry Smith
+  stokema01: "PF", // Maurice Stokes
+  wallabe01: "C", // Ben Wallace
+  webbech01: "PF", // Chris Webber
+  williho01: "C", // Hot Rod Williams
+  // R106 审计修复（P1-PG，59 人）
+  arenagi01: "PG", // Gilbert Arenas
+  augusdj01: "PG", // D.J. Augustin
+  bareajo01: "PG", // J.J. Barea
+  bayleje01: "PG", // Jerryd Bayless
+  beaubro01: "PG", // Rodrigue Beaubois
+  bibbymi01: "PG", // Mike Bibby
+  blakest01: "PG", // Steve Blake
+  bledser01: "PG", // Eric Bledsoe
+  boykiea01: "PG", // Earl Boykins
+  brookaa01: "PG", // Aaron Brooks
+  brownbo02: "PG", // Bobby Brown
+  bynumwi01: "PG", // Will Bynum
+  caldejo01: "PG", // José Calderón
+  cartean01: "PG", // Anthony Carter
+  collida01: "PG", // Darren Collison
+  conlemi01: "PG", // Mike Conley
+  curryst01: "PG", // Stephen Curry
+  douglto01: "PG", // Toney Douglas
+  dragigo01: "PG", // Goran Dragić
+  duhonch01: "PG", // Chris Duhon
+  farmajo01: "PG", // Jordan Farmar
+  feltora01: "PG", // Raymond Felton
+  fishede01: "PG", // Derek Fisher
+  flynnjo01: "PG", // Jonny Flynn
+  fordtj01: "PG", // T.J. Ford
+  harride01: "PG", // Devin Harris
+  hillge01: "PG", // George Hill
+  hinriki01: "PG", // Kirk Hinrich
+  holidjr01: "PG", // Jrue Holiday
+  jackja01: "PG", // Jarrett Jack
+  jamesmi01: "PG", // Mike James
+  jennibr01: "PG", // Brandon Jennings
+  johnsar02: "PG", // Armon Johnson
+  lawsoty01: "PG", // Ty Lawson
+  linje01: "PG", // Jeremy Lin
+  livinsh01: "PG", // Shaun Livingston
+  lowryky01: "PG", // Kyle Lowry
+  lucasjo02: "PG", // John Lucas III
+  maynoer01: "PG", // Eric Maynor
+  millspa02: "PG", // Patty Mills
+  nelsoja01: "PG", // Jameer Nelson
+  pargoja01: "PG", // Jannero Pargo
+  parketo01: "PG", // Tony Parker
+  priceaj01: "PG", // A.J. Price
+  pricero01: "PG", // Ronnie Price
+  robinna01: "PG", // Nate Robinson
+  rodrise01: "PG", // Sergio Rodríguez
+  rosede01: "PG", // Derrick Rose
+  sessira01: "PG", // Ramon Sessions
+  smithis01: "PG", // Ish Smith
+  teaguje01: "PG", // Jeff Teague
+  telfase01: "PG", // Sebastian Telfair
+  uzohbe01: "PG", // Ben Uzoh
+  vasqugr01: "PG", // Greivis Vásquez
+  walljo01: "PG", // John Wall
+  watsocj01: "PG", // C.J. Watson
+  watsoea01: "PG", // Earl Watson
+  westbru01: "PG", // Russell Westbrook
+  willima01: "PG", // Mo Williams
+  // R106 审计修复（P1-big，70 人）
+  adrieje01: "PF", // Jeff Adrien
+  amundlo01: "PF", // Lou Amundson
+  anderch01: "C", // Chris Andersen
+  anderry01: "PF", // Ryan Anderson
+  armsthi01: "C", // Hilton Armstrong
+  arthuda01: "PF", // Darrell Arthur
+  bassbr01: "PF", // Brandon Bass
+  biedran01: "C", // Andris Biedriņš
+  booketr01: "PF", // Trevor Booker
+  brockjo01: "PF", // Jon Brockman
+  clarkea01: "PF", // Earl Clark
+  cookbr01: "PF", // Brian Cook
+  cunnida01: "PF", // Dante Cunningham
+  curryed01: "C", // Eddy Curry
+  davisgl01: "PF", // Glen Davis
+  davisjo02: "PF", // Josh Davis
+  dorsejo01: "PF", // Joey Dorsey
+  evansre01: "PF", // Reggie Evans
+  fosteje01: "C", // Jeff Foster
+  gortama01: "C", // Marcin Gortat
+  greendo01: "PF", // Donté Greene
+  hansbty01: "PF", // Tyler Hansbrough
+  haranlu01: "PF", // Luke Harangody
+  harrimi01: "PF", // Mike Harris
+  hayesch01: "C", // Chuck Hayes
+  horfoal01: "C", // Al Horford
+  howardw01: "C", // Dwight Howard
+  howarju01: "PF", // Juwan Howard
+  humphkr01: "PF", // Kris Humphries
+  ilyaser01: "PF", // Ersan İlyasova
+  jamisan01: "PF", // Antawn Jamison
+  jeffeal01: "C", // Al Jefferson
+  jeffrja01: "PF", // Jared Jeffries
+  jerebjo01: "PF", // Jonas Jerebko
+  jianlyi01: "PF", // Yi Jianlian
+  johnsch03: "C", // Chris Johnson
+  johnsja01: "PF", // James Johnson
+  jonesso01: "PF", // Solomon Jones
+  landrca01: "PF", // Carl Landry
+  leeda02: "PF", // David Lee
+  magloja01: "C", // Jamaal Magloire
+  maxieja01: "PF", // Jason Maxiell
+  mcrobjo01: "PF", // Josh McRoberts
+  milicda01: "C", // Darko Miličić
+  murphtr01: "PF", // Troy Murphy
+  najered01: "PF", // Eduardo Nájera
+  noahjo01: "C", // Joakim Noah
+  novakst01: "PF", // Steve Novak
+  pattepa01: "PF", // Patrick Patterson
+  pekovni01: "C", // Nikola Peković
+  randoan01: "PF", // Anthony Randolph
+  randosh01: "PF", // Shavlik Randolph
+  samuesa01: "C", // Samardo Samuels
+  scalabr01: "PF", // Brian Scalabrine
+  scolalu01: "PF", // Luis Scola
+  singlja01: "PF", // James Singleton
+  smithcr01: "PF", // Craig Smith
+  thomaty01: "PF", // Tyrus Thomas
+  turiaro01: "C", // Ronny Turiaf
+  varejan01: "C", // Anderson Varejão
+  villach01: "PF", // Charlie Villanueva
+  wallara01: "C", // Rasheed Wallace
+  waltolu01: "PF", // Luke Walton
+  warriha01: "PF", // Hakim Warrick
+  whitedj01: "PF", // D.J. White
+  wilcoch01: "C", // Chris Wilcox
+  willima02: "PF", // Marvin Williams
+  willise01: "C", // Sean Williams
+  willish02: "C", // Shelden Williams
+  youngth01: "PF", // Thaddeus Young
+  // R110 sweep：单来源 SG/SF 嫌疑逐个核对（BRef 主位置为准）后的整生涯修正。
+  // SG 嫌疑 185 人 + SF 嫌疑 139 人，5 组并行核对；本块含整生涯覆盖 215 人
+  // （改 PG 125、改 SF 2、改 PF 87、改 C 1，其中 24 人另有个别赛季例外，见 BY_SEASON）。
+  // 已知局限：C 倾向 5 人（Cage、Dele、Dale Davis、Warner、Lorenzo Williams）先给 PF，
+  // C 赛季待完整赛季表再拆；Feick、Jaric 证据混杂不动；Lucas 的 ABA 中锋赛季不在库中，无需补丁。
+  // --- SG 嫌疑 → PG（整生涯）---
+  daviebo01: "PG", // Bob Davies — R110 sweep
+  phillan01: "PG", // Andy Phillip — R110 sweep
+  senesge01: "PG", // George Senesky — R110 sweep
+  martisl01: "PG", // Slater Martin — R110 sweep
+  mcguidi01: "PG", // Dick McGuire — R110 sweep
+  kingge01: "PG", // George King — R110 sweep
+  costela01: "PG", // Larry Costello — R110 sweep
+  greensi01: "PG", // Si Green — R110 sweep
+  leonasl01: "PG", // Slick Leonard — R110 sweep
+  mccarjo01: "PG", // Johnny McCarthy — R110 sweep
+  joneskc01: "PG", // K.C. Jones — R110 sweep
+  attleal01: "PG", // Al Attles — R110 sweep
+  eganjo01: "PG", // Johnny Egan — R110 sweep
+  komivho01: "PG", // Howard Komives — R110 sweep
+  weissbo01: "PG", // Bob Weiss — R110 sweep
+  robinfl01: "PG", // Flynn Robinson — R110 sweep
+  williar01: "PG", // Art Williams — R110 sweep
+  williro01: "PG", // Ron Williams — R110 sweep
+  adelmri01: "PG", // Rick Adelman — R110 sweep
+  whitejo01: "PG", // Jo Jo White — R110 sweep
+  allenlu01: "PG", // Lucius Allen — R110 sweep
+  beardbu01: "PG", // Butch Beard — R110 sweep
+  cleamji01: "PG", // Jim Cleamons — R110 sweep
+  priceji01: "PG", // Jim Price — R110 sweep
+  bibbyhe01: "PG", // Henry Bibby — R110 sweep
+  dudlech01: "PG", // Charles Dudley — R110 sweep
+  digreer01: "PG", // Ernie DiGregorio — R110 sweep
+  hendeto01: "PG", // Tom Henderson — R110 sweep
+  walkefo01: "PG", // Foots Walker — R110 sweep
+  willigu01: "PG", // Gus Williams — R110 sweep
+  hollili01: "PG", // Lionel Hollins — R110 sweep
+  mcelrji01: "PG", // Jim McElroy — R110 sweep
+  taylobr01: "PG", // Brian Taylor — R110 sweep
+  galemi01: "PG", // Mike Gale — R110 sweep
+  leero01: "PG", // Ron Lee — R110 sweep
+  bucknqu01: "PG", // Quinn Buckner — R110 sweep
+  busedo01: "PG", // Don Buse — R110 sweep
+  hillar01: "PG", // Armond Hill — R110 sweep
+  dunlemi01: "PG", // Mike Dunleavy — R110 sweep
+  jordaed01: "PG", // Eddie Jordan — R110 sweep
+  willira01: "PG", // Ray Williams — R110 sweep
+  bratzmi01: "PG", // Mike Bratz — R110 sweep
+  greenri01: "PG", // Rickey Green — R110 sweep
+  davisbr01: "PG", // Brad Davis — R110 sweep
+  higgske01: "PG", // Kenny Higgs — R110 sweep
+  leaveal01: "PG", // Allen Leavell — R110 sweep
+  hendege01: "PG", // Gerald Henderson — R110 sweep
+  hustoge01: "PG", // Geoff Huston — R110 sweep
+  ranseke01: "PG", // Kelvin Ransey — R110 sweep
+  matthwe01: "PG", // Wes Matthews — R110 sweep
+  cookda01: "PG", // Darwin Cook — R110 sweep
+  macyky01: "PG", // Kyle Macy — R110 sweep
+  drewla01: "PG", // Larry Drew — R110 sweep
+  romarlo01: "PG", // Lorenzo Romar — R110 sweep
+  lestero01: "PG", // Ronnie Lester — R110 sweep
+  sparrro01: "PG", // Rory Sparrow — R110 sweep
+  sichtje01: "PG", // Jerry Sichting — R110 sweep
+  johnsfr01: "PG", // Frank Johnson — R110 sweep
+  valenda01: "PG", // Darnell Valentine — R110 sweep
+  edwarfr01: "PG", // Franklin Edwards — R110 sweep
+  floydsl01: "PG", // Sleepy Floyd — R110 sweep
+  williro02: "PG", // Rob Williams — R110 sweep
+  connele01: "PG", // Lester Conner — R110 sweep
+  riverdo01: "PG", // Doc Rivers — R110 sweep
+  whatlen01: "PG", // Ennis Whatley — R110 sweep
+  walkeda01: "PG", // Darrell Walker — R110 sweep
+  harpede01: "PG", // Derek Harper — R110 sweep
+  lowesi01: "PG", // Sidney Lowe — R110 sweep
+  threase01: "PG", // Sedale Threatt — R110 sweep
+  paxsojo01: "PG", // John Paxson — R110 sweep
+  flemive01: "PG", // Vern Fleming — R110 sweep
+  holtomi01: "PG", // Michael Holton — R110 sweep
+  webbsp01: "PG", // Spud Webb — R110 sweep
+  portete01: "PG", // Terry Porter — R110 sweep
+  minnidi01: "PG", // Dirk Minniefield — R110 sweep
+  vincesa01: "PG", // Sam Vincent — R110 sweep
+  dawkijo01: "PG", // Johnny Dawkins — R110 sweep
+  smithke01: "PG", // Kenny Smith — R110 sweep
+  grantga01: "PG", // Gary Grant — R110 sweep
+  shawbr01: "PG", // Brian Shaw — R110 sweep
+  willimi02: "PG", // Michael Williams — R110 sweep
+  lesji01: "PG", // Jim Les — R110 sweep
+  johnsav01: "PG", // Avery Johnson — R110 sweep
+  douglsh01: "PG", // Sherman Douglas — R110 sweep
+  barroda01: "PG", // Dana Barros — R110 sweep
+  grantgr01: "PG", // Greg Grant — R110 sweep
+  workmha01: "PG", // Haywoode Workman — R110 sweep
+  abdulma02: "PG", // Mahmoud Abdul-Rauf — R110 sweep
+  brownde01: "PG", // Dee Brown — R110 sweep
+  robinru01: "PG", // Rumeal Robinson — R110 sweep
+  colesbi01: "PG", // Bimbo Coles — R110 sweep
+  anthogr01: "PG", // Greg Anthony — R110 sweep
+  packro01: "PG", // Robert Pack — R110 sweep
+  murdoer01: "PG", // Eric Murdock — R110 sweep
+  pricebr01: "PG", // Brent Price — R110 sweep
+  hurlebo01: "PG", // Bobby Hurley — R110 sweep
+  childch01: "PG", // Chris Childs — R110 sweep
+  wardch01: "PG", // Charlie Ward — R110 sweep
+  edneyty01: "PG", // Tyus Edney — R110 sweep
+  besttr01: "PG", // Travis Best — R110 sweep
+  armstda01: "PG", // Darrell Armstrong — R110 sweep
+  alexaco01: "PG", // Cory Alexander — R110 sweep
+  snower01: "PG", // Eric Snow — R110 sweep
+  mcinnje01: "PG", // Jeff McInnis — R110 sweep
+  willial02: "PG", // Alvin Williams — R110 sweep
+  brunsri01: "PG", // Rick Brunson — R110 sweep
+  hudsotr01: "PG", // Troy Hudson — R110 sweep
+  jonesda01: "PG", // Damon Jones — R110 sweep
+  luety01: "PG", // Tyronn Lue — R110 sweep
+  atkinch01: "PG", // Chucky Atkins — R110 sweep
+  alstora01: "PG", // Rafer Alston — R110 sweep
+  claxtsp01: "PG", // Speedy Claxton — R110 sweep
+  arroyca01: "PG", // Carlos Arroyo Bermudez — R110 sweep
+  hartja01: "PG", // Jason Hart — R110 sweep
+  dickada01: "PG", // Dan Dickau — R110 sweep
+  davisjo01: "PG", // Johnny Davis — R110 sweep
+  // --- SG 嫌疑 → PG（个别赛季例外见 BY_SEASON）---
+  mcmahja01: "PG", // Jack McMahon — R110 sweep
+  georgja01: "PG", // Jack George — R110 sweep
+  shuege01: "PG", // Gene Shue — R110 sweep
+  abdulma01: "PG", // Mahdi Abdul-Rahman — R110 sweep
+  clarkar01: "PG", // Archie Clark — R110 sweep
+  murphca01: "PG", // Calvin Murphy — R110 sweep
+  moneyer01: "PG", // Eric Money — R110 sweep
+  johnsde01: "PG", // Dennis Johnson — R110 sweep
+  humphja01: "PG", // Jay Humphries — R110 sweep
+  // --- SG 嫌疑 → SF（整生涯）---
+  wilkebo01: "SF", // Bob Wilkerson — R110 sweep
+  kukocto01: "SF", // Toni Kukoc — R110 sweep
+  // --- SF 嫌疑 → PF（整生涯）---
+  hitchle01: "PF", // Lew Hitch — R110 sweep
+  heinsto01: "PF", // Tom Heinsohn — R110 sweep
+  greenjo01: "PF", // Johnny Green — R110 sweep
+  tresvjo01: "PF", // John Tresvant — R110 sweep
+  washiji01: "PF", // Jim Washington — R110 sweep
+  blockjo01: "PF", // John Block — R110 sweep
+  kimbato01: "PF", // Toby Kimball — R110 sweep
+  greenla01: "PF", // Lamar Green — R110 sweep
+  heardga01: "PF", // Garfield Heard — R110 sweep
+  wickssi01: "PF", // Sidney Wicks — R110 sweep
+  rowecu01: "PF", // Curtis Rowe — R110 sweep
+  davisdw01: "PF", // Dwight Davis — R110 sweep
+  behagro01: "PF", // Ron Behagen — R110 sweep
+  breweji01: "PF", // Jim Brewer — R110 sweep
+  washike01: "PF", // Kermit Washington — R110 sweep
+  johnsmi01: "PF", // Mickey Johnson — R110 sweep
+  shumajo01: "PF", // John Shumate — R110 sweep
+  kenonla01: "PF", // Larry Kenon — R110 sweep
+  washiri01: "PF", // Richard Washington — R110 sweep
+  hillmda01: "PF", // Darnell Hillman — R110 sweep
+  kupchmi01: "PF", // Mitch Kupchak — R110 sweep
+  basseti01: "PF", // Tim Bassett — R110 sweep
+  warneco01: "PF", // Cornell Warner — R110 sweep
+  jackslu01: "PF", // Luke Jackson — R110 sweep
+  carrke01: "PF", // Kenny Carr — R110 sweep
+  landsma01: "PF", // Mark Landsberger — R110 sweep
+  greenda01: "PF", // David Greenwood — R110 sweep
+  robincl01: "PF", // Cliff Robinson — R110 sweep
+  cummipa01: "PF", // Pat Cummings — R110 sweep
+  chambto01: "PF", // Tom Chambers — R110 sweep
+  rambiku01: "PF", // Kurt Rambis — R110 sweep
+  cummite01: "PF", // Terry Cummings — R110 sweep
+  greensi02: "PF", // Sidney Green — R110 sweep
+  thorpot01: "PF", // Otis Thorpe — R110 sweep
+  perkisa01: "PF", // Sam Perkins — R110 sweep
+  cagemi01: "PF", // Michael Cage — R110 sweep
+  greenac01: "PF", // A.C. Green — R110 sweep
+  gilliar01: "PF", // Armon Gilliam — R110 sweep
+  andergr01: "PF", // Greg Anderson — R110 sweep
+  grantho01: "PF", // Horace Grant — R110 sweep
+  longgr01: "PF", // Grant Long — R110 sweep
+  laneje01: "PF", // Jerome Lane — R110 sweep
+  reidjr01: "PF", // J.R. Reid — R110 sweep
+  daviste01: "PF", // Terry Davis — R110 sweep
+  masonan01: "PF", // Anthony Mason — R110 sweep
+  vaughlo01: "PF", // Loy Vaught — R110 sweep
+  millste01: "PF", // Terry Mills — R110 sweep
+  willija01: "PF", // Jayson Williams — R110 sweep
+  laettch01: "PF", // Christian Laettner — R110 sweep
+  weathcl01: "PF", // Clarence Weatherspoon — R110 sweep
+  ellisla01: "PF", // Laphonso Ellis — R110 sweep
+  guglito01: "PF", // Tom Gugliotta — R110 sweep
+  radjadi01: "PF", // Dino Radja — R110 sweep
+  bakervi01: "PF", // Vin Baker — R110 sweep
+  davisan01: "PF", // Antonio Davis — R110 sweep
+  jonespo01: "PF", // Popeye Jones — R110 sweep
+  blounco01: "PF", // Corie Blount — R110 sweep
+  marshdo01: "PF", // Donyell Marshall — R110 sweep
+  grantbr01: "PF", // Brian Grant — R110 sweep
+  smithmi02: "PF", // Michael Smith — R110 sweep
+  smithjo02: "PF", // Joe Smith — R110 sweep
+  mcdyean01: "PF", // Antonio McDyess — R110 sweep
+  abdursh01: "PF", // Shareef Abdur-Rahim — R110 sweep
+  walkean02: "PF", // Antoine Walker — R110 sweep
+  willije01: "PF", // Jerome Williams — R110 sweep
+  fortsda01: "PF", // Danny Fortson — R110 sweep
+  skinnbr01: "PF", // Brian Skinner — R110 sweep
+  thomake01: "PF", // Kenny Thomas — R110 sweep
+  delebi01: "PF", // Bison Dele — R110 sweep
+  davisda01: "PF", // Dale Davis — R110 sweep
+  willilo01: "PF", // Lorenzo Williams — R110 sweep
+  jonesbo01: "PF", // Bobby Jones — R110 sweep
+  // --- SF 嫌疑 → PF（个别赛季例外见 BY_SEASON）---
+  grabojo01: "PF", // Joe Graboski — R110 sweep
+  barksdo01: "PF", // Don Barksdale — R110 sweep
+  sauldwo01: "PF", // Woody Sauldsberry — R110 sweep
+  boozebo01: "PF", // Bob Boozer — R110 sweep
+  chapple01: "PF", // Len Chappell — R110 sweep
+  lovebo01: "PF", // Bob Love — R110 sweep
+  kauffbo01: "PF", // Bob Kauffman — R110 sweep
+  hummejo01: "PF", // John Hummer — R110 sweep
+  tomjaru01: "PF", // Rudy Tomjanovich — R110 sweep
+  bantomi01: "PF", // Mike Bantom — R110 sweep
+  jonesdw01: "PF", // Dwight Jones — R110 sweep
+  lucasma01: "PF", // Maurice Lucas — R110 sweep
+  smithch01: "PF", // Charles Smith — R110 sweep
+  johnsla02: "PF", // Larry Johnson — R110 sweep
+  vinceja01: "PF", // Jay Vincent — R110 sweep（SF 赛季见 BY_SEASON）
+  // --- SF 嫌疑 → C（整生涯）---
+  wrighlo02: "C", // Lorenzen Wright — R110 sweep
 };
 
 /**
@@ -359,6 +790,317 @@ const POS_OVERRIDES_BY_SEASON = {
   // 把那些本来对的赛季也改错。
   "cartevi01:2019": "SF",
   "cartevi01:2020": "SF",
+  // R106 P0 Elton Brand（2000–2011→PF）
+  "brandel01:2000": "PF",
+  "brandel01:2001": "PF",
+  "brandel01:2002": "PF",
+  "brandel01:2003": "PF",
+  "brandel01:2004": "PF",
+  "brandel01:2005": "PF",
+  "brandel01:2006": "PF",
+  "brandel01:2007": "PF",
+  "brandel01:2008": "PF",
+  "brandel01:2009": "PF",
+  "brandel01:2010": "PF",
+  "brandel01:2011": "PF",
+  // R106 P0 Pau Gasol（2002–2011→PF）
+  "gasolpa01:2002": "PF",
+  "gasolpa01:2003": "PF",
+  "gasolpa01:2004": "PF",
+  "gasolpa01:2005": "PF",
+  "gasolpa01:2006": "PF",
+  "gasolpa01:2007": "PF",
+  "gasolpa01:2008": "PF",
+  "gasolpa01:2009": "PF",
+  "gasolpa01:2010": "PF",
+  "gasolpa01:2011": "PF",
+  // R106 P0 Jermaine O'Neal（1997–2011→C）
+  "onealje01:1997": "C",
+  "onealje01:1998": "C",
+  "onealje01:1999": "C",
+  "onealje01:2000": "C",
+  "onealje01:2001": "C",
+  "onealje01:2002": "C",
+  "onealje01:2003": "C",
+  "onealje01:2004": "C",
+  "onealje01:2005": "C",
+  "onealje01:2006": "C",
+  "onealje01:2007": "C",
+  "onealje01:2008": "C",
+  "onealje01:2009": "C",
+  "onealje01:2010": "C",
+  "onealje01:2011": "C",
+  // R106 P1 LaMarcus Aldridge（2007–2011→PF）
+  "aldrila01:2007": "PF",
+  "aldrila01:2008": "PF",
+  "aldrila01:2009": "PF",
+  "aldrila01:2010": "PF",
+  "aldrila01:2011": "PF",
+  // R106 P1 Andrea Bargnani（2007–2011→PF）
+  "bargnan01:2007": "PF",
+  "bargnan01:2008": "PF",
+  "bargnan01:2009": "PF",
+  "bargnan01:2010": "PF",
+  "bargnan01:2011": "PF",
+  // R106 P1 DeJuan Blair（2010–2011→PF）
+  "blairde01:2010": "PF",
+  "blairde01:2011": "PF",
+  // R106 P1 Andray Blatche（2006–2011→PF）
+  "blatcan01:2006": "PF",
+  "blatcan01:2007": "PF",
+  "blatcan01:2008": "PF",
+  "blatcan01:2009": "PF",
+  "blatcan01:2010": "PF",
+  "blatcan01:2011": "PF",
+  // R106 P1 Matt Bonner（2005–2011→PF）
+  "bonnema01:2005": "PF",
+  "bonnema01:2006": "PF",
+  "bonnema01:2007": "PF",
+  "bonnema01:2008": "PF",
+  "bonnema01:2009": "PF",
+  "bonnema01:2010": "PF",
+  "bonnema01:2011": "PF",
+  // R106 P1 Chris Bosh（2004–2011→PF; 2007–2010→C）
+  "boshch01:2004": "PF",
+  "boshch01:2005": "PF",
+  "boshch01:2006": "PF",
+  "boshch01:2008": "PF",
+  "boshch01:2011": "PF",
+  "boshch01:2007": "C",
+  "boshch01:2009": "C",
+  "boshch01:2010": "C",
+  // R106 P1 Nick Collison（2005–2011→PF）
+  "collini01:2005": "PF",
+  "collini01:2006": "PF",
+  "collini01:2007": "PF",
+  "collini01:2008": "PF",
+  "collini01:2009": "PF",
+  "collini01:2010": "PF",
+  "collini01:2011": "PF",
+  // R106 P1 Derrick Favors（2011→PF）
+  "favorde01:2011": "PF",
+  // R106 P1 Taj Gibson（2010–2011→PF）
+  "gibsota01:2010": "PF",
+  "gibsota01:2011": "PF",
+  // R106 P1 Drew Gooden（2003–2011→PF）
+  "goodedr01:2003": "PF",
+  "goodedr01:2004": "PF",
+  "goodedr01:2005": "PF",
+  "goodedr01:2006": "PF",
+  "goodedr01:2007": "PF",
+  "goodedr01:2008": "PF",
+  "goodedr01:2009": "PF",
+  "goodedr01:2010": "PF",
+  "goodedr01:2011": "PF",
+  // R106 P1 Blake Griffin（2011→PF）
+  "griffbl01:2011": "PF",
+  // R106 P1 Al Harrington（1999–2011→PF）
+  "harrial01:1999": "PF",
+  "harrial01:2000": "PF",
+  "harrial01:2001": "PF",
+  "harrial01:2002": "PF",
+  "harrial01:2003": "PF",
+  "harrial01:2004": "PF",
+  "harrial01:2005": "PF",
+  "harrial01:2006": "PF",
+  "harrial01:2007": "PF",
+  "harrial01:2008": "PF",
+  "harrial01:2009": "PF",
+  "harrial01:2010": "PF",
+  "harrial01:2011": "PF",
+  // R106 P1 J.J. Hickson（2009–2011→PF）
+  "hicksjj01:2009": "PF",
+  "hicksjj01:2010": "PF",
+  "hicksjj01:2011": "PF",
+  // R106 P1 Nenê（2003–2011→PF）
+  "hilarne01:2003": "PF",
+  "hilarne01:2004": "PF",
+  "hilarne01:2005": "PF",
+  "hilarne01:2007": "PF",
+  "hilarne01:2008": "PF",
+  "hilarne01:2009": "PF",
+  "hilarne01:2010": "PF",
+  "hilarne01:2011": "PF",
+  // R106 P1 Jordan Hill（2010–2011→PF）
+  "hilljo01:2010": "PF",
+  "hilljo01:2011": "PF",
+  // R106 P1 Serge Ibaka（2010→PF; 2011→C）
+  "ibakase01:2010": "PF",
+  "ibakase01:2011": "C",
+  // R106 P1 Amir Johnson（2007→C; 2008–2011→PF）
+  "johnsam01:2007": "C",
+  "johnsam01:2008": "PF",
+  "johnsam01:2009": "PF",
+  "johnsam01:2010": "PF",
+  "johnsam01:2011": "PF",
+  // R106 P1 Kevin Love（2009–2011→PF）
+  "loveke01:2009": "PF",
+  "loveke01:2010": "PF",
+  "loveke01:2011": "PF",
+  // R106 P1 Kenyon Martin（2001–2002→C; 2003–2011→PF）
+  "martike01:2001": "C",
+  "martike01:2002": "C",
+  "martike01:2003": "PF",
+  "martike01:2004": "PF",
+  "martike01:2005": "PF",
+  "martike01:2006": "PF",
+  "martike01:2008": "PF",
+  "martike01:2009": "PF",
+  "martike01:2010": "PF",
+  "martike01:2011": "PF",
+  // R106 P1 Paul Millsap（2007–2011→PF）
+  "millspa01:2007": "PF",
+  "millspa01:2008": "PF",
+  "millspa01:2009": "PF",
+  "millspa01:2010": "PF",
+  "millspa01:2011": "PF",
+  // R106 P1 Jeff Ayres（2010→PF）
+  "pendeje02:2010": "PF",
+  // R106 P1 Larry Sanders（2011→PF）
+  "sandela01:2011": "PF",
+  // R106 P1 Kevin Séraphin（2011→PF）
+  "serapke01:2011": "PF",
+  // R106 P1 Jason Smith（2008–2011→PF）
+  "smithja02:2008": "PF",
+  "smithja02:2010": "PF",
+  "smithja02:2011": "PF",
+  // R106 P1 Tiago Splitter（2011→PF）
+  "splitti01:2011": "PF",
+  // R106 P1 Amar'e Stoudemire（2003–2010→PF; 2004–2011→C）
+  "stoudam01:2003": "PF",
+  "stoudam01:2007": "PF",
+  "stoudam01:2009": "PF",
+  "stoudam01:2010": "PF",
+  "stoudam01:2004": "C",
+  "stoudam01:2005": "C",
+  "stoudam01:2008": "C",
+  "stoudam01:2011": "C",
+  // R106 P1 Kurt Thomas（1996–2011→PF; 2005→C）
+  "thomaku01:1996": "PF",
+  "thomaku01:1997": "PF",
+  "thomaku01:1998": "PF",
+  "thomaku01:1999": "PF",
+  "thomaku01:2000": "PF",
+  "thomaku01:2001": "PF",
+  "thomaku01:2002": "PF",
+  "thomaku01:2003": "PF",
+  "thomaku01:2004": "PF",
+  "thomaku01:2006": "PF",
+  "thomaku01:2007": "PF",
+  "thomaku01:2008": "PF",
+  "thomaku01:2009": "PF",
+  "thomaku01:2010": "PF",
+  "thomaku01:2011": "PF",
+  "thomaku01:2005": "C",
+  // R106 P1 Jason Thompson（2009–2011→PF）
+  "thompja02:2009": "PF",
+  "thompja02:2010": "PF",
+  "thompja02:2011": "PF",
+  // R106 P1 Ekpe Udoh（2011→C）
+  "udohek01:2011": "C",
+  // R106 P1 David West（2004–2011→PF）
+  "westda01:2004": "PF",
+  "westda01:2005": "PF",
+  "westda01:2006": "PF",
+  "westda01:2007": "PF",
+  "westda01:2008": "PF",
+  "westda01:2009": "PF",
+  "westda01:2010": "PF",
+  "westda01:2011": "PF",
+  // R106 P1 Brandan Wright（2008–2011→PF）
+  "wrighbr03:2008": "PF",
+  "wrighbr03:2009": "PF",
+  "wrighbr03:2011": "PF",
+  // R107 拆 bref 合并后补丁（talldata 季原标 SF，按 R106 分流规则应为 PF）
+  "davised01:2011": "PF",
+  "mbahalu01:2009": "PF",
+  "mbahalu01:2010": "PF",
+  "mbahalu01:2011": "PF",
+  // R110 sweep：按赛季拆分（整生涯覆盖会改错本来就对的赛季）。
+  // --- 整生涯 PG 的 SG 赛季例外 ---
+  "mcmahja01:1957": "SG", // Jack McMahon — R110 sweep
+  "mcmahja01:1958": "SG", // Jack McMahon — R110 sweep
+  "georgja01:1957": "SG", // Jack George — R110 sweep
+  "shuege01:1958": "SG", // Gene Shue — R110 sweep
+  "abdulma01:1965": "SG", // Mahdi Abdul-Rahman — R110 sweep
+  "abdulma01:1966": "SG", // Mahdi Abdul-Rahman — R110 sweep
+  "clarkar01:1967": "SG", // Archie Clark — R110 sweep
+  "clarkar01:1969": "SG", // Archie Clark — R110 sweep
+  "murphca01:1978": "SG", // Calvin Murphy — R110 sweep
+  "murphca01:1980": "SG", // Calvin Murphy — R110 sweep
+  "moneyer01:1975": "SG", // Eric Money — R110 sweep
+  "johnsde01:1977": "SG", // Dennis Johnson — R110 sweep
+  "johnsde01:1978": "SG", // Dennis Johnson — R110 sweep
+  "johnsde01:1979": "SG", // Dennis Johnson — R110 sweep
+  "johnsde01:1980": "SG", // Dennis Johnson — R110 sweep
+  "humphja01:1985": "SG", // Jay Humphries — R110 sweep
+  "humphja01:1990": "SG", // Jay Humphries — R110 sweep
+  "humphja01:1993": "SG", // Jay Humphries — R110 sweep
+  "humphja01:1994": "SG", // Jay Humphries — R110 sweep
+  "humphja01:1995": "SG", // Jay Humphries — R110 sweep
+  // --- 整生涯 PF 的例外赛季 ---
+  "grabojo01:1952": "C", // Joe Graboski — R110 sweep
+  "grabojo01:1953": "C", // Joe Graboski — R110 sweep
+  "barksdo01:1955": "SF", // Don Barksdale — R110 sweep
+  "sauldwo01:1959": "C", // Woody Sauldsberry — R110 sweep
+  "boozebo01:1964": "SF", // Bob Boozer — R110 sweep
+  "chapple01:1965": "C", // Len Chappell — R110 sweep
+  "chapple01:1967": "C", // Len Chappell — R110 sweep
+  "lovebo01:1976": "SF", // Bob Love — R110 sweep
+  "kauffbo01:1969": "C", // Bob Kauffman — R110 sweep
+  "kauffbo01:1971": "C", // Bob Kauffman — R110 sweep
+  "kauffbo01:1973": "SF", // Bob Kauffman — R110 sweep
+  "hummejo01:1971": "C", // John Hummer — R110 sweep
+  "tomjaru01:1974": "SF", // Rudy Tomjanovich — R110 sweep
+  "bantomi01:1978": "SF", // Mike Bantom — R110 sweep
+  "jonesdw01:1975": "C", // Dwight Jones — R110 sweep
+  "jonesdw01:1976": "C", // Dwight Jones — R110 sweep
+  "smithch01:1991": "SF", // Charles Smith — R110 sweep
+  "smithch01:1992": "SF", // Charles Smith — R110 sweep
+  "smithch01:1993": "SF", // Charles Smith — R110 sweep
+  "smithch01:1994": "SF", // Charles Smith — R110 sweep
+  "smithch01:1995": "SF", // Charles Smith — R110 sweep
+  "johnsla02:1997": "SF", // Larry Johnson — R110 sweep
+  "johnsla02:1998": "SF", // Larry Johnson — R110 sweep
+  "johnsla02:1999": "SF", // Larry Johnson — R110 sweep
+  // --- Jay Vincent：SF 赛季（其余赛季 PF）---
+  "vinceja01:1984": "SF", // Jay Vincent — R110 sweep
+  "vinceja01:1987": "SF", // Jay Vincent — R110 sweep
+  "vinceja01:1988": "SF", // Jay Vincent — R110 sweep
+  "vinceja01:1989": "SF", // Jay Vincent — R110 sweep
+  "vinceja01:1990": "SF", // Jay Vincent — R110 sweep
+  // --- 无整生涯覆盖的按赛季拆分 ---
+  "sprewla01:1999": "SF", // Latrell Sprewell — R110 sweep
+  "sprewla01:2000": "SF", // Latrell Sprewell — R110 sweep
+  "sprewla01:2001": "SF", // Latrell Sprewell — R110 sweep
+  "sprewla01:2002": "SF", // Latrell Sprewell — R110 sweep
+  "sprewla01:2003": "SF", // Latrell Sprewell — R110 sweep
+  "sprewla01:2004": "SF", // Latrell Sprewell — R110 sweep
+  "sprewla01:2005": "SF", // Latrell Sprewell — R110 sweep
+  "roseja01:1997": "SF", // Jalen Rose — R110 sweep
+  "roseja01:1998": "SF", // Jalen Rose — R110 sweep
+  "roseja01:1999": "SF", // Jalen Rose — R110 sweep
+  "roseja01:2000": "SF", // Jalen Rose — R110 sweep
+  "roseja01:2001": "SF", // Jalen Rose — R110 sweep
+  "roseja01:2002": "SF", // Jalen Rose — R110 sweep
+  "roseja01:2003": "SF", // Jalen Rose — R110 sweep
+  "roseja01:2004": "PG", // Jalen Rose — R110 sweep
+  "roseja01:2007": "SF", // Jalen Rose — R110 sweep
+  "finlemi01:1996": "SF", // Michael Finley — R110 sweep
+  "finlemi01:1997": "SF", // Michael Finley — R110 sweep
+  "finlemi01:1998": "SF", // Michael Finley — R110 sweep
+  "finlemi01:1999": "SF", // Michael Finley — R110 sweep
+  "finlemi01:2000": "SF", // Michael Finley — R110 sweep
+  "finlemi01:2001": "SF", // Michael Finley — R110 sweep
+  "finlemi01:2002": "SF", // Michael Finley — R110 sweep
+  "finlemi01:2003": "SF", // Michael Finley — R110 sweep
+  "maxwece01:1979": "PF", // Cedric Maxwell — R110 sweep
+  "maxwece01:1980": "PF", // Cedric Maxwell — R110 sweep
+  "maxwece01:1981": "PF", // Cedric Maxwell — R110 sweep
+  "maxwece01:1982": "PF", // Cedric Maxwell — R110 sweep
+  "maxwece01:1983": "PF", // Cedric Maxwell — R110 sweep
+  "maxwece01:1984": "PF", // Cedric Maxwell — R110 sweep
+  "maxwece01:1985": "PF", // Cedric Maxwell — R110 sweep
 };
 
 /** Recover wiped box-score fields (some scrape rows lost PPG/FGA/BPG/…). */

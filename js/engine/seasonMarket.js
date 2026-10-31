@@ -41,8 +41,6 @@ export const SEASON_MAX_ROSTER = 15;
 export const SEASON_MIN_ROSTER = 8;
 /** R89: trades close once the regular season is 70% played (fraction of schedule days). */
 export const TRADE_DEADLINE_FRACTION = 0.7;
-/** R89: user-team trades allowed per regular season (two-team, three-team, accepted proposals). */
-export const TRADE_LIMIT_PER_SEASON = 5;
 
 /** Day index after which trades close, or null when the season has no schedule (tests, stubs). */
 export function tradeDeadlineDay(st) {
@@ -62,15 +60,14 @@ export function seasonTradeCount(st) {
   ).length;
 }
 
-/** Shared window gates for every user-team trade path (deadline, then count). */
+/** Shared window gate for every user-team trade path: deadline only.
+ * There is deliberately NO per-season trade count cap — the NBA has none
+ * (only a deadline plus salary/roster rules), so a count cap would be
+ * game-balance fiction, not realism. R103's 5-trade cap was removed in R109. */
 function tradeWindowCheck(st) {
   const deadline = tradeDeadlineDay(st);
   if (deadline != null && (st.dayIndex || 0) > deadline) {
     return { ok: false, reason: `交易截止日已过（常规赛第 ${deadline} 天后关闭）` };
-  }
-  const count = seasonTradeCount(st);
-  if (count >= TRADE_LIMIT_PER_SEASON) {
-    return { ok: false, reason: `本赛季交易已达上限（${TRADE_LIMIT_PER_SEASON} 次）` };
   }
   return { ok: true };
 }

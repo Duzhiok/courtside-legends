@@ -1872,3 +1872,41 @@ departed 都正确写入 `coach.stints`，续约**不**写入。mutation check�
 
 下一步：B5——再就业面试。被裁/合同到期/主动离开后进入"求职期"，按声望收到 0–3 份当前年份的工作邀请
 （复用现有面试 UI，不是重新穿越）；声望太低可能只能从烂队做起。
+
+### R106：全库审计修复——名字 + 位置 + 技能 + 能力公式一起修（Luna 提交）
+
+用户 2026-10-30 拍板“数据+公式一起修”（审计四轨的 P0+P1 全量，非 P2 可选项）。实施前先把两轨的清单落成可验证的 JSON（`~/workspace/audit-2026-10-30/fix-names.json`、`fix-positions.json`），逐条对 roster.json 验过才动手；审计数字与实测有出入处以实测为准，见下。
+
+1. **名字（roster.json + 照片/锚点引用迁移）。** 三起拆 bref 合并：Ginobili `ginobma01`（2012–2018）并入 `ginobem01`，2012 重复行删 talldata 行留 bref 行（13 项统计全同），生涯连成 2003–2018 共 16 季；E'Twaun Moore 删 `mooree_01` 2012 BOS 重复行；Hamady N'Diaye `n_diaha01` 2011 WAS 并入 `ndiayha01`。Ginobili 的 `ginobma01:2013–2018` 抓取锚点改键到 `ginobem01` 名下（审计正文漏了这处，只提了照片），`ginobma01:2019` 是无卡孤儿直接删；三组照片 wiki 键与 photoCredits bref 随删（URL 与保留键逐字节相同、已共列）。46 组同人变体按 2012 后形式归一（逐季核对，236 行）+ 小尤因补 Jr.；全表 23452→23450 行。另顺手把 Ginobili 2003–2011 旧行也归一到 `Manu Ginóbili`（审计把这处标为可选残留，同一球员两种写法留着就是下一处变体）。注意：审计把 watsocj01 的箭头写反了，实测旧形式是 `CJ Watson`、2012 后是 `C.J. Watson`，按数据归一。
+2. **位置（players.js：POS_OVERRIDES +189，POS_OVERRIDES_BY_SEASON +187 贴）。** P0：控卫 21 人 blanket PG、内线 blanket 39 人（26 PF + 7 C + 6 混合）+ 按赛季 3 人（Gasol PF 2002–2011、Brand PF 2000–2011、J. O'Neal C 1997–2011）；P1 重算：Set A 净增 59 PG、Set B blanket 70 人（48 PF + 22 C）+ 按赛季 31 人 150 贴（分流规则：talldata 季 bpg≥1.5 或 rpg≥10 且 bpg≥1.0 → C，否则 PF，逐季复算与清单一致）。1477 张卡位置变化。审计数字订正三处：① blanket 总数 189 不是 190——Elton Brand 被审计重复计算（既在 C-26 名单又是 P0 补丁），去重后只能是补丁；② PF 名单标 51 实列 49，规则另找出 Dante Cunningham 与 Steve Novak（后者在审计正文括号里提过却漏列）；③ Set A 规则合格 76 人（审计两处分别写 73/76），净增 59 人逐名全对。10 名双能卫、9 名摇摆人、已有修正（R104 三人及全部旧表）全部排除；同名消歧按数据锁定（Chris Johnson 取 johnsch03、Mike James 取 jamesmi01、Charles Jones 取 jonesch01）。
+3. **技能（skills.js）。** 姓名回退 17 条模式收紧到全名（中英文全名 + 唯一昵称）：Seth/Dell/Eddy/Michael Curry、Duncan Robinson、Quickley、Kobe Bufkin/Brown、Wade Baldwin、Thanasis/Kostas、Papagiannis、Minniefield、Jermaine O'Neal 等不再吃名人套餐；真身（全名）仍命中，27 个抽查全过。注意审计建议的 `/manu ginob/` 对 ó 拼写 `Ginóbili` 是断的（ó 隔开了 n 和 b），改成 `/gin[oó]b/` 才同时覆盖两种拼写。Kidd 补传球魔术（生涯 8.7 助攻，TRAIT_SKILLS 新增条目；光环表那行不动），Kyle Anderson 摘传球魔术（生涯 2.8 助攻，保留 slowmo）；断键 `igoudan01` 修回 `iguodan01`（此前靠 traitByName 的名字规则兜底才没丢技能）；死键 hardeti01/leonard01/stephcu01 删除（真 bref 各有相同技能表，卡面不变）。摇奖池：lockdown 与持球单打类只给非内线（pest 原型本是高帽中锋），无候选兜底只给 motor_engine（此前会随机给 clutch_killer，Maravich clutch 52 也会中）。
+4. **能力公式（ratings2k.js + players.js）。** ① 锚点合并改按键：抓取覆盖按键、手写按键存活（旧整对象 spread 曾把 LeBron 2013 等手写卡冲成只剩 ovr；现 LeBron 2013 锚点 15 键齐全）。② 时代基线：1980 前赛季用本时代 efg 基线（<1970 用 .42、1970s 用 .45）算得分/iq/关键球与 volume tax 阈值，1980 后纹丝不动；③ 产量地板：30+ 得分手 scoring 不低于 80（仍低于公式自述“空砍 32 分→88”锚位，是保守修正）。三处验算：Baylor 1962 得分 25→80、Wilt 1960 34→83、Iverson 2002 25→80（审计把 Iverson 列在时代基线项下，但 2002 是现代赛季、基线修不到他，真正救他的是产量地板）；Jordan 1988 95 不变，现代 30+ 公式卡无一被地板顶到 80（地板只绑坍塌 case）。④ 锚点卡速度锁锚点 ±5（生涯弧线 + 体型加分曾把 Wiggins 锚点 84 顶到 99，现 89；resolve2KRatings 新返 `anchorSpeed`，卡面在体型回写后截断）。⑤ 三分小样本封顶从 tpa<0.4 改 <0.5（Lichti 1994 tpa 恰 0.4、三分 100% 曾逃过封顶到 97，现 42）。⑥ 篮板上双的中锋力量地板 60（体型回写后执行，全库复查无低于 60 者）。
+5. **测试与 schema。** 新增 `tests/auditR106.test.js` 11 条（合并/归一/回退/技能/位置/锚点合并/产量地板/速度锁/三分封顶/力量全库 invariant/合成卡摇奖门槛）；schema 59→60，卡表快照重跑（23450 张）。全量 1081/1081（1070 + 11），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。
+
+**本轮未动、留给以后定的两处新发现**：① careerArc/nicknames/intangibles 里也有 hardeti01/leonard01/stephcu01 旧键（出生年/昵称/数值查不到真 bref），与 skills.js 死键同源，但改动会改年龄与昵称显示，超出本次审计口径，未动；② 除审计三组外还有两组同模式拆 bref（Ed Davis davised02/davised01、Mbah a Moute mbahlu01/mbahalu01），若日后合并姓名，Ed Davis 2011 季与 Mbah a Moute 2009–2011 季需各补 PF 补丁——合并前按现有 bref 口径两人均不进本次位置清单。
+
+### R107：R106 遗留两处补完——旧键清零 + Davis/Mbah 拆分合并（Luna 提交）
+
+用户 2026-10-30 拍板“都按你推荐的去修补”，把 R106 末尾留的两处新发现一次清掉。动手前先全库扫了一遍：旧键不止 R106 点名的 3 个，隐藏属性表里还有一整批同类错键，一并按“能确证的改、不能确证的留”处理；所有改动先走带断言的脚本，前提不符就一字不写（实测拦住两处，见下）。
+
+1. **旧键（careerArc/nicknames/intangibles）。** 出生年表 3 处改键：hardeti01→hardeja01（哈登 1989）、leonard01→leonaka01（莱昂纳德 1991）、embiiijo01→embiijo01（恩比德 1994，多一个 i，是扫表新发现的）；昵称表 2 处删除：stephcu01、hardeti01（真名下已有相同昵称，纯冗余）；隐藏属性 5 张表 14 改 + 6 删：球权表哈登 24、科比 14（bryantko01 改 bryanko01），无球表 harruto01→harrito02，妖人表克劳德 11（crowdae01 改 crowdja01，另一错键 crowdda01 删）、费舍尔 10、康利 10、德拉季奇 9，高薪低能表怀斯曼 19、班巴 14，玻璃人表锡安 19（ballzi01 改 willizi01，注释点名锡安）、文班 15（两错键留一删一）、莱昂纳德 14、伊利亚索瓦 16、利文斯顿 11；冗余删除 6 处（roseede01、ginobili、yao01、bargoke01 均因真名下已有同值或已有条目，删后行为不变）。**断言拦住的两处**：第一版脚本把克劳德目标写成 crowdeja01、Tobias Harris 写成 harrito01，全库查证后纠正——克劳德真名是 crowdja01，harrito01 是 Tony Harris，Tobias 是 harrito02；脚本在写任何文件前就因断言失败停住，工作树分毫未动，改对后重跑才落地。**仍未动、留给以后定的 4 个**：billuro01、greenege02、smithja08、cityge01——对不上任何现役/退役球员，不猜。另有一处存疑：无球表 harruto01 按错键机理（u/i 相邻键一位之差）判给 Tobias Harris，但 Joe Harris（harrijo01）在主题上也 plausible，用户若觉得是 Joe 说一声就改。
+2. **拆分合并（roster.json + 照片引用 + 位置补丁）。** Ed Davis：davised02 的 2012 TOR 与 davised01 同季 13 项统计全同（仅 bref/位置/来源不同），删 talldata 行留 bref 行；2011 季改键并入，补 PF 补丁（rpg 7.1/bpg 1.0，分流规则给 PF）。Mbah a Moute：mbahlu01 的 2012 MIL 同样与 bref 行统计全同，删 talldata 行；2009–2011 三季改键并入，姓名统一到 2012 后形式“Luc Mbah a Moute”（slug lucmbahamoute），三季各补 PF 补丁。照片 wiki 与 photoCredits 里两处死 bref 均为与保留键共列/同 URL，直接删死键。全表 23450→23448 行；Davis 连成 2011–2022（12 季）、Mbah 连成 2009–2018（10 季）。
+3. **测试收紧与 schema。** R106 删掉技能表死键后，starSkills 测试里“老存档别名”豁免已无豁免对象，随手删掉（测试从此对错键零容忍）。新增 `tests/auditR107.test.js` 5 条（两组合并/赛季连续/位置/姓名、出生年表、昵称表、5 张隐藏属性表全量无死键）。schema 60→61，卡表快照重跑（23448 张）。全量 1113/1113（1108 + 5），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。
+
+### R108：1995 森林狼无控卫——Garland/Martin/Eisley 整生涯改回 PG（Luna 提交）
+
+用户在轮换屏发现 1995 森林狼一张 PG 卡都没有。核查：1995 MIN 全队 15 行确实只有 SG/SF/C；根因是老数据后卫只写 "G"、建表脚本一律归 SG（纳什 R104 同款），且三人都在 2012 换数据源前退役——Garland 1988–1995、Martin 1995–2008、Eisley 1995–2006，全是 talldata 单来源，R106 的跨源对照没有任何信号能抓到他们（R106 汇报把“全库”说满了，这个盲区当时没讲清楚，见本次用户追问）。修正：三人各加整生涯 blanket PG（现实里全是正牌控卫，与 R104 纳什三人同款处理）；同队 Smith、West、Rider 保持 SG 不动。新增 `tests/auditR108.test.js` 2 条；schema 61→62，卡表快照重跑（23448 张，行数未变）。全量 1115/1115（1113 + 2），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。
+
+### R109：交易次数上限取消 + 轮换屏美化（Luna 提交）
+
+用户在赛季模式里撞上“本赛季交易已达上限（5 次）”弹窗，问现实里是不是这样。不是：NBA 从来没有每赛季交易次数上限，只有交易截止日 + 薪资/名单规则（比如 2022–23 的爵士一个赛季就做了 6 笔以上的交易）。5 次上限是 R103 用户拍板时定的游戏平衡规则，不是现实规则——用户这次要求按现实改，于是整段删掉：`tradeWindowCheck` 只剩截止日一关；市场页“本赛季已交易 N/5 次”改成只显示已交易次数；`seasonTradeCount` 保留（只用于显示）；`TRADE_LIMIT_PER_SEASON` 常量删除。截止日（常规赛 70% 处关闭）、身价/薪资检查、CPU 报价预审一律不动。老存档无需迁移：上限是运行时检查，拉新代码刷新后当赛季就能继续交易。测试把原“5 次封顶、第六笔拒绝”改成“第六笔照常成交”。
+
+轮换屏（默认轮换 · 实验板）美化：功能与控件一律不动（首发勾选、位置/角色下拉、分钟输入、战术/持球人、三个按钮的选择器与行为全保留），只改视觉与排版：① 表头三项指标（目标分钟合计/首发适配/化学反应）从一行纯文本改成 pill 数据块；② 战术/持球人改成标签在上的工具栏，按钮组右对齐；③ 列表加吸顶列头（首发/球员/位置/角色/分钟），滚动时表头不跑；④ 每行加宽：位置下拉不再裁掉“（推荐）”，角色下拉不再贴边；⑤ 名字前的纯文本位置改成五色位置块（PG 青/SG 蓝/SF 黄/PF 橙/C 紫），首发勾选改成 pill，首发整行左侧加粗青色边 + 悬停阴影；⑥ 分钟输入后补“分钟”二字，不再是光秃秃的数字框；⑦ 窄屏（≤720px）沿用旧的两列折行，列头隐藏。样式只动轮换屏自己的新类，不动市场共用的 `.sm-cap-card` 基底。全量 1115/1115，lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。
+
+### R110：单来源嫌疑 sweep 落地——219 人位置修正（Luna 提交）
+
+R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球员从未被真实世界核对过。用户拍板后分 5 组并行、逐个对 Basketball-Reference 主位置核对：SG 嫌疑 185 人（某季助攻 5+）、SF 嫌疑 139 人（某季篮板 8+），合计 324 人；BRef 列在前面的位置即主位置，助攻/篮板数据本身不算控卫/大前证据。结果：219 人改位置、105 人不动。改 PG 125 人（含 9 人整生涯覆盖 + 个别赛季例外，如 Dennis Johnson 超音速 SG 赛季、Humphries 的 SG 赛季）、改 SF 2 人（Wilkerson、Kukoc 整生涯）、改 PF 87 人（含 15 人整生涯覆盖 + 例外赛季，如 Larry Johnson 尼克斯 SF 赛季、Charles Smith 快船/尼克斯 SF 赛季、Jay Vincent 1984 与 1987 起的 SF 赛季）、改 C 1 人（Lorenzen Wright，BRef 只有 Center）；另 4 人只有按赛季补丁无整生涯覆盖：Sprewell（勇士 SG→尼克斯/森林狼 SF）、Rose（掘金 SG→步行者等 SF，2004 多伦多 PG、2007 太阳 SF）、Finley（1996–2003 SF、之后 SG）、Maxwell（凯尔特人 1979–1985 七个 PF 赛季）。共 215 条整生涯覆盖 + 80 条按赛季补丁，全部进 `POS_OVERRIDES` / `POS_OVERRIDES_BY_SEASON`。
+
+落地前用断言脚本逐项验过：每个 bref 在库、每个补丁赛季在库、无与既有覆盖冲突、无第三方位置赛季（即整生涯覆盖不会改错本来就对的赛季）；唯一报错是 Lucas 的 1975 补丁——他的 ABA 1974-75 赛季根本不在库中（库内从 1977 起），补丁直接删掉、只留整生涯 PF。写盘后重跑断言，全部条目均已存在且值正确。另有两处 sweep 未定项由 Luna 直查定案：Johnny Davis → PG（维基 + StatMuse 对 Proballers 的 SG 说法）、Bobby Jones → PF（维基 + StatMuse + Fandom 对 RealGM 的 SF 说法；BRef 原页仍被小 Bobby Jones 的页面挡住未直接看到）。
+
+刻意不动的：C 倾向 5 人（Cage、Dele、Dale Davis、Warner、Lorenzo Williams）先给 PF 作前锋位修正——SF 肯定错、PF 至少对一半，C 赛季待完整赛季表再拆；Feick、Jaric 证据混杂不动；单赛季旗标（如 Hornacek 92-94 的 PG 赛季、Bob Harris 51-52 的 PF 赛季）不追，只动主位置；Haskins、Sobers 按“列前即主”规则留 SG（维基称 PG，是最可能翻案的两处）；Maravich 留 SG（StatMuse 的 3 个 PG 赛季不敌 BRef 标题）。新增 `tests/auditR110.test.js` 4 条（整生涯覆盖全季断言、覆盖 + 例外逐季断言、无覆盖拆分精确赛季断言、14 名确认不动者断言）；schema 62→63，卡表快照重跑（23448 张，行数未变）。全量 1119/1119（1115 + 4），lint 0 错误（仍保留 2 个和本轮无关的旧 warning）。

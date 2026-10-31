@@ -333,7 +333,6 @@ import {
   teamDraftAssets,
   tradeDeadlineDay,
   upcomingUserGames,
-  TRADE_LIMIT_PER_SEASON,
 } from "./engine/seasonMarket.js";
 import { recommendTradePackage } from "./engine/tradeBuilder.js";
 import {
@@ -8141,33 +8140,40 @@ function renderSeasonRotation() {
       const cap = staminaMinuteCap(p);
       const over = (p.targetMinutes || 0) > cap;
       const starter = starters.has(p.id);
+      const cardPos = normalizePos(p.playPos || p.pos);
       return `<div class="rot-row ${starter ? "starter" : ""} ${over ? "over-min" : ""}" data-id="${p.id}">
         <label class="rot-starter" title="默认首发"><input type="checkbox" class="rot-start-cb" ${
           starter ? "checked" : ""
         } />首发</label>
         <div class="rot-name">
-          <strong>${p.pos} ${p.name}</strong>
+          <div class="rot-name-line"><span class="rot-pos-chip pos-${cardPos.toLowerCase()}">${cardPos}</span><strong>${p.name}</strong></div>
           <div class="tiny">OVR ${overall(p)} · ${p.season} · ${staminaMinuteHint(p)}</div>
         </div>
         <select class="rot-pos" title="上场位置">${posOpts}</select>
         <select class="rot-role" title="角色">${roleOpts}</select>
-        <input class="rot-min" type="number" min="8" max="48" value="${p.targetMinutes ?? 24}" title="目标分钟" />
+        <label class="rot-min-wrap" title="目标分钟"><input class="rot-min" type="number" min="8" max="48" value="${p.targetMinutes ?? 24}" /><span>分钟</span></label>
       </div>`;
     })
     .join("");
 
   box.innerHTML = `
-    <div class="sm-cap-card">
-      <h4>默认轮换 · 实验板</h4>
+    <div class="sm-cap-card rot-card">
+      <div class="rot-card-head">
+        <h4>默认轮换 · 实验板</h4>
+        <div class="rot-stats">
+          <span class="rot-stat"><em>目标分钟合计</em><strong>${totalMin}</strong></span>
+          <span class="rot-stat"><em>首发适配</em><strong>${fit ?? "—"}</strong></span>
+          <span class="rot-stat"><em>化学反应</em><strong>${chem ?? "—"}</strong></span>
+        </div>
+      </div>
       <p class="tiny">设定首发、位置、角色、目标分钟与持球人；会在每场「亲自指挥」时自动套用。可反复改了再打，用来磨合。体能差的人不宜长期 35+ 分钟。</p>
-      <p>目标分钟合计 <strong>${totalMin}</strong> · 首发适配 ${fit ?? "—"} · 化学反应 ${chem ?? "—"}</p>
-      <div class="form-row wrap" style="margin-top:8px">
-        <label class="tiny">默认战术
+      <div class="rot-toolbar">
+        <label class="rot-field"><span>默认战术</span>
           <select id="rot-tactic">${tactics
             .map((t) => `<option value="${t.id}" ${t.id === tacticId ? "selected" : ""}>${esc(t.name)}</option>`)
             .join("")}</select>
         </label>
-        <label class="tiny">默认持球人
+        <label class="rot-field"><span>默认持球人</span>
           <select id="rot-focus">
             <option value="">（不指定）</option>
             ${sorted
@@ -8178,14 +8184,14 @@ function renderSeasonRotation() {
               .join("")}
           </select>
         </label>
-      </div>
-      <div class="btn-row" style="margin-top:8px">
-        <button type="button" class="btn small" id="btn-rot-suggest">按体能建议分钟</button>
-        <button type="button" class="btn small" id="btn-rot-top5">OVR 前五当首发</button>
-        <button type="button" class="btn primary small" id="btn-rot-save">保存默认轮换</button>
+        <span class="rot-actions">
+          <button type="button" class="btn small" id="btn-rot-suggest">按体能建议分钟</button>
+          <button type="button" class="btn small" id="btn-rot-top5">OVR 前五当首发</button>
+          <button type="button" class="btn primary small" id="btn-rot-save">保存默认轮换</button>
+        </span>
       </div>
     </div>
-    <div class="rot-list">${rows}</div>
+    <div class="rot-list"><div class="rot-head" aria-hidden="true"><span></span><span>球员</span><span>位置</span><span>角色</span><span>分钟</span></div>${rows}</div>
   `;
 
   box.querySelectorAll(".rot-row").forEach((row) => {
@@ -8510,7 +8516,7 @@ function renderSeasonMarket() {
     <section class="sm-trade">
       <h4>交易（多对多 · 可含选秀权 · 可选三方）</h4>
       <p class="tiny">勾选我方/对方要换的球员或未来选秀权，多选多。薪资/身价大致配平即可。选好想要的对方球员后点「推荐方案」自动配平。选了第三方就走三方循环：我方勾选 → 对手球队，对手勾选 → 第三方，第三方勾选 → 我方（三方暂不带选秀权）。</p>
-      <p class="tiny">交易窗口：${(() => { const d = tradeDeadlineDay(st); return d == null ? "本赛季无截止日" : `常规赛第 ${d} 天后关闭（当前第 ${st.dayIndex || 0} 天）`; })()} · 本赛季已交易 ${seasonTradeCount(st)}/${TRADE_LIMIT_PER_SEASON} 次（换签不计）。</p>
+      <p class="tiny">交易窗口：${(() => { const d = tradeDeadlineDay(st); return d == null ? "本赛季无截止日" : `常规赛第 ${d} 天后关闭（当前第 ${st.dayIndex || 0} 天）`; })()} · 本赛季已交易 ${seasonTradeCount(st)} 次（换签不计）。</p>
       <div class="form-row">
         <label>对手球队
           <select id="sm-trade-cpu">${cpuOpts}</select>

@@ -166,14 +166,12 @@ test("every skill table bref exists in the roster (catches typos like rodmak01 /
   const roster = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"));
   const rows = Array.isArray(roster) ? roster : Object.values(roster).find(Array.isArray);
   const known = new Set(rows.map((r) => r.bref));
-  // Deliberate legacy aliases kept for old saves
-  const aliases = new Set(["leonard01", "stephcu01", "hardeti01"]);
   const keys = [
     ...Object.keys(SIGNATURE_SKILLS),
     ...Object.keys(SEASON_SIGNATURE_SKILLS).map((key) => key.split(":")[0]),
     ...Object.keys(AURA_HOLDERS),
   ];
-  const missing = [...new Set(keys)].filter((bref) => !known.has(bref) && !aliases.has(bref));
+  const missing = [...new Set(keys)].filter((bref) => !known.has(bref));
   assert.deepEqual(missing, []);
 });
 

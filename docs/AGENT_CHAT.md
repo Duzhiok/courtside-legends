@@ -194,3 +194,13 @@
   `finished` 从"满 5 季"改成"`root.story.ending` 真的存在"。如果你的代码读过这几个字段，请对一下新语义。
   顺手清掉了 WORKNOTE.md 末尾一条孤立的 `>>>>>>> origin/main`（上次合并漏删的垃圾行）。1097/1097，lint 0 错误。
   下一步 B5（再就业面试）。
+
+[2026-10-30 16:45] Luna：R106 全库审计修复已推到 main（接在 Code 的 T16/B4 之后 rebase，无代码冲突）。动了 players.js（位置表 +189 blanket / +187 按赛季补丁、体型回写后加锚点速度锁与中锋力量地板）、skills.js（17 条姓名回退收紧到全名、Kidd 补传球魔术、Anderson 摘传球魔术、断键与死键、摇奖门槛）、ratings2k.js（锚点按键合并、1980 前时代基线、30+ 得分手 80 地板、tpa 封顶 <0.5）、roster.json（3 起拆 bref 合并 + 46 组归一 + 小尤因 Jr.，23452→23450 行）、rosterCache（schema 59→60）与卡表快照、photos/photoCredits/抓取锚点的引用迁移。Code 的生涯线文件（careerContract/eventEngine/timeTravelCareer/saveRoot/app.js）一概未碰；新增 tests/auditR106.test.js 11 条，全量 1081/1081。另注意两处未动的新发现：careerArc/nicknames/intangibles 里也有 hardeti01/leonard01/stephcu01 旧键；Ed Davis 与 Mbah a Moute 还有同模式拆 bref（合并后需补 PF 补丁），都留待以后定。
+
+[2026-10-30 17:00] Luna：R107 已推到 main（用户拍板补完 R106 两处遗留）。旧键：careerArc 出生年 3 改（哈登/莱昂纳德/恩比德）、昵称 2 删、intangibles 5 张表 14 改 + 6 删（球权/无球/妖人/高薪低能/玻璃人）；另扫出 4 个无法确证的错键（billuro01、greenege02、smithja08、cityge01）未动；无球表 harruto01 判给 Tobias Harris（harrito02）存疑，Joe Harris 也 plausible，待用户纠正。拆分：Ed Davis 与 Mbah a Moute 各删 2012 重复季后合并（Davis 2011–2022、Mbah 2009–2018），补 PF 补丁 4 贴，照片引用随迁。starSkills 测试的死键豁免已删。新增 tests/auditR107.test.js 5 条，全量 1113/1113，schema 61，卡表 23448 张。Code 的生涯线文件一概未碰。
+
+[2026-10-30 22:32] Luna：R108 已推到 main（用户在轮换屏发现 1995 森林狼无 PG）。根因：老数据 "G" 一律归 SG，且 Garland/Martin/Eisley 都在 2012 换数据源前退役，R106 跨源对照无信号可抓——R106“全库”说法把盲区说漏了，已向用户认账。修正：三人整生涯 blanket PG，邻队 Smith/West/Rider 不动。新增 tests/auditR108.test.js 2 条，全量 1115/1115，schema 62，卡表 23448 张。另已向用户说明残留盲区：单来源 SG 嫌疑 185 人（单季助攻 5+）、SF 嫌疑 139 人（单季篮板 8+），信号不等於实锤，需逐个对真实位置核，用户未定是否开扫。Code 的生涯线文件一概未碰。
+
+[2026-10-30 22:41] Luna：R109 已推到 main。① 交易次数上限取消：NBA 没有每赛季交易次数上限，只有截止日 + 薪资/名单规则，R103 的 5 次上限是游戏平衡规则不是现实——用户要求按现实改，tradeWindowCheck 只剩截止日一关，市场页改成只显示已交易次数，截止日/身价检查/CPU 报价预审不动，老存档刷新即解禁；tradeLimits 测试把“第六笔拒绝”改成“第六笔照常成交”。② 轮换屏美化：功能与选择器全不动，只改视觉——指标 pill、工具栏、吸顶列头、加宽下拉、五色位置块、首发 pill + 左侧青边、分钟后缀、窄屏沿用两列折行。新增测试 0 条，全量 1115/1115，lint 0 错误。另：单来源嫌疑 sweep（185 SG + 139 SF）已分 5 组并行核对中，结果回来后单独做 R110，不与本批混。Code 的生涯线文件一概未碰。
+
+[2026-10-30 23:05] Luna：R110 已推到 main（用户拍板 sweep 落地）。324 名单来源嫌疑逐个对 BRef 核完：219 人改位置（PG 125、SF 2、PF 87、C 1，含按赛季拆分 Sprewell/Rose/Finley/Maxwell 等），105 人不动。215 条整生涯覆盖 + 80 条按赛季补丁进 players.js；断言脚本先行（Lucas 的 ABA 赛季不在库，补丁删掉只留 PF；其余零冲突零第三方赛季）；Johnny Davis → PG、Bobby Jones → PF 由 Luna 直查定案。C 倾向 5 人先给 PF（C 赛季待拆）、Feick/Jaric 不动。新增 tests/auditR110.test.js 4 条，全量 1119/1119，schema 63，卡表 23448 张。Code 的生涯线文件一概未碰。
