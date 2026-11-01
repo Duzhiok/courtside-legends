@@ -1,0 +1,36 @@
+/* C1 post-game settlement card: sits on the light result screen, next to .result-explain. */
+.result-rewards { text-align: left; margin: 12px auto 0; max-width: 640px; }
+.pg-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--muted);
+  background: rgba(255, 255, 255, .7);
+}
+.pg-win { border-left-color: var(--good); }
+.pg-loss { border-left-color: var(--bad); }
+.pg-kicker { margin: 0; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: #4b5563; }
+.pg-verdict { margin: 2px 0 10px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.pg-verdict strong { font-size: 1.25rem; }
+.pg-verdict span, .pg-best { font-size: .85rem; color: #374151; }
+.pg-best { margin: 0 0 10px; }
+.pg-card h4 { margin: 0 0 6px; font-size: .9rem; }
+.pg-stars { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pg-star {
+  display: grid;
+  grid-template-columns: 1.6em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.pg-rank { font-family: var(--font-display); font-size: 1.2rem; color: var(--accent); text-align: center; }
+.pg-who { display: grid; min-width: 0; font-size: .82rem; }
+.pg-who strong { font-size: .92rem; overflow-wrap: anywhere; }
+.pg-who span { color: #374151; }
+/* "出场 5 场" must not break into "出场 / 5 场" on a phone. */
+.pg-nowrap { white-space: nowrap; }
+.pg-chip { font-size: .78rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--court); color: #fff; white-space: nowrap; }
+@media (max-width: 480px) { .pg-star { gap: 8px; padding: 6px 8px; } }

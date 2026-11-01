@@ -24,7 +24,7 @@ function pct(made, attempted) {
  * SCREEN "最佳表现" needs to match what the box score next to it actually shows, or it just
  * reads as a bug. So 最佳表现 ranks by the box score itself.
  */
-function gameScore(stats = {}) {
+export function gameScore(stats = {}) {
   const s = (k) => Number(stats[k]) || 0;
   return (
     s("pts") +
