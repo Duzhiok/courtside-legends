@@ -141,7 +141,7 @@ export const SKILL_EN = {
   teardrop: "Teardrop Master", dirk_fade: "One-Leg Dirk Fade", crossover: "Crossover Tai Chi",
   dame_time: "Dame Time", splash_spot: "Splash Spot-Up", coast_to_coast: "Coast to Coast",
   soft_touch: "Soft Touch", midrange_assassin: "Mid-Range Assassin", glove: "The Glove",
-  board_man: "Board Man", big_shot: "Mr. Big Shot",
+  board_man: "Board Man", big_shot: "Mr. Big Shot", rim_rush: "Rim Rush",
 };
 
 const SKILL_ZH_BY_ID = {
@@ -167,7 +167,7 @@ const SKILL_ZH_BY_ID = {
   chase_down_block: "追身定板", slowmo: "慢三步", fadeaway: "后仰杀手", euro_step: "迷踪步",
   stepback: "后撤步", teardrop: "抛投大师", dirk_fade: "金鸡独立", crossover: "变向太极",
   dame_time: "决胜时刻", splash_spot: "水花接投", coast_to_coast: "长驱直入", soft_touch: "柔顺手感",
-  midrange_assassin: "中投刺客", glove: "手套", board_man: "篮板狂魔", big_shot: "关键先生",
+  midrange_assassin: "中投刺客", glove: "手套", board_man: "篮板狂魔", big_shot: "关键先生", rim_rush: "冲框",
 };
 
 const SKILL_EN_BY_NAME = new Map(

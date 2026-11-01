@@ -8,7 +8,8 @@
 // Usage: [QA_VIEWPORT=desktop|mobile] node scripts/qa/career-growth.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
-import { CJK, homeActive, noOverflow, onResult, overflowers, shoot, unbroken } from "./lib/page.mjs";
+import { CJK, noOverflow, onResult, overflowers, shoot, unbroken } from "./lib/page.mjs";
+import { openCareer, playLive, resumeToHub } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/growth";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -18,17 +19,6 @@ const report = [];
 const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
 const browser = await chromium.launch({ executablePath: EXE });
 const COST = 1200; // GROWTH_XP_PER_LEVEL, read back from the app below and asserted equal
-
-/** Resume the saved career from the home screen and land on the season hub. */
-async function resumeToHub(page) {
-  await homeActive(page);
-  await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
-  await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 }).catch(async () => {
-    await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
-    await page.click("#btn-time-travel-continue");
-    await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 });
-  });
-}
 
 /** Re-arm every bar to 10 XP short of a level, so the next game reliably levels people up. */
 async function reseed(page) {
@@ -41,55 +31,11 @@ async function reseed(page) {
   await resumeToHub(page);
 }
 
-/** Hand-coach the pending game (autopilot for the breaks, a fake clock to fast-forward). True when it ended. */
-async function playLive(page, state) {
-  await page.click("#btn-season-play");
-  await page.waitForSelector("#screen-setup.active", { timeout: 10000 });
-  if (!state.clockInstalled) { await page.clock.install(); state.clockInstalled = true; }
-  await page.click("#btn-setup-confirm");
-  await page.waitForSelector("#screen-game.active", { timeout: 10000 });
-  for (const sel of ["#btn-auto-offense", "#btn-auto-defense"]) await page.click(sel);
-  for (let i = 0; i < 2; i++) await page.click("#btn-speed");
-  await page.click("#btn-pause-sim");
-  const resultUp = () => page.evaluate(() => document.querySelector("#screen-result")?.classList.contains("active"));
-  for (let i = 0; i < 60 && !(await resultUp()); i++) {
-    await page.clock.runFor(30_000);
-    const stopped = await page.evaluate(() => {
-      const btn = document.querySelector("#btn-pause-sim");
-      return btn && !btn.hidden && btn.textContent.trim() === "继续模拟"; // Chinese UI only: call this before switching language
-    });
-    if (stopped) await page.click("#btn-pause-sim");
-  }
-  return resultUp();
-}
-
 /** A real 1995 career, ledger seeded 10 XP short of a level for every player young enough to grow. */
-async function openCareer(page) {
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await homeActive(page);
-  await page.evaluate(async () => {
-    const ttc = await import("/js/modes/timeTravelCareer.js");
-    const sr = await import("/js/data/saveRoot.js");
-    const dev = await import("/js/modes/playerDevelopment.js");
-    const bal = await import("/js/career/balance.js");
-    const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7 });
-    // The intro decision ("how do you use what you know?") is answered, as a real player's first click would.
-    const root = ttc.resolveFutureKnowledgeChoice(ttc.acceptInterviewOffer(prologue, prologue.offers[1].id), "introduce-load-management");
-    const season = root.leagueCareer.season;
-    const growth = {};
-    for (const p of season.teams[season.userTeamId].players) {
-      if (p.bref && dev.resolvedAge(p) <= 32) growth[p.bref] = { year: season.year, xp: bal.GROWTH_XP_PER_LEVEL - 10, levels: 0, deltas: {} };
-    }
-    root.leagueCareer.management.growth = growth;
-    sr.writeRootSave(root, localStorage);
-  });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await homeActive(page);
+async function openGrowthCareer(page) {
+  await openCareer(page, BASE, { growth: true });
   const cost = await page.evaluate(async () => (await import("/js/career/balance.js")).GROWTH_XP_PER_LEVEL);
   check("the QA's level cost matches the app's", cost === COST, `${cost}`);
-  await resumeToHub(page);
 }
 
 /** What the SAVE says: the ledger and every attribute of every player on my roster, by display name. */
@@ -118,7 +64,7 @@ const section = (page) => page.evaluate(() => {
     };
   });
   const box = document.querySelector("#result-rewards");
-  return { title: box?.querySelector(".pg-growth-title")?.textContent.trim() || "", rows, all: (box?.textContent || "").replace(/\s+/g, " ") };
+  return { title: box?.querySelector(".pg-section-title")?.textContent.trim() || "", rows, all: (box?.textContent || "").replace(/\s+/g, " ") };
 });
 
 const earned = (entry) => (entry ? entry.xp + COST * entry.levels : 0);
@@ -183,7 +129,7 @@ for (const [width, height, tag] of VIEWPORTS) {
   const page = await browser.newPage({ viewport: { width, height } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await openCareer(page);
+  await openGrowthCareer(page);
   const backToHub = async () => {
     await page.click("#btn-result-continue");
     await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 });

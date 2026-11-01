@@ -1,10 +1,11 @@
 /**
  * Post-game settlement card (C1): one finished game, or one folded stretch of games.
  * Pure string builders over `career/gameRewards.js` reports -- no DOM, no state -- so they unit-test.
- * Reward sections slot in here as C2-C6 land (C2: player growth); a section whose data is empty
- * renders nothing, so the card only ever shows what really happened.
+ * Reward sections slot in here as C2-C6 land (C2: player growth, C3: epiphany); a section whose data is
+ * empty renders nothing, so the card only ever shows what really happened. Order is by how much it
+ * matters tonight: verdict, a new skill (rare), the stars, growth, then what is brewing.
  */
-import { teamNameL } from "../i18n.js";
+import { skillNameL, teamNameL } from "../i18n.js";
 import { esc, tr } from "./timeTravel/format.js";
 
 const one = (value) => (Math.round(value * 10) / 10).toFixed(1);
@@ -51,7 +52,56 @@ function growthHtml(entries, lang) {
       <span class="pg-bar" role="img" aria-label="${esc(`XP ${pct}%`)}"><i style="width:${pct}%"></i></span>
     </li>`;
   }).join("");
-  return `<h4 class="pg-growth-title">${esc(tr(lang, "球员成长", "Player growth"))}</h4><ul class="pg-stars pg-growth">${rows}</ul>`;
+  return `<h4 class="pg-section-title">${esc(tr(lang, "球员成长", "Player growth"))}</h4><ul class="pg-stars pg-growth">${rows}</ul>`;
+}
+
+/** What each streak rule counts, by language ("9+ assists"). */
+export const STREAK_UNITS = {
+  ast: ["助攻", "assists"], tpm: ["记三分", "threes"], pts: ["分", "points"], twoPm: ["记两分球", "two-pointers"],
+  reb: ["篮板", "rebounds"], blk: ["次盖帽", "blocks"], stl: ["次抢断", "steals"],
+};
+const streakText = (rule, games, lang) => {
+  const unit = (STREAK_UNITS[rule.stat] || [rule.stat, rule.stat])[lang === "en" ? 1 : 0];
+  return lang === "en" ? `${games} straight games with ${rule.min}+ ${unit}` : `连续 ${games} 场 ${rule.min}+ ${unit}`;
+};
+const LEARNED_ROWS = 4;
+const HEAT_ROWS = 3;
+
+/**
+ * Epiphany (C3): a skill someone just learned. Rare, so it is the one warm block on the card -- right
+ * under the verdict -- and says plainly why (the streak) and what (the skill).
+ */
+function epiphanyHtml(entries, lang) {
+  if (!entries?.length) return "";
+  const rows = entries.slice(0, LEARNED_ROWS).map((entry) => `<li class="pg-learn">
+      <span class="pg-who"><strong>${esc(entry.name)}</strong><span>${seg(streakText(entry.rule, entry.games, lang))}</span></span>
+      <span class="pg-skill">${esc(skillNameL(entry.skill, lang))}</span>
+    </li>`).join("");
+  const more = entries.length > LEARNED_ROWS
+    ? `<p class="pg-more">${esc(tr(lang, `还有 ${entries.length - LEARNED_ROWS} 位也领悟了新技能`, `${entries.length - LEARNED_ROWS} more also learned a skill`))}</p>` : "";
+  return `<section class="pg-epiphany" role="status">
+    <h4 class="pg-epiphany-title"><span aria-hidden="true">✦</span> ${esc(tr(lang, "领悟新技能", "New skill learned"))}</h4>
+    <ul class="pg-stars">${rows}</ul>${more}
+  </section>`;
+}
+
+/**
+ * Heating up (C3): who is one qualifying game from a shot at a new skill. Progress dots and ONE line of
+ * explanation; the skill itself stays a surprise, and nobody shows up who couldn't learn anything.
+ */
+function heatHtml(entries, lang) {
+  if (!entries?.length) return "";
+  const rows = entries.slice(0, HEAT_ROWS).map((entry) => {
+    const lit = Math.min(entry.games, entry.of);
+    const dots = Array.from({ length: entry.of }, (_, i) => `<i${i < lit ? ' class="on"' : ""}></i>`).join("");
+    return `<li class="pg-heat">
+      <span class="pg-who"><strong>${esc(entry.name)}</strong><span>${seg(streakText(entry.rule, entry.games, lang))}</span></span>
+      <span class="pg-dots" role="img" aria-label="${esc(`${lit}/${entry.of}`)}">${dots}</span>
+    </li>`;
+  }).join("");
+  return `<h4 class="pg-section-title">${esc(tr(lang, "手感正热", "Heating up"))}</h4>
+    <p class="pg-note">${esc(tr(lang, "再来一场达标，就有机会领悟新技能。", "One more qualifying game gives a shot at a new skill."))}</p>
+    <ul class="pg-stars">${rows}</ul>`;
 }
 
 function verdict(report, lang) {
@@ -77,8 +127,10 @@ export function postGameHtml(report, lang = "zh") {
   return `<div class="pg-card pg-${v.tone}">
     <p class="pg-kicker">${esc(tr(lang, "赛后结算", "Post-game"))}</p>
     <p class="pg-verdict"><strong>${esc(v.text)}</strong><span>${esc(tr(lang, `对阵 ${v.opp}`, `vs ${v.opp}`))}</span></p>
+    ${epiphanyHtml(report.rewards?.epiphanies, lang)}
     ${starsHtml(report.stars, lang)}
     ${growthHtml(report.rewards?.playerXp, lang)}
+    ${heatHtml(report.rewards?.heat, lang)}
   </div>`;
 }
 
@@ -102,7 +154,9 @@ export function batchHtml(batch, lang = "zh") {
     <p class="pg-kicker">${esc(tr(lang, "本段收获", "This stretch"))}</p>
     <p class="pg-verdict"><strong>${esc(tr(lang, `${batch.games} 场 · ${batch.wins} 胜 ${batch.losses} 负`, `${batch.games} games · ${batch.wins}-${batch.losses}`))}</strong><span>${esc(tr(lang, `净胜分 ${signed(batch.pointDiff)}`, `Point diff ${signed(batch.pointDiff)}`))}</span></p>
     ${bestLine}
+    ${epiphanyHtml(batch.epiphanies, lang)}
     ${leaders ? `<h4>${esc(tr(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}
     ${growthHtml(batch.growth, lang)}
+    ${heatHtml(batch.heat, lang)}
   </div>`;
 }

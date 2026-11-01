@@ -5,7 +5,7 @@
 import { careerPhase, estimateAge, PHASE_LABEL } from "../data/careerArc.js";
 import { clonePlayer, overall, PLAYERS } from "../data/players.js";
 import { playerPrice } from "../data/intangibles.js";
-import { pruneAgedSkills } from "../data/skills.js";
+import { MAX_SKILL_SLOTS, pruneAgedSkills } from "../data/skills.js";
 import { carriedDeltas } from "../career/playerGrowth.js";
 import { developmentModifier } from "../modes/playerDevelopment.js";
 
@@ -277,7 +277,9 @@ export function advancePlayerOneYear(player, { rng = Math.random } = {}) {
   for (const id of player.skills || []) {
     if (!merged.has(id)) merged.add(id);
   }
-  evolved.skills = [...merged].slice(0, 6);
+  // A card holds MAX_SKILL_SLOTS (this used to say 6: a full card silently lost its 7th skill every
+  // rollover, and an in-game epiphany is exactly the kind of skill that lands last).
+  evolved.skills = [...merged].slice(0, MAX_SKILL_SLOTS);
   pruneAgedSkills(evolved);
   evolved._developedFrom = player.season;
   evolved._developBeforeOvr = beforeOvr;

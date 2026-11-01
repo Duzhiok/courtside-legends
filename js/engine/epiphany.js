@@ -39,13 +39,16 @@ export function formLine(stats) {
   };
 }
 
+/** One game counts toward a streak: enough minutes AND the rule's stat line. */
+const qualifies = (game, rule) => game.min >= MIN_MINUTES && game[rule.stat] >= rule.min;
+
 /** Rule with the strongest current streak, or null. */
 export function hotStreak(form) {
   const recent = (form || []).slice(-STREAK);
   if (recent.length < STREAK || recent.some((game) => game.min < MIN_MINUTES)) return null;
   let best = null;
   for (const rule of EPIPHANY_RULES) {
-    if (!recent.every((game) => game[rule.stat] >= rule.min)) continue;
+    if (!recent.every((game) => qualifies(game, rule))) continue;
     const strength = recent.reduce((sum, game) => sum + game[rule.stat] / rule.min, 0);
     if (!best || strength > best.strength) best = { rule, strength };
   }
@@ -54,6 +57,32 @@ export function hotStreak(form) {
 
 function learnableFrom(rule, player, owned) {
   return rule.skills.filter((id) => SKILL_PACKS[id] && isLearnableSkill(id) && !owned.has(id) && canRetainSkill(player, id));
+}
+
+/** Consecutive qualifying games at the END of the form, for one rule. */
+function trailingGames(form, rule) {
+  let games = 0;
+  for (let i = form.length - 1; i >= 0 && qualifies(form[i], rule); i -= 1) games += 1;
+  return games;
+}
+
+/**
+ * "Heating up": one qualifying game short of a roll (or already rolling). Only when a roll could
+ * actually END in a skill -- under the cap and with something left to learn -- so the card never
+ * promises what can't happen. Returns { rule, games } or null; the skill itself stays a surprise.
+ */
+export function heatHint(mod, player) {
+  if ((mod?.epiphany || []).length >= MAX_EPIPHANY) return null;
+  const form = mod?.form || [];
+  const owned = new Set([...(player?.skills || []), ...(mod?.skills || [])]);
+  let best = null;
+  for (const rule of EPIPHANY_RULES) {
+    const games = trailingGames(form, rule);
+    if (games < STREAK - 1 || !learnableFrom(rule, player, owned).length) continue;
+    const strength = form.slice(-games).reduce((sum, game) => sum + game[rule.stat] / rule.min, 0);
+    if (!best || games > best.games || (games === best.games && strength > best.strength)) best = { rule, games, strength };
+  }
+  return best && { rule: best.rule, games: best.games };
 }
 
 /**

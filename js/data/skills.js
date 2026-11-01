@@ -2198,10 +2198,14 @@ export function grantSkillToPlayer(player, skillId) {
   return true;
 }
 
-/** 非组合技技能位占用数（上限约 7） */
+/** 非组合技技能位占用数 */
 export function nonDuoSkillCount(player) {
   return (player?.skills || []).filter((id) => !SKILL_PACKS[id]?.duo).length;
 }
+
+/** A card holds at most this many non-duo skills; past it a new one has to replace an old one. */
+export const MAX_SKILL_SLOTS = 7;
+export const skillSlotsFull = (player) => nonDuoSkillCount(player) >= MAX_SKILL_SLOTS;
 
 /** 可卸下的技能：组合技除外，且必须是用技能碎片买来装上的。
  * 球员自带的签名技/领悟技/随机获得的不列在内——不过是不能卸，列出来让人点了再被拒绝没意义。 */

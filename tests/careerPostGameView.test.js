@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { foldBatch, settleGame } from "../js/career/gameRewards.js";
+import { SKILL_PACKS } from "../js/data/skills.js";
+import { skillNameL } from "../js/i18n.js";
+import { EPIPHANY_RULES } from "../js/engine/epiphany.js";
 import { FOCUS_ATTRIBUTES } from "../js/modes/playerDevelopment.js";
-import { ATTRIBUTE_LABELS, batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
+import { ATTRIBUTE_LABELS, STREAK_UNITS, batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
 
 const CJK = /[\u3400-\u9fff]/;
 const visible = (html) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
@@ -180,4 +183,108 @@ test("growth: a stretch card folds the same section, with merged level-ups and s
   assert.match(visible(html), /球员成长/);
   assert.match(visible(html), /Nikola Jokic\+120 XP · 升级 三分 60→62/);
   assert.doesNotMatch(batchHtml(foldBatch([settleGame(snap(), "home"), settleGame(snap(), "home")]), "zh"), /球员成长/, "no growth data, no section");
+});
+
+// ---------------------------------------------------------------- C3: epiphany + heating up
+const rule = (id = "playmaker", stat = "ast", min = 9) => ({ id, stat, min });
+const learned = (id, name, skill = "传球魔术", over = {}) => ({ id, name, skillId: "dime_dropper", skill, rule: rule(), games: 3, ...over });
+const heat = (id, name, games = 2, over = {}) => ({ id, name, rule: rule(), games, of: 3, ...over });
+const withRewards = (rewards, side = "home") => {
+  const report = settleGame(snap(), side);
+  report.rewards = { ...report.rewards, ...rewards };
+  return report;
+};
+
+test("epiphany: names who, which skill and why; a card with nothing to say has no section", () => {
+  const html = postGameHtml(withRewards({ epiphanies: [learned("a", "Nikola Jokic")] }), "zh");
+  assert.match(html, /pg-epiphany/);
+  assert.match(visible(html), /领悟新技能 Nikola Jokic ?连续 3 场 9\+ 助攻 传球魔术/);
+  assert.doesNotMatch(postGameHtml(settleGame(snap(), "home"), "zh"), /pg-epiphany|手感正热/);
+});
+
+test("epiphany: it is the first thing under the verdict, ahead of the stars; heating up comes last", () => {
+  const html = postGameHtml(withRewards({
+    epiphanies: [learned("a", "Nikola Jokic")],
+    playerXp: [{ id: "a", name: "Nikola Jokic", xp: 40, progress: 0.4, leveled: [], capped: false }],
+    heat: [heat("b", "Jamal Murray")],
+  }), "zh");
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at("pg-verdict") < at("pg-epiphany") && at("pg-epiphany") < at("本场最佳") && at("本场最佳") < at("球员成长") && at("球员成长") < at("手感正热"), "verdict > epiphany > stars > growth > heat");
+});
+
+test("epiphany: English card is English (skill name included)", () => {
+  const html = postGameHtml(withRewards({ epiphanies: [learned("a", "Nikola Jokic")], heat: [heat("b", "Jamal Murray")] }), "en");
+  assert.doesNotMatch(visible(html), CJK, visible(html));
+  assert.match(visible(html), /New skill learned Nikola Jokic ?3 straight games with 9\+ assists/);
+  assert.match(visible(html), /Heating up/);
+});
+
+test("epiphany: every streak rule has a unit in both languages, and every skill it can teach has an English name", () => {
+  for (const r of EPIPHANY_RULES) {
+    assert.ok(STREAK_UNITS[r.stat], `unit for ${r.stat}`);
+    assert.ok(STREAK_UNITS[r.stat].every((unit) => unit && unit.trim()));
+    for (const id of r.skills) {
+      const zh = SKILL_PACKS[id]?.name;
+      if (!zh) continue;
+      assert.doesNotMatch(skillNameL(zh, "en"), CJK, `${id} (${zh}) has no English name`);
+    }
+  }
+});
+
+test("epiphany: at most four rows, the rest are counted, not hidden", () => {
+  const many = ["a", "b", "c", "d", "e", "f"].map((id) => learned(id, `Player ${id}`));
+  const html = postGameHtml(withRewards({ epiphanies: many }), "zh");
+  assert.equal((html.match(/class="pg-learn"/g) || []).length, 4);
+  assert.match(visible(html), /还有 2 位也领悟了新技能/);
+  assert.doesNotMatch(visible(postGameHtml(withRewards({ epiphanies: many.slice(0, 4) }), "zh")), /还有/);
+});
+
+test("heating up: progress dots, one explanation line, never the skill itself", () => {
+  const html = postGameHtml(withRewards({ heat: [heat("b", "Jamal Murray", 2), heat("c", "Aaron Gordon", 3, { rule: rule("rebounder", "reb", 12) })] }), "zh");
+  assert.match(visible(html), /手感正热 再来一场达标，就有机会领悟新技能。/);
+  assert.equal((html.match(/pg-dots/g) || []).length, 2);
+  assert.match(html, /aria-label="2\/3"/);
+  assert.match(html, /aria-label="3\/3"/);
+  assert.equal((html.match(/<i class="on">/g) || []).length, 5, "2 + 3 lit dots");
+  assert.equal((html.match(/<i>/g) || []).length, 1, "and one dark one");
+  assert.match(visible(html), /连续 3 场 12\+ 篮板/);
+  assert.doesNotMatch(html, /传球魔术|dime_dropper/, "the skill stays a surprise");
+});
+
+test("heating up: a streak longer than a full set never overflows the dots, and at most three rows show", () => {
+  const html = postGameHtml(withRewards({ heat: ["a", "b", "c", "d"].map((id) => heat(id, `P ${id}`, 5)) }), "zh");
+  assert.equal((html.match(/class="pg-heat"/g) || []).length, 3);
+  assert.equal((html.match(/<i class="on">/g) || []).length, 9, "3 rows x 3 dots, never more");
+  assert.match(visible(html), /连续 5 场/);
+  assert.doesNotMatch(html, /aria-label="5\/3"/);
+  assert.equal((html.match(/aria-label="3\/3"/g) || []).length, 3, "the spoken progress is capped too, not just the dots");
+});
+
+test("heating up rows are their own thing: they never count as growth rows (and vice versa)", () => {
+  const html = postGameHtml(withRewards({
+    playerXp: [{ id: "a", name: "Nikola Jokic", xp: 40, progress: 0.4, leveled: [], capped: false }],
+    heat: [heat("b", "Jamal Murray")],
+  }), "zh");
+  assert.equal((html.match(/class="pg-grow"/g) || []).length, 1, "one growth row");
+  assert.equal((html.match(/class="pg-heat"/g) || []).length, 1, "one heat row");
+});
+
+test("epiphany + heat: names are escaped and a figure with its unit never splits across lines", () => {
+  const html = postGameHtml(withRewards({ epiphanies: [learned("a", "<img src=x onerror=alert(1)>")], heat: [heat("b", "<b>Evil</b>")] }), "zh");
+  assert.doesNotMatch(html, /<img src=x|<b>Evil/);
+  assert.match(html, /&lt;img/);
+  assert.match(html, /<span class="pg-nowrap">连续 3 场 9\+ 助攻<\/span>/);
+});
+
+test("a stretch card shows every epiphany of the stretch and the final heat, in either language", () => {
+  const report = (rewards) => withRewards(rewards);
+  const batch = foldBatch([
+    report({ epiphanies: [learned("a", "Nikola Jokic")], heat: [heat("x", "Gone Cold")] }),
+    report({ epiphanies: [learned("b", "Jamal Murray", "三分雨", { rule: rule("shooter", "tpm", 4) })], heat: [heat("c", "Aaron Gordon")] }),
+  ]);
+  const zh = visible(batchHtml(batch, "zh"));
+  assert.match(zh, /领悟新技能 Nikola Jokic[\s\S]*Jamal Murray ?连续 3 场 4\+ 记三分 三分雨/);
+  assert.match(zh, /手感正热 再来一场达标，就有机会领悟新技能。 Aaron Gordon/);
+  assert.doesNotMatch(zh, /Gone Cold/, "last game's heat only");
+  assert.doesNotMatch(visible(batchHtml(batch, "en")), CJK);
 });

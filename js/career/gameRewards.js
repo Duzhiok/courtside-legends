@@ -15,7 +15,7 @@ import { gameScore } from "../engine/matchExplain.js";
 export const STAR_COUNT = 3;
 
 /** The reward slots later steps fill. Rendering skips any that are empty. */
-export const emptyRewards = () => ({ playerXp: [], highlights: [], insights: [], coachXp: null, goal: null });
+export const emptyRewards = () => ({ playerXp: [], epiphanies: [], heat: [], highlights: [], insights: [], coachXp: null, goal: null });
 
 const num = (value) => Number(value) || 0;
 const line = (player) => {
@@ -32,6 +32,9 @@ const line = (player) => {
     stl: num(s.stl),
     blk: num(s.blk),
     tov: num(s.tov),
+    // Not shown on the card; the epiphany streak rules count threes and twos.
+    fgm: num(s.fgm),
+    tpm: num(s.tpm),
     score: Math.round(gameScore(s) * 10) / 10,
   };
 };
@@ -85,12 +88,15 @@ export function settleGame(snap, youSide) {
  */
 export function foldBatch(reports) {
   const games = (reports || []).filter(Boolean);
-  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [] };
+  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [] };
   const byPlayer = new Map();
   const growthBy = new Map();
   for (const report of games) {
     if (!report.tied) out[report.won ? "wins" : "losses"] += 1;
     out.pointDiff += report.margin;
+    // Every epiphany of the stretch counts; "heating up" is only meaningful as of the LAST game.
+    out.epiphanies.push(...(report.rewards?.epiphanies || []));
+    out.heat = report.rewards?.heat || [];
     for (const entry of report.rewards?.playerXp || []) {
       const acc = growthBy.get(entry.id) || { id: entry.id, name: entry.name, xp: 0, leveled: new Map() };
       acc.xp += entry.xp;

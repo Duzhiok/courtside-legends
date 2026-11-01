@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
 import {
   GROWTH_CARRYOVER, GROWTH_CEILING_SLACK, GROWTH_XP_PER_LEVEL,
 } from "../js/career/balance.js";
 import { foldBatch, settleGame } from "../js/career/gameRewards.js";
 import { validGrowth } from "../js/career/growthShape.js";
 import { ageRow, attributeCeiling, awardGrowth, carriedDeltas, gameXp, trainedAttributes } from "../js/career/playerGrowth.js";
-import { seasonToCard } from "../js/data/players.js";
 import { developLeagueRosters, historicalLadder } from "../js/engine/develop.js";
-import { GameSim } from "../js/engine/sim.js";
+import { installRealCards, realGame, realTeam } from "./helpers/realGame.js";
 
 const YEAR = 2030;
 const card = (id, over = {}) => ({
@@ -279,21 +277,12 @@ test("foldBatch sums a stretch's XP and merges level-ups of the same attribute",
 });
 
 // ---------------------------------------------------------------- real engine, real career curves
-const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
-const realTeam = (code, season) => ({
-  name: code,
-  players: ROWS.filter((r) => r.team === code && r.season === season).map(seasonToCard).sort((a, b) => (b.ovr || 0) - (a.ovr || 0)).slice(0, 10),
-});
-function realGame(home, away, youSide = "home") {
-  let end = null;
-  const sim = new GameSim({ home, away, youSide, injuries: false, speed: 3, onEvent: () => {}, onTick: () => {}, onEnd: (s) => { end = s; } });
-  return sim.runFast() || end || sim.snapshot();
-}
-
 test("REAL engine: a full season of real games levels players within every cap and real ceiling", () => {
   const rival = realTeam("BOS", 2023);
   const myTeam = realTeam("DEN", 2023);
   assert.ok(myTeam.players.length >= 8 && rival.players.length >= 8, "real rosters loaded");
+  installRealCards(...myTeam.players.map((p) => p.bref)); // real career curves: the ceilings below are real ones
+  assert.ok(historicalLadder(myTeam.players[0].bref).length > 1, "his real career is loaded");
   const roster = structuredClone(myTeam.players);
   const base = new Map(roster.map((p) => [p.id, structuredClone(p)]));
   let growth = {};

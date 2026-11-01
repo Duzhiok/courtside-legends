@@ -734,6 +734,22 @@ test("C2: the growth ledger round-trips; saves from before it still load; a malf
   }
 });
 
+test("C3: the epiphany ledger round-trips; saves from before it still load; a malformed one is refused", () => {
+  const base = { draft: null, draftHistory: [], seasonHistory: [] };
+  const gameLine = { min: 30, pts: 12, reb: 4, ast: 11, stl: 1, blk: 0, tpm: 1, twoPm: 4 };
+  const ledger = { kiddja01: { form: [gameLine, gameLine], learned: ["dime_dropper"] } };
+  const withLedger = managedRoot({ ...base, epiphany: ledger });
+  assert.deepEqual(importRootSave(exportEnvelope(withLedger)), withLedger);
+  const old = managedRoot(base); // no `epiphany` key at all: every save written before C3
+  assert.deepEqual(importRootSave(exportEnvelope(old)), old);
+  assert.ok(importRootSave(exportEnvelope(managedRoot({ ...base, epiphany: {} }))));
+
+  const entry = (over) => ({ kiddja01: { form: [], learned: [], ...over } });
+  for (const bad of [[], "x", null, { a: null }, entry({ form: "no" }), entry({ form: [{ ...gameLine, ast: -1 }] }), entry({ form: [null] }), entry({ learned: "thief" }), entry({ learned: [3] }), entry({ learned: ["thief", "thief"] })]) {
+    assert.throws(() => importRootSave(exportEnvelope(managedRoot({ ...base, epiphany: bad }))), /invalid save file/, JSON.stringify(bad));
+  }
+});
+
 test("malformed managed saves do not change storage", () => {
   const stored = createRootState({ savedAt: 91 });
   const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: JSON.stringify(stored) });

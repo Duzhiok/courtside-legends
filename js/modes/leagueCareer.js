@@ -13,6 +13,7 @@ import {
   reconcileDevelopmentPlans,
   validateDevelopmentPlans,
 } from "./playerDevelopment.js";
+import { rolloverEpiphany } from "../career/seasonEpiphany.js";
 
 const CAREER_KINDS = new Set(["franchise", "timeTravel"]);
 const SEASON_PROGRESS_MODES = new Set(["season", "franchise", "timeTravel"]);
@@ -459,6 +460,8 @@ export function completeCareerOffseason(career) {
   }
   // This season's growth is now baked into next year's cards (the carried share); start clean.
   working.management.growth = {};
+  // What a player LEARNED stays on his card (advancePlayerOneYear carries skills over); every streak starts over.
+  working.management.epiphany = rolloverEpiphany(working.management.epiphany);
   const pruned = pruneDevelopmentPlans(working);
   return {
     result,

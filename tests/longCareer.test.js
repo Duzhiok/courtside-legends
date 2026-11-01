@@ -801,3 +801,17 @@ test("C2: the offseason carries half of the season's in-game growth into next ye
   assert.deepEqual(grownDone.management.growth, {}, "the new season starts with a clean ledger");
   assert.deepEqual(plainDone.management.growth, {}, "and a career that never earned XP is unaffected");
 });
+
+test("C3: the offseason forgets every streak but remembers what a player learned", () => {
+  const plain = finishDraft(prepareCareerOffseason(managedCareer()));
+  const line = { min: 30, pts: 12, reb: 4, ast: 11, stl: 1, blk: 0, tpm: 1, twoPm: 4 };
+  const brewing = structuredClone(plain);
+  brewing.management.epiphany = {
+    "B-1": { form: [line, line], learned: ["dime_dropper"] }, // learned one this year and is on a new streak
+    "C-2": { form: [line, line], learned: [] }, // a streak and nothing else: gone
+  };
+
+  const done = completeCareerOffseason(brewing).career;
+  assert.deepEqual(done.management.epiphany, { "B-1": { form: [], learned: ["dime_dropper"] } });
+  assert.deepEqual(completeCareerOffseason(plain).career.management.epiphany, {}, "and a career that never had one is unaffected");
+});

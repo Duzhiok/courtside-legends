@@ -149,7 +149,7 @@ import {
 import {
   grantSkillToPlayer,
   markPurchasedSkill,
-  nonDuoSkillCount,
+  skillSlotsFull,
   purchasedSkillsRefund,
   removableSkills,
   removeSkillFromPlayer,
@@ -262,6 +262,7 @@ import {
 import { summarizeMatchResult } from "./engine/matchExplain.js";
 import { foldBatch, settleGame } from "./career/gameRewards.js";
 import { awardGrowth } from "./career/playerGrowth.js";
+import { awardEpiphany } from "./career/seasonEpiphany.js";
 import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
 import {
   advanceCareerOffseason,
@@ -3354,7 +3355,7 @@ function paintSkillShopRoot({ shop: skillBox, inv: invBox, hint }, c) {
         const opts = roster
           .map((p) => {
             const have = (p.skills || []).includes(owned.id);
-            const full = nonDuoSkillCount(p) >= 7;
+            const full = skillSlotsFull(p);
             const disabled = have || !roster.length;
             const tag = have ? " · 已有" : full ? " · 已满可替换" : "";
             const seasonBit = p.season ? ` ${p.season}` : "";
@@ -3627,7 +3628,7 @@ function installInventorySkill(invIndex, playerId, dropSkillId = null) {
     return;
   }
   let dropId = dropSkillId;
-  if (nonDuoSkillCount(player) >= 7) {
+  if (skillSlotsFull(player)) {
     if (!dropId) {
       const list = removableSkills(player)
         .map((id, i) => `${i + 1}. ${SKILL_PACKS[id]?.name || id}`)
@@ -9506,10 +9507,27 @@ function awardGameGrowth(report) {
   report.rewards.playerXp = result.entries;
 }
 
-/** Settle a finished game from the user's side and pay its XP. */
+/**
+ * C3: after a game, who has a hot streak going and who just had an epiphany. A learned skill goes
+ * straight onto the live player (the next game plays with it); the streak ledger rides on the career.
+ * Same rules as `awardGameGrowth`: managed careers only, once per game, at the moment it ends.
+ */
+function awardGameEpiphany(report) {
+  const career = state.leagueCareer;
+  const st = state.season;
+  if (!report || !st || !isManagedCareer(career)) return;
+  const players = st.teams[st.userTeamId]?.players || [];
+  const result = awardEpiphany({ ledger: career.management?.epiphany, players, lines: report.lines });
+  state.leagueCareer = { ...career, management: { ...career.management, epiphany: result.ledger } };
+  report.rewards.epiphanies = result.learned;
+  report.rewards.heat = result.heat;
+}
+
+/** Settle a finished game from the user's side and pay its XP and any epiphany. */
 function settleUserGame(snap, side) {
   const report = settleGame(snap, side);
   awardGameGrowth(report);
+  awardGameEpiphany(report);
   return report;
 }
 

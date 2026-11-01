@@ -269,6 +269,19 @@ test("R59 skill shop offers localize name and desc in EN", async () => {
   }
 });
 
+test("every skill has an English name and description (all of them, not a random draw of six)", async () => {
+  // The random test above only fails when the draw happens to include the one skill nobody translated.
+  const { SKILL_PACKS } = await import("../js/data/skills.js");
+  const { SKILL_EN, skillNameL } = await import("../js/i18n.js");
+  const missing = [];
+  for (const pack of Object.values(SKILL_PACKS)) {
+    if (!SKILL_EN[pack.id]) missing.push(`${pack.id}: no SKILL_EN entry`);
+    if (hasCJK(skillNameL(pack.name, "en"))) missing.push(`${pack.id}: English name is still "${skillNameL(pack.name, "en")}"`);
+    if (!pack.duo && (!pack.descEn || hasCJK(pack.descEn))) missing.push(`${pack.id}: no English description`);
+  }
+  assert.deepEqual(missing, []);
+});
+
 test("R59 career timeline prose: trade and hire descriptions have EN forms", async () => {
   const { transactionDescription } = await import("../js/modes/leagueCareer.js");
   const trade = {

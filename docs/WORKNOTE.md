@@ -2067,3 +2067,39 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 - 默认队名「拉斯维加斯 \*\*\*」的 `**` 短标签（R115 提过）仍是老问题。
 
 **验证**：全量 **1285/1285**（R116 后 +34）；lint 0 错误（2 条旧 warning）；`git diff --check` 通过；浏览器 QA：`career-growth` 106（跑了两遍，无偶发）、`career-postgame` 82、`career-retire` 150、`career-poach` 86、`career-reemployment` 54、`career-contract` 42、`career-finance` 32、`playoff-manual-play` 30、`coach-origins` 26、`season-sim-continue` 24、`roster-evaluation` 22、`season-resume` 20、`court-panel-height` 8——合计 **682 项**全绿。QA 小工具抽到 `scripts/qa/lib/page.mjs`（`career-postgame` 也改用它，去掉一份重复）。
+
+
+### R118：C3 赛季/穿越比赛接入「领悟新技能」+「手感正热」（阶段 C 第三步）
+
+**做了什么**：把排位赛早就有的 `js/engine/epiphany.js`（连续 3 场达标 + 一次掷骰 + 每人上限）接进托管生涯的每场结算。球员连续打出同一类表现，有机会**领悟一个对口技能，直接挂到他的球员卡上，下一场就用**。赛后卡片多两块：「✦ 领悟新技能」（谁、连续几场什么数据、学了什么）和「手感正热」（差一场的人，圆点进度，**不说会学什么，悬念留着**）。
+
+**规则一条没另写**：判定全在 `epiphany.js`——`STREAK=3`、`MIN_MINUTES=18`、`EPIPHANY_CHANCE=0.5`、`MAX_EPIPHANY=2`、技能只从对口家族里抽、身高/专属/已有技能的门槛照旧。本轮只在 `epiphany.js` 里抽出 `qualifies`、加 `heatHint(mod, player)`（「再来一场就有机会」，且**只在真能学到东西时**才提示：没到上限、家族里还有可学技能）。
+
+**数据**：账本 `management.epiphany = { [bref]: { form, learned } }`。`form` 是最多 5 场的滚动窗口（不存逐场日志），`learned` 是已领悟技能 ID（每人上限就数它）。**换季**：技能已经在球员卡上，`advancePlayerOneYear` 会带过去，所以账本只留 `learned`、清空 `form`（连胜是赛季内的事），离队球员也只留已学的。`growthShape.validEpiphany` 接进存档校验，**缺这个字段的旧存档仍合法**，畸形（负数、空 ID、同一技能两次）一律拒读。
+
+**同时修的一个老洞：技能位上限。** 「技能位上限」原来只是 `skills.js` 里一句注释（「上限约 7」），**没有常量**；而换季 `advancePlayerOneYear` 里写死的是 `slice(0, 6)`——**第 7 个技能会在换季时被悄悄砍掉**，领悟刚拿到的技能就可能这样丢。新增 `MAX_SKILL_SLOTS = 7`（`skills.js`，附 `skillSlotsFull`），换季和领悟都用它；满 7 个的球员不再参与领悟、也不再被提示。
+
+**接线**：`js/career/seasonEpiphany.js`（纯函数 `settleEpiphany` / `rolloverEpiphany`，再加唯一一个会动球员卡的 `awardEpiphany`）→ `js/app.js` 的 `settleUserGame()` 里和成长（C2）一起结算，5 个调用点自动覆盖；`gameRewards` 的 lines 补上 `fgm`/`tpm`（规则要数「内线命中 / 三分」）；批量卡合并整段的领悟、手感只取最后一场。赛后卡片顺序：结论 → 新领悟 → 本场最佳 → 球员成长 → 手感正热。
+
+**测试与 QA**
+- 单元：`seasonEpiphany.test.js` 25 条（连续 3 场领悟、掷失败保留连胜、分钟/数据不足/缺阵都断连胜、满技能位不提示、每人上限、离队只留已学、不改入参、窗口最多 5 场、换季、真球员换季保留 7 技能、真比赛跑整季、`awardEpiphany` 挂失败的撤回）；视图 10 条（顺序、中英文、转义、「数字+单位」不拆行、领悟最多 4 行 + 「还有 N 位」、手感最多 3 行、圆点不溢出）；`saveRoot` / `longCareer` 各加 1 条（往返 + 旧存档 + 畸形 / 换季忘连胜记已学）。新增 `tests/helpers/realGame.js`（真名册 + 真 `GameSim`）。
+- 浏览器：新 `scripts/qa/career-epiphany.mjs`（桌面+手机共 247 项）。真引擎造 1995 生涯，用真按钮走：模拟一场、模拟一周、整个赛季、亲自指挥、回看旧比赛、刷新读档、英文、减弱动画。**每一句话都对账存档**：「学会了」的技能必须真的出现在那名球员身上、在账本里、不算「购买」；手感的「连续 N 场」必须等于账本里真实的连续场数；**整队技能变化 == 卡片宣布的数量**；每场只结算一次（窗口恰好 +1）。真实阈值凑不齐，所以用**同一份应用代码** + 路由拦截一个放宽版 `epiphany.js`（每条规则「1+」、1 分钟、必中）验证管线；真实阈值也单独跑了一遍（它真的出过领悟，说明真阈值下管线是通的）。
+- 变异：单元 25/25、浏览器 6/6 全抓（结算被摘、一场结算两遍、技能没挂上、被登记成「购买」、小标题间距被盖掉、动画不收尾）。
+
+**这轮踩的坑**
+1. **同一个类名给两种行，选择器就串了**。「手感」行最初复用 `.pg-grow`，C2 的成长 QA 用 `.pg-grow` 数行，于是把手感行也数成成长行（7 行）。是 C2 的老 QA 红了才发现的。手感行改 `.pg-heat`（和成长共用同一条样式），补一条视图测试钉死。
+2. **测试没走到被测的分支，却绿着**。「换季保留 7 个技能」的真卡测试，我把 `slice(0,6)` 改回去它**照样绿**——Node 里 `PLAYERS` 是空的，`historicalLadder` 返回空，`advancePlayerOneYear` 走的是「无后续史实赛季」兜底分支，根本没碰那行。变异检查才揪出来。新增夹具 `installRealCards(...brefs)`，测试里还要**断言走的是 `史实` 分支**，让测试自己证明自己不空。**C2 那条「real ceiling」测试有同样问题**（天花板一直是 99 兜底），一并修了，修完没暴露新毛病。
+3. **登记了却没挂上，会把整个生涯卡死**。变异「技能没挂到球员身上」让 QA 卡在「模拟整个赛季」：技能不在卡上，同一技能被反复领悟，账本里出现重复 ID，存档校验拒绝，保存抛错，进度条永远不消失。真实代码里 `grantSkillToPlayer` 万一返回 false（球员没找到、技能位满）也是同一个结局。修法：`awardEpiphany` 只记录、只宣布**真的挂上了**的技能，挂不上的从账本撤回（`retractLearned`），`grant` 可注入，测试里真的模拟「永远挂失败」40 场，账本始终合法、无重复。
+4. **一次卡死不该让整份 QA 报告消失**。变异让结果页永远不出现，脚本崩了，一行报告都没有。现在整个视口体包进 try/catch，异常变成一行红，「模拟整个赛季」的等待也改成一条检查。
+5. **QA 断言要区分单场卡和批量卡**。「领悟后连胜窗口清空」「领悟后不再发热」只对**单场**成立；批量里他第 2 场学会、后面接着打，窗口当然又填满、也可能开始新的发热。我最初写成对所有卡都断言，被批量卡红了。
+6. **读样式要先等动画落定**。卡片有淡入/滑入，进行到一半读到的透明度 0.07、间距 0；先 `settled()` 再读。
+7. **等价变异别硬抓**：「领悟后仍显示发热」那条变异抓不到，是因为领悟后窗口已经空了、`heatHint` 本来就返回空——那句 `continue` 是多余代码，删了，换成更有意义的变异。「圆点溢出」没抓到则是**测试真漏了**：亮几个点被 `Math.min` 夹住，但读屏用的 `aria-label` 没断言，补上。
+8. **顺手发现并修的老问题（不属于 C3）**：英文商店偶发红的测试 `R59 skill shop offers localize name and desc in EN`——它每次随机抽 6 个技能，抽到 `rim_rush`（LeBron 的「冲框」，上次合并时加的）才红，因为**这个技能没有英文名**，英文界面里玩家会直接看到「冲框」。`SKILL_EN` 和 `SKILL_ZH_BY_ID` 各补一行；再加一条**确定性**测试遍历全部技能，不靠运气。（`scripts/qa/lib/career.mjs` 也是这轮抽出的：`resumeToHub` / `playLive` / `createCareerInPage`，C2 的 QA 同步改用。）
+
+**没做 / 留着**
+- 领悟、手感现在只在赛后卡片里看得到；**球员资料页看不到「已领悟 n/2」**。
+- 休赛期那一环浏览器里没走（要打满整季 + 选秀），只有真引擎单元测试覆盖。
+- 手感块同为 N 场时按阵容顺序取前 3 个、没有「还有 N 位」。真实阈值下几乎不会同时超过 3 人，暂不加。
+- 默认队名「拉斯维加斯 \*\*\*」的 `**` 短标签（R115 提过）仍是老问题。
+
+**验证**：全量 **1323/1323**（R117 后 +38）；lint 0 错误（2 条旧 warning）；`git diff --check` 通过；浏览器 QA 12 个脚本共 **901 项**全绿：`career-epiphany` 247、`career-growth` 106、`career-postgame` 82、`career-retire` 150、`career-poach` 86、`career-reemployment` 54、`career-contract` 42、`career-finance` 32、`playoff-manual-play` 30、`season-sim-continue` 24、`coach-origins` 26、`roster-evaluation` 22。
