@@ -17,6 +17,8 @@ const CJK = /[\u4e00-\u9fff]/;
 const homeActive = (page) => page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
 const text = (page, selector) => page.$eval(selector, (el) => el.textContent.replace(/\s+/g, " ").trim());
 const noOverflow = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+/** Every "8 分" / "2 板" segment is one line box: a wrap between a figure and its unit leaves an orphan like "1 / 助". */
+const unbroken = (page) => page.$$eval("#result-rewards .pg-nowrap", (els) => els.length > 0 && els.every((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size === 1));
 const onResult = (page) => page.waitForSelector("#screen-result.active", { timeout: 20000 });
 /** .screen.active fades in over 250ms; a screenshot taken inside it comes out washed-out grey. */
 const settled = (page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"), null, { timeout: 5000 }).catch(() => {});
@@ -28,7 +30,7 @@ const savedSeason = (page) => page.evaluate(() => {
   const st = root?.leagueCareer?.season || JSON.parse(localStorage.getItem("cls_season_v1") || "null");
   const me = st?.teams?.[st.userTeamId];
   return {
-    record: st?.standings?.[st.userTeamId] ? { w: st.standings[st.userTeamId].w, l: st.standings[st.userTeamId].l } : null,
+    record: st?.standings?.[st.userTeamId] ? { w: st.standings[st.userTeamId].w, l: st.standings[st.userTeamId].l, pf: st.standings[st.userTeamId].pf, pa: st.standings[st.userTeamId].pa } : null,
     roster: (me?.players || []).map((p) => p.name),
   };
 });
@@ -66,6 +68,7 @@ async function checkSingle(page, tag, label) {
   check(`[${tag}] ${label}: tone matches the result`, c.tone === (won ? "pg-win" : "pg-loss"), c.tone);
   check(`[${tag}] ${label}: 1-3 stars, all of them MY players`, c.stars.length >= 1 && c.stars.length <= 3 && c.stars.every((name) => roster.includes(name)), `${c.stars.join(", ")}`);
   check(`[${tag}] ${label}: every star is in the box score on screen`, c.stars.length > 0 && (await page.$eval("#box-score", (el, names) => names.every((n) => el.textContent.includes(n)), c.stars)), c.stars.join(", "));
+  check(`[${tag}] ${label}: no stat figure is split from its unit across lines`, await unbroken(page));
   check(`[${tag}] ${label}: no horizontal overflow`, await noOverflow(page));
 }
 
@@ -131,6 +134,9 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   check(`[${tag}] sim week: ONE card for the whole stretch, and it's the summary card`, batch.visible && batch.count === 1 && /本段收获/.test(batch.kicker), JSON.stringify({ n: batch.count, k: batch.kicker }));
   check(`[${tag}] sim week: more than one game was folded`, !!bm && +bm[1] > 1, batch.verdict);
   check(`[${tag}] sim week: the card's record is exactly what the standings gained`, !!bm && +bm[2] === dW && +bm[3] === dL && +bm[1] === dW + dL, `${batch.verdict} vs standings +${dW}-${dL}`);
+  const diffText = batch.all.match(/净胜分 ([+-]?\d+)/);
+  check(`[${tag}] sim week: the point differential is exactly what the standings gained (points for - against)`,
+    !!diffText && +diffText[1] === (recAfter.pf - recBefore.pf) - (recAfter.pa - recBefore.pa), `${diffText?.[1]} vs ${(recAfter.pf - recBefore.pf) - (recAfter.pa - recBefore.pa)}`);
   check(`[${tag}] sim week: tone follows the stretch's record`, batch.tone === (dW >= dL ? "pg-win" : "pg-loss"), batch.tone);
   const rosterNow = (await savedSeason(page)).roster;
   check(`[${tag}] sim week: 1-3 leaders, all MY players, with per-game lines`, batch.stars.length >= 1 && batch.stars.length <= 3 && batch.stars.every((name) => rosterNow.includes(name)) && /场均/.test(batch.all), batch.stars.join(", "));
@@ -145,6 +151,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   }));
   check(`[${tag}] sim week: "出场 N 场" never breaks across lines`, gp.length > 0 && gp.every((g) => g.ok), gp.map((g) => g.why).join(" | "));
   check(`[${tag}] sim week: best night is named`, /单场最佳：/.test(batch.all), batch.all.slice(0, 120));
+  check(`[${tag}] sim week: no stat figure is split from its unit across lines`, await unbroken(page));
   check(`[${tag}] sim week: no horizontal overflow`, await noOverflow(page));
   await shoot(page, `${OUT}/${tag}-batch.png`);
 

@@ -10,12 +10,18 @@ import { esc, tr } from "./timeTravel/format.js";
 const one = (value) => (Math.round(value * 10) / 10).toFixed(1);
 const signed = (value) => (value > 0 ? `+${value}` : String(value));
 
-function lineText(player, lang) {
-  return tr(
-    lang,
-    `${player.min} 分钟 · ${player.pts} 分 ${player.reb} 板 ${player.ast} 助`,
-    `${player.min} min · ${player.pts} pts ${player.reb} reb ${player.ast} ast`,
-  );
+/**
+ * A figure and its unit ("8 分") must never be split across two lines -- "1 / 助" on a phone reads as
+ * a bug. So every figure is one unbreakable segment and lines may only wrap BETWEEN segments.
+ */
+const seg = (text) => `<span class="pg-nowrap">${esc(text)}</span>`;
+const segs = (parts) => parts.map(seg).join(" ");
+
+function lineHtml(player, lang) {
+  const stats = lang === "en"
+    ? [`${player.pts} pts`, `${player.reb} reb`, `${player.ast} ast`]
+    : [`${player.pts} 分`, `${player.reb} 板`, `${player.ast} 助`];
+  return `${seg(lang === "en" ? `${player.min} min` : `${player.min} 分钟`)} · ${segs(stats)}`;
 }
 
 function verdict(report, lang) {
@@ -29,7 +35,7 @@ function starsHtml(stars, lang) {
   if (!stars.length) return "";
   const rows = stars.map((player, index) => `<li class="pg-star">
       <span class="pg-rank" aria-hidden="true">${index + 1}</span>
-      <span class="pg-who"><strong>${esc(player.name)}</strong><span>${esc(lineText(player, lang))}</span></span>
+      <span class="pg-who"><strong>${esc(player.name)}</strong><span>${lineHtml(player, lang)}</span></span>
       <span class="pg-chip" title="${esc(tr(lang, "技术统计综合效率（Game Score）", "Box-score efficiency (Game Score)"))}">${esc(tr(lang, "效率", "Eff"))} ${one(player.score)}</span>
     </li>`).join("");
   return `<h4>${esc(tr(lang, "本场最佳", "Stars of the game"))}</h4><ol class="pg-stars">${rows}</ol>`;
@@ -50,11 +56,9 @@ export function batchHtml(batch, lang = "zh") {
   const best = batch.best;
   const leaders = batch.leaders.map((player, index) => `<li class="pg-star">
       <span class="pg-rank" aria-hidden="true">${index + 1}</span>
-      <span class="pg-who"><strong>${esc(player.name)}</strong><span>${esc(tr(
-    lang,
-    `场均 ${one(player.ppg)} 分 ${one(player.rpg)} 板 ${one(player.apg)} 助`,
-    `${one(player.ppg)} pts ${one(player.rpg)} reb ${one(player.apg)} ast per game`,
-  ))} · <span class="pg-nowrap">${esc(tr(lang, `出场 ${player.games} 场`, `${player.games} GP`))}</span></span></span>
+      <span class="pg-who"><strong>${esc(player.name)}</strong><span>${lang === "en"
+    ? `${segs([`${one(player.ppg)} pts`, `${one(player.rpg)} reb`, `${one(player.apg)} ast`])} per game`
+    : segs([`场均 ${one(player.ppg)} 分`, `${one(player.rpg)} 板`, `${one(player.apg)} 助`])} · ${seg(tr(lang, `出场 ${player.games} 场`, `${player.games} GP`))}</span></span>
     </li>`).join("");
   const bestLine = best
     ? `<p class="pg-best">${esc(tr(

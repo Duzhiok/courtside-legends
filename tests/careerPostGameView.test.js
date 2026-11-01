@@ -4,6 +4,7 @@ import { foldBatch, settleGame } from "../js/career/gameRewards.js";
 import { batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
 
 const CJK = /[\u3400-\u9fff]/;
+const visible = (html) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
 const player = (id, name, stats) => ({ id, name, stats });
 const snap = (score = { home: 104, away: 99 }, home = null) => ({
   score,
@@ -24,7 +25,7 @@ test("a single game card: verdict, opponent, and the three stars with their line
   assert.match(html, /对阵 Boston/);
   assert.equal((html.match(/class="pg-star"/g) || []).length, 3, "three stars, not the whole bench");
   assert.match(html, /Nikola Jokic/);
-  assert.match(html, /28 分 12 板 9 助/);
+  assert.match(visible(html), /36 分钟 · 28 分 12 板 9 助/);
   assert.doesNotMatch(html, /Bench Guy/);
 });
 
@@ -38,7 +39,7 @@ test("English mode has no Chinese in the card", () => {
   const html = postGameHtml(settleGame(snap(), "home"), "en");
   assert.match(html, /Post-game/);
   assert.match(html, /Win 104-99/);
-  assert.match(html, /28 pts 12 reb 9 ast/);
+  assert.match(visible(html), /36 min · 28 pts 12 reb 9 ast/);
   assert.doesNotMatch(html, CJK);
   const batch = batchHtml(foldBatch([settleGame(snap(), "home"), settleGame(snap({ home: 90, away: 99 }), "home")]), "en");
   assert.match(batch, /This stretch/);
@@ -83,4 +84,17 @@ test("a card for a game where nobody has stats still says who won (no empty star
   const html = postGameHtml(settleGame(snap({ home: 90, away: 80 }, []), "home"), "zh");
   assert.match(html, /胜 90-80/);
   assert.doesNotMatch(html, /pg-stars|本场最佳/);
+});
+
+test("a figure and its unit are one unbreakable segment, so a phone can never wrap between them", () => {
+  const segments = (html) => [...html.matchAll(/<span class="pg-nowrap">([^<]*)<\/span>/g)].map((m) => m[1]);
+  const single = segments(postGameHtml(settleGame(snap(), "home")));
+  for (const piece of ["36 分钟", "28 分", "12 板", "9 助"]) assert.ok(single.includes(piece), `single card: ${piece}`);
+  const english = segments(postGameHtml(settleGame(snap(), "home"), "en"));
+  for (const piece of ["36 min", "28 pts", "12 reb", "9 ast"]) assert.ok(english.includes(piece), `english: ${piece}`);
+  const batch = segments(batchHtml(foldBatch([settleGame(snap(), "home")])));
+  for (const piece of ["场均 28.0 分", "12.0 板", "9.0 助", "出场 1 场"]) assert.ok(batch.includes(piece), `batch: ${piece}`);
+  // ...and no bare "<number> <unit>" is left outside a segment (that is where the orphan "助" came from).
+  const bare = visible(postGameHtml(settleGame(snap(), "home")).replace(/<span class="pg-nowrap">[^<]*<\/span>/g, ""));
+  assert.doesNotMatch(bare, /\d\s*(分|板|助)/);
 });
