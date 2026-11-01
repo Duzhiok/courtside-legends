@@ -199,3 +199,29 @@ export const LEGACY_SEASON_CAP = 30;
 export const LEGACY_REPUTATION_POINTS = 0.25;
 /** Lowest score of each tier above "brief". */
 export const LEGACY_TIER_MIN = { hallOfFame: 80, great: 55, solid: 35, journeyman: 15 };
+
+// ---------------------------------------------------------------- C2: player XP and in-season growth
+/** XP a player needs for one level. A starter earns ~35-45 XP a game, so a young starter levels about
+ * every 27 games and a bench rookie (10 min, quiet nights) barely once a season: minutes matter. */
+export const GROWTH_XP_PER_LEVEL = 1200;
+/** XP = minutes x performance x youth. Performance maps a Game Score (the same yardstick as the card's
+ * "本场最佳") onto a multiplier: a 0-score night counts 0.6, a 10 counts 1.1, a 30+ night caps at 2. */
+export const GROWTH_PERF_BASE = 0.6;
+export const GROWTH_PERF_PER_SCORE = 0.05;
+export const GROWTH_PERF_MIN = 0.5;
+export const GROWTH_PERF_MAX = 2;
+/** By age: how fast XP comes in, and how many +1 levels a player can bank in ONE season. Veterans
+ * past 32 earn nothing in-season: the real curve already has them declining, we don't fight it. */
+export const GROWTH_AGE_TABLE = [
+  { maxAge: 21, xp: 1.6, levels: 4 },
+  { maxAge: 24, xp: 1.35, levels: 3 },
+  { maxAge: 28, xp: 1.0, levels: 2 },
+  { maxAge: 32, xp: 0.7, levels: 1 },
+  { maxAge: Infinity, xp: 0.45, levels: 0 },
+];
+/** An attribute may climb to the best value it ever had on the player's REAL later cards, plus this.
+ * The slack is the "you changed his timeline" part; without a real career (generated rookies) only
+ * the per-season level cap applies. */
+export const GROWTH_CEILING_SLACK = 1;
+/** Share of a season's growth that survives into the next year's real card (rounded half up). */
+export const GROWTH_CARRYOVER = 0.5;

@@ -253,7 +253,7 @@ import {
   challengeTierMeta,
   challengeTierName,
 } from "./data/careerChallenges.js";
-import { historicalUpsideHint } from "./engine/develop.js";
+import { historicalLadder, historicalUpsideHint } from "./engine/develop.js";
 import {
   HISTORICAL_YEARS,
   historicalSeason,
@@ -261,6 +261,7 @@ import {
 } from "./data/historicalSeasons.js";
 import { summarizeMatchResult } from "./engine/matchExplain.js";
 import { foldBatch, settleGame } from "./career/gameRewards.js";
+import { awardGrowth } from "./career/playerGrowth.js";
 import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
 import {
   advanceCareerOffseason,
@@ -9352,8 +9353,10 @@ function playUserPlayoffGame() {
 function handleSeasonResult(snap) {
   const st = state.season;
   const game = state.seasonPendingGame;
+  let report = null;
   if (st && game && !game.played) {
     recordUserLiveResult(st, game, snap);
+    report = settleUserGame(snap, snap?.youSide);
   }
   state.seasonPendingGame = null;
   // Persist updated roster form/fatigue lightly from snap onto season team
@@ -9371,11 +9374,11 @@ function handleSeasonResult(snap) {
       }
     }
     if (!saveSeasonAndCareer(st, { liveGame: "clear" })) {
-      wireSeasonResultContinue(state.season, snap);
+      wireSeasonResultContinue(state.season, snap, { reports: report && [report] });
       return;
     }
   }
-  wireSeasonResultContinue(st, snap);
+  wireSeasonResultContinue(st, snap, { reports: report && [report] });
 }
 
 /** Playoff counterpart of handleSeasonResult() -- same fatigue/form bookkeeping, but the
@@ -9383,8 +9386,10 @@ function handleSeasonResult(snap) {
 function handleSeasonPlayoffResult(snap) {
   const st = state.season;
   const pending = state.seasonPendingPlayoffGame;
+  let report = null;
   if (st && pending?.game && !pending.game.played) {
     recordUserLivePlayoffResult(st, pending.game, pending.series, snap);
+    report = settleUserGame(snap, snap?.youSide);
   }
   state.seasonPendingPlayoffGame = null;
   if (st && snap) {
@@ -9401,15 +9406,15 @@ function handleSeasonPlayoffResult(snap) {
       }
     }
     if (!saveSeasonAndCareer(st, { liveGame: "clear" })) {
-      wireSeasonResultContinue(state.season, snap, { playoffSeries: pending?.series });
+      wireSeasonResultContinue(state.season, snap, { playoffSeries: pending?.series, reports: report && [report] });
       return;
     }
   }
-  wireSeasonResultContinue(st, snap, { playoffSeries: pending?.series });
+  wireSeasonResultContinue(st, snap, { playoffSeries: pending?.series, reports: report && [report] });
 }
 
 /** Paint score + both-team box scores (instant sim or re-open from schedule). */
-function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, batchReports = null } = {}) {
+function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, reports = null } = {}) {
   if (!snap?.home || !snap?.away) return;
   const st = state.season;
   show("result");
@@ -9428,7 +9433,7 @@ function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, 
         ? L(`${winner} 获胜`, `${winner} wins`)
         : L(`${winner} 获胜 · ${youWin ? "我方胜" : "我方负"}`, `${winner} wins · ${youWin ? "You win" : "You lose"}`);
   $("#box-score").innerHTML = `${boxTable(snap.home)}${boxTable(snap.away)}`;
-  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory, playoffSeries, batchReports });
+  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory, playoffSeries, reports });
 }
 
 /** "东部 · R2"/"总决赛" 样式标签，跟 renderSeasonPlayoffs() 的 confBlock 标题保持一致。 */
@@ -9456,12 +9461,19 @@ function playoffResultSummaryText(st, series) {
     : `${label} ${myWins}-${theirWins} 淘汰 ${oppName}，晋级下一轮！`;
 }
 
-/** C1: the settlement card under the explain box -- one game, or one folded stretch of games. */
-function renderPostGame(snap, batchReports = null) {
+/**
+ * C1: the settlement card under the explain box. `reports` are games that were ALREADY settled (and
+ * paid) when they finished: one is a game card, several fold into a stretch card. With none (re-opening
+ * an old game from the schedule) the card is only re-derived from the box score -- viewing a game must
+ * never pay its XP a second time.
+ */
+function renderPostGame(snap, reports = null) {
   const box = $("#result-rewards");
   if (!box) return;
   const lang = getLang();
-  const html = batchReports ? batchHtml(foldBatch(batchReports), lang) : postGameHtml(settleGame(snap, snap?.youSide), lang);
+  const html = reports?.length > 1
+    ? batchHtml(foldBatch(reports), lang)
+    : postGameHtml(reports?.[0] || settleGame(snap, snap?.youSide), lang);
   box.innerHTML = html;
   box.hidden = !html;
 }
@@ -9469,8 +9481,40 @@ function renderPostGame(snap, batchReports = null) {
 /** Which side the user is on in a scheduled game. */
 const userSideOf = (st, game) => (game?.homeId === st.userTeamId ? "home" : "away");
 
-function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, batchReports = null } = {}) {
-  renderPostGame(snap, batchReports);
+/**
+ * C2: pay out one finished game's XP. Levels land on the live roster (the next game plays with them)
+ * and the ledger goes on the career, which the save that follows persists. Only managed careers
+ * grow -- a quick season has no ledger to keep. Called exactly once per game, at the moment it ends.
+ */
+function awardGameGrowth(report) {
+  const career = state.leagueCareer;
+  const st = state.season;
+  if (!report || !st || !isManagedCareer(career)) return;
+  const players = st.teams[st.userTeamId]?.players || [];
+  const result = awardGrowth({
+    growth: career.management?.growth,
+    plans: career.management?.developmentPlans,
+    year: st.year,
+    players,
+    lines: report.lines,
+    ladderOf: historicalLadder,
+  });
+  for (const [id, attributes] of Object.entries(result.changes)) {
+    Object.assign(players.find((player) => player.id === id), attributes);
+  }
+  state.leagueCareer = { ...career, management: { ...career.management, growth: result.growth } };
+  report.rewards.playerXp = result.entries;
+}
+
+/** Settle a finished game from the user's side and pay its XP. */
+function settleUserGame(snap, side) {
+  const report = settleGame(snap, side);
+  awardGameGrowth(report);
+  return report;
+}
+
+function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, reports = null } = {}) {
+  renderPostGame(snap, reports);
   const cont = $("#btn-result-continue");
   const base = playoffSeries
     ? playoffResultSummaryText(st, playoffSeries)
@@ -9556,7 +9600,7 @@ async function simRestOfSeason() {
     if (!r) break;
     last = r;
     n += 1;
-    reports.push(settleGame(r.snap, userSideOf(st, r.game)));
+    reports.push(settleUserGame(r.snap, userSideOf(st, r.game)));
     if (summaryEl) summaryEl.textContent = `正在模拟整个赛季…已完成 ${n} 个比赛日，请稍候`;
     // Intentionally awaited inside the loop: yield one frame so the progress text above
     // actually paints instead of the tab looking frozen for ~15-20s straight.
@@ -9566,7 +9610,7 @@ async function simRestOfSeason() {
   if (!saveSeasonAndCareer(st)) return;
   if (last?.snap) {
     const extra = `已连续模拟 ${n} 场；下方为最近一场（${last.snap.home?.name} ${last.snap.score.home}-${last.snap.score.away} ${last.snap.away?.name}）的完整数据。`;
-    showSeasonSimResult({ ...last.snap, youSide: userSideOf(st, last.game) }, { summaryExtra: extra, batchReports: reports.length > 1 ? reports : null });
+    showSeasonSimResult({ ...last.snap, youSide: userSideOf(st, last.game) }, { summaryExtra: extra, reports });
   } else {
     renderSeasonHub();
     if (st.phase === "awards") showSeasonTab("awards");
@@ -9586,7 +9630,7 @@ function simSeasonGames(count = 1) {
     if (!r) break;
     last = r;
     n += 1;
-    reports.push(settleGame(r.snap, userSideOf(st, r.game)));
+    reports.push(settleUserGame(r.snap, userSideOf(st, r.game)));
   }
   if (!saveSeasonAndCareer(st)) return;
   if (last?.snap) {
@@ -9594,7 +9638,7 @@ function simSeasonGames(count = 1) {
       n > 1
         ? `已连续模拟 ${n} 场；下方为最近一场（${last.snap.home?.name} ${last.snap.score.home}-${last.snap.score.away} ${last.snap.away?.name}）的完整数据。`
         : "快速模拟完成。下方为双方球员数据。";
-    showSeasonSimResult({ ...last.snap, youSide: userSideOf(st, last.game) }, { summaryExtra: extra, batchReports: reports.length > 1 ? reports : null });
+    showSeasonSimResult({ ...last.snap, youSide: userSideOf(st, last.game) }, { summaryExtra: extra, reports });
     return;
   }
   renderSeasonHub();
@@ -9612,10 +9656,11 @@ function simUserPlayoffGameFromResult() {
     showSeasonTab("playoffs");
     return;
   }
+  const report = settleUserGame(result.snap, userSideOf(st, result.game));
   if (!saveSeasonAndCareer(st)) return;
   showSeasonSimResult(
     { ...result.snap, youSide: userSideOf(st, result.game) },
-    { summaryExtra: "快速模拟完成。下方为双方球员数据。", playoffSeries: result.series },
+    { summaryExtra: "快速模拟完成。下方为双方球员数据。", playoffSeries: result.series, reports: [report] },
   );
 }
 

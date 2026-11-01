@@ -719,6 +719,21 @@ test("managed root saves validate draft and season history shapes", () => {
   }
 });
 
+test("C2: the growth ledger round-trips; saves from before it still load; a malformed one is refused", () => {
+  const base = { draft: null, draftHistory: [], seasonHistory: [] };
+  const ledger = { jamesle01: { year: 2003, xp: 240, levels: 1, deltas: { three: 1 } } };
+  const withLedger = managedRoot({ ...base, growth: ledger });
+  assert.deepEqual(importRootSave(exportEnvelope(withLedger)), withLedger);
+  const old = managedRoot(base); // no `growth` key at all: every save written before C2
+  assert.deepEqual(importRootSave(exportEnvelope(old)), old);
+  assert.ok(importRootSave(exportEnvelope(managedRoot({ ...base, growth: {} }))));
+
+  const entry = (over) => ({ jamesle01: { year: 2003, xp: 0, levels: 0, deltas: {}, ...over } });
+  for (const bad of [[], "x", null, { a: null }, entry({ xp: -5 }), entry({ levels: 1.5 }), entry({ year: "2003" }), entry({ deltas: { three: 0 } }), entry({ deltas: [] })]) {
+    assert.throws(() => importRootSave(exportEnvelope(managedRoot({ ...base, growth: bad }))), /invalid save file/, JSON.stringify(bad));
+  }
+});
+
 test("malformed managed saves do not change storage", () => {
   const stored = createRootState({ savedAt: 91 });
   const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: JSON.stringify(stored) });

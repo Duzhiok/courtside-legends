@@ -1446,6 +1446,7 @@ export function advanceLeagueOffseason(st, options = {}) {
     rng: mulberry32(nextSeed ^ 0x243f6a88),
     developmentPlans:
       options.developmentPlans === undefined ? {} : options.developmentPlans,
+    growth: options.growth === undefined ? {} : options.growth,
   });
   st.year = Number(st.year) + 1;
   // The calendar rolls with the year: picks for the draft that just happened are used up, and last

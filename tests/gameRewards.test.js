@@ -99,7 +99,7 @@ test("foldBatch ranks by TOTAL contribution: one huge night doesn't outrank a mo
 });
 
 test("foldBatch of nothing is an empty, safe summary", () => {
-  assert.deepEqual(foldBatch([]), { games: 0, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null });
+  assert.deepEqual(foldBatch([]), { games: 0, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [] });
   assert.equal(foldBatch(undefined).games, 0);
 });
 

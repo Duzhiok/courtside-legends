@@ -6,6 +6,7 @@ import { careerPhase, estimateAge, PHASE_LABEL } from "../data/careerArc.js";
 import { clonePlayer, overall, PLAYERS } from "../data/players.js";
 import { playerPrice } from "../data/intangibles.js";
 import { pruneAgedSkills } from "../data/skills.js";
+import { carriedDeltas } from "../career/playerGrowth.js";
 import { developmentModifier } from "../modes/playerDevelopment.js";
 
 const ATTR_KEYS = [
@@ -300,7 +301,7 @@ export function advancePlayerOneYear(player, { rng = Math.random } = {}) {
  */
 export function developLeagueRosters(
   st,
-  { rng = Math.random, developmentPlans = {} } = {},
+  { rng = Math.random, developmentPlans = {}, growth = {} } = {},
 ) {
   if (
     !developmentPlans ||
@@ -308,6 +309,9 @@ export function developLeagueRosters(
     Array.isArray(developmentPlans)
   ) {
     throw new TypeError("developmentPlans must be an object");
+  }
+  if (!growth || typeof growth !== "object" || Array.isArray(growth)) {
+    throw new TypeError("growth must be an object");
   }
   const userRoster = st?.teams?.[st.userTeamId]?.players || [];
   const rosterByBref = new Map(userRoster.map((player) => [player.bref, player]));
@@ -367,6 +371,11 @@ export function developLeagueRosters(
       }
       delete evolved._developmentPlan;
       delete evolved._developmentEffects;
+      // C2: part of this season's in-game growth survives into the new year's real card. Applies to
+      // any team's player (a traded-away player keeps what he earned), only for this season's entries.
+      for (const [attribute, amount] of Object.entries(carriedDeltas(growth[p.bref], st.year))) {
+        evolved[attribute] = Math.min(99, Number(evolved[attribute] ?? 10) + amount);
+      }
       let appliedPlan = null;
       let developmentEffects = null;
       if (tid === st.userTeamId && developmentPlans[p.bref]) {

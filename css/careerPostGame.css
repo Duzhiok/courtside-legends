@@ -34,3 +34,10 @@
 .pg-nowrap { white-space: nowrap; }
 .pg-chip { font-size: .78rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--court); color: #fff; white-space: nowrap; }
 @media (max-width: 480px) { .pg-star { gap: 8px; padding: 6px 8px; } }
+
+/* C2 player growth: name + XP on the left, a thin bar on the right; a level-up is the only loud thing. */
+.pg-growth-title { margin-top: 12px; }
+.pg-grow { display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; background: var(--paper); border: 1px solid var(--line); }
+.pg-bar { display: block; height: 6px; border-radius: 999px; background: #d1d5db; overflow: hidden; }
+.pg-bar i { display: block; height: 100%; background: var(--court); }
+.pg-up { display: inline-block; font-size: .72rem; font-weight: 700; padding: 0 7px; border-radius: 999px; background: #dcfce7; color: #14532d; border: 1px solid #86efac; }

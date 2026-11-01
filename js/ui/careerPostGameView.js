@@ -1,8 +1,8 @@
 /**
  * Post-game settlement card (C1): one finished game, or one folded stretch of games.
  * Pure string builders over `career/gameRewards.js` reports -- no DOM, no state -- so they unit-test.
- * Reward sections (XP, highlights, ...) will slot in here as C2-C6 land; until then the card shows
- * only what the box score really says.
+ * Reward sections slot in here as C2-C6 land (C2: player growth); a section whose data is empty
+ * renders nothing, so the card only ever shows what really happened.
  */
 import { teamNameL } from "../i18n.js";
 import { esc, tr } from "./timeTravel/format.js";
@@ -22,6 +22,36 @@ function lineHtml(player, lang) {
     ? [`${player.pts} pts`, `${player.reb} reb`, `${player.ast} ast`]
     : [`${player.pts} 分`, `${player.reb} 板`, `${player.ast} 助`];
   return `${seg(lang === "en" ? `${player.min} min` : `${player.min} 分钟`)} · ${segs(stats)}`;
+}
+
+/** Every attribute a development focus can train (playerDevelopment.FOCUS_ATTRIBUTES), by language. */
+export const ATTRIBUTE_LABELS = {
+  three: ["三分", "3PT"], mid: ["中投", "Mid-range"], scoring: ["得分", "Scoring"], pass: ["传球", "Passing"],
+  iq: ["球商", "IQ"], speed: ["速度", "Speed"], defense: ["防守", "Defense"], steal: ["抢断", "Steals"],
+  block: ["盖帽", "Blocks"], stamina: ["体能", "Stamina"], strength: ["力量", "Strength"],
+};
+const attributeName = (key, lang) => (ATTRIBUTE_LABELS[key] ? ATTRIBUTE_LABELS[key][lang === "en" ? 1 : 0] : key);
+const GROWTH_ROWS = 4;
+
+/**
+ * Player growth (C2): who earned XP, and who levelled up (and which attribute). `entries` come
+ * level-ups first, then biggest XP, so the cut at GROWTH_ROWS never hides a level-up behind a trickle.
+ * One shape for a single game and for a folded stretch.
+ */
+function growthHtml(entries, lang) {
+  if (!entries?.length) return "";
+  const rows = entries.slice(0, GROWTH_ROWS).map((entry) => {
+    const pct = Math.round(Math.min(1, Math.max(0, entry.progress)) * 100);
+    const ups = entry.leveled.map((up) => seg(`${attributeName(up.attribute, lang)} ${up.from}→${up.to}`)).join(" ");
+    const status = ups
+      ? `<span class="pg-up">${esc(tr(lang, "升级", "Level up"))}</span> ${ups}`
+      : entry.capped ? seg(tr(lang, "本季不再成长", "No more growth this season")) : seg(`${pct}%`);
+    return `<li class="pg-grow">
+      <span class="pg-who"><strong>${esc(entry.name)}</strong><span>${seg(`+${entry.xp} XP`)} · ${status}</span></span>
+      <span class="pg-bar" role="img" aria-label="${esc(`XP ${pct}%`)}"><i style="width:${pct}%"></i></span>
+    </li>`;
+  }).join("");
+  return `<h4 class="pg-growth-title">${esc(tr(lang, "球员成长", "Player growth"))}</h4><ul class="pg-stars pg-growth">${rows}</ul>`;
 }
 
 function verdict(report, lang) {
@@ -48,6 +78,7 @@ export function postGameHtml(report, lang = "zh") {
     <p class="pg-kicker">${esc(tr(lang, "赛后结算", "Post-game"))}</p>
     <p class="pg-verdict"><strong>${esc(v.text)}</strong><span>${esc(tr(lang, `对阵 ${v.opp}`, `vs ${v.opp}`))}</span></p>
     ${starsHtml(report.stars, lang)}
+    ${growthHtml(report.rewards?.playerXp, lang)}
   </div>`;
 }
 
@@ -72,5 +103,6 @@ export function batchHtml(batch, lang = "zh") {
     <p class="pg-verdict"><strong>${esc(tr(lang, `${batch.games} 场 · ${batch.wins} 胜 ${batch.losses} 负`, `${batch.games} games · ${batch.wins}-${batch.losses}`))}</strong><span>${esc(tr(lang, `净胜分 ${signed(batch.pointDiff)}`, `Point diff ${signed(batch.pointDiff)}`))}</span></p>
     ${bestLine}
     ${leaders ? `<h4>${esc(tr(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}
+    ${growthHtml(batch.growth, lang)}
   </div>`;
 }

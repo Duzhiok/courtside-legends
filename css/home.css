@@ -21,6 +21,9 @@
 }
 .topbar .brand-mark { color: #ff7a1a; }
 .topbar .brand-name { color: #f3efe4; }
+/* English translates the mark (场边传奇) to "Courtside Legends" too, so the bar read it twice -- and on a
+   phone the pair was 411px wide. One name is enough. */
+html[lang="en"] .topbar .brand-name { display: none; }
 .topbar .brand-mark::before {
   content: "";
   display: inline-block;

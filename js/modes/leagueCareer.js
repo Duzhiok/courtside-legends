@@ -452,10 +452,13 @@ export function completeCareerOffseason(career) {
   const working = structuredClone(reconciled);
   const result = advanceLeagueOffseason(working.season, {
     developmentPlans: working.management.developmentPlans || {},
+    growth: working.management.growth || {},
   });
   if (!result.ok) {
     throw new Error(result.reason || "failed to complete offseason");
   }
+  // This season's growth is now baked into next year's cards (the carried share); start clean.
+  working.management.growth = {};
   const pruned = pruneDevelopmentPlans(working);
   return {
     result,

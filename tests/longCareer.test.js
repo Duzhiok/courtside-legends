@@ -781,3 +781,23 @@ for (const initialRosterSize of [12, 15]) {
     assert.ok(Buffer.byteLength(serialized) < 500_000, Buffer.byteLength(serialized));
   });
 }
+
+test("C2: the offseason carries half of the season's in-game growth into next year's card, then clears the ledger", () => {
+  const plain = finishDraft(prepareCareerOffseason(managedCareer()));
+  const grown = structuredClone(plain);
+  const year = grown.season.year;
+  grown.management.growth = {
+    "B-1": { year, xp: 300, levels: 2, deltas: { three: 2 } },
+    "A-0": { year: year - 1, xp: 0, levels: 4, deltas: { three: 4 } }, // last season's: stale, carries nothing
+  };
+
+  const plainDone = completeCareerOffseason(plain).career;
+  const grownDone = completeCareerOffseason(grown).career;
+  const pick = (career, bref) => Object.values(career.season.teams).flatMap((t) => t.players).find((p) => p.bref === bref);
+
+  assert.equal(pick(grownDone, "B-1").three, pick(plainDone, "B-1").three + 1, "+2 this season carries as +1");
+  assert.equal(pick(grownDone, "B-1").mid, pick(plainDone, "B-1").mid, "only the attribute that grew changes");
+  assert.equal(pick(grownDone, "A-0")?.three, pick(plainDone, "A-0")?.three, "a stale entry carries nothing");
+  assert.deepEqual(grownDone.management.growth, {}, "the new season starts with a clean ledger");
+  assert.deepEqual(plainDone.management.growth, {}, "and a career that never earned XP is unaffected");
+});

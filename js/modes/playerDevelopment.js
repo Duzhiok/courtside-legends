@@ -1,7 +1,7 @@
 import { overall } from "../data/players.js";
 import { estimateAge } from "../data/careerArc.js";
 
-const FOCUS_ATTRIBUTES = {
+export const FOCUS_ATTRIBUTES = {
   shooting: ["three", "mid", "scoring"],
   playmaking: ["pass", "iq", "speed"],
   defense: ["defense", "steal", "block"],
@@ -81,7 +81,7 @@ function validatePlan(plan, { source = null } = {}) {
   return plan;
 }
 
-function resolvedAge(player) {
+export function resolvedAge(player) {
   const age = Number(player?.age);
   return Number.isFinite(age) && player?.age !== null ? age : estimateAge(player);
 }

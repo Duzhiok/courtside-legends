@@ -4,6 +4,7 @@
 // Usage: node scripts/qa/career-postgame.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { CJK, homeActive, noOverflow, onResult, shoot, text, unbroken } from "./lib/page.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/postgame";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -12,17 +13,6 @@ const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_
 const report = [];
 const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
 const browser = await chromium.launch({ executablePath: EXE });
-const CJK = /[\u4e00-\u9fff]/;
-
-const homeActive = (page) => page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-const text = (page, selector) => page.$eval(selector, (el) => el.textContent.replace(/\s+/g, " ").trim());
-const noOverflow = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
-/** Every "8 分" / "2 板" segment is one line box: a wrap between a figure and its unit leaves an orphan like "1 / 助". */
-const unbroken = (page) => page.$$eval("#result-rewards .pg-nowrap", (els) => els.length > 0 && els.every((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size === 1));
-const onResult = (page) => page.waitForSelector("#screen-result.active", { timeout: 20000 });
-/** .screen.active fades in over 250ms; a screenshot taken inside it comes out washed-out grey. */
-const settled = (page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"), null, { timeout: 5000 }).catch(() => {});
-const shoot = async (page, path) => { await settled(page); await page.screenshot({ path, fullPage: true }); };
 
 /** The saved season (quick season keeps it under its own key; a long career inside the root save). */
 const savedSeason = (page) => page.evaluate(() => {

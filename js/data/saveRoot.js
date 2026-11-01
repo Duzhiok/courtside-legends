@@ -1,4 +1,5 @@
 import { createCoachProfile } from "../career/coachProfile.js";
+import { validGrowth } from "../career/growthShape.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
 import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
 import { isKnownCoachOrigin } from "../career/coachOrigins.js";
@@ -153,6 +154,10 @@ function validateManagement(management) {
     management.developmentPlans !== undefined
     && !isObject(management.developmentPlans)
   ) {
+    throw new Error("invalid root save");
+  }
+  // C2: absent in saves from before it; when present it must be well-formed.
+  if (!validGrowth(management.growth)) {
     throw new Error("invalid root save");
   }
 }

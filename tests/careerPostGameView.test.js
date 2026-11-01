@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { foldBatch, settleGame } from "../js/career/gameRewards.js";
-import { batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
+import { FOCUS_ATTRIBUTES } from "../js/modes/playerDevelopment.js";
+import { ATTRIBUTE_LABELS, batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
 
 const CJK = /[\u3400-\u9fff]/;
 const visible = (html) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
@@ -97,4 +98,86 @@ test("a figure and its unit are one unbreakable segment, so a phone can never wr
   // ...and no bare "<number> <unit>" is left outside a segment (that is where the orphan "助" came from).
   const bare = visible(postGameHtml(settleGame(snap(), "home")).replace(/<span class="pg-nowrap">[^<]*<\/span>/g, ""));
   assert.doesNotMatch(bare, /\d\s*(分|板|助)/);
+});
+
+// ---------------------------------------------------------------- C2: player growth section
+const withGrowth = (entries) => {
+  const report = settleGame(snap(), "home");
+  report.rewards.playerXp = entries;
+  return report;
+};
+const xpEntry = (over = {}) => ({ id: "a", name: "Nikola Jokic", xp: 45, total: 600, progress: 0.5, levels: 0, levelCap: 2, capped: false, leveled: [], ...over });
+
+test("growth: no data renders no section at all (a quick season, or a game viewed from the schedule)", () => {
+  const html = postGameHtml(settleGame(snap(), "home"), "zh");
+  assert.doesNotMatch(html, /球员成长|pg-grow/);
+  assert.doesNotMatch(postGameHtml(withGrowth([]), "en"), /Player growth|pg-grow/);
+});
+
+test("growth: shows XP and progress; a level-up names the attribute and the change", () => {
+  const html = postGameHtml(withGrowth([
+    xpEntry({ leveled: [{ attribute: "three", from: 60, to: 61 }], progress: 0.1 }),
+    xpEntry({ id: "b", name: "Jamal Murray", xp: 38, progress: 0.3 }),
+  ]), "zh");
+  assert.match(html, /球员成长/);
+  assert.match(visible(html), /Nikola Jokic\+45 XP · 升级 三分 60→61/);
+  assert.match(visible(html), /Jamal Murray\+38 XP · 30%/);
+  assert.equal((html.match(/class="pg-grow"/g) || []).length, 2);
+  assert.match(html, /aria-label="XP 10%"/);
+  assert.match(html, /style="width:10%"/);
+});
+
+test("growth: English card is English, and a capped player says so instead of a stuck bar", () => {
+  const html = postGameHtml(withGrowth([
+    xpEntry({ leveled: [{ attribute: "mid", from: 70, to: 71 }] }),
+    xpEntry({ id: "b", name: "Old Vet", capped: true, progress: 1 }),
+  ]), "en");
+  assert.match(visible(html), /Player growth/);
+  assert.match(visible(html), /Level up Mid-range 70→71/);
+  assert.match(visible(html), /No more growth this season/);
+  assert.doesNotMatch(visible(html), CJK);
+});
+
+test("growth: at most four rows, and the cut never hides a level-up (entries arrive level-ups first)", () => {
+  const entries = [
+    xpEntry({ id: "u", name: "Leveller", leveled: [{ attribute: "pass", from: 50, to: 51 }] }),
+    ...["p", "q", "r", "s", "t"].map((id) => xpEntry({ id, name: `P-${id}`, xp: 40 })),
+  ];
+  const html = postGameHtml(withGrowth(entries), "zh");
+  assert.equal((html.match(/class="pg-grow"/g) || []).length, 4);
+  assert.match(html, /Leveller/);
+});
+
+test("growth: every attribute a development focus can train has a label in both languages", () => {
+  const trained = new Set(Object.values(FOCUS_ATTRIBUTES).flat());
+  for (const attribute of trained) {
+    assert.ok(ATTRIBUTE_LABELS[attribute], `${attribute} has a label`);
+    const [zh, en] = ATTRIBUTE_LABELS[attribute];
+    assert.match(zh, CJK);
+    assert.doesNotMatch(en, CJK);
+  }
+});
+
+test("growth: names are escaped and every figure+unit is one unbreakable segment", () => {
+  const html = postGameHtml(withGrowth([xpEntry({ name: "<img src=x onerror=1>", leveled: [{ attribute: "speed", from: 70, to: 71 }] })]), "zh");
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /&lt;img/);
+  assert.match(html, /<span class="pg-nowrap">\+45 XP<\/span>/);
+  assert.match(html, /<span class="pg-nowrap">速度 70→71<\/span>/);
+});
+
+test("growth: a stretch card folds the same section, with merged level-ups and summed XP", () => {
+  const report = (xp, leveled) => {
+    const r = settleGame(snap(), "home");
+    r.rewards.playerXp = [xpEntry({ xp, leveled })];
+    return r;
+  };
+  const html = batchHtml(foldBatch([
+    report(40, [{ attribute: "three", from: 60, to: 61 }]),
+    report(30, []),
+    report(50, [{ attribute: "three", from: 61, to: 62 }]),
+  ]), "zh");
+  assert.match(visible(html), /球员成长/);
+  assert.match(visible(html), /Nikola Jokic\+120 XP · 升级 三分 60→62/);
+  assert.doesNotMatch(batchHtml(foldBatch([settleGame(snap(), "home"), settleGame(snap(), "home")]), "zh"), /球员成长/, "no growth data, no section");
 });

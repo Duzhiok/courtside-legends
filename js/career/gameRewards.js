@@ -85,11 +85,23 @@ export function settleGame(snap, youSide) {
  */
 export function foldBatch(reports) {
   const games = (reports || []).filter(Boolean);
-  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null };
+  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [] };
   const byPlayer = new Map();
+  const growthBy = new Map();
   for (const report of games) {
     if (!report.tied) out[report.won ? "wins" : "losses"] += 1;
     out.pointDiff += report.margin;
+    for (const entry of report.rewards?.playerXp || []) {
+      const acc = growthBy.get(entry.id) || { id: entry.id, name: entry.name, xp: 0, leveled: new Map() };
+      acc.xp += entry.xp;
+      Object.assign(acc, { total: entry.total, progress: entry.progress, capped: entry.capped });
+      // Level-ups of the same attribute across the stretch read as one gain: 72 -> 74, not two lines.
+      for (const up of entry.leveled) {
+        const seen = acc.leveled.get(up.attribute);
+        acc.leveled.set(up.attribute, { attribute: up.attribute, from: seen ? seen.from : up.from, to: up.to });
+      }
+      growthBy.set(entry.id, acc);
+    }
     for (const player of report.lines) {
       const acc = byPlayer.get(player.id) || { id: player.id, name: player.name, games: 0, pts: 0, reb: 0, ast: 0, total: 0 };
       acc.games += 1;
@@ -115,5 +127,8 @@ export function foldBatch(reports) {
       apg: acc.ast / acc.games,
       total: Math.round(acc.total * 10) / 10,
     }));
+  out.growth = [...growthBy.values()]
+    .map((acc) => ({ ...acc, leveled: [...acc.leveled.values()] }))
+    .sort((a, b) => b.leveled.length - a.leveled.length || b.xp - a.xp);
   return out;
 }
