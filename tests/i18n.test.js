@@ -6,6 +6,7 @@ import { buildCareerSpanIndex } from "../js/data/careerArc.js";
 import { GameSim } from "../js/engine/sim.js";
 import { getLang, setLang, L, translateStatic, skillNameL, teamNameL } from "../js/i18n.js";
 import { PHRASES } from "../js/i18n-phrases.js";
+import { LEAGUE_TEAM_META, allLeagueTeamIds, leagueTeamLabel } from "../js/data/league.js";
 import { FRANCHISES, franchiseName } from "../js/data/franchises.js";
 import { careerStageLabel } from "../js/engine/careerBracket.js";
 import { challengeTierName } from "../js/data/careerChallenges.js";
@@ -356,4 +357,16 @@ test("R59 ending share card: text and HTML localize fully in EN", async () => {
   assert.ok(!hasCJK(html), html.slice(0, 300));
   assert.ok(html.includes("Custom training plans"));
   assert.ok(html.includes("Season by season"));
+});
+
+test("every league team name a game can show has an English name (no Chinese leaks onto an English result card)", () => {
+  setLang("en");
+  try {
+    const names = new Set(allLeagueTeamIds().flatMap((id) => [leagueTeamLabel(id), LEAGUE_TEAM_META[id]?.name, LEAGUE_TEAM_META[id]?.defaultDisplayName]).filter(Boolean));
+    assert.ok(names.size >= 30, `only ${names.size} names collected`);
+    const leaks = [...names].filter((n) => /[\u4e00-\u9fff]/.test(teamNameL(n, "en")));
+    assert.deepEqual(leaks, []);
+  } finally {
+    setLang("zh");
+  }
 });

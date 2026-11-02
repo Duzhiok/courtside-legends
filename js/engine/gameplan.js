@@ -701,13 +701,14 @@ export function staminaMinuteCap(p) {
   return cap;
 }
 
-export function staminaMinuteHint(p) {
+export function staminaMinuteHint(p, lang = "zh") {
+  const en = lang === "en";
   const stam = Number(p?.stamina) || 50;
   const cap = staminaMinuteCap(p);
   const t = Number(p?.targetMinutes) || 0;
-  if (t > cap) return `⚠ 体能${stam}，长期 ${t} 分钟易崩（建议 ≤${cap}）`;
-  if (t >= cap - 2) return `体能${stam} · 已接近上限 ${cap}`;
-  return `体能${stam} · 可稳打约 ${cap} 分钟`;
+  if (t > cap) return en ? `⚠ Stamina ${stam}: ${t} min will wear him down (keep ≤${cap})` : `⚠ 体能${stam}，长期 ${t} 分钟易崩（建议 ≤${cap}）`;
+  if (t >= cap - 2) return en ? `Stamina ${stam} · near his limit of ${cap}` : `体能${stam} · 已接近上限 ${cap}`;
+  return en ? `Stamina ${stam} · can carry about ${cap} min` : `体能${stam} · 可稳打约 ${cap} 分钟`;
 }
 
 /** Suggest target minutes from role + stamina. */

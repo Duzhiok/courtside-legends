@@ -109,6 +109,8 @@ import {
   listPaidPeaks,
 } from "./data/customPool.js";
 import { photoImg } from "./data/photo.js";
+import { tr } from "./ui/timeTravel/format.js";
+import { benchSectionHtml, budgetBarHtml, fitLabel, learnedSkillIds, rotationRowHtml, startersSectionHtml } from "./ui/rotationBoard.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
@@ -8147,7 +8149,6 @@ function renderSeasonRotation() {
   const sorted = [...you.players].sort(
     (a, b) => (b.targetMinutes || 0) - (a.targetMinutes || 0) || overall(b) - overall(a)
   );
-  const totalMin = sorted.reduce((s, p) => s + (Number(p.targetMinutes) || 0), 0);
   const chem = teamChemistry(sorted.slice(0, 8));
   const fit = lineupFit(
     sorted.filter((p) => starters.has(p.id)).slice(0, 5),
@@ -8155,79 +8156,70 @@ function renderSeasonRotation() {
     TACTICS[tacticId]
   );
 
-  const rows = sorted
-    .map((p) => {
-      const role = p.roleExpectation || inferPlayerRole(p);
-      const roleOpts = Object.values(PLAYER_ROLES)
-        .map((r) => `<option value="${r.id}" ${r.id === role ? "selected" : ""}>${roleName(r, getLang())}</option>`)
-        .join("");
-      const recPos = recommendPlayPos(p);
-      const posOpts = POS_SLOTS.map(
-        (s) =>
-          `<option value="${s.id}" ${normalizePos(p.playPos || p.pos) === s.id ? "selected" : ""}>${s.id}${
-            s.id === recPos ? "（推荐）" : ""
-          }</option>`
-      ).join("");
-      const cap = staminaMinuteCap(p);
-      const over = (p.targetMinutes || 0) > cap;
-      const starter = starters.has(p.id);
-      const cardPos = normalizePos(p.playPos || p.pos);
-      return `<div class="rot-row ${starter ? "starter" : ""} ${over ? "over-min" : ""}" data-id="${p.id}">
-        <label class="rot-starter" title="默认首发"><input type="checkbox" class="rot-start-cb" ${
-          starter ? "checked" : ""
-        } />首发</label>
-        <div class="rot-name">
-          ${photoImg(p)}
-          <div class="rot-name-text">
-            <div class="rot-name-line"><span class="rot-pos-chip pos-${cardPos.toLowerCase()}">${cardPos}</span><strong>${p.name}</strong></div>
-            <div class="tiny">OVR ${overall(p)} · ${p.season} · ${staminaMinuteHint(p)}</div>
-            <div class="tiny rot-attrs">攻${p.scoring} 三分${p.three ?? "—"} 防${p.defense} 板${p.rebound} 传${p.pass} 断${p.steal ?? "-"} 帽${p.block ?? "-"} 速${p.speed} 力${p.strength ?? "-"}</div>
-            ${p.skills?.length ? `<div class="skill-row">${skillChipsHtml(p, getLang())}</div>` : ""}
-          </div>
-        </div>
-        <select class="rot-pos" title="上场位置">${posOpts}</select>
-        <select class="rot-role" title="角色">${roleOpts}</select>
-        <label class="rot-min-wrap" title="目标分钟"><input class="rot-min" type="number" min="8" max="48" value="${p.targetMinutes ?? 24}" /><span>分钟</span></label>
-      </div>`;
-    })
-    .join("");
+  const lang = getLang();
+  const epiphanyLedger = state.leagueCareer?.management?.epiphany;
+  const rowHtml = (p) => {
+    const role = p.roleExpectation || inferPlayerRole(p);
+    const roleOpts = Object.values(PLAYER_ROLES)
+      .map((r) => `<option value="${r.id}" ${r.id === role ? "selected" : ""}>${roleName(r, lang)}</option>`)
+      .join("");
+    const recPos = recommendPlayPos(p);
+    const posOpts = POS_SLOTS.map(
+      (s) => `<option value="${s.id}" ${normalizePos(p.playPos || p.pos) === s.id ? "selected" : ""}>${s.id}${s.id === recPos ? tr(lang, "（推荐）", " (rec.)") : ""}</option>`
+    ).join("");
+    const cap = staminaMinuteCap(p);
+    return rotationRowHtml(p, {
+      lang,
+      cap,
+      posOpts,
+      roleOpts,
+      starter: starters.has(p.id),
+      over: (p.targetMinutes || 0) > cap,
+      cardPos: normalizePos(p.playPos || p.pos),
+      ovr: overall(p),
+      hint: staminaMinuteHint(p, lang),
+      photo: photoImg(p),
+      skillChips: p.skills?.length ? skillChipsHtml(p, lang) : "",
+      learned: learnedSkillIds(epiphanyLedger, p.bref),
+    });
+  };
+  const startersNow = sorted.filter((p) => starters.has(p.id));
+  const bench = sorted.filter((p) => !starters.has(p.id));
 
   box.innerHTML = `
     <div class="sm-cap-card rot-card">
       <div class="rot-card-head">
-        <h4>默认轮换 · 实验板</h4>
+        <h4>${tr(lang, "排兵布阵", "Rotation board")}<small>${tr(lang, "默认轮换", "default rotation")}</small></h4>
         <div class="rot-stats">
-          <span class="rot-stat"><em>目标分钟合计</em><strong>${totalMin}</strong></span>
-          <span class="rot-stat"><em>首发适配</em><strong>${fit ?? "—"}</strong></span>
-          <span class="rot-stat"><em>化学反应</em><strong>${chem ?? "—"}</strong></span>
+          <span class="rot-stat" title="${tr(lang, "要选满 5 个首发才有意义", "Only meaningful with a full five")}"><em>${tr(lang, "首发适配", "Lineup fit")}</em><strong>${fitLabel(startersNow.length, fit)}</strong></span>
+          <span class="rot-stat"><em>${tr(lang, "化学反应", "Chemistry")}</em><strong>${chem ?? "—"}</strong></span>
         </div>
       </div>
-      <p class="tiny">设定首发、位置、角色、目标分钟与持球人；会在每场「亲自指挥」时自动套用。可反复改了再打，用来磨合。体能差的人不宜长期 35+ 分钟。</p>
+      ${budgetBarHtml(sorted, [...starters], lang)}
+      <p class="tiny">${tr(lang, "设定首发、位置、角色、目标分钟与持球人；会在每场「亲自指挥」时自动套用。一场共 240 分钟；分钟条上的黑线是这个人能稳打的上限，体能差的人不宜长期 35+ 分钟。", "Set starters, positions, roles, target minutes and the ball handler; they apply whenever you coach a game yourself. A game has 240 player-minutes; the dark tick on a minutes bar is how many he can carry without tiring, and tired players shouldn't play 35+ for long.")}</p>
       <div class="rot-toolbar">
-        <label class="rot-field"><span>默认战术</span>
+        <label class="rot-field"><span>${tr(lang, "默认战术", "Default tactic")}</span>
           <select id="rot-tactic">${tactics
             .map((t) => `<option value="${t.id}" ${t.id === tacticId ? "selected" : ""}>${esc(t.name)}</option>`)
             .join("")}</select>
         </label>
-        <label class="rot-field"><span>默认持球人</span>
+        <label class="rot-field"><span>${tr(lang, "默认持球人", "Ball handler")}</span>
           <select id="rot-focus">
-            <option value="">（不指定）</option>
+            <option value="">${tr(lang, "（不指定）", "(none)")}</option>
             ${sorted
-              .map(
-                (p) =>
-                  `<option value="${p.id}" ${p.id === focusId ? "selected" : ""}>${esc(p.name)}</option>`
-              )
+              .map((p) => `<option value="${p.id}" ${p.id === focusId ? "selected" : ""}>${esc(p.name)}</option>`)
               .join("")}
           </select>
         </label>
         <span class="rot-actions">
-          <button type="button" class="btn small" id="btn-rot-suggest">按体能建议分钟</button>
-          <button type="button" class="btn small" id="btn-rot-top5">OVR 前五当首发</button>
-          <button type="button" class="btn primary small" id="btn-rot-save">保存默认轮换</button>
+          <button type="button" class="btn small" id="btn-rot-suggest">${tr(lang, "按体能建议分钟", "Suggest minutes")}</button>
+          <button type="button" class="btn small" id="btn-rot-top5">${tr(lang, "OVR 前五当首发", "Top 5 by OVR")}</button>
+          <button type="button" class="btn primary small" id="btn-rot-save">${tr(lang, "保存默认轮换", "Save rotation")}</button>
         </span>
       </div>
     </div>
-    <div class="rot-list"><div class="rot-head" aria-hidden="true"><span></span><span>球员</span><span>位置</span><span>角色</span><span>分钟</span></div>${rows}</div>
+    ${startersSectionHtml(startersNow.map(rowHtml).join(""), startersNow.length, lang)}
+    ${benchSectionHtml(bench.map(rowHtml).join(""), bench.length, lang, { noStarters: !startersNow.length })}
   `;
 
   box.querySelectorAll(".rot-row").forEach((row) => {
@@ -10492,6 +10484,8 @@ async function boot() {
       screens.sandbox?.__sandboxSetLang?.(nextLang);
       applyStaticLang();
       timeTravelScreen.repaint();
+      // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
+      if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
       paintLangBtn();
     });
     initBgm();

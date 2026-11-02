@@ -1,0 +1,175 @@
+/* 排兵布阵 (default rotation board). Markup: js/ui/rotationBoard.js. Text colours here are all >= 4.5:1 on their fills. */
+.season-rotation { display: grid; gap: 4px; }
+
+/* ---- header card: title, two gauges, the 240-minute budget, the toolbar */
+.rot-card .rot-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.rot-card h4 { margin: 0; display: flex; align-items: baseline; gap: 8px; }
+.rot-card h4 small { font-size: 0.75rem; font-weight: 500; color: var(--muted, #5b6a63); }
+.rot-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.rot-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.85rem;
+}
+.rot-stat em { font-style: normal; color: var(--muted, #5b6a63); font-size: 0.75rem; }
+.rot-stat strong { font-size: 1rem; }
+
+.rot-budget { margin-top: 12px; }
+.rot-budget-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.rot-budget-top strong { font-size: 1.5rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.rot-budget-top small { font-size: 0.8rem; font-weight: 500; color: var(--muted, #5b6a63); }
+.rot-budget-top span { font-size: 0.85rem; font-weight: 700; }
+.rot-budget-ok .rot-budget-top span { color: #1b7f5c; }
+.rot-budget-short .rot-budget-top span { color: #9a3412; }
+.rot-budget-over .rot-budget-top span { color: #b42318; }
+.rot-budget-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  margin-top: 8px;
+  padding: 2px;
+  border-radius: 999px;
+  background: #e4ebe6;
+  overflow: hidden;
+}
+.rot-budget-bar i { display: block; height: 100%; min-width: 2px; border-radius: 999px; }
+.rot-budget-bar i.st { background: #2a9d8f; }
+.rot-budget-bar i.bn { background: #8aa0b2; }
+.rot-budget-over .rot-budget-bar { background: #fbd5d0; }
+.rot-budget-key { display: flex; gap: 14px; margin-top: 6px; font-size: 0.72rem; color: var(--muted, #5b6a63); }
+.rot-budget-key span::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+.rot-budget-key .st::before { background: #2a9d8f; }
+.rot-budget-key .bn::before { background: #8aa0b2; }
+
+.rot-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 14px; margin-top: 12px; }
+.rot-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--muted, #5b6a63); }
+.rot-field select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 0.9rem; }
+.rot-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+
+/* ---- sections: the starting five first, then the bench. The page scrolls; the lists never do. */
+.rot-section h5 { display: flex; align-items: center; gap: 8px; margin: 18px 2px 8px; font-size: 0.95rem; }
+.rot-section h5 em {
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: #e4ebe6;
+  color: #35453d;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 700;
+}
+.rot-section h5 em.full { background: #1f7a70; color: #fff; }
+.rot-list { display: grid; gap: 8px; }
+.rot-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed rgba(42, 157, 143, 0.6);
+  border-radius: 12px;
+  background: #f3fbf9;
+  color: #35453d;
+  font-size: 0.88rem;
+}
+
+/* ---- one player */
+.rot-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 150px 104px 132px;
+  gap: 10px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rot-row:hover { border-color: rgba(60, 60, 60, 0.35); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.rot-row.starter { border-color: rgba(42, 157, 143, 0.6); border-left-width: 4px; background: #f3fbf9; }
+.rot-row.over-min { border-color: rgba(180, 83, 9, 0.55); background: #fff7ed; }
+.rot-starter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fafcfb;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.rot-row.starter .rot-starter { border-color: #1f7a70; background: #1f7a70; color: #fff; }
+.rot-name { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.rot-name .photo-wrap { flex: 0 0 auto; }
+.rot-name-text { min-width: 0; }
+.rot-name-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
+.rot-pos-chip { display: inline-block; min-width: 1.9em; padding: 2px 7px; border-radius: 999px; text-align: center; font-size: 0.75rem; font-weight: 800; }
+.rot-pos-chip.pos-pg { background: #e0f2f1; color: #00695c; }
+.rot-pos-chip.pos-sg { background: #e3f2fd; color: #1565c0; }
+.rot-pos-chip.pos-sf { background: #fff8e1; color: #8d6e00; }
+.rot-pos-chip.pos-pf { background: #fbe9e7; color: #bf360c; }
+.rot-pos-chip.pos-c { background: #f3e5f5; color: #6a1b9a; }
+.rot-ovr { padding: 1px 8px; border-radius: 6px; background: #14211b; color: #fff; font-size: 0.78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rot-learned {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border: 1px solid #f0c75e;
+  border-radius: 999px;
+  background: #fff4d6;
+  color: #7a4a00;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.rot-learned i { font-style: normal; }
+.rot-year { font-size: 0.76rem; color: var(--muted, #5b6a63); }
+.rot-sub { margin-top: 2px; font-size: 0.76rem; color: var(--muted, #5b6a63); }
+.rot-tired { color: #9a3412; font-weight: 600; }
+.rot-attrs { display: flex; flex-wrap: wrap; gap: 4px 5px; margin-top: 5px; }
+.rot-attr { padding: 1px 6px; border-radius: 6px; background: #f1f5f2; color: #3f4f47; font-size: 0.72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rot-attr b { margin-right: 3px; color: #55645c; font-weight: 600; }
+.rot-attr.hi { background: #d8f0ea; color: #0f4d45; font-weight: 700; }
+.rot-attr.hi b { color: #15665c; }
+.rot-learned-line { margin-top: 4px; font-size: 0.74rem; color: #7a4a00; }
+
+/* minutes: the number you type, and what it looks like next to a 48-minute game */
+.rot-min-wrap { display: grid; gap: 7px; }
+.rot-min-box { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--muted, #5b6a63); white-space: nowrap; }
+.rot-min { width: 60px; padding: 6px 4px; border: 1px solid var(--line); border-radius: 8px; text-align: center; font-size: 0.95rem; font-weight: 700; }
+.rot-bar { position: relative; display: block; height: 8px; border-radius: 999px; background: #e4ebe6; overflow: hidden; }
+.rot-bar::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--m, 0%); border-radius: 999px; background: #2a9d8f; }
+.rot-bar.over::before { background: #d97706; }
+.rot-bar::after { content: ""; position: absolute; top: 0; bottom: 0; left: calc(var(--cap, 100%) - 2px); width: 2px; background: rgba(20, 33, 27, 0.55); }
+.rot-pos, .rot-role { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 0.9rem; }
+
+@media (max-width: 900px) {
+  .rot-row { grid-template-columns: 1fr 1fr; }
+  .rot-name { grid-column: 1 / -1; order: 0; }
+  .rot-min-wrap { grid-column: 1; order: 1; }
+  .rot-starter { grid-column: 2; order: 2; justify-self: end; }  /* beside the minutes (placed after them: same order = DOM order, and he comes first in the DOM) */
+  .rot-pos { order: 3; }
+  .rot-role { order: 4; }
+  .rot-actions { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rot-row { transition: none; }
+}

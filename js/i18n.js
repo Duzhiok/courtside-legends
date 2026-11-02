@@ -195,6 +195,8 @@ export const TEAM_NAME_EN = {
   "篮网": "Nets", "老鹰": "Hawks", "超音速": "SuperSonics", "雄鹿": "Bucks",
   "雷霆": "Thunder", "马刺": "Spurs", "骑士": "Cavaliers", "魔术": "Magic",
   "鹈鹕": "Pelicans", "黄蜂": "Hornets", "黄蜂/鹈鹕": "Hornets / Pelicans",
+  // the league's default display names (data/league.js LEAGUE_TEAM_META) are city + nickname, so they need their own rows
+  "西雅图超音速": "Seattle SuperSonics", "拉斯维加斯": "Las Vegas", "拉斯维加斯 ***": "Las Vegas ***",
 };
 
 /** Translate a stored Chinese team name for display (user-named teams pass through). */
