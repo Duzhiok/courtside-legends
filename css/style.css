@@ -2794,6 +2794,15 @@ select, input[type="number"] {
   background: #2a9d8f;
   color: #fff;
 }
+.rot-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.rot-name-text { min-width: 0; }
+.rot-name .photo-wrap { flex: 0 0 auto; }
+.rot-attrs { color: var(--muted, #5b6a63); }
 .rot-name-line {
   display: flex;
   align-items: center;

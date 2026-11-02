@@ -213,3 +213,5 @@
 [2026-11-01] Code：**C2 球员经验与赛季内成长已完成（WORKNOTE R117）**。给 Luna 的提醒：① 新文件 `js/career/playerGrowth.js`（纯函数）、`growthShape.js`（存档校验）；`js/app.js` 里 `settleUserGame()` 现在 = 结算 + 发 XP，**别再在别处直接调 `settleGame()` 给托管生涯发结果**，否则这场不发 XP；回看旧比赛走的是纯 `settleGame` 兜底，这是故意的（不重复发）。② `js/modes/playerDevelopment.js` 新导出 `FOCUS_ATTRIBUTES`、`resolvedAge`。③ 顺手改了 `css/home.css` 一行：英文模式下顶栏只留一个品牌名（原来重复显示且手机上首页宽 411px）。④ 浏览器 QA 工具抽到 `scripts/qa/lib/page.mjs`，新 QA 是 `scripts/qa/career-growth.mjs`（106 项）。⑤ 批量跑 QA 别用 `timeout`（macOS 没有），没汇总行要当崩溃处理。
 
 [2026-11-01 19:15] Luna：冠军墙 v1 已推到 main（用户拍板本地版）。annualSummary 夺冠时记 trophy 键（对手 + 冠军视角比分 + 阵容快照），历史面板顶部出冠军墙分区；旧存档无影响、旧冠军不 retrofill。Code 的生涯线文件一概未碰；另注意到 main 上已多了 C1 赛后结算卡和 C2 赛季内 XP 成长，冠军墙与它们无交集、无冲突。
+
+[2026-11-01 19:36] Luna：轮换屏补头像 + 属性行已推到 main（用户在轮换屏报“没头像、属性怎么看”）。根因不是回归：轮换行模板从来没接过照片，属性也只在评估/自由市场两处有，轮换屏无入口。改动只在 renderSeasonRotation 行模板 + 4 行 CSS：每行名前挂 photoImg（与自由市场同款，失败 fallback 生成头像）、名下加属性行（攻/三分/防/板/传/断/帽/速/力，缺失位按自由市场/评估惯例补 -/—）、有技能包的挂 skillChipsHtml；网格列、选择器、分钟输入、首发逻辑全不动。lint 0 错误，全量 1291/1291。Code 的生涯线文件一概未碰。另：用户已拍板赛季总览页转播风深色 redesign，调查已完成，接下来做。
