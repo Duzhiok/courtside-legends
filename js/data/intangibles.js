@@ -189,15 +189,19 @@ export function attachIntangibles(player) {
   const age = player.age ?? estimateAge({ bref: player.bref, season: player.season });
   const arcBias = careerArcIntangibleBias(age);
 
-  // Injury risk: low stamina / sparse GP seasons / known glass bodies
+  // Injury risk: low stamina / sparse GP seasons / known glass bodies.
+  // A low-GP season means fragility when you're young; after 35 it mostly
+  // means role decline / farewell (Iguodala 2023: 8 games at 38 is not a
+  // glass body — 15 prior seasons of 62+ games).
   const gp = player.raw?.gp ?? 70;
   const mpg = player.raw?.mpg ?? 20;
   const glassBump = glassBumpFor(player);
+  const gpTerm = gp < 50 ? (50 - gp) * 0.35 * (age >= 35 ? 0.25 : 1) : 0;
   let injuryBias =
     38 +
     (100 - (player.stamina || 50)) * 0.25 +
     (100 - (player.strength || 50)) * 0.08 +
-    (gp < 50 ? (50 - gp) * 0.35 : 0) +
+    gpTerm +
     (mpg > 34 && gp < 60 ? 12 : 0) +
     glassBump;
 
@@ -353,7 +357,12 @@ export function attachIntangibles(player) {
 
   player.intangibles = intangibles;
   const tags = new Set(player.tags || []);
-  if (intangibles.injuryRisk >= 68 || glassBump >= 20) tags.add("玻璃人");
+  // 玻璃人 is an identity, not just a high noisy number: it needs fragility
+  // evidence — a named glass body, a young/mid-career player missing most of
+  // a season, or a high-minute star who still misses games. A durable vet's
+  // farewell low-GP season (Iguodala 2023) is none of those.
+  const fragileEvidence = glassBump > 0 || (gp < 50 && age < 35) || (mpg > 34 && gp < 60);
+  if (glassBump >= 20 || (intangibles.injuryRisk >= 68 && fragileEvidence)) tags.add("玻璃人");
   else if (intangibles.injuryRisk <= 32) tags.add("铁人");
 
   // Value archetype from salary multiple vs true impact

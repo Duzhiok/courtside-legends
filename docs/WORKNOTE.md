@@ -2139,3 +2139,7 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 ### 轮换屏：头像 + 属性行（Luna，2026-11-01）
 
 用户在轮换屏报“还是没头像”并问“球员属性怎么看”。查完是缺口不是回归：轮换行模板从来没接过照片；属性目前只在球队评估（得分/三分/防守/篮板/传球/速度/力量 + 技能）和自由市场已有球员行（攻/防/传/板/断/帽/速/力 + 技能）两处有，轮换屏无入口。改动只在 renderSeasonRotation 的行模板 + 4 行 CSS：每行名前挂 photoImg（与自由市场同款，加载失败 fallback 生成头像）、名下加属性行（攻/三分/防/板/传/断/帽/速/力）、有技能包的挂 skillChipsHtml；网格列、选择器、分钟输入、首发逻辑全不动。lint 0 错误，全量 1291/1291。
+
+### 卡面标签修正：Rondo 不再是空间射手、Iguodala 去掉玻璃人（Luna，2026-11-01）
+
+用户在卡面页连报两处：Rondo 2020 卡标 stretch（空间射手）与 Iguodala 2023 卡挂玻璃人，两处都属实。Rondo 根因在 deriveShotTendencies：threeTend 的占比项（三分出手占比 ×200）没按出手量缩放，出手少但三分占比高（2.6/6.8）的人直接冲到 99，配上 2K 锚点给的 three 76 就进了 stretch 门（≥62 且 three ≥72）。修法：占比项乘以出手量系数 min(tpa,6)/6，stretch 门再加真实命中率与出手量双条件（tp ≥0.35 且 tpa ≥3）。结果：Rondo 2020 threeTend 99→60、风格 stretch→playmake；全库 stretch 4907→2286，tp<0.35 的 stretch 从 1453 清零；Klay 2016、Korver 2015、Towns 2018 仍是 stretch，Iverson 1997、Payton 1998 等改回 playmake/spot。Iguodala 根因在 attachIntangibles：低出场（gp<50）的惩罚项不分年龄，38 岁告别季 8 场也被当成玻璃人（bias 68.15、roll 后风险 87）。修法：gp 惩罚项 35 岁以上只算 0.25 倍；标签规则改成“有名册玻璃大炮，或（风险 ≥68 且有年轻低出场/高分钟低出场等脆弱证据）”才挂。结果：Iguodala 2023 风险 87→57、去标签，且生涯仅 2023 一季曾挂过；全库玻璃人 2624→2426，被摘的 199 例全是告别季老将（Cousy 1970、Parish 1997、Pierce 2017、Haslem 2019 等），名册玻璃大炮（Porzingis、Embiid、Rose、Yao、Kawhi 等）全部保留；唯一新挂的是 Kobe 2015（gp 35 且场均 34.7 分钟，证据成立）。附带说明：玻璃人标签本身只影响展示/市场置顶，模拟受伤吃的是 injuryRisk 数值；injuryRisk 的随机扰动种子与 bias 挂钩，bias 一动同卡扰动会重抽（Durant 2023 因此掉标签，属可接受噪声）。schema 63→64、夹具重算（23448 张，ee356b913905b0f7…）；新增 tests/cardLabels.test.js 5 条。lint 0 错误，全量 1296/1296。
