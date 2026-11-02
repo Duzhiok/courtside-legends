@@ -200,7 +200,7 @@ test("preparation snapshots a compact summary and opens the same-year draft", ()
 // the same way, leaving a played-out season with nowhere to go. Go through the real entry points
 // (seasonMarket.js's own tradeLog shape, prepareCareerOffseason, then an actual writeRootSave)
 // instead of poking the summary object directly, so this breaks again if either piece regresses.
-test("a season with a 3-team trade or a declined offer can still be saved and exported", () => {
+test("a season with a 3-team trade, a declined offer or a countered offer can still be saved and exported", () => {
   const original = managedCareer();
   original.season.tradeLog = [
     {
@@ -222,16 +222,26 @@ test("a season with a 3-team trade or a declined offer can still be saved and ex
       from: "D",
       target: "D",
     },
+    {
+      type: "trade_countered",
+      year: 2030,
+      day: 42,
+      proposalId: "p-2",
+      from: "D",
+      target: "Star",
+      round: 2,
+    },
   ];
 
   const prepared = prepareCareerOffseason(original);
   const [summary] = prepared.management.seasonHistory;
   assert.deepEqual(
     summary.transactions.map((entry) => entry.type),
-    ["trade_3team", "trade_declined"],
+    ["trade_3team", "trade_declined", "trade_countered"],
   );
   assert.match(summary.transactions[0].description, /三方交易/);
   assert.match(summary.transactions[1].description, /拒绝/);
+  assert.match(summary.transactions[2].description, /还价/);
 
   const root = createRootState({
     activeMode: "franchise",

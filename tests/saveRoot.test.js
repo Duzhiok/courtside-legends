@@ -850,9 +850,10 @@ test("season summary transactions are optional, compact, and validated", () => {
 // Regression: seasonMarket.js logs 3-team trades as "trade_3team" and tradeProposals.js logs a
 // declined inbound offer as "trade_declined", but this whitelist never grew those two types --
 // any season containing either could never be saved (or exported) again. "made up" type names
-// must stay rejected so this isn't just "allow everything".
-test("season summary transactions accept trade_3team and trade_declined, still reject unknown types", () => {
-  for (const type of ["trade_3team", "trade_declined"]) {
+// must stay rejected so this isn't just "allow everything". tradeProposals.js later grew
+// "trade_countered" (round-2 counter-offers) with the same gap.
+test("season summary transactions accept trade_3team, trade_declined and trade_countered, still reject unknown types", () => {
+  for (const type of ["trade_3team", "trade_declined", "trade_countered"]) {
     const root = managedRoot({
       draft: null,
       draftHistory: [],

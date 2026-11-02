@@ -75,12 +75,14 @@ function validateSeasonSummary(summary) {
   // whole root fails validateRoot() (not just this one transaction), the "export as a fallback"
   // button calls the exact same validateRoot() on the exact same data, so it fails identically,
   // and the save-failure dialog blames browser storage for a bug that has nothing to do with it.
+  // tradeProposals.js later grew trade_countered (round-2 counter-offers) with the same gap.
   const transactionTypes = new Set([
     "sign",
     "cut",
     "trade",
     "trade_3team",
     "trade_declined",
+    "trade_countered",
     "hire_coach",
     "hire_assistant",
     "fire_coach",

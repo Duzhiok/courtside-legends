@@ -281,6 +281,10 @@ export function transactionDescription(entry, lang = "zh") {
     const from = entry.target || entry.from || (en ? "a team" : "对方球队");
     return en ? `Declined an offer from ${from}` : `拒绝了 ${from} 的交易报价`;
   }
+  if (entry.type === "trade_countered") {
+    const target = entry.target || entry.from || (en ? "a team" : "对方球队");
+    return en ? `Countered an offer for ${target}` : `就 ${target} 的交易报价还价`;
+  }
   if (entry.type === "hire_coach" || entry.type === "hire_assistant") {
     return entry.replaced
       ? en
