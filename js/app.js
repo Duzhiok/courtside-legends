@@ -300,7 +300,7 @@ import {
   reconcileDevelopmentPlans,
   setDevelopmentPlan,
 } from "./modes/playerDevelopment.js";
-import { createTimeTravelScreen } from "./ui/timeTravel/screen.js";
+import { careerIsOver, createTimeTravelScreen } from "./ui/timeTravel/screen.js";
 import {
   renderCareerHistory,
   renderDevelopmentPlans,
@@ -742,7 +742,9 @@ function resumeLongCareer(root = readRootSave()) {
       return false;
     }
   }
-  if (state.story?.pendingDecision && screens.timeTravel) {
+  // A decision waiting, or a career that is over (fired / departed / retired): the time-travel screen
+  // holds the verdict and the job board. The season hub would let him keep coaching a team that isn't his.
+  if ((state.story?.pendingDecision || careerIsOver(state.story)) && screens.timeTravel) {
     timeTravelScreen.resume();
     show("timeTravel");
   } else {

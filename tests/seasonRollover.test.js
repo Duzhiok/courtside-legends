@@ -5,7 +5,7 @@ import { COACH_RETIRE_AGE } from "../js/career/balance.js";
 import { currentCoachSalary } from "../js/career/finance.js";
 import { settleSeasonRollover } from "../js/modes/seasonRollover.js";
 import { retireCoach } from "../js/modes/retirement.js";
-import { YEAR, badSeasons, hiredRoot, poachReadyRoot, withHistory } from "./helpers/careerFixtures.js";
+import { YEAR, badSeasons, firedRoot, hiredRoot, poachReadyRoot, withHistory } from "./helpers/careerFixtures.js";
 
 const withAge = (root, age) => ({ ...root, coach: { ...root.coach, age } });
 const rollover = (root) => settleSeasonRollover(root, { year: YEAR });
@@ -68,4 +68,31 @@ test("a retired career is sealed: no pay, no aging, no story beats, nothing chan
   assert.equal(out.root, retired, "the very same object comes back");
   assert.deepEqual(Object.keys(out), ["root"], "and there is nothing to recap");
   assert.equal(out.root.coach.cash, retired.coach.cash);
+});
+
+// P0: only a coach who holds a job can be paid, aged, re-rated or handed a story. A fired or departed
+// coach has no team; a coach at the renewal desk has no contract yet. None of them may drift forward.
+const sealed = (root, status) => ({ ...root, story: { ...root.story, employment: { ...root.story.employment, status } } });
+const snapshot = (r) => JSON.stringify({ cash: r.coach.cash, rep: r.coach.reputation, age: r.coach.age, trust: r.story.frontOfficeTrust, log: r.story.eventLog.length, pending: r.story.pendingDecision });
+
+for (const status of ["fired", "departed"]) {
+  test(`a ${status} coach's rollover changes nothing: no pay, no aging, no reputation swing, no story beat`, () => {
+    const root = sealed(firedRoot(70), status);
+    const out = rollover(root);
+    assert.equal(out.root, root, "the very same object comes back");
+    assert.deepEqual(Object.keys(out), ["root"], "and there is nothing to recap");
+    assert.equal(snapshot(out.root), snapshot(root));
+  });
+}
+
+test("a coach waiting on a renewal can't roll into another season on an unsigned contract", () => {
+  const root = sealed(poachReadyRoot(), "renewal");
+  const out = rollover(root);
+  assert.equal(out.root, root);
+  assert.equal(snapshot(out.root), snapshot(root));
+});
+
+test("an employed coach still rolls over (the seal is only for the unemployed)", () => {
+  const root = poachReadyRoot();
+  assert.notEqual(rollover(root).root, root);
 });

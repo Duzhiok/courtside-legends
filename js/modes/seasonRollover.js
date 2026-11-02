@@ -17,6 +17,13 @@ import { advanceSeasonGoal, evaluateCareerEmployment } from "./careerContract.js
 import { expirePoachOffer, maybeCreatePoachOffer } from "./poaching.js";
 import { retireIfDue, settleCoachAge } from "./retirement.js";
 
+/**
+ * Only a coach who holds a job drifts forward between seasons. Fired / departed: no team to coach.
+ * Retired: done. Renewal: no signed contract for the next season yet. Any of these running the
+ * pipeline would pay a salary, swing reputation, age him and queue a story beat for nobody.
+ */
+const NOT_COACHING = new Set(["retired", "fired", "departed", "renewal"]);
+
 /** The log entry `type` that a step just appended, or null if it did nothing this time. */
 const justLogged = (root, type) => {
   const last = root.story.eventLog.at(-1);
@@ -25,11 +32,11 @@ const justLogged = (root, type) => {
 
 /**
  * @returns {{ root, resolvedGoal?, settledFinances?, settledReputation?, poachOffer?, retirement?, nextGoal? }}
- *   `root` is the input itself when nothing changed (a retired career is sealed: no salary, no
+ *   `root` is the input itself when nothing changed (a coach with no job is sealed: no salary, no
  *   story beats, no aging); the other fields are the facts the caller recaps to the player.
  */
 export function settleSeasonRollover(root, { year } = {}) {
-  if (root?.story?.employment?.status === "retired") return { root };
+  if (NOT_COACHING.has(root?.story?.employment?.status)) return { root };
   const goaled = advanceSeasonGoal(root);
   const financed = settleCoachFinances(goaled);
   const reputed = settleSeasonReputation(financed);
