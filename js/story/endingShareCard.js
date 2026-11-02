@@ -44,6 +44,14 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+// Why a coach was let go: the keys are careerContract.js's firing reasons. A save from before B2 has no
+// reason, and the losing-seasons rule is the only one that existed then, so it is also the fallback.
+const FIRED_TEXT = {
+  "trust-collapsed": ["管理层的信任跌破底线，被球队解雇", "Fired after the front office's trust collapsed"],
+  "missed-goals": ["连续两个赛季没完成董事会目标，被球队解雇", "Fired after missing the board's goal two seasons in a row"],
+  "two-bad-seasons": ["连续两季胜率低于 40%，被球队解雇", "Fired after two straight seasons under a 40% win rate"],
+};
+
 // Contract prose is built bilingually (offer titles stay as-is); render picks by lang.
 function contractResult(employment) {
   const withEn = (tone, text, textEn, privileges = []) => ({
@@ -71,8 +79,12 @@ function contractResult(employment) {
     }
     case "departed":
       return withEn("neutral", "拒绝续约，带着成果离开", "Declined renewal, left with results in hand");
-    case "fired":
-      return withEn("hard", "连续两季胜率低于 40%，被球队解雇", "Fired after two straight seasons under a 40% win rate");
+    case "fired": {
+      // hasOwn: a hand-edited save with reason "constructor" must not find Object.prototype's function.
+      const known = Object.hasOwn(FIRED_TEXT, employment.reason);
+      const [text, textEn] = FIRED_TEXT[known ? employment.reason : "two-bad-seasons"];
+      return withEn("hard", text, textEn);
+    }
     case "renewal":
       return withEn("neutral", "续约谈判进行中", "Renewal talks in progress");
     default:

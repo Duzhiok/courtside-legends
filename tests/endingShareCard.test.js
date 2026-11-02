@@ -100,3 +100,51 @@ test("rendered card escapes user-facing text and share text is copy-ready", () =
   assert.match(text, /总战绩 250胜160负/);
   assert.match(text, /合同结果：拒绝续约/);
 });
+
+// The fired branch used to print "two straight seasons under a 40% win rate" whatever actually got the
+// coach fired -- so a coach whose front office lost faith was told it was his win rate.
+const firedCard = (reason) => buildEndingShareCard(rootFixture({
+  seasons: 3,
+  employment: reason === undefined ? { status: "fired" } : { status: "fired", reason },
+  ending: { id: "fired-before-finale", label: "下课", tone: "hard" },
+}));
+
+test("a fired coach's card names the real reason, in both languages", () => {
+  const trust = firedCard("trust-collapsed").contract;
+  assert.match(trust.text, /信任/);
+  assert.match(trust.textEn, /trust/i);
+  const goals = firedCard("missed-goals").contract;
+  assert.match(goals.text, /目标/);
+  assert.match(goals.textEn, /goal/i);
+  const losing = firedCard("two-bad-seasons").contract;
+  assert.match(losing.text, /40%/);
+  assert.match(losing.textEn, /40%/);
+});
+
+test("only the losing-seasons firing talks about a 40% win rate", () => {
+  for (const reason of ["trust-collapsed", "missed-goals"]) {
+    const { text, textEn } = firedCard(reason).contract;
+    assert.doesNotMatch(text + textEn, /40%/, `${reason} must not blame the win rate`);
+  }
+});
+
+test("a firing with no reason (a save from before B2) keeps the one rule that existed then", () => {
+  for (const reason of [undefined, "", "something-new", "constructor", "__proto__", "toString"]) {
+    assert.match(firedCard(reason).contract.text, /40%/);
+  }
+});
+
+test("the shared text for a trust firing reads in English without the old sentence", () => {
+  const en = shareCardText(firedCard("trust-collapsed"), "en");
+  assert.match(en, /Contract: .*trust/i);
+  assert.doesNotMatch(en, /40%/);
+  assert.match(shareCardText(firedCard("missed-goals"), "zh"), /合同结果：.*目标/);
+});
+
+test("every fired card is tone hard and still renders", () => {
+  for (const reason of ["trust-collapsed", "missed-goals", "two-bad-seasons"]) {
+    const card = firedCard(reason);
+    assert.equal(card.contract.tone, "hard");
+    assert.ok(renderEndingShareCardHtml(card).includes("share-card"));
+  }
+});
