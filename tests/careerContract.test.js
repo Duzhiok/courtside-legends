@@ -433,7 +433,7 @@ test("zero rings + a poor full-career goal record + low reputation collapses the
   const history = records.map(([w, l], index) => summary(1991 + index, w, l));
   const root = rootWithHistory(history);
   root.coach = { reputation: 20 };
-  root.story.eventLog = goalResultEntries([false, false, false, false, true]); // 1/5 = 0.2 hit rate
+  root.story.eventLog = goalResultEntries([false, true, false, true, false]); // 2/5 = 0.4: the worst record a coach can SURVIVE (two misses in a row is a firing)
   const renewal = evaluateCareerEmployment(root);
   assert.equal(renewal.story.employment.status, "renewal", "a losing-ish but not B2-fireable record should still reach year 5");
   assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["trial-extension"]);
@@ -445,7 +445,7 @@ test("the same poor record does NOT collapse to trial-only when reputation is hi
   const history = records.map(([w, l], index) => summary(1991 + index, w, l));
   const root = rootWithHistory(history);
   root.coach = { reputation: 70 };
-  root.story.eventLog = goalResultEntries([false, false, false, false, true]);
+  root.story.eventLog = goalResultEntries([false, true, false, true, false]);
   const renewal = evaluateCareerEmployment(root);
   assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["contender-extension", "rebuild-extension"]);
 });
@@ -464,7 +464,7 @@ test("missing root.coach falls back to the default reputation (50) rather than c
   const records = [[25, 57], [28, 54], [30, 52], [35, 47], [42, 40]];
   const history = records.map(([w, l], index) => summary(1991 + index, w, l));
   const root = rootWithHistory(history); // no root.coach at all -- pre-A1 saves
-  root.story.eventLog = goalResultEntries([false, false, false, false, true]);
+  root.story.eventLog = goalResultEntries([false, true, false, true, false]);
   const renewal = evaluateCareerEmployment(root);
   // default reputation 50 is above RENEWAL_TRIAL_REPUTATION_CEILING (40), so this is the standard menu
   assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["contender-extension", "rebuild-extension"]);
@@ -475,7 +475,7 @@ test("accepting an offer id that wasn't actually part of this tenure's menu is r
   const history = records.map(([w, l], index) => summary(1991 + index, w, l));
   const root = rootWithHistory(history);
   root.coach = { reputation: 20 };
-  root.story.eventLog = goalResultEntries([false, false, false, false, true]); // trial-only tenure
+  root.story.eventLog = goalResultEntries([false, true, false, true, false]); // trial-only tenure
   const renewal = evaluateCareerEmployment(root);
   assert.throws(() => acceptCareerContract(renewal, "dynasty-extension"), RangeError);
   // the one offer actually on the table still works
@@ -491,4 +491,33 @@ test("no goal history at all (ancient pre-B1 save) never qualifies for the trial
   // ...eventLog is empty, so goalHitRate is null, not 0 -- "never judged" must not read as "always failed"
   const renewal = evaluateCareerEmployment(root);
   assert.deepEqual(renewal.story.employment.offers.map((offer) => offer.id), ["contender-extension", "rebuild-extension"]);
+});
+
+// The trial offer used to sit behind "hit rate <= 0.34" -- which no coach who is still employed can reach:
+// two goals missed in a row is a firing, so over five goals at most three can be missed (M H M H M), a
+// floor of 0.4. The old tests passed only by faking a history of four misses in a row, which the game can
+// never produce. This one walks every possible five-goal record through the REAL firing check.
+test("REACHABILITY: of all 32 five-goal records, the ones that survive to renewal and land on the trial offer", () => {
+  const records = Array.from({ length: 5 }, () => [40, 42]); // .488: never a sub-.400 season
+  const outcome = {};
+  for (let mask = 0; mask < 32; mask += 1) {
+    const hits = Array.from({ length: 5 }, (_, i) => Boolean((mask >> i) & 1));
+    const key = hits.map((h) => (h ? "H" : "M")).join("");
+    outcome[key] = "never-renewed";
+    for (let k = 1; k <= 5; k += 1) {
+      const root = rootWithHistory(records.slice(0, k).map(([w, l], i) => summary(1991 + i, w, l)));
+      root.coach = { reputation: 30 };
+      root.story.eventLog = goalResultEntries(hits.slice(0, k));
+      const out = evaluateCareerEmployment(root);
+      if (out.story.employment.status === "fired") { outcome[key] = "fired"; break; }
+      if (k === 5 && out.story.employment.status === "renewal") outcome[key] = out.story.employment.offers.map((o) => o.id).join("+");
+    }
+  }
+  const trial = Object.keys(outcome).filter((k) => outcome[k] === "trial-extension");
+  assert.ok(trial.length > 0, "some employed coach must be able to reach the trial offer, or it is dead content");
+  assert.ok(trial.every((k) => (k.match(/H/g) || []).length <= 2), `trial went to a record with 3+ hits: ${trial}`);
+  assert.equal(outcome.MHMHM, "trial-extension", "the worst survivable record is exactly the trial case");
+  assert.equal(outcome.MMMMH, "fired", "the record the old tests faked is a firing long before year five");
+  const normal = Object.keys(outcome).filter((k) => (k.match(/H/g) || []).length >= 3 && outcome[k] !== "fired");
+  assert.ok(normal.length > 0 && normal.every((k) => outcome[k] === "contender-extension+rebuild-extension"), "3+ hits still gets the usual pair");
 });

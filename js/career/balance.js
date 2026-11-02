@@ -80,7 +80,11 @@ export const FIRING_TRUST_FLOOR = 15;
 /** Full-tenure (not just the last two seasons, unlike B2's firing check) goal hit rate at or
  * below which a ringless tenure gets boiled down to a single one-year trial offer instead of the
  * usual rebuild/contender pair. */
-export const RENEWAL_TRIAL_GOAL_RATE = 0.34;
+export const RENEWAL_TRIAL_GOAL_RATE = 0.45;
+// Why 0.45 and not lower: two goals missed in a row is a firing, so a coach who is still employed at his
+// first renewal (five goals) has missed at most three -- a hit rate of at least 0.4. A threshold below that
+// (it was 0.34) can never be met, which made the trial offer dead content. 0.45 admits exactly the worst
+// records a coach can survive and nothing better (3 of 5 is 0.6, and still gets the usual pair).
 
 /** Coach reputation (root.coach.reputation, 0-100, starts at COACH_START_REPUTATION) below this
  * is also required for the trial-only outcome -- a ringless but well-regarded coach (good goal
