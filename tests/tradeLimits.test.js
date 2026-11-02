@@ -77,17 +77,33 @@ test("no count cap: the sixth trade — and beyond — still goes through (R109)
   assert.equal(seasonTradeCount(st), 6);
 });
 
-test("value rejection is deterministic: a value-losing trade never sneaks through on luck", () => {
-  // Give an 80-OVR cheap player, want a 60-OVR same-salary player: value fails
-  // (64 < 72) and the salary-dump clause does not rescue it (50 < 50 + 80).
+test("value rejection is deterministic: a CPU-losing trade never sneaks through on luck", () => {
+  // CPU perspective: executeTrade is the CPU deciding on the user's proposal.
+  // Give a 60-OVR player, want an 80-OVR same-salary player: the CPU receives
+  // 60+4 = 64 < 80*0.9 = 72, so it rejects, and the salary-dump clause does not
+  // rescue it (50 < 50 + 80). The mirror image (give 80, want 60) is a gift the
+  // CPU happily accepts — the old test pinned the reversed direction.
   for (let run = 0; run < 10; run++) {
     const st = seasonFixture();
-    st.teams.USER.players.push(player("rich", 80, 50));
-    st.teams.T2.players.push(player("poor", 60, 50));
-    const res = executeTrade(st, { giveIds: ["rich"], wantIds: ["poor"], cpuTeamId: "T2" });
+    st.teams.USER.players.push(player("poor", 60, 50));
+    st.teams.T2.players.push(player("rich", 80, 50));
+    const res = executeTrade(st, { giveIds: ["poor"], wantIds: ["rich"], cpuTeamId: "T2" });
     assert.equal(res.ok, false, `run ${run} should reject`);
     assert.match(res.reason, /吃亏/);
   }
+  const gift = seasonFixture();
+  gift.teams.USER.players.push(player("rich", 80, 50));
+  gift.teams.T2.players.push(player("poor", 60, 50));
+  assert.equal(executeTrade(gift, { giveIds: ["rich"], wantIds: ["poor"], cpuTeamId: "T2" }).ok, true);
+});
+
+test("fleecing the CPU is rejected: 62 for 92 does not clear value", () => {
+  const st = seasonFixture();
+  st.teams.USER.players.push(player("fleece", 62, 50));
+  st.teams.T2.players.push(player("mark", 92, 50));
+  const res = executeTrade(st, { giveIds: ["fleece"], wantIds: ["mark"], cpuTeamId: "T2" });
+  assert.equal(res.ok, false, res.reason);
+  assert.match(res.reason, /吃亏/);
 });
 
 test("every generated CPU proposal clears the acceptance math", () => {

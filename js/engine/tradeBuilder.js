@@ -16,11 +16,18 @@ import { isProspectCandidate, prospectScore } from "./tradeProposals.js";
 
 export { teamDraftAssets, pickValueOf };
 
-/** Mirrors executeTrade()'s own acceptance math so a "recommended" package is actually acceptable. */
+/**
+ * A "recommended" package must clear BOTH sides: the CPU side mirrors
+ * executeTrade()'s acceptance math (so the recommendation actually executes),
+ * and the user side keeps the recommender from suggesting a rip-off (so the
+ * user is not told to give 95 of value for 50 back). Each side has its own
+ * salary-dump rescue: shedding 80+ salary excuses a value gap for the shedder.
+ */
 function packageWorks(salOut, salIn, ovrOut, ovrIn) {
   const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
-  const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80;
-  return salaryOk && valueOk;
+  const cpuOk = ovrOut + 4 >= ovrIn * 0.9 || salIn >= salOut + 80;
+  const userOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80;
+  return salaryOk && cpuOk && userOk;
 }
 
 /**

@@ -250,9 +250,10 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
     askPlayerObjs = ask.playerObjs;
     askPickObjs = ask.pickObjs;
   }
-  // R89: an offer that can't be accepted is worse than no offer. executeTrade() runs
-  // the same salary/value math on accept, so a dangled offer must already clear it —
-  // same formulas, but over TOTALS (target + ask vs package incl. picks). Roster size
+  // R89: an offer that can't be accepted is worse than no offer. Dangled offers
+  // bypass executeTrade()'s value check on accept (acceptedProposal), so check()
+  // below is a user-fairness filter over TOTALS (target + ask vs package incl.
+  // picks), not executeTrade's CPU-perspective math. Roster size
   // is checked the same way: a dangled offer must leave both clubs within 8–15,
   // or it would bounce on accept exactly like the old cap-only gap did.
   // Patch-ups, in violation order: too many coming back (or too few left for the
@@ -275,6 +276,11 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
     const capOk = teamPayroll(user) - givenSalary + pkgSalary <= SEASON_APRON
       && !cpuCapBlocksTrade(teamPayroll(fromTeam), givenSalary, pkgSalary);
     const salaryOk = pkgSalary <= givenSalary * 1.25 + 40 || givenSalary <= pkgSalary * 1.25 + 40;
+    // User-fairness filter for dangled offers (NOT executeTrade's math): a dangled
+    // offer bypasses executeTrade's value check on accept (acceptedProposal), so
+    // this guarantees the user is not ripped off instead — package within 90% of
+    // what the user gives. It deliberately differs in perspective from
+    // executeTrade's CPU acceptance; do not "fix" it to match.
     const valueOk = pkgOvr + 4 >= givenOvr * 0.9 || givenSalary >= pkgSalary + 80;
     return { ok: rosterOk && capOk && salaryOk && valueOk, userAfter, cpuAfter, capOk, fairOk: salaryOk && valueOk };
   };

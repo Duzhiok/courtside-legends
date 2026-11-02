@@ -564,7 +564,10 @@ export function executeTrade(
   // packages, so the bypass is a no-op for them in practice) and ledger tests ever pass
   // it; the market UI never does, so no gameplay trade can skip the checks.
   const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
-  const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80; // dumping salary helps
+  // CPU perspective (this is the CPU deciding on the user's proposal): the CPU
+  // receives ovrOut/salOut and sends ovrIn/salIn, so it rejects when what it gets
+  // is under 90% of what it gives — unless it sheds 80+ salary in the deal.
+  const valueOk = ovrOut + 4 >= ovrIn * 0.9 || salIn >= salOut + 80;
   const cpuNeedsSpace = teamPayroll(cpu) > SEASON_SALARY_CAP && salOut < salIn;
   if (!acceptedProposal && !salaryOk && !cpuNeedsSpace) {
     return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };

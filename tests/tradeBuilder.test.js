@@ -205,4 +205,5 @@ test("packageWorks: the value check blocks giving away far more than you receive
   assert.equal(packageWorks(100, 100, 80, 80), true);
   assert.equal(packageWorks(100, 100, 95, 50), false, "giving 95 of value for 50 back, same salary, should fail");
   assert.equal(packageWorks(300, 100, 95, 50), true, "but dumping enough extra salary (>=80 more out) excuses it");
+  assert.equal(packageWorks(100, 100, 50, 95), false, "giving 50 for 95 back should also fail — the CPU would reject it");
 });
