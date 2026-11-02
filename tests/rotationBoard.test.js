@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MAX_EPIPHANY } from "../js/engine/epiphany.js";
 import { SKILL_PACKS } from "../js/data/skills.js";
 import { staminaMinuteCap, staminaMinuteHint } from "../js/engine/gameplan.js";
 import {
@@ -9,9 +8,6 @@ import {
   budgetBarHtml,
   budgetLabel,
   fitLabel,
-  learnedBadgeHtml,
-  learnedLineHtml,
-  learnedSkillIds,
   minuteBudget,
   rotationRowHtml,
   startersSectionHtml,
@@ -35,24 +31,6 @@ test("attribute chips: all nine are shown, exactly the best two are highlighted,
   assert.equal((html.match(/rot-attr hi/g) || []).length, 2);
   assert.ok(!CJK.test(attributeChipsHtml(player(), "en")));
   assert.match(attributeChipsHtml(player({ steal: undefined }), "zh"), /断<\/b>—/, "a missing attribute shows a dash, not NaN/undefined");
-});
-
-test("learnedSkillIds reads the epiphany ledger and drops junk", () => {
-  assert.deepEqual(learnedSkillIds({ x: { learned: [SKILL, "", 7, null] } }, "x"), [SKILL]);
-  assert.deepEqual(learnedSkillIds({}, "x"), []);
-  assert.deepEqual(learnedSkillIds({ x: { learned: "nope" } }, "x"), []);
-  assert.deepEqual(learnedSkillIds(undefined, "x"), []);
-});
-
-test("learned badge: nothing until he learns something, then n/max with the skill names", () => {
-  assert.equal(learnedBadgeHtml([], "zh"), "");
-  assert.equal(learnedLineHtml([], "zh"), "");
-  const badge = learnedBadgeHtml([SKILL], "zh");
-  assert.match(badge, new RegExp(`已领悟 1/${MAX_EPIPHANY}`));
-  assert.match(badge, /✦/);
-  assert.match(learnedBadgeHtml([SKILL], "en"), new RegExp(`Learned 1/${MAX_EPIPHANY}`));
-  assert.ok(!CJK.test(learnedBadgeHtml([SKILL], "en").replace(/title="[^"]*"/, "")), "English badge text is English");
-  assert.match(learnedLineHtml([SKILL], "zh"), /场上领悟/);
 });
 
 test("minute budget: 240 is a full game; short and over say by how much", () => {
@@ -105,9 +83,9 @@ test("the minutes bar is drawn against 48 and marks the stamina cap", () => {
 });
 
 test("a row shows the learned badge only when he learned something", () => {
-  assert.ok(!rotationRowHtml(player(), ctx()).includes("rot-learned"));
+  assert.ok(!rotationRowHtml(player(), ctx()).includes("learned-badge"));
   const html = rotationRowHtml(player(), ctx({ learned: [SKILL] }));
-  assert.ok(html.includes("rot-learned") && html.includes("rot-learned-line"));
+  assert.ok(html.includes("learned-badge") && html.includes("learned-line"));
 });
 
 test("sections: empty-state when nobody starts, a full-five marker, and an honest heading while no one is picked", () => {

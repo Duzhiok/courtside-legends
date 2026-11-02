@@ -3213,8 +3213,12 @@ select, input[type="number"] {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, .72);
+  /* A light card sitting on the dark broadcast panel: its text colour must be set here, otherwise it
+     inherits the panel's light ink (measured 1.13:1 for the name, 1.02:1 for the stat pills). */
+  background: #f7f4ec;
+  color: var(--ink);
 }
+.roster-evaluation-card .tiny { color: #4b5563; }
 .roster-evaluation-card header {
   display: flex;
   justify-content: space-between;
@@ -3225,7 +3229,11 @@ select, input[type="number"] {
   display: flex;
   gap: 8px;
   align-items: center;
+  min-width: 0;
 }
+/* name, nickname and learned badges share a wrapping line; the OVR / age line always gets its own */
+.evaluation-player-heading > div { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-width: 0; }
+.evaluation-player-heading > div > .tiny { flex-basis: 100%; }
 .evaluation-player-heading .headshot {
   width: 38px;
   height: 38px;
@@ -3244,7 +3252,7 @@ select, input[type="number"] {
   background: rgba(42, 157, 143, .1);
   font-size: .74rem;
 }
-.evaluation-potential { color: var(--accent); }
+.evaluation-potential { color: #a33f00; }
 .evaluation-skills { margin: 6px 0; font-size: .8rem; }
 .trade-compare-panel {
   margin-top: 10px;
@@ -3275,8 +3283,10 @@ select, input[type="number"] {
   .trade-compare-grid { grid-template-columns: 1fr; }
 }
 .roster-evaluation-card header b {
-  color: var(--accent);
+  color: #a33f00;
   font-size: .78rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .evaluation-stats {
   display: flex;
@@ -3287,7 +3297,7 @@ select, input[type="number"] {
 .evaluation-stats span {
   padding: 4px 7px;
   border-radius: 6px;
-  background: var(--paper);
+  background: rgba(15, 28, 20, .07);
   font-size: .75rem;
 }
 .evaluation-actions { margin-top: 6px; }

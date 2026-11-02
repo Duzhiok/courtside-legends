@@ -1,9 +1,7 @@
 // 排兵布阵 (default rotation) board: pure HTML builders. app.js keeps the state and the event wiring;
 // everything a player SEES lives here, so it can be unit-tested without a browser.
-import { MAX_EPIPHANY } from "../engine/epiphany.js";
-import { SKILL_PACKS } from "../data/skills.js";
-import { skillNameL } from "../i18n.js";
 import { esc, tr } from "./timeTravel/format.js";
+import { learnedBadgeHtml, learnedLineHtml } from "./learnedBadge.js";
 
 export const TOTAL_MINUTES = 240; // 5 on the floor x 48
 export const STARTER_SLOTS = 5;
@@ -33,26 +31,6 @@ export function attributeChipsHtml(player, lang) {
     return `<span class="rot-attr${best.has(key) ? " hi" : ""}"><b>${tr(lang, zh, en)}</b>${value === null ? "—" : value}</span>`;
   }).join("");
 }
-
-// ---------------------------------------------------------------- epiphany ("已领悟")
-/** Skill ids this player has learned from play (the C3 ledger), junk filtered out. */
-export function learnedSkillIds(ledger, bref) {
-  const list = ledger?.[bref]?.learned;
-  return Array.isArray(list) ? list.filter((id) => typeof id === "string" && id) : [];
-}
-
-const skillName = (id, lang) => (SKILL_PACKS[id]?.name ? skillNameL(SKILL_PACKS[id].name, lang) : id);
-
-/** "✦ 已领悟 1/2" (hover or the second line names the skills). Nothing at all when he hasn't learned any. */
-export function learnedBadgeHtml(ids, lang) {
-  if (!ids.length) return "";
-  const names = ids.map((id) => skillName(id, lang)).join(" · ");
-  return `<span class="rot-learned" title="${esc(names)}"><i aria-hidden="true">✦</i>${tr(lang, "已领悟", "Learned")} ${ids.length}/${MAX_EPIPHANY}</span>`;
-}
-
-export const learnedLineHtml = (ids, lang) => (ids.length
-  ? `<div class="rot-learned-line">${tr(lang, "场上领悟：", "Learned in play: ")}${esc(ids.map((id) => skillName(id, lang)).join(" · "))}</div>`
-  : "");
 
 // ---------------------------------------------------------------- minutes
 /** How the 240 minutes stand: ok / short (some are unassigned) / over (more than a game has). */

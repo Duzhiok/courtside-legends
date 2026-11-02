@@ -64,7 +64,7 @@ const saved = (page) => page.evaluate(() => {
 });
 
 /** One line box only: a number and its unit never wrap apart. */
-const unbrokenAll = (page, sel) => page.$$eval(`#season-rotation ${sel}`, (els) => els.length > 0 && els.every((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size === 1));
+const unbrokenAll = (page, sel, root = "#season-rotation") => page.$$eval(`${root} ${sel}`, (els) => els.length > 0 && els.every((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size === 1));
 
 const setMinutes = async (page, id, value) => {
   const input = page.locator(`#season-rotation .rot-row[data-id="${id}"] .rot-min`);
@@ -187,9 +187,9 @@ for (const [tag, width, height] of SIZES) {
   const expected = Object.fromEntries(Object.entries(s2.ledger).filter(([, v]) => v.learned.length).map(([bref, v]) => [bref, v.learned]));
   const shown = await p2.evaluate(() => [...document.querySelectorAll("#season-rotation .rot-row")].map((r) => ({
     id: r.dataset.id,
-    badge: r.querySelector(".rot-learned")?.textContent.replace(/\s+/g, " ").trim() || "",
-    title: r.querySelector(".rot-learned")?.getAttribute("title") || "",
-    line: r.querySelector(".rot-learned-line")?.textContent.replace(/\s+/g, " ").trim() || "",
+    badge: r.querySelector(".learned-badge")?.textContent.replace(/\s+/g, " ").trim() || "",
+    title: r.querySelector(".learned-badge")?.getAttribute("title") || "",
+    line: r.querySelector(".learned-line")?.textContent.replace(/\s+/g, " ").trim() || "",
   })));
   const names = await p2.evaluate(async () => {
     const { SKILL_PACKS } = await import("/js/data/skills.js");
@@ -203,11 +203,33 @@ for (const [tag, width, height] of SIZES) {
   check(`[${tag}] two learned skills reads 已领悟 2/2, one reads 已领悟 1/2`, /已领悟 2\/2/.test(two?.badge || "") && /已领悟 1\/2/.test(one?.badge || ""), `${two?.badge} / ${one?.badge}`);
   check(`[${tag}] the badge and the line name the real skills, in the ledger's order`, names.slice(0, 2).every((n) => two.title.includes(n) && two.line.includes(n)) && one.title.includes(names[2]) && one.line.includes(names[2]), `${two?.title} | ${one?.title}`);
   check(`[${tag}] players without learned skills show nothing (no "0/2" clutter)`, shown.filter((r) => !withBadge.includes(r)).every((r) => !r.line));
-  check(`[${tag}] the badge never wraps`, await unbrokenAll(p2, ".rot-learned"));
-  const lowL = await lowContrast(p2, "#season-rotation", [".rot-learned", ".rot-learned-line"]);
+  check(`[${tag}] the badge never wraps`, await unbrokenAll(p2, ".learned-badge"));
+  const lowL = await lowContrast(p2, "#season-rotation", [".learned-badge", ".learned-line"]);
   check(`[${tag}] the badge text is AA`, lowL.length === 0, lowL.join(" | "));
   check(`[${tag}] no horizontal overflow with badges`, await noOverflow(p2), (await overflowers(p2)).join(" | "));
   await shoot(p2, `${OUT}/${tag}-learned.png`);
+
+  // ---- the same badge on the other two pages that list the user's players
+  const boardBadge = Object.fromEntries(shown.filter((r) => r.badge).map((r) => [r.id, r.badge]));
+  const openTab = async (tabName, readySel) => { await p2.click(`[data-season-tab="${tabName}"]`); await p2.waitForSelector(readySel, { timeout: 15000 }); };
+  // evaluation: one card per player, data-player-id; market: the roster rows carry a data-cut button with the id
+  const evalRows = async () => p2.evaluate(() => [...document.querySelectorAll("#season-evaluation .roster-evaluation-card")].map((c) => ({ id: c.dataset.playerId, badge: c.querySelector(".learned-badge")?.textContent.replace(/\s+/g, " ").trim() || "", line: c.querySelector(".learned-line")?.textContent.replace(/\s+/g, " ").trim() || "" })));
+  const marketRows = async () => p2.evaluate(() => [...document.querySelectorAll("#season-market .sm-row")].filter((r) => r.querySelector("[data-cut]")).map((r) => ({ id: r.querySelector("[data-cut]").dataset.cut, badge: r.querySelector(".learned-badge")?.textContent.replace(/\s+/g, " ").trim() || "", line: r.querySelector(".learned-line")?.textContent.replace(/\s+/g, " ").trim() || "" })));
+  for (const [tabName, box, read] of [["evaluation", "#season-evaluation", evalRows], ["market", "#season-market", marketRows]]) {
+    await openTab(tabName, `${box} .${tabName === "evaluation" ? "roster-evaluation-card" : "sm-row"}`);
+    const rows = await read();
+    const got = Object.fromEntries(rows.filter((r) => r.badge).map((r) => [r.id, r.badge]));
+    check(`[${tag}] ${tabName}: exactly the players with learned skills carry the badge`, JSON.stringify(Object.keys(got).sort()) === JSON.stringify(Object.keys(boardBadge).sort()) && rows.length === shown.length, `${Object.keys(got).length} badges vs ${Object.keys(boardBadge).length} on the board; ${rows.length} rows vs ${shown.length}`);
+    check(`[${tag}] ${tabName}: each badge reads exactly like the rotation board's`, Object.entries(got).every(([id, text]) => boardBadge[id] === text), Object.entries(got).filter(([id, text]) => boardBadge[id] !== text).map(([id, text]) => `${text} vs ${boardBadge[id]}`).join(" | "));
+    check(`[${tag}] ${tabName}: the skills line names the same skills as the board's`, rows.filter((r) => r.badge).every((r) => r.line === shown.find((b) => b.id === r.id).line), "");
+    check(`[${tag}] ${tabName}: badge never wraps, text is AA, no overflow`, (await unbrokenAll(p2, ".learned-badge", box)) && (await lowContrast(p2, box, [".learned-badge", ".learned-line"])).length === 0 && (await noOverflow(p2)), (await overflowers(p2)).join(" | "));
+    if (tabName === "evaluation") {
+      const lowE = await lowContrast(p2, box, [".evaluation-player-heading strong", ".evaluation-player-heading .tiny", "header > b", ".evaluation-stats span", ".evaluation-abilities span", ".evaluation-potential", ".evaluation-skills", ".tiny"]);
+      check(`[${tag}] evaluation: every text on the cards is AA (the light card must not inherit the dark panel's light ink)`, lowE.length === 0, `${lowE.length} below 4.5: ${lowE.slice(0, 4).join(" | ")}`);
+      check(`[${tag}] evaluation: the recommendation label stays on one line`, await unbrokenAll(p2, ".roster-evaluation-card header > b", box));
+    }
+    await shoot(p2, `${OUT}/${tag}-learned-${tabName}.png`);
+  }
 
   // ------------------------------------------------------------------ English
   await p2.evaluate(() => document.querySelector("#btn-lang").click());
@@ -217,11 +239,16 @@ for (const [tag, width, height] of SIZES) {
     const clone = box.cloneNode(true);
     clone.querySelectorAll(".rot-name strong, .photo-wrap, .rot-field select#rot-focus, #rot-tactic").forEach((el) => el.remove()); // names and tactic names are data
     const t = (sel) => (box.querySelector(sel)?.textContent || "").replace(/\s+/g, " ").trim();
-    return { all: clone.textContent.replace(/\s+/g, " ").trim(), head: t(".rot-card h4"), sections: [...box.querySelectorAll(".rot-section h5")].map((h) => h.textContent.replace(/\s+/g, " ").trim()), badge: t(".rot-learned") };
+    return { all: clone.textContent.replace(/\s+/g, " ").trim(), head: t(".rot-card h4"), sections: [...box.querySelectorAll(".rot-section h5")].map((h) => h.textContent.replace(/\s+/g, " ").trim()), badge: t(".learned-badge") };
   });
   check(`[${tag}] English: the board has no Chinese left (names aside)`, !CJK.test(en.all), (en.all.match(/.{0,12}[\u4e00-\u9fff]+.{0,12}/) || [""])[0]);
   check(`[${tag}] English: titles and badge read right`, /Rotation board/.test(en.head) && en.sections.some((s) => /Starting five/.test(s)) && /Learned [12]\/2/.test(en.badge), `${en.head} | ${en.sections.join(" / ")} | ${en.badge}`);
   check(`[${tag}] English: no horizontal overflow`, await noOverflow(p2), (await overflowers(p2)).join(" | "));
+  for (const [tabName, box, read] of [["evaluation", "#season-evaluation", evalRows], ["market", "#season-market", marketRows]]) {
+    await openTab(tabName, `${box} .${tabName === "evaluation" ? "roster-evaluation-card" : "sm-row"}`);
+    const rows = (await read()).filter((r) => r.badge);
+    check(`[${tag}] English ${tabName}: badge and line read in English`, rows.length > 0 && rows.every((r) => /^✦ ?Learned [12]\/2$/.test(r.badge) && /^Learned in play:/.test(r.line) && !CJK.test(r.badge)), rows.map((r) => r.badge).join(" | "));
+  }
   await shoot(p2, `${OUT}/${tag}-english.png`);
   check(`[${tag}] no page errors on the learned / English pass`, errors2.length === 0, errors2.join(" | "));
   await p2.close();

@@ -113,7 +113,8 @@ import {
 import { photoImg } from "./data/photo.js";
 import { teamColors } from "./data/teamColors.js";
 import { tr } from "./ui/timeTravel/format.js";
-import { benchSectionHtml, budgetBarHtml, fitLabel, learnedSkillIds, rotationRowHtml, startersSectionHtml } from "./ui/rotationBoard.js";
+import { benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, startersSectionHtml } from "./ui/rotationBoard.js";
+import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "./ui/learnedBadge.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
@@ -8149,7 +8150,6 @@ function renderSeasonRotation() {
   );
 
   const lang = getLang();
-  const epiphanyLedger = state.leagueCareer?.management?.epiphany;
   const rowHtml = (p) => {
     const role = p.roleExpectation || inferPlayerRole(p);
     const roleOpts = Object.values(PLAYER_ROLES)
@@ -8172,7 +8172,7 @@ function renderSeasonRotation() {
       hint: staminaMinuteHint(p, lang),
       photo: photoImg(p),
       skillChips: p.skills?.length ? skillChipsHtml(p, lang) : "",
-      learned: learnedSkillIds(epiphanyLedger, p.bref),
+      learned: epiphanyLearned(p),
     });
   };
   const startersNow = sorted.filter((p) => starters.has(p.id));
@@ -8276,6 +8276,9 @@ function renderSeasonRotation() {
   });
 }
 
+/** Skills this player learned from play (C3 ledger of the managed career); [] when there is none. */
+const epiphanyLearned = (p) => learnedSkillIds(state.leagueCareer?.management?.epiphany, p.bref);
+
 function renderSeasonEvaluation() {
   const st = state.season;
   const box = $("#season-evaluation");
@@ -8285,6 +8288,7 @@ function renderSeasonEvaluation() {
     teamId: st.userTeamId,
     salaryOf: playerSalary,
     overallOf: overall,
+    learnedOf: epiphanyLearned,
   });
   renderRosterEvaluation(box, rows);
   box.querySelectorAll('[data-eval-action="market"], [data-eval-action="cut"]').forEach((button) => {
@@ -8363,12 +8367,14 @@ function renderSeasonMarket() {
       const fit = systemFitNote(p, you.coach, null);
       const upside = historicalUpsideHint(p);
       const badge = valueBadgeHtml(valueBadge(p, { owned: true }));
+      const learned = epiphanyLearned(p);
       return `<div class="sm-row">
         <div>
-          <strong>${p.playPos || p.pos} ${p.name}</strong> ${badge}${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
+          <strong>${p.playPos || p.pos} ${p.name}</strong> ${badge}${learnedBadgeHtml(learned, getLang())}${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
           <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p)}</div>
           ${fit ? `<div class="tiny">${esc(fit)}</div>` : ""}
           ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
+          ${learnedLineHtml(learned, getLang())}
         </div>
         <span class="btn-row">${isListed ? listingPrefSelectHtml(st, p.id) : ""}<button type="button" class="btn small ghost sm-list-trade" data-list-trade="${p.id}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
         <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">裁掉</button></span>
@@ -8386,12 +8392,14 @@ function renderSeasonMarket() {
         pay.payroll + sal <= SEASON_APRON &&
         !(pay.payroll >= SEASON_SALARY_CAP && sal > 90);
       const upside = historicalUpsideHint(p);
+      const learned = epiphanyLearned(p);
       return `<div class="sm-row">
         <div>
-          <strong>${p.pos} ${p.name}</strong>
+          <strong>${p.pos} ${p.name}</strong>${learnedBadgeHtml(learned, getLang())}
           <div class="tiny">OVR ${overall(p)} · ${p.season} · 要价 ${formatSalary(sal)}</div>
           <div class="tiny">${marketMeta(p)}</div>
           ${upside ? `<div class="tiny season-pick-upside">${upside}</div>` : ""}
+          ${learnedLineHtml(learned, getLang())}
         </div>
         <button type="button" class="btn small primary sm-sign" data-sign="${p.id}" ${
         can ? "" : "disabled"

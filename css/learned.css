@@ -1,0 +1,16 @@
+/* "已领悟" badge + skills line: shared by the rotation board, roster evaluation and season market. */
+.learned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border: 1px solid #f0c75e;
+  border-radius: 999px;
+  background: #fff4d6;
+  color: #7a4a00;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.learned-badge i { font-style: normal; }
+.learned-line { margin-top: 4px; font-size: 0.74rem; color: #7a4a00; }

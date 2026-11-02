@@ -127,20 +127,6 @@
 .rot-pos-chip.pos-pf { background: #fbe9e7; color: #bf360c; }
 .rot-pos-chip.pos-c { background: #f3e5f5; color: #6a1b9a; }
 .rot-ovr { padding: 1px 8px; border-radius: 6px; background: #14211b; color: #fff; font-size: 0.78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.rot-learned {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 8px;
-  border: 1px solid #f0c75e;
-  border-radius: 999px;
-  background: #fff4d6;
-  color: #7a4a00;
-  font-size: 0.72rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.rot-learned i { font-style: normal; }
 .rot-year { font-size: 0.76rem; color: var(--muted, #5b6a63); }
 .rot-sub { margin-top: 2px; font-size: 0.76rem; color: var(--muted, #5b6a63); }
 .rot-tired { color: #9a3412; font-weight: 600; }
@@ -149,7 +135,6 @@
 .rot-attr b { margin-right: 3px; color: #55645c; font-weight: 600; }
 .rot-attr.hi { background: #d8f0ea; color: #0f4d45; font-weight: 700; }
 .rot-attr.hi b { color: #15665c; }
-.rot-learned-line { margin-top: 4px; font-size: 0.74rem; color: #7a4a00; }
 
 /* minutes: the number you type, and what it looks like next to a 48-minute game */
 .rot-min-wrap { display: grid; gap: 7px; }
