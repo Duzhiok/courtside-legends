@@ -423,6 +423,37 @@ function historyCard(entry, career, lang = "zh") {
   </article>`;
 }
 
+/**
+ * v1 冠军墙：只列带 trophy 的赛季（夺冠时 annualSummary 记下的那张卡）。
+ * 旧存档没有 trophy 字段时这里返回空串——历史面板本身不受影响。
+ */
+function trophyRoomHtml(career, lang = "zh") {
+  const en = lang === "en";
+  const trophies = (career.management?.seasonHistory || [])
+    .filter((summary) => summary?.trophy)
+    .sort((a, b) => b.year - a.year);
+  if (!trophies.length) return "";
+  const cards = trophies.map((summary) => {
+    const trophy = summary.trophy;
+    const fmvp = summary.awards?.finalsMvp;
+    const roster = (trophy.roster || [])
+      .map((player) => escapeHtml(player?.name || ""))
+      .filter(Boolean)
+      .join(en ? ", " : "、");
+    return `<article class="career-trophy-card">
+      <header><h4>${escapeHtml(summary.year)} · ${escapeHtml(summary.teamName)}</h4>
+      <p>${en ? `Finals: beat ${escapeHtml(trophy.opponentName)} ${escapeHtml(trophy.seriesScore)}` : `总决赛 ${escapeHtml(trophy.seriesScore)} 击败 ${escapeHtml(trophy.opponentName)}`}</p></header>
+      ${fmvp?.name ? `<p>${en ? "Finals MVP: " : "总决赛 MVP："}${escapeHtml(fmvp.name)}</p>` : ""}
+      ${roster ? `<p>${en ? "Championship roster: " : "夺冠阵容："}${roster}</p>` : ""}
+    </article>`;
+  }).join("");
+  return `<section class="career-trophy-room">
+    <header><h4>${en ? "🏆 Trophy Room" : "🏆 冠军墙"}</h4>
+    <p class="tiny">${en ? "Every championship season, with the Finals series and the roster that won it." : "历次夺冠赛季、总决赛比分与夺冠阵容。"}</p></header>
+    <div class="career-trophy-list">${cards}</div>
+  </section>`;
+}
+
 export function renderCareerHistory(container, { career, lang = "zh" } = {}) {
   const en = lang === "en";
   if (!container) return container;
@@ -448,6 +479,7 @@ export function renderCareerHistory(container, { career, lang = "zh" } = {}) {
     container.innerHTML = `<section class="career-history-panel">
       <header class="career-history-head"><div><h4>${en ? "Career History" : "长期生涯历史"}</h4><p class="tiny">${en ? "Compact seasons, drafts, transactions and milestones only." : "仅保留紧凑赛季、选秀、交易和大事记。"}</p></div>
         <div class="btn-row career-history-filters">${buttons}</div></header>
+      ${trophyRoomHtml(career, lang)}
       <div class="career-history-list">${
         entries.length
           ? entries.map((entry) => historyCard(entry, career, lang)).join("")

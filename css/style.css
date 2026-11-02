@@ -3167,6 +3167,19 @@ select, input[type="number"] {
   gap: 10px;
   min-width: 0;
 }
+/* v1 冠军墙：只在有夺冠记录时出现，样式沿用历史卡片的语言。 */
+.career-trophy-room {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+.career-trophy-room > header h4 { margin: 0 0 2px; }
+.career-trophy-card { border-top: 1px solid var(--line); padding: 8px 0 2px; margin-top: 8px; }
+.career-trophy-card:first-child { border-top: 0; margin-top: 0; padding-top: 2px; }
+.career-trophy-card h4 { margin: 0 0 2px; }
+.career-trophy-card p { margin: 2px 0; }
 .career-history-card {
   min-width: 0;
   padding: 12px;

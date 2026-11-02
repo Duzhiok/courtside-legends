@@ -2067,3 +2067,7 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 - 默认队名「拉斯维加斯 \*\*\*」的 `**` 短标签（R115 提过）仍是老问题。
 
 **验证**：全量 **1285/1285**（R116 后 +34）；lint 0 错误（2 条旧 warning）；`git diff --check` 通过；浏览器 QA：`career-growth` 106（跑了两遍，无偶发）、`career-postgame` 82、`career-retire` 150、`career-poach` 86、`career-reemployment` 54、`career-contract` 42、`career-finance` 32、`playoff-manual-play` 30、`coach-origins` 26、`season-sim-continue` 24、`roster-evaluation` 22、`season-resume` 20、`court-panel-height` 8——合计 **682 项**全绿。QA 小工具抽到 `scripts/qa/lib/page.mjs`（`career-postgame` 也改用它，去掉一份重复）。
+
+### 冠军墙 v1：本地荣誉室（Luna，2026-11-01；并行任务实现，Luna 验收后推送）
+
+用户 2026-10-29 要的“夺冠了要在账号里留记录和阵容”，10-31 拍板本地版（不要线上同步）。annualSummary 在本队夺冠时多记一个 trophy 键：决赛对手（id + 名）、冠军视角的系列比分（winsHigh/winsLow 翻成冠军在前，低位夺冠 4-3 不会记成 3-4）、夺冠阵容快照（每人 bref/season/name/pos 的紧凑条目）；FMVP 不用新记，沿用已有的 awards.finalsMvp。非夺冠赛季形状与旧版完全一致（干脆不长 trophy 键）；旧存档没有该字段时视图直接跳过，历史面板本身不受影响。历史面板顶部新增冠军墙分区，按年份倒序列出每次夺冠，含总决赛比分、FMVP 与阵容名单，中英双语、全部输出转义。刻意不做的：旧冠军赛季无法 retrofill（旧摘要里本来就没存阵容和决赛比分，墙从本批落地后的下一个冠军开始攒）；saveRoot 不加严格校验（沿用该文件“白名单会 brick 整存档”的教训，视图侧做防御）。新增 tests/trophyRoom.test.js 6 条；lint 0 错误，全量 1291/1291。
