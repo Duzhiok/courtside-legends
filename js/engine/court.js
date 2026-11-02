@@ -156,6 +156,10 @@ export class CourtView {
     this._lastSnap = null;
     this._shot = null;
     this._shotRaf = 0;
+    this._dunk = null;
+    this._dunkRaf = 0;
+    this._suppressShotFor = null;
+    this._skillPopTimer = null;
     this._lastTokenPos = new Map();
     this._lastHandlerPos = null;
     this._lastAttackingUp = true;
@@ -248,6 +252,9 @@ export class CourtView {
       this._possession = offSide;
       this._phaseStart = performance.now();
       this._handlerIdx = handlerSlotIndex(offOrdered);
+      // A new possession means any dunk's follow-up score already came and
+      // went; never let a stale suppression swallow a later jump shot.
+      this._suppressShotFor = null;
     }
 
     const elapsed = performance.now() - this._phaseStart;
@@ -313,8 +320,9 @@ export class CourtView {
       this._lastHandlerPos = hp;
       this._lastAttackingUp = attackingUp;
     }
-    // A shot arc owns the ball while it flies; render must not fight it.
-    if (this.ball && hp && !this._shot) {
+    // A shot arc or a dunk drive owns the ball while it plays; render must
+    // not fight either.
+    if (this.ball && hp && !this._shot && !this._dunk) {
       this.ball.style.left = `${hp.x}%`;
       this.ball.style.top = `${hp.y}%`;
       this.ball.classList.toggle("in-frontcourt", phase > 0.45);
@@ -329,6 +337,12 @@ export class CourtView {
 
   /** Animate the ball from the shooter to the rim on a jump shot. */
   onShot(shot) {
+    // The dunk drive already showed this make; the score event that follows
+    // a dunk must not also play a jump-shot arc for the same basket.
+    if (shot?.shooterId && this._suppressShotFor === shot.shooterId) {
+      this._suppressShotFor = null;
+      return;
+    }
     if (!this.ball || !this._lastHandlerPos) return;
     const shootSide = this._lastAttackingUp ? "home" : "away";
     const from =
@@ -403,6 +417,109 @@ export class CourtView {
     this._shotRaf = requestAnimationFrame(() => this._shotFrame(performance.now()));
   }
 
+  /** Drive the dunker token to the rim. Returns false when there is no
+      token to animate (no render yet, or the player is not on court):
+      the caller then falls back to the plain shot arc via the score event
+      that follows every dunk. */
+  onDunk(playerId) {
+    const side = this._lastAttackingUp ? "home" : "away";
+    const key = `${side}-${playerId}`;
+    const el = this.tokens.get(key);
+    if (!el || !this.ball) return false;
+    const from = this._lastTokenPos.get(key) || this._lastHandlerPos;
+    if (!from) return false;
+    // A dunk owns the ball from here; drop any in-flight shot arc.
+    cancelAnimationFrame(this._shotRaf);
+    this._shot = null;
+    this._suppressShotFor = playerId;
+    this._dunk = {
+      key,
+      el,
+      from: { ...from },
+      to: this._lastAttackingUp ? { x: 50, y: 6 } : { x: 50, y: 94 },
+      start: performance.now(),
+      rimShaken: false,
+    };
+    // The token's CSS glide would smear per-frame drive updates into lag.
+    el.style.transition = "none";
+    el.classList.add("dunking");
+    this.ball.style.transition = "none";
+    this._dunkFrame(this._dunk.start);
+    return true;
+  }
+
+  /** One frame of the dunk drive. The browser drives it via rAF; tests call it directly. */
+  _dunkFrame(now) {
+    const d = this._dunk;
+    if (!d || !this.ball) return;
+    const DRIVE = 420;
+    const NET = 150;
+    const SETTLE = 200;
+    const elapsed = now - d.start;
+    const easeOut = (u) => 1 - Math.pow(1 - u, 3);
+    if (elapsed < DRIVE) {
+      const u = easeOut(elapsed / DRIVE);
+      const x = d.from.x + (d.to.x - d.from.x) * u;
+      const y = d.from.y + (d.to.y - d.from.y) * u;
+      d.el.style.left = `${x}%`;
+      d.el.style.top = `${y}%`;
+      d.el.style.transform = `translate(-50%, -50%) scale(${1 + 0.5 * u})`;
+      this.ball.style.left = `${x}%`;
+      this.ball.style.top = `${y}%`;
+    } else if (elapsed < DRIVE + NET) {
+      const v = (elapsed - DRIVE) / NET;
+      d.el.style.left = `${d.to.x}%`;
+      d.el.style.top = `${d.to.y}%`;
+      d.el.style.transform = "translate(-50%, -50%) scale(1.5)";
+      // Through the net: the ball shrinks at the rim, and the rim shakes once.
+      this.ball.style.left = `${d.to.x}%`;
+      this.ball.style.top = `${d.to.y}%`;
+      const size = 12 - 6 * v;
+      this.ball.style.width = `${size}px`;
+      this.ball.style.height = `${size}px`;
+      if (!d.rimShaken) {
+        d.rimShaken = true;
+        this._shakeRim();
+      }
+    } else if (elapsed < DRIVE + NET + SETTLE) {
+      d.el.style.transform = "translate(-50%, -50%) scale(1.25)";
+      this.ball.style.left = `${d.to.x}%`;
+      this.ball.style.top = `${d.to.y}%`;
+    } else {
+      d.el.style.transition = "";
+      d.el.style.transform = "";
+      d.el.classList.remove("dunking");
+      this.ball.style.transition = "";
+      this.ball.style.width = "";
+      this.ball.style.height = "";
+      this._dunk = null;
+      return;
+    }
+    cancelAnimationFrame(this._dunkRaf);
+    this._dunkRaf = requestAnimationFrame(() => this._dunkFrame(performance.now()));
+  }
+
+  _shakeRim() {
+    if (!this.stage) return;
+    const hoop = this.stage.querySelector(this._lastAttackingUp ? ".fc-hoop.top" : ".fc-hoop.bottom");
+    if (!hoop) return;
+    hoop.classList.remove("rim-shake");
+    void hoop.offsetWidth; // restart the animation when dunks come in quick succession
+    hoop.classList.add("rim-shake");
+  }
+
+  /** Pulse the token of a player whose signature skill just triggered. No
+      text label: the feed already names the skill, and a label would need
+      i18n plumbing for every skill id. The token is found by id on either
+      side, so no offense/defense side is needed. */
+  skillPop(playerId) {
+    const el = this.tokens.get(`home-${playerId}`) || this.tokens.get(`away-${playerId}`);
+    if (!el) return;
+    el.classList.add("skill-pop");
+    clearTimeout(this._skillPopTimer);
+    this._skillPopTimer = setTimeout(() => el.classList.remove("skill-pop"), 900);
+  }
+
   rebuildTokens(off, def, attackingUp) {
     this.tokenBox.innerHTML = "";
     this.tokens.clear();
@@ -447,8 +564,11 @@ export class CourtView {
   moveToken(key, x, y, p, isOff, name) {
     const el = this.tokens.get(key);
     if (!el) return;
-    el.style.left = `${x}%`;
-    el.style.top = `${y}%`;
+    // A dunking token drives itself; render must not drag it back to its slot.
+    if (!el.classList.contains("dunking")) {
+      el.style.left = `${x}%`;
+      el.style.top = `${y}%`;
+    }
     const pts = el.querySelector(".tok-pts");
     if (pts) pts.textContent = String(p.stats?.pts ?? 0);
     const nm = el.querySelector(".tok-name");

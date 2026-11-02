@@ -2192,3 +2192,7 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 ### 主页面转播风深色（Luna，2026-11-01；用户 19:29 拍板方向）
 
 用户说主页面还是丑。只改赛季 hub 这一屏的外观，不动任何功能、按钮、数据与列顺序：#season-hub-panel 整块改成深色转播舞台（深绿黑渐变 + 圆角），标题放大到 1.5rem、meta pill 改半透明；下一场在常规赛有比赛时改成大计分板——主客队名 1.5rem 大字 + 各自球队主色圆点 + 中间 VS 徽章，我方队名青色高亮（只常规赛这支改 innerHTML，队名走 esc；其余阶段仍是 textContent）；积分榜两卡改深色卡，每行队名前加球队主色圆点（teamCodeOf + teamColors，缺色 fallback 灰）；页签改深色 pill、激活态保持青色；hub 内按钮在深底上重配色（主按钮青色、次按钮半透明白、ghost 白字白框），其余页签面板不动。#season-next-match 由 p 改 div（hero 里有 div 结构）。无 hub 渲染单测，全量 + lint 为准，视觉验收归用户 pull 后。
+
+### 2D 动作演出：灌篮 + 技能触发（Luna，2026-11-01；用户 19:16 拍板先做 2D）
+
+旧演出是灌篮照片弹窗（#dunk-flash），与场上完全脱节，且灌篮后跟来的 score 事件还会再放一条投篮弧线。改动：court.js 新增 onDunk/_dunkFrame——扣篮人 token 自己带球冲向篮筐（420ms easeOut + 放大到 1.5，简易模式双臂上举），球穿网缩小、篮筐晃一次（rim-shake），770ms 内演完、可被下一事件打断；onDunk 成功后记 _suppressShotFor，紧跟的 score 事件跳过 onShot，换 possession 时清掉残留；render 不再把扣篮中 token 拖回站位、球不被 render 抢走；无 token 时 onDunk 返回 false，走老投篮弧线兜底。技能触发：sim 里 sigStl/sigBlk/sigOff 的 coach 事件与 dime_dropper（助攻人）/pnr_master（挡拆发起人）的 score 事件带 meta.skill，handleSimEvent 路由到 court.skillPop——只脉冲 token 900ms，不加文字（feed 已写技能名，文字要走 i18n），不 early return 所以播报和比分照常；被动技能（midrange_assassin 等）没有触发瞬间，第一版无演出。删掉 showDunkFlash/isDunkStarPlayer/.dunk-flash CSS/#dunk-flash div。tests/courtSimple.test.js 新增 4 条（灌篮全程、弧线吞掉与恢复、无 token 兜底、技能脉冲与清除）。

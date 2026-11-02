@@ -204,3 +204,65 @@ test("court shot arc: onShot before any render is a silent no-op", () => {
   view.onShot({ shooterId: "h3", made: true });
   assert.equal(view._shot, null);
 });
+
+test("court dunk: token drives to the rim, ball shrinks through the net, ends clean", () => {
+  const { root, view } = setup();
+  const token = view.tokens.get("home-h3");
+  assert.equal(view.onDunk("h3"), true);
+  assert.ok(view._dunk);
+  assert.deepEqual(view._dunk.from, view._lastTokenPos.get("home-h3"));
+  assert.equal(view._dunk.to.y, 6); // home attacks the top rim
+  assert.equal(token.classList.contains("dunking"), true);
+  const start = view._dunk.start;
+  const fromX = view._dunk.from.x;
+  const fromY = view._dunk.from.y;
+  view._dunkFrame(start + 210); // mid-drive
+  const midLeft = parseFloat(token.style.left);
+  const midTop = parseFloat(token.style.top);
+  assert.ok(midLeft > fromX && midLeft < 50, `mid x ${midLeft} should travel ${fromX} -> 50`);
+  assert.ok(midTop < fromY && midTop > 6, `mid y ${midTop} should travel ${fromY} -> 6`);
+  assert.match(token.style.transform, /scale\(1\.43/);
+  assert.equal(view.ball.style.left, token.style.left, "the ball follows the dunker");
+  // Render mid-drive must not drag the token back to its slot.
+  view.render(snap());
+  assert.equal(token.style.left, `${midLeft}%`);
+  view._dunkFrame(start + 420 + 75); // mid-net
+  // performance.now() floats make the width 9 ± float noise, not exactly 9.
+  assert.ok(Math.abs(parseFloat(view.ball.style.width) - 9) < 0.01);
+  const hoop = root._parts["#court-stage"].querySelector(".fc-hoop.top");
+  assert.equal(hoop.classList.contains("rim-shake"), true);
+  view._dunkFrame(start + 420 + 150 + 200 + 1); // past the settle
+  assert.equal(view._dunk, null);
+  assert.equal(token.style.transition, "");
+  assert.equal(token.style.transform, "");
+  assert.equal(token.classList.contains("dunking"), false);
+  assert.equal(view.ball.style.transition, "");
+  assert.equal(view.ball.style.width, "");
+});
+
+test("court dunk: the follow-up score's shot arc is swallowed, the next shot is not", () => {
+  const { view } = setup();
+  assert.equal(view.onDunk("h3"), true);
+  view.onShot({ shooterId: "h3", made: true });
+  assert.equal(view._shot, null, "the dunk's own score must not also arc");
+  view.onShot({ shooterId: "h3", made: true });
+  assert.ok(view._shot, "the next shot arcs normally");
+});
+
+test("court dunk: missing token returns false and never suppresses", () => {
+  const { view } = setup();
+  assert.equal(view.onDunk("nobody"), false);
+  assert.equal(view._dunk, null);
+  view.onShot({ shooterId: "h3", made: true });
+  assert.ok(view._shot, "no suppression without a drive");
+});
+
+test("court skill pop: token pulses, then clears", async () => {
+  const { view } = setup();
+  const token = view.tokens.get("home-h3");
+  view.skillPop("h3");
+  assert.equal(token.classList.contains("skill-pop"), true);
+  view.skillPop("nobody"); // unknown id: silent no-op, never throws
+  await new Promise((r) => setTimeout(r, 950));
+  assert.equal(token.classList.contains("skill-pop"), false);
+});

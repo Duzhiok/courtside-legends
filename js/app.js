@@ -6476,8 +6476,16 @@ function beginGame(homeTeam, awayTeam, youSide) {
 }
 
 function handleSimEvent(e) {
+  // Dunk drive: the token runs to the rim on the court. The score event
+  // that follows still feeds and paints; only its shot arc is suppressed
+  // (the court swallows it for the dunker). A dunk with no token to drive
+  // falls back to that plain arc.
   if (e?.type === "dunk" && e.meta?.player) {
-    showDunkFlash(e.meta.player, e.meta.label || e.text);
+    try {
+      state.court?.onDunk(e.meta.player.id);
+    } catch (err) {
+      console.error(err);
+    }
     return;
   }
   // Jump-shot arc: score/miss events from the shot-resolution branches
@@ -6490,57 +6498,21 @@ function handleSimEvent(e) {
       console.error(err);
     }
   }
+  // Signature-skill trigger: pulse the token, then let the event feed and
+  // paint exactly as it did before — no early return here.
+  if (e?.meta?.skill) {
+    try {
+      state.court?.skillPop(e.meta.skill.playerId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
   pushFeed(e.type, e.text, e);
   try {
     paintScore(e);
   } catch (err) {
     console.error(err);
   }
-}
-
-function isDunkStarPlayer(p) {
-  if (!p) return false;
-  const sk = p.skills || [];
-  if (
-    sk.some((id) =>
-      ["poster_slam", "mountain_slam", "lob_finisher", "spring_board", "coast_to_coast", "paint_bully"].includes(
-        id
-      )
-    )
-  ) {
-    return true;
-  }
-  const tier = String(p.hiddenTier || "");
-  if (/legend|hall|super|all.?nba|mvp/i.test(tier)) return true;
-  return (p.scoring || 0) >= 90 || (p.paint || 0) >= 92;
-}
-
-let _dunkFlashTimer = null;
-
-/** 扣篮高光：球员照片 + CSS 短动效（无版权灌篮 GIF 时的替代） */
-function showDunkFlash(player, label = "暴扣") {
-  const box = $("#dunk-flash");
-  if (!box || !player) return;
-  const star = isDunkStarPlayer(player);
-  // 普通扣篮也弹，球星更大更久
-  const tag = /空接/.test(label || "") ? "空接" : star ? "暴扣" : "灌篮";
-  clearTimeout(_dunkFlashTimer);
-  box.hidden = false;
-  box.className = `dunk-flash show${star ? " star" : ""}`;
-  box.innerHTML = `
-    <div class="dunk-flash-card">
-      <div class="dunk-flash-rim" aria-hidden="true"></div>
-      <div class="dunk-flash-flyer">${photoImg(player, "dunk-flash-photo")}</div>
-      <div class="dunk-flash-bang">${tag}</div>
-      <div class="dunk-flash-name">${player.name || ""}</div>
-      <div class="dunk-flash-sub">${String(label || "").slice(0, 28)}</div>
-    </div>`;
-  const ms = star ? 2200 : 1600;
-  _dunkFlashTimer = setTimeout(() => {
-    box.classList.remove("show", "star");
-    box.hidden = true;
-    box.innerHTML = "";
-  }, ms);
 }
 
 /**

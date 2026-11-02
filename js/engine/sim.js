@@ -832,7 +832,10 @@ export class GameSim {
     // Steal / turnover package — high D press forces more turnovers; high hunt by weak handlers also TOVs
     const defOrder = defender.orders?.defFocus;
     const sigStl = trySignatureSteal(defender);
-    if (sigStl) this.emit("coach", `${defender.name} 「${sigStl.name}」！`);
+    if (sigStl)
+      this.emit("coach", `${defender.name} 「${sigStl.name}」！`, {
+        skill: { id: sigStl.id, playerId: defender.id, isOffense: false },
+      });
     const ballerGas = 1 - fatiguePerfMult(baller);
     const defGas = 1 - fatiguePerfMult(defender);
     const stlChance =
@@ -1003,14 +1006,17 @@ export class GameSim {
         "coach",
         flav
           ? this.S(`${baller.name} 发动「${sigOff.name}」——${flav}！`, `${baller.name} unleashes "${this.nL(sigOff.name)}" — ${flav}!`)
-          : this.S(`${baller.name} 发动「${sigOff.name}」！`, `${baller.name} unleashes "${this.nL(sigOff.name)}"!`)
+          : this.S(`${baller.name} 发动「${sigOff.name}」！`, `${baller.name} unleashes "${this.nL(sigOff.name)}"!`),
+        { skill: { id: sigOff.id, playerId: baller.id, isOffense: true } }
       );
     }
 
     // Block attempt — size/position matter (PG almost never rejects Howard at the rim)
     const sigBlk = trySignatureBlock(defender, shot);
     if (sigBlk) {
-      this.emit("coach", this.S(`${defender.name} 「${sigBlk.name}」！`, `${defender.name} — "${this.nL(sigBlk.name)}"!`));
+      this.emit("coach", this.S(`${defender.name} 「${sigBlk.name}」！`, `${defender.name} — "${this.nL(sigBlk.name)}"!`), {
+        skill: { id: sigBlk.id, playerId: defender.id, isOffense: false },
+      });
     }
     // 上帝附体必进：不会被盖；单脚抛射 / 答案等出手更难被盖
     const blkChance = sigOff?.guaranteed
@@ -1167,12 +1173,27 @@ export class GameSim {
       else if (duoIds.includes("pick_roll_twins")) duoTag = this.S(" · 挡拆默契", " · PnR Chemistry");
       else if (isJokerJamalTwoMan(baller, primaryAst, off.onCourt)) duoTag = this.S(" · 二人转", " · Two-Man Game");
       if (baller._duoProc) baller._duoProc = null;
+      // Skill trigger on a make: the passer flashing dime_dropper, or the
+      // pick-and-roll running through a pnr_master. One pop per make;
+      // dime takes precedence when both apply.
+      let scoreSkill = null;
+      if (primaryAst && (primaryAst.skills || []).includes("dime_dropper")) {
+        scoreSkill = { id: "dime_dropper", playerId: primaryAst.id, isOffense: true };
+      } else if (sideCtx.scheme === "pnr") {
+        const handler = sideCtx.organizerId
+          ? off.onCourt.find((x) => x.id === sideCtx.organizerId)
+          : baller;
+        if ((handler?.skills || []).includes("pnr_master")) {
+          scoreSkill = { id: "pnr_master", playerId: handler.id, isOffense: true };
+        }
+      }
       const story = matchupFeedStory(baller, defender, shot, open, label, { made: true, lang: this.lang });
       this.emit(
         "score",
         this.S(`${story}！（${pct(makeP)} · ${hotLabel(baller.hot)}${huntTag}）${astTag}${duoTag} ${this.score.home}-${this.score.away}`, `${story}! (${pct(makeP)} · ${hotLabel(baller.hot, this.lang)}${huntTag})${astTag}${duoTag} ${this.score.home}-${this.score.away}`),
-        // Shot meta only: the court animates the arc from this. Feed text unchanged.
-        { shot: { shooterId: baller.id, made: true, pts: shot.pts } }
+        // Shot meta drives the court arc; skill meta pulses the trigger's
+        // token. Feed text unchanged.
+        { shot: { shooterId: baller.id, made: true, pts: shot.pts }, ...(scoreSkill ? { skill: scoreSkill } : {}) }
       );
       if (fouled) {
         defender.stats.pf += 1;
