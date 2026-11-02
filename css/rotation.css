@@ -77,6 +77,7 @@
   font-weight: 700;
 }
 .rot-section h5 em.full { background: #1f7a70; color: #fff; }
+.rot-section h5 em.warn { background: #fde8d4; color: #9a3412; }
 .rot-list { display: grid; gap: 8px; }
 .rot-empty {
   margin: 0;
@@ -129,7 +130,7 @@
 .rot-ovr { padding: 1px 8px; border-radius: 6px; background: #14211b; color: #fff; font-size: 0.78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rot-year { font-size: 0.76rem; color: var(--muted, #5b6a63); }
 .rot-sub { margin-top: 2px; font-size: 0.76rem; color: var(--muted, #5b6a63); }
-.rot-tired { color: #9a3412; font-weight: 600; }
+.rot-tired, .rot-clash { color: #9a3412; font-weight: 600; }
 .rot-attrs { display: flex; flex-wrap: wrap; gap: 4px 5px; margin-top: 5px; }
 .rot-attr { padding: 1px 6px; border-radius: 6px; background: #f1f5f2; color: #3f4f47; font-size: 0.72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rot-attr b { margin-right: 3px; color: #55645c; font-weight: 600; }

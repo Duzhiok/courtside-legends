@@ -113,7 +113,7 @@ import {
 import { photoImg } from "./data/photo.js";
 import { teamColors } from "./data/teamColors.js";
 import { tr } from "./ui/timeTravel/format.js";
-import { benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, startersSectionHtml } from "./ui/rotationBoard.js";
+import { benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinuteConflicts, startersSectionHtml } from "./ui/rotationBoard.js";
 import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "./ui/learnedBadge.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
@@ -8150,6 +8150,7 @@ function renderSeasonRotation() {
   );
 
   const lang = getLang();
+  const clashes = new Map(starterMinuteConflicts(sorted, starters).map((c) => [c.id, c]));
   const rowHtml = (p) => {
     const role = p.roleExpectation || inferPlayerRole(p);
     const roleOpts = Object.values(PLAYER_ROLES)
@@ -8173,6 +8174,7 @@ function renderSeasonRotation() {
       photo: photoImg(p),
       skillChips: p.skills?.length ? skillChipsHtml(p, lang) : "",
       learned: epiphanyLearned(p),
+      clash: clashes.get(p.id),
     });
   };
   const startersNow = sorted.filter((p) => starters.has(p.id));
@@ -8210,7 +8212,7 @@ function renderSeasonRotation() {
         </span>
       </div>
     </div>
-    ${startersSectionHtml(startersNow.map(rowHtml).join(""), startersNow.length, lang)}
+    ${startersSectionHtml(startersNow.map(rowHtml).join(""), startersNow.length, lang, { clashes: clashes.size })}
     ${benchSectionHtml(bench.map(rowHtml).join(""), bench.length, lang, { noStarters: !startersNow.length })}
   `;
 

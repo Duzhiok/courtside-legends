@@ -33,6 +33,24 @@ export function attributeChipsHtml(player, lang) {
 }
 
 // ---------------------------------------------------------------- minutes
+const minutesOf = (p) => Number(p?.targetMinutes ?? 24); // the same default the row's input shows
+
+/**
+ * Starters slated for FEWER minutes than the busiest bench player. That is almost always a slip (a starter's
+ * minutes typed into the wrong row), so the board says so. Needs both a starter and a bench player to compare.
+ * Returns [{ id, min, benchName, benchMin }], one per offending starter.
+ */
+export function starterMinuteConflicts(players, starterIds) {
+  const ids = starterIds instanceof Set ? starterIds : new Set(starterIds || []);
+  const starters = (players || []).filter((p) => ids.has(p.id));
+  const bench = (players || []).filter((p) => !ids.has(p.id));
+  if (!starters.length || !bench.length) return [];
+  const top = bench.reduce((best, p) => (minutesOf(p) > minutesOf(best) ? p : best));
+  return starters
+    .filter((p) => minutesOf(p) < minutesOf(top))
+    .map((p) => ({ id: p.id, min: minutesOf(p), benchName: top.name, benchMin: minutesOf(top) }));
+}
+
 /** How the 240 minutes stand: ok / short (some are unassigned) / over (more than a game has). */
 export function minuteBudget(players) {
   const total = players.reduce((sum, p) => sum + (Number(p.targetMinutes) || 0), 0);
@@ -74,7 +92,7 @@ export const fitLabel = (starterCount, fit) => (starterCount >= STARTER_SLOTS &&
  * cap) so this stays a pure function of its inputs.
  */
 export function rotationRowHtml(p, ctx) {
-  const { lang, starter, over, cap, cardPos, ovr, photo, skillChips, posOpts, roleOpts, learned, hint } = ctx;
+  const { lang, starter, over, cap, cardPos, ovr, photo, skillChips, posOpts, roleOpts, learned, hint, clash } = ctx;
   const minutes = Number(p.targetMinutes ?? 24);
   const tired = over || cap < TIRED_CAP;
   return `<div class="rot-row${starter ? " starter" : ""}${over ? " over-min" : ""}" data-id="${esc(p.id)}">
@@ -84,6 +102,7 @@ export function rotationRowHtml(p, ctx) {
       <div class="rot-name-text">
         <div class="rot-name-line"><span class="rot-pos-chip pos-${cardPos.toLowerCase()}">${cardPos}</span><strong>${esc(p.name)}</strong><span class="rot-ovr" title="OVR">${ovr}</span><span class="rot-year">${esc(p.season)}</span>${learnedBadgeHtml(learned, lang)}</div>
         ${tired ? `<div class="rot-sub"><span class="rot-tired stamina-min-hint">${esc(hint)}</span></div>` : ""}
+        ${clash ? `<div class="rot-sub"><span class="rot-clash">${tr(lang, `首发只排 ${clash.min} 分钟，替补 ${esc(clash.benchName)} 排了 ${clash.benchMin}`, `Starter plays ${clash.min} min, bench ${esc(clash.benchName)} plays ${clash.benchMin}`)}</span></div>` : ""}
         <div class="rot-attrs">${attributeChipsHtml(p, lang)}</div>
         ${learnedLineHtml(learned, lang)}
         ${skillChips ? `<div class="skill-row">${skillChips}</div>` : ""}
@@ -99,11 +118,11 @@ export function rotationRowHtml(p, ctx) {
 }
 
 /** "首发五人 3/5" with its rows, or the empty-state card telling the player what to do about it. */
-export function startersSectionHtml(rowsHtml, count, lang) {
+export function startersSectionHtml(rowsHtml, count, lang, { clashes = 0 } = {}) {
   const body = count
     ? `<div class="rot-list">${rowsHtml}</div>`
     : `<p class="rot-empty">${tr(lang, "还没有首发：勾选下面球员的「首发」，或点上面的「OVR 前五当首发」。", "No starters yet: tick “Start” on a player below, or press “Top 5 by OVR”.")}</p>`;
-  return `<section class="rot-section rot-section-starters"><h5>${tr(lang, "首发五人", "Starting five")} <em class="${count === STARTER_SLOTS ? "full" : ""}">${count}/${STARTER_SLOTS}</em></h5>${body}</section>`;
+  return `<section class="rot-section rot-section-starters"><h5>${tr(lang, "首发五人", "Starting five")} <em class="${count === STARTER_SLOTS ? "full" : ""}">${count}/${STARTER_SLOTS}</em>${clashes ? `<em class="warn">⚠ ${tr(lang, `${clashes} 人分钟低于替补`, `${clashes} out-minuted by the bench`)}</em>` : ""}</h5>${body}</section>`;
 }
 
 /** `noStarters`: with nobody picked yet "bench" would be a lie, so the whole roster is just "all players". */

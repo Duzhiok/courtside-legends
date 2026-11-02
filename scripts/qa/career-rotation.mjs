@@ -5,7 +5,7 @@
 // Usage: [QA_VIEWPORT=desktop|mobile] node scripts/qa/career-rotation.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
-import { CJK, lowContrast, noOverflow, overflowers, shoot } from "./lib/page.mjs";
+import { CJK, lowContrast, noOverflow, overflowers, SEASON_HUB_BASE, shoot, textContrast } from "./lib/page.mjs";
 import { openCareer, resumeToHub } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/rotation";
@@ -130,6 +130,41 @@ for (const [tag, width, height] of SIZES) {
   await page.click(`#season-rotation .rot-row[data-id="${first}"] .rot-start-cb`);
   b = await board(page);
   check(`[${tag}] ticking him back restores 5/5`, b.starters.length === 5 && b.starters.includes(first));
+
+  // ------------------------------------------------------------------ a starter who plays less than a bench player
+  const clashState = () => page.evaluate(() => ({
+    rows: [...document.querySelectorAll("#season-rotation .rot-row .rot-clash")].map((el) => ({ id: el.closest(".rot-row").dataset.id, text: el.textContent.trim(), inStarters: !!el.closest(".rot-section-starters") })),
+    head: document.querySelector("#season-rotation .rot-section-starters h5 em.warn")?.textContent.trim() || "",
+    names: Object.fromEntries([...document.querySelectorAll("#season-rotation .rot-row")].map((r) => [r.dataset.id, r.querySelector(".rot-name strong").textContent])),
+  }));
+  // The rule, recomputed here from the inputs on the page: a starter strictly below the busiest bench player.
+  const expectedClash = (rows) => {
+    const top = Math.max(...rows.filter((m) => rows.bench.includes(m.id)).map((m) => m.min));
+    return rows.filter((m) => rows.starters.includes(m.id) && m.min < top).map((m) => m.id).sort();
+  };
+  const readRows = async () => { const cur = await board(page); const rows = [...cur.mins]; rows.starters = cur.starters; rows.bench = cur.bench; return rows; };
+  const flagged = async () => (await clashState()).rows.map((r) => r.id).sort();
+  let rows = await readRows();
+  // After "OVR top 5" the new starters can carry less than a bench player's default minutes: that is a TRUE warning.
+  check(`[${tag}] the warning matches the rule exactly on the board as it stands (${expectedClash(rows).length} flagged)`, JSON.stringify(await flagged()) === JSON.stringify(expectedClash(rows)), `page ${await flagged()} vs rule ${expectedClash(rows)}`);
+  const benchTop = rows.filter((m) => rows.bench.includes(m.id)).reduce((best, m) => (m.min > best.min ? m : best));
+  for (const id of rows.starters) await setMinutes(page, id, benchTop.min); // every starter exactly level with the best bench player
+  let cs = await clashState();
+  check(`[${tag}] starters level with the best bench player (${benchTop.min} min): a tie is not a conflict, no warning anywhere`, cs.rows.length === 0 && cs.head === "", `${cs.rows.length} flagged, heading "${cs.head}"`);
+  const victim = rows.starters[0];
+  await setMinutes(page, victim, 8);
+  rows = await readRows();
+  cs = await clashState();
+  check(`[${tag}] one starter set to 8 min is flagged, and only he is`, JSON.stringify(cs.rows.map((r) => r.id)) === JSON.stringify([victim]) && cs.rows[0].inStarters, `flagged ${cs.rows.map((r) => r.id)}`);
+  const benchNow = rows.filter((m) => rows.bench.includes(m.id)).reduce((best, m) => (m.min > best.min ? m : best));
+  check(`[${tag}] the row says who out-minutes him: 首发只排 8 分钟，替补 <name> 排了 ${benchNow.min}`, cs.rows[0]?.text === `首发只排 8 分钟，替补 ${cs.names[benchNow.id]} 排了 ${benchNow.min}`, cs.rows[0]?.text);
+  check(`[${tag}] the starters heading counts them: 1 人分钟低于替补`, cs.head.includes("1 人分钟低于替补"), cs.head);
+  const lowClash = await lowContrast(page, "#season-rotation", [".rot-clash", ".rot-section-starters h5 em.warn"]);
+  check(`[${tag}] the warning text is AA, its heading chip never wraps, no horizontal overflow`, lowClash.length === 0 && (await unbrokenAll(page, ".rot-section-starters h5 em.warn")) && (await noOverflow(page)), lowClash.join(" | "));
+  await shoot(page, `${OUT}/${tag}-clash.png`);
+  await setMinutes(page, victim, benchTop.min);
+  cs = await clashState();
+  check(`[${tag}] putting his minutes back clears every warning`, cs.rows.length === 0 && cs.head === "", `${cs.rows.length} rows, heading "${cs.head}"`);
   dialogs.length = 0;
   const sixth = b.bench[0];
   await page.click(`#season-rotation .rot-row[data-id="${sixth}"] .rot-start-cb`);
@@ -224,11 +259,17 @@ for (const [tag, width, height] of SIZES) {
     check(`[${tag}] ${tabName}: the skills line names the same skills as the board's`, rows.filter((r) => r.badge).every((r) => r.line === shown.find((b) => b.id === r.id).line), "");
     check(`[${tag}] ${tabName}: badge never wraps, text is AA, no overflow`, (await unbrokenAll(p2, ".learned-badge", box)) && (await lowContrast(p2, box, [".learned-badge", ".learned-line"])).length === 0 && (await noOverflow(p2)), (await overflowers(p2)).join(" | "));
     if (tabName === "evaluation") {
-      const lowE = await lowContrast(p2, box, [".evaluation-player-heading strong", ".evaluation-player-heading .tiny", "header > b", ".evaluation-stats span", ".evaluation-abilities span", ".evaluation-potential", ".evaluation-skills", ".tiny"]);
-      check(`[${tag}] evaluation: every text on the cards is AA (the light card must not inherit the dark panel's light ink)`, lowE.length === 0, `${lowE.length} below 4.5: ${lowE.slice(0, 4).join(" | ")}`);
       check(`[${tag}] evaluation: the recommendation label stays on one line`, await unbrokenAll(p2, ".roster-evaluation-card header > b", box));
     }
     await shoot(p2, `${OUT}/${tag}-learned-${tabName}.png`);
+  }
+
+  // ---- every visible text on every season tab, measured (no selector list that can forget an element)
+  for (const tabName of ["standings", "rotation", "market", "evaluation", "schedule", "awards", "playoffs", "development", "history"]) {
+    await p2.click(`[data-season-tab="${tabName}"]`);
+    await p2.waitForTimeout(400);
+    const bad = await textContrast(p2, `#season-${tabName}`, { under: SEASON_HUB_BASE });
+    check(`[${tag}] ${tabName} tab: every visible text is AA (light cards must not inherit the dark hub's light ink)`, bad.length === 0, bad.slice(0, 4).join(" | "));
   }
 
   // ------------------------------------------------------------------ English

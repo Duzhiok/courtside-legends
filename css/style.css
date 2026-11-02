@@ -2771,7 +2771,15 @@ select, input[type="number"] {
 #season-hub-panel .season-table th { color: #9db8ad; border-bottom-color: rgba(255, 255, 255, .14); }
 #season-hub-panel .season-table td { color: #e6ece8; }
 #season-hub-panel .season-table tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .04); }
-#season-hub-panel .season-table td.rank { color: #8fa39a; }
+#season-hub-panel .season-table td.rank { color: #a4b8ae; }
+/* The hub panel is dark and sets a light text colour. The OPAQUE LIGHT cards inside the other tabs did not set
+   their own, so everything in them inherited it: measured 1.07-1.2:1 for names, titles and big numbers.
+   Each light card sets its own ink (and its own muted ink for .tiny); text on the dark stage keeps the light
+   one, and .tiny there gets a light muted grey instead of the page's #6b7280 (3.3:1 on this background).
+   .sm-proposals is only an 8% translucent tint, so it is still dark: not listed. */
+#season-hub-panel :is(.sm-cap-card, .sm-staff, .sm-trade, .sm-row, .rot-row, .development-plan-row, .career-history-card, .roster-evaluation-card) { color: var(--ink); }
+#season-hub-panel .tiny { color: #a9bbb2; }
+#season-hub-panel :is(.sm-cap-card, .sm-staff, .sm-trade, .sm-row, .rot-row, .development-plan-row, .career-history-card, .roster-evaluation-card) .tiny { color: #4b5563; }
 #season-hub-panel .season-table tbody tr.you td { background: rgba(42, 157, 143, .28); }
 #season-hub-panel .season-table td.team { display: flex; align-items: center; gap: 8px; }
 #season-hub-panel .stand-dot { width: 10px; height: 10px; border-width: 1px; }
@@ -3218,7 +3226,6 @@ select, input[type="number"] {
   background: #f7f4ec;
   color: var(--ink);
 }
-.roster-evaluation-card .tiny { color: #4b5563; }
 .roster-evaluation-card header {
   display: flex;
   justify-content: space-between;

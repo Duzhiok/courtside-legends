@@ -2196,3 +2196,15 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 ### 2D 动作演出：灌篮 + 技能触发（Luna，2026-11-01；用户 19:16 拍板先做 2D）
 
 旧演出是灌篮照片弹窗（#dunk-flash），与场上完全脱节，且灌篮后跟来的 score 事件还会再放一条投篮弧线。改动：court.js 新增 onDunk/_dunkFrame——扣篮人 token 自己带球冲向篮筐（420ms easeOut + 放大到 1.5，简易模式双臂上举），球穿网缩小、篮筐晃一次（rim-shake），770ms 内演完、可被下一事件打断；onDunk 成功后记 _suppressShotFor，紧跟的 score 事件跳过 onShot，换 possession 时清掉残留；render 不再把扣篮中 token 拖回站位、球不被 render 抢走；无 token 时 onDunk 返回 false，走老投篮弧线兜底。技能触发：sim 里 sigStl/sigBlk/sigOff 的 coach 事件与 dime_dropper（助攻人）/pnr_master（挡拆发起人）的 score 事件带 meta.skill，handleSimEvent 路由到 court.skillPop——只脉冲 token 900ms，不加文字（feed 已写技能名，文字要走 i18n），不 early return 所以播报和比分照常；被动技能（midrange_assassin 等）没有触发瞬间，第一版无演出。删掉 showDunkFlash/isDunkStarPlayer/.dunk-flash CSS/#dunk-flash div。tests/courtSimple.test.js 新增 4 条（灌篮全程、弧线吞掉与恢复、无 token 兜底、技能脉冲与清除）。
+
+### R121：「已领悟」铺到评估页/自由市场 + 首发分钟低于替补提示 + 赛季中心浅色卡片对比度修复
+
+**已领悟铺开**：徽章 + 技能名一行抽成 `js/ui/learnedBadge.js`（类名 `learned-badge` / `learned-line`，样式 `css/learned.css`，不再叫 `rot-` 开头），排兵布阵、球队评估、自由市场（我的球员 + 自由球员）共用；app.js 里只有一个读账本的 `epiphanyLearned(p)`，三个页面不会各算各的。QA 把评估页/市场的徽章对账排兵布阵页和存档，中英文各一遍。
+
+**首发分钟低于替补**：`starterMinuteConflicts(players, starterIds)`（纯函数）——首发里分钟严格少于"替补里分钟最多的人"的，逐个点名；行内一行 `首发只排 12 分钟，替补 X 排了 48`，首发标题出 `⚠ N 人分钟低于替补`。相等不算冲突；没有首发或没有替补不比较。注意：点「OVR 前五当首发」后，新首发的默认分钟可能确实比某个替补少，这时的警告是对的（QA 里用同一条规则在 Node 里独立重算来对账，而不是假设"默认不该有警告"——我第一版就是这么错的）。
+
+**对比度（根因）**：`25f4f64` 把 `#season-hub-panel` 整块改深色并设了 `color:#eef2ef`，注释写"其余页签不动"，但页签里的**不透明浅色卡片**没有自己的文字色，全继承了浅字：量到名字 1.13:1、统计药丸 1.02:1、排兵布阵标题/大数字/球员名 1.08–1.13:1。修法在根上：一份"浅卡名单"（`.sm-cap-card .sm-staff .sm-trade .sm-row .rot-row .development-plan-row .career-history-card .roster-evaluation-card`）各自定墨色和 `.tiny` 的灰；直接坐在深面板上的字保持浅色，那里的 `.tiny` 由 `#6b7280`（3.3:1）改成 `#a9bbb2`。`.sm-proposals` 只是 8% 米色半透明，仍是深的，**不在名单里**（我第一版把它放进去，变成深字压深底，扫描器当场抓到）。评估卡另外：推荐标签不折行、橙色加深到 AA、OVR 行不再有孤立的前导 `·`。
+
+**QA 教训**：之前"every text on the board is AA"只量了手写选择器清单里的元素，漏了名字/标题/大数字，却一直报绿。新增 `textContrast(page, root, { under })`（scripts/qa/lib/page.mjs）：扫描 root 内**所有**可见文字，背景逐层合成（半透明层叠到 `under` 上；赛季中心用 `SEASON_HUB_BASE`），大字 3:1，disabled 豁免；career-rotation.mjs 对 9 个页签逐个断言。它不测渐变背景——那类只能看截图。变异：删掉浅卡墨色规则，排兵布阵/市场/发展/历史四个页签立刻红。缩略图不可信：整页长图看不清字，必须裁原图（这次三次都是裁图才发现问题）。
+
+验证：1405/1405；lint 0 错误；career-rotation 桌面 74、手机 75；season-sim-continue 24/24 ×2。

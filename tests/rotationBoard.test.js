@@ -10,6 +10,7 @@ import {
   fitLabel,
   minuteBudget,
   rotationRowHtml,
+  starterMinuteConflicts,
   startersSectionHtml,
   topAttributes,
 } from "../js/ui/rotationBoard.js";
@@ -111,4 +112,43 @@ test("the stamina hint speaks the player's language in all three states, and def
     assert.match(staminaMinuteHint(q, "en"), en);
     assert.ok(!CJK.test(staminaMinuteHint(q, "en")), "English hint has no Chinese");
   }
+});
+
+// ---- a starter slated for fewer minutes than a bench player
+const squad = (...rows) => rows.map(([id, targetMinutes], i) => ({ id, name: `Player ${i}`, targetMinutes }));
+
+test("starterMinuteConflicts: each starter below the busiest bench player is named, with who out-minutes him", () => {
+  const players = squad(["s1", 30], ["s2", 12], ["s3", 40], ["b1", 20], ["b2", 36]);
+  const found = starterMinuteConflicts(players, new Set(["s1", "s2", "s3"]));
+  assert.deepEqual(found.map((c) => [c.id, c.min, c.benchMin]), [["s1", 30, 36], ["s2", 12, 36]]);
+  assert.equal(found[0].benchName, "Player 4", "names the busiest bench player, not just any");
+});
+
+test("starterMinuteConflicts: equal minutes are fine, and it needs both a starter and a bench player", () => {
+  assert.deepEqual(starterMinuteConflicts(squad(["s", 30], ["b", 30]), ["s"]), [], "a tie is not a conflict; ids may be an array");
+  assert.deepEqual(starterMinuteConflicts(squad(["a", 10], ["b", 40]), new Set()), [], "nobody picked as a starter yet");
+  assert.deepEqual(starterMinuteConflicts(squad(["a", 10], ["b", 40]), new Set(["a", "b"])), [], "no bench to compare with");
+  assert.deepEqual(starterMinuteConflicts(undefined, undefined), []);
+});
+
+test("starterMinuteConflicts: a player without minutes counts as the row default (24), like the input shows", () => {
+  const players = [{ id: "s", name: "S" }, { id: "b", name: "B", targetMinutes: 30 }];
+  assert.deepEqual(starterMinuteConflicts(players, ["s"]).map((c) => c.min), [24]);
+});
+
+test("a flagged row says it (zh and en, no Chinese in English), an unflagged row says nothing", () => {
+  const clash = { min: 12, benchName: "Sam <b>", benchMin: 40 };
+  const zh = rotationRowHtml(player(), ctx({ clash }));
+  assert.match(zh, /首发只排 12 分钟，替补 Sam &lt;b&gt; 排了 40/, "name escaped");
+  const en = rotationRowHtml(player(), ctx({ lang: "en", clash }));
+  assert.match(en, /Starter plays 12 min, bench Sam &lt;b&gt; plays 40/);
+  assert.ok(!CJK.test(en.match(/rot-clash">([^<]*)</)[1]));
+  assert.ok(!rotationRowHtml(player(), ctx()).includes("rot-clash"));
+});
+
+test("the starters heading counts the conflicts only when there are some", () => {
+  assert.ok(!startersSectionHtml("<i></i>", 5, "zh").includes("warn"));
+  assert.ok(!startersSectionHtml("<i></i>", 5, "zh", { clashes: 0 }).includes("warn"));
+  assert.match(startersSectionHtml("<i></i>", 5, "zh", { clashes: 2 }), /warn">⚠ 2 人分钟低于替补/);
+  assert.match(startersSectionHtml("<i></i>", 5, "en", { clashes: 1 }), /1 out-minuted by the bench/);
 });
