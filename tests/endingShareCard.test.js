@@ -148,3 +148,29 @@ test("every fired card is tone hard and still renders", () => {
     assert.ok(renderEndingShareCardHtml(card).includes("share-card"));
   }
 });
+
+// The renewed branch built its English line from offer.title (Chinese) and translated only four of the
+// seven perks, so a dynasty renewal showed Chinese perks on an English card.
+const renewedCard = (offer) => buildEndingShareCard(rootFixture({ employment: { status: "renewed", offer } }));
+
+test("a renewed card in English has no Chinese, whichever offer was signed", () => {
+  for (const id of ["trial-extension", "rebuild-extension", "contender-extension", "dynasty-extension"]) {
+    // the offer as an OLD save stored it: Chinese strings only, plus the id
+    const stored = { id, title: "旧存档里的中文标题", years: 2, salary: 9, authority: 50, privileges: ["随便一条中文特权"] };
+    const { textEn, privilegesEn } = renewedCard(stored).contract;
+    assert.ok(!/[\u3400-\u9fff]/.test(textEn + privilegesEn.join(" ")), `${id}: ${textEn} | ${privilegesEn}`);
+  }
+});
+
+test("the dynasty offer's three perks are translated (they used to fall back to Chinese)", () => {
+  const dynasty = { id: "dynasty-extension", title: "x", years: 5, salary: 20, authority: 96, privileges: ["完全人事决定权", "顶薪续约优先权", "专属训练设施预算"] };
+  const { privilegesEn } = renewedCard(dynasty).contract;
+  assert.deepEqual(privilegesEn, ["Full personnel control", "Max-contract renewal priority", "Dedicated training-facility budget"]);
+});
+
+test("Chinese still reads the Chinese title; an offer the game doesn't know keeps its own words", () => {
+  assert.match(renewedCard({ id: "rebuild-extension", years: 4, salary: 7, authority: 88 }).contract.text, /重建续约.*4 年/);
+  const odd = renewedCard({ id: "mystery", title: "Mystery", years: 1, salary: 1, authority: 1, privileges: ["x"] }).contract;
+  assert.match(odd.textEn, /Mystery/);
+  assert.deepEqual(odd.privilegesEn, ["x"]);
+});

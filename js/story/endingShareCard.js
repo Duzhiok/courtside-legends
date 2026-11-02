@@ -3,6 +3,7 @@
  * time-travel tenure. Pure builders only — rendering returns an HTML string.
  */
 import { teamNameL } from "../i18n.js";
+import { offerText } from "../career/contractOffers.js";
 import { stintSpan } from "../ui/timeTravel/epilogue.js";
 import { teamNameFor } from "../ui/timeTravel/viewModel.js";
 import { buildCareerReport } from "./eventEngine.js";
@@ -28,13 +29,6 @@ export function finishLabel(season, lang = "zh") {
   return labels[season?.finish] || season?.finish || "—";
 }
 
-const PRIVILEGES_EN = {
-  "自定义训练计划": "Custom training plans",
-  "发展联盟优先权": "G League priority",
-  "额外教练预算": "Extra coaching budget",
-  "季中补强额度": "Mid-season reinforcement allowance",
-};
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -54,21 +48,25 @@ const FIRED_TEXT = {
 
 // Contract prose is built bilingually (offer titles stay as-is); render picks by lang.
 function contractResult(employment) {
-  const withEn = (tone, text, textEn, privileges = []) => ({
+  const withEn = (tone, text, textEn, privileges = [], privilegesEn = privileges) => ({
     tone,
     text,
     textEn,
     privileges: [...privileges],
-    privilegesEn: privileges.map((item) => PRIVILEGES_EN[item] || item),
+    privilegesEn: [...privilegesEn],
   });
   switch (employment?.status) {
     case "renewed": {
       const offer = employment.offer || {};
+      // By id (contractOffers.js), not from the strings stored on the offer: an old save holds Chinese only.
+      const zh = offerText(offer, "zh");
+      const en = offerText(offer, "en");
       return withEn(
         "success",
-        `接受「${offer.title}」：${offer.years} 年 · 薪资 ${offer.salary} · 权限 ${offer.authority}`,
-        `Accepted "${offer.title}": ${offer.years} yrs · salary ${offer.salary} · authority ${offer.authority}`,
-        offer.privileges || [],
+        `接受「${zh.title}」：${offer.years} 年 · 薪资 ${offer.salary} · 权限 ${offer.authority}`,
+        `Accepted "${en.title}": ${offer.years} yrs · salary ${offer.salary} · authority ${offer.authority}`,
+        zh.privileges,
+        en.privileges,
       );
     }
     case "retired": {
