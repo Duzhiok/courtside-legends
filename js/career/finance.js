@@ -18,6 +18,7 @@ import {
   INVESTMENT_FORECAST_DIVERGENCE_FALLOFF,
   INVESTMENT_FORECAST_MIN_ACCURACY,
 } from "./balance.js";
+import { hashSeed, seededStream } from "../core/seededRandom.js";
 import { ensureCoachProfile } from "./coachProfile.js";
 import { negotiationSalaryBonus } from "./coachPerks.js";
 
@@ -84,6 +85,21 @@ export function investmentForecastAccuracy(divergence) {
   return clamp(1 - (Number(divergence) || 0) / INVESTMENT_FORECAST_DIVERGENCE_FALLOFF, INVESTMENT_FORECAST_MIN_ACCURACY, 1);
 }
 
+/** The season this settlement is for: the one just PLAYED (last history entry -- the same key
+ * reputation settles on), or the live season for a save with no history yet. */
+const settledSeasonYear = (root) =>
+  root?.leagueCareer?.management?.seasonHistory?.at?.(-1)?.year ?? root?.leagueCareer?.season?.year;
+
+/**
+ * A random stream that is a pure function of (story, scope, year, asset). Math.random here meant a
+ * reload rerolled the market, and the finance card's forecast noise changed on every repaint (so
+ * averaging a few repaints gave away the true return the divergence noise is there to hide).
+ * Scopes keep the forecast and the real payout independent of each other.
+ */
+export function financeRng(root, scope, year, assetId) {
+  return seededStream(hashSeed([root?.story?.storyId ?? "", scope, year ?? "", assetId ?? ""].join("|")));
+}
+
 /** A preview shown before investing: the asset's advertised return, blurred by how much the
  * timeline has diverged from what the coach remembers. Never used to resolve an actual payout. */
 export function investmentForecast(assetId, divergence, rng = Math.random) {
@@ -128,14 +144,17 @@ export function placeInvestment(coach, assetId, amount, year) {
  * independent of) careerContract.js's advanceSeasonGoal() -- finance never touches
  * frontOfficeTrust, goals never touch cash, and the caller composes both.
  */
-export function settleCoachFinances(root, rng = Math.random) {
+export function settleCoachFinances(root, rng) {
+  const year = settledSeasonYear(root);
+  // A season pays once. (The log entry was always written; nothing ever read it.)
+  if ((root?.story?.eventLog || []).some((e) => e.type === "finances-settled" && e.seasonYear === year)) return root;
   const coach = ensureCoachProfile(root);
   const salary = currentCoachSalary(root);
   const pending = coach.pendingInvestments || [];
   let cash = (coach.cash || 0) + salary;
   const settledInvestments = [];
   for (const position of pending) {
-    const roll = rollInvestmentReturn(position.assetId, rng);
+    const roll = rollInvestmentReturn(position.assetId, rng ?? financeRng(root, "roll", year, `${position.assetId}#${settledInvestments.length}`));
     const proceeds = position.amount * (1 + roll);
     cash += proceeds;
     settledInvestments.push({ assetId: position.assetId, amount: position.amount, roll, proceeds });
@@ -152,6 +171,7 @@ export function settleCoachFinances(root, rng = Math.random) {
         {
           type: "finances-settled",
           year: root.leagueCareer?.season?.year,
+          seasonYear: year,
           salary,
           settledInvestments,
           houseMoodBonus: houseTier?.moodBonus || 0,

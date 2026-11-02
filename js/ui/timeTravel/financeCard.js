@@ -7,7 +7,7 @@ import { ensureCoachProfile } from "../../career/coachProfile.js";
 import { INVESTMENT_STAKE } from "../../career/balance.js";
 import {
   availableAssetClasses, buyHouse, canAffordHouse, canAffordInvestment, currentCoachSalary, houseTiers,
-  investmentForecast, placeInvestment,
+  financeRng, investmentForecast, placeInvestment,
 } from "../../career/finance.js";
 import { ASSET_LABELS_EN, HOUSE_LABELS_EN } from "./copy.js";
 import { $ } from "./dom.js";
@@ -35,7 +35,7 @@ export function financeModel(root, l) {
     investments: availableAssetClasses(root.leagueCareer?.season?.year).map((asset) => ({
       id: asset.id,
       label: (l === "en" ? ASSET_LABELS_EN[asset.id] : null) ?? asset.label,
-      forecast: investmentForecast(asset.id, divergence),
+      forecast: investmentForecast(asset.id, divergence, financeRng(root, "forecast", root.leagueCareer?.season?.year, asset.id)),
       stake: INVESTMENT_STAKE,
       pending: pending.get(asset.id) || 0,
       affordable: canAffordInvestment(coach, INVESTMENT_STAKE),

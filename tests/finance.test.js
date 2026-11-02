@@ -13,6 +13,7 @@ import {
   rollInvestmentReturn,
   settleCoachFinances,
 } from "../js/career/finance.js";
+import { financeModel } from "../js/ui/timeTravel/financeCard.js";
 import { createCoachProfile } from "../js/career/coachProfile.js";
 import { COACH_BASE_SALARY, HOUSE_TIERS, INVESTMENT_FORECAST_MIN_ACCURACY, PERK_NEGOTIATION_SALARY } from "../js/career/balance.js";
 
@@ -176,4 +177,63 @@ test("settleCoachFinances backfills a full coach profile for a save that predate
   const after = settleCoachFinances(root);
   assert.equal(after.coach.cash, COACH_BASE_SALARY);
   assert.equal(after.coach.age > 0, true, "ensureCoachProfile backfilled the rest of the shape, not just cash");
+});
+
+// --- P1: a season is paid once, and the market is the same market after a reload ---
+
+const withBet = (extra = {}, storyExtra = {}) =>
+  rootWithCoach({ cash: 0, pendingInvestments: [{ assetId: "tech-stocks", amount: 10, placedYear: 1996 }], ...extra }, storyExtra);
+
+test("settling the same season twice pays it once (the second call hands back the same root)", () => {
+  const once = settleCoachFinances(withBet(), () => 0.5);
+  const twice = settleCoachFinances(once, () => 0.5);
+  assert.equal(twice, once, "nothing left to settle: the very same object");
+  assert.equal(twice.coach.cash, once.coach.cash);
+  assert.equal(twice.story.eventLog.filter((e) => e.type === "finances-settled").length, 1);
+});
+
+test("the next season is a new settlement: it pays again", () => {
+  const once = settleCoachFinances(withBet(), () => 0.5);
+  const nextYear = { ...once, leagueCareer: { season: { year: 1997 } } };
+  const again = settleCoachFinances(nextYear, () => 0.5);
+  assert.ok(again.coach.cash > once.coach.cash);
+  assert.equal(again.story.eventLog.filter((e) => e.type === "finances-settled").length, 2);
+});
+
+test("the guard keys on the season that was PLAYED (last history entry), like reputation does", () => {
+  const played = (year) => ({ leagueCareer: { season: { year: 1999 }, management: { seasonHistory: [{ year }] } } });
+  const a = settleCoachFinances({ ...withBet(), ...played(1996) }, () => 0.5);
+  assert.equal(settleCoachFinances(a, () => 0.5), a, "same played season, even though the live season year moved on");
+  const b = settleCoachFinances({ ...a, ...played(1997) }, () => 0.5);
+  assert.notEqual(b, a, "a newly finished season settles");
+});
+
+test("with no rng injected the roll is reproducible: the same save settles to the same cash every time", () => {
+  const roots = Array.from({ length: 3 }, () => withBet({}, { storyId: "tt-1995-7" }));
+  const cash = roots.map((r) => settleCoachFinances(r).coach.cash);
+  assert.equal(new Set(cash).size, 1, `three settlements of one save gave ${cash}`);
+});
+
+test("...but it isn't a constant: different seasons and different stories roll differently", () => {
+  const cash = new Set();
+  for (let year = 1990; year < 2010; year += 1) {
+    cash.add(settleCoachFinances({ ...withBet({}, { storyId: `tt-${year}` }), leagueCareer: { season: { year } } }).coach.cash);
+  }
+  assert.ok(cash.size > 10, `20 different season/story pairs gave only ${cash.size} distinct payouts`);
+});
+
+test("the forecast on the finance card holds still between repaints (and between reloads)", () => {
+  const root = rootWithCoach({ cash: 100 }, { timelineDivergence: 6, storyId: "tt-1995-7" });
+  const forecasts = () => financeModel(root, "zh").investments.map((i) => i.forecast);
+  const first = forecasts();
+  for (let i = 0; i < 5; i += 1) assert.deepEqual(forecasts(), first);
+  assert.ok(first.length > 0);
+});
+
+test("the forecast is not the roll: the noise stream and the payout stream are independent", () => {
+  const root = rootWithCoach({ cash: 100 }, { timelineDivergence: 6, storyId: "tt-1995-7" });
+  const asset = financeModel(root, "zh").investments[0];
+  const rolled = settleCoachFinances({ ...root, coach: { ...root.coach, pendingInvestments: [{ assetId: asset.id, amount: 100, placedYear: 1996 }] } });
+  const roll = (rolled.story.eventLog.at(-1).settledInvestments[0]).roll;
+  assert.notEqual(asset.forecast, roll, "a confident forecast can still lose money");
 });

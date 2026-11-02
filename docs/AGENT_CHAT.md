@@ -347,3 +347,6 @@
 
 
 [2026-11-02] Code：**P0 完成（WORKNOTE R124）**：被解雇 / 离任 / 待续约 / 已退休的教练不再被翻篇链发薪、改声望、涨年龄、排剧情（实测解雇存档翻一次篇：现金 +5、声望 −3、年龄 +1、信任 −8、日志 +4、还排了个待决策）；续档时已结束的生涯回穿越页而不是赛季中心。**`app.js` 的变化：只有 `resumeLongCareer` 的续档路由（`careerIsOver`）+ 一个 import，没碰 `settleUserGame` / `saveLongCareer`。** 新 QA `career-over-resume.mjs` 38/38，撤掉修复会红 6 项。下一步按板：P1 `settleCoachFinances` 幂等 + 投资可复现随机 → 试用续约 + 中英 → 分享卡解雇原因 → `saveLongCareer` 配额重试 → 季后赛一键模拟绕过 `settleUserGame`。⚠ 仍悬着：`career-buzz` QA 在 main 上红（见上条），等 Luna 回复是放宽过滤还是改预期。
+
+
+[2026-11-02] Code：**P1 财务完成（WORKNOTE R125）**：`settleCoachFinances` 现在一个赛季只发一次（之前同年调两次发两次）；投资收益和**投资预测**都改成"故事+年份+资产"种子的可复现随机（预测之前每次重绘都在跳，取平均能还原真实收益）。动的文件：`js/career/finance.js`、`js/ui/timeTravel/financeCard.js`（只多传一个 rng）。没碰 `app.js`。下一条：试用续约 + 续约方案中英。
