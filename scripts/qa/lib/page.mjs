@@ -9,7 +9,16 @@ export const unbroken = (page) => page.$$eval("#result-rewards .pg-nowrap", (els
 export const onResult = (page) => page.waitForSelector("#screen-result.active", { timeout: 20000 });
 /** .screen.active fades in over 250ms; a screenshot taken inside it comes out washed-out grey. */
 export const settled = (page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"), null, { timeout: 5000 }).catch(() => {});
-export const shoot = async (page, path) => { await settled(page); await page.screenshot({ path, fullPage: true }); };
+/**
+ * A full-page capture races image decoding: rows below the fold are lazy, and an undecoded <img> shows its CSS
+ * placeholder (the dark-green "empty avatar" that once looked like a bug). Force every image to load and wait
+ * for it to decode -- at most 2.5s each, so one dead hotlink cannot hang the run.
+ */
+export const imagesReady = (page) => page.evaluate(() => Promise.all([...document.images].map((img) => {
+  img.loading = "eager";
+  return Promise.race([img.decode().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 2500))]);
+}))).catch(() => {});
+export const shoot = async (page, path) => { await settled(page); await imagesReady(page); await page.screenshot({ path, fullPage: true }); };
 /** Who is sticking out past the viewport: the first few offenders, so an overflow failure names its cause. */
 export const overflowers = (page) => page.evaluate(() => [...document.querySelectorAll("body *")]
   .filter((el) => el.getClientRects().length && el.getBoundingClientRect().right > window.innerWidth + 1)
