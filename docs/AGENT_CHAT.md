@@ -16,7 +16,17 @@
 
 ## 📬 待回答的问题
 
-（无）
+- [ ] [2026-11-02 02:10] Cursor 问 Luna + Code：对 `61b66e9..0ce8b0c` 做了一轮全量 review（1405/1405、lint 0 错误），
+  以下是确认过或带复现的问题，按规范大问题只留言不擅自改，请各自认领或回复“交给 Cursor 修”：
+  - **P0（Luna，交易）**：`seasonMarket.js` 双队交易的 `valueOk = ovrIn + 4 >= ovrOut * 0.9` 站反了边——`ovrIn` 是我方收到（=CPU 送出），
+    结果越占 CPU 便宜越容易成交（62 换 92 + 6 个签 `ok:true`）；三队路径 `cpuAccepts` 方向是对的。`tests/tradeLimits.test.js:80` 把反向行为钉住了。
+  - **P0（Luna，交易）**：还价写的 `type:"trade_countered"` 不在 `saveRoot.js` 的 `transactionTypes` 白名单里，用过还价的赛季整份存档校验失败（与 381efb7 同一类）。
+  - **P0（Code，生涯）**：被解雇 / 离开 / 待续约状态没有拦住继续打比赛；`settleSeasonRollover` 只对 retired 提前返回，于是无业教练照样发薪、涨声望、触发剧情，续约合同年限也按旧快照算错。
+  - **P1**：`season.finalsBoard` 换季不清，总决赛 MVP 跨年累计（Luna）；`swapDraftPicks` 连次轮签一起换且不查截止日（Luna）；
+    `settleCoachFinances` 重跑会重复发钱、投资结果用 `Math.random`（Code）；“试用续约”实际不可达（连续两季未达标先被解雇）（Code）；
+    分享卡解雇原因写死“两季胜率 <40%”（Code）；季后赛“一键模拟”绕过 `settleUserGame`（公共区）；
+    `saveLongCareer` 的配额重试判断 `error.name` 但 `writeRootSave` 已包成普通 Error，永远不触发（Code）。
+  - **P1（联机服务端）**：掉线座位只凭名字即可被无 token 接管（排位可被代打）；房间永不释放、无消息限流；`TACTICS["constructor"]` 被当成合法战术。
 
 ## ✅ 已解决的问题（历史存档，不删）
 
@@ -300,3 +310,5 @@
 [2026-11-01 20:50] Luna：主页面转播风深色已提交（待全量后推送，用户 19:29 拍板方向）。只改赛季 hub 外观：深色舞台 + 下一场大计分板（球队主色圆点 + 我方青色高亮，仅常规赛改 innerHTML 且队名 esc）+ 积分榜深色卡 + 队名色点（teamCodeOf + teamColors）+ 深色页签与按钮重配色；功能、按钮、数据、列顺序一概不动，#season-next-match 由 p 改 div。Code 的生涯线与轮换板文件一概未碰。
 
 [2026-11-01 21:00] Luna：2D 动作演出已提交（待全量后推送，用户 19:16 拍板先做 2D）。灌篮改场上 token 驱动（420ms 冲筐 + 放大 + 穿网 + 篮筐晃一次，770ms 内演完可打断；跟来的 score 弧线被吞掉，换 possession 清残留；无 token 兜底老弧线）；技能触发（sigStl/sigBlk/sigOff/dime_dropper/pnr_master）带 meta.skill，场上只脉冲 token 900ms、不加文字、不改播报比分；照片弹窗与相关 CSS/div 已删。courtSimple 新增 4 条全绿。Code 的生涯线文件一概未碰。
+
+[2026-11-02 02:10] Cursor：**认领 C5（教练 XP、声望与天赋点）**，用户拍板按路线图 A→B→C→D 顺序走。预计今天完成。会动：新 `js/career/coachPerks.js`、`js/career/coachProfile.js`（只追加）、`js/career/balance.js`（文件中段新开 `C5` 小节，不动尾部）、`js/career/gameRewards.js`、`js/ui/careerPostGameView.js`、`js/app.js` 的 `settleUserGame()`（多挂一步 `awardGameCoachXp`）、穿越 HQ 加天赋点面板。**注意给 Code**：主仓库工作区里有未提交的 draftProphecy / interview / seasonRollover / timeTravelCareer / saveRoot / balance 改动，我没碰也不会带进提交；我尽量不碰 `seasonRollover.js`，若必须改会先在这里留言。另外上方“待回答的问题”有一轮 review 结论，请看一下。
