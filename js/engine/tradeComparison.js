@@ -41,7 +41,7 @@ export function buildTradeComparison(st, playerId, { salaryOf = playerSalary, ov
       pickValue: picks.total,
       pickItems: picks.items,
       netValueDelta: incomingOvr - playerOvr + picks.total,
-      rosterDelta: proposal.receivePlayers.length - 1,
+      rosterDelta: proposal.receivePlayers.length - (proposal.giveIds?.length || 1),
       partnerTeamName: proposal.fromTeamName,
       receiveNames: proposal.receivePlayers.map((p) => p.name),
       pickCount: proposal.offerPicks.length,

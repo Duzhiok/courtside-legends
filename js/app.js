@@ -168,6 +168,7 @@ import { shuffle } from "./core/seededRandom.js";
 import { meterText } from "./ui/teamStats.js";
 import {
   acceptTradeProposal,
+  counterTradeProposal,
   declineTradeProposal,
   ensureTradeProposals,
   listPlayerForTrade,
@@ -8538,14 +8539,24 @@ function renderSeasonMarket() {
       <header class="sm-fa-head"><h4>收到的交易请求</h4><div class="btn-row"><span class="tiny">${proposals.length ? `${proposals.length} 份待处理` : "暂无新报价"}</span><button type="button" class="btn small" id="btn-refresh-proposals">刷新报价</button></div></header>
       ${unmetListingHintHtml(st, proposals)}
       ${proposals.map((proposal) => `<article class="trade-proposal-card" data-proposal-id="${proposal.id}">
-        <strong>${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}</strong>
+        <strong>${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}</strong> <span class="chip tiny">${(proposal.round || 1) === 2 ? "第二轮" : "第一轮"}</span>
         <p class="tiny">${esc(proposal.reason)}</p>
         <div class="tiny">对方球员：${proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；")}</div>
         <div class="tiny">附带选秀权：${proposal.offerPicks.map((pick) => {
           const value = estimateDraftPickValue(pick, { currentYear: st.year });
           return `<span title="${esc(value.explanation)}">${esc(value.label)}（≈ +${value.ovrEquivalent} OVR）</span>`;
-        }).join("、")}</div>
-        <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${proposal.id}">接受报价</button><button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${proposal.id}">拒绝</button></div>
+        }).join("、") || "无"}</div>
+        ${(proposal.giveIds?.length || 1) > 1 ? `<div class="tiny">对方还要求我方球员：${proposal.giveIds.slice(1).map((id) => {
+          const p = you.players.find((x) => x.id === id);
+          return p ? `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}` : esc(id);
+        }).join("；")}</div>` : ""}
+        ${(proposal.askPickIds?.length ? `<div class="tiny">对方还要求我方选秀权：${proposal.askPickIds.map((id) => {
+          const pick = teamDraftAssets(st, st.userTeamId).find((pk) => pk.id === id);
+          if (!pick) return esc(id);
+          const value = estimateDraftPickValue(pick, { currentYear: st.year });
+          return `<span title="${esc(value.explanation)}">${esc(value.label)}（≈ +${value.ovrEquivalent} OVR）</span>`;
+        }).join("、")}</div>` : "")}
+        <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${proposal.id}">接受报价</button>${(proposal.round || 1) === 2 ? "" : `<button type="button" class="btn small" data-trade-proposal-action="counter" data-proposal-id="${proposal.id}">再谈谈</button>`}<button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${proposal.id}">拒绝</button></div>
       </article>`).join("") || `<p class="tiny">最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。</p>`}
     </section>
     <section class="sm-trade">
@@ -8807,9 +8818,12 @@ function renderSeasonMarket() {
   box.querySelectorAll("[data-trade-proposal-action]").forEach((button) => {
     button.addEventListener("click", () => {
       const proposalId = button.dataset.proposalId;
-      const result = button.dataset.tradeProposalAction === "accept"
+      const action = button.dataset.tradeProposalAction;
+      const result = action === "accept"
         ? acceptTradeProposal(st, proposalId)
-        : declineTradeProposal(st, proposalId);
+        : action === "counter"
+          ? counterTradeProposal(st, proposalId)
+          : declineTradeProposal(st, proposalId);
       if (!result.ok) {
         alert(result.reason);
         return;

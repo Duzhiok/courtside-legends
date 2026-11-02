@@ -89,7 +89,10 @@ test("declining one team's offer does not block a DIFFERENT team's offer for the
   // Add a second CPU team and advance a day so the team-rotation picks it instead of CPU --
   // a different team's offer has a different signature and must still be allowed through; only
   // the EXACT declined team+player+offer shape is blocked, not the star forever.
-  st.teams.CPU2 = { name: "另一队", players: [player("cpu2-star", 84, 150), player("cpu2-filler", 60, 30)] };
+  // A 2-man club could never legally trade (any deal leaves it below the 8-man
+  // minimum, so offers from it are now correctly withheld instead of dangled).
+  // Field a legal roster so the different-team offer can actually surface.
+  st.teams.CPU2 = { name: "另一队", players: [player("cpu2-star", 84, 150), player("cpu2-filler", 60, 30), ...Array.from({ length: 6 }, (_, i) => player(`cpu2_${i}`, 65, 40))] };
   st.dayIndex += 1;
   const refreshed = generateTradeProposals(st);
   assert.ok(
