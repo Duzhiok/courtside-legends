@@ -5,7 +5,8 @@ import { SKILL_PACKS } from "../js/data/skills.js";
 import { skillNameL } from "../js/i18n.js";
 import { EPIPHANY_RULES } from "../js/engine/epiphany.js";
 import { FOCUS_ATTRIBUTES } from "../js/modes/playerDevelopment.js";
-import { ATTRIBUTE_LABELS, STREAK_UNITS, batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
+import { highlightTags } from "../js/career/buzz.js";
+import { ATTRIBUTE_LABELS, HIGHLIGHT_LABELS, STREAK_UNITS, batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
 
 const CJK = /[\u3400-\u9fff]/;
 const visible = (html) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
@@ -287,4 +288,90 @@ test("a stretch card shows every epiphany of the stretch and the final heat, in 
   assert.match(zh, /手感正热 再来一场达标，就有机会领悟新技能。 Aaron Gordon/);
   assert.doesNotMatch(zh, /Gone Cold/, "last game's heat only");
   assert.doesNotMatch(visible(batchHtml(batch, "en")), CJK);
+});
+
+// ---------------------------------------------------------------- C4: highlights + market buzz
+const night = (over = {}) => ({ id: "a", name: "Nikola Jokic", tags: [{ id: "pts40", value: 41 }, { id: "tripleDouble", value: null }], gain: 7, ...over });
+const withBuzz = (highlights, hot = []) => {
+  const report = settleGame(snap(), "home");
+  report.rewards.highlights = highlights;
+  report.rewards.hot = hot;
+  return report;
+};
+
+test("highlights: nothing earned, nothing drawn", () => {
+  assert.doesNotMatch(postGameHtml(settleGame(snap(), "home"), "zh"), /pg-highlights|pg-hotnote|高光|热度/);
+});
+
+test("highlights: who, what (figure + unit as one piece), and the buzz it earned", () => {
+  const html = postGameHtml(withBuzz([night()], [{ id: "a", name: "Nikola Jokic", buzz: 4 }]), "zh");
+  assert.match(html, /本场高光/);
+  assert.match(visible(html), /Jokic41 分 · 三双/);
+  assert.match(html, /<span class="pg-nowrap">41 分<\/span>/, "the figure and its unit cannot split across lines");
+  assert.match(html, /pg-buzz[^>]*>[\s\S]*\+7/);
+  assert.match(visible(html), /交易市场热度：Nikola Jokic 4\.0。趁热出手报价更高/);
+});
+
+test("highlights: the card order is verdict, stars, highlights, growth", () => {
+  const report = withBuzz([night()]);
+  report.rewards.playerXp = [{ id: "a", name: "Nikola Jokic", xp: 40, progress: 0.4, total: 400, leveled: [], capped: false }];
+  const html = postGameHtml(report, "zh");
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at("本场最佳") < at("本场高光") && at("本场高光") < at("球员成长"), "stars < highlights < growth");
+});
+
+test("highlights: English has no Chinese in it, and the unit reads right", () => {
+  const html = postGameHtml(withBuzz([night({ tags: [{ id: "blk5", value: 6 }, { id: "tpm8", value: 9 }] })], [{ id: "a", name: "Nikola Jokic", buzz: 2.4 }]), "en");
+  assert.doesNotMatch(visible(html), CJK);
+  assert.match(visible(html), /Highlights/);
+  assert.match(visible(html), /6 blocks · 9 threes/);
+  assert.match(visible(html), /Trade-market buzz: Nikola Jokic 2\.4/);
+});
+
+test("highlights: every highlight id the engine can produce has a label in both languages", () => {
+  const ids = ["pts40", "pts30", "tripleDouble", "blk5", "tpm8"];
+  for (const id of ids) {
+    const [zh, en] = HIGHLIGHT_LABELS[id] || [];
+    assert.ok(zh && en, `no label for ${id}`);
+    assert.doesNotMatch(en, CJK, id);
+  }
+  // and the engine really emits exactly these (so a new highlight cannot ship unlabelled)
+  const emitted = new Set(highlightTags({ pts: 41, reb: 12, ast: 10, blk: 5, tpm: 8 }).map((tag) => tag.id));
+  emitted.add(highlightTags({ pts: 30 })[0].id);
+  assert.deepEqual([...emitted].sort(), [...ids].sort());
+});
+
+test("highlights: at most four rows, at most three tags a row, and the rest is counted, not hidden", () => {
+  const many = Array.from({ length: 6 }, (_, i) => night({ id: `p${i}`, name: `Player ${i}`, gain: 6 - i }));
+  const html = postGameHtml(withBuzz(many), "zh");
+  assert.equal((html.match(/class="pg-hl"/g) || []).length, 4);
+  assert.match(visible(html), /还有 2 位也有高光/);
+  const tags = ["pts40", "tripleDouble", "blk5", "tpm8", "pts30"].map((id) => ({ id, value: 9 }));
+  assert.match(visible(postGameHtml(withBuzz([night({ tags })]), "zh")), /\+2/);
+});
+
+test("highlights: a player who is still hot but had a quiet night still shows up, under a market-buzz title", () => {
+  const html = postGameHtml(withBuzz([], [{ id: "a", name: "Nikola Jokic", buzz: 3.2 }]), "zh");
+  assert.doesNotMatch(html, /pg-highlights/);
+  assert.match(html, /市场热度/);
+  assert.match(visible(html), /Nikola Jokic 3\.2/);
+});
+
+test("highlights: names are escaped", () => {
+  const html = postGameHtml(withBuzz([night({ name: "<img src=x onerror=1>" })], [{ id: "a", name: "<b>x</b>", buzz: 3 }]), "zh");
+  assert.doesNotMatch(html, /<img src=x|<b>x/);
+});
+
+test("highlights: the stretch card shows the whole stretch's highlights and who is hot at the end", () => {
+  const first = settleGame(snap(), "home");
+  first.rewards.highlights = [night({ gain: 4, tags: [{ id: "pts40", value: 41 }] })];
+  first.rewards.hot = [{ id: "a", name: "Nikola Jokic", buzz: 4 }];
+  const last = settleGame(snap(), "home");
+  last.rewards.highlights = [night({ gain: 3, tags: [{ id: "tripleDouble", value: null }] })];
+  last.rewards.hot = [{ id: "a", name: "Nikola Jokic", buzz: 5.2 }];
+  const html = batchHtml(foldBatch([first, last]), "zh");
+  assert.match(html, /这段时间的高光/);
+  assert.match(visible(html), /Jokic41 分 · 三双/);
+  assert.match(visible(html), /热度：Nikola Jokic 5\.2/);
+  assert.match(batchHtml(foldBatch([settleGame(snap(), "home")]), "zh"), /^(?![\s\S]*高光)/);
 });

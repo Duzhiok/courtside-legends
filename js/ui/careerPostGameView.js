@@ -66,6 +66,43 @@ const streakText = (rule, games, lang) => {
 };
 const LEARNED_ROWS = 4;
 const HEAT_ROWS = 3;
+const HIGHLIGHT_ROWS = 4;
+const HIGHLIGHT_TAGS = 3;
+const HOT_NAMES = 3;
+
+/** What a highlight is called, by language; `{v}` is the figure. Every id in `career/buzz.js` has one. */
+export const HIGHLIGHT_LABELS = {
+  pts40: ["{v} 分", "{v} points"], pts30: ["{v} 分", "{v} points"], tripleDouble: ["三双", "Triple-double"],
+  blk5: ["{v} 次盖帽", "{v} blocks"], tpm8: ["{v} 记三分", "{v} threes"],
+};
+const highlightText = (tag, lang) => (HIGHLIGHT_LABELS[tag.id] || [tag.id, tag.id])[lang === "en" ? 1 : 0].replace("{v}", tag.value);
+
+/**
+ * Highlights (C4): who had a big night and what the market makes of it. One row per player, each
+ * figure with its unit as one unbreakable piece. Below it, in one line, everyone the trade market
+ * is currently talking about -- and the plain fact that it fades.
+ */
+function highlightsHtml(entries, hot, lang, title) {
+  const rows = (entries || []).slice(0, HIGHLIGHT_ROWS).map((entry) => {
+    const shown = entry.tags.slice(0, HIGHLIGHT_TAGS).map((tag) => seg(highlightText(tag, lang)));
+    const extra = entry.tags.length - HIGHLIGHT_TAGS;
+    if (extra > 0) shown.push(seg(`+${extra}`));
+    return `<li class="pg-hl">
+      <span class="pg-who"><strong>${esc(entry.name)}</strong><span>${shown.join(" · ")}</span></span>
+      <span class="pg-chip pg-buzz" title="${esc(tr(lang, "交易市场热度", "Trade-market buzz"))}"><span aria-hidden="true">🔥</span> +${entry.gain}</span>
+    </li>`;
+  }).join("");
+  const more = (entries || []).length > HIGHLIGHT_ROWS
+    ? `<p class="pg-more">${esc(tr(lang, `还有 ${entries.length - HIGHLIGHT_ROWS} 位也有高光`, `${entries.length - HIGHLIGHT_ROWS} more had highlights`))}</p>` : "";
+  const names = (hot || []).slice(0, HOT_NAMES).map((entry) => seg(`${entry.name} ${one(entry.buzz)}`)).join(" · ");
+  const note = names
+    ? `<p class="pg-note pg-hotnote"><span aria-hidden="true">🔥</span> ${esc(tr(lang, "交易市场热度：", "Trade-market buzz: "))}${names}。${esc(tr(
+      lang, "趁热出手报价更高，几场不再高光就会降温。", "Offers run higher while it lasts; a few quiet games and it fades.",
+    ))}</p>` : "";
+  if (!rows && !note) return "";
+  const head = `<h4 class="pg-section-title">${esc(rows ? title : tr(lang, "市场热度", "Market buzz"))}</h4>`;
+  return `${head}${rows ? `<ul class="pg-stars pg-highlights">${rows}</ul>${more}` : ""}${note}`;
+}
 
 /**
  * Epiphany (C3): a skill someone just learned. Rare, so it is the one warm block on the card -- right
@@ -129,6 +166,7 @@ export function postGameHtml(report, lang = "zh") {
     <p class="pg-verdict"><strong>${esc(v.text)}</strong><span>${esc(tr(lang, `对阵 ${v.opp}`, `vs ${v.opp}`))}</span></p>
     ${epiphanyHtml(report.rewards?.epiphanies, lang)}
     ${starsHtml(report.stars, lang)}
+    ${highlightsHtml(report.rewards?.highlights, report.rewards?.hot, lang, tr(lang, "本场高光", "Highlights"))}
     ${growthHtml(report.rewards?.playerXp, lang)}
     ${heatHtml(report.rewards?.heat, lang)}
   </div>`;
@@ -156,6 +194,7 @@ export function batchHtml(batch, lang = "zh") {
     ${bestLine}
     ${epiphanyHtml(batch.epiphanies, lang)}
     ${leaders ? `<h4>${esc(tr(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}
+    ${highlightsHtml(batch.highlights, batch.hot, lang, tr(lang, "这段时间的高光", "Highlights of the stretch"))}
     ${growthHtml(batch.growth, lang)}
     ${heatHtml(batch.heat, lang)}
   </div>`;

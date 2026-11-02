@@ -64,7 +64,8 @@ const section = (page) => page.evaluate(() => {
     };
   });
   const box = document.querySelector("#result-rewards");
-  return { title: box?.querySelector(".pg-section-title")?.textContent.trim() || "", rows, all: (box?.textContent || "").replace(/\s+/g, " ") };
+  return { // the card has other sections too (C4 highlights sit above this one): find ours by what it says, not by position
+    title: [...(box?.querySelectorAll(".pg-section-title") || [])].map((el) => el.textContent.trim()).find((t) => /球员成长|Player growth/.test(t)) || "", rows, all: (box?.textContent || "").replace(/\s+/g, " ") };
 });
 
 const earned = (entry) => (entry ? entry.xp + COST * entry.levels : 0);

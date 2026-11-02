@@ -74,7 +74,7 @@ test("unusable snapshots give null, never a half-built report", () => {
 test("the reward slots exist, empty, and are a fresh object each time (C2-C6 fill them)", () => {
   const report = settleGame(snapshot({ home: [player("h", { min: 20, pts: 5 })], away: [] }), "home");
   assert.deepEqual(report.rewards, emptyRewards());
-  assert.deepEqual(Object.keys(report.rewards).sort(), ["coachXp", "epiphanies", "goal", "heat", "highlights", "insights", "playerXp"]);
+  assert.deepEqual(Object.keys(report.rewards).sort(), ["coachXp", "epiphanies", "goal", "heat", "highlights", "hot", "insights", "playerXp"]);
   assert.notEqual(emptyRewards().highlights, emptyRewards().highlights);
 });
 
@@ -99,7 +99,7 @@ test("foldBatch ranks by TOTAL contribution: one huge night doesn't outrank a mo
 });
 
 test("foldBatch of nothing is an empty, safe summary", () => {
-  assert.deepEqual(foldBatch([]), { games: 0, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [] });
+  assert.deepEqual(foldBatch([]), { games: 0, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [], highlights: [], hot: [] });
   assert.equal(foldBatch(undefined).games, 0);
 });
 

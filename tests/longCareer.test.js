@@ -815,3 +815,15 @@ test("C3: the offseason forgets every streak but remembers what a player learned
   assert.deepEqual(done.management.epiphany, { "B-1": { form: [], learned: ["dime_dropper"] } });
   assert.deepEqual(completeCareerOffseason(plain).career.management.epiphany, {}, "and a career that never had one is unaffected");
 });
+
+test("C4: a new season starts with nobody hot, and no offers priced on last year's buzz", () => {
+  const plain = finishDraft(prepareCareerOffseason(managedCareer()));
+  const buzzing = structuredClone(plain);
+  buzzing.season.buzz = { "B-1": 6 };
+  buzzing.season.tradeProposalsBuzz = "B-1:4.5";
+
+  const done = completeCareerOffseason(buzzing).career;
+  assert.equal("buzz" in done.season, false, "last year's highlights are last year's");
+  assert.equal("tradeProposalsBuzz" in done.season, false);
+  assert.equal(completeCareerOffseason(plain).career.season.buzz, undefined, "and a career that never had buzz is unaffected");
+});

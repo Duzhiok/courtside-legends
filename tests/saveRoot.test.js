@@ -750,6 +750,23 @@ test("C3: the epiphany ledger round-trips; saves from before it still load; a ma
   }
 });
 
+test("C4: market buzz on the season survives a save, and a save from before it still loads", () => {
+  const withBuzz = (extra) => createRootState({
+    activeMode: "franchise",
+    leagueCareer: {
+      careerId: "career-1", kind: "franchise", phase: "draft", history: [], manualOverrides: {}, recommendations: {},
+      season: { ...validSeason({ phase: "regular" }), ...extra },
+      management: { draft: null, draftHistory: [], seasonHistory: [] },
+    },
+  });
+  const buzzing = withBuzz({ buzz: { kiddja01: 4, other: 2.4 }, tradeProposalsBuzz: "kiddja01:3" });
+  const loaded = importRootSave(exportEnvelope(buzzing));
+  assert.deepEqual(loaded.leagueCareer.season.buzz, { kiddja01: 4, other: 2.4 });
+  assert.equal(loaded.leagueCareer.season.tradeProposalsBuzz, "kiddja01:3");
+  const old = withBuzz({});
+  assert.deepEqual(importRootSave(exportEnvelope(old)), old, "every save written before C4 has neither key");
+});
+
 test("malformed managed saves do not change storage", () => {
   const stored = createRootState({ savedAt: 91 });
   const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: JSON.stringify(stored) });

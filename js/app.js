@@ -263,6 +263,7 @@ import { summarizeMatchResult } from "./engine/matchExplain.js";
 import { foldBatch, settleGame } from "./career/gameRewards.js";
 import { awardGrowth } from "./career/playerGrowth.js";
 import { awardEpiphany } from "./career/seasonEpiphany.js";
+import { settleBuzz } from "./career/buzz.js";
 import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
 import {
   advanceCareerOffseason,
@@ -9523,11 +9524,22 @@ function awardGameEpiphany(report) {
   report.rewards.heat = result.heat;
 }
 
-/** Settle a finished game from the user's side and pay its XP and any epiphany. */
+/** Highlight nights warm the trade market; everyone cools a little every game (C4). Lives on the season. */
+function awardGameBuzz(report) {
+  const st = state.season;
+  if (!report || !st || !isManagedCareer(state.leagueCareer)) return;
+  const result = settleBuzz({ buzz: st.buzz, players: st.teams[st.userTeamId]?.players || [], lines: report.lines });
+  st.buzz = result.buzz;
+  report.rewards.highlights = result.highlights;
+  report.rewards.hot = result.hot;
+}
+
+/** Settle a finished game from the user's side and pay its XP, any epiphany, and the market buzz. */
 function settleUserGame(snap, side) {
   const report = settleGame(snap, side);
   awardGameGrowth(report);
   awardGameEpiphany(report);
+  awardGameBuzz(report);
   return report;
 }
 

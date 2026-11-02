@@ -1468,6 +1468,9 @@ export function advanceLeagueOffseason(st, options = {}) {
   st.awards = null;
   st.playoffs = null;
   st.playerSeason = {};
+  // Market buzz is a this-season thing (C4): a new year starts with nobody hot and no offers priced on it.
+  delete st.buzz;
+  delete st.tradeProposalsBuzz;
   st.resultsLog = [];
   st.tradeLog = Array.isArray(st.tradeLog) ? st.tradeLog : [];
   st.schedule = generateSchedule(seasonTeamIds(st), st.seed, {

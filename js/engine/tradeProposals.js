@@ -1,4 +1,6 @@
 import { overall } from "../data/players.js";
+import { BUZZ_EXTRA_PICK } from "../career/balance.js";
+import { buzzBonus, buzzKey, buzzOf, isHot } from "../career/buzz.js";
 import { SEASON_APRON, cpuCapBlocksTrade, executeTrade, pickValueOf, playerSalary, teamDraftAssets, teamPayroll } from "./seasonMarket.js";
 import {
   DEFAULT_LISTING_PREF,
@@ -16,8 +18,9 @@ function perGame(row, key) {
   return gp ? (Number(row.stats[key]) || 0) / gp : 0;
 }
 
-function isAttractive(row, player) {
-  return overall(player) >= 78 || perGame(row, "pts") >= 14 || perGame(row, "plusMinus") >= 1.5;
+/** A player teams call about. Hot (C4) is enough on its own: a bench man's 30-point night draws calls too. */
+function isAttractive(row, player, buzz) {
+  return overall(player) >= 78 || perGame(row, "pts") >= 14 || perGame(row, "plusMinus") >= 1.5 || isHot(buzz);
 }
 
 /** Young, cheap, high-upside roster filler -- worth suggesting as a trade sweetener. */
@@ -88,23 +91,32 @@ export function generateTradeProposals(st, limit = 3) {
     : [];
   const attractive = (user.players || [])
     .map((player) => ({ player, row: st.playerSeason?.[`${st.userTeamId}:${player.id}`] }))
-    .filter(({ player, row }) => !listedIds.has(player.id) && isAttractive(row, player))
-    .sort((a, b) => overall(b.player) - overall(a.player));
+    .filter(({ player, row }) => !listedIds.has(player.id) && isAttractive(row, player, buzzOf(st, player.id)))
+    // The market ranks by what it would pay, so a hot player moves up the call list.
+    .sort((a, b) => overall(b.player) + buzzBonus(buzzOf(st, b.player.id)) - overall(a.player) - buzzBonus(buzzOf(st, a.player.id)));
   const targets = [...listed, ...attractive];
   const proposals = [];
   const usedPickIds = new Set();
   const cpuTeams = Object.entries(st.teams).filter(([id, team]) => id !== st.userTeamId && team?.players?.length);
-  for (let i = 0; i < Math.min(limit, targets.length, cpuTeams.length); i++) {
+  // A target nobody can make a valid offer for (a huge contract against the hard cap) must not use up one
+  // of the `limit` slots: keep going down the list until enough real offers are out.
+  for (let i = 0; i < Math.min(targets.length, cpuTeams.length) && proposals.length < limit; i++) {
     const target = targets[i];
     const pref = target.listed ? listingPref(st, target.player.id) : DEFAULT_LISTING_PREF;
     const rotate = i + (st.dayIndex || 0);
-    // No preference: the original single rotating caller. With a preference: try the three
-    // best-fitting teams (rotated so refreshes vary) until one has a package that fits.
+    const hot = pref === DEFAULT_LISTING_PREF && buzzBonus(buzzOf(st, target.player.id)) > 0;
+    // No preference: the original single rotating caller -- unless he is hot (C4): every club is asked,
+    // in rotation order, until one can afford him (a hard cap rules most clubs out for a big contract).
+    // With a preference: try the three best-fitting teams (rotated so refreshes vary) until one fits.
     const callers = pref === DEFAULT_LISTING_PREF
-      ? [cpuTeams[rotate % cpuTeams.length]]
+      ? (hot ? cpuTeams.map((_, k) => cpuTeams[(rotate + k) % cpuTeams.length]) : [cpuTeams[rotate % cpuTeams.length]])
       : rankTeams(cpuTeams, pref).slice(0, 3).map((_, k, top) => top[(k + rotate) % top.length]);
     for (const [fromTeamId, fromTeam] of callers) {
-      const proposal = buildProposal(st, { ...target, pref, index: i, fromTeamId, fromTeam, declined, usedPickIds });
+      const args = { ...target, pref, index: i, fromTeamId, fromTeam, declined, usedPickIds };
+      // A hot player's price-up can fail the salary check (a better player costs more); then he still
+      // gets the ordinary offer rather than none at all.
+      const proposal = buildProposal(st, { ...args, boost: true })
+        || (hot ? buildProposal(st, { ...args, boost: false }) : null);
       if (proposal) {
         proposals.push(proposal);
         break;
@@ -115,13 +127,18 @@ export function generateTradeProposals(st, limit = 3) {
 }
 
 /** One CPU team's offer for one of the user's players, or null if it can't make a valid one. */
-function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fromTeam, declined, usedPickIds }) {
+function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fromTeam, declined, usedPickIds, boost = false }) {
   const shaped = shapeOffer(pref, fromTeam, player);
   if (pref !== DEFAULT_LISTING_PREF && !shaped) return null;
+  // C4: a hot player is priced up -- but only on the house-picked offer. A listing preference is the
+  // user's explicit ask (picks / salary relief / ...), and buzz doesn't override it.
+  const buzz = boost && !shaped ? buzzOf(st, player.id) : 0;
+  const bonus = buzzBonus(buzz);
+  const worth = overall(player) + bonus;
   let offerPlayer = shaped?.offer;
   if (!offerPlayer) {
     const candidate = [...fromTeam.players]
-      .sort((a, b) => Math.abs(overall(a) - overall(player)) - Math.abs(overall(b) - overall(player)))[0];
+      .sort((a, b) => Math.abs(overall(a) - worth) - Math.abs(overall(b) - worth))[0];
     if (!candidate) return null;
     const salaryDelta = playerSalary(candidate) - playerSalary(player);
     offerPlayer = salaryDelta <= 0 || salaryDelta < 60 ? candidate : [...fromTeam.players].sort((a, b) => playerSalary(a) - playerSalary(b))[0];
@@ -136,6 +153,7 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
   let pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
   // 选秀权倾向：重建队更愿意为即战力多搭选秀权
   if (teamSituation(fromTeam) === "rebuilding") pickCount += 1;
+  if (buzz >= BUZZ_EXTRA_PICK) pickCount += 1;
   pickCount = Math.max(0, Math.min(MAX_PROPOSAL_PICKS, pickCount + (shaped?.pickDelta || 0)));
   // Chosen on a copy of the batch's used set: they are only reserved (below) once this offer is
   // certain to go out, so an offer dropped on the cap check does not use up picks others could offer.
@@ -194,7 +212,11 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
     receivePlayers: sendBackIds.map((id) => fromTeam.players.find((p) => p.id === id)),
     offerPicks: picks,
     listingPref: pref,
-    reason: !isListed
+    // Set only when buzz really raised the ask, so the card never claims a price-up it didn't make.
+    buzz: bonus > 0 ? { value: buzz, bonus } : null,
+    reason: bonus > 0
+      ? `${player.name} 刚打出高光，正在风口上（热度 ${buzz.toFixed(1)}）——${teamName} 愿意加价，报价约上浮 +${bonus} OVR。热度几场后会回落，要谈趁早。`
+      : !isListed
       ? `${player.name} 最近表现突出（${perGame(row, "pts").toFixed(1)} 分 / ${perGame(row, "plusMinus").toFixed(1)} +/-），${teamName} 主动来谈。`
       : pref === DEFAULT_LISTING_PREF
         ? `${player.name} 已挂牌询价，${teamName} 前来问价。`
@@ -210,18 +232,26 @@ function picksStillHeld(st, proposal) {
   return (proposal.offerPicks || []).every((pick) => held.has(pick.id));
 }
 
-export function ensureTradeProposals(st) {
-  // Saved offers can go stale: the club traded a pick on, a season rolled over, or the offer came
-  // from a version that attached invented picks. Refresh instead of letting an accept fail later.
-  if (!Array.isArray(st.tradeProposals) || !st.tradeProposals.every((p) => picksStillHeld(st, p))) {
-    st.tradeProposals = generateTradeProposals(st);
-  }
+/** Regenerate and remember what the market looked like (who was hot) when these offers were made. */
+function storeProposals(st) {
+  st.tradeProposals = generateTradeProposals(st);
+  st.tradeProposalsBuzz = buzzKey(st);
   return st.tradeProposals;
 }
 
+export function ensureTradeProposals(st) {
+  // Saved offers can go stale: the club traded a pick on, a season rolled over, or the offer came
+  // from a version that attached invented picks. Refresh instead of letting an accept fail later.
+  // Buzz is the other way they go stale: after a big night the offers must rise, and once he cools
+  // the generous ones must go -- or "hot for three games" would really mean "hot until you refresh".
+  const stale = !Array.isArray(st.tradeProposals)
+    || !st.tradeProposals.every((p) => picksStillHeld(st, p))
+    || (st.tradeProposalsBuzz ?? "") !== buzzKey(st);
+  return stale ? storeProposals(st) : st.tradeProposals;
+}
+
 export function refreshTradeProposals(st) {
-  st.tradeProposals = generateTradeProposals(st);
-  return st.tradeProposals;
+  return storeProposals(st);
 }
 
 export function declineTradeProposal(st, proposalId) {

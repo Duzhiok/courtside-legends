@@ -58,3 +58,8 @@
 .pg-dots { display: flex; gap: 5px; justify-content: flex-end; }
 .pg-dots i { width: 10px; height: 10px; border-radius: 50%; background: #d1d5db; }
 .pg-dots i.on { background: #d97706; }
+
+/* C4 highlights: a row per big night, a small orange buzz tag on the right. Orange, not C3's amber: a different kind of news. */
+.pg-hl { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; background: var(--paper); border: 1px solid var(--line); }
+.pg-buzz { background: #fff7ed; border-color: #fdba74; color: #9a3412; font-weight: 700; white-space: nowrap; }
+.pg-note.pg-hotnote { margin: 8px 0 0; }

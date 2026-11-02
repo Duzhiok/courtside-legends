@@ -2,7 +2,7 @@
  * C1 of docs/CAREER_LIFE_ROADMAP.md: per-game settlement for a season/career game.
  *
  * `settleGame` turns one finished game snapshot into a small report (the facts of the night plus
- * EMPTY reward slots that C2-C6 fill: player XP, highlights, epiphanies, coach XP, the game goal).
+ * EMPTY reward slots that C2-C6 fill: player XP, highlights + market buzz, epiphanies, coach XP, the game goal).
  * `foldBatch` folds many reports into one "this stretch" summary, so a bulk sim shows one card
  * instead of 40.
  *
@@ -15,7 +15,7 @@ import { gameScore } from "../engine/matchExplain.js";
 export const STAR_COUNT = 3;
 
 /** The reward slots later steps fill. Rendering skips any that are empty. */
-export const emptyRewards = () => ({ playerXp: [], epiphanies: [], heat: [], highlights: [], insights: [], coachXp: null, goal: null });
+export const emptyRewards = () => ({ playerXp: [], epiphanies: [], heat: [], highlights: [], hot: [], insights: [], coachXp: null, goal: null });
 
 const num = (value) => Number(value) || 0;
 const line = (player) => {
@@ -88,15 +88,24 @@ export function settleGame(snap, youSide) {
  */
 export function foldBatch(reports) {
   const games = (reports || []).filter(Boolean);
-  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [] };
+  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [], highlights: [], hot: [] };
   const byPlayer = new Map();
   const growthBy = new Map();
+  const highlightsBy = new Map();
   for (const report of games) {
     if (!report.tied) out[report.won ? "wins" : "losses"] += 1;
     out.pointDiff += report.margin;
     // Every epiphany of the stretch counts; "heating up" is only meaningful as of the LAST game.
     out.epiphanies.push(...(report.rewards?.epiphanies || []));
     out.heat = report.rewards?.heat || [];
+    // Same for the market: every highlight of the stretch is kept, who is hot is read after the last game.
+    out.hot = report.rewards?.hot || [];
+    for (const entry of report.rewards?.highlights || []) {
+      const acc = highlightsBy.get(entry.id) || { id: entry.id, name: entry.name, tags: [], gain: 0 };
+      acc.tags.push(...entry.tags);
+      acc.gain += entry.gain;
+      highlightsBy.set(entry.id, acc);
+    }
     for (const entry of report.rewards?.playerXp || []) {
       const acc = growthBy.get(entry.id) || { id: entry.id, name: entry.name, xp: 0, leveled: new Map() };
       acc.xp += entry.xp;
@@ -133,6 +142,7 @@ export function foldBatch(reports) {
       apg: acc.ast / acc.games,
       total: Math.round(acc.total * 10) / 10,
     }));
+  out.highlights = [...highlightsBy.values()].sort((a, b) => b.gain - a.gain);
   out.growth = [...growthBy.values()]
     .map((acc) => ({ ...acc, leveled: [...acc.leveled.values()] }))
     .sort((a, b) => b.leveled.length - a.leveled.length || b.xp - a.xp);
