@@ -1471,6 +1471,11 @@ export function advanceLeagueOffseason(st, options = {}) {
   // Market buzz is a this-season thing (C4): a new year starts with nobody hot and no offers priced on it.
   delete st.buzz;
   delete st.tradeProposalsBuzz;
+  // Finals board is a this-season thing too: it accumulates with `|| {}`, so
+  // without this, last year's Finals games would leak into next year's Finals
+  // MVP race. (The MVP itself is already captured into the season summary and
+  // recomputed at each Finals, so dropping the board here loses nothing.)
+  delete st.finalsBoard;
   st.resultsLog = [];
   st.tradeLog = Array.isArray(st.tradeLog) ? st.tradeLog : [];
   st.schedule = generateSchedule(seasonTeamIds(st), st.seed, {

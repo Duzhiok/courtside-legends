@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { selectFinalsMvp } from "../js/engine/allTeam.js";
-import { computeFinalsMvp } from "../js/engine/season.js";
+import { advanceLeagueOffseason, computeFinalsMvp } from "../js/engine/season.js";
 import { annualSummary } from "../js/modes/leagueCareer.js";
 
 function row(id, teamId, { ppg = 20, rpg = 5, apg = 5, ovr = 85, wins = 4, gp = 5 } = {}) {
@@ -62,4 +62,27 @@ test("annualSummary records the Finals MVP in awards", () => {
   assert.deepEqual(summary.awards.finalsMvp, { playerId: "star", name: "Star", teamId: "USER" });
   const noMvp = annualSummary({ ...season, finalsMvp: null });
   assert.equal(noMvp.awards.finalsMvp, null);
+});
+
+function doneSeason(year = 2030) {
+  const teamIds = ["A", "B", "C", "D"];
+  const p = (id) => ({ id, bref: id, name: id, season: year, age: 24, pos: "PG", scoring: 60, three: 60, mid: 60, paint: 60, pass: 60, defense: 60, rebound: 60, steal: 60, block: 60, speed: 60, strength: 60, stamina: 60, iq: 60, clutch: 60, salary: 80 });
+  return {
+    v: 2, phase: "done", year, mode: "modern", seed: 77, userTeamId: "B", customNames: {},
+    league: { teamIds, eastIds: ["A", "B"], westIds: ["C", "D"], labels: Object.fromEntries(teamIds.map((x) => [x, x])), confById: { A: "East", B: "East", C: "West", D: "West" } },
+    teams: Object.fromEntries(teamIds.map((x, i) => [x, { id: x, name: x, players: [p(`${x}-${i}`)], isCpu: x !== "B" }])),
+    standings: Object.fromEntries(teamIds.map((x, i) => [x, { w: 20 + i, l: 62 - i, pf: 8000 + i, pa: 8100 }])),
+    schedule: [], playerSeason: {}, resultsLog: [], tradeLog: [], freeAgents: [],
+    awards: { mvp: null, dpoy: null, roy: null },
+    playoffs: { championId: "D", east: { series: [] }, west: { series: [] }, finals: { high: { id: "B" }, low: { id: "D" } } },
+  };
+}
+
+test("advancing to the next season clears the Finals board (no cross-year MVP accumulation)", () => {
+  const st = doneSeason();
+  st.finalsBoard = { oldStar: row("oldStar", "CHAMP", { ppg: 40, gp: 6 }) };
+  const res = advanceLeagueOffseason(st, { seed: 9 });
+  assert.equal(res.ok, true, res.reason);
+  assert.equal(st.year, 2031);
+  assert.equal(st.finalsBoard, undefined, "last year's Finals games must not leak into next year's Finals MVP race");
 });
