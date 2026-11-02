@@ -68,6 +68,7 @@ import {
   feedEventSide,
   resolveMatchColors,
   stripTrailingScore,
+  teamCodeOf,
   withAlpha,
 } from "./ui/feedView.js";
 import {
@@ -110,6 +111,7 @@ import {
   listPaidPeaks,
 } from "./data/customPool.js";
 import { photoImg } from "./data/photo.js";
+import { teamColors } from "./data/teamColors.js";
 import { tr } from "./ui/timeTravel/format.js";
 import { benchSectionHtml, budgetBarHtml, fitLabel, learnedSkillIds, rotationRowHtml, startersSectionHtml } from "./ui/rotationBoard.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
@@ -7893,6 +7895,15 @@ function previewSeasonRoster(team) {
   $("#btn-season-start").disabled = team.players.length < 8;
 }
 
+// Hub dark stage: a club's primary colour for the standings dot and the
+// next-match hero accents. Unknown codes (defunct/merged rows) fall back to
+// grey; colours come from the data file, never from user input.
+function hubTeamHex(team) {
+  const code = teamCodeOf(team);
+  const c = code ? teamColors(code) : null;
+  return c?.primary || "#8a938c";
+}
+
 function renderSeasonHub({ persist = true } = {}) {
   const st = prepareSeasonState(state.season);
   if (!st) return;
@@ -7933,7 +7944,8 @@ function renderSeasonHub({ persist = true } = {}) {
       const home = st.teams[g.homeId]?.name;
       const away = st.teams[g.awayId]?.name;
       const played = userGamesPlayed(st);
-      nextEl.textContent = `第 ${played + 1}/82 场 · ${home} vs ${away}（日程日 ${info.day + 1}）`;
+      const youHome = g.homeId === st.userTeamId;
+      nextEl.innerHTML = `<div class="next-matchup"><span class="nm-team${youHome ? " nm-you" : ""}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.homeId])}"></i>${esc(home)}</span><span class="nm-vs">VS</span><span class="nm-team${youHome ? "" : " nm-you"}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.awayId])}"></i>${esc(away)}</span></div><p class="nm-meta">第 ${played + 1}/82 场 · 日程日 ${info.day + 1}</p>`;
       $("#btn-season-play").disabled = false;
       $("#btn-season-sim-one").disabled = false;
       $("#btn-season-sim-week").disabled = false;
@@ -8999,7 +9011,7 @@ function renderSeasonStandings() {
           ${rows
             .map((r, i) => {
               const you = r.id === st.userTeamId ? " you" : "";
-              return `<tr class="${you}"><td class="num rank">${i + 1}</td><td class="team">${r.name}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${(
+              return `<tr class="${you}"><td class="num rank">${i + 1}</td><td class="team"><i class="stand-dot" style="background:${hubTeamHex(st.teams[r.id])}"></i>${r.name}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${(
                 r.pct * 100
               ).toFixed(1)}%</td><td class="num">${r.diff > 0 ? "+" : ""}${r.diff}</td></tr>`;
             })

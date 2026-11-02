@@ -2829,6 +2829,87 @@ select, input[type="number"] {
   .season-standings { grid-template-columns: 1fr; }
   .season-tabs .btn { padding: 5px 10px; }
 }
+/* Hub dark broadcast stage: only the hub head, next card, tab bar and
+   standings are restyled. Other tab panels keep their own cards and colours. */
+#season-hub-panel {
+  background: linear-gradient(180deg, #101d18 0%, #0b1512 100%);
+  border: 1px solid #1e2f29;
+  border-radius: 16px;
+  padding: 16px 16px 20px;
+  color: #eef2ef;
+}
+#season-hub-panel .season-hub-head h3 { color: #fff; font-size: 1.5rem; }
+#season-hub-panel .hub-meta-pill {
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .16);
+  color: #d7e0db;
+}
+#season-hub-panel .season-hub-head .btn.ghost,
+#season-hub-panel .season-next-card .btn.ghost {
+  color: #eef2ef;
+  border-color: rgba(255, 255, 255, .28);
+}
+#season-hub-panel .season-next-card {
+  background: linear-gradient(135deg, rgba(42, 157, 143, .22), rgba(255, 255, 255, .04));
+  border-color: rgba(255, 255, 255, .14);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  padding: 16px 18px;
+}
+#season-hub-panel .season-next-card h4 { color: #9db8ad; font-size: .85rem; }
+#season-hub-panel .next-matchup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+}
+#season-hub-panel .nm-team { display: inline-flex; align-items: center; gap: 8px; }
+#season-hub-panel .nm-team.nm-you { color: #5ec9ba; }
+#season-hub-panel .nm-dot,
+#season-hub-panel .stand-dot {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .85);
+}
+#season-hub-panel .nm-vs {
+  font-size: .9rem;
+  letter-spacing: .12em;
+  color: #9db8ad;
+  background: rgba(255, 255, 255, .08);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+#season-hub-panel .nm-meta { margin: 8px 0 12px; color: #c3d0c9; font-size: .95rem; }
+#season-hub-panel .season-next-card .btn.primary { background: #2a9d8f; border-color: #2a9d8f; }
+#season-hub-panel .season-next-card .btn:not(.primary):not(.ghost) {
+  background: rgba(255, 255, 255, .10);
+  color: #fff;
+  border-color: rgba(255, 255, 255, .22);
+}
+#season-hub-panel .season-tabs .btn {
+  background: rgba(255, 255, 255, .08);
+  color: #d7e0db;
+  border-color: rgba(255, 255, 255, .14);
+}
+#season-hub-panel .season-tabs .btn.active { background: #2a9d8f; border-color: #2a9d8f; color: #fff; }
+#season-hub-panel .season-stand-card {
+  background: #16241f;
+  border-color: rgba(255, 255, 255, .10);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .30);
+}
+#season-hub-panel .season-stand-card h4 { color: #fff; font-size: 1.05rem; }
+#season-hub-panel .season-table th { color: #9db8ad; border-bottom-color: rgba(255, 255, 255, .14); }
+#season-hub-panel .season-table td { color: #e6ece8; }
+#season-hub-panel .season-table tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .04); }
+#season-hub-panel .season-table td.rank { color: #8fa39a; }
+#season-hub-panel .season-table tbody tr.you td { background: rgba(42, 157, 143, .28); }
+#season-hub-panel .season-table td.team { display: flex; align-items: center; gap: 8px; }
+#season-hub-panel .stand-dot { width: 10px; height: 10px; border-width: 1px; }
 .season-awards {
   display: grid;
   gap: 10px;
