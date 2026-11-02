@@ -13,6 +13,7 @@ import { readRootSave } from "../../data/saveRoot.js";
 import { DEFAULT_COACH_ORIGIN, listCoachOrigins } from "../../career/coachOrigins.js";
 import { ensureCoachProfile } from "../../career/coachProfile.js";
 import { acceptCareerContract, declineCareerContracts } from "../../modes/careerContract.js";
+import { offerText } from "../../career/contractOffers.js";
 import { hasExistingCareerRoot } from "../../modes/leagueCareer.js";
 import { settleSeasonRollover } from "../../modes/seasonRollover.js";
 import {
@@ -375,7 +376,7 @@ export function createTimeTravelScreen({
       // straight from the offer just accepted rather than from a terminal-flavoured status.
       const offer = root.story.employment?.offer;
       setStatus(offer
-        ? tr(lang(), `续约已签署：${offer.title} · ${offer.years} 年 · 薪资 ${offer.salary}，继续征战。`, `Contract signed: ${offer.title} · ${offer.years} years · salary ${offer.salary}. Back to work.`)
+        ? tr(lang(), `续约已签署：${offerText(offer, "zh").title} · ${offer.years} 年 · 薪资 ${offer.salary}，继续征战。`, `Contract signed: ${offerText(offer, "en").title} · ${offer.years} years · salary ${offer.salary}. Back to work.`)
         : careerStateNotice(root.story));
       renderScreen();
     } catch (error) {

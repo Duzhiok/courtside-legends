@@ -10,52 +10,7 @@ import {
 } from "../career/balance.js";
 import { buildSeasonGoal, goalAchieved } from "../career/seasonGoals.js";
 import { buildStintRecord } from "../career/stints.js";
-
-// B3 of the roadmap: the menu is sized to the actual tenure, not a fixed two-option pair for
-// everyone. trial-extension and dynasty-extension are the new floor/ceiling; rebuild-extension and
-// contender-extension are untouched so every save/test built around those two ids keeps working.
-const OFFER_TEMPLATES = [
-  {
-    id: "trial-extension",
-    title: "试用续约",
-    description: "战绩和目标完成度都不够亮眼，老板只愿意给一年观察期——证明自己才能换来下一份合同。",
-    years: 1,
-    salary: 4,
-    authority: 30,
-    privileges: [],
-    effects: { trust: -2, pressure: 10, divergence: 1 },
-  },
-  {
-    id: "rebuild-extension",
-    title: "重建续约",
-    description: "老板愿意给你长期时间和更大权限，但薪资保守。",
-    years: 4,
-    salary: 7,
-    authority: 88,
-    privileges: ["自定义训练计划", "发展联盟优先权"],
-    effects: { trust: 5, pressure: -4, divergence: 2 },
-  },
-  {
-    id: "contender-extension",
-    title: "争冠续约",
-    description: "更高薪资和更大预算，但每年都必须证明自己配得上争冠窗口。",
-    years: 2,
-    salary: 13,
-    authority: 54,
-    privileges: ["额外教练预算", "季中补强额度"],
-    effects: { trust: 3, pressure: 8, divergence: 5 },
-  },
-  {
-    id: "dynasty-extension",
-    title: "王朝续约",
-    description: "你已经证明自己能带队夺冠——老板给你近乎无限的信任、预算和人事权。",
-    years: 5,
-    salary: 20,
-    authority: 96,
-    privileges: ["完全人事决定权", "顶薪续约优先权", "专属训练设施预算"],
-    effects: { trust: 8, pressure: 2, divergence: 8 },
-  },
-];
+import { OFFER_TEMPLATES } from "../career/contractOffers.js";
 
 /**
  * B3: which offer ids a tenure actually earns, from worst to best. A great tenure (2+ rings)
