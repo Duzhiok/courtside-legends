@@ -4,6 +4,7 @@ import { skillChipsHtml } from "../data/skills.js";
 import { nicknameBadgeHtml } from "../data/nicknames.js";
 import { historicalUpsideHint } from "../engine/develop.js";
 import { learnedBadgeHtml, learnedLineHtml } from "./learnedBadge.js";
+import { subAttrChipsHtml } from "./rotationBoard.js";
 
 function perGame(value, gp) {
   return gp > 0 ? (Number(value) || 0) / gp : 0;
@@ -40,6 +41,7 @@ export function evaluateRosterPlayer(player, seasonRow, { salary = 0, ovr = 0, l
     age: player.age ?? "—",
     photo: photoImg(player, "headshot sm"),
     skills: skillChipsHtml(player, getLang()),
+    subAttrs: subAttrChipsHtml(player, getLang()),
     nickname: nicknameBadgeHtml(player),
     learned,
     potential: historicalUpsideHint(player) || "潜力信息不足，需要更多赛季样本。",
@@ -94,6 +96,7 @@ export function renderRosterEvaluation(container, rows) {
           <span>合同 ¤${row.salary}</span><span>GP ${row.gp}</span><span>MIN ${row.mpg.toFixed(1)}</span><span>PTS ${row.ppg.toFixed(1)}</span><span>REB ${row.rpg.toFixed(1)}</span><span>AST ${row.apg.toFixed(1)}</span><span>+/- ${row.plusMinus >= 0 ? "+" : ""}${row.plusMinus.toFixed(1)}</span>
         </div>
         <div class="evaluation-abilities"><span>得分 ${row.abilities.scoring}</span><span>三分 ${row.abilities.three}</span><span>防守 ${row.abilities.defense}</span><span>篮板 ${row.abilities.rebound}</span><span>传球 ${row.abilities.pass}</span><span>速度 ${row.abilities.speed}</span><span>力量 ${row.abilities.strength}</span></div>
+        <div class="rot-attrs sub-attrs">${row.subAttrs}</div>
         <p class="tiny evaluation-potential">潜力：${row.potential}</p>
         ${row.skills ? `<div class="evaluation-skills">技能：${row.skills}</div>` : "<p class=\"tiny\">技能：暂无已配置技能</p>"}
         ${learnedLineHtml(row.learned, lang)}

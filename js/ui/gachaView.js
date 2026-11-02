@@ -4,6 +4,7 @@
  * module never reaches into app.js globals.
  */
 import { getLang } from "../i18n.js";
+import { subAttrChipsHtml } from "./rotationBoard.js";
 import { EXTRA_DRAW, MAX_STARS, NEWBIE, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
 import { CHALLENGE_TICKETS, DAILY_TASKS, MILESTONE_WINS, WELCOME_TICKETS } from "../data/dailyTasks.js";
 import { GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "../data/growthPaths.js";
@@ -195,6 +196,7 @@ export function drawRevealHtml(result, view) {
       <p class="tiny">${OUTCOME_TEXT[result.outcome](result)}</p>
       <div>${hiddenBadgesHtml(p, esc)}</div>
       ${skillChipsHtml(p, getLang())}
+      <div class="rot-attrs sub-attrs">${subAttrChipsHtml(p, getLang())}</div>
       ${rollChoiceHtml(result.rollChoice)}
     </div>`;
 }

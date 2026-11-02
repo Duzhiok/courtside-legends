@@ -113,7 +113,7 @@ import {
 import { photoImg } from "./data/photo.js";
 import { teamColors } from "./data/teamColors.js";
 import { tr } from "./ui/timeTravel/format.js";
-import { benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinuteConflicts, startersSectionHtml } from "./ui/rotationBoard.js";
+import { benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinuteConflicts, startersSectionHtml, subAttrChipsHtml } from "./ui/rotationBoard.js";
 import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "./ui/learnedBadge.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
@@ -1782,6 +1782,7 @@ function paintCollectionGrid(acc, players) {
           ${photoImg(p, "headshot lg")}
           <div class="name">${esc(p.name)}${badge.tagHtml}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
           <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
+          <div class="rot-attrs sub-attrs">${subAttrChipsHtml(p, getLang())}</div>
           <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
           ${skillChipsHtml(p, getLang())}
           ${soulButtonHtml(p, souls[p.bref] || 0)}

@@ -27,3 +27,17 @@ test("drawRevealHtml renders a player reveal without throwing", () => {
   assert.match(html, /Test Player/);
   assert.match(html, /新卡入账/);
 });
+
+test("drawRevealHtml shows the seven sub-attributes (dashes when nothing to derive from)", () => {
+  const result = {
+    kind: "player",
+    outcome: "new",
+    ovr: 88,
+    rarity: "全明星",
+    banner: { name: "常驻池" },
+    player: { id: "x-2020", name: "Test Player", season: 2020, pos: "SG", skills: [] },
+  };
+  const html = drawRevealHtml(result, view);
+  assert.ok(html.includes('class="rot-attrs sub-attrs"'));
+  assert.match(html, /控球<\/b>—/);
+});

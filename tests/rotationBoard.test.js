@@ -12,6 +12,7 @@ import {
   rotationRowHtml,
   starterMinuteConflicts,
   startersSectionHtml,
+  subAttrChipsHtml,
   topAttributes,
 } from "../js/ui/rotationBoard.js";
 
@@ -32,6 +33,27 @@ test("attribute chips: all nine are shown, exactly the best two are highlighted,
   assert.equal((html.match(/rot-attr hi/g) || []).length, 2);
   assert.ok(!CJK.test(attributeChipsHtml(player(), "en")));
   assert.match(attributeChipsHtml(player({ steal: undefined }), "zh"), /断<\/b>—/, "a missing attribute shows a dash, not NaN/undefined");
+});
+
+test("sub-attribute chips: all seven shown, stored values win, old saves derive, empty players dash", () => {
+  const stored = { handle: 90, perimDef: 88, interiorDef: 70, catchShoot: 66, offDribble: 64, offReb: 55, defReb: 60 };
+  const zh = subAttrChipsHtml(player(stored), "zh");
+  assert.equal((zh.match(/class="rot-attr/g) || []).length, 7);
+  assert.match(zh, /控球<\/b>90/);
+  assert.match(zh, /后板<\/b>60/);
+  assert.ok(!CJK.test(subAttrChipsHtml(player(stored), "en")));
+  const derived = subAttrChipsHtml(player({ pos: "PG", mid: 65, paint: 60 }), "zh");
+  assert.match(derived, /控球<\/b>\d+/);
+  assert.match(derived, /接球投<\/b>\d+/);
+  assert.ok(!derived.includes("—"), "a player with main attributes derives all seven, no dashes");
+  const empty = subAttrChipsHtml({}, "zh");
+  assert.equal((empty.match(/—/g) || []).length, 7);
+});
+
+test("rotation row shows the seven sub-attributes under the main nine", () => {
+  const html = rotationRowHtml(player(), ctx());
+  assert.ok(html.includes('class="rot-attrs sub-attrs"'));
+  assert.match(html, /控球<\/b>/);
 });
 
 test("minute budget: 240 is a full game; short and over say by how much", () => {

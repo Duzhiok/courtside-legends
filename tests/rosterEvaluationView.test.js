@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildRosterEvaluation,
   evaluateRosterPlayer,
+  renderRosterEvaluation,
 } from "../js/ui/rosterEvaluationView.js";
 
 function player(id, name = id) {
@@ -21,6 +22,17 @@ test("evaluation derives per-game production and keeps a high-output core", () =
   assert.ok(result.photo.includes("img"));
   assert.equal(result.abilities.scoring, "—");
   assert.match(result.potential, /潜力/);
+});
+
+test("evaluation card carries the seven sub-attributes", () => {
+  const p = { id: "c", name: "Card", season: 1994, scoring: 80, three: 70, defense: 60, rebound: 55, pass: 65, speed: 70, strength: 60, handle: 91, perimDef: 89, interiorDef: 71, catchShoot: 67, offDribble: 65, offReb: 56, defReb: 61 };
+  const rowOut = evaluateRosterPlayer(p, row({}), { salary: 100, ovr: 85 });
+  assert.match(rowOut.subAttrs, /控球<\/b>91/);
+  assert.equal((rowOut.subAttrs.match(/class="rot-attr/g) || []).length, 7);
+  const box = { innerHTML: "" };
+  renderRosterEvaluation(box, [rowOut]);
+  assert.ok(box.innerHTML.includes('class="rot-attrs sub-attrs"'));
+  assert.match(box.innerHTML, /控球<\/b>91/);
 });
 
 test("evaluation flags expensive low-impact players as cut candidates", () => {

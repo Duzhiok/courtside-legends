@@ -2,6 +2,7 @@
 // everything a player SEES lives here, so it can be unit-tested without a browser.
 import { esc, tr } from "./timeTravel/format.js";
 import { learnedBadgeHtml, learnedLineHtml } from "./learnedBadge.js";
+import { deriveSubAttributes } from "../data/players.js";
 
 export const TOTAL_MINUTES = 240; // 5 on the floor x 48
 export const STARTER_SLOTS = 5;
@@ -29,6 +30,25 @@ export function attributeChipsHtml(player, lang) {
   return ATTRS.map(([zh, en, key]) => {
     const value = num(player?.[key]);
     return `<span class="rot-attr${best.has(key) ? " hi" : ""}"><b>${tr(lang, zh, en)}</b>${value === null ? "—" : value}</span>`;
+  }).join("");
+}
+
+/** The seven derived sub-attributes, same labels as the setup card's second block. */
+export const SUB_ATTRS = [
+  ["控球", "HDL", "handle"], ["外防", "PD", "perimDef"], ["内防", "ID", "interiorDef"],
+  ["接球投", "CS", "catchShoot"], ["持球投", "OD", "offDribble"], ["前板", "ORB", "offReb"], ["后板", "DRB", "defReb"],
+];
+
+/**
+ * Compact chips for the seven derived sub-attributes. Old saves without stored
+ * values derive them on the fly, exactly like the setup card does, so a missing
+ * value shows a dash only when there is nothing to derive from at all.
+ */
+export function subAttrChipsHtml(player, lang) {
+  const sa = player?.handle != null && player?.perimDef != null ? player : deriveSubAttributes(player || {});
+  return SUB_ATTRS.map(([zh, en, key]) => {
+    const value = num(sa?.[key]);
+    return `<span class="rot-attr"><b>${tr(lang, zh, en)}</b>${value === null ? "—" : value}</span>`;
   }).join("");
 }
 
@@ -104,6 +124,7 @@ export function rotationRowHtml(p, ctx) {
         ${tired ? `<div class="rot-sub"><span class="rot-tired stamina-min-hint">${esc(hint)}</span></div>` : ""}
         ${clash ? `<div class="rot-sub"><span class="rot-clash">${tr(lang, `首发只排 ${clash.min} 分钟，替补 ${esc(clash.benchName)} 排了 ${clash.benchMin}`, `Starter plays ${clash.min} min, bench ${esc(clash.benchName)} plays ${clash.benchMin}`)}</span></div>` : ""}
         <div class="rot-attrs">${attributeChipsHtml(p, lang)}</div>
+        <div class="rot-attrs sub-attrs">${subAttrChipsHtml(p, lang)}</div>
         ${learnedLineHtml(learned, lang)}
         ${skillChips ? `<div class="skill-row">${skillChips}</div>` : ""}
       </div>
