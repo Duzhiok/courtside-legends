@@ -9,6 +9,7 @@ import {
   swapDraftPicks,
 } from "../js/engine/leagueDraft.js";
 import { beginCareerDraft, createLeagueCareer, makeCareerDraftPick } from "../js/modes/leagueCareer.js";
+import { pickOwnerOf } from "../js/engine/pickLedger.js";
 
 function seasonFixture() {
   const ids = ["A", "B", "C", "D"];
@@ -64,6 +65,10 @@ test("swapDraftPicks swaps natural picks, refuses downgrades and re-trades", () 
   const ok = swapDraftPicks(season, { year: 2024, cpuTeamId: "C" });
   assert.equal(ok.ok, true, ok.reason);
   assert.deepEqual(season.pickOwnership[2024], { B: "C", C: "B" });
+  // First-round only: each club keeps its own second-rounder (round 2 used to
+  // silently follow the round-1 owner because it defaults to it).
+  assert.equal(pickOwnerOf(season, { sourceTeamId: "B", year: 2024, round: 2 }), "B");
+  assert.equal(pickOwnerOf(season, { sourceTeamId: "C", year: 2024, round: 2 }), "C");
   // Re-trading an already-traded pick is refused in v1.
   const again = swapDraftPicks(season, { year: 2024, cpuTeamId: "D" });
   assert.equal(again.ok, false);
@@ -74,6 +79,19 @@ test("swapDraftPicks swaps natural picks, refuses downgrades and re-trades", () 
   assert.match(bad.reason, /价值不够/);
   assert.equal(swapDraftPicks(fresh, { year: 2024, cpuTeamId: "B" }).ok, false);
   assert.equal(swapDraftPicks(fresh, { year: 2024, cpuTeamId: "ZZ" }).ok, false);
+});
+
+test("swapDraftPicks respects the trade deadline like any other trade", () => {
+  const late = seasonFixture();
+  late.schedule = Array.from({ length: 100 }, () => []);
+  late.dayIndex = 71;
+  const refused = swapDraftPicks(late, { year: 2024, cpuTeamId: "C" });
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason, /截止日/);
+  const edge = seasonFixture();
+  edge.schedule = Array.from({ length: 100 }, () => []);
+  edge.dayIndex = 70;
+  assert.equal(swapDraftPicks(edge, { year: 2024, cpuTeamId: "C" }).ok, true);
 });
 
 test("beginCareerDraft honors traded pick ownership", () => {

@@ -124,6 +124,10 @@ test("a pick swap keeps the market tokens in step with the draft", () => {
   assert.equal(pickIdsOf(st, "USER", 1).includes("AAA-r1-2026"), true, "USER now holds AAA's token");
   assert.equal(pickIdsOf(st, "USER", 1).includes("USER-r1-2026"), false, "and no longer holds its own");
   assert.equal(pickIdsOf(st, "AAA", 1).includes("USER-r1-2026"), true);
+  // First-round only: the second-round tokens stay with their original clubs.
+  assert.equal(pickIdsOf(st, "USER", 2).includes("USER-r2-2026"), true, "USER keeps its own second-rounder");
+  assert.equal(pickIdsOf(st, "USER", 2).includes("AAA-r2-2026"), false);
+  assert.equal(pickIdsOf(st, "AAA", 2).includes("AAA-r2-2026"), true, "AAA keeps its own second-rounder");
 });
 
 test("a pool seeded AFTER a swap still respects who owns what", () => {

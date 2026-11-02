@@ -1,5 +1,6 @@
 import { overall, PLAYERS } from "../data/players.js";
-import { ensurePickLedger } from "./pickLedger.js";
+import { ensurePickLedger, setPickOwner } from "./pickLedger.js";
+import { tradeWindowCheck } from "./seasonMarket.js";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
 const ATTRIBUTES = [
@@ -302,11 +303,15 @@ export function picksOwnedBy(season, year, teamId) {
 }
 
 /**
- * Swap the user's natural pick with a CPU team's natural pick for a draft
- * year. v1 rule: both picks must still be natural (never traded before).
- * CPU acceptance uses a standings-rank value proxy: worse record = earlier
- * pick = more value; the CPU accepts when the incoming pick is worth at
- * least 90% of the outgoing one.
+ * Swap the user's natural FIRST-round pick with a CPU team's natural
+ * first-rounder for a draft year. v1 rule: both picks must still be natural
+ * (never traded before). CPU acceptance uses a standings-rank value proxy:
+ * worse record = earlier pick = more value; the CPU accepts when the incoming
+ * pick is worth at least 90% of the outgoing one. A pick swap is a trade, so
+ * the trade deadline applies. The second-rounders do NOT move: the swap goes
+ * through setPickOwner, which records round-2 overrides keeping each club's
+ * own second-rounder (writing pickOwnership directly would drag round 2 along
+ * with round 1, since round 2 defaults to the round-1 owner).
  */
 export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
   requireYear(year, "year");
@@ -317,6 +322,8 @@ export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
   if (!cpuTeamId || !ids.includes(cpuTeamId) || cpuTeamId === userTeamId) {
     return { ok: false, reason: "对方球队无效" };
   }
+  const window = tradeWindowCheck(season);
+  if (!window.ok) return window;
   const ownership = season.pickOwnership?.[year] || {};
   const userOwner = ownership[userTeamId] || userTeamId;
   const cpuOwner = ownership[cpuTeamId] || cpuTeamId;
@@ -329,8 +336,8 @@ export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
   if (valueOf(userTeamId) < valueOf(cpuTeamId) * 0.9) {
     return { ok: false, reason: "对方认为换来的签位价值不够，拒绝换签" };
   }
-  season.pickOwnership = { ...(season.pickOwnership || {}) };
-  season.pickOwnership[year] = { ...ownership, [userTeamId]: cpuTeamId, [cpuTeamId]: userTeamId };
+  setPickOwner(season, { sourceTeamId: userTeamId, year, round: 1 }, cpuTeamId);
+  setPickOwner(season, { sourceTeamId: cpuTeamId, year, round: 1 }, userTeamId);
   return {
     ok: true,
     message: `换签成交：送出我方 ${year} 年首轮签，得到 ${season.teams[cpuTeamId]?.name || cpuTeamId} 的 ${year} 年首轮签`,

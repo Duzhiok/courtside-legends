@@ -64,7 +64,7 @@ export function seasonTradeCount(st) {
  * There is deliberately NO per-season trade count cap — the NBA has none
  * (only a deadline plus salary/roster rules), so a count cap would be
  * game-balance fiction, not realism. R103's 5-trade cap was removed in R109. */
-function tradeWindowCheck(st) {
+export function tradeWindowCheck(st) {
   const deadline = tradeDeadlineDay(st);
   if (deadline != null && (st.dayIndex || 0) > deadline) {
     return { ok: false, reason: `交易截止日已过（常规赛第 ${deadline} 天后关闭）` };
