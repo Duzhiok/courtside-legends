@@ -69,12 +69,22 @@ export function careerHeaderHtml(vm, lang = "zh") {
   // Retiring is a dignified exit, not a warning: gold, where a firing / a pending decision is red.
   if (vm.label) pills.push(`<span class="tt-pill ${vm.labelTone === "gold" ? "tt-pill-gold" : "tt-pill-alert"}">${esc(vm.label)}</span>`);
   const c = vm.coach || {};
+  // Unspent perk points sit under the level: the perks card is far down the page, so this is where a
+  // player with points in hand finds out. Hidden once the career is over (the card is too).
+  // The full wording is for wide screens; the stat tile is ~60px on a phone, so there it shrinks to "2 点".
+  const n = c.perkPoints;
+  const full = tr(lang, `${n} 点可用`, `${n} point${n === 1 ? "" : "s"} to spend`);
+  const short = tr(lang, `${n} 点`, `${n} pt${n === 1 ? "" : "s"}`);
+  const hint = tr(lang, "在下方「教练成长」里分配", "Spend them in Coach growth, below");
+  const points = !vm.finished && n > 0
+    ? `<span class="tt-pill tt-pill-gold tt-perk-badge" title="${esc(hint)}" aria-label="${esc(`${full} — ${hint}`)}"><span class="tt-perk-full">${esc(full)}</span><span class="tt-perk-short" aria-hidden="true">${esc(short)}</span></span>`
+    : "";
   const stats = [
-    [tr(lang, "等级", "Level"), `Lv.${c.level ?? 1}`],
+    [tr(lang, "等级", "Level"), `Lv.${c.level ?? 1}`, points],
     [tr(lang, "声望", "Reputation"), c.reputation ?? 0],
     [tr(lang, "年龄", "Age"), c.age ?? "—"],
     [tr(lang, "心情", "Mood"), c.mood ?? "—"],
-  ].map(([label, value]) => `<div class="tt-coach-stat"><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("");
+  ].map(([label, value, extra = ""]) => `<div class="tt-coach-stat"><dt>${esc(label)}</dt><dd>${esc(value)}${extra}</dd></div>`).join("");
   return `<div class="tt-hq-team" style="${teamThemeStyle(vm.colors)}">
       ${crestHtml(vm.teamId, vm.colors, { size: "lg" })}
       <div class="tt-hq-id">

@@ -341,3 +341,6 @@
 2. `js/engine/sim.js` 的 `shortTeamTag`：中文队名现在被收成 `**`，播报里会出现 `**·某某`。只动这个函数，不要动 `calcMakeProb` / `wrapTeam` / `staffShot`（那是 C5）。
 3. 把语言切到 English，走一遍穿越总部、赛后卡、赛季中心。已经上线的界面漏中文就补；如果发现的是生涯规则 bug，写在板上，不要自己改。
 4. 先别动：`seasonRollover.js`、`careerContract.js`、`js/career/finance.js`、`endingShareCard.js`、`saveRoot.js`、`app.js` 的 `settleUserGame` / `saveLongCareer`、`server/`，以及 C6–C8 期间的整个 `js/career/`。
+
+
+[2026-11-02] Code：**C5 复审完成 + HQ 角标上线**（WORKNOTE R123）。① 我误以为 C5 没人做，没 `fetch` 就自己做了一套，后来发现 Cursor 02:06 已认领、02:26 已推——**我那套整套作废、没推过**，C5 以 Cursor 的为准。以后动手前先 `git fetch` 读板，并用独立 worktree。② 复审结论：C5 实现干净，QA/测试全绿，战术大师实测满级 ≈ 净胜分 +1.2/场（胜率 +3pp），接线真的通。③ 新增：HQ「等级」下的「N 点可用」角标，修了花光点数后角标不刷新的 bug。④ **⚠ 给 Luna / Code：`career-buzz` QA 现在在 main 上红**（桌面 174/175，手机 179/181，原 181/181）：「热门报价不比冷报价好」和手机「热门球员 0 个报价」。嫌疑是 `c9d5b72`（改了 `tradeProposals.js` 的接受过滤），但无法二分（`c9d5b72`~`91ee5b0` 的中间状态页面卡死）。需要决定放宽热门报价的过滤还是改 QA 预期，我没动。⑤ 实测 `lineupFit` 在真实阵容里 45% 顶在 96 上限（中位数 94），对适配度的任何新加成对近半数球队是空操作，数据在 R123。

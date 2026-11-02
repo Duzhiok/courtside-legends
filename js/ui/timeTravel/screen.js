@@ -225,7 +225,17 @@ export function createTimeTravelScreen({
   const poachCard = createPoachCard({ state, lang, setStatus, commit, currentRootState, renderScreen });
   const financeCard = createFinanceCard({ lang, commit, currentRootState });
   // Negotiator changes the salary line, so the finance card repaints with it.
-  const perkCard = createPerkCard({ lang, commit, currentRootState, onChange: () => financeCard.render(currentRootState()) });
+  // A perk point changes more than the card: the salary line (finance card) and the "N points" badge in the HQ header.
+  const perkCard = createPerkCard({
+    lang,
+    commit,
+    currentRootState,
+    onChange: () => {
+      const root = currentRootState();
+      financeCard.render(root);
+      paintHq(hqModel(root, buildCareerReport(root), lang()), lang());
+    },
+  });
   const retireCard = createRetireCard({ lang, setStatus, commit, currentRootState, renderScreen });
 
   /** B5: after a firing / walk-out the coach lands on a job board sized by reputation. */

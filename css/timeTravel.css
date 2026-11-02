@@ -222,6 +222,8 @@
 }
 .tt-coach-stat dt { font-size: 0.7rem; color: var(--tt-faint); letter-spacing: 0.06em; }
 .tt-coach-stat dd { margin: 2px 0 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tt-perk-short { display: none; }
+.tt-perk-badge { display: block; width: max-content; margin-top: 4px; padding: 1px 8px; font-size: 0.68rem; font-weight: 700; }
 
 /* --- contract timeline (#time-travel-stepper) --- */
 .tt-timeline { list-style: none; margin: 0; padding: 0; display: flex; }
@@ -304,6 +306,8 @@
   .tt-hq-head { align-items: flex-start; }
   .tt-coach { width: 100%; }
   .tt-coach-stat { flex: 1; min-width: 0; }
+  .tt-perk-full { display: none; }
+  .tt-perk-short { display: inline; }
   .tt-kpis {
     grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: minmax(150px, 44%);
     overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 4px;

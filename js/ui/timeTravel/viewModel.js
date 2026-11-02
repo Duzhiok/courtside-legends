@@ -61,6 +61,7 @@ export function hqModel(root, report, lang = "zh") {
       const coach = ensureCoachProfile(root);
       return {
         level: coach.level,
+        perkPoints: coach.perkPoints ?? 0,
         reputation: Math.round(coach.reputation ?? 0),
         age: coach.age,
         mood: Math.round(coach.mood ?? 0),
