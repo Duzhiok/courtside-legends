@@ -1213,8 +1213,12 @@ function deriveShotTendencies(r, a) {
   const ppg = a.ppg || 0;
   const apg = a.apg || 0;
 
-  // Three tendency: driven by actual 3PA volume, crushed for traditional bigs
-  let threeTend = Math.round(threeRate * 200 + Math.min(tpa, 10) * 5.5 + (a.three - 45) * 0.4);
+  // Three tendency: driven by actual 3PA volume, crushed for traditional bigs.
+  // The share term alone flatters low-usage players: Rondo 2020 takes 2.6 threes
+  // of 6.8 shots (38% share) and used to score 99. Scale the share by absolute
+  // volume so tendency tracks how often they actually shoot, not just the share.
+  const volumeScale = Math.min(tpa, 6) / 6;
+  let threeTend = Math.round(threeRate * 200 * volumeScale + Math.min(tpa, 10) * 5.5 + (a.three - 45) * 0.4);
   if (tpa < 0.35 && ["C", "PF"].includes(pos)) threeTend = Math.min(threeTend, 10);
   if (tpa < 0.15) threeTend = Math.min(threeTend, 6);
   if (tpa < 1.0 && ["C", "PF"].includes(pos)) threeTend = Math.min(threeTend, 18);
@@ -1248,7 +1252,10 @@ function deriveShotTendencies(r, a) {
   // Offense style package
   let offenseStyle = "balanced";
   if (["C", "PF"].includes(pos) && threeTend <= 22 && paintTend >= 60) offenseStyle = "post";
-  else if (threeTend >= 62 && (a.three || 0) >= 72) offenseStyle = "stretch";
+  // A spacer must actually make them: sub-35% high-volume chuckers (Iverson,
+  // Payton, Rondo) are not spacing threats no matter how often they shoot.
+  // tp falls back to 0.35 so rows without a recorded 3P% keep the old gate.
+  else if (threeTend >= 62 && (a.three || 0) >= 72 && (r.tp ?? 0.35) >= 0.35 && tpa >= 3) offenseStyle = "stretch";
   else if (threeTend >= 48 && (a.three || 0) >= 68 && apg < 5) offenseStyle = "spot";
   else if ((a.speed || 50) >= 74 && paintTend >= 55 && threeTend < 55) offenseStyle = "slash";
   else if (apg >= 7 || (a.scoring || 0) < 78 && apg >= 5) offenseStyle = "playmake";

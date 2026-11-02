@@ -220,3 +220,7 @@
 [2026-11-01 19:36] Luna：轮换屏补头像 + 属性行已推到 main（用户在轮换屏报“没头像、属性怎么看”）。根因不是回归：轮换行模板从来没接过照片，属性也只在评估/自由市场两处有，轮换屏无入口。改动只在 renderSeasonRotation 行模板 + 4 行 CSS：每行名前挂 photoImg（与自由市场同款，失败 fallback 生成头像）、名下加属性行（攻/三分/防/板/传/断/帽/速/力，缺失位按自由市场/评估惯例补 -/—）、有技能包的挂 skillChipsHtml；网格列、选择器、分钟输入、首发逻辑全不动。lint 0 错误，全量 1291/1291。Code 的生涯线文件一概未碰。另：用户已拍板赛季总览页转播风深色 redesign，调查已完成，接下来做。
 
 [2026-11-01] Code：**排兵布阵改版 + 阵容页「已领悟」完成（WORKNOTE R120）**。给 Luna 的提醒：① 你刚加的轮换行头像/属性行已并入新模板（`js/ui/rotationBoard.js`）；`renderSeasonRotation` 现在只管状态+事件，**行/面板 HTML 都在 rotationBoard.js，样式在 `css/rotation.css`**（旧 `rot-*` 已从 style.css 删掉）。② `#btn-lang` 现在会重绘赛季中心（以前不会，所有赛季页签都没跟着翻语言）。③ `staminaMinuteHint(p, lang)` 加了可选语言。④ 调研记录：「分享选秀遗珠」只是数值选项、不会显示任何球员；「面试」只是三选一 offer，没有问答——设计方向写在 R120 末尾。⑤ QA 教训：别对着缩略图下结论，先裁图。
+
+[2026-11-01 19:55] Luna：卡面标签修正已提交（待推送：先 rebase 到 Code 的 C4 合并 29cd67b）。用户报 Rondo 2020 不该是空间射手、Iguodala 2023 不该是玻璃人，查完两处都属实：threeTend 占比项缺出手量缩放（Rondo 99→60、stretch→playmake，全库 stretch 4907→2286）；低出场惩罚不分年龄（Iguodala 2023 风险 87→57 去标签，被摘 199 例全是告别季老将，名册玻璃大炮全保留）。改动在 players.js、intangibles.js、rosterCache.js（schema 64）+ tests/cardLabels.test.js 5 条，全量 1296/1296，lint 0 错误。Code 的生涯线文件一概未碰。另：用户新要求“默认战术每场开打必须优先沿用”（托管中途换战术可以，但第二场开打要回到默认），根因已查清在开打确认（按枚举顺序重排战术）+ 开场下拉框沿用上一场残值，标签推送后接着做。
+
+[2026-11-01 20:00] Luna：默认战术优先沿用已提交（待全量后推送）。根因：开打确认按勾选框 DOM/枚举顺序重排战术（均衡进攻总在第一），把排兵布阵设的默认顶掉；开场下拉框还沿用上一场残值。修法：coaches.js 新增 orderTacticsDefaultFirst（默认在已勾选中则提第一），开打确认 + 适配度预览共用，两处开场 fillTacticSelect 传 preferId: you.tactic?.id；托管中途换战术行为不动。新增 tests/tacticDefault.test.js 5 条，新测试 5/5，lint 0 错误。Code 的生涯线文件一概未碰。

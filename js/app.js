@@ -84,6 +84,7 @@ import {
   tacticDesc,
   asstName,
   coachTactics,
+  orderTacticsDefaultFirst,
   ensureTeamStaff,
   isLegendCoach,
   isObscureStaff,
@@ -1007,7 +1008,8 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   syncManagedUI();
 
   const you = youSide === "home" ? sim.home : sim.away;
-  fillTacticSelect(you);
+  // 开场下拉框显示本场实际开场战术（默认优先），不沿用上一场页面里剩的值。
+  fillTacticSelect(you, { preferId: you.tactic?.id });
   syncLivePhilFromCoach(you.coach);
   initFocusAndPacksUI(homeTeam || sim.home, awayTeam || sim.away, youSide);
 
@@ -6209,7 +6211,8 @@ function renderSetupRoster() {
       noteEl.hidden = true;
       noteEl.textContent = "";
     } else {
-      const tacticId = [...($("#phil-tactics")?.querySelectorAll("input:checked") || [])][0]?.value;
+      const checked = [...($("#phil-tactics")?.querySelectorAll("input:checked") || [])].map((x) => x.value);
+      const tacticId = orderTacticsDefaultFirst(checked, you.coach?.specialTactics?.[0])[0];
       const tactic = TACTICS[tacticId] || null;
       const previewCoach = applyCoachPhilosophy(you.coach, {
         styleName: $("#phil-name")?.value || you.coach?.style,
@@ -6302,7 +6305,10 @@ $("#btn-setup-confirm").onclick = () => {
   if (state.setup.selected.size !== 5) return;
   const { home, away, youSide } = state.pendingMatch;
   const you = youSide === "home" ? home : away;
-  const tactics = [...$("#phil-tactics").querySelectorAll("input:checked")].map((x) => x.value);
+  const checked = [...$("#phil-tactics").querySelectorAll("input:checked")].map((x) => x.value);
+  // 用户在排兵布阵设的默认战术（开打前教练的第一位）永远排第一：直接按勾选框
+  // DOM 顺序收集会把枚举第一（均衡进攻）顶到前面，第二场开场就丢了默认。
+  const tactics = orderTacticsDefaultFirst(checked, you.coach?.specialTactics?.[0]);
   you.coach = applyCoachPhilosophy(you.coach, {
     styleName: $("#phil-name").value || "自定义方针",
     offense: Number($("#phil-off").value),
@@ -6441,7 +6447,8 @@ function beginGame(homeTeam, awayTeam, youSide) {
   state.sim = sim;
 
   const you = youSide === "home" ? sim.home : sim.away;
-  fillTacticSelect(you);
+  // 开场下拉框显示本场实际开场战术（默认优先），不沿用上一场页面里剩的值。
+  fillTacticSelect(you, { preferId: you.tactic?.id });
   syncLivePhilFromCoach(you.coach);
   initFocusAndPacksUI(homeTeam, awayTeam, youSide);
 

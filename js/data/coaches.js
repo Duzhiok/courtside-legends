@@ -1091,6 +1091,23 @@ export function coachTactics(coach) {
   return ids.map((id) => TACTICS[id]).filter(Boolean);
 }
 
+/**
+ * Tip-off order: the user's default tactic (coach.specialTactics[0], set on the
+ * rotation screen) stays first; the rest keep their given order. If the default
+ * was unchecked, or is already first, the order stands as-is. The setup screen
+ * collects checked tactics in DOM order (TACTICS enum order, balanced first),
+ * which would otherwise bury the default every game.
+ */
+export function orderTacticsDefaultFirst(checked = [], defaultId = null) {
+  const list = [...checked];
+  const at = defaultId ? list.indexOf(defaultId) : -1;
+  if (at > 0) {
+    list.splice(at, 1);
+    list.unshift(defaultId);
+  }
+  return list;
+}
+
 /** Language-aware display fields for coaches and tactics (defaults to zh). */
 export const tacticName = (t, lang = "zh") => (t ? (lang === "en" ? t.nameEn || t.name : t.name) : "");
 export const tacticDesc = (t, lang = "zh") => (t ? (lang === "en" ? t.descEn || t.desc : t.desc) : "");
