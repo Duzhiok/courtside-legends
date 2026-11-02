@@ -98,6 +98,13 @@ test("successive levels walk through the trained attributes instead of stacking 
   assert.deepEqual(seen, ["three", "mid", "scoring"]);
 });
 
+test("the development perk (C5) multiplies a game's XP; no multiplier means x1", () => {
+  const players = [card("p1", { age: 27 })];
+  const base = one({ players, lines: [line("p1")] }).entries[0].xp; // 33
+  assert.equal(one({ players, lines: [line("p1")], xpMultiplier: 1.2 }).entries[0].xp, Math.round(base * 1.2));
+  assert.equal(one({ players, lines: [line("p1")], xpMultiplier: NaN }).entries[0].xp, base, "junk reads as x1");
+});
+
 test("no plan trains the balanced trio", () => {
   assert.deepEqual(trainedAttributes(undefined), ["scoring", "pass", "defense"]);
   assert.deepEqual(trainedAttributes({ focus: "defense" }), ["defense", "steal", "block"]);

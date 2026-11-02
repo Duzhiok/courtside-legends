@@ -19,6 +19,7 @@ import {
   INVESTMENT_FORECAST_MIN_ACCURACY,
 } from "./balance.js";
 import { ensureCoachProfile } from "./coachProfile.js";
+import { negotiationSalaryBonus } from "./coachPerks.js";
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -34,10 +35,12 @@ function assetClassById(assetId) {
  * The annual salary currently in effect: whatever the last accepted B3 renewal offer pays, or a
  * flat base salary before any renewal has ever happened. The initial five-year hire
  * (timeTravelCareer.js's OFFER_DETAILS) negotiates authority/trust/pressure but never a dollar
- * figure, so there is no archetype-specific number to read for those years.
+ * figure, so there is no archetype-specific number to read for those years. The negotiator perk
+ * (C5) rides on top of either.
  */
 export function currentCoachSalary(root) {
-  return root?.story?.employment?.offer?.salary ?? COACH_BASE_SALARY;
+  const base = root?.story?.employment?.offer?.salary ?? COACH_BASE_SALARY;
+  return base + negotiationSalaryBonus(ensureCoachProfile(root));
 }
 
 /** House tiers available to buy, id -> { label, cost, moodBonus }. */

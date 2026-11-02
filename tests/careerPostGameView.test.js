@@ -375,3 +375,56 @@ test("highlights: the stretch card shows the whole stretch's highlights and who 
   assert.match(visible(html), /热度：Nikola Jokic 5\.2/);
   assert.match(batchHtml(foldBatch([settleGame(snap(), "home")]), "zh"), /^(?![\s\S]*高光)/);
 });
+
+// ---------------------------------------------------------------- C5: coach XP
+const coachXp = (over = {}) => ({ xp: 14, parts: [{ id: "win", xp: 8 }, { id: "upset", xp: 6 }], playoff: false, level: 2, leveledUp: 0, progress: 0.35, perkPoints: 0, ...over });
+const withCoachXp = (entry) => {
+  const report = settleGame(snap(), "home");
+  report.rewards.coachXp = entry;
+  return report;
+};
+
+test("coach XP: no career coach, no section", () => {
+  assert.doesNotMatch(postGameHtml(settleGame(snap(), "home"), "zh"), /pg-coach|教练成长/);
+});
+
+test("coach XP: says how much and why, with the level bar", () => {
+  const html = postGameHtml(withCoachXp(coachXp()), "zh");
+  assert.match(html, /教练成长/);
+  assert.match(visible(html), /\+14 XP/);
+  assert.match(visible(html), /赢球 \+8 · 爆冷 \+6/);
+  assert.match(visible(html), /Lv\.2/);
+  assert.match(html, /width:35%/);
+});
+
+test("coach XP: a playoff game says it counted double", () => {
+  assert.match(visible(postGameHtml(withCoachXp(coachXp({ xp: 28, playoff: true })), "zh")), /季后赛 ×2/);
+  assert.match(visible(postGameHtml(withCoachXp(coachXp({ xp: 28, playoff: true })), "en")), /Playoffs ×2/);
+});
+
+test("coach XP: a level-up says so and points at where the perk point is spent; unspent points are a reminder", () => {
+  const up = visible(postGameHtml(withCoachXp(coachXp({ level: 3, leveledUp: 1, perkPoints: 1 })), "zh"));
+  assert.match(up, /升到 Lv\.3/);
+  assert.match(up, /1 点天赋点/);
+  const waiting = visible(postGameHtml(withCoachXp(coachXp({ perkPoints: 2 })), "zh"));
+  assert.match(waiting, /2 点天赋点未分配/);
+});
+
+test("coach XP: English card is English", () => {
+  const html = visible(postGameHtml(withCoachXp(coachXp({ level: 3, leveledUp: 1, perkPoints: 1 })), "en"));
+  assert.doesNotMatch(html, CJK);
+  assert.match(html, /Coach growth/);
+  assert.match(html, /Win \+8 · Upset \+6/);
+  assert.match(html, /Reached Lv\.3/);
+});
+
+test("coach XP: the stretch card sums it, counts upsets and level-ups", () => {
+  const games = [coachXp({ xp: 8, parts: [{ id: "win", xp: 8 }] }), coachXp(), coachXp({ xp: 3, parts: [{ id: "loss", xp: 3 }], level: 3, leveledUp: 1, perkPoints: 1, progress: 0.01 })]
+    .map(withCoachXp);
+  const html = visible(batchHtml(foldBatch(games), "zh"));
+  assert.match(html, /教练成长/);
+  assert.match(html, /\+25 XP/);
+  assert.match(html, /爆冷 1 场/);
+  assert.match(html, /升到 Lv\.3/);
+  assert.doesNotMatch(visible(batchHtml(foldBatch(games), "en")), CJK);
+});

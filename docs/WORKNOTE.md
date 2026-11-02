@@ -2208,3 +2208,19 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **QA 教训**：之前"every text on the board is AA"只量了手写选择器清单里的元素，漏了名字/标题/大数字，却一直报绿。新增 `textContrast(page, root, { under })`（scripts/qa/lib/page.mjs）：扫描 root 内**所有**可见文字，背景逐层合成（半透明层叠到 `under` 上；赛季中心用 `SEASON_HUB_BASE`），大字 3:1，disabled 豁免；career-rotation.mjs 对 9 个页签逐个断言。它不测渐变背景——那类只能看截图。变异：删掉浅卡墨色规则，排兵布阵/市场/发展/历史四个页签立刻红。缩略图不可信：整页长图看不清字，必须裁原图（这次三次都是裁图才发现问题）。
 
 验证：1405/1405；lint 0 错误；career-rotation 桌面 74、手机 75；season-sim-continue 24/24 ×2。
+
+### R122：C5 教练 XP 与天赋点（阶段 C 第五步；Cursor 提交）
+
+**XP**：`settleUserGame()` 现在 = 结算 + 球员 XP + 领悟 + 热度 + **教练 XP**（`awardGameCoachXp`，只在穿越生涯且在职时发）。每场赢 8 / 输 3；对手阵容实力（`teamRosterStrength`）比我方高 3 以上且赢了再 +6（爆冷）；季后赛整场 ×2。数值都在 `balance.js` 的 C5 小节。纯函数在新文件 `js/career/coachPerks.js`（`gameCoachXp` / `awardCoachXp`，升级走 A1 的 `applyCoachXp`，每级 1 点天赋点）。赛后卡多「教练成长」：本场 XP 与来源、等级进度条；升级时提示「去穿越生涯总部分配」，否则有未分配点数就提醒。批量模拟的「本段收获」汇总整段 XP（`foldBatch` 多了 `coachXp`）。
+
+**四条天赋线（每条 3 级）**，在穿越 HQ 的新「教练天赋」卡（`js/ui/timeTravel/perkCard.js`，`#tt-perks`）分配，每行写清当前效果与下一级效果：
+- 战术大师：我方出手命中率相对 +0.5%/级。挂在 `sim.js` `calcMakeProb` 的区域上限**之后**、最终 0.68 上限之前（放在上限前会被吞掉；改适配度也没用——`lineupFit` 实战基本顶在 96）。接线：`renderSeasonHub` 开头 `syncCoachPerksToSeason(st)` 写 `season.coachPerkShot` → `season.js` `seasonStaffBonus` / `liveTeam` 给我方 `staffBonus.shot` → `wrapTeam` 存到 `coach.staffShot`。直播比赛的 `cloneLiveTeamSide` 同样带上。
+- 球员发展：球员比赛经验 ×(1 + 0.1×级)，`awardGrowth` 新可选参数 `xpMultiplier`（坏值按 1）。
+- 谈判专家：`currentCoachSalary` 每季 +¤1/级。
+- 媒体达人：`reputation.js` 的赛季声望变化经 `softenReputationLoss`，只把损失往 0 收 1 点/级，收益不变。
+
+**已知限制**：存档失败回滚时教练 XP 不回滚（`state.longCareerRoot.coach` 已先更新）；影响是最多多算一场 XP，没在这一步处理。
+
+**测试**：新 `coachPerks.test.js` 11、`coachPerkEngine.test.js` 3（固定种子下夸大到 0.25 验证接线确实改变命中，再查 `liveTeam` 只给我方）、`perkCard.test.js` 4；finance / reputation / playerGrowth / gameRewards / careerPostGameView 各补用例。浏览器 QA `scripts/qa/career-coach-xp.mjs`：真开 1995 生涯，单场与一周的卡面 XP 都与存档 `root.coach` 的增量对账（按 N×100 每级累计），HQ 分配两点后存档、按钮锁定、效果文案、年薪 +¤1 全对，英文无中文，回赛季再打一场存档里 `season.coachPerkShot === 0.005`。桌面/手机 30/30。
+
+验证：1433/1433；lint 0 错误。

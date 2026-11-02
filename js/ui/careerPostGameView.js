@@ -141,6 +141,37 @@ function heatHtml(entries, lang) {
     <ul class="pg-stars">${rows}</ul>`;
 }
 
+/** Why the coach earned what he did tonight, by part id. */
+const COACH_XP_PARTS = { win: ["赢球", "Win"], loss: ["输球也有收获", "Lessons from a loss"], upset: ["爆冷", "Upset"] };
+
+/** The bar, the level, and -- only when there is one -- the level-up or the unspent-points reminder. */
+function coachLevelHtml(entry, lang) {
+  const pct = Math.round(Math.min(1, Math.max(0, entry.progress || 0)) * 100);
+  const points = entry.perkPoints || 0;
+  const news = entry.leveledUp > 0
+    ? `<span class="pg-up">${esc(tr(lang, `升到 Lv.${entry.level}`, `Reached Lv.${entry.level}`))}</span> ${seg(tr(lang, `共 ${points} 点天赋点，去穿越生涯总部分配`, `${points} perk point${points === 1 ? "" : "s"} to spend at career HQ`))}`
+    : points > 0 ? seg(tr(lang, `${points} 点天赋点未分配`, `${points} unspent perk point${points === 1 ? "" : "s"}`)) : "";
+  return `<span class="pg-bar" role="img" aria-label="${esc(`Lv.${entry.level} ${pct}%`)}"><i style="width:${pct}%"></i></span>
+    <p class="pg-note">${seg(`Lv.${entry.level}`)} · ${seg(`${pct}%`)}${news ? ` · ${news}` : ""}</p>`;
+}
+
+/** C5: the coach's own XP for one game -- how much, and why. */
+function coachXpHtml(entry, lang) {
+  if (!entry) return "";
+  const parts = (entry.parts || []).map((part) => seg(`${(COACH_XP_PARTS[part.id] || [part.id, part.id])[lang === "en" ? 1 : 0]} +${part.xp}`));
+  if (entry.playoff) parts.push(seg(tr(lang, "季后赛 ×2", "Playoffs ×2")));
+  return `<h4 class="pg-section-title">${esc(tr(lang, "教练成长", "Coach growth"))}</h4>
+    <div class="pg-coach"><p class="pg-coach-xp"><strong>${seg(`+${entry.xp} XP`)}</strong> ${parts.join(" · ")}</p>${coachLevelHtml(entry, lang)}</div>`;
+}
+
+/** The same section for a folded stretch: total XP, how many upsets, level as of the last game. */
+function coachBatchHtml(batch, lang) {
+  if (!batch) return "";
+  const upsets = batch.upsets ? ` · ${seg(tr(lang, `爆冷 ${batch.upsets} 场`, `${batch.upsets} upset${batch.upsets === 1 ? "" : "s"}`))}` : "";
+  return `<h4 class="pg-section-title">${esc(tr(lang, "教练成长", "Coach growth"))}</h4>
+    <div class="pg-coach"><p class="pg-coach-xp"><strong>${seg(`+${batch.xp} XP`)}</strong> ${seg(tr(lang, `${batch.games} 场`, `${batch.games} games`))}${upsets}</p>${coachLevelHtml(batch, lang)}</div>`;
+}
+
 function verdict(report, lang) {
   const { you, opp } = report.score;
   const word = report.tied ? tr(lang, "战平", "Tie") : report.won ? tr(lang, "胜", "Win") : tr(lang, "负", "Loss");
@@ -168,6 +199,7 @@ export function postGameHtml(report, lang = "zh") {
     ${starsHtml(report.stars, lang)}
     ${highlightsHtml(report.rewards?.highlights, report.rewards?.hot, lang, tr(lang, "本场高光", "Highlights"))}
     ${growthHtml(report.rewards?.playerXp, lang)}
+    ${coachXpHtml(report.rewards?.coachXp, lang)}
     ${heatHtml(report.rewards?.heat, lang)}
   </div>`;
 }
@@ -196,6 +228,7 @@ export function batchHtml(batch, lang = "zh") {
     ${leaders ? `<h4>${esc(tr(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}
     ${highlightsHtml(batch.highlights, batch.hot, lang, tr(lang, "这段时间的高光", "Highlights of the stretch"))}
     ${growthHtml(batch.growth, lang)}
+    ${coachBatchHtml(batch.coachXp, lang)}
     ${heatHtml(batch.heat, lang)}
   </div>`;
 }

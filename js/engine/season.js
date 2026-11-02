@@ -711,8 +711,14 @@ export function snapFromResultLog(st, entry) {
   };
 }
 
+/** The user's coach perks that act inside a game (C5: tactician shot edge), or null. Other teams get none. */
+export function seasonStaffBonus(st, teamId) {
+  const shot = Number(st?.coachPerkShot) || 0;
+  return teamId === st?.userTeamId && shot ? { shot } : null;
+}
+
 /** Clone team blob for a fresh GameSim (reset night stats via wrapTeam). */
-function liveTeam(st, teamId) {
+export function liveTeam(st, teamId) {
   const t = st.teams[teamId];
   // 没请主教练/助教：当场 roll 补齐，并写回赛季存档，避免每场重抽
   if (!t.coach?.id || !t.assistant?.id) ensureTeamStaff(t, { preferStarter: true });
@@ -724,6 +730,7 @@ function liveTeam(st, teamId) {
     gold: 0,
     isCpu: t.isCpu,
     teamId,
+    staffBonus: seasonStaffBonus(st, teamId),
   };
 }
 

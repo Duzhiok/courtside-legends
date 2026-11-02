@@ -8,6 +8,7 @@
  * double-pay a title bonus.
  */
 import { ensureCoachProfile, withCoachProfile } from "./coachProfile.js";
+import { softenReputationLoss } from "./coachPerks.js";
 import {
   REPUTATION_BAD_SEASON, REPUTATION_BAD_WIN_RATE, REPUTATION_CHAMPIONSHIP, REPUTATION_GOAL_HIT,
   REPUTATION_GOAL_MISS, REPUTATION_GOOD_SEASON, REPUTATION_GOOD_WIN_RATE, REPUTATION_WINNING_SEASON,
@@ -38,12 +39,12 @@ export function settleSeasonReputation(root) {
   if (log.some((entry) => entry.type === "reputation-settled" && entry.year === last.year)) return root;
 
   const goalEntry = [...log].reverse().find((entry) => entry.type === "season-goal-result" && entry.year === last.year);
-  const delta = seasonReputationDelta({
+  const coach = ensureCoachProfile(root);
+  const delta = softenReputationLoss(seasonReputationDelta({
     record: last.record,
     champion: Boolean(last.championId) && last.championId === last.teamId,
     goalAchieved: goalEntry ? goalEntry.achieved : null,
-  });
-  const coach = ensureCoachProfile(root);
+  }), coach);
   const from = Math.round(coach.reputation ?? 0);
   const to = Math.max(0, Math.min(100, from + delta));
   return {

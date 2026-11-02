@@ -81,6 +81,22 @@ export function settleGame(snap, youSide) {
   };
 }
 
+/** C5 over a stretch: XP and level-ups add up; level, bar and points are as of the last paid game. */
+function foldCoachXp(games) {
+  const paid = games.map((report) => report.rewards?.coachXp).filter(Boolean);
+  if (!paid.length) return null;
+  const last = paid.at(-1);
+  return {
+    xp: paid.reduce((sum, entry) => sum + entry.xp, 0),
+    games: paid.length,
+    upsets: paid.filter((entry) => entry.parts?.some((part) => part.id === "upset")).length,
+    leveledUp: paid.reduce((sum, entry) => sum + (entry.leveledUp || 0), 0),
+    level: last.level,
+    progress: last.progress,
+    perkPoints: last.perkPoints,
+  };
+}
+
 /**
  * One summary for a stretch of games. `leaders` rank by TOTAL box-score contribution over the
  * stretch (so a single 40-point night can't outrank a month of 25s), shown as per-game averages;
@@ -142,6 +158,7 @@ export function foldBatch(reports) {
       apg: acc.ast / acc.games,
       total: Math.round(acc.total * 10) / 10,
     }));
+  out.coachXp = foldCoachXp(games);
   out.highlights = [...highlightsBy.values()].sort((a, b) => b.gain - a.gain);
   out.growth = [...growthBy.values()]
     .map((acc) => ({ ...acc, leveled: [...acc.leveled.values()] }))

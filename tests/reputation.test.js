@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   REPUTATION_BAD_SEASON, REPUTATION_CHAMPIONSHIP, REPUTATION_GOAL_HIT, REPUTATION_GOAL_MISS,
-  REPUTATION_GOOD_SEASON, REPUTATION_WINNING_SEASON,
+  REPUTATION_GOOD_SEASON, REPUTATION_WINNING_SEASON, PERK_MEDIA_SOFTEN,
 } from "../js/career/balance.js";
 import { seasonReputationDelta, settleSeasonReputation } from "../js/career/reputation.js";
 import { YEAR, goodSeasons, hiredRoot, withHistory } from "./helpers/careerFixtures.js";
@@ -78,6 +78,17 @@ test("settleSeasonReputation: clamps at 0 and 100 and logs the real (clamped) de
   const floor = settled(withHistory(low, bad));
   assert.equal(floor.coach.reputation, 0);
   assert.equal(floor.story.eventLog.at(-1).delta, -1);
+});
+
+test("settleSeasonReputation: media savvy (C5) shrinks a bad season's loss and logs the softened delta", () => {
+  const hired = hiredRoot(50);
+  const bad = [{ year: YEAR - 1, teamId: hired.story.employer, record: rec(20, 62), finish: "lottery", championId: "LAL" }];
+  const savvy = { ...hired, coach: { ...hired.coach, perks: { ...hired.coach.perks, media: 2 } } };
+  const out = settled(withHistory(savvy, bad));
+  assert.equal(out.coach.reputation, 50 + REPUTATION_BAD_SEASON + 2 * PERK_MEDIA_SOFTEN);
+  assert.equal(out.story.eventLog.at(-1).delta, REPUTATION_BAD_SEASON + 2 * PERK_MEDIA_SOFTEN);
+  const good = settled(withHistory(savvy, goodSeasons(savvy, 1)));
+  assert.equal(good.coach.reputation, 50 + REPUTATION_GOOD_SEASON, "a good season is not boosted");
 });
 
 test("settleSeasonReputation: nothing to settle before the first season ends, and it leaves other coach fields alone", () => {

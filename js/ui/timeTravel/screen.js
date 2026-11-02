@@ -30,6 +30,7 @@ import { INTRO_CHOICES, paintStaticText } from "./copy.js";
 import { tr } from "./format.js";
 import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml } from "./offers.js";
 import { createFinanceCard } from "./financeCard.js";
+import { createPerkCard } from "./perkCard.js";
 import { createPoachCard } from "./poachCard.js";
 import { createRetireCard } from "./retireCard.js";
 import {
@@ -223,6 +224,8 @@ export function createTimeTravelScreen({
 
   const poachCard = createPoachCard({ state, lang, setStatus, commit, currentRootState, renderScreen });
   const financeCard = createFinanceCard({ lang, commit, currentRootState });
+  // Negotiator changes the salary line, so the finance card repaints with it.
+  const perkCard = createPerkCard({ lang, commit, currentRootState, onChange: () => financeCard.render(currentRootState()) });
   const retireCard = createRetireCard({ lang, setStatus, commit, currentRootState, renderScreen });
 
   /** B5: after a firing / walk-out the coach lands on a job board sized by reputation. */
@@ -455,7 +458,7 @@ export function createTimeTravelScreen({
     renderOffers();
     const career = hasCareer();
     $("#time-travel-create").hidden = career;
-    const sections = ["#tt-poach", "#tt-retire", "#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
+    const sections = ["#tt-poach", "#tt-retire", "#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#tt-perks", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
     if (!career) {
       hideHq();
       for (const selector of sections) $(selector).hidden = true;
@@ -483,6 +486,8 @@ export function createTimeTravelScreen({
     if (over && !retired) renderJobs(root);
     if (over) $("#tt-goal").hidden = true;
     else paintGoal(root, l);
+    $("#tt-perks").hidden = over;
+    if (!over) perkCard.render(root);
     $("#time-travel-finance").hidden = over;
     if (!over) financeCard.render(root);
     renderReport(root, report);
@@ -540,6 +545,7 @@ export function createTimeTravelScreen({
   poachCard.wire();
   retireCard.wire();
   financeCard.wire();
+  perkCard.wire();
   $("#btn-time-travel-continue")?.addEventListener("click", () => {
     if (!state.leagueCareer?.season) return;
     state.season = state.leagueCareer.season;

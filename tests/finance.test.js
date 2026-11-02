@@ -14,7 +14,7 @@ import {
   settleCoachFinances,
 } from "../js/career/finance.js";
 import { createCoachProfile } from "../js/career/coachProfile.js";
-import { COACH_BASE_SALARY, HOUSE_TIERS, INVESTMENT_FORECAST_MIN_ACCURACY } from "../js/career/balance.js";
+import { COACH_BASE_SALARY, HOUSE_TIERS, INVESTMENT_FORECAST_MIN_ACCURACY, PERK_NEGOTIATION_SALARY } from "../js/career/balance.js";
 
 function rootWithCoach(coachOverrides = {}, storyOverrides = {}) {
   return {
@@ -34,6 +34,14 @@ test("currentCoachSalary falls back to the flat base salary before any renewal h
 test("currentCoachSalary reads the accepted renewal offer's salary once one exists", () => {
   const root = rootWithCoach({}, { employment: { status: "renewed", offer: { salary: 20 } } });
   assert.equal(currentCoachSalary(root), 20);
+});
+
+test("currentCoachSalary adds the negotiator perk (C5) on top of the base and of a renewal, and settlement pays it", () => {
+  const perks = { tactics: 0, development: 0, negotiation: 2, media: 0 };
+  assert.equal(currentCoachSalary(rootWithCoach({ perks })), COACH_BASE_SALARY + 2 * PERK_NEGOTIATION_SALARY);
+  const renewed = rootWithCoach({ perks, cash: 0 }, { employment: { status: "active", offer: { salary: 20 } } });
+  assert.equal(currentCoachSalary(renewed), 20 + 2 * PERK_NEGOTIATION_SALARY);
+  assert.equal(settleCoachFinances(renewed, () => 0.5).coach.cash, 20 + 2 * PERK_NEGOTIATION_SALARY);
 });
 
 // --- houses ---

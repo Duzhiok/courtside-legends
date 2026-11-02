@@ -86,6 +86,14 @@ test("foldBatch counts the record and the point differential", () => {
   assert.deepEqual([batch.games, batch.wins, batch.losses, batch.pointDiff], [4, 2, 1, 7], "the tie is a game but neither W nor L; null is skipped");
 });
 
+test("foldBatch sums the coach's XP over the stretch and keeps the level as of the last game (C5)", () => {
+  const game = (coachXp) => ({ won: true, tied: false, margin: 1, score: { you: 1, opp: 0 }, opponentName: "O", lines: [], rewards: { ...emptyRewards(), coachXp } });
+  const xp = (amount, over) => ({ xp: amount, parts: [], playoff: false, level: 2, leveledUp: 0, progress: 0.1, perkPoints: 1, ...over });
+  const batch = foldBatch([game(xp(8)), game(xp(14, { parts: [{ id: "upset", xp: 6 }] })), game(xp(3, { level: 3, leveledUp: 1, progress: 0.02, perkPoints: 2 })), game(null)]);
+  assert.deepEqual(batch.coachXp, { xp: 25, games: 3, upsets: 1, leveledUp: 1, level: 3, progress: 0.02, perkPoints: 2 });
+  assert.equal(foldBatch([game(null)]).coachXp, null, "no coach career, no section");
+});
+
 test("foldBatch ranks by TOTAL contribution: one huge night doesn't outrank a month of solid ones", () => {
   const night = (lines) => ({ won: true, tied: false, margin: 5, score: { you: 100, opp: 95 }, opponentName: "O", lines });
   const solid = { id: "steady", name: "Steady", min: 32, pts: 22, reb: 5, ast: 5, stl: 0, blk: 0, tov: 2, score: 16 };
@@ -99,7 +107,7 @@ test("foldBatch ranks by TOTAL contribution: one huge night doesn't outrank a mo
 });
 
 test("foldBatch of nothing is an empty, safe summary", () => {
-  assert.deepEqual(foldBatch([]), { games: 0, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [], highlights: [], hot: [] });
+  assert.deepEqual(foldBatch([]), { games: 0, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [], highlights: [], hot: [], coachXp: null });
   assert.equal(foldBatch(undefined).games, 0);
 });
 

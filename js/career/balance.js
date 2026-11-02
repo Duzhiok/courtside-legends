@@ -31,6 +31,28 @@ export const WEEKLY_ENERGY = 3;
 /** Energy granted once per offseason (roadmap §2.1). */
 export const OFFSEASON_ENERGY = 10;
 
+/** --- Phase C5: coach XP and perks (roadmap C5, §2.3) --- */
+
+/** Coach XP per finished game. A .500 regular season is ~450 XP: level 1 -> 3 in year one, then
+ * slower (level N needs N * COACH_XP_PER_LEVEL), so the 12-point tree takes well over a decade. */
+export const COACH_XP_WIN = 8;
+export const COACH_XP_LOSS = 3;
+/** A win over a team whose top-8 OVR (seasonGoals.teamRosterStrength) is at least this much higher. */
+export const COACH_XP_UPSET_GAP = 3;
+export const COACH_XP_UPSET = 6;
+export const COACH_XP_PLAYOFF_MULTIPLIER = 2;
+
+/** Per perk level. Each is small on purpose (principle 6): a perk nudges, it never decides a game. */
+/** Tactician: relative make chance of your team's shots (engine/sim.js, next to lineup fit). Not a fit
+ * bonus: fit is clamped at 96 and real lineups sit there half the time, so a fit perk would often do nothing. */
+export const PERK_TACTICS_SHOT = 0.005;
+/** Player development: in-season player XP (career/playerGrowth.js) multiplier, per level. */
+export const PERK_DEVELOPMENT_XP = 0.1;
+/** Negotiator: added to every season's salary (career/finance.js currentCoachSalary). */
+export const PERK_NEGOTIATION_SALARY = 1;
+/** Media savvy: a season's reputation LOSS shrinks by this much (career/reputation.js); never becomes a gain. */
+export const PERK_MEDIA_SOFTEN = 1;
+
 /** --- Phase B1: season goals (roadmap B1) --- */
 
 /** How many of a team's best players (by OVR) count toward its roster-strength score, used to

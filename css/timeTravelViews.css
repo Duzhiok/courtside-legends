@@ -284,3 +284,11 @@
 @media (max-width: 640px) {
   .tt-legacy-tiles { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* C5 coach perks: level + XP bar on top, then one row per perk line with level pips. */
+.tt-perk-level { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; }
+.tt-perk-level strong { font-family: var(--font-display); font-size: 1.2rem; color: var(--tt-gold); }
+.tt-perk-bar { display: block; margin-bottom: 8px; }
+.tt-perk-pips { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.tt-perk-pips i { width: 8px; height: 8px; border-radius: 50%; background: var(--tt-s3); border: 1px solid var(--tt-faint); }
+.tt-perk-pips i.on { background: var(--tt-gold); border-color: var(--tt-gold); }

@@ -68,10 +68,12 @@ export function attributeCeiling(player, attribute, base, ladder) {
  * @param {Array}  args.players    the user roster (cards with `id`, `bref`, attributes)
  * @param {Array}  args.lines      `report.lines` of the settled game
  * @param {Function} [args.ladderOf]  bref -> that player's real card ladder (injected: keeps this pure)
+ * @param {number} [args.xpMultiplier]  the coach's development perk (career/coachPerks.js); 1 = none
  * @returns {{ growth: object, changes: Object<string, Object<string, number>>, entries: Array }}
  *   `changes[playerId]` = the new VALUES of the attributes that levelled; `entries` feeds the card.
  */
-export function awardGrowth({ growth = {}, plans = {}, year, players = [], lines = [], ladderOf = () => [] }) {
+export function awardGrowth({ growth = {}, plans = {}, year, players = [], lines = [], ladderOf = () => [], xpMultiplier = 1 }) {
+  const boost = Number.isFinite(xpMultiplier) && xpMultiplier > 0 ? xpMultiplier : 1;
   const next = {};
   for (const [bref, entry] of Object.entries(growth || {})) {
     if (entry?.year === year) next[bref] = { ...entry, deltas: { ...entry.deltas } };
@@ -84,7 +86,7 @@ export function awardGrowth({ growth = {}, plans = {}, year, players = [], lines
     if (!player?.bref) continue;
     const age = resolvedAge(player);
     const row = ageRow(age);
-    const gain = gameXp(line, age);
+    const gain = Math.round(gameXp(line, age) * boost);
     if (gain <= 0) continue;
 
     const entry = next[player.bref] || { year, xp: 0, levels: 0, deltas: {} };

@@ -244,6 +244,7 @@ import {
   recordUserLiveResult,
   saveSeason,
   seasonProgressLabel,
+  seasonStaffBonus,
   seasonTeamIds,
   simAllPlayoffs,
   simScheduledGame,
@@ -271,6 +272,9 @@ import { foldBatch, settleGame } from "./career/gameRewards.js";
 import { awardGrowth } from "./career/playerGrowth.js";
 import { awardEpiphany } from "./career/seasonEpiphany.js";
 import { settleBuzz } from "./career/buzz.js";
+import { awardCoachXp, developmentXpMultiplier, tacticsShotBonus } from "./career/coachPerks.js";
+import { ensureCoachProfile } from "./career/coachProfile.js";
+import { teamRosterStrength } from "./career/seasonGoals.js";
 import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
 import {
   advanceCareerOffseason,
@@ -7881,6 +7885,7 @@ function renderSeasonHub({ persist = true } = {}) {
   const st = prepareSeasonState(state.season);
   if (!st) return;
   state.season = st;
+  syncCoachPerksToSeason(st);
   $("#season-setup-panel").hidden = true;
   $("#season-hub-panel").hidden = false;
   const you = st.teams[st.userTeamId];
@@ -9322,7 +9327,10 @@ function playSeasonUserGame() {
  * state.season so mid-game mutations (fatigue, form, etc.) don't leak back until the result is
  * recorded. Shared by playSeasonUserGame() and playUserPlayoffGame() -- same shape either way. */
 function cloneLiveTeamSide(t) {
+  const st = state.season;
+  const teamId = st ? Object.keys(st.teams).find((id) => st.teams[id] === t) : null;
   return {
+    staffBonus: teamId ? seasonStaffBonus(st, teamId) : null,
     name: t.name,
     players: t.players.map((p) => clonePlayer(p)),
     coach: t.coach ? structuredClone(t.coach) : null,
@@ -9512,6 +9520,7 @@ function awardGameGrowth(report) {
     players,
     lines: report.lines,
     ladderOf: historicalLadder,
+    xpMultiplier: developmentXpMultiplier(state.longCareerRoot?.coach),
   });
   for (const [id, attributes] of Object.entries(result.changes)) {
     Object.assign(players.find((player) => player.id === id), attributes);
@@ -9546,12 +9555,42 @@ function awardGameBuzz(report) {
   report.rewards.hot = result.hot;
 }
 
-/** Settle a finished game from the user's side and pay its XP, any epiphany, and the market buzz. */
+/**
+ * C5: the time-travel coach's own XP for a game. Only while he actually holds the job -- a fired,
+ * departed or retired coach coaches nobody. Lives on root.coach, which the save that follows persists.
+ */
+function awardGameCoachXp(report) {
+  const st = state.season;
+  const root = state.longCareerRoot;
+  const status = state.story?.employment?.status || "active";
+  if (!report || !st || !root || state.leagueCareer?.kind !== "timeTravel" || status !== "active") return;
+  const you = st.teams[st.userTeamId];
+  const opponent = Object.values(st.teams).find((team) => team !== you && team.name === report.opponentName);
+  const result = awardCoachXp(ensureCoachProfile(root), {
+    won: report.won,
+    playoff: st.phase === "playoffs",
+    youStrength: teamRosterStrength(you),
+    oppStrength: opponent ? teamRosterStrength(opponent) : NaN,
+  });
+  state.longCareerRoot = { ...root, coach: result.coach };
+  report.rewards.coachXp = result.entry;
+}
+
+/** The tactician perk rides on the season so every game the engine builds for the user carries it. */
+function syncCoachPerksToSeason(st) {
+  if (!st) return;
+  const shot = state.leagueCareer?.kind === "timeTravel" ? tacticsShotBonus(state.longCareerRoot?.coach) : 0;
+  if (shot) st.coachPerkShot = shot;
+  else delete st.coachPerkShot;
+}
+
+/** Settle a finished game from the user's side and pay its XP, any epiphany, the market buzz and the coach's XP. */
 function settleUserGame(snap, side) {
   const report = settleGame(snap, side);
   awardGameGrowth(report);
   awardGameEpiphany(report);
   awardGameBuzz(report);
+  awardGameCoachXp(report);
   return report;
 }
 

@@ -2476,6 +2476,7 @@ function wrapTeam(team, side) {
   // 巨星队超额订分钟 → 按首发/OVR 排出真实轮换（只改本场副本）
   fitMinuteBudget(roster, { starterIds: onCourt.map((p) => p.id), rank: overall });
   const coach = composeStaff(team.coach, team.assistant);
+  if (coach && Number(team.staffBonus?.shot)) coach.staffShot = Number(team.staffBonus.shot);
   const tactics = coach ? coachTactics(coach) : [TACTICS.balanced];
   const tactic = tactics[0];
   return {
@@ -4229,6 +4230,9 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
   }
   // Applied after the zone ceilings on purpose: a lineup already pinned at the ceiling must still pay for it.
   base -= paintCrowdPenalty(off.onCourt, shot.zone);
+  // Time-travel coach's tactician perk (career/coachPerks.js). After the zone ceilings too, or it
+  // would vanish for every shooter already pinned there; fit is no hook for it (clamped at 96, often maxed).
+  base *= 1 + (Number(off.coach?.staffShot) || 0);
   // League-env ceiling: keep team PPP near modern NBA (~1.10–1.15)
   return clamp(base, 0.1, gameCtx.sigMakeBoost ? 0.82 : 0.68);
 }
