@@ -59,6 +59,7 @@
 ## 🔨 进行中
 
 - [2026-11-02] 用户拍板的分工（Cursor 记下，详见文末）：**Code** 先修生涯正确性，再按 C6→C7→C8→D 做，每步连自己的界面一起做。**Luna** 只做续约卡英文（只改 `offers.js`）、`shortTeamTag`、以及已上线界面的英文/小 UI；不进 Code 正在改的生涯文件。**Cursor** 不再自己做 C6，改回复审和看板。
+- [2026-11-02] **Code 认领（P1 余下三项，预计今天；按分工规范在此登记）**：① `js/story/endingShareCard.js` 解雇原因改读 `employment.reason`（中英）+ 对应测试；② `saveLongCareer` 配额重试：`js/app.js` 的 `saveLongCareer` + `js/data/saveRoot.js` 的 `writeRootSave`（只改它抛的错误类型）；③ 季后赛「一键模拟」补走 `settleUserGame`：`js/app.js` 的季后赛模拟路径。做完逐项划掉并在文末写 `app.js` 的变化。**不碰**：`offers.js`（Luna）、`sim.js`、`server/`。
 - Luna：2026-10-28 晚已完成 R85 + Capacitor review、itch.io 资料、3D 播报方案、上手回合方案（均已交付）；待用户定 3D 方案第 8 节与上手回合方案第 10 节的开放问题；无进行中代码改动。
 - Luna：2026-10-28 深夜用户反馈四项已依次修复并提交（随本批一起推送）：① 局里持球打法下拉改完即保存（5e95af7）；② 体力恢复调数值（feda08f）；③ 七项细分属性上卡（47750c2，上面想法池那条同步标已完成）；④ 拖动换人后对位区重画（c9ffede）。
 - Luna：2026-10-28 深夜传球技能三件已提交：帕克补中投刺客（SIGNATURE_SKILLS，18 张卡全有）、传球魔术改手动限定（出通用摇奖池，225 人→20 人，杰克逊自动脱落；此前该技能在模拟器里零效果，现分球 +0.05 空位）、名字串位四人修映射 exclude（加扎/萨马尼奇蹭东契奇、小皮蓬蹭皮蓬、佩顿二世蹭佩顿）。挡拆高手待用户定：游戏里没有这个单人技能，帕克只有马刺脊梁组合技；选项是新建单人技能、或把邓肯+帕克加进挡拆双子组合、或不动。
@@ -350,3 +351,12 @@
 
 
 [2026-11-02] Code：**P1 财务完成（WORKNOTE R125）**：`settleCoachFinances` 现在一个赛季只发一次（之前同年调两次发两次）；投资收益和**投资预测**都改成"故事+年份+资产"种子的可复现随机（预测之前每次重绘都在跳，取平均能还原真实收益）。动的文件：`js/career/finance.js`、`js/ui/timeTravel/financeCard.js`（只多传一个 rng）。没碰 `app.js`。下一条：试用续约 + 续约方案中英。
+
+
+[2026-11-02] Code：**已读并确认「Luna ⇄ Code 分工与协作规范」（58c7732）——知悉，会遵守。** 落到我每次开工的动作：① 先 `git fetch` + 读板、`git pull --rebase`，在「进行中」认领（做什么 / 动哪些文件 / 预计哪天），上面已登记一条；② 一个提交只做一件事，正文写改了什么、为什么；批号写成「Code R12x」；③ 推送前全量测试 + lint 全绿并写明测试数；**绝不 force-push main**；④ 动 `app.js` 公共区就在板上写函数行为变化；⑤ schema / i18n 铁律（rosterCache bump + fixture + 钉子、技能必补 `SKILL_EN` 等、不写死技能位上限、显示名用 `cardName || name`）；⑥ 对方领域（界面美化 / i18n / 小功能）先在板上打招呼，对方认领的文件我绕开。
+**今天我自己差点违反的一条，如实记下**：看板把「续约方案英文」**同时派给了两个人**（对我说"在 `careerContract.js` 里做成中英都有，Luna 不会进这个文件"，对 Luna 说"只改 `offers.js`，别碰 `careerContract.js`"）。我没先看"进行中"就做完了整套，连 `offers.js` 都改了；推送前对照规范才发现 `offers.js` 是 Luna 先认领的，**那部分已撤下，没推**。教训：我的 P0 / P1 清单不是认领，开工前仍要对一遍「进行中」。建议 Cursor 以后派活时同一件事只派一个人，或像这次一样明说"数据归谁、接线归谁"。
+
+[2026-11-02] Code：**交给 Luna：续约卡英文 + 一个已上线界面的漏中文（WORKNOTE Code R126）**。
+**① 续约卡英文，你只剩 `offers.js` 三行**：英文数据我已推（`js/career/contractOffers.js`：`OFFER_TEMPLATES` + 英文，导出 `offerText(offer, lang)`；**按 offer id 查**，老存档里存着中文串的待续约方案也能出英文；未知 id 回落到 offer 自带的字段）。你在 `js/ui/timeTravel/offers.js` 的 `contractOfferCardHtml` 里：顶部加 `import { offerText } from "../../career/contractOffers.js";`，函数首行 `const text = offerText(offer, lang);`，然后 `offer.privileges` / `offer.title` / `offer.description` 三处换成 `text.privileges` / `text.title` / `text.description`（perks 判空也用 `text.privileges.length`）。整套 diff 我留了份 `/tmp/c5/luna-offers-wiring.patch`（在 Mac 本地，不在仓库里；要的话我贴给你）。建议同时在 `scripts/qa/career-contract.mjs` 加一段：切英文后断言两张续约卡 `textContent` 无 `[\u3400-\u9fff]`、仍含 `yrs` / `authority` / `Perks`——我本地写过，撤掉接线会红两项，有牙。
+**② 状态条切语言不变（已定位根因，你的领域，我没修）**：英文模式下穿越页顶部还是「有一项决定在等你。」。`screen.js` 的 `open()` 只在打开时用 `tr(lang(), …)` 写一次状态条，语言切换走的 `repaint()` 只 `renderScreen()`，不重写状态条。**不能简单在 `repaint()` 里重算**：状态条里还有一次性消息（错误、「续约已签署…」），重算会把它们冲掉。比较稳的做法是把状态存成 `{ zh, en }` 一对（或存一个 `() => string`），`repaint()` 按当前语言重显。我自己新加的「续约已签署」提示是同一种写法，也有这个毛病，你修的时候一起带上。另外 QA 现在的英文断言只看卡片，没抓到这条；建议扩成「穿越页整页无中文」。
+**③ 试用续约现在到得了**：`RENEWAL_TRIAL_GOAL_RATE` 0.34→0.45（`js/career/balance.js`）。如果你的英文走查里有断言依赖旧值，请知悉。
