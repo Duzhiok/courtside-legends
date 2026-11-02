@@ -453,6 +453,19 @@ export function createRootState(overrides = {}) {
   };
 }
 
+/**
+ * The browser would not store the career: quota full, storage disabled, or the read-back didn't match.
+ * Typed (it used to be a plain Error) so callers can tell "storage said no" -- worth freeing space and
+ * trying again -- from validateRoot()'s "invalid root save", which is a bug in this build's save data
+ * and must never be answered by deleting anything.
+ */
+export class StorageWriteError extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = "StorageWriteError";
+  }
+}
+
 export function writeRootSave(root, storage) {
   const target = getStorage(storage);
   const persisted = compactRootForStorage(cloneJson(root));
@@ -477,11 +490,28 @@ export function writeRootSave(root, storage) {
       validateRoot(parseJson(target.getItem(ROOT_SAVE_KEY)));
     } catch (directError) {
       try { target.removeItem(TEMP_ROOT_SAVE_KEY); } catch (_) { /* best effort */ }
-      throw new Error("storage quota exceeded while saving career", { cause: directError || error });
+      throw new StorageWriteError("storage quota exceeded while saving career", { cause: directError || error });
     }
   }
   root.savedAt = savedAt;
   return root;
+}
+
+/**
+ * writeRootSave, and if the browser refuses it, free the orphaned legacy saves (an old build could leave
+ * cls_season_v1 / cls_savegame_v1 behind after migrating -- they cost nothing to drop and may buy back
+ * exactly the room needed) and try once more. Only a StorageWriteError triggers the cleanup; a save the
+ * game can't validate is rethrown untouched, so a schema bug can't cost the player their old saves.
+ * Nothing freed means nothing to retry: the original error comes back.
+ */
+export function writeRootSaveFreeingOrphans(root, storage) {
+  try {
+    return writeRootSave(root, storage);
+  } catch (error) {
+    if (!(error instanceof StorageWriteError)) throw error;
+    if (purgeOrphanedLegacySaves(storage) <= 0) throw error;
+    return writeRootSave(root, storage);
+  }
 }
 
 export function readRootSave(storage) {

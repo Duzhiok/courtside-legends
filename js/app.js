@@ -148,9 +148,9 @@ import {
   exportRootSave,
   importRootSave,
   migrateLegacySaves,
-  purgeOrphanedLegacySaves,
   readRootSave,
   writeRootSave,
+  writeRootSaveFreeingOrphans,
 } from "./data/saveRoot.js";
 import {
   grantSkillToPlayer,
@@ -634,7 +634,8 @@ function saveLongCareer({ liveGame = "preserve" } = {}) {
   if (!state.leagueCareer) return false;
   const rootState = currentRootState({ liveGame });
   try {
-    const persisted = writeRootSave(rootState);
+    // If the browser refuses, this frees orphaned legacy saves once and retries (saveRoot.js).
+    const persisted = writeRootSaveFreeingOrphans(rootState);
     state.longCareerRoot = clonePersistedState(persisted);
     refreshLongCareerHomeBar();
     lastLongCareerSaveError = null;
@@ -642,27 +643,6 @@ function saveLongCareer({ liveGame = "preserve" } = {}) {
   } catch (error) {
     console.error("[long-career-save]", error);
     lastLongCareerSaveError = error;
-    // A pre-root-save build could leave a legacy cls_season_v1/cls_savegame_v1 key sitting in
-    // localStorage forever after "migrating" it (see purgeOrphanedLegacySaves docs) -- that
-    // doubles this origin's footprint for anyone who's been playing since before that fix. If
-    // the write failed on quota, clearing those orphans costs nothing and might buy back just
-    // enough room to succeed without losing anything the player cares about. Try once more.
-    if (error?.name === "QuotaExceededError") {
-      try {
-        const freedChars = purgeOrphanedLegacySaves();
-        if (freedChars > 0) {
-          const persisted = writeRootSave(rootState);
-          state.longCareerRoot = clonePersistedState(persisted);
-          refreshLongCareerHomeBar();
-          console.info(`[long-career-save] retry succeeded after freeing ${freedChars} orphaned legacy chars`);
-          lastLongCareerSaveError = null;
-          return true;
-        }
-      } catch (retryError) {
-        console.error("[long-career-save] retry after legacy cleanup also failed", retryError);
-        lastLongCareerSaveError = retryError;
-      }
-    }
     return false;
   }
 }
