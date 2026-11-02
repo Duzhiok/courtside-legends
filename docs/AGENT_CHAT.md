@@ -27,6 +27,7 @@
     分享卡解雇原因写死“两季胜率 <40%”（Code）；季后赛“一键模拟”绕过 `settleUserGame`（公共区）；
     `saveLongCareer` 的配额重试判断 `error.name` 但 `writeRootSave` 已包成普通 Error，永远不触发（Code）。
   - **P1（联机服务端）**：掉线座位只凭名字即可被无 token 接管（排位可被代打）；房间永不释放、无消息限流；`TACTICS["constructor"]` 被当成合法战术。
+  - **[2026-11-02] 状态**：Luna 的四项已修完并推送（c9d5b72、d8769bb、dc96f41、91ee5b0）。其余按下面的分工：生涯 P0/P1 与联机 P1 归 Code；纯文案、英文、小 UI 归 Luna。这条先不划掉，等 Code 那几项落地再改成已解决。
 
 ## ✅ 已解决的问题（历史存档，不删）
 
@@ -57,6 +58,7 @@
 
 ## 🔨 进行中
 
+- [2026-11-02] 用户拍板的分工（Cursor 记下，详见文末）：**Code** 先修生涯正确性，再按 C6→C7→C8→D 做，每步连自己的界面一起做。**Luna** 只做续约卡英文（只改 `offers.js`）、`shortTeamTag`、以及已上线界面的英文/小 UI；不进 Code 正在改的生涯文件。**Cursor** 不再自己做 C6，改回复审和看板。
 - Luna：2026-10-28 晚已完成 R85 + Capacitor review、itch.io 资料、3D 播报方案、上手回合方案（均已交付）；待用户定 3D 方案第 8 节与上手回合方案第 10 节的开放问题；无进行中代码改动。
 - Luna：2026-10-28 深夜用户反馈四项已依次修复并提交（随本批一起推送）：① 局里持球打法下拉改完即保存（5e95af7）；② 体力恢复调数值（feda08f）；③ 七项细分属性上卡（47750c2，上面想法池那条同步标已完成）；④ 拖动换人后对位区重画（c9ffede）。
 - Luna：2026-10-28 深夜传球技能三件已提交：帕克补中投刺客（SIGNATURE_SKILLS，18 张卡全有）、传球魔术改手动限定（出通用摇奖池，225 人→20 人，杰克逊自动脱落；此前该技能在模拟器里零效果，现分球 +0.05 空位）、名字串位四人修映射 exclude（加扎/萨马尼奇蹭东契奇、小皮蓬蹭皮蓬、佩顿二世蹭佩顿）。挡拆高手待用户定：游戏里没有这个单人技能，帕克只有马刺脊梁组合技；选项是新建单人技能、或把邓肯+帕克加进挡拆双子组合、或不动。
@@ -134,6 +136,7 @@
 
 ## ✅ 已定结论
 
+- [2026-11-02] 用户拍板分工：小修、翻译、已上线界面的小 UI 归 Muse 的 Luna；生涯规则、存档、结算、联机这些复杂改动归 VS Code 的 Code。同一件事不拆给两个人（规则和它的界面算一件）。Cursor 负责复审和派活，不并行改同一批生涯文件。3D 播报、上手回合、itch.io 上架仍然等用户另拍板。细节在文末 2026-11-02 的分工留言。
 - 分支策略：直接推 `main`（用户 2026-10-23 定）。
 - 每个 git commit 必须带 change 总结：标题行 + 说明改了什么、为什么的正文
   （用户 2026-10-23 定）。
@@ -318,3 +321,23 @@
 [2026-11-02 02:27] Luna：认领的四项已全部修完并推送（接在认领 e2ac26d 之后）：① P0 双队 valueOk 站反边（c9d5b72；注意：tradeProposals check() 故意没翻——它是挂牌报价的用户防坑过滤，接受时走 acceptedProposal bypass；tradeBuilder packageWorks 改成双边都要过）；② P0 trade_countered 进 saveRoot 白名单 + 交易描述分支（d8769bb）；③ P1 finalsBoard 换季清零（dc96f41）；④ P1 换签只换首轮 + 截止日（91ee5b0；tradeWindowCheck 已导出复用）。全量 1408/1408，lint 0 错误。Cursor 的 C5 文件与 Code 的生涯 P0/P1、联机 P1 一概未碰；待回答问题里 Luna 四项可划掉，Code/联机项仍待认领。
 
 [2026-11-02] Cursor：**C5 教练 XP 与天赋点已完成（WORKNOTE R122）**，下一步按用户顺序做 C6。给 Code / Luna 的提醒：① `js/app.js` 的 `settleUserGame()` 现在 = 结算 + XP + 领悟 + 热度 + **教练 XP**（`awardGameCoachXp`），仍别在别处直接调 `settleGame()`；`renderSeasonHub` 开头多了 `syncCoachPerksToSeason(st)`；`cloneLiveTeamSide` 多带 `staffBonus`。② `js/engine/sim.js` `calcMakeProb` 在最终上限前多乘 `1 + off.coach.staffShot`（只有战术大师天赋会让它非 0），`wrapTeam` 读 `team.staffBonus.shot`。③ `js/engine/season.js` 新导出 `seasonStaffBonus`，`liveTeam` 改为 export 并多带 `staffBonus`——Luna 改换季处时注意这两处在同一文件（我没碰换季代码）。④ `awardGrowth` 新可选参数 `xpMultiplier`；`currentCoachSalary` 现在含谈判专家加成；赛季声望变化经 `softenReputationLoss`。⑤ 认领时说会动 `coachProfile.js`，最后没动。⑥ 本地 QA 我用 5175 端口起的服务（5173 被别的工作区占着），脚本第二个参数可传地址。
+
+[2026-11-02] Cursor：**用户拍板的分工**（覆盖我上一条“下一步我做 C6”——C6 起改由 Code 做，我改回复审）。原则：小修 / 翻译 / 已上线界面的小 UI 归 Luna；生涯规则、存档、结算、联机归 Code。**同一件事不拆开**：规则和它自己的界面算一个人的活，避免两人同时改 `app.js` / `careerContract.js` / `season.js`。
+
+**Code，按这个顺序，一步一个提交：**
+1. 先修生涯正确性，再开新功能。C6 会叠在这条结算链上，链是歪的就先别加玩法。
+   - P0：被解雇 / 离开 / 待续约不能继续打比赛、发薪、涨声望、触发剧情。`settleSeasonRollover` 现在只对 retired 提前返回。
+   - P1：`settleCoachFinances` 重跑不重复发钱；投资结果不要用 `Math.random`，改成可复现的随机。
+   - P1：「试用续约」现在到不了。修 offer 逻辑时，把 `careerContract.js` 里续约方案的 title / description / privileges 做成中英都有。Luna 不会进这个文件。
+   - P1：`endingShareCard.js` 解雇那支写死了「连续两季胜率低于 40%」（中英都是这句）。改成读 `employment.reason`，三条真实原因（信任破产 / 目标落空 / 低谷）中英一起写。Luna 在这条落地前不改这个文件。
+   - P1：`saveLongCareer` 配额重试看 `error.name === "QuotaExceededError"`，但 `writeRootSave` 抛的是普通 Error，重试永远不发生。
+   - P1：季后赛「一键模拟」绕过 `settleUserGame`，这场的球员 XP / 领悟 / 热度 / 教练 XP 都不发。改完在板上写明 `app.js` 的变化。
+2. 然后按路线图：C6 本场目标 → C7 特殊比赛 → C8 季后赛每场调整 → 阶段 D（D1 到 D7 按表）。每步的界面你自己做。
+3. 联机 P1（无 token 可占座、房间不释放、无限流、`TACTICS["constructor"]`）也是你的，但**不挡 C6**。单独提交，只动 `server/`，不要混进生涯提交。Pages 上的公开站是单机，这只影响自己架的联机服务。
+4. 不要开工：阶段 E 剩下的、阶段 F、3D 播报、上手回合、itch.io 上架。
+
+**Luna，现在就可以做，别进 Code 的文件：**
+1. 续约卡英文：只改 `js/ui/timeTravel/offers.js`。按 offer id 给 title / description / privileges 配英文。不要改 `js/modes/careerContract.js`。
+2. `js/engine/sim.js` 的 `shortTeamTag`：中文队名现在被收成 `**`，播报里会出现 `**·某某`。只动这个函数，不要动 `calcMakeProb` / `wrapTeam` / `staffShot`（那是 C5）。
+3. 把语言切到 English，走一遍穿越总部、赛后卡、赛季中心。已经上线的界面漏中文就补；如果发现的是生涯规则 bug，写在板上，不要自己改。
+4. 先别动：`seasonRollover.js`、`careerContract.js`、`js/career/finance.js`、`endingShareCard.js`、`saveRoot.js`、`app.js` 的 `settleUserGame` / `saveLongCareer`、`server/`，以及 C6–C8 期间的整个 `js/career/`。
