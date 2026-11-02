@@ -5,8 +5,10 @@ import { seasonToCard } from "../js/data/players.js";
 import { buildCareerSpanIndex } from "../js/data/careerArc.js";
 import {
   activeUserPlayoffSeries,
+  advancePlayoffs,
   nextUserPlayoffGame,
   recordUserLivePlayoffResult,
+  simAllPlayoffs,
   simPlayoffSeries,
   simUserNextPlayoffGame,
 } from "../js/engine/season.js";
@@ -207,4 +209,109 @@ test("activeUserPlayoffSeries: null once the user has been eliminated from an ea
   st.playoffs.finals.done = true;
   st.playoffs.finals.winnerId = "CPU";
   assert.equal(activeUserPlayoffSeries(st), null);
+});
+
+// ---- Bulk playoff sims used to throw the user's games away: simPlayoffSeries made a box score for each and
+// dropped it, so 一键打完季后赛 paid no XP, no epiphany, no buzz, no coach XP. onUserGame hands them out. ----
+const userSideIn = (game) => (game.homeId === "USER" ? "home" : "away");
+
+test("simPlayoffSeries hands every game the USER played to onUserGame, with its box score", () => {
+  const st = stateFixture({ userIsHigh: false });
+  const series = st.playoffs.finals;
+  const calls = [];
+  simPlayoffSeries(st, series, { onUserGame: (snap, game, s) => calls.push({ snap, game, s }) });
+  assert.equal(calls.length, series.winsHigh + series.winsLow, "one call per game played");
+  assert.ok(calls.length >= 4);
+  let userWins = 0;
+  for (const { snap, game, s } of calls) {
+    assert.ok(game.homeId === "USER" || game.awayId === "USER");
+    assert.equal(s, series);
+    assert.equal(typeof snap.score.home, "number");
+    const side = userSideIn(game);
+    if (snap.score[side] > snap.score[side === "home" ? "away" : "home"]) userWins += 1;
+  }
+  assert.equal(userWins, series.winsLow, "the user is the low seed: the games reported ARE the user's wins in the series");
+});
+
+test("a series the user already hand-played part of only reports the games still to come", () => {
+  const st = stateFixture({ winsHigh: 1, winsLow: 1 });
+  const series = st.playoffs.finals;
+  const calls = [];
+  simPlayoffSeries(st, series, { onUserGame: (snap, game) => calls.push(game) });
+  assert.equal(calls.length, series.winsHigh + series.winsLow - 2);
+});
+
+test("a CPU-vs-CPU series never calls onUserGame", () => {
+  const st = stateFixture();
+  st.teams.CPU2 = buildTeam("CPU2", 24);
+  const series = seriesFixture("CPU", "CPU2");
+  let called = 0;
+  simPlayoffSeries(st, series, { onUserGame: () => { called += 1; } });
+  assert.ok(series.done);
+  assert.equal(called, 0);
+});
+
+test("with no onUserGame the sim is unchanged", () => {
+  const st = stateFixture();
+  assert.doesNotThrow(() => simPlayoffSeries(st, st.playoffs.finals));
+  assert.ok(st.playoffs.finals.done);
+});
+
+/** East bracket sitting at `round` with the given [high, low] series; USER is always a team in the first. */
+function bracketState(round, seriesDefs) {
+  const ids = new Set(["USER"]);
+  for (const [high, low] of seriesDefs) { ids.add(high); ids.add(low); }
+  const teams = {};
+  let offset = 0;
+  for (const id of ids) { teams[id] = buildTeam(id, offset); offset += 12; }
+  const series = seriesDefs.map(([high, low], i) => ({ ...seriesFixture(high, low, { round }), id: `s${i}` }));
+  return {
+    phase: "playoffs", year: 2020, userTeamId: "USER", teams, playerSeason: {},
+    playoffs: { east: { round, series }, west: { round: 1, series: [] }, finals: null, championId: null },
+    resultsLog: [], standings: {},
+  };
+}
+
+// advancePlayoffs sims a different series per round; each of the four places it does so must pass the callback.
+for (const [round, defs] of [
+  [1, [["USER", "A"], ["B", "C"], ["D", "E"], ["F", "G"]]],
+  [2, [["USER", "A"], ["B", "C"]]],
+  [3, [["USER", "A"]]],
+]) {
+  test(`advancePlayoffs reports the user's games in round ${round} (and only those)`, () => {
+    const st = bracketState(round, defs);
+    const userSeries = st.playoffs.east.series[0];
+    const calls = [];
+    advancePlayoffs(st, { onUserGame: (snap, game) => calls.push(game) });
+    assert.ok(userSeries.done, "the user's series was simulated");
+    assert.ok(st.playoffs.east.round > round || st.playoffs.east.finalist, "and the bracket moved on");
+    assert.equal(calls.length, userSeries.winsHigh + userSeries.winsLow, "one call per game the user played, none for the CPU series");
+    assert.ok(calls.length >= 4);
+    assert.ok(calls.every((game) => game.homeId === "USER" || game.awayId === "USER"));
+  });
+}
+
+function finalsState() {
+  const st = stateFixture();
+  st.playoffs.east.finalist = "USER";
+  st.playoffs.west.finalist = "CPU";
+  return st;
+}
+
+test("advancePlayoffs reports the user's games in the finals", () => {
+  const st = finalsState();
+  let calls = 0;
+  advancePlayoffs(st, { onUserGame: () => { calls += 1; } });
+  const finals = st.playoffs.finals;
+  assert.equal(st.phase, "done");
+  assert.equal(calls, finals.winsHigh + finals.winsLow);
+  assert.ok(calls >= 4);
+});
+
+test("simAllPlayoffs passes onUserGame down through every round it loops", () => {
+  const st = finalsState();
+  let calls = 0;
+  simAllPlayoffs(st, { onUserGame: () => { calls += 1; } });
+  assert.equal(st.phase, "done");
+  assert.ok(calls >= 4);
 });

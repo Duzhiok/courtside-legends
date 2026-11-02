@@ -9057,12 +9057,13 @@ function renderSeasonPlayoffs() {
         st.phase === "awards" || st.phase === "regular" ? "" : "disabled"
       }>一键模拟整个季后赛</button>`;
     $("#btn-season-sim-playoffs")?.addEventListener("click", () => {
+      const batch = userGameBatch(st);
       if (!st.awards) {
-        advanceToUserGame(st, { stopBeforeUser: false });
+        // Skipping ahead plays the user's remaining regular-season games too.
+        for (const { game, snap } of advanceToUserGame(st, { stopBeforeUser: false }).played) batch.settle(snap, game);
       }
-      simAllPlayoffs(st);
-      renderSeasonHub();
-      showSeasonTab("playoffs");
+      simAllPlayoffs(st, { onUserGame: batch.settle });
+      finishBulkPlayoffSim(st, batch);
     });
     return;
   }
@@ -9165,16 +9166,14 @@ function renderSeasonPlayoffs() {
     }
   `;
   $("#btn-season-advance-po")?.addEventListener("click", () => {
-    advancePlayoffs(st);
-    if (!saveSeasonAndCareer(st)) return;
-    renderSeasonHub();
-    showSeasonTab("playoffs");
+    const batch = userGameBatch(st);
+    advancePlayoffs(st, { onUserGame: batch.settle });
+    finishBulkPlayoffSim(st, batch);
   });
   $("#btn-season-sim-all-po")?.addEventListener("click", () => {
-    simAllPlayoffs(st);
-    if (!saveSeasonAndCareer(st)) return;
-    renderSeasonHub();
-    showSeasonTab("playoffs");
+    const batch = userGameBatch(st);
+    simAllPlayoffs(st, { onUserGame: batch.settle });
+    finishBulkPlayoffSim(st, batch);
   });
   $("#btn-season-offseason")?.addEventListener("click", () => {
     if (currentCareerDraft) {
@@ -9574,6 +9573,40 @@ function settleUserGame(snap, side) {
   awardGameBuzz(report);
   awardGameCoachXp(report);
   return report;
+}
+
+/**
+ * The bulk playoff sims (一键模拟整个季后赛 / 模拟下一轮 / 一键打完季后赛) play the user's games inside the
+ * engine, out of sight, and used to throw each box score away -- so they paid no XP, epiphany, buzz or coach
+ * XP, while hand-playing or 模拟下一场 did. `settle` is the engine's onUserGame hook: it pays every game the
+ * user's team played as it is decided (it ignores everyone else's); the batch keeps the last one for the card.
+ */
+function userGameBatch(st) {
+  const reports = [];
+  let last = null;
+  return {
+    reports,
+    get last() { return last; },
+    settle(snap, game, series = null) {
+      if (game?.homeId !== st.userTeamId && game?.awayId !== st.userTeamId) return;
+      last = { snap, game, series };
+      reports.push(settleUserGame(snap, userSideOf(st, game)));
+    },
+  };
+}
+
+/** After a bulk playoff sim: save, then show the harvest if the user played, else the playoffs tab as before. */
+function finishBulkPlayoffSim(st, batch) {
+  if (!saveSeasonAndCareer(st)) return;
+  const { last, reports } = batch;
+  if (!last) {
+    renderSeasonHub();
+    showSeasonTab("playoffs");
+    return;
+  }
+  const { snap, game, series } = last;
+  const extra = `已连续模拟 ${reports.length} 场；下方为最后一场（${snap.home?.name} ${snap.score.home}-${snap.score.away} ${snap.away?.name}）的完整数据。`;
+  showSeasonSimResult({ ...snap, youSide: userSideOf(st, game) }, { summaryExtra: extra, playoffSeries: series, reports });
 }
 
 function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, reports = null } = {}) {

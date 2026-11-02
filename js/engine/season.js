@@ -1082,7 +1082,12 @@ function seriesHomeAway(highId, lowId, gameIndex) {
   return highHome[gameIndex] ? { homeId: highId, awayId: lowId } : { homeId: lowId, awayId: highId };
 }
 
-export function simPlayoffSeries(st, series) {
+/**
+ * Sim whatever is left of a series. `onUserGame(snap, game, series)` is called once for each game the USER's
+ * team plays inside this call, right after it is decided. The box score used to be made and thrown away here,
+ * which is why a bulk playoff sim paid the user no XP, epiphany, buzz or coach XP; the caller settles them.
+ */
+export function simPlayoffSeries(st, series, { onUserGame } = {}) {
   if (series.done && series.winnerId) return series;
   if (series.high?.bye || series.low?.bye) {
     series.done = true;
@@ -1119,6 +1124,7 @@ export function simPlayoffSeries(st, series) {
     if (winnerId === highId) series.winsHigh += 1;
     else series.winsLow += 1;
     gi += 1;
+    if (onUserGame && (homeId === st.userTeamId || awayId === st.userTeamId)) onUserGame(snap, game, series);
   }
   series.done = true;
   series.winnerId = series.winsHigh >= 4 ? highId : lowId;
@@ -1207,14 +1213,14 @@ export function recordUserLivePlayoffResult(st, game, series, snap) {
   finishPlayoffGame(st, series, game, snap);
 }
 
-export function advancePlayoffs(st) {
+export function advancePlayoffs(st, opts = {}) {
   if (!st.playoffs) startPlayoffs(st);
   const po = st.playoffs;
 
   const advanceConf = (conf) => {
     const block = po[conf];
     for (const s of block.series) {
-      if (!s.done) simPlayoffSeries(st, s);
+      if (!s.done) simPlayoffSeries(st, s, opts);
     }
     if (block.round === 1) {
       const winners = block.series.map((s) => {
@@ -1310,7 +1316,7 @@ export function advancePlayoffs(st) {
     };
   }
   if (!po.finals.done) {
-    simPlayoffSeries(st, po.finals);
+    simPlayoffSeries(st, po.finals, opts);
     po.championId = po.finals.winnerId;
     st.phase = "done";
     st.finalsAllTeam = computeFinalsAllTeam(st);
@@ -1351,15 +1357,15 @@ export function computeFinalsMvp(st) {
   return fromTeam.slice().sort((a, b) => (b.score || 0) - (a.score || 0))[0] || null;
 }
 
-/** Sim entire playoffs in one go. */
-export function simAllPlayoffs(st) {
+/** Sim entire playoffs in one go. `opts.onUserGame` is passed down to every series (see simPlayoffSeries). */
+export function simAllPlayoffs(st, opts = {}) {
   if (st.phase === "awards" || st.phase === "regular") {
     if (!st.awards) st.awards = computeAwards(st);
     startPlayoffs(st);
   }
   let guard = 0;
   while (st.phase !== "done" && guard++ < 40) {
-    advancePlayoffs(st);
+    advancePlayoffs(st, opts);
   }
   return st;
 }

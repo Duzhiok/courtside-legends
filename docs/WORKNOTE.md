@@ -2269,3 +2269,22 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **没推的部分**：`offers.js` 的接线（3 行）和 QA 里的英文断言——看板把这两处派给了 Luna（`offers.js` 她先认领）。我本地都做过并验证过（撤掉接线 QA 红 2 项），整套 diff 备份在 `/tmp/c5/luna-offers-wiring.patch`，板上写了接线说明交给她。
 **顺带查到、没修**：英文模式下状态条「有一项决定在等你。」不跟语言走（`open()` 只写一次，`repaint()` 不重写）；属于已上线界面英文，交 Luna，根因写在板上。
 **验证**：全量 1457/1457（含新增 5：穷举 1 + 文案 4）；lint 0 错误；`git diff --check` 干净。（浏览器 QA 在撤下接线前跑过：续约 46/46×2，其中 4 项是被撤下的英文断言，现在的提交里是 42×2。）
+
+
+## R127 · Code：三个 P1 收尾——解雇分享卡说真话、配额重试真的会跑、批量打季后赛也发奖励（2026-11-02）
+
+**① 解雇分享卡**（`3bbd77c` / `e176e5b`，只动 `endingShareCard.js`）：解雇那支永远写「连续两季胜率低于 40%」，不管真正的原因（信任破产 / 目标落空 / 低谷）；现在读 `employment.reason`，中英一起写，B2 之前的老档没有 reason 就回落到低谷那句。查表用 `Object.hasOwn`——手改存档里的 `"constructor"` 会取到 `Object.prototype` 的函数然后解构抛错。续约那支的英文原来读 `offer.title`（中文），自带的 `PRIVILEGES_EN` 只翻了 7 条特权里的 4 条；改读 `offerText()`，删掉重复的 map。
+
+**② 配额重试从来没跑过**（`6b19faf`）：`saveLongCareer` 认的是 `error.name === "QuotaExceededError"`，而 `writeRootSave` 抛的是普通 `Error`，那个分支**永远进不去**。我读代码时发现它放在 `app.js` 里、node 够不着，所以没有测试，所以没人发现。修：`writeRootSave` 抛带 `cause` 的 `StorageWriteError`（message 不变，旧对话框和测试不受影响）；重试挪进 `saveRoot.js` 的 `writeRootSaveFreeingOrphans()`：写 → 失败且是存储错误 → 清掉旧版遗留存档（`cls_season_v1` / `cls_savegame_v1`）→ 清出东西才重写一次，否则原错误原样抛。**`validateRoot` 的 schema 错误不会触发清理**——本版本自己的 bug 不该让玩家丢旧存档。`saveLongCareer` 改调它，少了嵌套 try 和一行 info 日志。
+- 验证：`saveQuotaRetry` +7（用会抛 `DOMException` 的限额存储）；`scripts/qa/save-quota-retry.mjs`（12 项）真浏览器把存储塞满到最后一个字符：续约签署时清掉遗留存档并保存成功（A）；没东西可清时诚实失败（状态条「续约保存失败」、不删别人的数据、续约方案还在，B）。把 `app.js` 改回不重试，A 红 3 项。
+- 踩的坑：我先以为失败会弹"导出存档"对话框，断言红了；其实那个对话框只在**导入**路径（`app.js` 的 `offerLongCareerExportAfterSaveFailure`），穿越页的 `commit()` 是回滚 + 抛错 + 状态条。**先看代码走的是哪条路再写断言。**
+
+**③ 批量打季后赛原来一分钱不发**（本提交）：`simPlayoffSeries` 每场都 `simScheduledGame` 出了 box score，然后**丢掉**。所以「一键模拟整个季后赛 / 模拟下一轮 / 一键打完季后赛」不发球员 XP、领悟、热度、教练 XP，而亲自指挥和「模拟下一场」都发。
+- **引擎**（`season.js`）：`simPlayoffSeries(st, series, { onUserGame })`——这次调用里用户球队每打完一场回调一次 `(snap, game, series)`；`advancePlayoffs(st, opts)`、`simAllPlayoffs(st, opts)` 往下传。不传回调行为不变。
+- **`app.js` 的变化**：新增 `userGameBatch(st)`（回调：只结算用户的比赛，调 `settleUserGame`；记最后一场）和 `finishBulkPlayoffSim(st, batch)`（存档；用户打过就出结果卡，否则回季后赛页签和以前一样）。三个入口都改了：`#btn-season-sim-all-po`、`#btn-season-advance-po`、`#btn-season-sim-playoffs`——最后这个还会把**用户剩余的常规赛**一起模拟掉（`advanceToUserGame(..., { stopBeforeUser:false })`，它返回的 `played` 里有 snap），那部分原来同样一分钱不发，现在也结算。**行为变化**：这三个按钮打完后落在「本段收获」结果卡上（和 `simRestOfSeason` 一样），点「回到赛季主页」回季后赛页签；用户没参与（已淘汰）就和以前一样直接回页签。
+- 验证：`playoffManualPlay.test.js` +9（回调契约、续打只报剩下的、CPU 对 CPU 不触发、不传回调不变、第 1/2/3 轮和决赛分别各一条、`simAllPlayoffs` 往下传）。`scripts/qa/playoff-bulk-rewards.mjs`（真引擎生涯，每个年轻球员的 XP 预置成「差 10 点升级」，所以**只要结算过一场就必有人升级**）：桌面+手机的「一键打完」、「推进一轮」、「从赛季开头一键」47/47。变异：三个入口不传回调 → 3 条干净的 FAIL（结果卡没出现）；去掉常规赛那段结算 → FAIL。
+- **变异出来的两个发现**：(a) `advanceConf` 开头那个通用循环已经把当前这一轮的系列赛全模拟完了，round 2 / round 3 分支里自带的两行 `for … simPlayoffSeries` 到达时系列赛都 `done`，**永远是空操作**——原本就存在的死代码，我没传 `opts` 也没删（改了测不到）。(b) 我自己的测试有两处错：夹具没设 `finalist`，`advancePlayoffs` 根本没模拟决赛，`0 === 0` 恒真（改成 `calls >= 4`）；另一条把用户胜场按「谁赢了系列赛」换算，用户是低种子，胜场恒等于 `winsLow`，输了系列赛就红（约 13% 概率，**循环跑 30 次才暴露**）。
+- **没做**：`advancePlayoffs` 一次只推进东部，用户在西部时第一次点「模拟下一轮」不会碰到他的比赛（引擎原本的行为，没动）。
+
+**验证**：全量 1481/1481；lint 0 错误；`git diff --check` 干净。
+**流程小事**：这个 worktree 是游离 HEAD，`git push origin main` 会被判非快进（本地 `main` 分支是旧的），要 `git push origin HEAD:main`。`index.html` 的 `app.js?v=20261024t14` 最近几个改 `app.js` 的提交都没 bump，我没动（发布侧的事，已在板上提）。
