@@ -159,12 +159,14 @@ html[lang="en"] .topbar .brand-name { display: none; }
 .legend-tile figcaption {
   position: absolute;
   inset: auto 0 0 0;
-  padding: 18px 8px 6px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, .85));
+  padding: 30px 8px 7px;
+  /* tall + dark enough that white text stays legible over a white jersey or a halftone background */
+  background: linear-gradient(transparent, rgba(0, 0, 0, .6) 38%, rgba(0, 0, 0, .92));
   color: #fff;
   line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .7);
 }
-.legend-tile figcaption strong { display: block; font-size: .78rem; }
+.legend-tile figcaption strong { display: block; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .legend-tile figcaption span { font-size: .66rem; color: var(--gold); }
 
 /* —— Account / save bars —— */
@@ -325,6 +327,8 @@ html[lang="en"] .topbar .brand-name { display: none; }
   .topbar .tagline { display: none; }
   .legends-wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .legend-tile:nth-child(n + 7) { display: none; }
+  .legend-tile figcaption strong { font-size: .68rem; }  /* 7-character names must fit a ~95px tile on one line */
+  .legend-tile figcaption span { font-size: .62rem; }
   #screen-home .mode-card.has-photo { padding-right: 96px; }
   #screen-home .mode-card-feature.has-photo { padding-right: 120px; }
   .mode-card-photo { width: 104px; }

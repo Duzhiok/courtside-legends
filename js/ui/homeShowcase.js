@@ -7,15 +7,15 @@
 import { resolveCardPhoto } from "../data/photo.js";
 
 export const HOME_LEGENDS = [
-  { bref: "jordami01", season: 1991, name: "迈克尔·乔丹", era: "90 年代" },
-  { bref: "birdla01", season: 1986, name: "拉里·伯德", era: "80 年代" },
-  { bref: "abdulka01", season: 1980, name: "贾巴尔", era: "80 年代" },
-  { bref: "olajuha01", season: 1994, name: "奥拉朱旺", era: "90 年代" },
-  { bref: "onealsh01", season: 2000, name: "奥尼尔", era: "00 年代" },
-  { bref: "bryanko01", season: 2008, name: "科比·布莱恩特", era: "00 年代" },
-  { bref: "jamesle01", season: 2013, name: "勒布朗·詹姆斯", era: "10 年代" },
-  { bref: "curryst01", season: 2016, name: "斯蒂芬·库里", era: "10 年代" },
-  { bref: "jokicni01", season: 2023, name: "尼古拉·约基奇", era: "20 年代" },
+  { bref: "jordami01", season: 1991, name: "迈克尔·乔丹", era: "1990 年代" },
+  { bref: "birdla01", season: 1986, name: "拉里·伯德", era: "1980 年代" },
+  { bref: "abdulka01", season: 1980, name: "贾巴尔", era: "1980 年代" },
+  { bref: "olajuha01", season: 1994, name: "奥拉朱旺", era: "1990 年代" },
+  { bref: "onealsh01", season: 2000, name: "奥尼尔", era: "2000 年代" },
+  { bref: "bryanko01", season: 2008, name: "科比·布莱恩特", era: "2000 年代" },
+  { bref: "jamesle01", season: 2013, name: "勒布朗·詹姆斯", era: "2010 年代" },
+  { bref: "curryst01", season: 2016, name: "斯蒂芬·库里", era: "2010 年代" },
+  { bref: "jokicni01", season: 2023, name: "尼古拉·约基奇", era: "2020 年代" },
 ];
 
 /** Parse "bref:season" from a data attribute into an era photo URL. */

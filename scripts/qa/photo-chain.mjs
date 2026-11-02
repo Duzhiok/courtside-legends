@@ -79,6 +79,9 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   const visible = tiles.filter((t) => t.visible);
   check(`[${tag}] wall draws all 9 legends in the DOM`, tiles.length === 9, `${tiles.length}`);
   check(`[${tag}] every visible tile really loaded a picture`, visible.length >= 6 && visible.every((t) => t.ok), `${visible.filter((t) => t.ok).length}/${visible.length} visible`);
+  const captions = await page.$$eval("#home-legends-wall .legend-tile", (nodes) => nodes.filter((t) => t.offsetParent).map((t) => ({ name: t.querySelector("strong").textContent, cut: (() => { const el = t.querySelector("strong"); const r = document.createRange(); r.selectNodeContents(el); const lines = new Set([...r.getClientRects()].map((q) => Math.round(q.top))).size; return lines > 1 || el.scrollWidth > el.clientWidth + 1; })(), era: t.querySelector("span").textContent })));
+  check(`[${tag}] no legend name wraps onto a second line or is clipped (科比·布莱恩特 must fit)`, captions.length >= 6 && captions.every((c) => !c.cut), captions.filter((c) => c.cut).map((c) => c.name).join(","));
+  check(`[${tag}] every era label is a full decade ("2000 年代", not "00 年代")`, captions.every((c) => /^\d{4} 年代$/.test(c.era)), captions.map((c) => c.era).join(" | "));
   const srcOf = (needle) => tiles.find((t) => t.name.includes(needle))?.src || "";
   check(`[${tag}] Jordan / Bird / Jokić use the credited photos`, /Michael_Jordan_\(1997\)/.test(srcOf("乔丹")) && /Larry_Bird_Lipofsky/.test(srcOf("伯德")) && /Nikola_Jokic_\(51914124577\)/.test(srcOf("约基奇")));
   const modeSrcs = await page.$$eval(".mode-card-photo img", (n) => n.map((i) => decodeURIComponent(i.src)));
