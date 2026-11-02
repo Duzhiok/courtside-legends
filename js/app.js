@@ -8177,8 +8177,13 @@ function renderSeasonRotation() {
           starter ? "checked" : ""
         } />首发</label>
         <div class="rot-name">
-          <div class="rot-name-line"><span class="rot-pos-chip pos-${cardPos.toLowerCase()}">${cardPos}</span><strong>${p.name}</strong></div>
-          <div class="tiny">OVR ${overall(p)} · ${p.season} · ${staminaMinuteHint(p)}</div>
+          ${photoImg(p)}
+          <div class="rot-name-text">
+            <div class="rot-name-line"><span class="rot-pos-chip pos-${cardPos.toLowerCase()}">${cardPos}</span><strong>${p.name}</strong></div>
+            <div class="tiny">OVR ${overall(p)} · ${p.season} · ${staminaMinuteHint(p)}</div>
+            <div class="tiny rot-attrs">攻${p.scoring} 三分${p.three ?? "—"} 防${p.defense} 板${p.rebound} 传${p.pass} 断${p.steal ?? "-"} 帽${p.block ?? "-"} 速${p.speed} 力${p.strength ?? "-"}</div>
+            ${p.skills?.length ? `<div class="skill-row">${skillChipsHtml(p, getLang())}</div>` : ""}
+          </div>
         </div>
         <select class="rot-pos" title="上场位置">${posOpts}</select>
         <select class="rot-role" title="角色">${roleOpts}</select>

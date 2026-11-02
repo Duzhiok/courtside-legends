@@ -312,6 +312,46 @@ function compactTransactions(season, includeLegacy) {
     });
 }
 
+function compactTrophyPlayer(player) {
+  return {
+    bref: player?.bref || null,
+    season: Number.isInteger(player?.season) ? player.season : null,
+    name: String(player?.name || ""),
+    pos: String(player?.pos || ""),
+  };
+}
+
+/**
+ * v1 冠军墙：只有本队夺冠才记录。决赛对手 + 冠军视角的比分 + 夺冠阵容快照。
+ * 决赛数据不全时宁可不记——旧存档本就没有这项，视图遇到缺失直接跳过，不会炸。
+ */
+function buildChampionshipTrophy(season, teamId) {
+  const finals = season.playoffs?.finals;
+  if (!finals || finals.winnerId !== teamId) return null;
+  const championIsHigh = finals.high?.id === teamId;
+  const championIsLow = finals.low?.id === teamId;
+  if (!championIsHigh && !championIsLow) return null;
+  const opponentId = championIsHigh ? finals.low?.id : finals.high?.id;
+  if (!opponentId) return null;
+  const winsHigh = Number.isFinite(finals.winsHigh) ? finals.winsHigh : 0;
+  const winsLow = Number.isFinite(finals.winsLow) ? finals.winsLow : 0;
+  const championWins = championIsHigh ? winsHigh : winsLow;
+  const championLosses = championIsHigh ? winsLow : winsHigh;
+  const opponentName =
+    season.teams?.[opponentId]?.name
+    || season.league?.labels?.[opponentId]
+    || opponentId;
+  const roster = (season.teams?.[teamId]?.players || [])
+    .filter((player) => player && typeof player.name === "string" && player.name)
+    .map(compactTrophyPlayer);
+  return {
+    opponentId,
+    opponentName,
+    seriesScore: `${championWins}-${championLosses}`,
+    roster,
+  };
+}
+
 export function annualSummary(season, { includeLegacyTransactions = false } = {}) {
   const teamId = season.userTeamId;
   const record = season.standings?.[teamId];
@@ -354,6 +394,9 @@ export function annualSummary(season, { includeLegacyTransactions = false } = {}
     },
     transactions: compactTransactions(season, includeLegacyTransactions),
   };
+  // 只有本队夺冠的赛季才长出 trophy 键；其余赛季形状与旧版完全一致。
+  const trophy = buildChampionshipTrophy(season, teamId);
+  if (trophy) summary.trophy = trophy;
   return summary;
 }
 

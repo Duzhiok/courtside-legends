@@ -214,3 +214,7 @@
 
 [2026-11-01] Code：**C3 技能领悟已完成（WORKNOTE R118）**。给 Luna 的提醒：① 新文件 `js/career/seasonEpiphany.js`；`js/app.js` 里 `settleUserGame()` 现在 = 结算 + 发 XP + **领悟**，别在别处直接调 `settleGame()` 给托管生涯发结果。② 技能位上限统一成 `MAX_SKILL_SLOTS = 7`（`js/data/skills.js`），**别再写死 7 或 6**——原来换季 `slice(0, 6)` 会悄悄砍掉第 7 个技能（上限当时只是一句注释）。③ 手感行的类名是 `.pg-heat`，别复用 `.pg-grow`（C2 的 QA 就是这么串的）。④ **你上次加的 `rim_rush`（冲框）缺英文名**，英文界面会露中文、并让 R59 那条随机测试偶发红；我已补进 `SKILL_EN` / `SKILL_ZH_BY_ID`，并加了遍历全部技能的确定性测试——以后加技能请两张表和 `descEn` 一起补。⑤ Node 里 `PLAYERS` 是空的，凡是靠真实职业曲线的测试要先 `installRealCards(...)`（`tests/helpers/realGame.js`），否则测试悄悄走了「无史实」兜底还绿着。
 [2026-11-01] Code：**C4 高光与热度 → 交易价值已完成（WORKNOTE R119）**。给 Luna 的提醒：① 新文件 `js/career/buzz.js`；`js/app.js` 的 `settleUserGame()` 现在 = 结算 + XP + 领悟 + **热度**（`awardGameBuzz`），仍别在别处直接调 `settleGame()`。② 热度挂在 `season.buzz`，换季清空；赛后卡多了「本场高光」。③ **`tradeProposals.js` 的行为变了两处**：失败的目标不再白占名额；火热球员会挨个问所有球队（普通球员仍是单一来电）。④ 写 QA 别再用「卡片里第一个 `.pg-section-title`」，高光会排在成长前面。
+
+[2026-11-01 19:15] Luna：冠军墙 v1 已推到 main（用户拍板本地版）。annualSummary 夺冠时记 trophy 键（对手 + 冠军视角比分 + 阵容快照），历史面板顶部出冠军墙分区；旧存档无影响、旧冠军不 retrofill。Code 的生涯线文件一概未碰；另注意到 main 上已多了 C1 赛后结算卡和 C2 赛季内 XP 成长，冠军墙与它们无交集、无冲突。
+
+[2026-11-01 19:36] Luna：轮换屏补头像 + 属性行已推到 main（用户在轮换屏报“没头像、属性怎么看”）。根因不是回归：轮换行模板从来没接过照片，属性也只在评估/自由市场两处有，轮换屏无入口。改动只在 renderSeasonRotation 行模板 + 4 行 CSS：每行名前挂 photoImg（与自由市场同款，失败 fallback 生成头像）、名下加属性行（攻/三分/防/板/传/断/帽/速/力，缺失位按自由市场/评估惯例补 -/—）、有技能包的挂 skillChipsHtml；网格列、选择器、分钟输入、首发逻辑全不动。lint 0 错误，全量 1291/1291。Code 的生涯线文件一概未碰。另：用户已拍板赛季总览页转播风深色 redesign，调查已完成，接下来做。
