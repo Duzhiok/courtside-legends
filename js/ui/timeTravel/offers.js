@@ -2,6 +2,7 @@ import {
   REEMPLOYMENT_FULL_BOARD_REPUTATION,
   REEMPLOYMENT_LIMITED_BOARD_REPUTATION,
 } from "../../career/balance.js";
+import { offerText } from "../../career/contractOffers.js";
 import { icon } from "./icons.js";
 import { teamNameL } from "../../i18n.js";
 import { clamp, esc, gaugeTone, tr } from "./format.js";
@@ -126,12 +127,13 @@ const TIER_TONE = {
 
 /** A renewal offer as a comparable card: years / salary / authority up front, perks as chips. */
 export function contractOfferCardHtml(offer, lang = "zh") {
-  const perks = offer.privileges?.length
-    ? offer.privileges.map((perk) => `<span class="tt-perk">${icon("check", { size: 12 })}${esc(perk)}</span>`).join("")
+  const text = offerText(offer, lang);
+  const perks = text.privileges?.length
+    ? text.privileges.map((perk) => `<span class="tt-perk">${icon("check", { size: 12 })}${esc(perk)}</span>`).join("")
     : `<span class="tt-perk tt-perk-none">${esc(tr(lang, "无（先证明自己）", "None (prove yourself first)"))}</span>`;
   return `<button type="button" class="tt-contract" role="radio" aria-checked="false" data-offer-id="${esc(offer.id)}" data-tier="${esc(TIER_TONE[offer.id] || "grey")}">
-    <span class="tt-contract-title">${icon("scroll", { size: 16 })}<strong>${esc(offer.title)}</strong></span>
-    <span class="tt-contract-desc">${esc(offer.description)}</span>
+    <span class="tt-contract-title">${icon("scroll", { size: 16 })}<strong>${esc(text.title)}</strong></span>
+    <span class="tt-contract-desc">${esc(text.description)}</span>
     <span class="tt-contract-nums">
       <span><b>${esc(offer.years)}</b><i>${esc(tr(lang, "年", "yrs"))}</i></span>
       <span><b>¤${esc(offer.salary)}</b><i>${esc(tr(lang, "年薪", "salary"))}</i></span>

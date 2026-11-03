@@ -59,6 +59,13 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     check(`[${tag}] both offers list their privileges`, offers.every((t) => /特权|训练|预算|优先|补强|额度/.test(t)), offers[0]?.slice(0, 90));
     check(`[${tag}] renewal card has no horizontal overflow`, await noOverflow(page));
     await page.screenshot({ path: `${OUT}/${tag}-renewal.png` });
+    // English renewal cards: the same two offers re-rendered, no Chinese, English labels kept.
+    await page.click("#btn-lang");
+    await page.waitForFunction(() => document.querySelector("#time-travel-contract:not([hidden])"));
+    const offersEn = await page.$$eval("#time-travel-contract-options button", (els) => els.map((e) => e.textContent.replace(/\s+/g, " ")));
+    check(`[${tag}] renewal cards in English have no Chinese`, offersEn.length === 2 && offersEn.every((t) => !/[\u3400-\u9fff]/.test(t)), offersEn.join(" | "));
+    check(`[${tag}] renewal cards in English keep yrs, authority and Perks labels`, offersEn.every((t) => /yrs/.test(t) && /authority/.test(t) && /Perks/.test(t)), offersEn.join(" | "));
+    await page.click("#btn-lang");
     await page.click("#time-travel-contract-options button:first-child");
     await page.click("#time-travel-contract .tt-confirm [data-act=confirm]");
     await page.waitForFunction(() => document.querySelector("#time-travel-contract")?.hidden, null, { timeout: 5000 });

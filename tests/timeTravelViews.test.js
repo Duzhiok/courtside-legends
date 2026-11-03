@@ -267,6 +267,19 @@ test("contract cards: perks as chips, an empty perk list says so, authority is s
   assert.match(trial, /data-tier="grey"/);
 });
 
+test("contract cards in English read by offer id, so old saves with Chinese strings still render English", () => {
+  const CJK = /[\u4e00-\u9fff]/;
+  const en = contractOfferCardHtml({ id: "rebuild-extension", title: "重建续约", description: "老板愿意给你长期时间和更大权限，但薪资保守。", years: 4, salary: 7, authority: 88, privileges: ["自定义训练计划", "发展联盟优先权"] }, "en");
+  assert.match(en, /Rebuild Extension/);
+  assert.match(en, /Custom training plan/);
+  assert.match(en, /Perks/);
+  assert.match(en, /yrs/);
+  assert.match(en, /authority/);
+  assert.ok(!CJK.test(en), "no Chinese leaks into the English card");
+  const unknown = contractOfferCardHtml({ id: "mystery-extension", title: "神秘续约", description: "d", years: 3, salary: 9, authority: 50, privileges: ["神秘特权"] }, "en");
+  assert.match(unknown, /神秘续约/, "an unknown id falls back to the offer's own fields");
+});
+
 // ---------------------------------------------------------------- notices + thin-ice warning
 test("notices point a fired/departed coach at the job hunt and no longer talk about 'five years'", () => {
   for (const status of ["fired", "departed"]) {
