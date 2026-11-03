@@ -28,6 +28,8 @@ import {
   skillDuoKickTargetMult,
   skillBlockResist,
   skillKickOpenBonus,
+  skillHotSwingMult,
+  skillHotEffectMult,
   applySkillAttributeBoosts,
   trySignatureBlock,
   trySignatureOffense,
@@ -2708,11 +2710,12 @@ function moodLabel(mood, lang = "zh") {
 }
 
 function registerShotFeel(baller, made) {
+  const swing = skillHotSwingMult(baller); // 神经刀：每次命中/未中都跃得更大，教人更快触到极热/极冷
   if (made) {
-    baller.hot = clamp((baller.hot || 0) + 1, -3, 3);
+    baller.hot = clamp((baller.hot || 0) + swing, -3, 3);
     baller.mood = clamp((baller.mood ?? 50) + 4 + Math.max(0, baller.hot), 15, 95);
   } else {
-    baller.hot = clamp((baller.hot || 0) - 1, -3, 3);
+    baller.hot = clamp((baller.hot || 0) - swing, -3, 3);
     baller.mood = clamp((baller.mood ?? 50) - 3 - (baller.hot < 0 ? 1 : 0), 15, 95);
   }
 }
@@ -4171,7 +4174,7 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
   base *= 1 + (off.temp.offense || 0) * 0.7;
   base *= 1 - (def.temp.defense || 0) * 0.85;
   // Live feel / mood (keep present, don't balloon eFG%)
-  base *= 1 + (baller.hot || 0) * 0.008;
+  base *= 1 + (baller.hot || 0) * 0.008 * skillHotEffectMult(baller); // 神经刀：热时更热，冷时更冷
   base *= 1 + ((baller.mood ?? 50) - 50) * 0.001;
   // Philosophy: hunt opportunities (not flat make buff)
   const hunt = offenseHuntLevel(off.coach, baller);

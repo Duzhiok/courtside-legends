@@ -44,6 +44,13 @@ export const SKILL_PACKS = {
     descEn: "Perimeter shooting stays steadier",
     tone: "gold",
   },
+  nerve_blade: {
+    id: "nerve_blade",
+    name: "神经刀",
+    desc: "手感来了能连中好几个离谱的高难度出手，但整体并不稳定——冷热全看今晚运气，大起大落。比普通人更容易连中或连未中，仅属于那种“扴开就不停”的开火型射手（J.R. Smith、Nick Young、DeShawn Stevenson…）",
+    descEn: "When it's going in, can string together a run of ridiculous, highly contested shots -- but night to night it's a coin flip, hot or ice cold. Swings hotter and colder than anyone else -- only for the gunners who never stop pulling the trigger (J.R. Smith, Nick Young, DeShawn Stevenson...)",
+    tone: "gold",
+  },
   paint_bully: {
     id: "paint_bully",
     name: "篮下暴君",
@@ -989,6 +996,10 @@ export const SIGNATURE_SKILLS = {
   barklch01: ["paint_bully", "board_man", "coast_to_coast"],
   malonka01: ["paint_bully", "mid_maestro", "motor_engine"],
   malonmo01: ["paint_bully", "board_man", "motor_engine"],
+  // 神经刀型远程手：手感来时连中离谱高难度出手，整体效率却一直既感
+  smithjr01: ["nerve_blade", "rainmaker"],
+  youngni01: ["nerve_blade", "freeze_iso"],
+  stevede01: ["nerve_blade"],
   // DeMarcus Cousins — 天赋内线 + 暴躁，既能砸进禁区硬碰硬，也有真实历史上被低估的指尖柔拨手感。
   // 注意：paint_bully 是 curatedOnly 技能，必须登记在这张 SIGNATURE_SKILLS 表里才能存活，
   // 之前整个列表被放在下面的 TRAIT_SKILLS 里，导致 paint_bully 一直被 canRetainSkill 悔掉。
@@ -1544,6 +1555,10 @@ function candidateSkills(p) {
   // dime_dropper is manual-only (SIGNATURE_SKILLS): passing magic must stay
   // scarce — the generic roll pool used to hand it to 225 players.
   if (/shooter|spacing/.test(a) || (p.three || 0) >= 88) cands.add("rainmaker");
+  // 神经刀：三分达到一定量但手感不到顶尖的开火型射手（three 在中间档，不是库里/克莱/雷·阿伦这种稳定神准）
+  if (!isBig && (p.threeTend || 0) >= 85 && (p.three || 0) >= 60 && (p.three || 0) <= 86 && (p.scoring || 0) >= 60) {
+    cands.add("nerve_blade");
+  }
   if (!isBig && (/pest|two_way/.test(a) || (p.defense || 0) >= 88)) cands.add("lockdown");
   if ((p.steal || 0) >= 85 || (p.raw?.spg || 0) >= 2.2) cands.add("thief");
   if ((p.block || 0) >= 85 || (p.raw?.bpg || 0) >= 2.5) cands.add("rim_protector");
@@ -2679,6 +2694,17 @@ function isMobileChaser(defender) {
   if (hasSkill(defender, "glove")) return true;
   if (hasSkill(defender, "thief") && (defender.speed || 50) >= 70) return true;
   return false;
+}
+
+/**
+ * 神经刀：每次命中/未中都把手感 streak、「热」对命中率的影响都放大——平均命中率基本不变，方差大幅增加，
+ * 这才是“大起大落”的正确设计：不是简单变强，而是突然无意识连中或连续打铁都更容易。
+ */
+export function skillHotSwingMult(baller) {
+  return hasSkill(baller, "nerve_blade") ? 2 : 1;
+}
+export function skillHotEffectMult(baller) {
+  return hasSkill(baller, "nerve_blade") ? 3 : 1;
 }
 
 export function skillOpennessDelta(baller, defender, off) {

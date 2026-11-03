@@ -182,3 +182,19 @@ test("Tony Parker has 挡拆高手 in every season, and it stays his alone", () 
     }
   }
 });
+
+test("神经刀: J.R. Smith, Nick Young and DeShawn Stevenson carry it in every season", () => {
+  for (const bref of ["smithjr01", "youngni01", "stevede01"]) {
+    const cards = cardsOf(bref);
+    assert.ok(cards.length >= 1, `${bref} has no cards`);
+    for (const card of cards) assert.ok(card.skills.includes("nerve_blade"), `${bref} ${card.season} lacks 神经刀`);
+  }
+});
+
+test("神经刀: an elite, steady sniper never gets it (Curry/Klay/Korver/Ray Allen/Redick all land above the gunner band)", () => {
+  for (const bref of ["curryst01", "thompkl01", "korveky01", "allenra02", "redicjj01"]) {
+    for (const card of cardsOf(bref)) {
+      assert.ok(!card.skills.includes("nerve_blade"), `${bref} ${card.season} should not have 神经刀 (three=${card.three})`);
+    }
+  }
+});

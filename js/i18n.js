@@ -113,6 +113,7 @@ export function applyStaticLang(root = document.body) {
 export const SKILL_EN = {
   clutch_killer: "Clutch Killer", mid_maestro: "Mid-Range Maestro", freeze_iso: "Unstoppable Iso",
   dime_dropper: "Dime Magician", rainmaker: "Rain Maker", paint_bully: "Paint Bully",
+  nerve_blade: "Live Wire",
   lockdown: "Lockdown", thief: "Pickpocket Pro", rim_protector: "Rim Protector",
   motor_engine: "Everlasting Motor", iron_lungs: "Iron Lungs", iron_body: "Iron Man",
   gravity_well: "Gravity Well", ankle_breaker: "Ankle Breaker", rhythm_master: "Rhythm Master",
@@ -146,7 +147,7 @@ export const SKILL_EN = {
 
 const SKILL_ZH_BY_ID = {
   clutch_killer: "杀手时刻", mid_maestro: "中投大师", freeze_iso: "无解单打", dime_dropper: "传球魔术",
-  rainmaker: "三分雨", paint_bully: "篮下暴君", lockdown: "铁壁盯防", thief: "盗球鬼才",
+  rainmaker: "三分雨", nerve_blade: "神经刀", paint_bully: "篮下暴君", lockdown: "铁壁盯防", thief: "盗球鬼才",
   rim_protector: "护框神", motor_engine: "永动机", iron_lungs: "铁肺", iron_body: "铁人",
   gravity_well: "引力黑洞", ankle_breaker: "脚踝收割", rhythm_master: "节奏大师", positionless: "全能",
   sticky_wrap: "缠绕盯防", death_wrap: "死亡缠绕", stopper_3d: "持球克星·3D", charge_taker: "造进攻犯规",
