@@ -2532,11 +2532,17 @@ function ensureUniqueRosterIds(roster) {
   }
 }
 
-function shortTeamTag(teamName, side, otherName, lang = "zh") {
+export function shortTeamTag(teamName, side, otherName, lang = "zh") {
   const short = (n) => {
     const s = String(n || "").trim();
     if (!s) return lang === "en" ? (side === "home" ? "H" : "A") : side === "home" ? "主" : "客";
-    if (/[\u4e00-\u9fff]/.test(s)) return s.length <= 2 ? s : s.slice(-2);
+    if (/[\u4e00-\u9fff]/.test(s)) {
+      // Shorten to the last two CHINESE characters, not the last two raw ones: the
+      // user team's display name ends in " ***" (league.js defaultDisplayName), so a
+      // raw slice(-2) produced "**" and the broadcast showed "**·某某".
+      const cjk = s.replace(/[^\u4e00-\u9fff]/g, "");
+      return cjk.length <= 2 ? cjk : cjk.slice(-2);
+    }
     return s.length <= 4 ? s : s.slice(0, 3);
   };
   const a = short(teamName);
