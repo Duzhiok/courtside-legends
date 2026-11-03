@@ -89,14 +89,17 @@ export function historicalUpside(player) {
   };
 }
 
-export function historicalUpsideHint(player) {
+export function historicalUpsideHint(player, lang = "zh") {
   const u = historicalUpside(player);
   if (!u || u.delta < 4) return "";
+  const en = lang === "en";
   const nextBit =
     u.nextSeason && u.nextOvr != null
-      ? ` · 下季史实约 OVR ${u.nextOvr}（${u.nextSeason}）`
+      ? en ? ` · next season's real OVR about ${u.nextOvr} (${u.nextSeason})` : ` · 下季史实约 OVR ${u.nextOvr}（${u.nextSeason}）`
       : "";
-  return `潜力峰值 OVR ${u.peak}（${u.peakSeason}，约 +${u.delta}）${nextBit}`;
+  return en
+    ? `Peak OVR ${u.peak} (${u.peakSeason}, about +${u.delta})${nextBit}`
+    : `潜力峰值 OVR ${u.peak}（${u.peakSeason}，约 +${u.delta}）${nextBit}`;
 }
 
 function priorSalary(p) {

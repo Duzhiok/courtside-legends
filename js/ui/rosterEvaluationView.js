@@ -44,7 +44,7 @@ export function evaluateRosterPlayer(player, seasonRow, { salary = 0, ovr = 0, l
     subAttrs: subAttrChipsHtml(player, getLang()),
     nickname: nicknameBadgeHtml(player),
     learned,
-    potential: historicalUpsideHint(player) || "潜力信息不足，需要更多赛季样本。",
+    potential: historicalUpsideHint(player, getLang()) || (getLang() === "en" ? "Not enough season samples for a potential read." : "潜力信息不足，需要更多赛季样本。"),
     abilities: {
       scoring: player.scoring ?? "—",
       three: player.three ?? "—",

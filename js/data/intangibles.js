@@ -1017,23 +1017,24 @@ function schemeHintBonus(player, coach, tactic) {
 }
 
 /** Short UI line: whether this star is unlocked or wasted in current staff/scheme. */
-export function systemFitNote(player, coach, tactic) {
+export function systemFitNote(player, coach, tactic, lang = "zh") {
   if (!player) return "";
+  const en = lang === "en";
   const fit = systemFitScore(player, coach, tactic);
   const value = player.valueArchetype;
   if (value === "overpaid") {
-    if (fit >= 72) return `${player.name}：体系对口，纸面身价能打出来`;
-    if (fit >= 55) return `${player.name}：体系尚可，效率一般偏上`;
-    if (fit >= 40) return `${player.name}：体系一般，高薪未完全兑现`;
-    return `${player.name}：体系不合，纸面强但效率受阻`;
+    if (fit >= 72) return en ? `${player.name}: system fit — plays up to his paper value` : `${player.name}：体系对口，纸面身价能打出来`;
+    if (fit >= 55) return en ? `${player.name}: decent fit, above-average efficiency` : `${player.name}：体系尚可，效率一般偏上`;
+    if (fit >= 40) return en ? `${player.name}: average fit, big salary not fully earned` : `${player.name}：体系一般，高薪未完全兑现`;
+    return en ? `${player.name}: poor fit — strong on paper, held back in practice` : `${player.name}：体系不合，纸面强但效率受阻`;
   }
   if (value === "bargain") {
     // Keep wording neutral — never say「妖人」in UI
-    if (fit >= 70) return `${player.name}：与多数体系都合拍`;
-    return `${player.name}：换体系仍能贡献`;
+    if (fit >= 70) return en ? `${player.name}: fits most systems` : `${player.name}：与多数体系都合拍`;
+    return en ? `${player.name}: still contributes in any system` : `${player.name}：换体系仍能贡献`;
   }
-  if (fit >= 75) return `${player.name}：与当前方针很合拍`;
-  if (fit <= 35) return `${player.name}：与当前方针较拧`;
+  if (fit >= 75) return en ? `${player.name}: fits the current scheme very well` : `${player.name}：与当前方针很合拍`;
+  if (fit <= 35) return en ? `${player.name}: clashes with the current scheme` : `${player.name}：与当前方针较拧`;
   return "";
 }
 
@@ -1161,8 +1162,8 @@ export function playerPrice(p) {
  * 「妖人」默认隐藏；买球探包后可通过 scoutLabel 揭示。
  * 「高薪低能」可直接标注。
  */
-export function valueLabel(p) {
-  if (p.valueArchetype === "overpaid") return "高薪低能";
+export function valueLabel(p, lang = "zh") {
+  if (p.valueArchetype === "overpaid") return lang === "en" ? "Overpaid" : "高薪低能";
   return null;
 }
 
@@ -1199,10 +1200,10 @@ export function isBenchBandit(p) {
 /**
  * Scout-only reveals: 妖人 / 板凳匪徒. Never call unless scout pack is active.
  */
-export function scoutLabel(p) {
+export function scoutLabel(p, lang = "zh") {
   if (!p) return null;
-  if (p.valueArchetype === "bargain") return "妖人";
-  if (isBenchBandit(p)) return "板凳匪徒";
+  if (p.valueArchetype === "bargain") return lang === "en" ? "Gem" : "妖人";
+  if (isBenchBandit(p)) return lang === "en" ? "Bench bandit" : "板凳匪徒";
   return null;
 }
 
@@ -1211,10 +1212,12 @@ export function isHiddenGem(p) {
 }
 
 /** Human-readable salary context for tooltips / meta lines. */
-export function marketMeta(p) {
+export function marketMeta(p, lang = "zh") {
   const m = p.market || estimateMarketContract(p, p.intangibles || {});
   const mil = m.salaryEst >= 1e6 ? `${(m.salaryEst / 1e6).toFixed(1)}M` : `${Math.round(m.salaryEst / 1e3)}K`;
   const avgMil =
     m.leagueAvg >= 1e6 ? `${(m.leagueAvg / 1e6).toFixed(1)}M` : `${Math.round(m.leagueAvg / 1e3)}K`;
-  return `估年薪 ${mil}（当季均薪 ${avgMil} · ${m.salaryMult}×）`;
+  return lang === "en"
+    ? `Est. salary ${mil} (league avg ${avgMil} · ${m.salaryMult}×)`
+    : `估年薪 ${mil}（当季均薪 ${avgMil} · ${m.salaryMult}×）`;
 }

@@ -1,6 +1,14 @@
+import { getLang } from "../i18n.js";
+
 let activeRequest = null;
 
-export function confirmAction(message, { title = "请确认", acceptLabel = "确定", cancelLabel = "取消" } = {}) {
+export function confirmAction(message, { title, acceptLabel, cancelLabel } = {}) {
+  // Defaults follow the current language so callers that only pass a message
+  // (or only title/accept) still get a fully translated dialog.
+  const en = getLang() === "en";
+  title ??= en ? "Please confirm" : "请确认";
+  acceptLabel ??= en ? "Confirm" : "确定";
+  cancelLabel ??= en ? "Cancel" : "取消";
   const dialog = document.querySelector("#app-confirm-dialog");
   const titleEl = document.querySelector("#app-confirm-title");
   const messageEl = document.querySelector("#app-confirm-message");

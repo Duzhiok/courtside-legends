@@ -8345,7 +8345,7 @@ function renderSeasonMarket() {
   const locked = st.phase !== "regular";
 
   if (locked) {
-    box.innerHTML = `<p class="tiny">自由市场 / 裁人 / 交易仅在<strong>常规赛</strong>期间开放。当前阶段：${st.phase}</p>`;
+    box.innerHTML = `<p class="tiny">${L(`自由市场 / 裁人 / 交易仅在<strong>常规赛</strong>期间开放。当前阶段：${st.phase}`, `Free agency, cuts and trades are open during the <strong>regular season</strong> only. Current phase: ${st.phase}`)}</p>`;
     return;
   }
 
@@ -8354,20 +8354,20 @@ function renderSeasonMarket() {
     .sort((a, b) => overall(b) - overall(a))
     .map((p) => {
       const isListed = listedSet.has(p.id);
-      const fit = systemFitNote(p, you.coach, null);
-      const upside = historicalUpsideHint(p);
-      const badge = valueBadgeHtml(valueBadge(p, { owned: true }));
+      const fit = systemFitNote(p, you.coach, null, getLang());
+      const upside = historicalUpsideHint(p, getLang());
+      const badge = valueBadgeHtml(valueBadge(p, { owned: true, lang: getLang() }));
       const learned = epiphanyLearned(p);
       return `<div class="sm-row">
         <div>
           <strong>${p.playPos || p.pos} ${p.name}</strong> ${badge}${learnedBadgeHtml(learned, getLang())}${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
-          <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p)}</div>
+          <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p, getLang())}</div>
           ${fit ? `<div class="tiny">${esc(fit)}</div>` : ""}
           ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
           ${learnedLineHtml(learned, getLang())}
         </div>
         <span class="btn-row">${isListed ? listingPrefSelectHtml(st, p.id) : ""}<button type="button" class="btn small ghost sm-list-trade" data-list-trade="${p.id}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
-        <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">裁掉</button></span>
+        <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">${L("裁掉", "Cut")}</button></span>
       </div>`;
     })
     .join("");
@@ -8381,19 +8381,19 @@ function renderSeasonMarket() {
         you.players.length < SEASON_MAX_ROSTER &&
         pay.payroll + sal <= SEASON_APRON &&
         !(pay.payroll >= SEASON_SALARY_CAP && sal > 90);
-      const upside = historicalUpsideHint(p);
+      const upside = historicalUpsideHint(p, getLang());
       const learned = epiphanyLearned(p);
       return `<div class="sm-row">
         <div>
           <strong>${p.pos} ${p.name}</strong>${learnedBadgeHtml(learned, getLang())}
-          <div class="tiny">OVR ${overall(p)} · ${p.season} · 要价 ${formatSalary(sal)}</div>
-          <div class="tiny">${marketMeta(p)}</div>
+          <div class="tiny">OVR ${overall(p)} · ${p.season} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
+          <div class="tiny">${marketMeta(p, getLang())}</div>
           ${upside ? `<div class="tiny season-pick-upside">${upside}</div>` : ""}
           ${learnedLineHtml(learned, getLang())}
         </div>
         <button type="button" class="btn small primary sm-sign" data-sign="${p.id}" ${
         can ? "" : "disabled"
-      }>签约</button>
+      }>${L("签约", "Sign")}</button>
       </div>`;
     })
     .join("");
@@ -8413,25 +8413,25 @@ function renderSeasonMarket() {
   const staffNow = `
     <div class="sm-row">
       <div>
-        <strong>主教练 · ${hc ? esc(hc.name) : "空缺"}</strong>
+        <strong>${L("主教练", "Head coach")} · ${hc ? esc(hc.name) : L("空缺", "Vacant")}</strong>
         <div class="tiny">${
           hc
-            ? `${esc(coachRecordLabel(hc))} · ${esc(staffMarketLabel(hc))} · 年薪 ${formatSalary(staffSalary(hc))}`
-            : "可从下方应聘名单签约"
+            ? `${esc(coachRecordLabel(hc, getLang()))} · ${esc(staffMarketLabel(hc, getLang()))} · ${L(`年薪 ${formatSalary(staffSalary(hc))}`, `Salary ${formatSalary(staffSalary(hc))}`)}`
+            : L("可从下方应聘名单签约", "Sign from the applicant pool below")
         }</div>
       </div>
-      ${hc ? `<button type="button" class="btn small ghost" id="btn-sm-fire-coach">解聘</button>` : ""}
+      ${hc ? `<button type="button" class="btn small ghost" id="btn-sm-fire-coach">${L("解聘", "Fire")}</button>` : ""}
     </div>
     <div class="sm-row">
       <div>
-        <strong>助教 · ${asst ? esc(asst.name) : "空缺"}</strong>
+        <strong>${L("助教", "Assistant")} · ${asst ? esc(asst.name) : L("空缺", "Vacant")}</strong>
         <div class="tiny">${
           asst
-            ? `${esc(staffMarketLabel(asst))} · 年薪 ${formatSalary(staffSalary(asst))}`
-            : "可从下方应聘名单签约"
+            ? `${esc(staffMarketLabel(asst, getLang()))} · ${L(`年薪 ${formatSalary(staffSalary(asst))}`, `Salary ${formatSalary(staffSalary(asst))}`)}`
+            : L("可从下方应聘名单签约", "Sign from the applicant pool below")
         }</div>
       </div>
-      ${asst ? `<button type="button" class="btn small ghost" id="btn-sm-fire-asst">解聘</button>` : ""}
+      ${asst ? `<button type="button" class="btn small ghost" id="btn-sm-fire-asst">${L("解聘", "Fire")}</button>` : ""}
     </div>`;
   const coachFaRows = staffCoaches
     .map((c) => {
@@ -8441,14 +8441,14 @@ function renderSeasonMarket() {
       return `<div class="sm-row">
         <div>
           <strong>${esc(c.name)}</strong>
-          <span class="chip tiny">${esc(c.style || "主帅")}</span>
-          <div class="tiny">${c.season || ""} · ${esc(coachRecordLabel(c))} · 要价 ${formatSalary(sal)}</div>
-          <div class="tiny">${esc(staffMarketLabel(c))}</div>
+          <span class="chip tiny">${esc(c.style || L("主帅", "Head coach"))}</span>
+          <div class="tiny">${c.season || ""} · ${esc(coachRecordLabel(c, getLang()))} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
+          <div class="tiny">${esc(staffMarketLabel(c, getLang()))}</div>
           <div class="tiny">${esc(c.note || "")}</div>
         </div>
         <button type="button" class="btn small primary sm-hire-coach" data-hire-coach="${c.id}" ${
         can ? "" : "disabled"
-      }>${hc ? "换帅" : "聘用"}${can ? "" : "·超帽"}</button>
+      }>${hc ? L("换帅", "Replace") : L("聘用", "Hire")}${can ? "" : L("·超帽", " · over cap")}</button>
       </div>`;
     })
     .join("");
@@ -8460,116 +8460,115 @@ function renderSeasonMarket() {
       return `<div class="sm-row">
         <div>
           <strong>${esc(a.name)}</strong>
-          <span class="chip tiny">${esc(a.role || "助教")}</span>
-          <div class="tiny">${a.season || ""} · 要价 ${formatSalary(sal)}</div>
-          <div class="tiny">${esc(staffMarketLabel(a))}</div>
+          <span class="chip tiny">${esc(a.role || L("助教", "Assistant"))}</span>
+          <div class="tiny">${a.season || ""} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
+          <div class="tiny">${esc(staffMarketLabel(a, getLang()))}</div>
           <div class="tiny">${esc(a.note || "")}</div>
         </div>
         <button type="button" class="btn small primary sm-hire-asst" data-hire-asst="${a.id}" ${
         can ? "" : "disabled"
-      }>${asst ? "更换" : "聘用"}${can ? "" : "·超帽"}</button>
+      }>${asst ? L("更换", "Replace") : L("聘用", "Hire")}${can ? "" : L("·超帽", " · over cap")}</button>
       </div>`;
     })
     .join("");
 
   box.innerHTML = `
     <div class="sm-cap-card">
-      <h4>工资帽</h4>
-      <p>名单 <strong>${pay.n}</strong>/${SEASON_MAX_ROSTER}（最少 ${SEASON_MIN_ROSTER}）·
-        薪资 <strong>${formatSalary(pay.payroll)}</strong> /
-        软帽 ${SEASON_SALARY_CAP} /
-        硬帽 ${SEASON_APRON}</p>
-      <p class="tiny">球员 ${formatSalary(pay.playersPay || 0)} · 主帅 ${formatSalary(pay.coachPay || 0)} · 助教 ${formatSalary(
+      <h4>${L("工资帽", "Salary cap")}</h4>
+      <p>${L(`名单 <strong>${pay.n}</strong>/${SEASON_MAX_ROSTER}（最少 ${SEASON_MIN_ROSTER}）`, `Roster <strong>${pay.n}</strong>/${SEASON_MAX_ROSTER} (min ${SEASON_MIN_ROSTER})`)} ·
+        ${L(`薪资 <strong>${formatSalary(pay.payroll)}</strong>`, `Payroll <strong>${formatSalary(pay.payroll)}</strong>`)} /
+        ${L(`软帽 ${SEASON_SALARY_CAP}`, `soft cap ${SEASON_SALARY_CAP}`)} /
+        ${L(`硬帽 ${SEASON_APRON}`, `hard cap ${SEASON_APRON}`)}</p>
+      <p class="tiny">${L(`球员 ${formatSalary(pay.playersPay || 0)}`, `Players ${formatSalary(pay.playersPay || 0)}`)} · ${L(`主帅 ${formatSalary(pay.coachPay || 0)}`, `Head coach ${formatSalary(pay.coachPay || 0)}`)} · ${L(`助教 ${formatSalary(
         pay.asstPay || 0
-      )} · 剩余空间 ${formatSalary(pay.space)} · 硬帽余量 ${formatSalary(pay.apronRoom)}${
-        pay.overCap ? " · 已超软帽：只能签迷你合同或先腾空间" : ""
+      )}`, `Assistant ${formatSalary(pay.asstPay || 0)}`)} · ${L(`剩余空间 ${formatSalary(pay.space)}`, `Room left ${formatSalary(pay.space)}`)} · ${L(`硬帽余量 ${formatSalary(pay.apronRoom)}`, `Hard-cap room ${formatSalary(pay.apronRoom)}`)}${pay.overCap ? L(" · 已超软帽：只能签迷你合同或先腾空间", " · Over soft cap: only minimum deals, or clear room first") : ""
       }</p>
     </div>
     <section class="sm-staff">
       <header class="sm-fa-head">
-        <h4>教练组 · 应聘 / 自由市场</h4>
-        <button type="button" class="btn small" id="btn-sm-refresh-staff">刷新教练市场</button>
+        <h4>${L("教练组 · 应聘 / 自由市场", "Coaching staff · Applicants / market")}</h4>
+        <button type="button" class="btn small" id="btn-sm-refresh-staff">${L("刷新教练市场", "Refresh coach market")}</button>
       </header>
-      <p class="tiny">主教练与助教年薪计入工资帽。解聘后对方回到应聘池；换帅/换助教会顶替现任。主教练或助教空缺时出战会自动随机 roll 补齐教练组。</p>
+      <p class="tiny">${L("主教练与助教年薪计入工资帽。解聘后对方回到应聘池；换帅/换助教会顶替现任。主教练或助教空缺时出战会自动随机 roll 补齐教练组。", "Head-coach and assistant salaries count against the cap. A fired coach returns to the applicant pool; replacing one bumps the incumbent. If a seat is empty at tip-off, the staff is auto-filled with a random roll.")}</p>
       <div class="sm-list">${staffNow}</div>
       <div class="sm-cols" style="margin-top:10px">
         <section>
-          <h4 class="tiny">主帅应聘</h4>
-          <div class="sm-list sm-fa-list">${coachFaRows || "<p class='tiny'>暂无</p>"}</div>
+          <h4 class="tiny">${L("主帅应聘", "Head-coach applicants")}</h4>
+          <div class="sm-list sm-fa-list">${coachFaRows || `<p class='tiny'>${L("暂无", "None yet")}</p>`}</div>
         </section>
         <section>
-          <h4 class="tiny">助教应聘</h4>
-          <div class="sm-list sm-fa-list">${asstFaRows || "<p class='tiny'>暂无</p>"}</div>
+          <h4 class="tiny">${L("助教应聘", "Assistant applicants")}</h4>
+          <div class="sm-list sm-fa-list">${asstFaRows || `<p class='tiny'>${L("暂无", "None yet")}</p>`}</div>
         </section>
       </div>
     </section>
     <div class="sm-cols">
       <section>
-        <h4>我的阵容 · 裁人</h4>
-        <div class="sm-list">${rosterRows || "<p class='tiny'>空</p>"}</div>
+        <h4>${L("我的阵容 · 裁人", "My roster · Cuts")}</h4>
+        <div class="sm-list">${rosterRows || `<p class='tiny'>${L("空", "Empty")}</p>`}</div>
       </section>
       <section>
         <header class="sm-fa-head">
-          <h4>球员自由市场 · 签约</h4>
-          <button type="button" class="btn small" id="btn-sm-refresh-fa">刷新自由市场</button>
+          <h4>${L("球员自由市场 · 签约", "Player market · Signings")}</h4>
+          <button type="button" class="btn small" id="btn-sm-refresh-fa">${L("刷新自由市场", "Refresh market")}</button>
         </header>
-        <p class="tiny">受薪资空间与硬帽限制。可一边打常规赛赛程一边补强。</p>
-        <div class="sm-list sm-fa-list">${faRows || "<p class='tiny'>暂无</p>"}</div>
+        <p class="tiny">${L("受薪资空间与硬帽限制。可一边打常规赛赛程一边补强。", "Limited by cap room and the hard cap. You can keep strengthening while the regular season runs.")}</p>
+        <div class="sm-list sm-fa-list">${faRows || `<p class='tiny'>${L("暂无", "None yet")}</p>`}</div>
       </section>
     </div>
     <section class="sm-proposals">
-      <header class="sm-fa-head"><h4>收到的交易请求</h4><div class="btn-row"><span class="tiny">${proposals.length ? `${proposals.length} 份待处理` : "暂无新报价"}</span><button type="button" class="btn small" id="btn-refresh-proposals">刷新报价</button></div></header>
+      <header class="sm-fa-head"><h4>${L("收到的交易请求", "Trade offers received")}</h4><div class="btn-row"><span class="tiny">${proposals.length ? L(`${proposals.length} 份待处理`, `${proposals.length} pending`) : L("暂无新报价", "No new offers")}</span><button type="button" class="btn small" id="btn-refresh-proposals">${L("刷新报价", "Refresh offers")}</button></div></header>
       ${unmetListingHintHtml(st, proposals)}
       ${proposals.map((proposal) => `<article class="trade-proposal-card" data-proposal-id="${proposal.id}">
-        <strong>${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}</strong> <span class="chip tiny">${(proposal.round || 1) === 2 ? "第二轮" : "第一轮"}</span>
+        <strong>${L(`${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}`, `${esc(proposal.fromTeamName)} wants ${esc(proposal.targetName)}`)}</strong> <span class="chip tiny">${(proposal.round || 1) === 2 ? L("第二轮", "Round 2") : L("第一轮", "Round 1")}</span>
         <p class="tiny">${esc(proposal.reason)}</p>
-        <div class="tiny">对方球员：${proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；")}</div>
-        <div class="tiny">附带选秀权：${proposal.offerPicks.map((pick) => {
-          const value = estimateDraftPickValue(pick, { currentYear: st.year });
-          return `<span title="${esc(value.explanation)}">${esc(value.label)}（≈ +${value.ovrEquivalent} OVR）</span>`;
-        }).join("、") || "无"}</div>
-        ${(proposal.giveIds?.length || 1) > 1 ? `<div class="tiny">对方还要求我方球员：${proposal.giveIds.slice(1).map((id) => {
+        <div class="tiny">${L("对方球员：", "Their players: ")}${proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；")}</div>
+        <div class="tiny">${L("附带选秀权：", "Picks included: ")}${proposal.offerPicks.map((pick) => {
+          const value = estimateDraftPickValue(pick, { currentYear: st.year, lang: getLang() });
+          return `<span title="${esc(value.explanation)}">${esc(value.label)}${L(`（≈ +${value.ovrEquivalent} OVR）`, ` (≈ +${value.ovrEquivalent} OVR)`)}</span>`;
+        }).join("、") || L("无", "None")}</div>
+        ${(proposal.giveIds?.length || 1) > 1 ? `<div class="tiny">${L("对方还要求我方球员：", "They also want your players: ")}${proposal.giveIds.slice(1).map((id) => {
           const p = you.players.find((x) => x.id === id);
           return p ? `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}` : esc(id);
         }).join("；")}</div>` : ""}
-        ${(proposal.askPickIds?.length ? `<div class="tiny">对方还要求我方选秀权：${proposal.askPickIds.map((id) => {
+        ${(proposal.askPickIds?.length ? `<div class="tiny">${L("对方还要求我方选秀权：", "They also want your picks: ")}${proposal.askPickIds.map((id) => {
           const pick = teamDraftAssets(st, st.userTeamId).find((pk) => pk.id === id);
           if (!pick) return esc(id);
-          const value = estimateDraftPickValue(pick, { currentYear: st.year });
-          return `<span title="${esc(value.explanation)}">${esc(value.label)}（≈ +${value.ovrEquivalent} OVR）</span>`;
+          const value = estimateDraftPickValue(pick, { currentYear: st.year, lang: getLang() });
+          return `<span title="${esc(value.explanation)}">${esc(value.label)}${L(`（≈ +${value.ovrEquivalent} OVR）`, ` (≈ +${value.ovrEquivalent} OVR)`)}</span>`;
         }).join("、")}</div>` : "")}
-        <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${proposal.id}">接受报价</button>${(proposal.round || 1) === 2 ? "" : `<button type="button" class="btn small" data-trade-proposal-action="counter" data-proposal-id="${proposal.id}">再谈谈</button>`}<button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${proposal.id}">拒绝</button></div>
-      </article>`).join("") || `<p class="tiny">最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。</p>`}
+        <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${proposal.id}">${L("接受报价", "Accept")}</button>${(proposal.round || 1) === 2 ? "" : `<button type="button" class="btn small" data-trade-proposal-action="counter" data-proposal-id="${proposal.id}">${L("再谈谈", "Counter")}</button>`}<button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${proposal.id}">${L("拒绝", "Decline")}</button></div>
+      </article>`).join("") || `<p class="tiny">${L("最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。", "No team has offered lately. Once your players string good games together, new offers show up on the next market refresh.")}</p>`}
     </section>
     <section class="sm-trade">
-      <h4>交易（多对多 · 可含选秀权 · 可选三方）</h4>
-      <p class="tiny">勾选我方/对方要换的球员或未来选秀权，多选多。薪资/身价大致配平即可。选好想要的对方球员后点「推荐方案」自动配平。选了第三方就走三方循环：我方勾选 → 对手球队，对手勾选 → 第三方，第三方勾选 → 我方（三方暂不带选秀权）。</p>
-      <p class="tiny">交易窗口：${(() => { const d = tradeDeadlineDay(st); return d == null ? "本赛季无截止日" : `常规赛第 ${d} 天后关闭（当前第 ${st.dayIndex || 0} 天）`; })()} · 本赛季已交易 ${seasonTradeCount(st)} 次（换签不计）。</p>
+      <h4>${L("交易（多对多 · 可含选秀权 · 可选三方）", "Trades (multi-for-multi · picks allowed · three-team optional)")}</h4>
+      <p class="tiny">${L("勾选我方/对方要换的球员或未来选秀权，多选多。薪资/身价大致配平即可。选好想要的对方球员后点「推荐方案」自动配平。选了第三方就走三方循环：我方勾选 → 对手球队，对手勾选 → 第三方，第三方勾选 → 我方（三方暂不带选秀权）。", "Tick players or future picks on either side, many for many — salary and value just need to roughly balance. After picking the opponent players you want, hit Recommend to auto-balance. With a third team it becomes a cycle: your picks → opponent, opponent's picks → third team, third team's picks → you (no picks in three-team deals yet).")}</p>
+      <p class="tiny">${L("交易窗口：", "Trade window: ")}${(() => { const d = tradeDeadlineDay(st); return d == null ? L("本赛季无截止日", "No deadline this season") : L(`常规赛第 ${d} 天后关闭（当前第 ${st.dayIndex || 0} 天）`, `Closes after regular-season day ${d} (now day ${st.dayIndex || 0})`); })()} · ${L(`本赛季已交易 ${seasonTradeCount(st)} 次（换签不计）。`, `${seasonTradeCount(st)} trades this season (pick swaps excluded).`)}</p>
       <div class="form-row">
-        <label>对手球队
+        <label>${L("对手球队", "Opponent")}
           <select id="sm-trade-cpu">${cpuOpts}</select>
         </label>
-        <label>第三方球队（可选）
-          <select id="sm-trade-cpu3"><option value="">不选（普通双边）</option>${cpuOpts}</select>
+        <label>${L("第三方球队（可选）", "Third team (optional)")}
+          <select id="sm-trade-cpu3"><option value="">${L("不选（普通双边）", "None (two-team)")}</option>${cpuOpts}</select>
         </label>
       </div>
       <div class="sm-cols" id="sm-trade-cols"></div>
       <div class="btn-row" style="margin-top:8px">
-        <button type="button" class="btn small" id="btn-sm-trade-recommend">推荐方案</button>
-        <button type="button" class="btn primary" id="btn-sm-trade">提出交易</button>
+        <button type="button" class="btn small" id="btn-sm-trade-recommend">${L("推荐方案", "Recommend")}</button>
+        <button type="button" class="btn primary" id="btn-sm-trade">${L("提出交易", "Propose trade")}</button>
       </div>
       <p class="tiny" id="sm-trade-summary"></p>
       <p class="tiny" id="sm-trade-hint"></p>
     </section>
     ${isManagedCareer(state.leagueCareer) ? `<section class="sm-picks">
-      <h4>选秀权交易（上下换签）</h4>
-      <p class="tiny">用我方 ${st.year} 年首轮自然签，换对方同年首轮签：战绩越差的签越值钱，对方按战绩估值，差太多会拒绝。换来的签在赛季末选秀的顺位里生效；一枚签一季只能换一次。</p>
-      <p class="tiny">我方持有 ${st.year} 年首轮签：${picksOwnedBy(st, st.year, st.userTeamId).map((srcId) => srcId === st.userTeamId ? "自然签" : `${st.teams[srcId]?.name || srcId} 的签`).join("、") || "无"}</p>
+      <h4>${L("选秀权交易（上下换签）", "Pick swaps (move up/down)")}</h4>
+      <p class="tiny">${L(`用我方 ${st.year} 年首轮自然签，换对方同年首轮签：战绩越差的签越值钱，对方按战绩估值，差太多会拒绝。换来的签在赛季末选秀的顺位里生效；一枚签一季只能换一次。`, `Swap your ${st.year} natural first-rounder for theirs: the worse the record, the more the pick is worth, and they value it by record — too lopsided and they refuse. A swapped pick takes effect in the end-of-season draft order; one pick can only be swapped once a season.`)}</p>
+      <p class="tiny">${L(`我方持有 ${st.year} 年首轮签：`, `Your ${st.year} first-round picks: `)}${picksOwnedBy(st, st.year, st.userTeamId).map((srcId) => srcId === st.userTeamId ? L("自然签", "Own pick") : L(`${st.teams[srcId]?.name || srcId} 的签`, `${st.teams[srcId]?.name || srcId}'s pick`)).join("、") || L("无", "None")}</p>
       <div class="form-row">
-        <label>对方球队
+        <label>${L("对方球队", "Opponent")}
           <select id="sm-pick-cpu">${cpuOpts}</select>
         </label>
-        <button type="button" class="btn primary" id="btn-sm-pick-swap">提出换签</button>
+        <button type="button" class="btn primary" id="btn-sm-pick-swap">${L("提出换签", "Propose swap")}</button>
       </div>
       <p class="tiny" id="sm-pick-hint"></p>
     </section>` : ""}
@@ -8577,11 +8576,11 @@ function renderSeasonMarket() {
 
   // A club can now hold other clubs' picks, so say whose pick it is when it is not the holder's own.
   const pickLabel = (pk, holderId) => {
-    const v = estimateDraftPickValue(pk, { currentYear: st.year });
+    const v = estimateDraftPickValue(pk, { currentYear: st.year, lang: getLang() });
     const from = pk.sourceTeamId && pk.sourceTeamId !== holderId
-      ? `${esc(st.teams[pk.sourceTeamId]?.name || pk.sourceTeamId)} 的 `
+      ? L(`${esc(st.teams[pk.sourceTeamId]?.name || pk.sourceTeamId)} 的 `, `${esc(st.teams[pk.sourceTeamId]?.name || pk.sourceTeamId)}'s `)
       : "";
-    return `<span title="${esc(v.explanation)}">${from}${esc(v.label)}（≈ +${v.ovrEquivalent} OVR）</span>`;
+    return `<span title="${esc(v.explanation)}">${from}${esc(v.label)}${L(`（≈ +${v.ovrEquivalent} OVR）`, ` (≈ +${v.ovrEquivalent} OVR)`)}</span>`;
   };
   const tradeCheckboxRow = (cls, id, label) =>
     `<label class="sm-row sm-trade-check"><span><input type="checkbox" class="${cls}" value="${id}"> ${label}</span></label>`;
@@ -8608,10 +8607,10 @@ function renderSeasonMarket() {
     const valOut = give.reduce((s, p) => s + overall(p), 0) + givePicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
     const valIn = want.reduce((s, p) => s + overall(p), 0) + wantPicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
     if (!give.length && !want.length && !givePicks.length && !wantPicks.length) {
-      summary.textContent = "勾选两边要换的东西后，这里会显示薪资/身价对比";
+      summary.textContent = L("勾选两边要换的东西后，这里会显示薪资/身价对比", "Tick things on both sides and the salary/value comparison shows here");
       return;
     }
-    summary.textContent = `送出：薪资 ${formatSalary(salOut)} · 身价≈${valOut.toFixed(1)}｜得到：薪资 ${formatSalary(salIn)} · 身价≈${valIn.toFixed(1)}`;
+    summary.textContent = L(`送出：薪资 ${formatSalary(salOut)} · 身价≈${valOut.toFixed(1)}｜得到：薪资 ${formatSalary(salIn)} · 身价≈${valIn.toFixed(1)}`, `Out: salary ${formatSalary(salOut)} · value ≈${valOut.toFixed(1)} | In: salary ${formatSalary(salIn)} · value ≈${valIn.toFixed(1)}`);
   };
 
   const renderTradeCols = () => {
@@ -8627,7 +8626,7 @@ function renderSeasonMarket() {
       .join("");
     // Picks sit after the players inside a scrolling list, so they get their own heading (and the
     // column title says they are there) -- otherwise they read as just more players, below the fold.
-    const pickBlock = (rows, count) => (count ? `<div class="sm-pick-head">选秀权 · ${count}</div>${rows}` : "");
+    const pickBlock = (rows, count) => (count ? `<div class="sm-pick-head">${L("选秀权", "Picks")} · ${count}</div>${rows}` : "");
     const myPickRows = pickBlock(
       myPicksPool.map((pk) => tradeCheckboxRow("sm-give-pick", pk.id, pickLabel(pk, st.userTeamId))).join(""),
       myPicksPool.length,
@@ -8651,18 +8650,18 @@ function renderSeasonMarket() {
           .join("")
       : "";
     const countNote = (players, picks) =>
-      `<span class="sm-count"> · ${players || 0} 名球员${cpu3 || !picks ? "" : ` · ${picks} 个选秀权（列表下方）`}</span>`;
+      `<span class="sm-count"> · ${L(`${players || 0} 名球员`, `${players || 0} players`)}${cpu3 || !picks ? "" : ` · ${L(`${picks} 个选秀权（列表下方）`, `${picks} picks (below the list)`)}`}</span>`;
     cols.innerHTML = `
       <section>
-        <h5 class="tiny">我方送出${cpu3 ? `（→ ${esc(cpu.name)}）` : ""}${countNote(you.players?.length, myPicksPool.length)}</h5>
+        <h5 class="tiny">${L("我方送出", "You send")}${cpu3 ? L(`（→ ${esc(cpu.name)}）`, ` (→ ${esc(cpu.name)})`) : ""}${countNote(you.players?.length, myPicksPool.length)}</h5>
         <div class="sm-list">${myPlayerRows}${cpu3 ? "" : myPickRows}</div>
       </section>
       <section>
-        <h5 class="tiny">对方送出${cpu3 ? `（→ ${esc(cpu3.name)}）` : ""}${countNote(cpu?.players?.length, cpuPicksPool.length)}</h5>
+        <h5 class="tiny">${L("对方送出", "They send")}${cpu3 ? L(`（→ ${esc(cpu3.name)}）`, ` (→ ${esc(cpu3.name)})`) : ""}${countNote(cpu?.players?.length, cpuPicksPool.length)}</h5>
         <div class="sm-list">${cpuPlayerRows}${cpu3 ? "" : cpuPickRows}</div>
       </section>
       ${cpu3 ? `<section>
-        <h5 class="tiny">第三方送出（→ 我方）</h5>
+        <h5 class="tiny">${L("第三方送出（→ 我方）", "Third team sends (→ you)")}</h5>
         <div class="sm-list">${team3Rows}</div>
       </section>` : ""}
     `;
@@ -8706,7 +8705,7 @@ function renderSeasonMarket() {
   box.querySelectorAll(".sm-cut").forEach((btn) => {
     btn.onclick = () => {
       const p = you.players.find((x) => x.id === btn.dataset.cut);
-      if (!p || !confirm(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`)) return;
+      if (!p || !confirm(L(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`, `Cut ${p.name} (${formatSalary(playerSalary(p))})? He'll enter free agency.`))) return;
       const res = cutPlayer(st, p.id);
       if (!res.ok) {
         alert(res.reason);
@@ -8746,7 +8745,7 @@ function renderSeasonMarket() {
     showSeasonTab("market");
   });
   $("#btn-sm-fire-coach")?.addEventListener("click", () => {
-    if (!confirm(`解聘主教练 ${hc?.name || ""}？他将回到应聘池。`)) return;
+    if (!confirm(L(`解聘主教练 ${hc?.name || ""}？他将回到应聘池。`, `Fire head coach ${hc?.name || ""}? He'll return to the applicant pool.`))) return;
     const res = fireCoach(st);
     if (!res.ok) {
       alert(res.reason);
@@ -8757,7 +8756,7 @@ function renderSeasonMarket() {
     showSeasonTab("market");
   });
   $("#btn-sm-fire-asst")?.addEventListener("click", () => {
-    if (!confirm(`解聘助教 ${asst?.name || ""}？`)) return;
+    if (!confirm(L(`解聘助教 ${asst?.name || ""}？`, `Fire assistant ${asst?.name || ""}?`))) return;
     const res = fireAssistant(st);
     if (!res.ok) {
       alert(res.reason);
@@ -8834,11 +8833,11 @@ function renderSeasonMarket() {
     const wantChecked = [...box.querySelectorAll(".sm-want-player:checked")];
     const hint = $("#sm-trade-hint");
     if ($("#sm-trade-cpu3")?.value) {
-      if (hint) hint.textContent = "推荐方案只支持双边交易，请先把第三方设为「不选」";
+      if (hint) hint.textContent = L("推荐方案只支持双边交易，请先把第三方设为「不选」", "Recommendations only support two-team trades — set the third team to None first");
       return;
     }
     if (!tid || !wantChecked.length) {
-      if (hint) hint.textContent = "先勾选你想要的对方球员，再点「推荐方案」";
+      if (hint) hint.textContent = L("先勾选你想要的对方球员，再点「推荐方案」", "Tick an opponent player you want first, then hit Recommend");
       return;
     }
     const rec = recommendTradePackage(st, { cpuTeamId: tid, wantPlayerId: wantChecked[0].value });
@@ -8849,7 +8848,7 @@ function renderSeasonMarket() {
     box.querySelectorAll(".sm-give-player, .sm-give-pick").forEach((el) => {
       el.checked = rec.giveIds.includes(el.value) || rec.givePickIds.includes(el.value);
     });
-    if (hint) hint.textContent = `推荐方案：${rec.note}`;
+    if (hint) hint.textContent = L(`推荐方案：${rec.note}`, `Recommended: ${rec.note}`);
     updateTradeSummary();
   });
   $("#btn-sm-trade")?.addEventListener("click", () => {
@@ -9004,7 +9003,7 @@ function renderSeasonAwards() {
   if (!st || !box) return;
   const a = st.awards;
   if (!a) {
-    box.innerHTML = `<p class="tiny">打完 82 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。奖项只是荣誉，不送技能。</p>`;
+    box.innerHTML = `<p class="tiny">${L("打完 82 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。奖项只是荣誉，不送技能。", "Awards come automatically after 82 games (MVP, DPOY, All-NBA 1st/2nd/3rd, Sixth Man, MIP, ROY, Coach of the Year, scoring champ and more). Awards are honors only — no skills attached.")}</p>`;
     return;
   }
   const teamList = (list, label) =>
@@ -9012,25 +9011,25 @@ function renderSeasonAwards() {
       .map((p) => `<span>${p.pos || ""} ${p.name} <em class="tiny">${p.teamName}</em></span>`)
       .join("") || "—"}</div></div>`;
   box.innerHTML = `
-    <div class="season-award-card"><h4>常规赛 MVP</h4><p>${awardLine(a.mvp)}</p></div>
-    <div class="season-award-card"><h4>最佳防守球员 DPOY</h4><p>${awardLine(a.dpoy)}</p></div>
-    <div class="season-award-card"><h4>最佳第六人</h4><p>${awardLine(a.sixthMan)}</p></div>
-    <div class="season-award-card"><h4>最快进步 MIP</h4><p>${awardLine(a.mip)}</p></div>
-    <div class="season-award-card"><h4>最佳新秀 ROY</h4><p>${awardLine(a.roy)}</p></div>
-    <div class="season-award-card"><h4>最佳教练</h4><p>${
-      a.coty ? `${a.coty.name}（${a.coty.teamName} ${a.coty.w}胜${a.coty.l}负）` : "—"
+    <div class="season-award-card"><h4>${L("常规赛 MVP", "Regular-season MVP")}</h4><p>${awardLine(a.mvp)}</p></div>
+    <div class="season-award-card"><h4>${L("最佳防守球员 DPOY", "Defensive Player of the Year")}</h4><p>${awardLine(a.dpoy)}</p></div>
+    <div class="season-award-card"><h4>${L("最佳第六人", "Sixth Man")}</h4><p>${awardLine(a.sixthMan)}</p></div>
+    <div class="season-award-card"><h4>${L("最快进步 MIP", "Most Improved Player")}</h4><p>${awardLine(a.mip)}</p></div>
+    <div class="season-award-card"><h4>${L("最佳新秀 ROY", "Rookie of the Year")}</h4><p>${awardLine(a.roy)}</p></div>
+    <div class="season-award-card"><h4>${L("最佳教练", "Coach of the Year")}</h4><p>${
+      a.coty ? L(`${a.coty.name}（${a.coty.teamName} ${a.coty.w}胜${a.coty.l}负）`, `${a.coty.name} (${a.coty.teamName} ${a.coty.w}-${a.coty.l})`) : "—"
     }</p></div>
-    ${teamList(a.allNba?.first, "一阵 All-NBA 1st")}
-    ${teamList(a.allNba?.second, "二阵 All-NBA 2nd")}
-    ${teamList(a.allNba?.third, "三阵 All-NBA 3rd")}
-    ${teamList(a.allDefense?.first, "最佳防守一阵")}
-    ${teamList(a.allDefense?.second, "最佳防守二阵")}
-    <div class="season-award-card"><h4>得分王</h4><p>${awardLine(a.scoringChamp)}</p></div>
-    <div class="season-award-card"><h4>篮板王</h4><p>${awardLine(a.rebChamp)}</p></div>
-    <div class="season-award-card"><h4>助攻王</h4><p>${awardLine(a.astChamp)}</p></div>
+    ${teamList(a.allNba?.first, L("一阵 All-NBA 1st", "All-NBA 1st"))}
+    ${teamList(a.allNba?.second, L("二阵 All-NBA 2nd", "All-NBA 2nd"))}
+    ${teamList(a.allNba?.third, L("三阵 All-NBA 3rd", "All-NBA 3rd"))}
+    ${teamList(a.allDefense?.first, L("最佳防守一阵", "All-Defense 1st"))}
+    ${teamList(a.allDefense?.second, L("最佳防守二阵", "All-Defense 2nd"))}
+    <div class="season-award-card"><h4>${L("得分王", "Scoring champ")}</h4><p>${awardLine(a.scoringChamp)}</p></div>
+    <div class="season-award-card"><h4>${L("篮板王", "Rebounding champ")}</h4><p>${awardLine(a.rebChamp)}</p></div>
+    <div class="season-award-card"><h4>${L("助攻王", "Assists champ")}</h4><p>${awardLine(a.astChamp)}</p></div>
     <div class="btn-row" style="margin-top:8px">
       <button type="button" class="btn primary" id="btn-season-to-playoffs">${
-        st.phase === "playoffs" || st.phase === "done" ? "查看季后赛" : "进入季后赛"
+        st.phase === "playoffs" || st.phase === "done" ? L("查看季后赛", "View playoffs") : L("进入季后赛", "Enter playoffs")
       }</button>
     </div>
   `;
@@ -9053,10 +9052,10 @@ function renderSeasonPlayoffs() {
       ? state.leagueCareer.management.draft
       : null;
   if (!st.playoffs) {
-    box.innerHTML = `<p class="tiny">常规赛结束后从评奖页进入季后赛（东西部各八强，七场四胜）。</p>
+    box.innerHTML = `<p class="tiny">${L("常规赛结束后从评奖页进入季后赛（东西部各八强，七场四胜）。", "After the regular season, enter the playoffs from the awards page (top 8 per conference, best of 7).")}</p>
       <button type="button" class="btn" id="btn-season-sim-playoffs" ${
         st.phase === "awards" || st.phase === "regular" ? "" : "disabled"
-      }>一键模拟整个季后赛</button>`;
+      }>${L("一键模拟整个季后赛", "Sim the whole playoffs")}</button>`;
     $("#btn-season-sim-playoffs")?.addEventListener("click", () => {
       const batch = userGameBatch(st);
       if (!st.awards) {
@@ -9077,7 +9076,7 @@ function renderSeasonPlayoffs() {
     const b = po[key];
     return `<div class="season-award-card"><h4>${title} · R${b.round}</h4>${(b.series || [])
       .map(seriesHtml)
-      .join("")}${b.finalist ? `<p class="tiny">分区冠军：${st.teams[b.finalist]?.name}</p>` : ""}</div>`;
+      .join("")}${b.finalist ? `<p class="tiny">${L(`分区冠军：${st.teams[b.finalist]?.name}`, `Conference champions: ${st.teams[b.finalist]?.name}`)}</p>` : ""}</div>`;
   };
   if (st.phase === "done" && !st.finalsAllTeam?.length) {
     computeFinalsAllTeam(st);
@@ -9086,7 +9085,7 @@ function renderSeasonPlayoffs() {
     st.finalsMvp = computeFinalsMvp(st);
   }
   const finalsTeamHtml = (st.finalsAllTeam || []).length
-    ? `<div class="season-award-card"><h4>总决赛最佳阵容 · PG → C</h4>
+    ? `<div class="season-award-card"><h4>${L("总决赛最佳阵容 · PG → C", "Finals All-Team · PG → C")}</h4>
         <div class="all-team-row season">
           ${st.finalsAllTeam
             .map(
@@ -9094,34 +9093,34 @@ function renderSeasonPlayoffs() {
                 <span class="all-team-pos">${p.slot || p.pos}</span>
                 <strong>${p.name}</strong>
                 <em class="tiny">${p.teamName || ""}</em>
-                <span class="tiny">${p.gp ? `${p.ppg}分 ${p.rpg}板 ${p.apg}助` : `OVR ${p.ovr}`}</span>
+                <span class="tiny">${p.gp ? L(`${p.ppg}分 ${p.rpg}板 ${p.apg}助`, `${p.ppg} pts ${p.rpg} reb ${p.apg} ast`) : `OVR ${p.ovr}`}</span>
               </div>`
             )
             .join("")}
         </div></div>`
     : "";
   const finalsMvpHtml = st.finalsMvp
-    ? `<div class="season-award-card"><h4>总决赛 MVP</h4>
-        <p><strong>${st.finalsMvp.name}</strong>${st.finalsMvp.teamName ? ` · ${st.finalsMvp.teamName}` : ""} · ${st.finalsMvp.gp ? `${st.finalsMvp.ppg}分 ${st.finalsMvp.rpg}板 ${st.finalsMvp.apg}助（${st.finalsMvp.gp}场）` : `OVR ${st.finalsMvp.ovr}`}</p></div>`
+    ? `<div class="season-award-card"><h4>${L("总决赛 MVP", "Finals MVP")}</h4>
+        <p><strong>${st.finalsMvp.name}</strong>${st.finalsMvp.teamName ? ` · ${st.finalsMvp.teamName}` : ""} · ${st.finalsMvp.gp ? L(`${st.finalsMvp.ppg}分 ${st.finalsMvp.rpg}板 ${st.finalsMvp.apg}助（${st.finalsMvp.gp}场）`, `${st.finalsMvp.ppg} pts ${st.finalsMvp.rpg} reb ${st.finalsMvp.apg} ast (${st.finalsMvp.gp} G)`) : `OVR ${st.finalsMvp.ovr}`}</p></div>`
     : "";
   const userRecord = st.standings?.[st.userTeamId];
   const playoffStats = Object.values(st.playerSeason || {})
     .filter((row) => row.teamId === st.userTeamId && row.stats?.gp)
     .sort((a, b) => (b.stats.pts / b.stats.gp) - (a.stats.pts / a.stats.gp))
     .slice(0, 8);
-  const playoffStatsHtml = `<div class="season-award-card playoff-live-stats"><h4>我方当前战绩与球员数据</h4><p class="tiny">${
-    userRecord ? `${userRecord.w}胜${userRecord.l}负 · 净胜 ${userRecord.pf - userRecord.pa}` : "暂无战绩"
-  } · 数据为赛季累计（含已模拟季后赛）</p><div class="table-scroll"><table class="season-table"><thead><tr><th>球员</th><th>GP</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>+/-</th></tr></thead><tbody>${
-    playoffStats.map((row) => `<tr><td>${esc(row.name)}</td><td>${row.stats.gp}</td><td>${(row.stats.min / row.stats.gp).toFixed(1)}</td><td>${(row.stats.pts / row.stats.gp).toFixed(1)}</td><td>${(row.stats.reb / row.stats.gp).toFixed(1)}</td><td>${(row.stats.ast / row.stats.gp).toFixed(1)}</td><td>${row.stats.plusMinus / row.stats.gp >= 0 ? "+" : ""}${(row.stats.plusMinus / row.stats.gp).toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="7">暂无球员数据</td></tr>`}</tbody></table></div></div>`;
+  const playoffStatsHtml = `<div class="season-award-card playoff-live-stats"><h4>${L("我方当前战绩与球员数据", "Your current record and player stats")}</h4><p class="tiny">${
+    userRecord ? L(`${userRecord.w}胜${userRecord.l}负 · 净胜 ${userRecord.pf - userRecord.pa}`, `${userRecord.w}-${userRecord.l} · Diff ${userRecord.pf - userRecord.pa}`) : L("暂无战绩", "No record yet")
+  }${L(" · 数据为赛季累计（含已模拟季后赛）", " · Season totals (including simmed playoffs)")}</p><div class="table-scroll"><table class="season-table"><thead><tr><th>${L("球员", "Player")}</th><th>GP</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>+/-</th></tr></thead><tbody>${
+    playoffStats.map((row) => `<tr><td>${esc(row.name)}</td><td>${row.stats.gp}</td><td>${(row.stats.min / row.stats.gp).toFixed(1)}</td><td>${(row.stats.pts / row.stats.gp).toFixed(1)}</td><td>${(row.stats.reb / row.stats.gp).toFixed(1)}</td><td>${(row.stats.ast / row.stats.gp).toFixed(1)}</td><td>${row.stats.plusMinus / row.stats.gp >= 0 ? "+" : ""}${(row.stats.plusMinus / row.stats.gp).toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="7">${L("暂无球员数据", "No player data yet")}</td></tr>`}</tbody></table></div></div>`;
   box.innerHTML = `
     ${playoffStatsHtml}
-    ${confBlock("east", "东部")}
-    ${confBlock("west", "西部")}
+    ${confBlock("east", L("东部", "East"))}
+    ${confBlock("west", L("西部", "West"))}
     ${
       po.finals
-        ? `<div class="season-award-card"><h4>总决赛</h4>${seriesHtml(po.finals)}${
+        ? `<div class="season-award-card"><h4>${L("总决赛", "Finals")}</h4>${seriesHtml(po.finals)}${
             po.championId
-              ? `<p><strong>总冠军 ${st.teams[po.championId]?.name}</strong></p>`
+              ? `<p><strong>${L(`总冠军 ${st.teams[po.championId]?.name}`, `Champions ${st.teams[po.championId]?.name}`)}</strong></p>`
               : ""
           }</div>`
         : ""
@@ -9131,32 +9130,34 @@ function renderSeasonPlayoffs() {
     <div class="btn-row">
       <button type="button" class="btn primary" id="btn-season-advance-po" ${
         st.phase === "done" ? "disabled" : ""
-      }>模拟下一轮</button>
+      }>${L("模拟下一轮", "Sim next round")}</button>
       <button type="button" class="btn" id="btn-season-sim-all-po" ${
         st.phase === "done" ? "disabled" : ""
-      }>一键打完季后赛</button>
+      }>${L("一键打完季后赛", "Sim rest of playoffs")}</button>
       ${
         st.phase === "done"
           ? `<button type="button" class="btn primary" id="btn-season-offseason">${
               currentCareerDraft
-                ? "继续选秀"
+                ? L("继续选秀", "Continue draft")
                 : isManagedCareer(state.leagueCareer)
-                  ? "进入休赛期选秀"
-                  : `休赛期成长 · 开启 ${Number(st.year) + 1} 赛季`
+                  ? L("进入休赛期选秀", "Enter offseason draft")
+                  : L(`休赛期成长 · 开启 ${Number(st.year) + 1} 赛季`, `Offseason growth · Start ${Number(st.year) + 1} season`)
             }</button>`
           : ""
       }
     </div>
     ${
       st.offseasonLog?.length
-        ? `<div class="season-award-card"><h4>上次休赛期成长 / 续约（我方）</h4><div class="tiny">${st.offseasonLog
+        ? `<div class="season-award-card"><h4>${L("上次休赛期成长 / 续约（我方）", "Last offseason growth / renewals (yours)")}</h4><div class="tiny">${st.offseasonLog
             .slice(0, 16)
             .map((r) => {
               const sal =
                 r.salaryBefore != null
-                  ? ` · 薪 ¤${r.salaryBefore}→¤${r.salaryAfter || 0}${
+                  ? L(` · 薪 ¤${r.salaryBefore}→¤${r.salaryAfter || 0}${
                       r.renewal ? `（${r.renewal}）` : ""
-                    }`
+                    }`, ` · Sal ¤${r.salaryBefore}→¤${r.salaryAfter || 0}${
+                      r.renewal ? ` (${r.renewal})` : ""
+                    }`)
                   : "";
               return `${r.name}：${r.fromSeason}→${r.toSeason} · OVR ${r.before}${
                 r.delta >= 0 ? "+" : ""
@@ -9184,10 +9185,12 @@ function renderSeasonPlayoffs() {
     if (
       !confirm(
         isManagedCareer(state.leagueCareer)
-          ? "确认结束本赛季并进入休赛期选秀？"
-          : `确认进入休赛期？\n全联盟球员按史实生涯成长/衰退，并按本季表现续约（打出来会更贵）。然后开启 ${
+          ? L("确认结束本赛季并进入休赛期选秀？", "End this season and enter the offseason draft?")
+          : L(`确认进入休赛期？\n全联盟球员按史实生涯成长/衰退，并按本季表现续约（打出来会更贵）。然后开启 ${
               Number(st.year) + 1
-            } 赛季。`
+            } 赛季。`, `Enter the offseason?\nEvery player grows or declines on their real career curve and re-signs on this season's performance (breakouts cost more). Then the ${
+              Number(st.year) + 1
+            } season starts.`)
       )
     ) {
       return;
@@ -9201,7 +9204,7 @@ function renderSeasonPlayoffs() {
         commitManagedCareer(next, "draftBoard");
         recordChallengeProgress(activeAccount(), "leagueSeason");
       } catch (error) {
-        alert(error?.message || "无法进入休赛期选秀");
+        alert(error?.message || L("无法进入休赛期选秀", "Couldn't enter the offseason draft"));
       }
       return;
     }
@@ -9215,7 +9218,7 @@ function renderSeasonPlayoffs() {
       res = advanceLeagueOffseason(st);
     }
     if (!res.ok) {
-      alert(res.reason || "无法进入休赛期");
+      alert(res.reason || L("无法进入休赛期", "Couldn't enter the offseason"));
       return;
     }
     const challengeGrant = recordChallengeProgress(
@@ -9230,14 +9233,14 @@ function renderSeasonPlayoffs() {
           .map(
             (r) =>
               `${r.name} OVR ${r.before}→${r.after} · ¤${r.salaryBefore || 0}→¤${r.salaryAfter || 0}${
-                r.renewal ? `（${r.renewal}）` : ""
+                r.renewal ? L(`（${r.renewal}）`, ` (${r.renewal})`) : ""
               }`
           )
           .join("\n")
-      : "本队本轮成长/涨薪幅度不大。";
+      : L("本队本轮成长/涨薪幅度不大。", "Your team didn't grow or get much pricier this round.");
     if (!saveSeasonAndCareer(state.season)) return;
-    const challengeNote = challengeGrant ? `\n\n🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}` : "";
-    alert(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}${challengeNote}`);
+    const challengeNote = challengeGrant ? L(`\n\n🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}`, `\n\n🎫 Daily challenge done! Draw tickets +${challengeGrant.tickets}`) : "";
+    alert(L(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}${challengeNote}`, `Entered the ${res.year} season.\n\nYour renewal highlights:\n${tip}${challengeNote}`));
     renderSeasonHub();
     showSeasonTab("standings");
   });
@@ -9914,13 +9917,13 @@ function renderSeasonOfferPack() {
   if (seasonPickAutoDone || seasonPickList.length >= SEASON_DRAFT_TARGET) {
     if (nameEl) {
       nameEl.textContent = seasonPickAutoDone
-        ? `选人结束：系统已按已选阵容与位置补齐至 ${seasonPickList.length} 人`
-        : `名单已满 ${SEASON_DRAFT_TARGET} 人，可确认阵容`;
+        ? L(`选人结束：系统已按已选阵容与位置补齐至 ${seasonPickList.length} 人`, `Draft done: the system filled your roster to ${seasonPickList.length} by position`)
+        : L(`名单已满 ${SEASON_DRAFT_TARGET} 人，可确认阵容`, `Roster full at ${SEASON_DRAFT_TARGET} — confirm it`);
     }
     box.innerHTML = `<p class="tiny">${
       seasonPickAutoDone
-        ? "没有选择权的系统补人已完成。可确认阵容；若移出自选球员，会清空系统补人并继续手选。"
-        : "可确认这份阵容，或移出后继续选。"
+        ? L("没有选择权的系统补人已完成。可确认阵容；若移出自选球员，会清空系统补人并继续手选。", "Auto-fill is done. Confirm the roster; removing a hand-picked player clears the auto-filled ones and resumes manual picking.")
+        : L("可确认这份阵容，或移出后继续选。", "Confirm this roster, or remove players and keep picking.")
     }</p>`;
     syncSeasonPickCap();
     return;
@@ -9928,13 +9931,13 @@ function renderSeasonOfferPack() {
 
   if (nameEl) {
     nameEl.textContent = seasonOfferFranchise
-      ? `本批球队：${seasonOfferFranchise.name}（${seasonOfferFranchise.id}）· 选 1 人或跳过免费随机一人`
+      ? L(`本批球队：${seasonOfferFranchise.name}（${seasonOfferFranchise.id}）· 选 1 人或跳过免费随机一人`, `This batch: ${seasonOfferFranchise.name} (${seasonOfferFranchise.id}) · pick 1, or skip for a free random one`)
       : "—";
   }
   const have = new Set(seasonPickList.map((p) => p.id));
   const pay = seasonPickPayroll();
   if (!seasonOfferPack.length) {
-    box.innerHTML = `<p class="tiny">本批暂无人可选</p>`;
+    box.innerHTML = `<p class="tiny">${L("本批暂无人可选", "Nobody available in this batch")}</p>`;
     return;
   }
   box.innerHTML = seasonOfferPack
@@ -9948,18 +9951,18 @@ function renderSeasonOfferPack() {
         <div class="season-pick-meta">
           <strong>${p.pos} ${p.name}</strong>
           <span class="chip tiny">${meta.role}</span>
-          <div class="tiny">${p.season} 赛季 · OVR ${meta.ovr} · 当季工资 <strong>${formatSalary(sal)}</strong></div>
+          <div class="tiny">${L(`${p.season} 赛季`, `${p.season} season`)} · OVR ${meta.ovr} · ${L("当季工资", "This season's salary")} <strong>${formatSalary(sal)}</strong></div>
           <div class="tiny season-pick-attrs">${L("攻", "ATK")}${p.scoring ?? "—"} ${L("三分", "3PT")}${p.three ?? "—"} ${L("中投", "MID")}${p.mid ?? "—"} ${L("内线", "INS")}${p.paint ?? "—"} ${L("传", "PAS")}${p.pass ?? "—"} ${L("防", "DEF")}${p.defense ?? "—"} ${L("板", "REB")}${p.rebound ?? "—"} ${L("断", "STL")}${p.steal ?? "—"} ${L("帽", "BLK")}${p.block ?? "—"} ${L("速", "SPD")}${p.speed ?? "—"} ${L("力", "STR")}${p.strength ?? "—"} ${L("球商", "IQ")}${p.iq ?? "—"} ${L("关键", "CLT")}${p.clutch ?? "—"}</div>
-          <div class="tiny">${marketMeta(p)}</div>
+          <div class="tiny">${marketMeta(p, getLang())}</div>
           ${
-            historicalUpsideHint(p)
-              ? `<div class="tiny season-pick-upside">${historicalUpsideHint(p)} · 打完赛季可按史实成长</div>`
+            historicalUpsideHint(p, getLang())
+              ? `<div class="tiny season-pick-upside">${historicalUpsideHint(p, getLang())} · ${L("打完赛季可按史实成长", "grows on their real curve after the season")}</div>`
               : ""
           }
         </div>
         <button type="button" class="btn small primary" data-pick="${p.id}" ${
         already || over ? "disabled" : ""
-      }>${already ? "已选" : over ? "超帽" : "选入"}</button>
+      }>${already ? L("已选", "Picked") : over ? L("超帽", "Over cap") : L("选入", "Pick")}</button>
       </div>`;
     })
     .join("");
@@ -10024,7 +10027,7 @@ $("#btn-season-roster-franchise")?.addEventListener("click", (ev) => {
   if (!panel) return;
   // 若已在选人，再次点「随机球队选人」会整批重开；避免回车误触已聚焦的该按钮
   if (!panel.hidden && seasonPickList.length > 0) {
-    if (!confirm("将清空已选球员并重新随机一支球队，确定？")) return;
+    if (!confirm(L("将清空已选球员并重新随机一支球队，确定？", "Clear your picks and roll a new random team?"))) return;
   }
   panel.hidden = false;
   seasonPickList = [];
@@ -10067,8 +10070,8 @@ function syncSeasonStartButtonLabel() {
   if (!btn) return;
   btn.textContent =
     seasonSetupMode === "historical"
-      ? `开启 ${seasonSetupYear} 完整赛季（常规赛+季后赛）`
-      : "开启完整赛季征程（32 队）";
+      ? L(`开启 ${seasonSetupYear} 完整赛季（常规赛+季后赛）`, `Start the full ${seasonSetupYear} season (regular + playoffs)`)
+      : L("开启完整赛季征程（32 队）", "Start the full season journey (32 teams)");
 }
 
 $("#btn-season-mode-modern")?.addEventListener("click", () => {
@@ -10089,15 +10092,15 @@ $("#btn-season-start")?.addEventListener("click", async () => {
   if (
     seasonSetupKind === "franchise"
     && hasExistingCareerRoot(state.longCareerRoot || readRootSave())
-    && !(await confirmAction("开始新联盟经理生涯将替换当前长期生涯存档，确定继续？", {
-      title: "覆盖联盟经理存档？",
-      acceptLabel: "覆盖并开始",
+    && !(await confirmAction(L("开始新联盟经理生涯将替换当前长期生涯存档，确定继续？", "Starting a new league-manager career will replace your current long career save. Continue?"), {
+      title: L("覆盖联盟经理存档？", "Overwrite the league-manager save?"),
+      acceptLabel: L("覆盖并开始", "Overwrite and start"),
     }))
   ) return;
   draft.name = name;
-  if (state.season && !(await confirmAction("将覆盖当前赛季进度，确定开新赛季？", {
-    title: "覆盖当前赛季？",
-    acceptLabel: "覆盖并开始",
+  if (state.season && !(await confirmAction(L("将覆盖当前赛季进度，确定开新赛季？", "This will overwrite your current season progress. Start a new season?"), {
+    title: L("覆盖当前赛季？", "Overwrite the current season?"),
+    acceptLabel: L("覆盖并开始", "Overwrite and start"),
   }))) return;
   clearSeasonSave();
   const yearSel = Number($("#season-year-select")?.value) || seasonSetupYear;
@@ -10120,7 +10123,7 @@ $("#btn-season-start")?.addEventListener("click", async () => {
       state.mode = "season";
     }
   } catch (err) {
-    alert(err?.message || "无法创建赛季");
+    alert(err?.message || L("无法创建赛季", "Couldn't create the season"));
     return;
   }
   if (!saveSeasonAndCareer(state.season)) return;
@@ -10133,14 +10136,14 @@ $("#btn-season-sim-week")?.addEventListener("click", () => simSeasonGames(5));
 $("#btn-season-save")?.addEventListener("click", () => {
   if (state.season) {
     if (saveSeasonAndCareer(state.season)) {
-      alert("赛季进度已保存到本机。");
+      alert(L("赛季进度已保存到本机。", "Season progress saved locally."));
     }
   }
 });
 $("#btn-season-abandon")?.addEventListener("click", async () => {
-  if (!(await confirmAction("确定放弃当前赛季？进度将清空。", {
-    title: "放弃当前赛季？",
-    acceptLabel: "放弃并清空",
+  if (!(await confirmAction(L("确定放弃当前赛季？进度将清空。", "Abandon the current season? Progress will be cleared."), {
+    title: L("放弃当前赛季？", "Abandon the current season?"),
+    acceptLabel: L("放弃并清空", "Abandon and clear"),
   }))) return;
   const abandoningTimeTravel = state.leagueCareer?.kind === "timeTravel";
   clearSeasonSave();

@@ -401,17 +401,22 @@ export function fireAssistant(st) {
   return { ok: true, assistant: old, payroll: payrollSummary(team) };
 }
 
-export function staffMarketLabel(staff) {
+export function staffMarketLabel(staff, lang = "zh") {
   if (!staff) return "";
+  const en = lang === "en";
   const kind = staff.staffKind || (staff.role ? "assistant" : "coach");
   if (kind === "assistant") {
-    return `${staff.role || "助教"} · 攻${staff.buffs?.offense || 0} 防${staff.buffs?.defense || 0} 气${staff.buffs?.morale || 0}`;
+    return en
+      ? `${staff.role || "Assistant"} · OFF ${staff.buffs?.offense || 0} DEF ${staff.buffs?.defense || 0} MOR ${staff.buffs?.morale || 0}`
+      : `${staff.role || "助教"} · 攻${staff.buffs?.offense || 0} 防${staff.buffs?.defense || 0} 气${staff.buffs?.morale || 0}`;
   }
   const book = coachTactics(staff)
     .map((t) => t.name)
     .slice(0, 2)
     .join("·");
-  return `${staff.style || "主帅"} · ${coachSpecialtyLabel(staff)}${book ? ` · ${book}` : ""}`;
+  return en
+    ? `${staff.style || "Head coach"} · ${coachSpecialtyLabel(staff, lang)}${book ? ` · ${book}` : ""}`
+    : `${staff.style || "主帅"} · ${coachSpecialtyLabel(staff, lang)}${book ? ` · ${book}` : ""}`;
 }
 
 /** Cut / waive — salary off books, player joins FA. */
@@ -748,9 +753,9 @@ export function formatSalary(n) {
   return `¤${Math.round(n)}`;
 }
 
-export function salaryLine(p) {
+export function salaryLine(p, lang = "zh") {
   const s = playerSalary(p);
-  return `${formatSalary(s)} · ${marketMeta(p)}`;
+  return `${formatSalary(s)} · ${marketMeta(p, lang)}`;
 }
 
 export { teamByPlayer };
