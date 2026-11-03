@@ -9652,16 +9652,27 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
     again.hidden = !canKeepSimming;
     again.classList.toggle("primary", canKeepSimming);
     if (canKeepSimming) {
-      again.textContent = "模拟下一场";
+      again.textContent = L("模拟下一场", "Sim Next Game");
       again.onclick = () => simSeasonGames(1);
     }
   }
   cont.classList.toggle("primary", !canKeepSimming);
+  // Scoped to canSimWholeSeason (regular season only), not canKeepSimming: during the playoffs
+  // simSeasonGames() ignores its count and sims exactly one game regardless, so a "5 games" button
+  // there would be a lie. The regular season is where the count argument actually does five.
+  const sim5Btn = $("#btn-result-sim5");
+  if (sim5Btn) {
+    sim5Btn.hidden = !canSimWholeSeason;
+    if (canSimWholeSeason) {
+      sim5Btn.textContent = L("模拟五场", "Sim 5 Games");
+      sim5Btn.onclick = () => simSeasonGames(5);
+    }
+  }
   const simSeasonBtn = $("#btn-result-sim-season");
   if (simSeasonBtn) {
     simSeasonBtn.hidden = !canSimWholeSeason;
     if (canSimWholeSeason) {
-      simSeasonBtn.textContent = "模拟整个赛季";
+      simSeasonBtn.textContent = L("模拟整个赛季", "Sim Rest of Season");
       simSeasonBtn.onclick = async () => {
         if (
           !(await confirmAction(
@@ -9688,7 +9699,7 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
 async function simRestOfSeason() {
   const st = state.season;
   if (!st || st.phase !== "regular") return;
-  const buttons = ["#btn-result-sim-season", "#btn-again", "#btn-result-continue", "#btn-home"]
+  const buttons = ["#btn-result-sim-season", "#btn-result-sim5", "#btn-again", "#btn-result-continue", "#btn-home"]
     .map((sel) => $(sel))
     .filter(Boolean);
   for (const b of buttons) b.disabled = true;

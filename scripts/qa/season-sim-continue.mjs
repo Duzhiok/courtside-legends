@@ -2,6 +2,7 @@ import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/sim-season";
+const BASE = process.argv[3] || "http://127.0.0.1:5173/";
 mkdirSync(OUT, { recursive: true });
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const report = [];
@@ -13,7 +14,7 @@ async function run(width, height, tag) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
 
-  await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
+  await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
@@ -68,6 +69,36 @@ async function run(width, height, tag) {
   const stillOnResult = await page.evaluate(() => document.querySelector("#screen-result")?.classList.contains("active"));
   check(`[${tag}] "模拟下一场" stays on the result screen (no forced trip to hub)`, stillOnResult);
 
+  // "模拟五场" sits between the two: confirm it's visible, and that it actually advances exactly
+  // five games (not one, not "the rest of the season") by reading the played-count off the summary.
+  const sim5Visible = await page.$eval("#btn-result-sim5", (b) => !b.hidden && b.textContent.trim());
+  check(`[${tag}] "模拟五场" button visible on result screen`, sim5Visible === "模拟五场", sim5Visible);
+  const playedBefore = Number(/已打 (\d+)\/82/.exec(await page.textContent("#result-summary"))?.[1]);
+  await page.click("#btn-result-sim5");
+  await page.waitForFunction(() => document.querySelector("#screen-result")?.classList.contains("active"), null, { timeout: 10000 });
+  const sim5Summary = await page.textContent("#result-summary");
+  const playedAfter = Number(/已打 (\d+)\/82/.exec(sim5Summary)?.[1]);
+  check(`[${tag}] "模拟五场" advances exactly 5 games`, playedAfter - playedBefore === 5, `${playedBefore} -> ${playedAfter}`);
+  check(`[${tag}] "模拟五场" summary says it ran 5 games`, /已连续模拟 5 场/.test(sim5Summary), sim5Summary);
+
+  // These three labels used to be a raw Chinese literal set on every render; in en mode the result
+  // screen would show e.g. "模拟五场" verbatim. Flip to en, force a fresh render by clicking "模拟五场"
+  // again (selector-based, works under either label), and read the labels it just painted. Desktop
+  // only -- same code path regardless of viewport, no need to pay for it twice.
+  if (tag === "desktop") {
+    await page.click("#btn-lang");
+    await page.waitForTimeout(50);
+    await page.click("#btn-result-sim5");
+    await page.waitForFunction(() => document.querySelector("#screen-result")?.classList.contains("active"), null, { timeout: 10000 });
+    const enLabels = await Promise.all(
+      ["#btn-again", "#btn-result-sim5", "#btn-result-sim-season"].map((sel) => page.textContent(sel)),
+    );
+    check(`[${tag}] en mode: a fresh render of the sim buttons shows English, not raw Chinese`, enLabels.every((t) => !/[\u4e00-\u9fff]/.test(t)), enLabels.join(" | "));
+    check(`[${tag}] en mode: "Sim 5 Games" reads correctly`, enLabels[1] === "Sim 5 Games", enLabels[1]);
+    await page.click("#btn-lang");
+    await page.waitForTimeout(50);
+  }
+
   // The big one: simulate the entire rest of the regular season. This takes ~15-20s of real
   // sim time (every user-game night also advances every other league game that night), so the
   // important thing to verify isn't just "it finishes" but that the tab stays responsive along
@@ -79,8 +110,9 @@ async function run(width, height, tag) {
   await page.waitForTimeout(150);
   const midRunText = await page.textContent("#result-summary").catch(() => "");
   const midRunDisabled = await page.$eval("#btn-result-sim-season", (b) => b.disabled).catch(() => false);
+  const sim5DisabledMidRun = await page.$eval("#btn-result-sim5", (b) => b.disabled).catch(() => false);
   check(`[${tag}] progress text shows mid-run (not a frozen tab)`, /正在模拟整个赛季/.test(midRunText), midRunText);
-  check(`[${tag}] action buttons disabled mid-run`, midRunDisabled);
+  check(`[${tag}] action buttons disabled mid-run`, midRunDisabled && sim5DisabledMidRun);
   await page.waitForFunction(
     () => document.querySelector("#result-summary")?.textContent?.includes("常规赛结束"),
     null,
@@ -91,7 +123,8 @@ async function run(width, height, tag) {
 
   const nextHiddenAfter = await page.$eval("#btn-again", (b) => b.hidden);
   const simSeasonHiddenAfter = await page.$eval("#btn-result-sim-season", (b) => b.hidden);
-  check(`[${tag}] sim buttons hide once season is over`, nextHiddenAfter && simSeasonHiddenAfter);
+  const sim5HiddenAfter = await page.$eval("#btn-result-sim5", (b) => b.hidden);
+  check(`[${tag}] sim buttons hide once season is over`, nextHiddenAfter && simSeasonHiddenAfter && sim5HiddenAfter);
   const contPrimaryAfter = await page.$eval("#btn-result-continue", (b) => b.classList.contains("primary"));
   check(`[${tag}] hub-return becomes primary again once season is over`, contPrimaryAfter);
   const contTextAfter = await page.textContent("#btn-result-continue");
