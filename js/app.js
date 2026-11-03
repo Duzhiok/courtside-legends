@@ -8540,7 +8540,7 @@ function renderSeasonMarket() {
       ${proposals.map((proposal) => `<article class="trade-proposal-card" data-proposal-id="${proposal.id}">
         <strong>${L(`${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}`, `${esc(proposal.fromTeamName)} wants ${esc(proposal.targetName)}`)}</strong> <span class="chip tiny">${(proposal.round || 1) === 2 ? L("第二轮", "Round 2") : L("第一轮", "Round 1")}</span>
         <p class="tiny">${esc(proposal.reason)}</p>
-        <div class="tiny">${L("对方球员：", "Their players: ")}${proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；")}</div>
+        <div class="tiny">${L("对方球员：", "Their players: ")}${proposal.receivePlayers.length ? proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；") : L("仅选秀权，不搭球员", "Picks only, no players attached")}</div>
         <div class="tiny">${L("附带选秀权：", "Picks included: ")}${proposal.offerPicks.map((pick) => {
           const value = estimateDraftPickValue(pick, { currentYear: st.year, lang: getLang() });
           return `<span title="${esc(value.explanation)}">${esc(value.label)}${L(`（≈ +${value.ovrEquivalent} OVR）`, ` (≈ +${value.ovrEquivalent} OVR)`)}</span>`;

@@ -14,6 +14,20 @@ import {
   shapeOffer,
 } from "./tradeListing.js";
 
+/**
+ * New proposal shapes (see buildProposal).
+ * PICKS_ONLY_MIN_SALARY mirrors check()'s salary-dump disjunct: with no salary coming
+ * back, only a contract at or above this line clears the fairness filter.
+ * CONSOLIDATION_MIN_UPGRADE is how much better the CPU's single player must be than the
+ * target before it asks for a second user player on top.
+ * PICKS_ONLY_BASE_COUNT is the pick count of a picks-only offer before the buzz pick.
+ */
+export const PICKS_ONLY_MIN_SALARY = 80;
+export const CONSOLIDATION_MIN_UPGRADE = 8;
+export const PICKS_ONLY_BASE_COUNT = 2;
+/** Signature stand-in for a picks-only offer, which has no offer player id. */
+export const PICKS_ONLY_SIGNATURE = "PICKS";
+
 function perGame(row, key) {
   const gp = Number(row?.stats?.gp) || 0;
   return gp ? (Number(row.stats[key]) || 0) / gp : 0;
@@ -167,7 +181,7 @@ function computeAsk(st, user, target, pkgOvr, mode) {
 }
 
 /** One CPU team's offer for one of the user's players, or null if it can't make a valid one. */
-function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fromTeam, declined, usedPickIds, boost = false, excludeOfferIds = [], pickCountForce = null, askMode = "auto", keepAsk = null, lang = "zh" }) {
+function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fromTeam, declined, usedPickIds, boost = false, excludeOfferIds = [], pickCountForce = null, askMode = "auto", keepAsk = null, lang = "zh", picksOnlyMode = "auto" }) {
   const shaped = shapeOffer(pref, fromTeam, player);
   if (pref !== DEFAULT_LISTING_PREF && !shaped) return null;
   // C4: a hot player is priced up -- but only on the house-picked offer. A listing preference is the
@@ -175,26 +189,59 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
   const buzz = boost && !shaped ? buzzOf(st, player.id) : 0;
   const bonus = buzzBonus(buzz);
   const worth = overall(player) + bonus;
+  const user = st.teams[st.userTeamId];
+  // Picks-only shape: a rebuilding club takes an expensive contract into cap room for picks
+  // alone, no player coming back. The gate mirrors check()'s salary-dump disjunct below
+  // (givenSalary >= pkgSalary + 80 with pkgSalary 0): picks are worth so little in OVR
+  // terms (a 1st unprotected is about +4.5) that a picks-only package can never clear the
+  // 90% value filter for a cheap player -- it is only fair as a salary dump, so it is only
+  // offered for one. "auto" attempts it when the gate holds and falls through to the player
+  // offer when any viability pre-check fails; "force" (a round-2 sweeten/harden of a
+  // picks-only offer) must not morph into a player offer; "off" (round-2 revisions of a
+  // player offer) must not morph into picks-only. All viability pre-checks (cap, roster,
+  // picks on hand) mirror the shared tail, so a committed picks-only offer cannot fail
+  // check() for a fresh offer -- a harden revision's ask is still dropped by the patch-ups.
+  let picksOnly = false;
   let offerPlayer = shaped?.offer;
-  if (!offerPlayer) {
-    const pool = [...fromTeam.players].filter((p) => !excludeOfferIds.includes(p.id));
-    const candidate = pool
-      .sort((a, b) => Math.abs(overall(a) - worth) - Math.abs(overall(b) - worth))[0];
-    if (!candidate) return null;
-    const salaryDelta = playerSalary(candidate) - playerSalary(player);
-    offerPlayer = salaryDelta <= 0 || salaryDelta < 60 ? candidate : [...pool].sort((a, b) => playerSalary(a) - playerSalary(b))[0];
-    if (!offerPlayer) return null;
+  if (!offerPlayer && picksOnlyMode !== "off") {
+    const gate = !shaped
+      && playerSalary(player) >= PICKS_ONLY_MIN_SALARY
+      && teamSituation(fromTeam) === "rebuilding";
+    if (gate || picksOnlyMode === "force") {
+      const sigOk = !declined.has(tradeSignature(fromTeamId, player.id, "PICKS"));
+      const capOk = !cpuCapBlocksTrade(teamPayroll(fromTeam), playerSalary(player), 0)
+        && teamPayroll(user) - playerSalary(player) <= SEASON_APRON;
+      const rosterOk = tradeRosterOk(user.players.length, fromTeam.players.length, 1, 0);
+      const trialPicks = chooseOfferPicks(st, fromTeamId, PICKS_ONLY_BASE_COUNT, new Set(usedPickIds));
+      if (sigOk && capOk && rosterOk && trialPicks.length) picksOnly = true;
+      else if (picksOnlyMode === "force") return null;
+    }
   }
-  // generateTradeProposals is a pure function of (year, dayIndex, roster) with no randomness --
-  // calling it again with nothing meaningfully changed would otherwise hand back the EXACT same
-  // offer the user just declined (user report #14: "我都拒绝报价了，怎么刷新报价后又出现相同的报价？").
-  // declineTradeProposal() remembers this exact team+player+offer shape, so it's permanently
-  // skipped here -- a genuinely different offer only resurfaces once the roster actually
-  // changes (a different candidate/offerPlayer naturally produces a different signature).
-  if (declined.has(tradeSignature(fromTeamId, player.id, offerPlayer.id))) return null;
-  let pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
-  // 选秀权倾向：重建队更愿意为即战力多搭选秀权
-  if (teamSituation(fromTeam) === "rebuilding") pickCount += 1;
+  if (!picksOnly) {
+    if (!offerPlayer) {
+      const pool = [...fromTeam.players].filter((p) => !excludeOfferIds.includes(p.id));
+      const candidate = pool
+        .sort((a, b) => Math.abs(overall(a) - worth) - Math.abs(overall(b) - worth))[0];
+      if (!candidate) return null;
+      const salaryDelta = playerSalary(candidate) - playerSalary(player);
+      offerPlayer = salaryDelta <= 0 || salaryDelta < 60 ? candidate : [...pool].sort((a, b) => playerSalary(a) - playerSalary(b))[0];
+      if (!offerPlayer) return null;
+    }
+    // generateTradeProposals is a pure function of (year, dayIndex, roster) with no randomness --
+    // calling it again with nothing meaningfully changed would otherwise hand back the EXACT same
+    // offer the user just declined (user report #14: "我都拒绝报价了，怎么刷新报价后又出现相同的报价？").
+    // declineTradeProposal() remembers this exact team+player+offer shape, so it's permanently
+    // skipped here -- a genuinely different offer only resurfaces once the roster actually
+    // changes (a different candidate/offerPlayer naturally produces a different signature).
+    // A picks-only offer has no offer player, so its signature uses the PICKS marker --
+    // declineTradeProposal/counterTradeProposal must use the same marker (see there).
+    if (declined.has(tradeSignature(fromTeamId, player.id, offerPlayer.id))) return null;
+  }
+  let pickCount = picksOnly
+    ? PICKS_ONLY_BASE_COUNT
+    : overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
+  // 选秀权倾向：重建队更愿意为即战力多搭选秀权（纯选秀权包形已按重建门槛，不再叠加）
+  if (!picksOnly && teamSituation(fromTeam) === "rebuilding") pickCount += 1;
   pickCount = Math.max(0, Math.min(MAX_PROPOSAL_PICKS, pickCount + (shaped?.pickDelta || 0)));
   // The documented buzz pick is added AFTER the cap, never eaten by it: a hot
   // player whose cold offer already sat at the cap used to fetch the exact same
@@ -207,25 +254,30 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
   // certain to go out, so an offer dropped on the cap check does not use up picks others could offer.
   const picks = chooseOfferPicks(st, fromTeamId, pickCount, new Set(usedPickIds));
   // A listing preference decides the package itself (salary relief / win-now want no add-ons).
-  const prospect = shaped
-    ? shaped.prospect
-    : [...fromTeam.players]
-        .filter((item) => item.id !== offerPlayer.id && prospectScore(item) > prospectScore(offerPlayer))
-        .sort((a, b) => prospectScore(b) - prospectScore(a))[0] || null;
+  // A picks-only package has no second player by definition.
+  const prospect = picksOnly
+    ? null
+    : shaped
+      ? shaped.prospect
+      : [...fromTeam.players]
+          .filter((item) => item.id !== offerPlayer.id && prospectScore(item) > prospectScore(offerPlayer))
+          .sort((a, b) => prospectScore(b) - prospectScore(a))[0] || null;
 
   // A proposal that can't be accepted is worse than no proposal: acceptTradeProposal() runs the real hard-cap
   // checks through executeTrade() for BOTH clubs, so the offer is checked against both here (user report:
   // "明明是对方发来的报价，接受却说对方硬帽放不下"). Either patch the offer with one extra salary throw-in
   // so it clears both caps, or don't dangle an offer that will bounce.
-  const user = st.teams[st.userTeamId];
-  let sendBackIds = [offerPlayer.id, ...(prospect ? [prospect.id] : [])];
+  let sendBackIds = picksOnly ? [] : [offerPlayer.id, ...(prospect ? [prospect.id] : [])];
   const capFits = (ids) => {
     const outgoing = ids.reduce((sum, id) => sum + playerSalary(fromTeam.players.find((p) => p.id === id)), 0);
     const incoming = playerSalary(player);
     // The CPU club must be allowed to take this on, and the player must be able to hold what they would get.
     return !cpuCapBlocksTrade(teamPayroll(fromTeam), incoming, outgoing) && teamPayroll(user) - incoming + outgoing <= SEASON_APRON;
   };
-  if (!capFits(sendBackIds)) {
+  // A picks-only package cannot be patched with a player -- that would change its shape.
+  // (Its entry pre-checks already ran this exact test, so this is defensive only.)
+  if (picksOnly && !capFits(sendBackIds)) return null;
+  if (!picksOnly && !capFits(sendBackIds)) {
     // The largest contract that works for both sides: a huge one would rescue the CPU's books but could never
     // be absorbed by the player.
     const throwIn = [...fromTeam.players]
@@ -254,6 +306,22 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
     const ask = computeAsk(st, user, player, pkgOvrBase, askMode);
     askPlayerObjs = ask.playerObjs;
     askPickObjs = ask.pickObjs;
+  }
+  // Consolidation shape (1-for-2): the CPU's single player is a clear upgrade over the
+  // target, so it asks for a second user player on top -- the same bench rule computeAsk
+  // uses (lowest-OVR non-starter, never the target), and only on fresh auto offers, never
+  // on a picks-only package and never when the package already has a prospect (that is
+  // already a multi-player return). check()'s patch-ups below are the arbiter: an unfair
+  // or cap-breaking ask is dropped, so only totals-fair consolidations survive -- in
+  // practice that means the salary-dump direction, because OVR sums make two good
+  // players for one better player fail the 90% filter (see the report on this feature).
+  if (askMode === "auto" && !picksOnly && !prospect && !askPlayerObjs.length && !askPickObjs.length
+    && overall(offerPlayer) >= overall(player) + CONSOLIDATION_MIN_UPGRADE) {
+    const starters = new Set(user.starterIds || []);
+    const bench = (user.players || [])
+      .filter((p) => p.id !== player.id && !starters.has(p.id))
+      .sort((a, b) => overall(a) - overall(b))[0];
+    if (bench) askPlayerObjs = [bench];
   }
   // R89: an offer that can't be accepted is worse than no offer. Dangled offers
   // bypass executeTrade()'s value check on accept (acceptedProposal), so check()
@@ -313,7 +381,14 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
   const teamName = fromTeam.name || fromTeamId;
   const en = lang === "en";
   const prefText = listingPrefText(pref, lang);
-  const baseReason = bonus > 0
+  // A picks-only offer gets its own reason: the player-based reasons above describe a
+  // player coming back, which is exactly what this shape does not do.
+  const picksOnlyReason = picksOnly
+    ? en
+      ? `${teamName} is rebuilding and will take on ${player.name}'s contract for picks alone — a cap-room deal, no players coming back.${bonus > 0 ? ` He's hot (buzz ${buzz.toFixed(1)}), so they added an extra pick.` : ""}`
+      : `${teamName} 正在重建，愿意只用选秀权接下 ${player.name} 的合同——腾薪资空间的交易，不搭球员回来。${bonus > 0 ? `他正处风口（热度 ${buzz.toFixed(1)}），对方多搭了一个选秀权。` : ""}`
+    : null;
+  const baseReason = picksOnlyReason || (bonus > 0
     ? en
       ? `${player.name} is hot right now (buzz ${buzz.toFixed(1)}) — ${teamName} will pay up, about +${bonus} OVR over the ask. Buzz fades after a few games, so talk soon.`
       : `${player.name} 刚打出高光，正在风口上（热度 ${buzz.toFixed(1)}）——${teamName} 愿意加价，报价约上浮 +${bonus} OVR。热度几场后会回落，要谈趁早。`
@@ -327,7 +402,7 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
         : `${player.name} 已挂牌询价，${teamName} 前来问价。`
       : en
         ? `${player.name} is listed as "${prefText.label}": ${prefText.why} — ${teamName} is asking.`
-        : `${player.name} 按「${prefText.label}」挂牌：${prefText.why}——${teamName} 前来问价。`;
+        : `${player.name} 按「${prefText.label}」挂牌：${prefText.why}——${teamName} 前来问价。`);
   const askNote = askPlayerObjs.length || askPickObjs.length
     ? en
       ? `They also ask for: ${[...askPlayerObjs.map((p) => p.name), ...(askPickObjs.length ? [`${askPickObjs.length} future picks`] : [])].join(" + ")}.`
@@ -390,7 +465,8 @@ export function declineTradeProposal(st, proposalId, lang = "zh") {
   if (index < 0) return { ok: false, reason: lang === "en" ? "That offer no longer exists" : "报价已不存在" };
   const [proposal] = proposals.splice(index, 1);
   st.declinedTradeSignatures = Array.isArray(st.declinedTradeSignatures) ? st.declinedTradeSignatures : [];
-  const signature = tradeSignature(proposal.fromTeamId, proposal.giveIds[0], proposal.wantIds[0]);
+  // A picks-only offer has no wantIds[0]; its buildProposal signature uses PICKS.
+  const signature = tradeSignature(proposal.fromTeamId, proposal.giveIds[0], proposal.wantIds[0] ?? PICKS_ONLY_SIGNATURE);
   if (!st.declinedTradeSignatures.includes(signature)) st.declinedTradeSignatures.push(signature);
   st.tradeLog = Array.isArray(st.tradeLog) ? st.tradeLog : [];
   st.tradeLog.push({ type: "trade_declined", year: st.year, day: st.dayIndex || 0, proposalId: proposal.id, from: proposal.fromTeamId, target: proposal.targetName });
@@ -443,7 +519,7 @@ export function counterTradeProposal(st, proposalId, lang = "zh") {
   const target = user?.players?.find((p) => p.id === current.giveIds[0]);
   if (!user || !fromTeam || !target) return { ok: false, reason: lang === "en" ? "That offer no longer exists" : "报价已不存在" };
   const declined = new Set(st.declinedTradeSignatures || []);
-  declined.delete(tradeSignature(current.fromTeamId, target.id, current.wantIds[0]));
+  declined.delete(tradeSignature(current.fromTeamId, target.id, current.wantIds[0] ?? PICKS_ONLY_SIGNATURE));
   const row = st.playerSeason?.[`${st.userTeamId}:${target.id}`];
   const listed = (st.listedPlayerIds || []).includes(target.id);
   // Picks already dangled in OTHER live offers are off-limits for the revision,
@@ -457,11 +533,17 @@ export function counterTradeProposal(st, proposalId, lang = "zh") {
     a.offerPicks.map((p) => p.id).join(",") === b.offerPicks.map((p) => p.id).join(",") &&
     (a.askPickIds || []).join(",") === (b.askPickIds || []).join(",");
   const tilt = tiltOf(current.id);
-  for (const t of [tilt, (tilt + 1) % 3, (tilt + 2) % 3]) {
+  // A picks-only offer has no lead player to swap, so its revisions are sweeten (more
+  // picks) and harden (ask more) only -- and both must stay picks-only, while revisions
+  // of a player offer must stay player offers. picksOnlyMode enforces the shape.
+  const isPicksOnly = current.wantIds.length === 0;
+  const tilts = isPicksOnly ? [0, 2] : [tilt, (tilt + 1) % 3, (tilt + 2) % 3];
+  for (const t of tilts) {
     const args = {
       player: target, row, listed,
       pref: current.listingPref || DEFAULT_LISTING_PREF,
       fromTeamId: current.fromTeamId, fromTeam, declined, usedPickIds: reservedPickIds, lang,
+      picksOnlyMode: isPicksOnly ? "force" : "off",
     };
     let revision = null;
     if (t === 0) {
@@ -483,7 +565,7 @@ export function counterTradeProposal(st, proposalId, lang = "zh") {
       : t === 0 ? "对方在第二轮加了价" : t === 1 ? "对方在第二轮换了主筹码" : "对方在第二轮咬得更紧，还多要了东西";
     revision = { ...revision, id: current.id, round: 2, reason: lang === "en" ? `${current.reason} Round 2: ${note}.` : `${current.reason} 第二轮谈判：${note}。` };
     st.declinedTradeSignatures = Array.isArray(st.declinedTradeSignatures) ? st.declinedTradeSignatures : [];
-    const sig = tradeSignature(current.fromTeamId, target.id, current.wantIds[0]);
+    const sig = tradeSignature(current.fromTeamId, target.id, current.wantIds[0] ?? PICKS_ONLY_SIGNATURE);
     if (!st.declinedTradeSignatures.includes(sig)) st.declinedTradeSignatures.push(sig);
     proposals[index] = revision;
     st.tradeLog = Array.isArray(st.tradeLog) ? st.tradeLog : [];

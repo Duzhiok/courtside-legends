@@ -20,7 +20,10 @@ function player(id, ovr, salary = 100) {
 
 function seasonFixture(userExtra = 0) {
   const userPlayers = [player("star", 86, 160), ...Array.from({ length: 7 + userExtra }, (_, i) => player(`u${i}`, 70, 50))];
-  const cpuPlayers = [player("cpu-star", 83, 150), player("prospect", 70, 35), ...Array.from({ length: 7 }, (_, i) => player(`c${i}`, 68, 45))];
+  // CPU averages ~79 (mid, not rebuilding) on purpose: with a rebuilding club this
+  // expensive target would now take the picks-only shape instead of the player offer
+  // these tests pin down; that shape is covered in tests/tradeProposalShapes.test.js.
+  const cpuPlayers = [player("cpu-star", 83, 150), player("prospect", 70, 35), ...Array.from({ length: 7 }, (_, i) => player(`c${i}`, 79, 45))];
   return {
     year: 1994,
     dayIndex: 20,
