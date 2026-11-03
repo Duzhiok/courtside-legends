@@ -195,8 +195,13 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
   let pickCount = overall(offerPlayer) + 5 < overall(player) ? 2 : 1;
   // 选秀权倾向：重建队更愿意为即战力多搭选秀权
   if (teamSituation(fromTeam) === "rebuilding") pickCount += 1;
-  if (buzz >= BUZZ_EXTRA_PICK) pickCount += 1;
   pickCount = Math.max(0, Math.min(MAX_PROPOSAL_PICKS, pickCount + (shaped?.pickDelta || 0)));
+  // The documented buzz pick is added AFTER the cap, never eaten by it: a hot
+  // player whose cold offer already sat at the cap used to fetch the exact same
+  // package as cold (same players, same picks) while the card still claimed a
+  // "+bonus OVR" price-up — the QA's "hot clearly better than cold" check caught
+  // exactly that shape. pickCountForce (round-2 revisions) still wins, as before.
+  if (buzz >= BUZZ_EXTRA_PICK) pickCount += 1;
   if (pickCountForce != null) pickCount = Math.max(0, Math.min(MAX_PROPOSAL_PICKS, pickCountForce));
   // Chosen on a copy of the batch's used set: they are only reserved (below) once this offer is
   // certain to go out, so an offer dropped on the cap check does not use up picks others could offer.

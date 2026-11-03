@@ -179,6 +179,33 @@ test("past the pick threshold the club adds one more pick", () => {
   assert.ok(blazing.offerPicks.length > warm.offerPicks.length, `${blazing.offerPicks.length} vs ${warm.offerPicks.length}`);
 });
 
+test("a hot star still fetches one more pick when the cold offer already sits at the pick cap", () => {
+  // A weak pool: the closest candidate is the same hot or cold, and the cold
+  // offer already carries three picks, so the old code capped the buzz pick away
+  // and the hot package was identical to cold while the card still claimed a
+  // "+bonus OVR" price-up (the career-buzz QA's "hot clearly better" failure).
+  const weakMarket = (buzz) => ({
+    year: 1996,
+    dayIndex: 12,
+    phase: "regular",
+    userTeamId: "USER",
+    teams: {
+      USER: { name: "我方", players: [card("star", 86, 150), ...Array.from({ length: 7 }, (_, i) => card(`u${i}`, 70, 50))] },
+      CPU: { name: "对手", players: [70, 66, 66, 66, 66, 66, 66, 66].map((ovr, i) => card(`c-${ovr}-${i}`, ovr, 40)) },
+    },
+    playerSeason: { "USER:star": { stats: { gp: 10, pts: 220, plusMinus: 30 } } },
+    tradeLog: [],
+    draftAssets: [],
+    buzz,
+  });
+  const cold = offerFor(weakMarket(), "star");
+  const hot = offerFor(weakMarket({ star: 4 }), "star");
+  assert.ok(cold && hot);
+  assert.equal(cold.offerPicks.length, 3, "cold already sits at the cap");
+  assert.equal(hot.offerPicks.length, cold.offerPicks.length + 1);
+  assert.equal(hot.buzz.bonus, 3);
+});
+
 test("when he cools down the offer goes back to the ordinary one", () => {
   const cold = offerFor(market(), "star");
   let st = market({ star: 4 });
