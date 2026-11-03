@@ -383,3 +383,5 @@
 [2026-11-02 20:09] Luna：⑤b 剩余页签英文化完成并推送——市场/评奖/季后赛/选人包+赛季设置页签全部 L() 处理；顺带把页签渲染经过的展示层 helper 都加了 lang 参数（默认中文，其他调用方行为不变）：systemFitNote、marketMeta、historicalUpsideHint、staffMarketLabel、salaryLine、valueBadge 系、estimateDraftPickValue，confirmAction 默认按钮也跟语言走。评估页签的潜力 fallback 一并补了。剩下的是引擎层中文（交易/市场各操作的 reason 与 message、proposal.reason、教练 note 数据、战术名、休赛期续约文案、默认队名本身），要往游戏逻辑函数里穿 lang，是下一批，不在这批里动。全量 1490/1490，lint 0 错误。
 
 [2026-11-02 20:39] Luna：认领引擎层英文化——交易/市场引擎函数的 reason 与 message（cut/sign/hire/fire、executeTrade、三方交易、报价生成/接受/还价、推荐方案 note、换签），同法 lang 参数默认中文，市场页调用传 getLang()；已存档里的旧文案（已生成的报价 reason、历史日志）不重翻。用户已点确认。做完跑全量 + lint 再推。
+
+[2026-11-02 20:48] Luna：引擎层英文化完成并推送——交易/市场全部 reason 与 message 加 lang 参数（默认中文），市场页调用全传 getLang()，新 tests/engineLang.test.js 钉住英文与默认。已存档旧文案（旧报价 reason、历史日志）不重翻；休赛期续约文案（evolution 链内生成、进 stored log）没动；教练 note、战术名、默认队名是数据层，也没动。全量 1495/1495，lint 0 错误。
