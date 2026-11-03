@@ -91,9 +91,13 @@ export function applyFormAfterGame(src, simPlayer, { won = false } = {}) {
   const prevT = clamp(Number(src.tacticalStatus) || 50, 25, 92);
 
   const winBump = won ? 3.5 : -2;
-  // Big nights should visibly lift confidence / tactical gravity for next tip-off
+  // Big nights should visibly lift confidence / tactical gravity for next tip-off.
+  // scoring and passing get near-parity weight here: an 18-assist, 0-point floor-general
+  // performance is a genuinely elite night and should not crash confidence just because
+  // this player's box line wasn't a scoring one -- rateBoxImpact() below already calls that
+  // same game "组织统治" (passing dominance), and confidence shouldn't contradict the note.
   const scorePull =
-    impact.scoring * 1.05 + impact.passing * 0.28 + impact.twoWay * 0.25 + winBump;
+    impact.scoring * 0.85 + impact.passing * 0.85 + impact.twoWay * 0.25 + winBump;
   const tacPull =
     impact.scoring * 0.7 + impact.passing * 0.75 + impact.twoWay * 0.2 + (won ? 2.5 : -1.5);
 

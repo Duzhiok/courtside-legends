@@ -4569,7 +4569,9 @@ function marketFormBlock(p) {
   let tip = "";
   if (recent && recent.games >= 2 && recent.ppg < 6 && (p.scoring || 0) >= 78) {
     tip = `<div class="tiny market-form-tip warn">巨星近况低迷，可考虑卖出换血</div>`;
-  } else if (recent?.lastNote && /哑火|不顺|自我怀疑/.test(recent.lastNote + confidenceLabel(conf || 50))) {
+  } else if (recent?.lastNote && /哑火|不顺/.test(recent.lastNote)) {
+    // 只看上一场的真实表现判定"近况不佳"；别再跟 confidenceLabel 拼一起做子串匹配——
+    // 自我怀疑是心态面板自己会显示的信息，不该覆盖一场打出"组织统治"之类正面表现的近况。
     tip = `<div class="tiny market-form-tip warn">近况不佳</div>`;
   } else if (recent && recent.ppg >= 22) {
     tip = `<div class="tiny market-form-tip hot">近期火力足，慎卖</div>`;
