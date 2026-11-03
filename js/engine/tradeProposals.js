@@ -58,9 +58,9 @@ export function listedPlayerIds(st) {
   return Array.isArray(st?.listedPlayerIds) ? [...st.listedPlayerIds] : [];
 }
 
-export function listPlayerForTrade(st, playerId) {
+export function listPlayerForTrade(st, playerId, lang = "zh") {
   const user = st?.teams?.[st.userTeamId];
-  if (!user?.players?.some((p) => p.id === playerId)) return { ok: false, reason: "球员不在我方阵容" };
+  if (!user?.players?.some((p) => p.id === playerId)) return { ok: false, reason: lang === "en" ? "That player isn't on your roster" : "球员不在我方阵容" };
   st.listedPlayerIds = listedPlayerIds(st);
   if (!st.listedPlayerIds.includes(playerId)) st.listedPlayerIds.push(playerId);
   return { ok: true };
@@ -82,7 +82,7 @@ export function teamSituation(team) {
   return "mid";
 }
 
-export function generateTradeProposals(st, limit = 3) {
+export function generateTradeProposals(st, limit = 3, lang = "zh") {
   if (!st?.teams?.[st.userTeamId]) return [];
   const user = st.teams[st.userTeamId];
   const declined = new Set(st.declinedTradeSignatures || []);
@@ -113,7 +113,7 @@ export function generateTradeProposals(st, limit = 3) {
       ? (hot ? cpuTeams.map((_, k) => cpuTeams[(rotate + k) % cpuTeams.length]) : [cpuTeams[rotate % cpuTeams.length]])
       : rankTeams(cpuTeams, pref).slice(0, 3).map((_, k, top) => top[(k + rotate) % top.length]);
     for (const [fromTeamId, fromTeam] of callers) {
-      const args = { ...target, pref, index: i, fromTeamId, fromTeam, declined, usedPickIds };
+      const args = { ...target, pref, index: i, fromTeamId, fromTeam, declined, usedPickIds, lang };
       // A hot player's price-up can fail the salary check (a better player costs more); then he still
       // gets the ordinary offer rather than none at all.
       const proposal = buildProposal(st, { ...args, boost: true })
@@ -167,7 +167,7 @@ function computeAsk(st, user, target, pkgOvr, mode) {
 }
 
 /** One CPU team's offer for one of the user's players, or null if it can't make a valid one. */
-function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fromTeam, declined, usedPickIds, boost = false, excludeOfferIds = [], pickCountForce = null, askMode = "auto", keepAsk = null }) {
+function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fromTeam, declined, usedPickIds, boost = false, excludeOfferIds = [], pickCountForce = null, askMode = "auto", keepAsk = null, lang = "zh" }) {
   const shaped = shapeOffer(pref, fromTeam, player);
   if (pref !== DEFAULT_LISTING_PREF && !shaped) return null;
   // C4: a hot player is priced up -- but only on the house-picked offer. A listing preference is the
@@ -311,16 +311,27 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
   if (!check().ok) return null;
   for (const pick of picks) usedPickIds.add(pick.id);
   const teamName = fromTeam.name || fromTeamId;
-  const prefText = listingPrefText(pref);
+  const en = lang === "en";
+  const prefText = listingPrefText(pref, lang);
   const baseReason = bonus > 0
-    ? `${player.name} 刚打出高光，正在风口上（热度 ${buzz.toFixed(1)}）——${teamName} 愿意加价，报价约上浮 +${bonus} OVR。热度几场后会回落，要谈趁早。`
+    ? en
+      ? `${player.name} is hot right now (buzz ${buzz.toFixed(1)}) — ${teamName} will pay up, about +${bonus} OVR over the ask. Buzz fades after a few games, so talk soon.`
+      : `${player.name} 刚打出高光，正在风口上（热度 ${buzz.toFixed(1)}）——${teamName} 愿意加价，报价约上浮 +${bonus} OVR。热度几场后会回落，要谈趁早。`
     : !isListed
-    ? `${player.name} 最近表现突出（${perGame(row, "pts").toFixed(1)} 分 / ${perGame(row, "plusMinus").toFixed(1)} +/-），${teamName} 主动来谈。`
+    ? en
+      ? `${player.name} has stood out lately (${perGame(row, "pts").toFixed(1)} pts / ${perGame(row, "plusMinus").toFixed(1)} +/-) — ${teamName} came calling.`
+      : `${player.name} 最近表现突出（${perGame(row, "pts").toFixed(1)} 分 / ${perGame(row, "plusMinus").toFixed(1)} +/-），${teamName} 主动来谈。`
     : pref === DEFAULT_LISTING_PREF
-      ? `${player.name} 已挂牌询价，${teamName} 前来问价。`
-      : `${player.name} 按「${prefText.label}」挂牌：${prefText.why}——${teamName} 前来问价。`;
+      ? en
+        ? `${player.name} is listed for offers — ${teamName} is asking.`
+        : `${player.name} 已挂牌询价，${teamName} 前来问价。`
+      : en
+        ? `${player.name} is listed as "${prefText.label}": ${prefText.why} — ${teamName} is asking.`
+        : `${player.name} 按「${prefText.label}」挂牌：${prefText.why}——${teamName} 前来问价。`;
   const askNote = askPlayerObjs.length || askPickObjs.length
-    ? `对方还要求：${[...askPlayerObjs.map((p) => p.name), ...(askPickObjs.length ? [`${askPickObjs.length} 个未来选秀权`] : [])].join(" + ")}。`
+    ? en
+      ? `They also ask for: ${[...askPlayerObjs.map((p) => p.name), ...(askPickObjs.length ? [`${askPickObjs.length} future picks`] : [])].join(" + ")}.`
+      : `对方还要求：${[...askPlayerObjs.map((p) => p.name), ...(askPickObjs.length ? [`${askPickObjs.length} 个未来选秀权`] : [])].join(" + ")}。`
     : "";
   return {
     id: `${st.year}:${st.dayIndex || 0}:${fromTeamId}:${player.id}`,
@@ -352,13 +363,13 @@ function picksStillHeld(st, proposal) {
 }
 
 /** Regenerate and remember what the market looked like (who was hot) when these offers were made. */
-function storeProposals(st) {
-  st.tradeProposals = generateTradeProposals(st);
+function storeProposals(st, lang = "zh") {
+  st.tradeProposals = generateTradeProposals(st, 3, lang);
   st.tradeProposalsBuzz = buzzKey(st);
   return st.tradeProposals;
 }
 
-export function ensureTradeProposals(st) {
+export function ensureTradeProposals(st, lang = "zh") {
   // Saved offers can go stale: the club traded a pick on, a season rolled over, or the offer came
   // from a version that attached invented picks. Refresh instead of letting an accept fail later.
   // Buzz is the other way they go stale: after a big night the offers must rise, and once he cools
@@ -366,17 +377,17 @@ export function ensureTradeProposals(st) {
   const stale = !Array.isArray(st.tradeProposals)
     || !st.tradeProposals.every((p) => picksStillHeld(st, p))
     || (st.tradeProposalsBuzz ?? "") !== buzzKey(st);
-  return stale ? storeProposals(st) : st.tradeProposals;
+  return stale ? storeProposals(st, lang) : st.tradeProposals;
 }
 
-export function refreshTradeProposals(st) {
-  return storeProposals(st);
+export function refreshTradeProposals(st, lang = "zh") {
+  return storeProposals(st, lang);
 }
 
-export function declineTradeProposal(st, proposalId) {
-  const proposals = ensureTradeProposals(st);
+export function declineTradeProposal(st, proposalId, lang = "zh") {
+  const proposals = ensureTradeProposals(st, lang);
   const index = proposals.findIndex((proposal) => proposal.id === proposalId);
-  if (index < 0) return { ok: false, reason: "报价已不存在" };
+  if (index < 0) return { ok: false, reason: lang === "en" ? "That offer no longer exists" : "报价已不存在" };
   const [proposal] = proposals.splice(index, 1);
   st.declinedTradeSignatures = Array.isArray(st.declinedTradeSignatures) ? st.declinedTradeSignatures : [];
   const signature = tradeSignature(proposal.fromTeamId, proposal.giveIds[0], proposal.wantIds[0]);
@@ -386,10 +397,10 @@ export function declineTradeProposal(st, proposalId) {
   return { ok: true, proposal };
 }
 
-export function acceptTradeProposal(st, proposalId) {
-  const proposals = ensureTradeProposals(st);
+export function acceptTradeProposal(st, proposalId, lang = "zh") {
+  const proposals = ensureTradeProposals(st, lang);
   const proposal = proposals.find((item) => item.id === proposalId);
-  if (!proposal) return { ok: false, reason: "报价已不存在" };
+  if (!proposal) return { ok: false, reason: lang === "en" ? "That offer no longer exists" : "报价已不存在" };
   // The sweeteners are real picks, so they travel inside the trade itself (one all-or-nothing
   // validation, and the ledger records the new owner) instead of being added afterwards.
   // A pick the CPU asked FROM the user travels the same way, in the other direction.
@@ -400,10 +411,11 @@ export function acceptTradeProposal(st, proposalId) {
     wantPickIds: proposal.offerPicks.map((pick) => pick.id),
     cpuTeamId: proposal.fromTeamId,
     acceptedProposal: true,
+    lang,
   });
   if (!result.ok) return result;
-  if (proposal.offerPicks.length) result.message = `${result.message}；另获 ${proposal.offerPicks.length} 个未来选秀权`;
-  if ((proposal.askPickIds || []).length) result.message = `${result.message}；另送出 ${proposal.askPickIds.length} 个未来选秀权`;
+  if (proposal.offerPicks.length) result.message = lang === "en" ? `${result.message}; plus ${proposal.offerPicks.length} future picks` : `${result.message}；另获 ${proposal.offerPicks.length} 个未来选秀权`;
+  if ((proposal.askPickIds || []).length) result.message = lang === "en" ? `${result.message}; plus ${proposal.askPickIds.length} future picks sent` : `${result.message}；另送出 ${proposal.askPickIds.length} 个未来选秀权`;
   st.tradeLog.at(-1).proposalId = proposal.id;
   proposals.splice(proposals.indexOf(proposal), 1);
   return { ...result, proposal };
@@ -420,16 +432,16 @@ export function acceptTradeProposal(st, proposalId) {
  * honestly reports that the club won't budge. The superseded round-1 shape is
  * remembered as declined so a market refresh cannot resurrect it.
  */
-export function counterTradeProposal(st, proposalId) {
-  const proposals = ensureTradeProposals(st);
+export function counterTradeProposal(st, proposalId, lang = "zh") {
+  const proposals = ensureTradeProposals(st, lang);
   const index = proposals.findIndex((proposal) => proposal.id === proposalId);
-  if (index < 0) return { ok: false, reason: "报价已不存在" };
+  if (index < 0) return { ok: false, reason: lang === "en" ? "That offer no longer exists" : "报价已不存在" };
   const current = proposals[index];
-  if ((current.round || 1) >= 2) return { ok: false, reason: "已经是第二轮，没有第三轮" };
+  if ((current.round || 1) >= 2) return { ok: false, reason: lang === "en" ? "Already round 2 — there is no round 3" : "已经是第二轮，没有第三轮" };
   const user = st.teams[st.userTeamId];
   const fromTeam = st.teams[current.fromTeamId];
   const target = user?.players?.find((p) => p.id === current.giveIds[0]);
-  if (!user || !fromTeam || !target) return { ok: false, reason: "报价已不存在" };
+  if (!user || !fromTeam || !target) return { ok: false, reason: lang === "en" ? "That offer no longer exists" : "报价已不存在" };
   const declined = new Set(st.declinedTradeSignatures || []);
   declined.delete(tradeSignature(current.fromTeamId, target.id, current.wantIds[0]));
   const row = st.playerSeason?.[`${st.userTeamId}:${target.id}`];
@@ -449,7 +461,7 @@ export function counterTradeProposal(st, proposalId) {
     const args = {
       player: target, row, listed,
       pref: current.listingPref || DEFAULT_LISTING_PREF,
-      fromTeamId: current.fromTeamId, fromTeam, declined, usedPickIds: reservedPickIds,
+      fromTeamId: current.fromTeamId, fromTeam, declined, usedPickIds: reservedPickIds, lang,
     };
     let revision = null;
     if (t === 0) {
@@ -466,8 +478,10 @@ export function counterTradeProposal(st, proposalId) {
       revision = buildProposal(st, { ...args, pickCountForce: current.offerPicks.length, askMode: "force" });
     }
     if (!revision || samePackage(revision, current)) continue;
-    const note = t === 0 ? "对方在第二轮加了价" : t === 1 ? "对方在第二轮换了主筹码" : "对方在第二轮咬得更紧，还多要了东西";
-    revision = { ...revision, id: current.id, round: 2, reason: `${current.reason} 第二轮谈判：${note}。` };
+    const note = lang === "en"
+      ? t === 0 ? "They sweetened the deal in round 2" : t === 1 ? "They swapped the main piece in round 2" : "They dug in harder in round 2 and asked for more"
+      : t === 0 ? "对方在第二轮加了价" : t === 1 ? "对方在第二轮换了主筹码" : "对方在第二轮咬得更紧，还多要了东西";
+    revision = { ...revision, id: current.id, round: 2, reason: lang === "en" ? `${current.reason} Round 2: ${note}.` : `${current.reason} 第二轮谈判：${note}。` };
     st.declinedTradeSignatures = Array.isArray(st.declinedTradeSignatures) ? st.declinedTradeSignatures : [];
     const sig = tradeSignature(current.fromTeamId, target.id, current.wantIds[0]);
     if (!st.declinedTradeSignatures.includes(sig)) st.declinedTradeSignatures.push(sig);
@@ -476,5 +490,5 @@ export function counterTradeProposal(st, proposalId) {
     st.tradeLog.push({ type: "trade_countered", year: st.year, day: st.dayIndex || 0, proposalId: current.id, from: current.fromTeamId, target: target.name, round: 2 });
     return { ok: true, proposal: revision };
   }
-  return { ok: false, reason: "对方不肯再谈，这份报价保持不变" };
+  return { ok: false, reason: lang === "en" ? "They won't budge — the offer stands as is" : "对方不肯再谈，这份报价保持不变" };
 }

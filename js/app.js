@@ -8341,7 +8341,7 @@ function renderSeasonMarket() {
   prepareSeasonState(st);
   const you = st.teams[st.userTeamId];
   const pay = payrollSummary(you);
-  const proposals = ensureTradeProposals(st);
+  const proposals = ensureTradeProposals(st, getLang());
   const locked = st.phase !== "regular";
 
   if (locked) {
@@ -8674,13 +8674,13 @@ function renderSeasonMarket() {
 
   box.querySelectorAll(".sm-list-pref").forEach((sel) => {
     sel.onchange = () => {
-      const res = setListingPref(st, sel.dataset.listPref, sel.value);
+      const res = setListingPref(st, sel.dataset.listPref, sel.value, getLang());
       if (!res.ok) {
         alert(res.reason);
         return;
       }
       // 换了出售倾向就重新询价，让报价立刻按新倾向来
-      refreshTradeProposals(st);
+      refreshTradeProposals(st, getLang());
       if (!saveSeasonAndCareer(st)) return;
       renderSeasonHub();
       showSeasonTab("market");
@@ -8690,13 +8690,13 @@ function renderSeasonMarket() {
     btn.onclick = () => {
       const id = btn.dataset.listTrade;
       const listed = new Set(listedPlayerIds(st)).has(id);
-      const res = listed ? unlistPlayerForTrade(st, id) : listPlayerForTrade(st, id);
+      const res = listed ? unlistPlayerForTrade(st, id) : listPlayerForTrade(st, id, getLang());
       if (!res.ok) {
         alert(res.reason);
         return;
       }
       // 挂牌后刷新报价，让挂牌球员立刻进入报价池
-      refreshTradeProposals(st);
+      refreshTradeProposals(st, getLang());
       if (!saveSeasonAndCareer(st)) return;
       renderSeasonHub();
       showSeasonTab("market");
@@ -8706,7 +8706,7 @@ function renderSeasonMarket() {
     btn.onclick = () => {
       const p = you.players.find((x) => x.id === btn.dataset.cut);
       if (!p || !confirm(L(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`, `Cut ${p.name} (${formatSalary(playerSalary(p))})? He'll enter free agency.`))) return;
-      const res = cutPlayer(st, p.id);
+      const res = cutPlayer(st, p.id, getLang());
       if (!res.ok) {
         alert(res.reason);
         return;
@@ -8722,7 +8722,7 @@ function renderSeasonMarket() {
   });
   box.querySelectorAll(".sm-sign").forEach((btn) => {
     btn.onclick = () => {
-      const res = signFreeAgent(st, btn.dataset.sign);
+      const res = signFreeAgent(st, btn.dataset.sign, getLang());
       if (!res.ok) {
         alert(res.reason);
         return;
@@ -8746,7 +8746,7 @@ function renderSeasonMarket() {
   });
   $("#btn-sm-fire-coach")?.addEventListener("click", () => {
     if (!confirm(L(`解聘主教练 ${hc?.name || ""}？他将回到应聘池。`, `Fire head coach ${hc?.name || ""}? He'll return to the applicant pool.`))) return;
-    const res = fireCoach(st);
+    const res = fireCoach(st, getLang());
     if (!res.ok) {
       alert(res.reason);
       return;
@@ -8757,7 +8757,7 @@ function renderSeasonMarket() {
   });
   $("#btn-sm-fire-asst")?.addEventListener("click", () => {
     if (!confirm(L(`解聘助教 ${asst?.name || ""}？`, `Fire assistant ${asst?.name || ""}?`))) return;
-    const res = fireAssistant(st);
+    const res = fireAssistant(st, getLang());
     if (!res.ok) {
       alert(res.reason);
       return;
@@ -8768,7 +8768,7 @@ function renderSeasonMarket() {
   });
   box.querySelectorAll(".sm-hire-coach").forEach((btn) => {
     btn.onclick = () => {
-      const res = hireCoach(st, btn.dataset.hireCoach);
+      const res = hireCoach(st, btn.dataset.hireCoach, getLang());
       if (!res.ok) {
         alert(res.reason);
         return;
@@ -8780,7 +8780,7 @@ function renderSeasonMarket() {
   });
   box.querySelectorAll(".sm-hire-asst").forEach((btn) => {
     btn.onclick = () => {
-      const res = hireAssistant(st, btn.dataset.hireAsst);
+      const res = hireAssistant(st, btn.dataset.hireAsst, getLang());
       if (!res.ok) {
         alert(res.reason);
         return;
@@ -8791,7 +8791,7 @@ function renderSeasonMarket() {
     };
   });
   $("#btn-refresh-proposals")?.addEventListener("click", () => {
-    refreshTradeProposals(st);
+    refreshTradeProposals(st, getLang());
     if (!saveSeasonAndCareer(st)) return;
     renderSeasonHub();
     showSeasonTab("market");
@@ -8801,10 +8801,10 @@ function renderSeasonMarket() {
       const proposalId = button.dataset.proposalId;
       const action = button.dataset.tradeProposalAction;
       const result = action === "accept"
-        ? acceptTradeProposal(st, proposalId)
+        ? acceptTradeProposal(st, proposalId, getLang())
         : action === "counter"
-          ? counterTradeProposal(st, proposalId)
-          : declineTradeProposal(st, proposalId);
+          ? counterTradeProposal(st, proposalId, getLang())
+          : declineTradeProposal(st, proposalId, getLang());
       if (!result.ok) {
         alert(result.reason);
         return;
@@ -8816,7 +8816,7 @@ function renderSeasonMarket() {
   });
   $("#btn-sm-pick-swap")?.addEventListener("click", () => {
     const cpuId = $("#sm-pick-cpu")?.value;
-    const res = swapDraftPicks(st, { year: st.year, cpuTeamId: cpuId });
+    const res = swapDraftPicks(st, { year: st.year, cpuTeamId: cpuId, lang: getLang() });
     const hint = $("#sm-pick-hint");
     if (!res.ok) {
       if (hint) hint.textContent = res.reason;
@@ -8840,7 +8840,7 @@ function renderSeasonMarket() {
       if (hint) hint.textContent = L("先勾选你想要的对方球员，再点「推荐方案」", "Tick an opponent player you want first, then hit Recommend");
       return;
     }
-    const rec = recommendTradePackage(st, { cpuTeamId: tid, wantPlayerId: wantChecked[0].value });
+    const rec = recommendTradePackage(st, { cpuTeamId: tid, wantPlayerId: wantChecked[0].value, lang: getLang() });
     if (!rec.ok) {
       if (hint) hint.textContent = rec.reason;
       return;
@@ -8864,6 +8864,7 @@ function renderSeasonMarket() {
           team2PlayerIds: wantIds,
           team3Id: cpu3Id,
           team3PlayerIds: checkedVals(".sm-want3-player:checked"),
+          lang: getLang(),
         })
       : executeTrade(st, {
           giveIds,
@@ -8871,6 +8872,7 @@ function renderSeasonMarket() {
           wantIds,
           wantPickIds: checkedVals(".sm-want-pick:checked"),
           cpuTeamId: cpuId,
+          lang: getLang(),
         });
     const hint = $("#sm-trade-hint");
     if (!res.ok) {

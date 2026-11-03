@@ -96,8 +96,8 @@ export function listingPref(st, playerId) {
   return isListingPref(pref) ? pref : DEFAULT_LISTING_PREF;
 }
 
-export function setListingPref(st, playerId, pref) {
-  if (!isListingPref(pref)) return { ok: false, reason: "未知的出售倾向" };
+export function setListingPref(st, playerId, pref, lang = "zh") {
+  if (!isListingPref(pref)) return { ok: false, reason: lang === "en" ? "Unknown listing preference" : "未知的出售倾向" };
   st.listingPrefs = { ...(st.listingPrefs || {}) };
   if (pref === DEFAULT_LISTING_PREF) delete st.listingPrefs[playerId];
   else st.listingPrefs[playerId] = pref;

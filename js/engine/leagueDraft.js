@@ -313,34 +313,35 @@ export function picksOwnedBy(season, year, teamId) {
  * own second-rounder (writing pickOwnership directly would drag round 2 along
  * with round 1, since round 2 defaults to the round-1 owner).
  */
-export function swapDraftPicks(season, { year, cpuTeamId } = {}) {
+export function swapDraftPicks(season, { year, cpuTeamId, lang = "zh" } = {}) {
   requireYear(year, "year");
   ensurePickLedger(season); // an older save may have traded this pick as a token
   const ids = seasonTeamIds(season);
   const userTeamId = season.userTeamId;
-  if (!userTeamId || !ids.includes(userTeamId)) return { ok: false, reason: "用户球队无效" };
+  const en = lang === "en";
+  if (!userTeamId || !ids.includes(userTeamId)) return { ok: false, reason: en ? "Invalid user team" : "用户球队无效" };
   if (!cpuTeamId || !ids.includes(cpuTeamId) || cpuTeamId === userTeamId) {
-    return { ok: false, reason: "对方球队无效" };
+    return { ok: false, reason: en ? "Invalid opponent" : "对方球队无效" };
   }
-  const window = tradeWindowCheck(season);
+  const window = tradeWindowCheck(season, lang);
   if (!window.ok) return window;
   const ownership = season.pickOwnership?.[year] || {};
   const userOwner = ownership[userTeamId] || userTeamId;
   const cpuOwner = ownership[cpuTeamId] || cpuTeamId;
   const r2 = season.pickOwnershipR2?.[year] || {};
   if (userOwner !== userTeamId || cpuOwner !== cpuTeamId || r2[userTeamId] || r2[cpuTeamId]) {
-    return { ok: false, reason: "已有过交易的签位暂不支持二次换签" };
+    return { ok: false, reason: en ? "Already-traded picks can't be swapped a second time" : "已有过交易的签位暂不支持二次换签" };
   }
   const ranked = [...ids].sort(worseFirst(season, `${season.year}|pick-value`));
   const valueOf = (sourceId) => ids.length - ranked.indexOf(sourceId);
   if (valueOf(userTeamId) < valueOf(cpuTeamId) * 0.9) {
-    return { ok: false, reason: "对方认为换来的签位价值不够，拒绝换签" };
+    return { ok: false, reason: en ? "They don't think the pick coming back is worth enough — swap refused" : "对方认为换来的签位价值不够，拒绝换签" };
   }
   setPickOwner(season, { sourceTeamId: userTeamId, year, round: 1 }, cpuTeamId);
   setPickOwner(season, { sourceTeamId: cpuTeamId, year, round: 1 }, userTeamId);
   return {
     ok: true,
-    message: `换签成交：送出我方 ${year} 年首轮签，得到 ${season.teams[cpuTeamId]?.name || cpuTeamId} 的 ${year} 年首轮签`,
+    message: en ? `Swap done: sent your ${year} first-rounder, got ${season.teams[cpuTeamId]?.name || cpuTeamId}'s ${year} first-rounder` : `换签成交：送出我方 ${year} 年首轮签，得到 ${season.teams[cpuTeamId]?.name || cpuTeamId} 的 ${year} 年首轮签`,
   };
 }
 

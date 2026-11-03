@@ -36,16 +36,17 @@ function packageWorks(salOut, salIn, ovrOut, ovrIn) {
  * fallback, then a pick sweetener) rather than an exhaustive combinatorial search -- matches the
  * project's existing "explainable, not a hidden oracle" style (see draftPickValue.js).
  */
-export function recommendTradePackage(st, { cpuTeamId, wantPlayerId } = {}) {
+export function recommendTradePackage(st, { cpuTeamId, wantPlayerId, lang = "zh" } = {}) {
   const you = st?.teams?.[st.userTeamId];
   const cpu = st?.teams?.[cpuTeamId];
   const want = cpu?.players?.find((p) => p.id === wantPlayerId);
-  if (!you || !cpu || !want) return { ok: false, reason: "目标无效" };
+  const en = lang === "en";
+  if (!you || !cpu || !want) return { ok: false, reason: en ? "Invalid target" : "目标无效" };
 
   const wantSalary = playerSalary(want);
   const wantOvr = overall(want);
   const mine = [...(you.players || [])].filter((p) => p.id !== wantPlayerId);
-  if (!mine.length) return { ok: false, reason: "我方没有可交易的球员" };
+  if (!mine.length) return { ok: false, reason: en ? "You have no players to trade" : "我方没有可交易的球员" };
 
   // 1) A single piece whose salary already lands in the acceptance band, closest match first.
   const singleCandidates = mine
@@ -57,7 +58,7 @@ export function recommendTradePackage(st, { cpuTeamId, wantPlayerId } = {}) {
         ok: true,
         giveIds: [p.id],
         givePickIds: [],
-        note: `${p.name} 薪资接近，预计对方能接受`,
+        note: en ? `${p.name}'s salary is close — the other side should accept` : `${p.name} 薪资接近，预计对方能接受`,
       };
     }
   }
@@ -78,7 +79,7 @@ export function recommendTradePackage(st, { cpuTeamId, wantPlayerId } = {}) {
           ok: true,
           giveIds: [anchor.id, flier.id],
           givePickIds: [],
-          note: `${anchor.name} + 潜力新秀 ${flier.name} 搭配，补齐薪资和身价`,
+          note: en ? `${anchor.name} + prospect ${flier.name} fills the salary and value gap` : `${anchor.name} + 潜力新秀 ${flier.name} 搭配，补齐薪资和身价`,
         };
       }
     }
@@ -95,13 +96,13 @@ export function recommendTradePackage(st, { cpuTeamId, wantPlayerId } = {}) {
           ok: true,
           giveIds: [p.id],
           givePickIds: [pick.id],
-          note: `${p.name} 加送 ${estimateDraftPickValue(pick, { currentYear: st.year }).label}，弥补身价差`,
+          note: en ? `${p.name} plus ${estimateDraftPickValue(pick, { currentYear: st.year, lang }).label} to cover the value gap` : `${p.name} 加送 ${estimateDraftPickValue(pick, { currentYear: st.year }).label}，弥补身价差`,
         };
       }
     }
   }
 
-  return { ok: false, reason: `${want.name} 身价/薪资太高，凑不出对方会接受的配平方案` };
+  return { ok: false, reason: en ? `${want.name}'s value/salary is too high — no package they'd accept` : `${want.name} 身价/薪资太高，凑不出对方会接受的配平方案` };
 }
 
 export { packageWorks };

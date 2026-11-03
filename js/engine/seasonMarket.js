@@ -64,10 +64,10 @@ export function seasonTradeCount(st) {
  * There is deliberately NO per-season trade count cap — the NBA has none
  * (only a deadline plus salary/roster rules), so a count cap would be
  * game-balance fiction, not realism. R103's 5-trade cap was removed in R109. */
-export function tradeWindowCheck(st) {
+export function tradeWindowCheck(st, lang = "zh") {
   const deadline = tradeDeadlineDay(st);
   if (deadline != null && (st.dayIndex || 0) > deadline) {
-    return { ok: false, reason: `交易截止日已过（常规赛第 ${deadline} 天后关闭）` };
+    return { ok: false, reason: lang === "en" ? `Trade deadline passed (closed after regular-season day ${deadline})` : `交易截止日已过（常规赛第 ${deadline} 天后关闭）` };
   }
   return { ok: true };
 }
@@ -280,28 +280,29 @@ export function ensureSeasonMarket(st) {
   return st;
 }
 
-function canAffordStaffDelta(team, addSal, removeSal = 0) {
+function canAffordStaffDelta(team, addSal, removeSal = 0, lang = "zh") {
   const pay = teamPayroll(team) - removeSal + addSal;
   if (pay > SEASON_APRON) {
-    return { ok: false, reason: `超过硬工资帽 ${SEASON_APRON}（含教练组）` };
+    return { ok: false, reason: lang === "en" ? `Over the hard cap ${SEASON_APRON} (including staff)` : `超过硬工资帽 ${SEASON_APRON}（含教练组）` };
   }
   return { ok: true, pay };
 }
 
 /** Hire HC from staff market (replaces current; old HC returns to market). */
-export function hireCoach(st, coachId) {
+export function hireCoach(st, coachId, lang = "zh") {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可更换教练组" };
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Coaching changes are only available during the regular season" : "仅常规赛期间可更换教练组" };
   const team = st.teams[st.userTeamId];
-  if (!team) return { ok: false, reason: "找不到球队" };
+  if (!team) return { ok: false, reason: en ? "Team not found" : "找不到球队" };
   const pool = st.staffMarket?.coaches || [];
   const idx = pool.findIndex((c) => c.id === coachId);
-  if (idx < 0) return { ok: false, reason: "应聘名单中没有这位主帅" };
+  if (idx < 0) return { ok: false, reason: en ? "This head coach isn't on the applicant list" : "应聘名单中没有这位主帅" };
   const next = structuredClone(pool[idx]);
   ensureStaffSalary(next);
   const old = team.coach ? structuredClone(team.coach) : null;
   if (old) ensureStaffSalary(old);
-  const gate = canAffordStaffDelta(team, staffSalary(next), staffSalary(old));
+  const gate = canAffordStaffDelta(team, staffSalary(next), staffSalary(old), lang);
   if (!gate.ok) return gate;
 
   pool.splice(idx, 1);
@@ -323,19 +324,20 @@ export function hireCoach(st, coachId) {
 }
 
 /** Hire assistant from staff market. */
-export function hireAssistant(st, assistantId) {
+export function hireAssistant(st, assistantId, lang = "zh") {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可更换教练组" };
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Coaching changes are only available during the regular season" : "仅常规赛期间可更换教练组" };
   const team = st.teams[st.userTeamId];
-  if (!team) return { ok: false, reason: "找不到球队" };
+  if (!team) return { ok: false, reason: en ? "Team not found" : "找不到球队" };
   const pool = st.staffMarket?.assistants || [];
   const idx = pool.findIndex((a) => a.id === assistantId);
-  if (idx < 0) return { ok: false, reason: "应聘名单中没有这位助教" };
+  if (idx < 0) return { ok: false, reason: en ? "This assistant isn't on the applicant list" : "应聘名单中没有这位助教" };
   const next = structuredClone(pool[idx]);
   ensureStaffSalary(next);
   const old = team.assistant ? structuredClone(team.assistant) : null;
   if (old) ensureStaffSalary(old);
-  const gate = canAffordStaffDelta(team, staffSalary(next), staffSalary(old));
+  const gate = canAffordStaffDelta(team, staffSalary(next), staffSalary(old), lang);
   if (!gate.ok) return gate;
 
   pool.splice(idx, 1);
@@ -357,11 +359,12 @@ export function hireAssistant(st, assistantId) {
 }
 
 /** Fire HC — returns to staff market; team may have no coach until hire. */
-export function fireCoach(st) {
+export function fireCoach(st, lang = "zh") {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可更换教练组" };
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Coaching changes are only available during the regular season" : "仅常规赛期间可更换教练组" };
   const team = st.teams[st.userTeamId];
-  if (!team?.coach) return { ok: false, reason: "当前没有主教练" };
+  if (!team?.coach) return { ok: false, reason: en ? "No head coach right now" : "当前没有主教练" };
   const old = structuredClone(team.coach);
   ensureStaffSalary(old);
   old.staffKind = "coach";
@@ -379,11 +382,12 @@ export function fireCoach(st) {
   return { ok: true, coach: old, payroll: payrollSummary(team) };
 }
 
-export function fireAssistant(st) {
+export function fireAssistant(st, lang = "zh") {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可更换教练组" };
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Coaching changes are only available during the regular season" : "仅常规赛期间可更换教练组" };
   const team = st.teams[st.userTeamId];
-  if (!team?.assistant) return { ok: false, reason: "当前没有助教" };
+  if (!team?.assistant) return { ok: false, reason: en ? "No assistant right now" : "当前没有助教" };
   const old = structuredClone(team.assistant);
   ensureStaffSalary(old);
   old.staffKind = "assistant";
@@ -420,16 +424,17 @@ export function staffMarketLabel(staff, lang = "zh") {
 }
 
 /** Cut / waive — salary off books, player joins FA. */
-export function cutPlayer(st, playerId) {
+export function cutPlayer(st, playerId, lang = "zh") {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可操作阵容" };
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Roster moves are only available during the regular season" : "仅常规赛期间可操作阵容" };
   const team = st.teams[st.userTeamId];
-  if (!team) return { ok: false, reason: "找不到球队" };
+  if (!team) return { ok: false, reason: en ? "Team not found" : "找不到球队" };
   if (rosterCount(team) <= SEASON_MIN_ROSTER) {
-    return { ok: false, reason: `至少保留 ${SEASON_MIN_ROSTER} 人` };
+    return { ok: false, reason: en ? `Keep at least ${SEASON_MIN_ROSTER} players` : `至少保留 ${SEASON_MIN_ROSTER} 人` };
   }
   const idx = team.players.findIndex((p) => p.id === playerId);
-  if (idx < 0) return { ok: false, reason: "阵容中没有该球员" };
+  if (idx < 0) return { ok: false, reason: en ? "That player isn't on the roster" : "阵容中没有该球员" };
   const [cut] = team.players.splice(idx, 1);
   ensurePlayerSalary(cut);
   st.freeAgents = st.freeAgents || [];
@@ -446,14 +451,15 @@ export function cutPlayer(st, playerId) {
 }
 
 /** Sign FA if under apron and roster room. Soft-cap OK if space covers salary; hard block over apron. */
-export function signFreeAgent(st, playerId) {
+export function signFreeAgent(st, playerId, lang = "zh") {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可签约" };
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Signings are only available during the regular season" : "仅常规赛期间可签约" };
   const team = st.teams[st.userTeamId];
   const faIdx = (st.freeAgents || []).findIndex((p) => p.id === playerId);
-  if (faIdx < 0) return { ok: false, reason: "自由球员名单中没有此人" };
+  if (faIdx < 0) return { ok: false, reason: en ? "That player isn't in free agency" : "自由球员名单中没有此人" };
   if (rosterCount(team) >= SEASON_MAX_ROSTER) {
-    return { ok: false, reason: `名单已满（最多 ${SEASON_MAX_ROSTER} 人），请先裁人或交易` };
+    return { ok: false, reason: en ? `Roster is full (max ${SEASON_MAX_ROSTER}) — cut or trade first` : `名单已满（最多 ${SEASON_MAX_ROSTER} 人），请先裁人或交易` };
   }
   const player = st.freeAgents[faIdx];
   ensurePlayerSalary(player);
@@ -462,14 +468,14 @@ export function signFreeAgent(st, playerId) {
   if (pay + sal > SEASON_APRON) {
     return {
       ok: false,
-      reason: `超过硬工资帽上限 ${SEASON_APRON}（当前 ${pay} + 合同 ${sal}）`,
+      reason: en ? `Over the hard cap ${SEASON_APRON} (now ${pay} + contract ${sal})` : `超过硬工资帽上限 ${SEASON_APRON}（当前 ${pay} + 合同 ${sal}）`,
     };
   }
   // Soft cap: allow if already over soft cap only when signing min-ish deals
   if (pay >= SEASON_SALARY_CAP && sal > 90) {
     return {
       ok: false,
-      reason: `已超软工资帽 ${SEASON_SALARY_CAP}，只能签迷你合同（¤90 以下）或先腾出空间`,
+      reason: en ? `Already over the soft cap ${SEASON_SALARY_CAP} — only minimum deals (under ¤90) or clear room first` : `已超软工资帽 ${SEASON_SALARY_CAP}，只能签迷你合同（¤90 以下）或先腾出空间`,
     };
   }
   st.freeAgents.splice(faIdx, 1);
@@ -517,30 +523,31 @@ export function pickValueOf(st, pick) {
  */
 export function executeTrade(
   st,
-  { giveIds = [], wantIds = [], givePickIds = [], wantPickIds = [], cpuTeamId, acceptedProposal = false } = {},
+  { giveIds = [], wantIds = [], givePickIds = [], wantPickIds = [], cpuTeamId, acceptedProposal = false, lang = "zh" } = {},
 ) {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可交易" };
-  const window = tradeWindowCheck(st);
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Trades are only available during the regular season" : "仅常规赛期间可交易" };
+  const window = tradeWindowCheck(st, lang);
   if (!window.ok) return window;
   const you = st.teams[st.userTeamId];
   const cpu = st.teams[cpuTeamId];
-  if (!you || !cpu || cpuTeamId === st.userTeamId) return { ok: false, reason: "对手无效" };
+  if (!you || !cpu || cpuTeamId === st.userTeamId) return { ok: false, reason: en ? "Invalid opponent" : "对手无效" };
   if ((!giveIds.length && !givePickIds.length) || (!wantIds.length && !wantPickIds.length)) {
-    return { ok: false, reason: "双方都需出点东西（球员或选秀权）" };
+    return { ok: false, reason: en ? "Both sides need to offer something (players or picks)" : "双方都需出点东西（球员或选秀权）" };
   }
 
   const give = giveIds.map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
   const want = wantIds.map((id) => cpu.players.find((p) => p.id === id)).filter(Boolean);
-  if (give.length !== giveIds.length) return { ok: false, reason: "我方球员无效" };
-  if (want.length !== wantIds.length) return { ok: false, reason: "对方球员无效" };
+  if (give.length !== giveIds.length) return { ok: false, reason: en ? "Invalid player on your side" : "我方球员无效" };
+  if (want.length !== wantIds.length) return { ok: false, reason: en ? "Invalid player on their side" : "对方球员无效" };
 
   const myPicks = givePickIds.length ? teamDraftAssets(st, st.userTeamId) : [];
   const cpuPicks = wantPickIds.length ? teamDraftAssets(st, cpuTeamId) : [];
   const givePicks = givePickIds.map((id) => myPicks.find((p) => p.id === id)).filter(Boolean);
   const wantPicks = wantPickIds.map((id) => cpuPicks.find((p) => p.id === id)).filter(Boolean);
-  if (givePicks.length !== givePickIds.length) return { ok: false, reason: "我方选秀权无效" };
-  if (wantPicks.length !== wantPickIds.length) return { ok: false, reason: "对方选秀权无效" };
+  if (givePicks.length !== givePickIds.length) return { ok: false, reason: en ? "Invalid pick on your side" : "我方选秀权无效" };
+  if (wantPicks.length !== wantPickIds.length) return { ok: false, reason: en ? "Invalid pick on their side" : "对方选秀权无效" };
 
   const salOut = give.reduce((s, p) => s + playerSalary(p), 0);
   const salIn = want.reduce((s, p) => s + playerSalary(p), 0);
@@ -551,16 +558,16 @@ export function executeTrade(
   const youAfter = rosterCount(you) - give.length + want.length;
   const cpuAfter = rosterCount(cpu) - want.length + give.length;
   if (youAfter > SEASON_MAX_ROSTER || youAfter < SEASON_MIN_ROSTER) {
-    return { ok: false, reason: `交易后我方人数须在 ${SEASON_MIN_ROSTER}–${SEASON_MAX_ROSTER}` };
+    return { ok: false, reason: en ? `After the trade your roster must be ${SEASON_MIN_ROSTER}–${SEASON_MAX_ROSTER}` : `交易后我方人数须在 ${SEASON_MIN_ROSTER}–${SEASON_MAX_ROSTER}` };
   }
   if (cpuAfter > SEASON_MAX_ROSTER || cpuAfter < SEASON_MIN_ROSTER) {
-    return { ok: false, reason: "对方人数不合规，CPU 拒绝" };
+    return { ok: false, reason: en ? "Their roster size would be illegal — CPU refuses" : "对方人数不合规，CPU 拒绝" };
   }
 
   // Your apron after trade
   const youPayAfter = teamPayroll(you) - salOut + salIn;
   if (youPayAfter > SEASON_APRON) {
-    return { ok: false, reason: `交易后将超过硬帽 ${SEASON_APRON}` };
+    return { ok: false, reason: en ? `This trade would put you over the hard cap ${SEASON_APRON}` : `交易后将超过硬帽 ${SEASON_APRON}` };
   }
 
   // CPU acceptance. R89: the value rejection is deterministic now — a value-losing
@@ -575,14 +582,14 @@ export function executeTrade(
   const valueOk = ovrOut + 4 >= ovrIn * 0.9 || salIn >= salOut + 80;
   const cpuNeedsSpace = teamPayroll(cpu) > SEASON_SALARY_CAP && salOut < salIn;
   if (!acceptedProposal && !salaryOk && !cpuNeedsSpace) {
-    return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };
+    return { ok: false, reason: en ? "Salary gap too wide — they refuse (salaries must roughly match)" : "薪资差太大，对方拒绝（需大致匹配）" };
   }
   if (!acceptedProposal && !valueOk) {
-    return { ok: false, reason: "对方认为吃亏，拒绝交易" };
+    return { ok: false, reason: en ? "They think they're losing the deal — trade refused" : "对方认为吃亏，拒绝交易" };
   }
   // CPU apron
   if (cpuCapBlocksTrade(teamPayroll(cpu), salOut, salIn)) {
-    return { ok: false, reason: "对方硬帽放不下，拒绝" };
+    return { ok: false, reason: en ? "They can't fit it under their hard cap — refused" : "对方硬帽放不下，拒绝" };
   }
 
   // Execute
@@ -618,19 +625,21 @@ export function executeTrade(
     withName: cpu.name,
     give: give.map((p) => ({ id: p.id, name: p.name, salary: playerSalary(p) })),
     get: want.map((p) => ({ id: p.id, name: p.name, salary: playerSalary(p) })),
-    givePicks: givePicks.map((pk) => estimateDraftPickValue(pk, { currentYear: st.year }).label),
-    getPicks: wantPicks.map((pk) => estimateDraftPickValue(pk, { currentYear: st.year }).label),
+    givePicks: givePicks.map((pk) => estimateDraftPickValue(pk, { currentYear: st.year, lang }).label),
+    getPicks: wantPicks.map((pk) => estimateDraftPickValue(pk, { currentYear: st.year, lang }).label),
   });
 
   const pickBit =
     givePicks.length || wantPicks.length
-      ? `${givePicks.length ? `，送出 ${givePicks.length} 个选秀权` : ""}${
-          wantPicks.length ? `，得到 ${wantPicks.length} 个选秀权` : ""
+      ? `${givePicks.length ? (en ? `, sent ${givePicks.length} picks` : `，送出 ${givePicks.length} 个选秀权`) : ""}${
+          wantPicks.length ? (en ? `, got ${wantPicks.length} picks` : `，得到 ${wantPicks.length} 个选秀权`) : ""
         }`
       : "";
   return {
     ok: true,
-    message: `成交：送出 ${give.map((p) => p.name).join("、") || "（无球员）"}，得到 ${
+    message: en ? `Done: sent ${give.map((p) => p.name).join(", ") || "(no players)"}, got ${
+      want.map((p) => p.name).join(", ") || "(no players)"
+    }${pickBit}` : `成交：送出 ${give.map((p) => p.name).join("、") || "（无球员）"}，得到 ${
       want.map((p) => p.name).join("、") || "（无球员）"
     }${pickBit}`,
     payroll: payrollSummary(you),
@@ -646,41 +655,42 @@ export function executeTrade(
  */
 export function executeThreeTeamTrade(
   st,
-  { giveIds = [], team2Id, team2PlayerIds = [], team3Id, team3PlayerIds = [], acceptedProposal = false } = {},
+  { giveIds = [], team2Id, team2PlayerIds = [], team3Id, team3PlayerIds = [], acceptedProposal = false, lang = "zh" } = {},
 ) {
   ensureSeasonMarket(st);
-  if (st.phase !== "regular") return { ok: false, reason: "仅常规赛期间可交易" };
-  const window = tradeWindowCheck(st);
+  const en = lang === "en";
+  if (st.phase !== "regular") return { ok: false, reason: en ? "Trades are only available during the regular season" : "仅常规赛期间可交易" };
+  const window = tradeWindowCheck(st, lang);
   if (!window.ok) return window;
   const you = st.teams[st.userTeamId];
   const t2 = st.teams[team2Id];
   const t3 = st.teams[team3Id];
   if (!you || !t2 || !t3 || team2Id === st.userTeamId || team3Id === st.userTeamId || team2Id === team3Id) {
-    return { ok: false, reason: "三方球队无效" };
+    return { ok: false, reason: en ? "Invalid three-team setup" : "三方球队无效" };
   }
   if (!giveIds.length || !team2PlayerIds.length || !team3PlayerIds.length) {
-    return { ok: false, reason: "三方都需出人" };
+    return { ok: false, reason: en ? "All three teams must offer players" : "三方都需出人" };
   }
   const give = giveIds.map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
   const p2 = team2PlayerIds.map((id) => t2.players.find((p) => p.id === id)).filter(Boolean);
   const p3 = team3PlayerIds.map((id) => t3.players.find((p) => p.id === id)).filter(Boolean);
-  if (give.length !== giveIds.length) return { ok: false, reason: "我方球员无效" };
-  if (p2.length !== team2PlayerIds.length) return { ok: false, reason: "第二方球员无效" };
-  if (p3.length !== team3PlayerIds.length) return { ok: false, reason: "第三方球员无效" };
+  if (give.length !== giveIds.length) return { ok: false, reason: en ? "Invalid player on your side" : "我方球员无效" };
+  if (p2.length !== team2PlayerIds.length) return { ok: false, reason: en ? "Invalid second-team player" : "第二方球员无效" };
+  if (p3.length !== team3PlayerIds.length) return { ok: false, reason: en ? "Invalid third-team player" : "第三方球员无效" };
 
   const youAfter = rosterCount(you) - give.length + p3.length;
   const t2After = rosterCount(t2) - p2.length + give.length;
   const t3After = rosterCount(t3) - p3.length + p2.length;
   if (youAfter > SEASON_MAX_ROSTER || youAfter < SEASON_MIN_ROSTER) {
-    return { ok: false, reason: `交易后我方人数须在 ${SEASON_MIN_ROSTER}–${SEASON_MAX_ROSTER}` };
+    return { ok: false, reason: en ? `After the trade your roster must be ${SEASON_MIN_ROSTER}–${SEASON_MAX_ROSTER}` : `交易后我方人数须在 ${SEASON_MIN_ROSTER}–${SEASON_MAX_ROSTER}` };
   }
   if (t2After > SEASON_MAX_ROSTER || t2After < SEASON_MIN_ROSTER || t3After > SEASON_MAX_ROSTER || t3After < SEASON_MIN_ROSTER) {
-    return { ok: false, reason: "对方人数不合规，CPU 拒绝" };
+    return { ok: false, reason: en ? "Their roster size would be illegal — CPU refuses" : "对方人数不合规，CPU 拒绝" };
   }
 
   const youPayAfter = teamPayroll(you) - give.reduce((s, p) => s + playerSalary(p), 0) + p3.reduce((s, p) => s + playerSalary(p), 0);
   if (youPayAfter > SEASON_APRON) {
-    return { ok: false, reason: `交易后将超过硬帽 ${SEASON_APRON}` };
+    return { ok: false, reason: en ? `This trade would put you over the hard cap ${SEASON_APRON}` : `交易后将超过硬帽 ${SEASON_APRON}` };
   }
 
   // CPU acceptance, per team: receives inPlayers, sends outPlayers.
@@ -692,9 +702,9 @@ export function executeThreeTeamTrade(
     const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
     const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80;
     const needsSpace = teamPayroll(team) > SEASON_SALARY_CAP && salOut < salIn;
-    if (!acceptedProposal && !salaryOk && !needsSpace) return { ok: false, reason: "薪资差太大，对方拒绝（需大致匹配）" };
-    if (!acceptedProposal && !valueOk) return { ok: false, reason: "对方认为吃亏，拒绝交易" };
-    if (cpuCapBlocksTrade(teamPayroll(team), salIn, salOut)) return { ok: false, reason: "对方硬帽放不下，拒绝" };
+    if (!acceptedProposal && !salaryOk && !needsSpace) return { ok: false, reason: en ? "Salary gap too wide — they refuse (salaries must roughly match)" : "薪资差太大，对方拒绝（需大致匹配）" };
+    if (!acceptedProposal && !valueOk) return { ok: false, reason: en ? "They think they're losing the deal — trade refused" : "对方认为吃亏，拒绝交易" };
+    if (cpuCapBlocksTrade(teamPayroll(team), salIn, salOut)) return { ok: false, reason: en ? "They can't fit it under their hard cap — refused" : "对方硬帽放不下，拒绝" };
     return { ok: true };
   };
   const a2 = cpuAccepts(t2, p2, give);
@@ -723,7 +733,7 @@ export function executeThreeTeamTrade(
 
   return {
     ok: true,
-    message: `三方成交：送出 ${give.map((p) => p.name).join("、")}，经 ${t2.name} 得到 ${p3.map((p) => p.name).join("、")}`,
+    message: en ? `Three-team done: sent ${give.map((p) => p.name).join(", ")}, got ${p3.map((p) => p.name).join(", ")} via ${t2.name}` : `三方成交：送出 ${give.map((p) => p.name).join("、")}，经 ${t2.name} 得到 ${p3.map((p) => p.name).join("、")}`,
     payroll: payrollSummary(you),
   };
 }
