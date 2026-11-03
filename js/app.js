@@ -7817,7 +7817,7 @@ function openSeasonScreen() {
     if (live) state.season = live;
     if (resumeBtn) {
       resumeBtn.hidden = false;
-      resumeBtn.textContent = `继续：${seasonProgressLabel(existing)}`;
+      resumeBtn.textContent = L(`继续：${seasonProgressLabel(existing, getLang())}`, `Resume: ${seasonProgressLabel(existing, getLang())}`);
     }
   } else if (resumeBtn) {
     resumeBtn.hidden = true;
@@ -7875,14 +7875,14 @@ function renderSeasonHub({ persist = true } = {}) {
   const pay = payrollSummary(you);
   const eraTitle =
     st.mode === "historical" && st.league?.yearLabel
-      ? `${st.league.yearLabel} 历史赛季`
-      : `${st.year} 赛季`;
-  $("#season-hub-title").textContent = `${you?.name || "我方"} · ${eraTitle}`;
+      ? L(`${st.league.yearLabel} 历史赛季`, `${st.league.yearLabel} Historic Season`)
+      : L(`${st.year} 赛季`, `${st.year} Season`);
+  $("#season-hub-title").textContent = `${you?.name || L("我方", "Your team")} · ${eraTitle}`;
   const histNote =
-    st.mode === "historical" ? ` · ${seasonTeamIds(st).length} 队当年阵容` : "";
-  const metaText = `${seasonProgressLabel(st)}${histNote} · 薪资 ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}${
-    pay.overCap ? "（超软帽）" : ""
-  } · 空间 ${formatSalary(pay.space)}`;
+    st.mode === "historical" ? L(` · ${seasonTeamIds(st).length} 队当年阵容`, ` · ${seasonTeamIds(st).length} teams, historic rosters`) : "";
+  const metaText = `${seasonProgressLabel(st, getLang())}${histNote} · ${L(`薪资 ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`, `Payroll ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`)}${
+    pay.overCap ? L("（超软帽）", " (over soft cap)") : ""
+  } · ${L(`空间 ${formatSalary(pay.space)}`, `Room ${formatSalary(pay.space)}`)}`;
   // R111：同一串信息拆成 pill（DOM 拼装，不走 innerHTML，队名原样当文本），只改外观。
   const metaEl = $("#season-hub-meta");
   metaEl.replaceChildren();
@@ -7906,12 +7906,12 @@ function renderSeasonHub({ persist = true } = {}) {
       const away = st.teams[g.awayId]?.name;
       const played = userGamesPlayed(st);
       const youHome = g.homeId === st.userTeamId;
-      nextEl.innerHTML = `<div class="next-matchup"><span class="nm-team${youHome ? " nm-you" : ""}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.homeId])}"></i>${esc(home)}</span><span class="nm-vs">VS</span><span class="nm-team${youHome ? "" : " nm-you"}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.awayId])}"></i>${esc(away)}</span></div><p class="nm-meta">第 ${played + 1}/82 场 · 日程日 ${info.day + 1}</p>`;
+      nextEl.innerHTML = `<div class="next-matchup"><span class="nm-team${youHome ? " nm-you" : ""}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.homeId])}"></i>${esc(home)}</span><span class="nm-vs">VS</span><span class="nm-team${youHome ? "" : " nm-you"}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.awayId])}"></i>${esc(away)}</span></div><p class="nm-meta">${L(`第 ${played + 1}/82 场 · 日程日 ${info.day + 1}`, `Game ${played + 1}/82 · Day ${info.day + 1}`)}</p>`;
       $("#btn-season-play").disabled = false;
       $("#btn-season-sim-one").disabled = false;
       $("#btn-season-sim-week").disabled = false;
     } else {
-      nextEl.textContent = "常规赛已打完——查看评奖后进入季后赛";
+      nextEl.textContent = L("常规赛已打完——查看评奖后进入季后赛", "Regular season done — check awards, then enter the playoffs");
       $("#btn-season-play").disabled = true;
       $("#btn-season-sim-one").disabled = true;
       $("#btn-season-sim-week").disabled = true;
@@ -7921,7 +7921,7 @@ function renderSeasonHub({ persist = true } = {}) {
     }
   } else if (st.phase === "awards") {
     nextCard.hidden = false;
-    nextEl.textContent = "常规赛结束。已生成赛季评奖，可进入季后赛。";
+    nextEl.textContent = L("常规赛结束。已生成赛季评奖，可进入季后赛。", "Regular season over. Awards are in — you can enter the playoffs.");
     $("#btn-season-play").disabled = true;
     $("#btn-season-sim-one").disabled = true;
     $("#btn-season-sim-week").disabled = true;
@@ -7933,11 +7933,11 @@ function renderSeasonHub({ persist = true } = {}) {
     if (st.phase === "done") {
       nextEl.textContent = champ
         ? isManagedCareer(state.leagueCareer)
-          ? `总冠军：${champ}。可进入休赛期选秀，完成选择后开启 ${Number(st.year) + 1} 赛季。`
-          : `总冠军：${champ}。可进入休赛期：球员按史实生涯成长/衰老，并开启 ${Number(st.year) + 1} 赛季。`
+          ? L(`总冠军：${champ}。可进入休赛期选秀，完成选择后开启 ${Number(st.year) + 1} 赛季。`, `Champions: ${champ}. Head to the offseason draft, then start the ${Number(st.year) + 1} season.`)
+          : L(`总冠军：${champ}。可进入休赛期：球员按史实生涯成长/衰老，并开启 ${Number(st.year) + 1} 赛季。`, `Champions: ${champ}. Head to the offseason: players grow and age on their real career curves, then the ${Number(st.year) + 1} season starts.`)
         : isManagedCareer(state.leagueCareer)
-          ? "赛季结束。可进入休赛期选秀。"
-          : "赛季结束。可进入休赛期让球员按史实潜力成长。";
+          ? L("赛季结束。可进入休赛期选秀。", "Season over. Head to the offseason draft.")
+          : L("赛季结束。可进入休赛期让球员按史实潜力成长。", "Season over. Head to the offseason, where players grow on their real potential.");
       $("#btn-season-play").disabled = true;
       $("#btn-season-sim-one").disabled = true;
     } else {
@@ -7951,15 +7951,15 @@ function renderSeasonHub({ persist = true } = {}) {
         const youAreHigh = info.series.high?.id === st.userTeamId;
         const myWins = youAreHigh ? info.series.winsHigh : info.series.winsLow;
         const theirWins = youAreHigh ? info.series.winsLow : info.series.winsHigh;
-        const oppName = (youAreHigh ? info.series.low : info.series.high)?.name || "对手";
+        const oppName = (youAreHigh ? info.series.low : info.series.high)?.name || L("对手", "Opponent");
         const atHome = info.homeId === st.userTeamId;
-        nextEl.textContent = `${label} 第 ${myWins + theirWins + 1} 场 · ${myWins}-${theirWins} vs ${oppName}（${atHome ? "主场" : "客场"}）`;
+        nextEl.textContent = L(`${label} 第 ${myWins + theirWins + 1} 场 · ${myWins}-${theirWins} vs ${oppName}（${atHome ? "主场" : "客场"}）`, `${label} Game ${myWins + theirWins + 1} · ${myWins}-${theirWins} vs ${oppName} (${atHome ? "Home" : "Away"})`);
         $("#btn-season-play").disabled = false;
         $("#btn-season-sim-one").disabled = false;
       } else {
         nextEl.textContent = champ
-          ? `总冠军：${champ}`
-          : "你的系列赛暂无进行中的比赛——可能在等另一分区，或已被淘汰。可点「季后赛」页签模拟剩余赛事。";
+          ? L(`总冠军：${champ}`, `Champions: ${champ}`)
+          : L("你的系列赛暂无进行中的比赛——可能在等另一分区，或已被淘汰。可点「季后赛」页签模拟剩余赛事。", "Your series has no game right now — it may be waiting on the other bracket, or you may be out. Use the Playoffs tab to sim the rest.");
         $("#btn-season-play").disabled = true;
         $("#btn-season-sim-one").disabled = true;
       }
@@ -7994,7 +7994,7 @@ function renderLeagueManagement() {
     { career, teamNames },
     {
       prepareDraft() {
-        if (!isManagedCareer(state.leagueCareer) || !confirm("确认结束本赛季并进入休赛期选秀？")) return;
+        if (!isManagedCareer(state.leagueCareer) || !confirm(L("确认结束本赛季并进入休赛期选秀？", "End this season and enter the offseason draft?"))) return;
         try {
           const next = runCareerTransition(
             state.leagueCareer,
@@ -8002,7 +8002,7 @@ function renderLeagueManagement() {
           );
           commitManagedCareer(next, "draftBoard");
         } catch (error) {
-          alert(error?.message || "无法进入休赛期选秀");
+          alert(error?.message || L("无法进入休赛期选秀", "Couldn't enter the offseason draft"));
         }
       },
       pickProspect(prospectId, options) {
@@ -8117,7 +8117,7 @@ function renderSeasonRotation() {
   if (!st || !box) return;
   const you = st.teams[st.userTeamId];
   if (!you?.players?.length) {
-    box.innerHTML = `<p class="tiny">暂无阵容</p>`;
+    box.innerHTML = `<p class="tiny">${L("暂无阵容", "No roster yet")}</p>`;
     return;
   }
   ensureRoles(you.players);
@@ -8213,7 +8213,7 @@ function renderSeasonRotation() {
       if (on) {
         if (ids.length >= 5 && !ids.includes(p.id)) {
           row.querySelector(".rot-start-cb").checked = false;
-          alert("默认首发最多 5 人");
+          alert(L("默认首发最多 5 人", "At most 5 default starters"));
           return;
         }
         if (!ids.includes(p.id)) ids.push(p.id);
@@ -8257,11 +8257,11 @@ function renderSeasonRotation() {
   });
   $("#btn-rot-save")?.addEventListener("click", () => {
     if ((you.starterIds || []).length && you.starterIds.length !== 5) {
-      if (!confirm(`当前标记了 ${you.starterIds.length} 名首发（建议 5 人）。仍保存？`)) return;
+      if (!confirm(L(`当前标记了 ${you.starterIds.length} 名首发（建议 5 人）。仍保存？`, `${you.starterIds.length} starters marked (5 recommended). Save anyway?`))) return;
     }
     you.rotation = captureRotationPlan(you, you.starterIds);
     if (!saveSeasonAndCareer(st)) return;
-    alert("默认轮换已保存。下场「亲自指挥」会自动套用首发/分钟/位置/核心。");
+    alert(L("默认轮换已保存。下场「亲自指挥」会自动套用首发/分钟/位置/核心。", "Default rotation saved. Your next called game will use these starters, minutes, positions and core."));
     renderSeasonRotation();
   });
 }
@@ -8901,49 +8901,49 @@ function renderSeasonSchedule() {
     .reverse();
 
   const upHtml = upcoming.length
-    ? `<table class="season-table"><thead><tr><th>日</th><th>对阵</th><th></th></tr></thead><tbody>${upcoming
+    ? `<table class="season-table"><thead><tr><th>${L("日", "Day")}</th><th>${L("对阵", "Matchup")}</th><th></th></tr></thead><tbody>${upcoming
         .map(
           (g) =>
             `<tr><td>${g.day + 1}</td><td>${g.home} vs ${g.away}</td><td>${
-              g.homeGame ? "主场" : "客场"
+              g.homeGame ? L("主场", "Home") : L("客场", "Away")
             }</td></tr>`
         )
         .join("")}</tbody></table>`
-    : `<p class="tiny">暂无未打赛程（常规赛可能已结束）</p>`;
+    : `<p class="tiny">${L("暂无未打赛程（常规赛可能已结束）", "No games left (the regular season may be over)")}</p>`;
 
   const recentHtml = recent.length
-    ? `<table class="season-table"><thead><tr><th>日</th><th>结果</th><th></th></tr></thead><tbody>${recent
+    ? `<table class="season-table"><thead><tr><th>${L("日", "Day")}</th><th>${L("结果", "Result")}</th><th></th></tr></thead><tbody>${recent
         .map((r, i) => {
           const home = st.teams[r.homeId]?.name || r.homeId;
           const away = st.teams[r.awayId]?.name || r.awayId;
           const youHome = r.homeId === st.userTeamId;
           const youScore = youHome ? r.homeScore : r.awayScore;
           const oppScore = youHome ? r.awayScore : r.homeScore;
-          const w = youScore > oppScore ? "胜" : "负";
+          const w = youScore > oppScore ? L("胜", "W") : L("负", "L");
           const canView = !!r.box;
           return `<tr data-result-idx="${i}">
             <td>${(r.day ?? 0) + 1}</td>
             <td>${w} ${home} ${r.homeScore}-${r.awayScore} ${away}</td>
             <td>${
               canView
-                ? `<button type="button" class="btn small ghost btn-view-box">球员数据</button>`
+                ? `<button type="button" class="btn small ghost btn-view-box">${L("球员数据", "Box score")}</button>`
                 : `<span class="tiny">—</span>`
             }</td>
           </tr>`;
         })
         .join("")}</tbody></table>`
-    : `<p class="tiny">尚无已赛记录</p>`;
+    : `<p class="tiny">${L("尚无已赛记录", "No games played yet")}</p>`;
 
   box.innerHTML = `
     <div class="sm-cols">
       <section>
-        <h4>即将进行（我方）</h4>
-        <p class="tiny">打完/模拟一场后自动推进。自由市场操作不影响赛程顺序。</p>
+        <h4>${L("即将进行（我方）", "Upcoming (yours)")}</h4>
+        <p class="tiny">${L("打完/模拟一场后自动推进。自由市场操作不影响赛程顺序。", "Advances as you play or sim. Market moves don't change the order.")}</p>
         ${upHtml}
       </section>
       <section>
-        <h4>近期战果</h4>
-        <p class="tiny">点「球员数据」可查看该场双方得分与技术统计。</p>
+        <h4>${L("近期战果", "Recent results")}</h4>
+        <p class="tiny">${L("点「球员数据」可查看该场双方得分与技术统计。", "Tap “Box score” for either side's points and stats.")}</p>
         ${recentHtml}
       </section>
     </div>
@@ -8956,11 +8956,11 @@ function renderSeasonSchedule() {
       const entry = recent[idx];
       const snap = snapFromResultLog(st, entry);
       if (!snap) {
-        alert("该场没有保存详细数据（可能是旧存档）。新模拟的比赛会保留球员数据。");
+        alert(L("该场没有保存详细数据（可能是旧存档）。新模拟的比赛会保留球员数据。", "No detailed data saved for this game (maybe an old save). Newly simmed games keep box scores."));
         return;
       }
       showSeasonSimResult(snap, {
-        summaryExtra: `回顾第 ${(entry.day ?? 0) + 1} 比赛日。`,
+        summaryExtra: L(`回顾第 ${(entry.day ?? 0) + 1} 比赛日。`, `Looking back at day ${(entry.day ?? 0) + 1}.`),
         viewingHistory: true,
       });
     });
@@ -8976,7 +8976,7 @@ function renderSeasonStandings() {
     return `<div class="season-stand-card">
       <h4>${title}</h4>
       <table class="season-table">
-        <thead><tr><th class="num rank">#</th><th>球队</th><th class="num">胜</th><th class="num">负</th><th class="num">胜率</th><th class="num">净胜</th></tr></thead>
+        <thead><tr><th class="num rank">#</th><th>${L("球队", "Team")}</th><th class="num">${L("胜", "W")}</th><th class="num">${L("负", "L")}</th><th class="num">${L("胜率", "PCT")}</th><th class="num">${L("净胜", "Diff")}</th></tr></thead>
         <tbody>
           ${rows
             .map((r, i) => {
@@ -8990,12 +8990,12 @@ function renderSeasonStandings() {
       </table>
     </div>`;
   };
-  box.innerHTML = table("East", "东部") + table("West", "西部");
+  box.innerHTML = table("East", L("东部", "East")) + table("West", L("西部", "West"));
 }
 
 function awardLine(a) {
   if (!a) return "—";
-  return `${a.name}（${a.teamName}）· ${a.ppg}分 ${a.rpg}板 ${a.apg}助 · ${a.gp}场`;
+  return L(`${a.name}（${a.teamName}）· ${a.ppg}分 ${a.rpg}板 ${a.apg}助 · ${a.gp}场`, `${a.name} (${a.teamName}) · ${a.ppg} pts ${a.rpg} reb ${a.apg} ast · ${a.gp} G`);
 }
 
 function renderSeasonAwards() {
@@ -9443,10 +9443,10 @@ function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, 
 /** "东部 · R2"/"总决赛" 样式标签，跟 renderSeasonPlayoffs() 的 confBlock 标题保持一致。 */
 function playoffSeriesLabel(st, series) {
   const po = st?.playoffs;
-  if (series === po?.finals) return "总决赛";
-  if (po?.east?.series?.includes(series)) return `东部 · R${series.round}`;
-  if (po?.west?.series?.includes(series)) return `西部 · R${series.round}`;
-  return "季后赛";
+  if (series === po?.finals) return L("总决赛", "Finals");
+  if (po?.east?.series?.includes(series)) return L(`东部 · R${series.round}`, `East · R${series.round}`);
+  if (po?.west?.series?.includes(series)) return L(`西部 · R${series.round}`, `West · R${series.round}`);
+  return L("季后赛", "Playoffs");
 }
 
 /** Playoff-flavored #result-summary text: series score if still going, outcome if just decided. */
@@ -9455,14 +9455,14 @@ function playoffResultSummaryText(st, series) {
   const youAreHigh = series.high?.id === st.userTeamId;
   const myWins = youAreHigh ? series.winsHigh : series.winsLow;
   const theirWins = youAreHigh ? series.winsLow : series.winsHigh;
-  const oppName = (youAreHigh ? series.low : series.high)?.name || "对手";
-  if (!series.done) return `${label} 战至 ${myWins}-${theirWins}，可继续比赛。`;
+  const oppName = (youAreHigh ? series.low : series.high)?.name || L("对手", "Opponent");
+  if (!series.done) return L(`${label} 战至 ${myWins}-${theirWins}，可继续比赛。`, `${label} tied ${myWins}-${theirWins} — still to play.`);
   if (series.winnerId !== st.userTeamId) {
-    return `${label} ${theirWins}-${myWins} 不敌 ${oppName}，本届季后赛到此结束。`;
+    return L(`${label} ${theirWins}-${myWins} 不敌 ${oppName}，本届季后赛到此结束。`, `${label} lost ${theirWins}-${myWins} to ${oppName} — this playoff run is over.`);
   }
   return st.phase === "done"
-    ? `${label} ${myWins}-${theirWins} 淘汰 ${oppName}，夺得总冠军！可进入休赛期。`
-    : `${label} ${myWins}-${theirWins} 淘汰 ${oppName}，晋级下一轮！`;
+    ? L(`${label} ${myWins}-${theirWins} 淘汰 ${oppName}，夺得总冠军！可进入休赛期。`, `${label} beat ${oppName} ${myWins}-${theirWins} — champions! Head to the offseason.`)
+    : L(`${label} ${myWins}-${theirWins} 淘汰 ${oppName}，晋级下一轮！`, `${label} beat ${oppName} ${myWins}-${theirWins} — on to the next round!`);
 }
 
 /**

@@ -1421,21 +1421,24 @@ export function clearSeasonSave() {
   }
 }
 
-export function seasonProgressLabel(st) {
+export function seasonProgressLabel(st, lang = "zh") {
   if (!st) return "";
+  const en = lang === "en";
   const era =
     st.mode === "historical" && st.league?.yearLabel
       ? `${st.league.yearLabel}`
       : `${st.year}`;
   if (st.phase === "done") {
     const champ = st.teams[st.playoffs?.championId]?.name || "—";
-    return `${era} 赛季结束 · 冠军 ${champ}`;
+    return en ? `${era} season over · champions ${champ}` : `${era} 赛季结束 · 冠军 ${champ}`;
   }
-  if (st.phase === "playoffs") return `${era} 季后赛进行中`;
-  if (st.phase === "awards") return `${era} 常规赛结束 · 评奖`;
+  if (st.phase === "playoffs") return en ? `${era} playoffs in progress` : `${era} 季后赛进行中`;
+  if (st.phase === "awards") return en ? `${era} regular season over · awards` : `${era} 常规赛结束 · 评奖`;
   const rec = st.standings[st.userTeamId];
   const played = userGamesPlayed(st);
-  return `${st.teams[st.userTeamId]?.name || "我方"} ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82`;
+  return en
+    ? `${st.teams[st.userTeamId]?.name || "Your team"} ${rec?.w || 0}-${rec?.l || 0} · ${played}/82 played`
+    : `${st.teams[st.userTeamId]?.name || "我方"} ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82`;
 }
 
 /**
