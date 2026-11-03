@@ -2315,3 +2315,15 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 
 - 动的文件：`js/career/gameGoals.js`（新）、`js/ui/pregameCard.js`（新）、`js/career/balance.js`、`js/career/coachPerks.js`、`js/career/gameRewards.js`、`js/ui/careerPostGameView.js`（我只改了那一行 nudge）、`js/app.js`、`index.html`、`css/careerPostGame.css`、`tests/coachPerks.test.js`、`tests/gameRewards.test.js`、`tests/gameGoals.test.js`（新）、`tests/careerPostGameView.test.js`（我加的 7 条）、`scripts/qa/career-game-goals.mjs`（新）。
 - 下一步：阶段 D/E（精力、未来知识花钱处）。
+
+## R130 · 新技能「神经刀」(nerve_blade / Live Wire)
+
+- 点名：J.R. Smith、Nick Young、DeShawn Stevenson 全赛季都有。泛化：无点名技能包的星级卡，三分出手量大 (threeTend≥85) 且手感中档 (three 60–86)、scoring≥60 时进 candidateSkills 抽签池；库里/克莱/科沃尔/雷·阿伦/雷迪克 three≥89，永远不会中（有测试守着）。
+- 机制：复用现有手感 streak `p.hot`(-3..3)，不另起一套。registerShotFeel 每次命中/未中摆幅 2（普通 1）；calcMakeProb 里 hot 对命中率的影响 ×3。600 场实测平均命中率 37.8% vs 38.3%（误差内）——是方差，不是加强也不是削弱。
+- 教训：
+  1. 单场 FG% 方差测不出来：引擎里 2013 JR 场均只出手 5 次，二项噪声把效果淹了，调参时这个指标正负来回翻。改为按 runFast() 同款循环手动 step，采样他在场上时的实时 hot：标准差稳定 ×1.14–1.26，冰冷(≤-2)占比 ×2.3–3.3。
+  2. 用 sed 正则批量调参，把两个形状相同的函数一起改了，摆幅被悄悄改成 4，量出来的"漂亮双峰分布"是错参数下的。调参改用精确字符串替换 + 断言匹配次数=1。
+  3. 试过 heat check（手热时持球权重↑、少传球），×5 权重出手才 5.4→6.0，实际测不出效果，删了（YAGNI）。
+- 顺手发现、未修：这个引擎里"谁持球"几乎不决定"谁出手"。2013 尼克斯 Carmelo 打 35 分钟只出手 6 次，Tyson Chandler 出手 16 次——出手分配有问题，值得单独查。
+- 测试缺口：只拔掉 calcMakeProb 里的 ×3 时，真实比赛测试抓不到（5 次出手的噪声）；拔掉摆幅或两者都拔会红（已做变异验证）。
+- ROSTER_SCHEMA 64→65，cardSchema fixture 已重录；i18n 技能总数 94→95。全量 1536/1536，lint 0 错。
