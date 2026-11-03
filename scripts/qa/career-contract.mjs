@@ -68,6 +68,10 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     // The status line is a one-time message stored as a pair, so repaint must re-show it, not recompute it.
     const statusEn = await page.$eval("#time-travel-status", (e) => e.textContent);
     check(`[${tag}] status line in English has no Chinese`, !/[\u3400-\u9fff]/.test(statusEn), statusEn);
+    // Whole time-travel page: every renderer branches on lang and the static chrome
+    // is covered by the PHRASES walker, so nothing Chinese may remain in English mode.
+    const pageEn = await page.$eval("#screen-time-travel", (e) => e.textContent);
+    check(`[${tag}] time-travel page in English has no Chinese`, !/[\u3400-\u9fff]/.test(pageEn), pageEn.slice(0, 160));
     await page.click("#btn-lang");
     await page.click("#time-travel-contract-options button:first-child");
     await page.click("#time-travel-contract .tt-confirm [data-act=confirm]");
