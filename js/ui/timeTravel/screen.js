@@ -46,6 +46,15 @@ export const careerIsOver = (story) => CAREER_OVER_STATUSES.has(story?.employmen
 export const careerIsRetired = (story) => story?.employment?.status === "retired";
 
 /** What the player should read when they come back to a career in a given employment state. */
+/**
+ * Resolve a status message for a language. A plain string passes through
+ * (runtime error text has no translation); a { zh, en } pair picks its side.
+ */
+export function statusTextFor(message, lang) {
+  if (typeof message === "string") return message;
+  return (lang === "en" ? message?.en : message?.zh) ?? "";
+}
+
 export function careerStateNotice(story, lang = getLang()) {
   const tier = story?.ending?.narrativeTier;
   const suffix = tier ? tr(lang, ` 成绩评级：${tier.label}。`, ` Verdict: ${tier.labelEn || tier.label}.`) : "";
@@ -80,14 +89,28 @@ export function createTimeTravelScreen({
 }) {
   let prologue = null;
   let wizardWired = false;
+  let lastStatus = { text: "", isError: false };
   const lang = () => getLang();
   const hasCareer = () => state.leagueCareer?.kind === "timeTravel" && !!state.story;
 
+  /**
+   * Remember the last status message and show it. Callers pass a { zh, en }
+   * pair for anything the player reads (so a language toggle can re-show it)
+   * or a plain string for runtime error text, which has no translation.
+   * repaint() must NOT recompute the message from state: one-time messages
+   * (errors, "contract signed") would be overwritten by a generic notice.
+   */
   function setStatus(message, isError = false) {
+    lastStatus = { text: message || "", isError };
+    paintStatus();
+  }
+
+  /** Re-display the last status in the current language (language toggle). */
+  function paintStatus() {
     const el = $("#time-travel-status");
     if (!el) return;
-    el.textContent = message || "";
-    if (isError) el.dataset.tone = "error";
+    el.textContent = statusTextFor(lastStatus.text, lang());
+    if (lastStatus.isError) el.dataset.tone = "error";
     else delete el.dataset.tone;
   }
 
@@ -167,10 +190,10 @@ export function createTimeTravelScreen({
           seed: Date.now() >>> 0,
         });
         renderOffers();
-        setStatus(tr(lang(), "收到三份面试邀请，请选择你的历史起点。", "Three interview offers are in — pick your starting point in history."));
+        setStatus({ zh: "收到三份面试邀请，请选择你的历史起点。", en: "Three interview offers are in — pick your starting point in history." });
         $("#tt-offers-zone").scrollIntoView?.({ block: "start", behavior: "smooth" });
       } catch (error) {
-        setStatus(error?.message || tr(lang(), "无法生成面试邀请", "Couldn't generate interview offers"), true);
+        setStatus(error?.message || { zh: "无法生成面试邀请", en: "Couldn't generate interview offers" }, true);
       }
     });
   }
@@ -215,11 +238,11 @@ export function createTimeTravelScreen({
       const offer = prologue.offers.find((candidate) => candidate.id === offerId);
       const l = lang();
       const team = teamNameL(offer.teamName, l);
-      setStatus(tr(l, `已接受 ${team} 的邀请，先决定如何使用未来知识。`, `You accepted ${team}'s offer. First: how will you use your foresight?`));
+      setStatus({ zh: `已接受 ${team} 的邀请，先决定如何使用未来知识。`, en: `You accepted ${team}'s offer. First: how will you use your foresight?` });
       renderScreen();
       focusDecision();
     } catch (error) {
-      setStatus(error?.message || tr(lang(), "无法接受球队邀请", "Couldn't accept the offer"), true);
+      setStatus(error?.message || { zh: "无法接受球队邀请", en: "Couldn't accept the offer" }, true);
     }
   }
 
@@ -270,11 +293,11 @@ export function createTimeTravelScreen({
     try {
       const root = acceptReemploymentOffer(currentRootState(), offerId);
       commit(root, tr(lang(), "存档写入失败，尚未接受新工作", "Save failed — the new job was not accepted"));
-      setStatus(tr(lang(), `已接受 ${teamName} 的邀请。新的执教生涯开始了，你的声望、积蓄和过往战绩都带在身上。`, `You joined ${teamName}. A new chapter begins — your reputation, savings and record come with you.`));
+      setStatus({ zh: `已接受 ${teamName} 的邀请。新的执教生涯开始了，你的声望、积蓄和过往战绩都带在身上。`, en: `You joined ${teamName}. A new chapter begins — your reputation, savings and record come with you.` });
       renderScreen();
       window.scrollTo?.({ top: 0, behavior: "smooth" });
     } catch (error) {
-      setStatus(error?.message || tr(lang(), "无法接受这份工作", "Couldn't accept that job"), true);
+      setStatus(error?.message || { zh: "无法接受这份工作", en: "Couldn't accept that job" }, true);
     }
   }
 
@@ -305,9 +328,9 @@ export function createTimeTravelScreen({
       const resolved = resolveFutureKnowledgeChoice(currentRootState(), choiceId);
       const root = queueStoryEvent(resolved, "first-year-owner-test", { year: resolved.leagueCareer?.season?.year });
       commit(root, tr(lang(), "存档写入失败，这次决定尚未生效", "Save failed — the decision did not take effect"));
-      setStatus(tr(lang(), "决定已保存。资源与时间线已更新。", "Decision saved. Your resources and the timeline have shifted."));
+      setStatus({ zh: "决定已保存。资源与时间线已更新。", en: "Decision saved. Your resources and the timeline have shifted." });
     } catch (error) {
-      setStatus(error?.message || tr(lang(), "无法处理这个决定", "Couldn't process that decision"), true);
+      setStatus(error?.message || { zh: "无法处理这个决定", en: "Couldn't process that decision" }, true);
     }
     renderScreen();
     focusDecision();
@@ -338,11 +361,11 @@ export function createTimeTravelScreen({
       const resolved = resolveStoryEvent(currentRootState(), choiceId);
       const root = queueNextStoryEvent(resolved, { year: resolved.leagueCareer?.season?.year });
       commit(root, tr(lang(), "存档写入失败，这次事件尚未生效", "Save failed — the event did not take effect"));
-      setStatus(tr(lang(), "事件已记录。你的选择会在赛季总结和后续时间线中留下痕迹。", "Event recorded. Your choice will leave a mark on the season recap and the timeline."));
+      setStatus({ zh: "事件已记录。你的选择会在赛季总结和后续时间线中留下痕迹。", en: "Event recorded. Your choice will leave a mark on the season recap and the timeline." });
       renderScreen();
       focusDecision();
     } catch (error) {
-      setStatus(error?.message || tr(lang(), "无法处理这个事件", "Couldn't process that event"), true);
+      setStatus(error?.message || { zh: "无法处理这个事件", en: "Couldn't process that event" }, true);
     }
   }
 
@@ -376,11 +399,11 @@ export function createTimeTravelScreen({
       // straight from the offer just accepted rather than from a terminal-flavoured status.
       const offer = root.story.employment?.offer;
       setStatus(offer
-        ? tr(lang(), `续约已签署：${offerText(offer, "zh").title} · ${offer.years} 年 · 薪资 ${offer.salary}，继续征战。`, `Contract signed: ${offerText(offer, "en").title} · ${offer.years} years · salary ${offer.salary}. Back to work.`)
-        : careerStateNotice(root.story));
+        ? { zh: `续约已签署：${offerText(offer, "zh").title} · ${offer.years} 年 · 薪资 ${offer.salary}，继续征战。`, en: `Contract signed: ${offerText(offer, "en").title} · ${offer.years} years · salary ${offer.salary}. Back to work.` }
+        : { zh: careerStateNotice(root.story, "zh"), en: careerStateNotice(root.story, "en") });
       renderScreen();
     } catch (error) {
-      setStatus(error?.message || tr(lang(), "无法完成续约", "Couldn't complete the renewal"), true);
+      setStatus(error?.message || { zh: "无法完成续约", en: "Couldn't complete the renewal" }, true);
     }
   }
 
@@ -394,11 +417,11 @@ export function createTimeTravelScreen({
     try {
       const root = declineCareerContracts(currentRootState());
       commit(root, tr(l, "离队决定保存失败", "Couldn't save your decision to leave"), { full: false });
-      setStatus(careerStateNotice(root.story));
+      setStatus({ zh: careerStateNotice(root.story, "zh"), en: careerStateNotice(root.story, "en") });
       renderScreen();
       focusDecision();
     } catch (error) {
-      setStatus(error?.message || tr(l, "无法处理离队决定", "Couldn't process leaving"), true);
+      setStatus(error?.message || { zh: "无法处理离队决定", en: "Couldn't process leaving" }, true);
     }
   }
 
@@ -525,8 +548,8 @@ export function createTimeTravelScreen({
     wireWizard();
     if (hasCareer()) {
       setStatus(state.story.pendingDecision
-        ? tr(lang(), "有一项决定在等你。", "A decision is waiting for you.")
-        : careerStateNotice(state.story));
+        ? { zh: "有一项决定在等你。", en: "A decision is waiting for you." }
+        : { zh: careerStateNotice(state.story, "zh"), en: careerStateNotice(state.story, "en") });
     } else {
       prologue = null;
       setStatus("");
@@ -549,6 +572,7 @@ export function createTimeTravelScreen({
     if (!$("#screen-time-travel")?.classList.contains("active")) return;
     ensureOrigins();
     renderScreen();
+    paintStatus();
   }
 
   $("#btn-time-travel-back")?.addEventListener("click", () => show("home"));

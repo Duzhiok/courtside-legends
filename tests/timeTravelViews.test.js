@@ -15,7 +15,7 @@ import { timelineHtml } from "../js/ui/timeTravel/hq.js";
 import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml, poachCardHtml } from "../js/ui/timeTravel/offers.js";
 import { reasonLabel, stintCardHtml } from "../js/ui/timeTravel/epilogue.js";
 import { hqModel, kpiModel, onThinIce } from "../js/ui/timeTravel/viewModel.js";
-import { careerStateNotice } from "../js/ui/timeTravel/screen.js";
+import { careerStateNotice, statusTextFor } from "../js/ui/timeTravel/screen.js";
 
 const seasonRow = (offset, w, l, teamId) => ({
   year: YEAR + offset, teamId, teamName: "T", record: { w, l }, finish: "playoffs", championId: "OTHER",
@@ -265,6 +265,15 @@ test("contract cards: perks as chips, an empty perk list says so, authority is s
   const trial = contractOfferCardHtml({ id: "trial-extension", title: "试用", description: "d", years: 1, salary: 4, authority: 30, privileges: [] }, "en");
   assert.match(trial, /None \(prove yourself first\)/);
   assert.match(trial, /data-tier="grey"/);
+});
+
+test("statusTextFor: pairs resolve by language, plain strings pass through", () => {
+  const pair = { zh: "有一项决定在等你。", en: "A decision is waiting for you." };
+  assert.equal(statusTextFor(pair, "en"), "A decision is waiting for you.");
+  assert.equal(statusTextFor(pair, "zh"), "有一项决定在等你。");
+  assert.equal(statusTextFor("raw error", "en"), "raw error");
+  assert.equal(statusTextFor("", "zh"), "");
+  assert.equal(statusTextFor({}, "en"), "");
 });
 
 test("contract cards in English read by offer id, so old saves with Chinese strings still render English", () => {

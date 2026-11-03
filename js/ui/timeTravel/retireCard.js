@@ -39,11 +39,11 @@ export function createRetireCard({ lang, setStatus, commit, currentRootState, re
     try {
       const root = retireCoach(currentRootState(), "voluntary");
       commit(root, tr(l, "存档写入失败，尚未退休", "Save failed — you haven't retired yet"), { full: false });
-      setStatus(tr(l, "你挂靴了。这一生的执教，都记在下面了。", "You hung up the whistle. A whole career, written up below."));
+      setStatus({ zh: "你挂靴了。这一生的执教，都记在下面了。", en: "You hung up the whistle. A whole career, written up below." });
       renderScreen();
       window.scrollTo?.({ top: 0, behavior: "smooth" });
     } catch (error) {
-      setStatus(error?.message || tr(l, "现在还不能退休", "You can't retire right now"), true);
+      setStatus(error?.message || { zh: "现在还不能退休", en: "You can't retire right now" }, true);
       renderScreen();
     }
   }

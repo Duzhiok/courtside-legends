@@ -65,6 +65,9 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     const offersEn = await page.$$eval("#time-travel-contract-options button", (els) => els.map((e) => e.textContent.replace(/\s+/g, " ")));
     check(`[${tag}] renewal cards in English have no Chinese`, offersEn.length === 2 && offersEn.every((t) => !/[\u3400-\u9fff]/.test(t)), offersEn.join(" | "));
     check(`[${tag}] renewal cards in English keep yrs, authority and Perks labels`, offersEn.every((t) => /yrs/.test(t) && /authority/.test(t) && /Perks/.test(t)), offersEn.join(" | "));
+    // The status line is a one-time message stored as a pair, so repaint must re-show it, not recompute it.
+    const statusEn = await page.$eval("#time-travel-status", (e) => e.textContent);
+    check(`[${tag}] status line in English has no Chinese`, !/[\u3400-\u9fff]/.test(statusEn), statusEn);
     await page.click("#btn-lang");
     await page.click("#time-travel-contract-options button:first-child");
     await page.click("#time-travel-contract .tt-confirm [data-act=confirm]");

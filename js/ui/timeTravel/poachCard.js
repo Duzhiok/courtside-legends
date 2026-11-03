@@ -67,11 +67,11 @@ export function createPoachCard({ state, lang, setStatus, commit, currentRootSta
     try {
       const root = acceptPoachOffer(currentRootState());
       commit(root, tr(l, "存档写入失败，尚未转投", "Save failed — you haven't moved yet"));
-      setStatus(tr(l, `你转投了 ${offerTeam}。新的执教阶段开始，声望、积蓄和过往战绩都带在身上。`, `You joined ${offerTeam}. A new chapter starts — your reputation, savings and record come with you.`));
+      setStatus({ zh: `你转投了 ${offerTeam}。新的执教阶段开始，声望、积蓄和过往战绩都带在身上。`, en: `You joined ${offerTeam}. A new chapter starts — your reputation, savings and record come with you.` });
       renderScreen();
       window.scrollTo?.({ top: 0, behavior: "smooth" });
     } catch (error) {
-      setStatus(error?.message || tr(l, "无法接受挖角", "Couldn't accept the offer"), true);
+      setStatus(error?.message || { zh: "无法接受挖角", en: "Couldn't accept the offer" }, true);
       renderScreen();
     }
   }
@@ -81,10 +81,10 @@ export function createPoachCard({ state, lang, setStatus, commit, currentRootSta
     try {
       const root = declinePoachOffer(currentRootState());
       commit(root, tr(l, "存档写入失败，婉拒尚未生效", "Save failed — your refusal wasn't recorded"), { full: false });
-      setStatus(tr(l, "你婉拒了邀请，管理层看在眼里。", "You turned the offer down — and the front office noticed."));
+      setStatus({ zh: "你婉拒了邀请，管理层看在眼里。", en: "You turned the offer down — and the front office noticed." });
       renderScreen();
     } catch (error) {
-      setStatus(error?.message || tr(l, "无法婉拒这份邀请", "Couldn't decline the offer"), true);
+      setStatus(error?.message || { zh: "无法婉拒这份邀请", en: "Couldn't decline the offer" }, true);
     }
   }
 
