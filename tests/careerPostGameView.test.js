@@ -428,3 +428,66 @@ test("coach XP: the stretch card sums it, counts upsets and level-ups", () => {
   assert.match(html, /升到 Lv\.3/);
   assert.doesNotMatch(visible(batchHtml(foldBatch(games), "en")), CJK);
 });
+
+// ---------------------------------------------------------------- C6: per-game goals
+const goal = (over = {}) => ({ handPlayed: false, goals: [{ id: "margin", n: 10, done: true }], done: 1, multiplier: 1, ...over });
+const withGoal = (entry) => {
+  const report = settleGame(snap(), "home");
+  report.rewards.goal = entry;
+  return report;
+};
+
+test("goal: no data, no section (a quick season, or any game before C6 existed)", () => {
+  assert.doesNotMatch(postGameHtml(settleGame(snap(), "home"), "zh"), /本场目标|pg-goal/);
+});
+
+test("goal: a met and a missed goal, each with its own mark, in the order they were judged", () => {
+  const html = visible(postGameHtml(withGoal(goal({
+    goals: [{ id: "margin", n: 10, done: true }, { id: "assists", n: 35, done: false }],
+    done: 1,
+  })), "zh"));
+  assert.match(html, /本场目标/);
+  assert.match(html, /✓赢下 10 分以上[\s\S]*✗全队 35 次助攻/, "met goal first, then the missed one, exactly as judged");
+});
+
+test("goal: a sim's judgment (handPlayed: false) never claims the hand-play bonus, and says what coaching it would add", () => {
+  const html = postGameHtml(withGoal(goal({ handPlayed: false, done: 0, multiplier: 1 })), "zh");
+  assert.doesNotMatch(visible(html), /亲自指挥 ×/);
+  assert.match(visible(html), /模拟只计第一个目标/, "the nudge towards hand-coaching is there");
+  // The bug this pins: that nudge is a full sentence, not a number+unit figure -- it must never be
+  // wrapped in the unbreakable .pg-nowrap span (that forces one line and overflows a phone).
+  assert.doesNotMatch(html, /<span class="pg-nowrap">[^<]*模拟只计[^<]*<\/span>/, "the nudge sentence must be allowed to wrap");
+});
+
+test("goal: hand-played claims the ×1.5 bonus and drops the nudge", () => {
+  const html = visible(postGameHtml(withGoal(goal({ handPlayed: true, done: 2, multiplier: 1.5 * 1.5 })), "zh"));
+  assert.match(html, /亲自指挥 ×1\.5/);
+  assert.match(html, /达成 2 个 \+50%/);
+  assert.match(html, /XP ×2\.25/);
+  assert.doesNotMatch(html, /模拟只计第一个目标/, "a hand-played game has nothing to be nudged towards");
+});
+
+test("goal: English card is English, and the nudge sentence still isn't nowrap'd", () => {
+  const html = postGameHtml(withGoal(goal({ goals: [{ id: "margin", n: 10, done: false }], done: 0 })), "en");
+  assert.doesNotMatch(visible(html), CJK);
+  assert.match(html, /Game goals/);
+  assert.match(visible(html), /Win by 10\+/);
+  assert.doesNotMatch(html, /<span class="pg-nowrap">[^<]*A sim counts[^<]*<\/span>/);
+});
+
+test("goal: the stretch card folds done/total across games, not just the last one", () => {
+  const games = [
+    withGoal(goal({ done: 1 })),
+    withGoal(goal({ goals: [{ id: "margin", n: 10, done: false }], done: 0 })),
+    withGoal(goal({ handPlayed: true, goals: [{ id: "margin", n: 10, done: true }, { id: "steals", n: 11, done: true }], done: 2 })),
+  ];
+  const html = visible(batchHtml(foldBatch(games), "zh"));
+  assert.match(html, /本段目标/);
+  assert.match(html, /达成 3 \/ 4/, "1 + 0 + 2 met, out of 1 + 1 + 2 judged");
+  assert.match(html, /3 场/);
+});
+
+test("goal: a stretch with nobody's goals judged (every game from before C6, or a quick season) shows no section", () => {
+  const games = [settleGame(snap(), "home"), settleGame(snap(), "home")];
+  assert.doesNotMatch(visible(batchHtml(foldBatch(games), "zh")), /本段目标/);
+});

@@ -269,6 +269,7 @@ import {
 } from "./data/historicalSeasons.js";
 import { summarizeMatchResult } from "./engine/matchExplain.js";
 import { foldBatch, settleGame } from "./career/gameRewards.js";
+import { goalsForNextGame, settleGameGoals } from "./career/gameGoals.js";
 import { awardGrowth } from "./career/playerGrowth.js";
 import { awardEpiphany } from "./career/seasonEpiphany.js";
 import { settleBuzz } from "./career/buzz.js";
@@ -276,6 +277,7 @@ import { awardCoachXp, developmentXpMultiplier, tacticsShotBonus } from "./caree
 import { ensureCoachProfile } from "./career/coachProfile.js";
 import { teamRosterStrength } from "./career/seasonGoals.js";
 import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
+import { pregameCardHtml } from "./ui/pregameCard.js";
 import {
   advanceCareerOffseason,
   completeCareerOffseason,
@@ -7864,6 +7866,21 @@ function hubTeamHex(team) {
   return c?.primary || "#8a938c";
 }
 
+/**
+ * C6: the goals for the user's next game, under the matchup line. Only while there really is a game
+ * to play in a managed career; drawing them here is what makes the hub's promise the one that gets judged.
+ */
+function paintNextGoals(st) {
+  const box = $("#season-next-goals");
+  if (!box) return;
+  const hasGame = isManagedCareer(state.leagueCareer)
+    && (st.phase === "regular" ? Boolean(nextUserGame(st)) : st.phase === "playoffs" && Boolean(nextUserPlayoffGame(st)));
+  box.innerHTML = hasGame
+    ? pregameCardHtml({ goals: goalsForNextGame(st, st.teams[st.userTeamId]?.players || []), lang: getLang() })
+    : "";
+  box.hidden = !hasGame;
+}
+
 function renderSeasonHub({ persist = true } = {}) {
   const st = prepareSeasonState(state.season);
   if (!st) return;
@@ -7967,6 +7984,7 @@ function renderSeasonHub({ persist = true } = {}) {
     $("#btn-season-sim-week").disabled = true; // "模拟5场"是常规赛概念，对季后赛不适用
   }
 
+  paintNextGoals(st);
   renderSeasonStandings();
   renderSeasonRotation();
   renderSeasonMarket();
@@ -9365,7 +9383,7 @@ function handleSeasonResult(snap) {
   let report = null;
   if (st && game && !game.played) {
     recordUserLiveResult(st, game, snap);
-    report = settleUserGame(snap, snap?.youSide);
+    report = settleUserGame(snap, snap?.youSide, { handPlayed: true });
   }
   state.seasonPendingGame = null;
   // Persist updated roster form/fatigue lightly from snap onto season team
@@ -9398,7 +9416,7 @@ function handleSeasonPlayoffResult(snap) {
   let report = null;
   if (st && pending?.game && !pending.game.played) {
     recordUserLivePlayoffResult(st, pending.game, pending.series, snap);
-    report = settleUserGame(snap, snap?.youSide);
+    report = settleUserGame(snap, snap?.youSide, { handPlayed: true });
   }
   state.seasonPendingPlayoffGame = null;
   if (st && snap) {
@@ -9495,7 +9513,7 @@ const userSideOf = (st, game) => (game?.homeId === st.userTeamId ? "home" : "awa
  * and the ledger goes on the career, which the save that follows persists. Only managed careers
  * grow -- a quick season has no ledger to keep. Called exactly once per game, at the moment it ends.
  */
-function awardGameGrowth(report) {
+function awardGameGrowth(report, xpBoost = 1) {
   const career = state.leagueCareer;
   const st = state.season;
   if (!report || !st || !isManagedCareer(career)) return;
@@ -9507,7 +9525,7 @@ function awardGameGrowth(report) {
     players,
     lines: report.lines,
     ladderOf: historicalLadder,
-    xpMultiplier: developmentXpMultiplier(state.longCareerRoot?.coach),
+    xpMultiplier: developmentXpMultiplier(state.longCareerRoot?.coach) * xpBoost,
   });
   for (const [id, attributes] of Object.entries(result.changes)) {
     Object.assign(players.find((player) => player.id === id), attributes);
@@ -9546,7 +9564,7 @@ function awardGameBuzz(report) {
  * C5: the time-travel coach's own XP for a game. Only while he actually holds the job -- a fired,
  * departed or retired coach coaches nobody. Lives on root.coach, which the save that follows persists.
  */
-function awardGameCoachXp(report) {
+function awardGameCoachXp(report, xpBoost = 1) {
   const st = state.season;
   const root = state.longCareerRoot;
   const status = state.story?.employment?.status || "active";
@@ -9558,6 +9576,7 @@ function awardGameCoachXp(report) {
     playoff: st.phase === "playoffs",
     youStrength: teamRosterStrength(you),
     oppStrength: opponent ? teamRosterStrength(opponent) : NaN,
+    multiplier: xpBoost,
   });
   state.longCareerRoot = { ...root, coach: result.coach };
   report.rewards.coachXp = result.entry;
@@ -9571,13 +9590,29 @@ function syncCoachPerksToSeason(st) {
   else delete st.coachPerkShot;
 }
 
-/** Settle a finished game from the user's side and pay its XP, any epiphany, the market buzz and the coach's XP. */
-function settleUserGame(snap, side) {
+/**
+ * C6: judge the goals this game came with and say how much its XP is multiplied by (x1.5 for coaching
+ * it yourself, +25% per goal met). Managed careers only -- a quick season has no XP to multiply.
+ */
+function awardGameGoals(report, handPlayed) {
+  const st = state.season;
+  if (!report || !st || !isManagedCareer(state.leagueCareer)) return 1;
+  const result = settleGameGoals(st, st.teams[st.userTeamId]?.players || [], report, { handPlayed });
+  report.rewards.goal = result;
+  return result.multiplier;
+}
+
+/**
+ * Settle a finished game from the user's side and pay its XP, any epiphany, the market buzz and the
+ * coach's XP. `handPlayed` is true only for a game the user coached live: it earns the C6 bonus.
+ */
+function settleUserGame(snap, side, { handPlayed = false } = {}) {
   const report = settleGame(snap, side);
-  awardGameGrowth(report);
+  const boost = awardGameGoals(report, handPlayed);
+  awardGameGrowth(report, boost);
   awardGameEpiphany(report);
   awardGameBuzz(report);
-  awardGameCoachXp(report);
+  awardGameCoachXp(report, boost);
   return report;
 }
 

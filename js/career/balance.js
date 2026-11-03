@@ -277,3 +277,30 @@ export const BUZZ_BONUS_PER_POINT = 0.75;
 export const BUZZ_MAX_BONUS = 4;
 /** From this much buzz a club throws in one more pick. */
 export const BUZZ_EXTRA_PICK = 4;
+
+// ---------------------------------------------------------------- C6: game goals and the hand-play bonus
+/** Goals set before every game of a managed career. The first one always counts; the second only when you coach the game yourself. */
+export const GAME_GOALS_PER_GAME = 2;
+/** Playing the game yourself pays player XP and coach XP x1.5 (docs/CAREER_LIFE_ROADMAP.md 2.2). */
+export const HAND_PLAY_XP_MULTIPLIER = 1.5;
+/** Each goal you meet adds this to that game's XP multiplier (two goals + hand-play: 1.5 x 1.5 = x2.25). */
+export const GAME_GOAL_XP_BONUS = 0.25;
+/**
+ * Thresholds. Measured on the real engine (6 real 1995 teams x 30 games, then 1985 / 2005 / 2016 with
+ * a strong, a middling and a weak team): each is met in roughly a quarter to a half of the games, and
+ * none moves with the era -- assists 31-33, steals 9-10, turnovers 18-19 and double-figure scorers
+ * 4.1-4.5 a game in every season measured. A "N threes" goal was left out on purpose: the same teams
+ * made 0.1 (1985), 4.8 (1995) and 7.9 (2016) a game, so any one number is free in one era and
+ * impossible in another.
+ */
+export const GOAL_MARGIN = 10;
+export const GOAL_ASSISTS = 35;
+export const GOAL_STEALS = 11;
+export const GOAL_MAX_TURNOVERS = 16;
+export const GOAL_DOUBLE_FIGURE_SCORERS = 5;
+export const GOAL_DOUBLE_FIGURE_POINTS = 10;
+/** Same bar as the first scoring highlight (C4), so "a 30-point night" means one thing everywhere. */
+export const GOAL_STAR_POINTS = HIGHLIGHT_SCORING.at(-1).min;
+/** The young-player goal: somebody this young plays at least this long. */
+export const GOAL_ROOKIE_MAX_AGE = 23;
+export const GOAL_ROOKIE_MINUTES = 20;

@@ -388,3 +388,5 @@
 
 [2026-11-02 21:45] Code：**插队加了个小功能并已推送（WORKNOTE R128，`60589fe`）**：赛季结果页「模拟下一场」和「模拟整个赛季」之间加了「模拟五场」。顺带把这三个按钮的英文回退修了（原来都是渲染时写死中文字面量，没走 `L()`，英文模式下这屏幕每次重渲都会冒中文）。
 **给 C6 同学提个醒**：我开工时发现工作区里混着你的 `gameGoals.js`/`pregameCard.js`/`coachPerks.js`/`balance.js`/`gameRewards.js`/`careerPostGameView.js`/`css/careerPostGame.css`/几个测试文件，mtime 都是几分钟前的，我一个字节都没碰——用 `git add -p` 按 hunk 挑的，只拿了 `wireSeasonResultContinue`/`simRestOfSeason` 里跟 `settleUserGame` 签名无关的那两段，`index.html` 也只拿了我加的按钮那个 hunk，没碰 `season-next-goals`。Rebase 到最新 `origin/main`（当时落后 15 个 Luna 的 i18n 提交）前用 `git stash push -u` 把你的全部文件原样暂存，rebase 完立刻 `stash pop`，auto-merge 干净无冲突标记。**你提交前记得先 `git fetch` + rebase 到 `60589fe`。**
+
+[2026-11-02 22:30] Code：**C6 本场目标完工并推送（WORKNOTE R129）**。接手的是工作区里已经写得差不多的那份（引擎+赛前卡+赛后卡接线+app.js 全部到位），我加了浏览器 QA（`career-game-goals.mjs`，真穿越生涯真点亲自指挥，桌面+手机 40/40）和 7 条单测，顺手抓到一个真 bug：赛后卡那句英文提示（"A sim counts the first goal only..."）被塞进了 `.pg-nowrap`（`seg()`，专给"28 分"这种数字+单位用的不可断片段），一整句长句子被强制 nowrap，手机端直接横向溢出，连带把旁边的 box-score 表格也带溢出了（同一个布局容器被撑宽的连带症状）。改成普通文本，两边验证都做过变异复现。全量 1522/1522，lint 0 错，已推送。路线图标 C6 ✅，下一步阶段 D/E。

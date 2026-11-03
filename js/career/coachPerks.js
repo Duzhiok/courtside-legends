@@ -74,15 +74,18 @@ export function perkEffectText(line, level, lang = "zh") {
 
 /**
  * Coach XP one game is worth. `youStrength` / `oppStrength` are top-8 OVR averages; when either is
- * unknown the game simply can't be an upset. A tie (no winner) pays like a loss.
- * @returns {{ xp: number, parts: Array<{ id: "win"|"loss"|"upset", xp: number }>, playoff: boolean }}
+ * unknown the game simply can't be an upset. A tie (no winner) pays like a loss. `multiplier` is the
+ * C6 bonus (coaching it yourself, goals met); 1 leaves the XP exactly as it was.
+ * @returns {{ xp: number, parts: Array<{ id: "win"|"loss"|"upset", xp: number }>, playoff: boolean, multiplier: number }}
  */
-export function gameCoachXp({ won = false, playoff = false, youStrength = NaN, oppStrength = NaN } = {}) {
+export function gameCoachXp({ won = false, playoff = false, youStrength = NaN, oppStrength = NaN, multiplier = 1 } = {}) {
+  const boost = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
   const parts = [won ? { id: "win", xp: COACH_XP_WIN } : { id: "loss", xp: COACH_XP_LOSS }];
   const gap = Number(oppStrength) - Number(youStrength);
   if (won && Number.isFinite(gap) && gap >= COACH_XP_UPSET_GAP) parts.push({ id: "upset", xp: COACH_XP_UPSET });
   const base = parts.reduce((sum, part) => sum + part.xp, 0);
-  return { xp: playoff ? base * COACH_XP_PLAYOFF_MULTIPLIER : base, parts, playoff: Boolean(playoff) };
+  const xp = Math.round((playoff ? base * COACH_XP_PLAYOFF_MULTIPLIER : base) * boost);
+  return { xp, parts, playoff: Boolean(playoff), multiplier: boost };
 }
 
 /**

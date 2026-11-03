@@ -2300,3 +2300,18 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 
 **验证**：全量 1481/1481；lint 0 错误；`git diff --check` 干净。
 **流程小事**：这个 worktree 是游离 HEAD，`git push origin main` 会被判非快进（本地 `main` 分支是旧的），要 `git push origin HEAD:main`。`index.html` 的 `app.js?v=20261024t14` 最近几个改 `app.js` 的提交都没 bump，我没动（发布侧的事，已在板上提）。
+
+## R129 · C6：本场目标 + 亲自指挥加成完工并推送（2026-11-02）
+
+接手了一份工作区里已经基本写完的 C6（引擎 `gameGoals.js`、赛前卡 `pregameCard.js`、赛后卡接线、`app.js` 接线全部到位），我自己没重新设计，主要做了验收 + 补测试 + 修一个真 bug。
+
+**玩法**：每场比赛开打前，`goalsForNextGame()` 按 `(年份|队伍|赛事序号)` 固定种子抽 2 个目标（赢分差/全队助攻/全队抢断/控失误/上双人数/有人砍多少分/某个年轻人打满多少分钟，不重复），显示在赛季中心「下一场」卡片下面。模拟只判第一个；亲自指挥才判第二个，并且 XP ×1.5；每达成一个目标再 +25% XP。只对 `isManagedCareer` 生效（穿越/联盟经理），快速赛季没有这套、也不会崩。种子固定意味着刷新页面、读档、批量模拟跳过展示，判的都是同一组目标，不会重新随机。
+
+**验收用的是真引擎**：`scripts/qa/career-game-goals.mjs`，复用 `lib/career.mjs` 的 `openCareer`/`playLive`（真的建穿越生涯、真的点亲自指挥、真的用假时钟快进）。覆盖：赛前卡 2 个目标且只有第二个带"亲自指挥才计入"标签；模拟只判第一个且倍率不含 ×1.5；亲自指挥判两个且倍率 ×1.5×(1+0.25×达成数)；批量模拟一周的"本段目标"卡 `总数===场次`（纯模拟每场只判一个）；中英文切换无泄漏。桌面+手机 40/40。
+
+**挖出一个真 bug**：赛后卡里"模拟只计第一个目标；亲自指挥……"这句英文提示被 `seg()` 包成了 `.pg-nowrap`（`white-space:nowrap`）——`seg()`/`.pg-nowrap` 是给"28 分"这种数字+单位的不可断片段用的，裹一整句英文长句子在手机上必然撑爆横向。改成普通转义文本，不强制一行。顺手在 `tests/careerPostGameView.test.js` 加了 7 条单测（含两条专门钉死"这句话不能再被塞进 `.pg-nowrap`"），单测和浏览器 QA 分别做过变异验证：把修复复原回 `seg()`，单测 2 条红、QA 手机端横向溢出红（连带报出一个看似无关的 box-score 表格也溢出——同一个布局容器被撑宽后的连带症状，根因只有一个）。
+
+**验证**：全量 1522/1522；lint 0 错误（仍是那 2 条旧 warning）；`git diff --check` 干净。
+
+- 动的文件：`js/career/gameGoals.js`（新）、`js/ui/pregameCard.js`（新）、`js/career/balance.js`、`js/career/coachPerks.js`、`js/career/gameRewards.js`、`js/ui/careerPostGameView.js`（我只改了那一行 nudge）、`js/app.js`、`index.html`、`css/careerPostGame.css`、`tests/coachPerks.test.js`、`tests/gameRewards.test.js`、`tests/gameGoals.test.js`（新）、`tests/careerPostGameView.test.js`（我加的 7 条）、`scripts/qa/career-game-goals.mjs`（新）。
+- 下一步：阶段 D/E（精力、未来知识花钱处）。

@@ -97,6 +97,17 @@ function foldCoachXp(games) {
   };
 }
 
+/** C6 over a stretch: how many of the goals that were judged were met. Null when none were judged. */
+function foldGoals(games) {
+  const judged = games.map((report) => report.rewards?.goal).filter((goal) => goal?.goals?.length);
+  if (!judged.length) return null;
+  return {
+    games: judged.length,
+    done: judged.reduce((sum, goal) => sum + goal.done, 0),
+    total: judged.reduce((sum, goal) => sum + goal.goals.length, 0),
+  };
+}
+
 /**
  * One summary for a stretch of games. `leaders` rank by TOTAL box-score contribution over the
  * stretch (so a single 40-point night can't outrank a month of 25s), shown as per-game averages;
@@ -159,6 +170,7 @@ export function foldBatch(reports) {
       total: Math.round(acc.total * 10) / 10,
     }));
   out.coachXp = foldCoachXp(games);
+  out.goals = foldGoals(games);
   out.highlights = [...highlightsBy.values()].sort((a, b) => b.gain - a.gain);
   out.growth = [...growthBy.values()]
     .map((acc) => ({ ...acc, leveled: [...acc.leveled.values()] }))

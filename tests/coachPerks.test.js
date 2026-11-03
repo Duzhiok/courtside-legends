@@ -30,8 +30,8 @@ const CJK = /[\u3400-\u9fff]/;
 const withPerks = (perks) => createCoachProfile({ perks: { tactics: 0, development: 0, negotiation: 0, media: 0, ...perks } });
 
 test("gameCoachXp: a win teaches more than a loss, and a tie counts as a loss", () => {
-  assert.deepEqual(gameCoachXp({ won: true }), { xp: COACH_XP_WIN, parts: [{ id: "win", xp: COACH_XP_WIN }], playoff: false });
-  assert.deepEqual(gameCoachXp({ won: false }), { xp: COACH_XP_LOSS, parts: [{ id: "loss", xp: COACH_XP_LOSS }], playoff: false });
+  assert.deepEqual(gameCoachXp({ won: true }), { xp: COACH_XP_WIN, parts: [{ id: "win", xp: COACH_XP_WIN }], playoff: false, multiplier: 1 });
+  assert.deepEqual(gameCoachXp({ won: false }), { xp: COACH_XP_LOSS, parts: [{ id: "loss", xp: COACH_XP_LOSS }], playoff: false, multiplier: 1 });
   assert.equal(gameCoachXp({ won: false, tied: true }).xp, COACH_XP_LOSS);
 });
 

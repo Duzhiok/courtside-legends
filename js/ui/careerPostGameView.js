@@ -5,6 +5,8 @@
  * empty renders nothing, so the card only ever shows what really happened. Order is by how much it
  * matters tonight: verdict, a new skill (rare), the stars, growth, then what is brewing.
  */
+import { GAME_GOAL_XP_BONUS, HAND_PLAY_XP_MULTIPLIER } from "../career/balance.js";
+import { goalText } from "../career/gameGoals.js";
 import { skillNameL, teamNameL } from "../i18n.js";
 import { esc, tr } from "./timeTravel/format.js";
 
@@ -144,6 +146,39 @@ function heatHtml(entries, lang) {
 /** Why the coach earned what he did tonight, by part id. */
 const COACH_XP_PARTS = { win: ["赢球", "Win"], loss: ["输球也有收获", "Lessons from a loss"], upset: ["爆冷", "Upset"] };
 
+/** 1.875 -> "1.88", 1.5 -> "1.5": a multiplier with no trailing zeros. */
+const times = (value) => String(Math.round(value * 100) / 100);
+
+/**
+ * C6: the goals this game was judged on, and what they did to the XP above. A sim only counts the
+ * first goal, so it also says what coaching the game yourself would have added.
+ */
+function goalHtml(goal, lang) {
+  if (!goal?.goals?.length) return "";
+  const rows = goal.goals.map((entry) => {
+    const label = entry.done ? tr(lang, "达成", "Met") : tr(lang, "未达成", "Missed");
+    return `<li class="pg-goal ${entry.done ? "pg-goal-done" : "pg-goal-miss"}">
+      <span class="pg-mark" role="img" aria-label="${esc(label)}">${entry.done ? "✓" : "✗"}</span><span>${esc(goalText(entry, lang))}</span>
+    </li>`;
+  }).join("");
+  const parts = [];
+  if (goal.handPlayed) parts.push(seg(tr(lang, `亲自指挥 ×${HAND_PLAY_XP_MULTIPLIER}`, `You coached ×${HAND_PLAY_XP_MULTIPLIER}`)));
+  if (goal.done) parts.push(seg(tr(lang, `达成 ${goal.done} 个 +${Math.round(goal.done * GAME_GOAL_XP_BONUS * 100)}%`, `${goal.done} met +${Math.round(goal.done * GAME_GOAL_XP_BONUS * 100)}%`)));
+  // Plain text, not seg(): seg()/.pg-nowrap is for an atomic number+unit pair ("8 分") that must not
+  // split mid-figure. This is a full sentence -- forcing it onto one line is what overflows mobile.
+  const nudge = goal.handPlayed ? "" : ` ${esc(tr(lang, `模拟只计第一个目标；亲自指挥多一个目标，XP ×${HAND_PLAY_XP_MULTIPLIER}`, `A sim counts the first goal only; coach it yourself for a second goal and XP ×${HAND_PLAY_XP_MULTIPLIER}`))}`;
+  return `<h4 class="pg-section-title">${esc(tr(lang, "本场目标", "Game goals"))}</h4>
+    <ul class="pg-stars pg-goals">${rows}</ul>
+    <p class="pg-note">${seg(`XP ×${times(goal.multiplier)}`)}${parts.length ? ` · ${parts.join(" · ")}` : ""}${nudge}</p>`;
+}
+
+/** The same for a stretch of games: how many of the goals were met. */
+function goalBatchHtml(batch, lang) {
+  if (!batch?.total) return "";
+  return `<h4 class="pg-section-title">${esc(tr(lang, "本段目标", "Goals of the stretch"))}</h4>
+    <p class="pg-note">${seg(tr(lang, `达成 ${batch.done} / ${batch.total}`, `${batch.done} of ${batch.total} met`))} · ${seg(tr(lang, `${batch.games} 场`, `${batch.games} games`))}</p>`;
+}
+
 /** The bar, the level, and -- only when there is one -- the level-up or the unspent-points reminder. */
 function coachLevelHtml(entry, lang) {
   const pct = Math.round(Math.min(1, Math.max(0, entry.progress || 0)) * 100);
@@ -160,6 +195,7 @@ function coachXpHtml(entry, lang) {
   if (!entry) return "";
   const parts = (entry.parts || []).map((part) => seg(`${(COACH_XP_PARTS[part.id] || [part.id, part.id])[lang === "en" ? 1 : 0]} +${part.xp}`));
   if (entry.playoff) parts.push(seg(tr(lang, "季后赛 ×2", "Playoffs ×2")));
+  if (entry.multiplier > 1) parts.push(seg(tr(lang, `奖励 ×${times(entry.multiplier)}`, `Bonus ×${times(entry.multiplier)}`)));
   return `<h4 class="pg-section-title">${esc(tr(lang, "教练成长", "Coach growth"))}</h4>
     <div class="pg-coach"><p class="pg-coach-xp"><strong>${seg(`+${entry.xp} XP`)}</strong> ${parts.join(" · ")}</p>${coachLevelHtml(entry, lang)}</div>`;
 }
@@ -198,6 +234,7 @@ export function postGameHtml(report, lang = "zh") {
     ${epiphanyHtml(report.rewards?.epiphanies, lang)}
     ${starsHtml(report.stars, lang)}
     ${highlightsHtml(report.rewards?.highlights, report.rewards?.hot, lang, tr(lang, "本场高光", "Highlights"))}
+    ${goalHtml(report.rewards?.goal, lang)}
     ${growthHtml(report.rewards?.playerXp, lang)}
     ${coachXpHtml(report.rewards?.coachXp, lang)}
     ${heatHtml(report.rewards?.heat, lang)}
@@ -227,6 +264,7 @@ export function batchHtml(batch, lang = "zh") {
     ${epiphanyHtml(batch.epiphanies, lang)}
     ${leaders ? `<h4>${esc(tr(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}
     ${highlightsHtml(batch.highlights, batch.hot, lang, tr(lang, "这段时间的高光", "Highlights of the stretch"))}
+    ${goalBatchHtml(batch.goals, lang)}
     ${growthHtml(batch.growth, lang)}
     ${coachBatchHtml(batch.coachXp, lang)}
     ${heatHtml(batch.heat, lang)}

@@ -68,3 +68,17 @@
 .pg-coach { display: grid; gap: 6px; padding: 8px 10px; border-radius: 8px; background: var(--paper); border: 1px solid var(--line); }
 .pg-coach-xp { margin: 0; font-size: .85rem; color: #374151; }
 .pg-coach .pg-note { margin: 0; }
+
+/* C6 game goals. Post-game: a row per goal with a tick or a cross; the tick is the only colour, and it has a text twin for screen readers. */
+.pg-goal { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: var(--paper); border: 1px solid var(--line); font-size: .85rem; }
+.pg-mark { font-weight: 800; text-align: center; }
+.pg-goal-done .pg-mark { color: #166534; }
+.pg-goal-miss .pg-mark { color: #6b7280; }
+.pg-goal-miss { color: #374151; }
+/* C6 pre-game: on the dark "next game" card of the hub, so light text on a faint panel. */
+#season-hub-panel .pg-pre { margin: 10px 0 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .14); color: #e6eeea; }
+#season-hub-panel .pg-pre-title { margin: 0 0 6px; font-size: .78rem; letter-spacing: .06em; color: #9db8ad; }
+#season-hub-panel .pg-pre-goals { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: .95rem; font-weight: 600; }
+#season-hub-panel .pg-pre-goal::before { content: "◎ "; color: #5ec9ba; }
+#season-hub-panel .pg-pre-tag { display: inline-block; margin-left: 4px; padding: 0 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; background: rgba(94, 201, 186, .18); color: #bfeee7; }
+#season-hub-panel .pg-pre-note { margin: 8px 0 0; font-size: .78rem; color: #b8c9c1; }
