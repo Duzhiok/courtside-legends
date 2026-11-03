@@ -1,5 +1,37 @@
 # Baseline Audit — Courtside Legends 2.0 (P0A 前置)
 
+> **文件地位**：本文是 ROADMAP/DECISIONS 两份文件的唯一事实底稿。ROADMAP.md 的每个里程碑和 DECISIONS.md 的每条决策都引用本文的章节号，不重写证据。如果以后发现这里的证据过时或错误，只改这一份，别另开第二份事实底稿。
+
+## 0. 本次复核（2026-11-03，对照当前 HEAD `6186406`）
+
+- 原审计（Luna，下文第 1–12 节原文保留未动）对照的是 `8e8cac4`。`8e8cac4..6186406` 共 7 个提交，不带审计引用的文件结构性改动：
+  - `2ed4099`（神经刀技能）对 `sim.js` 加了 2 行 import（第 28-31 行付近）——**该文件所有第 31 行之后的引用行号整体漂移 +2**，内容/结构未变（以 `constructor()`、`calcMakeProb`、`resolvePossession` 等函数名定位，别盲信行号）。
+  - `93fed1d`（2.0-plan.md 本身）、`44b117f`（市场卡属性，不涉底稿引用的任何文件）、`6186406`（`form.js`/`app.js` 信心値修复，不涉底稿引用的任何文件）。
+  - `docs/Courtside_Legends_2.0_Master_Spec.md` 换成了格式完整版（+889/-），正文 99.8% 相同（WORKNOTE R131 已记录）——对本文引用的 spec 章节号无影响。
+- **实测复核（4 项，全部通过）**：
+  1. `GameSim` 构造函数（现 `sim.js:101-111`）仍是 `{home, away, youSide="home", onEvent, onTick, onEnd, injuries=false, speed=1, lang=null}`——**无 seed/rng 参数**，与第 2.6 节结论一致。
+  2. `modeCatalog.js` 的 `MODE_GROUPS` 导出仍不含 `legend`/`sandbox`/`duel`/`family-duel`——与第 1.1 节缺口一致。
+  3. `saveRoot.js` 的 `ROOT_SAVE_VERSION = 3`，`schemaVersion` 高于/低于 3 都拒读，**无逐版本迁移函数**——与第 4.1 节一致。
+  4. **重新跑了一遍 `scripts/research/clutch-choice-probe.mjs`**（G1 的实证脚本，1500 次/行）：当前 HEAD 上结果与 2.0-plan.md 记录的基线**完全一致**（Q4 选中/不选都是 5%，Q2 都是 4-5%，库里全场仍占 43%）——**G1 不是过时证据**，是可重复的当前行为。
+- `npm test` 重跑结果：**1541/1541**（比 2026-11-02 记录的 1531 多 10 条，全是本审计无关的其他功能新增测试）；`npm run lint`：0 错误，2 个已知与本次改动无关的 warning（`app.js:82` `coachSpecialty`、`tests/onlineEconomy.test.js:23` `fakeStore`）。
+- **未复核项**：第 1-9 节其余所有具体行号引用（即使未受上述 7 个提交影响）仍是 Luna 当时的逐行确认结果，本次复核没有逐条重跑——这也是为什么要把本次复核范围诚实写清楚，而不是笼统地说“已审查通过”。哪个里程碑实际开工前，建议对其直接依赖的引用再做一次 `grep -n` 复核，成本很低。
+
+## 程础：本审计各节→里程碑门控表（用户指定的 P0A/P0B/P0C/P0D/P1/P2+ 命名）
+
+本审计原本按系统模块分节（府线 1-12），不是按里程碑分节。下表是反向索引，把每个里程碑真正依赖的证据章节指出来，详细里程碑定义见 `ROADMAP.md`。
+
+| 里程碑（用户命名） | canonical id | 依赖的本文章节 | 一句话结论 |
+|---|---|---|---|
+| P0A 首页重设与模式整理 | M1 | §1.1、1.2、1.3，§4.2（Continue 面板），§10.10/10.11，§12 | 目录不完整且与 `homeTabs` 两套事实来源；无 Play Now 主 CTA；但没有引擎/存档风险，纯 UI+目录整理 |
+| P0B 一键开打 + 新手引导 | M2a（新拆，见 DECISIONS ADR-003） | §1.3（`quick` 进 `openSetup`），§8.2（游客边界已满足），§10.11 | 低风险：主要是跳过 setup 确认的路由改动，游客边界本就满足 |
+| P0C 绝杀挑战 + GameSim 接入 | M2b（新拆） | §2.3（终场脚本优先级）、§2.4（shot clock/犯满）、§2.6（RNG）、§9（`initializeScenario`/`ClutchController`/`PlayerDecisionAdapter` 裁决）、§10.1/10.2，G1（本节已重跱实测） | 高风险：**用户选的出手人不被兑现**，要动 `resolvePossession` |
+| P0D 2D 球场可视化 + 战术接管 | M3 | §5（CourtView）、§3（事件载荷）、§6.1（`gameplan.js`）、§10.3/10.8 | 渲染是 DOM + 3 路独立 rAF，无统一动画队列；事件是回合总结级，需快照差分+补 emit |
+| P1 My Legacy（身份/捷脸/家乡/成长） | M4 | §4.1（账号）、§9（identity schema: new）、§4.3（存档版本策略） | 身份 schema 不存在，但可复用 `avatarArt.js`；必须先过存档迁移门槛 |
+| P1 Unified Reborn（球员/教练/GM 职业） | M5–M7 | §4.3（timeTravel 存档）、§9（`rebornSave`: adapt）、§6.1（战术层） | 教练线 A–C 已完成可直接复用；球员/GM 视角是全新开发 |
+| P2+（WNBA/历史分支/收藏/社交/音乐/市场） | M8 + 研究项 | §8（经济/音乐/在线）、§6.2（`ratings2k.js` OVR 100 封顶） | WNBA 无数据无版权，社交需账号+审核后端，近期不可行；本地音乐选曲**已实现**（§8.3） |
+
+---
+
 - 审计对象：`main` 分支 HEAD `8e8cac4`（2026-11-03，含已归档的 2.0 主 spec）。
 - 对照文档：`docs/Courtside_Legends_2.0_Master_Spec.md`（v1.0，2026-11-03）。
 - 方法：只读。代码证据均为文件:行号；本机 Linux VM 无 Chromium/playwright 浏览器，`scripts/qa/` 未执行（该限制在仓库内已知）。

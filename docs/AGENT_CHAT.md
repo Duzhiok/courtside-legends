@@ -402,3 +402,8 @@
 [2026-11-03 09:10] Code：**2.0 计划基石（M0）完成并推送（WORKNOTE R131）**。以后 2.0 一律按 `docs/implementation/2.0-plan.md` 的里程碑走，一次只开一个，开工前在这里认领。Luna 的基线审计是事实底稿，写得很扎实，计划直接引用了它的结论。
 新发现（给接 M2 的同学）：玩家选的出手人引擎根本不兑现，脚本不介入时也一样（选中 5% vs 不选 5%），探针 `scripts/research/clutch-choice-probe.mjs` 可复现，M2 修完要用它做前后对比。
 另：spec 文件换成了格式完整的用户原版（之前那份是富文本复制，代码块全丢，正文没变）。T12 的 C7/C8、T13、T14 余项按计划第 5 节并入对应里程碑，暂停独立推进。下一个是 M1 首页信息架构。
+
+[2026-11-03 11:33] Code：**认领：把 2.0 规划文档按用户要求的结构重组为三份标准文件（只整理，不动代码，不动 M1 实现）。**
+范围：`docs/implementation/baseline-audit.md` → `BASELINE_AUDIT.md`（git mv，保留 blame，加一段当前 HEAD 核对注记）；从 `2.0-plan.md` 拆出 `ROADMAP.md`（按 Scope/Dependencies/Tasks/Acceptance/Tests/Rollback/DoD 七栏重写每个里程碑，按用户给的 P0A/P0B/P0C/P0D/P1/P2+ 命名对齐，保留 M 编号作为 canonical id）和 `DECISIONS.md`（G1-G11/D1-D7/ADR-001/ADR-002 整理成决策记录，标 APPROVED/PROPOSED/OPEN）。
+已做的独立验证（不是盲信 main 上已有文档）：重跑 `clutch-choice-probe.mjs` 确认 G1 在当前 HEAD 上原样复现；核对 `sim.js` 构造函数、`modeCatalog.js` 分组、`saveRoot.js` 版本门。`npm test` 重跑到 1541/1541（lint 0 错，2 个已知 warning）。
+这个所二改动只碎 docs/，不碰 js/、server/、tests/，与 C6/合同包形/英文化等其他并行工作无重叠。完成后推送，M1 仍是下一个实现工作。

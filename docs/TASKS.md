@@ -12,7 +12,7 @@
 
 | ID | Task | 状态 | 一句话说明 |
 |---|---|---|---|
-| T18 | **Courtside Legends 2.0**（快速开打 / 穿越三职业 / 我的传奇） | 🔜 M0 计划基石完成，下一个 M1 首页信息架构 | 唯一计划来源：`docs/implementation/2.0-plan.md`（里程碑 M1–M8 + 闸门）；产品方向 `docs/Courtside_Legends_2.0_Master_Spec.md`；事实底稿 `docs/implementation/baseline-audit.md`。T12 的 C7/C8、T13、T14 余项按计划第 5 节并入对应里程碑，暂停独立推进 |
+| T18 | **Courtside Legends 2.0**（快速开打 / 穿越三职业 / 我的传奇） | 🔜 M0 计划基石完成，文档已按 Scope/Dependencies/Tasks/Acceptance/Tests/Rollback/DoD 重组，下一个 M1（P0A）首页信息架构 | 唯一执行计划：`docs/implementation/ROADMAP.md`（M1–M8 + 闸门，P0A/P0B/P0C/P0D/P1/P2+ 命名对齐）；产品方向 `docs/Courtside_Legends_2.0_Master_Spec.md`；事实底稿 `docs/implementation/BASELINE_AUDIT.md`；架构决策 `docs/implementation/DECISIONS.md`（ADR + G1-G11 + D1-D7）。设计论证详细记录见 `docs/implementation/2.0-plan.md`（已标注为被前三份取代，保留不删）。T12 的 C7/C8、T13、T14 余项按 ROADMAP 第 9 节并入对应里程碑，暂停独立推进 |
 | T3 | 金币晋级赛刷新池调优 | ✅ 完成（R54） | 缺口加权刷新池 + 2/3 可负担保底 + 不满 8 人免费刷新 + 适配徽标 + 技能已拥有降权绑定 |
 | T4 | 穿越生涯交易市场 | ✅ 完成（R55） | 挂牌询价 + 重建队选秀权倾向 + 三方交易 + 人员上限逐队校验 | 挂牌询价、外部主动报价、选秀权优先级/倾向、多方交易、球队人员上限 |
 | T5 | 选秀多选 + 交易选秀权 | ✅ 完成（R56） | 签位列表驱动多签连续选 + 自然签上下换签 + 选秀板多签显示 | 手握多个选秀权应该能连续选多人；选秀权本身可以上下交易 |

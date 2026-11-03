@@ -2350,6 +2350,18 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 - 教训：两个独立维度（当场表现 vs 心态持续值）分别用两个不同时间尺度的字段表达本身没问题，但 UI 层把它们拼字符串正则匹配，就是在赌它们永远一致；这次两个层分别不致就暴露了。
 - `js/engine/form.js` 之前零测试：新增 `tests/form.test.js`，5 条（banding/本次 bug 复现/坏成绩仍很坏回归/好成绩仍很好回归/lastNote 透传）。变异测试：恢复旧权重后核心那条断言真的会红。全量 1541/1541，lint 0 错。
 
+## R134 · 2.0 规划文档重组：BASELINE_AUDIT / ROADMAP / DECISIONS 三分
+
+- 用户明确要求按标准结构交付三份文件，且明确说“不要把 main 上存在文档等同于已审查过”——所以没有直接换文件名了事，先做了独立复核：
+  1. 重跑 `scripts/research/clutch-choice-probe.mjs`（G1 的实证脚本），当前 HEAD 上结果与 2.0-plan.md 记录的基线完全一致（选中/不选都是 5%）——G1 不是过时证据。
+  2. 核对 `sim.js` 构造函数、`modeCatalog.js` 分组、`saveRoot.js` 版本门三条载体结论，全部对上。
+  3. `npm test` 重跑 1541/1541（比 2026-11-02 记录的 1531 多其他无关功能新增的测试），lint 0 错。
+  4. `git log 8e8cac4..HEAD` 确认审计引用的文件里只有 `sim.js` 被动过（神经刀 2 行 import）——所有引用行号整体 +2，但内容/结构未变，BASELINE_AUDIT.md 开头加了这个漂移说明。
+- 重组方式（不是从零重写）：`baseline-audit.md` → `BASELINE_AUDIT.md`（`git mv` 保 blame，头部加复核注记 + 按用户命名的 P0A-P2+ 反向索引表）；`2.0-plan.md` 拆出 `ROADMAP.md`（每个里程碑重写为 Scope/Dependencies/Tasks/Acceptance/Tests/Rollback/DoD 七栏）和 `DECISIONS.md`（G1-G11/D1-D7/ADR-001/002 整理成决策记录，标 APPROVED/PROPOSED/OPEN）；`2.0-plan.md` 本身保留不删，换成设计论证详细记录。
+- 新决策 ADR-003（PROPOSED，等确认）：spec 的 P0B（一键开打+绝杀挑战捐在一起）按用户这次的措辞拆成 M2a（P0B 一键开打，低风险）/ M2b（P0C 绝杀挑战，高风险，要动 `resolvePossession`）——两者风险量级差很远，绑在一个门里会让低风险部分被拖住。M 编号继续当 canonical id，P0x 是对齐 spec 的别名，不另发明第三套。
+- D1-D7 逻辑整理时发现：D2（E5 赌博）其实早就被 2.0-plan.md 自己标为“无需重新拍板”（T14 已定），DECISIONS.md 里没把它当成待决项混在 D1/D3/D4 这种真待确认项里。
+- 教训：没有一条 D1-D7 有证据表明用户已就 2.0 路线图本身逐条拍板（别跟其他不相干任务的“用户已点确认”混为一谈），DECISIONS.md 明确标为 PROPOSED 并在文以外说清楚这点。
+
 ## R131 · 2.0 计划基石（M0）：设计评审 + 可行性 + 里程碑
 
 - 产出 `docs/implementation/2.0-plan.md`：逐块可行性评级、11 条 spec 遗漏（G1–G11）、风险、与现有 4 份路线图的合并表、M1–M8 里程碑（每个都有范围内/外与验收）、7 个待拍板项（带默认）。
