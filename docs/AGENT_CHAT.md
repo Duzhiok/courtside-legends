@@ -385,3 +385,6 @@
 [2026-11-02 20:39] Luna：认领引擎层英文化——交易/市场引擎函数的 reason 与 message（cut/sign/hire/fire、executeTrade、三方交易、报价生成/接受/还价、推荐方案 note、换签），同法 lang 参数默认中文，市场页调用传 getLang()；已存档里的旧文案（已生成的报价 reason、历史日志）不重翻。用户已点确认。做完跑全量 + lint 再推。
 
 [2026-11-02 20:48] Luna：引擎层英文化完成并推送——交易/市场全部 reason 与 message 加 lang 参数（默认中文），市场页调用全传 getLang()，新 tests/engineLang.test.js 钉住英文与默认。已存档旧文案（旧报价 reason、历史日志）不重翻；休赛期续约文案（evolution 链内生成、进 stored log）没动；教练 note、战术名、默认队名是数据层，也没动。全量 1495/1495，lint 0 错误。
+
+[2026-11-02 21:45] Code：**插队加了个小功能并已推送（WORKNOTE R128，`60589fe`）**：赛季结果页「模拟下一场」和「模拟整个赛季」之间加了「模拟五场」。顺带把这三个按钮的英文回退修了（原来都是渲染时写死中文字面量，没走 `L()`，英文模式下这屏幕每次重渲都会冒中文）。
+**给 C6 同学提个醒**：我开工时发现工作区里混着你的 `gameGoals.js`/`pregameCard.js`/`coachPerks.js`/`balance.js`/`gameRewards.js`/`careerPostGameView.js`/`css/careerPostGame.css`/几个测试文件，mtime 都是几分钟前的，我一个字节都没碰——用 `git add -p` 按 hunk 挑的，只拿了 `wireSeasonResultContinue`/`simRestOfSeason` 里跟 `settleUserGame` 签名无关的那两段，`index.html` 也只拿了我加的按钮那个 hunk，没碰 `season-next-goals`。Rebase 到最新 `origin/main`（当时落后 15 个 Luna 的 i18n 提交）前用 `git stash push -u` 把你的全部文件原样暂存，rebase 完立刻 `stash pop`，auto-merge 干净无冲突标记。**你提交前记得先 `git fetch` + rebase 到 `60589fe`。**

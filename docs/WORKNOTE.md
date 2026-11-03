@@ -2279,6 +2279,18 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 - 验证：`saveQuotaRetry` +7（用会抛 `DOMException` 的限额存储）；`scripts/qa/save-quota-retry.mjs`（12 项）真浏览器把存储塞满到最后一个字符：续约签署时清掉遗留存档并保存成功（A）；没东西可清时诚实失败（状态条「续约保存失败」、不删别人的数据、续约方案还在，B）。把 `app.js` 改回不重试，A 红 3 项。
 - 踩的坑：我先以为失败会弹"导出存档"对话框，断言红了；其实那个对话框只在**导入**路径（`app.js` 的 `offerLongCareerExportAfterSaveFailure`），穿越页的 `commit()` 是回滚 + 抛错 + 状态条。**先看代码走的是哪条路再写断言。**
 
+## R128 · 正赛季结果页加了「模拟五场」，顺带修了三个按钮的英文回回退（2026-11-02，`60589fe`）
+
+用户截图要求在「模拟下一场」和「模拟整个赛季」中间加个「模拟五场」。`simSeasonGames(count)` 本来就支持任意 `count`（循环结算每一场，`n>1` 时摘要显示"已连续模拟 N 场"），纯粍按钮接线活。新按钮只在 `canSimWholeSeason`（常规赛）时显示，不跟 `canKeepSimming`——季后赛中 `simSeasonGames()` 不管传什么 count 都只模拟一场，按钮写"五场"就是诚记个假话。
+
+**顺带发现并修了一个真 bug**：这个屏幕的三个按钮（`模拟下一场`/`模拟五场`/`模拟整个赛季`）每次 `wireSeasonResultContinue` 渲染都用裸中文字面量重置 `.textContent`，没走 `L()`。英文模式下这屏幕每渲染一次就泡回中文。改成 `L(zh, en)` 后，英文模式下新渲染正常。**没修的一半**：这是"动态文本只在渲染那刻读 `L()`，切语言不会回活已经渲染好的字（`applyStaticLang()` 只注册过的节点才会被重新翻）"这个更广的架构缺口：移动语言切换至此屏幕还是诚实会回英语单词（跳转前未重新渲染）。未动，和 `season-hub`/`time-travel` 屏幕一样是别人的活。
+
+**检测方式**：`i18n.test.js` 的「每个中文段都覆盖在 PHRASES」测试是读原始 `index.html` 文件扫小段，不走渲染路径，所以我加的按钮静态文字被直接抢红（还红了第二条——前一条报错没执行到文件末尾的 `setLang("zh")`，把测试文件全局 lang 污染成了 en，级联到下一个测试）。加到 PHRASES 修好。QA 新增 `scripts/qa/season-sim-continue.mjs` 2 项：打开英文、点一次按钮请它重渲，读它刚泼的文字是不是英文，不假设"切回中文后它会自己变回去"（会，因为那是别人的缺口）。
+
+- 验证：全量 1501/1501，lint 0 错，`git diff --check` 干净；浏览器 QA 32/32（桌面+手机，换浏览器 lang 正确性也过了）。变异验证：按钮文字换回裸文字面量，`模拟五场` 对应那条和 en 那条干净变红（2 failing），恢复后复绿。
+- **并发诚实记**：开工时发现工作区混着别人正在写的 C6（`gameGoals.js`/`pregameCard.js`/`coachPerks.js`/`balance.js`/`gameRewards.js`/`careerPostGameView.js`/`css/careerPostGame.css`，文件 mtime 在我写这条记录前几分钟）。**没 `git add -A`**：用 `git diff` 先核对 `@@` hunk 边界，再 `git add -p` 按序号逐 hunk 选（`js/app.js` 13 个 hunk 只留最后 2 个是我的，index.html 2 个只留第 1 个），用 `git show :file` 单独跱 node --check 确认暂存内容自成一体、不依赖 C6 那半次改。Rebase 到最新 `origin/main`（当时远程多了 15 个 Luna 的 i18n 提交）前必须先 `git stash push -u` 把别人的全部文件暂存，rebase 完立即 `stash pop` 原样还回去，`stash pop` 自己做了 auto-merge，没冲突标记。**这是长会话中第二次踩到同一类坑**：同一目录被并发会话写文件不是假设，是真会发生，每次开工前和提交前都要先 `git status` 看有没有不认识的文件。
+- 已推 `60589fe`。**C6 同学：我没动 `gameGoals.js`/`pregameCard.js`/`coachPerks.js`/`balance.js`/`gameRewards.js`/`careerPostGameView.js`/`css/careerPostGame.css`/那几个测试文件一个字节，全部原样还在你工作区中。你提交前记得先 `git fetch` + rebase 到 `60589fe`，我动过的都是 `wireSeasonResultContinue`/`simRestOfSeason` 按钮数组和两个静态按钮文字，不碰 `settleUserGame` 签名。**
+
 **③ 批量打季后赛原来一分钱不发**（本提交）：`simPlayoffSeries` 每场都 `simScheduledGame` 出了 box score，然后**丢掉**。所以「一键模拟整个季后赛 / 模拟下一轮 / 一键打完季后赛」不发球员 XP、领悟、热度、教练 XP，而亲自指挥和「模拟下一场」都发。
 - **引擎**（`season.js`）：`simPlayoffSeries(st, series, { onUserGame })`——这次调用里用户球队每打完一场回调一次 `(snap, game, series)`；`advancePlayoffs(st, opts)`、`simAllPlayoffs(st, opts)` 往下传。不传回调行为不变。
 - **`app.js` 的变化**：新增 `userGameBatch(st)`（回调：只结算用户的比赛，调 `settleUserGame`；记最后一场）和 `finishBulkPlayoffSim(st, batch)`（存档；用户打过就出结果卡，否则回季后赛页签和以前一样）。三个入口都改了：`#btn-season-sim-all-po`、`#btn-season-advance-po`、`#btn-season-sim-playoffs`——最后这个还会把**用户剩余的常规赛**一起模拟掉（`advanceToUserGame(..., { stopBeforeUser:false })`，它返回的 `played` 里有 snap），那部分原来同样一分钱不发，现在也结算。**行为变化**：这三个按钮打完后落在「本段收获」结果卡上（和 `simRestOfSeason` 一样），点「回到赛季主页」回季后赛页签；用户没参与（已淘汰）就和以前一样直接回页签。
