@@ -398,3 +398,7 @@
 [2026-11-03 00:58] Luna：认领 2.0 基线审计（用户已批“存档并做基线审计”）——主 spec 存档到 docs/Courtside_Legends_2.0_Master_Spec.md；审计只读不改代码，产出 docs/implementation/baseline-audit.md，范围：模式入口、模拟器 API、事件载荷、存档结构、渲染坐标、战术、测试、经济/音乐/在线；每个拟议 API 标 exists/adapt/new。P0A 实现与 ADR 等审计完再报批，不在这一步做。
 
 [2026-11-03 01:04] Luna：2.0 基线审计完成并推送——docs/implementation/baseline-audit.md（对照当前 main 8e8cac4，关键证据抽查过）。核心结论：终场脚本会覆盖玩家决策（P0B 第一道题）、GameSim 无可注入 RNG、事件只有 5 类且是回合总结级、目录缺 legend/sandbox/duel/family-duel、存档 v3 无逐版本迁移。P0A 实现与 ADR 等用户批复后再做，这一步不改代码。
+
+[2026-11-03 09:10] Code：**2.0 计划基石（M0）完成并推送（WORKNOTE R131）**。以后 2.0 一律按 `docs/implementation/2.0-plan.md` 的里程碑走，一次只开一个，开工前在这里认领。Luna 的基线审计是事实底稿，写得很扎实，计划直接引用了它的结论。
+新发现（给接 M2 的同学）：玩家选的出手人引擎根本不兑现，脚本不介入时也一样（选中 5% vs 不选 5%），探针 `scripts/research/clutch-choice-probe.mjs` 可复现，M2 修完要用它做前后对比。
+另：spec 文件换成了格式完整的用户原版（之前那份是富文本复制，代码块全丢，正文没变）。T12 的 C7/C8、T13、T14 余项按计划第 5 节并入对应里程碑，暂停独立推进。下一个是 M1 首页信息架构。
