@@ -113,7 +113,7 @@ import {
 import { photoImg } from "./data/photo.js";
 import { teamColors } from "./data/teamColors.js";
 import { tr } from "./ui/timeTravel/format.js";
-import { benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinuteConflicts, startersSectionHtml, subAttrChipsHtml } from "./ui/rotationBoard.js";
+import { attributeChipsHtml, benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinuteConflicts, startersSectionHtml, subAttrChipsHtml } from "./ui/rotationBoard.js";
 import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "./ui/learnedBadge.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
@@ -4835,6 +4835,7 @@ function playerMarketCardHtml(p, c, { duel = false, scoutOn = false, homeTactic 
         afford ? "" : " · 超出预算"
       }${physiqueLabel(p) ? ` · ${physiqueLabel(p)}` : ""}</div>
       <div class="tiny">${marketMeta(p)}</div>
+      <div class="rot-attrs">${attributeChipsHtml(p, getLang())}</div>
       ${p.skills?.length ? `<div class="skill-row">${skillChipsHtml(p, getLang())}</div>` : ""}
     </div>
     ${
