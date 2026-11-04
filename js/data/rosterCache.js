@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 65; // bump: nerve_blade skill (JR Smith/Nick Young/DeShawn Stevenson + gunner heuristic)
+export const ROSTER_SCHEMA = 66; // bump: role skill layer for low-OVR players (corner_camp / second_unit_engine / crash_board + roleSkills provenance)
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good

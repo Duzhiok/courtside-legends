@@ -400,7 +400,7 @@ import {
 } from "./engine/gameplan.js";
 import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos } from "./engine/matchups.js";
 import { CourtView } from "./engine/court.js";
-import { GameSim } from "./engine/sim.js";
+import { GameSim, suggestDefenseScheme } from "./engine/sim.js";
 import {
   confidenceLabel,
   formatGameLine,
@@ -5734,6 +5734,31 @@ function renderSetupGameplan() {
   if (you.gameplan?.matchup?.defenderId) defSel.value = you.gameplan.matchup.defenderId;
   if (you.gameplan?.matchup?.targetId) tgtSel.value = you.gameplan.matchup.targetId;
   if (you.gameplan?.matchup?.scheme) $("#gp-scheme").value = you.gameplan.matchup.scheme;
+  syncGpSchemeHint();
+}
+
+/** 赛前重点策略用 + 代价一句话（与引擎数值一致，只做说明）。 */
+const GP_SCHEME_HINTS = {
+  focus: {
+    zh: "用：对方一人爆发时，派专人死盯他。代价：盯防人被钉死在那人身上。",
+    en: "Use: when one opponent is exploding — glue a defender to him. Cost: that defender is stuck on him.",
+  },
+  double: {
+    zh: "用：对方持球大核时，逼他出球。代价：弱侧射手会空。",
+    en: "Use: against a ball-dominant core — force him to give it up. Cost: weak-side shooters get open.",
+  },
+  bump: {
+    zh: "用：只对瘦高内线，顶他下盘。代价：对壮硕内线几乎没用。",
+    en: "Use: only against slim, tall post players — push him off his spot. Cost: nearly useless against bruising bigs.",
+  },
+};
+
+function syncGpSchemeHint() {
+  const hint = $("#gp-scheme-hint");
+  const sel = $("#gp-scheme");
+  if (!hint || !sel) return;
+  const h = GP_SCHEME_HINTS[sel.value];
+  hint.textContent = h ? (getLang() === "en" ? h.en : h.zh) : "";
 }
 
 function paintLiveMatchupBoard(snap) {
@@ -6978,6 +7003,7 @@ function syncLivePhilFromCoach(coach) {
     if (el) el.value = val;
     if (v) v.textContent = String(val);
   }
+  syncPhilDefBand();
 }
 
 function paintLivePositions(snap) {
@@ -7060,10 +7086,45 @@ function syncDefendHint(snap) {
   const d =
     (plan.defenderId && you.onCourt.find((p) => p.id === plan.defenderId)) ||
     (plan.defenderId && you.roster?.find((p) => p.id === plan.defenderId));
-  const names = { focus: "重点盯防", double: "包夹", bump: "下盘顶防" };
+  const names = { focus: "钉死他", double: "逼他出球", bump: "顶他下盘" };
   hint.textContent = t
     ? `${assignBit} · ${d ? d.name + " " : ""}对 ${t.name}「${names[plan.scheme] || plan.scheme}」· 手感${t.hotLabel}`
     : `${assignBit} · ${names[plan.scheme] || plan.scheme}`;
+  syncDefendAdvice(snap);
+}
+
+/** 赛前/赛中建议行：复用 managedDefense 的判断（不含 40% 随机门），只建议不执行。 */
+function syncDefendAdvice(snap) {
+  const advice = $("#defend-advice");
+  if (!advice || !snap) return;
+  const you = snap.youSide === "home" ? snap.home : snap.away;
+  const opp = snap.youSide === "home" ? snap.away : snap.home;
+  const onCourt = opp?.onCourt || [];
+  if (!onCourt.length) {
+    advice.textContent = "";
+    return;
+  }
+  const deficit = (snap.score?.[opp.side] ?? 0) - (snap.score?.[you.side] ?? 0);
+  const { scheme, threat } = suggestDefenseScheme(onCourt, deficit);
+  if (!threat) {
+    advice.textContent = "";
+    return;
+  }
+  const pts = threat.stats?.pts || 0;
+  const en = getLang() === "en";
+  if (scheme === "double") {
+    advice.textContent = en
+      ? `Advice: ${threat.name} has ${pts} pts — double him to force the ball out, but weak-side shooters will get open.`
+      : `建议：对面 ${threat.name} 已得 ${pts} 分，逼他出球可打断他，但弱侧射手会空。`;
+  } else if (scheme === "bump") {
+    advice.textContent = en
+      ? `Advice: ${threat.name} is a slim, tall post player — push him off his spot; nearly useless against bruising bigs.`
+      : `建议：对面 ${threat.name} 是瘦高内线，顶他下盘可让他接不到舒服球。`;
+  } else {
+    advice.textContent = en
+      ? `Advice: ${threat.name} is their hottest threat (${pts} pts) — locking him down is the safe call.`
+      : `建议：对面 ${threat.name} 目前最热（${pts} 分），钉死他最稳。`;
+  }
 }
 
 function playerSubCard(p, selected, { onCourt = false } = {}) {
@@ -7437,8 +7498,35 @@ $("#tactic-select")?.addEventListener("change", syncTacticHelp);
   $(`#${id}`)?.addEventListener("input", () => {
     const v = $(`#${id}-v`);
     if (v) v.textContent = $(`#${id}`).value;
+    if (id === "live-phil-def") syncPhilDefBand();
   });
 });
+
+/** 全队压迫刻度带（0–5 省体力 / 6–10 常规 / 11–14 紧 / 15–18 高压，各附一行代价）。 */
+function philDefBand(v) {
+  const n = Number(v);
+  if (n <= 5)
+    return getLang() === "en"
+      ? "Save energy · lightest pressure, least fatigue cost"
+      : "省体力 · 压迫最轻，体力消耗最小";
+  if (n <= 10)
+    return getLang() === "en"
+      ? "Normal · regular pressure, regular fatigue cost"
+      : "常规 · 常规压迫，体力消耗正常";
+  if (n <= 14)
+    return getLang() === "en"
+      ? "Tight · noticeably more pressure, faster fatigue"
+      : "紧 · 压迫明显，体力消耗加快";
+  return getLang() === "en"
+    ? "Full press · heaviest pressure, fastest fatigue burn"
+    : "高压 · 全场紧逼，体力烧得最快";
+}
+
+function syncPhilDefBand() {
+  const band = $("#live-phil-def-band");
+  const input = $("#live-phil-def");
+  if (band && input) band.textContent = philDefBand(input.value);
+}
 
 $("#btn-live-phil")?.addEventListener("click", () => {
   if (!state.sim?.paused) {
@@ -7474,6 +7562,7 @@ function applyDefenseScheme(scheme) {
   paintLineups(snap);
   paintMeters(snap);
 }
+$("#gp-scheme")?.addEventListener("change", syncGpSchemeHint);
 $("#btn-defend-focus")?.addEventListener("click", () => applyDefenseScheme("focus"));
 $("#btn-defend-double")?.addEventListener("click", () => applyDefenseScheme("double"));
 $("#btn-defend-bump")?.addEventListener("click", () => applyDefenseScheme("bump"));

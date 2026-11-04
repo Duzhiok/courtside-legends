@@ -487,7 +487,7 @@
             <p class="tiny" id="setup-tempo-help"></p>
             <hr class="soft-hr" />
             <h3>对位</h3>
-            <p class="tiny">默认同位置互防（PG↔PG…）；可手动改。下方可选重点策略（盯防/包夹/顶防）。</p>
+            <p class="tiny">默认同位置互防（PG↔PG…）；可手动改每人对位。下方是对一个人的重点策略（钉死他/逼他出球/顶他下盘）。</p>
             <div id="setup-matchup-board" class="matchup-board"></div>
             <div class="form-row wrap" style="margin-top:8px">
               <label class="tiny">重点·我方
@@ -498,18 +498,19 @@
               </label>
               <label class="tiny">策略
                 <select id="gp-scheme">
-                  <option value="focus">重点盯防</option>
-                  <option value="double">包夹</option>
-                  <option value="bump">下盘顶防</option>
+                  <option value="focus">钉死他</option>
+                  <option value="double">逼他出球</option>
+                  <option value="bump">顶他下盘</option>
                 </select>
               </label>
             </div>
+            <p class="tiny" id="gp-scheme-hint"></p>
             <hr class="soft-hr" />
             <h3>角色与分钟</h3>
             <p class="tiny">按体能分配出场时间：低体不宜长期 35+，铁肺可接近 48。赛季模式可保存为默认轮换。</p>
             <div id="setup-roles" class="setup-roles"></div>
             <hr class="soft-hr" />
-            <h3>球员指令</h3>
+            <h3>每个人 · 球员指令</h3>
             <div class="ball-handler-row" id="setup-ball-handler">
               <label class="tiny">持球发起人
                 <select id="setup-offense-focus" title="指定谁来持球发动进攻"></select>
@@ -670,10 +671,10 @@
             </div>
             <details class="live-phil" id="live-phil-panel">
               <summary>临场调整执教方针</summary>
-              <p class="tiny help-line">仅在暂停或节间可改攻防重心与负荷。</p>
+              <p class="tiny help-line">仅在暂停或节间可改攻防重心与负荷。防＝全队压迫，不是针对某个人的策略。</p>
               <div class="phil-sliders compact">
                 <label title="进攻倾向＝抓机会：过高时弱攻球员也会乱出手">攻 <input id="live-phil-off" type="range" min="0" max="18" value="8" /> <span id="live-phil-off-v">8</span></label>
-                <label title="防守倾向＝压迫强度：吃体力，体力好几乎无感">防 <input id="live-phil-def" type="range" min="0" max="18" value="8" /> <span id="live-phil-def-v">8</span></label>
+                <label title="防守倾向＝压迫强度：吃体力，体力好几乎无感">防 <input id="live-phil-def" type="range" min="0" max="18" value="8" /> <span id="live-phil-def-v">8</span> <span id="live-phil-def-band" class="tiny"></span></label>
                 <label title="士气管理：抗压与胆气">气 <input id="live-phil-morale" type="range" min="0" max="18" value="8" /> <span id="live-phil-morale-v">8</span></label>
                 <label title="负荷管理：正值省力，负值铁血">荷 <input id="live-phil-stam" type="range" min="-8" max="10" value="2" /> <span id="live-phil-stam-v">2</span></label>
               </div>
@@ -701,7 +702,7 @@
             </details>
             <div class="defense-panel" id="defense-panel">
               <h4>对位 / 防守布置</h4>
-              <p class="tiny">先为对方每人选盯防人；再可设重点策略（盯防/包夹/顶防）。活球中需暂停或节间。</p>
+              <p class="tiny">先为对方每人选盯防人；再可设对一个人的重点策略（钉死他/逼他出球/顶他下盘）。活球中需暂停或节间。</p>
               <div id="live-matchup-board" class="matchup-board"></div>
               <div class="form-row wrap" style="margin-top:8px">
                 <label class="tiny">重点·我方对位人
@@ -712,12 +713,13 @@
                 </label>
               </div>
               <div class="btn-row">
-                <button class="btn small" id="btn-defend-focus" type="button">重点盯防</button>
-                <button class="btn small" id="btn-defend-double" type="button">包夹</button>
-                <button class="btn small" id="btn-defend-bump" type="button">下盘顶防</button>
+                <button class="btn small" id="btn-defend-focus" type="button" title="钉死他：对方一人爆发时派专人死盯；代价是盯防人被钉死在那人身上">钉死他</button>
+                <button class="btn small" id="btn-defend-double" type="button" title="逼他出球：对方持球大核时逼他传球；代价是弱侧射手会空">逼他出球</button>
+                <button class="btn small" id="btn-defend-bump" type="button" title="顶他下盘：只对瘦高内线有效；对壮硕内线几乎没用">顶他下盘</button>
                 <button class="btn small ghost" id="btn-defend-clear" type="button">取消重点</button>
               </div>
               <p class="tiny" id="defend-hint">未布置对位策略</p>
+              <p class="tiny" id="defend-advice"></p>
             </div>
             <div class="sub-panel">
               <div class="sub-cols">

@@ -1267,7 +1267,7 @@ export class GameSim {
       this.emit("coach", this.S("取消重点策略（个人对位表仍保留）", "Focus plan cleared (individual matchups kept)"));
       return;
     }
-    const names = this.lang === "en" ? { focus: "Shadow", double: "Double-Team", bump: "Deny the Post" } : { focus: "重点盯防", double: "包夹", bump: "下盘顶防" };
+    const names = this.lang === "en" ? { focus: "Shadow", double: "Double-Team", bump: "Deny the Post" } : { focus: "钉死他", double: "逼他出球", bump: "顶他下盘" };
     let defId = defenderId || null;
     if (defId && !you.onCourt.some((p) => p.id === defId)) defId = null;
     if (scheme === "bump") {
@@ -1276,7 +1276,7 @@ export class GameSim {
         you.onCourt.find(isSturdy) ||
         you.onCourt[0];
       if (!isLanky(target) && (target.strength || 50) >= 65) {
-        this.emit("coach", this.S(`${target.name} 下盘不弱，顶防收益有限——仍布置「下盘顶防」`, `${target.name} has a strong base — post denial gains little, but the plan stands`));
+        this.emit("coach", this.S(`${target.name} 下盘不弱，顶防收益有限——仍布置「顶他下盘」`, `${target.name} has a strong base — post denial gains little, but the plan stands`));
       } else if (!bumper || !isSturdy(bumper)) {
         this.emit("coach", this.S(`场上缺少壮硕内线，顶防奇效较弱`, `No bruising big on the floor — post denial will be weaker`));
       }
@@ -1298,7 +1298,7 @@ export class GameSim {
     );
   }
 
-  /** 指定「谁防谁」（可多人各自对位；不影响重点盯防策略本身） */
+  /** 指定「谁防谁」（可多人各自对位；不影响对一个人的重点策略本身） */
   setMatchupAssignment(targetId, defenderId) {
     const you = this.you();
     const opp = you.side === "home" ? this.away : this.home;
@@ -1798,19 +1798,10 @@ export class GameSim {
     if (!opp?.onCourt?.length) return;
     if (this.autoDefense) this.refreshDefenseAssignments();
     const deficit = this.score[opp.side] - this.score[you.side];
-    const protecting = deficit <= -6;
-    const threat = [...opp.onCourt].sort((a, b) => {
-      const sa =
-        (a.stats?.pts || 0) * 1.2 + (a.hot || 0) * 7 + (a.scoring || 50) * 0.18 + (a.fgPct || 40) * 0.15;
-      const sb =
-        (b.stats?.pts || 0) * 1.2 + (b.hot || 0) * 7 + (b.scoring || 50) * 0.18 + (b.fgPct || 40) * 0.15;
-      return sb - sa;
-    })[0];
+    const { scheme: advised, threat } = suggestDefenseScheme(opp.onCourt, deficit);
     if (!threat) return;
-    let scheme = "focus";
-    // 领先时少包夹——避免放空弱侧三分被追分
-    if (!protecting && ((threat.hot || 0) >= 2 || (threat.stats?.pts || 0) >= 22)) scheme = "double";
-    else if (isLanky(threat) && (threat.scoring || 0) >= 78 && Math.random() < 0.4) scheme = "bump";
+    // 托管在建议上加一道随机门：顶他下盘只有 40% 概率真执行，其余回落钉死他
+    const scheme = advised === "bump" && Math.random() >= 0.4 ? "focus" : advised;
     if (this.defensePlan?.targetId === threat.id && this.defensePlan?.scheme === scheme) return;
     this.setDefenseScheme(scheme, threat.id);
   }
@@ -2377,6 +2368,31 @@ export class GameSim {
       autoRotation: !!this.autoRotation,
     };
   }
+}
+
+/**
+ * Pure defense-scheme judgment, shared by managedDefense (auto) and the live
+ * advice line (manual). Hottest opponent by pts*1.2 + hot*7 + scoring*0.18 +
+ * fgPct*0.15; double when NOT protecting a lead (deficit > -6) and the threat
+ * is hot (>=2) or has >=22 pts; bump for a lanky threat with scoring >=78;
+ * else focus. managedDefense adds its own 40% random gate on bump; the advice
+ * line shows the ungated suggestion. Numbers unchanged.
+ */
+export function suggestDefenseScheme(oppOnCourt, deficit) {
+  if (!oppOnCourt?.length) return { scheme: "focus", threat: null };
+  const protecting = deficit <= -6;
+  const threat = [...oppOnCourt].sort((a, b) => {
+    const sa =
+      (a.stats?.pts || 0) * 1.2 + (a.hot || 0) * 7 + (a.scoring || 50) * 0.18 + (a.fgPct || 40) * 0.15;
+    const sb =
+      (b.stats?.pts || 0) * 1.2 + (b.hot || 0) * 7 + (b.scoring || 50) * 0.18 + (b.fgPct || 40) * 0.15;
+    return sb - sa;
+  })[0];
+  if (!threat) return { scheme: "focus", threat: null };
+  if (!protecting && ((threat.hot || 0) >= 2 || (threat.stats?.pts || 0) >= 22))
+    return { scheme: "double", threat };
+  if (isLanky(threat) && (threat.scoring || 0) >= 78) return { scheme: "bump", threat };
+  return { scheme: "focus", threat };
 }
 
 function emptyStats() {
