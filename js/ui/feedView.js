@@ -88,6 +88,12 @@ export function colorsDistant(a, b) {
  * plurality code among its five best players (its "face"), stable enough
  * across a tournament because starters rarely turn over wholesale.
  */
+/** A named team (real/historical franchise) as opposed to an ad-hoc 联队 whose "code" is only a
+ *  plurality guess over its starters' own teams — that guess is not any one player's real team. */
+export function isNamedTeam(team) {
+  return !!(team && ((team.code && teamColors(team.code)) || team.teamCode || team.franchiseId));
+}
+
 export function teamCodeOf(team) {
   if (!team) return null;
   if (team.code && teamColors(team.code)) return team.code;
@@ -144,6 +150,10 @@ export function resolveMatchColors(homeTeam, awayTeam) {
     home.code = "H";
     away.code = "A";
   }
+  // A 联队's guessed code (e.g. CHI over a squad whose Shaq card is a MIA season) names no real
+  // team, so it prints the side instead; real teams keep their code. Colour is unchanged.
+  if (!isNamedTeam(homeTeam)) home.code = "H";
+  if (!isNamedTeam(awayTeam)) away.code = "A";
   for (const side of [home, away]) side.text = readableTextColor(side.color);
   return { home, away };
 }

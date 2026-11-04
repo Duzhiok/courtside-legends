@@ -10,6 +10,7 @@ const {
   feedActorId,
   feedEventSide,
   feedRowHtml,
+  isNamedTeam,
   feedTextWithAvatar,
   readableTextColor,
   resolveMatchColors,
@@ -222,4 +223,15 @@ test("fixture: team identity comes from the event's side, even when both squads 
   assert.match(away.html, /feed-chip-team[^>]*>A</);
   assert.equal(home.borderColor, "#FDB927");
   assert.equal(away.borderColor, "#007A33");
+});
+
+test("an ad-hoc squad prints its side (H/A), never a guessed team code; a real team keeps its code", () => {
+  const squad = { players: [p("CHI", 90), p("CHI", 88), p("CHI", 85), p("MIA", 80), p("BOS", 79)] };
+  assert.equal(isNamedTeam(squad), false);
+  assert.equal(isNamedTeam({ franchiseId: "LAL" }), true);
+  const mixed = resolveMatchColors({ franchiseId: "LAL" }, squad);
+  assert.equal(mixed.home.code, "LAL", "real team keeps its code");
+  assert.equal(mixed.away.code, "A", "squad prints its side");
+  const two = resolveMatchColors(squad, { players: squad.players });
+  assert.deepEqual([two.home.code, two.away.code], ["H", "A"]);
 });

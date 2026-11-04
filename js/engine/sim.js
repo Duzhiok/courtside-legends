@@ -92,6 +92,12 @@ const QUARTER_SEC = 12 * 60;
 // "沿用当前策略" rotation autopilot: pure fatigue management, no tactical opinions.
 export const ROTATION_FATIGUE_OUT = 70; // sub out once fatigue reaches this
 export const ROTATION_FATIGUE_IN = 0; // a resting STARTER returns the instant they hit this (fully recovered)
+/** 托管助手叫暂停时，永远给玩家留下的暂停数（直播时）。7 个暂停里助手最多只能用 3 个，
+ *  否则它会在上半场把暂停花光，玩家下半场想自己叫暂停就没有了。快速模拟里没有玩家，不保留。 */
+export const ASSISTANT_TIMEOUT_RESERVE = 4;
+export function assistantMayCallTimeout(remaining, quiet = false) {
+  return remaining > (quiet ? 0 : ASSISTANT_TIMEOUT_RESERVE);
+}
 
 /**
  * Possession-based NBA sim with full box-score stats.
@@ -1643,7 +1649,7 @@ export class GameSim {
       this.shout();
     }
 
-    if (this.timeouts[you.side] <= 0) return;
+    if (!assistantMayCallTimeout(this.timeouts[you.side], this._quiet)) return;
     const opp = this.opp();
     const deficit = this.score[opp.side] - this.score[you.side];
     const avgFat = avg(you.onCourt.map((p) => p.fatigue || 0));
