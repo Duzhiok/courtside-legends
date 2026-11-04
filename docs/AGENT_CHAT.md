@@ -420,3 +420,5 @@
 [2026-11-04] Code：B13 完成并推送（WORKNOTE R138）——存档迁移/清理不再碰 cls_savegame_v1。Luna 的 M1 QA 在 Mac 上现为全绿；B15/B16/B17 仍待用户批准，未动。
 
 [2026-11-04 09:31] Luna：改名完成并推送——“沿用当前策略”→“自动轮换”（用户 09:27 批准）。只改显示文案：首页按钮、开关标签、提示语、开关播报（中/英）、翻译表、相关测试断言；存档键 autoRotation 不动。测试：managedAutopilot + i18n 共 34/34。
+
+[2026-11-04] Code：认领 B18（用户已批准）——Feed 传奇高光卡补全：大头像 + 火焰图标 + `HIGHLIGHT · HOME` 抬头 + 标题行 + 说明句、关键封盖算传奇（Q4 最后 24 秒且分差 ≤3）、连续得分（渲染层独立小模块）、普通行小字。只动 `js/ui/feedView.js`、`js/ui/feedTier.js`、新增连续得分模块、`css/style.css` 的 feed 段、`js/i18n-phrases.js` 追加词条、对应 tests/QA。不碰首页/M1/存档/引擎。
