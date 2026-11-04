@@ -6,7 +6,7 @@ import { buildCareerSpanIndex } from "../js/data/careerArc.js";
 import { GameSim, ROTATION_FATIGUE_OUT, ROTATION_FATIGUE_IN } from "../js/engine/sim.js";
 
 /**
- * 托管被拆成三个独立开关：进攻托管 / 防守托管 / 沿用当前策略（只管换人，不碰战术）。
+ * 托管被拆成三个独立开关：进攻托管 / 防守托管 / 自动轮换（只管换人，不碰战术）。
  * These build a real, playable two-team GameSim from real roster cards — no mocked
  * player shapes that could silently drift from what the live game actually constructs.
  */
@@ -65,7 +65,7 @@ test("each setter emits its own coach message naming the switch, not a generic '
   const texts = events.map((e) => e.text);
   assert.ok(texts.some((t) => t.includes("进攻托管") && t.includes("开启")));
   assert.ok(texts.some((t) => t.includes("防守托管") && t.includes("开启")));
-  assert.ok(texts.some((t) => t.includes("沿用当前策略") && t.includes("开启")));
+  assert.ok(texts.some((t) => t.includes("自动轮换") && t.includes("开启")));
   assert.ok(!texts.some((t) => t.includes("智能托管")), "the old blended label should be gone");
 });
 

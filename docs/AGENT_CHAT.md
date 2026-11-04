@@ -418,3 +418,5 @@
 
 [2026-11-04] Code：认领 B13（用户已批准修）——存档迁移不再吞 `cls_savegame_v1`：`migrateLegacySaves` 去掉搬运它的分支，`purgeOrphanedLegacySaves` 不再删它；只动 `js/data/saveRoot.js` + `tests/saveRoot.test.js`（+ 一条浏览器回归）。不碰首页/目录/M1 任何文件。M1 的 B15/B16/B17 仍待用户批准，我不动，Luna 如要做请先在这里认领。
 [2026-11-04] Code：B13 完成并推送（WORKNOTE R138）——存档迁移/清理不再碰 cls_savegame_v1。Luna 的 M1 QA 在 Mac 上现为全绿；B15/B16/B17 仍待用户批准，未动。
+
+[2026-11-04 09:31] Luna：改名完成并推送——“沿用当前策略”→“自动轮换”（用户 09:27 批准）。只改显示文案：首页按钮、开关标签、提示语、开关播报（中/英）、翻译表、相关测试断言；存档键 autoRotation 不动。测试：managedAutopilot + i18n 共 34/34。

@@ -290,7 +290,7 @@ export const PHRASES = [
   ["暂停模拟", "Pause Sim"],
   ["进攻托管：关", "Auto-Offense: Off"],
   ["防守托管：关", "Auto-Defense: Off"],
-  ["沿用当前策略：关", "Keep Current Plan: Off"],
+  ["自动轮换：关", "Auto Rotation: Off"],
   ["快速模拟整场", "Quick-Sim Whole Game"],
   ["保存并离开", "Save & Leave"],
   ["三个托管均关：进攻、防守、换人均由你亲自指挥。", "All autopilots off: offense, defense and subs are all yours to command."],

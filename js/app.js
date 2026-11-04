@@ -7535,7 +7535,7 @@ $("#btn-speed").onclick = () => {
 const AUTOPILOT_BUTTONS = [
   { btn: "#btn-auto-offense", stateKey: "autoOffense", setter: "setAutoOffense", label: "进攻托管" },
   { btn: "#btn-auto-defense", stateKey: "autoDefense", setter: "setAutoDefense", label: "防守托管" },
-  { btn: "#btn-auto-rotation", stateKey: "autoRotation", setter: "setAutoRotation", label: "沿用当前策略" },
+  { btn: "#btn-auto-rotation", stateKey: "autoRotation", setter: "setAutoRotation", label: "自动轮换" },
 ];
 
 function syncManagedUI() {
@@ -7555,7 +7555,7 @@ function syncManagedUI() {
   if (hint) {
     hint.textContent = onLabels.length
       ? `已开：${onLabels.join(" / ")} · 节间中场自动继续 · 你点「叫暂停」会停住并由你指挥`
-      : "三个托管均关：进攻、防守、换人均由你亲自指挥。可单独或组合开启，其中「沿用当前策略」只换人不改战术。";
+      : "三个托管均关：进攻、防守、换人均由你亲自指挥。可单独或组合开启，其中「自动轮换」只换人不改战术。";
   }
 }
 

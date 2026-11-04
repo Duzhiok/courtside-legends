@@ -89,7 +89,7 @@ import {
 
 const QUARTER_SEC = 12 * 60;
 
-// "沿用当前策略" rotation autopilot: pure fatigue management, no tactical opinions.
+// "自动轮换" rotation autopilot: pure fatigue management, no tactical opinions.
 export const ROTATION_FATIGUE_OUT = 70; // sub out once fatigue reaches this
 export const ROTATION_FATIGUE_IN = 0; // a resting STARTER returns the instant they hit this (fully recovered)
 /** 托管助手叫暂停时，永远给玩家留下的暂停数（直播时）。7 个暂停里助手最多只能用 3 个，
@@ -120,7 +120,7 @@ export class GameSim {
     this.home = wrapTeam(home, "home");
     this.away = wrapTeam(away, "away");
     // wrapTeam() only reads starterIds to decide the INITIAL onCourt five — it doesn't carry the
-    // field onto the wrapped team. 沿用当前策略's "主力恢复满立即换回" needs to know who the
+    // field onto the wrapped team. 自动轮换's "主力恢复满立即换回" needs to know who the
     // starters actually are for the whole game, so capture it here (fallback: however
     // wrapTeam ended up filling onCourt, if the caller never set starterIds).
     this.home.starterIds = home.starterIds?.length >= 5 ? [...home.starterIds] : this.home.onCourt.map((p) => p.id);
@@ -159,7 +159,7 @@ export class GameSim {
     /** FIFA-style smart manager for your side — three independent switches. */
     this.autoOffense = false; // auto-adjust offensive playbook/focus
     this.autoDefense = false; // auto-adjust defensive scheme/matchup
-    this.autoRotation = false; // "沿用当前策略": leaves tactics alone, only manages fatigue subs
+    this.autoRotation = false; // "自动轮换": leaves tactics alone, only manages fatigue subs
     this._manageCd = 0;
     this._manageLastTo = -999;
     // Apply your side's pre-game matchup gameplan only
@@ -452,11 +452,11 @@ export class GameSim {
       offEn: "Auto-Defense OFF — matchups are yours to command again.",
     },
     autoRotation: {
-      name: "沿用当前策略",
-      on: "沿用当前策略已开启——不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回。",
-      off: "沿用当前策略已关闭——换人改回由你亲自操作。",
-      onEn: "Keep Current Plan ON — tactics untouched, fatigue subs only: tired players sit, starters return the moment they are full.",
-      offEn: "Keep Current Plan OFF — substitutions are yours to make again.",
+      name: "自动轮换",
+      on: "自动轮换已开启——不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回。",
+      off: "自动轮换已关闭——换人改回由你亲自操作。",
+      onEn: "Auto Rotation ON — tactics untouched, fatigue subs only: tired players sit, starters return the moment they are full.",
+      offEn: "Auto Rotation OFF — substitutions are yours to make again.",
     },
   };
 
@@ -503,7 +503,7 @@ export class GameSim {
     return this._setAutopilot("autoDefense", on);
   }
 
-  /** Toggle "沿用当前策略": fatigue-only auto subs, tactics untouched. */
+  /** Toggle "自动轮换": fatigue-only auto subs, tactics untouched. */
   setAutoRotation(on) {
     return this._setAutopilot("autoRotation", on);
   }
@@ -1635,7 +1635,7 @@ export class GameSim {
 
     this._manageCd = (this._manageCd || 0) - 1;
     if (this._manageCd <= 0) {
-      // 轮换只归 autoRotation 管：这样单独开它（“沿用当前策略”）不会顺带动进攻/防守改战术
+      // 轮换只归 autoRotation 管：这样单独开它（“自动轮换”）不会顺带动进攻/防守改战术
       if (this.autoRotation) this.autoSubsByFatigue();
       if (this.autoRotation) this.garbageTimeSubs(you);
       this._manageCd = this._quiet ? 1 : 2;
@@ -1726,7 +1726,7 @@ export class GameSim {
   }
 
   /**
-   * "沿用当前策略": never touches tactics, only fatigue.
+   * "自动轮换": never touches tactics, only fatigue.
    *  - the instant a benched STARTER's fatigue is fully recovered, they return —
    *    even if nobody else is especially tired yet. A rested primary always wins.
    *  - otherwise, whoever on court is gassed (>= ROTATION_FATIGUE_OUT) comes off for
