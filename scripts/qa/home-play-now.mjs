@@ -91,7 +91,7 @@ for (const [width, height, size] of [
   await clickCardAndExpectScreen(p2, '[data-mode="tournament"]', "screen-tournament", `[${size}] 多人淘汰赛 card → tournament screen`);
   await clickCardAndExpectScreen(p2, '[data-mode="draft"]', "screen-draft", `[${size}] 选秀建队 card → draft screen`);
   await clickCardAndExpectScreen(p2, '[data-mode="sandbox"]', "screen-sandbox", `[${size}] 时空对决 card → sandbox screen`);
-  await clickCardAndExpectScreen(p2, '[data-mode="quick"]', "screen-setup", `[${size}] 快速开打 card → setup screen (behavior unchanged)`);
+  await clickCardAndExpectScreen(p2, '[data-mode="quick"]', "screen-setup", `[${size}] 自动配队 card → setup screen (behavior unchanged; renamed in B15)`);
   await p2.close();
 }
 

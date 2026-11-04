@@ -352,3 +352,14 @@ html[lang="en"] .topbar .brand-name { display: none; }
 #screen-home .play-now-hero .tiny {
   margin-top: var(--space-xs);
 }
+
+/* —— B16: Continue is a secondary action. The hero CTA is the only filled button on the first screen,
+   so these are outlined: clearly clickable, never louder than "快速开打". —— */
+#screen-home .btn.continue {
+  background: #fff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font-weight: 700;
+}
+#screen-home .btn.continue:hover,
+#screen-home .btn.continue:focus-visible { background: var(--ink); color: #fff; }

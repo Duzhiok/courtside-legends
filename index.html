@@ -63,6 +63,34 @@
           </div>
           <div class="legends-wall" id="home-legends-wall" aria-label="历代传奇球星"></div>
         </div>
+        <!-- B16: the main CTA lives directly under the banner so its position never depends on the bars below -->
+        <div class="play-now-hero">
+          <button type="button" class="btn primary hero-cta" id="btn-play-now">快速开打</button>
+          <p class="tiny">一键进比赛，跳过排兵布阵</p>
+        </div>
+        <div class="account-home-bar save-home-bar" id="save-home-bar" hidden>
+          <div class="account-home-text">
+            <strong>有未完成的进度</strong>
+            <span class="tiny" id="save-home-meta">—</span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn continue" id="btn-continue-save">继续进度</button>
+            <button type="button" class="btn ghost" id="btn-clear-save">丢弃存档</button>
+          </div>
+        </div>
+        <div class="account-home-bar save-home-bar" id="long-career-home-bar" hidden>
+          <div class="account-home-text">
+            <strong>长期生涯存档</strong>
+            <span class="tiny" id="long-career-home-meta">—</span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn continue" id="btn-long-career-resume">继续生涯</button>
+            <button type="button" class="btn ghost" id="btn-long-career-export">导出</button>
+            <button type="button" class="btn ghost" id="btn-long-career-import">导入</button>
+            <input type="file" id="long-career-import-file" accept=".json" hidden />
+          </div>
+        </div>
+        <!-- B16: returning players need Continue on the first screen; the account bar is the least urgent block, so it goes last -->
         <div class="account-home-bar" id="account-home-bar">
           <div class="account-home-text">
             <strong id="account-home-name">尚未创建账号</strong>
@@ -73,32 +101,6 @@
             <button type="button" class="btn" id="btn-daily-draw" disabled>每日抽卡</button>
             <button type="button" class="btn ghost" id="btn-switch-account">切换账号</button>
           </div>
-        </div>
-        <div class="account-home-bar save-home-bar" id="save-home-bar" hidden>
-          <div class="account-home-text">
-            <strong>有未完成的进度</strong>
-            <span class="tiny" id="save-home-meta">—</span>
-          </div>
-          <div class="btn-row">
-            <button type="button" class="btn primary" id="btn-continue-save">继续进度</button>
-            <button type="button" class="btn ghost" id="btn-clear-save">丢弃存档</button>
-          </div>
-        </div>
-        <div class="account-home-bar save-home-bar" id="long-career-home-bar" hidden>
-          <div class="account-home-text">
-            <strong>长期生涯存档</strong>
-            <span class="tiny" id="long-career-home-meta">—</span>
-          </div>
-          <div class="btn-row">
-            <button type="button" class="btn primary" id="btn-long-career-resume">继续生涯</button>
-            <button type="button" class="btn ghost" id="btn-long-career-export">导出</button>
-            <button type="button" class="btn ghost" id="btn-long-career-import">导入</button>
-            <input type="file" id="long-career-import-file" accept=".json" hidden />
-          </div>
-        </div>
-        <div class="play-now-hero">
-          <button type="button" class="btn primary hero-cta" id="btn-play-now">快速开打</button>
-          <p class="tiny">一键进比赛，跳过排兵布阵</p>
         </div>
         <div class="home-category-tabs" role="tablist" aria-label="模式分类">
           <button type="button" class="home-tab" data-category="players" role="tab">我的球员</button>
@@ -158,8 +160,8 @@
               <span>搜索任意球员任意年份组队：五个乔丹 vs 五个科比也行 · 可开跨时代平衡</span>
             </button>
             <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
-              <strong>快速开打</strong>
-              <span>系统自动组两队，立刻开打看指挥</span>
+              <strong>自动配队</strong>
+              <span>系统自动组两队，先进赛前设置再开打</span>
             </button>
             <div class="mode-group-label">朋友一起玩</div>
             <button class="mode-card" data-mode="tournament" data-legend="iversal01:2001">

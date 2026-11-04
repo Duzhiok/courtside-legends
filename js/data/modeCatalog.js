@@ -107,8 +107,8 @@ export const MODE_GROUPS = [
       },
       {
         id: "quick",
-        title: "快速开打",
-        description: "系统自动组两队，立刻开打看指挥",
+        title: "自动配队",
+        description: "系统自动组两队，先进赛前设置再开打",
         variantOf: "custom",
         homeTab: "custom",
         exploreGroup: "自由创造",

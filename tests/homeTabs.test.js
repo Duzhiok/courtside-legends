@@ -18,6 +18,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { getLang, setLang, translateStatic } from "../js/i18n.js";
 import {
   HOME_CATEGORIES,
   DEFAULT_HOME_CATEGORY,
@@ -154,7 +155,32 @@ test("M1: exactly one dominant Play Now CTA, wired to a one-click handler that s
   assert.ok(!/openSetup\(/.test(fnBody), "startPlayNow must not show the setup screen");
 });
 
-test("M1: the quick card was renamed, and the old demo name is gone", () => {
-  assert.ok(html.includes("快速开打"), "the quick card and hero must read 快速开打");
+test("M1: the old demo name is gone", () => {
   assert.ok(!html.includes("快速演示"), "the old 快速演示 name must not remain");
+});
+
+// B15: the hero (one tap, no setup) and the `quick` card (opens the pre-game setup screen) behave
+// differently, so two controls must never read the same -- in Chinese OR in English. The i18n phrase
+// map is a global exact match, so one shared Chinese title silently becomes one shared English title.
+test("B15: the hero CTA and the quick card have different names in both languages", () => {
+  const heroText = html.match(/id="btn-play-now"[^>]*>([^<]+)</)?.[1]?.trim();
+  const cardTitle = html.match(/data-mode="quick"[^>]*>\s*<strong>([^<]+)<\/strong>/)?.[1]?.trim();
+  assert.equal(heroText, "快速开打");
+  assert.equal(cardTitle, "自动配队");
+  assert.notEqual(heroText, cardTitle);
+  const cardDesc = html.match(/data-mode="quick"[^>]*>\s*<strong>[^<]+<\/strong>\s*<span>([^<]+)</)?.[1]?.trim();
+  // and the card's description says what it does: it goes to the setup screen, it does not start a game
+  assert.match(cardDesc, /赛前设置/);
+  // translateStatic is a no-op unless the language is English; restore it so other tests are unaffected
+  const before = getLang();
+  setLang("en");
+  try {
+    const en = (zh) => translateStatic(zh);
+    assert.equal(en(heroText), "Play Now");
+    assert.equal(en(cardTitle), "Auto Match");
+    assert.notEqual(en(heroText), en(cardTitle), "English labels must differ too");
+    assert.doesNotMatch(en(cardDesc), /[\u4e00-\u9fff]/, "the card description must be fully translated");
+  } finally {
+    setLang(before);
+  }
 });

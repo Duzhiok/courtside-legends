@@ -59,7 +59,7 @@ test("M1: catalog covers every playable mode, including the custom-hub entries",
     assert.equal(modeById(id)?.homeTab, undefined);
   }
   // quick was promoted: same id, new name (M1 renames the demo card).
-  assert.equal(modeById("quick")?.title, "快速开打");
+  assert.equal(modeById("quick")?.title, "自动配队");
 });
 
 test("M1: every mode declares a spec §3 explore group; panel modes declare a home tab", () => {

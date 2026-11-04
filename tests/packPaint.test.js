@@ -13,7 +13,14 @@
  *
  * Internals aren't exported, so like jumboLineupSpacing.test.js this drives full
  * fast-forwarded games and checks realized outcomes instead of formula constants.
- * Bands are wide because this is a genuinely random system.
+ *
+ * The games are REPRODUCIBLE, not sampled: GameSim has no injectable RNG, so every game runs with
+ * Math.random replaced by seededStream(SEED + i) (restored in a finally). Both sides of each
+ * comparison replay the SAME seeds, so the only difference between them is the tactic. This replaced
+ * an unseeded 300-game average that failed now and then under full-suite load (B14): the paint gap
+ * measured 3.05-6.12 points across six seed bases at 100 games each, so a hard ">3" floor on one
+ * random draw was a coin flip near the edge. Seeded, the number is fixed; the bands below keep the
+ * measured margin so a real regression (tactic stops working) still turns them red.
  *
  * Honest limits of this file:
  * - The 0.01/step stacking effect is below full-game noise, so its game test is
@@ -30,6 +37,7 @@ import { readFileSync } from "node:fs";
 import { seasonToCard } from "../js/data/players.js";
 import { TACTICS, availableTactics } from "../js/data/coaches.js";
 import { GameSim } from "../js/engine/sim.js";
+import { seededStream } from "../js/core/seededRandom.js";
 
 const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 
@@ -70,22 +78,31 @@ function coachWith(tacticId) {
   return { id: `t-${tacticId}`, name: "T", specialTactics: [tacticId], preferred: [], buffs: {} };
 }
 
-function simulateGames(home, away, games, awayTacticId = "balanced") {
+const SEED = 1;
+
+function simulateGames(home, away, games, awayTacticId = "balanced", seed = SEED) {
   let homePts = 0;
   let tpa = 0;
   let tpm = 0;
   for (let i = 0; i < games; i++) {
-    const sim = new GameSim({
-      home: { players: home, starterIds: home.map((p) => p.id), coach: coachWith("balanced") },
-      away: { players: away, starterIds: away.map((p) => p.id), coach: coachWith(awayTacticId) },
-      youSide: "home",
-      injuries: false,
-      speed: 3,
-      onEvent: () => {},
-      onTick: () => {},
-      onEnd: () => {},
-    });
-    const snap = sim.runFast();
+    const realRandom = Math.random;
+    Math.random = seededStream(seed + i);
+    let snap;
+    try {
+      const sim = new GameSim({
+        home: { players: home, starterIds: home.map((p) => p.id), coach: coachWith("balanced") },
+        away: { players: away, starterIds: away.map((p) => p.id), coach: coachWith(awayTacticId) },
+        youSide: "home",
+        injuries: false,
+        speed: 3,
+        onEvent: () => {},
+        onTick: () => {},
+        onEnd: () => {},
+      });
+      snap = sim.runFast();
+    } finally {
+      Math.random = realRandom;
+    }
     homePts += snap.score.home;
     for (const p of [...snap.home.onCourt, ...snap.home.bench]) {
       tpa += p.stats?.tpa || 0;
@@ -101,11 +118,8 @@ test("pack_paint is a real, selectable tactic (not just a formula flag)", () => 
 });
 
 test("packing the paint suppresses a paint-heavy offense", () => {
-  // N bumped 120 -> 300 in the quad-tower merge (WORKNOTE R83): paintCrowdPenalty()
-  // also nerfs CENTERS' own paint offense regardless of tactic, so both bars in this
-  // test moved down together and the gap between them compressed from ~4-7 to ~4.5-6.5
-  // (measured post-merge over two 400-game runs). 120 games could still land under the
-  // old >=3 floor by pure sampling noise now that the margin is thinner; 300 stabilizes it.
+  // 300 paired, seeded games (see the file header): reproducible. Measured gap over six seed bases
+  // at 100 games each: 3.05-6.12 points; the floor stays at the original ">=3 fewer points".
   const balanced = simulateGames(CENTERS, BALANCED_D, 300, "balanced");
   const packed = simulateGames(CENTERS, BALANCED_D, 300, "pack_paint");
   assert.ok(
