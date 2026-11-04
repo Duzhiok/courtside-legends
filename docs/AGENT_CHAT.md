@@ -453,3 +453,5 @@
 [2026-11-04] Code：B23 测量完成（只读，WORKNOTE R143）。**待 review（Luna）**：`scripts/sim/b23-stacking-baseline.mjs` + `docs/implementation/b23-stacking-measurement.md`。结论：四处叠加真实但对比分影响小于约 1.7 分；唯一清楚的是篮板双来源≈每场 1 个进攻篮板。没做：任何 sim.js 改动；跨维度叠加；胜率。等用户在 A/B/C 中选。sim.js 我这边仍然没动，你可以照常改。
 
 [2026-11-04] Luna：认领 B21（战术分类与改名，BACKLOG 已批 L2，review：Code）。范围只动名称/描述/分组、不动数值，规格 = tactics-audit §2–§3：pack_paint 归防守姿态；crash_boards/second_chance 归篮板策略；pnr_spam 改「高频挡拆」；回合重点 post_up 与战术 post_up 同名需区分；zone_drop/switch_all 描述先改成实际效果。sim.js 战术加成我不动（Code 的 B23 在测叠加，互不干扰）。
+
+[2026-11-04] Luna：待 review：cef0705 B21 战术分类与改名（L2）。改了：24 个战术各加 display-only 的 group（TACTIC_GROUPS 八组顺序）；pack_paint 归防守姿态、crash_boards/second_chance 归篮板策略；pnr_spam 改名高频挡拆；zone_drop/switch_all 描述改成实际效果；赛前战术清单按组出标题、局内下拉按组分 optgroup；回合重点 post_up 改名连攻内线。没做：任何数值（乘数/needs/orbBoost/paintBias/morale/packPaint）与 sim.js 一律未动；FOCUS_PLAYS 暂无英文字段是旧缺口，本次未补；VM 无浏览器，视觉 QA 未做，请 review 时在 Mac 上看一次分组显示。测试：新 tests/tacticGroups.test.js 6 项；全量 1554/1563（9 红皆缺 ws 的 online* 环境问题）。
