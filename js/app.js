@@ -64,12 +64,10 @@ import {
   wishlistHtml,
 } from "./ui/gachaView.js";
 import {
-  clockLabel,
-  feedEventSide,
+  feedActorId,
+  feedRowHtml,
   resolveMatchColors,
-  stripTrailingScore,
   teamCodeOf,
-  withAlpha,
 } from "./ui/feedView.js";
 import {
   COACHES,
@@ -6510,8 +6508,9 @@ function handleSimEvent(e) {
 
 /**
  * 本场颜色身份：两队各一个球队色（历史队真队色 / 联队取首发众数队色），
- * 写进记分牌队名、播报图例与 state.feedColors。播报按进攻方上色——
+ * 写进记分牌队名和 state.feedColors。播报按进攻方上色——
  * 看颜色就知道是谁在进攻、谁得分，不用认球员名。
+ * （播报图例条已删除——每条实况现在自带球队代码块，跟记分牌颜色同源，不再需要单独解释。）
  */
 function paintFeedIdentity(homeTeam, awayTeam) {
   const homeName = homeTeam?.name || "主队";
@@ -6525,58 +6524,30 @@ function paintFeedIdentity(homeTeam, awayTeam) {
   const bEl = $("#game-team-b");
   if (aEl) aEl.style.color = home.text;
   if (bEl) bEl.style.color = away.text;
-  const feed = $("#play-feed");
-  if (!feed) return;
-  let legend = $("#feed-legend");
-  if (!legend) {
-    legend = document.createElement("div");
-    legend.id = "feed-legend";
-    legend.className = "feed-legend";
-    feed.parentElement?.insertBefore(legend, feed);
-  }
-  legend.innerHTML =
-    `<span class="lg-side"><i class="dot" style="background:${home.color}"></i>${esc(teamNameL(homeName, getLang()))}</span>` +
-    `<span class="lg-vs">vs</span>` +
-    `<span class="lg-side"><i class="dot" style="background:${away.color}"></i>${esc(teamNameL(awayName, getLang()))}</span>` +
-    `<span class="lg-hint">${L("颜色 = 进攻方 · 得分带比分牌", "Colour = attacking team · scores carry the score chip")}</span>`;
+}
+
+/** The live (full, un-slimmed) player object for a feed avatar — bref and all, same fidelity
+ *  the rotation board already shows. Looks in both rosters since an id alone doesn't say side. */
+function livePlayerById(id) {
+  if (!id || !state.sim) return null;
+  return state.sim.home.roster.find((p) => p.id === id) || state.sim.away.roster.find((p) => p.id === id) || null;
 }
 
 function pushFeed(type, text, ev = null) {
   const feed = $("#play-feed");
   if (!feed) return;
   if (type === "dunk") return;
+  const actor = livePlayerById(feedActorId(ev));
+  const row = feedRowHtml(ev || { type, text }, {
+    colors: state.feedColors,
+    actorName: actor?.name,
+    avatarHtml: actor ? photoImg(actor, "headshot feed-avatar") : null,
+    escFn: esc,
+  });
   const div = document.createElement("div");
-  // 教练/系统消息不属于任何一队，保持中性色；实况按进攻方球队色上色。
-  const side = type !== "coach" && ev ? feedEventSide(ev) : null;
-  const colors = side ? state.feedColors : null;
-  if (side && colors) {
-    const c = colors[side];
-    const isScore = type === "score";
-    div.className = `event tm${isScore ? " scored" : ""}`;
-    div.style.borderColor = c.color;
-    div.style.background = withAlpha(c.color, isScore ? 0.2 : 0.1);
-    const meta = clockLabel(ev);
-    const chip =
-      isScore && ev.score
-        ? `<span class="feed-chip"><b style="color:${colors.home.text}">${ev.score.home}</b><i>–</i><b style="color:${colors.away.text}">${ev.score.away}</b></span>`
-        : "";
-    div.innerHTML =
-      `<span class="feed-meta">${meta ? `${meta} · ` : ""}${side === "home" ? "主" : "客"}</span> ` +
-      `<span class="feed-text" style="color:${c.text}">${esc(isScore ? stripTrailingScore(text) : text)}</span>${chip}`;
-  } else {
-    div.className = `event ${
-      type === "score"
-        ? "score"
-        : type === "coach"
-          ? "coach"
-          : type === "miss"
-            ? "miss"
-            : type === "reb"
-              ? "reb"
-              : ""
-    }`;
-    div.textContent = text;
-  }
+  div.className = row.className;
+  if (row.borderColor) div.style.borderColor = row.borderColor;
+  div.innerHTML = row.html;
   feed.prepend(div);
   while (feed.children.length > 40) feed.removeChild(feed.lastChild);
 }

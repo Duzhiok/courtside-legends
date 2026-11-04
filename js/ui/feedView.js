@@ -134,6 +134,16 @@ export function resolveMatchColors(homeTeam, awayTeam) {
     if (colorsDistant(home.color, away.secondary)) away.color = away.secondary;
     else away.color = mixHex(away.color, "#FFFFFF", 0.45);
   }
+  // R134: the code is now printed as literal text on every feed row (teamChipHtml), not just
+  // used to pick a dot colour. Two ad-hoc all-era squads both fall back to the same generic
+  // code ("NBA" from NEUTRAL_TEAMS) far more often than two REAL franchises ever share one —
+  // and "NBA" vs "NBA" on two differently-coloured chips reads as a typo, not as two teams.
+  // H/A is lang-neutral (already sim.js's own English fallback for this exact situation) and
+  // only kicks in on that collision; real matchups keep their real codes untouched.
+  if (home.code === away.code) {
+    home.code = "H";
+    away.code = "A";
+  }
   for (const side of [home, away]) side.text = readableTextColor(side.color);
   return { home, away };
 }
@@ -154,4 +164,100 @@ export function clockLabel(ev) {
   const s = Math.max(0, Math.floor(ev.clock));
   const clock = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   return `${ev.quarter > 4 ? "OT" : `Q${ev.quarter}`} ${clock}`;
+}
+
+/**
+ * Feed redesign (R134-code): the old row stacked FOUR signals for one bit of
+ * information (which team) — a coloured left border, a tinted background, text
+ * painted in the team's raw colour, AND a "主/客" label — plus a legend bar above
+ * the feed just to explain the colours. Busy, and team colours that are dark
+ * (Spurs black, Nets black) still read badly as BODY TEXT even after the
+ * contrast-corrected tint.
+ *
+ * New rule: ONE unambiguous identity marker per row — a solid team-code chip
+ * ("LAL", not an unlabelled dot) — plus a thin border for fast scanning. Body
+ * text stays one neutral, always-readable colour. No legend needed: the chip
+ * already says which team in letters, and its colour matches the scoreboard
+ * header above the court (same resolveMatchColors() call), so the mapping is
+ * free to learn by just glancing up once.
+ */
+const escText = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+
+/** Which of near-black/white reads better as TEXT painted on a chip whose background is the
+ *  team's own (often saturated) colour — not the feed's dark background, readableTextColor()
+ *  already covers that case for body text. */
+export function chipTextOn(hex) {
+  return contrastRatio(hex, "#0b1a13") >= contrastRatio(hex, "#f4f7f2") ? "#0b1a13" : "#f4f7f2";
+}
+
+/** A solid team-code chip, e.g. "LAL" on gold. `side` is one entry of resolveMatchColors()'s
+ *  { home, away } (needs .color and .code). Returns "" when there is no side to show. */
+export function teamChipHtml(side) {
+  if (!side?.color || !side?.code) return "";
+  return `<i class="feed-chip-team" style="background:${side.color};color:${chipTextOn(side.color)}">${escText(side.code)}</i>`;
+}
+
+/**
+ * The player id this row is "about", for the feed avatar — in priority order: an explicit
+ * actorId (free throws, rebounds, charges — sim.js attaches this where no other field would
+ * carry an id), the jump-shot shooter, the dunker, or the player flashing a signature skill.
+ * Events with none of these (most "coach" lines, like substitutions) simply get no avatar.
+ */
+export function feedActorId(ev) {
+  const m = ev?.meta;
+  return m?.actorId ?? m?.shot?.shooterId ?? m?.player?.id ?? m?.skill?.playerId ?? null;
+}
+
+const AV_MARK = "\u0001";
+
+/**
+ * Escape `text` for HTML, except splice `avatarHtml` in right after the FIRST literal
+ * occurrence of `actorName` — "after the name in the broadcast", per spec. Matches on the RAW
+ * string before escaping, so a name with an apostrophe (De'Aaron Fox) still matches even though
+ * escFn turns that apostrophe into `&#39;`. Falls back to plain escaping when there is no actor,
+ * no avatar, or the name genuinely isn't in this line (e.g. a rebound credited to a player whose
+ * name was shortened differently in the narrative text).
+ */
+export function feedTextWithAvatar(text, actorName, avatarHtml, escFn) {
+  const raw = String(text ?? "");
+  if (!actorName || !avatarHtml || !raw.includes(actorName)) return escFn(raw);
+  return escFn(raw.replace(actorName, actorName + AV_MARK)).replace(AV_MARK, avatarHtml);
+}
+
+/**
+ * Build one play-feed row. Pure given its inputs: DOM creation, live team colours
+ * (resolveMatchColors) and the live actor lookup (for the avatar) stay in app.js, which is the
+ * only place holding the running GameSim. Returns the pieces app.js needs to paint a <div>,
+ * never the element itself — keeps this module DOM-free and unit-testable.
+ *
+ * @param {object} ev        the sim event ({type, text, meta, quarter, clock, score, possession})
+ * @param {object} opts
+ * @param {object} [opts.colors]     {home, away} from resolveMatchColors(), or null pre-tip-off
+ * @param {string} [opts.actorName]  the resolved actor's display name, for the avatar splice
+ * @param {string} [opts.avatarHtml] pre-built <img>/<span> markup for the actor, or null
+ * @param {function} opts.escFn      the app's HTML-escaping function
+ * @returns {{ className: string, borderColor: string|null, html: string }}
+ */
+export function feedRowHtml(ev, { colors, actorName, avatarHtml, escFn }) {
+  const type = ev?.type;
+  const side = type !== "coach" ? feedEventSide(ev) : null;
+  const sideColors = side && colors ? colors[side] : null;
+  const isScore = type === "score";
+  if (!sideColors) {
+    const kind = type === "score" ? "score" : type === "coach" ? "coach" : type === "miss" ? "miss" : type === "reb" ? "reb" : "";
+    return { className: `event ${kind}`, borderColor: null, html: escFn(ev?.text) };
+  }
+  const meta = clockLabel(ev);
+  const body = feedTextWithAvatar(ev?.text, actorName, avatarHtml, escFn);
+  const bodyText = isScore ? stripTrailingScore(body) : body;
+  const chip =
+    isScore && ev.score
+      ? `<span class="feed-score"><b style="color:${colors.home.text}">${ev.score.home}</b><i>–</i><b style="color:${colors.away.text}">${ev.score.away}</b></span>`
+      : "";
+  const html =
+    teamChipHtml(sideColors) +
+    (meta ? `<span class="feed-meta">${meta}</span>` : "") +
+    `<span class="feed-text">${bodyText}</span>` +
+    chip;
+  return { className: `event tm${isScore ? " scored" : ""}`, borderColor: sideColors.color, html };
 }
