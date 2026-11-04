@@ -1,5 +1,6 @@
 import { teamColors } from "../data/teamColors.js";
 import { FRANCHISES } from "../data/franchises.js";
+import { feedEventTier, legendHeadline } from "./feedTier.js";
 
 /**
  * 文字播报的球队颜色系统（R48）。
@@ -248,7 +249,7 @@ export function feedTextWithAvatar(text, actorName, avatarHtml, escFn) {
  * @param {function} opts.escFn      the app's HTML-escaping function
  * @returns {{ className: string, borderColor: string|null, html: string }}
  */
-export function feedRowHtml(ev, { colors, actorName, avatarHtml, escFn }) {
+export function feedRowHtml(ev, { colors, actorName, avatarHtml, escFn, lang = "zh" }) {
   const type = ev?.type;
   const side = type !== "coach" ? feedEventSide(ev) : null;
   const sideColors = side && colors ? colors[side] : null;
@@ -264,10 +265,21 @@ export function feedRowHtml(ev, { colors, actorName, avatarHtml, escFn }) {
     isScore && ev.score
       ? `<span class="feed-score"><b style="color:${colors.home.text}">${ev.score.home}</b><i>–</i><b style="color:${colors.away.text}">${ev.score.away}</b></span>`
       : "";
+  const { tier, kind } = feedEventTier(ev);
+  const head =
+    tier === "legend"
+      ? `<span class="feed-legend-head">HIGHLIGHT · ${escFn(legendHeadline(kind, lang))}</span>`
+      : "";
   const html =
+    head +
     teamChipHtml(sideColors) +
     (meta ? `<span class="feed-meta">${meta}</span>` : "") +
     `<span class="feed-text">${bodyText}</span>` +
     chip;
-  return { className: `event tm${isScore ? " scored" : ""}`, borderColor: sideColors.color, html };
+  return {
+    className: `event tm${isScore ? " scored" : ""}${tier === "normal" ? "" : ` tier-${tier}`}`,
+    borderColor: sideColors.color,
+    tint: tier === "normal" ? null : withAlpha(sideColors.color, tier === "legend" ? 0.32 : 0.16),
+    html,
+  };
 }

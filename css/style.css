@@ -797,6 +797,20 @@ html, body {
 }
 .play-feed .event.tm.scored { background: rgba(255,255,255,.07); }
 .play-feed .event.tm .feed-text { color: #eef3ec; font-weight: 500; flex: 1 1 160px; min-width: 0; }
+/* B1 tiers: normal rows stay quiet; only game-changing plays get a tint (important) or a card (legend) */
+.play-feed .event.tm.tier-important { background: var(--tint, rgba(255,255,255,.1)); }
+.play-feed .event.tm.tier-important .feed-text { font-weight: 700; }
+.play-feed .event.tm.tier-legend {
+  padding: 9px 12px 9px 10px;
+  background: linear-gradient(100deg, var(--tint, rgba(217,180,90,.3)), rgba(217,180,90,.14));
+  box-shadow: 0 0 0 1px rgba(217,180,90,.5), 0 4px 18px rgba(217,180,90,.2);
+  /* .event is opacity:0 until its entrance animation ends with `forwards` - keep that contract */
+  animation: feed-legend-pop .5s ease-out forwards;
+}
+.play-feed .event.tm.tier-legend .feed-text { font-weight: 800; font-size: 1.04em; }
+.feed-legend-head { flex: 1 0 100%; font-size: .72rem; font-weight: 800; letter-spacing: .08em; color: #f3d98a; }
+@keyframes feed-legend-pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .play-feed .event.tm.tier-legend { animation: none; opacity: 1; } }
 .play-feed .event.tm.scored .feed-text { font-weight: 700; }
 .feed-chip-team {
   flex: 0 0 auto;

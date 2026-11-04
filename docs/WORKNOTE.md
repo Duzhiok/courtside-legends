@@ -2380,3 +2380,10 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **截图审查发现**：深色队色队标块融进背景 → 加 1px 白色内描边。
 **没做（记 BACKLOG）**：B1 播报三级权重、B2 球员个人战术默认值、B4 落后拼翻盘。
 **验收**：定向 25/25 + 3/3；浏览器 QA 24/24（一次）。
+
+## R136 · Code：B2 个人战术偏好 + B1 播报三级权重（2026-11-04）
+**B2（L2–L3）**：先查再动手——赛季模式其实早就满足需求：开赛时 `persistSeasonRotationFromTeam` 把设置写回赛季阵容，模拟器改的是 `wrapTeam` 里的 `structuredClone` 副本，不会回流。缺口只在排位：每场都从推荐值重来。新 `js/data/playerPrefs.js`：`extractPlayerPrefs` 只取**手改过的字段**（`playPosManual`/`ordersManual`/`_roleManual`、与建议值不同的分钟），没改的继续跟推荐走，卡升级后推荐能刷新；`applyPlayerPrefs` 把值和 manual 标记一起还原，让 `applyRecommendedDefaults` 不再覆盖。账号上存 `playerPrefs`（按卡 ID），`accountToTeam` 读取，开赛时 `rememberPlayerPrefs` 写入（排位走 `state.career.kind==="ranked"`）。测试 6 条，全部用固定 fixture，含"模拟器改副本，原对象不变"。
+**B1（L2）**：`js/ui/feedTier.js` 纯函数 `feedEventTier`：legend = Q4/加时最后 24 秒的反超（≤3 秒标"压哨"）；important = Q3 起的反超、Q4 分差 ≤6 的三分、盖帽；其余 normal。教练行和罚球永不升级。渲染：important 淡队色底；legend 独立卡片（`HIGHLIGHT · 压哨反超！`，金边 + 队色渐变 + 一次性弹出）。测试 10 条，边界两侧都测（24/25 秒，3/4 秒，平局不算反超）。
+**抓到自己的 bug**：第一次渲染传奇卡"整行消失"——基础规则 `.play-feed .event { opacity:0; animation: slide … forwards }` 靠 `forwards` 才可见，我覆盖动画时漏了 `forwards`，播完弹回透明；`prefers-reduced-motion` 分支的 `animation:none` 也会让这些用户永远看不到卡。已修，并用"等全部行 opacity==1 再截图"验证。教训：覆盖动画时必须继承 `forwards` 契约；我第二次看到的截图曾是旧图，改用新文件名后才确认。
+**验收**：全量 1576/1576，lint 0 错（2 条旧 warning），diff 干净；视觉截图：桌面+手机各一次（静态渲染真实 CSS + 真实 `feedRowHtml` 输出，外网已拦截）。
+**未做**：B4（等 M2b）、B11 窄屏断行、B12 其他模式偏好。

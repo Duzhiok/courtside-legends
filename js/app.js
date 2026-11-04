@@ -6547,10 +6547,12 @@ function pushFeed(type, text, ev = null) {
     actorName: actor?.name,
     avatarHtml: actor ? photoImg(actor, "headshot feed-avatar") : null,
     escFn: esc,
+    lang: getLang(),
   });
   const div = document.createElement("div");
   div.className = row.className;
-  if (row.borderColor) div.style.borderColor = row.borderColor;
+  if (row.borderColor) div.style.borderLeftColor = row.borderColor;
+  if (row.tint) div.style.setProperty("--tint", row.tint);
   div.innerHTML = row.html;
   feed.prepend(div);
   while (feed.children.length > 40) feed.removeChild(feed.lastChild);
