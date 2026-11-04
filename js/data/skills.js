@@ -168,6 +168,31 @@ export const SKILL_PACKS = {
     tone: "blue",
     trait: true,
   },
+  // —— 角色层新写窄技能（低线数值，专供非明星角色球员）——
+  corner_camp: {
+    id: "corner_camp",
+    name: "底角蹲坑",
+    desc: "底角等球：空位定点三分更稳",
+    descEn: "Camps in the corner waiting for the ball: open spot-up threes fall more reliably",
+    tone: "blue",
+    trait: true,
+  },
+  second_unit_engine: {
+    id: "second_unit_engine",
+    name: "第二阵容大脑",
+    desc: "替补上场梳理进攻：传球更稳，失误更少",
+    descEn: "Runs the second unit: passes find their mark, fewer careless turnovers",
+    tone: "blue",
+    trait: true,
+  },
+  crash_board: {
+    id: "crash_board",
+    name: "冲板蓝领",
+    desc: "替补上场冲前场板、拼二次进攻",
+    descEn: "Checks in to crash the offensive glass and scrap for second chances",
+    tone: "green",
+    trait: true,
+  },
   hothead: {
     id: "hothead",
     name: "火爆脾气",
@@ -1657,6 +1682,9 @@ export function syncTeamDuoSkills(roster = []) {
 export function assignSkillPacks(player) {
   const tier = player.hiddenTier || "";
   const bref = String(player.bref || "").toLowerCase();
+  // Role-layer provenance for the card scenario lines; reset on every rebuild
+  // so a reassigned card never shows a stale scenario.
+  player.roleSkills = [];
   if (SKILL_FREE_BREFS.has(bref)) {
     player.skills = [];
     pruneAgedSkills(player);
@@ -1702,7 +1730,12 @@ export function assignSkillPacks(player) {
     return restorePurchasedSkills(player);
   }
 
-  player.skills = [];
+  // No named kit, no star tier: the role layer — style-derived specialties at
+  // lowered thresholds (max 2, narrow/situational only). The star layer above
+  // (28% roll, candidateSkills gates) is untouched.
+  const role = roleSkills(player);
+  player.skills = role;
+  player.roleSkills = [...role];
   pruneAgedSkills(player);
   return restorePurchasedSkills(player);
 }
@@ -1792,6 +1825,61 @@ function traitHeuristics(player) {
 
   return out.slice(0, 2);
 }
+
+/**
+ * Role layer for players with no named kit and no star tier: style-derived
+ * specialties at lowered thresholds (traitHeuristics' gates are too high for
+ * them), max 2, narrow/situational only. Pure function of the card, so the
+ * result is stable across refreshes; oversubscription (>2 matches) is resolved
+ * with the same stable hash as the star roll. The star layer is untouched.
+ */
+function roleSkills(player) {
+  const def = player.defense || 50;
+  const stl = player.steal || 40;
+  const three = player.three || 40;
+  const threeTend = player.threeTend || 30;
+  const scoring = player.scoring || 50;
+  const block = player.block || 40;
+  const stamina = player.stamina || 50;
+  const rebound = player.rebound || 50;
+  const pass = player.pass || 50;
+  const iq = player.iq || 50;
+  const spg = player.raw?.spg || 0;
+  const bpg = player.raw?.bpg || 0;
+  const rpg = player.raw?.rpg || 0;
+  const apg = player.raw?.apg || 0;
+  const out = [];
+  // 外线锁：缠绕盯防的低线版（trait 版要 def≥82）
+  if (def >= 74 && (stl >= 65 || spg >= 1.2)) out.push("sticky_wrap");
+  // 3D：低线版（trait 版要 three≥78 且 def≥78）
+  if (three >= 72 && def >= 72) out.push("stopper_3d");
+  // 造犯规：低线版（trait 版要 def≥80 且 iq≥78）
+  if (iq >= 72 && def >= 74) out.push("charge_taker");
+  // 护筐
+  if (block >= 78 || bpg >= 1.5) out.push("rim_protector");
+  // 体能
+  if (stamina >= 80) out.push("motor_engine");
+  // 底角定点：纯射手而非第一选择（3D 已占位时仍可叠加，上限 2 个截断）
+  if (three >= 72 && threeTend >= 40 && scoring <= 82) out.push("corner_camp");
+  // 替补组织：传球手而非第一选择（dime_dropper 仍为手动限定）
+  if ((pass >= 72 || apg >= 3.5) && scoring <= 80) out.push("second_unit_engine");
+  // 篮板蓝领
+  if (rebound >= 78 || rpg >= 7) out.push("crash_board");
+  if (out.length <= 2) return out;
+  return pickStable(player.id || String(player.bref || "").toLowerCase(), out, 2);
+}
+
+/** One-line 入队情景 per role skill, shown on the card (zh / en). */
+export const ROLE_SCENARIOS = {
+  sticky_wrap: { zh: "替补上场锁对方第六人", en: "Comes off the bench to lock up the other team's sixth man" },
+  stopper_3d: { zh: "对位对方持球核，底角惩罚放空", en: "Guards the other team's ball-dominant scorer, punishes help from the corner" },
+  charge_taker: { zh: "替补上场造进攻犯规打断对手", en: "Checks in to draw charges and break the opponent's rhythm" },
+  rim_protector: { zh: "替补护筐：对面冲筐时站出来", en: "Backup rim protection when the other team attacks the paint" },
+  motor_engine: { zh: "体力活全包：连场作战不掉链子", en: "Does all the running: back-to-backs don't slow him down" },
+  corner_camp: { zh: "底角蹲坑拉开空间，等球就投", en: "Camps in the corner to space the floor, shoots when the ball finds him" },
+  second_unit_engine: { zh: "第二阵容上场梳理进攻", en: "Runs the offense when the second unit checks in" },
+  crash_board: { zh: "替补上场冲前场板、拼二次进攻", en: "Checks in to crash the offensive glass for second chances" },
+};
 
 /**
  * Name → bref for cards that arrive without a bref (custom / legacy data).
@@ -2155,7 +2243,7 @@ export function skillChipsHtml(player, lang = "zh") {
   const nameL = (s) => skillNameL(s.name, lang);
   if (!skills.length) return "";
   const bought = new Set(player.purchasedSkills || []);
-  return skills
+  const chips = skills
     .map((id) => {
       const s = SKILL_PACKS[id];
       if (!s) return "";
@@ -2167,6 +2255,16 @@ export function skillChipsHtml(player, lang = "zh") {
       return `<span class="skill-chip ${s.tone}${s.duo ? " duo" : ""}${s.aura ? " aura" : ""}${boughtCls}" title="${title}">${nameL(s)}</span>`;
     })
     .join("");
+  // 角色层入队情景：只给仍在卡面上的角色技能写一行，明星技能不受影响
+  const scenarios = (player.roleSkills || [])
+    .filter((id) => skills.includes(id) && ROLE_SCENARIOS[id])
+    .map((id) => {
+      const sc = ROLE_SCENARIOS[id];
+      const s = SKILL_PACKS[id];
+      return `<div class="tiny role-scenario">${nameL(s)}：${lang === "en" ? sc.en : sc.zh}</div>`;
+    })
+    .join("");
+  return chips + scenarios;
 }
 
 export function skillsLabel(player) {
@@ -2598,6 +2696,8 @@ export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open 
   }
   // Battier 3&D: punish open catch-and-shoot
   if (hasSkill(baller, "stopper_3d") && shot?.zone === "three" && open >= 0.48) b += 0.028;
+  // 角色层底角蹲坑：低线定点加成，低于底角狙杀（0.03）与 3D（0.028）
+  if (hasSkill(baller, "corner_camp") && shot?.zone === "three" && open >= 0.5) b += 0.018;
 
   // —— 球星称号技 ——
   const trailing = scoreDiff < 0;
@@ -2962,6 +3062,7 @@ export function skillPassCareTov(baller) {
   if (hasSkill(baller, "blind_pass")) d -= 0.015;
   if (hasSkill(baller, "floor_commander")) d -= 0.008;
   if (hasSkill(baller, "dime_dropper")) d -= 0.006;
+  if (hasSkill(baller, "second_unit_engine")) d -= 0.005;
   return d;
 }
 
@@ -2987,6 +3088,7 @@ export function skillPassWeight(p) {
   let w = 1;
   if (hasSkill(p, "dime_dropper")) w *= 1.35;
   if (hasSkill(p, "soft_touch")) w *= 1.2;
+  if (hasSkill(p, "second_unit_engine")) w *= 1.15;
   if (hasSkill(p, "qb_outlet")) w *= 1.28;
   if (hasSkill(p, "floor_commander")) w *= 1.32;
   if (hasSkill(p, "clean_dime")) w *= 1.22;
@@ -3052,6 +3154,8 @@ export function skillReboundMult(p, { offensive = false } = {}) {
   if (hasSkill(p, "glass_cleaner") && Math.random() < 0.32) return 1.4;
   if (hasSkill(p, "spring_board") && Math.random() < 0.28) return 1.35;
   if (hasSkill(p, "wolf_king") && Math.random() < 0.25) return 1.3;
+  // 角色层冲板蓝领：低线篮板权重，低于上述所有篮板技
+  if (hasSkill(p, "crash_board") && Math.random() < 0.2) return 1.2;
   return 1;
 }
 
