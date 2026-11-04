@@ -6725,7 +6725,7 @@ function paintMeters(snap) {
   const moraleRow = $("#morale")?.parentElement;
   const chemRow = $("#chem")?.parentElement;
   const fitRow = $("#fit")?.parentElement;
-  if (moraleRow) moraleRow.title = "士气：影响出手胆量与抗压；大喊/沟通/暂停可抬升";
+  if (moraleRow) moraleRow.title = "士气：影响出手胆量与抗压；沟通/暂停可抬升";
   if (chemRow) chemRow.title = "化学反应：球星自负冲突会降；两人仍抢球才会因持球冲突拖累（设无球可化解）";
   if (fitRow) fitRow.title = "适配度：战术需求、站位、持球/无球搭配；无球能力差时火力会被间接削弱";
   const oc = $("#opp-chem");
@@ -6742,6 +6742,20 @@ function paintMeters(snap) {
     const note = lineupBallNote(youOn, { primaryId: snap.offenseFocusId || null });
     ballNote.textContent = note || "";
     ballNote.title = "可指定持球人与打法；两人仍抢球才会冲突，无球偏弱则火力略削";
+  }
+  // 大喊表现层：战术执行窗口剩余回合（temp 随 ttl 到期一次性清零，故 hold>0 当且仅当 ttl>0）
+  const holdEl = $("#tactic-hold-line");
+  if (holdEl) {
+    const temp = you.temp || {};
+    const ttl = temp.ttl || 0;
+    if ((temp.tacticHold || 0) > 0 && ttl > 0) {
+      holdEl.hidden = false;
+      holdEl.textContent =
+        getLang() === "en" ? `System lock-in: ${ttl} possessions left` : `战术执行剩余 ${ttl} 回合`;
+    } else {
+      holdEl.hidden = true;
+      holdEl.textContent = "";
+    }
   }
   syncDefendHint(snap);
   paintLivePositions(snap);

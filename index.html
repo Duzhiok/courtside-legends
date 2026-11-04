@@ -631,7 +631,7 @@
           </div>
           <div class="btn-row live-only-row">
             <button class="btn warn" id="btn-timeout" title="活球时可叫暂停：双方停表，可调整战术与阵容；可打断对方高潮">叫暂停</button>
-            <button class="btn" id="btn-shout" title="活球手段：让脱离体系的球员重新集中执行战术；球星自负时可能反噬">大喊</button>
+            <button class="btn" id="btn-shout" title="活球手段：勒令执行当前战术约 6 回合；球星自负时可能反噬">大喊</button>
             <button class="btn primary" id="btn-resume" hidden>继续比赛</button>
           </div>
           <p class="tiny" id="live-action-hint">活球中：只能「大喊」或「叫暂停」。战术 / 沟通 / 换人请在暂停或节间进行。</p>
@@ -735,13 +735,14 @@
             </div>
           </div>
           <div class="meter">
-            <div title="影响出手胆量与抗压；大喊/沟通/暂停可抬升">我方士气 <span id="morale">50</span></div>
+            <div title="影响出手胆量与抗压；沟通/暂停可抬升">我方士气 <span id="morale">50</span></div>
             <div class="bar"><i id="morale-bar"></i></div>
             <div title="球星自负、两人仍抢球才算持球冲突会拉低；设无球可化解；化学反应核可抬升">我方化学反应 <span id="chem">50</span></div>
             <div class="bar"><i id="chem-bar"></i></div>
             <div title="战术需求、站位、持球/无球搭配是否合拍">我方适配度 <span id="fit">50</span></div>
             <div class="bar"><i id="fit-bar"></i></div>
             <p class="tiny" id="ball-fit-note" title="持球依赖冲突时双方大核效率都会打折"></p>
+            <p class="tiny" id="tactic-hold-line"></p>
             <div>对方化学反应 <span id="opp-chem">50</span></div>
             <div class="bar opp"><i id="opp-chem-bar"></i></div>
             <div>对方士气 <span id="opp-morale">50</span></div>

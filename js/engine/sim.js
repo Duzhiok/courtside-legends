@@ -2088,6 +2088,7 @@ export class GameSim {
     // Core effect: yank freelancers back onto the called tactic for a few possessions
     t.temp.tacticHold = Math.max(t.temp.tacticHold || 0, 0.78);
     let drifted = 0;
+    const driftedNames = [];
     for (const p of t.onCourt) {
       p.mood = clamp((p.mood ?? 50) + 5, 15, 95);
       const fit = systemFitScore(p, t.coach, t.tactic);
@@ -2105,6 +2106,7 @@ export class GameSim {
           5 + Math.min(3, Math.floor(drift / 18))
         );
         drifted++;
+        driftedNames.push(p.name);
       } else {
         p.tempTacticFocus = Math.max(p.tempTacticFocus || 0, 3);
       }
@@ -2113,7 +2115,10 @@ export class GameSim {
     this.emit(
       "coach",
       drifted
-        ? this.S(`大喊！${drifted}人有点脱离体系——勒令集中执行「${tName}」`, `Shout! ${drifted} drifting off-system — ordered to lock into "${tName}"`)
+        ? this.S(
+            `大喊！${driftedNames.join("、")}脱离体系——勒令集中执行「${tName}」`,
+            `Shout! ${driftedNames.join(", ")} drifting off-system — ordered to lock into "${tName}"`
+          )
         : this.S(`大喊！全员集中注意力，严格执行「${tName}」`, `Shout! Everyone locks in and executes "${tName}"`)
     );
   }
@@ -2532,6 +2537,7 @@ function publicTeam(t, lang = "zh") {
     chem: t.chem,
     fit: t.fit,
     morale: t.morale,
+    temp: t.temp ? { ...t.temp } : { ttl: 0 },
     tactic: t.tactic,
     coach: t.coach,
     onCourt: t.onCourt.map(s),
