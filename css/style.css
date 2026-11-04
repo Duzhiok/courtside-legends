@@ -793,8 +793,23 @@ html, body {
   /* .event is opacity:0 until its entrance animation ends with `forwards` - keep that contract */
   animation: feed-legend-pop .5s ease-out forwards;
 }
-.play-feed .event.tm.tier-legend .feed-text { font-weight: 800; font-size: 1.04em; }
-.feed-legend-head { flex: 1 0 100%; font-size: .72rem; font-weight: 800; letter-spacing: .08em; color: #f3d98a; }
+/* B18: the legend row is a real card — header (flame · HIGHLIGHT · side · team chip · clock),
+   big avatar, bold title, one sentence. Normal rows keep their single quiet line. */
+.play-feed .event.tm.tier-legend { flex-direction: column; align-items: stretch; gap: 8px; }
+.feed-legend-head { display: flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 800; letter-spacing: .08em; color: #f3d98a; }
+.feed-legend-head .feed-meta { margin-left: auto; }
+.feed-flame { color: #ffb84d; flex: 0 0 auto; }
+.feed-legend-body { display: flex; align-items: center; gap: 10px; }
+.feed-legend-avatar { flex: 0 0 auto; display: inline-flex; }
+.play-feed .feed-legend-avatar .feed-avatar { width: 40px; height: 40px; margin: 0; border: 2px solid rgba(243,217,138,.75); vertical-align: middle; }
+.feed-legend-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.feed-legend-title { font-size: 1.05rem; font-weight: 800; line-height: 1.2; color: #fff; }
+.feed-legend-sub { font-size: .82rem; line-height: 1.3; color: #e6ecdf; overflow-wrap: anywhere; }
+/* second muted line under a plain made shot ("普通得分 · +2") */
+.play-feed .event.tm .feed-main { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.play-feed .event.tm .feed-main .feed-text { flex: 0 0 auto; }
+.play-feed .feed-sub { color: #9fb3a8; font-size: .7rem; font-weight: 600; }
+.play-feed .feed-subline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 @keyframes feed-legend-pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .play-feed .event.tm.tier-legend { animation: none; opacity: 1; } }
 .play-feed .event.tm.scored .feed-text { font-weight: 700; }

@@ -52,11 +52,14 @@ test("blocks are important in both languages; coach lines and free throws never 
 const COLORS = { home: { color: "#FDB927", code: "LAL", text: "#111" }, away: { color: "#007A33", code: "BOS", text: "#fff" } };
 const row = (ev, lang) => feedRowHtml(ev, { colors: COLORS, escFn: (s) => s, lang });
 
-test("legend row: headline card in the requested language; normal row carries no tier markup", () => {
+test("legend row: card with header, title and sentence in the requested language; normal row carries no tier markup", () => {
   const legend = row(made({ clock: 2 }), "en");
   assert.match(legend.className, /tier-legend/);
-  assert.match(legend.html, /HIGHLIGHT · Buzzer-beater!/);
-  assert.match(row(made({ clock: 2 }), "zh").html, /HIGHLIGHT · 压哨反超！/);
+  assert.match(legend.html, /HIGHLIGHT · HOME/);
+  assert.match(legend.html, /class="feed-legend-title">Buzzer-beater!</);
+  const zh = row(made({ clock: 2 }), "zh");
+  assert.match(zh.html, /HIGHLIGHT · 主队/);
+  assert.match(zh.html, /class="feed-legend-title">压哨反超！</);
   assert.ok(legend.tint);
   const plain = row(made({ quarter: 1, clock: 400 }), "en");
   assert.doesNotMatch(plain.className, /tier-/);
@@ -69,5 +72,5 @@ test("important row gets a tint but no card", () => {
   assert.match(r.className, /tier-important/);
   assert.doesNotMatch(r.html, /HIGHLIGHT/);
   assert.ok(r.tint);
-  assert.equal(legendHeadline("block"), "", "only legend kinds have a headline");
+  assert.equal(legendHeadline("lead"), "", "only legend kinds have a headline");
 });

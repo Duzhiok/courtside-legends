@@ -89,6 +89,23 @@ test("event side comes from the event's possession snapshot", () => {
   assert.equal(feedEventSide({}), null);
 });
 
+test("a block belongs to the blocker's side, not the attacking team's (chip, colour and avatar must agree)", () => {
+  // The sim emits a block while the OTHER team has the ball: possession = attacker = the blocked side.
+  const block = { type: "miss", possession: "home", meta: { block: { blockedName: "Paul", side: "away" } } };
+  assert.equal(feedEventSide(block), "away");
+  // without block meta (older events) it still falls back to possession
+  assert.equal(feedEventSide({ type: "miss", possession: "home" }), "home");
+  // a malformed side is ignored rather than trusted
+  assert.equal(feedEventSide({ possession: "home", meta: { block: { side: "elsewhere" } } }), "home");
+  const colors = { home: { color: "#552583", text: "#fff", code: "LAL" }, away: { color: "#007a33", text: "#fff", code: "BOS" } };
+  for (const quarter of [3, 4]) { // important-tier (Q3) and legend-tier (Q4, last seconds, close) must agree
+    const ev = { ...block, text: "Rudy Gobert blocks Paul!", quarter, clock: quarter === 4 ? 11 : 120, score: { home: 100, away: 101 } };
+    const row = feedRowHtml(ev, { colors, actorName: "Rudy Gobert", avatarHtml: null, escFn: (x) => String(x), lang: "en" });
+    assert.match(row.html, />BOS</, `Q${quarter} block row carries the blocker's chip`);
+    assert.doesNotMatch(row.html, />LAL</, `Q${quarter} block row does not carry the blocked team's chip`);
+  }
+});
+
 test("score chip replaces the score already trailing the text", () => {
   assert.equal(stripTrailingScore("球星 三分命中！（45%） 78-75"), "球星 三分命中！（45%）");
   assert.equal(stripTrailingScore("罚球命中 60-58"), "罚球命中");

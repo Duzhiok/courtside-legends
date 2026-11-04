@@ -70,6 +70,7 @@ import {
   resolveMatchColors,
   teamCodeOf,
 } from "./ui/feedView.js";
+import { createRunTracker } from "./ui/feedRuns.js";
 import {
   COACHES,
   TACTICS,
@@ -6597,12 +6598,15 @@ function livePlayerById(id) {
   return state.sim.home.roster.find((p) => p.id === id) || state.sim.away.roster.find((p) => p.id === id) || null;
 }
 
+const feedRuns = createRunTracker(); // consecutive-points highlight needs the event history (B18)
+
 function pushFeed(type, text, ev = null) {
   const feed = $("#play-feed");
   if (!feed) return;
   if (type === "dunk") return;
   const actor = livePlayerById(feedActorId(ev));
   const row = feedRowHtml(ev || { type, text }, {
+    run: ev ? feedRuns.observe(ev) : null,
     colors: state.feedColors,
     actorName: actor?.name,
     avatarHtml: actor ? photoImg(actor, "headshot feed-avatar") : null,

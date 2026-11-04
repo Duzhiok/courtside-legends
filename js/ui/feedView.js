@@ -1,6 +1,7 @@
 import { teamColors } from "../data/teamColors.js";
 import { FRANCHISES } from "../data/franchises.js";
-import { feedEventTier, legendHeadline } from "./feedTier.js";
+import { feedEventTier } from "./feedTier.js";
+import { legendCardHtml } from "./feedLegend.js";
 
 /**
  * 文字播报的球队颜色系统（R48）。
@@ -159,8 +160,14 @@ export function resolveMatchColors(homeTeam, awayTeam) {
   return { home, away };
 }
 
-/** The side a sim event belongs to: the team attacking when it was emitted. */
+/**
+ * The side a sim event belongs to: the team attacking when it was emitted -- except a block, which belongs
+ * to the BLOCKER (meta.block.side). The sim emits it while the other team is attacking, and the row's
+ * chip, colour and avatar must all describe the same player.
+ */
 export function feedEventSide(ev) {
+  const blocker = ev?.meta?.block?.side;
+  if (blocker === "home" || blocker === "away") return blocker;
   return ev?.possession === "home" || ev?.possession === "away" ? ev.possession : null;
 }
 
@@ -247,9 +254,10 @@ export function feedTextWithAvatar(text, actorName, avatarHtml, escFn) {
  * @param {string} [opts.actorName]  the resolved actor's display name, for the avatar splice
  * @param {string} [opts.avatarHtml] pre-built <img>/<span> markup for the actor, or null
  * @param {function} opts.escFn      the app's HTML-escaping function
+ * @param {object} [opts.run]       run-tracker result for this event (B18, "10-0 run" highlight)
  * @returns {{ className: string, borderColor: string|null, html: string }}
  */
-export function feedRowHtml(ev, { colors, actorName, avatarHtml, escFn, lang = "zh" }) {
+export function feedRowHtml(ev, { colors, actorName, avatarHtml, escFn, lang = "zh", run = null }) {
   const type = ev?.type;
   const side = type !== "coach" ? feedEventSide(ev) : null;
   const sideColors = side && colors ? colors[side] : null;
@@ -259,27 +267,50 @@ export function feedRowHtml(ev, { colors, actorName, avatarHtml, escFn, lang = "
     return { className: `event ${kind}`, borderColor: null, html: escFn(ev?.text) };
   }
   const meta = clockLabel(ev);
-  const body = feedTextWithAvatar(ev?.text, actorName, avatarHtml, escFn);
-  const bodyText = isScore ? stripTrailingScore(body) : body;
+  const metaHtml = meta ? `<span class="feed-meta">${meta}</span>` : "";
   const chip =
     isScore && ev.score
       ? `<span class="feed-score"><b style="color:${colors.home.text}">${ev.score.home}</b><i>–</i><b style="color:${colors.away.text}">${ev.score.away}</b></span>`
       : "";
-  const { tier, kind } = feedEventTier(ev);
-  const head =
-    tier === "legend"
-      ? `<span class="feed-legend-head">HIGHLIGHT · ${escFn(legendHeadline(kind, lang))}</span>`
-      : "";
+  const { tier, kind } = feedEventTier(ev, { run });
+
+  if (tier === "legend") {
+    return {
+      className: `event tm${isScore ? " scored" : ""} tier-legend`,
+      borderColor: sideColors.color,
+      tint: withAlpha(sideColors.color, 0.32),
+      html: legendCardHtml({
+        kind, ev, run, side, chipHtml: teamChipHtml(sideColors), metaHtml, scoreHtml: chip,
+        actorName, avatarHtml, escFn, lang,
+      }),
+    };
+  }
+
+  const body = feedTextWithAvatar(ev?.text, actorName, avatarHtml, escFn);
+  const bodyText = isScore ? stripTrailingScore(body) : body;
+  const sub = isScore ? scoreSubLabel(ev, lang) : "";
+  const text = `<span class="feed-text">${bodyText}</span>`;
   const html =
-    head +
     teamChipHtml(sideColors) +
-    (meta ? `<span class="feed-meta">${meta}</span>` : "") +
-    `<span class="feed-text">${bodyText}</span>` +
-    chip;
+    metaHtml +
+    // With a sub-line the score chip rides on THAT line (right-aligned) instead of wrapping onto a
+    // third row of its own on a narrow screen -- plain rows must stay the quietest thing in the feed.
+    (sub
+      ? `<span class="feed-main">${text}<span class="feed-subline"><span class="feed-sub">${escFn(sub)}</span>${chip}</span></span>`
+      : text + chip);
   return {
     className: `event tm${isScore ? " scored" : ""}${tier === "normal" ? "" : ` tier-${tier}`}`,
     borderColor: sideColors.color,
-    tint: tier === "normal" ? null : withAlpha(sideColors.color, tier === "legend" ? 0.32 : 0.16),
+    tint: tier === "normal" ? null : withAlpha(sideColors.color, 0.16),
     html,
   };
+}
+
+/** The muted second line under a made shot, e.g. "三分命中 · +3". Only when the points are actually known. */
+export function scoreSubLabel(ev, lang = "zh") {
+  const pts = ev?.meta?.shot?.made ? ev.meta.shot.pts : 0;
+  if (pts !== 2 && pts !== 3) return "";
+  const en = lang === "en";
+  if (pts === 3) return en ? "Three-pointer · +3" : "三分命中 · +3";
+  return en ? "Field goal · +2" : "普通得分 · +2";
 }

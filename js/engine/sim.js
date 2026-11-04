@@ -1046,7 +1046,9 @@ export class GameSim {
         "miss",
         sigBlk
           ? this.S(`${defender.name} 「${sigBlk.name}」盖帽 ${baller.name}！`, `${defender.name} "${this.nL(sigBlk.name)}" BLOCKS ${baller.name}!`)
-          : this.S(`${defender.name} 盖帽 ${baller.name}！`, `${defender.name} blocks ${baller.name}!`)
+          : this.S(`${defender.name} 盖帽 ${baller.name}！`, `${defender.name} blocks ${baller.name}!`),
+        // Display-only: lets the feed show the blocker's avatar and side. No effect on the sim.
+        { actorId: defender.id, block: { blockedName: baller.name, side: def.side } }
       );
       sparkTeamFromHighlight(def, "block", defender, (t, msg) => this.emit(t, msg), this.lang);
       // 被帽方略受挫
