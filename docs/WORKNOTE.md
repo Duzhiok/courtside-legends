@@ -2426,3 +2426,12 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **验收**：全量 1633/1633，lint 0 错（2 条旧 warning），diff 干净；`home-first-screen.mjs` 桌面+手机×（有/无存档）+中英 35/35；M1 旧 QA `home-play-now.mjs` 25/25。
 **探针踩坑（记给后人）**：QA 里要造生涯存档（`createTimeTravelPrologue`）必须等首页激活（名册加载完）再调用，否则名册为空时它在死循环里空转，渲染进程 100% CPU，Playwright 连超时都回不来。
 **新发现（只记 Backlog，未改）**：B19 存档条出现"阶段：regular"内部 ID；B20 手机端主 CTA 偏小。
+
+## R142 · Code：战术配置审计（只读，2026-11-04，用户提案）
+产出 `docs/implementation/tactics-audit.md`（24 个战术的效果矩阵，脚本从 `TACTICS` 生成，不手抄）。**没改任何代码。**
+**核对用户提案的结果**：收缩篮下确为防守姿态（四个乘数全是 1，只靠 `packPaint` 标志改命中/盖帽×1.25/空位）；沉退联防与无限换防**名实不符**——整个 `js/` 里只有 `chemistry.js:192 fit+=2`，描述承诺的「放中距离」「挡拆换人」没有对应代码；内线类 4 个战术 + 1 个回合重点同质；只有 8/24 战术有自己的场上站位。
+**发现的叠加**（只指位置，未判 bug）：`crash_boards/second_chance` 的篮板率 = `orbBoost` + id 写死 `+0.025`（`sim.js:3126-3127`）；`second_chance` 禁区权重 `paintBias 1.35` 再乘 id `×1.12`；`paint_attack`/`twin_towers` 的三分被 threeRate 与代码分支各压一次。
+**引擎已有分层**：TACTICS → FOCUS_PLAYS(5) → TEMPO_OPTIONS(3) → defensePlan → applyLateGameScripts。提案的"五维度"多数已存在，缺的是 UI 按这个结构呈现。提速档确为固定系数（make −0.024 / open −0.035 / 失误 ×1.22），追分脚本也是固定系数。
+**提案里已经做过的**：个人职责跨场（B2）、自动暂停上限（B3）、Feed 三级与传奇卡（B1/B18）、战术适配预览与默认战术优先。
+**自查更正**：写完后核实三处声明，其中一处过头（"篮板类战术吃三条适配调整"）——实际是五个战术共用同一个 `if` 块，已改写为观察。
+**没做**：对标 2K/FM/BBGM 调研（B5 另一半）；没跑固定种子模拟去量化叠加的胜率影响。落地条目见 BACKLOG B21–B28。
