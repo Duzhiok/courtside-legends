@@ -30,3 +30,8 @@ ios/App/*.xcworkspace/xcuserdata/
 ios/App/*.xcodeproj/xcuserdata/
 *.xcuserstate
 DerivedData/
+
+# also ignore node_modules when it is a symlink (a trailing-slash pattern
+# only matches directories; a Mac symlink of this name slipped into git
+# on 2026-11-03 and broke every Pages build since)
+node_modules
