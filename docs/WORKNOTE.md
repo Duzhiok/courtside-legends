@@ -2392,3 +2392,7 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **测试**：`modeCatalog.test.js` + `homeTabs.test.js` 新断言（目录完整、`validateCatalog`、每 id 在 DOM 有入口、面板归属与分组与目录一致、hero 唯一且直进不经过 setup、quick 更名）；变异验证：删 sandbox 后 3 项报红，恢复后回绿。QA 脚本 `scripts/qa/home-play-now.mjs`（Play Now 直进、旧卡回归、Continue 来源、390/1280、EN hero；VM 无浏览器未跑，Mac 待跑）。
 **验收**：全量 1504 项中 1495 通过，9 项失败全是 9 个 online 文件在 import 时缺 `ws` 包（本 VM 被追踪的 node_modules 里就没有 ws，`npm ci` 在此权限失败，与 M1 无关——M1 未动 server/online/package.json 任一行）；中途曾红 2 项 i18n（新组标签漏 PHRASES，且覆盖测试抛错后未恢复 zh 导致 zh 默认测试连锁红），补 4 条 PHRASES 后 i18n 全绿；神经刀 FG% 测试上一轮全量红、本轮单跑与全量均过，属随机波动 flaky（用户新技能测试，与 M1 无关）。`eslint` 本 VM 无可执行文件未跑（Mac 待跑）。
 **未做**：B10 色板待用户拍板；M2a 下一步；M2b 及之后需用户试玩批准后开工。
+
+**托管反多塔（Luna，用户 2026-11-04 批准）**：`managedOffensePlan` 以前只看己方射手/内线 + 比分/时间，从不看对面场上阵容——对面摆 3-4 内线时托管要么无动于衷，要么己方也是双塔时用 triangle/grind/post_up 自己往人堆里磨，吃满 paintCrowdPenalty。现加检测分支：对面 onCourt 里实际位置（playPos||pos）为 C/PF 且非 isFloorShooter 的人数 ≥ 3（与 paintCrowdPenalty 的“超过 2 个”对齐），在 light 早退之前算（对面换人摆多塔下一 tick 就回应，不等节间全量），压过己方内线分支、但比分分支（追分/保胜）在前。响应走 pick() 尊重教练战术板：pace_space/smallball/five_out（threeRate 1.3/1.25/1.22）→ motion/pnr_spam → balanced；射手 ≥ 2 用 pace_three（三分权重 ×1.5），否则 hunt_mismatch。节奏 push 本次不做：tempo 粘性无归还规则，push 自身还有效率代价，属 wash 权衡而非明确惩罚。命中公式未动（错位加成 + 外线折扣 + 拥挤惩罚本来就是对的）。
+**测试**：`tests/jumboCounter.test.js` 6 项（空间战术 + pace_three、light tick 也响应、压过己方双塔分支、无射手时 hunt_mismatch、无空间战术教练时 balanced + pace_three、正常对面不触发）；变异验证：撤掉引擎改动后 5 项红（阴性对照仍绿），恢复后全绿。
+**验收**：全量 1510 项中 1501 通过，9 项失败全是 online 文件缺 ws 包（本 VM 环境问题，与本次改动无关）；eslint 与浏览器 QA 本 VM 跑不了，Mac 待跑。

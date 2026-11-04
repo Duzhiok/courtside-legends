@@ -413,3 +413,5 @@
 [2026-11-03 22:40] Luna：M1 完成并推送——目录 13 项 + homeTabs 派生 + Play Now 一键直进 + Continue root v3 为准 + token 收敛（WORKNOTE R137）。验收：全量 1504 项中 1495 通过，9 项失败全是 online 文件缺 ws 包（本 VM 环境问题，M1 未动 server/online/package.json）；i18n 连锁红已修（新组标签补 PHRASES）；神经刀 FG% 属 flaky（单跑过）。eslint 与浏览器 QA（home-play-now.mjs）本 VM 跑不了，Mac 待跑。ROADMAP M1 状态已标 ✅，DECISIONS ADR-001 记已实施，TASKS T18 指向 M2a。下一步 M2a 由用户发话再开；M2b 及之后按闸门需试玩批准。B10 色板（海军蓝 vs 深绿）仍待用户拍板，当前 token 沿用深绿 + 金色。
 
 [2026-11-04 00:40] Luna：认领托管反多塔（用户 23:04 批准方案）——给 managedOffensePlan 加对面 3+ 非射手内线检测分支：light 早退放行、压过己方内线分支、走 pick() 尊重教练战术板（five_out/pace_space/smallball → motion/pnr_spam → balanced），射手≥2 用 pace_three 否则 hunt_mismatch；节奏 push 本次不做（sticky tempo 无归还规则，push 自身有效率代价，属 wash 权衡而非明确惩罚）。只改 sim.js 一个分支 + 新测试，不碰命中公式。
+
+[2026-11-04 01:00] Luna：托管反多塔完成并推送——sim.js 的 managedOffensePlan 加对面 3+ 非射手内线检测分支（WORKNOTE 新条）。验收：新测试 6/6 + 变异验证（撤改动 5 红）；全量 1510 项中 1501 通过，9 项失败全是 online 缺 ws 包（环境问题）。eslint 与浏览器 QA 仍需 Mac 跑。节奏 push 按认领时说明的理由未做（粘性 tempo 无归还 + 自身效率代价）。

@@ -1823,7 +1823,15 @@ export class GameSim {
     if (!you?.onCourt?.length) return;
     const deficit = this.score[opp.side] - this.score[you.side];
     const late = this.quarter >= 4 || (this.quarter === 3 && this.clock < 200);
-    if (light && Math.abs(deficit) < 6 && !late) return;
+    // 对面多塔检测：场上 3+ 个“非射手内线”（与 paintCrowdPenalty 的“超过 2 个”
+    // 才拥挤对齐）。必须在 light 早退之前算——对面一次换人摆出多塔，下一 tick
+    // 就要回应，而不是等到节间/暂停的全量调用。playPos 为准：轮换后实际站位
+    // 以 playPos 为准，不是卡面 pos。
+    const oppJumbo =
+      (opp?.onCourt || []).filter(
+        (p) => ["C", "PF"].includes(p.playPos || p.pos) && !isFloorShooter(p)
+      ).length >= 3;
+    if (light && Math.abs(deficit) < 6 && !late && !oppJumbo) return;
 
     const avail = coachTactics(you.coach || { specialTactics: ["balanced"] });
     const ids = new Set(avail.map((t) => t.id));
@@ -1887,6 +1895,17 @@ export class GameSim {
       off = 8;
       def = 11;
       stam = 3;
+    } else if (oppJumbo) {
+      // 惩罚多塔：禁区拥挤惩罚让所有非三分出手吃亏，错位加成只给外线——所以
+      // 拉开投三分，别磨禁区。必须压过下面的 bigs >= 2 分支，否则己方也是双塔
+      // 时托管会自己往人堆里 post_up。比分分支（追分/保胜）在前：分差局面优先，
+      // 那些分支本身也偏向 pace_three / 空间战术。节奏 push 不在这里动：tempo 是
+      // 粘性的、无归还规则，push 自身还有效率代价，属 wash 权衡而非明确惩罚。
+      want = pick("pace_space", "smallball", "five_out", "motion", "pnr_spam", "balanced");
+      focus = shooters >= 2 ? "pace_three" : "hunt_mismatch";
+      off = 12;
+      def = 7;
+      stam = 0;
     } else if (shooters >= 3) {
       want = pick("smallball", "pace_space", "five_out", "motion", "balanced");
     } else if (bigs >= 2) {
