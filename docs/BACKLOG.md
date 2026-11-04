@@ -14,3 +14,8 @@
 | B10 | 2.0 统一视觉基线：深海军蓝 + 金色强调（09/13/21/36/39）vs 现有深绿——M1 前需产品拍板 | 设计决策 | M1 | 待你决定 |
 | B11 | 播报文字在手机窄屏下"命中！"被拆成"命 / 中！"（中文可在任意字符断行）——UI 统一时处理 | L1 | M1/M3 | 待批准 |
 | B12 | B2 只接了赛季和排位；金币晋级赛/预算轮抽等模式的个人战术偏好未持久化 | L2 | — | 待你确认是否需要 |
+| B13 | 🔴 数据丢失（已被 M1 的 QA 在 Mac 浏览器里独立复现：`Continue: legacy-only save still shows its bar` 红）：`cls_savegame_v1` 不是 legacy，是对局自动存档；无 root 存档时刷新，`migrateLegacySaves` 把它搬进无人读取的 `root.liveGame.legacySession` 并删除，`purgeOrphanedLegacySaves` 配额紧张时也删它。建议：迁移与 purge 都不再碰该 key。涉及存档迁移，按 ADR-004 等你批准 | L3 | M1 发现 | 待批准 |
+| B14 | `tests/packPaint.test.js` "packing the paint suppresses…" 是 300 局随机统计断言，全量负载下偶发失败，单跑 3/3 通过；违反 AI_EFFICIENCY_POLICY"不对随机结果断言"，应改固定种子/夹具 | L2 | 全量发现 | 待批准 |
+| B15 | 命名冲突：首页主按钮 `#btn-play-now` 与 `quick` 卡片都叫"快速开打"，行为不同（一个跳过排兵布阵，一个进赛前设置）；词条 `["快速开打","Play Now"]` 是全局精确匹配，英文下两个控件都显示 "Play Now"。建议主按钮与卡片用不同名字，QA 补"两处文案不得相同"断言 | L1 | M1 复核 | 待批准 |
+| B16 | 手机首屏：有存档时主 CTA 被挤到折叠线（只露半个，顶部 y≈802/视口 844），继续面板的"继续进度"仍是深色实心 primary，视觉上比 CTA 更抢眼，与"首页只有一个主 CTA"冲突。QA 目前只数"主 CTA 有 1 个"，缺"必须在首屏内、可见 primary 只有 1 个"的断言（可参考备份分支 `backup/m1-code-puppy-r137` 的 `scripts/qa/home-play-now.mjs` 对应检查） | L2 | M1 复核 | 待批准 |
+| B17 | 主按钮下提示"一键进比赛，跳过排兵布阵"是灰色小字落在浅色背景，对比度目测偏低（未量）；横幅内灰字/继续面板标题同理，建议统一用 `lowContrast()` 在 QA 里量 | L1 | M1 复核 | 待批准 |

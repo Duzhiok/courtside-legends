@@ -2396,3 +2396,8 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **托管反多塔（Luna，用户 2026-11-04 批准）**：`managedOffensePlan` 以前只看己方射手/内线 + 比分/时间，从不看对面场上阵容——对面摆 3-4 内线时托管要么无动于衷，要么己方也是双塔时用 triangle/grind/post_up 自己往人堆里磨，吃满 paintCrowdPenalty。现加检测分支：对面 onCourt 里实际位置（playPos||pos）为 C/PF 且非 isFloorShooter 的人数 ≥ 3（与 paintCrowdPenalty 的“超过 2 个”对齐），在 light 早退之前算（对面换人摆多塔下一 tick 就回应，不等节间全量），压过己方内线分支、但比分分支（追分/保胜）在前。响应走 pick() 尊重教练战术板：pace_space/smallball/five_out（threeRate 1.3/1.25/1.22）→ motion/pnr_spam → balanced；射手 ≥ 2 用 pace_three（三分权重 ×1.5），否则 hunt_mismatch。节奏 push 本次不做：tempo 粘性无归还规则，push 自身还有效率代价，属 wash 权衡而非明确惩罚。命中公式未动（错位加成 + 外线折扣 + 拥挤惩罚本来就是对的）。
 **测试**：`tests/jumboCounter.test.js` 6 项（空间战术 + pace_three、light tick 也响应、压过己方双塔分支、无射手时 hunt_mismatch、无空间战术教练时 balanced + pace_three、正常对面不触发）；变异验证：撤掉引擎改动后 5 项红（阴性对照仍绿），恢复后全绿。
 **验收**：全量 1510 项中 1501 通过，9 项失败全是 online 文件缺 ws 包（本 VM 环境问题，与本次改动无关）；eslint 与浏览器 QA 本 VM 跑不了，Mac 待跑。
+
+## R137 · Code：M1 复核（与 Luna 撞车后的收尾，2026-11-04）
+**发生了什么**：我和 Luna 同时在做 M1。我写了认领但开工前**没有先 `git fetch` 看看板**（上次 fetch 在 B 系列推送之前），做完 M1a+M1b 推送时被拒（远端 4 个新提交，含她已推送的 `2ca71bd`）。11 个文件重叠，不合并、不强推：我的提交保存在分支 `backup/m1-code-puppy-r137`，本地 main 对齐远端。教训：长任务每个子步骤开工前先 fetch + 读看板；认领在**推送**之前不算认领。
+**复核结论（在 Mac 真实浏览器里首次执行 Luna 的 `home-play-now.mjs`）**：25 项里 24 通过，1 项失败——但红的是产品里已有的 B13 数据丢失 bug，不是她的 M1 代码；她的断言写对了。另外在稳定截图（等 `.screen.active` 淡入结束）里发现 B15/B16/B17。注意：第一次截图在淡入中拍，整页发灰，不能据此评判——用 `settled()` 之后重拍才有效。
+**我这边备份分支里她没有的东西**：hub 子入口的 `entry:{hub,buttons}` 声明 + 目录⇄DOM 双向对账测试、三个变异验证、金色 CTA（解决深绿横幅上近黑按钮 ≈1.5:1 的问题）、合并继续面板、首屏/单 primary 的 QA 断言。需要的话由她或我按 B15/B16 以小补丁方式挑回，不整体合并。
