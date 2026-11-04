@@ -2,6 +2,7 @@
  * Local multi-account binder: persistent season cards + coach + tactic.
  * Cards survive refresh/offline; ranked uses this roster as the core squad.
  */
+import { applyPlayerPrefs, mergePlayerPrefs } from "./playerPrefs.js";
 import { COACHES, TACTICS, isStarterCoach } from "./coaches.js";
 import { clonePlayer, overall, PLAYERS } from "./players.js";
 import { MERGE_ATTR_KEYS, SKILL_PACKS } from "./skills.js";
@@ -286,6 +287,7 @@ export function accountToTeam(account, teamName) {
     .sort((a, b) => overall(b) - overall(a))
     .slice(0, 12);
   if (!players.length) return null;
+  for (const p of players) applyPlayerPrefs(p, account.playerPrefs?.[p.id]);
   const coach = resolveCoach(account.coachId) || structuredClone(COACHES[0]);
   return {
     name: teamName || `${account.name} 班底`,
@@ -297,6 +299,15 @@ export function accountToTeam(account, teamName) {
     bracketId: "you",
     accountId: account.id,
   };
+}
+
+/** B2: remember the player's hand-set per-player tactics on the account (next game starts from them). */
+export function rememberPlayerPrefs(accountId, players) {
+  const acc = getAccount(accountId);
+  if (!acc) return false;
+  acc.playerPrefs = mergePlayerPrefs(acc.playerPrefs, players);
+  saveAccount(acc);
+  return true;
 }
 
 export function weightedPick(list, weightFn) {

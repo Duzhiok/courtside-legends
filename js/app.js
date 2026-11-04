@@ -9,6 +9,7 @@ import {
   listAccounts,
   recordRankedResult,
   resolveCoach,
+  rememberPlayerPrefs,
   resolvePlayers,
   ownedCoaches,
   rollCoachOffers,
@@ -6356,6 +6357,9 @@ $("#btn-setup-confirm").onclick = () => {
   // Persist as season default rotation so next game / hub board stay in sync
   if (state.season) {
     persistSeasonRotationFromTeam(you, you.starterIds);
+  } else if (state.career?.kind === "ranked") {
+    // B2: ranked has no season roster to write back to — the account remembers the hand-set bits
+    rememberPlayerPrefs(state.career.accountId, you.players);
   }
   // CPU side auto starters (skip injured) + spread positions
   const opp = youSide === "home" ? away : home;
