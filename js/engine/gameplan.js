@@ -21,7 +21,7 @@ export const LINEUP_PACK_DEFS = [
 
 export const FOCUS_PLAYS = [
   { id: "iso_star", name: "核心单打", desc: "球权集中给场上最高进攻点，持续数回合" },
-  { id: "post_up", name: "内线要球", desc: "偏好油漆区出手与内线持球" },
+  { id: "post_up", name: "连攻内线", desc: "连续数回合偏好油漆区出手与内线持球" },
   { id: "pace_three", name: "提速三分", desc: "提速并提高三分出手比重" },
   { id: "slow_pace", name: "拖慢节奏", desc: "咬死进攻时间、少仓促出手，拖慢比赛节奏" },
   { id: "hunt_mismatch", name: "清侧翼错位", desc: "攻打较弱对位，拉开单打" },

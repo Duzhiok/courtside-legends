@@ -5,6 +5,7 @@
 export const TACTICS = {
   balanced: {
     id: "balanced",
+    group: "offense",
     name: "均衡进攻",
     desc: "四平八稳，无明显偏科；适合阵容未定型时过渡。",
     nameEn: "Balanced Offense",
@@ -16,6 +17,7 @@ export const TACTICS = {
   },
   triangle: {
     id: "triangle",
+    group: "offense",
     name: "三角进攻",
     desc: "强调站位与传球角度；适合高球商巨星+内线轴心，节奏偏慢。",
     nameEn: "Triangle Offense",
@@ -28,6 +30,7 @@ export const TACTICS = {
   },
   smallball: {
     id: "smallball",
+    group: "spacing",
     name: "小球空间",
     desc: "拉空禁区、提速三分；射手多时收益大，内线堆叠会吃亏。",
     nameEn: "Small Ball",
@@ -40,6 +43,7 @@ export const TACTICS = {
   },
   iso_heavy: {
     id: "iso_heavy",
+    group: "offense",
     name: "单打为核心",
     desc: "球权集中给一到两位持球核；双大核容易打架，纯无球阵容吃亏。",
     nameEn: "Iso Heavy",
@@ -52,6 +56,7 @@ export const TACTICS = {
   },
   pack_paint: {
     id: "pack_paint",
+    group: "stance",
     name: "收缩篮下",
     desc: "全员收缩禁区：篮下更难打、更容易被帽；代价是分球后的外线大空位。对面没三分时纯赚，对面有射手群时会被惩罚。",
     nameEn: "Pack the Paint",
@@ -65,6 +70,7 @@ export const TACTICS = {
   },
   grind: {
     id: "grind",
+    group: "pace_defense",
     name: "铁血半场",
     desc: "降节奏、拼防守与篮板；消耗主力体力，适合硬实力硬桥硬马。",
     nameEn: "Grind It Out",
@@ -77,6 +83,7 @@ export const TACTICS = {
   },
   motion: {
     id: "motion",
+    group: "offense",
     name: "动态传导",
     desc: "多点持球与无球切入；需要组织点+连接者，适配度看传球网。",
     nameEn: "Motion Offense",
@@ -89,6 +96,7 @@ export const TACTICS = {
   },
   pace_space: {
     id: "pace_space",
+    group: "spacing",
     name: "魔球节奏",
     desc: "极致三分与转换；适合持球魔球核+射手群，防守端略冒险。",
     nameEn: "Moreyball Pace",
@@ -101,6 +109,7 @@ export const TACTICS = {
   },
   morale_boost: {
     id: "morale_boost",
+    group: "team_state",
     name: "鼓舞士气",
     desc: "立刻抬升士气与参与感；体系加成一般，关键时刻提气很有用。",
     nameEn: "Morale Boost",
@@ -114,6 +123,7 @@ export const TACTICS = {
   // —— 扩充：2K 风体系 ——
   horns: {
     id: "horns",
+    group: "offense",
     name: "牛角挡拆",
     desc: "高位双挡起步，内外联动；需要掩护质量与决策后卫。",
     nameEn: "Horns PnR",
@@ -126,6 +136,7 @@ export const TACTICS = {
   },
   princeton: {
     id: "princeton",
+    group: "offense",
     name: "普林斯顿",
     desc: "背切、反跑与弱侧时机；球商高、愿意无球跑动才吃香。",
     nameEn: "Princeton",
@@ -138,6 +149,7 @@ export const TACTICS = {
   },
   five_out: {
     id: "five_out",
+    group: "spacing",
     name: "五外拉开",
     desc: "五人站外线清空禁区；射手+持球突破收益高，传统中锋难受。",
     nameEn: "Five Out",
@@ -150,9 +162,10 @@ export const TACTICS = {
   },
   pnr_spam: {
     id: "pnr_spam",
-    name: "挡拆轰炸",
+    group: "offense",
+    name: "高频挡拆",
     desc: "回合堆挡拆选择；拖曳、短滚、外弹都要有人能完成。",
-    nameEn: "PnR Spam",
+    nameEn: "High-Frequency PnR",
     descEn: "Possessions stacked with pick-and-roll reads; drags, short rolls, and pops all need someone who can finish them.",
     offense: 1.07,
     defense: 0.98,
@@ -162,6 +175,7 @@ export const TACTICS = {
   },
   post_up: {
     id: "post_up",
+    group: "offense",
     name: "低位强打",
     desc: "球喂到低位背身；需要吨位与脚步，外线多为定点等待。",
     nameEn: "Post Up",
@@ -174,6 +188,7 @@ export const TACTICS = {
   },
   transition: {
     id: "transition",
+    group: "pace_transition",
     name: "转换突击",
     desc: "抢板或造失误后秒推；速度与体力决定上限。",
     nameEn: "Transition Attack",
@@ -186,10 +201,11 @@ export const TACTICS = {
   },
   switch_all: {
     id: "switch_all",
+    group: "defense",
     name: "无限换防",
-    desc: "挡拆直接换人；锋线机动性要够，否则被错位点名。",
+    desc: "防守整体加固；换防本身没有单独逻辑，实际效果是防守数值提升与阵容适配。",
     nameEn: "Switch Everything",
-    descEn: "Switch every screen; wings must be mobile enough or you get hunted on mismatches.",
+    descEn: "Blanket defensive bump plus lineup fit; no standalone switching logic is implemented — the gain is the defensive multiplier and fit.",
     offense: 0.99,
     defense: 1.1,
     pace: 1.0,
@@ -198,10 +214,11 @@ export const TACTICS = {
   },
   zone_drop: {
     id: "zone_drop",
+    group: "defense",
     name: "沉退联防",
-    desc: "护框优先、放中距离；适合护框大闸，怕优质中投与底角。",
+    desc: "防守整体加固、己方三分权重略升；描述中的放中距离、怕底角目前没有对应实现。",
     nameEn: "Drop Zone",
-    descEn: "Rim protection first, concede the mid-range; suits a rim-protecting anchor, fears quality mid-range and corner shooting.",
+    descEn: "Blanket defensive bump with a slight lift to your own three-point weight; the advertised mid-range concession and corner weakness are not actually implemented.",
     offense: 0.98,
     defense: 1.08,
     pace: 0.95,
@@ -210,6 +227,7 @@ export const TACTICS = {
   },
   corner: {
     id: "corner",
+    group: "offense",
     name: "底角体系",
     desc: "强侧突破吸引，弱侧底角惩罚；需要稳定定点射手。",
     nameEn: "Corner System",
@@ -222,6 +240,7 @@ export const TACTICS = {
   },
   freestyle: {
     id: "freestyle",
+    group: "team_state",
     name: "自由发挥",
     desc: "少叫战术多靠球员自主；放权型教练常用，纪律型阵容会散。",
     nameEn: "Freestyle",
@@ -235,6 +254,7 @@ export const TACTICS = {
   },
   twin_towers: {
     id: "twin_towers",
+    group: "offense",
     name: "双塔内线",
     desc: "两名大个子占禁区；篮板与护框拉满，空间压力大。",
     nameEn: "Twin Towers",
@@ -247,6 +267,7 @@ export const TACTICS = {
   },
   flex: {
     id: "flex",
+    group: "offense",
     name: "Flex 切入",
     desc: "侧翼掩护后切入接球；老派半场，考验时机与无球。",
     nameEn: "Flex Cut",
@@ -259,6 +280,7 @@ export const TACTICS = {
   },
   crash_boards: {
     id: "crash_boards",
+    group: "rebounding",
     name: "冲抢篮板",
     desc: "多人冲进攻篮板；二次机会增多，回防略慢。需要内线吨位与弹性。",
     nameEn: "Crash the Boards",
@@ -272,6 +294,7 @@ export const TACTICS = {
   },
   second_chance: {
     id: "second_chance",
+    group: "rebounding",
     name: "二次进攻",
     desc: "强调补篮与进攻篮板后的立刻终结；高大禁区收益最大。",
     nameEn: "Second-Chance Points",
@@ -286,6 +309,7 @@ export const TACTICS = {
   },
   paint_attack: {
     id: "paint_attack",
+    group: "offense",
     name: "内线进攻",
     desc: "优先杀筐与油漆区；外线比重下降，适合优质中锋/锋线终结点。",
     nameEn: "Paint Attack",
@@ -1107,6 +1131,23 @@ export function orderTacticsDefaultFirst(checked = [], defaultId = null) {
   }
   return list;
 }
+
+/** Tactic groups (B21): display grouping only, never read by the sim. Order is display order. */
+export const TACTIC_GROUPS = [
+  { id: "offense", name: "进攻体系", nameEn: "Offense Systems" },
+  { id: "spacing", name: "空间/三分", nameEn: "Spacing & Threes" },
+  { id: "stance", name: "防守姿态", nameEn: "Defensive Stance" },
+  { id: "defense", name: "防守", nameEn: "Defense" },
+  { id: "pace_defense", name: "节奏与防守", nameEn: "Pace & Defense" },
+  { id: "pace_transition", name: "节奏与转换", nameEn: "Pace & Transition" },
+  { id: "rebounding", name: "篮板策略", nameEn: "Rebounding" },
+  { id: "team_state", name: "团队状态", nameEn: "Team State" },
+];
+
+export const tacticGroupName = (groupId, lang = "zh") => {
+  const g = TACTIC_GROUPS.find((x) => x.id === groupId);
+  return g ? (lang === "en" ? g.nameEn : g.name) : "";
+};
 
 /** Language-aware display fields for coaches and tactics (defaults to zh). */
 export const tacticName = (t, lang = "zh") => (t ? (lang === "en" ? t.nameEn || t.name : t.name) : "");

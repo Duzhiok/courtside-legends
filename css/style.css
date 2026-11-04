@@ -1826,6 +1826,8 @@ select, input[type="number"] {
   cursor: not-allowed;
 }
 .tactic-checks label.tactic-locked input { cursor: not-allowed; }
+.tactic-checks .tactic-group-head { width: 100%; font-weight: 700; margin-top: 6px; }
+.tactic-checks .tactic-group-head:first-child { margin-top: 0; }
 .pos-select {
   font: inherit;
   font-size: .82rem;

@@ -74,6 +74,7 @@ import { createRunTracker } from "./ui/feedRuns.js";
 import {
   COACHES,
   TACTICS,
+  TACTIC_GROUPS,
   applyCoachPhilosophy,
   availableTactics,
   coachSpecialtyLabel,
@@ -83,6 +84,7 @@ import {
   coachNote,
   tacticName,
   tacticDesc,
+  tacticGroupName,
   asstName,
   coachTactics,
   orderTacticsDefaultFirst,
@@ -5817,21 +5819,34 @@ function renderPhilTactics(you) {
   const current = new Set(you.coach?.specialTactics || ["balanced"]);
   // Auto-check newly unlocked roster tactics so they're ready for tip-off
   for (const id of rosterIds) current.add(id);
-  box.innerHTML = Object.values(TACTICS)
-    .map((t) => {
-      const fromRoster = rosterIds.has(t.id);
-      const fromCoach = coachIds.has(t.id) || t.id === "balanced";
-      const unlocked = fromRoster || fromCoach;
-      const badge = fromRoster && !fromCoach ? (lang === "en" ? " · Roster" : " · 阵容") : fromCoach && fromRoster ? (lang === "en" ? " · Both" : " · 双解锁") : "";
-      const why = unlock.reasons[t.id] || tacticDesc(t, lang) || "";
-      const tdesc = tacticDesc(t, lang) || "";
-      return `<label class="${unlocked ? "" : "tactic-locked"}" title="${escAttr(
-        unlocked ? why : lang === "en" ? `${tdesc} (Needs: two playmakers / quality big / twin towers, or coach-owned)` : `${tdesc}（需：双组织 / 优质内线 / 双塔等阵容条件，或教练自带）`
-      )}"><input type="checkbox" value="${t.id}" ${unlocked ? "" : "disabled"} ${
-        current.has(t.id) && unlocked ? "checked" : ""
-      }/> ${tacticName(t, lang)}${badge}</label>`;
-    })
-    .join("");
+  const labelFor = (t) => {
+    const fromRoster = rosterIds.has(t.id);
+    const fromCoach = coachIds.has(t.id) || t.id === "balanced";
+    const unlocked = fromRoster || fromCoach;
+    const badge = fromRoster && !fromCoach ? (lang === "en" ? " · Roster" : " · 阵容") : fromCoach && fromRoster ? (lang === "en" ? " · Both" : " · 双解锁") : "";
+    const why = unlock.reasons[t.id] || tacticDesc(t, lang) || "";
+    const tdesc = tacticDesc(t, lang) || "";
+    return `<label class="${unlocked ? "" : "tactic-locked"}" title="${escAttr(
+      unlocked ? why : lang === "en" ? `${tdesc} (Needs: two playmakers / quality big / twin towers, or coach-owned)` : `${tdesc}（需：双组织 / 优质内线 / 双塔等阵容条件，或教练自带）`
+    )}"><input type="checkbox" value="${t.id}" ${unlocked ? "" : "disabled"} ${
+      current.has(t.id) && unlocked ? "checked" : ""
+    }/> ${tacticName(t, lang)}${badge}</label>`;
+  };
+  const byGroup = new Map();
+  for (const t of Object.values(TACTICS)) {
+    if (!byGroup.has(t.group)) byGroup.set(t.group, []);
+    byGroup.get(t.group).push(t);
+  }
+  const parts = [];
+  for (const g of TACTIC_GROUPS) {
+    const list = byGroup.get(g.id) || [];
+    if (!list.length) continue;
+    parts.push(`<div class="tiny tactic-group-head">${esc(tacticGroupName(g.id, lang))}</div>`);
+    parts.push(...list.map(labelFor));
+    byGroup.delete(g.id);
+  }
+  for (const list of byGroup.values()) parts.push(...list.map(labelFor));
+  box.innerHTML = parts.join("");
   const hint = $("#phil-tactics-hint");
   if (hint) {
     const bits = Object.values(unlock.reasons);
@@ -5848,15 +5863,27 @@ function fillTacticSelect(team, { preferId = null } = {}) {
   const court = team.onCourt?.length ? team.onCourt : team.players || [];
   const tactics = availableTactics(team.coach || { specialTactics: ["balanced"] }, court);
   const cur = preferId || sel.value || team.tactic?.id || "";
-  sel.innerHTML = tactics
-    .map((t) => {
-      const why = tacticUnlockHint(t.id, court);
-      const title = why ? `${t.desc || ""}（${why}）` : t.desc || "";
-      return `<option value="${t.id}" title="${escAttr(title)}">${t.name}${
-        why ? " ★" : ""
-      }</option>`;
-    })
-    .join("");
+  const optionFor = (t) => {
+    const why = tacticUnlockHint(t.id, court);
+    const title = why ? `${t.desc || ""}（${why}）` : t.desc || "";
+    return `<option value="${t.id}" title="${escAttr(title)}">${t.name}${
+      why ? " ★" : ""
+    }</option>`;
+  };
+  const grouped = new Map();
+  for (const t of tactics) {
+    if (!grouped.has(t.group)) grouped.set(t.group, []);
+    grouped.get(t.group).push(t);
+  }
+  const optParts = [];
+  for (const g of TACTIC_GROUPS) {
+    const list = grouped.get(g.id) || [];
+    if (!list.length) continue;
+    optParts.push(`<optgroup label="${escAttr(tacticGroupName(g.id, getLang()))}">${list.map(optionFor).join("")}</optgroup>`);
+    grouped.delete(g.id);
+  }
+  for (const list of grouped.values()) optParts.push(...list.map(optionFor));
+  sel.innerHTML = optParts.join("");
   if (cur && tactics.some((t) => t.id === cur)) sel.value = cur;
   else if (tactics[0]) sel.value = tactics[0].id;
   syncTacticHelp();
