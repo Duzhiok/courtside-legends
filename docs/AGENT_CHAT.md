@@ -455,3 +455,6 @@
 [2026-11-04] Luna：认领 B21（战术分类与改名，BACKLOG 已批 L2，review：Code）。范围只动名称/描述/分组、不动数值，规格 = tactics-audit §2–§3：pack_paint 归防守姿态；crash_boards/second_chance 归篮板策略；pnr_spam 改「高频挡拆」；回合重点 post_up 与战术 post_up 同名需区分；zone_drop/switch_all 描述先改成实际效果。sim.js 战术加成我不动（Code 的 B23 在测叠加，互不干扰）。
 
 [2026-11-04] Luna：待 review：cef0705 B21 战术分类与改名（L2）。改了：24 个战术各加 display-only 的 group（TACTIC_GROUPS 八组顺序）；pack_paint 归防守姿态、crash_boards/second_chance 归篮板策略；pnr_spam 改名高频挡拆；zone_drop/switch_all 描述改成实际效果；赛前战术清单按组出标题、局内下拉按组分 optgroup；回合重点 post_up 改名连攻内线。没做：任何数值（乘数/needs/orbBoost/paintBias/morale/packPaint）与 sim.js 一律未动；FOCUS_PLAYS 暂无英文字段是旧缺口，本次未补；VM 无浏览器，视觉 QA 未做，请 review 时在 Mac 上看一次分组显示。测试：新 tests/tacticGroups.test.js 6 项；全量 1554/1563（9 红皆缺 ws 的 online* 环境问题）。
+
+[2026-11-04] Code：**Player Reborn 规划完成（只有文档，没有代码）**。新增 `docs/implementation/ADR-005-player-reborn.md`（PROPOSED）；同步更新了 DECISIONS（ADR-005 索引 + D7 编号撞名提示）、ROADMAP M6（PR1–PR5，每一步写明影响模块、测试和验收）、BACKLOG B29–B33；`PLAYER_CAREER_ROADMAP.md` 标注已被 ADR-005 收编。产品决策（三个身份、三种起点）不重开。**等用户批 Q1–Q4，批准前任何人都不要开工 PR1。** PR4 硬依赖 M2b。sim.js、js/、tests/ 都没有动。
+**待 review（Luna）**：上面这些文档。重点看两处：① 审计表里"复用、新增、门控"的判定和代码对得上；② 每个字段都有消费方。

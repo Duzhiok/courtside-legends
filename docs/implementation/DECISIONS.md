@@ -13,6 +13,7 @@
 |---|---|
 | 2026-11-03 | 初版：从 `2.0-plan.md` §2.2（G1-G11）、§7（D1-D7）、M1/M2 节内联的 ADR-001/ADR-002 提取整理；新增 ADR-003（拆分 M2）。所有条目当前均为 PROPOSED 或既有事实，尚无一条经你本人就 2.0 路线图逐条拍板确认——见下表"待你确认"列。 |
 | 2026-11-04 | 产品负责人逐条审批：ADR-001/003、D1/D3/D4/D5/D6 APPROVED；ADR-002 APPROVED WITH MODIFICATIONS；ADR-004 APPROVED IN PRINCIPLE（迁移契约 M4 前另审）；D2 CONFIRMED；D7 REVISED（历史穿越为必做能力）。Master Spec 冻结为 v1.0 产品基线，新想法进 Backlog。详见文末"五、2026-11-04 审批记录"。 |
+| 2026-11-04 | 新增 ADR-005（Player Reborn 实现方案与里程碑，PROPOSED），全文在 `ADR-005-player-reborn.md`。不重开 D7 的产品决策。 |
 
 ---
 
@@ -49,6 +50,14 @@
 - **状态**：✅ APPROVED IN PRINCIPLE（2026-11-04）。详细迁移契约仍 OPEN，M4 开工前必须评审。
 - **背景事实**：`BASELINE_AUDIT.md` §4.1——`validateRoot` 对 `schemaVersion` 高于或低于当前 `ROOT_SAVE_VERSION`（3）**直接拒读**，没有逐版本迁移函数；`migrateLegacySaves` 只处理 v1 legacy key 向 v3 的搬运，不是通用迁移链。
 - **需要在 M4 开工前明确的问题**：升到 v4 时，v3 存档是直接判"旧版本不支持"（会报废老玩家存档，违反 Master Spec 的"不破坏旧存档"底线），还是写一个 v3→v4 的迁移函数（给新字段填缺省值）？本文档默认建议后者，但具体迁移函数设计留到 M4 门控打开后再细化。
+
+### ADR-005：Player Reborn（穿越·球员）实现方案与里程碑
+
+- **状态**：🟡 PROPOSED（等审批；批准前不写实现代码）
+- **全文**：`docs/implementation/ADR-005-player-reborn.md`
+- **要点**：首个切片 = 1996 → 随机命运 → 替补 → 训练 → 争取上场时间 → 关键回合接管 → 职业结算（PR1–PR5）；新代码放 `js/reborn/`，教练和 GM 流程不改；历史源数据只读，改动存在可选字段 `root.reborn` 里；接管只走 M2b 的决策接口，PR4 门控是 M2b 完成；没有消费方的字段不加。
+- **待批**：Q1（用 v3 可选字段，不升 v4）、Q2（起点边界 = 季前）、Q3（Player MVP 放在 M3 之后、M4 之前）、Q4（随机命运 70% 历史 / 30% 虚构）。
+- **编号提示**：本文 D7 指的是"穿越三种身份"；`CAREER_LIFE_ROADMAP.md` 里也有一个 D7（新秀成长跟随真实轨迹），两者无关。引用时请写成"DECISIONS D7"或"教练路线图 D7"。
 
 ---
 

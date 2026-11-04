@@ -244,7 +244,17 @@
 ### M5–M7 — P1 Unified Reborn：教练 / 球员 / GM 统一入口（门控：M4 完成）
 
 - **M5 穿越统一入口**：年代/角色（随机/球员/教练/GM）/难度选择入口；教练角色直接接现有 `timeTravelCareer.js`（教练线 A-C 已完成，可直接复用，`BASELINE_AUDIT.md` §4.3）；球员/GM 显示"即将开放"。旧 `timeTravel` 存档必须原样可读。
-- **M6 穿越·球员 1996 替补切片**：教练按信任给分钟、球员视角赛后卡、被裁不等于生涯结束；复用 M2b 建立的 `ClutchController`/决策原语（球员生涯"关键时刻选择"和绝杀挑战是同一个原语，不重复建）。
+- **M6 穿越·球员 1996 替补切片**：方案见 `docs/implementation/ADR-005-player-reborn.md`（🟡 PROPOSED，批准前不写代码）。复用 M2b 建立的 `ClutchController`/决策原语（球员生涯"关键时刻选择"和绝杀挑战是同一个原语，不重复建）。拆成 5 步，每步一个提交，都要过 review：
+
+  | 步 | 内容 | 影响模块 | 测试 | 验收 |
+  |---|---|---|---|---|
+  | PR1 | 身份与开局：种子 → 历史替补或虚构训练营球员；1996–97 季前 | 新 `js/reborn/identity.js`；`saveRoot.js` 增加可选 `root.reborn` 与 `validateReborn` | 同种子同身份；候选池只含 season=1997、场均 <12 分钟且 ≥10 场；接管的真实球员不会在 CPU 名单里重复出现；`roster.json` 深比较不变；v3 旧存档往返不变 | 身份揭示卡可以显示；刷新后身份不变 |
+  | PR2 | 以球员身份打赛季：信任 → 轮换角色 → `targetMinutes`；比赛全托管；赛后卡只看你自己那一行 | 新 `js/reborn/trust.js`、`js/reborn/season.js`；`careerPostGameView.js` 加单人视图（不改现有三类行） | 信任与角色映射用纯函数单测；上场时间对比角色用固定夹具测，不对随机比赛下断言；`sim.js` 零改动 | 表现好会多打、表现差会少打，原因写在卡面上 |
+  | PR3 | 训练：每周选重点 → 写入成长计划的 `focus`，复用 `awardGrowth` 和上限函数 | 新 `js/reborn/training.js`；复用 `calendar.js`、`playerGrowth.js` | 训练不能突破上限函数；不新增属性加成通道；变异测试（撤掉 focus 写入要变红） | 训练效果能在卡面看到来源 |
+  | PR4 | 关键回合接管：第四节或加时最后 2:00、分差 ≤5、你在场且持球 → 2–3 个选项 | 只经 M2b 的决策接口；新 `js/ui/reborn/takeover.js` | 用 M2b 的可注入 RNG 做固定种子测试；选项要真的改变出手人和出手类型（探针 `scripts/research/clutch-choice-probe.mjs` 前后对比）；不显示未校准的胜率 | **门控：M2b 完成**。接管时 UI 不改写比分和统计 |
+  | PR5 | 赛季末职业结算：续约 / 底薪 / 被裁 → 试训或自由球员 → 下一季，时间线连续 | 新 `js/reborn/contract.js`；时间线事件写入 `root.reborn.timeline` | 被裁仍能继续玩（不是 Game Over）；存档读档后时间线和身份一致；原始数据不变 | 能连续打完 2 个赛季 |
+
+  切片之外（历史穿越选择器、原创穿越建档、RANDOM_ROLE、Player → Coach 转换）见 ADR-005 §7，只登记、不排期。
 - **M7 穿越·GM + 历史分支**：GM 权限边界（球员不能交易、教练不能单方面交易）；球探/未来选秀系统（并入现有 `CAREER_LIFE_ROADMAP.md` 的 D1-D7）；时间线事件日志（行动者/年份/前后状态/因果引用，`rebornSave` 统一存档契约在此落地）。
 - **门控细节、七要素**：各自开门时在本节展开。
 
