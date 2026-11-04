@@ -955,6 +955,15 @@ function refreshSaveHomeBar() {
     bar.hidden = true;
     return;
   }
+  // M1: root v3 is the Continue source of truth — never show two Continue
+  // panels at once. When a long career exists, its bar owns "continue" and
+  // this legacy bar stays hidden. Legacy-only saves still show this bar:
+  // it is their only continue path (legacy→root auto-migration runs on the
+  // discovery flow, a dedicated migration button is a separate decision).
+  if (readRootSave()?.leagueCareer) {
+    bar.hidden = true;
+    return;
+  }
   bar.hidden = false;
   if (meta) meta.textContent = formatSaveLabel(peek, getLang());
   if (btnCont) btnCont.disabled = false;
@@ -1184,6 +1193,57 @@ function continueFromSave() {
 document.querySelectorAll(".mode-card[data-mode]").forEach((btn) => {
   btn.addEventListener("click", () => startMode(btn.dataset.mode));
 });
+
+/**
+ * M1 Play Now: the hero CTA. Same preset exhibition as the `quick` card
+ * (autoFillTeam ×2), but it skips the setup confirmation screen and goes
+ * straight into the game. The setup path stays reachable from the custom
+ * and sandbox cards. Defaults mirror what the setup-confirm handler would
+ * produce with no user input: top-5-available starters with unique
+ * positions, default orders/packs, and a neutral gameplan.
+ */
+function startPlayNow() {
+  const home = autoFillTeam("主队传奇", 10);
+  const away = autoFillTeam("客队传奇", 10);
+  if (home?.players) syncTeamDuoSkills(home.players);
+  if (away?.players) syncTeamDuoSkills(away.players);
+  ensureTeamStaff(home, {
+    preferStarter: true,
+    excludeIds: [away?.coach?.id, away?.assistant?.id],
+  });
+  ensureTeamStaff(away, {
+    preferStarter: true,
+    excludeIds: [home?.coach?.id, home?.assistant?.id],
+  });
+  for (const team of [home, away]) {
+    const pool = team.players.filter(isPlayerAvailable);
+    const starters = [...(pool.length ? pool : team.players)]
+      .sort((a, b) => overall(b) - overall(a))
+      .slice(0, 5);
+    autoAssignUniquePositions(starters);
+    ensureRoles(team.players);
+    team.starterIds = starters.map((p) => p.id);
+    for (const p of starters) p.playPos = normalizePos(p.playPos || p.pos);
+    ensurePlayerOrders(team.players);
+    team.lineupPacks = team.lineupPacks || autoBuildAllPacks(team.players);
+    team.gameplan = team.gameplan || {
+      matchup: null,
+      matchupAssignments: {},
+      offenseFocusId: null,
+      tempo: "normal",
+    };
+  }
+  state.mode = "quick";
+  state.lastMode = "quick";
+  state.career = null;
+  state.tournament = null;
+  state.legend = null;
+  state.seasonPendingGame = null;
+  state.pendingMatch = { home, away, youSide: "home" };
+  beginGame(home, away, "home");
+}
+
+$("#btn-play-now")?.addEventListener("click", startPlayNow);
 
 function startMode(mode) {
   if (!mode) return;

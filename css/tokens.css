@@ -1,0 +1,43 @@
+/* ==========================================================
+   Design tokens — single source of truth (M1).
+   Moved here from css/style.css and css/home.css so the palette,
+   spacing and radius scales live in exactly one place. New UI must
+   use these variables instead of hardcoding hex values.
+   Palette note: deep arena green + warm gold (#f6c870) follows the
+   Master Spec §4.1 brand direction. BACKLOG B10 (deep navy + gold
+   vs. existing deep green) is still awaiting a product decision —
+   if it flips, only the values below change, not the structure.
+   ========================================================== */
+
+:root {
+  /* Base palette (was css/style.css :root) */
+  --ink: #0f1c14;
+  --paper: #f3efe4;
+  --court: #1a3a2a;
+  --wood: #c9a66b;
+  --accent: #e85d04;
+  --line: #d9d2c3;
+  --good: #2a9d8f;
+  --warn: #e9c46a;
+  --bad: #c1121f;
+  --muted: #6b7280;
+  --shadow: 0 18px 40px rgba(15, 28, 20, 0.18);
+  --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
+  --font-body: "Noto Sans SC", "Segoe UI", sans-serif;
+
+  /* Arena palette (was css/home.css :root) */
+  --arena-1: #07130d;
+  --arena-2: #123522;
+  --arena-3: #1d4a31;
+  --gold: #f6c870;
+  --gold-soft: rgba(246, 200, 112, .22);
+
+  /* Spacing + radius scale (new in M1; existing screens migrate gradually) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+}

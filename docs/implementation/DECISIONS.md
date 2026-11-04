@@ -25,6 +25,7 @@
 - **依据**：`BASELINE_AUDIT.md` §1.1/§1.2——目录缺 `legend`/`sandbox`/`duel`/`family-duel` 四项，且 `homeTabs.js` 现有分组与目录本身的分组**不一致**（例如 `players` 组在 homeTabs 里只有 `ranked`，但目录里没有这个分组概念），两套事实来源已经在漂移。
 - **影响范围**：M1（P0A）。
 - **替代方案考虑过的**：保留 `homeTabs.js` 独立维护，只是手动同步两处。否决理由：历史已经证明"手动同步两处"会漂移（现状就是证据），不是假设性风险。
+- **实施（M1，2026-11-03）**：目录补齐至 13 项（新增 legend/sandbox/duel/familyDuel；每模式带 `homeTab`/`exploreGroup`），`homeTabs.js` 改为从目录派生，Play Now 主 CTA 一键直进比赛，Continue 面板以 root v3 为准（有 root 生涯时隐藏 legacy 条），设计 token 收敛到 `css/tokens.css`。B10 色板决策（海军蓝 vs 深绿）仍待产品拍板，当前值沿用深绿 + 金色（spec §4.1），届时只改 token 一处。
 
 ### ADR-002：玩家决策 vs 终场脚本的优先级规则
 

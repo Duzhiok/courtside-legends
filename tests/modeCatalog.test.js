@@ -18,9 +18,65 @@ test("quick-play variants are declared without removing the original modes", () 
   const custom = modeById("custom");
   assert.ok(custom);
   const variants = variantsOf("custom");
-  assert.deepEqual(variants.map((mode) => mode.id).sort(), ["draft", "quick"]);
+  assert.deepEqual(variants.map((mode) => mode.id).sort(), [
+    "draft",
+    "duel",
+    "familyDuel",
+    "legend",
+    "quick",
+  ]);
   for (const variant of variants) {
     assert.equal(modeById(variant.id)?.id, variant.id);
+  }
+});
+
+test("M1: catalog covers every playable mode, including the custom-hub entries", () => {
+  assert.deepEqual(
+    allModes()
+      .map((mode) => mode.id)
+      .sort(),
+    [
+      "career",
+      "custom",
+      "draft",
+      "duel",
+      "familyDuel",
+      "franchise",
+      "legend",
+      "quick",
+      "ranked",
+      "sandbox",
+      "season",
+      "timeTravel",
+      "tournament",
+    ].sort(),
+  );
+  // sandbox has its own home card and screen — a regular mode, not a variant.
+  assert.equal(modeById("sandbox")?.variantOf, undefined);
+  // The hub entries are variants of custom, not standalone home cards.
+  for (const id of ["legend", "duel", "familyDuel"]) {
+    assert.equal(modeById(id)?.variantOf, "custom");
+    assert.equal(modeById(id)?.homeTab, undefined);
+  }
+  // quick was promoted: same id, new name (M1 renames the demo card).
+  assert.equal(modeById("quick")?.title, "快速开打");
+});
+
+test("M1: every mode declares a spec §3 explore group; panel modes declare a home tab", () => {
+  for (const mode of allModes()) {
+    assert.ok(mode.exploreGroup, `${mode.id} is missing exploreGroup`);
+    assert.ok(
+      ["挑战与竞技", "经理生涯", "自由创造", "朋友一起玩"].includes(mode.exploreGroup),
+      `${mode.id} has an unknown exploreGroup: ${mode.exploreGroup}`,
+    );
+  }
+  const panelModes = allModes().filter((mode) => mode.homeTab);
+  assert.ok(panelModes.length >= 10, "most modes should render on a home tab");
+  for (const mode of panelModes) {
+    assert.ok(
+      ["players", "career", "custom"].includes(mode.homeTab),
+      `${mode.id} has an unknown homeTab: ${mode.homeTab}`,
+    );
   }
 });
 

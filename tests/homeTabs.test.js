@@ -1,10 +1,19 @@
 /**
- * Regression for T1 (home page 3-category reorg: 我的球员 / 职业经理 / 自定义).
+ * M1 (ADR-001): home tabs derive from the mode catalog — no second table.
  *
- * The category -> mode mapping lives in js/ui/homeTabs.js as plain data specifically so it can be
- * checked against index.html's actual markup, instead of only trusting two files stay in sync by
- * eye. Mirrors the regex-over-raw-HTML technique already used by tests/homeShowcase.test.js (no
- * DOM/jsdom dependency in this project).
+ * The category -> mode mapping used to live here as hardcoded data, which is
+ * exactly how it drifted from the catalog (it listed `sandbox` before the
+ * catalog knew it). Now js/ui/homeTabs.js derives membership from each
+ * mode's `homeTab` field, so these tests check derivation against
+ * index.html's actual markup instead of re-asserting a hardcoded list.
+ * Mirrors the regex-over-raw-HTML technique already used by
+ * tests/homeShowcase.test.js (no DOM/jsdom dependency in this project).
+ *
+ * Hub entries (legend / duel / familyDuel) deliberately carry NO
+ * data-mode: their buttons already have id-based handlers, and the
+ * generic `.mode-card[data-mode]` click wiring in app.js would
+ * double-dispatch (and misroute familyDuel through startMode's draft
+ * fallback). Their DOM presence is asserted via button id instead.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -15,8 +24,10 @@ import {
   categoryForMode,
   allKnownModes,
 } from "../js/ui/homeTabs.js";
+import { allModes, modeById, validateCatalog } from "../js/data/modeCatalog.js";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const appSource = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
 
 function allModeCardModes(source) {
   return [...source.matchAll(/class="mode-card[^"]*"\s+data-mode="([^"]+)"/g)].map((m) => m[1]);
@@ -33,54 +44,117 @@ function categoryPanelHtml(categoryId) {
   return rest.slice(0, end >= 0 ? end : undefined);
 }
 
-test("there are exactly 3 categories and a valid default", () => {
-  assert.equal(HOME_CATEGORIES.length, 3);
+/** Custom-hub entry points for modes that have no home-panel card. */
+const HUB_ENTRIES = {
+  legend: ['id="btn-custom-legend"'],
+  duel: ['id="btn-custom-duel"'],
+  familyDuel: ['id="btn-custom-father-son"', 'id="btn-custom-brothers"'],
+};
+
+test("tabs in index.html are exactly the derived categories, and the default is valid", () => {
+  const tabIds = [...html.matchAll(/class="home-tab"\s+data-category="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(
-    HOME_CATEGORIES.map((c) => c.id),
-    ["players", "career", "custom"],
+    [...HOME_CATEGORIES.map((c) => c.id)].sort(),
+    [...tabIds].sort(),
+    "homeTabs categories must match the tab buttons actually rendered",
   );
   assert.ok(HOME_CATEGORIES.some((c) => c.id === DEFAULT_HOME_CATEGORY));
 });
 
-test("every mode-card button in index.html belongs to EXACTLY one category (no orphans, no duplicates)", () => {
-  const modesInHtml = allModeCardModes(html);
-  assert.ok(modesInHtml.length >= 10, "sanity: the home page should still have a double-digit number of mode cards");
-  for (const mode of modesInHtml) {
-    const category = categoryForMode(mode);
-    assert.ok(category, `data-mode="${mode}" in index.html is not assigned to any home category`);
+test("every panel card's mode is in the catalog, and panel membership equals the catalog's homeTab", () => {
+  assert.equal(validateCatalog(), true);
+  for (const category of HOME_CATEGORIES) {
+    const modesInPanel = allModeCardModes(categoryPanelHtml(category.id));
+    assert.deepEqual(
+      [...modesInPanel].sort(),
+      [...category.modes].sort(),
+      `panel "${category.id}" must render exactly the modes the catalog assigns to it`,
+    );
+    for (const mode of modesInPanel) {
+      assert.equal(
+        modeById(mode)?.homeTab,
+        category.id,
+        `data-mode="${mode}" sits in the "${category.id}" panel but the catalog assigns it elsewhere`,
+      );
+    }
   }
   const known = allKnownModes();
   const duplicates = known.filter((m, i) => known.indexOf(m) !== i);
   assert.deepEqual(duplicates, [], "a mode must not be claimed by two categories at once");
 });
 
-test("every mode HOME_CATEGORIES claims for a category actually renders inside that category's panel", () => {
-  for (const category of HOME_CATEGORIES) {
-    const panelHtml = categoryPanelHtml(category.id);
-    const modesInPanel = allModeCardModes(panelHtml);
-    for (const mode of category.modes) {
+test("every catalog mode has a DOM entry: a home-panel card or a custom-hub button", () => {
+  for (const mode of allModes()) {
+    if (mode.homeTab) {
       assert.ok(
-        modesInPanel.includes(mode),
-        `js/ui/homeTabs.js says "${mode}" is in the "${category.id}" tab, but index.html's ${category.id} panel doesn't contain that button`,
+        allModeCardModes(categoryPanelHtml(mode.homeTab)).includes(mode.id),
+        `catalog mode "${mode.id}" claims homeTab "${mode.homeTab}" but has no card in that panel`,
+      );
+    } else {
+      const buttons = HUB_ENTRIES[mode.id];
+      assert.ok(buttons, `catalog mode "${mode.id}" has neither a homeTab nor a known hub entry`);
+      assert.ok(
+        buttons.some((id) => html.includes(id)),
+        `catalog mode "${mode.id}" has no custom-hub button in index.html`,
       );
     }
   }
 });
 
-test("categoryForMode: known modes resolve, unknown modes don't", () => {
+test("in-panel group labels match each card's catalog exploreGroup, in DOM order", () => {
+  for (const category of HOME_CATEGORIES) {
+    const panelHtml = categoryPanelHtml(category.id);
+    let currentLabel = null;
+    const tokens = panelHtml.matchAll(
+      /class="mode-group-label">([^<]+)<\/div>|data-mode="([^"]+)"/g,
+    );
+    for (const token of tokens) {
+      if (token[1] !== undefined) {
+        currentLabel = token[1];
+      } else {
+        const mode = token[2];
+        assert.ok(currentLabel, `card "${mode}" in panel "${category.id}" appears before any group label`);
+        assert.equal(
+          modeById(mode)?.exploreGroup,
+          currentLabel,
+          `card "${mode}" sits under "${currentLabel}" but the catalog assigns it to "${modeById(mode)?.exploreGroup}"`,
+        );
+      }
+    }
+  }
+});
+
+test("categoryForMode: panel modes resolve, hub modes and unknown modes don't", () => {
   assert.equal(categoryForMode("ranked"), "players");
   assert.equal(categoryForMode("timeTravel"), "career");
   assert.equal(categoryForMode("sandbox"), "custom");
+  assert.equal(categoryForMode("legend"), null);
+  assert.equal(categoryForMode("duel"), null);
+  assert.equal(categoryForMode("familyDuel"), null);
   assert.equal(categoryForMode("not-a-real-mode"), null);
   assert.equal(categoryForMode(undefined), null);
 });
 
-test("index.html has a tab button for each category, wired to the right data-category", () => {
-  for (const category of HOME_CATEGORIES) {
-    assert.match(
-      html,
-      new RegExp(`class="home-tab"\\s+data-category="${category.id}"`),
-      `missing a .home-tab button for "${category.id}"`,
-    );
-  }
+test("M1: exactly one dominant Play Now CTA, wired to a one-click handler that skips setup", () => {
+  const heroes = [...html.matchAll(/class="[^"]*hero-cta[^"]*"\s+id="btn-play-now"/g)];
+  assert.equal(heroes.length, 1, "the home page must have exactly one hero CTA");
+  assert.ok(html.includes('id="btn-play-now"'), "hero button must exist");
+  // The hero is NOT a .mode-card[data-mode]: the generic wiring would route
+  // it through startMode("quick") into the setup screen, defeating one-click.
+  const heroTag = html.match(/<button[^>]*id="btn-play-now"[^>]*>/)?.[0] || "";
+  assert.ok(heroTag && !heroTag.includes("mode-card"), "hero must not be a mode-card");
+  assert.ok(!heroTag.includes("data-mode"), "hero must not carry data-mode");
+  const wiring = appSource.indexOf('$("#btn-play-now")');
+  assert.ok(wiring >= 0, "app.js must wire #btn-play-now");
+  const fnStart = appSource.indexOf("function startPlayNow()");
+  assert.ok(fnStart >= 0, "app.js must define startPlayNow");
+  const fnBody = appSource.slice(fnStart, wiring);
+  assert.match(fnBody, /autoFillTeam\(/, "startPlayNow must auto-fill both teams");
+  assert.match(fnBody, /beginGame\(/, "startPlayNow must go straight into the game");
+  assert.ok(!/openSetup\(/.test(fnBody), "startPlayNow must not show the setup screen");
+});
+
+test("M1: the quick card was renamed, and the old demo name is gone", () => {
+  assert.ok(html.includes("快速开打"), "the quick card and hero must read 快速开打");
+  assert.ok(!html.includes("快速演示"), "the old 快速演示 name must not remain");
 });

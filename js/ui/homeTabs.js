@@ -1,34 +1,42 @@
 /**
- * Home screen's 3-category reorg (T1): "我的球员 / 职业经理 / 自定义" tabs.
+ * Home screen's 3-category reorg (T1), derived from the mode catalog (M1 / ADR-001).
  *
  * NBA 2K / FIFA Ultimate Team pattern: a persistent-collection home base (MyTeam), a long-season
  * management mode (MyLeague/Career Mode), and a low-stakes anything-goes bucket (Kick Off/Squad
- * Battles). The category→mode mapping lives here as plain data so it can be verified against
- * index.html's actual data-mode buttons in a test, instead of only trusting the HTML by eye.
+ * Battles). Which mode sits in which tab is NOT declared here: js/data/modeCatalog.js is the
+ * single source of truth, and each mode's `homeTab` field decides its panel. This file only owns
+ * tab chrome (labels, hints, the default tab) and the DOM glue. Modes without a `homeTab`
+ * (legend / duel / familyDuel) are entered from the custom hub, never from a home panel, so
+ * categoryForMode() correctly returns null for them — the old hardcoded table used to claim a
+ * different set than the catalog (it listed `sandbox` before the catalog knew it).
  */
 
-export const HOME_CATEGORIES = [
+import { allModes } from "../data/modeCatalog.js";
+
+const TAB_META = [
   {
     id: "players",
     label: "我的球员",
     hint: "你的永久班底：抽卡、养成、排位",
-    // Collection/draw/skill-shop already live in the account bar above the tabs, not as mode
-    // cards -- ranked is the only mode card that plays with your persistent account roster.
-    modes: ["ranked"],
   },
   {
     id: "career",
     label: "职业经理",
     hint: "长线经营：选秀、发展、完整赛季与联盟历史",
-    modes: ["timeTravel", "franchise", "season"],
   },
   {
     id: "custom",
     label: "自定义",
     hint: "天马行空：挑战之路 + 任意球员任意年份的自由对战",
-    modes: ["career", "custom", "tournament", "draft", "sandbox", "quick"],
   },
 ];
+
+export const HOME_CATEGORIES = TAB_META.map((tab) => ({
+  ...tab,
+  modes: allModes()
+    .filter((mode) => mode.homeTab === tab.id)
+    .map((mode) => mode.id),
+}));
 
 export const DEFAULT_HOME_CATEGORY = "career";
 

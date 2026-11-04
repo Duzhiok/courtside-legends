@@ -3,13 +3,7 @@
    Scoped to #screen-home / .topbar so other screens are untouched.
    ========================================================== */
 
-:root {
-  --arena-1: #07130d;
-  --arena-2: #123522;
-  --arena-3: #1d4a31;
-  --gold: #f6c870;
-  --gold-soft: rgba(246, 200, 112, .22);
-}
+/* Design tokens live in css/tokens.css (M1) — do not re-declare :root here. */
 
 /* —— Top bar —— */
 .topbar {
@@ -339,4 +333,22 @@ html[lang="en"] .topbar .brand-name { display: none; }
   .mode-card-photo img,
   #screen-home .mode-card { transition: none; }
   .legend-tile { transform: none; }
+}
+
+/* —— M1: Play Now hero CTA — the single dominant home CTA (spec §3) —— */
+#screen-home .play-now-hero {
+  text-align: center;
+  margin: var(--space-md) 0 var(--space-sm);
+}
+#screen-home .hero-cta {
+  font-size: 1.25rem;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--gold);
+  color: var(--arena-1);
+  border: none;
+  box-shadow: var(--shadow);
+}
+#screen-home .play-now-hero .tiny {
+  margin-top: var(--space-xs);
 }
