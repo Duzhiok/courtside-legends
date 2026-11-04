@@ -426,22 +426,40 @@ for (const version of [1, 2]) {
   });
 }
 
-test("valid legacy live game is migrated when no valid season exists", () => {
-  const legacySession = { v: 1, quarter: 3, score: [81, 78] };
-  const invalidSeason = { v: 3, phase: "unsupported" };
+test("the mid-game autosave (cls_savegame_v1) is not a legacy save: migration never moves or deletes it", () => {
+  // Regression (B13): with no root save yet, the autosave used to be swallowed into the unread
+  // root.liveGame.legacySession and its key deleted -- the home "continue" bar vanished after one reload.
+  const session = JSON.stringify({ v: 1, savedAt: 1, screen: "draft", label: "选秀", app: {}, sim: null, feed: [] });
+  const storage = createMemoryStorage({ [LEGACY_GAME_KEY]: session });
+
+  assert.equal(migrateLegacySaves(storage), null);
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), session, "the autosave is left exactly as it was");
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), null, "and no root save is conjured out of it");
+});
+
+test("a legacy season is still migrated, and the autosave next to it survives", () => {
+  const session = JSON.stringify({ v: 1, savedAt: 1, screen: "game", label: "比赛", app: {}, sim: {}, feed: [] });
   const storage = createMemoryStorage({
-    [LEGACY_SEASON_KEY]: JSON.stringify(invalidSeason),
-    [LEGACY_GAME_KEY]: JSON.stringify(legacySession),
+    [LEGACY_SEASON_KEY]: JSON.stringify(validSeason()),
+    [LEGACY_GAME_KEY]: session,
   });
 
   const migrated = migrateLegacySaves(storage);
 
-  assert.equal(migrated.source, LEGACY_GAME_KEY);
-  assert.deepEqual(migrated.root.liveGame.legacySession, legacySession);
-  // The migrated key is dropped. The OTHER legacy key wasn't usable (invalid season), so it's
-  // left alone rather than silently discarding data migrateLegacySaves() never looked at again.
-  assert.equal(storage.getItem(LEGACY_GAME_KEY), null);
-  assert.equal(storage.getItem(LEGACY_SEASON_KEY), JSON.stringify(invalidSeason));
+  assert.equal(migrated.source, LEGACY_SEASON_KEY);
+  assert.equal(storage.getItem(LEGACY_SEASON_KEY), null, "the migrated season copy is dropped");
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), session, "the in-progress game is not");
+  assert.equal(migrated.root.liveGame?.legacySession, undefined);
+});
+
+test("an unusable legacy season leaves both keys alone, autosave included", () => {
+  const invalidSeason = JSON.stringify({ v: 3, phase: "unsupported" });
+  const session = JSON.stringify({ v: 1, savedAt: 1, screen: "game", label: "比赛", app: {}, sim: {}, feed: [] });
+  const storage = createMemoryStorage({ [LEGACY_SEASON_KEY]: invalidSeason, [LEGACY_GAME_KEY]: session });
+
+  assert.equal(migrateLegacySaves(storage), null);
+  assert.equal(storage.getItem(LEGACY_SEASON_KEY), invalidSeason);
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), session);
 });
 
 test("orphaned legacy keys from a pre-fix build are cleaned up once cls_root_v3 already exists", () => {
@@ -457,12 +475,13 @@ test("orphaned legacy keys from a pre-fix build are cleaned up once cls_root_v3 
   assert.equal(migrated.source, ROOT_SAVE_KEY);
   assert.deepEqual(migrated.root, root);
   assert.equal(storage.getItem(LEGACY_SEASON_KEY), null);
-  assert.equal(storage.getItem(LEGACY_GAME_KEY), null);
+  // The autosave is live data, not an orphan: it must survive a boot that finds a root save.
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), JSON.stringify({ v: 1, quarter: 1, score: [0, 0] }));
   // The thing that actually matters -- the current root save -- is untouched.
   assert.deepEqual(readRootSave(storage), root);
 });
 
-test("purgeOrphanedLegacySaves removes both legacy keys and reports bytes freed", () => {
+test("purgeOrphanedLegacySaves removes only the legacy season and reports bytes freed", () => {
   const seasonJson = JSON.stringify(validSeason());
   const gameJson = JSON.stringify({ v: 1, quarter: 2, score: [10, 8] });
   const storage = createMemoryStorage({
@@ -473,9 +492,9 @@ test("purgeOrphanedLegacySaves removes both legacy keys and reports bytes freed"
 
   const freed = purgeOrphanedLegacySaves(storage);
 
-  assert.equal(freed, seasonJson.length + gameJson.length);
+  assert.equal(freed, seasonJson.length, "the autosave's bytes are not counted: it is not freed");
   assert.equal(storage.getItem(LEGACY_SEASON_KEY), null);
-  assert.equal(storage.getItem(LEGACY_GAME_KEY), null);
+  assert.equal(storage.getItem(LEGACY_GAME_KEY), gameJson);
   assert.equal(storage.getItem(ROOT_SAVE_KEY), "untouched");
 });
 

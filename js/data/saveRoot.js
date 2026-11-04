@@ -8,7 +8,11 @@ export const ROOT_SAVE_KEY = "cls_root_v3";
 export const ROOT_SAVE_VERSION = 3;
 
 const TEMP_ROOT_SAVE_KEY = "cls_root_v3_tmp";
-const LEGACY_GAME_KEY = "cls_savegame_v1";
+// NOTE: "cls_savegame_v1" (js/data/savegame.js) is deliberately NOT a legacy key here. It is the live
+// mid-session autosave (match / draft / tournament / career market) that the home "continue" bar reads
+// directly. An earlier version of this module treated it as legacy: with no root save yet it moved the
+// session into root.liveGame.legacySession -- which nothing reads -- and deleted the key, so the player's
+// in-progress game vanished on the next reload. Never migrate, purge or otherwise touch it from here.
 const LEGACY_SEASON_KEY = "cls_season_v1";
 const EXPORT_FORMAT = "courtside-legends-save";
 
@@ -498,9 +502,10 @@ export function writeRootSave(root, storage) {
 }
 
 /**
- * writeRootSave, and if the browser refuses it, free the orphaned legacy saves (an old build could leave
- * cls_season_v1 / cls_savegame_v1 behind after migrating -- they cost nothing to drop and may buy back
- * exactly the room needed) and try once more. Only a StorageWriteError triggers the cleanup; a save the
+ * writeRootSave, and if the browser refuses it, free the orphaned legacy season save (an old build could leave
+ * cls_season_v1 behind after migrating -- it costs nothing to drop and may buy back exactly the room needed)
+ * and try once more. The mid-game autosave is never sacrificed for this: a full storage that only the
+ * autosave can free fails honestly instead of silently deleting the game the player is in the middle of. Only a StorageWriteError triggers the cleanup; a save the
  * game can't validate is rethrown untouched, so a schema bug can't cost the player their old saves.
  * Nothing freed means nothing to retry: the original error comes back.
  */
@@ -540,7 +545,7 @@ export function clearRootSave(storage) {
 export function purgeOrphanedLegacySaves(storage) {
   const target = getStorage(storage);
   let freed = 0;
-  for (const key of [LEGACY_SEASON_KEY, LEGACY_GAME_KEY]) {
+  for (const key of [LEGACY_SEASON_KEY]) {
     const value = target.getItem(key);
     if (value !== null) {
       freed += value.length; // UTF-16 code units, good enough as a "was this worth it" signal
@@ -626,17 +631,6 @@ export function migrateLegacySaves(storage) {
     // origin's storage footprint on every future save.
     target.removeItem(LEGACY_SEASON_KEY);
     return { root, source: LEGACY_SEASON_KEY };
-  }
-
-  const legacySession = parseLegacy(target, LEGACY_GAME_KEY, [1]);
-  if (legacySession) {
-    const root = createRootState({
-      liveGame: { legacySession },
-    });
-    validateRoot(root);
-    writeRootSave(root, target);
-    target.removeItem(LEGACY_GAME_KEY);
-    return { root, source: LEGACY_GAME_KEY };
   }
 
   return null;

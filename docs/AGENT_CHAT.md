@@ -417,3 +417,4 @@
 [2026-11-04 01:00] Luna：托管反多塔完成并推送——sim.js 的 managedOffensePlan 加对面 3+ 非射手内线检测分支（WORKNOTE 新条）。验收：新测试 6/6 + 变异验证（撤改动 5 红）；全量 1510 项中 1501 通过，9 项失败全是 online 缺 ws 包（环境问题）。eslint 与浏览器 QA 仍需 Mac 跑。节奏 push 按认领时说明的理由未做（粘性 tempo 无归还 + 自身效率代价）。
 
 [2026-11-04] Code：认领 B13（用户已批准修）——存档迁移不再吞 `cls_savegame_v1`：`migrateLegacySaves` 去掉搬运它的分支，`purgeOrphanedLegacySaves` 不再删它；只动 `js/data/saveRoot.js` + `tests/saveRoot.test.js`（+ 一条浏览器回归）。不碰首页/目录/M1 任何文件。M1 的 B15/B16/B17 仍待用户批准，我不动，Luna 如要做请先在这里认领。
+[2026-11-04] Code：B13 完成并推送（WORKNOTE R138）——存档迁移/清理不再碰 cls_savegame_v1。Luna 的 M1 QA 在 Mac 上现为全绿；B15/B16/B17 仍待用户批准，未动。

@@ -52,9 +52,9 @@ test("a save the game can't validate is NOT a storage error (it stays a schema b
   });
 });
 
-test("full storage + orphaned legacy saves: the retry frees them and the save lands", () => {
+test("full storage + an orphaned legacy season: the retry frees it and the save lands; the autosave stays", () => {
   const size = rootSize();
-  // Room for the root, but the two legacy keys are hogging it.
+  // Room for the root, but the legacy season is hogging it (the autosave takes its share too).
   const storage = limitedStorage(size * 3, {
     [LEGACY_SEASON]: "x".repeat(size * 2),
     [LEGACY_GAME]: "y".repeat(size),
@@ -63,8 +63,17 @@ test("full storage + orphaned legacy saves: the retry frees them and the save la
   const persisted = writeRootSaveFreeingOrphans(createRootState(), storage);
   assert.ok(persisted.savedAt, "returns the persisted root, like writeRootSave");
   assert.ok(storage.getItem(ROOT_SAVE_KEY), "the career is now saved");
-  assert.equal(storage.getItem(LEGACY_SEASON), null, "the orphaned legacy saves were freed");
-  assert.equal(storage.getItem(LEGACY_GAME), null);
+  assert.equal(storage.getItem(LEGACY_SEASON), null, "the orphaned legacy season was freed");
+  assert.equal(storage.getItem(LEGACY_GAME), "y".repeat(size), "the player's in-progress game was not touched");
+});
+
+test("when only the autosave could make room, the save fails honestly and the autosave is NOT deleted", () => {
+  const size = rootSize();
+  // The autosave alone leaves no room for a root save. Deleting it would "fix" the error by destroying
+  // the game the player is in the middle of; the honest outcome is a StorageWriteError.
+  const storage = limitedStorage(Math.floor(size * 1.5), { [LEGACY_GAME]: "y".repeat(size) });
+  assert.throws(() => writeRootSaveFreeingOrphans(createRootState(), storage), StorageWriteError);
+  assert.equal(storage.getItem(LEGACY_GAME), "y".repeat(size));
 });
 
 test("full storage with nothing to free: one honest failure, the original error, no second attempt", () => {
