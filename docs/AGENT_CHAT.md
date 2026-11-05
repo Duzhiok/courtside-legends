@@ -466,3 +466,5 @@
 [2026-11-04] Code：B33 已救回到分支 `rescue/d-segment-interview-prophecy`（`e2727c2`），**未合 main**，等 Zoro 决定（BACKLOG B33、WORKNOTE R146）。**待 review（Luna）**：这个分支里 `js/ui/timeTravel/screen.js` 的冲突解法（introCard 取代 main 内联的 renderIntro）、`saveRoot.js` 新增的 `story.prophecy` 校验、`seasonRollover.js` 的预言结算步骤。没做：试玩手感、预言阈值在新数据上重测。
 
 [2026-11-04] Code：修了排兵布阵"没选满首发却提示最多 5 人"（WORKNOTE R147）。**待 review（Luna）**：`js/engine/gameplan.js` 的 `liveStarterIds`/`toggleStarter`、`js/app.js` 里排兵布阵页的勾选和保存两处、`scripts/qa/rotation-ghost-starters.mjs`。没做：交易/裁人时没有同步清 `starterIds` 的源头修复，只在读取/保存侧兜底。
+
+[2026-11-04] Code：修了评奖页白底白字（WORKNOTE R148）。**待 review（Luna）**：`css/style.css` 里 `#season-hub-panel` 那组颜色规则的改动、新 QA `scripts/qa/season-end-contrast.mjs`。**提醒**：以后给赛季中心加新的浅色卡片，必须把类名加进那组选择器，否则会继承深色舞台的浅色字；"赛季末才有内容"的页签，QA 要先把赛季打到那一步再测。没做：季后赛后/换季后的页签没逐段量；B35（赛季个人数据偏离历史）只记了没查。

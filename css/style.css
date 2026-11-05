@@ -2817,10 +2817,14 @@ select, input[type="number"] {
    Each light card sets its own ink (and its own muted ink for .tiny); text on the dark stage keeps the light
    one, and .tiny there gets a light muted grey instead of the page's #6b7280 (3.3:1 on this background).
    .sm-proposals is only an 8% translucent tint, so it is still dark: not listed. */
-#season-hub-panel :is(.sm-cap-card, .sm-staff, .sm-trade, .sm-row, .rot-row, .development-plan-row, .career-history-card, .roster-evaluation-card) { color: var(--ink); }
+#season-hub-panel :is(.sm-cap-card, .sm-staff, .sm-trade, .sm-row, .rot-row, .development-plan-row, .career-history-card, .roster-evaluation-card, .season-award-card) { color: var(--ink); }
 #season-hub-panel .tiny { color: #a9bbb2; }
-#season-hub-panel :is(.sm-cap-card, .sm-staff, .sm-trade, .sm-row, .rot-row, .development-plan-row, .career-history-card, .roster-evaluation-card) .tiny { color: #4b5563; }
+#season-hub-panel :is(.sm-cap-card, .sm-staff, .sm-trade, .sm-row, .rot-row, .development-plan-row, .career-history-card, .roster-evaluation-card, .season-award-card) .tiny { color: #4b5563; }
 #season-hub-panel .season-table tbody tr.you td { background: rgba(42, 157, 143, .28); }
+/* A ghost button has no fill and dark ink: fine on a light card, invisible (1.03:1) on the dark stage. In the
+   hub's tables (schedule "box score") it sits on the stage, so it gets light ink and a light outline. */
+#season-hub-panel .season-table .btn.ghost { color: #e6ece8; border-color: rgba(255, 255, 255, .34); }
+#season-hub-panel .season-table .btn.ghost:hover { background: rgba(255, 255, 255, .10); }
 #season-hub-panel .season-table td.team { display: flex; align-items: center; gap: 8px; }
 #season-hub-panel .stand-dot { width: 10px; height: 10px; border-width: 1px; }
 .season-awards {
