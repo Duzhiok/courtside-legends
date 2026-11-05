@@ -32,7 +32,10 @@ const pregame = (page) => page.evaluate(() => {
 const goalSection = (page) => page.evaluate(() => {
   const box = document.querySelector("#result-rewards");
   const rows = [...box.querySelectorAll(".pg-goal")];
-  const note = box.querySelector(".pg-goals")?.closest(".pg-card, div")?.querySelector(".pg-note")?.textContent || "";
+  // The goals note is the element right after the goal list. (A closest-ancestor search picked up the
+  // trade-market buzz note whenever a hot player was on the card.)
+  const next = box.querySelector(".pg-goals")?.nextElementSibling;
+  const note = next?.classList.contains("pg-note") ? next.textContent : "";
   return {
     present: rows.length > 0 || /本段目标|Goals of the stretch/.test(box.textContent),
     rows: rows.map((row) => ({ done: row.classList.contains("pg-goal-done"), text: row.textContent.replace(/\s+/g, " ").trim() })),

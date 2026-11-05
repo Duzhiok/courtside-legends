@@ -271,7 +271,7 @@ import {
 } from "./data/historicalSeasons.js";
 import { summarizeMatchResult } from "./engine/matchExplain.js";
 import { foldBatch, settleGame } from "./career/gameRewards.js";
-import { goalsForNextGame, settleGameGoals } from "./career/gameGoals.js";
+import { goalsForNextGame, liveGoalProgress, settleGameGoals } from "./career/gameGoals.js";
 import { awardGrowth } from "./career/playerGrowth.js";
 import { awardEpiphany } from "./career/seasonEpiphany.js";
 import { settleBuzz } from "./career/buzz.js";
@@ -279,6 +279,7 @@ import { awardCoachXp, developmentXpMultiplier, tacticsShotBonus } from "./caree
 import { ensureCoachProfile } from "./career/coachProfile.js";
 import { teamRosterStrength } from "./career/seasonGoals.js";
 import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
+import { liveGoalsHtml } from "./ui/liveGoals.js";
 import { pregameCardHtml } from "./ui/pregameCard.js";
 import {
   advanceCareerOffseason,
@@ -5308,6 +5309,12 @@ function openSetup(home, away, youSide) {
     backBtn.textContent = isCareer || isDuel ? "返回市场" : "返回";
     backBtn.title = isCareer || isDuel ? "回到转会市场继续买人/装技能" : "返回首页";
   }
+  const setupGoals = $("#setup-goals");
+  if (setupGoals) {
+    const goals = activeSeasonGoals();
+    setupGoals.innerHTML = goals.length ? pregameCardHtml({ goals, lang: getLang() }) : "";
+    setupGoals.hidden = !goals.length;
+  }
   const scout = $("#scout-board");
   if (scout) {
     if (state.career?.kind === "career") renderScoutBoard(scout);
@@ -6507,6 +6514,12 @@ function beginGame(homeTeam, awayTeam, youSide) {
   // The game screen is shared by every mode; only the Play Now path re-shows its one-time tip.
   const playNowTip = $("#play-now-tip");
   if (playNowTip) playNowTip.hidden = true;
+  const goalsBox = $("#live-goals");
+  if (goalsBox) {
+    goalsBox.hidden = true;
+    goalsBox.innerHTML = "";
+  }
+  liveGoalsShown = "";
   state.lineupSig = "";
   state.subOutId = null;
   state.subInId = null;
@@ -6697,6 +6710,33 @@ function paintScore(snap) {
   $("#quarter").textContent = snap.quarter > 4 ? "OT" : `Q${snap.quarter}`;
   $("#game-clock").textContent = fmtClock(snap.clock);
   $("#poss-label").textContent = snap.possession === "home" ? L("主队进攻", "Home on offense") : L("客队进攻", "Away on offense");
+  // Every path that shows the score (tick, first paint, restore, after a timeout) also moves the goals.
+  paintLiveGoals(snap);
+}
+
+/**
+ * C6: the goals of the season game being played (regular or playoff), or [] when this game isn't one.
+ * They are the ones the hub promised and the result will judge: `goalsForNextGame` keeps them on the season.
+ * Both pending slots are cleared when the game is settled, so a stray tick afterwards can't draw the next game's.
+ */
+function activeSeasonGoals() {
+  const st = state.season;
+  if (!st || !isManagedCareer(state.leagueCareer)) return [];
+  if (!state.seasonPendingGame && !state.seasonPendingPlayoffGame) return [];
+  return goalsForNextGame(st, st.teams[st.userTeamId]?.players || []);
+}
+
+let liveGoalsShown = "";
+/** The "本场目标" strip under the scoreboard. Only touches the DOM when its text actually changed. */
+function paintLiveGoals(snap) {
+  const box = $("#live-goals");
+  if (!box) return;
+  const goals = activeSeasonGoals();
+  const html = goals.length ? liveGoalsHtml({ progress: liveGoalProgress(snap, goals), lang: getLang() }) : "";
+  if (html === liveGoalsShown) return;
+  liveGoalsShown = html;
+  box.innerHTML = html;
+  box.hidden = !html;
 }
 
 function hotClass(hot) {

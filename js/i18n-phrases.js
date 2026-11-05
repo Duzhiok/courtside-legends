@@ -77,6 +77,7 @@ export const PHRASES = [
   // M2a first-game tip on the game screen
   ["你指挥主队。比赛会自己打下去；想换人、改战术就点「叫暂停」，不想管就打开右侧的托管开关。", "You coach the home team. The game plays itself; call a Timeout to sub or change tactics, or switch on autopilot on the right and just watch."],
   ["知道了", "Got it"],
+  ["本场目标", "Goals for this game"],
   ["系统自动组两队，先进赛前设置再开打", "The system builds both teams — you get the setup screen before tip-off"],
   ["设计要点 · 玩法说明", "Design Notes · How It Plays"],
   ["球员带赛季年份：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。头像是带署名的照片；没有照片的球员显示按队色生成的剪影（见页尾「图片来源与署名」）。", "Players carry their season year: Celtics-era Shaq still has the bulk, not the wheels. Avatars are credited photos; players without one get a silhouette in team colours (see Photo Credits at the bottom)."],

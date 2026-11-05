@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="css/learned.css?v=20261101l1" />
   <link rel="stylesheet" href="css/rotation.css?v=5" />
   <link rel="stylesheet" href="css/onboarding.css?v=1" />
+  <link rel="stylesheet" href="css/liveGoals.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -440,6 +441,7 @@
           <div id="setup-roster" class="setup-roster"></div>
         </div>
         <div class="roster-box scout-box" id="setup-scout-wrap">
+          <div class="setup-goals" id="setup-goals" hidden></div>
           <h3>对手一眼看</h3>
           <p class="tiny" id="scout-round-label">—</p>
           <div id="scout-board" class="scout-board"></div>
@@ -625,6 +627,9 @@
         <p>你指挥主队。比赛会自己打下去；想换人、改战术就点「叫暂停」，不想管就打开右侧的托管开关。</p>
         <button type="button" class="btn ghost" id="btn-play-now-tip-ok">知道了</button>
       </div>
+
+      <!-- C6: this game's goals with live progress (managed-career season/playoff games only) -->
+      <section class="live-goals" id="live-goals" aria-live="off" aria-label="本场目标" hidden></section>
 
       <div class="court-wrap">
         <div class="court-column">
@@ -1181,6 +1186,6 @@
       }, 15000);
     })();
   </script>
-  <script type="module" src="js/app.js?v=20261103m1"></script>
+  <script type="module" src="js/app.js?v=20261104m2"></script>
 </body>
 </html>

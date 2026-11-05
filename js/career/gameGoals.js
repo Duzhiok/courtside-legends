@@ -14,6 +14,7 @@
  * and `st.gameSeq`.
  */
 import { hashSeed, seededStream, shuffle } from "../core/seededRandom.js";
+import { settleGame } from "./gameRewards.js";
 import { resolvedAge } from "../modes/playerDevelopment.js";
 import {
   GAME_GOALS_PER_GAME,
@@ -37,39 +38,56 @@ const most = (lines, key) => Math.max(0, ...(lines || []).map((line) => Number(l
  * One entry per kind of goal. `draw(ctx, rng)` returns the goal's own numbers, or null when the
  * roster can't carry it (no young player). `met(report, goal)` reads a `settleGame` report.
  * `text` is [zh, en]; the stored goal keeps ids and numbers only, so the language can change.
+ * `cur(report, goal)` is the number the goal is measured by right now, and `kind` says how it is judged:
+ * "atLeast" (reached and it stays reached), "atMost" (a budget: once over, it is lost for good) or
+ * "lead" (can come and go until the final buzzer). The live panel reads these; `met` stays the verdict.
  */
 const DEFS = {
   margin: {
+    kind: "lead",
+    cur: (report) => report.margin,
     draw: () => ({ n: GOAL_MARGIN }),
     met: (report, goal) => report.won && report.margin >= goal.n,
     text: (goal) => [`赢下 ${goal.n} 分以上`, `Win by ${goal.n}+`],
   },
   assists: {
+    kind: "atLeast",
+    cur: (report) => sum(report.lines, "ast"),
     draw: () => ({ n: GOAL_ASSISTS }),
     met: (report, goal) => sum(report.lines, "ast") >= goal.n,
     text: (goal) => [`全队 ${goal.n} 次助攻`, `${goal.n} team assists`],
   },
   steals: {
+    kind: "atLeast",
+    cur: (report) => sum(report.lines, "stl"),
     draw: () => ({ n: GOAL_STEALS }),
     met: (report, goal) => sum(report.lines, "stl") >= goal.n,
     text: (goal) => [`全队 ${goal.n} 次抢断`, `${goal.n} team steals`],
   },
   careful: {
+    kind: "atMost",
+    cur: (report) => sum(report.lines, "tov"),
     draw: () => ({ n: GOAL_MAX_TURNOVERS }),
     met: (report, goal) => sum(report.lines, "tov") <= goal.n,
     text: (goal) => [`失误不超过 ${goal.n} 次`, `No more than ${goal.n} turnovers`],
   },
   balance: {
+    kind: "atLeast",
+    cur: (report) => (report.lines || []).filter((line) => line.pts >= GOAL_DOUBLE_FIGURE_POINTS).length,
     draw: () => ({ n: GOAL_DOUBLE_FIGURE_SCORERS }),
     met: (report, goal) => (report.lines || []).filter((line) => line.pts >= GOAL_DOUBLE_FIGURE_POINTS).length >= goal.n,
     text: (goal) => [`${goal.n} 人得分上双`, `${goal.n} players in double figures`],
   },
   star: {
+    kind: "atLeast",
+    cur: (report) => most(report.lines, "pts"),
     draw: () => ({ n: GOAL_STAR_POINTS }),
     met: (report, goal) => most(report.lines, "pts") >= goal.n,
     text: (goal) => [`有人砍下 ${goal.n}+ 分`, `Someone scores ${goal.n}+`],
   },
   rookie: {
+    kind: "atLeast",
+    cur: (report, goal) => Math.floor((report.lines || []).find((line) => line.id === goal.playerId)?.min || 0),
     draw({ players }, rng) {
       const young = players.filter((player) => resolvedAge(player) <= GOAL_ROOKIE_MAX_AGE);
       if (!young.length) return null;
@@ -86,6 +104,29 @@ const DEFS = {
 export function goalText(goal, lang = "zh") {
   const def = DEFS[goal?.id];
   return def ? def.text(goal)[lang === "en" ? 1 : 0] : "";
+}
+
+/**
+ * Where one goal stands in a game that may still be going. `status`: "done" (reached, locked in),
+ * "failed" (a budget already blown), "ahead" (a lead that is big enough right now but can still slip)
+ * or "open". Read from the same `met` as the final verdict, so the panel and the result card never disagree.
+ */
+export function goalProgress(report, goal) {
+  const def = DEFS[goal?.id];
+  if (!def || !report) return null;
+  const cur = def.cur(report, goal);
+  const met = Boolean(def.met(report, goal));
+  let status = "open";
+  if (def.kind === "atMost") status = cur > goal.n ? "failed" : "open";
+  else if (met) status = def.kind === "lead" ? "ahead" : "done";
+  return { goal, id: goal.id, kind: def.kind, cur, target: goal.n, status };
+}
+
+/** Progress of every goal against a live game snapshot (empty when it isn't a game snapshot). */
+export function liveGoalProgress(snap, goals) {
+  const report = settleGame(snap, snap?.youSide);
+  if (!report) return [];
+  return (goals || []).map((goal) => goalProgress(report, goal)).filter(Boolean);
 }
 
 /** A stored goal must be one we know with sane numbers: a save is not trusted. */

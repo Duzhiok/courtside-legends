@@ -68,14 +68,16 @@ export async function playLive(page, state) {
 /**
  * From a live #screen-game: autopilot on, max speed, then run the (already installed) fake clock until
  * the result screen shows. True when it ended. Callers must page.clock.install() BEFORE the game starts.
+ * `onStep` runs after every `stepMs` (default 30s) of game clock, so a caller can sample the page while the game is going.
  */
-export async function fastForwardToResult(page) {
+export async function fastForwardToResult(page, { onStep, stepMs = 30_000 } = {}) {
   for (const sel of ["#btn-auto-offense", "#btn-auto-defense"]) await page.click(sel);
   for (let i = 0; i < 2; i++) await page.click("#btn-speed");
   await page.click("#btn-pause-sim");
   const resultUp = () => page.evaluate(() => document.querySelector("#screen-result")?.classList.contains("active"));
-  for (let i = 0; i < 60 && !(await resultUp()); i++) {
-    await page.clock.runFor(30_000);
+  for (let i = 0; i < Math.ceil(1_800_000 / stepMs) && !(await resultUp()); i++) {
+    await page.clock.runFor(stepMs);
+    if (onStep && !(await resultUp())) await onStep(i);
     const stopped = await page.evaluate(() => {
       const btn = document.querySelector("#btn-pause-sim");
       return btn && !btn.hidden && btn.textContent.trim() === "继续模拟"; // Chinese UI only: call this before switching language
