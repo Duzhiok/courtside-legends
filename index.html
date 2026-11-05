@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/careerPostGame.css?v=4" />
   <link rel="stylesheet" href="css/learned.css?v=20261101l1" />
   <link rel="stylesheet" href="css/rotation.css?v=5" />
+  <link rel="stylesheet" href="css/onboarding.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -617,6 +618,12 @@
           <span id="game-team-b">客队</span>
           <strong id="score-b">0</strong>
         </div>
+      </div>
+
+      <!-- M2a: one-time first-game tip for the Play Now path; dismissed once, never shown again -->
+      <div class="first-run-tip" id="play-now-tip" role="note" hidden>
+        <p>你指挥主队。比赛会自己打下去；想换人、改战术就点「叫暂停」，不想管就打开右侧的托管开关。</p>
+        <button type="button" class="btn ghost" id="btn-play-now-tip-ok">知道了</button>
       </div>
 
       <div class="court-wrap">

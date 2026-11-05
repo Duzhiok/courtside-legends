@@ -62,6 +62,14 @@ export async function playLive(page, state) {
   if (!state.clockInstalled) { await page.clock.install(); state.clockInstalled = true; }
   await page.click("#btn-setup-confirm");
   await page.waitForSelector("#screen-game.active", { timeout: 10000 });
+  return fastForwardToResult(page);
+}
+
+/**
+ * From a live #screen-game: autopilot on, max speed, then run the (already installed) fake clock until
+ * the result screen shows. True when it ended. Callers must page.clock.install() BEFORE the game starts.
+ */
+export async function fastForwardToResult(page) {
   for (const sel of ["#btn-auto-offense", "#btn-auto-defense"]) await page.click(sel);
   for (let i = 0; i < 2; i++) await page.click("#btn-speed");
   await page.click("#btn-pause-sim");

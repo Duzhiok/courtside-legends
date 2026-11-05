@@ -1,6 +1,6 @@
 # ADR-005：Player Reborn（穿越·球员）实现方案与里程碑
 
-- **状态**：🟡 PROPOSED（等产品负责人审批；**本文只是规划，批准前不写实现代码**，见 `AI_EFFICIENCY_POLICY.md` 规则 10）
+- **状态**：✅ APPROVED（Q1–Q4 按 §9 默认值批准）。按 Q3，PR1 在 M3 闸门批准后开工；PR4 门控于 M2b。开工前仍按政策规则 10 提交 PR1 的一页实现设计
 - **不重开的产品决策**：Master Spec v1.0 §9 和 `DECISIONS.md` D7（已修订并批准）。Reborn 是统一穿越模式，包含 **Player / Coach / GM** 三个身份；Player 身份有三种起点：**历史穿越**（Historical）、**原创穿越**（Original）、**随机命运**（Random Destiny）。本文只回答"怎么做、先做哪一块"。
 - **在路线图里的位置**：对应 `ROADMAP.md` 的 M6。依赖和门控见 §6。
 

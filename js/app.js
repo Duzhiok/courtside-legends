@@ -328,6 +328,7 @@ import {
   freshFamilySide,
 } from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
+import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
   SEASON_APRON,
   SEASON_MAX_ROSTER,
@@ -1237,19 +1238,32 @@ function startPlayNow() {
     };
   }
   state.mode = "quick";
-  state.lastMode = "quick";
+  // M2a: "playNow" (not "quick") so 再来一局 / continue-from-save come straight back here,
+  // instead of detouring through the quick card's setup screen.
+  state.lastMode = "playNow";
   state.career = null;
   state.tournament = null;
   state.legend = null;
   state.seasonPendingGame = null;
   state.pendingMatch = { home, away, youSide: "home" };
   beginGame(home, away, "home");
+  const tip = $("#play-now-tip");
+  if (tip) tip.hidden = !shouldShowTip(globalThis.localStorage, PLAY_NOW_TIP_KEY);
 }
 
 $("#btn-play-now")?.addEventListener("click", startPlayNow);
+$("#btn-play-now-tip-ok")?.addEventListener("click", () => {
+  markTipSeen(globalThis.localStorage, PLAY_NOW_TIP_KEY);
+  const tip = $("#play-now-tip");
+  if (tip) tip.hidden = true;
+});
 
 function startMode(mode) {
   if (!mode) return;
+  if (mode === "playNow") {
+    startPlayNow();
+    return;
+  }
   if (mode === "timeTravel") {
     state.mode = mode;
     state.lastMode = mode;
@@ -6490,6 +6504,9 @@ $("#btn-setup-confirm").onclick = () => {
 function beginGame(homeTeam, awayTeam, youSide) {
   if (state.sim) state.sim.stop();
   show("game");
+  // The game screen is shared by every mode; only the Play Now path re-shows its one-time tip.
+  const playNowTip = $("#play-now-tip");
+  if (playNowTip) playNowTip.hidden = true;
   state.lineupSig = "";
   state.subOutId = null;
   state.subInId = null;

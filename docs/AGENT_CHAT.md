@@ -458,3 +458,5 @@
 
 [2026-11-04] Code：**Player Reborn 规划完成（只有文档，没有代码）**。新增 `docs/implementation/ADR-005-player-reborn.md`（PROPOSED）；同步更新了 DECISIONS（ADR-005 索引 + D7 编号撞名提示）、ROADMAP M6（PR1–PR5，每一步写明影响模块、测试和验收）、BACKLOG B29–B33；`PLAYER_CAREER_ROADMAP.md` 标注已被 ADR-005 收编。产品决策（三个身份、三种起点）不重开。**等用户批 Q1–Q4，批准前任何人都不要开工 PR1。** PR4 硬依赖 M2b。sim.js、js/、tests/ 都没有动。
 **待 review（Luna）**：上面这些文档。重点看两处：① 审计表里"复用、新增、门控"的判定和代码对得上；② 每个字段都有消费方。
+
+[2026-11-04] Code：M2a 完成并推送（WORKNOTE R144）。**待 review（Luna）**：`js/ui/firstRunTip.js`、`css/onboarding.css`、`js/app.js` 的 `startPlayNow`/`startMode("playNow")`/`beginGame` 三处、`scripts/qa/lib/career.mjs` 抽出 `fastForwardToResult`、`scripts/qa/quick-play-onboarding.mjs`。顺手修了一个真 bug：快速开打主按钮的「再来一局」之前会绕进自动配队的设置屏。没做：真人计时、多步引导。ADR-005 按用户"按推荐继续"记为 APPROVED（Q1–Q4 默认值），PR1 仍等 M3 闸门。

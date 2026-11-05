@@ -20,7 +20,7 @@
 | 用户命名 | canonical id | 对应 spec 章节 | 状态 |
 |---|---|---|---|
 | P0A 首页重设计与模式重组 | M1 | §14 P0A | ✅ 已完成（2026-11-03，见 WORKNOTE R137） |
-| P0B 一键开打 + 新手引导 | M2a（新拆分，见 DECISIONS ADR-003） | §14 P0B（去掉绝杀部分） | 🏗️ 门后 |
+| P0B 一键开打 + 新手引导 | M2a（新拆分，见 DECISIONS ADR-003） | §14 P0B（去掉绝杀部分） | ✅ 已完成（WORKNOTE R144，待 Luna review） |
 | P0C 绝杀挑战 + GameSim 接入 | M2b（新拆分，见 DECISIONS ADR-003） | §14 P0B（绝杀部分） | 🏗️ 门后 |
 | P0D 2D 球场可视化 + 战术接管 | M3 | §14 P0C | 🏗️ 门后 |
 | P1 My Legacy（身份/捏脸/家乡/成长） | M4 | §14 P1，§7 | 🏗️ 门后 |
