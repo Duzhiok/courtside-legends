@@ -244,6 +244,10 @@ html[lang="en"] .topbar .brand-name { display: none; }
   :last-child,
   :has(+ :is(.mode-group-label, .mode-card-feature))
 ) { grid-column: 1 / -1; }
+/* Two featured cards in a row sit side by side (a 1200px bar with one line of text is mostly empty space);
+   a featured card on its own still takes the full row. */
+#screen-home .mode-card-feature:has(+ .mode-card-feature):not(.mode-card-feature + .mode-card-feature),
+#screen-home .mode-card-feature + .mode-card-feature:not(:has(+ .mode-card-feature)) { grid-column: auto; }
 @media (max-width: 640px) {
   #screen-home .mode-grid { grid-template-columns: minmax(0, 1fr); }
 }
