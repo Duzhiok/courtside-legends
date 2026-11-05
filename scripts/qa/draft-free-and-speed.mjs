@@ -56,6 +56,8 @@ for (const [width, height, size] of [[1280, 800, "desktop"], [390, 844, "mobile"
   const cardMetas = await page.$$eval("#pack-cards .player-card .meta", (n) => n.map((e) => e.textContent));
   check(`${tag} the pack shows player cards (not vacuous)`, cardMetas.length >= 2, `${cardMetas.length} metas`);
   check(`${tag} no player card carries a ¤ price`, cardMetas.every((t) => !t.includes("¤")), cardMetas.filter((t) => t.includes("¤")).slice(0, 2).join(" | "));
+  const salaryLines = await page.$$eval("#pack-cards .player-card", (n) => n.filter((e) => /估年薪|Est\. salary/.test(e.textContent)).length);
+  check(`${tag} no card carries an "est. salary" line (Draft Team has no salaries)`, salaryLines === 0, `${salaryLines} cards`);
   check(`${tag} no "买不起" chip on any card`, (await page.$$eval("#pack-cards .chip.warn", (n) => n.filter((e) => e.textContent.includes("买不起")).length)) === 0);
   const label = await page.$eval("#draft-money-label", (e) => e.textContent.replace(/\s+/g, " ").trim());
   check(`${tag} the gold line says picks are free and what the gold is for`, /选人免费/.test(label) && /刷新/.test(label), label);
@@ -132,6 +134,8 @@ for (const [width, height, size] of [[1280, 800, "desktop"], [390, 844, "mobile"
   await openDraft(page, "#btn-custom-duel");
   // the first .meta line carries the price; the second (.tiny) is the salary estimate
   const metas = await page.$$eval("#pack-cards .player-card .meta:not(.tiny)", (n) => n.map((e) => e.textContent));
+  const duelSalary = await page.$$eval("#pack-cards .player-card .meta.tiny", (n) => n.filter((e) => /估年薪/.test(e.textContent)).length);
+  check("[duel] the salary estimate is still shown (money matters there)", duelSalary >= 2, `${duelSalary} cards`);
   check("[duel] cards still show a ¤ price (Duel really charges)", metas.length >= 2 && metas.every((t) => /¤\d+/.test(t)), metas.slice(0, 2).join(" | "));
   const label = await page.$eval("#draft-money-label", (e) => e.textContent.trim());
   check("[duel] the gold line is the plain 金币 balance", /^金币：\d+/.test(label), label);

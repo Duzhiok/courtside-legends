@@ -2557,7 +2557,12 @@ function renderPack() {
               valueTag ? ` ${valueTag}` : ""
             }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}</div>
             <div class="meta">${[p.season, p.team, p.pos, `OVR ${overall(p)}`, priceTxt].filter(Boolean).join(" · ")}</div>
-            <div class="meta tiny">${d.budgetMode ? `当前方剩余 ${gold} 块` : marketMeta(p)}</div>
+            ${
+              // Draft Team has no salaries and no money on the pick, so an "est. salary" line is just noise there.
+              d.budgetMode || d.buyPlayers
+                ? `<div class="meta tiny">${d.budgetMode ? `当前方剩余 ${gold} 块` : marketMeta(p)}</div>`
+                : ""
+            }
           </div>
         </div>
         <div class="stat-chips">
