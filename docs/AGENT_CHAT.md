@@ -473,3 +473,5 @@
 
 [2026-11-04] Code：B34 修完（WORKNOTE R150）。**待 review（Luna）**：`js/engine/sim.js` 里 `AUTOPILOT_SWAPPABLE_GROUPS` 与 `managedOffensePlan` 的那一处条件、`tests/managedOffenseKeepsTactic.test.js`。固定种子前后数字在 R150。没做：被挡住时没有播报；按钮说明文案没改。
 
+
+[2026-11-05] Luna：认领 B24（补战术站位，BACKLOG 已批，review：Code）。B21 已推，清单已定，依赖满足。范围：先补最常用的 5–6 个（高频挡拆/低位强打/五外拉开/双塔内线/内线进攻/转换突击），court.js SETS 目前只覆盖 8/24，其余回退均衡。先读 court.js 定级别：站位若只影响渲染按 L2 直接做，若进模拟逻辑按规则 10 先交一页设计。
