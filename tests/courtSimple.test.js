@@ -266,3 +266,74 @@ test("court skill pop: token pulses, then clears", async () => {
   await new Promise((r) => setTimeout(r, 950));
   assert.equal(token.classList.contains("skill-pop"), false);
 });
+
+/**
+ * B24: the six most-used tactics have their own frontcourt sets instead of
+ * falling back to balanced. Rendered token positions carry a small live
+ * drift (up to ~1.2 x / ~1.0 y), so every assertion below keeps a margin
+ * of at least 3-4 over the drift. Slots are C(h0) → PF(h1) → SF(h2) →
+ * SG(h3) → PG(h4); home attacks up, so a larger y is farther from the rim.
+ */
+function settledPositions(tacticId) {
+  const { view } = setup();
+  const s = snap();
+  s.home.tactic = { id: tacticId, name: tacticId };
+  view._phaseStart = performance.now() - 5000;
+  view.render(s);
+  const pos = {};
+  for (const [key, p] of view._lastTokenPos) {
+    if (key.startsWith("home-h")) pos[key.slice(5)] = p;
+  }
+  return pos;
+}
+
+test("B24: pnr_spam sets a high screen, handler stacked above the screener", () => {
+  const p = settledPositions("pnr_spam");
+  const b = settledPositions("balanced");
+  assert.ok(Math.abs(p.h0.x - p.h4.x) < 4, "C and PG share an x (vertical stack)");
+  assert.ok(p.h0.y - b.h0.y > 5, "screening C sits much higher than balanced C");
+});
+
+test("B24: post_up puts the C deep on the block", () => {
+  const p = settledPositions("post_up");
+  const b = settledPositions("balanced");
+  assert.ok(p.h0.y < p.h1.y - 4, "C is nearest the rim, well clear of PF");
+  assert.ok(p.h0.x - b.h0.x > 10, "C is on the block, not centered like balanced");
+});
+
+test("B24: five_out keeps everyone on the arc, nobody under the rim", () => {
+  const p = settledPositions("five_out");
+  const ys = Object.values(p).map((q) => q.y);
+  assert.ok(Math.min(...ys) > 25, "no token near the rim");
+});
+
+test("B24: twin_towers puts both bigs on the blocks", () => {
+  const p = settledPositions("twin_towers");
+  assert.ok(Math.abs(p.h0.y - p.h1.y) < 4, "C and PF share the low block line");
+  const sorted = Object.entries(p).sort((a, b) => a[1].y - b[1].y);
+  assert.deepEqual(
+    sorted
+      .slice(0, 2)
+      .map(([k]) => k)
+      .sort(),
+    ["h0", "h1"],
+    "the two lowest tokens are the two bigs (either order — drift can swap them)",
+  );
+});
+
+test("B24: paint_attack crowds three inside", () => {
+  const p = settledPositions("paint_attack");
+  const inside = Object.values(p).filter((q) => q.y < 20).length;
+  assert.equal(inside, 3);
+  const b = settledPositions("balanced");
+  assert.ok(p.h1.y - b.h1.y < -4, "PF sits much lower than balanced PF");
+});
+
+test("B24: transition pushes the PG ahead with wide lanes", () => {
+  const p = settledPositions("transition");
+  const b = settledPositions("balanced");
+  const ys = Object.values(p).map((q) => q.y);
+  assert.equal(ys.indexOf(Math.max(...ys)), 4, "PG is farthest up-court");
+  assert.ok(Math.abs(p.h2.x - p.h3.x) > 68, "wings fill both lanes");
+  assert.ok(p.h4.y - b.h4.y > 2, "PG ahead of balanced PG");
+});

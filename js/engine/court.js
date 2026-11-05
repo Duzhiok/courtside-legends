@@ -70,6 +70,50 @@ const SETS = {
     { x: 34, y: 68 },
     { x: 66, y: 72 },
   ],
+  // B24: the six most-used tactics get their own frontcourt shape.
+  // Slots are C → PF → SF → SG → PG; y=0 near rim, y=100 near half-court.
+  pnr_spam: [
+    { x: 56, y: 46 }, // C up high to screen, stacked under the handler
+    { x: 18, y: 50 },
+    { x: 86, y: 52 },
+    { x: 16, y: 76 },
+    { x: 56, y: 80 }, // PG handler above the screen
+  ],
+  post_up: [
+    { x: 68, y: 12 }, // C deep on the block
+    { x: 30, y: 30 }, // PF high opposite, ready to flash
+    { x: 82, y: 48 },
+    { x: 12, y: 72 },
+    { x: 50, y: 80 },
+  ],
+  five_out: [
+    { x: 50, y: 58 }, // C as the top hub — nobody under the rim
+    { x: 12, y: 56 },
+    { x: 88, y: 56 },
+    { x: 26, y: 82 },
+    { x: 74, y: 82 },
+  ],
+  twin_towers: [
+    { x: 38, y: 14 }, // both bigs on the blocks
+    { x: 64, y: 16 },
+    { x: 82, y: 48 },
+    { x: 16, y: 70 },
+    { x: 50, y: 80 },
+  ],
+  paint_attack: [
+    { x: 50, y: 14 }, // three inside: C, PF, SF all crash the paint
+    { x: 30, y: 26 },
+    { x: 72, y: 30 },
+    { x: 18, y: 68 },
+    { x: 62, y: 76 },
+  ],
+  transition: [
+    { x: 42, y: 42 }, // bigs trailing
+    { x: 62, y: 38 },
+    { x: 86, y: 66 }, // wings filling the lanes, ahead of the ball
+    { x: 14, y: 70 },
+    { x: 50, y: 86 }, // PG pushing ahead with the ball
+  ],
 };
 
 const DEF_GAP = [
