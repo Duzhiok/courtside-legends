@@ -329,6 +329,7 @@ import {
   freshFamilySide,
 } from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
+import { speedLocked } from "./ui/playbackSpeed.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
   SEASON_APRON,
@@ -1001,11 +1002,10 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   $("#you-side").textContent =
     youSide === "home" ? $("#game-team-a").textContent : $("#game-team-b").textContent;
 
-  const isDraftGame = state.mode === "draft" || state.mode === "duel" || state.mode === "custom";
   state.speed = sim.speed || 1;
   const speedBtn = $("#btn-speed");
   if (speedBtn) {
-    speedBtn.hidden = isDraftGame;
+    speedBtn.hidden = speedLocked(state.mode);
     const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";
     speedBtn.textContent = `速度 x${state.speed} · ${label}`;
   }
@@ -2310,7 +2310,13 @@ function initDraft(mode) {
   if (moneyLabel) {
     moneyLabel.innerHTML = isCustom
       ? `预算：<strong id="draft-gold">${CUSTOM_BUDGET}</strong> 块`
-      : `金币：<strong id="draft-gold">${state.draft.teams.A.gold}</strong>`;
+      : state.draft.buyPlayers
+        ? `金币：<strong id="draft-gold">${state.draft.teams.A.gold}</strong>`
+        : // Draft Team: picking is free; the gold only pays for refreshing the list once the free ones are used
+          L(
+            `选人免费 · 刷新用金币：<strong id="draft-gold">${state.draft.teams.A.gold}</strong>（前 ${DRAFT_FREE_REFRESHES} 次刷新免费，之后每次 ¤${draftRefreshCost(state.draft)}）`,
+            `Picks are free · gold for refreshing: <strong id="draft-gold">${state.draft.teams.A.gold}</strong> (first ${DRAFT_FREE_REFRESHES} refreshes free, then ¤${draftRefreshCost(state.draft)} each)`,
+          );
   }
   updateCustomDraftChrome();
   $("#roster-a-title").textContent = state.draft.teams.A.name;
@@ -2331,10 +2337,17 @@ function updateCustomDraftChrome() {
     if (filters) filters.hidden = true;
     if (title) title.textContent = "本轮卡包（点选一名）";
     if (hint) {
+      // set from JS, so it needs L(): the static phrase table only runs at boot / on a language switch
       hint.textContent =
         d?.mode === "duel"
-          ? "点选球员会扣除其身价金币；钱不够不能买。刷新可花金币或用免费次数。"
-          : "可抽到球员、主教练或助教。新人/边缘教练放权更高，常激发潜力。";
+          ? L(
+              "点选球员会扣除其身价金币；钱不够不能买。刷新可花金币或用免费次数。",
+              "Picking a player charges its price in gold; you can't buy what you can't afford. Refresh with gold or with the free refreshes.",
+            )
+          : L(
+              "选人不花钱；可抽到球员、主教练或助教。新人/边缘教练放权更高，常激发潜力。刷新列表前几次免费，之后会消耗金币。",
+              "Picking is free; packs can hold players, head coaches or assistants. Rookie/fringe coaches delegate more and often unlock potential. The first few refreshes are free, after that they cost gold.",
+            );
     }
     return;
   }
@@ -2524,9 +2537,13 @@ function renderPack() {
       const tips = topIntangibles(p, 2)
         .map((t) => `<span class="chip growth">${t.name} ${t.value}</span>`)
         .join("");
+      // A price only where picking really costs something (Budget Draft: blocks, Duel: gold). Draft Team picks
+      // are free, and a "¤123" on a free pick made players think they were spending money.
       const priceTxt = d.budgetMode
         ? `${cost} 块${p.peakLabel ? " · 巅峰" : ""}`
-        : `¤${playerPrice(p)}`;
+        : d.buyPlayers
+          ? `¤${playerPrice(p)}`
+          : "";
       const compact = d.budgetMode && d.customPhase === "spend";
       const valueTag = valueBadgeHtml(valueBadge(p)); // nothing while this card can still be picked
       const legacy = legacyBadgeHtml(p, overall(p));
@@ -2539,7 +2556,7 @@ function renderPack() {
             <div class="name">${p.name} <span class="pos-badge">${normalizePos(p.pos)}</span>${legacy.tagHtml}${
               valueTag ? ` ${valueTag}` : ""
             }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}</div>
-            <div class="meta">${p.season} · ${p.team} · ${p.pos} · OVR ${overall(p)} · ${priceTxt}</div>
+            <div class="meta">${[p.season, p.team, p.pos, `OVR ${overall(p)}`, priceTxt].filter(Boolean).join(" · ")}</div>
             <div class="meta tiny">${d.budgetMode ? `当前方剩余 ${gold} 块` : marketMeta(p)}</div>
           </div>
         </div>
@@ -6535,19 +6552,19 @@ function beginGame(homeTeam, awayTeam, youSide) {
   paintFeedIdentity(homeTeam, awayTeam);
   $("#you-side").textContent = youSide === "home" ? homeTeam.name : awayTeam.name;
 
-  const isDraftGame = state.mode === "draft" || state.mode === "duel" || state.mode === "custom";
   const injuryMode =
     state.mode === "career" ||
     state.mode === "tournament" ||
     state.career?.kind === "career" ||
     !!state.tournament;
-  // Draft/duel: lock to real pace (1x). Other modes: default 1x, player can cycle 1→2→3.
+  // Every match starts at 1x and the player can cycle 1→2→3, except a two-human Duel (nobody may hurry the
+  // other player). See js/ui/playbackSpeed.js.
   state.speed = 1;
   const speedBtn = $("#btn-speed");
   if (speedBtn) {
-    speedBtn.hidden = isDraftGame;
+    speedBtn.hidden = speedLocked(state.mode);
     speedBtn.textContent = "速度 x1 · 真实";
-    speedBtn.title = isDraftGame ? "选秀模式锁定真实比赛节奏" : "切换 1x真实 / 2x / 3x最快";
+    speedBtn.title = "切换 1x真实 / 2x / 3x最快";
   }
   const quickBtn = $("#btn-quick-sim");
   if (quickBtn) {
@@ -7718,7 +7735,7 @@ window.addEventListener("beforeunload", (e) => {
 });
 $("#btn-speed").onclick = () => {
   if (!state.sim) return;
-  if (state.mode === "draft" || state.mode === "duel" || state.mode === "custom") return;
+  if (speedLocked(state.mode)) return;
   state.speed = state.speed === 1 ? 2 : state.speed === 2 ? 3 : 1;
   state.sim.setSpeed(state.speed);
   const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";

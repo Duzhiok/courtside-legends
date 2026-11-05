@@ -57,18 +57,19 @@
             <div class="home-banner-kicker">1950 — 今 · 全历史赛季卡</div>
             <h1>组建你的传奇阵容</h1>
             <p>按赛季抽卡组队，临场叫暂停、大喊、换人。空位也会打铁——巨星抱团不无敌。</p>
-            <ul class="home-banner-facts" aria-label="游戏特色">
-              <li><strong>75+</strong><span>年历史名册</span></li>
-              <li><strong>5</strong><span>年穿越任期</span></li>
-              <li><strong>32</strong><span>队淘汰赛</span></li>
-            </ul>
+            <!-- M1: the one primary CTA lives INSIDE the hero copy. It used to sit under the banner, and the banner
+                 was as tall as the legends photo wall (~800px with real photos), which pushed it off the first screen.
+                 The wall now comes after the modes, so nothing can push this down again. -->
+            <div class="play-now-hero">
+              <button type="button" class="btn primary hero-cta" id="btn-play-now">快速开打</button>
+              <p class="tiny">一键进比赛，跳过排兵布阵</p>
+            </div>
           </div>
-          <div class="legends-wall" id="home-legends-wall" aria-label="历代传奇球星"></div>
-        </div>
-        <!-- B16: the main CTA lives directly under the banner so its position never depends on the bars below -->
-        <div class="play-now-hero">
-          <button type="button" class="btn primary hero-cta" id="btn-play-now">快速开打</button>
-          <p class="tiny">一键进比赛，跳过排兵布阵</p>
+          <ul class="home-banner-facts" aria-label="游戏特色">
+            <li><strong>75+</strong><span>年历史名册</span></li>
+            <li><strong>5</strong><span>年穿越任期</span></li>
+            <li><strong>32</strong><span>队淘汰赛</span></li>
+          </ul>
         </div>
         <div class="account-home-bar save-home-bar" id="save-home-bar" hidden>
           <div class="account-home-text">
@@ -172,6 +173,7 @@
             </button>
           </div>
         </div>
+        <div class="legends-wall" id="home-legends-wall" aria-label="历代传奇球星"></div>
       </section>
       <details class="hint-panel">
         <summary><h2>设计要点 · 玩法说明</h2></summary>
@@ -183,7 +185,7 @@
           <li>金币晋级赛：32 支<strong>随机联队</strong>（不绑历史球队）淘汰（32→16→8→4→2→1）；四人一组含复活赛、两败出局。越往后 CPU 用奖金多轮换血，对手阵容持续迭代。</li>
           <li>活球时只能大喊或叫暂停；对方暂停、节间与中场时双方都可调整。普通球员约 8 分钟连场疲劳到 60（铁肺/永动机明显更耐）；节间只回 25 疲劳，中场只回 50；暂停只回一点点。</li>
           <li>自定义·预算轮抽：15 块买 5→1 价巅峰卡并补 0 块板凳后，带着名单挑战 <strong>32 支历史球队</strong>淘汰赛（同晋级赛赛制）。</li>
-          <li>选秀模式比赛锁定真实节奏；其他模式可切换 1x真实 / 2x / 3x最快。</li>
+          <li>只有双人对抗锁定真实节奏（两人共用一场，不能单方加速）；其他模式可切换 1x真实 / 2x / 3x最快。</li>
           <li>教练可加 Buff，并有特殊战术（三角进攻、小球、铁血防守等）。</li>
           <li>卡池为 1950 年起全历史名册（每名球员每个达标赛季一张卡）。</li>
           <li>势头条显示连续得分；暂停可打断对方高潮。赛前可设阵容包、对位方案、角色与目标分钟。</li>
@@ -1186,6 +1188,6 @@
       }, 15000);
     })();
   </script>
-  <script type="module" src="js/app.js?v=20261104m2"></script>
+  <script type="module" src="js/app.js?v=20261104m3"></script>
 </body>
 </html>

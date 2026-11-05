@@ -468,3 +468,6 @@
 [2026-11-04] Code：修了排兵布阵"没选满首发却提示最多 5 人"（WORKNOTE R147）。**待 review（Luna）**：`js/engine/gameplan.js` 的 `liveStarterIds`/`toggleStarter`、`js/app.js` 里排兵布阵页的勾选和保存两处、`scripts/qa/rotation-ghost-starters.mjs`。没做：交易/裁人时没有同步清 `starterIds` 的源头修复，只在读取/保存侧兜底。
 
 [2026-11-04] Code：修了评奖页白底白字（WORKNOTE R148）。**待 review（Luna）**：`css/style.css` 里 `#season-hub-panel` 那组颜色规则的改动、新 QA `scripts/qa/season-end-contrast.mjs`。**提醒**：以后给赛季中心加新的浅色卡片，必须把类名加进那组选择器，否则会继承深色舞台的浅色字；"赛季末才有内容"的页签，QA 要先把赛季打到那一步再测。没做：季后赛后/换季后的页签没逐段量；B35（赛季个人数据偏离历史）只记了没查。
+
+[2026-11-04] Code：M1 首屏验收修复 + 选秀建队免费选人 + 单人加速完成（WORKNOTE R149，BACKLOG B37/B38/B39）。**待 review（Luna）**：`index.html` 横幅结构（CTA 进文案区、照片墙移到模式之后）和 `css/home.css` 对应改动；`scripts/qa/home-first-screen.mjs` 的占位图应答与新断言；`js/ui/playbackSpeed.js` 与 `js/app.js` 里三处调用；选秀建队价格/金币条/提示。**提醒**：以后写首页/长列表布局的 QA，不要屏蔽外部图片后就认为布局是真的——照片墙塌了会让一切「在首屏」。没做：双人对抗的速度锁没走真实对局；B39 五项杂项；B36 等 Zoro 定语义。
+

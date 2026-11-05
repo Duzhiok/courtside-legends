@@ -91,7 +91,7 @@ export const PHRASES = [
   ["自定义·预算轮抽：15 块买 5→1 价巅峰卡并补 0 块板凳后，带着名单挑战", "Custom budget draft: spend 15 on 5→1-priced peak cards, fill the bench for 0, then challenge"],
   ["32 支历史球队", "32 historic teams"],
   ["淘汰赛（同晋级赛赛制）。", " in a knockout (same format as the ladder)."],
-  ["选秀模式比赛锁定真实节奏；其他模式可切换 1x真实 / 2x / 3x最快。", "Draft-mode games run at real pace; other modes offer 1x real / 2x / 3x fastest."],
+  ["只有双人对抗锁定真实节奏（两人共用一场，不能单方加速）；其他模式可切换 1x真实 / 2x / 3x最快。", "Only Duel runs at real pace (two players share one match, so nobody can hurry it); every other mode offers 1x real / 2x / 3x fastest."],
   ["教练可加 Buff，并有特殊战术（三角进攻、小球、铁血防守等）。", "Coaches grant buffs and signature systems (Triangle, small ball, iron defence…)."],
   ["卡池为 1950 年起全历史名册（每名球员每个达标赛季一张卡）。", "The pool is the full roster since 1950 — one card per player per qualifying season."],
   ["势头条显示连续得分；暂停可打断对方高潮。赛前可设阵容包、对位方案、角色与目标分钟。", "The momentum bar tracks scoring runs; a timeout can kill one. Set lineup packages, matchups, roles and target minutes before tip-off."],

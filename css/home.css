@@ -45,11 +45,11 @@ html[lang="en"] .topbar .brand-name { display: none; }
 .home-banner {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 32px 32px 28px;
+  margin-bottom: 16px;
+  padding: 28px 32px 26px;
   border-radius: 24px;
   overflow: hidden;
   color: #f8f4ea;
@@ -101,7 +101,7 @@ html[lang="en"] .topbar .brand-name { display: none; }
 }
 .home-banner-facts {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 10px;
   margin: 0;
   padding: 0;
@@ -127,8 +127,10 @@ html[lang="en"] .topbar .brand-name { display: none; }
 /* —— Legends photo wall —— */
 .legends-wall {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* a strip after the modes (it used to be the banner's right column, ~800px tall) */
+  grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 12px;
+  margin: 28px 0 8px;
 }
 .legend-tile {
   position: relative;
@@ -310,6 +312,7 @@ html[lang="en"] .topbar .brand-name { display: none; }
 /* —— Responsive —— */
 @media (max-width: 860px) {
   .home-banner { grid-template-columns: 1fr; padding: 24px 18px 20px; }
+  .home-banner-facts { flex-direction: row; flex-wrap: wrap; }
   .legends-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .legend-tile:nth-child(n + 9) { display: none; }
 }
@@ -337,8 +340,8 @@ html[lang="en"] .topbar .brand-name { display: none; }
 
 /* —— M1: Play Now hero CTA — the single dominant home CTA (spec §3) —— */
 #screen-home .play-now-hero {
-  text-align: center;
-  margin: var(--space-md) 0 var(--space-sm);
+  text-align: left;
+  margin: var(--space-md) 0 0;
 }
 #screen-home .hero-cta {
   font-size: 1.25rem;
@@ -351,6 +354,7 @@ html[lang="en"] .topbar .brand-name { display: none; }
 }
 #screen-home .play-now-hero .tiny {
   margin-top: var(--space-xs);
+  color: rgba(248, 244, 234, .85);  /* the hint now sits on the dark banner */
 }
 
 /* —— B16: Continue is a secondary action. The hero CTA is the only filled button on the first screen,

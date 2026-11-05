@@ -6,7 +6,10 @@
 //        the Continue bars, the category hint. NOT measured: the banner and the dark featured mode
 //        cards -- their backgrounds are gradients/images, which textContrast cannot read (it would call
 //        white-on-dark "1.0:1"). Those are judged on the screenshot.
-// Network is blocked (every non-local host aborts), so nothing depends on fonts or CDNs.
+// Nothing depends on the network, but the legends' photos are NOT dropped: every external image is answered with a
+// portrait placeholder. Dropping them (the first version of this QA did) makes each failed tile remove itself, the
+// photo wall collapses to nothing, the banner is 300px tall and the CTA "fits" -- in a page no player ever sees.
+// With real photos the wall is ~800px tall, which is what pushed the CTA off the first screen on desktop.
 // Seeds the career save only AFTER the roster has loaded: createTimeTravelPrologue needs PLAYERS.
 // Usage: node scripts/qa/home-first-screen.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
@@ -21,12 +24,15 @@ const report = [];
 const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
 
 const browser = await chromium.launch({ executablePath: EXE });
+const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#2b4a3a"/><circle cx="200" cy="190" r="80" fill="#6f8f7e"/><rect x="90" y="290" width="220" height="210" rx="90" fill="#6f8f7e"/></svg>`;
 
 async function openHome(width, height, { lang = "zh", withCareer = false } = {}) {
   const page = await browser.newPage({ viewport: { width, height } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.route((url) => !/^(127\.0\.0\.1|localhost)$/.test(url.hostname), (route) => route.abort());
+  await page.route((url) => !/^(127\.0\.0\.1|localhost)$/.test(url.hostname), (route) => (route.request().resourceType() === "image"
+    ? route.fulfill({ status: 200, contentType: "image/svg+xml", body: PORTRAIT })
+    : route.abort()));
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate((l) => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem("courtside.lang", l); }, lang);
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -49,20 +55,24 @@ async function openHome(width, height, { lang = "zh", withCareer = false } = {})
 /** Geometry + the primary buttons that are really on screen (hidden panels and 0-size boxes excluded). */
 const measure = (page) => page.evaluate(() => {
   const vis = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
-  const rect = (el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height) }; };
+  const rect = (el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), height: Math.round(r.height) }; };
   const hero = document.querySelector("#btn-play-now");
   const name = (el) => el.id || el.textContent.trim().slice(0, 14);
   const onFirstScreen = (el) => { const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; };
   return {
     vh: innerHeight,
+    vw: innerWidth,
     hero: rect(hero),
+    // what is really on top at the CTA's centre: the button itself, not a bar / tip / overlay
+    topAtCenter: (() => { const r = hero.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, Math.min(r.top + r.height / 2, innerHeight - 1)); return el && (el === hero || hero.contains(el)); })(),
+    wallTiles: [...document.querySelectorAll("#home-legends-wall .legend-tile img")].filter((i) => i.naturalWidth > 0).length,
     primaries: [...document.querySelectorAll("#screen-home .btn.primary")].filter((el) => vis(el) && onFirstScreen(el)).map(name),
     heroText: hero.textContent.trim(),
     cardTitle: document.querySelector('.mode-card[data-mode="quick"] strong')?.textContent.trim(),
   };
 });
 
-for (const [width, height, size] of [[390, 844, "mobile"], [1280, 800, "desktop"]]) {
+for (const [width, height, size] of [[390, 844, "mobile"], [1280, 800, "desktop"], [1440, 900, "desktop-xl"]]) {
   for (const withCareer of [false, true]) {
     const tag = `[${size}${withCareer ? "+career" : ""}]`;
     const { page, errors } = await openHome(width, height, { withCareer });
@@ -71,8 +81,11 @@ for (const [width, height, size] of [[390, 844, "mobile"], [1280, 800, "desktop"
       const bar = await page.evaluate(() => !document.querySelector("#long-career-home-bar")?.hidden);
       check(`${tag} the saved-career bar is really showing (otherwise this scenario proves nothing)`, bar);
     }
+    // the photo wall is really rendered (otherwise this scenario measures a page nobody sees)
+    check(`${tag} the legends wall is really rendered with photos (not vacuous)`, m.wallTiles >= 6, `${m.wallTiles} photos`);
     // B16
-    check(`${tag} B16 the main CTA is completely inside the first screen`, m.hero.top >= 0 && m.hero.bottom <= m.vh, `CTA ${m.hero.top}-${m.hero.bottom}px of ${m.vh}px`);
+    check(`${tag} B16 the main CTA is completely inside the first screen`, m.hero.top >= 0 && m.hero.bottom <= m.vh && m.hero.left >= 0 && m.hero.right <= m.vw, `CTA y ${m.hero.top}-${m.hero.bottom} of ${m.vh}px, x ${m.hero.left}-${m.hero.right} of ${m.vw}px`);
+    check(`${tag} B16 nothing covers the CTA (the button is what is on top at its centre)`, m.topAtCenter === true);
     check(`${tag} B16 it is the only visible primary button on the first screen`, m.primaries.length === 1 && m.primaries[0] === "btn-play-now", m.primaries.join(" | "));
     if (withCareer) {
       // The CTA must not push Continue below the fold either: a returning player comes here to continue.
@@ -81,8 +94,10 @@ for (const [width, height, size] of [[390, 844, "mobile"], [1280, 800, "desktop"
     }
     check(`${tag} no horizontal overflow`, await noOverflow(page));
     // B17 -- every visible text inside each solid-background block (no selector list to forget one from)
-    for (const root of [".play-now-hero", "#long-career-home-bar", ".home-category-hint"]) {
-      const low = await textContrast(page, root, { min: 4.5 });
+    // the CTA block now sits on the dark banner (a gradient: textContrast reads no gradients), so it is measured
+    // against the banner's mid green; the bars below are on solid backgrounds
+    for (const [root, under] of [[".play-now-hero", [18, 53, 34]], ["#long-career-home-bar", undefined], [".home-category-hint", undefined]]) {
+      const low = await textContrast(page, root, under ? { min: 4.5, under } : { min: 4.5 });
       check(`${tag} B17 ${root} text reaches AA (4.5:1, large text 3:1)`, low.length === 0, low.slice(0, 4).join(" ; "));
     }
     check(`${tag} no page errors`, errors.length === 0, errors.join(" | "));
