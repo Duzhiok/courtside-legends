@@ -304,3 +304,23 @@ export const GOAL_STAR_POINTS = HIGHLIGHT_SCORING.at(-1).min;
 /** The young-player goal: somebody this young plays at least this long. */
 export const GOAL_ROOKIE_MAX_AGE = 23;
 export const GOAL_ROOKIE_MINUTES = 20;
+
+// ---------------------------------------------------------------- D: the interview and the draft prophecy
+/** Every interview answer fits the club's situation by -1, 0 or +1; three answers sum to -3..+3. */
+export const INTERVIEW_TRUST_PER_POINT = 3;
+/** A good fit also calms the room: media pressure drops this much per point (and rises per minus). */
+export const INTERVIEW_PRESSURE_PER_POINT = 2;
+/** At or below this total the club passes on you -- unless it is the last offer you have left. */
+export const INTERVIEW_REJECT_AT = -2;
+/** "Share a draft sleeper": the prospect's best OVR over his first three NBA seasons decides it. */
+export const PROPHECY_HIT_OVR = 76;
+/** A real sleeper: arrived at or below ROOKIE_MAX and reached at least BEST_MIN within three seasons. */
+export const PROPHECY_SLEEPER_ROOKIE_MAX = 68;
+export const PROPHECY_SLEEPER_BEST_MIN = 78;
+/** A decoy: never got past this in his first three seasons. */
+export const PROPHECY_DECOY_BEST_MAX = 70;
+/** What you remember is a band this wide around the truth, shifted by up to +/-SHIFT. */
+export const PROPHECY_MEMORY_WIDTH = 12;
+export const PROPHECY_MEMORY_SHIFT = 5;
+export const PROPHECY_HIT = { trust: 6, reputation: 2 };
+export const PROPHECY_MISS = { trust: -5, reputation: 0 };

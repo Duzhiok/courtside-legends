@@ -13,6 +13,7 @@ export const PHRASES = [
   ["执教结局", "How the stint ended"],
   ["求职", "Job search"],
   ["挖角邀请", "Poaching offer"],
+  ["选秀预言", "Draft prophecy"],
   ["退休", "Retirement"],
   ["🏠 住房", "🏠 Housing"],
   ["📈 投资（本年代开放的资产类别，未来知识只能模糊预测趋势，实际输赢总是真正随机）",

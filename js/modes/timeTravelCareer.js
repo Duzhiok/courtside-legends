@@ -276,6 +276,10 @@ export function acceptInterviewOffer(prologue, offerId) {
       flags: { origin },
       seasonGoal,
       eventLog: [
+        // D: the interview, when there was one (offers accepted without one -- old saves, tests -- skip it).
+        ...(offer.interview
+          ? [{ type: "interview", year: prologue.year, teamId: offer.teamId, teamName: offer.teamName, ...offer.interview }]
+          : []),
         {
           type: "accepted-offer",
           year: prologue.year,

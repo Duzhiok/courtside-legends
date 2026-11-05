@@ -1,0 +1,55 @@
+/* D: the interview panel, the interview stamps on offer cards, and the draft prophecy (board + HQ card).
+   Builds on timeTravelViews.css: answers and prospects ARE .tt-choice cards, this file only adds layout. */
+
+/* ---------------------------------------------------------------- interview */
+.tt-interview {
+  display: grid; gap: 16px; padding: 18px;
+  border-radius: var(--tt-radius); border: 1px solid var(--tt-line2);
+  background: var(--tt-s1);
+}
+.tt-interview-head { display: grid; gap: 6px; }
+.tt-interview-head h3 { margin: 0; font-size: 1.2rem; }
+.tt-questions { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+.tt-question { display: grid; gap: 10px; }
+.tt-q-prompt { display: flex; gap: 10px; align-items: center; margin: 0; font-weight: 700; color: var(--tt-text); }
+.tt-q-prompt b {
+  display: grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--tt-s3); color: var(--tt-gold); font-size: 0.85rem;
+}
+.tt-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.tt-answer { align-items: center; padding: 12px; }
+.tt-answer .tt-choice-body strong { font-size: 0.94rem; line-height: 1.4; }
+.tt-interview-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+/* An interview leaves a mark on the offer card. */
+.tt-stamp {
+  position: absolute; top: 12px; right: 12px; z-index: 1;
+  padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor;
+  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em;
+}
+.tt-stamp-no { color: var(--tt-bad); background: rgba(255, 128, 128, 0.14); }
+.tt-stamp-ok { color: var(--tt-good); background: rgba(79, 216, 185, 0.14); }
+.tt-offer-rejected { cursor: not-allowed; filter: grayscale(0.7); }
+.tt-offer-rejected > :not(.tt-stamp) { opacity: 0.55; } /* disabled control: dimmed on purpose, the stamp stays legible */
+.tt-offer-rejected:hover { transform: none; border-color: var(--tt-line2); }
+
+/* ---------------------------------------------------------------- draft prophecy */
+.tt-prophecy-pick { display: grid; gap: 12px; padding-top: 14px; border-top: 1px dashed var(--tt-line2); }
+.tt-prophecy-pick .tt-prophecy-back { justify-self: start; }
+.tt-prospect { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.tt-prospect .headshot { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; }
+.tt-prospect .photo-wrap { flex: none; }
+.tt-prospect-meta { display: grid; gap: 2px; min-width: 0; font-size: 0.84rem; color: var(--tt-dim); }
+.tt-prospect-meta strong { color: var(--tt-text); font-size: 1rem; }
+.tt-memory {
+  justify-self: start; display: inline-flex; gap: 6px; align-items: baseline;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(246, 200, 112, 0.12); color: var(--tt-gold); font-size: 0.82rem;
+}
+.tt-memory b { font-size: 0.95rem; }
+
+.tt-prophecy { display: grid; gap: 10px; }
+.tt-prophecy-verdict { margin: 0; font-weight: 700; }
+.tt-prophecy[data-status="pending"] .tt-prophecy-verdict { color: var(--tt-warn); }
+.tt-prophecy[data-status="hit"] .tt-prophecy-verdict { color: var(--tt-good); }
+.tt-prophecy[data-status="miss"] .tt-prophecy-verdict { color: var(--tt-bad); }

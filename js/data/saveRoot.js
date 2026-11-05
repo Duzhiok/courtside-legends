@@ -234,6 +234,26 @@ function validateTimeTravelStory(root) {
   if (story.poachOffer !== undefined && story.poachOffer !== null) {
     validatePoachOffer(story.poachOffer);
   }
+  // Optional (root.story.prophecy, roadmap D): only careers that named a draft sleeper carry one.
+  if (story.prophecy !== undefined) {
+    validateProphecy(story.prophecy);
+  }
+}
+
+const PROPHECY_STATUSES = ["pending", "hit", "miss"];
+function validateProphecy(p) {
+  if (
+    !isObject(p)
+    || !isNonEmptyString(p.bref)
+    || !isNonEmptyString(p.name)
+    || ![p.rookieSeason, p.judgeYear, p.low, p.high, p.madeYear].every(Number.isInteger)
+    || p.judgeYear < p.rookieSeason
+    || p.low > p.high
+    || !PROPHECY_STATUSES.includes(p.status)
+    || (p.status !== "pending" && !Number.isFinite(p.best))
+  ) {
+    throw new Error("invalid root save");
+  }
 }
 
 function validatePoachOffer(offer) {
