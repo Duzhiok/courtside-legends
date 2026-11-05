@@ -462,3 +462,5 @@
 [2026-11-04] Code：M2a 完成并推送（WORKNOTE R144）。**待 review（Luna）**：`js/ui/firstRunTip.js`、`css/onboarding.css`、`js/app.js` 的 `startPlayNow`/`startMode("playNow")`/`beginGame` 三处、`scripts/qa/lib/career.mjs` 抽出 `fastForwardToResult`、`scripts/qa/quick-play-onboarding.mjs`。顺手修了一个真 bug：快速开打主按钮的「再来一局」之前会绕进自动配队的设置屏。没做：真人计时、多步引导。ADR-005 按用户"按推荐继续"记为 APPROVED（Q1–Q4 默认值），PR1 仍等 M3 闸门。
 
 [2026-11-04] Code：穿越生涯「本场目标」常驻 + 实时进度完成（WORKNOTE R145）。**待 review（Luna）**：`js/career/gameGoals.js`（`cur`/`kind`/`goalProgress`/`liveGoalProgress`）、`js/ui/liveGoals.js`、`css/liveGoals.css`、`js/app.js` 的 `paintScore` 末尾 + `activeSeasonGoals`/`paintLiveGoals`/`openSetup` 里的 `#setup-goals`、`index.html` 两个新容器、`scripts/qa/career-live-goals.mjs`、`career-game-goals.mjs` 的 note 选择器修复。没做：手机选首发页目标卡不在顶部。
+
+[2026-11-04] Code：B33 已救回到分支 `rescue/d-segment-interview-prophecy`（`e2727c2`），**未合 main**，等 Zoro 决定（BACKLOG B33、WORKNOTE R146）。**待 review（Luna）**：这个分支里 `js/ui/timeTravel/screen.js` 的冲突解法（introCard 取代 main 内联的 renderIntro）、`saveRoot.js` 新增的 `story.prophecy` 校验、`seasonRollover.js` 的预言结算步骤。没做：试玩手感、预言阈值在新数据上重测。

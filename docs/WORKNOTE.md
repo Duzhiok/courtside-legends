@@ -2454,3 +2454,10 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 **验证**：新单测 10 项（`tests/liveGoals.test.js`，含"预算刚好等于上限仍算没失败"、"面板终局判定与 settleGameGoals 一致"、HTML 转义、英文无中文）；全量 1653/1653；浏览器 QA `scripts/qa/career-live-goals.mjs` 桌面 + 手机 26/26（目标与主页承诺一致；比赛过程中采样 9–11 次，数字确实在动；done/failed 从不回退；结果卡与所有已锁定判定一致；Play Now 局不出现面板；无横向溢出）。**变异**：删掉 `paintScore` 里的接线 → 浏览器 QA 桌面/手机各 3 项变红；预算判定改成 `>=` → 单测变红；均已还原。
 **顺手修的测试脆弱点**：`career-game-goals.mjs` 抓"目标说明"用的是最近祖先里的第一个 `.pg-note`，结算卡上有"交易市场热度"提示时会抓错（我看到过 39/40 和 38/40 两种不同的失败）；改成抓 `.pg-goals` 的下一个兄弟节点，连跑两次 40/40。`fastForwardToResult` 新增 `onStep`/`stepMs` 参数供逐步采样。
 **没做**：第二个目标"亲自指挥才计入"的标签在比赛页不显示（实时局本来就是亲自指挥，必然计入）；手机选首发页的目标卡在页面最下方、「确认开打」上面，没有顶到最上面；没有逐目标的动画或音效。
+
+## R146 · Code：B33 救回旧副本的面试问答 + 选秀预言（2026-11-04，用户提需求）
+**做了什么**：旧副本 `~/Myproject/nba-coach-sim`（落后 main 89 个提交、领先 0）里有 11 个改动文件 + 9 个新文件没提交过。① 在旧副本里开 `rescue/d-segment-wip` 提交封存（`96c9772`，原样，没动它的 main）；② 在新 checkout 里从 `origin/main` 开分支，把它 `cherry-pick` 过来，4 个冲突文件逐个解：`balance.js` 两边常量都留；`seasonRollover.js` 注释取 main 措辞再补 `prophecy?`；`index.html` 取 main 的缓存版本号再 +1；`screen.js` 三处——offer 状态栏文字、"未来知识选择"改用旧版抽出的 `introCard.js`（main 里的那段内联代码被它整体取代）、section 列表在 main 的基础上加 `#tt-prophecy`；③ 把旧版仍用 `tr()` 拼字符串的三处状态文字（面试通过、被拒绝、`introCard` 两处）改成 main 现在约定的 `{zh,en}` 对象，语言切换后状态栏能重译（旧版会停在原语言）；④ 推到分支 `rescue/d-segment-interview-prophecy`（`e2727c2`）。
+**验证**：全量 1670/1670（比 main 多的 17 条就是它自带的 `interview.test.js` + `draftProphecy.test.js`）；lint 无新增；面试/预言 QA 桌面+手机各 58/58；回归 QA 桌面+手机全绿：coach-origins 26、career-contract 50、reemployment 54、poach 86、retire 150、finance 32、over-resume 38；R145 的目标面板 QA 在合并树上仍 26/26。
+**QA 脚本顺手修的两处**：`career-interview.mjs` 的 `check` 改成即时打印（脚本中途崩溃时前面已跑的结果不再丢）；刷新后进 HQ 的入口按 main 的行为改成"先点继续生涯，预言卡没出现再点模式卡"（光点模式卡在 main 上只会打开开局表单）。
+**没合进 main，原因**：它改变所有人的开局流程（先面试再接受 offer）、新增 `story.prophecy` 存档字段、换季结算多一步，是 L3，而且旧版没写设计文档；加上它和路线图 D1–D7 不是同一套设计。决定交给 Zoro，选项见 BACKLOG B33。
+**没做**：没有人工试玩手感（面试题难度、预言命中率是否合适）；预言的判定阈值（`PROPHECY_HIT_OVR = 76` 等）沿用旧版，没在 main 的新赛季数据上重新测量；旧副本里的 `rescue/d-segment-wip` 分支留着没删。
