@@ -464,3 +464,5 @@
 [2026-11-04] Code：穿越生涯「本场目标」常驻 + 实时进度完成（WORKNOTE R145）。**待 review（Luna）**：`js/career/gameGoals.js`（`cur`/`kind`/`goalProgress`/`liveGoalProgress`）、`js/ui/liveGoals.js`、`css/liveGoals.css`、`js/app.js` 的 `paintScore` 末尾 + `activeSeasonGoals`/`paintLiveGoals`/`openSetup` 里的 `#setup-goals`、`index.html` 两个新容器、`scripts/qa/career-live-goals.mjs`、`career-game-goals.mjs` 的 note 选择器修复。没做：手机选首发页目标卡不在顶部。
 
 [2026-11-04] Code：B33 已救回到分支 `rescue/d-segment-interview-prophecy`（`e2727c2`），**未合 main**，等 Zoro 决定（BACKLOG B33、WORKNOTE R146）。**待 review（Luna）**：这个分支里 `js/ui/timeTravel/screen.js` 的冲突解法（introCard 取代 main 内联的 renderIntro）、`saveRoot.js` 新增的 `story.prophecy` 校验、`seasonRollover.js` 的预言结算步骤。没做：试玩手感、预言阈值在新数据上重测。
+
+[2026-11-04] Code：修了排兵布阵"没选满首发却提示最多 5 人"（WORKNOTE R147）。**待 review（Luna）**：`js/engine/gameplan.js` 的 `liveStarterIds`/`toggleStarter`、`js/app.js` 里排兵布阵页的勾选和保存两处、`scripts/qa/rotation-ghost-starters.mjs`。没做：交易/裁人时没有同步清 `starterIds` 的源头修复，只在读取/保存侧兜底。

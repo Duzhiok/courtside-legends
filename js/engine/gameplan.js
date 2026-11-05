@@ -718,6 +718,34 @@ export function suggestTargetMinutes(p) {
   return Math.max(8, Math.min(cap, roleMin));
 }
 
+/** How many default starters a team can have. */
+export const MAX_STARTERS = 5;
+
+/**
+ * The starters a team really has: its own list (or, if it never had one, the saved rotation's), minus
+ * anybody no longer on the roster (traded, cut) and minus repeats. The rotation screen draws from this
+ * AND counts against it -- counting raw ids let long-gone players fill the five slots invisibly.
+ */
+export function liveStarterIds(team) {
+  const raw = team?.starterIds || team?.rotation?.starterIds || [];
+  if (!Array.isArray(raw)) return [];
+  const onRoster = new Set((team?.players || []).map((p) => p.id));
+  return [...new Set(raw)].filter((id) => onRoster.has(id));
+}
+
+/**
+ * Tick / untick one default starter. Pure: returns { ok, ids } and leaves the team alone, so the caller
+ * decides what to store and what to tell the user. `ok: false` = refused (already five, or not on this team).
+ */
+export function toggleStarter(team, playerId, on) {
+  const ids = liveStarterIds(team);
+  if (!on) return { ok: true, ids: ids.filter((id) => id !== playerId) };
+  if (ids.includes(playerId)) return { ok: true, ids };
+  const onRoster = (team?.players || []).some((p) => p.id === playerId);
+  if (!onRoster || ids.length >= MAX_STARTERS) return { ok: false, ids };
+  return { ok: true, ids: [...ids, playerId] };
+}
+
 /**
  * Snapshot default rotation for season reuse / experimentation.
  */

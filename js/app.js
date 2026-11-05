@@ -391,6 +391,7 @@ import {
   getTempoDef,
   groupByPosition,
   inferPlayerRole,
+  liveStarterIds,
   markOrdersManual,
   markPlayPosManual,
   nextEmptyPlayPos,
@@ -400,6 +401,7 @@ import {
   roleName,
   resolveStarterPositionCollisions,
   suggestedBallHandlerAction,
+  toggleStarter,
   usageForBallAction,
 } from "./engine/gameplan.js";
 import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos } from "./engine/matchups.js";
@@ -8372,7 +8374,7 @@ function renderSeasonRotation() {
   ensureRoles(you.players);
   ensurePlayerOrders(you.players);
   if (!you.rotation) you.rotation = captureRotationPlan(you, you.starterIds);
-  const starters = new Set(you.starterIds || you.rotation?.starterIds || []);
+  const starters = new Set(liveStarterIds(you));
   const tactics = coachTactics(you.coach || { specialTactics: ["balanced"] });
   const focusId = you.gameplan?.offenseFocusId || you.rotation?.offenseFocusId || "";
   const tacticId = you.coach?.specialTactics?.[0] || tactics[0]?.id || "balanced";
@@ -8458,18 +8460,13 @@ function renderSeasonRotation() {
     if (!p) return;
     row.querySelector(".rot-start-cb").onchange = () => {
       const on = row.querySelector(".rot-start-cb").checked;
-      let ids = [...(you.starterIds || [])];
-      if (on) {
-        if (ids.length >= 5 && !ids.includes(p.id)) {
-          row.querySelector(".rot-start-cb").checked = false;
-          alert(L("默认首发最多 5 人", "At most 5 default starters"));
-          return;
-        }
-        if (!ids.includes(p.id)) ids.push(p.id);
-      } else {
-        ids = ids.filter((id) => id !== p.id);
+      const { ok, ids } = toggleStarter(you, p.id, on);
+      if (!ok) {
+        row.querySelector(".rot-start-cb").checked = false;
+        alert(L("默认首发最多 5 人", "At most 5 default starters"));
+        return;
       }
-      you.starterIds = ids.slice(0, 5);
+      you.starterIds = ids; // also drops anybody who has left the roster
       renderSeasonRotation();
     };
     row.querySelector(".rot-pos").onchange = (e) => {
@@ -8505,8 +8502,10 @@ function renderSeasonRotation() {
     renderSeasonRotation();
   });
   $("#btn-rot-save")?.addEventListener("click", () => {
-    if ((you.starterIds || []).length && you.starterIds.length !== 5) {
-      if (!confirm(L(`当前标记了 ${you.starterIds.length} 名首发（建议 5 人）。仍保存？`, `${you.starterIds.length} starters marked (5 recommended). Save anyway?`))) return;
+    const marked = liveStarterIds(you);
+    you.starterIds = marked; // only people still on the roster get saved
+    if (marked.length && marked.length !== 5) {
+      if (!confirm(L(`当前标记了 ${marked.length} 名首发（建议 5 人）。仍保存？`, `${marked.length} starters marked (5 recommended). Save anyway?`))) return;
     }
     you.rotation = captureRotationPlan(you, you.starterIds);
     if (!saveSeasonAndCareer(st)) return;
