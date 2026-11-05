@@ -233,6 +233,21 @@ html[lang="en"] .topbar .brand-name { display: none; }
   color: #4b5563;
 }
 .home-category-panel[hidden] { display: none; }
+/* —— Mode-card grid: two columns, never content-sized (an auto-fit grid let one lone card shrink to a sliver).
+   Group labels and featured cards span both columns; a plain card with no partner in its row takes the whole row. —— */
+#screen-home .mode-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#screen-home .mode-group-label { grid-column: 1 / -1; }
+#screen-home .mode-card { min-width: 0; }
+#screen-home :is(.mode-group-label, .mode-card-feature) + .mode-card:not(.mode-card-feature):is(
+  :last-child,
+  :has(+ :is(.mode-group-label, .mode-card-feature))
+) { grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  #screen-home .mode-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 #screen-home .mode-card {
   position: relative;
   overflow: hidden;
