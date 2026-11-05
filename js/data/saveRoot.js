@@ -535,6 +535,33 @@ export function clearRootSave(storage) {
 }
 
 /**
+ * "Delete current career": remove the career itself from EVERY place it can live (the root save's league
+ * career / story / coach / live game, and the legacy season key an old build may have left behind) while
+ * keeping what isn't the career: the root's profile (account link, settings, accessibility). Accounts and
+ * card collections live under their own keys and are never touched; neither is the separate live-match
+ * autosave (cls_savegame_v1), which belongs to whatever mode started that match.
+ * If the profile is all defaults there is nothing worth keeping, so the root key is simply removed.
+ */
+export function deleteCareerSave(storage) {
+  const target = getStorage(storage);
+  const root = readRootSave(target);
+  const profile = root?.profile;
+  const hasProfile = Boolean(
+    profile
+    && (profile.accountId
+      || Object.keys(profile.settings ?? {}).length
+      || Object.keys(profile.accessibility ?? {}).length),
+  );
+  target.removeItem(LEGACY_SEASON_KEY);
+  target.removeItem(TEMP_ROOT_SAVE_KEY);
+  if (hasProfile) {
+    writeRootSave(createRootState({ profile }), target);
+  } else {
+    target.removeItem(ROOT_SAVE_KEY);
+  }
+}
+
+/**
  * Drop pre-root-save leftovers that writeRootSave() never needed to touch. A save made by an
  * older build of migrateLegacySaves() copied a legacy key's data into cls_root_v3 but left the
  * legacy key itself sitting in localStorage forever -- the exact same season/match then lives

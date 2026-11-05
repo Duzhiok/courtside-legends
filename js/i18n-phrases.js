@@ -366,6 +366,7 @@ export const PHRASES = [
   ["继续已有赛季", "Continue Existing Season"],
   ["保存赛季", "Save Season"],
   ["放弃赛季", "Abandon Season"],
+  ["删除当前生涯", "Delete Current Career"],
   ["下一场", "Next Game"],
   ["亲自指挥", "Coach It Live"],
   ["快速模拟本场", "Quick-Sim This Game"],

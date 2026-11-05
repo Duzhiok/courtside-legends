@@ -145,7 +145,7 @@ import {
   writeSave,
 } from "./data/savegame.js";
 import {
-  clearRootSave,
+  deleteCareerSave,
   createRootState,
   exportRootSave,
   importRootSave,
@@ -10436,23 +10436,25 @@ $("#btn-season-save")?.addEventListener("click", () => {
   }
 });
 $("#btn-season-abandon")?.addEventListener("click", async () => {
-  if (!(await confirmAction(L("确定放弃当前赛季？进度将清空。", "Abandon the current season? Progress will be cleared."), {
-    title: L("放弃当前赛季？", "Abandon the current season?"),
-    acceptLabel: L("放弃并清空", "Abandon and clear"),
+  // B36: this deletes the whole current career (season, history, coach progress), not just "this season".
+  if (!(await confirmAction(L(
+    "将永久删除当前生涯的全部进度：本赛季、历届历史、教练成长和故事进展。球员收藏、账号和设置不受影响。此操作无法撤销。",
+    "This permanently deletes the current career: this season, past seasons, coach progress and story. Your collection, account and settings are not affected. This cannot be undone.",
+  ), {
+    title: L("删除当前生涯？", "Delete the current career?"),
+    acceptLabel: L("删除生涯", "Delete career"),
   }))) return;
-  const abandoningTimeTravel = state.leagueCareer?.kind === "timeTravel";
   clearSeasonSave();
-  if (abandoningTimeTravel) {
-    clearRootSave();
-    state.leagueCareer = null;
-    state.story = null;
-    state.longCareerRoot = null;
-    state.mode = "season";
-  }
+  deleteCareerSave();
+  state.leagueCareer = null;
+  state.story = null;
+  state.longCareerRoot = null;
+  state.mode = "season";
   state.season = null;
   state.seasonPendingGame = null;
   state.seasonRosterDraft = null;
-  openSeasonScreen();
+  show("home");
+  refreshSaveHomeBar();
 });
 document.querySelectorAll("[data-season-tab]").forEach((btn) => {
   btn.addEventListener("click", () => showSeasonTab(btn.dataset.seasonTab));

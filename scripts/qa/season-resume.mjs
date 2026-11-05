@@ -102,10 +102,38 @@ async function run(width, height, tag) {
   const survived = await playedInSave(page);
   check(`[${tag}] and it survives another reload (progress is not dropped as an orphan)`, survived.played === played2.played && survived.where === "root", JSON.stringify(survived));
 
-  // No season at all: the button must not show.
-  await page.evaluate(() => { localStorage.removeItem("cls_root_v3"); localStorage.removeItem("cls_season_v1"); });
+  // B36: the real "delete current career" flow, from a season that lives in the root save after a reload.
+  await page.evaluate(() => localStorage.setItem("qa_keep", "1"));
+  const accountsBefore = await page.evaluate(() => Object.keys(localStorage).filter((k) => /account/i.test(k)).map((k) => [k, localStorage.getItem(k)]));
+  await page.click('.mode-card[data-mode="season"]');
+  await page.waitForSelector("#btn-season-resume", { state: "visible", timeout: 10000 });
+  await page.click("#btn-season-resume");
+  await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 });
+  const delLabel = (await page.locator("#btn-season-abandon").textContent()).trim();
+  check(`[${tag}] the destructive button says what it does`, delLabel === "删除当前生涯", delLabel);
+  await page.click("#btn-season-abandon");
+  await page.waitForSelector("#app-confirm-dialog[open]", { timeout: 5000 });
+  const warn = (await page.locator("#app-confirm-message").textContent()).trim();
+  check(`[${tag}] the confirmation names what is lost and what is kept`, /永久删除/.test(warn) && /收藏/.test(warn), warn.slice(0, 40));
+  await page.click("#app-confirm-cancel");
+  check(`[${tag}] cancelling deletes nothing`, (await playedInSave(page)).played > 0);
+  await page.click("#btn-season-abandon");
+  await page.waitForSelector("#app-confirm-dialog[open]", { timeout: 5000 });
+  await page.click("#app-confirm-accept");
+  await home(page);
+  check(`[${tag}] deleting returns to the home page`, true);
+  await shot(page, `${OUT}/${tag}-after-delete.png`);
+  const gone = await playedInSave(page);
+  check(`[${tag}] no season is left in either save`, gone.played === -1, JSON.stringify(gone));
   await page.reload({ waitUntil: "domcontentloaded" });
   await home(page);
+  const goneAfterReload = await playedInSave(page);
+  check(`[${tag}] and a reload does not bring it back`, goneAfterReload.played === -1, JSON.stringify(goneAfterReload));
+  check(`[${tag}] the home page no longer offers "继续生涯"`, !(await page.locator("#btn-long-career-resume").isVisible()));
+  const accountsAfter = await page.evaluate(() => Object.keys(localStorage).filter((k) => /account/i.test(k)).map((k) => [k, localStorage.getItem(k)]));
+  check(`[${tag}] the account is untouched`, accountsBefore.length > 0 && JSON.stringify(accountsBefore) === JSON.stringify(accountsAfter));
+
+  // No season at all: the button must not show.
   await page.click('.mode-card[data-mode="season"]');
   await page.waitForSelector("#season-setup-panel:not([hidden])", { timeout: 10000 });
   check(`[${tag}] with nothing saved there is no resume button`, !(await page.locator("#btn-season-resume").isVisible()));
