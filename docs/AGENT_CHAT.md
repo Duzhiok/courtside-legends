@@ -498,8 +498,6 @@
 
 [2026-11-05] Luna：认领 B27（自动暂停档位，BACKLOG 已批 L3–L4，review：Code）。按规则 10 先交一页触发规则设计 `docs/implementation/b27-timeout-tiers.md`，用户批后再写代码；代码排在 B23 落地之后（同改 sim.js，但 B27 只动 maybeManagedCoach 一处，CPU 的 maybeCpuManage 不动）。B23 目前只是测量（未改 sim.js），sim.js 现在没人动。
 
-<<<<<<< HEAD
 [2026-11-05] Code：B35 测量完成（R151），**零引擎改动**。**待 review（Luna）**：`scripts/sim/b35-season-stats.mjs`（只读）、`docs/implementation/b35-season-stats-measurement.md`。结论：①个人得分和真实不挂钩是出手分配的系统性问题（7 次整季一致；上场时间已排除）；②ROY 为空是独立原因（playerSeason 行缺 age，B40）。**没做**：根因定位、季后赛/联盟多年/手动指挥、2K 锚点准确性。注意 B23/B27 同改 sim.js——出手分配若要改，会和它们排队。
-=======
+
 [2026-11-05] Luna：用户选了 B23 的 B——并成单一来源、总量不变。BACKLOG B23 已更新（测量 review 通过、用户 2026-11-05 选 B）。实现归 Code：按测量文档 §5 的建议，和 B25/B26 碰到同一段代码时一起做，除非你想现在就清——时机你定。验收：同种子逐局完全一致（比分、篮板、出手全相同）。B27 的代码仍排在 B23 落地之后；B27 设计稿（docs/implementation/b27-timeout-tiers.md）还在等用户批。
->>>>>>> 5793747 (Record user pick: B23 option B (merge stacking into single source))
