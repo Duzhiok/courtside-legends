@@ -44,6 +44,26 @@ async function run(width, height, tag) {
     const narrow = info.cards.filter((k) => k.w < Math.min(260, info.gw / 2 - 20));
     check(`[${tag}/${cat}] no sliver-narrow card`, narrow.length === 0, narrow.map((k) => `${k.name}:${k.w}`).join(", "));
     check(`[${tag}/${cat}] no horizontal overflow`, await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+    if (cat === "career") {
+      const polish = await page.evaluate(() => {
+        const cards = [...document.querySelectorAll('.home-category-panel[data-category="career"] .mode-card')];
+        const wall = document.querySelector("#home-legends-wall");
+        const tile = wall?.querySelector(".legend-tile");
+        const bar = document.querySelector("#account-home-bar").getBoundingClientRect();
+        return {
+          dark: cards.map((c) => getComputedStyle(c).backgroundImage.includes("linear-gradient")),
+          tags: cards.map((c) => c.querySelector(".mode-tag")?.textContent.trim() ?? ""),
+          tagFirst: cards.map((c) => { const t = c.querySelector(".mode-tag"), st = c.querySelector("strong"); return !!t && !!st && t.getBoundingClientRect().bottom <= st.getBoundingClientRect().top + 1; }),
+          wallOpacity: Number(getComputedStyle(wall).opacity),
+          tileBorder: tile ? parseFloat(getComputedStyle(tile).borderTopWidth) : null,
+          barH: Math.round(bar.height),
+        };
+      });
+      check(`[${tag}] all three career cards share the dark card style`, polish.dark.length === 3 && polish.dark.every(Boolean), JSON.stringify(polish.dark));
+      check(`[${tag}] each career card has a positioning tag above its title`, polish.tags.every((t) => t.length > 3) && polish.tagFirst.every(Boolean), polish.tags.join(" | "));
+      check(`[${tag}] the photo wall is quieter than the cards (opacity<1)`, polish.wallOpacity < 1, `opacity=${polish.wallOpacity}`);
+      check(`[${tag}] the account bar is compact`, polish.barH <= (width <= 640 ? 150 : 72), `${polish.barH}px`);
+    }
     await page.screenshot({ path: `${OUT}/${tag}-${cat}.png`, fullPage: true, animations: "disabled" });
   }
   check(`[${tag}] no page errors`, errors.length === 0, errors.slice(0, 2).join(" | "));

@@ -130,8 +130,11 @@ html[lang="en"] .topbar .brand-name { display: none; }
   /* a strip after the modes (it used to be the banner's right column, ~800px tall) */
   grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 12px;
-  margin: 28px 0 8px;
+  margin: 22px 0 6px;
+  opacity: .82; /* a mood strip, not a second set of buttons: quieter than the mode cards above it */
+  transition: opacity .2s ease;
 }
+.legends-wall:hover { opacity: 1; }
 .legend-tile {
   position: relative;
   margin: 0;
@@ -139,9 +142,9 @@ html[lang="en"] .topbar .brand-name { display: none; }
   border-radius: 14px;
   overflow: hidden;
   background: #0b1f15;
-  border: 2px solid rgba(246, 200, 112, .35);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, .4);
-  transform: rotate(var(--tilt, 0deg));
+  border: 1px solid rgba(246, 200, 112, .22);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .22);
+  transform: rotate(calc(var(--tilt, 0deg) * .35));
   transition: transform .2s ease, border-color .2s ease;
 }
 .legend-tile:hover { transform: rotate(0deg) scale(1.04); border-color: var(--gold); z-index: 1; }
@@ -150,8 +153,9 @@ html[lang="en"] .topbar .brand-name { display: none; }
   height: 100%;
   object-fit: cover;
   object-position: center 20%;
-  filter: saturate(1.05) contrast(1.05);
+  filter: saturate(.72) contrast(1);
 }
+.legend-tile:hover img { filter: none; }
 .legend-tile figcaption {
   position: absolute;
   inset: auto 0 0 0;
@@ -168,7 +172,9 @@ html[lang="en"] .topbar .brand-name { display: none; }
 /* —— Account / save bars —— */
 #screen-home .account-home-bar {
   position: relative;
-  padding-left: 20px;
+  margin-bottom: 12px;
+  padding: 8px 12px 8px 20px;
+  gap: 8px 12px;
   background: rgba(255, 255, 255, .85);
   border: 1px solid rgba(15, 28, 20, .08);
   box-shadow: 0 8px 22px rgba(15, 28, 20, .08);
@@ -292,16 +298,32 @@ html[lang="en"] .topbar .brand-name { display: none; }
 #screen-home .mode-card:hover .mode-card-photo img { transform: scale(1.06); }
 
 /* Featured cards: dark arena style */
-#screen-home .mode-card-feature {
+#screen-home :is(.mode-card-feature, .mode-card-dark) {
   background: linear-gradient(120deg, var(--arena-1) 0%, var(--arena-2) 60%, var(--arena-3) 100%);
   border-color: rgba(246, 200, 112, .3);
   color: #fff;
 }
-#screen-home .mode-card-feature strong { color: #fff; font-size: 1.25rem; }
-#screen-home .mode-card-feature strong::after { color: var(--gold); }
-#screen-home .mode-card-feature > span:not(.mode-card-photo) { color: rgba(248, 244, 234, .82); }
-#screen-home .mode-card-feature.has-photo { padding-right: 200px; }
-#screen-home .mode-card-feature .mode-card-photo { width: 220px; }
+#screen-home :is(.mode-card-feature, .mode-card-dark) strong { color: #fff; font-size: 1.25rem; }
+#screen-home :is(.mode-card-feature, .mode-card-dark) strong::after { color: var(--gold); }
+#screen-home :is(.mode-card-feature, .mode-card-dark) > span:not(.mode-card-photo) { color: rgba(248, 244, 234, .82); }
+#screen-home :is(.mode-card-feature, .mode-card-dark).has-photo { padding-right: 200px; }
+#screen-home :is(.mode-card-feature, .mode-card-dark) .mode-card-photo { width: 220px; }
+
+/* Positioning tag: one short line that says what kind of mode this is (shared by every card that has one). */
+#screen-home .mode-tag {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(246, 200, 112, .16);
+  border: 1px solid rgba(246, 200, 112, .38);
+  color: var(--gold);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
 
 /* Design notes panel (collapsible) */
 #screen-home .hint-panel {
@@ -346,9 +368,9 @@ html[lang="en"] .topbar .brand-name { display: none; }
   .legend-tile figcaption strong { font-size: .68rem; }  /* 7-character names must fit a ~95px tile on one line */
   .legend-tile figcaption span { font-size: .62rem; }
   #screen-home .mode-card.has-photo { padding-right: 96px; }
-  #screen-home .mode-card-feature.has-photo { padding-right: 120px; }
+  #screen-home :is(.mode-card-feature, .mode-card-dark).has-photo { padding-right: 120px; }
   .mode-card-photo { width: 104px; }
-  #screen-home .mode-card-feature .mode-card-photo { width: 136px; }
+  #screen-home :is(.mode-card-feature, .mode-card-dark) .mode-card-photo { width: 136px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .legend-tile,
@@ -386,3 +408,7 @@ html[lang="en"] .topbar .brand-name { display: none; }
 }
 #screen-home .btn.continue:hover,
 #screen-home .btn.continue:focus-visible { background: var(--ink); color: #fff; }
+
+/* Compact account bar: one line of status + small actions (the account flow itself is unchanged). */
+#screen-home .account-home-text { flex: 1 1 320px; max-width: none; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+#screen-home .account-home-bar .btn { padding: 5px 12px; font-size: .84rem; min-height: 0; }
