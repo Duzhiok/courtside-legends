@@ -471,3 +471,5 @@
 
 [2026-11-04] Code：M1 首屏验收修复 + 选秀建队免费选人 + 单人加速完成（WORKNOTE R149，BACKLOG B37/B38/B39）。**待 review（Luna）**：`index.html` 横幅结构（CTA 进文案区、照片墙移到模式之后）和 `css/home.css` 对应改动；`scripts/qa/home-first-screen.mjs` 的占位图应答与新断言；`js/ui/playbackSpeed.js` 与 `js/app.js` 里三处调用；选秀建队价格/金币条/提示。**提醒**：以后写首页/长列表布局的 QA，不要屏蔽外部图片后就认为布局是真的——照片墙塌了会让一切「在首屏」。没做：双人对抗的速度锁没走真实对局；B39 五项杂项；B36 等 Zoro 定语义。
 
+[2026-11-04] Code：B34 修完（WORKNOTE R150）。**待 review（Luna）**：`js/engine/sim.js` 里 `AUTOPILOT_SWAPPABLE_GROUPS` 与 `managedOffensePlan` 的那一处条件、`tests/managedOffenseKeepsTactic.test.js`。固定种子前后数字在 R150。没做：被挡住时没有播报；按钮说明文案没改。
+

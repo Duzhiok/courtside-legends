@@ -99,6 +99,9 @@ export function assistantMayCallTimeout(remaining, quiet = false) {
   return remaining > (quiet ? 0 : ASSISTANT_TIMEOUT_RESERVE);
 }
 
+/** Tactic groups the offence autopilot may replace. Everything else (defense, rebounding, stance, team_state, pace_defense) is left as the player set it. */
+const AUTOPILOT_SWAPPABLE_GROUPS = new Set(["offense", "spacing", "pace_transition"]);
+
 /**
  * Possession-based NBA sim with full box-score stats.
  * Open look ≠ automatic make. Coach actions apply temporary modifiers.
@@ -1908,7 +1911,11 @@ export class GameSim {
       want = pick("motion", "pnr_spam", "balanced", "horns");
     }
 
-    if (you.tactic?.id !== want) this.setTactic(want);
+    // B34: only swap when the CURRENT tactic is an offensive system. A defence / rebounding / stance / team-state
+    // tactic (zone_drop, switch_all, pack_paint, grind, crash_boards, second_chance, morale_boost, freestyle)
+    // is the player's call: leave it alone. Play focus, ball focus and the coaching dials below still adjust.
+    const cur = you.tactic;
+    if (cur?.id !== want && (!cur || AUTOPILOT_SWAPPABLE_GROUPS.has(cur.group))) this.setTactic(want);
     if (focus && (!this.focusPlay || this.focusPlay.id !== focus)) this.setFocusPlay(focus);
 
     const threeAce = needThree || clutchChase ? bestThreeShooter(you.onCourt) : null;
