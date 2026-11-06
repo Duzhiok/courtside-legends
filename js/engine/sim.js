@@ -170,6 +170,14 @@ export class GameSim {
     this.focusPlay = null;
     /** Primary offensive option player id (persists until cleared). */
     this.offenseFocusId = null;
+    /** M2b-1 clutch decision: armed by submitDecision(), consumed by your next offensive possession. */
+    this.clutchDecision = null;
+    /** Structured outcomes of every consumed clutch decision (also sent as a `coach` event's meta). */
+    this.clutchLog = [];
+    this._clutchAttemptSeq = 0;
+    this._clutchAttemptId = null;
+    this._clutchTouched = false;
+    this._clutchTrace = null;
     /** FIFA-style smart manager for your side — three independent switches. */
     this.autoOffense = false; // auto-adjust offensive playbook/focus
     this.autoDefense = false; // auto-adjust defensive scheme/matchup
@@ -581,6 +589,7 @@ export class GameSim {
   }
 
   nextQuarter() {
+    if (this.clutchDecision) this._settleClutch(this.clutchDecision, { reason: "no_possession" });
     if (this.quarter >= 4 && this.score.home !== this.score.away) {
       this.finish();
       return;
@@ -626,7 +635,56 @@ export class GameSim {
     }
   }
 
+  /**
+   * One possession. Wrapper for the clutch decision (M2b-1): when you have an armed decision and the ball
+   * is yours, the pick is exposed to the core as `off.temp.clutchPick` for exactly this possession and the
+   * outcome is read back from the box-score deltas -- no separate shooting model, no new dice.
+   */
   resolvePossession() {
+    const off = this.possession === "home" ? this.home : this.away;
+    const decision = this.clutchDecision;
+    if (!decision || off !== this.you()) return this._resolvePossession();
+    const shooter = off.onCourt?.find((p) => p.id === decision.shooterId);
+    if (!shooter) {
+      this._settleClutch(decision, { reason: "not_on_court" });
+      return this._resolvePossession();
+    }
+    const def = off === this.home ? this.away : this.home;
+    const sum = (team, key) => team.roster.reduce((n, p) => n + (p.stats[key] || 0), 0);
+    const before = {
+      fga: shooter.stats.fga, fgm: shooter.stats.fgm, tpa: shooter.stats.tpa, pts: shooter.stats.pts,
+      teamFga: sum(off, "fga"), teamTov: sum(off, "tov"), defPf: sum(def, "pf"),
+    };
+    if (!off.temp) off.temp = {};
+    off.temp.clutchPick = { shooterId: shooter.id, needThree: decision.actionHint === "three" };
+    this._clutchTouched = false;
+    this._clutchTrace = null;
+    try {
+      this._resolvePossession();
+    } finally {
+      delete off.temp.clutchPick;
+    }
+    if (!this._clutchTouched) return; // possession eaten by a tactical foul before the ball was played: stay armed
+    const attempted = shooter.stats.fga > before.fga;
+    const trace = this._clutchTrace || {};
+    let reason = null;
+    if (!attempted) {
+      if (sum(off, "tov") > before.teamTov) reason = "turnover";
+      else if (sum(def, "pf") > before.defPf) reason = "foul";
+      else if (!trace.handedOff) reason = "not_handed_off";
+      else reason = trace.doubled ? "doubled" : "kicked_out";
+    }
+    this._settleClutch(decision, {
+      handedOff: !!trace.handedOff || attempted, // got the ball at the gate, or by a pass and then shot
+      attempted,
+      zone: attempted ? (shooter.stats.tpa > before.tpa ? "three" : "two") : null,
+      made: shooter.stats.fgm > before.fgm,
+      points: shooter.stats.pts - before.pts,
+      reason,
+    });
+  }
+
+  _resolvePossession() {
     // Injured bodies cannot stay on the floor if a healthy bench exists
     this.forceOutInjured(this.home);
     this.forceOutInjured(this.away);
@@ -656,9 +714,18 @@ export class GameSim {
     }
     // 终场：落后方抢攻 / 需要三分；领先方持球时落后方战术犯规抢时间
     if (applyLateGameScripts(this, off, def)) return;
+    this._clutchTouched = true;
 
-    const chase = off.temp?.lateChase || null;
+    // Read-point precedence (M2b-1): player decision > late-game script > default gameplan. The script keeps
+    // rewriting off.temp.lateChase every tick; only "who shoots / three or not" is overridden here.
+    const script = off.temp?.lateChase || null;
+    const pick = off.temp?.clutchPick || null;
+    const chase = pick
+      ? { ...(script || { paceBoost: false, deficit: 0 }), shooterId: pick.shooterId, needThree: pick.needThree }
+      : script;
+    const forced = !!(pick || chase?.needThree);
     let focus = off === this.you() ? this.focusPlay : null;
+    if (pick && !pick.needThree && focus?.id === "pace_three") focus = null; // "attack": no three-hunt focus
     let offenseFocusId = off === this.you() ? this.offenseFocusId : (off.gameplan?.offenseFocusId || null);
     if (chase?.shooterId) {
       offenseFocusId = chase.shooterId;
@@ -683,7 +750,7 @@ export class GameSim {
     let kickedOut = false;
     let organizerId = null;
     // 终场需要三分：高概率直接把球给最稳射手
-    if (!putbackId && chase?.needThree && chase.shooterId) {
+    if (!putbackId && forced && chase?.shooterId) {
       const sh = off.onCourt.find((p) => p.id === chase.shooterId);
       if (sh && rnd() < 0.78) {
         if (baller && baller.id !== sh.id && (baller.pass || 50) >= 55) {
@@ -700,17 +767,18 @@ export class GameSim {
     // 挡拆 / 突破分球 / 组织：常分给弱侧射手或顺下点
     // 低攻击欲 / 专注防守：即使不是组织者也会优先先传导
     // 冲板二次补篮：不先分球
+    const preKickBaller = baller;
     let schemeKick =
       !putbackId &&
-      !(chase?.needThree && baller?.id === chase.shooterId) &&
+      !(forced && baller?.id === chase?.shooterId) &&
       baller &&
       (baller.orders?.usage === "organize" ||
         initAction === "drive_kick" ||
         initAction === "pnr" ||
         ballAgg <= 0.35 ||
-        (chase?.needThree && baller.id !== chase.shooterId));
+        (forced && baller.id !== chase?.shooterId));
     let kickChance = clamp(0.3 + (baller?.pass || 50) * 0.004, 0.28, 0.65);
-    if (chase?.needThree && baller && baller.id !== chase.shooterId) {
+    if (forced && baller && baller.id !== chase?.shooterId) {
       kickChance = clamp(kickChance + 0.35, 0.55, 0.92);
     }
     if (initAction === "drive_kick") kickChance = clamp(kickChance + 0.14, 0.35, 0.78);
@@ -749,6 +817,7 @@ export class GameSim {
     } else if (doubled && baller && (baller.skills || []).includes("lone_wolf") && rnd() < 0.35) {
       this.emit("coach", this.S(`${baller.name}「独狼」硬解包夹，没分给空位队友`, `${baller.name} (Lone Wolf) forces it into the double-team, ignoring the open man`));
     }
+    if (pick) this._clutchTrace = { handedOff: preKickBaller?.id === pick.shooterId, doubled };
     // Strong side = ball side; weak side = help/kick-out side (2K spacing)
     const weakSide = kickedOut ? rnd() < 0.72 : rnd() < 0.28;
     const scheme =
@@ -763,7 +832,7 @@ export class GameSim {
       scheme,
       organizerId,
       putback: !!putbackId,
-      lateChase: !!chase,
+      lateChase: !!script,
       lateChaseNeedThree: !!chase?.needThree,
     };
     // Shout focus: burn one possession of "execute the tactic" attention
@@ -1405,6 +1474,47 @@ export class GameSim {
     hotSide.temp.ttl = Math.max(hotSide.temp.ttl || 0, 5);
     this.momentum = { side: null, points: 0, streak: 0 };
     return true;
+  }
+
+  /** Hand out the attempt id the next clutch decision must carry (ClutchController calls this). Only the latest is honored. */
+  issueAttemptId() {
+    this._clutchAttemptSeq += 1;
+    this._clutchAttemptId = `clutch-${this._clutchAttemptSeq}`;
+    return this._clutchAttemptId;
+  }
+
+  /**
+   * M2b-1 clutch decision: "this player takes your next possession", as an intent -- never a guaranteed shot or make.
+   * @param {{attemptId:string, kind:"clutch_shooter", shooterId:string, actionHint:"three"|"attack"}} d
+   * @returns {{accepted:boolean, reason:string|null}} reason: invalid | stale_attempt | game_over | not_on_court
+   */
+  submitDecision(d) {
+    const reject = (reason) => ({ accepted: false, reason });
+    if (!d || d.kind !== "clutch_shooter" || !["three", "attack"].includes(d.actionHint) || !d.shooterId) {
+      return reject("invalid");
+    }
+    if (d.attemptId !== this._clutchAttemptId) return reject("stale_attempt");
+    if (this.ended || !this.running) return reject("game_over");
+    const shooter = this.you().onCourt?.find((p) => p.id === d.shooterId);
+    if (!shooter) return reject("not_on_court");
+    this.clutchDecision = { attemptId: d.attemptId, shooterId: shooter.id, shooterName: shooter.name, actionHint: d.actionHint, quarter: this.quarter, clock: this.clock };
+    this._clutchAttemptId = null; // one decision per issued id
+    this.emit("coach", this.S(`绝杀决策：球交给 ${shooter.name}`, `Clutch call: ball to ${shooter.name}`));
+    return { accepted: true, reason: null };
+  }
+
+  /** Close a decision and publish its structured outcome (UI / Reborn read `clutchLog` or the event meta). */
+  _settleClutch(decision, partial) {
+    const outcome = {
+      attemptId: decision.attemptId, shooterId: decision.shooterId, actionHint: decision.actionHint,
+      handedOff: false, attempted: false, zone: null, made: false, points: 0, honored: false, reason: null,
+      ...partial,
+    };
+    outcome.honored = outcome.attempted;
+    this.clutchDecision = null;
+    this.clutchLog.push(outcome);
+    this.emit("coach", this.S(`绝杀结果：${decision.shooterName}${outcome.attempted ? (outcome.made ? " 命中" : " 出手未中") : " 没能出手"}`, `Clutch result: ${decision.shooterName}${outcome.attempted ? (outcome.made ? " scored" : " missed") : " never got the shot"}`), { clutchOutcome: outcome });
+    return outcome;
   }
 
   /** Set short-term offensive focus (dead-ball only, enforced by UI). */
@@ -2336,6 +2446,7 @@ export class GameSim {
   }
 
   finish() {
+    if (this.clutchDecision) this._settleClutch(this.clutchDecision, { reason: "no_possession" });
     this.stop();
     // plus/minus already tracked live; finalize minutes rounding
     for (const side of [this.home, this.away]) {
@@ -3791,9 +3902,10 @@ function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null) {
     }
     if (offenseFocusId && p.id === offenseFocusId) w *= 1.5;
     // 终场需要三分：分球几乎锁定最稳射手
-    if (off.temp?.lateChase?.needThree && off.temp.lateChase.shooterId === p.id) {
+    const pickedChase = off.temp?.clutchPick || off.temp?.lateChase;
+    if (pickedChase?.needThree && pickedChase.shooterId === p.id) {
       w *= 4.5;
-    } else if (off.temp?.lateChase?.shooterId === p.id) {
+    } else if (pickedChase?.shooterId === p.id) {
       w *= 1.8;
     }
     // 詹韦连线等：双核互喂

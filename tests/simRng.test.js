@@ -90,3 +90,43 @@ test("same seed -> same game; different seed -> different game", () => {
   const scores = new Set([1, 2, 3, 4, 5, 6].map(play));
   assert.ok(scores.size > 1, "different seeds should not all produce the same score");
 });
+
+test("RNG context: a game stepped from inside another game's callback keeps both streams intact", () => {
+  const mk = (rng, onEvent = () => {}) =>
+    new GameSim({ home: realTeam("CHI", 1996), away: realTeam("SEA", 1996), rng, onEvent, onTick: () => {}, onEnd: () => {} });
+  const alone = JSON.stringify(mk(seededStream(11)).runFast().score);
+  const other = mk(seededStream(99));
+  other.running = true;
+  const a = mk(seededStream(11), () => {
+    if (!other.ended) other.step(); // nested call, different source
+  });
+  assert.equal(JSON.stringify(a.runFast().score), alone, "outer game unaffected by the nested one");
+  // and the unseeded-inside-seeded case: B draws from Math.random, A must still be reproducible
+  const b = mk(null);
+  b.running = true;
+  const a2 = mk(seededStream(11), () => {
+    if (!b.ended) b.step();
+  });
+  assert.equal(JSON.stringify(a2.runFast().score), alone);
+});
+
+test("RNG context: an exception inside a seeded call restores the previous source", () => {
+  const boom = mkThrowingSim();
+  assert.throws(() => boom.step(), /boom/);
+  const real = Math.random;
+  Math.random = () => 0.42;
+  try {
+    assert.equal(rand(), 0.42, "source back to Math.random after the throw");
+  } finally {
+    Math.random = real;
+  }
+});
+
+function mkThrowingSim() {
+  const sim = new GameSim({
+    home: realTeam("CHI", 1996), away: realTeam("SEA", 1996), rng: seededStream(1),
+    onEvent: () => { throw new Error("boom"); }, onTick: () => {}, onEnd: () => {},
+  });
+  sim.running = true;
+  return sim;
+}
