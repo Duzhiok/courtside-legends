@@ -101,7 +101,10 @@ export const ASSISTANT_TIMEOUT_RESERVE = 4;
  * 0.78 hand-off gate and x4.5 / x1.8 kick weights, so ordinary games are untouched. Exported (mutable) so a
  * paired-seed calibration probe can sweep it; the values below are the calibrated defaults.
  */
-export const CLUTCH_DECISION_TUNING = { handoff: 0.78, kickWeight: 4.5 };
+// Decision path only (R164 calibration, scripts/research/clutch-calibration-sweep.mjs): no extra hand-off gate, the
+// picked player keeps the ball instead of re-passing, and the pick is still a high-weight kick-out target. Ordinary
+// play and the late-game script keep their own 0.78 / x4.5 / re-pass rule untouched.
+export const CLUTCH_DECISION_TUNING = { handoff: 0, kickWeight: 4.5, keepBall: true };
 export function assistantMayCallTimeout(remaining, quiet = false) {
   return remaining > (quiet ? 0 : ASSISTANT_TIMEOUT_RESERVE);
 }
@@ -1043,7 +1046,8 @@ export class GameSim {
     // 低攻击欲：机会不够好就再传导一次，而不是自主强投
     const aggNow = aggressionLevel(baller);
     const openNeed = shotOpenThreshold(baller);
-    if (aggNow <= 0.4 && open < openNeed) {
+    const keepsBall = CLUTCH_DECISION_TUNING.keepBall && pick && baller.id === pick.shooterId; // decision path only
+    if (aggNow <= 0.4 && open < openNeed && !keepsBall) {
       const passer = baller;
       const kicked2 = kickToTeammate(off, baller, offenseFocusId, sideCtx.scheme || initAction);
       if (kicked2 && kicked2.id !== baller.id) {

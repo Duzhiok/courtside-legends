@@ -252,3 +252,27 @@ test("no decision => no clutch outcome event at all", () => {
     assert.equal(sim.clutchLog.length, 0);
   }
 });
+
+test("calibration: the pick takes a large but NOT forced share, for a shooter and for catch-and-shoot role players", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { seasonToCard } = await import("../js/data/players.js");
+  const { seededStream } = await import("../js/core/seededRandom.js");
+  const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
+  const roster = (c, y) => rows.filter((r) => r.team === c && r.season === y).map(seasonToCard).sort((a, b) => b.scoring + b.three - a.scoring - a.three).slice(0, 10);
+  const cases = [["GSW", 2016, "CLE", 2016, /Klay/], ["CHI", 1996, "SEA", 1996, /Kuko/], ["CHI", 1996, "SEA", 1996, /Kerr/]];
+  for (const [hc, hy, ac, ay, who] of cases) {
+    let shots = 0, mine = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const s = new GameSim({ home: { players: roster(hc, hy), name: "H" }, away: { players: roster(ac, ay), name: "A" }, youSide: "home", injuries: false, speed: 3, rng: seededStream(seed), onEvent() {}, onTick() {}, onEnd() {} });
+      Object.assign(s, { running: true, paused: false, quarter: 4, clock: 12, score: { home: 97, away: 100 }, possession: "home" });
+      const x = s.home.onCourt.find((p) => who.test(p.name));
+      s.submitDecision({ attemptId: s.issueAttemptId(), kind: "clutch_shooter", shooterId: x.id, actionHint: "three" });
+      const before = new Map(s.home.roster.map((p) => [p.id, p.stats.fga || 0]));
+      for (let i = 0; i < 14 && !s.clutchLog.length; i++) s.step();
+      const sh = s.home.roster.filter((p) => (p.stats.fga || 0) > before.get(p.id)).map((p) => p.id);
+      if (sh.length) { shots++; if (sh.includes(x.id)) mine++; }
+    }
+    const share = (100 * mine) / shots;
+    assert.ok(share >= 40 && share <= 75, `${who}: share ${share.toFixed(1)}% outside 40-75% (target 45-70, +-sampling slack)`);
+  }
+});

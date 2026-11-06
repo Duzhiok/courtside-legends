@@ -63,3 +63,6 @@
 
 ## R163 · Code：ADR-009 Hometown Legends（仅规划）
 - 新增 `docs/implementation/ADR-009-hometown-legends.md`。关键发现：名册无地点字段，关系表需策展；约束写成可测夹具（§10）。未改代码。
+
+## R164 · Code：M2b-1 校准完成 → 引擎阶段 READY
+- handoff 0 + keepBall（仅决策路径）：Klay 69.8% / Kukoc 53.3% / Kerr 55.7%，均在 45–70%；金标不变；23/23；变异验证通过。详见设计文档 §12。未开始 M2b-2。
