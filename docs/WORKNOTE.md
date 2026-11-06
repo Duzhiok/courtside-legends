@@ -69,3 +69,6 @@
 
 ## R165 · Code：M2b-1 角色感知战术执行（方案 1）
 - 取代 R164 的全局 keepBall（已删）。新增 `clutchRole.js`：creator / playmaker / catch_shoot / post / role_player → on_ball / off_ball / entry。7 名球员实测、26/26、三个变异均变红、金标不变。详见设计文档 §13。未开始 M2b-2。
+
+## R166 · Doc：ADR-008a My World 差距分析（My Games / Player Voice / 3D Avatar）
+- 只分析，没改功能代码。要点：可恢复存档目前最多 2 个设备级槽位（根存档 + `cls_savegame_v1`），都不校验账号，切号会互相看到（P0 隐私缺口）；反馈没有真实后端，生产服务器未部署；3D 推荐 Three.js 动态加载 + CC0 角色，GameSim 不动。全量测试基线 1724/1724。详见 docs/implementation/ADR-008a-my-world-games-voice-avatar.md，Q1–Q5 待定。
