@@ -511,3 +511,5 @@
 [2026-11-05] Code：Reborn 职业身份规划（R154，ADR-006 PROPOSED）。**待 review（Luna）**：穿越卡文案（`index.html`、`modeCatalog.js`、`i18n-phrases.js`）、新 ADR-006、ROADMAP M5 改正、DECISIONS/BACKLOG B37。**没做**：任何引擎/存档/权限代码、身份选择页、Player 职业。实现前需用户批准 ADR-006 的 Q1–Q4。
 
 [2026-11-05] Luna：认领 B35 方案 B（B40：playerSeason 行从实时球队球员卡取 age/ovr，用户 2026-11-05 已批；review：Code）。范围只动 js/engine/season.js（ensurePlayerSeason）+ 测试：行创建时按 id 从 st.teams 球员卡取 age 与 overall，找不到卡时保持现有行为；已有行缺 age 的补填；ROY 评选条件本身不动（age≤22 那支终于能命中）；旧存档无 age 的行继续可读。sim.js 不动；出手分配（方案 A）不在本次范围。
+
+[2026-11-05] Luna：待 review：76f292b B35 方案 B（B40）。改了：js/engine/season.js 的 ensurePlayerSeason 建行时按 id 从 st.teams 实时球员卡取 age 与 overall（找不到卡时保持原行为）；已有行缺 age 的补填，ovr 不动；新测试 tests/seasonRoyAge.test.js 5 项（行数据、ROY 选人、旧存档回退、1991/2016 端到端）；BACKLOG B40 状态更新。没做：ROY 评选条件本身没动；sim.js 不动；出手分配（方案 A）不在本次范围。测试：新单测 5/5 连跑 5 次全绿；全量 1605/1614，9 红全是缺 ws 的 online* 环境问题。
