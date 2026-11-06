@@ -60,3 +60,6 @@
 ## R162 · Code：My World MVP（N-1a/b/c）
 - 新增第四个首页 tab（默认 tab 不变）、`profile.js`（账号昵称/家乡/简介，访客本机存储）、`myWorldView/Screen`、`myWorld.css`；`homeTabs` 加 `onActivate`。14 条测试通过。
 - 换装/补签/商店仅记入 DECISIONS §九，未实现。
+
+## R163 · Code：ADR-009 Hometown Legends（仅规划）
+- 新增 `docs/implementation/ADR-009-hometown-legends.md`。关键发现：名册无地点字段，关系表需策展；约束写成可测夹具（§10）。未改代码。
