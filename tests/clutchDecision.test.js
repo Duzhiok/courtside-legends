@@ -253,26 +253,52 @@ test("no decision => no clutch outcome event at all", () => {
   }
 });
 
-test("calibration: the pick takes a large but NOT forced share, for a shooter and for catch-and-shoot role players", async () => {
-  const { readFileSync } = await import("node:fs");
-  const { seasonToCard } = await import("../js/data/players.js");
-  const { seededStream } = await import("../js/core/seededRandom.js");
-  const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
-  const roster = (c, y) => rows.filter((r) => r.team === c && r.season === y).map(seasonToCard).sort((a, b) => b.scoring + b.three - a.scoring - a.three).slice(0, 10);
-  const cases = [["GSW", 2016, "CLE", 2016, /Klay/], ["CHI", 1996, "SEA", 1996, /Kuko/], ["CHI", 1996, "SEA", 1996, /Kerr/]];
-  for (const [hc, hy, ac, ay, who] of cases) {
-    let shots = 0, mine = 0;
-    for (let seed = 1; seed <= 300; seed++) {
-      const s = new GameSim({ home: { players: roster(hc, hy), name: "H" }, away: { players: roster(ac, ay), name: "A" }, youSide: "home", injuries: false, speed: 3, rng: seededStream(seed), onEvent() {}, onTick() {}, onEnd() {} });
-      Object.assign(s, { running: true, paused: false, quarter: 4, clock: 12, score: { home: 97, away: 100 }, possession: "home" });
-      const x = s.home.onCourt.find((p) => who.test(p.name));
-      s.submitDecision({ attemptId: s.issueAttemptId(), kind: "clutch_shooter", shooterId: x.id, actionHint: "three" });
-      const before = new Map(s.home.roster.map((p) => [p.id, p.stats.fga || 0]));
-      for (let i = 0; i < 14 && !s.clutchLog.length; i++) s.step();
-      const sh = s.home.roster.filter((p) => (p.stats.fga || 0) > before.get(p.id)).map((p) => p.id);
-      if (sh.length) { shots++; if (sh.includes(x.id)) mine++; }
+// Role-aware delivery (R165). Ranges are per archetype on purpose: a creator, a catch-and-shoot specialist and a post
+// scorer are NOT expected to land on one shared share. What must hold: the call helps, it is not forced, shots stay real.
+test("role-aware delivery: the call lifts specialists and post players without forcing them or hurting shot quality", async () => {
+  const { CASES, runOne } = await import("../scripts/research/clutch-calibration-sweep.mjs");
+  const N = 300;
+  const measure = (label) => {
+    const c = CASES.find((x) => x.label.startsWith(label));
+    let shots = 0, mine = 0, n = 0, made = 0, role = null, bm = 0, bFga = 0, bFgm = 0;
+    for (let seed = 1; seed <= N; seed++) {
+      const r = runOne(c, "three", true, seed);
+      n++; role = r.o.role;
+      if (r.shot) shots++;
+      if (r.mine) { mine++; if (r.o.made) made++; }
+      const b = runOne(c, "three", false, seed);
+      if (b.mine) bm++;
+      bFga += b.fga; bFgm += b.fgm;
     }
-    const share = (100 * mine) / shots;
-    assert.ok(share >= 40 && share <= 75, `${who}: share ${share.toFixed(1)}% outside 40-75% (target 45-70, +-sampling slack)`);
+    return { role, share: (100 * mine) / shots, perDecision: (100 * mine) / n, base: (100 * bm) / n, fg: (100 * made) / mine, baseFg: (100 * bFgm) / bFga };
+  };
+  const specialists = ["Klay", "Kukoc", "Kerr"].map((l) => [l, measure(l)]);
+  for (const [l, m] of specialists) {
+    assert.equal(m.role, "catch_shoot", l);
+    assert.ok(m.perDecision >= m.base + 15, `${l}: the call must beat his normal rate (${m.perDecision.toFixed(1)} vs ${m.base.toFixed(1)})`);
+    assert.ok(m.share >= 45 && m.share <= 80, `${l}: share ${m.share.toFixed(1)} should be large but not forced`);
+    assert.ok(m.fg >= m.baseFg - 8, `${l}: shot quality must not collapse (${m.fg.toFixed(1)} vs ${m.baseFg.toFixed(1)})`);
+  }
+  const duncan = measure("Duncan");
+  assert.equal(duncan.role, "post");
+  assert.ok(duncan.perDecision >= 45 && duncan.perDecision >= duncan.base + 30 && duncan.share <= 85, `post: ${duncan.perDecision.toFixed(1)} / ${duncan.share.toFixed(1)}`);
+  assert.ok(duncan.fg >= duncan.baseFg - 12, "post: still shoots like a post player");
+  const curry = measure("Curry");
+  assert.equal(curry.role, "creator");
+  assert.ok(curry.share >= 40 && curry.share <= 90, `creator share ${curry.share.toFixed(1)}`);
+});
+
+test("outcome records the role and the delivery mode, and every non-shot has a known reason", async () => {
+  const { CASES, runOne } = await import("../scripts/research/clutch-calibration-sweep.mjs");
+  const known = new Set(["turnover", "foul", "not_handed_off", "kicked_out", "doubled", "not_on_court", null]);
+  for (const label of ["Klay", "Duncan", "Curry"]) {
+    const c = CASES.find((x) => x.label.startsWith(label));
+    for (let seed = 1; seed <= 40; seed++) {
+      const { o } = runOne(c, "three", true, seed);
+      assert.ok(["creator", "playmaker", "catch_shoot", "post", "role_player"].includes(o.role), o.role);
+      assert.ok(["on_ball", "off_ball", "entry"].includes(o.delivery), o.delivery);
+      assert.ok(known.has(o.reason), `unknown reason ${o.reason}`);
+      assert.equal(o.attempted, o.reason === null, "attempted XOR reason");
+    }
   }
 });

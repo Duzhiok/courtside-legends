@@ -66,3 +66,6 @@
 
 ## R164 · Code：M2b-1 校准完成 → 引擎阶段 READY
 - handoff 0 + keepBall（仅决策路径）：Klay 69.8% / Kukoc 53.3% / Kerr 55.7%，均在 45–70%；金标不变；23/23；变异验证通过。详见设计文档 §12。未开始 M2b-2。
+
+## R165 · Code：M2b-1 角色感知战术执行（方案 1）
+- 取代 R164 的全局 keepBall（已删）。新增 `clutchRole.js`：creator / playmaker / catch_shoot / post / role_player → on_ball / off_ball / entry。7 名球员实测、26/26、三个变异均变红、金标不变。详见设计文档 §13。未开始 M2b-2。

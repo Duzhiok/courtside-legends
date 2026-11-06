@@ -4,6 +4,7 @@ import { getLang, skillNameL } from "../i18n.js";
 import { overall } from "../data/players.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
 import { buildSamePosMatchups } from "./matchups.js";
+import { classifyClutchRole, deliveryOf } from "./clutchRole.js";
 import { applyLineupPositionEffects, inGameInjuryChance, systemFitScore } from "../data/intangibles.js";
 import {
   activeDuoIds,
@@ -101,10 +102,9 @@ export const ASSISTANT_TIMEOUT_RESERVE = 4;
  * 0.78 hand-off gate and x4.5 / x1.8 kick weights, so ordinary games are untouched. Exported (mutable) so a
  * paired-seed calibration probe can sweep it; the values below are the calibrated defaults.
  */
-// Decision path only (R164 calibration, scripts/research/clutch-calibration-sweep.mjs): no extra hand-off gate, the
-// picked player keeps the ball instead of re-passing, and the pick is still a high-weight kick-out target. Ordinary
-// play and the late-game script keep their own 0.78 / x4.5 / re-pass rule untouched.
-export const CLUTCH_DECISION_TUNING = { handoff: 0, kickWeight: 4.5, keepBall: true };
+// Decision path only. Delivery is role-aware (js/engine/clutchRole.js): on-ball roles get the hand-off gate, off-ball
+// roles get a kick-out instead of the ball. Nothing here changes ordinary play or the late-game script.
+export const CLUTCH_DECISION_TUNING = { onBallHandoff: 0.78, kickWeight: 4.5, specialistTakesIt: true };
 export function assistantMayCallTimeout(remaining, quiet = false) {
   return remaining > (quiet ? 0 : ASSISTANT_TIMEOUT_RESERVE);
 }
@@ -667,7 +667,8 @@ export class GameSim {
       teamFga: sum(off, "fga"), teamTov: sum(off, "tov"), defPf: sum(def, "pf"),
     };
     if (!off.temp) off.temp = {};
-    off.temp.clutchPick = { shooterId: shooter.id, needThree: decision.actionHint === "three" };
+    const role = classifyClutchRole(shooter, aggressionLevel(shooter));
+    off.temp.clutchPick = { shooterId: shooter.id, needThree: decision.actionHint === "three", role, mode: deliveryOf(role) };
     this._clutchTouched = false;
     this._clutchTrace = null;
     try {
@@ -682,11 +683,11 @@ export class GameSim {
     if (!attempted) {
       if (sum(off, "tov") > before.teamTov) reason = "turnover";
       else if (sum(def, "pf") > before.defPf) reason = "foul";
-      else if (!trace.handedOff) reason = "not_handed_off";
-      else reason = trace.doubled ? "doubled" : "kicked_out";
+      else if (!trace.handedOff && !trace.received) reason = "not_handed_off"; // the ball never reached him
+      else reason = trace.doubled ? "doubled" : "kicked_out"; // he had it and the possession moved on (re-pass / drive-kick)
     }
     this._settleClutch(decision, {
-      handedOff: !!trace.handedOff || attempted, // got the ball at the gate, or by a pass and then shot
+      handedOff: !!trace.handedOff || !!trace.received || attempted, // had the ball: at the gate, by a feed, or shot
       attempted,
       zone: attempted ? (shooter.stats.tpa > before.tpa ? "three" : "two") : null,
       made: shooter.stats.fgm > before.fgm,
@@ -696,6 +697,8 @@ export class GameSim {
       teamPoints: this.score[sideKey] - before.score,
       points: shooter.stats.pts - before.pts,
       reason,
+      role,
+      delivery: deliveryOf(role),
     });
   }
 
@@ -742,6 +745,7 @@ export class GameSim {
     let focus = off === this.you() ? this.focusPlay : null;
     if (pick && !pick.needThree && focus?.id === "pace_three") focus = null; // "attack": no three-hunt focus
     let offenseFocusId = off === this.you() ? this.offenseFocusId : (off.gameplan?.offenseFocusId || null);
+    const handlerFocusId = offenseFocusId; // who the team normally runs the offense through
     if (chase?.shooterId) {
       offenseFocusId = chase.shooterId;
       if (chase.needThree) {
@@ -759,15 +763,18 @@ export class GameSim {
         off.temp.crashPutbackId = null;
       }
     }
+    // Role-aware delivery: only on-ball roles are promoted to ball handler; catch-and-shoot / post picks are fed instead.
+    const onBallPick = !pick || pick.mode === "on_ball";
+    const handlerFocus = onBallPick ? offenseFocusId : handlerFocusId;
     let baller = putbackId
-      ? off.onCourt.find((p) => p.id === putbackId) || pickBallHandler(off, focus, offenseFocusId)
-      : pickBallHandler(off, focus, offenseFocusId);
+      ? off.onCourt.find((p) => p.id === putbackId) || pickBallHandler(off, focus, handlerFocus)
+      : pickBallHandler(off, focus, handlerFocus);
     let kickedOut = false;
     let organizerId = null;
     // 终场需要三分：高概率直接把球给最稳射手
     if (!putbackId && forced && chase?.shooterId) {
       const sh = off.onCourt.find((p) => p.id === chase.shooterId);
-      if (sh && rnd() < (pick ? CLUTCH_DECISION_TUNING.handoff : 0.78)) {
+      if (sh && rnd() < (!pick ? 0.78 : onBallPick ? CLUTCH_DECISION_TUNING.onBallHandoff : 0)) {
         if (baller && baller.id !== sh.id && (baller.pass || 50) >= 55) {
           organizerId = baller.id;
           kickedOut = true;
@@ -792,6 +799,9 @@ export class GameSim {
         initAction === "pnr" ||
         ballAgg <= 0.35 ||
         (forced && baller.id !== chase?.shooterId));
+    // A clutch set play for an off-ball pick: the handler runs the called action, so his own habits (ball-hog
+    // damping, lone wolf) do not veto the pass to the picked shooter. Still the same kick-out roll and weights.
+    const calledPlay = !!pick && !onBallPick && !!baller && baller.id !== pick.shooterId;
     let kickChance = clamp(0.3 + (baller?.pass || 50) * 0.004, 0.28, 0.65);
     if (forced && baller && baller.id !== chase?.shooterId) {
       kickChance = clamp(kickChance + 0.35, 0.55, 0.92);
@@ -799,9 +809,9 @@ export class GameSim {
     if (initAction === "drive_kick") kickChance = clamp(kickChance + 0.14, 0.35, 0.78);
     if (initAction === "pnr") kickChance = clamp(kickChance + 0.1, 0.32, 0.72);
     if (ballAgg <= 0.35) kickChance = clamp(kickChance + 0.22 + (0.35 - ballAgg) * 0.9, 0.48, 0.94);
-    else if (ballAgg >= 0.85) kickChance = clamp(kickChance * 0.55, 0.12, 0.45);
+    else if (ballAgg >= 0.85 && !calledPlay) kickChance = clamp(kickChance * 0.55, 0.12, 0.45);
     // 独狼：少传球；被包夹时几乎不看队友
-    kickChance *= skillKickMult(baller, { doubled });
+    if (!calledPlay) kickChance *= skillKickMult(baller, { doubled });
     // Passers in form + hot scorers on floor → more willing to feed
     if (baller) {
       kickChance *= formKickPassMult(baller);
@@ -832,7 +842,7 @@ export class GameSim {
     } else if (doubled && baller && (baller.skills || []).includes("lone_wolf") && rnd() < 0.35) {
       this.emit("coach", this.S(`${baller.name}「独狼」硬解包夹，没分给空位队友`, `${baller.name} (Lone Wolf) forces it into the double-team, ignoring the open man`));
     }
-    if (pick) this._clutchTrace = { handedOff: preKickBaller?.id === pick.shooterId, doubled };
+    if (pick) this._clutchTrace = { handedOff: preKickBaller?.id === pick.shooterId, received: baller?.id === pick.shooterId, doubled };
     // Strong side = ball side; weak side = help/kick-out side (2K spacing)
     const weakSide = kickedOut ? rnd() < 0.72 : rnd() < 0.28;
     const scheme =
@@ -1046,11 +1056,13 @@ export class GameSim {
     // 低攻击欲：机会不够好就再传导一次，而不是自主强投
     const aggNow = aggressionLevel(baller);
     const openNeed = shotOpenThreshold(baller);
-    const keepsBall = CLUTCH_DECISION_TUNING.keepBall && pick && baller.id === pick.shooterId; // decision path only
-    if (aggNow <= 0.4 && open < openNeed && !keepsBall) {
+    // A called catch-and-shoot play for a SPECIALIST: his standing low-appetite order does not turn the called shot into a re-pass.
+    const calledSpecialist = CLUTCH_DECISION_TUNING.specialistTakesIt && pick?.role === "catch_shoot" && baller.id === pick.shooterId;
+    if (aggNow <= 0.4 && open < openNeed && !calledSpecialist) {
       const passer = baller;
       const kicked2 = kickToTeammate(off, baller, offenseFocusId, sideCtx.scheme || initAction);
       if (kicked2 && kicked2.id !== baller.id) {
+        if (pick && passer.id === pick.shooterId && this._clutchTrace) this._clutchTrace.repassed = true;
         if (!sideCtx.organizerId) sideCtx.organizerId = passer.id;
         sideCtx.kickedOut = true;
         if (!sideCtx.scheme) sideCtx.scheme = "drive_kick";
@@ -3902,7 +3914,10 @@ function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null) {
       (p.three || 50) * 0.22 +
       threeTend * 0.48 +
       (p.mid || 50) * 0.08;
-    if (threeTend < 18 || p.offenseStyle === "post") w *= 0.18;
+    const entryPass = off.temp?.clutchPick?.mode === "entry" && off.temp.clutchPick.shooterId === p.id; // post pick is fed inside
+    if (entryPass) {
+      /* no kick-out penalty: this is an entry pass, not a swing to the perimeter */
+    } else if (threeTend < 18 || p.offenseStyle === "post") w *= 0.18;
     else if (threeTend < 30) w *= 0.45;
     if (p.orders?.action === "spot") w *= 1.45;
     if (p.orders?.usage === "score") w *= 1.3;
