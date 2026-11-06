@@ -9,6 +9,13 @@
  * value while the player is on the floor (runFast()'s own loop, stepped by hand) and checks the
  * signature directly: a wider streak distribution with a much fatter ice-cold tail, while average
  * shooting stays put (it's variance, not a buff or a nerf).
+ *
+ * Both arms run PAIRED: game g of each arm gets the same seed (seededStream, via GameSim's `rng`
+ * option), so a pair of games differs only by the skill itself. Unpaired runs flaked in CI
+ * (2026-11-06: cold-share ratio 1.2 vs the 1.6 bar; FG% gap 0.057 vs the 0.05 bar — both marginal
+ * misses on independent random draws, while a docs-only commit on identical engine code passed).
+ * Paired, the statistics are far cleaner: measured across seed bases 1/11/21/31/41, cold-share
+ * ratio 2.82–3.81, FG% gap 0.000–0.001, spread ratio 1.22–1.28. Seed base 1 is the fixed choice.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -16,6 +23,7 @@ import { readFileSync } from "node:fs";
 import { seasonToCard } from "../js/data/players.js";
 import { skillHotEffectMult, skillHotSwingMult } from "../js/data/skills.js";
 import { GameSim } from "../js/engine/sim.js";
+import { seededStream } from "../js/core/seededRandom.js";
 
 const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 const SUBJECT = "smithjr01-2013-nyk";
@@ -33,13 +41,14 @@ const TEAM_WITHOUT = TEAM_WITH.map((p) =>
 );
 const OPPONENT = { players: teamOf("DEN", 2023), name: "DEN" };
 
-function newSim(players) {
+function newSim(players, seed) {
   return new GameSim({
     home: { players, name: "NYK" },
     away: OPPONENT,
     youSide: "home",
     injuries: false,
     speed: 3,
+    rng: seededStream(seed),
     onEvent: () => {},
     onTick: () => {},
     onEnd: () => {},
@@ -47,10 +56,10 @@ function newSim(players) {
 }
 
 /** Same loop as GameSim.runFast(), but samples the subject's live `hot` after every step he's on the floor. */
-function onCourtHotSamples(players, games) {
+function onCourtHotSamples(players, games, seedBase) {
   const xs = [];
   for (let g = 0; g < games; g++) {
-    const sim = newSim(players);
+    const sim = newSim(players, seedBase + g);
     sim._quiet = true;
     sim.running = true;
     sim.paused = false;
@@ -69,11 +78,11 @@ function spread(xs) {
   return Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length);
 }
 
-function fgPct(players, games) {
+function fgPct(players, games, seedBase) {
   let fgm = 0;
   let fga = 0;
   for (let g = 0; g < games; g++) {
-    const snap = newSim(players).runFast();
+    const snap = newSim(players, seedBase + g).runFast();
     const me = [...snap.home.onCourt, ...snap.home.bench].find((p) => p.id === SUBJECT);
     fgm += me.stats.fgm;
     fga += me.stats.fga;
@@ -95,8 +104,8 @@ test("神经刀 in a real game: wider hot/cold streaks, a much fatter ice-cold t
     TEAM_WITH.some((p) => p.id === SUBJECT && p.skills.includes("nerve_blade")),
     "the 2013 J.R. Smith card lost 神经刀 -- did SIGNATURE_SKILLS regress?"
   );
-  const withSkill = onCourtHotSamples(TEAM_WITH, 50);
-  const without = onCourtHotSamples(TEAM_WITHOUT, 50);
+  const withSkill = onCourtHotSamples(TEAM_WITH, 50, 1);
+  const without = onCourtHotSamples(TEAM_WITHOUT, 50, 1);
 
   const sdWith = spread(withSkill);
   const sdWithout = spread(without);
@@ -116,7 +125,7 @@ test("神经刀 in a real game: wider hot/cold streaks, a much fatter ice-cold t
 });
 
 test("神经刀 is variance, not a buff or a nerf: average FG% barely moves", () => {
-  const a = fgPct(TEAM_WITH, 150);
-  const b = fgPct(TEAM_WITHOUT, 150);
+  const a = fgPct(TEAM_WITH, 150, 1);
+  const b = fgPct(TEAM_WITHOUT, 150, 1);
   assert.ok(Math.abs(a - b) < 0.05, `average FG% should stay about the same: with=${a.toFixed(3)} without=${b.toFixed(3)}`);
 });
