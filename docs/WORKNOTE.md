@@ -56,3 +56,7 @@
 - 新增 `docs/implementation/M2b-clutch-decision-design.md`（PROPOSED，一页）：可注入 RNG + 决策契约。发现 `skills.js` 51 处 `Math.random` 在引擎调用链里，只改 `sim.js` 不够；建议 `js/core/rng.js` 作用域替换 + 改动前后金标哈希；拟修订 ROADMAP §5 "RNG 不可注入"。批准前不改 GameSim。
 - `BASELINE_AUDIT.md` 新增 §0b：来源提交 `b64e660`，标注已解决/已变更/仍成立的条目。
 - 同日早些时候已完成并推送：设置页标题与开始按钮随经营长度（`a2da47c`）、开局引导页取消按钮（`a2da47c`）、权限审计（`b64e660`）。
+
+## R162 · Code：My World MVP（N-1a/b/c）
+- 新增第四个首页 tab（默认 tab 不变）、`profile.js`（账号昵称/家乡/简介，访客本机存储）、`myWorldView/Screen`、`myWorld.css`；`homeTabs` 加 `onActivate`。14 条测试通过。
+- 换装/补签/商店仅记入 DECISIONS §九，未实现。
