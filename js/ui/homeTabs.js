@@ -15,6 +15,12 @@ import { allModes } from "../data/modeCatalog.js";
 
 const TAB_META = [
   {
+    // ADR-008 N-1: the player's own space. Holds no modes (no catalog homeTab points here).
+    id: "world",
+    label: "我的篮球人生",
+    hint: "你的身份、旅程、荣誉和小家",
+  },
+  {
     id: "players",
     label: "我的球员",
     hint: "你的永久班底：抽卡、养成、排位",
@@ -49,11 +55,15 @@ export function allKnownModes() {
   return HOME_CATEGORIES.flatMap((cat) => cat.modes);
 }
 
-/** Wire the tab bar: click a tab, show its panel, hide the rest. Pure DOM glue, no state leaks. */
-export function wireHomeTabs(doc = document) {
+/**
+ * Wire the tab bar: click a tab, show its panel, hide the rest. Pure DOM glue, no state leaks.
+ * `onActivate(id)` lets a panel that renders from live data (My World) refresh when it is shown.
+ * @returns the activate(id) function, so other screens can jump to a tab, or null with no tab bar.
+ */
+export function wireHomeTabs(doc = document, { onActivate } = {}) {
   const tabs = [...doc.querySelectorAll(".home-tab[data-category]")];
   const panels = [...doc.querySelectorAll(".home-category-panel[data-category]")];
-  if (!tabs.length || !panels.length) return;
+  if (!tabs.length || !panels.length) return null;
   const activate = (id) => {
     for (const btn of tabs) {
       const on = btn.dataset.category === id;
@@ -61,9 +71,11 @@ export function wireHomeTabs(doc = document) {
       btn.setAttribute("aria-selected", on ? "true" : "false");
     }
     for (const panel of panels) panel.hidden = panel.dataset.category !== id;
+    onActivate?.(id);
   };
   for (const btn of tabs) {
     btn.addEventListener("click", () => activate(btn.dataset.category));
   }
   activate(DEFAULT_HOME_CATEGORY);
+  return activate;
 }

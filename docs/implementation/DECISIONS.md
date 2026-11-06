@@ -216,3 +216,4 @@
 - 立即做轻量但真实可用的"我的篮球人生"：My Identity（昵称/家乡/简介，持久化）、My Journey（复用现有存档与继续入口）、My Legacy（真实成就，空状态如实）、My Home（静态 CSS/SVG 房间，不做房产经济）、Community Feedback（真实渠道或可复制模板，不做空按钮）。
 - **账号身份 ≠ Reborn 职业身份**，互不覆盖；复用账号系统，只加必要资料字段。
 - 分 N-1a（导航 + 页面骨架）/ N-1b（真实数据）/ N-1c（My Home + 反馈）。不做 Auto League、社交后端、复杂捏脸、广告、四分线、新经济。
+- **执行结果（R162）**：N-1a/b/c 已完成。第四个 tab「我的篮球人生」（英文 tab 用 "My World"，避免手机折行；页面标题仍为 "My Basketball Life"）；原三个 tab 的 id、名称、默认 tab 不变。

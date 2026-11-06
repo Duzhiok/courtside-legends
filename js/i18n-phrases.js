@@ -440,6 +440,7 @@ export const PHRASES = [
   ["保存后返回首页", "Save and return home"],
   ["本批无人看中：随机一人免费加入，再换下一队", "Nobody here appeals: a random one joins free, then the next team"],
   ["5→1 块", "5→1 coins"],
+  ["我的篮球人生", "My World"],
   ["15 块花光", "15 coins spent"],
   ["0 块", "0-coin"],
   ["/10 · 本轮球队：", "/10 · this round's team: "],

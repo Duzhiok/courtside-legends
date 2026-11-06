@@ -319,6 +319,9 @@ import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeC
 import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
+import { createMyWorld } from "./ui/myWorldScreen.js";
+/** My World controller (ADR-008 N-1); created in boot(). `?.` everywhere so early callers are safe. */
+let myWorld = null;
 import {
   FAMILY_DUEL_THEMES,
   autoFillFamilySide,
@@ -1564,6 +1567,7 @@ function requireAccountReady(feature = null) {
 }
 
 function refreshAccountHomeBar() {
+  myWorld?.refresh(); // name/cards may have changed (switch account, onboarding, profile edit)
   const chip = $("#btn-account-chip");
   const nameEl = $("#account-home-name");
   const metaEl = $("#account-home-meta");
@@ -10951,13 +10955,26 @@ async function boot() {
       screens.sandbox?.__sandboxSetLang?.(nextLang);
       applyStaticLang();
       timeTravelScreen.repaint();
+      myWorld?.refresh();
       // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
       if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
       paintLangBtn();
     });
     initBgm();
     decorateHome();
-  wireHomeTabs();
+    const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => id === "world" && myWorld?.refresh() });
+    myWorld = createMyWorld({
+      el: $("#my-world-root"),
+      getLang,
+      getAccount: activeAccount,
+      readRootSave: () => state.longCareerRoot || readRootSave(),
+      topCards: (account) => resolvePlayers(account.playerIds || [], account).sort((a, b) => overall(b) - overall(a)).slice(0, 3),
+      onResumeCareer: () => resumeLongCareer(state.longCareerRoot || readRootSave()),
+      onOpenCollection: () => openCollection(),
+      onOpenAccounts: () => openAccountScreen(),
+      onStartCareer: () => activateHomeTab?.("career"),
+      onIdentitySaved: () => refreshAccountHomeBar(),
+    });
     $("#load-status").textContent = L("正在加载名册（优先本地缓存）…", "Loading roster (local cache first)…");
     $("#load-bar").style.width = "6%";
     // Paint status before heavy work begins

@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="css/tokens.css?v=1" />
   <link rel="stylesheet" href="css/style.css?v=20261105m4" />
   <link rel="stylesheet" href="css/home.css?v=20261105m7" />
+  <link rel="stylesheet" href="css/myWorld.css" />
   <link rel="stylesheet" href="css/timeTravel.css?v=5" />
   <link rel="stylesheet" href="css/timeTravelViews.css?v=4" />
   <link rel="stylesheet" href="css/gacha.css?v=20261023search1" />
@@ -117,9 +118,15 @@
           </div>
         </div>
         <div class="home-category-tabs" role="tablist" aria-label="模式分类">
+          <button type="button" class="home-tab" data-category="world" role="tab">我的篮球人生</button>
           <button type="button" class="home-tab" data-category="players" role="tab">我的球员</button>
           <button type="button" class="home-tab" data-category="career" role="tab">职业经理</button>
           <button type="button" class="home-tab" data-category="custom" role="tab">自定义</button>
+        </div>
+
+        <!-- ADR-008 N-1: My World. Rendered by js/ui/myWorldScreen.js from the real account + career save. -->
+        <div class="home-category-panel" data-category="world">
+          <div id="my-world-root"></div>
         </div>
 
         <div class="home-category-panel" data-category="players">

@@ -1,5 +1,14 @@
 
 
+## R162 · Code：My World MVP「我的篮球人生」（ADR-008 N-1a/b/c）（2026-11-06）
+- **导航（N-1a）**：首页第四个 tab `world`，放在最前；原三个 tab 的 id、名称、默认 tab（职业经理）和全部模式卡不变；`modeCatalog` 不动。`wireHomeTabs` 新增 `onActivate` 回调，并返回 `activate(id)`，供"去开始一段生涯"跳转使用。
+- **真实数据（N-1b）**：新增 `js/data/profile.js`。账号的昵称就是原有的 `account.name`，不另加字段；只新增 `account.profile = { hometown, bio }`。访客资料存在本机的 `cls_guest_profile_v1`，页面上如实提示。**不读写任何 Reborn/生涯存档。** 旅程读根存档，"继续生涯"复用 `resumeLongCareer`；荣誉读冠军墙 `seasonHistory[].trophy`、图鉴 `codex`、排位战绩；没有数据就显示空状态。
+- **My Home + 反馈（N-1c）**：纯 CSS 房间。三个相框挂账号里最强的三张卡，没有就显示空相框；奖杯架读生涯存档。反馈：复制模板 + 打开 GitHub Issues。剪贴板被拒时选中文字、提示手动复制，不会静默失败。
+- 文件：`js/data/profile.js`、`js/ui/myWorldView.js`（纯构建器）、`js/ui/myWorldScreen.js`（控制器）、`css/myWorld.css`、`tests/myWorld.test.js`（6 条）、`scripts/qa/my-world.mjs`。
+- 验证：全量 1720 条中只有 2 条失败（面板标记多了 `hidden`），修正后 `myWorld`+`homeTabs` 14/14；lint 0 错误（2 条原有警告）。浏览器 QA **52/52**（桌面 + 手机）：访客/账号持久化、两个账号互不影响、真实生涯"继续"进入赛季页、其他三个 tab 正常、首屏"快速开打"不受影响、英文无中文残留、对比度 ≥4.5、无横向溢出、无页面错误。
+- 截图复查发现并修正：手机英文 tab "My Basketball Life" 折成 3 行 → 英文 tab 改为 "My World"，四个 tab 都是 58px。另发现原有问题 B49（长期生涯条在手机上被按钮遮住），已登记，没有顺手改。
+- QA 自查：第一轮 4 条失败是脚本用错了语言 key（应为 `courtside.lang`），产品代码没问题。
+
 ## R161 · Code：M2b-1 修正（already_armed + 契约测试）+ 校准发现设计问题（2026-11-06）
 - 完成：`already_armed`（不掷骰、优先级在 stale 之后）；结果加 `actualShooterId`/`teamPoints`；决策专用 `CLUTCH_DECISION_TUNING`（默认 = 修正前 0.78/4.5）；4 条新测试，变异验证 2 条变红；`clutchDecision`+`simRng` 22/22；全局金标一致。
 - **校准停下**：权重几乎无效（91.2→86.7%）；交球概率对克莱降份额、对库科奇反而升份额。根因：决策把接球型角色球员变成主持球人，现有"欲望低先传一次"把球传走——选中库科奇时他只出手 11/600，低于不做决策的 24%。R160 只测了克莱，是验收漏洞；修正前就有此缺陷。需要设计决定（设计文档 §11）。
