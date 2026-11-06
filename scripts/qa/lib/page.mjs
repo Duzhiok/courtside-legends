@@ -80,3 +80,8 @@ export const textContrast = (page, root, { min = 4.5, under = [255, 255, 255] } 
 }, [root, min, under]);
 /** The dark stage behind the season hub tabs (#season-hub-panel's gradient, sampled at its middle). */
 export const SEASON_HUB_BASE = [14, 24, 20];
+// Guest-first home: the card/draw/switch buttons sit in the collapsed My Profile panel, so open it first.
+export const clickProfile = async (page, selector) => {
+  if (await page.$eval("#profile-panel", (el) => el.hidden).catch(() => false)) await page.click("#btn-profile-toggle");
+  await page.click(selector);
+};

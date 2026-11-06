@@ -1,3 +1,4 @@
+import { clickProfile } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const OUT = process.argv[2];
@@ -23,7 +24,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
     acc.saveAccount(a); acc.setActiveAccountId(a.id);
   });
   await page.reload({ waitUntil: "domcontentloaded" }); await home();
-  await page.click("#btn-open-collection"); await page.waitForSelector("#screen-collection.active");
+  await clickProfile(page, "#btn-open-collection"); await page.waitForSelector("#screen-collection.active");
   const total = await page.$$eval(".player-card", (n) => n.length);
   const countText = async () => (await page.textContent("[data-cf-count]")).trim();
   check(`[${tag}] filter bar shows total`, (await countText()) === `显示 ${total}/${total} 张`, await countText());

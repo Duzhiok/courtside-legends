@@ -41,6 +41,15 @@
       </div>
     </header>
 
+    <!-- Non-blocking: a guest who taps an account feature gets told why, and can stay where they are -->
+    <div class="account-gate" id="account-gate" role="status" aria-live="polite" hidden>
+      <p id="account-gate-text"></p>
+      <div class="btn-row">
+        <button type="button" class="btn small primary" id="btn-account-gate-create">创建账号</button>
+        <button type="button" class="btn small ghost" id="btn-account-gate-dismiss">暂不</button>
+      </div>
+    </div>
+
     <main id="screen-loading" class="screen active">
       <section class="hero">
         <h1>正在加载全历史名册…</h1>
@@ -94,15 +103,17 @@
           </div>
         </div>
         <!-- B16: returning players need Continue on the first screen; the account bar is the least urgent block, so it goes last -->
-        <div class="account-home-bar" id="account-home-bar">
+        <!-- Guest-first: a one-line status bar; card/draw/switch live in the My Profile panel, not on the first screen -->
+        <div class="account-home-bar profile-bar" id="account-home-bar">
           <div class="account-home-text">
-            <strong id="account-home-name">尚未创建账号</strong>
-            <span class="tiny" id="account-home-meta">开局随机选 12 名赛季卡，每天可抽 1 张；班底永久保存，用于排位赛。</span>
+            <strong id="account-home-name">访客模式</strong>
+            <span class="tiny" id="account-home-meta">无需注册即可开打；球员卡、抽卡、排位需账号。</span>
           </div>
-          <div class="btn-row">
-            <button type="button" class="btn" id="btn-open-collection">我的球员卡</button>
-            <button type="button" class="btn" id="btn-daily-draw" disabled>每日抽卡</button>
-            <button type="button" class="btn ghost" id="btn-switch-account">切换账号</button>
+          <button type="button" class="btn small ghost" id="btn-profile-toggle" aria-expanded="false" aria-controls="profile-panel">我的档案</button>
+          <div class="profile-panel btn-row" id="profile-panel" hidden>
+            <button type="button" class="btn small" id="btn-open-collection">我的球员卡</button>
+            <button type="button" class="btn small" id="btn-daily-draw">每日抽卡</button>
+            <button type="button" class="btn small ghost" id="btn-switch-account">切换账号</button>
           </div>
         </div>
         <div class="home-category-tabs" role="tablist" aria-label="模式分类">

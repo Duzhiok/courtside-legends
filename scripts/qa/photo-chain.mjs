@@ -8,6 +8,7 @@
  * Wikimedia thumbnails need network. If the sandbox blocks them, the "loads" checks fail
  * loudly rather than passing on a broken-image icon.
  */
+import { clickProfile } from "./lib/page.mjs";
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright-core";
 
@@ -110,7 +111,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await seedAccount(page);
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
-  await page.click("#btn-open-collection");
+  await clickProfile(page, "#btn-open-collection");
   await page.waitForSelector("#screen-collection.active");
   await revealAll(page, ".player-card img");
   await page.waitForFunction(() => Array.from(document.querySelectorAll(".player-card img")).every((i) => i.complete), null, { timeout: 30000 }).catch(() => {});
@@ -139,7 +140,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await seedAccount(failing);
   await failing.reload({ waitUntil: "domcontentloaded" });
   await homeActive(failing);
-  await failing.click("#btn-open-collection");
+  await clickProfile(failing, "#btn-open-collection");
   await failing.waitForSelector("#screen-collection.active");
   await revealAll(failing, ".player-card img");
   await failing.waitForFunction(() => Array.from(document.querySelectorAll(".player-card img")).every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20000 }).catch(() => {});

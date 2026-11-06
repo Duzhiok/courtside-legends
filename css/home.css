@@ -412,3 +412,11 @@ html[lang="en"] .topbar .brand-name { display: none; }
 /* Compact account bar: one line of status + small actions (the account flow itself is unchanged). */
 #screen-home .account-home-text { flex: 1 1 320px; max-width: none; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
 #screen-home .account-home-bar .btn { padding: 5px 12px; font-size: .84rem; min-height: 0; }
+/* Guest-first: guests get a neutral stripe (nothing is wrong), the profile panel opens on its own row. */
+#screen-home .account-home-bar.is-guest::before { background: linear-gradient(#94a3b8, #64748b); }
+#screen-home .profile-panel { flex: 1 1 100%; justify-content: flex-start; gap: 8px; padding-top: 6px; border-top: 1px solid rgba(15, 28, 20, .08); }
+#screen-home .profile-panel[hidden] { display: none; }
+/* Phones: keep My Profile beside the status text instead of on a third row. */
+@media (max-width: 560px) {
+  #screen-home .account-home-text { flex: 1 1 0; min-width: 0; }
+}

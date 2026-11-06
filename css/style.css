@@ -2202,6 +2202,18 @@ select, input[type="number"] {
   border-radius: 14px;
 }
 .account-home-text { display: flex; flex-direction: column; gap: 4px; max-width: 52ch; }
+/* Account-required notice: a toast, not a modal -- the page under it stays usable. */
+.account-gate {
+  position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  z-index: 60; width: min(560px, calc(100vw - 24px));
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+  padding: 10px 14px; border-radius: 12px; background: #0f1c14; color: #f8fafc;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .28);
+}
+.account-gate[hidden] { display: none; }
+.account-gate p { margin: 0; flex: 1 1 240px; font-size: .9rem; line-height: 1.4; }
+.account-gate .btn.ghost { color: #f8fafc; border-color: rgba(248, 250, 252, .5); }
+.account-gate .btn.primary { background: var(--gold); color: var(--arena-1); border: none; font-weight: 700; }
 .account-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .account-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

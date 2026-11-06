@@ -1273,6 +1273,8 @@ function startMode(mode) {
     openTimeTravelScreen();
     return;
   }
+  // Ask the account gate BEFORE clearing anything: a guest who taps Ranked must keep whatever they were doing.
+  if (mode === "ranked" && !requireAccountReady({ zh: "排位赛", en: "Ranked" })) return;
   state.mode = mode;
   state.lastMode = mode;
   state.career = null;
@@ -1518,11 +1520,39 @@ function activeAccount() {
   return getAccount(getActiveAccountId());
 }
 
-function requireAccountReady() {
+// Where the account screen's Back goes: the page the player came from, so backing out of account creation
+// never drops them on home mid-game (show() only toggles screens, so that page's state is untouched).
+let accountReturnScreen = "home";
+function openAccountScreen() {
+  const from = activeScreenName();
+  if (from !== "account" && from !== "onboard") accountReturnScreen = from;
+  hideAccountGate();
+  show("account");
+  renderAccountList();
+}
+
+function hideAccountGate() {
+  const gate = $("#account-gate");
+  if (gate) gate.hidden = true;
+}
+
+/** Non-blocking guidance for a guest who picked an account feature: say why, offer the existing flow. */
+function showAccountGate(feature) {
+  const gate = $("#account-gate");
+  const text = $("#account-gate-text");
+  if (!gate || !text) return;
+  const what = feature ? L(feature.zh, feature.en) : L("这个功能", "This feature");
+  text.textContent = L(
+    `「${what}」需要本地账号：球员卡和班底存在账号里。快速开打和其他模式不需要账号。`,
+    `${what} needs a local account: your cards and roster live in it. Quick Play and the other modes don't need one.`
+  );
+  gate.hidden = false;
+}
+
+function requireAccountReady(feature = null) {
   const acc = activeAccount();
   if (!acc) {
-    show("account");
-    renderAccountList();
+    showAccountGate(feature);
     return null;
   }
   if (!acc.onboardingDone || (acc.playerIds || []).length < 12 || !acc.coachId) {
@@ -1538,14 +1568,20 @@ function refreshAccountHomeBar() {
   const nameEl = $("#account-home-name");
   const metaEl = $("#account-home-meta");
   const drawBtn = $("#btn-daily-draw");
+  const switchBtn = $("#btn-switch-account");
   const acc = activeAccount();
+  $("#account-home-bar")?.classList.toggle("is-guest", !acc);
   if (!acc) {
-    if (chip) chip.textContent = L("未登录", "Not signed in");
-    if (nameEl) nameEl.textContent = L("尚未创建账号", "No account yet");
-    if (metaEl) metaEl.textContent = L("开局先看系统 7 人，再自选 5 人；每天可抽 1 张；班底永久保存，用于排位赛。", "Start with the system's 7, then pick 5 more; draw 1 card daily; your core is permanent and plays ranked games.");
-    if (drawBtn) drawBtn.disabled = true;
+    if (chip) chip.textContent = L("访客", "Guest");
+    if (nameEl) nameEl.textContent = L("访客模式", "Guest");
+    if (metaEl) metaEl.textContent = L("无需注册即可开打；球员卡、抽卡、排位需账号。", "Play with no sign-up; cards, draws and ranked need an account.");
+    // Enabled on purpose: tapping it explains what an account is for instead of doing nothing.
+    if (drawBtn) drawBtn.disabled = false;
+    if (switchBtn) switchBtn.textContent = L("创建 / 切换账号", "Create / Switch Account");
     return;
   }
+  hideAccountGate();
+  if (switchBtn) switchBtn.textContent = L("切换账号", "Switch Account");
   const n = acc.playerIds?.length || 0;
   const coach = resolveCoach(acc.coachId);
   const dailyOk = canDailyDraw(acc);
@@ -1609,21 +1645,24 @@ function renderAccountList() {
   });
 }
 
-$("#btn-account-chip")?.addEventListener("click", () => {
-  show("account");
-  renderAccountList();
+$("#btn-account-chip")?.addEventListener("click", openAccountScreen);
+$("#btn-switch-account")?.addEventListener("click", openAccountScreen);
+$("#btn-account-gate-create")?.addEventListener("click", openAccountScreen);
+$("#btn-account-gate-dismiss")?.addEventListener("click", hideAccountGate);
+$("#btn-profile-toggle")?.addEventListener("click", () => {
+  const btn = $("#btn-profile-toggle");
+  const panel = $("#profile-panel");
+  if (!btn || !panel) return;
+  panel.hidden = !panel.hidden;
+  btn.setAttribute("aria-expanded", String(!panel.hidden));
 });
-$("#btn-switch-account")?.addEventListener("click", () => {
-  show("account");
-  renderAccountList();
-});
-$("#btn-account-back")?.addEventListener("click", () => show("home"));
+$("#btn-account-back")?.addEventListener("click", () => show(accountReturnScreen || "home"));
 $("#btn-open-collection")?.addEventListener("click", () => {
-  if (!requireAccountReady()) return;
+  if (!requireAccountReady({ zh: "我的球员卡", en: "My Player Cards" })) return;
   openCollection();
 });
 $("#btn-daily-draw")?.addEventListener("click", () => {
-  if (!requireAccountReady()) return;
+  if (!requireAccountReady({ zh: "每日抽卡", en: "Daily Draw" })) return;
   openDailyDraw();
 });
 $("#btn-collection-back")?.addEventListener("click", () => show("home"));
@@ -2231,7 +2270,7 @@ $("#btn-draw-pull")?.addEventListener("click", () => {
 });
 
 function startRankedMatch() {
-  const acc = requireAccountReady();
+  const acc = requireAccountReady({ zh: "排位赛", en: "Ranked" });
   if (!acc) return;
   const home = accountToTeam(acc);
   if (!home || home.players.length < 5) {
@@ -10080,7 +10119,7 @@ $("#btn-season-resume")?.addEventListener("click", () => {
   showSeasonTab(state.seasonTab || "standings");
 });
 $("#btn-season-roster-account")?.addEventListener("click", () => {
-  const acc = requireAccountReady();
+  const acc = requireAccountReady({ zh: "账号班底", en: "Account roster" });
   if (!acc) return;
   const name = ($("#season-team-name")?.value || "").trim() || "拉斯维加斯 ***";
   const team = accountToTeam(acc, name);

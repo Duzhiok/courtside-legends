@@ -1,3 +1,4 @@
+import { clickProfile } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
@@ -41,7 +42,7 @@ async function run(width, height, tag) {
   await wait();
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 
-  await page.click("#btn-open-collection");
+  await clickProfile(page, "#btn-open-collection");
   await page.waitForSelector("#screen-collection.active");
   const bar = await page.textContent(".manage-bar");
   check(`[${tag}] capacity + fragments + 图鉴 shown`, /卡库 \d+\/60/.test(bar) && /技能碎片 600/.test(bar) && /图鉴/.test(bar), bar.replace(/\s+/g, " ").slice(0, 110));

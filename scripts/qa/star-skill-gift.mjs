@@ -5,6 +5,7 @@
  *
  *   node scripts/qa/star-skill-gift.mjs <out-prefix>      (dev server on :5173)
  */
+import { clickProfile } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
@@ -41,7 +42,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await home();
-  await page.click("#btn-open-collection");
+  await clickProfile(page, "#btn-open-collection");
   await page.waitForSelector("#screen-collection.active");
 
   const before = await page.evaluate(async (id) => (await import("/js/data/account.js")).getAccount().cardMods[id].skills.length, target.id);
