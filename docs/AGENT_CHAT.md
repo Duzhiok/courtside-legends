@@ -509,3 +509,5 @@
 [2026-11-05] Code：单赛季并入联盟经理经营长度（R153）。**待 review（Luna）**：`index.html`（删单赛季卡 + 经营长度行）、`js/app.js`（`syncCareerLengthUi` 与按钮监听）、`js/data/modeCatalog.js`（season 改为 franchise 变体）、`js/i18n-phrases.js`、`css/style.css`、`tests/homeTabs.test.js` 与 `tests/modeCatalog.test.js` 的阈值/入口表、新 QA `career-length.mjs`。**没做**：设置页标题仍叫「常规赛征程」；开始按钮文案不随长度变化。
 
 [2026-11-05] Code：Reborn 职业身份规划（R154，ADR-006 PROPOSED）。**待 review（Luna）**：穿越卡文案（`index.html`、`modeCatalog.js`、`i18n-phrases.js`）、新 ADR-006、ROADMAP M5 改正、DECISIONS/BACKLOG B37。**没做**：任何引擎/存档/权限代码、身份选择页、Player 职业。实现前需用户批准 ADR-006 的 Q1–Q4。
+
+[2026-11-05] Luna：认领 B35 方案 B（B40：playerSeason 行从实时球队球员卡取 age/ovr，用户 2026-11-05 已批；review：Code）。范围只动 js/engine/season.js（ensurePlayerSeason）+ 测试：行创建时按 id 从 st.teams 球员卡取 age 与 overall，找不到卡时保持现有行为；已有行缺 age 的补填；ROY 评选条件本身不动（age≤22 那支终于能命中）；旧存档无 age 的行继续可读。sim.js 不动；出手分配（方案 A）不在本次范围。
