@@ -178,3 +178,77 @@ test("'three' vs 'attack' for the same player changes real shot selection, not j
   assert.ok(asThree - asAttack >= 0.1, `three-share ${asAttack.toFixed(2)} (attack) -> ${asThree.toFixed(2)} (three)`);
   assert.ok(asThree < 1, "the engine's own shot-selection gates still apply (a non-shooter does not always pull up)");
 });
+
+// --- R161: already_armed + structured-event contract (what ClutchController will depend on) ---
+
+test("already_armed: a second pending decision is rejected, the first is kept, and no dice are rolled", () => {
+  const run = (extraSubmit) => {
+    const sim = build(11);
+    const [first, second] = sim.home.onCourt;
+    const ok = submit(sim, first.id, "three");
+    let dup = null;
+    if (extraSubmit) dup = submit(sim, second.id, "attack");
+    for (let i = 0; i < 14 && !sim.clutchLog.length; i++) sim.step();
+    return { sim, ok, dup, first };
+  };
+  const plain = run(false);
+  const withDup = run(true);
+  assert.deepEqual(withDup.ok, { accepted: true, reason: null });
+  assert.deepEqual(withDup.dup, { accepted: false, reason: "already_armed" });
+  assert.equal(withDup.sim.clutchLog.length, 1, "exactly one terminal outcome");
+  assert.equal(withDup.sim.clutchLog[0].shooterId, withDup.first.id, "the original decision survived");
+  assert.deepEqual(withDup.sim.clutchLog, plain.sim.clutchLog, "rejected call changed nothing (same dice, same outcome)");
+  assert.deepEqual(withDup.sim.score, plain.sim.score);
+});
+
+test("validation precedence: a stale id is reported as stale even while a decision is armed", () => {
+  const sim = build(12);
+  const x = sim.home.onCourt[0];
+  const old = sim.issueAttemptId();
+  assert.equal(submit(sim, x.id).accepted, true); // arms with a fresh id
+  assert.equal(sim.submitDecision({ attemptId: old, kind: "clutch_shooter", shooterId: x.id, actionHint: "three" }).reason, "stale_attempt");
+  assert.equal(submit(sim, x.id).reason, "already_armed");
+  assert.equal(sim.submitDecision({ attemptId: "x", kind: "nope" }).reason, "invalid");
+});
+
+function playWithEvents(seed, decide) {
+  const events = [];
+  const sim = build(seed);
+  sim.onEvent = (e) => events.push(e);
+  const fga = new Map(sim.home.roster.map((p) => [p.id, p.stats.fga || 0]));
+  const before = sim.score.home;
+  const x = decide ? sim.home.onCourt.find((p) => p.id !== sim.home.temp?.lateChase?.shooterId) : null;
+  if (decide) submit(sim, x.id, "three");
+  for (let i = 0; i < 14 && (decide ? !sim.clutchLog.length : i < 6); i++) sim.step();
+  const shooters = sim.home.roster.filter((p) => (p.stats.fga || 0) > fga.get(p.id)).map((p) => p.id);
+  return { sim, events, x, shooters, gained: sim.score.home - before };
+}
+
+test("meta.clutchOutcome: one per accepted decision, identical to clutchLog, consistent with the real possession", () => {
+  for (let seed = 1; seed <= 60; seed++) {
+    const { sim, events, x, shooters, gained } = playWithEvents(seed, true);
+    const metas = events.filter((e) => e.meta?.clutchOutcome).map((e) => e.meta.clutchOutcome);
+    assert.equal(metas.length, 1, `seed ${seed}: exactly one terminal outcome event`);
+    const o = metas[0];
+    assert.deepEqual(o, sim.clutchLog[0], "event meta and clutchLog carry the same outcome");
+    assert.deepEqual(JSON.parse(JSON.stringify(o)), o, "outcome is plain serializable data");
+    assert.equal(o.attemptId, "clutch-1");
+    assert.equal(o.shooterId, x.id);
+    assert.equal(o.actionHint, "three");
+    if (o.reason === "no_possession" || o.reason === "not_on_court") continue;
+    assert.equal(o.attempted, shooters.includes(x.id), "attempted matches the box score");
+    assert.equal(o.actualShooterId, shooters[0] ?? null, "actualShooterId is whoever really shot");
+    if (o.attempted) assert.equal(o.actualShooterId, x.id);
+    assert.equal(o.teamPoints, gained, "teamPoints is the real score change");
+    assert.equal(o.honored, o.attempted);
+    if (!o.attempted) assert.ok(["turnover", "foul", "not_handed_off", "kicked_out", "doubled"].includes(o.reason), o.reason);
+  }
+});
+
+test("no decision => no clutch outcome event at all", () => {
+  for (let seed = 1; seed <= 20; seed++) {
+    const { sim, events } = playWithEvents(seed, false);
+    assert.equal(events.filter((e) => e.meta?.clutchOutcome).length, 0);
+    assert.equal(sim.clutchLog.length, 0);
+  }
+});

@@ -96,6 +96,12 @@ export const ROTATION_FATIGUE_IN = 0; // a resting STARTER returns the instant t
 /** 托管助手叫暂停时，永远给玩家留下的暂停数（直播时）。7 个暂停里助手最多只能用 3 个，
  *  否则它会在上半场把暂停花光，玩家下半场想自己叫暂停就没有了。快速模拟里没有玩家，不保留。 */
 export const ASSISTANT_TIMEOUT_RESERVE = 4;
+/**
+ * M2b-1 clutch-decision tuning. Read ONLY on the player-decision path; the late-game script keeps its own
+ * 0.78 hand-off gate and x4.5 / x1.8 kick weights, so ordinary games are untouched. Exported (mutable) so a
+ * paired-seed calibration probe can sweep it; the values below are the calibrated defaults.
+ */
+export const CLUTCH_DECISION_TUNING = { handoff: 0.78, kickWeight: 4.5 };
 export function assistantMayCallTimeout(remaining, quiet = false) {
   return remaining > (quiet ? 0 : ASSISTANT_TIMEOUT_RESERVE);
 }
@@ -651,7 +657,9 @@ export class GameSim {
     }
     const def = off === this.home ? this.away : this.home;
     const sum = (team, key) => team.roster.reduce((n, p) => n + (p.stats[key] || 0), 0);
+    const sideKey = off === this.home ? "home" : "away";
     const before = {
+      score: this.score[sideKey], fgaById: new Map(off.roster.map((p) => [p.id, p.stats.fga || 0])),
       fga: shooter.stats.fga, fgm: shooter.stats.fgm, tpa: shooter.stats.tpa, pts: shooter.stats.pts,
       teamFga: sum(off, "fga"), teamTov: sum(off, "tov"), defPf: sum(def, "pf"),
     };
@@ -679,6 +687,10 @@ export class GameSim {
       attempted,
       zone: attempted ? (shooter.stats.tpa > before.tpa ? "three" : "two") : null,
       made: shooter.stats.fgm > before.fgm,
+      actualShooterId: attempted
+        ? shooter.id
+        : off.roster.find((p) => (p.stats.fga || 0) > (before.fgaById.get(p.id) || 0))?.id ?? null,
+      teamPoints: this.score[sideKey] - before.score,
       points: shooter.stats.pts - before.pts,
       reason,
     });
@@ -752,7 +764,7 @@ export class GameSim {
     // 终场需要三分：高概率直接把球给最稳射手
     if (!putbackId && forced && chase?.shooterId) {
       const sh = off.onCourt.find((p) => p.id === chase.shooterId);
-      if (sh && rnd() < 0.78) {
+      if (sh && rnd() < (pick ? CLUTCH_DECISION_TUNING.handoff : 0.78)) {
         if (baller && baller.id !== sh.id && (baller.pass || 50) >= 55) {
           organizerId = baller.id;
           kickedOut = true;
@@ -1486,7 +1498,7 @@ export class GameSim {
   /**
    * M2b-1 clutch decision: "this player takes your next possession", as an intent -- never a guaranteed shot or make.
    * @param {{attemptId:string, kind:"clutch_shooter", shooterId:string, actionHint:"three"|"attack"}} d
-   * @returns {{accepted:boolean, reason:string|null}} reason: invalid | stale_attempt | game_over | not_on_court
+   * @returns {{accepted:boolean, reason:string|null}} reason: invalid | stale_attempt | game_over | already_armed | not_on_court
    */
   submitDecision(d) {
     const reject = (reason) => ({ accepted: false, reason });
@@ -1495,6 +1507,9 @@ export class GameSim {
     }
     if (d.attemptId !== this._clutchAttemptId) return reject("stale_attempt");
     if (this.ended || !this.running) return reject("game_over");
+    // One pending decision at a time: the first accepted call wins and is never silently replaced. No state change,
+    // no dice. (Checked after stale_attempt so an old request is reported as stale, not as a duplicate.)
+    if (this.clutchDecision) return reject("already_armed");
     const shooter = this.you().onCourt?.find((p) => p.id === d.shooterId);
     if (!shooter) return reject("not_on_court");
     this.clutchDecision = { attemptId: d.attemptId, shooterId: shooter.id, shooterName: shooter.name, actionHint: d.actionHint, quarter: this.quarter, clock: this.clock };
@@ -1507,7 +1522,8 @@ export class GameSim {
   _settleClutch(decision, partial) {
     const outcome = {
       attemptId: decision.attemptId, shooterId: decision.shooterId, actionHint: decision.actionHint,
-      handedOff: false, attempted: false, zone: null, made: false, points: 0, honored: false, reason: null,
+      handedOff: false, attempted: false, zone: null, made: false, points: 0, actualShooterId: null, teamPoints: 0,
+      honored: false, reason: null,
       ...partial,
     };
     outcome.honored = outcome.attempted;
@@ -3902,10 +3918,13 @@ function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null) {
     }
     if (offenseFocusId && p.id === offenseFocusId) w *= 1.5;
     // 终场需要三分：分球几乎锁定最稳射手
-    const pickedChase = off.temp?.clutchPick || off.temp?.lateChase;
-    if (pickedChase?.needThree && pickedChase.shooterId === p.id) {
+    const clutchPick = off.temp?.clutchPick;
+    const lateChase = off.temp?.lateChase;
+    if (clutchPick) {
+      if (clutchPick.shooterId === p.id) w *= CLUTCH_DECISION_TUNING.kickWeight; // decision path only
+    } else if (lateChase?.needThree && lateChase.shooterId === p.id) {
       w *= 4.5;
-    } else if (pickedChase?.shooterId === p.id) {
+    } else if (lateChase?.shooterId === p.id) {
       w *= 1.8;
     }
     // 詹韦连线等：双核互喂
