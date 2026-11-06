@@ -572,8 +572,21 @@ export function userGamesPlayed(st) {
   return n;
 }
 
+/** The live card for a snapshot player, from the season's own rosters. Snapshots carry
+ * slim() players (no age, no three/mid/paint/iq/clutch), so age/ovr must come from here
+ * (B40): otherwise every row has age null and an ovr 10–17 low, and ROY can never fire. */
+function liveCardFor(st, teamId, playerId) {
+  const players = st.teams?.[teamId]?.players;
+  if (!Array.isArray(players)) return null;
+  return players.find((c) => c.id === playerId) || null;
+}
+
 function ensurePlayerSeason(st, teamId, p) {
   const key = `${teamId}:${p.id}`;
+  const live = liveCardFor(st, teamId, p.id);
+  // Prefer the live card's age/ovr; a snapshot player has neither (slim() drops them).
+  const age = live && Number.isFinite(live.age) ? live.age : p.age;
+  const ovr = live ? overall(live) : overall(p);
   if (!st.playerSeason[key]) {
     st.playerSeason[key] = {
       teamId,
@@ -581,11 +594,16 @@ function ensurePlayerSeason(st, teamId, p) {
       name: p.name,
       pos: p.playPos || p.pos,
       season: p.season,
-      age: p.age,
-      ovr: overall(p),
+      age,
+      ovr,
       bref: p.bref,
       stats: emptySeasonStats(),
     };
+  } else {
+    // Backfill rows created before this fix (or loaded from an old save): only fill
+    // what is missing, never rewrite stored values. ovr stays as first written.
+    const row = st.playerSeason[key];
+    if (row.age == null && age != null) row.age = age;
   }
   return st.playerSeason[key];
 }
