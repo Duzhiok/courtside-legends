@@ -72,4 +72,11 @@ Luna 指出的关键问题：`applyLateGameScripts` 每个 tick 都重写 `lateC
 ## 9. 进度
 - **M2b-0 ✅**：`js/core/rng.js`；`sim.js`/`skills.js`/`chemistry.js`/`intangibles.js` 的全部 `Math.random()` 改走 `rand()`；`GameSim({ rng })`；`SEEDED_ENTRY_POINTS` 清单 + 包装。金标：`scripts/sim/golden-hash.mjs` 在**改动前**录入 `tests/fixtures/simGolden.json`，改动后全局替换与 `rng` 注入两种方式都 20/20 逐个相同。
 - **实现中发现并修掉的两处**：① `skills.js` 的 `trySignatureOffense/Block` 里 `shuffle(sigs)` 默认用 `Math.random`，在 tick 链里，改为 `shuffle(sigs, rand)`；② `rand()` 必须每次动态读 `Math.random`（不能在模块加载时捕获引用），否则现有那些靠替换 `Math.random` 播种的测试会静默失效。
-- **没做**：M2b-1（`submitDecision`、读取点优先级、三处闸门、ClutchController）；`coaches.js` 的 2 处随机（开局前选教练/助教，不在 tick 链）和 `shuffle` 在商店里的默认随机，均未动。
+- **M2b-1 ✅（仅引擎契约，不含 UI）**：`GameSim.issueAttemptId()` / `submitDecision()`（拒绝原因 `invalid|stale_attempt|game_over|not_on_court`）；读取点优先级在 `resolvePossession` 包装 + 核心里（玩家决策 > 脚本 > 默认，脚本照常重写 `lateChase`）；0.78 交球闸、分球豁免、`pace_three` 焦点三处闸门复用现有常数，**没有新常数、没改 `calcMakeProb`**；结构化结果 `{attemptId, shooterId, actionHint, handedOff, attempted, zone, made, points, honored, reason}` 写入 `sim.clutchLog`，并随 `coach` 事件的 `meta.clutchOutcome` 发出。无决策时代码路径不变：全局模式金标仍与改动前逐字节一致。
+  - **口径**（`scripts/research/clutch-m2b1-measure.mjs`，1500 种子，GSW16 vs CLE16，选中者 X = 克莱）：出手份额 = 选中者出手数 / 球队实际出手的回合数（不含失误、被吃掉的回合）；另报参与率（球到过他手上：出手或失误）和兑现率（= 1 − 未出手占比）。`handedOff` = 交球闸或传球让球到了他手上；`points` = 他本回合拿的全部分，含罚球。
+  - **结果**（down 3 / 12s，hint three）：A 默认 14.0% → C 决策 91.8%（脚本自己选的人 B：52.4%）；参与率 15.0% → 92.1%；三分出手占比 95.9% → 97.0%；选中者命中率 50.8% → 49.4%；失误率 12.7% → 15.7%；胜率 16.2% → 15.9%。未出手原因共 343/1500：turnover 231、not_handed_off 82、kicked_out 27、foul 3（兑现率约 77%）。（down 2 / 30s，hint attack）：26.2% → 89.8%；命中率 51.6% → 50.5%；失误 12.3% → 15.7%；胜率 37.1% → 38.7%。
+  - **读法**：≥35% 的验收目标大幅达成（≈90%）；命中率无增益、失误率上升、胜率不被强制提高，符合"不偷加命中、保留真实风险"。**份额偏高来自现有 0.78 交球闸 + 分球豁免本身**（不是新加的）；若产品想让玩家决策更"不稳"，要调的是这两处既有常数，需另行拍板。
+  - **实现中发现**：对不擅长三分的选中者，`three` 决策下他的出手里三分只占约 52%（既有 `chooseShot` 对三分差的人有硬门），不是 100%。测试断言的是"同一个人 three 比 attack 更多三分"，不是绝对值。
+  - **变异验证（5 种全部被抓）**：核心忽略 pick；包装不装载 pick；结果丢 `reason`；放行过期 attemptId；`three` 当 `attack`。过程中还发现一个半失效变体（核心忽略 pick，但 `kickToTeammate` 仍读它，份额约 30%），所以回归门槛定在 60%，而不是 35% 的产品目标。
+- **没做**：`ClutchController`、`initializeScenario`、结果页（属 M2b-2，按批示不自动开始）；`coaches.js` 的 2 处随机与商店 `shuffle` 默认随机。
+- **RNG 隔离技术债（已登记）**：M2b-0 的 `rand()` 是模块级作用域。已用测试钉住：同步嵌套（A 的回调里推进种子不同或未播种的 B，A 结果不变）、异常恢复（`onEvent` 抛错后 `Math.random` 复位）。**未解决**：异步交错（`withRng` 之间有 `await`）和服务端并行多场。引擎本身无 `await`，唯一定时器 `_loop` 每次 tick 都经 `step` 重新进入作用域，所以浏览器单局安全。离线托管与联机多场上线前必须改成"每场 `GameSim` 持有自己的 RNG、所有随机消费显式传入"，在此之前不要上线任何并行模拟。
