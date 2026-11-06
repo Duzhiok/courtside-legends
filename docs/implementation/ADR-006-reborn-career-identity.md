@@ -15,6 +15,8 @@
 
 ## 2. 现状审计：Coach 和 GM 职责在哪里耦合
 
+> 逐项能力的完整表格（入口、校验、状态字段、`authority`/`privileges` 是否有玩法、建议归属、拆分风险、未决问题）见 `REBORN_ROLE_PERMISSION_AUDIT.md`。下表是摘要。
+
 读代码得出的事实（grep 范围：`js/engine`、`js/app.js`、`saveRoot.js`、`js/career`、`js/modes`、`js/ui/timeTravel`）：
 
 | 位置 | 现状 | 耦合点 |
