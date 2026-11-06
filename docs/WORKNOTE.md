@@ -2527,3 +2527,9 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 - 新增 `docs/implementation/ADR-006-reborn-career-identity.md`（PROPOSED）：可选 `root.identity`（缺失即经典，旧存档零迁移）、`permissionsFor(role)` 纯函数、经典拥有全部能力以保证行为不变、合同 privileges 变能力授予（后续）、迁移风险、实现顺序、Q1–Q4。
 - 文档同步：ROADMAP M5 原文"教练角色直接接现有 timeTravelCareer"不准确，已改；DECISIONS 变更记录；BACKLOG B37。
 - 验证：i18n / homeTabs / modeCatalog / homeShowcase 单测 40/40。
+
+## R155 · Code：收尾两项（设置页标题/按钮随经营长度；开局引导页「取消」）（2026-11-05）
+- 设置页标题随长度：单赛季「联盟经理 · 单赛季」/ 王朝「联盟经理 · 王朝生涯」；进入赛季中枢后恢复「常规赛征程」。开始按钮文案也随长度（单赛季/王朝 × 32 队/历史年份四种）。
+- 开局引导页新增「取消」：回到进入前的页面（经账号页进入则回账号页的来源页），页面状态原样保留；引导未完成前不写任何存档，所以取消不丢数据。已走到第 2 步以后会先确认。取消后再次进入从第 1 步重新发牌。
+- 新单测 `tests/rebornCopy.test.js` 锁定穿越卡文案在 `index.html` / `modeCatalog.js` / `i18n-phrases.js` 三处一致，并断言不出现「五年」。
+- 验证：全量 1687/1687，lint 0 错误，`career-length` 36/36（新增标题、按钮、取消流程，桌面+手机），`season-resume` 36/36，`guest-entry` 64/64。

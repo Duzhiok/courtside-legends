@@ -22,6 +22,13 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] opening via Franchise preselects Dynasty`, (await pressed()) === "season:false,franchise:true", await pressed());
   await page.click("#btn-career-length-season");
   check(`[${tag}] picking Single Season flips the choice`, (await pressed()) === "season:true,franchise:false", await pressed());
+  const text = (sel) => page.$eval(sel, (e) => e.textContent.trim());
+  check(`[${tag}] setup title follows the length (single season)`, /单赛季/.test(await text("#season-screen-title")), await text("#season-screen-title"));
+  check(`[${tag}] start button follows the length (single season)`, /单赛季/.test(await text("#btn-season-start")), await text("#btn-season-start"));
+  await page.click("#btn-career-length-franchise");
+  check(`[${tag}] setup title follows the length (dynasty)`, /王朝/.test(await text("#season-screen-title")), await text("#season-screen-title"));
+  check(`[${tag}] start button follows the length (dynasty)`, /王朝/.test(await text("#btn-season-start")), await text("#btn-season-start"));
+  await page.click("#btn-career-length-season");
   check(`[${tag}] no horizontal overflow on setup`, await noOverflow(page));
   await shoot(page, `${OUT}/${tag}-setup.png`);
   for (const len of ["season", "franchise"]) {
@@ -44,6 +51,26 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
     const back = await page.evaluate(() => document.querySelector("main.screen.active")?.id);
     check(`[${tag}] ${len} save resumes after reload`, back === "screen-season", back);
   }
+  // Onboarding Cancel: an account that never finished team setup is sent there when a feature needs it;
+  // Cancel must put the player back where they were, mid-form, instead of trapping them.
+  await fresh();
+  await page.evaluate(async () => { const acc = await import("/js/data/account.js"); const a = acc.createAccount("取消QA"); acc.saveAccount(a); acc.setActiveAccountId(a.id); });
+  await page.reload({ waitUntil: "domcontentloaded" }); await homeActive(page);
+  await page.click('.mode-card[data-mode="franchise"]'); await page.waitForSelector("#screen-season.active");
+  await page.click("#btn-career-length-season");
+  await page.fill("#season-team-name", "取消后还在");
+  await page.click("#btn-season-roster-account");
+  await page.waitForSelector("#screen-onboard.active", { timeout: 10000 });
+  check(`[${tag}] onboarding shows a Cancel button`, await page.isVisible("#btn-onboard-cancel"));
+  check(`[${tag}] no overflow on onboarding`, await noOverflow(page));
+  await page.click("#btn-onboard-cancel");
+  await page.waitForSelector("#screen-season.active", { timeout: 10000 });
+  check(`[${tag}] Cancel returns to the page it came from, form intact`, (await page.inputValue("#season-team-name")) === "取消后还在" && /单赛季/.test(await text("#season-screen-title")));
+  await page.click("#btn-season-roster-account");
+  await page.waitForSelector("#screen-onboard.active", { timeout: 10000 });
+  check(`[${tag}] after Cancel the next attempt restarts at step 1`, /^1\//.test(await text("#onboard-step-label")), await text("#onboard-step-label"));
+  await page.click("#btn-onboard-cancel");
+  await page.waitForSelector("#screen-season.active");
   check(`[${tag}] no page errors`, errors.length === 0, errors.join(" | "));
   await page.close();
 }

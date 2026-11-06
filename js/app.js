@@ -1699,7 +1699,19 @@ function onboardCardHtml(p, { selectable = false, selected = false } = {}) {
   </${el}>`;
 }
 
+// Where Cancel goes: the page onboarding was started from (the account page hands over to wherever
+// that was opened from). show() only toggles screens, so that page's state is exactly as it was left.
+let onboardReturnScreen = "home";
+
+function cancelOnboarding() {
+  state.onboard = null; // the dealt cards are random and re-rolled next time; nothing is saved until the last step
+  refreshAccountHomeBar();
+  show(onboardReturnScreen);
+}
+
 function startOnboarding(acc) {
+  const from = activeScreenName();
+  if (from !== "onboard") onboardReturnScreen = from === "account" ? accountReturnScreen : from;
   const autoFilled = rollSystemSeven();
   const exclude = new Set(autoFilled.map((p) => p.id));
   state.onboard = {
@@ -1830,6 +1842,13 @@ function legacyBadgeHtml(p, ovr) {
   return { tagHtml, cardStyle: badge.cardStyle || "", cardClass: badge.cardStyle ? " legend-season" : "" };
 }
 
+$("#btn-onboard-cancel")?.addEventListener("click", async () => {
+  if ((state.onboard?.step ?? 1) > 1 && !(await confirmAction(L("退出开局建队？已选的人会清空，下次重新开始。", "Leave team setup? Your picks will be cleared and you'll start over next time."), {
+    title: L("取消开局建队？", "Cancel team setup?"),
+    acceptLabel: L("退出", "Leave"),
+  }))) return;
+  cancelOnboarding();
+});
 $("#btn-onboard-next")?.addEventListener("click", () => {
   const ob = state.onboard;
   if (!ob) return;
@@ -8032,7 +8051,18 @@ let seasonSetupMode = "modern";
 let seasonSetupYear = 1991;
 let seasonSetupKind = "season";
 
+function syncSeasonScreenTitle() {
+  const title = $("#season-screen-title");
+  if (!title) return;
+  title.textContent = $("#season-setup-panel")?.hidden
+    ? L("常规赛征程", "Regular Season Journey")
+    : seasonSetupKind === "franchise"
+      ? L("联盟经理 · 王朝生涯", "League Manager · Dynasty Career")
+      : L("联盟经理 · 单赛季", "League Manager · Single Season");
+}
+
 function syncCareerLengthUi() {
+  syncSeasonScreenTitle();
   for (const btn of document.querySelectorAll("[data-career-length]")) {
     const on = btn.dataset.careerLength === seasonSetupKind;
     btn.classList.toggle("primary", on);
@@ -8129,6 +8159,7 @@ function openSeasonScreen() {
   }
   $("#season-setup-panel").hidden = false;
   $("#season-hub-panel").hidden = true;
+  syncSeasonScreenTitle(); // the setup/hub flip above decides which title applies
   if (!state.seasonRosterDraft) {
     $("#season-roster-hint").textContent = "请选择阵容来源（至少 8 人）。";
     $("#season-roster-preview").innerHTML = "";
@@ -8191,6 +8222,7 @@ function renderSeasonHub({ persist = true } = {}) {
   syncCoachPerksToSeason(st);
   $("#season-setup-panel").hidden = true;
   $("#season-hub-panel").hidden = false;
+  syncSeasonScreenTitle();
   const you = st.teams[st.userTeamId];
   const pay = payrollSummary(you);
   const eraTitle =
@@ -10416,10 +10448,15 @@ $("#btn-season-pick-confirm")?.addEventListener("click", () => {
 function syncSeasonStartButtonLabel() {
   const btn = $("#btn-season-start");
   if (!btn) return;
+  const dynasty = seasonSetupKind === "franchise";
   btn.textContent =
     seasonSetupMode === "historical"
-      ? L(`开启 ${seasonSetupYear} 完整赛季（常规赛+季后赛）`, `Start the full ${seasonSetupYear} season (regular + playoffs)`)
-      : L("开启完整赛季征程（32 队）", "Start the full season journey (32 teams)");
+      ? dynasty
+        ? L(`开启 ${seasonSetupYear} 王朝生涯（长期经营）`, `Start a ${seasonSetupYear} dynasty career (long-term)`)
+        : L(`开启 ${seasonSetupYear} 单赛季（常规赛+季后赛）`, `Start the ${seasonSetupYear} single season (regular + playoffs)`)
+      : dynasty
+        ? L("开启王朝生涯（32 队）", "Start the dynasty career (32 teams)")
+        : L("开启单赛季征程（32 队）", "Start the single-season run (32 teams)");
 }
 
 for (const btn of document.querySelectorAll("[data-career-length]")) {
