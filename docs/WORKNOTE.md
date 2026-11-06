@@ -72,3 +72,9 @@
 
 ## R166 · Doc：ADR-008a My World 差距分析（My Games / Player Voice / 3D Avatar）
 - 只分析，没改功能代码。要点：可恢复存档目前最多 2 个设备级槽位（根存档 + `cls_savegame_v1`），都不校验账号，切号会互相看到（P0 隐私缺口）；反馈没有真实后端，生产服务器未部署；3D 推荐 Three.js 动态加载 + CC0 角色，GameSim 不动。全量测试基线 1724/1724。详见 docs/implementation/ADR-008a-my-world-games-voice-avatar.md，Q1–Q5 待定。
+
+## R167 · Code：My World 视觉改版（只改 UI）
+- 删除重复大标题，只留 `MY WORLD`；反馈入口收成右上角小图标（原有复制/GitHub 行为不变，面板默认收起，不显示假的"提交成功"）。紧凑身份 hero（金色圆环头像）、两张紧凑卡（「我的旅程」改名「我的游戏记录 / My Games」，数据与恢复流程不变）、本地内联 SVG 房间插画（真实相框/奖杯/名牌叠在上面）。
+- 没有做：Daily Hub、My Style（对应功能不存在，不做假入口）；My Games 仍只列真实可恢复的生涯，中途存档的归属问题等 ADR-008a Q1。
+- 验证：`tests/myWorld.test.js` + `homeTabs` + `homeShowcase` 通过；`scripts/qa/my-world.mjs` 136/136（1440/1280/390/360，含对比度、无横向溢出、游客/账号/英文、真实存档恢复）。前后截图：docs/implementation/assets/my-world/。
+- 剩余：My World 内容在 1280×800 里从 y≈620 才开始（被全页共用的大横幅和访客条挤下去）；共用页签栏在手机上折两行。两者都是首页公共区，未改。

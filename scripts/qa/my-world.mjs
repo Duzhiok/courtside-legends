@@ -26,7 +26,7 @@ const reloadHome = async (page) => {
   await page.waitForFunction(() => !document.querySelector("#load-overlay:not([hidden])") || true);
 };
 
-for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
+for (const [w, h, tag] of [[1440, 900, "wide"], [1280, 800, "desktop"], [390, 844, "mobile"], [360, 800, "narrow"]]) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -50,6 +50,19 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] no career => honest empty journey`, empty.includes("还没有进行中的生涯"));
   check(`[${tag}] no trophies drawn`, !empty.includes("🏆"));
   check(`[${tag}] no horizontal overflow (guest)`, await noOverflow(page));
+  // Redesign: single title, compact hero, closed feedback behind a corner icon, honest omissions
+  const hdr = await page.$$eval("#my-world-root h2, #my-world-root .mw-head", (els) => els.length);
+  check(`[${tag}] no big page heading`, hdr === 0 && !empty.includes("My Basketball Life") && !empty.includes("COURTSIDE LEGENDS · MY WORLD"));
+  const hero = await page.$eval(".mw-identity", (el) => Math.round(el.getBoundingClientRect().height));
+  check(`[${tag}] hero is compact`, hero <= (w <= 640 ? 260 : 190), `${hero}px`);
+  const heroTop = await page.$eval(".mw-identity", (el) => Math.round(el.getBoundingClientRect().top + scrollY));
+  check(`[${tag}] identity near the top of the panel`, heroTop - (await page.$eval("#my-world-root", (el) => Math.round(el.getBoundingClientRect().top + scrollY))) <= 70);
+  check(`[${tag}] feedback closed by default, icon visible`, !(await visible(page, "#mw-feedback")) && (await visible(page, ".mw-voice")));
+  const iconRight = await page.$eval(".mw-voice", (el, root) => el.getBoundingClientRect().right >= document.querySelector(root).getBoundingClientRect().right - 2, "#my-world-root");
+  check(`[${tag}] feedback icon sits in the top-right`, iconRight);
+  check(`[${tag}] My Games card, no fake Daily Hub / My Style`, empty.includes("我的游戏记录") && !/Daily Hub|My Style|换装/.test(empty));
+  const cardsH = await page.$$eval(".mw-grid .mw-card", (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+  check(`[${tag}] cards are compact`, Math.max(...cardsH) <= (w <= 640 ? 230 : 190), cardsH.join());
   await shoot(page, `${OUT}/${tag}-guest.png`);
 
   // 3. Guest edit persists across a reload (guest key)
@@ -91,6 +104,8 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] account A edit persisted`, (await text(page, ".mw-identity")).includes("Little Rock"));
 
   // 6. Feedback copy: real clipboard or an honest manual-copy fallback, never silent
+  await page.click(".mw-voice");
+  check(`[${tag}] icon opens the feedback panel`, await visible(page, "#mw-feedback"));
   await page.fill("#mw-feedback-note", "Add a shooting drill");
   await page.click('[data-mw-action="copy-feedback"]');
   await page.waitForFunction(() => document.querySelector("#mw-feedback-status")?.textContent.trim());
@@ -101,7 +116,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] feedback links to the real issue tracker`, link.startsWith("https://github.com/Duzhiok/courtside-legends/issues"));
 
   // 7. Contrast
-  const darkLow = await textContrast(page, ".mw-identity", { min: 4.5, under: [22, 58, 41] });
+  const darkLow = await textContrast(page, ".mw-identity", { min: 4.5, under: [30, 80, 56] });
   check(`[${tag}] identity card contrast >= 4.5`, !darkLow.length, JSON.stringify(darkLow).slice(0, 120));
   const cardLow = await textContrast(page, ".mw-grid", { min: 4.5 });
   check(`[${tag}] cards contrast >= 4.5`, !cardLow.length, JSON.stringify(cardLow).slice(0, 120));

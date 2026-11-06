@@ -77,6 +77,14 @@ export function createMyWorld({
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),
     "copy-feedback": () => copyFeedback(),
+    "toggle-feedback": () => {
+      const panel = el.querySelector("#mw-feedback");
+      const btn = el.querySelector('[data-mw-action="toggle-feedback"]');
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
+      btn?.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) panel.querySelector("textarea")?.focus();
+    },
   };
 
   el.addEventListener("click", (event) => {

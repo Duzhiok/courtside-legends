@@ -93,7 +93,7 @@ test("every rendered action button has a handler; user text is escaped; English 
   const evil = { name: "<img src=x onerror=1>", hometown: "\"><script>", bio: "&", guest: false };
   const html = view.myWorldHtml({ identity: evil, journey: view.journeyFromRoot(root(1)), legacy: view.legacyFromAccount({ playerIds: [] }), frames: [] }, "zh");
   assert.doesNotMatch(html, /<img src=x|<script>/);
-  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "copy-feedback"];
+  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "copy-feedback", "toggle-feedback"];
   for (const [, name] of html.matchAll(/data-mw-action="([^"]+)"/g)) assert.ok(known.includes(name), name);
   assert.match(html, new RegExp(view.FEEDBACK_URL.replace(/[.]/g, "\\.")));
 
@@ -106,4 +106,19 @@ test("feedback template holds only what the player typed plus version info", () 
   assert.match(t, /我的想法: 加一个投篮训练小游戏/);
   assert.match(t, /UA\/1/);
   assert.match(view.feedbackTemplate({ lang: "en" }), /write your suggestion here/);
+});
+
+test("redesign: one page title, My Games naming, feedback behind a corner icon, nothing fake is clickable", () => {
+  const html = view.myWorldHtml({ identity: { name: "Z", hometown: "", bio: "", guest: true }, journey: null, legacy: null, frames: [] }, "zh");
+  assert.doesNotMatch(html, /我的篮球人生|COURTSIDE LEGENDS · MY WORLD/, "no redundant headings (the tab already carries the name)");
+  assert.equal((html.match(/MY WORLD/g) || []).length, 1, "exactly one page title");
+  assert.match(html, /我的游戏记录/);
+  assert.doesNotMatch(html, /我的旅程/);
+  assert.match(html, /<section class="mw-feedback" id="mw-feedback"[^>]*hidden>/, "feedback is closed by default");
+  assert.match(html, /data-mw-action="toggle-feedback"[^>]*aria-expanded="false"/);
+  assert.doesNotMatch(html, /Daily Hub|My Style|每日|换装/, "unimplemented features are omitted, not faked");
+  const en = view.myWorldHtml({ identity: { name: "Z", hometown: "", bio: "", guest: true }, journey: null, legacy: null, frames: [] }, "en");
+  assert.match(en, /My Games/);
+  assert.doesNotMatch(en, /My Basketball Life/);
+  assert.doesNotMatch(en, CJK);
 });

@@ -1,21 +1,44 @@
-/* My World / 我的篮球人生 (ADR-008 N-1). Layout follows the approved concept: identity hero, two cards,
-   a fixed CSS room, feedback. No images from third parties: the room is pure CSS, the avatar is generated. */
-#my-world-root { display: grid; gap: 12px; }
-.mw-head h2 { margin: 2px 0 0; font-size: 1.35rem; }
-.mw-kicker { margin: 0; font-size: 0.72rem; letter-spacing: 0.08em; color: #3d5a4a; }
+/* My World (ADR-008 N-1, visual redesign R167): forest green + warm cream + gold. Presentation only.
+   Layout: slim top bar (page title + feedback icon), compact identity hero, two compact cards, an illustrated
+   room. The art is a local inline SVG; real cards/trophies/name are overlaid as HTML. */
+#my-world-root { display: grid; gap: 12px; --mw-green: #163a29; --mw-green-2: #1f4a35; --mw-gold: #e9c46a; --mw-cream: #f6efe0; }
 
-.mw-identity {
-  display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start;
-  padding: 14px; border-radius: 14px; background: #163a29; color: #f4f7f2;
+.mw-top { display: flex; align-items: center; justify-content: space-between; min-height: 36px; }
+.mw-kicker { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.14em; color: #2f5a45; }
+.mw-voice {
+  width: 36px; height: 36px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  border-radius: 50%; border: 1px solid #c9d6cc; background: #fff; color: var(--mw-green);
 }
-.mw-identity .mw-kicker { color: #e9c46a; }
-.mw-identity h3 { margin: 2px 0 4px; font-size: 1.2rem; color: #fff; overflow-wrap: anywhere; }
-.mw-avatar { width: 96px; height: 96px; border-radius: 12px; background: #fff; }
-.mw-facts, .mw-bio { margin: 0 0 8px; color: #dfe9e2; overflow-wrap: anywhere; }
-.mw-identity .mw-note { color: #cfdcd3; font-size: 0.8rem; margin: 8px 0 0; }
-.mw-on-dark { background: #2f5a45; color: #fff; border-color: #4f7a64; }
-.mw-on-dark.ghost { background: transparent; }
-.mw-form { display: grid; gap: 8px; margin-top: 10px; }
+.mw-voice:hover, .mw-voice[aria-expanded="true"] { background: var(--mw-green); color: var(--mw-gold); }
+.mw-voice:focus-visible, .mw-gold:focus-visible { outline: 3px solid #b7791f; outline-offset: 2px; }
+.mw-ico { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.mw-feedback { padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid #dbe5dd; box-shadow: 0 6px 18px rgba(22, 58, 41, 0.12); }
+.mw-feedback[hidden] { display: none; }
+.mw-feedback p { color: #24352b; margin: 0 0 8px; }
+.mw-feedback textarea { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #c5d3c8; font: inherit; }
+.mw-feedback .btn-row { margin-top: 8px; }
+.mw-feedback .mw-status { color: #1d5a3b; }
+.mw-template { margin-top: 8px; background: #f4f7f2; }
+.mw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* Hero: portrait left, text right, compact */
+.mw-identity {
+  display: grid; grid-template-columns: 112px 1fr; gap: 18px; align-items: center;
+  padding: 16px 20px; border-radius: 16px; color: #f4f7f2;
+  background: radial-gradient(120% 140% at 0% 0%, #2c6a4a 0%, var(--mw-green) 60%);
+  box-shadow: 0 8px 22px rgba(22, 58, 41, 0.25);
+}
+.mw-portrait { width: 112px; height: 112px; border-radius: 50%; padding: 4px; background: linear-gradient(135deg, #f3d58a, #b7791f); }
+.mw-avatar { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #fff; }
+.mw-identity h3 { margin: 0 0 2px; font-size: 1.35rem; color: #fff; overflow-wrap: anywhere; }
+.mw-facts { margin: 0 0 4px; color: var(--mw-gold); font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
+.mw-bio { margin: 0 0 10px; color: #e6eee8; overflow-wrap: anywhere; }
+.mw-gold { background: var(--mw-gold); color: #2a2208; border-color: #c9a24a; font-weight: 700; }
+.mw-gold:hover { background: #f2d386; }
+.mw-on-dark { background: transparent; color: #fff; border-color: #6c9680; }
+.mw-identity .mw-note { color: #cfdcd3; font-size: 0.78rem; line-height: 1.35; margin: 8px 0 0; max-width: 96ch; }
+.mw-form { display: grid; gap: 8px; margin-top: 10px; max-width: 520px; }
 .mw-form label { display: grid; gap: 4px; font-size: 0.85rem; color: #dfe9e2; }
 .mw-form input, .mw-form textarea {
   width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 8px;
@@ -24,62 +47,57 @@
 .mw-status { margin: 4px 0 0; font-size: 0.82rem; min-height: 1em; }
 .mw-identity .mw-status { color: #ffd59e; }
 
-.mw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.mw-card { padding: 14px; border-radius: 14px; background: #fff; border: 1px solid #dbe5dd; }
-.mw-card h3 { margin: 0 0 8px; font-size: 1rem; color: #173d2b; }
-.mw-line { margin: 0 0 8px; color: #24352b; }
+/* Compact cards: height follows content, equal height only when they sit side by side */
+.mw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
+.mw-card { padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid #dbe5dd; box-shadow: 0 2px 8px rgba(22, 58, 41, 0.06); }
+.mw-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 1rem; color: var(--mw-green); }
+.mw-card h3 .mw-ico { width: 22px; height: 22px; padding: 4px; box-sizing: content-box; border-radius: 8px; background: #eef4ee; color: var(--mw-green-2); }
+.mw-line { margin: 0 0 4px; color: #24352b; }
 .mw-empty { margin: 0 0 8px; color: #4f5e55; }
-.mw-trophies { margin: 0 0 8px; padding-left: 0; list-style: none; color: #24352b; }
+.mw-trophies { margin: 0 0 6px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.mw-trophies li { padding: 2px 10px; border-radius: 999px; background: #fbf3dc; border: 1px solid #ecd9a0; color: #4a3a0d; font-size: 0.85rem; }
 
+/* My Home: illustrated room with real data on top */
+/* Wall / wainscot / floor bands repeat the art's own so a wide room extends seamlessly past the 600px stage. */
 .mw-room {
-  position: relative; border-radius: 12px; overflow: hidden; height: 260px;
-  background: #e9dcc0; border: 1px solid #d5c6a6;
+  position: relative; border-radius: 12px; overflow: hidden; height: 240px; border: 1px solid #d5c6a6;
+  background: linear-gradient(#f1e6cf 0, #e6d6b6 48%, #d6b25a 48% 50%, #1f4a35 50% 66%, #c9954f 66%, #a97835 100%);
 }
-.mw-wall { position: absolute; inset: 0 0 34% 0; background: linear-gradient(90deg, #5e8b72 0 62%, #6f9a82 62%); }
-.mw-window {
-  position: absolute; left: 6%; top: 14%; width: 18%; height: 44%; border-radius: 6px;
-  background: linear-gradient(#cfe6f2, #a9cfe3); border: 5px solid #f2ead8;
-}
-.mw-hoop {
-  position: absolute; right: 9%; top: 8%; width: 74px; height: 52px; border-radius: 4px;
-  background: #fbf8f1; border: 4px solid #2b2b2b;
-}
-.mw-rim {
-  position: absolute; left: 50%; bottom: -12px; width: 34px; height: 12px; margin-left: -17px;
-  border: 3px solid #e2622b; border-radius: 0 0 50% 50%; border-top-width: 4px;
-}
-.mw-frames { position: absolute; left: 30%; top: 16%; display: flex; gap: 10px; }
+.mw-stage { position: relative; width: min(100%, 600px); height: 100%; margin: 0 auto; }
+/* The art's bands are drawn far wider than the stage, so a wide room is one continuous scene (no seams). */
+.mw-room-art { overflow: visible; }
+.mw-room-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.mw-frames { position: absolute; left: 24%; top: 19%; display: flex; gap: 10px; }
 .mw-frame {
-  margin: 0; width: 64px; padding: 4px 4px 2px; background: #f6efe0; border: 3px solid #7a5a36;
-  border-radius: 3px; text-align: center; font-size: 0.62rem; color: #3a2c1c;
+  margin: 0; width: 66px; padding: 4px 4px 2px; background: var(--mw-cream); border: 3px solid #7a5a36;
+  border-radius: 3px; text-align: center; font-size: 0.62rem; color: #3a2c1c; box-shadow: 0 3px 6px rgba(60, 40, 10, 0.3);
 }
-.mw-frame img, .mw-frame .mw-frame-photo { width: 100%; height: 56px; object-fit: cover; display: block; border-radius: 2px; }
+.mw-frame img, .mw-frame .mw-frame-photo { width: 100%; height: 58px; object-fit: cover; display: block; border-radius: 2px; }
 .mw-frame figcaption { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mw-frame.is-empty { height: 74px; display: grid; place-items: center; border-style: dashed; color: #5b4630; }
-.mw-floor {
-  position: absolute; inset: 66% 0 0 0; background: repeating-linear-gradient(90deg, #c9a46e 0 46px, #bf9962 46px 92px);
-  display: flex; align-items: center; justify-content: space-between; padding: 0 5%;
+.mw-frame.is-empty { height: 76px; display: grid; place-items: center; background: #efe5cf; border-color: #9a7a52; }
+.mw-frame.is-empty svg { width: 30px; height: 30px; fill: #c9b896; }
+.mw-shelf {
+  position: absolute; left: 3%; bottom: 8%; padding: 6px 12px; border-radius: 8px; font-size: 1rem;
+  background: #4a3118; color: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
-.mw-shelf { padding: 6px 10px; background: #5a3e22; color: #fff; border-radius: 6px; font-size: 1rem; }
-.mw-shelf.is-empty { font-size: 0.78rem; }
-.mw-plate { padding: 6px 12px; background: #163a29; color: #fff; border-radius: 6px; font-size: 0.85rem; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mw-shelf.is-empty { font-size: 0.78rem; color: #f3e3c4; }
+.mw-plate {
+  position: absolute; right: 4%; bottom: 8%; max-width: 38%; padding: 6px 12px; border-radius: 8px;
+  background: var(--mw-green); color: #fff; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 1px solid #d6b25a;
+}
 .mw-home .mw-note { color: #4f5e55; margin: 8px 0 0; }
-
-.mw-feedback p { color: #24352b; margin: 0 0 8px; }
-.mw-feedback textarea { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #c5d3c8; font: inherit; }
-.mw-feedback .btn-row { margin-top: 8px; }
-.mw-feedback .mw-status { color: #1d5a3b; }
-.mw-template { margin-top: 8px; background: #f4f7f2; }
-.mw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 @media (max-width: 640px) {
   .mw-grid { grid-template-columns: 1fr; }
-  .mw-identity { grid-template-columns: 64px 1fr; }
-  .mw-avatar { width: 64px; height: 64px; }
-  .mw-room { height: 230px; }
-  .mw-window { display: none; }
-  .mw-frames { left: 5%; gap: 6px; }
+  .mw-identity { grid-template-columns: 76px 1fr; gap: 12px; padding: 14px; }
+  .mw-portrait { width: 76px; height: 76px; }
+  .mw-identity h3 { font-size: 1.15rem; }
+  .mw-room { height: 220px; }
+  .mw-stage { width: 100%; }
+  .mw-frames { left: 5%; top: 14%; gap: 6px; }
   .mw-frame { width: 54px; }
   .mw-frame img, .mw-frame .mw-frame-photo { height: 46px; }
-  .mw-hoop { width: 58px; height: 42px; right: 5%; }
+  .mw-frame.is-empty { height: 64px; }
+  .mw-plate { max-width: 44%; }
 }
