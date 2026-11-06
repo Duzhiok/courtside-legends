@@ -6,6 +6,7 @@
  */
 
 import { shuffle } from "../core/seededRandom.js";
+import { rand } from "../core/rng.js";
 import { skillNameL } from "../i18n.js";
 
 export const SKILL_PACKS = {
@@ -1962,27 +1963,27 @@ function signatureByName(player) {
 }
 
 function signatureZone(move) {
-  if (move.id === "dream_shake") return Math.random() < 0.55 ? "paint" : "mid";
-  if (move.id === "big_dipper") return Math.random() < 0.85 ? "paint" : "mid";
-  if (move.id === "bank_45") return Math.random() < 0.65 ? "mid" : "paint";
-  if (move.id === "slowmo") return Math.random() < 0.55 ? "mid" : "paint";
-  if (move.id === "stepback") return Math.random() < 0.55 ? "three" : "mid";
-  if (move.id === "soft_touch") return Math.random() < 0.5 ? "mid" : "paint";
-  if (move.id === "high_tower") return Math.random() < 0.62 ? "paint" : "mid";
-  if (move.id === "euro_step") return Math.random() < 0.75 ? "paint" : "mid";
+  if (move.id === "dream_shake") return rand() < 0.55 ? "paint" : "mid";
+  if (move.id === "big_dipper") return rand() < 0.85 ? "paint" : "mid";
+  if (move.id === "bank_45") return rand() < 0.65 ? "mid" : "paint";
+  if (move.id === "slowmo") return rand() < 0.55 ? "mid" : "paint";
+  if (move.id === "stepback") return rand() < 0.55 ? "three" : "mid";
+  if (move.id === "soft_touch") return rand() < 0.5 ? "mid" : "paint";
+  if (move.id === "high_tower") return rand() < 0.62 ? "paint" : "mid";
+  if (move.id === "euro_step") return rand() < 0.75 ? "paint" : "mid";
   // 单脚抛射：禁区为主，也会超远三分
   if (move.id === "one_leg_fade") {
-    const r = Math.random();
+    const r = rand();
     if (r < 0.45) return "paint";
     if (r < 0.8) return "mid";
     return "three";
   }
   // 蝴蝶穿花：以拉杆上篮为主，偶发中投
   if (move.id === "uncle_drew") {
-    return Math.random() < 0.78 ? "paint" : "mid";
+    return rand() < 0.78 ? "paint" : "mid";
   }
   if (move.id === "crossover") {
-    const r = Math.random();
+    const r = rand();
     if (r < 0.3) return "three";
     if (r < 0.7) return "mid";
     return "paint";
@@ -2017,7 +2018,7 @@ const SIG_FLAVOR_EN = {
 export function signatureFeedFlavor(sigId, lang = "zh") {
   if (lang === "en") {
     const poolEn = SIG_FLAVOR_EN[sigId];
-    if (poolEn?.length) return poolEn[Math.floor(Math.random() * poolEn.length)];
+    if (poolEn?.length) return poolEn[Math.floor(rand() * poolEn.length)];
   }
   const lines = {
     poster_slam: ["暴力灌篮砸框", "起飞隔扣钉板", "暴扣撕开防守", "双手暴扣怒砸"],
@@ -2044,7 +2045,7 @@ export function signatureFeedFlavor(sigId, lang = "zh") {
   };
   const pool = lines[sigId];
   if (!pool?.length) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[Math.floor(rand() * pool.length)];
 }
 
 /**
@@ -2090,12 +2091,12 @@ export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, sc
   else if (open < 0.35 && (dunkSkill || bullyDunker)) dunkChance = Math.min(0.85, dunkChance + 0.06); // 对抗更愿砸
   const craftChance = craftSkill ? 0.55 : craftAth ? 0.28 : 0.06;
 
-  if (Math.random() < dunkChance) {
-    if (lobWindow && (sk.includes("lob_finisher") || Math.random() < 0.7)) {
+  if (rand() < dunkChance) {
+    if (lobWindow && (sk.includes("lob_finisher") || rand() < 0.7)) {
       const lobs = en
         ? ["alley-oop slam", "lob jam at the rim", "rising alley-oop dunk", "lob off the glass — dunk", "rolling alley-oop dunk"]
         : ["空接暴扣", "空中接力砸筐", "拔地空接劈扣", "吊传空接钉板", "顺下空接灌篮"];
-      return lobs[Math.floor(Math.random() * lobs.length)];
+      return lobs[Math.floor(rand() * lobs.length)];
     }
     const dunks =
       open >= 0.55
@@ -2105,9 +2106,9 @@ export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, sc
         : en
           ? ["poster dunk", "slam through contact", "power dunk", "bulldozer dunk", "rises through traffic — dunk"]
           : ["隔人暴扣", "对抗中砸筐", "强起灌篮", "硬凿暴扣", "挤抗起飞扣进"];
-    return dunks[Math.floor(Math.random() * dunks.length)];
+    return dunks[Math.floor(rand() * dunks.length)];
   }
-  if (Math.random() < craftChance) {
+  if (rand() < craftChance) {
     const lays = sk.includes("uncle_drew")
       ? en
         ? ["butterfly crossover — up-and-under layup", "switch-hand finger roll", "shakes the defender — layup", "soft underhand floater layup"]
@@ -2123,10 +2124,10 @@ export function paintFinishFeedLabel(baller, { open = 0.5, kickedOut = false, sc
           : en
             ? ["up-and-under layup", "switch-hand layup", "floater finger roll", "bank shot — good", "cutting layup"]
             : ["拉杆上篮", "换手上篮", "抛投挑篮", "擦板打进", "空切上篮"];
-    return lays[Math.floor(Math.random() * lays.length)];
+    return lays[Math.floor(rand() * lays.length)];
   }
-  if (paint >= 80 && Math.random() < (bullyDunker || dunkSkill ? 0.22 : 0.35)) {
-    return Math.random() < 0.45 ? (en ? "power layup" : "强打上篮") : en ? "rim attack — good" : "杀筐打进";
+  if (paint >= 80 && rand() < (bullyDunker || dunkSkill ? 0.22 : 0.35)) {
+    return rand() < 0.45 ? (en ? "power layup" : "强打上篮") : en ? "rim attack — good" : "杀筐打进";
   }
   return null;
 }
@@ -2153,7 +2154,7 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
     .map((id) => SKILL_PACKS[id])
     .filter((m) => m?.signature && m.kind === "offense");
   if (!sigs.length) return null;
-  sigs = shuffle(sigs);
+  sigs = shuffle(sigs, rand);
   const late = (gameCtx.quarter || 1) >= 4;
   const close = Math.abs(gameCtx.scoreDiff || 0) <= 8;
   const lobFeed =
@@ -2181,7 +2182,7 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
     if (m.id === "euro_step" && brefKey(baller) === "wadedw01") proc += 0.04;
     // 上帝附体：末节胶着时更容易降临
     if (m.id === "god_mode" && late && close) proc += 0.045;
-    if (Math.random() > proc) continue;
+    if (rand() > proc) continue;
     const zone = signatureZone(m);
     return {
       id: m.id,
@@ -2201,7 +2202,7 @@ export function trySignatureBlock(defender, shot) {
     .map((id) => SKILL_PACKS[id])
     .filter((m) => m?.signature && m.kind === "defense" && m.blockBoost);
   if (!sigs.length) return null;
-  sigs = shuffle(sigs);
+  sigs = shuffle(sigs, rand);
   for (const m of sigs) {
     let proc = m.proc;
     // 追身定板：更吃禁区/快攻终结
@@ -2209,7 +2210,7 @@ export function trySignatureBlock(defender, shot) {
       if (shot?.zone === "paint") proc = Math.min(0.42, proc + 0.12);
       else if (shot?.zone === "three") proc *= 0.55;
     }
-    if (Math.random() > proc) continue;
+    if (rand() > proc) continue;
     let boost = m.blockBoost || 0.2;
     if (m.id === "chase_down_block" && shot?.zone === "paint") boost *= 1.2;
     if (shot?.zone === "three") boost *= m.id === "chase_down_block" ? 0.45 : 0.35;
@@ -2225,7 +2226,7 @@ export function trySignatureSteal(defender) {
     .map((id) => SKILL_PACKS[id])
     .filter((m) => m?.signature && m.stealBoost);
   for (const m of sigs) {
-    if (Math.random() > m.proc) continue;
+    if (rand() > m.proc) continue;
     return { id: m.id, name: m.name, stealBoost: m.stealBoost, label: m.name };
   }
   return null;
@@ -2553,7 +2554,7 @@ function pickFromTier(tiers, order, seen, avoid = null) {
     const list = (tiers[r] || []).filter((s) => !seen.has(s.id));
     if (!list.length) continue;
     const fresh = avoid ? list.filter((s) => !avoid.has(s.id)) : list;
-    if (fresh.length) return fresh[Math.floor(Math.random() * fresh.length)];
+    if (fresh.length) return fresh[Math.floor(rand() * fresh.length)];
   }
   return null;
 }
@@ -2596,10 +2597,10 @@ export function rollSkillShopOffers(size = 6, excludeIds = [], avoidIds = null, 
   };
 
   // ① 高光位：约 28% 神话、42% 传奇、30% 史诗；其中一半偏向体力三件套
-  const roll = Math.random();
+  const roll = rand();
   const highOrder =
     roll < 0.28 ? ["mythic", "legendary", "epic"] : roll < 0.7 ? ["legendary", "mythic", "epic"] : ["epic", "legendary", "mythic"];
-  if (Math.random() < 0.5) {
+  if (rand() < 0.5) {
     const dura = SHOP_DURABILITY_IDS.map((id) => SKILL_PACKS[id]).filter(
       (s) => s && isLearnableSkill(s.id) && !seen.has(s.id)
     );
@@ -2608,7 +2609,7 @@ export function rollSkillShopOffers(size = 6, excludeIds = [], avoidIds = null, 
     if (!duraPool.length) duraPool = dura;
     const duraFresh = avoidIds ? duraPool.filter((s) => !avoidIds.has(s.id)) : duraPool;
     if (duraFresh.length) duraPool = duraFresh;
-    if (duraPool.length) take(duraPool[Math.floor(Math.random() * duraPool.length)]);
+    if (duraPool.length) take(duraPool[Math.floor(rand() * duraPool.length)]);
   }
   if (picks.length < 1) take(pickFromTier(tiers, highOrder, seen, avoidIds));
 
@@ -2616,13 +2617,13 @@ export function rollSkillShopOffers(size = 6, excludeIds = [], avoidIds = null, 
   take(pickFromTier(tiers, ["epic", "legendary", "rare"], seen, avoidIds));
 
   // ③ 再补一档偏传奇/史诗，避免货架全是普通
-  if (Math.random() < 0.65) {
+  if (rand() < 0.65) {
     take(pickFromTier(tiers, ["legendary", "epic", "mythic", "rare"], seen, avoidIds));
   }
 
   // ④ 其余：稀有/普通为主，偶尔塞史诗
   const fillOrder =
-    Math.random() < 0.2
+    rand() < 0.2
       ? ["epic", "rare", "common", "legendary"]
       : ["rare", "common", "epic", "legendary"];
   let guard = 0;
@@ -2641,7 +2642,7 @@ export function rollSkillShopOffers(size = 6, excludeIds = [], avoidIds = null, 
     const fresh = avoidIds ? poolA.filter((x) => !avoidIds.has(x.id)) : poolA;
     const pool = fresh.length ? fresh : poolA;
     if (!pool.length) break;
-    take(pool[Math.floor(Math.random() * pool.length)]);
+    take(pool[Math.floor(rand() * pool.length)]);
   }
 
   return shuffle(picks);
@@ -2770,7 +2771,7 @@ export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open 
   }
   if (duos.includes("joker_jamal")) {
     const bref = brefKey(baller);
-    const proc = Math.random() < (SKILL_PACKS.joker_jamal.proc || 0.42);
+    const proc = rand() < (SKILL_PACKS.joker_jamal.proc || 0.42);
     if (bref === "jokicni01" || bref === "murraja01") {
       // 常驻小默契；触发「二人转」时再抬一档
       if (shot?.zone === "mid") b += proc ? 0.042 : 0.014;
@@ -2896,17 +2897,17 @@ export function skillOnBallWrapPressure(baller, defender) {
   let tax = 0;
   let label = null;
   if (hasSkill(defender, "death_wrap")) {
-    tax = 3.4 + Math.random() * 2.2; // 大量榨干
-    if (Math.random() < (SKILL_PACKS.death_wrap.proc || 0.48)) label = "死亡缠绕";
+    tax = 3.4 + rand() * 2.2; // 大量榨干
+    if (rand() < (SKILL_PACKS.death_wrap.proc || 0.48)) label = "死亡缠绕";
   } else if (hasSkill(defender, "sticky_wrap")) {
-    tax = 1.15 + Math.random() * 0.7;
-    if (Math.random() < 0.28) label = "缠绕盯防";
+    tax = 1.15 + rand() * 0.7;
+    if (rand() < 0.28) label = "缠绕盯防";
   } else if (hasSkill(defender, "lockdown")) {
-    tax = 0.55 + Math.random() * 0.45;
-    if (Math.random() < 0.16) label = "铁壁盯防";
+    tax = 0.55 + rand() * 0.45;
+    if (rand() < 0.16) label = "铁壁盯防";
   } else if (hasSkill(defender, "stopper_3d")) {
     tax = 0.7;
-    if (Math.random() < 0.14) label = "持球克星";
+    if (rand() < 0.14) label = "持球克星";
   }
   if (tax > 0) {
     baller.fatigue = Math.min(100, (baller.fatigue || 0) + tax);
@@ -2929,11 +2930,11 @@ export function skillDefenderTovBonus(defender) {
 /** 抢断战报里挂防守技名（有则返回） */
 export function skillStealFeedLabel(defender) {
   if (!defender) return null;
-  if (hasSkill(defender, "death_wrap") && Math.random() < 0.55) return "死亡缠绕";
-  if (hasSkill(defender, "sticky_wrap") && Math.random() < 0.4) return "缠绕盯防";
-  if (hasSkill(defender, "glove") && Math.random() < 0.45) return "手套";
-  if (hasSkill(defender, "thief") && Math.random() < 0.35) return "盗球鬼才";
-  if (hasSkill(defender, "lockdown") && Math.random() < 0.25) return "铁壁盯防";
+  if (hasSkill(defender, "death_wrap") && rand() < 0.55) return "死亡缠绕";
+  if (hasSkill(defender, "sticky_wrap") && rand() < 0.4) return "缠绕盯防";
+  if (hasSkill(defender, "glove") && rand() < 0.45) return "手套";
+  if (hasSkill(defender, "thief") && rand() < 0.35) return "盗球鬼才";
+  if (hasSkill(defender, "lockdown") && rand() < 0.25) return "铁壁盯防";
   return null;
 }
 
@@ -3127,7 +3128,7 @@ export function isJokerJamalTwoMan(baller, passer, onCourt = []) {
   const duoPair =
     (scorer === "jokicni01" && ast === "murraja01") ||
     (scorer === "murraja01" && ast === "jokicni01");
-  if (duoPair && Math.random() < (SKILL_PACKS.joker_jamal.proc || 0.42)) return true;
+  if (duoPair && rand() < (SKILL_PACKS.joker_jamal.proc || 0.42)) return true;
   return false;
 }
 
@@ -3146,16 +3147,16 @@ export function skillReboundMult(p, { offensive = false } = {}) {
     const pack = SKILL_PACKS.rebound_maniac;
     const blue = isBlueCollarRebounder(p);
     const proc = blue ? pack.blueCollarProc * (offensive ? 1 : 0.75) : pack.proc * 0.5;
-    if (Math.random() <= proc) return blue && offensive ? pack.blueCollarOffBoost : pack.rebBoost;
+    if (rand() <= proc) return blue && offensive ? pack.blueCollarOffBoost : pack.rebBoost;
   }
-  if (hasSkill(p, "board_man") && Math.random() <= SKILL_PACKS.board_man.proc) {
+  if (hasSkill(p, "board_man") && rand() <= SKILL_PACKS.board_man.proc) {
     return SKILL_PACKS.board_man.rebBoost;
   }
-  if (hasSkill(p, "glass_cleaner") && Math.random() < 0.32) return 1.4;
-  if (hasSkill(p, "spring_board") && Math.random() < 0.28) return 1.35;
-  if (hasSkill(p, "wolf_king") && Math.random() < 0.25) return 1.3;
+  if (hasSkill(p, "glass_cleaner") && rand() < 0.32) return 1.4;
+  if (hasSkill(p, "spring_board") && rand() < 0.28) return 1.35;
+  if (hasSkill(p, "wolf_king") && rand() < 0.25) return 1.3;
   // 角色层冲板蓝领：低线篮板权重，低于上述所有篮板技
-  if (hasSkill(p, "crash_board") && Math.random() < 0.2) return 1.2;
+  if (hasSkill(p, "crash_board") && rand() < 0.2) return 1.2;
   return 1;
 }
 

@@ -3,6 +3,7 @@
  * 同一张赛季卡用 bref+season 稳定随机，保证可复现。
  */
 import { careerArcIntangibleBias, estimateAge } from "./careerArc.js";
+import { rand } from "../core/rng.js";
 
 export const INTANGIBLE_DEFS = {
   gravity: { name: "引力", desc: "吸引协防，给队友创造空位" },
@@ -1116,8 +1117,8 @@ export function rollAdvancementInjuries(players, { round = 1, intensity = 1 } = 
     if ((p.skills || []).includes("iron_body")) risk = Math.max(12, risk - 24);
     // Base chance scales with risk; deeper rounds / finals wear teams down
     const chance = clamp((risk - 55) * 0.0025 * intensity + round * 0.006, 0, 0.16);
-    if (Math.random() > chance) continue;
-    const gamesOut = risk >= 80 ? 1 + (Math.random() < 0.3 ? 1 : 0) : risk >= 65 ? 1 + (Math.random() < 0.18 ? 1 : 0) : 1;
+    if (rand() > chance) continue;
+    const gamesOut = risk >= 80 ? 1 + (rand() < 0.3 ? 1 : 0) : risk >= 65 ? 1 + (rand() < 0.18 ? 1 : 0) : 1;
     p.injuredGames = gamesOut;
     p.injuryStatus = risk >= 80 ? "严重伤病" : "伤停";
     reports.push({

@@ -1,58 +1,75 @@
-# M2b 实现设计（一页）：可注入随机数 + 玩家决策契约
+# M2b 实现设计（一页）：可注入随机数 + 绝杀决策契约
 
-- **状态**：PROPOSED，等你审阅。**在你批准前不改 `GameSim` 一行。**
-- **依据**：ADR-002（玩家决策 vs 终场脚本，已批准附条件）、ADR-003（M2a/M2b 拆分）、`ROADMAP.md` §5（M2b 范围）、`BASELINE_AUDIT.md` §2.3/§2.6。本文不重写这些，只补它们留白的实现契约。
-- **不属于本文**：战术槽完全拆分（另起 ADR，不是 M2b 前置；B34 最小修复已解决直接问题）、Reborn 球员线（ADR-005 的 PR4 依赖本文）、2D 接管（M3）。
+- **状态**：✅ APPROVED v2（产品负责人 2026-11-06 批准，Q1–Q4 按推荐值）。M2b-0 已落地（见 §9）；M2b-1 待做。
+- **依据**：ADR-002（决策 vs 终场脚本，附条件批准）、ADR-003、`ROADMAP.md` §5、`BASELINE_AUDIT.md` §2.3 / §2.6 / §0b。本文只补实现契约，不重写它们。
+- **不在范围**：战术槽完全拆分（另起 ADR；B34 已做最小修复）、Reborn（ADR-005 PR4 复用本文）、2D 接管（M3）、命中率任何加成。
 
-## 1. 要解决的三件事
-1. **玩家选的出手人不兑现**（G1 实测：选与不选份额都约 5%）。
-2. **测不出"改动是否真的有效"**：`sim.js` 有 47 处 `Math.random`，只能测分布，无法做固定种子前后对照。
-3. **玩家决策与自动脚本没有优先级**：终场脚本把 `offenseFocusId` 改写成"全队最佳射手"（`sim.js` 约 `lateChase` 分支），自动托管也可能覆盖。
+## 1. 可注入 RNG，默认行为不变（M2b-0，独立 PR）
 
-## 2. 可注入 RNG（M2b-0，先于一切玩法改动，单独一个 PR）
+**事实**：比赛 tick 链上的随机调用 = `sim.js` 47 + `skills.js` 51 + `chemistry.js` 1 + `intangibles.js` 2。`coaches.js` 的 2 处只在开局前选助教，不在 tick 链。
 
-**事实**：`sim.js` 47 处，但 `skills.js` 51 处、`chemistry.js` 1 处、`intangibles.js` 2 处（技能触发在引擎调用链里）。**只改 `sim.js` 不够**：播种后仍不确定。
+**方案**：新增 `js/core/rng.js`：`rand()`（默认转发 `Math.random`）、`withRng(source, fn)`（`try/finally`，必还原）。上述 4 个文件的 `Math.random()` 机械替换为 `rand()`。`GameSim` 构造器加可选 `rng`；以下**会掷骰的入口**在 `withRng(this.rng)` 内执行：`constructor`、`start`、`step`（含 `_loop` 触发）、`nextQuarter`、`runFast`、`callTimeout`、`shout`、`talk`、`substitute`、`runManagedBreak`、以及新加的 `submitDecision`。清单写成一个常量数组，并有一条测试兜底：播种运行期间把 `Math.random` 换成直接抛错的函数，**任何漏网的入口都会让测试变红**——这样"等"不靠人记。
 
-**方案**：新增 `js/core/rng.js`，导出 `rand()`（默认转发 `Math.random`）和 `withRng(source, fn)`（`try/finally` 作用域内临时替换，结束后必还原）。`GameSim` 构造器新增可选 `rng`，每个公开入口（`tick`、`run` 等）在 `withRng` 里执行。上述四个文件的 `Math.random()` 机械替换为 `rand()`。
+- 未传 `rng` 时 `rand === Math.random`、调用顺序不变 → **默认行为字节级不变**。
+- 代价：模块级替换不是并发安全的。浏览器一次一场、测试顺序执行，可接受；联机服务端若将来同进程并行多场，改为显式传参。
 
-- **为什么不逐函数传参**：`skills.js` 几十个纯函数签名里没有 sim，传参要改上百处调用，风险远大于收益。
-- **代价（需你知道）**：模块级可替换源不是并发安全的。浏览器里同一时刻只跑一场，测试在同一进程内顺序执行，所以可接受；联机服务端若将来在同进程并行多场，要改成显式传参。
-- **默认行为字节级不变**：未传 `rng` 时 `rand === Math.random`，调用顺序不变。
-
-**金标回归（M2b-0 的验收）**：在**改动之前**，用 `Math.random` 打补丁换成 `seededStream(seed)`，对 20 个种子各跑一整场并记录事件日志哈希；改动后用 `rng: seededStream(seed)` 复跑，**哈希必须逐个相同**。这样"普通模式零回归"是可证明的，不靠大样本分布。
-
-## 3. 玩家决策契约（M2b-1）
+## 2. 绝杀决策契约（M2b-1）
 
 ```js
-// 输入：只有显式 clutch 场景才会有
-decision = { attemptId, kind: "clutch_shooter", shooterId, actionHint?: "auto"|"drive_kick"|... }
-// 输出：引擎事件里带的结构化结果，不是 UI 编的
-outcome  = { attemptId, honored: boolean, reason?: "doubled"|"turnover"|"kicked_out"|"foul"|"not_on_court",
-             actualShooterId, shot?: { zone, made }, points }
+sim.submitDecision({ attemptId, kind: "clutch_shooter", shooterId, actionHint: "three" | "attack" })
+// 引擎在回合结束事件里附带（来自真实事件，UI 不编）：
+outcome = { attemptId, handedOff, attempted, zone, made, points,
+            honored, reason /* "doubled"|"kicked_out"|"turnover"|"foul"|"not_on_court"|"no_possession" */ }
 ```
 
-流程：校验（球员在场、attempt 未过期）→ 写入引擎已有的 `chase.shooterId` 通道（ADR-002，不新建投篮模型）→ `resolvePossession` 正常结算 → 事件携带 `outcome` → UI 只展示事件里的因素。
+- **`attemptId`**：由 `ClutchController`（UI 状态机）发放；`sim` 只认最新一个，旧 id 的提交直接丢弃。
+- **有效期（精确定义）**：决策绑定到**提交后 `you` 的下一个进攻回合**，在该回合的第一个终止事件时失效：投篮命中、防守篮板、失误、罚球结束、节末。进攻篮板后的补篮**不**再强制交给选中的人（决策已消费）。
+- **存放位置**：决策存在独立的 `sim.clutchDecision`，**不写进 `off.temp.lateChase`**。
 
-**优先级（高→低）**：显式玩家决策 > 终场脚本选人（`lateChase`）> 进攻托管（`autoOffense`）> 默认选人。玩家决策有有效期：到该 `attemptId` 结束或本回合结算为止，**自动脚本不得在有效期内静默改写**。`paceBoost` 等非选人行为不受影响。
+## 3. 优先级：在读取点生效，不去拦脚本
 
-**不做**：任何命中率加成或"必进"。命中仍完全由 `calcMakeProb` 决定（Master Spec §5.3 硬性要求）。**所有行为在显式 `clutch` 开关之后生效**，非 clutch 路径不变。
+Luna 指出的关键问题：`applyLateGameScripts` 每个 tick 都重写 `lateChase`（含 `shooterId`、`needThree`、`paceBoost`），如果把玩家选择写进 `lateChase`，下一 tick 就会被盖掉。所以**不改脚本、不加守卫**，而是在 `resolvePossession` 读取时取：
 
-## 4. 验收（沿用 ROADMAP §5，补可复现的做法）
-| 项 | 做法 |
-|---|---|
-| 选中出手人份额 | 固定种子 N=1500，对比 基线 / 脚本默认 / 玩家选人 三组；目标 ≥35%（实验性起点，ADR-002），不得接近 100% |
-| 副作用指标 | 同一批种子下同时报告三分出手率、失误率、胜率 |
-| 普通模式零回归 | §2 金标哈希 20/20 相同 + 全量测试 |
-| 优先级 | 单测：脚本与托管同时存在时玩家决策胜出；有效期结束后脚本恢复 |
-| 变异验证 | 撤销"玩家决策覆盖脚本"后，对比测试必须变红 |
-| 结构化结果 | `outcome.honored=false` 时 `reason` 必须来自真实事件，不能为空 |
+`有效出手人 = 有效期内的 clutchDecision.shooterId ?? lateChase.shooterId ?? 默认 gameplan`
 
-## 5. 拆分与回滚
-- **M2b-0**：`js/core/rng.js` + 机械替换 + 金标哈希。无玩法变化，可单独回滚。
-- **M2b-1**：决策契约 + `ClutchController` + `initializeScenario` + 结果页（ROADMAP §5 已列）。
-- 不改存档结构（单局即时玩法），回滚不涉及迁移。
+脚本照常写 `lateChase`，`paceBoost`、`needThree` 原样生效，只有"选谁"被玩家决策覆盖。进攻托管同样只在读取点让位。
 
-## 6. 需要你拍板
-1. **Q1** RNG 用"模块级作用域替换"而非逐函数传参，接受上面写的并发代价吗？（推荐接受。）
-2. **Q2** 把 RNG 注入拆成独立的 M2b-0（先做、先证明零回归），而不是和玩法改动同一个 PR？（推荐拆。）
-3. **Q3** `ROADMAP.md` §5 原先把"RNG 不可注入、只测分布"写成设计决定；本文推翻这一条，改为"可注入 + 金标哈希"。同意修订吗？
+## 4. 五个层次分开设计、分开度量（不混成一个"成功率"）
+
+| 层次 | 机制（全部复用现有代码） | 本里程碑改不改 |
+|---|---|---|
+| ① 球权交到谁手里 | 复用现有交球闸 `Math.random() < 0.78`（现在只在 `needThree` 时生效）；有效决策下对追平/反超两分同样生效。**不新造常数** | 改：闸门的适用条件 |
+| ② 选中的人是否真出手 | 现有分球逻辑：持球者是选中射手时不走"战术分球"（与 `needThree` 分支一致）。豁免只关这一条，其余现有分球路径照旧（例如身边有弹跳型内线、持球者又是好传球手时），所以选中的人仍可能把球分出去 → `reason: "kicked_out"`（被包夹时为 `"doubled"`）。**现状提示**：包夹目前只改分球倾向、不会强制分球，本里程碑不新增"包夹必分"规则 | 改：把选中射手纳入现有豁免 |
+| ③ 三分还是进攻篮筐 | `actionHint: "three"` → 现有焦点战术 `pace_three`；`"attack"` → 不加焦点，交给现有 `chooseShot` 按球员倾向选区 | 改：只是选焦点 |
+| ④ 进不进 | `calcMakeProb` **完全不动**，防守、犯规、失误、篮板照常结算 | 不改 |
+| ⑤ 比赛胜负 | 整场模拟结果 | 不改 |
+
+## 5. 测量：固定种子的前后对照
+
+- **样本**：每组 N=1500 个种子（沿用探针规模），同一批种子跑三组：A 基线（无决策）、B 脚本默认选人、C 玩家选人。
+- **报告五个数**：①交球率 ②选中者出手率 ③其中三分占比 ④选中者命中率 ⑤胜率；另报失误率。
+- **验收**：选中者出手份额 ≥35%（ADR-002 的实验起点，不得 <20%，不得接近 100%）；④命中率与 A 组**同一球员同一区域**相比无显著差异（证明没有偷偷加命中）。
+- **变异验证**：撤掉"读取点优先级"后，C 组应退回到接近 A 组，测试必须变红。
+
+## 6. 普通模式零回归
+
+- **金标哈希（M2b-0 的验收）**：改动**之前**，用 `seededStream(seed)` 替换 `Math.random`，用固定 JSON 队伍夹具（教练和助教**在夹具里写死**，不经过 `coaches.js` 选人，所以播种范围不含建队和选助教），跑 20 个种子整场，记录事件日志哈希；改动后用 `rng: seededStream(seed)` 复跑，**20/20 逐个相同**。
+- **M2b-1 也复跑这 20 个哈希**：没有 `clutch` 开关的比赛必须仍然逐个相同。
+- 全量单测、lint 照常。
+
+## 7. 最小范围与回滚
+
+- **M2b-0**：`rng.js` + 机械替换 + 金标哈希 + 漏网测试。无玩法变化，可单独 `git revert`。
+- **M2b-1**：`submitDecision` + 读取点优先级 + 第 4 节三处闸门 + `ClutchController` + `initializeScenario` + 1 个场景与结果页（ROADMAP §5 已列）。全部在显式 `clutch` 开关之后。
+- 不改存档结构（单局玩法），回滚无迁移。达不到 35% 时**不许加命中率**，回到 ADR-002 重新拍板。
+
+## 8. 待你拍板
+1. **Q1** RNG 用模块级作用域替换（不逐函数传参），接受第 1 节的并发代价？Luna：接受。
+2. **Q2** M2b-0 单独先做、先证明 20/20 零回归？Luna：拆。
+3. **Q3** 修订 ROADMAP §5：把"RNG 不可注入、只测分布"改为"可注入 + 金标哈希"？Luna：同意。
+4. **Q4** 第 4 节①：有效决策下把 0.78 交球闸扩展到"追平/反超两分"，而不只在需要三分时？（推荐：是，否则平局最后一攻玩家选择无效。）
+
+## 9. 进度
+- **M2b-0 ✅**：`js/core/rng.js`；`sim.js`/`skills.js`/`chemistry.js`/`intangibles.js` 的全部 `Math.random()` 改走 `rand()`；`GameSim({ rng })`；`SEEDED_ENTRY_POINTS` 清单 + 包装。金标：`scripts/sim/golden-hash.mjs` 在**改动前**录入 `tests/fixtures/simGolden.json`，改动后全局替换与 `rng` 注入两种方式都 20/20 逐个相同。
+- **实现中发现并修掉的两处**：① `skills.js` 的 `trySignatureOffense/Block` 里 `shuffle(sigs)` 默认用 `Math.random`，在 tick 链里，改为 `shuffle(sigs, rand)`；② `rand()` 必须每次动态读 `Math.random`（不能在模块加载时捕获引用），否则现有那些靠替换 `Math.random` 播种的测试会静默失效。
+- **没做**：M2b-1（`submitDecision`、读取点优先级、三处闸门、ClutchController）；`coaches.js` 的 2 处随机（开局前选教练/助教，不在 tick 链）和 `shuffle` 在商店里的默认随机，均未动。

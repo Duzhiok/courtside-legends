@@ -1,4 +1,5 @@
 import { positionFitScore } from "../data/franchises.js";
+import { rand } from "../core/rng.js";
 import { familyChemistryBonus } from "../data/family.js";
 import {
   ballRolePlayFactor,
@@ -221,7 +222,7 @@ export function personalityOnPlay(player, teamChem, onCourt = null, ctx = {}) {
   const per = player.personality || {};
   if (per.ego > 80 && teamChem < 50) mult *= 0.92;
   if (per.team > 80) mult *= 1.03;
-  if (per.fiery > 85) mult *= Math.random() < 0.15 ? 1.08 : 0.97;
+  if (per.fiery > 85) mult *= rand() < 0.15 ? 1.08 : 0.97;
   if (per.calm > 85) mult *= 1.02;
   // 妖人：多数体系都好用；高薪低能：对口教练/战术可打出身价
   mult *= hiddenPlayFactor(player, { coach: ctx.coach, tactic: ctx.tactic });

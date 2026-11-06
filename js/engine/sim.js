@@ -1,4 +1,5 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
+import { rand as rnd, withRng } from "../core/rng.js";
 import { getLang, skillNameL } from "../i18n.js";
 import { overall } from "../data/players.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
@@ -107,7 +108,17 @@ const AUTOPILOT_SWAPPABLE_GROUPS = new Set(["offense", "spacing", "pace_transiti
  * Open look ≠ automatic make. Coach actions apply temporary modifiers.
  */
 export class GameSim {
-  constructor({
+  /**
+   * `rng` (optional, () => [0,1)) makes the whole game reproducible: every public entry point listed
+   * in SEEDED_ENTRY_POINTS runs with it as the dice source. Omit it and the engine rolls Math.random
+   * exactly as before.
+   */
+  constructor(opts) {
+    this.rng = typeof opts?.rng === "function" ? opts.rng : null;
+    withRng(this.rng, () => this._init(opts));
+  }
+
+  _init({
     home,
     away,
     youSide = "home",
@@ -141,7 +152,7 @@ export class GameSim {
     /** Cumulative game seconds elapsed (all quarters) — drives bench fatigue recovery. */
     this.elapsedSec = 0;
     this.score = { home: 0, away: 0 };
-    this.possession = Math.random() < 0.5 ? "home" : "away";
+    this.possession = rnd() < 0.5 ? "home" : "away";
     this.running = false;
     this.paused = false;
     /** null | 'timeout' | 'quarter' | 'half' | 'manual' — why the clock is stopped */
@@ -674,7 +685,7 @@ export class GameSim {
     // 终场需要三分：高概率直接把球给最稳射手
     if (!putbackId && chase?.needThree && chase.shooterId) {
       const sh = off.onCourt.find((p) => p.id === chase.shooterId);
-      if (sh && Math.random() < 0.78) {
+      if (sh && rnd() < 0.78) {
         if (baller && baller.id !== sh.id && (baller.pass || 50) >= 55) {
           organizerId = baller.id;
           kickedOut = true;
@@ -724,7 +735,7 @@ export class GameSim {
         schemeKick = true;
       }
     }
-    if (schemeKick && Math.random() < kickChance) {
+    if (schemeKick && rnd() < kickChance) {
       const organizer = baller;
       const kicked = kickToTeammate(off, baller, offenseFocusId, initAction);
       if (kicked) {
@@ -735,11 +746,11 @@ export class GameSim {
         baller = kicked;
         kickedOut = true;
       }
-    } else if (doubled && baller && (baller.skills || []).includes("lone_wolf") && Math.random() < 0.35) {
+    } else if (doubled && baller && (baller.skills || []).includes("lone_wolf") && rnd() < 0.35) {
       this.emit("coach", this.S(`${baller.name}「独狼」硬解包夹，没分给空位队友`, `${baller.name} (Lone Wolf) forces it into the double-team, ignoring the open man`));
     }
     // Strong side = ball side; weak side = help/kick-out side (2K spacing)
-    const weakSide = kickedOut ? Math.random() < 0.72 : Math.random() < 0.28;
+    const weakSide = kickedOut ? rnd() < 0.72 : rnd() < 0.28;
     const scheme =
       initAction === "pnr" || initAction === "drive_kick"
         ? initAction
@@ -828,7 +839,7 @@ export class GameSim {
 
     // Charge / offensive foul drawn by Battier-type
     const chargeP = skillChargeChance(defender) * (1 + defPress * 0.4);
-    if (chargeP > 0 && Math.random() < chargeP) {
+    if (chargeP > 0 && rnd() < chargeP) {
       baller.stats.tov += 1;
       baller.stats.pf += 1;
       gradeTov(baller);
@@ -862,7 +873,7 @@ export class GameSim {
       (defOrder === "allout" || isAllOutDefense(defender) ? 0.028 : 0) +
       skillStealBonus(defender, def.onCourt) +
       (sigStl?.stealBoost || 0);
-    if (Math.random() < stlChance) {
+    if (rnd() < stlChance) {
       baller.stats.tov += 1;
       defender.stats.stl += 1;
       gradeTov(baller);
@@ -913,11 +924,11 @@ export class GameSim {
         wrapTov) *
         tempoTov
     );
-    if (Math.random() < tovChance) {
+    if (rnd() < tovChance) {
       baller.stats.tov += 1;
       gradeTov(baller);
       // loose-ball foul chance
-      if (Math.random() < 0.12) {
+      if (rnd() < 0.12) {
         defender.stats.pf += 1;
         gradeFoul(defender);
         this.emit("miss", this.S(`${baller.name} 失误，${defender.name} 防守犯规`, `${baller.name} turns it over; ${defender.name} is whistled for the defensive foul`), { actorId: baller.id });
@@ -926,9 +937,9 @@ export class GameSim {
         return;
       }
       const wrapForced =
-        wrapTov >= 0.05 && Math.random() < 0.55
+        wrapTov >= 0.05 && rnd() < 0.55
           ? this.S(`——被 ${defender.name}「死亡缠绕」逼出`, ` — forced by ${defender.name}'s "Death Grip"`)
-          : wrapTov > 0 && wrapPress.label && Math.random() < 0.4
+          : wrapTov > 0 && wrapPress.label && rnd() < 0.4
             ? this.S(`——被 ${defender.name}「${wrapPress.label}」压出`, ` — pressured out by ${defender.name}'s "${this.nL(wrapPress.label)}"`)
             : "";
       this.emit(
@@ -983,7 +994,7 @@ export class GameSim {
       const kick = skillKickOpenBonus(organizer, { doubled });
       if (kick.bonus) {
         open = clamp(open + kick.bonus, 0.08, 0.95);
-        if (Math.random() < 0.35) this.emit("coach", this.S(`${organizer.name} ${kick.label}，${baller.name} 空位接球`, `${organizer.name} ${this.nL(kick.label)} — ${baller.name} catches it wide open`));
+        if (rnd() < 0.35) this.emit("coach", this.S(`${organizer.name} ${kick.label}，${baller.name} 空位接球`, `${organizer.name} ${this.nL(kick.label)} — ${baller.name} catches it wide open`));
       }
     }
     // 低欲望几乎不主动发动招牌绝技；空接窗（被传球手喂到）例外
@@ -1039,7 +1050,7 @@ export class GameSim {
           sigBoost: sigBlk?.blockBoost || 0,
           packPaint: def.tactic?.packPaint,
         }) * skillBlockResist(baller);
-    if (Math.random() < blkChance) {
+    if (rnd() < blkChance) {
       baller.stats.fga += 1;
       if (shot.pts === 3) baller.stats.tpa += 1;
       defender.stats.blk += 1;
@@ -1080,7 +1091,7 @@ export class GameSim {
     }
     // 上帝附体：无论防守如何，那一球必进
     if (sigOff?.guaranteed) makeP = 1;
-    const made = Math.random() < makeP;
+    const made = rnd() < makeP;
     let label = baller._sigLabel || null;
     if (!label && shot.zone === "paint") {
       label = paintFinishFeedLabel(baller, { lang: this.lang,
@@ -1109,7 +1120,7 @@ export class GameSim {
       (foulHunt ? 0.07 : 0) +
       (baller.orders?.attack === "foul_hunt" ? 0.05 : 0) +
       skillFoulRisk(defender);
-    const fouled = Math.random() < foulChance;
+    const fouled = rnd() < foulChance;
 
     if (made) {
       const pts = shot.pts;
@@ -1148,7 +1159,7 @@ export class GameSim {
         });
       }
       let primaryAst = null;
-      if (Math.random() < 0.55 + off.chem * 0.002) {
+      if (rnd() < 0.55 + off.chem * 0.002) {
         primaryAst = pickPasser(off, baller);
         if (primaryAst) {
           primaryAst.stats.ast += 1;
@@ -1592,7 +1603,7 @@ export class GameSim {
     // 垃圾时间不等节流：领先一到 20 分，下个回合就换替补
     this.garbageTimeSubs(cpu);
     // throttle: ~1 check / few possessions
-    if (Math.random() > 0.22) return;
+    if (rnd() > 0.22) return;
 
     const you = this.you();
     const deficit = this.score[you.side] - this.score[cpu.side];
@@ -1604,11 +1615,11 @@ export class GameSim {
       let wantTo = false;
       const runAgainst =
         this.momentum.side === you.side && this.momentum.points >= 8;
-      if (runAgainst) wantTo = Math.random() < 0.65;
-      else if (deficit >= 10 && avgFat >= 48) wantTo = Math.random() < 0.55;
-      else if (deficit >= 6 && avgFat >= 55) wantTo = Math.random() < 0.4;
-      else if (clutch && deficit > 0) wantTo = Math.random() < 0.35;
-      else if (late && avgFat >= 62) wantTo = Math.random() < 0.25;
+      if (runAgainst) wantTo = rnd() < 0.65;
+      else if (deficit >= 10 && avgFat >= 48) wantTo = rnd() < 0.55;
+      else if (deficit >= 6 && avgFat >= 55) wantTo = rnd() < 0.4;
+      else if (clutch && deficit > 0) wantTo = rnd() < 0.35;
+      else if (late && avgFat >= 62) wantTo = rnd() < 0.25;
       if (wantTo && this.callTimeout(cpu.side)) {
         this.cpuAutoSub(cpu, { aggressive: true });
         return;
@@ -1646,11 +1657,11 @@ export class GameSim {
       this._manageCd = this._quiet ? 1 : 2;
     }
 
-    if (this.autoDefense && Math.random() < (this._quiet ? 0.35 : 0.2)) this.managedDefense();
-    if (this.autoOffense && Math.random() < 0.12) this.managedOffensePlan({ light: true });
+    if (this.autoDefense && rnd() < (this._quiet ? 0.35 : 0.2)) this.managedDefense();
+    if (this.autoOffense && rnd() < 0.12) this.managedOffensePlan({ light: true });
 
     // Occasional shout when flat
-    if (!this._quiet && (you.morale || 50) < 42 && Math.random() < 0.12) {
+    if (!this._quiet && (you.morale || 50) < 42 && rnd() < 0.12) {
       this.shout();
     }
 
@@ -1667,19 +1678,19 @@ export class GameSim {
     let why = "";
     let wantTo = false;
     if (runAgainst) {
-      wantTo = Math.random() < 0.72;
+      wantTo = rnd() < 0.72;
       why = this.S("打断对方高潮", "break their run");
     } else if (deficit >= 12 && this.quarter >= 2) {
-      wantTo = Math.random() < 0.48;
+      wantTo = rnd() < 0.48;
       why = this.S("分差拉开，重整阵脚", "gap widening — reset");
     } else if (cold && deficit >= 3) {
-      wantTo = Math.random() < 0.42;
+      wantTo = rnd() < 0.42;
       why = this.S("手感冰凉，叫停调整", "ice cold — stop and adjust");
     } else if (avgFat >= 72 && this.timeouts[you.side] >= 2) {
-      wantTo = Math.random() < 0.3;
+      wantTo = rnd() < 0.3;
       why = this.S("全员过劳，喘口气", "everyone gassed — catch a breath");
     } else if (late && deficit >= 4 && deficit <= 14) {
-      wantTo = Math.random() < 0.4;
+      wantTo = rnd() < 0.4;
       why = this.S("关键分追分布置", "key-possession chase setup");
     }
     if (!wantTo) return;
@@ -1804,7 +1815,7 @@ export class GameSim {
     const { scheme: advised, threat } = suggestDefenseScheme(opp.onCourt, deficit);
     if (!threat) return;
     // 托管在建议上加一道随机门：顶他下盘只有 40% 概率真执行，其余回落钉死他
-    const scheme = advised === "bump" && Math.random() >= 0.4 ? "focus" : advised;
+    const scheme = advised === "bump" && rnd() >= 0.4 ? "focus" : advised;
     if (this.defensePlan?.targetId === threat.id && this.defensePlan?.scheme === scheme) return;
     this.setDefenseScheme(scheme, threat.id);
   }
@@ -1906,7 +1917,7 @@ export class GameSim {
       want = pick("smallball", "pace_space", "five_out", "motion", "balanced");
     } else if (bigs >= 2) {
       want = pick("triangle", "grind", "horns", "princeton", "balanced");
-      if (!light && Math.random() < 0.35) focus = "post_up";
+      if (!light && rnd() < 0.35) focus = "post_up";
     } else {
       want = pick("motion", "pnr_spam", "balanced", "horns");
     }
@@ -2041,7 +2052,7 @@ export class GameSim {
       const risk = p.intangibles?.injuryRisk ?? 40;
       const ironBody = (p.skills || []).includes("iron_body");
       const chance = inGameInjuryChance(risk, { fatigue: p.fatigue || 0, ironBody });
-      if (Math.random() > chance) continue;
+      if (rnd() > chance) continue;
       const effectiveRisk = ironBody ? Math.max(12, risk - 24) : risk;
       const gamesOut = effectiveRisk >= 80 ? 2 : 1;
       p.injuredGames = gamesOut;
@@ -2079,7 +2090,7 @@ export class GameSim {
     t.temp.offense = (t.temp.offense || 0) + 0.04;
     t.temp.ttl = Math.max(t.temp.ttl || 0, 6);
     const egoAvg = avg(t.onCourt.map((p) => p.personality?.ego || 50));
-    if (egoAvg > 75 && Math.random() < 0.25) {
+    if (egoAvg > 75 && rnd() < 0.25) {
       t.morale = clamp(t.morale - 8, 0, 100);
       for (const p of t.onCourt) p.mood = clamp((p.mood ?? 50) - 6, 15, 95);
       this.emit("coach", this.S("大喊加压——球星不买账，士气反而下滑", "The shout backfires — the star tunes it out and morale dips"));
@@ -2311,7 +2322,7 @@ export class GameSim {
       }
     }
     // Momentum naturally cools if no consecutive makes
-    if (this.momentum.streak > 0 && Math.random() < 0.08) {
+    if (this.momentum.streak > 0 && rnd() < 0.08) {
       this.momentum.points = Math.max(0, this.momentum.points - 2);
       if (this.momentum.points <= 0) this.momentum = { side: null, points: 0, streak: 0 };
     }
@@ -2375,6 +2386,21 @@ export class GameSim {
       autoRotation: !!this.autoRotation,
     };
   }
+}
+
+/** Every public GameSim method that can roll dice (directly or through the tick chain). Add new ones here. */
+export const SEEDED_ENTRY_POINTS = [
+  "start", "step", "nextQuarter", "runFast", "callTimeout", "shout", "talk", "substitute",
+  "runManagedBreak", "setPaused", "setTactic", "setAutoOffense", "setAutoDefense", "setAutoRotation",
+];
+for (const name of SEEDED_ENTRY_POINTS) {
+  const original = GameSim.prototype[name];
+  if (typeof original !== "function") throw new Error(`SEEDED_ENTRY_POINTS: GameSim.${name} does not exist`);
+  const seeded = function (...args) {
+    return withRng(this.rng, () => original.apply(this, args));
+  };
+  seeded.seededEntry = true;
+  GameSim.prototype[name] = seeded;
 }
 
 /**
@@ -2811,7 +2837,7 @@ function sparkTeamFromHighlight(team, kind, hero, emitFn = null, lang = "zh") {
     p.confidence = clamp((Number(p.confidence) || 50) + confOn * heroMul, 25, 95);
     if (hero && p.id === hero.id) {
       p.hot = clamp((p.hot || 0) + 1, -3, 3);
-    } else if (Math.random() < 0.35) {
+    } else if (rnd() < 0.35) {
       p.hot = clamp((p.hot || 0) + 1, -3, 3);
     }
   }
@@ -2977,7 +3003,7 @@ function applyLateGameScripts(sim, off, def) {
 /** 故意犯规停表：罚完球权归落后方，立刻进入抢攻三分窗口 */
 function tryIntentionalFoul(sim, off, def, info) {
   const chance = info.clock <= 12 ? 0.92 : info.clock <= 24 ? 0.78 : 0.58;
-  if (Math.random() > chance) return false;
+  if (rnd() > chance) return false;
 
   const victim =
     pickBallHandler(off, null, off === sim.you() ? sim.offenseFocusId : null) ||
@@ -3024,7 +3050,7 @@ function shootFts(baller, off, sim, n) {
   const def = off.side === "home" ? sim.away : sim.home;
   for (let i = 0; i < n; i++) {
     baller.stats.fta += 1;
-    if (Math.random() < baller.ft) {
+    if (rnd() < baller.ft) {
       baller.stats.ftm += 1;
       baller.stats.pts += 1;
       sim.score[off.side] += 1;
@@ -3058,7 +3084,7 @@ function maybeTechnicalFoul(sim, off, def, baller, defender) {
   for (const row of candidates) {
     let chance = row.c * 0.55;
     if (row.p === baller || row.p === defender) chance *= 1.6;
-    if (Math.random() >= chance) continue;
+    if (rnd() >= chance) continue;
     const offender = row.p;
     const offenderSide = row.side;
     const victimSide = offenderSide === off ? def : off;
@@ -3132,7 +3158,7 @@ function resolveRebound(off, def, sim, afterBlock) {
     crashers * 0.032 +
     tacticOrb +
     crashTactic;
-  if (Math.random() < clamp(offReb, 0.1, 0.42)) {
+  if (rnd() < clamp(offReb, 0.1, 0.42)) {
     const reb = weighted(off.onCourt, (p) => reboundContestWeight(p, { offensive: true }));
     reb.stats.reb += 1;
     reb.stats.oreb += 1;
@@ -3901,7 +3927,7 @@ function chooseShot(p, off, focusPlay = null, sideCtx = null) {
         return org && isQualityPasser(org);
       })();
     const spaceChance = clamp(0.22 + ath * 0.004 + (fromPasser ? 0.28 : 0.08), 0.2, 0.72);
-    if (Math.random() < spaceChance) {
+    if (rnd() < spaceChance) {
       wPaint *= 1.45; // dive / lob finish
       wMid *= 1.35 + (midSkill >= 62 ? 0.2 : 0); // short-roll pocket
       if (threeTend >= 32 && threeSkill >= 58) w3 *= 1.25; // rare pop
@@ -3969,7 +3995,7 @@ function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   if (hunt > 0.5 && threeTend < 25) w3 *= 0.35;
 
   const sum = w3 + wPaint + wMid;
-  let r = Math.random() * Math.max(sum, 0.01);
+  let r = rnd() * Math.max(sum, 0.01);
   if (r < w3) return { zone: "three", pts: 3, weakSide };
   r -= w3;
   if (r < wPaint) return { zone: "paint", pts: 2, weakSide };
@@ -4263,7 +4289,7 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
       0.22,
       0.55
     );
-    if (Math.random() < bumpChance) {
+    if (rnd() < bumpChance) {
       base -= rand(0.045, 0.11);
       baller._bumpCold = true;
     }
@@ -4316,7 +4342,7 @@ function applyCoachSpark(baller, off) {
   if (!eligible) return 0;
   // Chance scales with autonomy+spark; payoff is a small make-prob bump (奇效)
   const chance = clamp((autonomy * 0.004 + sparkStat * 0.0035) * (growth / 100), 0.04, 0.28);
-  if (Math.random() > chance) return 0;
+  if (rnd() > chance) return 0;
   return rand(0.018, 0.045) * (0.7 + sparkStat / 100);
 }
 
@@ -4335,7 +4361,7 @@ function shotLabel(shot, open, lang = "zh") {
 
 function pickLine(lines) {
   if (!lines?.length) return "";
-  return lines[Math.floor(Math.random() * lines.length)];
+  return lines[Math.floor(rnd() * lines.length)];
 }
 
 /**
@@ -4473,7 +4499,7 @@ function weighted(arr, weightFn) {
   if (!arr?.length) return null;
   const weights = arr.map((x) => Math.max(0.01, Number(weightFn(x)) || 0.01));
   const sum = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * sum;
+  let r = rnd() * sum;
   for (let i = 0; i < arr.length; i++) {
     r -= weights[i];
     if (r <= 0) return arr[i];
@@ -4485,7 +4511,7 @@ function avg(a) {
   return a.reduce((x, y) => x + y, 0) / (a.length || 1);
 }
 function rand(a, b) {
-  return a + Math.random() * (b - a);
+  return a + rnd() * (b - a);
 }
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
