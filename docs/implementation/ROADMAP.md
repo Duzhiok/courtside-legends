@@ -243,7 +243,7 @@
 
 ### M5–M7 — P1 Unified Reborn：教练 / 球员 / GM 统一入口（门控：M4 完成）
 
-- **M5 穿越统一入口**：年代/角色（随机/球员/教练/GM）/难度选择入口；教练角色直接接现有 `timeTravelCareer.js`（教练线 A-C 已完成，可直接复用，`BASELINE_AUDIT.md` §4.3）；球员/GM 显示"即将开放"。旧 `timeTravel` 存档必须原样可读。
+- **M5 穿越统一入口**：年代/角色（随机/球员/教练/GM）/难度选择入口；现有 `timeTravelCareer.js`（教练线 A-C 已完成）实际是**经典 GM+Coach**（教练与 GM 权限耦合在同一入口），整体复用并保留为「经典」选项，**不等于**已有独立 Coach 身份；真正的 Coach / GM 要按 `ADR-006-reborn-career-identity.md` 拆权限（PROPOSED）；球员/教练/GM 在选择页显示"开发中"。旧 `timeTravel` 存档必须原样可读。
 - **M6 穿越·球员 1996 替补切片**：方案见 `docs/implementation/ADR-005-player-reborn.md`（✅ APPROVED，用户 2026-11-04 批 Q1–Q4 取默认值；PR1 仍等 M3 闸门 + 规则 10 的一页设计）。复用 M2b 建立的 `ClutchController`/决策原语（球员生涯"关键时刻选择"和绝杀挑战是同一个原语，不重复建）。拆成 5 步，每步一个提交，都要过 review：
 
   | 步 | 内容 | 影响模块 | 测试 | 验收 |

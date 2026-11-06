@@ -14,6 +14,7 @@
 | 2026-11-03 | 初版：从 `2.0-plan.md` §2.2（G1-G11）、§7（D1-D7）、M1/M2 节内联的 ADR-001/ADR-002 提取整理；新增 ADR-003（拆分 M2）。所有条目当前均为 PROPOSED 或既有事实，尚无一条经你本人就 2.0 路线图逐条拍板确认——见下表"待你确认"列。 |
 | 2026-11-04 | 产品负责人逐条审批：ADR-001/003、D1/D3/D4/D5/D6 APPROVED；ADR-002 APPROVED WITH MODIFICATIONS；ADR-004 APPROVED IN PRINCIPLE（迁移契约 M4 前另审）；D2 CONFIRMED；D7 REVISED（历史穿越为必做能力）。Master Spec 冻结为 v1.0 产品基线，新想法进 Backlog。详见文末"五、2026-11-04 审批记录"。 |
 | 2026-11-04 | 新增 ADR-005（Player Reborn 实现方案与里程碑，PROPOSED），全文在 `ADR-005-player-reborn.md`。不重开 D7 的产品决策。 |
+| 2026-11-05 | 新增 ADR-006（Reborn 职业身份与权限模型，PROPOSED）。确认：现有「经理兼教练」是旧实现、保留为「经典 GM+Coach」，不是 Reborn 唯一/默认身份；不重开 D7。首页文案已澄清（不宣传未开发职业）。 |
 | 2026-11-04 | ADR-005 APPROVED：Q1–Q4 按默认值批准。 |
 
 ---

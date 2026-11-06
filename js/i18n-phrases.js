@@ -54,7 +54,7 @@ export const PHRASES = [
   ["账号班底自动选最强 12 人（同一球员只上一张）· 赢金币 · 本命涨经验 · 连续爆发可领悟技能", "Auto-picks your best 12 (one card per player) · win gold · your ace gains XP · hot streaks can unlock skills"],
   ["长线经营：选秀、发展、市场补强、完整比赛与联盟历史。", "The long game: drafts, development, market moves, full games and league history."],
   ["穿越生涯", "Time-Travel Career"],
-  ["回到过去担任经理兼教练，用有限的未来知识改写五年历史", "Go back in time as GM + coach and rewrite five years with limited future knowledge"],
+  ["回到篮球历史改写命运。现可玩「经典 · 经理兼教练」；球员、教练、总经理人生开发中", "Go back into basketball history and rewrite your fate. Playable now: Classic GM + Coach. Player, Coach and GM careers are in development"],
   ["联盟经理", "League GM"],
   ["经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史", "Run a franchise 15+ years: drafts, player development, market moves, full games, league history"],
   ["单赛季快玩", "Single-Season Quick Play"],

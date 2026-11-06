@@ -507,3 +507,5 @@
 [2026-11-05] Code：M1 访客优先账号入口（R152）。**待 review（Luna）**：`index.html` 账号条/档案面板/提示条、`js/app.js` 的 `requireAccountReady`/`openAccountScreen`/`showAccountGate` 与 `startMode` 排位门槛前移、`css/home.css`+`css/style.css`、`js/i18n-phrases.js`、新 QA `scripts/qa/guest-entry.mjs`，以及 5 个旧 QA 改用 `clickProfile`。**没做**：开局引导页本身仍无「取消」按钮（规格里的取消指账号页返回，未扩展）；带缓存真实浏览器复验留到推送后。
 
 [2026-11-05] Code：单赛季并入联盟经理经营长度（R153）。**待 review（Luna）**：`index.html`（删单赛季卡 + 经营长度行）、`js/app.js`（`syncCareerLengthUi` 与按钮监听）、`js/data/modeCatalog.js`（season 改为 franchise 变体）、`js/i18n-phrases.js`、`css/style.css`、`tests/homeTabs.test.js` 与 `tests/modeCatalog.test.js` 的阈值/入口表、新 QA `career-length.mjs`。**没做**：设置页标题仍叫「常规赛征程」；开始按钮文案不随长度变化。
+
+[2026-11-05] Code：Reborn 职业身份规划（R154，ADR-006 PROPOSED）。**待 review（Luna）**：穿越卡文案（`index.html`、`modeCatalog.js`、`i18n-phrases.js`）、新 ADR-006、ROADMAP M5 改正、DECISIONS/BACKLOG B37。**没做**：任何引擎/存档/权限代码、身份选择页、Player 职业。实现前需用户批准 ADR-006 的 Q1–Q4。

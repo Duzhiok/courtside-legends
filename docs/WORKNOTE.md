@@ -2519,3 +2519,11 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 - 旧存档：单赛季存档仍走原键/根存档恢复；`startMode("season")` 仍可用（续玩上次模式、旧脚本），目录里 `season` 改为 `franchise` 的变体，不再有 homeTab。
 - 测试：新 QA `scripts/qa/career-length.mjs` 20/20（桌面+手机：无单赛季卡、预选、切换、两种长度各自开局并重载续玩）；全量 1685/1685；lint 0 错误；`home-cards` 34/34、`season-resume` 36/36、`home-play-now` 0 FAIL、`guest-entry` 64/64。9 个 QA 脚本的「点单赛季卡」改用 `openSingleSeason`。
 - 踩坑：账号班底在工资帽下凑不满 8 人时会弹 alert，QA 用「全站最高 OVR」建队就会卡在此处，要用中档 OVR。
+
+## R154 · Code：Reborn 职业身份——规划 + 首页文案（2026-11-05）
+- 产品确认：现有「经理兼教练」是旧实现，保留为「经典 GM+Coach」；Reborn 应支持球员 / 教练 / GM（以及有代价的双职）。不重开 D7。
+- 低风险改动：穿越卡文案改为「现可玩「经典 · 经理兼教练」；球员、教练、总经理人生开发中」，去掉「五年」（五年是初始合同期，不是上限）。中英文同步。没有改引擎、存档、权限。
+- 审计结论：耦合在入口层和权限层，不在 GameSim。赛季十个页签和 GM 操作（交易/签约/选秀）都不看身份；`root.coach` 一份档案混合教练线和 GM 线；`authority`/`privileges` 只显示、grep 范围内无引擎消费者；存档没有 role 字段（`kind === "timeTravel"` 隐含经典）。
+- 新增 `docs/implementation/ADR-006-reborn-career-identity.md`（PROPOSED）：可选 `root.identity`（缺失即经典，旧存档零迁移）、`permissionsFor(role)` 纯函数、经典拥有全部能力以保证行为不变、合同 privileges 变能力授予（后续）、迁移风险、实现顺序、Q1–Q4。
+- 文档同步：ROADMAP M5 原文"教练角色直接接现有 timeTravelCareer"不准确，已改；DECISIONS 变更记录；BACKLOG B37。
+- 验证：i18n / homeTabs / modeCatalog / homeShowcase 单测 40/40。
