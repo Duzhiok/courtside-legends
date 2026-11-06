@@ -301,6 +301,13 @@
 | `PLAYABLE_MOMENTS_PLAN.md` 时机条 | 降为可选项，待拍板（DECISIONS D3） | M3 之后 |
 | `3D_BROADCAST_PLAN.md` | 归档为研究项 | 研究 |
 | `RELEASE_ROADMAP.md` / `MOBILE_APPS.md` | 保留；每个里程碑都要过手机端验收 | 横向 |
+| ADR-007 传奇宇宙（候选登记表、重生、策展人物、宇宙预设） | 替换 `leagueDraft.js` 的虚构补位；头条策展人物 | M7（L-1/L-2），宇宙预设随 M5 建档 |
+| ADR-007 2050 终局 + 三种结束统一发勋章 | 结算层 | M5–M7 |
+| ADR-007 账号 `LegacyArchive` + 首页勋章墙 | 账号层存储 | M4 |
+| ADR-007 四分线 | 先 `LeagueRules` 集中化，再单独 GameSim ADR | M2b-1、M3 之后，M8 之前 |
+| ADR-008 N-1 四空间导航骨架 | 只改 `modeCatalog.homeTab` 与首页布局，可回退 | M1 延伸（M1b），不挡 M2b |
+| ADR-008 N-2 我的球队核心循环 / N-3 我的世界身份 | — | N-2：M2b-1 后；N-3：M4 |
+| ADR-008 N-4 离线托管 / N-5 阵容合一 / N-6 社交 | 各自先写设计 | N-4：经济测量后；N-5：单独 ADR；N-6：研究项 🔴 |
 
 ## 10. 通用验收（所有里程碑共用，不逐条重复）
 
