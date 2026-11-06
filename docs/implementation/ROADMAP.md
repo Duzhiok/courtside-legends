@@ -135,7 +135,7 @@
 
 - 依赖 M1（Play Now 入口存在）和 M2a（快速开打路径稳定）完成。
 - **真正的阻塞依赖是 ADR-002 必须先拍板**：没有明确的"玩家决策 vs 脚本"优先级规则，`resolvePossession` 的改动没有边界，容易变成"改到哪算哪"。
-- 依赖 `BASELINE_AUDIT.md` §2.6 的结论：RNG 不可注入（`sim.js` 用全局 `Math.random`），所以本里程碑的测试策略是"测不变量和分布"而不是"测确定性重放"——这是设计决策，不是技术债，写进 DECISIONS.md。
+- 依赖 `BASELINE_AUDIT.md` §2.6 的结论：RNG 当前不可注入（`sim.js` 用全局 `Math.random`）。**2026-11-05 修订提案**：原先"只测分布、不测确定性重放"的决定拟改为"先做可注入 RNG（M2b-0）+ 金标哈希，再做玩法改动（M2b-1）"。完整设计见 `M2b-clutch-decision-design.md`（PROPOSED，待你审阅；批准前不改 `GameSim`）。下面的 Tests/Acceptance 里"由于 RNG 不可注入"的措辞，在该设计获批前仍按原文执行。
 
 ### Implementation Tasks
 

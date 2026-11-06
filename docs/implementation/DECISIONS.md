@@ -15,6 +15,7 @@
 | 2026-11-04 | 产品负责人逐条审批：ADR-001/003、D1/D3/D4/D5/D6 APPROVED；ADR-002 APPROVED WITH MODIFICATIONS；ADR-004 APPROVED IN PRINCIPLE（迁移契约 M4 前另审）；D2 CONFIRMED；D7 REVISED（历史穿越为必做能力）。Master Spec 冻结为 v1.0 产品基线，新想法进 Backlog。详见文末"五、2026-11-04 审批记录"。 |
 | 2026-11-04 | 新增 ADR-005（Player Reborn 实现方案与里程碑，PROPOSED），全文在 `ADR-005-player-reborn.md`。不重开 D7 的产品决策。 |
 | 2026-11-05 | 新增 ADR-006（Reborn 职业身份与权限模型，PROPOSED）。确认：现有「经理兼教练」是旧实现、保留为「经典 GM+Coach」，不是 Reborn 唯一/默认身份；不重开 D7。首页文案已澄清（不宣传未开发职业）。 |
+| 2026-11-05 | ADR-006 ✅ APPROVED：Q1/Q4 批准；Q2 附条件（GM 可观战、整场模拟、调速、赛前管理，不自动获得教练临场权限）；Q3 原则批准（稳定权限 ID、`authority` 与权限授予分开，基础角色权限之后再做）。内部步骤 R1–R7 映射 M5–M7，不新建里程碑。M2b 设计文档 `M2b-clutch-decision-design.md` 已提交待审（含 RNG 注入与决策契约，拟修订 ROADMAP §5 "RNG 不可注入"一条）。 |
 | 2026-11-04 | ADR-005 APPROVED：Q1–Q4 按默认值批准。 |
 
 ---
