@@ -43,7 +43,6 @@ for (const [bref, rows] of by) {
 }
 
 const tier = (p) => (p.peak >= 88 ? "A" : p.peak >= 80 ? "B" : p.peak >= 70 ? "C" : "D");
-const TIERS = ["A", "B", "C", "D"];
 const count = (xs, f) => xs.reduce((m, x) => ((m[f(x)] = (m[f(x)] || 0) + 1), m), {});
 
 console.log(`persons in roster.json: ${by.size}`);
@@ -64,7 +63,7 @@ console.log(`debuted before 1980 (no 3PT/STL/BLK in the source data): ${oldNoSta
 function simulate({ perClass, headlineCap, cooldown }) {
   const used = new Set();
   const rows = [];
-  let short = 0, famousRepeats = 0;
+  let short = 0;
   for (let y = FIRST_DRAFT; y <= LAST_DRAFT; y++) {
     const eligible = persons
       .filter((p) => !used.has(p.bref) && p.originalEnds + cooldown < y)
