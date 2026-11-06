@@ -61,10 +61,10 @@ export const MODE_GROUPS = [
       },
       {
         id: "season",
-        title: "常规赛征程",
+        title: "单赛季（联盟经理的经营长度之一）",
+        variantOf: "franchise",
         description:
-          "32 队或穿越历史整年（如 1991：当年全联盟常规赛→季后赛，总决赛才可能遇乔丹）· 自命名拉斯维加斯队 · 评奖",
-        homeTab: "career",
+          "32 队或穿越历史整年（如 1991：当年全联盟常规赛→季后赛，总决赛才可能遇乔丹）· 自命名拉斯维加斯队 · 评奖；在联盟经理的设置页里选「单赛季」进入",
         exploreGroup: "经理生涯",
       },
       {

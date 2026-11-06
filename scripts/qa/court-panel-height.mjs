@@ -3,6 +3,7 @@
 // the whole row kept re-flowing and the two sides visibly "jumped" relative to each other
 // (user complaint: 播报框和右边战术框的高度随比赛内容一直在跳). Fixed by giving .court-wrap a
 // real fixed desktop height and letting each side scroll internally instead.
+import { openSingleSeason } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
@@ -50,7 +51,7 @@ async function seedAndEnterLiveGame(page) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
 
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#screen-season.active");
   await page.click("#btn-season-roster-account");
   await page.waitForFunction(() => !document.querySelector("#btn-season-start").disabled, null, { timeout: 10000 });

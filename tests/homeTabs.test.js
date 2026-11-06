@@ -49,6 +49,8 @@ function categoryPanelHtml(categoryId) {
 const HUB_ENTRIES = {
   legend: ['id="btn-custom-legend"'],
   duel: ['id="btn-custom-duel"'],
+  // Single Season is a career-length choice inside the Franchise setup page, not a home card.
+  season: ['id="btn-career-length-season"'],
   familyDuel: ['id="btn-custom-father-son"', 'id="btn-custom-brothers"'],
 };
 

@@ -6,6 +6,7 @@
 // SAME one, and keep saving into the root save afterwards: if a resumed season were saved back to the
 // legacy key only, the next start would treat that key as an orphan and drop the progress.
 // Usage: node scripts/qa/season-resume.mjs [outDir] [baseUrl]
+import { openSingleSeason } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
@@ -59,7 +60,7 @@ async function run(width, height, tag) {
   await home(page);
 
   // A real quick season, one game in.
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.click("#btn-season-roster-account");
   await page.waitForFunction(() => !document.querySelector("#btn-season-start").disabled, null, { timeout: 10000 });
   await page.click("#btn-season-start");
@@ -75,7 +76,7 @@ async function run(width, height, tag) {
   const afterReload = await playedInSave(page);
   check(`[${tag}] after the reload the season lives in the root save`, afterReload.where === "root" && afterReload.played === before.played, JSON.stringify(afterReload));
 
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#season-setup-panel:not([hidden])", { timeout: 10000 });
   const btn = page.locator("#btn-season-resume");
   const visible = await btn.isVisible();
@@ -105,7 +106,7 @@ async function run(width, height, tag) {
   // B36: the real "delete current career" flow, from a season that lives in the root save after a reload.
   await page.evaluate(() => localStorage.setItem("qa_keep", "1"));
   const accountsBefore = await page.evaluate(() => Object.keys(localStorage).filter((k) => /account/i.test(k)).map((k) => [k, localStorage.getItem(k)]));
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#btn-season-resume", { state: "visible", timeout: 10000 });
   await page.click("#btn-season-resume");
   await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 });
@@ -134,7 +135,7 @@ async function run(width, height, tag) {
   check(`[${tag}] the account is untouched`, accountsBefore.length > 0 && JSON.stringify(accountsBefore) === JSON.stringify(accountsAfter));
 
   // No season at all: the button must not show.
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#season-setup-panel:not([hidden])", { timeout: 10000 });
   check(`[${tag}] with nothing saved there is no resume button`, !(await page.locator("#btn-season-resume").isVisible()));
 

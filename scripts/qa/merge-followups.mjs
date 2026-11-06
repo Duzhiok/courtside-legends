@@ -1,6 +1,7 @@
 // Browser QA for the merge follow-ups: gacha reveal no longer crashes, onboarding star cap,
 // harder daily tasks (progress + English board), and the trade-listing preference dropdown.
 // Usage: node scripts/qa/merge-followups.mjs [outDir] [baseUrl]
+import { openSingleSeason } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
@@ -82,7 +83,7 @@ async function run(width, height, tag) {
   // 4) Season market: list a player, pick a sale preference, proposals follow it.
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await homeReady(page);
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#screen-season.active");
   await page.click("#btn-season-roster-account");
   await page.waitForFunction(() => !document.querySelector("#btn-season-start").disabled, null, { timeout: 10000 });

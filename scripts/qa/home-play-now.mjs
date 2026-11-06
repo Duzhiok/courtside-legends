@@ -87,7 +87,7 @@ for (const [width, height, size] of [
   const { page: p2 } = await openHome(width, height);
   await clickCardAndExpectScreen(p2, '[data-mode="timeTravel"]', "screen-time-travel", `[${size}] 穿越生涯 card → time-travel screen`);
   await clickCardAndExpectScreen(p2, '[data-mode="custom"]', "screen-custom-hub", `[${size}] 自定义对战 card → custom hub`);
-  await clickCardAndExpectScreen(p2, '[data-mode="season"]', "screen-season", `[${size}] 单赛季快玩 card → season screen`);
+  await clickCardAndExpectScreen(p2, '[data-mode="franchise"]', "screen-season", `[${size}] 联盟经理 card → career setup screen (Single Season lives inside it)`);
   await clickCardAndExpectScreen(p2, '[data-mode="tournament"]', "screen-tournament", `[${size}] 多人淘汰赛 card → tournament screen`);
   await clickCardAndExpectScreen(p2, '[data-mode="draft"]', "screen-draft", `[${size}] 选秀建队 card → draft screen`);
   await clickCardAndExpectScreen(p2, '[data-mode="sandbox"]', "screen-sandbox", `[${size}] 时空对决 card → sandbox screen`);

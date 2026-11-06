@@ -2511,3 +2511,11 @@ R108 暴露的盲区收尾：单来源（2012 前退役、只有 talldata）球�
 - 没碰：GameSim、抽卡、经济、存档结构、账号创建/开局/切换逻辑。没有临时账号。
 - 验证：新 QA `scripts/qa/guest-entry.mjs` 64/64（桌面+手机）；`home-cards` 34/34；`collection-filter` 26/26；全量 1685/1685；lint 0 错误。5 个点 `#btn-open-collection` 的旧 QA 改用新 helper `clickProfile`（先展开面板）。
 - 踩坑：QA 里先设 A 为当前账号再建 B，`createAccount` 会把 B 设成当前——是测试的错，不是功能的错。
+
+## R153 · Code：单赛季并入联盟经理的「经营长度」（2026-11-05）
+- 首页职业经理标签只剩两张卡：穿越/Reborn 与联盟经理。「单赛季快玩」卡删除；它不是新功能，只是联盟经理设置页里的一个选项。
+- 联盟经理设置页（`screen-season`）新增「经营长度」两个按钮：单赛季 · 一季夺冠 / 王朝生涯 · 长期经营。从联盟经理卡进入默认选王朝；选项只改 `seasonSetupKind`，不动阵容来源和年份选择。其余创建流程（`createSeason`/`createLeagueCareer`）一行未改。
+- 没做嵌套按钮（按钮里再放按钮是非法 HTML，键盘/读屏都会出问题），所以选项放在设置页而不是卡片内。
+- 旧存档：单赛季存档仍走原键/根存档恢复；`startMode("season")` 仍可用（续玩上次模式、旧脚本），目录里 `season` 改为 `franchise` 的变体，不再有 homeTab。
+- 测试：新 QA `scripts/qa/career-length.mjs` 20/20（桌面+手机：无单赛季卡、预选、切换、两种长度各自开局并重载续玩）；全量 1685/1685；lint 0 错误；`home-cards` 34/34、`season-resume` 36/36、`home-play-now` 0 FAIL、`guest-entry` 64/64。9 个 QA 脚本的「点单赛季卡」改用 `openSingleSeason`。
+- 踩坑：账号班底在工资帽下凑不满 8 人时会弹 alert，QA 用「全站最高 OVR」建队就会卡在此处，要用中档 OVR。

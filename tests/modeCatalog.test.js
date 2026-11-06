@@ -71,7 +71,7 @@ test("M1: every mode declares a spec §3 explore group; panel modes declare a ho
     );
   }
   const panelModes = allModes().filter((mode) => mode.homeTab);
-  assert.ok(panelModes.length >= 10, "most modes should render on a home tab");
+  assert.ok(panelModes.length >= 9, "most modes should render on a home tab");
   for (const mode of panelModes) {
     assert.ok(
       ["players", "career", "custom"].includes(mode.homeTab),

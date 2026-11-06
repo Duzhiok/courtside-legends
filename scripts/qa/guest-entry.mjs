@@ -3,7 +3,7 @@
 // Usage: node scripts/qa/guest-entry.mjs /tmp/cls-qa/guest [http://127.0.0.1:5173/]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
-import { homeActive, noOverflow, shoot, text } from "./lib/page.mjs";
+import { homeActive, noOverflow, shoot, text, openSingleSeason } from "./lib/page.mjs";
 
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const OUT = process.argv[2] || "/tmp/cls-qa/guest";
@@ -70,7 +70,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
 
   // 5. Back returns to the page you came from, with its state intact (season setup)
   await page.click('.home-tab[data-category="career"]');
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#screen-season.active");
   await page.fill("#season-team-name", "QA 留住我");
   await page.click("#btn-season-roster-account");

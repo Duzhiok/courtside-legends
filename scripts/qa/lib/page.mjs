@@ -85,3 +85,8 @@ export const clickProfile = async (page, selector) => {
   if (await page.$eval("#profile-panel", (el) => el.hidden).catch(() => false)) await page.click("#btn-profile-toggle");
   await page.click(selector);
 };
+// Single Season is now a career-length choice inside the Franchise setup page (no home card of its own).
+export const openSingleSeason = async (page) => {
+  await page.click('.mode-card[data-mode="franchise"]');
+  await page.click("#btn-career-length-season");
+};

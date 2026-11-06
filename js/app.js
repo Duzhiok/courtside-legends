@@ -8032,7 +8032,16 @@ let seasonSetupMode = "modern";
 let seasonSetupYear = 1991;
 let seasonSetupKind = "season";
 
+function syncCareerLengthUi() {
+  for (const btn of document.querySelectorAll("[data-career-length]")) {
+    const on = btn.dataset.careerLength === seasonSetupKind;
+    btn.classList.toggle("primary", on);
+    btn.setAttribute("aria-pressed", String(on));
+  }
+}
+
 function syncSeasonModeUi() {
+  syncCareerLengthUi();
   const yearRow = $("#season-year-row");
   const intro = $("#season-setup-intro");
   const modernBtn = $("#btn-season-mode-modern");
@@ -10413,6 +10422,13 @@ function syncSeasonStartButtonLabel() {
       : L("开启完整赛季征程（32 队）", "Start the full season journey (32 teams)");
 }
 
+for (const btn of document.querySelectorAll("[data-career-length]")) {
+  btn.addEventListener("click", () => {
+    seasonSetupKind = btn.dataset.careerLength; // only the length choice; the roster/year picks stay as they are
+    syncCareerLengthUi();
+    syncSeasonStartButtonLabel();
+  });
+}
 $("#btn-season-mode-modern")?.addEventListener("click", () => {
   seasonSetupMode = "modern";
   syncSeasonModeUi();

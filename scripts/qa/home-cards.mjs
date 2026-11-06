@@ -59,7 +59,7 @@ async function run(width, height, tag) {
           barH: Math.round(bar.height),
         };
       });
-      check(`[${tag}] all three career cards share the dark card style`, polish.dark.length === 3 && polish.dark.every(Boolean), JSON.stringify(polish.dark));
+      check(`[${tag}] both career cards (Reborn + Franchise) share the dark card style`, polish.dark.length === 2 && polish.dark.every(Boolean), JSON.stringify(polish.dark));
       check(`[${tag}] each career card has a positioning tag above its title`, polish.tags.every((t) => t.length > 3) && polish.tagFirst.every(Boolean), polish.tags.join(" | "));
       check(`[${tag}] the photo wall is quieter than the cards (opacity<1)`, polish.wallOpacity < 1, `opacity=${polish.wallOpacity}`);
       check(`[${tag}] the account bar is compact`, polish.barH <= (width <= 640 ? 150 : 72), `${polish.barH}px`);

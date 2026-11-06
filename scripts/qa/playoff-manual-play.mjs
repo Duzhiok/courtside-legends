@@ -1,3 +1,4 @@
+import { openSingleSeason } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
@@ -51,7 +52,7 @@ async function run(width, height, tag) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
 
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#screen-season.active");
   await page.click("#btn-season-roster-account");
   await page.waitForFunction(() => !document.querySelector("#btn-season-start").disabled, null, { timeout: 10000 });
@@ -86,7 +87,7 @@ async function run(width, height, tag) {
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#btn-season-resume:not([hidden])", { timeout: 10000 });
   await page.click("#btn-season-resume");
   await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 10000 });
@@ -124,7 +125,7 @@ async function run(width, height, tag) {
   // already-covered quick-sim path to stay fast and deterministic.
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#btn-season-resume:not([hidden])", { timeout: 10000 });
   await page.click("#btn-season-resume");
   await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 10000 });

@@ -4,7 +4,7 @@
 // Usage: node scripts/qa/career-postgame.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
-import { CJK, homeActive, noOverflow, onResult, shoot, text, unbroken } from "./lib/page.mjs";
+import { CJK, homeActive, noOverflow, onResult, shoot, text, unbroken, openSingleSeason } from "./lib/page.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/postgame";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -85,7 +85,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
-  await page.click('.mode-card[data-mode="season"]');
+  await openSingleSeason(page);
   await page.waitForSelector("#screen-season.active");
   await page.click("#btn-season-roster-account");
   await page.waitForFunction(() => !document.querySelector("#btn-season-start").disabled, null, { timeout: 10000 });

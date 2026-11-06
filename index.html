@@ -147,11 +147,6 @@
               <strong>联盟经理</strong>
               <span>经营 15+ 年：选秀、球员发展、市场补强、完整比赛与联盟历史</span>
             </button>
-            <button class="mode-card mode-card-dark" data-mode="season" data-legend="birdla01:1986">
-              <small class="mode-tag">轻松入门 · 一季夺冠</small>
-              <strong>单赛季快玩</strong>
-              <span>32 队或穿越历史整年（如 1991：常规赛→季后赛）· 自命名拉斯维加斯队 · 评奖</span>
-            </button>
           </div>
         </div>
 
@@ -1054,6 +1049,13 @@
 
       <section id="season-setup-panel" class="season-setup-panel">
         <p class="tiny" id="season-setup-intro">联盟扩军至 32 队：你执教可命名的<strong>拉斯维加斯</strong>扩军队，西雅图<strong>超音速</strong>回归西部。打满 82 场后评奖，再进季后赛。也可选过去五十年任一赛季，对阵当年真实阵容（如 1991 乔丹公牛）。</p>
+        <div class="form-row season-length-pick">
+          <span class="tiny">经营长度</span>
+          <div class="btn-row">
+            <button type="button" class="btn small" id="btn-career-length-season" data-career-length="season" aria-pressed="false">单赛季 · 一季夺冠</button>
+            <button type="button" class="btn small" id="btn-career-length-franchise" data-career-length="franchise" aria-pressed="false">王朝生涯 · 长期经营</button>
+          </div>
+        </div>
         <div class="form-row season-mode-pick">
           <span class="tiny">赛季模式</span>
           <div class="btn-row">
