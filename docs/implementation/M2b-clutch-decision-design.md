@@ -6,11 +6,11 @@
 
 ## 1. 可注入 RNG，默认行为不变（M2b-0，独立 PR）
 
-**事实**：比赛 tick 链上的随机调用 = `sim.js` 47 + `skills.js` 51 + `chemistry.js` 1 + `intangibles.js` 2。`coaches.js` 的 2 处只在开局前选助教，不在 tick 链。
+**事实**：比赛 tick 链上的 `Math.random()` = `sim.js` 48 + `skills.js` 51 + `chemistry.js` 1 + `intangibles.js` 3，共 **103 处（分布在 101 行上**：`sim.js:742`、`intangibles.js:1120` 各有一行写了两次）。另有 `skills.js` 两处 `shuffle(sigs)` 隐式用 `Math.random`，实现时发现并修掉，见 §9。`coaches.js` 的 2 处只在开局前选助教，不在 tick 链。
 
-**方案**：新增 `js/core/rng.js`：`rand()`（默认转发 `Math.random`）、`withRng(source, fn)`（`try/finally`，必还原）。上述 4 个文件的 `Math.random()` 机械替换为 `rand()`。`GameSim` 构造器加可选 `rng`；以下**会掷骰的入口**在 `withRng(this.rng)` 内执行：`constructor`、`start`、`step`（含 `_loop` 触发）、`nextQuarter`、`runFast`、`callTimeout`、`shout`、`talk`、`substitute`、`runManagedBreak`、以及新加的 `submitDecision`。清单写成一个常量数组，并有一条测试兜底：播种运行期间把 `Math.random` 换成直接抛错的函数，**任何漏网的入口都会让测试变红**——这样"等"不靠人记。
+**方案**：新增 `js/core/rng.js`：`rand()`（默认转发 `Math.random`）、`withRng(source, fn)`（`try/finally`，必还原）。上述 4 个文件的 `Math.random()` 机械替换为 `rand()`。`GameSim` 构造器加可选 `rng`；以下**会掷骰的入口**在 `withRng(this.rng)` 内执行：`constructor`、`start`、`step`（含 `_loop` 触发）、`nextQuarter`、`runFast`、`callTimeout`、`shout`、`talk`、`substitute`、`runManagedBreak`、5 个开关 `setPaused`/`setTactic`/`setAutoOffense`/`setAutoDefense`/`setAutoRotation`，以及将来新加的 `submitDecision`（实现见 `sim.js` 的 `SEEDED_ENTRY_POINTS`）。清单写成一个常量数组，并有一条测试兜底：播种运行期间把 `Math.random` 换成直接抛错的函数，**场景走到的漏网入口会让测试变红**；场景没走到的条件掷骰分支，靠清单 + 每个入口的 `seededEntry` 标记兜底（已验证：去掉 `step` 变红，去掉 `nextQuarter` 仍绿）。后续可加"枚举 `GameSim.prototype` 对照清单 + 白名单"的测试，让清单本身成为守卫。
 
-- 未传 `rng` 时 `rand === Math.random`、调用顺序不变 → **默认行为字节级不变**。
+- 未传 `rng` 时 `rand()` 每次转发给**当下的** `Math.random`（是转发函数，不是同一个引用；所以替换 `Math.random` 的旧测试照常有效），调用顺序不变 → **默认行为字节级不变**。
 - 代价：模块级替换不是并发安全的。浏览器一次一场、测试顺序执行，可接受；联机服务端若将来同进程并行多场，改为显式传参。
 
 ## 2. 绝杀决策契约（M2b-1）
