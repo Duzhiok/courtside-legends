@@ -86,6 +86,7 @@ export function careerStateNotice(story, lang = getLang()) {
 
 export function createTimeTravelScreen({
   state, show, saveLongCareer, currentRootState, renderSeasonHub, showSeasonTab,
+  blockedByForeignSave = async () => false,
 }) {
   let prologue = null;
   let wizardWired = false;
@@ -181,7 +182,8 @@ export function createTimeTravelScreen({
     delegate("#tt-decade-chips", "data-decade-year", year);
     delegate("#tt-philosophy-cards", "data-philosophy", philosophy);
     delegate("#tt-origin-chips", "data-origin", origin);
-    $("#btn-time-travel-interview").addEventListener("click", () => {
+    $("#btn-time-travel-interview").addEventListener("click", async () => {
+      if (await blockedByForeignSave("career")) return; // another account's career holds the slot: say so now
       try {
         prologue = createTimeTravelPrologue({
           year: Number(year.value),
@@ -226,6 +228,7 @@ export function createTimeTravelScreen({
 
   async function acceptOffer(offerId) {
     if (hasCareer()) return;
+    if (await blockedByForeignSave("career")) return;
     const existing = state.longCareerRoot || readRootSave();
     if (hasExistingCareerRoot(existing) && !(await confirmAction(
       tr(lang(), "接受新邀请将替换当前长期生涯存档，确定继续？", "Accepting will replace your current long-career save. Continue?"),

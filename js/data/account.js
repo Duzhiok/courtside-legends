@@ -9,9 +9,9 @@ import { MERGE_ATTR_KEYS, SKILL_PACKS } from "./skills.js";
 import { applyHiddenRoll, legacyRollSeed } from "./cardRoll.js";
 import { MAX_STARS } from "./gacha.js";
 import { applyGrowth } from "./growthPaths.js";
-import { ACTIVE_ACCOUNT_KEY as ACTIVE_KEY } from "./accountKeys.js";
+import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY as ACTIVE_KEY } from "./accountKeys.js";
 
-const STORE_KEY = "cls_accounts_v1";
+const STORE_KEY = ACCOUNTS_KEY;
 
 /**
  * Within-band soft weight (higher OVR a bit likelier inside the same rarity band).

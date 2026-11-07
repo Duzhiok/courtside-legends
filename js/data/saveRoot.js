@@ -3,7 +3,7 @@ import { validEpiphany, validGrowth } from "../career/growthShape.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
 import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
 import { isKnownCoachOrigin } from "../career/coachOrigins.js";
-import { careerSig, clearSaveOwner, recordSaveWrite } from "./saveOwnership.js";
+import { assertSlotWritable, careerSig, clearSaveOwner, keyHasData, moveSaveOwner, recordSaveWrite, slotLocked } from "./saveOwnership.js";
 
 export const ROOT_SAVE_KEY = "cls_root_v3";
 export const ROOT_SAVE_VERSION = 3;
@@ -16,6 +16,17 @@ const TEMP_ROOT_SAVE_KEY = "cls_root_v3_tmp";
 // in-progress game vanished on the next reload. Never migrate, purge or otherwise touch it from here.
 const LEGACY_SEASON_KEY = "cls_season_v1";
 const EXPORT_FORMAT = "courtside-legends-save";
+
+const rootPresent = (target) => keyHasData(ROOT_SAVE_KEY, target);
+
+/** cls_season_v1 can hold another account's quick season: drop it only when it isn't someone else's. */
+function removeLegacySeason(target) {
+  const value = target.getItem(LEGACY_SEASON_KEY);
+  if (value === null || slotLocked("season", true, target)) return 0;
+  target.removeItem(LEGACY_SEASON_KEY);
+  clearSaveOwner("season", target);
+  return value.length; // UTF-16 code units, good enough as a "was this worth it" signal
+}
 
 function getStorage(storage) {
   const resolved = storage ?? globalThis.localStorage;
@@ -473,6 +484,7 @@ export class StorageWriteError extends Error {
 
 export function writeRootSave(root, storage) {
   const target = getStorage(storage);
+  assertSlotWritable("career", rootPresent(target), target); // never replace another account's career
   const persisted = compactRootForStorage(cloneJson(root));
   const savedAt = Date.now();
   persisted.savedAt = savedAt;
@@ -532,6 +544,7 @@ export function readRootSave(storage) {
 
 export function clearRootSave(storage) {
   const target = getStorage(storage);
+  assertSlotWritable("career", rootPresent(target), target);
   target.removeItem(ROOT_SAVE_KEY);
   target.removeItem(TEMP_ROOT_SAVE_KEY);
   clearSaveOwner("career", target);
@@ -547,6 +560,7 @@ export function clearRootSave(storage) {
  */
 export function deleteCareerSave(storage) {
   const target = getStorage(storage);
+  assertSlotWritable("career", rootPresent(target), target);
   const root = readRootSave(target);
   const profile = root?.profile;
   const hasProfile = Boolean(
@@ -555,7 +569,7 @@ export function deleteCareerSave(storage) {
       || Object.keys(profile.settings ?? {}).length
       || Object.keys(profile.accessibility ?? {}).length),
   );
-  target.removeItem(LEGACY_SEASON_KEY);
+  removeLegacySeason(target);
   target.removeItem(TEMP_ROOT_SAVE_KEY);
   if (hasProfile) {
     writeRootSave(createRootState({ profile }), target);
@@ -574,16 +588,7 @@ export function deleteCareerSave(storage) {
  * Returns the number of bytes freed, so a caller can decide whether a retry is worth it.
  */
 export function purgeOrphanedLegacySaves(storage) {
-  const target = getStorage(storage);
-  let freed = 0;
-  for (const key of [LEGACY_SEASON_KEY]) {
-    const value = target.getItem(key);
-    if (value !== null) {
-      freed += value.length; // UTF-16 code units, good enough as a "was this worth it" signal
-      target.removeItem(key);
-    }
-  }
-  return freed;
+  return removeLegacySeason(getStorage(storage));
 }
 
 export function exportRootSave(root) {
@@ -658,6 +663,7 @@ export function migrateLegacySaves(storage) {
     });
     validateRoot(root);
     writeRootSave(root, target);
+    moveSaveOwner("season", "career", careerSig(root), target); // whoever owned the quick season owns it here too
     // The data now lives in cls_root_v3 -- drop the legacy copy so it stops doubling this
     // origin's storage footprint on every future save.
     target.removeItem(LEGACY_SEASON_KEY);

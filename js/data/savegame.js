@@ -3,7 +3,7 @@
  * Covers live game, draft, setup, career market, legend, tournament.
  */
 
-import { clearSaveOwner, recordSaveWrite, sessionSig } from "./saveOwnership.js";
+import { clearSaveOwner, keyHasData, recordSaveWrite, sessionSig, slotLocked } from "./saveOwnership.js";
 
 const SAVE_KEY = "cls_savegame_v1";
 export const SAVE_VERSION = 1;
@@ -42,8 +42,12 @@ export function peekSave() {
   }
 }
 
+/** The autosave slot holds another account's unfinished game: neither save over it nor delete it. */
+export const sessionSlotLocked = () => slotLocked("session", keyHasData(SAVE_KEY));
+
 export function clearSave() {
   try {
+    if (sessionSlotLocked()) return false;
     localStorage.removeItem(SAVE_KEY);
     clearSaveOwner("session");
   } catch (err) {
@@ -98,6 +102,7 @@ export function formatSaveLabel(meta, lang = "zh") {
  * @param {object} payload — { screen, label, app, sim?, feed? }
  */
 export function writeSave(payload) {
+  if (sessionSlotLocked()) return { bytes: 0, saveFailed: true, blocked: "foreign" }; // P0: never overwrite another account's unfinished game
   const data = {
     v: SAVE_VERSION,
     savedAt: Date.now(),

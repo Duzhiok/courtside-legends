@@ -142,6 +142,7 @@ import {
   reviveDraft,
   reviveLegend,
   serializeAppSlice,
+  sessionSlotLocked,
   writeSave,
 } from "./data/savegame.js";
 import {
@@ -151,6 +152,7 @@ import {
   importRootSave,
   migrateLegacySaves,
   readRootSave,
+  ROOT_SAVE_KEY,
   writeRootSave,
   writeRootSaveFreeingOrphans,
 } from "./data/saveRoot.js";
@@ -238,6 +240,7 @@ import {
   computeFinalsAllTeam,
   computeFinalsMvp,
   createSeason,
+  hasSeasonSave,
   loadSeason,
   nextUserGame,
   nextUserPlayoffGame,
@@ -246,6 +249,7 @@ import {
   recordUserLiveResult,
   saveSeason,
   seasonProgressLabel,
+  seasonSlotLocked,
   seasonStaffBonus,
   seasonTeamIds,
   simAllPlayoffs,
@@ -332,7 +336,7 @@ import {
   freshFamilySide,
 } from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
-import { careerSig, markSessionResumed, saveVisibility, sessionSig, stampLegacySaves } from "./data/saveOwnership.js";
+import { careerSig, ForeignSaveError, keyHasData, markSessionResumed, markSlotResumed, saveVisibility, seasonSig, sessionSig, slotLocked, stampLegacySaves } from "./data/saveOwnership.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
@@ -611,6 +615,10 @@ function downloadLongCareerExport(root) {
  * so the player doesn't lose progress while they sort out storage.
  */
 function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
+  if (lastLongCareerSaveError instanceof ForeignSaveError) {
+    void foreignSaveNotice("career"); // not a storage problem, and the attempt is another account's career: no export
+    return;
+  }
   // "invalid root save" (and the two version-mismatch messages) are thrown by validateRoot()
   // *before* writeRootSave() ever touches localStorage -- that is a bug in this build's save
   // data, not the browser or the device. Blaming storage for it sends the player off clearing a
@@ -755,6 +763,42 @@ function careerHidden(root = state.longCareerRoot || readRootSave()) {
 function sessionHidden(peek = peekSave()) {
   return saveVisibility("session", sessionSig(peek)) === "other";
 }
+function seasonHidden() {
+  return hasSeasonSave() && saveVisibility("season", seasonSig(true)) === "other";
+}
+
+/**
+ * P0 data integrity: a device slot holding ANOTHER account's save is read-only here (the storage writers refuse
+ * it too). Hiding it isn't enough -- this tells the player why they can't start/import/save over it.
+ */
+const FOREIGN_SLOT_NAME = { career: ["长期生涯", "long-career"], season: ["单赛季", "single-season"], session: ["未完成的比赛", "unfinished-game"] };
+function foreignSaveNotice(slot) {
+  const [zh, en] = FOREIGN_SLOT_NAME[slot];
+  return confirmAction(L(
+    `这台设备上的${zh}存档属于另一个账号。为了不覆盖它，这里不能新建、导入或保存到这个位置。请切换到那个账号去导出、完成或删除它，或者换一个浏览器 / 设备开始。`,
+    `This device's ${en} save belongs to another account. To keep it safe, you can't start, import or save over it here. Switch to that account to export, finish or delete it — or start on another browser or device.`,
+  ), { title: L("存档属于另一个账号", "This save belongs to another account"), acceptLabel: L("知道了", "Got it"), notice: true });
+}
+const SLOT_LOCKED = {
+  career: () => slotLocked("career", keyHasData(ROOT_SAVE_KEY)),
+  season: seasonSlotLocked,
+  session: sessionSlotLocked,
+};
+/** true = blocked (and the player has been told). */
+async function blockedByForeignSave(slot) {
+  if (!SLOT_LOCKED[slot]()) return false;
+  await foreignSaveNotice(slot);
+  return true;
+}
+
+/** After an account change: progress of the previous account still in memory must not be played (or saved) on. */
+function forgetOtherAccountsProgress() {
+  if (state.longCareerRoot && careerHidden(state.longCareerRoot)) {
+    Object.assign(state, { leagueCareer: null, story: null, longCareerRoot: null, season: null, seasonPendingGame: null });
+  }
+  if (!state.leagueCareer && state.season && seasonHidden()) Object.assign(state, { season: null, seasonPendingGame: null });
+}
+
 
 function refreshLongCareerHomeBar() {
   const bar = $("#long-career-home-bar");
@@ -794,6 +838,7 @@ const timeTravelScreen = createTimeTravelScreen({
   currentRootState,
   renderSeasonHub,
   showSeasonTab,
+  blockedByForeignSave,
 });
 const openTimeTravelScreen = () => timeTravelScreen.open();
 const queueNextTimeTravelEvent = () => timeTravelScreen.queueNextTimeTravelEvent();
@@ -819,6 +864,7 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
   const file = input.files?.[0];
   if (!file) return;
   try {
+    if (await blockedByForeignSave("career")) return;
     const imported = importRootSave(await file.text());
     if (!(await confirmAction("导入将替换当前长期生涯存档，确定继续？", {
       title: "导入长期生涯？",
@@ -845,7 +891,7 @@ function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) 
       offerLongCareerExportAfterSaveFailure(unsavedAttempt);
       return false;
     }
-    if (!saveSeason(st)) {
+    if (!saveSeason(st, { mirror: true })) {
       console.warn("[season-compat-save] 根存档已保存，但兼容赛季存档写入失败");
     }
     return true;
@@ -945,7 +991,19 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
     else if (state.career) payload.screen = "market";
     else if (state.tournament) payload.screen = "tournament";
 
-    writeSave(payload);
+    const written = writeSave(payload);
+    if (written?.blocked) {
+      if (!silent) void foreignSaveNotice("session");
+      else if (state.sim && !state.foreignSessionWarned) {
+        state.foreignSessionWarned = true;
+        pushFeed("coach", L("本局不会自动保存：这台设备上未完成比赛的存档属于另一个账号。", "This game won't autosave: this device's unfinished-game save belongs to another account."));
+      }
+      return false;
+    }
+    if (written?.saveFailed) {
+      if (!silent) alert("保存失败：可能是存档太大或浏览器限制。请再试一次。");
+      return false;
+    }
     if (!silent) {
       const tip = andGoHome ? "进度已保存。可随时在首页点「继续进度」。" : "进度已保存到本机。";
       if (state.sim) pushFeed("coach", tip);
@@ -1644,6 +1702,7 @@ function renderAccountList() {
   box.querySelectorAll("[data-acc-login]").forEach((btn) => {
     btn.onclick = () => {
       setActiveAccountId(btn.dataset.accLogin);
+      forgetOtherAccountsProgress();
       const acc = activeAccount();
       if (acc && !acc.onboardingDone) startOnboarding(acc);
       else {
@@ -1657,6 +1716,7 @@ function renderAccountList() {
       if (!confirm("删除该账号及其全部球员卡？不可恢复。")) return;
       deleteAccount(btn.dataset.accDel);
       renderAccountList();
+      forgetOtherAccountsProgress();
       refreshAccountHomeBar();
     };
   });
@@ -1696,6 +1756,7 @@ $("#btn-collection-ranked")?.addEventListener("click", () => startRankedMatch())
 $("#btn-account-create")?.addEventListener("click", () => {
   const name = $("#account-new-name")?.value || "";
   const acc = createAccount(name);
+  forgetOtherAccountsProgress();
   if ($("#account-new-name")) $("#account-new-name").value = "";
   startOnboarding(acc);
 });
@@ -8150,7 +8211,7 @@ function refreshSeasonYearBlurb() {
  */
 function savedSeasonSource() {
   if (careerHidden()) return {};
-  const live = state.season || loadSeason();
+  const live = state.season || (seasonHidden() ? null : loadSeason());
   if (live) return { live };
   const root = state.longCareerRoot || readRootSave();
   return root?.leagueCareer?.season ? { root } : {};
@@ -10172,6 +10233,7 @@ $("#btn-season-resume")?.addEventListener("click", () => {
   }
   const st = prepareSeasonState(live);
   if (!st) return;
+  if (!state.leagueCareer) markSlotResumed("season"); // continuing it keeps its owner (unassociated stays so)
   state.season = st;
   state.mode = state.leagueCareer?.kind === "timeTravel" ? "timeTravel" : "season";
   renderSeasonHub();
@@ -10499,6 +10561,7 @@ $("#btn-season-start")?.addEventListener("click", async () => {
   const draft = state.seasonRosterDraft;
   if (!draft || draft.players.length < 8) return;
   const name = ($("#season-team-name")?.value || "").trim() || "拉斯维加斯 ***";
+  if (await blockedByForeignSave(seasonSetupKind === "franchise" ? "career" : "season")) return;
   if (
     seasonSetupKind === "franchise"
     && hasExistingCareerRoot(state.longCareerRoot || readRootSave())
@@ -10552,6 +10615,8 @@ $("#btn-season-save")?.addEventListener("click", () => {
 });
 $("#btn-season-abandon")?.addEventListener("click", async () => {
   // B36: this deletes the whole current career (season, history, coach progress), not just "this season".
+  // P0: if the slot holds another account's career (we are playing a stale in-memory copy), deleting must not touch it.
+  if (await blockedByForeignSave("career")) return;
   if (!(await confirmAction(L(
     "将永久删除当前生涯的全部进度：本赛季、历届历史、教练成长和故事进展。球员收藏、账号和设置不受影响。此操作无法撤销。",
     "This permanently deletes the current career: this season, past seasons, coach progress and story. Your collection, account and settings are not affected. This cannot be undone.",
@@ -11032,7 +11097,7 @@ async function boot() {
     }
     const discovered = readRootSave() || migrateLegacySaves()?.root || null;
     state.longCareerRoot = discovered;
-    stampLegacySaves({ career: discovered, session: peekSave() }); // pre-ownership saves stay unassociated
+    stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() || null }); // pre-ownership saves stay unassociated
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
   } catch (e) {

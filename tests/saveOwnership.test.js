@@ -2,16 +2,27 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createMemoryStorage } from "./helpers/memoryStorage.js";
 import { hiredRoot } from "./helpers/careerFixtures.js";
-import { ACTIVE_ACCOUNT_KEY } from "../js/data/accountKeys.js";
+import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY } from "../js/data/accountKeys.js";
 import {
   OWNERS_KEY, _resetOwnershipForTests, careerSig, claimSave, markSessionResumed, recordSaveWrite, saveVisibility, stampLegacySaves,
 } from "../js/data/saveOwnership.js";
 import { clearRootSave, deleteCareerSave, readRootSave, writeRootSave } from "../js/data/saveRoot.js";
 
+// Accounts that sign in really exist on the device (ownership treats a deleted owner as gone).
 function device(activeId = null) {
   _resetOwnershipForTests();
-  const storage = createMemoryStorage(activeId ? { [ACTIVE_ACCOUNT_KEY]: activeId } : {});
-  const as = (id) => (id ? storage.setItem(ACTIVE_ACCOUNT_KEY, id) : storage.removeItem(ACTIVE_ACCOUNT_KEY));
+  const storage = createMemoryStorage({ [ACCOUNTS_KEY]: JSON.stringify({ accounts: [] }) });
+  const register = (id) => {
+    const store = JSON.parse(storage.getItem(ACCOUNTS_KEY));
+    if (!store.accounts.some((a) => a.id === id)) store.accounts.push({ id });
+    storage.setItem(ACCOUNTS_KEY, JSON.stringify(store));
+  };
+  const as = (id) => {
+    if (!id) return storage.removeItem(ACTIVE_ACCOUNT_KEY);
+    register(id);
+    storage.setItem(ACTIVE_ACCOUNT_KEY, id);
+  };
+  as(activeId);
   return { storage, as };
 }
 const owners = (storage) => JSON.parse(storage.getItem(OWNERS_KEY) || "{}");
