@@ -17,7 +17,7 @@ const TAB_META = [
   {
     // ADR-008 N-1: the player's own space. Holds no modes (no catalog homeTab points here).
     id: "world",
-    label: "我的篮球人生",
+    label: "我的世界",
     hint: "你的身份、旅程、荣誉和小家",
   },
   {
@@ -64,7 +64,10 @@ export function wireHomeTabs(doc = document, { onActivate } = {}) {
   const tabs = [...doc.querySelectorAll(".home-tab[data-category]")];
   const panels = [...doc.querySelectorAll(".home-category-panel[data-category]")];
   if (!tabs.length || !panels.length) return null;
+  // Landing vs. compact chrome is pure CSS, keyed off this attribute (the default tab keeps the full hero).
+  const screen = tabs[0].closest(".screen");
   const activate = (id) => {
+    if (screen) screen.dataset.homeTab = id;
     for (const btn of tabs) {
       const on = btn.dataset.category === id;
       btn.classList.toggle("active", on);

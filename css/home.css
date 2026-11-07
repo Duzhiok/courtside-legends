@@ -212,9 +212,13 @@ html[lang="en"] .topbar .brand-name { display: none; }
   padding: 5px;
   border-radius: 14px;
   background: rgba(15, 28, 20, .06);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.home-category-tabs::-webkit-scrollbar { display: none; }
 .home-tab {
-  flex: 1;
+  flex: 1 0 auto;
+  min-height: 40px;
   padding: 10px 14px;
   border: none;
   border-radius: 10px;
@@ -224,6 +228,7 @@ html[lang="en"] .topbar .brand-name { display: none; }
   font-size: .96rem;
   font-weight: 700;
   letter-spacing: .02em;
+  white-space: nowrap;  /* a label never wraps; a too-narrow bar scrolls instead (see below) */
   cursor: pointer;
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
 }
@@ -419,4 +424,56 @@ html[lang="en"] .topbar .brand-name { display: none; }
 /* Phones: keep My Profile beside the status text instead of on a third row. */
 @media (max-width: 560px) {
   #screen-home .account-home-text { flex: 1 1 0; min-width: 0; }
+}
+
+/* —— Shared chrome: the full hero is a landing element (default tab). Every other tab gets a one-row header
+   (title + the same Quick Play button) so its own content starts near the top. CSS only: no state, no routing. —— */
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .home-banner {
+  display: flex;
+  margin-bottom: 10px;
+  padding: 10px 14px 10px 18px;
+  border-radius: 16px;
+  box-shadow: 0 10px 26px rgba(7, 19, 13, .22);
+}
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .home-banner-copy {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+#screen-home[data-home-tab]:not([data-home-tab="career"]) :is(.home-banner-kicker, .home-banner-copy > p, .home-banner-facts, .play-now-hero .tiny) {
+  display: none;
+}
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .home-banner h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  text-shadow: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .play-now-hero { margin: 0; flex: none; }
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .hero-cta {
+  font-size: 1rem;
+  padding: 8px 18px;
+  min-height: 40px;
+  white-space: nowrap;
+}
+/* Guest / account status shrinks to one line; the full sentence stays in the Landing view. */
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .profile-bar .account-home-text { flex-wrap: nowrap; }
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .profile-bar .account-home-text strong { flex: none; }
+#screen-home[data-home-tab]:not([data-home-tab="career"]) .profile-bar .account-home-text .tiny {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@media (max-width: 560px) {
+  .home-category-tabs { gap: 4px; padding: 4px; }
+  .home-tab { padding: 10px 10px; font-size: .86rem; letter-spacing: 0; }
+  #screen-home[data-home-tab]:not([data-home-tab="career"]) .home-banner h1 { font-size: 1rem; }
+  #screen-home[data-home-tab]:not([data-home-tab="career"]) .hero-cta { padding: 8px 14px; }
 }
