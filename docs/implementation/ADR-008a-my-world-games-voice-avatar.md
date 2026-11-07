@@ -1,6 +1,6 @@
 # ADR-008a · My World 后续：My Games / Player Voice / 3D Avatar（差距分析与可行性方案）
 
-状态：**PROPOSED**（只做分析与方案，本文提交时没有改功能代码）
+状态：**APPROVED WITH CONDITIONS**（2026-11-07，条件见 DECISIONS §十一；Q1 比本文原建议更严格：认领用独立元数据，需明确确认）
 关联：ADR-008（四空间导航）。下面三个工作包是 ADR-008 内部的子任务，不替换正式 Roadmap。
 
 | 工作包 | 内容 | 风险 |

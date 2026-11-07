@@ -302,3 +302,41 @@ test("outcome records the role and the delivery mode, and every non-shot has a k
     }
   }
 });
+
+// ---- M2b-1 final correction: a called creator under pressure may find the open man (R168) ----
+const sweep = await import("../scripts/research/clutch-calibration-sweep.mjs");
+const caseOf = (re) => sweep.CASES.find((c) => re.test(c.label));
+function tally(c, decide, seeds = 300) {
+  let shots = 0, mine = 0, kicked = 0;
+  for (let seed = 1; seed <= seeds; seed++) {
+    const r = sweep.runOne(c, "three", decide, seed);
+    if (!r) continue;
+    if (r.shot) shots++;
+    if (r.mine) mine++;
+    if (r.o?.reason === "kicked_out") kicked++;
+  }
+  return { shots, mine, kicked };
+}
+
+test("pressured creator: Stockton now sometimes finds the open man instead of forcing every shot", () => {
+  const t = tally(caseOf(/Stockton/), true);
+  assert.ok(t.kicked > 0, "under pressure he passes at least sometimes");
+  assert.ok(t.mine / t.shots < 0.95, `share ${(t.mine / t.shots).toFixed(3)} is no longer ~97%`);
+  assert.ok(t.mine / t.shots > 0.6, "the call still matters: he remains the main option");
+});
+
+test("pressured creator passes with the normal pass appetite: a lone-wolf, poor-passing version passes less", () => {
+  const c = caseOf(/Stockton/);
+  const [home, away] = c.t;
+  const gunnerHome = home.map((p) => (/Stockton/.test(p.name) ? { ...p, pass: 40, skills: [...(p.skills || []), "lone_wolf"] } : p));
+  const playmaker = tally(c, true);
+  const gunner = tally({ ...c, t: [gunnerHome, away] }, true);
+  assert.ok(gunner.kicked < playmaker.kicked, `gunner ${gunner.kicked} < playmaker ${playmaker.kicked}`);
+});
+
+test("picking the script's own shooter (Curry) is identical to no decision: the call has no increment there by design", () => {
+  const c = caseOf(/Curry/);
+  const withCall = tally(c, true, 200);
+  const without = tally(c, false, 200);
+  assert.equal(withCall.mine, without.mine);
+});

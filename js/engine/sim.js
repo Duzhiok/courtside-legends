@@ -1058,7 +1058,13 @@ export class GameSim {
     const openNeed = shotOpenThreshold(baller);
     // A called catch-and-shoot play for a SPECIALIST: his standing low-appetite order does not turn the called shot into a re-pass.
     const calledSpecialist = CLUTCH_DECISION_TUNING.specialistTakesIt && pick?.role === "catch_shoot" && baller.id === pick.shooterId;
-    if (aggNow <= 0.4 && open < openNeed && !calledSpecialist) {
+    // M2b-1: a called on-ball creator still reads the defence. Under real pressure (the look is below his own shot
+    // threshold, or he is doubled) he may hit the open man with the SAME pass appetite as any other possession
+    // (kickChance: passing, ball-hog damping, lone wolf, form) -- playmakers pass more, gunners less. Pick path only,
+    // so ordinary possessions roll nothing extra.
+    const pressuredPick =
+      !!pick && onBallPick && baller.id === pick.shooterId && aggNow > 0.4 && (open < openNeed || doubled) && rnd() < kickChance;
+    if (((aggNow <= 0.4 && open < openNeed) || pressuredPick) && !calledSpecialist) {
       const passer = baller;
       const kicked2 = kickToTeammate(off, baller, offenseFocusId, sideCtx.scheme || initAction);
       if (kicked2 && kicked2.id !== baller.id) {
@@ -1066,7 +1072,9 @@ export class GameSim {
         if (!sideCtx.organizerId) sideCtx.organizerId = passer.id;
         sideCtx.kickedOut = true;
         if (!sideCtx.scheme) sideCtx.scheme = "drive_kick";
-        this.emit(
+        if (pressuredPick) {
+          this.emit("coach", this.S(`${passer.name} 被逼得太紧，传给空位的 ${kicked2.name}`, `${passer.name} is smothered — finds ${kicked2.name} open`));
+        } else this.emit(
           "coach",
           this.S(`${passer.name}${aggNow <= 0.12 ? " 专注防守" : " 欲望低"}，机会一般先传给 ${kicked2.name}`, `${passer.name}${aggNow <= 0.12 ? " is defence-first" : " has low appetite"} — the look is not great, swings it to ${kicked2.name}`)
         );

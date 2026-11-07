@@ -78,3 +78,6 @@
 - 没有做：Daily Hub、My Style（对应功能不存在，不做假入口）；My Games 仍只列真实可恢复的生涯，中途存档的归属问题等 ADR-008a Q1。
 - 验证：`tests/myWorld.test.js` + `homeTabs` + `homeShowcase` 通过；`scripts/qa/my-world.mjs` 136/136（1440/1280/390/360，含对比度、无横向溢出、游客/账号/英文、真实存档恢复）。前后截图：docs/implementation/assets/my-world/。
 - 剩余：My World 内容在 1280×800 里从 y≈620 才开始（被全页共用的大横幅和访客条挤下去）；共用页签栏在手机上折两行。两者都是首页公共区，未改。
+
+## R168 · Code：M2b-1 被逼抢时允许分球 + Curry 无增量查明
+- 一处条件：指定的创造型球员空位不足或被包夹时，按本回合现有 `kickChance` 决定是否分球。Stockton 97.0% → 88.0%（three）/ 92.5%（attack）；其余角色不变；金标不变。Curry 无增量：终场脚本本来就选他。详见 M2b 设计文档 §14。M2b-1 为验收候选，未标 READY。
