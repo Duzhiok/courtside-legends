@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Avatar 3D spike (dev only, not shipped)</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #123522; color: #fff; }
+    #stage { width: min(100vw, 360px); height: 420px; margin: 16px auto; background: radial-gradient(#2c6e49, #123522); border-radius: 16px; }
+    #status { text-align: center; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+  <p id="status">loading…</p>
+  <script type="module">
+    import { mountAvatar3d } from "../../js/ui/avatar3d.js";
+    const status = document.getElementById("status");
+    const t0 = performance.now();
+    const params = new URLSearchParams(location.search);
+    try {
+      const handle = await mountAvatar3d(document.getElementById("stage"), params.get("src") ? { src: params.get("src") } : {});
+      window.__avatar = handle;
+      window.__firstFrameMs = Math.round(performance.now() - t0);
+      status.textContent = `ready in ${window.__firstFrameMs} ms`;
+    } catch (err) {
+      window.__avatarError = err.message;
+      status.textContent = `fallback: ${err.message}`;
+    }
+  </script>
+</body>
+</html>

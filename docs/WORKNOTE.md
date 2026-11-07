@@ -1,5 +1,14 @@
 
 
+## R171 · Code：3D Avatar spike（ADR-008a N-1f 第 1 步，只做可行性，未接入游戏界面）
+
+- 新增 `js/ui/avatar3d.js`（`mountAvatar3d`：动态 import Three.js、加载 GLB、Idle 动画、拖动旋转、`dispose`；无 WebGL / 404 / 超时都会 reject 并清理，由调用方保留静态形象）。
+- 资源：Quaternius "Man"（Poly Pizza 页面标 CC0 1.0，未修改，482 KB）；Three.js r187 摇树精简并压缩（621 KB，MIT，`scripts/vendor/build-three.sh` 可重建）。来源与许可写在 `docs/ASSET_CREDITS.md`。`js/vendor/` 加入 eslint 忽略。
+- 模型是**一个蒙皮网格 + 6 种材质**（Shirt/Skin/Pants/Eyes/Socks/Hair）：肤色、发色、上衣/裤子颜色可以直接换材质颜色，不需要 Blender。**但没有多种发型的子网格**，"至少 2 种发型"这条验收需要另找带多发型的 CC0 模型或做美术。
+- 验证：`scripts/qa/avatar3d-spike.mjs` 26/26（桌面 + 手机视口）；游戏首页全部 tab 不下载 Three.js / 模型；全量 1743/1743；GameSim 金标不变；变异（关掉 `renderer.render`）4 项变红。
+- 诚实限制：帧率/首帧是无头浏览器软件渲染，不是真机；真机性能仍未测。
+- 未做：换装/发型 UI、保存到账号、静态形象回退的页面接线（步骤 2、3）。
+
 ## R162 · Code：My World MVP「我的篮球人生」（ADR-008 N-1a/b/c）（2026-11-06）
 - **导航（N-1a）**：首页第四个 tab `world`，放在最前；原三个 tab 的 id、名称、默认 tab（职业经理）和全部模式卡不变；`modeCatalog` 不动。`wireHomeTabs` 新增 `onActivate` 回调，并返回 `activate(id)`，供"去开始一段生涯"跳转使用。
 - **真实数据（N-1b）**：新增 `js/data/profile.js`。账号的昵称就是原有的 `account.name`，不另加字段；只新增 `account.profile = { hometown, bio }`。访客资料存在本机的 `cls_guest_profile_v1`，页面上如实提示。**不读写任何 Reborn/生涯存档。** 旅程读根存档，"继续生涯"复用 `resumeLongCareer`；荣誉读冠军墙 `seasonHistory[].trophy`、图鉴 `codex`、排位战绩；没有数据就显示空状态。

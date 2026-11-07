@@ -45,6 +45,8 @@ const rules = {
 };
 
 export default [
+  // Vendored third-party bundles are not ours to lint (rebuilt by scripts/vendor/build-three.sh).
+  { ignores: ["js/vendor/**"] },
   {
     ignores: ["node_modules/**", "js/data/roster.json", "docs/superpowers/**"],
   },

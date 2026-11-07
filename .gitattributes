@@ -1,0 +1,2 @@
+# Vendored third-party bundles: no whitespace policing, no noisy diffs.
+js/vendor/** -whitespace linguist-vendored
