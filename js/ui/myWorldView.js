@@ -86,20 +86,50 @@ export function identityCardHtml(identity, lang) {
 
 const cardHead = (ico, title) => `<h3>${icon(ico)}<span>${title}</span></h3>`;
 
-/** "My Games": what can really be resumed. Today that is the long career in the root save. */
-export function journeyHtml(journey, lang) {
+const kindLabel = (kind, lang) => (kind === "timeTravel" ? T(lang, "穿越生涯", "Time-Travel Career") : T(lang, "联盟经理", "Franchise"));
+
+/** One resumable save. Unassociated (pre-ownership local) saves say so and can be claimed explicitly. */
+function gameRow({ title, sub, state, resume, claim }, canClaim, lang) {
+  const local = state === "unassociated";
+  const badge = local
+    ? `<p class="mw-local">${T(lang, "本机存档 · 未关联账号", "Local save · not linked to an account")}${canClaim ? "" : ` · ${T(lang, "登录账号后可认领", "sign in to claim it")}`}</p>`
+    : "";
+  return `<li class="mw-game"><div class="mw-game-text"><p class="mw-line">${title}</p><p class="mw-line tiny">${sub}</p>${badge}</div>
+    <div class="mw-game-actions">${action(resume, T(lang, "继续", "Continue"), "btn small continue")}${local && canClaim ? action(claim, T(lang, "认领到我的账号", "Claim for my account"), "btn small ghost") : ""}</div></li>`;
+}
+
+/**
+ * "My Games": every save this player may see -- their own, plus unassociated local saves. Saves owned by
+ * another account are never passed in (the screen filters them out), so nothing here can leak them.
+ * games = { career: { journey, state } | null, session: { label, state } | null, canClaim }
+ */
+export function gamesHtml(games, lang) {
   const title = cardHead("games", T(lang, "我的游戏记录", "My Games"));
-  if (!journey) {
+  const rows = [];
+  const career = games?.career;
+  if (career?.journey) {
+    const j = career.journey;
+    const team = j.teamName ? teamNameL(j.teamName, lang) : T(lang, "未命名球队", "Unnamed team");
+    rows.push(gameRow({
+      title: `<strong>${esc(kindLabel(j.kind, lang))}</strong> · ${esc(team)}`,
+      sub: `${esc(j.startYear ?? "—")} → ${esc(j.year ?? "—")} · ${T(lang, `已完成 ${j.seasonsDone} 个赛季`, `${j.seasonsDone} season(s) completed`)}`,
+      state: career.state, resume: "resume-career", claim: "claim-career",
+    }, games.canClaim, lang));
+  }
+  const session = games?.session;
+  if (session) {
+    rows.push(gameRow({
+      title: `<strong>${T(lang, "中途进度", "Game in progress")}</strong>`, sub: esc(session.label || ""),
+      state: session.state, resume: "resume-session", claim: "claim-session",
+    }, games.canClaim, lang));
+  }
+  if (!rows.length) {
     return `<section class="mw-card">${title}
       <p class="mw-empty">${T(lang, "还没有进行中的生涯。", "No career in progress yet.")}</p>
       ${action("start-career", T(lang, "去开始一段生涯", "Start a career"))}</section>`;
   }
-  const kind = journey.kind === "timeTravel" ? T(lang, "穿越生涯", "Time-Travel Career") : T(lang, "联盟经理", "Franchise");
-  const team = journey.teamName ? teamNameL(journey.teamName, lang) : T(lang, "未命名球队", "Unnamed team");
-  return `<section class="mw-card">${title}
-    <p class="mw-line"><strong>${esc(kind)}</strong> · ${esc(team)}</p>
-    <p class="mw-line tiny">${esc(journey.startYear ?? "—")} → ${esc(journey.year ?? "—")} · ${T(lang, `已完成 ${journey.seasonsDone} 个赛季`, `${journey.seasonsDone} season(s) completed`)}</p>
-    ${action("resume-career", T(lang, "继续生涯", "Continue career"), "btn small continue")}</section>`;
+  return `<section class="mw-card">${title}<ul class="mw-games">${rows.join("")}</ul>
+    <p class="mw-status" id="mw-games-status" role="status" aria-live="polite"></p></section>`;
 }
 
 export function legacyHtml(legacy, journey, lang) {
@@ -132,10 +162,10 @@ const ROOM_SVG = `<svg class="mw-room-art" viewBox="0 0 600 240" preserveAspectR
   <path d="M470 24h84v44h-84z" fill="#fff" stroke="#303030" stroke-width="5"/><rect x="496" y="42" width="32" height="22" fill="none" stroke="#e2622b" stroke-width="3"/>
   <path d="M492 76q22 10 44 0" fill="none" stroke="#e2622b" stroke-width="4"/><path d="M496 80l6 18m8-17l2 19m8-19l-2 19m8-18l-6 18" stroke="#fff" stroke-opacity=".9" stroke-width="2"/>
   <path d="M300 0v14" stroke="#4a3b24" stroke-width="3"/><path d="M280 14h40l10 16h-60z" fill="#f4d98a"/><ellipse cx="300" cy="0" rx="280" ry="160" fill="url(#mw-glow)"/>
-  <g transform="translate(440 96)"><path d="M0 0l12 8h22l12-8 14 16-10 8v34H-4V24l-10-8z" fill="#1f4a35" stroke="#d6b25a" stroke-width="2"/><rect x="6" y="30" width="34" height="5" fill="#d6b25a"/></g>
-  <g transform="translate(196 216)"><path d="M0 0c0-10 6-14 14-14h14l8 6c10 0 14 4 14 8z" fill="#fff" stroke="#2a2a2a" stroke-width="2"/><path d="M6 -4h20" stroke="#e2622b" stroke-width="3"/></g>
-  <g transform="translate(262 220)"><path d="M0 0c0-10 6-14 14-14h14l8 6c10 0 14 4 14 8z" fill="#fff" stroke="#2a2a2a" stroke-width="2"/><path d="M6 -4h20" stroke="#e2622b" stroke-width="3"/></g>
-  <circle cx="356" cy="210" r="15" fill="#e2622b" stroke="#7a2e10" stroke-width="2"/><path d="M356 195v30M341 210h30" stroke="#7a2e10" stroke-width="2"/>
+  <g transform="translate(440 110)"><path d="M0 0l12 8h22l12-8 14 16-10 8v34H-4V24l-10-8z" fill="#1f4a35" stroke="#d6b25a" stroke-width="2"/><rect x="6" y="30" width="34" height="5" fill="#d6b25a"/></g>
+  <g class="mw-floor-prop" transform="translate(196 216)"><path d="M0 0c0-10 6-14 14-14h14l8 6c10 0 14 4 14 8z" fill="#fff" stroke="#2a2a2a" stroke-width="2"/><path d="M6 -4h20" stroke="#e2622b" stroke-width="3"/></g>
+  <g class="mw-floor-prop" transform="translate(262 220)"><path d="M0 0c0-10 6-14 14-14h14l8 6c10 0 14 4 14 8z" fill="#fff" stroke="#2a2a2a" stroke-width="2"/><path d="M6 -4h20" stroke="#e2622b" stroke-width="3"/></g>
+  <g class="mw-floor-prop"><circle cx="396" cy="210" r="15" fill="#e2622b" stroke="#7a2e10" stroke-width="2"/><path d="M396 195v30M381 210h30" stroke="#7a2e10" stroke-width="2"/></g>
   <rect x="560" y="112" width="20" height="26" rx="3" fill="#7a5230"/><path d="M570 112c-14-8-16-26-4-30m4 30c14-8 16-26 4-30" fill="none" stroke="#3f7a52" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
 
@@ -194,12 +224,15 @@ export function feedbackHtml(lang) {
   </section>`;
 }
 
-export function myWorldHtml({ identity, journey, legacy, frames }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames }, lang) {
+  // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
+  const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
+  const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
   const label = T(lang, "玩家建议", "Feedback");
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span>
       <button type="button" class="mw-voice" data-mw-action="toggle-feedback" aria-expanded="false" aria-controls="mw-feedback" aria-label="${label}" title="${label}">${icon("voice")}</button></div>
     ${feedbackHtml(lang)}
     ${identityCardHtml(identity, lang)}
-    <div class="mw-grid">${journeyHtml(journey, lang)}${legacyHtml(legacy, journey, lang)}</div>
-    ${homeSceneHtml({ identity, frames, trophyCount: journey?.trophies?.length || 0 }, lang)}`;
+    <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
+    ${homeSceneHtml({ identity, frames, trophyCount: owned?.trophies?.length || 0 }, lang)}`;
 }

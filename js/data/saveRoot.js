@@ -3,6 +3,7 @@ import { validEpiphany, validGrowth } from "../career/growthShape.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
 import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
 import { isKnownCoachOrigin } from "../career/coachOrigins.js";
+import { careerSig, clearSaveOwner, recordSaveWrite } from "./saveOwnership.js";
 
 export const ROOT_SAVE_KEY = "cls_root_v3";
 export const ROOT_SAVE_VERSION = 3;
@@ -498,6 +499,7 @@ export function writeRootSave(root, storage) {
     }
   }
   root.savedAt = savedAt;
+  recordSaveWrite("career", careerSig(persisted), target);
   return root;
 }
 
@@ -532,6 +534,7 @@ export function clearRootSave(storage) {
   const target = getStorage(storage);
   target.removeItem(ROOT_SAVE_KEY);
   target.removeItem(TEMP_ROOT_SAVE_KEY);
+  clearSaveOwner("career", target);
 }
 
 /**
@@ -558,6 +561,7 @@ export function deleteCareerSave(storage) {
     writeRootSave(createRootState({ profile }), target);
   } else {
     target.removeItem(ROOT_SAVE_KEY);
+    clearSaveOwner("career", target);
   }
 }
 

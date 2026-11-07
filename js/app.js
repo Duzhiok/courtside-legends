@@ -332,6 +332,7 @@ import {
   freshFamilySide,
 } from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
+import { careerSig, markSessionResumed, saveVisibility, sessionSig, stampLegacySaves } from "./data/saveOwnership.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
@@ -747,13 +748,21 @@ function resumeLongCareer(root = readRootSave()) {
   return true;
 }
 
+/** ADR-008a Q1: a career owned by ANOTHER account on this device is never offered to the current player. */
+function careerHidden(root = state.longCareerRoot || readRootSave()) {
+  return saveVisibility("career", careerSig(root)) === "other";
+}
+function sessionHidden(peek = peekSave()) {
+  return saveVisibility("session", sessionSig(peek)) === "other";
+}
+
 function refreshLongCareerHomeBar() {
   const bar = $("#long-career-home-bar");
   const meta = $("#long-career-home-meta");
   if (!bar || !meta) return;
   const root = state.longCareerRoot || readRootSave();
   const career = root?.leagueCareer;
-  if (!career) {
+  if (!career || careerHidden(root)) {
     bar.hidden = true;
     return;
   }
@@ -790,6 +799,7 @@ const openTimeTravelScreen = () => timeTravelScreen.open();
 const queueNextTimeTravelEvent = () => timeTravelScreen.queueNextTimeTravelEvent();
 
 $("#btn-long-career-resume")?.addEventListener("click", () => {
+  if (careerHidden()) return refreshLongCareerHomeBar();
   resumeLongCareer(state.longCareerRoot || readRootSave());
 });
 $("#btn-long-career-export")?.addEventListener("click", () => {
@@ -962,7 +972,7 @@ function refreshSaveHomeBar() {
   const btnClear = $("#btn-clear-save");
   if (!bar) return;
   const peek = peekSave();
-  if (!peek) {
+  if (!peek || sessionHidden(peek)) {
     bar.hidden = true;
     return;
   }
@@ -1067,11 +1077,12 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
 /** 从本机存档恢复。 */
 function continueFromSave() {
   const data = readSave();
-  if (!data?.app) {
+  if (!data?.app || sessionHidden(data)) {
     alert("没有找到存档");
     refreshSaveHomeBar();
     return;
   }
+  markSessionResumed(); // continuing this save keeps its owner (unassociated stays unassociated)
   try {
     const app = data.app;
     state.mode = app.mode;
@@ -1568,6 +1579,8 @@ function requireAccountReady(feature = null) {
 
 function refreshAccountHomeBar() {
   myWorld?.refresh(); // name/cards may have changed (switch account, onboarding, profile edit)
+  refreshLongCareerHomeBar(); // a switch of account changes which saves may be offered
+  refreshSaveHomeBar();
   const chip = $("#btn-account-chip");
   const nameEl = $("#account-home-name");
   const metaEl = $("#account-home-meta");
@@ -8136,6 +8149,7 @@ function refreshSeasonYearBlurb() {
  * @returns {{ live?: object, root?: object }}
  */
 function savedSeasonSource() {
+  if (careerHidden()) return {};
   const live = state.season || loadSeason();
   if (live) return { live };
   const root = state.longCareerRoot || readRootSave();
@@ -10969,7 +10983,12 @@ async function boot() {
       getAccount: activeAccount,
       readRootSave: () => state.longCareerRoot || readRootSave(),
       topCards: (account) => resolvePlayers(account.playerIds || [], account).sort((a, b) => overall(b) - overall(a)).slice(0, 3),
-      onResumeCareer: () => resumeLongCareer(state.longCareerRoot || readRootSave()),
+      readSession: peekSave,
+      sessionLabel: (meta, lang) => formatSaveLabel(meta, lang),
+      confirm: (message) => confirmAction(message, { title: L("认领本机存档？", "Claim this local save?"), acceptLabel: L("确认认领", "Claim it") }),
+      onResumeCareer: () => !careerHidden() && resumeLongCareer(state.longCareerRoot || readRootSave()),
+      onResumeSession: () => continueFromSave(),
+      onClaimed: () => { refreshLongCareerHomeBar(); refreshSaveHomeBar(); },
       onOpenCollection: () => openCollection(),
       onOpenAccounts: () => openAccountScreen(),
       onStartCareer: () => activateHomeTab?.("career"),
@@ -11013,6 +11032,7 @@ async function boot() {
     }
     const discovered = readRootSave() || migrateLegacySaves()?.root || null;
     state.longCareerRoot = discovered;
+    stampLegacySaves({ career: discovered, session: peekSave() }); // pre-ownership saves stay unassociated
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
   } catch (e) {

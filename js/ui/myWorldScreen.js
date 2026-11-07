@@ -4,6 +4,7 @@
  * and every action is delegated to the app's existing flows (resume career, open collection, accounts).
  */
 import { readIdentity, saveIdentity } from "../data/profile.js";
+import { careerSig, claimSave, saveVisibility, sessionSig } from "../data/saveOwnership.js";
 import { feedbackTemplate, journeyFromRoot, legacyFromAccount, myWorldHtml } from "./myWorldView.js";
 
 export function createMyWorld({
@@ -11,8 +12,13 @@ export function createMyWorld({
   getLang,
   getAccount,
   readRootSave,
+  readSession = () => null,
+  sessionLabel = () => "",
+  confirm = async () => false,
   topCards = () => [],
   onResumeCareer,
+  onResumeSession,
+  onClaimed = () => {},
   onOpenCollection,
   onOpenAccounts,
   onStartCareer,
@@ -29,10 +35,45 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml(
-      { identity: readIdentity(account), journey: journeyFromRoot(readRootSave()), legacy: legacyFromAccount(account), frames },
-      lang,
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames }, lang);
+  }
+
+  /** Only saves this player may see: theirs, or unassociated local ones. Another account's saves never render. */
+  function visibleGames(account, lang) {
+    const root = readRootSave();
+    const careerState = saveVisibility("career", careerSig(root));
+    const journey = careerState === "mine" || careerState === "unassociated" ? journeyFromRoot(root) : null;
+    const session = readSession();
+    const sessionState = saveVisibility("session", sessionSig(session));
+    return {
+      career: journey ? { journey, state: careerState } : null,
+      session: sessionState === "mine" || sessionState === "unassociated" ? { label: sessionLabel(session, lang), state: sessionState } : null,
+      canClaim: !!account,
+    };
+  }
+
+  async function claim(slot) {
+    const sig = slot === "career" ? careerSig(readRootSave()) : sessionSig(readSession());
+    const ok = await confirm(
+      getLang() === "en"
+        ? "Link this local save to your account? Other accounts on this device will no longer see it. This cannot prove the save was originally yours."
+        : "把这份本机存档关联到你的账号？关联后，本机其他账号将看不到它。注意：认领只管理归属，不能证明你就是原主人。",
     );
+    if (!ok) return;
+    const res = claimSave(slot, sig);
+    if (res.ok) {
+      render();
+      onClaimed();
+      return say(el.querySelector("#mw-games-status"), "已关联到你的账号。", "Linked to your account.");
+    }
+    const why = {
+      claimed: ["这份存档已被其他账号认领。", "Another account already claimed this save."],
+      already_yours: ["这份存档已经是你的。", "This save is already yours."],
+      guest: ["请先登录账号再认领。", "Sign in to claim a save."],
+      storage: ["保存归属失败，存档本身没有改动。", "Could not store the link; the save itself is untouched."],
+    }[res.reason] || ["没有找到这份存档。", "That save is gone."];
+    render();
+    say(el.querySelector("#mw-games-status"), ...why);
   }
 
   const form = () => el.querySelector("#mw-identity-form");
@@ -73,6 +114,9 @@ export function createMyWorld({
       if (form()) form().hidden = true;
     },
     "resume-career": () => onResumeCareer?.(),
+    "resume-session": () => onResumeSession?.(),
+    "claim-career": () => claim("career"),
+    "claim-session": () => claim("session"),
     "start-career": () => onStartCareer?.(),
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),

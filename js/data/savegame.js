@@ -3,6 +3,8 @@
  * Covers live game, draft, setup, career market, legend, tournament.
  */
 
+import { clearSaveOwner, recordSaveWrite, sessionSig } from "./saveOwnership.js";
+
 const SAVE_KEY = "cls_savegame_v1";
 export const SAVE_VERSION = 1;
 
@@ -43,6 +45,7 @@ export function peekSave() {
 export function clearSave() {
   try {
     localStorage.removeItem(SAVE_KEY);
+    clearSaveOwner("session");
   } catch (err) {
     console.error("[savegame] clearSave failed", err);
   }
@@ -107,6 +110,7 @@ export function writeSave(payload) {
   const text = JSON.stringify(data);
   try {
     localStorage.setItem(SAVE_KEY, text);
+    recordSaveWrite("session", sessionSig(data));
     return { bytes: text.length, ...data };
   } catch (err) {
     // Mid-session autosave is best-effort -- an unguarded throw here (e.g. quota exceeded) would
