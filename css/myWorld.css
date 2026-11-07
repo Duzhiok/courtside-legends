@@ -19,6 +19,28 @@
 .mw-feedback textarea { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #c5d3c8; font: inherit; }
 .mw-feedback .btn-row { margin-top: 8px; }
 .mw-feedback .mw-status { color: #1d5a3b; }
+/* Player Voice panel: type chips + optional rating + note. Inputs are real radios, visually hidden, focus shown on the label. */
+.mw-seg, .mw-stars { border: 0; margin: 0 0 10px; padding: 0; min-width: 0; }
+.mw-seg { display: flex; gap: 6px; }
+.mw-seg-opt { position: relative; flex: 1; }
+.mw-seg-opt input, .mw-star input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.mw-seg-opt span { display: block; text-align: center; padding: 8px 10px; min-height: 20px; border-radius: 999px; border: 1px solid #b9c9bd; background: #fff; color: #1b3a2b; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+.mw-seg-opt input:checked + span { background: #1b4332; border-color: #1b4332; color: #fff; }
+.mw-seg-opt input:focus-visible + span, .mw-star input:focus-visible ~ .mw-glyph { outline: 3px solid #f2c14e; outline-offset: 2px; }
+.mw-stars legend { padding: 0; margin-bottom: 4px; font-size: 0.85rem; color: #3f5448; }
+.mw-stars { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.mw-stars legend { flex-basis: 100%; }
+.mw-star-row { display: inline-flex; }
+.mw-star { position: relative; cursor: pointer; padding: 2px 3px; }
+.mw-glyph { display: block; min-width: 28px; min-height: 30px; text-align: center; font-size: 1.7rem; line-height: 30px; color: #55695d; }
+.mw-glyph::before { content: "\2606"; } /* hollow star */
+.mw-star.on .mw-glyph { color: #8a5a00; }
+.mw-star.on .mw-glyph::before { content: "\2605"; } /* solid star */
+.mw-clear { padding: 4px 10px; }
+.mw-fb-state { font-size: 0.82rem; color: #3f5448; padding: 8px 10px; border-left: 3px solid #d6b25a; background: #faf6ea; border-radius: 4px; }
+.mw-draft:empty, .mw-feedback .mw-status:empty { display: none; }
+.mw-feedback .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+.mw-fb-link { align-self: center; font-size: 0.8rem; color: #1d5a3b; text-decoration: underline; }
 .mw-template { margin-top: 8px; background: #f4f7f2; }
 .mw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 

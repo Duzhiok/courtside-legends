@@ -9,6 +9,7 @@
  * corner feedback entry. Presentation only -- same data, same actions.
  */
 import { avatarDataUri } from "../data/avatarArt.js";
+import { normalizeDraft } from "../data/feedbackDraft.js";
 import { photoImg } from "../data/photo.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
 import { teamNameL } from "../i18n.js";
@@ -198,40 +199,73 @@ export function homeSceneHtml({ identity, frames = [], trophyCount = 0 }, lang) 
   </section>`;
 }
 
-/** Plain-text feedback the player pastes into the real channel. Holds only what they typed + version info. */
-export function feedbackTemplate({ note = "", lang = "zh", userAgent = "" } = {}) {
+const CATEGORY_LABEL = {
+  suggestion: ["建议", "Idea"],
+  bug: ["问题", "Bug"],
+  rating: ["评价", "Rating"],
+};
+const categoryLabel = (id, lang) => (lang === "en" ? CATEGORY_LABEL[id][1] : CATEGORY_LABEL[id][0]);
+
+/** Plain-text feedback the player can copy. Holds only what they chose or typed, plus version info. */
+export function feedbackTemplate({ note = "", category = "suggestion", stars = 0, lang = "zh", userAgent = "" } = {}) {
   const lines = [
     T(lang, "【Courtside Legends 玩家建议】", "[Courtside Legends player feedback]"),
+    `${T(lang, "类型", "Type")}: ${categoryLabel(category in CATEGORY_LABEL ? category : "suggestion", lang)}`,
+  ];
+  if (stars >= 1 && stars <= 5) lines.push(`${T(lang, "评分", "Rating")}: ${stars}/5`);
+  lines.push(
     `${T(lang, "我的想法", "My idea")}: ${String(note).trim() || T(lang, "（在这里写下你的建议）", "(write your suggestion here)")}`,
     `${T(lang, "界面语言", "UI language")}: ${lang}`,
-  ];
+  );
   if (userAgent) lines.push(`${T(lang, "浏览器", "Browser")}: ${userAgent}`);
   return lines.join("\n");
 }
 
-/** Feedback keeps its real behaviour (copy + GitHub); it just lives behind a small corner icon now. */
-export function feedbackHtml(lang) {
+const starRadio = (n, stars, lang) => `<label class="mw-star${n <= stars ? " on" : ""}"><input type="radio" name="mw-fb-stars" value="${n}"${n === stars ? " checked" : ""} />
+  <span class="mw-glyph" aria-hidden="true"></span><span class="mw-sr">${T(lang, `${n} 星`, `${n} star${n > 1 ? "s" : ""}`)}</span></label>`;
+
+/**
+ * Player Voice entry (ADR-008a Q2). A compact panel behind the corner icon: type, optional 1-5 rating, note, a local
+ * draft. "Submit" exists but is disabled until a real submit function is injected (canSubmit), and the panel says
+ * so plainly: nothing here ever claims feedback was sent. Copy / GitHub stay as secondary fallbacks.
+ */
+export function feedbackHtml(lang, rawDraft = {}, canSubmit = false) {
+  const draft = normalizeDraft(rawDraft); // never trust what a caller (or storage) hands us
+  const { category, stars } = draft;
+  const seg = Object.keys(CATEGORY_LABEL)
+    .map((id) => `<label class="mw-seg-opt"><input type="radio" name="mw-fb-category" value="${id}"${id === category ? " checked" : ""} /><span>${categoryLabel(id, lang)}</span></label>`)
+    .join("");
+  const state = canSubmit
+    ? T(lang, "写好后点「提交」。", "Press Submit when you are done.")
+    : T(lang, "反馈服务还没有上线，所以现在不能提交。你写的内容会自动保存成这台设备上的草稿，服务上线后可以直接提交。", "The feedback service is not online yet, so nothing can be submitted right now. What you write is saved as a draft on this device and can be submitted once the service is live.");
   return `<section class="mw-feedback" id="mw-feedback" aria-label="${T(lang, "玩家建议", "Feedback")}" hidden>
-    <p>${T(lang, "你希望自己的篮球人生还能做什么？写下来，复制后贴到 GitHub 提交。", "What else should your basketball life do? Write it, copy it, and post it on GitHub.")}</p>
-    <label class="mw-sr" for="mw-feedback-note">${T(lang, "你的建议", "Your suggestion")}</label>
-    <textarea id="mw-feedback-note" rows="3" maxlength="600" placeholder="${T(lang, "分享想法、提出建议、参与未来设计。", "Share ideas, suggest features, help shape what comes next.")}"></textarea>
+    <fieldset class="mw-seg"><legend class="mw-sr">${T(lang, "反馈类型", "Feedback type")}</legend>${seg}</fieldset>
+    <fieldset class="mw-stars"><legend>${T(lang, "给 My World 打分（可选）", "Rate My World (optional)")}</legend>
+      <span class="mw-star-row">${[1, 2, 3, 4, 5].map((n) => starRadio(n, stars, lang)).join("")}</span>
+      ${action("clear-stars", T(lang, "不评分", "No rating"), "btn small ghost mw-clear")}
+    </fieldset>
+    <label class="mw-sr" for="mw-feedback-note">${T(lang, "你的反馈", "Your feedback")}</label>
+    <textarea id="mw-feedback-note" rows="3" maxlength="600" placeholder="${T(lang, "你希望自己的篮球人生还能做什么？", "What else should your basketball life do?")}">${esc(draft.note || "")}</textarea>
+    <p class="mw-fb-state" id="mw-feedback-state">${state}</p>
+    <p class="mw-status mw-draft" id="mw-feedback-draft" role="status" aria-live="polite">${draft.note || stars ? T(lang, "已恢复你在这台设备上的草稿。", "Restored your draft from this device.") : ""}</p>
     <div class="btn-row">
-      ${action("copy-feedback", T(lang, "复制反馈", "Copy feedback"))}
-      <a class="btn small ghost" href="${FEEDBACK_URL}" target="_blank" rel="noopener noreferrer">${T(lang, "打开 GitHub 提交", "Open GitHub to post")}</a>
+      <button type="button" class="btn small" data-mw-action="submit-feedback"${canSubmit ? "" : " disabled aria-disabled=\"true\""}>${T(lang, "提交", "Submit")}</button>
+      ${action("copy-feedback", T(lang, "复制反馈", "Copy feedback"), "btn small ghost")}
+      <a class="mw-fb-link" href="${FEEDBACK_URL}" target="_blank" rel="noopener noreferrer">${T(lang, "也可以复制后到 GitHub 提出", "or copy it and post on GitHub")}</a>
     </div>
     <p class="mw-status" id="mw-feedback-status" role="status" aria-live="polite"></p>
     <textarea id="mw-feedback-template" class="mw-template" rows="4" readonly hidden></textarea>
   </section>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, draft, canSubmitFeedback = false }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
   const label = T(lang, "玩家建议", "Feedback");
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span>
       <button type="button" class="mw-voice" data-mw-action="toggle-feedback" aria-expanded="false" aria-controls="mw-feedback" aria-label="${label}" title="${label}">${icon("voice")}</button></div>
-    ${feedbackHtml(lang)}
+    ${feedbackHtml(lang, draft, canSubmitFeedback)}
     ${identityCardHtml(identity, lang)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
     ${homeSceneHtml({ identity, frames, trophyCount: owned?.trophies?.length || 0 }, lang)}`;

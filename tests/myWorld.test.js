@@ -93,7 +93,7 @@ test("every rendered action button has a handler; user text is escaped; English 
   const evil = { name: "<img src=x onerror=1>", hometown: "\"><script>", bio: "&", guest: false };
   const html = view.myWorldHtml({ identity: evil, journey: view.journeyFromRoot(root(1)), legacy: view.legacyFromAccount({ playerIds: [] }), frames: [] }, "zh");
   assert.doesNotMatch(html, /<img src=x|<script>/);
-  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "copy-feedback", "toggle-feedback"];
+  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "copy-feedback", "toggle-feedback", "submit-feedback", "clear-stars"];
   for (const [, name] of html.matchAll(/data-mw-action="([^"]+)"/g)) assert.ok(known.includes(name), name);
   assert.match(html, new RegExp(view.FEEDBACK_URL.replace(/[.]/g, "\\.")));
 
@@ -121,4 +121,42 @@ test("redesign: one page title, My Games naming, feedback behind a corner icon, 
   assert.match(en, /My Games/);
   assert.doesNotMatch(en, /My Basketball Life/);
   assert.doesNotMatch(en, CJK);
+});
+
+test("Player Voice: submit is disabled and says why until a real submit exists; nothing claims 'sent'", () => {
+  const closed = view.feedbackHtml("zh", {}, false);
+  assert.match(closed, /data-mw-action="submit-feedback" disabled aria-disabled="true"/);
+  assert.match(closed, /反馈服务还没有上线/);
+  assert.match(closed, /草稿/);
+  assert.doesNotMatch(closed, /已提交|已发送|感谢你的反馈/);
+  const open = view.feedbackHtml("zh", {}, true);
+  assert.doesNotMatch(open, /submit-feedback" disabled/);
+  assert.doesNotMatch(open, /反馈服务还没有上线/);
+  assert.match(view.feedbackHtml("en", {}, false), /not online yet/);
+});
+
+test("Player Voice: a draft restores category, rating and note; the note is escaped; GitHub is only a small fallback", () => {
+  const html = view.feedbackHtml("zh", { category: "bug", stars: 3, note: "</textarea><img src=x onerror=1>" }, false);
+  assert.match(html, /name="mw-fb-category" value="bug" checked/);
+  assert.match(html, /name="mw-fb-stars" value="3" checked/);
+  assert.equal((html.match(/class="mw-star on"/g) || []).length, 3, "stars 1-3 are lit");
+  assert.doesNotMatch(html, /<img src=x/);
+  assert.match(html, /已恢复你在这台设备上的草稿/);
+  assert.equal(view.feedbackHtml("zh", {}, false).includes("已恢复"), false, "no draft, no restore notice");
+  assert.match(html, /class="mw-fb-link"/);
+  assert.doesNotMatch(html, /btn[^"]*"[^>]*href=/, "GitHub is a plain text link, not a button");
+  for (const bad of [{ category: "admin", stars: 9 }, { category: null, stars: "x" }]) {
+    const safe = view.feedbackHtml("zh", bad, false);
+    assert.match(safe, /value="suggestion" checked/);
+    assert.doesNotMatch(safe, /mw-star on/);
+  }
+});
+
+test("Player Voice: template carries category and rating; English panel has no Chinese", () => {
+  const t = view.feedbackTemplate({ note: "n", category: "bug", stars: 4, lang: "zh" });
+  assert.match(t, /类型: 问题/);
+  assert.match(t, /评分: 4\/5/);
+  assert.doesNotMatch(view.feedbackTemplate({ note: "n", stars: 0, lang: "zh" }), /评分/, "no rating line when unrated");
+  assert.match(view.feedbackTemplate({ category: "rating", stars: 5, lang: "en" }), /Type: Rating\nRating: 5\/5/);
+  assert.doesNotMatch(view.feedbackHtml("en", { category: "bug", stars: 2, note: "hi" }, false), CJK);
 });

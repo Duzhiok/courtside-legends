@@ -5,6 +5,7 @@
  */
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { careerSig, claimSave, saveVisibility, sessionSig } from "../data/saveOwnership.js";
+import { clearDraft, isBlankDraft, normalizeDraft, readDraft, writeDraft } from "../data/feedbackDraft.js";
 import { feedbackTemplate, journeyFromRoot, legacyFromAccount, myWorldHtml } from "./myWorldView.js";
 
 export function createMyWorld({
@@ -19,12 +20,15 @@ export function createMyWorld({
   onResumeCareer,
   onResumeSession,
   onClaimed = () => {},
+  submitFeedback = null, // async (draft) => boolean. Absent until a real endpoint exists: Submit stays disabled.
   onOpenCollection,
   onOpenAccounts,
   onStartCareer,
   onIdentitySaved = () => {},
 }) {
   if (!el) return { refresh() {} };
+
+  const ownerOf = (account) => account?.id || "guest";
 
   function render() {
     const lang = getLang();
@@ -35,7 +39,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), canSubmitFeedback: typeof submitFeedback === "function" }, lang);
   }
 
   /** Only saves this player may see: theirs, or unassociated local ones. Another account's saves never render. */
@@ -81,15 +85,56 @@ export function createMyWorld({
     if (node) node.textContent = getLang() === "en" ? en : zh;
   };
 
+  /** The draft as it currently looks in the panel (the DOM is the source while the player is typing). */
+  function currentDraft() {
+    const root = el.querySelector("#mw-feedback");
+    if (!root) return normalizeDraft(null);
+    return normalizeDraft({
+      category: root.querySelector('input[name="mw-fb-category"]:checked')?.value,
+      stars: root.querySelector('input[name="mw-fb-stars"]:checked')?.value,
+      note: root.querySelector("#mw-feedback-note")?.value,
+    });
+  }
+
+  function paintStars(stars) {
+    el.querySelectorAll("#mw-feedback .mw-star").forEach((label, i) => label.classList.toggle("on", i < stars));
+  }
+
+  function saveDraft() {
+    const draft = currentDraft();
+    paintStars(draft.stars);
+    const ok = writeDraft(ownerOf(getAccount()), draft);
+    const note = el.querySelector("#mw-feedback-draft");
+    if (!ok) say(note, "这台设备不允许保存草稿（浏览器存储被关闭）。", "This device can't save the draft (browser storage is disabled).");
+    else if (isBlankDraft(draft)) say(note, "", "");
+    else say(note, "草稿已自动保存在这台设备上。", "Draft saved on this device.");
+  }
+
+  async function submitDraft() {
+    if (typeof submitFeedback !== "function") return; // the button is disabled too; never pretend
+    const draft = currentDraft();
+    const status = el.querySelector("#mw-feedback-status");
+    if (isBlankDraft(draft)) return say(status, "先写点内容，或选一个评分。", "Write something or pick a rating first.");
+    let ok = false;
+    try {
+      ok = (await submitFeedback({ ...draft, lang: getLang(), owner: ownerOf(getAccount()) })) === true;
+    } catch {
+      ok = false;
+    }
+    if (!ok) return say(status, "没有提交成功，你的草稿还在，稍后可以再试。", "That did not go through. Your draft is still here; try again later.");
+    clearDraft(ownerOf(getAccount()));
+    render();
+    say(el.querySelector("#mw-feedback-status"), "已提交，谢谢！", "Submitted, thank you!");
+  }
+
   async function copyFeedback() {
     const lang = getLang();
-    const note = el.querySelector("#mw-feedback-note")?.value || "";
-    const text = feedbackTemplate({ note, lang, userAgent: globalThis.navigator?.userAgent || "" });
+    const text = feedbackTemplate({ ...currentDraft(), lang, userAgent: globalThis.navigator?.userAgent || "" });
     const status = el.querySelector("#mw-feedback-status");
     const box = el.querySelector("#mw-feedback-template");
     try {
       await globalThis.navigator.clipboard.writeText(text);
-      say(status, "已复制。打开 GitHub 粘贴提交即可。", "Copied. Open GitHub and paste it in.");
+      say(status, "已复制到剪贴板。", "Copied to the clipboard.");
       if (box) box.hidden = true;
     } catch {
       // No clipboard permission: show the text selected so the player can copy it by hand.
@@ -121,6 +166,12 @@ export function createMyWorld({
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),
     "copy-feedback": () => copyFeedback(),
+    "submit-feedback": () => submitDraft(),
+    "clear-stars": () => {
+      const none = el.querySelector('#mw-feedback input[name="mw-fb-stars"]:checked');
+      if (none) none.checked = false;
+      saveDraft();
+    },
     "toggle-feedback": () => {
       const panel = el.querySelector("#mw-feedback");
       const btn = el.querySelector('[data-mw-action="toggle-feedback"]');
@@ -135,6 +186,12 @@ export function createMyWorld({
     const btn = event.target.closest?.("[data-mw-action]");
     if (btn && actions[btn.dataset.mwAction]) actions[btn.dataset.mwAction]();
   });
+
+  for (const type of ["input", "change"]) {
+    el.addEventListener(type, (event) => {
+      if (event.target?.closest?.("#mw-feedback") && event.target.matches("textarea, input")) saveDraft();
+    });
+  }
 
   el.addEventListener("submit", (event) => {
     if (event.target?.id !== "mw-identity-form") return;
