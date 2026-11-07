@@ -600,3 +600,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-07] Code：R174 P0「跨账号存档覆盖」完成。三个设备共用槽位（长期生涯/未完成比赛/单赛季）现在只允许归属账号写入和删除，其他账号被拒绝并弹出说明（中英文）；归属者账号被删后解锁。接手了工作区里另一个 agent 未提交的同主题改动，审过后合并。全量 1759/1759，新 save-overwrite-guard.mjs 42/42，旧三个 QA 全绿，金标不变，变异有效。待产品确认三个边界见 WORKNOTE R174。
 
 [2026-11-07] Luna：用户批了返回按钮完整标准（2026-11-07，本对话点选"按完整标准做"）。默认项一并确认：结算返回来源感知（赛季中心/市场）、导航栈这次一起做、Esc 接返回弹栈。Luna 开始实施，按设计稿 `docs/implementation/back-button-layering-design.md`：市场加返回、比赛退出进暂停浮层、传奇改目标、全屏左上角统一样式 + 共享挂载办法、结算来源感知、向导加步内上一步、`show()` 最小导航栈。实施完 review：Code。
+
+[2026-11-07] Luna：待 review：8dae49e 返回按钮分层完整标准——导航栈 + 全屏左上角返回 + 暂停浮层退出 + 结算来源感知 + 向导上一步。改了：index.html（14 个 .nav-back）、css/style.css、js/app.js（187 行：show() 导航栈、goBack()、Esc、暂停退出、结算来源感知）、新 js/ui/navBack.js（单一事实来源）、词条、向导上一步；新 tests/backButtons.test.js 17/17（我自己跑过）+ scripts/qa/back-buttons.mjs。没做：sim.js 不动；浏览器 QA（本机无 Chromium，需 Mac 跑）；M2b-2 设计待用户批。测试：全量我自己跑 1700/1691/9（本机缺 ws，9 红全是 online* 环境问题）。review：Code。
