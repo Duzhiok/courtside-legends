@@ -92,10 +92,15 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
 
     // Recolour by material name (Skin / Hair / Shirt / Pants). Materials are per-model, so no cloning is needed.
     const materials = {};
-    gltf.scene.traverse((node) => { if (node.isMesh) [].concat(node.material).forEach((m) => { materials[m.name] = m; }); });
+    const hairMeshes = [];
+    gltf.scene.traverse((node) => {
+      if (!node.isMesh) return;
+      [].concat(node.material).forEach((m) => { materials[m.name] = m; if (m.name === "Hair") hairMeshes.push(node); });
+    });
     const paint = (next) => {
       state.look = sanitizeLook(next);
       for (const [name, hex] of Object.entries(lookColors(state.look))) materials[name]?.color.set(hex);
+      for (const mesh of hairMeshes) mesh.visible = state.look.style !== "shaved"; // hair is its own mesh: hide it for the shaved style
       canvas.dataset.look = JSON.stringify(state.look); // read by QA / devtools to confirm what is actually painted
     };
     paint(state.look);

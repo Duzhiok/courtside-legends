@@ -4,7 +4,7 @@
  * and the swatches still work and still save.
  */
 import { avatarDataUri } from "../data/avatarArt.js";
-import { HAIR_COLORS, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
+import { HAIR_COLORS, HAIR_STYLES, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
 
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
@@ -12,15 +12,16 @@ const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 const GROUPS = [
   { key: "skin", zh: "肤色", en: "Skin", items: SKIN_TONES, swatch: (i) => i.hex },
+  { key: "style", zh: "发型", en: "Hairstyle", items: HAIR_STYLES, swatch: null },
   { key: "hair", zh: "发色", en: "Hair", items: HAIR_COLORS, swatch: (i) => i.hex },
   { key: "outfit", zh: "服装", en: "Outfit", items: OUTFITS, swatch: (i) => `linear-gradient(135deg, ${i.shirt} 50%, ${i.pants} 50%)` },
 ];
 
 const groupHtml = (group, look, lang) => `<fieldset class="mw-swatches" data-mw-look-group="${group.key}">
     <legend>${T(lang, group.zh, group.en)}</legend>
-    ${group.items.map((item) => `<label class="mw-swatch" title="${esc(T(lang, item.zh, item.en))}">
+    ${group.items.map((item) => `<label class="mw-swatch${group.swatch ? "" : " is-text"}" title="${esc(T(lang, item.zh, item.en))}">
       <input type="radio" name="mw-look-${group.key}" value="${item.id}" ${look[group.key] === item.id ? "checked" : ""} />
-      <span class="mw-swatch-dot" style="background:${group.swatch(item)}"></span>
+      ${group.swatch ? `<span class="mw-swatch-dot" style="background:${group.swatch(item)}"></span>` : ""}
       <span class="mw-swatch-name">${esc(T(lang, item.zh, item.en))}</span>
     </label>`).join("")}
   </fieldset>`;

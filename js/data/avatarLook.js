@@ -4,7 +4,8 @@
  * Cosmetic only. It never touches ratings, height, weight or any save: the account keeps it in `account.avatar`,
  * guests in ONE local key. Only whitelisted preset ids are ever stored, so a hand-edited or corrupt value
  * falls back to the default instead of reaching the renderer. The model's materials (Skin, Hair, Shirt, Pants)
- * are recoloured; there is no hairstyle choice because the CC0 model ships a single hair mesh.
+ * are recoloured. Hairstyle is a two-way switch (short / shaved): the model's hair is its own mesh, so hiding it is
+ * the only hairstyle change possible without art work.
  */
 import { defaultStore } from "./profile.js";
 import { saveAccount } from "./account.js";
@@ -32,7 +33,12 @@ export const OUTFITS = Object.freeze([
   { id: "white", shirt: "#f4f4f0", pants: "#1e2a44", zh: "经典白", en: "Classic white" },
 ]);
 
-export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest" });
+export const HAIR_STYLES = Object.freeze([
+  { id: "short", zh: "短发", en: "Short" },
+  { id: "shaved", zh: "光头", en: "Shaved" },
+]);
+
+export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short" });
 
 const pick = (list, id, fallback) => (list.some((item) => item.id === id) ? id : fallback);
 
@@ -43,6 +49,7 @@ export function sanitizeLook(raw) {
     skin: pick(SKIN_TONES, r.skin, DEFAULT_LOOK.skin),
     hair: pick(HAIR_COLORS, r.hair, DEFAULT_LOOK.hair),
     outfit: pick(OUTFITS, r.outfit, DEFAULT_LOOK.outfit),
+    style: pick(HAIR_STYLES, r.style, DEFAULT_LOOK.style),
   };
 }
 
