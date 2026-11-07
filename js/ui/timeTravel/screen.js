@@ -182,6 +182,12 @@ export function createTimeTravelScreen({
     delegate("#tt-decade-chips", "data-decade-year", year);
     delegate("#tt-philosophy-cards", "data-philosophy", philosophy);
     delegate("#tt-origin-chips", "data-origin", origin);
+    // Back-button standard: step back from the offers list to the wizard
+    // (choices are kept — the selects still hold what you picked).
+    $("#btn-time-travel-offers-back").addEventListener("click", () => {
+      $("#tt-offers-zone").hidden = true;
+      $("#time-travel-create")?.scrollIntoView?.({ block: "start" });
+    });
     $("#btn-time-travel-interview").addEventListener("click", async () => {
       if (await blockedByForeignSave("career")) return; // another account's career holds the slot: say so now
       try {

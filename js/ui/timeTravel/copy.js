@@ -12,6 +12,7 @@ const TEXT = {
   "w3-title": ["教练出身", "Your background"],
   "offers-kicker": ["面试邀请", "Interview invitations"],
   "offers-title": ["三支球队想见你。选一个，开启你的历史起点。", "Three teams want to meet you. Pick one to start your history."],
+  "offers-back": ["返回修改选择", "Back to change choices"],
   urgent: ["需要你的决定", "Your call"],
   "intro-kicker": ["序章 · 未来知识", "Prologue · Foresight"],
   "intro-title": ["第一次使用未来知识", "Using foresight for the first time"],

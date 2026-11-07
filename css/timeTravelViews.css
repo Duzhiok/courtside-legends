@@ -108,6 +108,7 @@
 .tt-offers-zone { display: grid; gap: 14px; }
 .tt-offers-head { display: grid; gap: 4px; }
 .tt-offers-head h3 { margin: 0; font-size: 1.1rem; }
+.tt-offers-foot { display: flex; justify-content: flex-start; }
 .tt-offer {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; gap: 12px; text-align: left;

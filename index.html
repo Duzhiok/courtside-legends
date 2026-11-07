@@ -219,8 +219,8 @@
 
     <main id="screen-account" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-account-back"><span>返回</span></button>
         <h2>账号</h2>
-        <button class="btn ghost" id="btn-account-back">返回</button>
       </div>
       <p class="tiny">本地多账号；球员卡与教练存在本机浏览器，刷新/下线不丢。换设备需自行备份（后续可加云同步）。</p>
       <div class="form-row" style="margin:14px 0">
@@ -232,21 +232,22 @@
 
     <main id="screen-onboard" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-onboard-cancel" type="button"><span>取消</span></button>
         <h2>开局建队</h2>
         <span class="tiny" id="onboard-step-label">1/4 系统先给 7 人</span>
-        <button class="btn ghost" id="btn-onboard-cancel" type="button">取消</button>
       </div>
       <p class="tiny" id="onboard-hint">开局先发 7 张系统卡供你查看；看完后再从候选池自选 5 人，凑满 12 人班底。</p>
       <div id="onboard-pool" class="card-row onboard-pool"></div>
       <div class="actions">
+        <button class="btn" id="btn-onboard-prev" type="button" hidden>上一步</button>
         <button class="btn primary" id="btn-onboard-next" disabled>下一步</button>
       </div>
     </main>
 
     <main id="screen-collection" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-collection-back"><span>返回</span></button>
         <h2>我的球员卡</h2>
-        <button class="btn ghost" id="btn-collection-back">返回</button>
       </div>
       <div class="collection-summary" id="collection-summary"></div>
       <div class="collection-staff" id="collection-staff"></div>
@@ -262,16 +263,16 @@
 
     <main id="screen-credits" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-credits-back"><span>返回</span></button>
         <h2>图片来源与署名</h2>
-        <button class="btn ghost" id="btn-credits-back">返回</button>
       </div>
       <div id="credits-body"></div>
     </main>
 
     <main id="screen-draw" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-draw-back"><span>返回收藏</span></button>
         <h2>每日抽卡</h2>
-        <button class="btn ghost" id="btn-draw-back">返回</button>
       </div>
       <div class="draw-banners" id="draw-banners" role="group" aria-label="选择卡池"></div>
       <div id="draw-banner-explain" aria-live="polite"></div>
@@ -297,8 +298,8 @@
 
     <main id="screen-sandbox" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-sandbox-back"><span>返回</span></button>
         <h2>时空对决</h2>
-        <button class="btn ghost" id="btn-sandbox-back">返回</button>
       </div>
       <p class="tiny">自由度拉满：任意球员、任意年份、可以重复。五个 1991 乔丹 vs 五个 2006 科比？点「×5」就行。这是唯一允许同一球员重复上场的模式；结果不影响账号和存档。</p>
       <div data-sandbox-body></div>
@@ -306,8 +307,8 @@
 
     <main id="screen-custom-hub" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-custom-hub-back"><span>返回</span></button>
         <h2>自定义对战</h2>
-        <button class="btn ghost" id="btn-custom-hub-back">返回</button>
       </div>
       <p class="tiny">预算轮抽：列出全部 <strong>5→1 块</strong>巅峰卡，轮流点选直到双方 <strong>15 块花光</strong>；再补 <strong>0 块</strong>板凳。完成后进入 <strong>32 支历史球队</strong>淘汰赛（NPC 对战）。</p>
       <div class="mode-grid custom-hub-grid">
@@ -336,8 +337,8 @@
 
     <main id="screen-family-duel" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-family-duel-back"><span>返回自定义</span></button>
         <h2 id="family-duel-title">父子局</h2>
-        <button class="btn ghost" id="btn-family-duel-back">返回</button>
       </div>
       <p class="tiny" id="family-duel-hint">花金币从各自的家族档案里选人，两队都满 5 人就能开打。</p>
       <div class="market-grid family-duel-grid">
@@ -369,8 +370,8 @@
 
     <main id="screen-draft" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-draft-back"><span>返回</span></button>
         <h2 id="draft-title">选秀</h2>
-        <button class="btn ghost" id="btn-draft-back">返回</button>
         <button class="btn small" id="btn-save-draft" type="button" title="保存选秀进度">保存进度</button>
       </div>
       <div class="draft-meta">
@@ -409,8 +410,8 @@
 
     <main id="screen-legend" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-legend-back"><span>返回自定义</span></button>
         <h2>传奇模式</h2>
-        <button class="btn ghost" id="btn-legend-back">返回</button>
         <button class="btn small" id="btn-save-legend" type="button">保存进度</button>
       </div>
       <p class="tiny" id="legend-status">本局八支传奇球队如下。每轮抽出一支尚未抽过的球队（八队各一轮后再洗牌），从该队历史球员中选一人并指定位置。已选球员不会再出现。</p>
@@ -440,8 +441,8 @@
 
     <main id="screen-setup" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-setup-back" title="返回上一页（市场可继续装技能）"><span>返回市场</span></button>
         <h2>选首发</h2>
-        <button class="btn ghost" id="btn-setup-back" title="返回上一页（市场可继续装技能）">返回市场</button>
         <button class="btn small" id="btn-save-setup" type="button" title="保存赛前设置">保存进度</button>
       </div>
       <p class="setup-how">怎么排：把球员<strong>拖到</strong>上面的 PG–C 格子里上场，拖回<strong>替补席</strong>下场；两个首发互拖可换位。也可以直接点一下上下场。满 5 人开打。</p>
@@ -555,6 +556,7 @@
 
     <main id="screen-market" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-market-back"><span>返回</span></button>
         <h2>转会市场</h2>
         <div class="btn-row">
           <span>金币 <strong id="gold-amt">0</strong> · 名单 <strong id="roster-cap">0</strong>/12</span>
@@ -667,6 +669,7 @@
             <button class="btn warn" id="btn-timeout" title="活球时可叫暂停：双方停表，可调整战术与阵容；可打断对方高潮">叫暂停</button>
             <button class="btn" id="btn-shout" title="活球手段：勒令执行当前战术约 6 回合；球星自负时可能反噬">大喊</button>
             <button class="btn primary" id="btn-resume" hidden>继续比赛</button>
+            <button class="btn" id="btn-pause-leave" hidden title="先存档再回主页，回来可在「继续进度」接着打">保存并离开</button>
           </div>
           <p class="tiny" id="live-action-hint">活球中：只能「大喊」或「叫暂停」。战术 / 沟通 / 换人请在暂停或节间进行。</p>
           <p class="tiny" id="pause-hint" hidden>死球窗口——可改战术、沟通、换人、站位与方针，然后点「继续比赛」。</p>
@@ -832,8 +835,8 @@
 
     <main id="screen-tournament" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-tour-back"><span>返回</span></button>
         <h2>多人淘汰赛</h2>
-        <button class="btn ghost" id="btn-tour-back">返回</button>
       </div>
       <p class="tiny">设置 2–8 名本地玩家。每过一轮每人多一次选人机会，直到总决赛。</p>
       <div class="form-row">
@@ -923,6 +926,9 @@
           </div>
           <div id="time-travel-offers" class="tt-deck" role="radiogroup"></div>
           <div class="tt-confirm-slot"></div>
+          <div class="tt-offers-foot">
+            <button type="button" class="tt-btn" id="btn-time-travel-offers-back" data-tt="offers-back">返回修改选择</button>
+          </div>
         </section>
 
         <div class="tt-grid" id="tt-grid">
@@ -1051,8 +1057,8 @@
 
     <main id="screen-season" class="screen">
       <div class="panel-head">
+        <button class="nav-back" id="btn-season-back"><span>返回</span></button>
         <h2 id="season-screen-title">常规赛征程</h2>
-        <button class="btn ghost" id="btn-season-back">返回</button>
       </div>
 
       <section id="season-setup-panel" class="season-setup-panel">

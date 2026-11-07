@@ -36,6 +36,7 @@ import { playerLegacyBadge } from "./data/playerLegacy.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
+import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
 import { grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import {
@@ -484,7 +485,36 @@ let state = {
   autoRotation: false,
 };
 
+/**
+ * Back-button standard (docs/implementation/back-button-layering-design.md):
+ * a minimal nav stack makes "back" mean "previous screen" by construction.
+ * - entering home (root), result (terminal) or market (L1 career hub) clears
+ *   the trail — market must clear, or back from it would pop to setup and
+ *   ping-pong market <-> setup through the career loop;
+ * - result/game are transient and are never pushed as back targets;
+ * - re-entering a screen already on the trail truncates it there (no
+ *   market <-> setup ping-pong through a stale entry);
+ * - a few screens keep an explicit back mechanism (account return-tracking,
+ *   onboarding wizard, setup's state-dependent parent, result's origin-aware
+ *   #btn-home, game's pause overlay) — see js/ui/navBack.js.
+ */
+const navStack = [];
+let navPopping = false;
+
 function show(name) {
+  const from = activeScreenName();
+  if (from === name) {
+    // Same-screen re-show (re-render flows): no stack change.
+    Object.values(screens).forEach((el) => el && el.classList.remove("active"));
+    screens[name].classList.add("active");
+    if (name === "home") {
+      refreshAccountHomeBar();
+      refreshSaveHomeBar();
+      refreshLongCareerHomeBar();
+    }
+    return;
+  }
+  if (!navPopping) navPush(navStack, from, name);
   Object.values(screens).forEach((el) => el && el.classList.remove("active"));
   screens[name].classList.add("active");
   if (name === "home") {
@@ -493,6 +523,84 @@ function show(name) {
     refreshLongCareerHomeBar();
   }
 }
+
+/** Pop one layer; empty trail -> home. Never pushes (the pop itself is the move). */
+function goBack() {
+  const prev = navPop(navStack);
+  if (prev && screens[prev]) {
+    navPopping = true;
+    try {
+      show(prev);
+    } finally {
+      navPopping = false;
+    }
+  } else {
+    show("home");
+  }
+}
+
+/**
+ * One back action for every entry point (top-left back control, Escape).
+ * Screens with their own back semantics keep them; everything else pops the
+ * nav stack. Never browser history (no pushState/popstate anywhere).
+ */
+function handleBack() {
+  const current = activeScreenName();
+  if (current === "game") {
+    // Back from a live game = pause (same action as the 暂停模拟 button);
+    // paused already -> resume. Leaving is the pause overlay's 保存并离开.
+    $("#btn-pause-sim")?.click();
+    return;
+  }
+  if (current === "onboard") {
+    // Wizard step-back; at step 1 the cancel path (with its confirm) applies.
+    const prev = $("#btn-onboard-prev");
+    if (prev && !prev.hidden) {
+      prev.click();
+      return;
+    }
+    $("#btn-onboard-cancel")?.click();
+    return;
+  }
+  if (current === "result") {
+    // Result's back is origin-aware (#btn-home); when it is hidden (eliminated
+    // / champion-final) the primary action is the only exit — use it.
+    const homeBtn = $("#btn-home");
+    if (homeBtn && !homeBtn.hidden) {
+      homeBtn.click();
+      return;
+    }
+    $("#btn-result-continue")?.click();
+    return;
+  }
+  if (current === "timeTravel") {
+    // Inside the create flow, step back from the offers list to the wizard.
+    const zone = $("#tt-offers-zone");
+    if (zone && !zone.hidden) {
+      zone.hidden = true;
+      $("#time-travel-create")?.scrollIntoView({ block: "start" });
+      return;
+    }
+    goBack();
+    return;
+  }
+  goBack();
+}
+
+// Escape goes back one layer, same as the top-left back control. A native
+// <dialog> (confirm) handles its own Escape; while typing in a field, Escape
+// first blurs the field instead of navigating away.
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  if (document.querySelector("#app-confirm-dialog")?.open) return;
+  const tag = document.activeElement?.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    document.activeElement.blur();
+    return;
+  }
+  handleBack();
+  e.preventDefault();
+});
 
 function activeScreenName() {
   for (const [k, el] of Object.entries(screens)) {
@@ -1412,9 +1520,9 @@ function openSandbox() {
   });
   show("sandbox");
 }
-$("#btn-sandbox-back")?.addEventListener("click", () => show("home"));
+$("#btn-sandbox-back")?.addEventListener("click", () => goBack());
 
-$("#btn-custom-hub-back")?.addEventListener("click", () => show("home"));
+$("#btn-custom-hub-back")?.addEventListener("click", () => goBack());
 $("#btn-custom-budget")?.addEventListener("click", () => {
   state.mode = "custom";
   state.lastMode = "custom";
@@ -1509,7 +1617,7 @@ function renderFamilyDuel() {
   $("#btn-family-duel-start").disabled = !familyDuelReadyToStart(f.sideA, f.sideB);
 }
 
-$("#btn-family-duel-back")?.addEventListener("click", () => show("customHub"));
+$("#btn-family-duel-back")?.addEventListener("click", () => goBack());
 $("#btn-family-duel-refresh-a")?.addEventListener("click", () => {
   const f = state.familyDuel;
   if (!f) return;
@@ -1548,12 +1656,15 @@ $("#btn-family-duel-start")?.addEventListener("click", () => {
   openSetup(teamA, teamB, "home");
 });
 
-$("#btn-draft-back").onclick = () => {
-  if (state.mode === "custom" || state.lastMode === "custom") show("customHub");
-  else show("home");
-};
-$("#btn-tour-back").onclick = () => show("home");
-$("#btn-legend-back").onclick = () => show("home");
+// Back-button standard: draft / tournament / legend pop the nav stack
+// (draft -> customHub when entered from there, else home; legend -> customHub —
+// the old show("home") was the wrong parent). Setup keeps its explicit handler:
+// its parent is state-dependent (career/duel -> market, sandbox -> sandbox).
+$("#btn-draft-back").onclick = () => goBack();
+$("#btn-tour-back").onclick = () => goBack();
+$("#btn-legend-back").onclick = () => goBack();
+// Market had no exit at all (soft-trapped): standard top-left back -> home.
+$("#btn-market-back")?.addEventListener("click", () => goBack());
 $("#btn-setup-back").onclick = () => {
   // 选完首发后仍可回市场装技能 / 调阵容
   const c = state.career;
@@ -1742,10 +1853,12 @@ $("#btn-daily-draw")?.addEventListener("click", () => {
   if (!requireAccountReady({ zh: "每日抽卡", en: "Daily Draw" })) return;
   openDailyDraw();
 });
-$("#btn-collection-back")?.addEventListener("click", () => show("home"));
+$("#btn-collection-back")?.addEventListener("click", () => goBack());
 $("#btn-open-credits")?.addEventListener("click", openCredits);
-$("#btn-credits-back")?.addEventListener("click", () => show("home"));
+$("#btn-credits-back")?.addEventListener("click", () => goBack());
 $("#btn-draw-back")?.addEventListener("click", () => {
+  // Explicit, not goBack(): the collection must re-render after a draw
+  // (a pulled card joins it). Target is the same as the stack would give.
   refreshAccountHomeBar();
   show("collection");
   openCollection();
@@ -1815,6 +1928,10 @@ function renderOnboard() {
   const label = $("#onboard-step-label");
   const pool = $("#onboard-pool");
   const next = $("#btn-onboard-next");
+  // Back-button standard: wizard step-back (hidden on step 1 — cancel is the
+  // exit there). Stepping back keeps every pick so far.
+  const prev = $("#btn-onboard-prev");
+  if (prev) prev.hidden = ob.step === 1;
   if (ob.step === 1) {
     const auto = ob.autoFilled || [];
     const g = auto.filter((p) => ["PG", "SG"].includes(p.pos)).length;
@@ -1926,6 +2043,12 @@ $("#btn-onboard-cancel")?.addEventListener("click", async () => {
     acceptLabel: L("退出", "Leave"),
   }))) return;
   cancelOnboarding();
+});
+$("#btn-onboard-prev")?.addEventListener("click", () => {
+  const ob = state.onboard;
+  if (!ob || ob.step <= 1) return;
+  ob.step -= 1;
+  renderOnboard();
 });
 $("#btn-onboard-next")?.addEventListener("click", () => {
   const ob = state.onboard;
@@ -5466,8 +5589,11 @@ function openSetup(home, away, youSide) {
     }
   }
   if (backBtn) {
-    backBtn.textContent = isCareer || isDuel ? "返回市场" : "返回";
-    backBtn.title = isCareer || isDuel ? "回到转会市场继续买人/装技能" : "返回首页";
+    // Label lives in the <span> so the mobile chevron-only rule applies; L()
+    // (not a Chinese literal) so EN shows English immediately, not after a toggle.
+    const labelEl = backBtn.querySelector("span") || backBtn;
+    labelEl.textContent = isCareer || isDuel ? L("返回市场", "Back to Market") : L("返回", "Back");
+    backBtn.title = isCareer || isDuel ? L("回到转会市场继续买人/装技能", "Back to the market to keep buying players / equipping skills") : L("返回首页", "Back home");
   }
   const setupGoals = $("#setup-goals");
   if (setupGoals) {
@@ -7549,6 +7675,10 @@ function syncPauseUI(snap) {
     resumeBtn.hidden = !paused;
     resumeBtn.classList.toggle("pulse", paused);
   }
+  // Back-button standard: the pause overlay's visible exit (save-first) is
+  // only offered while paused — leaving a live game goes through pause first.
+  const pauseLeaveBtn = $("#btn-pause-leave");
+  if (pauseLeaveBtn) pauseLeaveBtn.hidden = !paused;
   if (hint) {
     hint.hidden = !paused;
     if (paused) {
@@ -7845,10 +7975,22 @@ $("#btn-pause-sim").onclick = () => {
   }
 };
 $("#btn-save-game")?.addEventListener("click", () => saveProgress());
+/**
+ * Back-button standard: the ONE game-exit path (save first, then home).
+ * The pause overlay's 保存并离开 calls it directly — pausing is already the
+ * deliberate step, and the save preserves the game for 继续进度. The bottom-row
+ * #btn-save-leave keeps its confirm (it fires from live play) and then calls
+ * the same function, so there are not two divergent exit paths.
+ */
+function exitGameToHome() {
+  if (!state.sim) return;
+  saveProgress({ andGoHome: true });
+}
+$("#btn-pause-leave")?.addEventListener("click", () => exitGameToHome());
 $("#btn-save-leave")?.addEventListener("click", () => {
   if (!state.sim) return;
   if (confirm("保存当前比赛并返回首页？回来可在「继续进度」接着打。")) {
-    saveProgress({ andGoHome: true });
+    exitGameToHome();
   }
 });
 $("#btn-save-draft")?.addEventListener("click", () => saveProgress());
@@ -8065,10 +8207,23 @@ function showResult(snap, { formNotes = [] } = {}) {
   // Every entry to the result screen starts from a clean baseline — branches below may hide
   // this again when #btn-result-continue is ALSO doing "go home" (see handleCareerResult),
   // otherwise you'd see two buttons both saying 回主页 at once.
+  // Back-button standard: origin-aware back — season center for season games,
+  // market for career/duel games, home otherwise. Branches below may still
+  // override/hide it (champion/eliminated); see resolveResultBack.
+  const resultOrigin = resolveResultBack({
+    isSeason: isSeasonProgressMode(state.mode) && !!state.season && !!state.seasonPendingGame,
+    isCareer: state.career?.kind === "career" || state.career?.kind === "duel",
+  });
   const homeBtnReset = $("#btn-home");
   if (homeBtnReset) {
     homeBtnReset.hidden = false;
-    homeBtnReset.onclick = () => show("home");
+    homeBtnReset.textContent =
+      resultOrigin === "season"
+        ? L("回赛季主页", "Back to Season Hub")
+        : resultOrigin === "market"
+          ? L("回市场", "Back to Market")
+          : L("回主页", "Home");
+    homeBtnReset.onclick = () => show(resultOrigin);
   }
   setResultActionMode("quick");
 
@@ -10223,7 +10378,7 @@ function simUserPlayoffGameFromResult() {
   );
 }
 
-$("#btn-season-back")?.addEventListener("click", () => show("home"));
+$("#btn-season-back")?.addEventListener("click", () => goBack());
 $("#btn-season-resume")?.addEventListener("click", () => {
   const { live, root } = savedSeasonSource();
   if (!live && root) {
