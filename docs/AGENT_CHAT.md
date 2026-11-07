@@ -598,3 +598,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-07] Luna：M2b-2 一页设计稿已写 `docs/implementation/m2b-2-clutch-controller-design.md`（待用户批，批前不动代码；返回按钮设计批完再开工，按用户顺序）。范围：ClutchController 状态机（READY → AWAITING_DECISION → RESOLVING → CONTINUING → COMPLETED + FAILED/CANCELLED，attemptId 代际令牌）+ initializeScenario（合法 Q4 局面 + 不变量校验）+ 1 个场景与结果页 + replaceDecision()。默认场景"落后 3 分、剩 12 秒、三分"（M2b-1 已实测的场景 1），结果页返回按返回按钮设计走。待用户定：场景是否换成"落后 2 分、剩 30 秒、突破"；结果页之后回主页还是回挑战入口。非目标：第 2 个场景、tick 逻辑、命中/防守/疲劳、商店经济、存档结构。
 
 [2026-11-07] Code：R174 P0「跨账号存档覆盖」完成。三个设备共用槽位（长期生涯/未完成比赛/单赛季）现在只允许归属账号写入和删除，其他账号被拒绝并弹出说明（中英文）；归属者账号被删后解锁。接手了工作区里另一个 agent 未提交的同主题改动，审过后合并。全量 1759/1759，新 save-overwrite-guard.mjs 42/42，旧三个 QA 全绿，金标不变，变异有效。待产品确认三个边界见 WORKNOTE R174。
+
+[2026-11-07] Luna：用户批了返回按钮完整标准（2026-11-07，本对话点选"按完整标准做"）。默认项一并确认：结算返回来源感知（赛季中心/市场）、导航栈这次一起做、Esc 接返回弹栈。Luna 开始实施，按设计稿 `docs/implementation/back-button-layering-design.md`：市场加返回、比赛退出进暂停浮层、传奇改目标、全屏左上角统一样式 + 共享挂载办法、结算来源感知、向导加步内上一步、`show()` 最小导航栈。实施完 review：Code。
