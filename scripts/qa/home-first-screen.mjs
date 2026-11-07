@@ -91,6 +91,16 @@ for (const [width, height, size] of [[390, 844, "mobile"], [1280, 800, "desktop"
       // The CTA must not push Continue below the fold either: a returning player comes here to continue.
       const cont = await page.evaluate(() => { const r = document.querySelector("#btn-long-career-resume").getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: innerHeight }; });
       check(`${tag} B16 the Continue button is on the first screen too`, cont.top >= 0 && cont.bottom <= cont.vh, `Continue ${cont.top}-${cont.bottom}px of ${cont.vh}px`);
+      // B49: the save bar's text column must not be squeezed to a word, and the Continue button must not sit on it.
+      const bar = await page.evaluate(() => {
+        const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; };
+        const text = document.querySelector("#long-career-home-bar .account-home-text");
+        const btn = document.querySelector("#btn-long-career-resume");
+        const a = box(text), b = box(btn);
+        return { w: Math.round(a.r - a.l), overlap: a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t };
+      });
+      check(`${tag} B49 the save bar's text column is not squeezed (>=140px wide)`, bar.w >= 140, `${bar.w}px`);
+      check(`${tag} B49 the Continue button does not cover the save bar's text`, !bar.overlap);
     }
     check(`${tag} no horizontal overflow`, await noOverflow(page));
     // B17 -- every visible text inside each solid-background block (no selector list to forget one from)

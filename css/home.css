@@ -421,9 +421,12 @@ html[lang="en"] .topbar .brand-name { display: none; }
 #screen-home .account-home-bar.is-guest::before { background: linear-gradient(#94a3b8, #64748b); }
 #screen-home .profile-panel { flex: 1 1 100%; justify-content: flex-start; gap: 8px; padding-top: 6px; border-top: 1px solid rgba(15, 28, 20, .08); }
 #screen-home .profile-panel[hidden] { display: none; }
-/* Phones: keep My Profile beside the status text instead of on a third row. */
+/* Phones: keep My Profile beside the status text instead of on a third row. Only the profile bar: the save bars
+   carry three buttons, and squeezing their text column to zero width left it one word wide (B49) -- there the
+   text gets its own full row and the buttons wrap beneath it. */
 @media (max-width: 560px) {
-  #screen-home .account-home-text { flex: 1 1 0; min-width: 0; }
+  #screen-home .profile-bar .account-home-text { flex: 1 1 0; min-width: 0; }
+  #screen-home .save-home-bar .account-home-text { flex: 1 1 100%; }
 }
 
 /* —— Shared chrome: the full hero is a landing element (default tab). Every other tab gets a one-row header
