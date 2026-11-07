@@ -11,6 +11,7 @@
 import { avatarDataUri } from "../data/avatarArt.js";
 import { normalizeDraft } from "../data/feedbackDraft.js";
 import { photoImg } from "../data/photo.js";
+import { lookPanelHtml } from "./avatarLookView.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
 import { teamNameL } from "../i18n.js";
 
@@ -69,7 +70,7 @@ export function identityCardHtml(identity, lang) {
       <h3 id="mw-identity-title">${esc(name)}</h3>
       <p class="mw-facts">${facts}</p>
       <p class="mw-bio">${identity.bio ? esc(identity.bio) : T(lang, "还没有个人简介。写一句话介绍你的篮球人生。", "No bio yet. Write one line about your basketball life.")}</p>
-      ${action("edit-identity", T(lang, "编辑个人资料", "Edit profile"), "btn small mw-gold")}
+      <div class="btn-row">${action("edit-identity", T(lang, "编辑个人资料", "Edit profile"), "btn small mw-gold")}${action("toggle-look", T(lang, "编辑形象", "Edit look"), "btn small ghost mw-on-dark")}</div>
       ${note}
       <form class="mw-form" id="mw-identity-form" hidden>
         <label>${T(lang, "昵称", "Display name")}<input name="name" maxlength="${PROFILE_LIMITS.name}" value="${esc(identity.name)}" /></label>
@@ -258,7 +259,7 @@ export function feedbackHtml(lang, rawDraft = {}, canSubmit = false) {
   </section>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, draft, canSubmitFeedback = false }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, draft, look, canSubmitFeedback = false }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
@@ -267,6 +268,7 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, draft, c
       <button type="button" class="mw-voice" data-mw-action="toggle-feedback" aria-expanded="false" aria-controls="mw-feedback" aria-label="${label}" title="${label}">${icon("voice")}</button></div>
     ${feedbackHtml(lang, draft, canSubmitFeedback)}
     ${identityCardHtml(identity, lang)}
+    ${lookPanelHtml(look, identity?.name, lang)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
     ${homeSceneHtml({ identity, frames, trophyCount: owned?.trophies?.length || 0 }, lang)}`;
 }

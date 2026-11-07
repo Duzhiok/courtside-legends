@@ -1,5 +1,16 @@
 
 
+## R172 · Code：3D Avatar 第 2+3 步——换外观、保存到账号、静态回退接线（My World「编辑形象」）
+
+- My World 身份卡新增「编辑形象」，展开面板：3D 角色 + 肤色(5)/发色(5)/服装(4) 色块。选择即保存并实时重新上色；拖动可旋转。
+- 数据：`js/data/avatarLook.js`。登录账号存 `account.avatar`，游客存单一本机键 `cls_guest_avatar_v1`。只存白名单预设 id，损坏/手改的值回退默认；不碰任何能力、身高体重或存档。账号之间互不可见。
+- 懒加载：只有点开「编辑形象」才下载 Three.js 与模型；面板关闭、重绘（切账号/保存资料）、离开页面都会释放 3D。3D 不可用（无 WebGL、模型 404、超时）时保留静态头像并说明原因，色块照常可选、可保存。
+- `avatar3d.js` 新增：按材质名（Skin/Hair/Shirt/Pants）上色、`setLook`、画布 `data-look` 属性（QA 读取）、屏幕外暂停渲染（IntersectionObserver）。
+- **没有发型选择**：模型只有一个头发网格，只能换发色。要多发型需另找 CC0 模型或做美术，已向产品负责人说明，待决定。
+- 验证：`avatar-look.mjs` 57/57（桌面+手机）：从像素里量出橙色上衣真的变色；通过真实账号选择器切换（首次我直接调存储函数切账号，界面没刷新，隔离只验了存储，已改成走真实界面）；变异两组（look 忽略账号、不上色）分别 10 项/2 项变红。`my-world.mjs` 136/136 不变，`avatar3d-spike.mjs` 26/26，GameSim 金标不变。
+- 已知限制：渲染帧率仍是无头软件 GL 数据，不是真机；同一浏览器里没有账号隔离的"安全"含义，只是显示隔离。
+- 顺带：`tests/myWorld.test.js` 的"每个按钮都有处理函数"现在会去读 `myWorldScreen.js` 源码确认处理函数存在，不再只是核对一份名单。
+
 ## R171 · Code：3D Avatar spike（ADR-008a N-1f 第 1 步，只做可行性，未接入游戏界面）
 
 - 新增 `js/ui/avatar3d.js`（`mountAvatar3d`：动态 import Three.js、加载 GLB、Idle 动画、拖动旋转、`dispose`；无 WebGL / 404 / 超时都会 reject 并清理，由调用方保留静态形象）。

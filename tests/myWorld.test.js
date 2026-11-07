@@ -89,12 +89,16 @@ test("journey and legacy are read from real data; no career / no cards / guest a
   assert.match(full, /data-mw-action="resume-career"/);
 });
 
-test("every rendered action button has a handler; user text is escaped; English has no Chinese left", () => {
+test("every rendered action button has a handler; user text is escaped; English has no Chinese left", async () => {
   const evil = { name: "<img src=x onerror=1>", hometown: "\"><script>", bio: "&", guest: false };
   const html = view.myWorldHtml({ identity: evil, journey: view.journeyFromRoot(root(1)), legacy: view.legacyFromAccount({ playerIds: [] }), frames: [] }, "zh");
   assert.doesNotMatch(html, /<img src=x|<script>/);
-  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "copy-feedback", "toggle-feedback", "submit-feedback", "clear-stars"];
-  for (const [, name] of html.matchAll(/data-mw-action="([^"]+)"/g)) assert.ok(known.includes(name), name);
+  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "copy-feedback", "toggle-feedback", "submit-feedback", "clear-stars", "toggle-look"];
+  const handlerSource = (await import("node:fs")).readFileSync(new URL("../js/ui/myWorldScreen.js", import.meta.url), "utf8");
+  for (const [, name] of html.matchAll(/data-mw-action="([^"]+)"/g)) {
+    assert.ok(known.includes(name), name);
+    assert.ok(handlerSource.includes(`"${name}"`), `${name} has no handler in myWorldScreen.js`);
+  }
   assert.match(html, new RegExp(view.FEEDBACK_URL.replace(/[.]/g, "\\.")));
 
   const en = view.myWorldHtml({ identity: { name: "Zoro", hometown: "Arkansas", bio: "hi", guest: true }, journey: null, legacy: null, frames: [] }, "en");

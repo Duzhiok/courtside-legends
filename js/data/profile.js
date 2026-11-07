@@ -28,7 +28,7 @@ export function sanitizeProfile(raw = {}) {
   };
 }
 
-function defaultStore() {
+export function defaultStore() {
   try {
     return globalThis.localStorage || null;
   } catch {

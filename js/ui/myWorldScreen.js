@@ -3,7 +3,9 @@
  * Owns no game state: everything it shows is read fresh from the account store / root save on refresh(),
  * and every action is delegated to the app's existing flows (resume career, open collection, accounts).
  */
+import { readLook, saveLook } from "../data/avatarLook.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
+import { mountAvatar3d } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, sessionSig } from "../data/saveOwnership.js";
 import { clearDraft, isBlankDraft, normalizeDraft, readDraft, writeDraft } from "../data/feedbackDraft.js";
 import { feedbackTemplate, journeyFromRoot, legacyFromAccount, myWorldHtml } from "./myWorldView.js";
@@ -25,12 +27,23 @@ export function createMyWorld({
   onOpenAccounts,
   onStartCareer,
   onIdentitySaved = () => {},
+  mountAvatar = mountAvatar3d, // (container, { look }) => Promise<handle>; injectable so tests need no WebGL
 }) {
   if (!el) return { refresh() {} };
 
   const ownerOf = (account) => account?.id || "guest";
 
+  // The 3D viewer exists only while the "My look" panel is open; every re-render or close frees it.
+  let viewer = null;
+  let viewerToken = 0;
+  function disposeViewer() {
+    viewerToken += 1; // a mount still in flight must not attach itself to a stale panel
+    viewer?.dispose();
+    viewer = null;
+  }
+
   function render() {
+    disposeViewer();
     const lang = getLang();
     const account = getAccount();
     let frames = [];
@@ -39,7 +52,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), canSubmitFeedback: typeof submitFeedback === "function" }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), look: readLook(account), canSubmitFeedback: typeof submitFeedback === "function" }, lang);
   }
 
   /** Only saves this player may see: theirs, or unassociated local ones. Another account's saves never render. */
@@ -148,7 +161,44 @@ export function createMyWorld({
     }
   }
 
+  async function openViewer() {
+    const stage = el.querySelector("#mw-look-stage");
+    const status = el.querySelector("#mw-look-status");
+    if (!stage || viewer) return;
+    const token = ++viewerToken;
+    try {
+      const handle = await mountAvatar(stage, { look: readLook(getAccount()) });
+      if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
+      viewer = handle;
+      stage.querySelector(".mw-look-static")?.setAttribute("hidden", "");
+    } catch {
+      if (token === viewerToken) say(status, "3D 形象在这台设备上暂时无法显示。你仍可以选择外观，它会被保存。", "The 3D figure can't be shown on this device right now. You can still pick a look and it will be saved.");
+    }
+  }
+
+  function toggleLook() {
+    const panel = el.querySelector("#mw-look");
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    if (panel.hidden) {
+      disposeViewer();
+      panel.querySelector(".mw-look-static")?.removeAttribute("hidden");
+      return;
+    }
+    openViewer();
+  }
+
+  function pickLook(input) {
+    const group = input.name.replace("mw-look-", "");
+    const saved = saveLook(getAccount(), { [group]: input.value });
+    const status = el.querySelector("#mw-look-status");
+    if (!saved.saved) return say(status, "这台设备不允许保存（浏览器存储被关闭），外观只在这次打开期间有效。", "This device can't save (browser storage is disabled); the look only lasts while this page is open.");
+    viewer?.setLook(saved);
+    say(status, "已保存。", "Saved.");
+  }
+
   const actions = {
+    "toggle-look": toggleLook,
     "edit-identity": () => {
       const f = form();
       if (!f) return;
@@ -185,6 +235,10 @@ export function createMyWorld({
   el.addEventListener("click", (event) => {
     const btn = event.target.closest?.("[data-mw-action]");
     if (btn && actions[btn.dataset.mwAction]) actions[btn.dataset.mwAction]();
+  });
+
+  el.addEventListener("change", (event) => {
+    if (event.target?.matches?.('#mw-look input[type="radio"]')) pickLook(event.target);
   });
 
   for (const type of ["input", "change"]) {
