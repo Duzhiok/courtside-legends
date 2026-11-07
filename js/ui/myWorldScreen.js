@@ -6,7 +6,7 @@
 import { readLook, saveLook } from "../data/avatarLook.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { mountAvatar3d } from "./avatar3d.js";
-import { careerSig, claimSave, saveVisibility, sessionSig } from "../data/saveOwnership.js";
+import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { clearDraft, isBlankDraft, normalizeDraft, readDraft, writeDraft } from "../data/feedbackDraft.js";
 import { feedbackTemplate, journeyFromRoot, legacyFromAccount, myWorldHtml } from "./myWorldView.js";
 
@@ -17,6 +17,9 @@ export function createMyWorld({
   readRootSave,
   readSession = () => null,
   sessionLabel = () => "",
+  readSeason = () => null, // the quick-season save (or null)
+  seasonLabel = () => "",
+  deleteSave = async () => false, // (slot) => confirmed delete of an unlinked save; the app owns confirm + release
   confirm = async () => false,
   topCards = () => [],
   onResumeCareer,
@@ -55,22 +58,38 @@ export function createMyWorld({
     el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), look: readLook(account), canSubmitFeedback: typeof submitFeedback === "function" }, lang);
   }
 
-  /** Only saves this player may see: theirs, or unassociated local ones. Another account's saves never render. */
+  /**
+   * Only saves this player may see: theirs, unassociated local ones, and (signed in) the guest's to claim. Another
+   * account's saves never render.
+   */
   function visibleGames(account, lang) {
+    const shown = (state, ...ok) => ["unassociated", "guest", ...ok].includes(state);
     const root = readRootSave();
     const careerState = saveVisibility("career", careerSig(root));
-    const journey = careerState === "mine" || careerState === "unassociated" ? journeyFromRoot(root) : null;
+    const journey = shown(careerState, "mine") ? journeyFromRoot(root) : null;
     const session = readSession();
     const sessionState = saveVisibility("session", sessionSig(session));
+    const season = readSeason();
+    const seasonState = saveVisibility("season", seasonSig(season));
     return {
       career: journey ? { journey, state: careerState } : null,
-      session: sessionState === "mine" || sessionState === "unassociated" ? { label: sessionLabel(session, lang), state: sessionState } : null,
+      session: shown(sessionState, "mine") ? { label: sessionLabel(session, lang), state: sessionState } : null,
+      season: shown(seasonState) ? { label: seasonLabel(season, lang), state: seasonState } : null,
       canClaim: !!account,
     };
   }
 
+  const SIG_OF = { career: () => careerSig(readRootSave()), session: () => sessionSig(readSession()), season: () => seasonSig(readSeason()) };
+
+  async function remove(slot) {
+    if (saveVisibility(slot, SIG_OF[slot]()) !== "unassociated") return render(); // stale button: nothing to delete
+    if (!(await deleteSave(slot))) return;
+    render();
+    say(el.querySelector("#mw-games-status"), "已删除这份本机存档。", "That local save is deleted.");
+  }
+
   async function claim(slot) {
-    const sig = slot === "career" ? careerSig(readRootSave()) : sessionSig(readSession());
+    const sig = SIG_OF[slot]();
     const ok = await confirm(
       getLang() === "en"
         ? "Link this local save to your account? Other accounts on this device will no longer see it. This cannot prove the save was originally yours."
@@ -212,6 +231,10 @@ export function createMyWorld({
     "resume-session": () => onResumeSession?.(),
     "claim-career": () => claim("career"),
     "claim-session": () => claim("session"),
+    "claim-season": () => claim("season"),
+    "delete-career": () => remove("career"),
+    "delete-session": () => remove("session"),
+    "delete-season": () => remove("season"),
     "start-career": () => onStartCareer?.(),
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),

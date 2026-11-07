@@ -143,7 +143,6 @@ import {
   reviveDraft,
   reviveLegend,
   serializeAppSlice,
-  sessionSlotLocked,
   writeSave,
 } from "./data/savegame.js";
 import {
@@ -250,7 +249,6 @@ import {
   recordUserLiveResult,
   saveSeason,
   seasonProgressLabel,
-  seasonSlotLocked,
   seasonStaffBonus,
   seasonTeamIds,
   simAllPlayoffs,
@@ -337,7 +335,7 @@ import {
   freshFamilySide,
 } from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
-import { careerSig, ForeignSaveError, keyHasData, markSessionResumed, markSlotResumed, saveVisibility, seasonSig, sessionSig, slotLocked, stampLegacySaves } from "./data/saveOwnership.js";
+import { careerSig, foreignOwnerOf, ForeignSaveError, GUEST, hiddenFromMe, keyHasData, markSessionResumed, markSlotResumed, saveVisibility, seasonSig, sessionSig, slotLockReason, stampLegacySaves } from "./data/saveOwnership.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
@@ -724,7 +722,8 @@ function downloadLongCareerExport(root) {
  */
 function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
   if (lastLongCareerSaveError instanceof ForeignSaveError) {
-    void foreignSaveNotice("career"); // not a storage problem, and the attempt is another account's career: no export
+    // not a storage problem: the slot is protected (another player's, or an unlinked save) -- no export prompt
+    void foreignSaveNotice("career", lockReasonFor("career", { sig: careerSig(unsavedAttempt) }) || lastLongCareerSaveError.reason);
     return;
   }
   // "invalid root save" (and the two version-mismatch messages) are thrown by validateRoot()
@@ -864,38 +863,93 @@ function resumeLongCareer(root = readRootSave()) {
   return true;
 }
 
-/** ADR-008a Q1: a career owned by ANOTHER account on this device is never offered to the current player. */
+/** ADR-008a Q1: another account's save (or the guest's, until claimed) is never offered to the current player. */
 function careerHidden(root = state.longCareerRoot || readRootSave()) {
-  return saveVisibility("career", careerSig(root)) === "other";
+  return hiddenFromMe(saveVisibility("career", careerSig(root)));
 }
 function sessionHidden(peek = peekSave()) {
-  return saveVisibility("session", sessionSig(peek)) === "other";
+  return hiddenFromMe(saveVisibility("session", sessionSig(peek)));
 }
 function seasonHidden() {
-  return hasSeasonSave() && saveVisibility("season", seasonSig(true)) === "other";
+  return hasSeasonSave() && hiddenFromMe(saveVisibility("season", seasonSig(true)));
 }
 
 /**
- * P0 data integrity: a device slot holding ANOTHER account's save is read-only here (the storage writers refuse
- * it too). Hiding it isn't enough -- this tells the player why they can't start/import/save over it.
+ * P0 data integrity: a protected device slot is read-only here (the storage writers refuse it too). Hiding it isn't
+ * enough -- this tells the player why they can't start/import/save over it, and where to go instead.
+ *   other: another account's save; guest: the guest's save (claimable in My Games); unassociated: a local save
+ *   nobody owns (continue, claim, export or delete it first).
  */
 const FOREIGN_SLOT_NAME = { career: ["长期生涯", "long-career"], season: ["单赛季", "single-season"], session: ["未完成的比赛", "unfinished-game"] };
-function foreignSaveNotice(slot) {
-  const [zh, en] = FOREIGN_SLOT_NAME[slot];
-  return confirmAction(L(
-    `这台设备上的${zh}存档属于另一个账号。为了不覆盖它，这里不能新建、导入或保存到这个位置。请切换到那个账号去导出、完成或删除它，或者换一个浏览器 / 设备开始。`,
-    `This device's ${en} save belongs to another account. To keep it safe, you can't start, import or save over it here. Switch to that account to export, finish or delete it — or start on another browser or device.`,
-  ), { title: L("存档属于另一个账号", "This save belongs to another account"), acceptLabel: L("知道了", "Got it"), notice: true });
-}
-const SLOT_LOCKED = {
-  career: () => slotLocked("career", keyHasData(ROOT_SAVE_KEY)),
-  season: seasonSlotLocked,
-  session: sessionSlotLocked,
+const FOREIGN_NOTICE = {
+  other: [
+    (zh) => `这台设备上的${zh}存档属于另一个账号。为了不覆盖它，这里不能新建、导入或保存到这个位置。请切换到那个账号去导出、完成或删除它，或者换一个浏览器 / 设备开始。`,
+    (en) => `This device's ${en} save belongs to another account. To keep it safe, you can't start, import or save over it here. Switch to that account to export, finish or delete it — or start on another browser or device.`,
+    ["存档属于另一个账号", "This save belongs to another account"],
+  ],
+  guest: [
+    (zh) => `这台设备上的${zh}存档属于访客（未登录）身份。为了不覆盖它，这里不能新建、导入或保存到这个位置。你可以在「我的篮球人生 → 我的游戏」把它认领到当前账号，或者退出登录、以访客身份继续玩。`,
+    (en) => `This device's ${en} save belongs to the guest (signed-out) player. To keep it safe, you can't start, import or save over it here. Claim it for this account in My World → My Games, or sign out and keep playing as the guest.`,
+    ["存档属于访客", "This save belongs to the guest"],
+  ],
+  unassociated: [
+    (zh) => `这台设备上有一份没有关联任何账号的${zh}旧存档。为了不覆盖它，这里不能新建或导入到这个位置。请先继续它，或者在「我的篮球人生 → 我的游戏」认领或删除它（删除前建议先导出备份）。`,
+    (en) => `This device has an older ${en} save that isn't linked to any account. To keep it safe, you can't start or import over it here. Continue it first, or claim or delete it in My World → My Games (export a backup before deleting).`,
+    ["有一份未关联账号的旧存档", "An unlinked older save is here"],
+  ],
 };
+function foreignSaveNotice(slot, reason = "other") {
+  const [zh, en] = FOREIGN_SLOT_NAME[slot];
+  const [zhText, enText, [zhTitle, enTitle]] = FOREIGN_NOTICE[reason] ?? FOREIGN_NOTICE.other;
+  return confirmAction(L(zhText(zh), enText(en)), { title: L(zhTitle, enTitle), acceptLabel: L("知道了", "Got it"), notice: true });
+}
+const SLOT_PRESENT = { career: () => keyHasData(ROOT_SAVE_KEY), season: () => hasSeasonSave(), session: () => hasSave() };
+/** Why this slot refuses the player right now (null = it doesn't). opts: { sig, release } as in slotLockReason. */
+function lockReasonFor(slot, opts) {
+  const reason = slotLockReason(slot, SLOT_PRESENT[slot](), opts);
+  return reason === "other" && foreignOwnerOf(slot) === GUEST ? "guest" : reason;
+}
 /** true = blocked (and the player has been told). */
-async function blockedByForeignSave(slot) {
-  if (!SLOT_LOCKED[slot]()) return false;
-  await foreignSaveNotice(slot);
+async function blockedByForeignSave(slot, opts) {
+  const reason = lockReasonFor(slot, opts);
+  if (!reason) return false;
+  await foreignSaveNotice(slot, reason);
+  return true;
+}
+
+/** The quick-season slot's raw JSON (no state preparation): enough to sign it and tell whether it mirrors the career. */
+function rawSeasonSave() {
+  try { return JSON.parse(localStorage.getItem("cls_season_v1")) || true; } catch { return true; }
+}
+
+/**
+ * Explicit, confirmed delete of an UNLINKED local save (My World → My Games). This is the only "release" a player
+ * can give for a save nobody owns; another player's save is never offered here (and the writers refuse it anyway).
+ */
+async function deleteUnlinkedSave(slot) {
+  const [zh, en] = FOREIGN_SLOT_NAME[slot];
+  const ok = await confirmAction(L(
+    `永久删除这份没有关联任何账号的${zh}本机存档？此操作无法撤销。${slot === "career" ? "如需保留，先在首页存档条点「导出存档」备份。" : ""}`,
+    `Permanently delete this unlinked ${en} local save? This can't be undone.${slot === "career" ? " To keep a copy, use Export on the home save bar first." : ""}`,
+  ), { title: L("删除本机存档？", "Delete this local save?"), acceptLabel: L("删除", "Delete") });
+  if (!ok) return false;
+  try {
+    if (slot === "career") {
+      deleteCareerSave(undefined, { release: true });
+      Object.assign(state, { leagueCareer: null, story: null, longCareerRoot: null, season: null, seasonPendingGame: null });
+    } else if (slot === "session") {
+      clearSave({ release: true });
+    } else {
+      clearSeasonSave({ release: true });
+      if (!state.leagueCareer) Object.assign(state, { season: null, seasonPendingGame: null });
+    }
+  } catch (error) {
+    if (!(error instanceof ForeignSaveError)) throw error;
+    await foreignSaveNotice(slot, error.reason);
+    return false;
+  }
+  refreshLongCareerHomeBar();
+  refreshSaveHomeBar();
   return true;
 }
 
@@ -972,8 +1026,9 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
   const file = input.files?.[0];
   if (!file) return;
   try {
-    if (await blockedByForeignSave("career")) return;
     const imported = importRootSave(await file.text());
+    // checked with the file's career: restoring a backup of the same career is not an overwrite
+    if (await blockedByForeignSave("career", { sig: careerSig(imported) })) return;
     if (!(await confirmAction("导入将替换当前长期生涯存档，确定继续？", {
       title: "导入长期生涯？",
       acceptLabel: "导入并覆盖",
@@ -1101,10 +1156,10 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
 
     const written = writeSave(payload);
     if (written?.blocked) {
-      if (!silent) void foreignSaveNotice("session");
+      if (!silent) void foreignSaveNotice("session", lockReasonFor("session") || "other");
       else if (state.sim && !state.foreignSessionWarned) {
         state.foreignSessionWarned = true;
-        pushFeed("coach", L("本局不会自动保存：这台设备上未完成比赛的存档属于另一个账号。", "This game won't autosave: this device's unfinished-game save belongs to another account."));
+        pushFeed("coach", L("本局不会自动保存：这台设备上已有一份不能覆盖的未完成比赛存档（别的玩家的，或未关联账号的）。", "This game won't autosave: this device already holds an unfinished-game save that can't be overwritten (another player's, or an unlinked one)."));
       }
       return false;
     }
@@ -7998,10 +8053,11 @@ $("#btn-save-setup")?.addEventListener("click", () => saveProgress());
 $("#btn-save-legend")?.addEventListener("click", () => saveProgress());
 $("#btn-save-market")?.addEventListener("click", () => saveProgress());
 $("#btn-continue-save")?.addEventListener("click", () => continueFromSave());
-$("#btn-clear-save")?.addEventListener("click", () => {
+$("#btn-clear-save")?.addEventListener("click", async () => {
   if (!hasSave()) return;
-  if (confirm("确定丢弃已保存的进度？此操作无法撤销。")) {
-    clearSave();
+  if (await blockedByForeignSave("session", { release: true })) return; // never another player's unfinished game
+  if (confirm(L("确定丢弃已保存的进度？此操作无法撤销。", "Discard the saved progress? This can't be undone."))) {
+    clearSave({ release: true }); // confirmed: an unlinked unfinished game may go
     refreshSaveHomeBar();
   }
 });
@@ -10770,8 +10826,9 @@ $("#btn-season-save")?.addEventListener("click", () => {
 });
 $("#btn-season-abandon")?.addEventListener("click", async () => {
   // B36: this deletes the whole current career (season, history, coach progress), not just "this season".
-  // P0: if the slot holds another account's career (we are playing a stale in-memory copy), deleting must not touch it.
-  if (await blockedByForeignSave("career")) return;
+  // P0: if the slot holds another player's career (we are playing a stale in-memory copy), deleting must not touch it.
+  // An unlinked career may be deleted -- this confirmed delete is exactly the explicit release it needs.
+  if (await blockedByForeignSave("career", { release: true })) return;
   if (!(await confirmAction(L(
     "将永久删除当前生涯的全部进度：本赛季、历届历史、教练成长和故事进展。球员收藏、账号和设置不受影响。此操作无法撤销。",
     "This permanently deletes the current career: this season, past seasons, coach progress and story. Your collection, account and settings are not affected. This cannot be undone.",
@@ -10779,8 +10836,8 @@ $("#btn-season-abandon")?.addEventListener("click", async () => {
     title: L("删除当前生涯？", "Delete the current career?"),
     acceptLabel: L("删除生涯", "Delete career"),
   }))) return;
-  clearSeasonSave();
-  deleteCareerSave();
+  clearSeasonSave(); // its mirror goes; an unrelated unlinked quick season stays (it's not this career)
+  deleteCareerSave(undefined, { release: true });
   state.leagueCareer = null;
   state.story = null;
   state.longCareerRoot = null;
@@ -11205,6 +11262,9 @@ async function boot() {
       topCards: (account) => resolvePlayers(account.playerIds || [], account).sort((a, b) => overall(b) - overall(a)).slice(0, 3),
       readSession: peekSave,
       sessionLabel: (meta, lang) => formatSaveLabel(meta, lang),
+      readSeason: () => (hasSeasonSave() ? rawSeasonSave() : null),
+      seasonLabel: (st, lang) => { try { return seasonProgressLabel(st, lang); } catch { return ""; } }, // a damaged season must not break boot
+      deleteSave: deleteUnlinkedSave,
       confirm: (message) => confirmAction(message, { title: L("认领本机存档？", "Claim this local save?"), acceptLabel: L("确认认领", "Claim it") }),
       onResumeCareer: () => !careerHidden() && resumeLongCareer(state.longCareerRoot || readRootSave()),
       onResumeSession: () => continueFromSave(),
@@ -11252,7 +11312,7 @@ async function boot() {
     }
     const discovered = readRootSave() || migrateLegacySaves()?.root || null;
     state.longCareerRoot = discovered;
-    stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() || null }); // pre-ownership saves stay unassociated
+    stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() ? rawSeasonSave() : null }); // pre-ownership saves stay unassociated
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
   } catch (e) {

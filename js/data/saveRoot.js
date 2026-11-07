@@ -19,10 +19,13 @@ const EXPORT_FORMAT = "courtside-legends-save";
 
 const rootPresent = (target) => keyHasData(ROOT_SAVE_KEY, target);
 
-/** cls_season_v1 can hold another account's quick season: drop it only when it isn't someone else's. */
-function removeLegacySeason(target) {
+/**
+ * cls_season_v1 may hold another player's quick season, or an unassociated one: drop it only when it is ours, a
+ * mirror of the career, or the player explicitly confirmed (`release`). Never silently, not even to free quota.
+ */
+function removeLegacySeason(target, release = false) {
   const value = target.getItem(LEGACY_SEASON_KEY);
-  if (value === null || slotLocked("season", true, target)) return 0;
+  if (value === null || slotLocked("season", true, target, { release })) return 0;
   target.removeItem(LEGACY_SEASON_KEY);
   clearSaveOwner("season", target);
   return value.length; // UTF-16 code units, good enough as a "was this worth it" signal
@@ -482,9 +485,11 @@ export class StorageWriteError extends Error {
   }
 }
 
-export function writeRootSave(root, storage) {
+/** opts.release: only deleteCareerSave's explicit, confirmed delete may replace an unassociated career. */
+export function writeRootSave(root, storage, { release = false } = {}) {
   const target = getStorage(storage);
-  assertSlotWritable("career", rootPresent(target), target); // never replace another account's career
+  // never replace another player's career, nor silently an unassociated one (continuing the same career is fine)
+  assertSlotWritable("career", rootPresent(target), target, { sig: careerSig(root), release });
   const persisted = compactRootForStorage(cloneJson(root));
   const savedAt = Date.now();
   persisted.savedAt = savedAt;
@@ -542,9 +547,9 @@ export function readRootSave(storage) {
   }
 }
 
-export function clearRootSave(storage) {
+export function clearRootSave(storage, { release = false } = {}) {
   const target = getStorage(storage);
-  assertSlotWritable("career", rootPresent(target), target);
+  assertSlotWritable("career", rootPresent(target), target, { release });
   target.removeItem(ROOT_SAVE_KEY);
   target.removeItem(TEMP_ROOT_SAVE_KEY);
   clearSaveOwner("career", target);
@@ -558,9 +563,9 @@ export function clearRootSave(storage) {
  * autosave (cls_savegame_v1), which belongs to whatever mode started that match.
  * If the profile is all defaults there is nothing worth keeping, so the root key is simply removed.
  */
-export function deleteCareerSave(storage) {
+export function deleteCareerSave(storage, { release = false } = {}) {
   const target = getStorage(storage);
-  assertSlotWritable("career", rootPresent(target), target);
+  assertSlotWritable("career", rootPresent(target), target, { release });
   const root = readRootSave(target);
   const profile = root?.profile;
   const hasProfile = Boolean(
@@ -569,10 +574,10 @@ export function deleteCareerSave(storage) {
       || Object.keys(profile.settings ?? {}).length
       || Object.keys(profile.accessibility ?? {}).length),
   );
-  removeLegacySeason(target);
+  removeLegacySeason(target); // `release` unlocks THIS career only, never an unrelated unassociated quick season
   target.removeItem(TEMP_ROOT_SAVE_KEY);
   if (hasProfile) {
-    writeRootSave(createRootState({ profile }), target);
+    writeRootSave(createRootState({ profile }), target, { release });
   } else {
     target.removeItem(ROOT_SAVE_KEY);
     clearSaveOwner("career", target);

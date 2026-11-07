@@ -137,9 +137,10 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
     await reload(page);
     const freed = await page.evaluate(async () => {
       const root = await import("/js/data/saveRoot.js");
-      try { root.writeRootSave(root.createRootState()); return true; } catch { return false; }
+      try { root.writeRootSave(root.createRootState()); return "wrote"; } catch (e) { return e.reason || e.name; }
     });
-    check(`[${tag}] owner account deleted: slot is no longer locked forever`, freed);
+    // A deleted owner's save is unassociated now: still never overwritten silently (claim or delete it first).
+    check(`[${tag}] owner account deleted: save turns unassociated and stays protected`, freed === "unassociated", String(freed));
 
     check(`[${tag}] no horizontal overflow`, await noOverflow(page));
     check(`[${tag}] no page errors`, !errors.length, errors.join(" | ").slice(0, 160));

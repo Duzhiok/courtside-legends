@@ -26,7 +26,7 @@ import { accumulateGameToAllTeamBoard, allTeamFromSeasonRows, selectFinalsMvp } 
 import { GameSim } from "./sim.js";
 import { shuffle } from "../core/seededRandom.js";
 import { prunePickLedger } from "./pickLedger.js";
-import { clearSaveOwner, keyHasData, recordSaveWrite, seasonSig, slotLocked } from "../data/saveOwnership.js";
+import { clearSaveOwner, keyHasData, recordMirrorWrite, recordSaveWrite, seasonSig, slotLocked } from "../data/saveOwnership.js";
 
 const RS_GAMES = 82;
 const SAVE_KEY = "cls_season_v1";
@@ -1390,7 +1390,8 @@ export function simAllPlayoffs(st, opts = {}) {
 }
 
 export const hasSeasonSave = () => keyHasData(SAVE_KEY);
-export const seasonSlotLocked = () => slotLocked("season", hasSeasonSave());
+/** opts.release: the player explicitly confirmed deleting an unassociated quick season. */
+export const seasonSlotLocked = (opts) => slotLocked("season", hasSeasonSave(), undefined, opts);
 
 /**
  * `mirror`: the long-career compat copy (the root save is the real one). It still never overwrites another
@@ -1398,7 +1399,7 @@ export const seasonSlotLocked = () => slotLocked("season", hasSeasonSave());
  */
 export function saveSeason(st, { mirror = false } = {}) {
   if (seasonSlotLocked()) return false; // P0: another account's quick season lives here
-  const owned = () => { if (!mirror) recordSaveWrite("season", seasonSig(st)); return true; };
+  const owned = () => { if (mirror) recordMirrorWrite("season"); else recordSaveWrite("season", seasonSig(st)); return true; };
   try {
     // Drop ephemeral full snaps before stringify (box lives in resultsLog)
     if (Array.isArray(st?.schedule)) {
@@ -1441,9 +1442,9 @@ export function loadSeason() {
   }
 }
 
-export function clearSeasonSave() {
+export function clearSeasonSave({ release = false } = {}) {
   try {
-    if (seasonSlotLocked()) return false;
+    if (seasonSlotLocked({ release })) return false;
     localStorage.removeItem(SAVE_KEY);
     clearSaveOwner("season");
   } catch (err) {

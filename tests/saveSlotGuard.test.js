@@ -67,13 +67,13 @@ test("career: guest and accounts protect each other the same way", () => {
   assert.throws(() => writeRootSave(hiredRoot(60), storage), ForeignSaveError, "the guest can't overwrite an account's career");
 });
 
-test("an empty or unassociated slot is not locked (legacy saves keep working as before)", () => {
+test("continuing the SAME unassociated career still saves (a new one over it is refused: saveUnlinkedGuard.test.js)", () => {
   const { storage, as, boot } = device("acc-b");
   writeRootSave(hiredRoot(60), storage); // pre-ownership save
   as("acc-b");
   stampLegacySaves({ career: readRootSave(storage) }, storage);
   assert.equal(foreignOwnerOf("career", storage), null);
-  assert.doesNotThrow(() => writeRootSave(hiredRoot(30), storage)); // still the player's (confirmed) call
+  assert.doesNotThrow(() => writeRootSave(hiredRoot(30), storage)); // same storyId: playing on, not overwriting
   assert.equal(owners(storage).career.owner, null, "continuing it is not claiming it");
   boot();
 });
@@ -137,7 +137,8 @@ test("quick season: B can't overwrite or clear A's; the career compat mirror nev
   assert.equal(owners(storage).season, undefined);
   as("acc-b");
   assert.equal(saveSeason({ v: 2, label: "B mirror" }, { mirror: true }), true);
-  assert.equal(owners(storage).season, undefined, "the mirror is the long career's copy, not a claim on the slot");
+  assert.deepEqual(owners(storage).season, { owner: null, sig: "season", mirror: true },
+    "the mirror is tagged as the long career's copy, never as a claim on the slot");
 });
 
 test("deleting a career or freeing quota never drops ANOTHER account's quick season", () => {

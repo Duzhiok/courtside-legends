@@ -43,11 +43,12 @@ export function peekSave() {
 }
 
 /** The autosave slot holds another account's unfinished game: neither save over it nor delete it. */
-export const sessionSlotLocked = () => slotLocked("session", keyHasData(SAVE_KEY));
+/** opts.release: the player explicitly confirmed discarding an unassociated unfinished game. */
+export const sessionSlotLocked = (opts) => slotLocked("session", keyHasData(SAVE_KEY), undefined, opts);
 
-export function clearSave() {
+export function clearSave({ release = false } = {}) {
   try {
-    if (sessionSlotLocked()) return false;
+    if (sessionSlotLocked({ release })) return false;
     localStorage.removeItem(SAVE_KEY);
     clearSaveOwner("session");
   } catch (err) {

@@ -90,20 +90,31 @@ const cardHead = (ico, title) => `<h3>${icon(ico)}<span>${title}</span></h3>`;
 
 const kindLabel = (kind, lang) => (kind === "timeTravel" ? T(lang, "穿越生涯", "Time-Travel Career") : T(lang, "联盟经理", "Franchise"));
 
-/** One resumable save. Unassociated (pre-ownership local) saves say so and can be claimed explicitly. */
-function gameRow({ title, sub, state, resume, claim }, canClaim, lang) {
+/**
+ * One save row. Unassociated (pre-ownership local) saves say so and can be continued, claimed or deleted; the
+ * guest's save, seen by a signed-in account, can only be claimed (it isn't this account's to play or delete).
+ */
+function gameRow({ title, sub, state, resume, claim, remove }, canClaim, lang) {
   const local = state === "unassociated";
+  const guest = state === "guest";
   const badge = local
     ? `<p class="mw-local">${T(lang, "本机存档 · 未关联账号", "Local save · not linked to an account")}${canClaim ? "" : ` · ${T(lang, "登录账号后可认领", "sign in to claim it")}`}</p>`
-    : "";
+    : guest
+      ? `<p class="mw-local">${T(lang, "访客存档 · 认领后才能用这个账号继续", "Guest save · claim it to continue on this account")}</p>`
+      : "";
+  const buttons = [
+    !guest && resume ? action(resume, T(lang, "继续", "Continue"), "btn small continue") : "",
+    (local || guest) && canClaim ? action(claim, T(lang, "认领到我的账号", "Claim for my account"), "btn small ghost") : "",
+    local && remove ? action(remove, T(lang, "删除", "Delete"), "btn small ghost") : "",
+  ].join("");
   return `<li class="mw-game"><div class="mw-game-text"><p class="mw-line">${title}</p><p class="mw-line tiny">${sub}</p>${badge}</div>
-    <div class="mw-game-actions">${action(resume, T(lang, "继续", "Continue"), "btn small continue")}${local && canClaim ? action(claim, T(lang, "认领到我的账号", "Claim for my account"), "btn small ghost") : ""}</div></li>`;
+    <div class="mw-game-actions">${buttons}</div></li>`;
 }
 
 /**
  * "My Games": every save this player may see -- their own, plus unassociated local saves. Saves owned by
  * another account are never passed in (the screen filters them out), so nothing here can leak them.
- * games = { career: { journey, state } | null, session: { label, state } | null, canClaim }
+ * games = { career: { journey, state } | null, session: { label, state } | null, season: { label, state } | null, canClaim }
  */
 export function gamesHtml(games, lang) {
   const title = cardHead("games", T(lang, "我的游戏记录", "My Games"));
@@ -115,14 +126,21 @@ export function gamesHtml(games, lang) {
     rows.push(gameRow({
       title: `<strong>${esc(kindLabel(j.kind, lang))}</strong> · ${esc(team)}`,
       sub: `${esc(j.startYear ?? "—")} → ${esc(j.year ?? "—")} · ${T(lang, `已完成 ${j.seasonsDone} 个赛季`, `${j.seasonsDone} season(s) completed`)}`,
-      state: career.state, resume: "resume-career", claim: "claim-career",
+      state: career.state, resume: "resume-career", claim: "claim-career", remove: "delete-career",
     }, games.canClaim, lang));
   }
   const session = games?.session;
   if (session) {
     rows.push(gameRow({
       title: `<strong>${T(lang, "中途进度", "Game in progress")}</strong>`, sub: esc(session.label || ""),
-      state: session.state, resume: "resume-session", claim: "claim-session",
+      state: session.state, resume: "resume-session", claim: "claim-session", remove: "delete-session",
+    }, games.canClaim, lang));
+  }
+  const season = games?.season; // listed only when it is unlinked or the guest's (yours continue from the season screen)
+  if (season) {
+    rows.push(gameRow({
+      title: `<strong>${T(lang, "单赛季", "Single season")}</strong>`, sub: esc(season.label || ""),
+      state: season.state, claim: "claim-season", remove: "delete-season",
     }, games.canClaim, lang));
   }
   if (!rows.length) {
