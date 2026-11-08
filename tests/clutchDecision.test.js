@@ -340,3 +340,17 @@ test("picking the script's own shooter (Curry) is identical to no decision: the 
   const without = tally(c, false, 200);
   assert.equal(withCall.mine, without.mine);
 });
+
+// B51: `this.ended` was dead — read once in submitDecision, never assigned
+// anywhere (`stop()` only clears `running`), so the game_over guard runs on
+// `!this.running` alone. Pin the removal so the dead operand is not re-added.
+test("B51: no dead this.ended in the engine (game_over is decided by running alone)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../js/engine/sim.js", import.meta.url), "utf8");
+  assert.equal(src.includes("this.ended"), false, "sim.js must not reference the never-assigned this.ended");
+  const sim = build(9);
+  const x = sim.home.onCourt[1];
+  sim.stop();
+  assert.equal(sim.running, false);
+  assert.equal(submit(sim, x.id).reason, "game_over", "stop() alone is what ends decisions");
+});

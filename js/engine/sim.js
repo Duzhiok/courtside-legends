@@ -1532,7 +1532,7 @@ export class GameSim {
       return reject("invalid");
     }
     if (d.attemptId !== this._clutchAttemptId) return reject("stale_attempt");
-    if (this.ended || !this.running) return reject("game_over");
+    if (!this.running) return reject("game_over");
     // One pending decision at a time: the first accepted call wins and is never silently replaced. No state change,
     // no dice. (Checked after stale_attempt so an old request is reported as stale, not as a duplicate.)
     if (this.clutchDecision) return reject("already_armed");
