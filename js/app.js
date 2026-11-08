@@ -1327,6 +1327,19 @@ function handleDomainEvent(evt) {
   }
 }
 
+/**
+ * The bracket match currently being played, for the speed-lock rule (B39③).
+ * A tournament round only locks the speed button when BOTH sides of this match are human; during the
+ * draft phase, between rounds, or outside a tournament there is no match, so null (unlocked).
+ * `currentMatch` only advances in applyTournamentResult after a match ends, so it points at the live
+ * match while one is being played or resumed.
+ */
+function currentTournamentMatch() {
+  const t = state.tournament;
+  if (!t || t.phase !== "match") return null;
+  return t.bracket?.[t.currentMatch] || null;
+}
+
 function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   if (state.sim) state.sim.stop();
   state.sim = sim;
@@ -1345,7 +1358,7 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   state.speed = sim.speed || 1;
   const speedBtn = $("#btn-speed");
   if (speedBtn) {
-    speedBtn.hidden = speedLocked(state.mode);
+    speedBtn.hidden = speedLocked(state.mode, currentTournamentMatch());
     const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";
     speedBtn.textContent = `速度 x${state.speed} · ${label}`;
   }
@@ -7371,7 +7384,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
   state.speed = 1;
   const speedBtn = $("#btn-speed");
   if (speedBtn) {
-    speedBtn.hidden = speedLocked(state.mode);
+    speedBtn.hidden = speedLocked(state.mode, currentTournamentMatch());
     speedBtn.textContent = "速度 x1 · 真实";
     speedBtn.title = "切换 1x真实 / 2x / 3x最快";
   }
@@ -8678,7 +8691,7 @@ window.addEventListener("beforeunload", (e) => {
 });
 $("#btn-speed").onclick = () => {
   if (!state.sim) return;
-  if (speedLocked(state.mode)) return;
+  if (speedLocked(state.mode, currentTournamentMatch())) return;
   state.speed = state.speed === 1 ? 2 : state.speed === 2 ? 3 : 1;
   state.sim.setSpeed(state.speed);
   const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";
