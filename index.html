@@ -171,6 +171,11 @@
               <strong>金币晋级赛</strong>
               <span>32 联队夺冠 → 挑战 15 支历史季后赛 → 再挑战 7 支历史总冠军；进程自动保存</span>
             </button>
+            <button class="mode-card mode-card-feature" id="btn-clutch-entry" data-legend="curryst01:2016">
+              <small class="mode-tag">关键时刻 · 单回合</small>
+              <strong>绝杀挑战</strong>
+              <span>2016 勇士对骑士：落后 3 分、剩 12 秒，你来选关键出手人——结果由真实模拟决定</span>
+            </button>
             <div class="mode-group-label">自由创造</div>
             <button class="mode-card" data-mode="custom" data-legend="onealsh01:2000">
               <strong>预算轮抽挑战</strong>
@@ -317,6 +322,50 @@
       </div>
       <p class="tiny">自由度拉满：任意球员、任意年份、可以重复。五个 1991 乔丹 vs 五个 2006 科比？点「×5」就行。这是唯一允许同一球员重复上场的模式；结果不影响账号和存档。</p>
       <div data-sandbox-body></div>
+    </main>
+
+    <main id="screen-clutch" class="screen">
+      <div class="panel-head">
+        <button class="nav-back" id="btn-clutch-back"><span>返回</span></button>
+        <h2>绝杀挑战</h2>
+      </div>
+      <p class="tiny">关键时刻 · 单回合：一个真实的 Q4 末段，你来决定谁执行最后一攻。</p>
+      <div id="clutch-scenario-card" class="clutch-card"></div>
+      <div class="actions">
+        <button class="btn primary" id="btn-clutch-start">开始挑战</button>
+      </div>
+      <p class="tiny">第一个预设场景，未来会有更多：落后 1 分、平局、最后 5 秒、绝杀与绝平。访客也能玩，无需登录。</p>
+    </main>
+
+    <main id="screen-clutch-play" class="screen">
+      <div class="panel-head">
+        <button class="nav-back" id="btn-clutch-play-back"><span>返回</span></button>
+        <h2>绝杀挑战</h2>
+      </div>
+      <div id="clutch-play-score" class="clutch-score"></div>
+      <p class="tiny">选择关键出手人：球会按他的打法交到他手里——创造型持球攻，接球型跑战术接球，低位要位接球。提交后锁定，不能再改。</p>
+      <div id="clutch-shooter-list" class="clutch-shooter-list"></div>
+      <div id="clutch-action-row" class="clutch-action-row" role="group" aria-label="进攻方式">
+        <button class="btn" type="button" data-clutch-action="three">三分</button>
+        <button class="btn" type="button" data-clutch-action="attack">突破</button>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-clutch-submit" disabled>提交决策</button>
+      </div>
+      <p class="tiny" id="clutch-play-note">选人后可以再换一次（换人或换打法）；提交后由真实模拟打完这一回合，没有命中加成。</p>
+    </main>
+
+    <main id="screen-clutch-result" class="screen">
+      <div class="panel-head">
+        <button class="nav-back" id="btn-clutch-result-back"><span>返回挑战入口</span></button>
+        <h2>绝杀挑战</h2>
+      </div>
+      <div id="clutch-result-body"></div>
+      <div class="actions">
+        <button class="btn primary" id="btn-clutch-retry">再试一次</button>
+        <button class="btn" id="btn-clutch-other">其他挑战</button>
+        <button class="btn" id="btn-clutch-home">返回主页</button>
+      </div>
     </main>
 
     <main id="screen-custom-hub" class="screen">

@@ -46,6 +46,9 @@ const SCREEN_IDS = {
   timeTravel: "screen-time-travel",
   sandbox: "screen-sandbox",
   familyDuel: "screen-family-duel",
+  clutch: "screen-clutch",
+  clutchPlay: "screen-clutch-play",
+  clutchResult: "screen-clutch-result",
 };
 
 /** Markup chunk of one screen: from its <main> to the next <main> (or EOF). */

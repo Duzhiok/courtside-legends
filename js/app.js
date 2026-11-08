@@ -420,6 +420,13 @@ import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos 
 import { CourtView } from "./engine/court.js";
 import { GameSim, suggestDefenseScheme } from "./engine/sim.js";
 import {
+  createClutchController,
+  explainClutchOutcome,
+  initializeScenario,
+  startClutchSim,
+} from "./engine/clutchController.js";
+import { classifyClutchRole } from "./engine/clutchRole.js";
+import {
   confidenceLabel,
   formatGameLine,
   summarizeRecentForm,
@@ -458,6 +465,9 @@ const screens = {
   timeTravel: $("#screen-time-travel"),
   sandbox: $("#screen-sandbox"),
   familyDuel: $("#screen-family-duel"),
+  clutch: $("#screen-clutch"),
+  clutchPlay: $("#screen-clutch-play"),
+  clutchResult: $("#screen-clutch-result"),
 };
 
 let state = {
@@ -478,6 +488,7 @@ let state = {
   seasonPendingGame: null,
   seasonRosterDraft: null,
   lastMode: null,
+  clutch: null,
   lineupSig: "",
   court: null,
   subOutId: null,
@@ -563,6 +574,17 @@ function handleBack() {
       return;
     }
     $("#btn-onboard-cancel")?.click();
+    return;
+  }
+  if (current === "clutchResult") {
+    // Back from a finished challenge = the challenge entry (never the dead play screen).
+    show("clutch");
+    return;
+  }
+  if (current === "clutchPlay") {
+    // Back from the decision window abandons the attempt (invalidates the open id).
+    cancelClutchChallenge();
+    goBack();
     return;
   }
   if (current === "result") {
@@ -1515,6 +1537,15 @@ function startMode(mode) {
   }
   // Ask the account gate BEFORE clearing anything: a guest who taps Ranked must keep whatever they were doing.
   if (mode === "ranked" && !requireAccountReady({ zh: "排位赛", en: "Ranked" })) return;
+  if (mode === "clutch") {
+    // Clutch Challenge is a standalone single-possession challenge, NOT a
+    // catalog mode (modeCatalog stays 13) and NOT a resumable game: leave
+    // lastMode alone (the result screen's 再来一局 replays lastMode) and don't
+    // clear career / tournament state. Guests can play — no account gate.
+    state.mode = "clutch";
+    openClutchChallenge();
+    return;
+  }
   state.mode = mode;
   state.lastMode = mode;
   state.career = null;
@@ -1581,6 +1612,248 @@ function openSandbox() {
   show("sandbox");
 }
 $("#btn-sandbox-back")?.addEventListener("click", () => goBack());
+
+// —— M2b-2 Clutch Challenge ——
+// Guest-accessible: no account gate anywhere in this flow. One scenario only
+// (the M2b-1 measured preset: 2016 Warriors vs Cavaliers, down 3, 12s left).
+// The result page renders the engine's structured outcome (clutchLog[0] — the
+// same object the coach event's meta.clutchOutcome carries, pinned by
+// tests/clutchDecision.test.js + tests/clutchController.test.js), never a
+// guess from the score. Retry always builds a FRESH GameSim.
+
+const CLUTCH_ROLE_LABELS = {
+  creator: ["创造型", "Creator"],
+  playmaker: ["组织型", "Playmaker"],
+  catch_shoot: ["接球射手", "Catch & Shoot"],
+  post: ["低位", "Post"],
+  role_player: ["角色球员", "Role Player"],
+};
+const clutchRoleLabel = (role) => {
+  const [zh, en] = CLUTCH_ROLE_LABELS[role] || CLUTCH_ROLE_LABELS.role_player;
+  return L(zh, en);
+};
+const clutchTeamName = (code) => (code === "GSW" ? L("勇士", "Warriors") : L("骑士", "Cavaliers"));
+const clutchPlayerName = (sim, id) => {
+  for (const side of [sim.home, sim.away]) {
+    const p = side.roster?.find((x) => x.id === id);
+    if (p) return p.cardName || p.name;
+  }
+  return "";
+};
+
+function clutchRejectLabel(reason) {
+  switch (reason) {
+    case "not_on_court": return L("他不在场上。", "He is not on the court.");
+    case "already_armed": return L("已经提交了一个决策。", "A call is already armed.");
+    case "stale_attempt": return L("这个决策已过期，请重新选择。", "That call expired — please pick again.");
+    case "game_over": return L("比赛已经结束了。", "The game is over.");
+    case "invalid": return L("选择无效。", "Invalid selection.");
+    case "locked": return L("已提交，锁定了。", "Submitted — locked.");
+    case "already_replaced": return L("只能换一次，提交后锁定。", "One change only — locked once submitted.");
+    case "no_selection": return L("请先选关键出手人。", "Pick the clutch shooter first.");
+    default: return L("提交失败，请再试一次。", "Submit failed — please try again.");
+  }
+}
+
+function clutchReasonText(reason, shooterName) {
+  switch (reason) {
+    case "turnover": return L("这次进攻失误了，没能形成出手", "The possession ended in a turnover — no shot");
+    case "foul": return L("被犯规，进攻中断，没能形成出手", "A foul stopped the play — no shot");
+    case "kicked_out": return L(`${shooterName} 拿到球后把球分了出去，之后没能形成出手`, `${shooterName} got the ball and kicked it out, but no shot came of it`);
+    case "doubled": return L(`${shooterName} 被包夹，只能把球分出去`, `${shooterName} was doubled and had to give it up`);
+    case "not_handed_off": return L("球没能传到他手里", "The ball never reached him");
+    case "not_on_court": return L("他当时不在场上", "He was not on the court");
+    case "no_possession": return L("这一回合没有球权，时间走完了", "No possession left — time ran out");
+    default: return L("没能形成出手", "No shot");
+  }
+}
+
+function openClutchChallenge() {
+  const root = $("#clutch-scenario-card");
+  if (root) {
+    root.innerHTML = `
+      <div class="clutch-teams">${esc(clutchTeamName("GSW"))} vs ${esc(clutchTeamName("CLE"))}</div>
+      <div class="clutch-meta">${esc(L("2016 赛季 · 落后 3 分 · 剩 12 秒 · 你控制勇士", "2016 season · down 3 · 12 seconds left · you control the Warriors"))}</div>
+      <div class="clutch-meta">${esc(L("选关键出手人及进攻方式，结果由真实模拟决定", "Pick the clutch shooter and the action — the real sim decides the outcome"))}</div>`;
+  }
+  show("clutch");
+}
+
+function startClutchChallenge() {
+  let scenario;
+  try {
+    scenario = initializeScenario({ pool: PLAYERS });
+  } catch (err) {
+    console.error("[clutch]", err);
+    alert(L("名册还没准备好，请稍候再试。", "The roster is not ready yet, please try again in a moment."));
+    return;
+  }
+  const eventOutcome = { current: null };
+  const sim = startClutchSim(scenario, {
+    onEvent: (e) => {
+      if (e.meta?.clutchOutcome) eventOutcome.current = e.meta.clutchOutcome;
+    },
+    onTick: () => {},
+    onEnd: () => {},
+  });
+  const controller = createClutchController({ sim });
+  state.clutch = { sim, controller, scenario, eventOutcome, pickedShooterId: null, actionHint: "three" };
+  controller.openDecision();
+  renderClutchPlay();
+  show("clutchPlay");
+}
+
+function renderClutchPlay() {
+  const c = state.clutch;
+  if (!c) return;
+  const { sim } = c;
+  const scoreEl = $("#clutch-play-score");
+  if (scoreEl) {
+    scoreEl.textContent = L(
+      `${clutchTeamName("GSW")} ${sim.score.home} — ${sim.score.away} ${clutchTeamName("CLE")} · 第 ${sim.quarter} 节 · 剩 ${sim.clock} 秒`,
+      `${clutchTeamName("GSW")} ${sim.score.home} — ${sim.score.away} ${clutchTeamName("CLE")} · Q${sim.quarter} · ${sim.clock}s left`,
+    );
+  }
+  const list = $("#clutch-shooter-list");
+  if (list) {
+    list.innerHTML = sim.you().onCourt.map((p) => {
+      const role = classifyClutchRole(p);
+      return `<button type="button" class="clutch-shooter${c.pickedShooterId === p.id ? " selected" : ""}" data-shooter-id="${esc(p.id)}">
+        <span class="clutch-name">${esc(p.cardName || p.name)}</span>
+        <span class="clutch-role">${esc(clutchRoleLabel(role))} · ${esc(p.pos || "")} · OVR ${overall(p)}</span>
+      </button>`;
+    }).join("");
+    list.querySelectorAll("[data-shooter-id]").forEach((btn) => {
+      btn.addEventListener("click", () => clutchPick(btn.dataset.shooterId, null));
+    });
+  }
+  document.querySelectorAll("#clutch-action-row [data-clutch-action]").forEach((btn) => {
+    btn.classList.toggle("selected", btn.dataset.clutchAction === c.actionHint);
+    btn.onclick = () => clutchPick(null, btn.dataset.clutchAction);
+  });
+  const submitBtn = $("#btn-clutch-submit");
+  if (submitBtn) submitBtn.disabled = !c.pickedShooterId;
+}
+
+/**
+ * One pick = one controller call. First pick -> select(); a change of shooter
+ * or action -> replaceDecision() (once per window; the old attemptId is
+ * voided). An action picked before any shooter is pending only.
+ */
+function clutchPick(shooterId, actionHint) {
+  const c = state.clutch;
+  if (!c || c.controller.state !== "AWAITING_DECISION") return;
+  const nextShooter = shooterId || c.pickedShooterId;
+  const nextAction = actionHint || c.actionHint;
+  if (actionHint && !shooterId && !c.pickedShooterId) {
+    c.actionHint = nextAction;
+    renderClutchPlay();
+    return;
+  }
+  if (!nextShooter) return;
+  if (!c.pickedShooterId) {
+    const res = c.controller.select(nextShooter, nextAction);
+    if (!res.ok) {
+      alert(clutchRejectLabel(res.reason));
+      return;
+    }
+    c.pickedShooterId = nextShooter;
+    c.actionHint = nextAction;
+  } else if (nextShooter !== c.pickedShooterId || nextAction !== c.actionHint) {
+    const res = c.controller.replaceDecision(nextShooter, nextAction);
+    if (!res.ok) {
+      alert(clutchRejectLabel(res.reason));
+      return;
+    }
+    c.pickedShooterId = nextShooter;
+    c.actionHint = nextAction;
+  }
+  renderClutchPlay();
+}
+
+function submitClutchDecision() {
+  const c = state.clutch;
+  if (!c) return;
+  const res = c.controller.submit();
+  if (!res.ok) {
+    alert(clutchRejectLabel(res.reason));
+    return;
+  }
+  const done = c.controller.resolve();
+  if (!done.ok) {
+    alert(L("这一回合没能完成，请再试一次。", "The possession did not finish — please retry."));
+    return;
+  }
+  showClutchResult();
+}
+
+function clutchResultHtml(outcome, ex, final, sim) {
+  const oppSide = sim.youSide === "home" ? "away" : "home";
+  const youWon = final.score[sim.youSide] > final.score[oppSide];
+  const verdict = youWon ? L("赢下了比赛", "Won the game") : L("没能赢下比赛", "Did not win the game");
+  const lines = [];
+  lines.push(ex.receivedBall
+    ? L(`球传到了 ${ex.shooterName} 手里`, `The ball reached ${ex.shooterName}`)
+    : L(`球没能传到 ${ex.shooterName} 手里`, `The ball never reached ${ex.shooterName}`));
+  if (ex.attempted) {
+    if (ex.shotByPick) {
+      lines.push(ex.shotAsHinted
+        ? L(`${ex.shooterName} 按你的选择出手了`, `${ex.shooterName} shot the way you called it`)
+        : L(`${ex.shooterName} 出手了，但投的是两分（引擎仍按球员倾向选区）`, `${ex.shooterName} shot, but took a two — the engine still picks the zone by his tendencies`));
+    } else {
+      lines.push(L(`他拿到球后把球分了出去，最终由 ${ex.actualShooterName} 出手`, `He got the ball and kicked it out — ${ex.actualShooterName} ended up taking the shot`));
+    }
+    lines.push(ex.made
+      ? L(`投篮命中，拿下 ${ex.points} 分`, `Made it — ${ex.points} points`)
+      : L("投篮没进", "The shot missed"));
+  } else {
+    lines.push(clutchReasonText(ex.reason, ex.shooterName));
+  }
+  lines.push(L(
+    `本回合球队得分变化 ${ex.teamPoints} 分；你的选择是${ex.actionHint === "three" ? "三分" : "突破"}`,
+    `Team points this possession: ${ex.teamPoints}; your call was ${ex.actionHint === "three" ? "three" : "attack"}`,
+  ));
+  return `
+    <div class="clutch-verdict">${esc(verdict)}</div>
+    <div class="clutch-final-score">${esc(clutchTeamName("GSW"))} ${final.score.home} — ${final.score.away} ${esc(clutchTeamName("CLE"))}</div>
+    <ul class="clutch-explain">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+}
+
+function showClutchResult() {
+  const c = state.clutch;
+  if (!c) return;
+  // The coach event's meta.clutchOutcome is the primary render source; the
+  // controller's outcome (clutchLog[0]) is the same object — fallback if the
+  // event was somehow missed.
+  const outcome = c.eventOutcome.current || c.controller.outcome;
+  const final = c.controller.finalSnapshot;
+  const body = $("#clutch-result-body");
+  if (body && outcome && final) {
+    const ex = explainClutchOutcome(outcome, {
+      shooterName: clutchPlayerName(c.sim, outcome.shooterId),
+      actualShooterName: outcome.actualShooterId ? clutchPlayerName(c.sim, outcome.actualShooterId) : "",
+    });
+    body.innerHTML = clutchResultHtml(outcome, ex, final, c.sim);
+  }
+  show("clutchResult");
+}
+
+function cancelClutchChallenge() {
+  const c = state.clutch;
+  if (!c) return;
+  c.controller.cancel();
+  state.clutch = null;
+}
+
+$("#btn-clutch-back")?.addEventListener("click", () => goBack());
+$("#btn-clutch-entry")?.addEventListener("click", () => startMode("clutch"));
+$("#btn-clutch-start")?.addEventListener("click", () => startClutchChallenge());
+$("#btn-clutch-play-back")?.addEventListener("click", () => { cancelClutchChallenge(); goBack(); });
+$("#btn-clutch-submit")?.addEventListener("click", () => submitClutchDecision());
+$("#btn-clutch-retry")?.addEventListener("click", () => startClutchChallenge());
+$("#btn-clutch-other")?.addEventListener("click", () => { cancelClutchChallenge(); show("clutch"); });
+$("#btn-clutch-home")?.addEventListener("click", () => { cancelClutchChallenge(); show("home"); });
+$("#btn-clutch-result-back")?.addEventListener("click", () => { cancelClutchChallenge(); show("clutch"); });
 
 $("#btn-custom-hub-back")?.addEventListener("click", () => goBack());
 $("#btn-custom-budget")?.addEventListener("click", () => {

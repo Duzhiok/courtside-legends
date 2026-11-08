@@ -28,10 +28,11 @@ export const STATIC_BACK_TARGETS = {
   market: "home",
   tournament: "home",
   timeTravel: "home",
+  clutch: "home",
 };
 
 /** Screens whose parent comes from the nav stack (entry-dependent). */
-export const STACK_BACK_SCREENS = new Set(["draft", "legend", "season"]);
+export const STACK_BACK_SCREENS = new Set(["draft", "legend", "season", "clutchPlay"]);
 
 /**
  * Screens whose back is handled by an explicit mechanism, not the stack:
@@ -40,8 +41,10 @@ export const STACK_BACK_SCREENS = new Set(["draft", "legend", "season"]);
  * - setup: parent depends on state (career/duel -> market, sandbox -> sandbox, else home)
  * - result: origin-aware #btn-home (season center / market / home, see resolveResultBack)
  * - game: pause overlay (pause = back; exit = save-first "保存并离开")
+ * - clutchResult: back is the challenge entry (its own top-left control + the
+ *   "其他挑战" action both go there; a finished challenge is never a back target)
  */
-export const EXPLICIT_BACK = new Set(["account", "onboard", "setup", "result", "game"]);
+export const EXPLICIT_BACK = new Set(["account", "onboard", "setup", "result", "game", "clutchResult"]);
 
 /**
  * Transient screens: never pushed onto the stack as a back target.
@@ -49,7 +52,7 @@ export const EXPLICIT_BACK = new Set(["account", "onboard", "setup", "result", "
  * a back target. onboard is consumed by cancel/finish — returning to a dead
  * wizard is meaningless (its return screen is kept by onboardReturnScreen).
  */
-export const TRANSIENT_SCREENS = new Set(["result", "game", "onboard"]);
+export const TRANSIENT_SCREENS = new Set(["result", "game", "onboard", "clutchResult"]);
 
 /**
  * Record a forward navigation `from -> to` in `stack` (mutated in place, also
@@ -65,7 +68,8 @@ export function navPush(stack, from, to) {
   // entering any of them clears the trail. (Market must clear: the career loop
   // is market -> setup -> game -> result -> market, and without the clear,
   // back from market would pop to setup and ping-pong market <-> setup.)
-  if (to === "home" || to === "result" || to === "market") {
+  // clutchResult clears like result: a finished challenge is never a back target.
+  if (to === "home" || to === "result" || to === "market" || to === "clutchResult") {
     stack.length = 0;
     return stack;
   }
