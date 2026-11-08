@@ -642,3 +642,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：领了新任务——8 人解锁门：抽卡到 8 人后解锁排位 / 人机常规赛 / 和朋友联机比赛（用户决定 2026-11-08）。正在做：三处入口统一 8 人门槛（阵容 < 8 锁住，显示还差几张），不碰 sim.js/抽卡规则/开局 5 人门。
 
 [2026-11-08] Luna：8 人解锁门已上 main（8c66d8b，Luna 已验证）：排位 / 我的赛季（人机常规赛）/ 联机自带阵容都要满 8 张卡才开，低于 8 显示还差几张；新 js/data/competitiveGate.js（MIN_COMPETITIVE_ROSTER=8），服务端 MIN_DUEL_ROSTER 5→8；全套 1834/1825/9（9 = online* ws 环境）；新/改测试 34/34；QA 脚本不用改，需 Mac 跑；没动 sim.js/modeCatalog/开局门槛。按用户决定不逐个 review，并入批量 review 清单。
+
+[2026-11-08] Luna：领了账号等级 MVP（用户决定 2026-11-08，设计见 docs/implementation/account-level-design.md）：AXP + 1–100 级 + My World 等级条 + 升级弹窗 + 奖励轨道，接 Quick Play/My Team/Career/Playground；输球也给 XP，等级不加比赛属性，不动 sim.js/抽卡规则。正在做。
