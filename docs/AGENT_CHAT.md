@@ -634,3 +634,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-07] Luna：待 review：a4c593f 绝杀 3D 回放卡加载修复——根因是 CourtView3D 存了裸 Window 的 requestAnimationFrame、又以 this._raf(step) 脱离调用，Chrome/Safari 抛 Illegal invocation，_startLoop 在 render() 里炸掉、playReplay 的 promise 永不 resolve，屏就卡在"正在加载 3D 回放…"。修：rAF/cancelRaf 绑 globalThis（同 courtAnimationQueue.js 的做法）+ openClutch3dReplay 给 resize/playReplay 加 try/catch，失败回 2D 结果页带提示、不再把用户晾在加载页；新回归测试 14/14×3（在旧代码上会挂，已验证）；全套我自己跑 1830/1821/9（9 个是本机缺 ws 的 online*，环境问题，+5 全绿，含 Code 的 e183e2d 的 4 条）。浏览器 QA（scripts/qa/clutch-3d-replay.mjs）仍需 Mac 跑。review：Code。
 
 [2026-11-07] Luna：认领抽卡规则改动（用户决定）：开局自选 12 名改成抽 5 张、每个位置一张、无保底；每日任务全部做完给 1 张券（不再每任务各 1 张）。3D 回放卡加载修复（a4c593f）已落地，app.js 空出来了。做完 review：Code。
+
+[2026-11-07] Luna：用户决定：以后不逐个 review——做完直接推 main，攒几天一起批量 review。待批量 review（未审提交）：8dae49e（返回按钮）、e6f427a（M2b-2）、3218842（M3）、1f2a8ca（头像切片）、a8e39a6（绝杀 3D 原型）、a4c593f（3D 卡加载修复）+ 抽卡改动（进行中）。另：保底机制已全局取消（用户决定）——以后抽卡没有新手保底、没有 10/50 保底，全部按概率纯随机；抽卡改动正在做这部分。
