@@ -58,14 +58,15 @@ const ICONS = {
 };
 const icon = (name) => `<svg class="mw-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
 
-export function identityCardHtml(identity, lang) {
+/** `portrait` is portraitFor()'s result; without one (older callers/tests) the initials avatar is the fallback. */
+export function identityCardHtml(identity, lang, portrait = null) {
   const name = identity.name || T(lang, "访客球员", "Guest player");
   const facts = identity.hometown ? `${T(lang, "来自", "From")} ${esc(identity.hometown)}` : T(lang, "家乡未填写", "Hometown not set");
   const note = identity.guest
     ? `<p class="mw-note">${T(lang, "访客资料只保存在这台设备的浏览器里。创建账号后，在账号下重新编辑即可保存到账号。", "Guest profiles live only in this browser on this device. Create an account and edit again to keep it with the account.")}</p>`
     : "";
   return `<section class="mw-identity" aria-labelledby="mw-identity-title">
-    <div class="mw-portrait"><img class="mw-avatar" src="${avatarDataUri({ name, team: "NBA" })}" alt="" width="96" height="96" /></div>
+    <div class="mw-portrait"><img class="mw-avatar" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="96" height="96" /></div>
     <div class="mw-identity-body">
       <h3 id="mw-identity-title">${esc(name)}</h3>
       <p class="mw-facts">${facts}</p>
@@ -277,7 +278,7 @@ export function feedbackHtml(lang, rawDraft = {}, canSubmit = false) {
   </section>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, draft, look, canSubmitFeedback = false }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, draft, look, portrait = null, canSubmitFeedback = false }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
@@ -285,8 +286,8 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, draft, l
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span>
       <button type="button" class="mw-voice" data-mw-action="toggle-feedback" aria-expanded="false" aria-controls="mw-feedback" aria-label="${label}" title="${label}">${icon("voice")}</button></div>
     ${feedbackHtml(lang, draft, canSubmitFeedback)}
-    ${identityCardHtml(identity, lang)}
-    ${lookPanelHtml(look, identity?.name, lang)}
+    ${identityCardHtml(identity, lang, portrait)}
+    ${lookPanelHtml(look, identity?.name, lang, portrait)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
     ${homeSceneHtml({ identity, frames, trophyCount: owned?.trophies?.length || 0 }, lang)}`;
 }

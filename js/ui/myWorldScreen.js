@@ -4,6 +4,8 @@
  * and every action is delegated to the app's existing flows (resume career, open collection, accounts).
  */
 import { readLook, saveLook } from "../data/avatarLook.js";
+import { lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
+import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { mountAvatar3d } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
@@ -30,6 +32,7 @@ export function createMyWorld({
   onOpenAccounts,
   onStartCareer,
   onIdentitySaved = () => {},
+  onPortraitChanged = () => {}, // the home bar shows the same picture; it is updated without re-rendering this screen
   mountAvatar = mountAvatar3d, // (container, { look }) => Promise<handle>; injectable so tests need no WebGL
 }) {
   if (!el) return { refresh() {} };
@@ -55,7 +58,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), look: readLook(account), canSubmitFeedback: typeof submitFeedback === "function" }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), look: readLook(account), portrait: portraitFor(account), canSubmitFeedback: typeof submitFeedback === "function" }, lang);
   }
 
   /**
@@ -190,9 +193,52 @@ export function createMyWorld({
       if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
       viewer = handle;
       stage.querySelector(".mw-look-static")?.setAttribute("hidden", "");
+      if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
     } catch {
       if (token === viewerToken) say(status, "3D 形象在这台设备上暂时无法显示。你仍可以选择外观，它会被保存。", "The 3D figure can't be shown on this device right now. You can still pick a look and it will be saved.");
     }
+  }
+
+  /** Show the resolved portrait everywhere it appears, in place (a re-render would destroy the 3D viewer). */
+  function paintPortrait() {
+    const account = getAccount();
+    const p = portraitFor(account);
+    const img = el.querySelector(".mw-avatar");
+    if (img) img.src = p.src;
+    const picked = p.kind === "preset" && p.chosen ? p.presetId : null;
+    for (const radio of el.querySelectorAll('input[name="mw-portrait"]')) radio.checked = radio.value === picked;
+    const btn = el.querySelector('[data-mw-action="use-3d-portrait"]');
+    if (btn) {
+      const en = getLang() === "en";
+      btn.setAttribute("aria-pressed", String(p.kind === "3d"));
+      btn.textContent = p.kind === "3d" ? (en ? "✓ Using my 3D look" : "✓ 正在使用我的 3D 形象") : (en ? "Use my 3D look" : "用我的 3D 形象作头像");
+    }
+    onPortraitChanged(account);
+    return p;
+  }
+
+  const persistFailed = (status) => say(status, "这台设备不允许保存（浏览器存储被关闭），头像只在这次打开期间有效。", "This device can't save (browser storage is disabled); the picture only lasts while this page is open.");
+
+  function pickPortrait(input) {
+    const status = el.querySelector("#mw-look-status");
+    const res = savePortrait(getAccount(), { source: "preset", preset: input.value });
+    paintPortrait();
+    if (res.invalid) return;
+    if (!res.saved) return persistFailed(status);
+    say(status, "头像已保存。", "Profile picture saved.");
+  }
+
+  /** Take the portrait from the live 3D figure. Never invents a picture: no viewer / no frame = nothing saved. */
+  function use3dPortrait() {
+    const status = el.querySelector("#mw-look-status");
+    const image = viewer?.capturePortrait?.() ?? null;
+    if (!image) return say(status, "3D 形象还没准备好，暂时不能用它做头像。你可以先选一个预设头像。", "The 3D figure isn't ready, so it can't be used as the picture yet. Pick a preset for now.");
+    const account = getAccount();
+    const res = savePortrait(account, { source: "3d", image, sig: lookSignature(readLook(account)) });
+    paintPortrait();
+    if (res.invalid) return say(status, "这张头像无法保存（图片太大或格式不对）。", "This picture can't be saved (too large or the wrong format).");
+    if (!res.saved) return persistFailed(status);
+    say(status, "已用你的 3D 形象作头像。", "Your 3D look is now your profile picture.");
   }
 
   function toggleLook() {
@@ -213,11 +259,19 @@ export function createMyWorld({
     const status = el.querySelector("#mw-look-status");
     if (!saved.saved) return say(status, "这台设备不允许保存（浏览器存储被关闭），外观只在这次打开期间有效。", "This device can't save (browser storage is disabled); the look only lasts while this page is open.");
     viewer?.setLook(saved);
+    // A 3D portrait follows the look: retake it now (the figure is on screen). If it can't be retaken the old picture
+    // is already hidden by its signature, so it never shows an avatar that no longer looks like this.
+    if (readPortrait(getAccount())?.source === "3d" && viewer?.capturePortrait) {
+      const image = viewer.capturePortrait();
+      if (image) savePortrait(getAccount(), { source: "3d", image, sig: lookSignature(readLook(getAccount())) });
+    }
+    paintPortrait();
     say(status, "已保存。", "Saved.");
   }
 
   const actions = {
     "toggle-look": toggleLook,
+    "use-3d-portrait": use3dPortrait,
     "edit-identity": () => {
       const f = form();
       if (!f) return;
@@ -261,7 +315,8 @@ export function createMyWorld({
   });
 
   el.addEventListener("change", (event) => {
-    if (event.target?.matches?.('#mw-look input[type="radio"]')) pickLook(event.target);
+    if (event.target?.matches?.('#mw-look input[name="mw-portrait"]')) pickPortrait(event.target);
+    else if (event.target?.matches?.('#mw-look input[type="radio"]')) pickLook(event.target);
   });
 
   for (const type of ["input", "change"]) {

@@ -156,3 +156,16 @@
   .mw-frame.is-empty { height: 64px; }
   .mw-plate { max-width: 44%; }
 }
+
+/* Profile-picture chooser inside the "My look" panel (ADR-008a addendum W1) */
+.mw-portraits { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mw-portraits legend { flex-basis: 100%; }
+.mw-portrait-opt { position: relative; display: inline-flex; cursor: pointer; border-radius: 50%; }
+.mw-portrait-opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.mw-portrait-opt img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid transparent; display: block; }
+.mw-portrait-opt input:checked + img { border-color: #c99a2e; box-shadow: 0 0 0 2px rgba(201, 154, 46, .35); }
+.mw-portrait-opt input:focus-visible + img { outline: 2px solid #1f6b45; outline-offset: 2px; }
+.mw-use3d { margin-left: auto; }
+.mw-use3d[aria-pressed="true"] { border-color: #1f7a45; color: #1f7a45; font-weight: 700; }
+.mw-use3d:disabled { opacity: .55; cursor: not-allowed; }
+.mw-portraits .mw-note { flex-basis: 100%; margin: 0; }

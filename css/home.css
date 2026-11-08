@@ -480,3 +480,6 @@ html[lang="en"] .topbar .brand-name { display: none; }
   #screen-home[data-home-tab]:not([data-home-tab="career"]) .home-banner h1 { font-size: 1rem; }
   #screen-home[data-home-tab]:not([data-home-tab="career"]) .hero-cta { padding: 8px 14px; }
 }
+
+/* Profile picture in the home bar (same picture as My World). Fixed size so it never changes the bar's height. */
+#screen-home .account-home-avatar { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 32px; object-fit: cover; align-self: center; }

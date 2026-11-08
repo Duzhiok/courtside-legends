@@ -323,6 +323,7 @@ import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
+import { portraitFor } from "./ui/portraitFor.js";
 import { createMyTeamLineup } from "./ui/myTeamLineupScreen.js";
 import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
 /** My World controller (ADR-008 N-1); created in boot(). `?.` everywhere so early callers are safe. */
@@ -1805,8 +1806,15 @@ function requireAccountReady(feature = null) {
   return acc;
 }
 
+/** The home bar shows the same profile picture as My World; updating it never re-renders My World (that would close the 3D viewer). */
+function refreshAccountAvatar(acc = activeAccount()) {
+  const img = $("#account-home-avatar");
+  if (img) img.src = portraitFor(acc).src;
+}
+
 function refreshAccountHomeBar() {
-  myWorld?.refresh(); // name/cards may have changed (switch account, onboarding, profile edit)
+  myWorld?.refresh();
+  refreshAccountAvatar(); // name/cards may have changed (switch account, onboarding, profile edit)
   refreshLongCareerHomeBar(); // a switch of account changes which saves may be offered
   refreshSaveHomeBar();
   const chip = $("#btn-account-chip");
@@ -11263,6 +11271,7 @@ async function boot() {
       el: $("#my-world-root"),
       getLang,
       getAccount: activeAccount,
+      onPortraitChanged: refreshAccountAvatar,
       readRootSave: () => state.longCareerRoot || readRootSave(),
       topCards: (account) => resolvePlayers(account.playerIds || [], account).sort((a, b) => overall(b) - overall(a)).slice(0, 3),
       readSession: peekSave,

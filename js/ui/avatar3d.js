@@ -8,6 +8,10 @@ import { lookColors, sanitizeLook } from "../data/avatarLook.js";
 const LIB_URL = new URL("../vendor/three-avatar.min.js", import.meta.url).href;
 export const AVATAR_MODEL_URL = new URL("../../assets/avatar3d/man.glb", import.meta.url).href;
 export const LOAD_TIMEOUT_MS = 4000;
+export const PORTRAIT_PX = 128;
+// Head-and-shoulders framing as fractions of the model height (the figure is centred on the pivot).
+const PORTRAIT_HEAD_DOWN = 0.085; // head centre, measured down from the top of the model
+const PORTRAIT_FRAME = 0.27;      // visible height of the frame
 const DRAG_RADIANS_PER_PX = 0.012;
 
 /** True when the browser can create a WebGL context at all (checked on a throwaway canvas). */
@@ -33,6 +37,7 @@ function fitCamera(T, camera, model) {
   const dist = (size.y / 2) / Math.tan((camera.fov * Math.PI) / 360) * 1.25;
   camera.position.set(0, 0, dist);
   camera.lookAt(0, 0, 0);
+  return size.y;                                    // model height, for the head-and-shoulders portrait framing
 }
 
 /**
@@ -86,7 +91,7 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
     const gltf = await withTimeout(new T.GLTFLoader().loadAsync(src), timeoutMs, "model");
     const pivot = new T.Group();
     pivot.add(gltf.scene);
-    fitCamera(T, camera, gltf.scene);
+    state.height = fitCamera(T, camera, gltf.scene);
     scene.add(pivot);
     state.pivot = pivot;
 
@@ -132,6 +137,37 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
       visibilityObserver.observe(container);
     }
     state.paint = paint;
+    // Render one head-and-shoulders frame straight to a JPEG data URL. Rendering and reading happen in the same task,
+    // so the WebGL buffer is still valid and `preserveDrawingBuffer` (a permanent perf cost) is not needed.
+    state.capture = (bg = "#1f6b45") => {
+      const saved = { pos: camera.position.clone(), aspect: camera.aspect, rot: state.pivot.rotation.y };
+      try {
+        const headY = state.height / 2 - state.height * PORTRAIT_HEAD_DOWN;
+        const dist = (state.height * PORTRAIT_FRAME) / 2 / Math.tan((camera.fov * Math.PI) / 360);
+        state.pivot.rotation.y = 0;
+        camera.aspect = 1;
+        camera.position.set(0, headY, dist);
+        camera.lookAt(0, headY, 0);
+        camera.updateProjectionMatrix();
+        renderer.setSize(PORTRAIT_PX, PORTRAIT_PX, false);
+        renderer.render(scene, camera);
+        const out = document.createElement("canvas");
+        out.width = out.height = PORTRAIT_PX;
+        const ctx = out.getContext("2d");
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, PORTRAIT_PX, PORTRAIT_PX);
+        ctx.drawImage(canvas, 0, 0, PORTRAIT_PX, PORTRAIT_PX);
+        return out.toDataURL("image/jpeg", 0.82);
+      } catch {
+        return null;
+      } finally {
+        camera.position.copy(saved.pos);
+        camera.aspect = saved.aspect;
+        camera.lookAt(0, 0, 0);
+        state.pivot.rotation.y = saved.rot;
+        resize();                                   // restores the on-screen canvas size and projection
+      }
+    };
     tick();
   } catch (err) {
     cleanup();
@@ -141,6 +177,8 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
     canvas,
     rotationY: () => state.pivot.rotation.y,
     setLook: (next) => state.paint(next),
+    /** @returns {string|null} a small JPEG data URL of the head and shoulders, or null if it could not be drawn */
+    capturePortrait: (bg) => state.capture(bg),
     look: () => ({ ...state.look }),
     dispose: cleanup,
   };
