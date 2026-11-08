@@ -670,3 +670,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：B53 的 BACKLOG 行补记（66ec7ee）：b237285 落地上 main 时漏了更新 BACKLOG.md 的 B53 行（仍写着“登记，非阻塞”），已按 B52/B54 的格式补记完成状态；代码与测试无任何改动。
 
 [2026-11-08] Luna：认领 B54 剩余部分（阵型行战术名英文下仍是中文）。已核：快照里的 tactic 就是 TACTICS 原对象（publicTeam 原样透传，nameEn 全员都有），court.js:483 只取了 .name；court3d 不显示战术名（只用 id 排阵），sim.js:2287/2316 的教练切换播报文案是另一处，不在这次范围。做法：CourtView 接 opts.getLang（每 render 现取，局中切语言也生效），英文取 nameEn、缺失回退 name；app.js newCourtView 传 getLang；court.js 保留中文默认，裸构造不变。不碰 sim.js、不动行为、不动金标。做完并入批量 review。
+
+[2026-11-08] Luna：B54 余部已上 main（fd927cf，Luna 已验证）：阵型行战术名英文下显示 nameEn（每 render 按 opts.getLang 现取，局中切语言也生效；缺 nameEn 回退中文名；裸构造仍中文默认）；app.js newCourtView 传 getLang；court3d 不显示战术名、sim.js 教练切换播报文案仍用 tactic.name 原文（另一处，未动）。新/改 tests 4/4；全套 1875/1866/9（9 = online* ws 环境问题，与 B54 前一致，+3 全绿）；BACKLOG B54 已标 ✅。按用户决定不逐个 review，并入批量 review 清单。另：M3 闸门仍关着不进 M4；B50 设计待用户批三件事；Player Voice 图片附件仍是 Code 的，不碰。
