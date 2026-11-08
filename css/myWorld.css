@@ -169,3 +169,16 @@
 .mw-use3d[aria-pressed="true"] { border-color: #1f7a45; color: #1f7a45; font-weight: 700; }
 .mw-use3d:disabled { opacity: .55; cursor: not-allowed; }
 .mw-portraits .mw-note { flex-basis: 100%; margin: 0; }
+
+/* Account Level card (v1): level badge + XP bar + reward track. */
+.mw-level-hero { display: flex; align-items: baseline; gap: 10px; margin: 2px 0 4px; }
+.mw-level-num { font-size: 1.6rem; font-weight: 800; color: var(--mw-green); }
+.mw-level-title { font-size: 1.05rem; font-weight: 700; color: #8a5a00; }
+.mw-level-bar { height: 10px; border-radius: 999px; background: #dfe7df; overflow: hidden; margin: 8px 0 4px; }
+.mw-level-fill { height: 100%; background: linear-gradient(90deg, #d6b25a, #e9c46a); border-radius: 999px; }
+.mw-level-track { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.mw-level-track[hidden] { display: none; }
+.mw-level-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: #faf6ea; }
+.mw-level-lv { font-weight: 800; color: var(--mw-green); min-width: 44px; }
+.mw-level-reward { flex: 1; }
+.mw-level-state { font-size: 0.85rem; color: #55695d; }

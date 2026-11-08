@@ -227,6 +227,41 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
 const STARTER_POSITIONS = ["PG", "SG", "SF", "PF", "C"];
 
 /**
+ * Free card-pack draws (Account Level rewards): `count` player cards from the
+ * standard pool at the normal rate table — no payment, no coach share (a pack
+ * holds player cards). Reuses pullCard / applyPlayerPull / goldForPull, so a
+ * pack draw follows the same duplicate / soul / 成色 rules as a normal pull.
+ * Throws when the binder is full; callers that mark rewards claimed must
+ * call this first so a failed pack never consumes the claim.
+ */
+export function grantPackDraws(account, count, { rng = Math.random, pool = PLAYERS, date = new Date() } = {}) {
+  if (!account) throw new Error("无账号");
+  const cards = [];
+  const banner = currentBanners(date)[0];
+  for (let i = 0; i < count; i += 1) {
+    if (cardRoom(account) <= 0) throw new Error(`卡库已满（${MAX_CARDS} 张）——先去「我的球员卡」分解一些`);
+    const pull = pullCard({ pool, gacha: gachaOf(account), banner, rng, ovrOf: overall });
+    account.gacha = pull.gacha;
+    const ovr = overall(pull.player);
+    const { outcome, souls, rollChoice } = applyPlayerPull(account, pull.player, rng, pool);
+    const goldGain = goldForPull(ovr);
+    account.gold = (account.gold || 0) + goldGain;
+    pushHistory(account, { kind: "player", id: pull.player.id, at: Date.now(), outcome, banner: banner.id, wish: pull.wishHit, source: "pack" });
+    const mod = account.cardMods?.[pull.player.id];
+    cards.push({
+      player: applyCardMods(pull.player, mod, legacyRollSeed(account.id, pull.player.id)),
+      outcome,
+      stars: mod?.merges || 0,
+      souls,
+      goldGain,
+      ovr,
+    });
+  }
+  saveAccount(account);
+  return cards;
+}
+
+/**
  * Opening draws: 5 cards, one per position (PG → C), pure random at the
  * rate table — no pity anywhere (removed 2026-11-07). Carries the gacha
  * state through the 5 pulls and returns it for the caller to save; writes

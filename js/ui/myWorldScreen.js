@@ -3,6 +3,7 @@
  * Owns no game state: everything it shows is read fresh from the account store / root save on refresh(),
  * and every action is delegated to the app's existing flows (resume career, open collection, accounts).
  */
+import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
 import { lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { portraitFor } from "./portraitFor.js";
@@ -70,7 +71,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), look: readLook(account), portrait: portraitFor(account), canSubmitFeedback: typeof submitFeedback === "function" }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), look: readLook(account), portrait: portraitFor(account), canSubmitFeedback: typeof submitFeedback === "function", level: levelSnapshot(account, lang) }, lang);
   }
 
   /**
@@ -299,6 +300,40 @@ export function createMyWorld({
   }
 
   const actions = {
+    "toggle-level-track": (btn) => {
+      const track = el.querySelector("#mw-level-track");
+      if (!track) return;
+      track.hidden = !track.hidden;
+      btn?.setAttribute("aria-expanded", String(!track.hidden));
+    },
+    "claim-level-reward": (btn) => {
+      const level = Number(btn?.dataset?.level || 0);
+      const status = () => el.querySelector("#mw-level-status");
+      if (!level) return;
+      const res = claimLevelReward(getAccount(), level);
+      if (res.ok) {
+        render();
+        const cards = res.cards?.length
+          ? getLang() === "en"
+            ? ` New cards: ${res.cards.map((c) => c.player.name).join("、")}.`
+            : ` 新卡：${res.cards.map((c) => c.player.name).join("、")}。`
+          : "";
+        say(status(), `已领取 Lv.${level} 的奖励。${cards}`, `Claimed the Lv.${level} reward.${cards}`);
+        return;
+      }
+      if (res.reason === "guest") {
+        say(status(), "金币和卡包奖励需要先创建账号。先去创建账号，奖励会一直等你。", "Gold and card packs need an account first — create one and the reward will be waiting.");
+        onOpenAccounts?.();
+        return;
+      }
+      if (res.reason === "card-room-full") {
+        say(status(), res.message || "卡库已满，先去分解一些卡再来领。", "Your binder is full — recycle some cards first, then claim.");
+        return;
+      }
+      if (res.reason === "claimed") say(status(), "这个奖励已经领过了。", "That reward was already claimed.");
+      else if (res.reason === "locked") say(status(), `还没到 Lv.${level}，继续打球升级吧。`, `Not Lv.${level} yet — keep playing to level up.`);
+      else say(status(), "这个等级没有奖励。", "There is no reward at that level.");
+    },
     "toggle-look": toggleLook,
     "use-3d-portrait": use3dPortrait,
     "avatar-action-clap": () => playPreview("clap"),
@@ -348,7 +383,7 @@ export function createMyWorld({
 
   el.addEventListener("click", (event) => {
     const btn = event.target.closest?.("[data-mw-action]");
-    if (btn && actions[btn.dataset.mwAction]) actions[btn.dataset.mwAction]();
+    if (btn && actions[btn.dataset.mwAction]) actions[btn.dataset.mwAction](btn);
   });
 
   el.addEventListener("change", (event) => {

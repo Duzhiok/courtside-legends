@@ -8,6 +8,7 @@
 import { applyFrameDelta } from "./delta.js";
 import { loadRecord, saveRecord, recordGame, formatRecord } from "./record.js";
 import { prizeNotice } from "./prizeNotice.js";
+import { awardFriendMatchXp } from "../data/accountLevelOnline.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -375,6 +376,13 @@ function handleMessage(msg) {
         const next = recordGame(loadRecord(localStorage), { side: state.side, winner: msg.winner });
         saveRecord(localStorage, next);
         feedLine(`你的联机战绩：${formatRecord(next)}`);
+        // Account Level: a finished friend match pays +20 XP, win or lose.
+        // The server counts no XP — this is the local account's record, same
+        // as recordGame above (active local account, or the local guest
+        // record when no account is signed in). Any completed duel counts:
+        // the XP table does not split own-roster vs preset-team rooms.
+        const axp = awardFriendMatchXp(localStorage);
+        if (axp?.gained) feedLine(`🎖️ 账号经验 +${axp.gained}（累计 ${axp.totalXp}）`);
       }
       break;
     }

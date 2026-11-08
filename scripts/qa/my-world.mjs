@@ -48,6 +48,11 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [1280, 800, "desktop"], [390, 84
   const empty = await text(page, "#my-world-root");
   check(`[${tag}] guest note shown`, empty.includes("只保存在这台设备"));
   check(`[${tag}] no career => honest empty journey`, empty.includes("还没有进行中的生涯"));
+  // 2b. Account Level (v1): badge + bar render for a guest, track toggles, Lv.2 locked.
+  check(`[${tag}] level card renders (Lv.1 guest)`, await visible(page, "#my-world-root .mw-level") && empty.includes("账号等级") && empty.includes("Lv.1"));
+  check(`[${tag}] reward track hidden by default`, !(await visible(page, "#mw-level-track")));
+  await page.click('[data-mw-action="toggle-level-track"]');
+  check(`[${tag}] reward track opens, Lv.2 locked for a new guest`, await visible(page, "#mw-level-track") && (await text(page, "#my-world-root")).includes("Lv.2 解锁"));
   check(`[${tag}] no trophies drawn`, !empty.includes("🏆"));
   check(`[${tag}] no horizontal overflow (guest)`, await noOverflow(page));
   // Redesign: single title, compact hero, closed feedback behind a corner icon, honest omissions

@@ -367,9 +367,13 @@ export function createTimeTravelScreen({
 
   function resolveEvent(choiceId) {
     try {
+      const pending = currentRootState()?.story?.pendingDecision;
       const resolved = resolveStoryEvent(currentRootState(), choiceId);
       const root = queueNextStoryEvent(resolved, { year: resolved.leagueCareer?.season?.year });
       commit(root, tr(lang(), "存档写入失败，这次事件尚未生效", "Save failed — the event did not take effect"));
+      // Account Level: a resolved Reborn story event pays +30 XP (once per
+      // event+year — the key in the callback makes replays no-ops).
+      params.onStoryEventResolved?.({ eventId: pending?.eventId || null, year: pending?.year ?? null });
       setStatus({ zh: "事件已记录。你的选择会在赛季总结和后续时间线中留下痕迹。", en: "Event recorded. Your choice will leave a mark on the season recap and the timeline." });
       renderScreen();
       focusDecision();

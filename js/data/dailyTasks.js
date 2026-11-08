@@ -12,6 +12,7 @@
  *  - win milestone: 1 ticket per MILESTONE_WINS ranked wins (lifetime).
  */
 import { saveAccount, todayKey } from "./account.js";
+import { recordDailyTaskXp } from "./accountLevel.js";
 
 export const WELCOME_TICKETS = 2;
 export const MILESTONE_WINS = 10;
@@ -83,6 +84,18 @@ function claimDailyCompletion(account, day, lang = "zh") {
 }
 
 /**
+ * Account XP for each daily task that just became complete (+20 per task,
+ * once per task per day — the key in recordDailyTaskXp makes repeat calls
+ * no-ops, so this is safe to run after every ranked / career game).
+ */
+function grantDailyTaskXp(account, day, today) {
+  if (!account) return;
+  for (const task of DAILY_TASKS) {
+    if (task.done(day)) recordDailyTaskXp(account, task.id, today);
+  }
+}
+
+/**
  * Call after a ranked game (and after recordRankedResult, which bumps the win
  * count). Returns what was granted so the result screen can say so.
  */
@@ -91,6 +104,7 @@ export function recordRankedTasks(account, won, today = todayKey(), lang = "zh")
   day.played += 1;
   if (won) day.won += 1;
 
+  grantDailyTaskXp(account, day, today);
   const granted = claimDailyCompletion(account, day, lang);
 
   const milestone = winMilestone(account);
@@ -112,6 +126,7 @@ export function recordCareerTasks(account, won, today = todayKey(), lang = "zh")
   if (!account) return [];
   const day = dailyState(account, today);
   if (won) day.careerWon = (day.careerWon || 0) + 1;
+  grantDailyTaskXp(account, day, today);
   const granted = claimDailyCompletion(account, day, lang);
   if (granted.length || won) saveAccount(account);
   return granted;

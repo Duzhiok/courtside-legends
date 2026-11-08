@@ -207,3 +207,32 @@ training) → Legacy Rank (legendary achievement). Every play style accumulates
 a basketball identity with visible rewards.
 
 Play Basketball. Build Your Team. Live Your Legacy.
+
+## Implementation status (2026-11-08, v1 shipped)
+
+- Module: `js/data/accountLevel.js` (`XP_TABLE`, `xpForLevel`, `levelForTotalXp`,
+  `TITLE_TABLE`, `REWARD_TRACK`, `awardXp`/`awardAccountXp`, `recordDailyLogin`,
+  `recordDailyTaskXp`, `claimLevelReward`, `levelSnapshot`, `madePlayoffs`).
+  Guest record: `cls_guest_axp` (key lives in `js/data/accountKeys.js`).
+  Friend-match helper: `js/data/accountLevelOnline.js` (light imports only —
+  the online client must not pull in the account/card layer).
+- Pack rewards: `grantPackDraws` in `js/data/accountGacha.js` (player cards
+  only, normal rates, binder-full throws so the claim is not consumed).
+- XP wired at settlement only (app.js): ranked +50, Quick Play +25 /
+  Playground +15 (showResult fallthrough), My Team Season game +40,
+  season +200 / playoff +150 / championship +500, Reborn story event +30,
+  completed lifetime +800, daily login +10, daily tasks +20 each.
+  Level-up celebration modal fires from game-result handlers only.
+- My World: level badge + XP bar + title + collapsible reward track
+  (`levelHtml` in `js/ui/myWorldView.js`, actions in `js/ui/myWorldScreen.js`,
+  styles in `css/myWorld.css`). Cosmetics are recorded entitlements in v1;
+  no frame/theme/furniture hook exists yet, so nothing is applied visually.
+- Tests: `tests/accountLevel.test.js` (17). QA: `scripts/qa/my-world.mjs`
+  gained level-card checks (Mac run still owed — no Chromium on the VM).
+- Deliberately unwired: Auto League (+5/game, cap 20/day — the feature does
+  not exist in code); classic-season completion / playoff / championship;
+  gold-ladder (Career) per-game XP and its championship; local duels;
+  tournaments; custom-hub games. First-session arithmetic: login 10 + 25 per
+  Quick Play game → Lv.2 (130 XP) after ~5 games; Lv.3 (300 cumulative)
+  after ~12. The curve as specified does not reach Lv.3 in "a few games" —
+  a tuning decision for the user, not an implementation gap.

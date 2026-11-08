@@ -285,7 +285,38 @@ export function feedbackHtml(lang, rawDraft = {}, canSubmit = false) {
   </section>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, draft, look, portrait = null, canSubmitFeedback = false }, lang) {
+/**
+ * Account Level card (v1): level badge + title + XP bar + reward track.
+ * `snapshot` is accountLevel.levelSnapshot() (null = no data, section omitted).
+ * Cosmetic rewards are unlocked entitlements in v1 — claiming records them;
+ * gold / packs grant for real. Guests see the card too; gold / pack claims
+ * ask them to create an account first (handled by the screen).
+ */
+export function levelHtml(snapshot, lang) {
+  if (!snapshot) return "";
+  const rows = snapshot.track.map((entry) => {
+    const btn = entry.state === "available"
+      ? `<button type="button" class="btn small mw-gold" data-mw-action="claim-level-reward" data-level="${entry.level}">${T(lang, "领取", "Claim")}</button>`
+      : entry.state === "claimed"
+        ? `<span class="mw-level-state">${T(lang, "✓ 已领取", "✓ Claimed")}</span>`
+        : `<span class="mw-level-state">${T(lang, `Lv.${entry.level} 解锁`, `Unlocks at Lv.${entry.level}`)}</span>`;
+    return `<li class="mw-level-row"><span class="mw-level-lv">Lv.${entry.level}</span><span class="mw-level-reward">${esc(entry.label)}</span>${btn}</li>`;
+  }).join("");
+  const next = snapshot.isMax
+    ? T(lang, "已满级 · 传奇荣誉（Legacy Rank）即将到来", "Max level · Legacy Rank is coming")
+    : T(lang, `升到 Lv.${snapshot.level + 1} 还需 ${snapshot.xpForNext - snapshot.xpIntoLevel} 经验`, `${snapshot.xpForNext - snapshot.xpIntoLevel} XP to Lv.${snapshot.level + 1}`);
+  return `<section class="mw-card mw-level" aria-labelledby="mw-level-title">
+    <h3 id="mw-level-title">${T(lang, "账号等级", "Account Level")}</h3>
+    <div class="mw-level-hero"><span class="mw-level-num">Lv.${snapshot.level}</span><span class="mw-level-title">${esc(lang === "en" ? snapshot.titleEn : snapshot.title)}</span></div>
+    <div class="mw-level-bar" role="progressbar" aria-valuenow="${snapshot.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${T(lang, "账号经验进度", "Account XP progress")}"><div class="mw-level-fill" style="width: ${snapshot.pct}%"></div></div>
+    <p class="mw-line tiny">${T(lang, `账号经验 ${snapshot.xpIntoLevel} / ${snapshot.xpForNext} · 累计 ${snapshot.totalXp}`, `Account XP ${snapshot.xpIntoLevel} / ${snapshot.xpForNext} · ${snapshot.totalXp} total`)} · ${next}</p>
+    <div class="btn-row"><button type="button" class="btn small ghost" data-mw-action="toggle-level-track" aria-expanded="false" aria-controls="mw-level-track">${T(lang, "查看等级奖励", "View level rewards")}</button></div>
+    <ul class="mw-level-track" id="mw-level-track" hidden>${rows}</ul>
+    <p class="mw-status" id="mw-level-status" role="status" aria-live="polite"></p>
+  </section>`;
+}
+
+export function myWorldHtml({ identity, games, journey, legacy, frames, draft, look, portrait = null, canSubmitFeedback = false, level = null }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
@@ -294,6 +325,7 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, draft, l
       <button type="button" class="mw-voice" data-mw-action="toggle-feedback" aria-expanded="false" aria-controls="mw-feedback" aria-label="${label}" title="${label}">${icon("voice")}</button></div>
     ${feedbackHtml(lang, draft, canSubmitFeedback)}
     ${identityCardHtml(identity, lang, portrait)}
+    ${levelHtml(level, lang)}
     ${lookPanelHtml(look, identity?.name, lang, portrait)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
     ${homeSceneHtml({ identity, frames, trophyCount: owned?.trophies?.length || 0 }, lang)}`;

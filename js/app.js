@@ -38,6 +38,7 @@ import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
 import { grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
+import { XP_TABLE, awardAccountXp, levelTitle, madePlayoffs, recordDailyLogin } from "./data/accountLevel.js";
 import {
   boughtSkillCount,
   buyableSkills,
@@ -1046,6 +1047,14 @@ const timeTravelScreen = createTimeTravelScreen({
   renderSeasonHub,
   showSeasonTab,
   blockedByForeignSave,
+  // Account Level: a resolved Reborn story event pays +30 XP (win or lose —
+  // every choice counts). Keyed per event+year so a replayed event pays once.
+  onStoryEventResolved: ({ eventId, year } = {}) => {
+    const root = state.longCareerRoot || readRootSave();
+    const acc = getAccount(root?.profile?.accountId) || activeAccount();
+    const axp = awardAccountXp(acc, XP_TABLE.careerEvent, { source: "rebornEvent", key: `storyEvent:${eventId || "unknown"}@${year ?? "?"}` });
+    celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
+  },
 });
 const openTimeTravelScreen = () => timeTravelScreen.open();
 const queueNextTimeTravelEvent = () => timeTravelScreen.queueNextTimeTravelEvent();
@@ -2256,7 +2265,26 @@ function refreshRankedCardLock() {
     : L(`🔒 再抽 ${competitivePlayersNeeded(acc)} 张球员即可解锁`, `🔒 Draw ${competitivePlayersNeeded(acc)} more players to unlock`);
 }
 
+/**
+ * Account Level celebration: one modal when a grant crosses a level boundary.
+ * Fire-and-forget (never awaited): the result screen underneath stays usable.
+ * Only game-result handlers call this — login / task / season-completion
+ * grants surface through the My World badge and the result text instead, so
+ * a modal never pops from a render path or on boot.
+ */
+function celebrateAccountLevelUp(before, after) {
+  if (!after || after <= before) return;
+  const lang = getLang();
+  const title = levelTitle(after, lang);
+  void confirmAction(
+    L(`账号升到 Lv.${after}！新称号：${title}。奖励已放进 My World 的等级轨道，记得去领。`, `Account reached Lv.${after}! New title: ${title}. Rewards are waiting on the My World level track.`),
+    { title: L("升级！", "Level up!"), acceptLabel: L("太棒了", "Nice!"), notice: true },
+  );
+}
+
 function refreshAccountHomeBar() {
+  // Daily first login (+10, once per account per day; guests level up locally too).
+  recordDailyLogin(activeAccount());
   refreshRankedCardLock();
   myWorld?.refresh();
   refreshAccountAvatar(); // name/cards may have changed (switch account, onboarding, profile edit)
@@ -8878,6 +8906,20 @@ function showResult(snap, { formNotes = [] } = {}) {
       show("season");
     };
   }
+
+  // Account Level: single games pay on completion, win or lose — Quick Play
+  // +25, Playground (sandbox) +15. Season / ranked / career / tournament /
+  // duel games returned through their own branches above; a game played
+  // mid-leagueCareer is a career game, not a quick game.
+  if (!state.leagueCareer && (state.mode === "quick" || state.mode === "sandbox")) {
+    const kind = state.mode === "sandbox" ? "playground" : "quick";
+    const axp = awardAccountXp(activeAccount(), XP_TABLE[kind], { source: kind });
+    if (axp.gained) {
+      const summary = $("#result-summary");
+      if (summary) summary.textContent += ` 🎖️ ${L(`账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}`;
+      celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
+    }
+  }
 }
 
 // —— Season mode (82 + playoffs + awards) ——
@@ -9280,7 +9322,21 @@ function renderLeagueManagement() {
           const coachRetireSummary = coachRetirement
             ? `\n\n🏁 ${L(`你今年 ${coachRetirement.age} 岁，到了退休年龄，依规挂靴。生涯评级：${coachTier?.label}。请到「穿越生涯」页查看完整总评。`, `You're ${coachRetirement.age}: the retirement age. Your coaching career ends here — verdict: ${coachTier?.labelEn}. Open the Time-travel career page for the full summary.`)}`
             : "";
-          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${poachSummary}${coachRetireSummary}`);
+          // Account Level: completing a Reborn lifetime pays +800 once.
+          // Keyed by career start year + retirement age + tier, so this
+          // recap can never pay the same lifetime twice. Announced in the
+          // recap alert itself (no second modal stacked on top of it).
+          let lifetimeNote = "";
+          if (coachRetirement) {
+            const root = state.longCareerRoot || readRootSave();
+            const acc = getAccount(root?.profile?.accountId) || activeAccount();
+            const axp = awardAccountXp(acc, XP_TABLE.rebornLifetime, {
+              source: "rebornLifetime",
+              key: `retirement:${root?.story?.startYear ?? "?"}:${coachRetirement.age}:${coachRetirement.tier}`,
+            });
+            if (axp.gained) lifetimeNote = `\n\n🎖️ ${L(`完成一世生涯，账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Completed a lifetime — Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}`;
+          }
+          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`);
         } catch (error) {
           alert(error?.message || "无法开始新赛季");
         }
@@ -10565,13 +10621,30 @@ function playUserPlayoffGame() {
   openSetup(cloneLiveTeamSide(home), cloneLiveTeamSide(away), youHome ? "home" : "away");
 }
 
+/**
+ * Account Level for one PLAYED My Team Season game (+40, win or lose).
+ * Called only inside the `!game.played` guard, so a re-render or a second
+ * result pass cannot pay twice; bulk-simmed games never reach these handlers.
+ * Classic seasons pay no per-game XP (not in the XP table).
+ */
+function awardMyTeamGameXp(st) {
+  if (!st?.myTeam) return "";
+  const acc = getAccount(st.myTeam.ownerAccountId) || activeAccount();
+  const axp = awardAccountXp(acc, XP_TABLE.myTeamGame, { source: "myTeamGame" });
+  if (!axp.gained) return "";
+  celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
+  return L(`🎖️ 账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `🎖️ Account XP +${axp.gained} (Lv.${axp.levelAfter})`);
+}
+
 function handleSeasonResult(snap) {
   const st = state.season;
   const game = state.seasonPendingGame;
   let report = null;
+  let axpNote = "";
   if (st && game && !game.played) {
     recordUserLiveResult(st, game, snap);
     report = settleUserGame(snap, snap?.youSide, { handPlayed: true });
+    axpNote = awardMyTeamGameXp(st);
   }
   state.seasonPendingGame = null;
   // Persist updated roster form/fatigue lightly from snap onto season team
@@ -10589,11 +10662,11 @@ function handleSeasonResult(snap) {
       }
     }
     if (!saveSeasonAndCareer(st, { liveGame: "clear" })) {
-      wireSeasonResultContinue(state.season, snap, { reports: report && [report] });
+      wireSeasonResultContinue(state.season, snap, { reports: report && [report], summaryExtra: axpNote });
       return;
     }
   }
-  wireSeasonResultContinue(st, snap, { reports: report && [report] });
+  wireSeasonResultContinue(st, snap, { reports: report && [report], summaryExtra: axpNote });
 }
 
 /** Playoff counterpart of handleSeasonResult() -- same fatigue/form bookkeeping, but the
@@ -10602,9 +10675,11 @@ function handleSeasonPlayoffResult(snap) {
   const st = state.season;
   const pending = state.seasonPendingPlayoffGame;
   let report = null;
+  let axpNote = "";
   if (st && pending?.game && !pending.game.played) {
     recordUserLivePlayoffResult(st, pending.game, pending.series, snap);
     report = settleUserGame(snap, snap?.youSide, { handPlayed: true });
+    axpNote = awardMyTeamGameXp(st);
   }
   state.seasonPendingPlayoffGame = null;
   if (st && snap) {
@@ -10621,11 +10696,11 @@ function handleSeasonPlayoffResult(snap) {
       }
     }
     if (!saveSeasonAndCareer(st, { liveGame: "clear" })) {
-      wireSeasonResultContinue(state.season, snap, { playoffSeries: pending?.series, reports: report && [report] });
+      wireSeasonResultContinue(state.season, snap, { playoffSeries: pending?.series, reports: report && [report], summaryExtra: axpNote });
       return;
     }
   }
-  wireSeasonResultContinue(st, snap, { playoffSeries: pending?.series, reports: report && [report] });
+  wireSeasonResultContinue(st, snap, { playoffSeries: pending?.series, reports: report && [report], summaryExtra: axpNote });
 }
 
 /** Paint score + both-team box scores (instant sim or re-open from schedule). */
@@ -11013,9 +11088,29 @@ function enterMyTeamSeason(st) {
 }
 
 /** Once a My Team season is done: stamp its result on the save and record it on the account (idempotent). */
+/**
+ * Account Level for a finished My Team Season: completion +200, made the
+ * playoffs +150, championship +500 (each once per season). Called inside
+ * settleMyTeamResult's `!st.myTeam.result` guard, so the reward is decided
+ * once — and keyed by seasonId as well, so even a re-settle can't pay twice.
+ * No celebration modal here: the result screen is re-opened from the hub,
+ * and the done-bar text carries the note instead.
+ */
+function awardMyTeamSeasonXp(st, result) {
+  const key = `myTeamSeason:${result.seasonId}`;
+  let total = 0;
+  const acc = getAccount(st.myTeam.ownerAccountId) || activeAccount();
+  total += awardAccountXp(acc, XP_TABLE.season, { source: "season", key: `${key}:completion` }).gained;
+  if (madePlayoffs(st)) total += awardAccountXp(acc, XP_TABLE.playoff, { source: "playoff", key: `${key}:playoff` }).gained;
+  if (result.champion) total += awardAccountXp(acc, XP_TABLE.championship, { source: "championship", key: `${key}:champion` }).gained;
+  return total;
+}
+
 function settleMyTeamResult(st) {
   if (!st?.myTeam || st.phase !== "done" || st.myTeam.result) return;
   st.myTeam.result = myTeamResult(st);
+  const axp = awardMyTeamSeasonXp(st, st.myTeam.result);
+  if (axp > 0) st.myTeam.result.axpNote = L(`🎖️ 账号经验 +${axp}`, `🎖️ Account XP +${axp}`);
   recordMyTeamResult(st.myTeam.ownerAccountId, st.myTeam.result);
   if (st.myTeam.result.champion) audio.champion();
 }
@@ -11031,7 +11126,7 @@ function paintMyTeamDoneBar(st) {
   const lang = getLang();
   const head = r.champion ? L("🏆 总冠军！", "🏆 Champions!") : L("赛季结束", "Season over");
   bar.hidden = false;
-  bar.innerHTML = `<strong>${esc(head)}</strong> <span>${r.w}${L("胜", "W")} ${r.l}${L("负", "L")} · ${esc(seasonRecordSummary(acc?.myTeamSeasons, r.variant, lang))}</span>
+  bar.innerHTML = `<strong>${esc(head)}</strong> <span>${r.w}${L("胜", "W")} ${r.l}${L("负", "L")} · ${esc(seasonRecordSummary(acc?.myTeamSeasons, r.variant, lang))}</span>${r.axpNote ? ` <span>${r.axpNote}</span>` : ""}
     <span class="btn-row"><button type="button" class="btn small primary" data-myteam-again="${esc(r.variant)}">${L("再来一季", "Play another season")}</button>
     <button type="button" class="btn small ghost" data-myteam-lineup="1">${L("调整阵容", "Adjust lineup")}</button></span>`;
 }
@@ -11543,10 +11638,14 @@ function handleRankedResult(youWin, snap) {
   // Ranked always seats the account on the home side (startRankedMatch).
   const notes = acc ? applyRankedGame(acc, snap?.home?.roster, { won: youWin }) : [];
   const tickets = acc ? recordRankedTasks(acc, youWin, undefined, getLang()) : [];
+  // Account Level: a finished ranked match pays +50 XP, win or lose.
+  const axp = awardAccountXp(acc, XP_TABLE.ranked, { source: "ranked" });
   const progress = [
     ...notes.map(progressNoteText),
     ...tickets.map((g) => `🎫 ${g.label}，抽卡券 +${g.tickets}`),
-  ].join(" ");
+    axp.gained ? `🎖️ ${L(`账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}` : "",
+  ].filter(Boolean).join(" ");
+  celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
   const cont = $("#btn-result-continue");
   $("#result-summary").textContent = (youWin
     ? `排位胜利。班底与教练已保存，战绩 ${acc?.rankedWins || 0}胜${acc?.rankedLosses || 0}负。`
