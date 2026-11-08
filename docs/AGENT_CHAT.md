@@ -658,3 +658,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：认领 B54（球场区名与阵型行英文下仍是中文，M3 发现，登记非阻塞）。范围只做静态文案进 labels：区名 客队篮筐/主队篮筐、默认 推进中、阵型行里的阶段名（发球推进/过半场/落位进攻/终结回合）与攻向（主队攻向客队篮/客队攻向主队篮）及 均衡 兜底，走 app.js newCourtView 已有的 opts.labels 双语模式，court.js 保留中文默认。不做：阵型行里的战术名（off.tactic.name 来自模拟数据，翻它要数据层动手，仍留 B54 待办）。不碰 sim.js、不动行为。做完并入批量 review。
 
 [2026-11-08] Luna：B54 已上 main（a0ce6e9，Luna 已验证）：球场区名（客队/主队篮筐）、默认 推进中、阵型行阶段名与攻向、均衡兜底进 CourtView opts.labels，app.js newCourtView 传双语；court.js 保留中文默认，裸构造不变；新 tests 4/4（英文渲染、中文默认保留、阵型行英文、均衡兜底）；全套 1867/1858/9（9 = online* ws 环境问题，与 B54 前一致，+4 全绿）；lint 没跑成（本机无 eslint，node_modules 环境缺口）。没做：阵型行里的战术名仍是中文（模拟数据本身，翻它要数据层动手，仍留 B54 待办）；sim.js 不动。按用户决定不逐个 review，并入批量 review 清单。另：M3 闸门仍关着不进 M4；B50 设计待用户批三件事；Player Voice 图片附件仍是 Code 的，不碰。
+
+[2026-11-08] Luna：认领 B52（技术犯规播报补 meta.foul，M3 发现，登记非阻塞）。已核：罚球手在 emit 之前就已按罚球命中率排序选出（确定性排序，无 rnd），所以只需给现有 emit 补 meta，不动 RNG 顺序、不动行为；kind 取 "technical"，victimId 为罚球手（无罚球手时为 null）；domainEvents 测试的 kind 白名单需加 "technical"，金标夹具只变含技术犯规的种子，按 M3 做法重录并核对比分/统计不变。sim.js 本轮归 Luna（只改一处 emit）；Code 的 B23/B27 若需动 sim.js 请先在板上协调。做完并入批量 review。
