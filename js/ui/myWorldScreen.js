@@ -7,7 +7,7 @@ import { readLook, saveLook } from "../data/avatarLook.js";
 import { lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
-import { mountAvatar3d } from "./avatar3d.js";
+import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { clearDraft, isBlankDraft, normalizeDraft, readDraft, writeDraft } from "../data/feedbackDraft.js";
 import { feedbackTemplate, journeyFromRoot, legacyFromAccount, myWorldHtml } from "./myWorldView.js";
@@ -46,6 +46,14 @@ export function createMyWorld({
     viewerToken += 1; // a mount still in flight must not attach itself to a stale panel
     viewer?.dispose();
     viewer = null;
+  }
+
+  /** Preview-action buttons work only while a viewer is live; otherwise they stay disabled with the panel's note. */
+  function setActionButtons(on) {
+    el.querySelectorAll('[data-mw-action^="avatar-action-"], [data-mw-action="avatar-idle"]').forEach((b) => {
+      if (on) b.removeAttribute("disabled");
+      else b.setAttribute("disabled", "");
+    });
   }
 
   function render() {
@@ -194,7 +202,9 @@ export function createMyWorld({
       viewer = handle;
       stage.querySelector(".mw-look-static")?.setAttribute("hidden", "");
       if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
+      setActionButtons(true);
     } catch {
+      setActionButtons(false);
       if (token === viewerToken) say(status, "3D 形象在这台设备上暂时无法显示。你仍可以选择外观，它会被保存。", "The 3D figure can't be shown on this device right now. You can still pick a look and it will be saved.");
     }
   }
@@ -247,10 +257,22 @@ export function createMyWorld({
     panel.hidden = !panel.hidden;
     if (panel.hidden) {
       disposeViewer();
+      setActionButtons(false);
       panel.querySelector(".mw-look-static")?.removeAttribute("hidden");
       return;
     }
     openViewer();
+  }
+
+  /** Play one of the model's own clips in the preview (or stand back up). Visual only, like everything in this panel. */
+  function playPreview(id) {
+    const status = el.querySelector("#mw-look-status");
+    if (!viewer) return say(status, "3D 形象还没准备好，暂时不能预览动作。", "The 3D figure isn't ready, so actions can't be previewed yet.");
+    const ok = id === "idle" ? viewer.playIdle?.() : viewer.playAction?.(id);
+    if (ok === false) return say(status, "这个动作暂时放不出来。", "That action can't be played right now.");
+    if (id === "idle") return say(status, "回到站立。", "Back to standing.");
+    const def = AVATAR_ACTIONS.find((a) => a.id === id);
+    say(status, `正在${def ? def.zh : "预览"}。`, `Playing ${def ? def.en : "preview"}…`);
   }
 
   function pickLook(input) {
@@ -272,6 +294,11 @@ export function createMyWorld({
   const actions = {
     "toggle-look": toggleLook,
     "use-3d-portrait": use3dPortrait,
+    "avatar-action-clap": () => playPreview("clap"),
+    "avatar-action-jump": () => playPreview("jump"),
+    "avatar-action-run": () => playPreview("run"),
+    "avatar-action-sit": () => playPreview("sit"),
+    "avatar-idle": () => playPreview("idle"),
     "edit-identity": () => {
       const f = form();
       if (!f) return;

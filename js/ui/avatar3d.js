@@ -3,12 +3,31 @@
  * Three.js is loaded with a dynamic import() the first time a viewer mounts, so no other screen pays for it.
  * Any failure (no WebGL, 404, timeout) rejects; the caller keeps showing its static avatar.
  */
-import { lookColors, sanitizeLook } from "../data/avatarLook.js";
+import { bodyBoneScales, lookColors, sanitizeLook } from "../data/avatarLook.js";
 
 const LIB_URL = new URL("../vendor/three-avatar.min.js", import.meta.url).href;
 export const AVATAR_MODEL_URL = new URL("../../assets/avatar3d/man.glb", import.meta.url).href;
 export const LOAD_TIMEOUT_MS = 4000;
 export const PORTRAIT_PX = 128;
+
+/**
+ * Creator preview actions (W3 slice): the model's own clips, wired as celebration / sitting actions.
+ * `suffix` matches the clip name exactly at the end, so Man_Run never picks up Man_RunningJump.
+ * `loop: false` means one-shot: it plays once and the figure returns to idle.
+ */
+export const AVATAR_ACTIONS = Object.freeze([
+  { id: "clap", suffix: "Man_Clapping", zh: "鼓掌", en: "Cheer", loop: false },
+  { id: "jump", suffix: "Man_Jump", zh: "跳跃", en: "Jump", loop: false },
+  { id: "run", suffix: "Man_Run", zh: "跑步", en: "Run", loop: true },
+  { id: "sit", suffix: "Man_Sitting", zh: "坐下", en: "Sit", loop: false },
+]);
+
+/** Pure: pick the clip for an action id from a list of clip names (or clip-like objects). Null when absent. */
+export function findActionClip(clips, actionId) {
+  const def = AVATAR_ACTIONS.find((a) => a.id === actionId);
+  if (!def) return null;
+  return (clips || []).find((c) => String(c?.name ?? c).endsWith(def.suffix)) || null;
+}
 // Head-and-shoulders framing as fractions of the model height (the figure is centred on the pivot).
 const PORTRAIT_HEAD_DOWN = 0.085; // head centre, measured down from the top of the model
 const PORTRAIT_FRAME = 0.27;      // visible height of the frame
@@ -98,21 +117,67 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
     // Recolour by material name (Skin / Hair / Shirt / Pants). Materials are per-model, so no cloning is needed.
     const materials = {};
     const hairMeshes = [];
+    const bones = {};
     gltf.scene.traverse((node) => {
+      if (node.isBone || (node.type === "Bone")) bones[node.name] = node;
       if (!node.isMesh) return;
       [].concat(node.material).forEach((m) => { materials[m.name] = m; if (m.name === "Hair") hairMeshes.push(node); });
     });
+    // Body preset: bone scales + overall height. The clips carry no scale tracks (verified from the GLB), so a
+    // scale applied here is never overwritten by an animation. Factors are modest by design (0.88–1.16).
+    const applyBody = (look) => {
+      const { height, bones: scales } = bodyBoneScales(look.body);
+      for (const [name, s] of Object.entries(scales)) bones[name]?.scale.set(s[0], s[1], s[2]);
+      pivot.scale.setScalar(height);
+      state.heightScale = height;
+    };
     const paint = (next) => {
       state.look = sanitizeLook(next);
       for (const [name, hex] of Object.entries(lookColors(state.look))) materials[name]?.color.set(hex);
       for (const mesh of hairMeshes) mesh.visible = state.look.style !== "shaved"; // hair is its own mesh: hide it for the shaved style
+      applyBody(state.look);
       canvas.dataset.look = JSON.stringify(state.look); // read by QA / devtools to confirm what is actually painted
     };
     paint(state.look);
 
     const mixer = new T.AnimationMixer(gltf.scene);
     const idle = gltf.animations.find((clip) => /idle/i.test(clip.name)) || gltf.animations[0];
-    if (idle) mixer.clipAction(idle).play();
+    const idleAction = idle ? mixer.clipAction(idle) : null;
+    if (idleAction) idleAction.play();
+    let currentAction = idleAction;
+    let actionToken = 0;
+    const playIdle = () => {
+      actionToken += 1;
+      if (currentAction && currentAction !== idleAction) currentAction.fadeOut(0.25);
+      if (idleAction) { idleAction.reset().fadeIn(0.25).play(); currentAction = idleAction; }
+      state.actionId = "idle";
+      canvas.dataset.action = "idle";
+      return true;
+    };
+    const playAction = (id) => {
+      const clip = findActionClip(gltf.animations, id);
+      const def = AVATAR_ACTIONS.find((a) => a.id === id);
+      if (!clip || !def) return false;
+      const token = ++actionToken;
+      const next = mixer.clipAction(clip);
+      next.reset();
+      next.setLoop(def.loop ? T.LoopRepeat : T.LoopOnce, Infinity);
+      next.clampWhenFinished = !def.loop;
+      if (currentAction && currentAction !== next) currentAction.fadeOut(0.25);
+      next.fadeIn(0.25).play();
+      currentAction = next;
+      state.actionId = id;
+      canvas.dataset.action = id;
+      if (!def.loop) {
+        const onFinished = (e) => {
+          if (e.action !== next || token !== actionToken) return;
+          mixer.removeEventListener("finished", onFinished);
+          if (!state.disposed && state.actionId === id) playIdle();
+        };
+        mixer.addEventListener("finished", onFinished);
+      }
+      return true;
+    };
 
     let dragX = null;
     canvas.addEventListener("pointerdown", (e) => { dragX = e.clientX; canvas.setPointerCapture(e.pointerId); canvas.style.cursor = "grabbing"; });
@@ -137,13 +202,18 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
       visibilityObserver.observe(container);
     }
     state.paint = paint;
+    state.playAction = playAction;
+    state.playIdle = playIdle;
+    state.actionId = "idle";
+    canvas.dataset.action = "idle";
     // Render one head-and-shoulders frame straight to a JPEG data URL. Rendering and reading happen in the same task,
     // so the WebGL buffer is still valid and `preserveDrawingBuffer` (a permanent perf cost) is not needed.
     state.capture = (bg = "#1f6b45") => {
       const saved = { pos: camera.position.clone(), aspect: camera.aspect, rot: state.pivot.rotation.y };
       try {
-        const headY = state.height / 2 - state.height * PORTRAIT_HEAD_DOWN;
-        const dist = (state.height * PORTRAIT_FRAME) / 2 / Math.tan((camera.fov * Math.PI) / 360);
+        const height = state.height * (state.heightScale || 1); // the body preset's overall scale moves the head
+        const headY = height / 2 - height * PORTRAIT_HEAD_DOWN;
+        const dist = (height * PORTRAIT_FRAME) / 2 / Math.tan((camera.fov * Math.PI) / 360);
         state.pivot.rotation.y = 0;
         camera.aspect = 1;
         camera.position.set(0, headY, dist);
@@ -180,6 +250,12 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
     /** @returns {string|null} a small JPEG data URL of the head and shoulders, or null if it could not be drawn */
     capturePortrait: (bg) => state.capture(bg),
     look: () => ({ ...state.look }),
+    /** Play a preview action (clap/jump/run/sit); one-shots return to idle on their own. False when unknown. */
+    playAction: (id) => state.playAction?.(id) ?? false,
+    /** Back to the idle pose. */
+    playIdle: () => state.playIdle?.() ?? false,
+    /** Current preview action id, or "idle". */
+    action: () => state.actionId || "idle",
     dispose: cleanup,
   };
 }

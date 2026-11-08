@@ -1,11 +1,17 @@
 /**
- * My World avatar look (ADR-008a N-1f step 2): which preset colours the player picked for their 3D avatar.
+ * My World avatar look (ADR-008a N-1f step 2; W3 Creator slice): which preset colours and build the player
+ * picked for their 3D avatar.
  *
  * Cosmetic only. It never touches ratings, height, weight or any save: the account keeps it in `account.avatar`,
  * guests in ONE local key. Only whitelisted preset ids are ever stored, so a hand-edited or corrupt value
  * falls back to the default instead of reaching the renderer. The model's materials (Skin, Hair, Shirt, Pants)
  * are recoloured. Hairstyle is a two-way switch (short / shaved): the model's hair is its own mesh, so hiding it is
  * the only hairstyle change possible without art work.
+ *
+ * Build (W3): three presets, bone scaling only — shoulders, spine girth, limb thickness — plus an overall
+ * scale for visual height. The model has NO UVs and NO textures (verified from the GLB: no TEXCOORD_0 on any
+ * primitive, no images), so a shirt pattern/number texture is impossible without a Blender UV unwrap; that is
+ * BACKLOG B55, not faked here. Build/height are appearance only and never reach any ability or stat code.
  */
 import { defaultStore } from "./profile.js";
 import { saveAccount } from "./account.js";
@@ -38,7 +44,40 @@ export const HAIR_STYLES = Object.freeze([
   { id: "shaved", zh: "光头", en: "Shaved" },
 ]);
 
-export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short" });
+/**
+ * Body presets (W3 Creator slice, no art): bone scaling only, kept deliberately modest (0.88–1.16) so the
+ * skinned mesh never stretches visibly. `height` is the overall visual scale, chosen per preset — there is no
+ * free slider. `scales` are per bone group: shoulders = shoulder-line width (x), spine = torso girth (x/z),
+ * arms/legs = limb thickness (x/z); limb and spine length (y) are never changed, so hands and feet stay where
+ * the animations expect them.
+ */
+export const BODY_PRESETS = Object.freeze([
+  { id: "standard", zh: "标准", en: "Standard", height: 1.0, scales: { shoulders: 1.0, spine: 1.0, arms: 1.0, legs: 1.0 } },
+  { id: "broad", zh: "壮实", en: "Broad", height: 1.03, scales: { shoulders: 1.16, spine: 1.07, arms: 1.05, legs: 1.04 } },
+  { id: "slim", zh: "精瘦", en: "Slim", height: 0.97, scales: { shoulders: 0.88, spine: 0.93, arms: 0.96, legs: 0.97 } },
+]);
+
+/** Bone names as they appear in the GLB, grouped by what a preset scales. Pure data, no Three.js needed. */
+export const BODY_BONE_GROUPS = Object.freeze({
+  shoulders: ["Shoulder.L", "Shoulder.R"],
+  spine: ["Abdomen", "Torso"],
+  arms: ["UpperArm.L", "UpperArm.R", "LowerArm.L", "LowerArm.R"],
+  legs: ["UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R"],
+});
+
+/** Pure: preset id -> { height, bones: { boneName: [x, y, z] } }. Unknown ids fall back to standard. */
+export function bodyBoneScales(presetId) {
+  const p = BODY_PRESETS.find((b) => b.id === presetId) || BODY_PRESETS[0];
+  const s = p.scales;
+  const bones = {};
+  for (const name of BODY_BONE_GROUPS.shoulders) bones[name] = [s.shoulders, 1, 1];
+  for (const name of BODY_BONE_GROUPS.spine) bones[name] = [s.spine, 1, s.spine];
+  for (const name of BODY_BONE_GROUPS.arms) bones[name] = [s.arms, 1, s.arms];
+  for (const name of BODY_BONE_GROUPS.legs) bones[name] = [s.legs, 1, s.legs];
+  return { height: p.height, bones };
+}
+
+export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard" });
 
 const pick = (list, id, fallback) => (list.some((item) => item.id === id) ? id : fallback);
 
@@ -50,6 +89,7 @@ export function sanitizeLook(raw) {
     hair: pick(HAIR_COLORS, r.hair, DEFAULT_LOOK.hair),
     outfit: pick(OUTFITS, r.outfit, DEFAULT_LOOK.outfit),
     style: pick(HAIR_STYLES, r.style, DEFAULT_LOOK.style),
+    body: pick(BODY_PRESETS, r.body, DEFAULT_LOOK.body),
   };
 }
 

@@ -33,7 +33,7 @@ export const PORTRAIT_PRESETS = Object.freeze([
 /** One short string that changes whenever anything visible about the avatar changes. */
 export function lookSignature(look) {
   const l = sanitizeLook(look);
-  return [l.skin, l.hair, l.outfit, l.style].join(".");
+  return [l.skin, l.hair, l.outfit, l.style, l.body].join(".");
 }
 
 /** Whitelist a stored/raw value. @returns {object|null} null = nothing (valid) chosen */

@@ -6,7 +6,8 @@
 import { avatarDataUri } from "../data/avatarArt.js";
 import { PORTRAIT_PRESETS } from "../data/avatarPortrait.js";
 import { presetPortraitUri } from "./avatarPortraitArt.js";
-import { HAIR_COLORS, HAIR_STYLES, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
+import { BODY_PRESETS, HAIR_COLORS, HAIR_STYLES, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
+import { AVATAR_ACTIONS } from "./avatar3d.js";
 
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
@@ -17,7 +18,18 @@ const GROUPS = [
   { key: "style", zh: "发型", en: "Hairstyle", items: HAIR_STYLES, swatch: null },
   { key: "hair", zh: "发色", en: "Hair", items: HAIR_COLORS, swatch: (i) => i.hex },
   { key: "outfit", zh: "服装", en: "Outfit", items: OUTFITS, swatch: (i) => `linear-gradient(135deg, ${i.shirt} 50%, ${i.pants} 50%)` },
+  { key: "body", zh: "体型", en: "Build", items: BODY_PRESETS, swatch: null },
 ];
+
+/** Preview actions (W3 slice): the model's own celebration/sitting clips. Disabled until the 3D figure loads — the screen enables them, exactly like the "use my 3D look" button. */
+function actionsHtml(lang) {
+  return `<fieldset class="mw-swatches mw-actions" data-mw-avatar-actions>
+    <legend>${T(lang, "动作预览", "Preview actions")}</legend>
+    ${AVATAR_ACTIONS.map((a) => `<button type="button" class="btn ghost" data-mw-action="avatar-action-${a.id}" disabled>${esc(T(lang, a.zh, a.en))}</button>`).join("")}
+    <button type="button" class="btn ghost" data-mw-action="avatar-idle" disabled>${T(lang, "站好", "Stand")}</button>
+    <p class="mw-note">${T(lang, "3D 形象加载成功后可用；只是预览动作，不影响任何比赛能力。", "Available once the 3D figure loads; just a preview, it never changes any ability.")}</p>
+  </fieldset>`;
+}
 
 const groupHtml = (group, look, lang) => `<fieldset class="mw-swatches" data-mw-look-group="${group.key}">
     <legend>${T(lang, group.zh, group.en)}</legend>
@@ -55,6 +67,7 @@ export function lookPanelHtml(rawLook, name, lang, portrait = null) {
     <div class="mw-look-controls">
       <h3>${T(lang, "我的形象", "My look")}</h3>
       ${GROUPS.map((g) => groupHtml(g, look, lang)).join("")}
+      ${actionsHtml(lang)}
       ${portraitHtml(portrait, lang)}
       <p class="mw-note">${T(lang, "只是外观，不影响任何比赛能力。拖动形象可以旋转。", "Cosmetic only; it never changes any ability. Drag the figure to turn it.")}</p>
       <p class="mw-status" id="mw-look-status" role="status" aria-live="polite"></p>
