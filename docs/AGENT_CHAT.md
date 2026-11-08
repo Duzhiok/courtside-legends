@@ -668,3 +668,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：B53 已上 main（b237285，Luna 已验证）：每次换手都发结构化 meta.pass（新静默 "pass" 事件，{ passerId, receiverId, kind }，kind 取 handoff/kick/repass；组织者分球播报里的 meta.pass 是重复弧线，已拿掉只留文字）；pushFeed 像 dunk 一样跳过 "pass" 型，不加空播报行；court onPass 与 app.js 接线不动。画每条传球弧线不用节流：一回合最多两次换手（终场硬塞与分球不同时发生），每条 380ms，队列同 id 替换。无 RNG 改动、无行为改动：比分+统计哈希 20 个金标种子全不变，金标夹具重录只变 10 个奇数种子（活球事件）；新 tests/b53PassEvents.test.js 4/4（结构/去重/每段≤2 条/硬塞发给指定射手/播报文案源码钉住）；全套 1872/1863/9（9 = online* ws 环境问题，与 B53 前一致，+4 全绿）。按用户决定不逐个 review，并入批量 review 清单。另：M3 闸门仍关着不进 M4；B50 设计待用户批三件事；Player Voice 图片附件仍是 Code 的，不碰。
 
 [2026-11-08] Luna：B53 的 BACKLOG 行补记（66ec7ee）：b237285 落地上 main 时漏了更新 BACKLOG.md 的 B53 行（仍写着“登记，非阻塞”），已按 B52/B54 的格式补记完成状态；代码与测试无任何改动。
+
+[2026-11-08] Luna：认领 B54 剩余部分（阵型行战术名英文下仍是中文）。已核：快照里的 tactic 就是 TACTICS 原对象（publicTeam 原样透传，nameEn 全员都有），court.js:483 只取了 .name；court3d 不显示战术名（只用 id 排阵），sim.js:2287/2316 的教练切换播报文案是另一处，不在这次范围。做法：CourtView 接 opts.getLang（每 render 现取，局中切语言也生效），英文取 nameEn、缺失回退 name；app.js newCourtView 传 getLang；court.js 保留中文默认，裸构造不变。不碰 sim.js、不动行为、不动金标。做完并入批量 review。

@@ -340,8 +340,10 @@ test("B24: transition pushes the PG ahead with wide lanes", () => {
 
 // B54: court zone tags, the default formation label, and the formation line
 // (phase + attack direction + balanced fallback) come from opts.labels, so
-// English mode shows no hardcoded Chinese. Tactic names are NOT covered:
-// they come from sim data (off.tactic.name) and need data-layer work.
+// English mode shows no hardcoded Chinese. Tactic names are also covered now
+// (B54 remainder): they come from sim data (off.tactic) but every TACTICS
+// entry carries nameEn, so CourtView resolves it per render via opts.getLang.
+// (sim.js coach-switch feed text still uses tactic.name raw — separate gap.)
 const EN_LABELS = {
   zoneAway: "Away basket",
   zoneHome: "Home basket",
@@ -378,8 +380,10 @@ test("B54: no labels passed keeps the Chinese defaults", () => {
 
 test("B54: formation line uses English phase and direction with labels passed", () => {
   const root = makeRoot();
-  const view = new CourtView(root, { labels: EN_LABELS });
-  view.render(snap());
+  const view = new CourtView(root, { labels: EN_LABELS, getLang: () => "en" });
+  const s = snap();
+  s.home.tactic = { id: "balanced", name: "均衡", nameEn: "Balanced Offense" };
+  view.render(s);
   const line = root._parts["#court-formation"].textContent;
   // A fresh render starts a new possession, so the phase is inbounding.
   assert.ok(line.includes("Inbounding"), `phase in English, got: ${line}`);
@@ -389,9 +393,46 @@ test("B54: formation line uses English phase and direction with labels passed", 
   );
   assert.ok(!line.includes("发球推进"), "no hardcoded phase name");
   assert.ok(!line.includes("主队攻向客队篮"), "no hardcoded direction");
-  // Tactic name stays Chinese here on purpose: it comes from sim data
-  // (off.tactic.name) and needs data-layer work, out of B54's scope.
-  assert.ok(line.includes("均衡"), "tactic name still from sim data, unchanged");
+  // B54 remainder: the tactic name resolves via nameEn in English mode.
+  assert.ok(line.includes("Balanced Offense"), `tactic name in English, got: ${line}`);
+  assert.ok(!line.includes("均衡"), "no Chinese tactic name in English mode");
+});
+
+test("B54: no getLang passed keeps the Chinese tactic name (bare construction)", () => {
+  const root = makeRoot();
+  const view = new CourtView(root, { labels: EN_LABELS });
+  const s = snap();
+  s.home.tactic = { id: "balanced", name: "均衡", nameEn: "Balanced Offense" };
+  view.render(s);
+  const line = root._parts["#court-formation"].textContent;
+  assert.ok(line.includes("均衡"), `tactic name defaults to Chinese, got: ${line}`);
+  assert.ok(!line.includes("Balanced Offense"), "no English tactic name by default");
+});
+
+test("B54: English mode falls back to the Chinese name when nameEn is missing", () => {
+  const root = makeRoot();
+  const view = new CourtView(root, { labels: EN_LABELS, getLang: () => "en" });
+  view.render(snap());
+  const line = root._parts["#court-formation"].textContent;
+  assert.ok(line.includes("均衡"), `missing nameEn falls back to name, got: ${line}`);
+});
+
+test("B54: a mid-game language flip re-renders the tactic name on next render", () => {
+  const root = makeRoot();
+  let lang = "zh";
+  const view = new CourtView(root, { labels: EN_LABELS, getLang: () => lang });
+  const s = snap();
+  s.home.tactic = { id: "balanced", name: "均衡", nameEn: "Balanced Offense" };
+  view.render(s);
+  assert.ok(
+    root._parts["#court-formation"].textContent.includes("均衡"),
+    "Chinese tactic name before the flip",
+  );
+  lang = "en";
+  view.render(s);
+  const line = root._parts["#court-formation"].textContent;
+  assert.ok(line.includes("Balanced Offense"), `tactic name flips to English, got: ${line}`);
+  assert.ok(!line.includes("均衡"), "no Chinese tactic name after the flip");
 });
 
 test("B54: formation line falls back to the balanced label when no tactic is set", () => {

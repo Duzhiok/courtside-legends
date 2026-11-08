@@ -1286,6 +1286,7 @@ function restoreFeed(lines) {
 /** CourtView with bilingual labels (the court module itself only knows Chinese defaults). */
 function newCourtView() {
   return new CourtView($("#court-root"), {
+    getLang,
     labels: {
       simple: L("人物：简易", "Players: Simple"),
       photo: L("人物：照片", "Players: Photos"),

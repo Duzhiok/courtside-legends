@@ -249,6 +249,10 @@ export class CourtView {
       attackAway: opts.labels?.attackAway || "客队攻向主队篮",
       balanced: opts.labels?.balanced || "均衡",
     };
+    // B54 remainder: tactic names come from sim data (off.tactic) and carry
+    // nameEn; resolve per render so a mid-game language flip takes effect.
+    // No getLang passed (bare construction, tests) keeps the Chinese default.
+    this.getLang = typeof opts.getLang === "function" ? opts.getLang : () => "zh";
     this.tokens = new Map();
     this._built = false;
     this._lastLineup = "";
@@ -443,6 +447,14 @@ export class CourtView {
     }
   }
 
+  // B54 remainder: English uses the tactic's nameEn (every TACTICS entry
+  // carries one); a tactic without nameEn falls back to its Chinese name.
+  _tacticName(off) {
+    const t = off?.tactic;
+    if (!t) return "";
+    return this.getLang() === "en" ? t.nameEn || t.name : t.name;
+  }
+
   _paint(snap, isNewTick) {
     const offSide = snap.possession;
     const attackingUp = offSide === "home"; // home attacks toward top (away hoop)
@@ -480,7 +492,7 @@ export class CourtView {
             ? this.labels.phaseSet
             : this.labels.phaseFinish;
 
-    this.formLabel.textContent = `${off.name} · ${off.tactic?.name || this.labels.balanced} · ${
+    this.formLabel.textContent = `${off.name} · ${this._tacticName(off) || this.labels.balanced} · ${
       attackingUp ? this.labels.attackHome : this.labels.attackAway
     } · ${phaseName}`;
 
