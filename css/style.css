@@ -3645,3 +3645,12 @@ select, input[type="number"] {
   background: radial-gradient(circle at 50% 35%, rgba(255, 214, 90, 0.55), rgba(255, 214, 90, 0) 65%);
 }
 .clutch-3d-note { color: #f0b429; }
+
+/* My Team Season: "season over" bar (one clear primary action, no mid-phrase wrapping) */
+.myteam-done-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(255, 196, 61, 0.14); border: 1px solid rgba(255, 196, 61, 0.45); }
+.myteam-done-bar[hidden] { display: none; }
+.myteam-done-bar strong { font-size: 1.05rem; }
+.myteam-done-bar span { white-space: nowrap; }
+.myteam-done-bar .btn-row { margin-left: auto; display: flex; gap: 8px; }
+.myteam-done-bar .btn.primary { padding: 8px 18px; font-weight: 700; }
+.myteam-done-bar .btn.ghost { color: inherit; border: 1px solid rgba(255, 255, 255, 0.55); background: rgba(255, 255, 255, 0.08); }

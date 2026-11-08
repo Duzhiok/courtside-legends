@@ -342,6 +342,7 @@ import {
 import { confirmAction } from "./ui/confirmModal.js";
 import { myTeamSig, careerSig, foreignOwnerOf, ForeignSaveError, GUEST, hiddenFromMe, keyHasData, markSessionResumed, markSlotResumed, saveVisibility, seasonSig, sessionSig, slotLockReason, stampLegacySaves } from "./data/saveOwnership.js";
 import { buildMyTeamSeason } from "./myteam/mySeason.js";
+import { myTeamResult, recordMyTeamResult, seasonRecordSummary } from "./myteam/seasonRecord.js";
 import { clearMyTeamSeason, hasMyTeamSeason, loadMyTeamSeason, readMyTeamSeason, saveMyTeamSeason } from "./myteam/seasonStore.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
@@ -1091,6 +1092,7 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
 function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) {
   // A My Team season routes itself (the object carries `myTeam`): it must NEVER fall through to the quick-season slot.
   if (st?.myTeam) {
+    settleMyTeamResult(st); // the last playoff game may be simulated without ever re-opening the hub
     const res = saveMyTeamSeason(st);
     if (!res.ok) alert(res.reason === "storage" ? "赛季保存失败：浏览器存储空间不足。" : "赛季保存失败：存档位被其他存档占用。");
     return res.ok;
@@ -9114,7 +9116,11 @@ function renderSeasonHub({ persist = true } = {}) {
       ? st.teams[st.playoffs.championId]?.name
       : null;
     if (st.phase === "done") {
-      nextEl.textContent = champ
+      nextEl.textContent = st.myTeam
+        ? champ
+          ? L(`总冠军：${champ}。这一季打完了，点上方「再来一季」继续。`, `Champions: ${champ}. That's the season — hit "Play another season" above.`)
+          : L("这一季打完了，点上方「再来一季」继续。", "That's the season — hit \"Play another season\" above.")
+        : champ
         ? isManagedCareer(state.leagueCareer)
           ? L(`总冠军：${champ}。可进入休赛期选秀，完成选择后开启 ${Number(st.year) + 1} 赛季。`, `Champions: ${champ}. Head to the offseason draft, then start the ${Number(st.year) + 1} season.`)
           : L(`总冠军：${champ}。可进入休赛期：球员按史实生涯成长/衰老，并开启 ${Number(st.year) + 1} 赛季。`, `Champions: ${champ}. Head to the offseason: players grow and age on their real career curves, then the ${Number(st.year) + 1} season starts.`)
@@ -9175,6 +9181,7 @@ function renderSeasonHub({ persist = true } = {}) {
     if (st.myTeam) { abandon.dataset.myTeam = "1"; abandon.textContent = L("放弃我的赛季", "Abandon my season"); }
     else if (abandon.dataset.myTeam) { delete abandon.dataset.myTeam; abandon.textContent = L("删除当前生涯", "Delete current career"); }
   }
+  paintMyTeamDoneBar(st);
   if (persist && !saveSeasonAndCareer(st)) return;
 }
 
@@ -10196,7 +10203,7 @@ function renderSeasonAwards() {
   if (!st || !box) return;
   const a = st.awards;
   if (!a) {
-    box.innerHTML = `<p class="tiny">${L("打完 82 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。奖项只是荣誉，不送技能。", "Awards come automatically after 82 games (MVP, DPOY, All-NBA 1st/2nd/3rd, Sixth Man, MIP, ROY, Coach of the Year, scoring champ and more). Awards are honors only — no skills attached.")}</p>`;
+    box.innerHTML = `<p class="tiny">${L(`打完 ${seasonGames(st)} 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。奖项只是荣誉，不送技能。`, `Awards come automatically after ${seasonGames(st)} games (MVP, DPOY, All-NBA 1st/2nd/3rd, Sixth Man, MIP, ROY, Coach of the Year, scoring champ and more). Awards are honors only — no skills attached.`)}</p>`;
     return;
   }
   const teamList = (list, label) =>
@@ -11000,6 +11007,34 @@ function enterMyTeamSeason(st) {
   showSeasonTab("standings");
 }
 
+/** Once a My Team season is done: stamp its result on the save and record it on the account (idempotent). */
+function settleMyTeamResult(st) {
+  if (!st?.myTeam || st.phase !== "done" || st.myTeam.result) return;
+  st.myTeam.result = myTeamResult(st);
+  recordMyTeamResult(st.myTeam.ownerAccountId, st.myTeam.result);
+}
+
+/** Season over: show the result and offer "one more season" with the same length. */
+function paintMyTeamDoneBar(st) {
+  const bar = $("#myteam-done-bar");
+  if (!bar) return;
+  if (!st?.myTeam || st.phase !== "done") { bar.hidden = true; return; }
+  settleMyTeamResult(st);
+  const r = st.myTeam.result;
+  const acc = activeAccount();
+  const lang = getLang();
+  const head = r.champion ? L("🏆 总冠军！", "🏆 Champions!") : L("赛季结束", "Season over");
+  bar.hidden = false;
+  bar.innerHTML = `<strong>${esc(head)}</strong> <span>${r.w}${L("胜", "W")} ${r.l}${L("负", "L")} · ${esc(seasonRecordSummary(acc?.myTeamSeasons, r.variant, lang))}</span>
+    <span class="btn-row"><button type="button" class="btn small primary" data-myteam-again="${esc(r.variant)}">${L("再来一季", "Play another season")}</button>
+    <button type="button" class="btn small ghost" data-myteam-lineup="1">${L("调整阵容", "Adjust lineup")}</button></span>`;
+}
+$("#myteam-done-bar")?.addEventListener("click", (e) => {
+  const again = e.target.closest("[data-myteam-again]");
+  if (again) return void startMyTeamSeason(again.dataset.myteamAgain, { again: true });
+  if (e.target.closest("[data-myteam-lineup]")) { myTeamLineup?.open(); show("myTeamLineup"); }
+});
+
 function myTeamResumeLabel() {
   const st = readMyTeamSeason();
   if (!st) return null;
@@ -11008,7 +11043,7 @@ function myTeamResumeLabel() {
   try { return seasonProgressLabel(st, getLang()); } catch { return L("进行中", "In progress"); }
 }
 
-async function startMyTeamSeason(variant) {
+async function startMyTeamSeason(variant, { again = false } = {}) {
   const account = activeAccount();
   if (!account) { alert(L("请先创建 / 登录账号。", "Sign in or create an account first.")); return; }
   let built = buildMyTeamSeason(account, { variant });
@@ -11031,14 +11066,16 @@ async function startMyTeamSeason(variant) {
     return p ? (getLang() === "en" ? p.nameEn || p.name : p.name) : id;
   });
   const games = st.myTeam.rules.seasonLength;
-  if (!(await confirmAction(L(
+  if (!again && !(await confirmAction(L(
     `首发：${names.join("、")}\n${st.myTeam.roster.length} 人名单 · ${games} 场常规赛 + 季后赛。\n开赛后阵容锁定：之后抽到或升级的卡不影响这个赛季。`,
     `Starters: ${names.join(", ")}\n${st.myTeam.roster.length}-man roster · ${games}-game regular season + playoffs.\nThe lineup locks once it starts: cards you pull or upgrade later won't affect this season.`,
   ), { title: L("开始我的赛季？", "Start my season?"), acceptLabel: L("开赛", "Start") }))) return;
 
   // Never silently replace a save: someone else's / unlinked is refused; my own earlier season needs a yes.
   if (await blockedByForeignSave("myteam", { sig: myTeamSig(st) })) return;
-  if (hasMyTeamSeason() && !(await confirmAction(L("将放弃你当前进行中的「我的赛季」，确定开新赛季？", "This replaces your My Team season in progress. Start a new one?"), {
+  const prev = readMyTeamSeason();
+  const prevFinished = !!prev?.myTeam?.result; // a finished season of mine is history, not progress to protect
+  if (hasMyTeamSeason() && !prevFinished && !(await confirmAction(L("将放弃你当前进行中的「我的赛季」，确定开新赛季？", "This replaces your My Team season in progress. Start a new one?"), {
     title: L("覆盖当前赛季？", "Replace the current season?"), acceptLabel: L("覆盖并开始", "Replace and start"),
   }))) return;
   if (!saveSeasonAndCareer(st)) return; // alerts on failure; nothing else was touched
@@ -11903,7 +11940,13 @@ async function boot() {
       seasonLabel: (st, lang) => { try { return seasonProgressLabel(st, lang); } catch { return ""; } }, // a damaged season must not break boot
       deleteSave: deleteUnlinkedSave,
       readMyTeam: () => readMyTeamSeason(),
-      myTeamLabel: (st, lang) => { try { return seasonProgressLabel(st, lang); } catch { return ""; } },
+      myTeamLabel: (st, lang) => {
+        try {
+          const r = st?.myTeam?.result;
+          if (r) return lang === "en" ? `Finished · ${r.champion ? "champions · " : ""}${r.w}-${r.l}` : `已完成 · ${r.champion ? "夺冠 · " : ""}${r.w}胜${r.l}负`;
+          return seasonProgressLabel(st, lang);
+        } catch { return ""; }
+      },
       myTeamSigOf: myTeamSig,
       onResumeMyTeam: resumeMyTeamSeason,
       confirm: (message) => confirmAction(message, { title: L("认领本机存档？", "Claim this local save?"), acceptLabel: L("确认认领", "Claim it") }),

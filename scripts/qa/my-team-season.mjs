@@ -124,6 +124,31 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   s = await slots(page);
   check(`[${tag}] still only my slot moved`, s.cls_season_v1 === "QUICK-SEASON-SENTINEL" && !s.cls_root_v3);
 
+  // Playoffs -> season over -> "play another season" (same length, no config detour, record kept).
+  await page.click('[data-season-tab="playoffs"]'); // the one-click sim lives here until the bracket starts
+  await page.waitForSelector("#btn-season-sim-playoffs", { timeout: 10000 });
+  await page.click("#btn-season-sim-playoffs");
+  await page.waitForSelector("#app-confirm-dialog[open]", { timeout: 2500 }).then(() => page.click("#app-confirm-accept")).catch(() => {});
+  await page.waitForSelector("#screen-result.active", { timeout: 60000 }).catch(() => {});
+  check(`[${tag}] result recorded on the account before the hub is even reopened`, await page.evaluate(() => (localStorage.getItem("cls_accounts_v1") || "").includes("myTeamSeasons")));
+  if (await page.$("#screen-result.active")) { await page.click("#btn-result-continue"); await page.waitForSelector("#screen-season.active"); }
+  await page.waitForFunction(() => !document.querySelector("#myteam-done-bar")?.hidden, null, { timeout: 15000 }).catch(() => {});
+  const bar = await text(page, "#myteam-done-bar");
+  check(`[${tag}] season-over bar shows record + title count`, /\d+胜 \d+负/.test(bar) && bar.includes("20 场"), bar.slice(0, 90));
+  check(`[${tag}] bar offers play-another-season`, !!(await page.$("[data-myteam-again]")));
+  check(`[${tag}] finished season recorded on the account`, await page.evaluate(() => (localStorage.getItem("cls_accounts_v1") || "").includes("myTeamSeasons")));
+  const firstId = await page.evaluate(() => JSON.parse(localStorage.getItem("cls_myteam_season_v1")).myTeam.seasonId);
+  check(`[${tag}] season-over state: no horizontal overflow`, await noOverflow(page));
+  check(`[${tag}] header buttons stay inside the viewport`, await page.$eval("#btn-season-abandon", (b) => b.getBoundingClientRect().right <= window.innerWidth + 1));
+  await shoot(page, `${OUT}/${tag}-season-over.png`);
+  await page.click("[data-myteam-again]");
+  await page.waitForFunction((id) => { const st = JSON.parse(localStorage.getItem("cls_myteam_season_v1") || "null"); return st?.myTeam && st.myTeam.seasonId !== id; }, firstId, { timeout: 15000 }).catch(() => {});
+  const nextMeta = await text(page, "#season-hub-meta");
+  check(`[${tag}] another season started: fresh 0/20, new id, no confirm detour`, /0\/20/.test(nextMeta), nextMeta);
+  check(`[${tag}] end bar hidden again for the new season`, await page.$eval("#myteam-done-bar", (b) => b.hidden));
+  s = await slots(page);
+  check(`[${tag}] quick-season bytes still untouched`, s.cls_season_v1 === "QUICK-SEASON-SENTINEL");
+
   // Abandon removes only this season; the quick-season bytes stay.
   await page.click("#btn-season-abandon");
   await confirmDialog(page, true);
