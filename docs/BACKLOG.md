@@ -52,6 +52,7 @@
 | B48 | **两套"我的阵容"合一**：本地账号卡（`cls_accounts_v1`）vs 联机服务端账号阵容（`online.html`） | L4 | ADR-008 N-5，单独 ADR | 登记，不排期 |
 | B49 | **手机端"长期生涯存档"条：按钮压住文字**。390px 英文下 `#long-career-home-bar` 文字栏被挤成一个词宽，"Continue Career" 按钮盖住 "1995 → 19…"；R162 截图发现，在 My World 改动之前就存在 | L1 | 首页布局小修 | ✅ 完成（R175）：手机端"压到 0 宽"的规则本来只为"我的档案"栏写，却误伤存档条；现收窄到 `.profile-bar`，存档条文字独占一行。QA 先红（89px）后绿 |
 | B50 | **金笔挑战赛淘汰后变 archive 记录**（用户 2026-11-07 定）：淘汰后不删档，变为主页记录里的一条 archive，只看不续——主页记录不给继续游戏的通道。现状：淘汰结算点"回主页"时 `clearSave()`（app.js:10704 附近），记录直接消失。注：仓库里没有"金笔"，对应的是金币联赛/金币晋级赛淘汰赛生涯（32→1 bracket）；若指的不是这个请纠正。实现前需一页设计（规则 10）：archive 记录存哪（首页存档条还是 My Games）、存什么字段、旧存档是否迁移、淘汰结算文案 | L3 | 待定 | 登记，待一页设计 |
+| B51 | **`submitDecision` 的 `this.ended` 死检查**（M2b-2 发现，2026-11-07）：sim.js:1533 `if (this.ended \|\| !this.running) return reject("game_over")`，但 `ended` 在引擎里任何地方都没赋值（`stop()` 只设 `running = false`），所以 `ended` 恒为 falsy，真正起作用的只有 `!this.running`。清理：删掉 `this.ended` 或在 `stop()` 里赋值；顺手确认没有别的 `ended` 引用 | L4（动 GameSim，但只是删死代码） | M2b-2 发现 | 登记，非阻塞 |
 
 ## 2026-11-05 已批准决策（Zoro）
 
