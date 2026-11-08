@@ -11,6 +11,7 @@ import { FRANCHISES, franchiseName } from "../js/data/franchises.js";
 import { careerStageLabel } from "../js/engine/careerBracket.js";
 import { challengeTierName } from "../js/data/careerChallenges.js";
 import { formatSaveLabel, translateStoredLabel } from "../js/data/savegame.js";
+import { seasonPhaseLabel } from "../js/modes/leagueCareerPhase.js";
 
 const ZH = /[\u4e00-\u9fff]/;
 
@@ -369,4 +370,41 @@ test("every league team name a game can show has an English name (no Chinese lea
   } finally {
     setLang("zh");
   }
+});
+
+test("i18n: season phase ids never render raw — seasonPhaseLabel maps all five (B19)", () => {
+  assert.equal(seasonPhaseLabel("draft", "zh"), "选秀");
+  assert.equal(seasonPhaseLabel("draft", "en"), "Draft");
+  assert.equal(seasonPhaseLabel("regular", "zh"), "常规赛");
+  assert.equal(seasonPhaseLabel("regular", "en"), "Regular Season");
+  assert.equal(seasonPhaseLabel("awards", "zh"), "评奖");
+  assert.equal(seasonPhaseLabel("awards", "en"), "Awards");
+  assert.equal(seasonPhaseLabel("playoffs", "zh"), "季后赛");
+  assert.equal(seasonPhaseLabel("playoffs", "en"), "Playoffs");
+  assert.equal(seasonPhaseLabel("done", "zh"), "已结束");
+  assert.equal(seasonPhaseLabel("done", "en"), "Finished");
+  assert.equal(seasonPhaseLabel("regular"), "常规赛");
+  assert.equal(seasonPhaseLabel(null, "en"), "—");
+  assert.equal(seasonPhaseLabel("bogus", "zh"), "—");
+  // No raw id may survive into UI text: the label table must cover every
+  // phase the engine can produce (season.js: regular | awards | playoffs | done;
+  // leagueCareer.js: draft | regular).
+  for (const phase of ["draft", "regular", "awards", "playoffs", "done"]) {
+    for (const lang of ["zh", "en"]) {
+      const label = seasonPhaseLabel(phase, lang);
+      assert.ok(!["draft", "regular", "awards", "playoffs", "done"].includes(label), `${phase}/${lang} leaked its id`);
+    }
+  }
+});
+
+test("i18n: home career bar and season market use the phase label, pack title goes through L() (B19/B39, source pin)", () => {
+  const src = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
+  assert.ok(!src.includes("Phase: ${career.phase"), "home bar still interpolates the raw phase id (en)");
+  assert.ok(!src.includes("阶段：${career.phase"), "home bar still interpolates the raw phase id (zh)");
+  assert.ok(!src.includes("当前阶段：${st.phase"), "season market still interpolates the raw phase id (zh)");
+  assert.ok(!src.includes("Current phase: ${st.phase"), "season market still interpolates the raw phase id (en)");
+  assert.ok(src.includes('seasonPhaseLabel(career.phase || season?.phase'), "home bar does not use seasonPhaseLabel");
+  assert.ok(src.includes("seasonPhaseLabel(st.phase, getLang())"), "season market does not use seasonPhaseLabel");
+  assert.ok(src.includes('title.textContent = L("本轮卡包（点选一名）"'), "draft pack title is still a raw Chinese assignment");
+  assert.ok(!src.includes('title.textContent = "本轮卡包'), "draft pack title still assigned raw");
 });

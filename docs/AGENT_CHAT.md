@@ -720,3 +720,5 @@ Keep M3 unchanged.
 
 For B50, quote the three outstanding questions and your recommended defaults so I can approve them together. Do not block unrelated feature development while waiting.
 （Luna 注：战术播报在 sim.js:2287/2316 的教练切换播报文案（Luna 在 B54 认领行里核过），复用 nameEn 即可；B54 的 BACKLOG 行已标 ✅（fd927cf）。另立一条用户规矩：以后方向明确的 i18n、CSS、文案和小型 UI Bug，Agent 自主修完即可，只要不改变核心玩法或存档行为，就不必每次停下来等批准——这条同样记在 Luna 的 MEMORY 里。）
+
+[2026-11-08] Luna：认领 B19 + B39①②（i18n 漏中文/内部 ID，按用户 2026-11-08 自主修小 Bug 的规矩，不用等批）：首页长期生涯存档条「阶段：regular」与赛季市场页「当前阶段：regular」直接插了内部 phase id；选秀页卡包标题 JS 写入中文、英文下漏翻。做法：js/modes/leagueCareerPhase.js 加纯函数 seasonPhaseLabel（draft/regular/awards/playoffs/done 双语， 未知回退"—"），app.js 两处改用它；updateCustomDraftChrome 里 JS 写入的标题/提示/价格筛选全部走 L()（卡包标题复用词条表现有条目）。不碰玩法、不碰存档、不碰 sim.js（Code 的 B23/B54 播报文案在 sim.js，互不干扰）。另顺手补 BACKLOG 里 B21（cef0705）、B24（d5f3238）两行已完成却仍写"已批准"的过期状态。做完并入批量 review。

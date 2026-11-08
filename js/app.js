@@ -303,6 +303,7 @@ import {
   careerForPersistence,
   isManagedCareer,
   runCareerTransition,
+  seasonPhaseLabel,
 } from "./modes/leagueCareerPhase.js";
 import {
   recommendDevelopmentPlans,
@@ -1025,7 +1026,9 @@ function refreshLongCareerHomeBar() {
   const details = [
     teamNameL(team?.name || (lang === "en" ? "Unnamed team" : "未命名球队"), lang),
     `${story?.startYear ?? season?.year ?? "—"} → ${season?.year ?? "—"}`,
-    lang === "en" ? `Phase: ${career.phase || season?.phase || "—"}` : `阶段：${career.phase || season?.phase || "—"}`,
+    lang === "en"
+      ? `Phase: ${seasonPhaseLabel(career.phase || season?.phase, "en")}`
+      : `阶段：${seasonPhaseLabel(career.phase || season?.phase, "zh")}`,
   ];
   if (story && Number.isFinite(story.futureKnowledge)) {
     details.push(lang === "en" ? `Future Knowledge ${story.futureKnowledge}` : `未来知识 ${story.futureKnowledge}`);
@@ -3118,7 +3121,9 @@ function updateCustomDraftChrome() {
   if (!d?.budgetMode) {
     packArea?.classList.remove("custom-spend", "custom-filler");
     if (filters) filters.hidden = true;
-    if (title) title.textContent = "本轮卡包（点选一名）";
+    // B39: JS-set text must go through L() — the static phrase table only
+    // runs at boot / on a language switch, so a raw assignment stays Chinese.
+    if (title) title.textContent = L("本轮卡包（点选一名）", "This round's pack (tap one)");
     if (hint) {
       // set from JS, so it needs L(): the static phrase table only runs at boot / on a language switch
       hint.textContent =
@@ -3139,13 +3144,25 @@ function updateCustomDraftChrome() {
   packArea?.classList.toggle("custom-filler", !spend);
   if (title) {
     title.textContent = spend
-      ? "有价巅峰卡（5→1 块全表 · 轮流点选直到花光 15 块）"
-      : "0 块角色包（随机若干 · 点选补满大名单）";
+      ? L(
+          "有价巅峰卡（5→1 块全表 · 轮流点选直到花光 15 块）",
+          "Priced legend cards (5→1, full list · take turns picking until all 15 are spent)",
+        )
+      : L(
+          "0 块角色包（随机若干 · 点选补满大名单）",
+          "0-cost role pack (a random few · pick to fill the roster)",
+        );
   }
   if (hint) {
     hint.textContent = spend
-      ? "先组先发核：列出全部标价 5～1 的巅峰卡。买不起的会灰掉；轮到你时点一人，双方交替，直到预算花光或买不起为止。"
-      : "预算阶段结束。现在只出 0 块球员；可刷新换一批，轮流点选直到两边名单满员。";
+      ? L(
+          "先组先发核：列出全部标价 5～1 的巅峰卡。买不起的会灰掉；轮到你时点一人，双方交替，直到预算花光或买不起为止。",
+          "Build your starting core first: every legend card priced 5–1 is listed. Cards you can't afford are greyed out; pick one on your turn, alternating sides, until the budget is spent or nothing is affordable.",
+        )
+      : L(
+          "预算阶段结束。现在只出 0 块球员；可刷新换一批，轮流点选直到两边名单满员。",
+          "The budget phase is over. Only 0-cost players appear now; refresh for a new batch, and take turns picking until both rosters are full.",
+        );
   }
   if (filters) {
     if (!spend) {
@@ -3155,12 +3172,12 @@ function updateCustomDraftChrome() {
       filters.hidden = false;
       const cur = d.customPriceFilter || "all";
       const tabs = [
-        ["all", "全部"],
-        ["5", "5 块"],
-        ["4", "4 块"],
-        ["3", "3 块"],
-        ["2", "2 块"],
-        ["1", "1 块"],
+        ["all", L("全部", "All")],
+        ["5", "5"],
+        ["4", "4"],
+        ["3", "3"],
+        ["2", "2"],
+        ["1", "1"],
       ];
       filters.innerHTML = tabs
         .map(
@@ -9618,7 +9635,9 @@ function renderSeasonMarket() {
   const locked = st.phase !== "regular";
 
   if (locked) {
-    box.innerHTML = `<p class="tiny">${L(`自由市场 / 裁人 / 交易仅在<strong>常规赛</strong>期间开放。当前阶段：${st.phase}`, `Free agency, cuts and trades are open during the <strong>regular season</strong> only. Current phase: ${st.phase}`)}</p>`;
+    // B19: never render the raw phase id ("regular" etc.) into UI text.
+    const phaseLabel = seasonPhaseLabel(st.phase, getLang());
+    box.innerHTML = `<p class="tiny">${L(`自由市场 / 裁人 / 交易仅在<strong>常规赛</strong>期间开放。当前阶段：${phaseLabel}`, `Free agency, cuts and trades are open during the <strong>regular season</strong> only. Current phase: ${phaseLabel}`)}</p>`;
     return;
   }
 
