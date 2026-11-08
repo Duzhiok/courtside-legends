@@ -130,7 +130,7 @@ import {
   clonePlayer,
   deriveSubAttributes,
 } from "./data/players.js";
-import { initBgm } from "./data/bgm.js";
+import { audio } from "./audio/index.js";
 import { clearRosterCache } from "./data/rosterCache.js";
 import {
   clearSave,
@@ -526,6 +526,7 @@ let navPopping = false;
 
 function show(name) {
   const from = activeScreenName();
+  audio.screen(name, { year: state.season?.year });
   if (from === name) {
     // Same-screen re-show (re-render flows): no stack change.
     Object.values(screens).forEach((el) => el && el.classList.remove("active"));
@@ -1902,6 +1903,7 @@ function showClutchResult() {
     });
     body.innerHTML = clutchResultHtml(outcome, ex, final, c.sim);
   }
+  if (outcome) audio.clutch((outcome.teamPoints || 0) > 0);
   // The 3D replay button only shows when there is a settled possession to replay.
   const replayBtn = $("#btn-clutch-3d-replay");
   if (replayBtn) replayBtn.hidden = !(outcome && c.replaySnapshot);
@@ -2958,6 +2960,7 @@ $("#btn-draw-pull")?.addEventListener("click", () => {
   try {
     const result = performDailyDraw(acc, { bannerId: drawBannerId });
     $("#draw-stage").innerHTML = drawRevealHtml(result, drawView());
+    audio.reveal(result);
     renderDrawStatus(acc);
     renderWishPanel(acc);
     refreshAccountHomeBar();
@@ -7485,6 +7488,7 @@ function pushFeed(type, text, ev = null) {
 }
 
 function paintScore(snap) {
+  audio.game(snap);
   $("#score-a").textContent = snap.score.home;
   $("#score-b").textContent = snap.score.away;
   $("#quarter").textContent = snap.quarter > 4 ? "OT" : `Q${snap.quarter}`;
@@ -8786,6 +8790,7 @@ function showResult(snap, { formNotes = [] } = {}) {
   const youScore = youSide === "home" ? hs : as;
   const oppScore = youSide === "home" ? as : hs;
   const youWin = youScore > oppScore;
+  audio.outcome(youWin);
   const winner = hs === as ? L("平局", "Tie") : hs > as ? snap.home.name : snap.away.name;
   $("#result-title").textContent = hs === as ? L("加时仍平——以模拟终局计", "Still tied after OT — decided by sim") : L(`${winner} 获胜`, `${winner} wins`);
   const formBit = formNotes?.length
@@ -11012,6 +11017,7 @@ function settleMyTeamResult(st) {
   if (!st?.myTeam || st.phase !== "done" || st.myTeam.result) return;
   st.myTeam.result = myTeamResult(st);
   recordMyTeamResult(st.myTeam.ownerAccountId, st.myTeam.result);
+  if (st.myTeam.result.champion) audio.champion();
 }
 
 /** Season over: show the result and offer "one more season" with the same length. */
@@ -11932,9 +11938,9 @@ async function boot() {
       if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
       paintLangBtn();
     });
-    initBgm();
+    audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();
-    const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => id === "world" && myWorld?.refresh() });
+    const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") myWorld?.refresh(); } });
     myWorld = createMyWorld({
       el: $("#my-world-root"),
       getLang,

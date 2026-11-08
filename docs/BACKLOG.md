@@ -77,3 +77,9 @@
 - **季后赛对阵行**在窄屏会折成"凯尔特/人""班/底"，系列赛比分与队名应各占一行或允许队名省略。
 - **My Team Season 打完后**，"下一场"卡里的三个按钮（亲自指挥/快速模拟/模拟 5 场）和底部"模拟下一轮/一键打完季后赛"仍是灰掉的无效项，可隐藏。
 - **赛季页**其他 "82" 文案（setup 说明等）尚未全部随赛季长度参数化；My Team Season 内已处理（奖项说明、进度、结束条）。
+
+### Audio (Courtside Radio) — deferred, none blocking
+- Music is original WebAudio synth (11 tracks), a placeholder for real recorded themes; a per-scene override for dropped-in files is not built (YAGNI until there are files).
+- Not covered by an automated test: a playlist file that vanishes after being listed (the skip-and-mark path is written but only unit-reasoned); the real `showResult` / draw-reveal / My Team champion stings were wired but only the facade was exercised, not heard in a full real run.
+- Headless Chromium proves the audio graph runs and the synth output is non-silent and finite, not that it sounds good: volume balance and taste need ears.
+- Season-hub era is taken from `state.season.year` at screen-show time; the Reborn era can lag one screen until the hub is shown.
