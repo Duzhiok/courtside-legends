@@ -144,6 +144,13 @@ export function gamesHtml(games, lang) {
       state: season.state, claim: "claim-season", remove: "delete-season",
     }, games.canClaim, lang));
   }
+  const myteam = games?.myteam; // My Team season: yours continue here too; unlinked/guest ones can be claimed or deleted
+  if (myteam) {
+    rows.push(gameRow({
+      title: `<strong>${T(lang, "我的赛季", "My Team season")}</strong>`, sub: esc(myteam.label || ""),
+      state: myteam.state, resume: "resume-myteam", claim: "claim-myteam", remove: "delete-myteam",
+    }, games.canClaim, lang));
+  }
   if (!rows.length) {
     return `<section class="mw-card">${title}
       <p class="mw-empty">${T(lang, "还没有进行中的生涯。", "No career in progress yet.")}</p>

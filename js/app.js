@@ -233,6 +233,7 @@ import {
 } from "./engine/careerEconomy.js";
 import {
   advanceLeagueOffseason,
+  seasonGames,
   advancePlayoffs,
   advanceToUserGame,
   clearSeasonSave,
@@ -339,7 +340,9 @@ import {
   freshFamilySide,
 } from "./modes/familyDuel.js";
 import { confirmAction } from "./ui/confirmModal.js";
-import { careerSig, foreignOwnerOf, ForeignSaveError, GUEST, hiddenFromMe, keyHasData, markSessionResumed, markSlotResumed, saveVisibility, seasonSig, sessionSig, slotLockReason, stampLegacySaves } from "./data/saveOwnership.js";
+import { myTeamSig, careerSig, foreignOwnerOf, ForeignSaveError, GUEST, hiddenFromMe, keyHasData, markSessionResumed, markSlotResumed, saveVisibility, seasonSig, sessionSig, slotLockReason, stampLegacySaves } from "./data/saveOwnership.js";
+import { buildMyTeamSeason } from "./myteam/mySeason.js";
+import { clearMyTeamSeason, hasMyTeamSeason, loadMyTeamSeason, readMyTeamSeason, saveMyTeamSeason } from "./myteam/seasonStore.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
@@ -910,7 +913,7 @@ function seasonHidden() {
  *   other: another account's save; guest: the guest's save (claimable in My Games); unassociated: a local save
  *   nobody owns (continue, claim, export or delete it first).
  */
-const FOREIGN_SLOT_NAME = { career: ["长期生涯", "long-career"], season: ["单赛季", "single-season"], session: ["未完成的比赛", "unfinished-game"] };
+const FOREIGN_SLOT_NAME = { career: ["长期生涯", "long-career"], season: ["单赛季", "single-season"], session: ["未完成的比赛", "unfinished-game"], myteam: ["我的赛季", "My Team season"] };
 const FOREIGN_NOTICE = {
   other: [
     (zh) => `这台设备上的${zh}存档属于另一个账号。为了不覆盖它，这里不能新建、导入或保存到这个位置。请切换到那个账号去导出、完成或删除它，或者换一个浏览器 / 设备开始。`,
@@ -933,7 +936,7 @@ function foreignSaveNotice(slot, reason = "other") {
   const [zhText, enText, [zhTitle, enTitle]] = FOREIGN_NOTICE[reason] ?? FOREIGN_NOTICE.other;
   return confirmAction(L(zhText(zh), enText(en)), { title: L(zhTitle, enTitle), acceptLabel: L("知道了", "Got it"), notice: true });
 }
-const SLOT_PRESENT = { career: () => keyHasData(ROOT_SAVE_KEY), season: () => hasSeasonSave(), session: () => hasSave() };
+const SLOT_PRESENT = { career: () => keyHasData(ROOT_SAVE_KEY), season: () => hasSeasonSave(), session: () => hasSave(), myteam: () => hasMyTeamSeason() };
 /** Why this slot refuses the player right now (null = it doesn't). opts: { sig, release } as in slotLockReason. */
 function lockReasonFor(slot, opts) {
   const reason = slotLockReason(slot, SLOT_PRESENT[slot](), opts);
@@ -969,6 +972,9 @@ async function deleteUnlinkedSave(slot) {
       Object.assign(state, { leagueCareer: null, story: null, longCareerRoot: null, season: null, seasonPendingGame: null });
     } else if (slot === "session") {
       clearSave({ release: true });
+    } else if (slot === "myteam") {
+      clearMyTeamSeason({ release: true });
+      if (state.season?.myTeam) Object.assign(state, { season: null, seasonPendingGame: null });
     } else {
       clearSeasonSave({ release: true });
       if (!state.leagueCareer) Object.assign(state, { season: null, seasonPendingGame: null });
@@ -1075,6 +1081,12 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
 });
 
 function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) {
+  // A My Team season routes itself (the object carries `myTeam`): it must NEVER fall through to the quick-season slot.
+  if (st?.myTeam) {
+    const res = saveMyTeamSeason(st);
+    if (!res.ok) alert(res.reason === "storage" ? "赛季保存失败：浏览器存储空间不足。" : "赛季保存失败：存档位被其他存档占用。");
+    return res.ok;
+  }
   if (state.leagueCareer && st === state.season) {
     const checkpoint = clonePersistedState(state.longCareerRoot);
     const unsavedAttempt = currentRootState({ liveGame });
@@ -8957,9 +8969,11 @@ function renderSeasonHub({ persist = true } = {}) {
   $("#season-hub-title").textContent = `${you?.name || L("我方", "Your team")} · ${eraTitle}`;
   const histNote =
     st.mode === "historical" ? L(` · ${seasonTeamIds(st).length} 队当年阵容`, ` · ${seasonTeamIds(st).length} teams, historic rosters`) : "";
-  const metaText = `${seasonProgressLabel(st, getLang())}${histNote} · ${L(`薪资 ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`, `Payroll ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`)}${
+  const capMetaText = `${seasonProgressLabel(st, getLang())}${histNote} · ${L(`薪资 ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`, `Payroll ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`)}${
     pay.overCap ? L("（超软帽）", " (over soft cap)") : ""
   } · ${L(`空间 ${formatSalary(pay.space)}`, `Room ${formatSalary(pay.space)}`)}`;
+  // A My Team roster is frozen and has no market, so payroll / cap room would only alarm: show the lock instead.
+  const metaText = st.myTeam ? `${seasonProgressLabel(st, getLang())} · ${L("阵容已锁定", "Lineup locked")}` : capMetaText;
   // R111：同一串信息拆成 pill（DOM 拼装，不走 innerHTML，队名原样当文本），只改外观。
   const metaEl = $("#season-hub-meta");
   metaEl.replaceChildren();
@@ -9059,6 +9073,16 @@ function renderSeasonHub({ persist = true } = {}) {
   ).forEach((button) => {
     button.hidden = !managed;
   });
+  // A My Team season is frozen at kickoff: the pages that change the roster are not offered.
+  document.querySelectorAll(MYTEAM_LOCKED_TABS.map((t) => `[data-season-tab="${t}"]`).join(",")).forEach((button) => {
+    if (st.myTeam) button.hidden = true;
+    else if (!["draftBoard", "development", "history"].includes(button.dataset.seasonTab)) button.hidden = false;
+  });
+  const abandon = $("#btn-season-abandon");
+  if (abandon) { // same button, honest label: it only ever removes what this season is
+    if (st.myTeam) { abandon.dataset.myTeam = "1"; abandon.textContent = L("放弃我的赛季", "Abandon my season"); }
+    else if (abandon.dataset.myTeam) { delete abandon.dataset.myTeam; abandon.textContent = L("删除当前生涯", "Delete current career"); }
+  }
   if (persist && !saveSeasonAndCareer(st)) return;
 }
 
@@ -10212,7 +10236,7 @@ function renderSeasonPlayoffs() {
         st.phase === "done" ? "disabled" : ""
       }>${L("一键打完季后赛", "Sim rest of playoffs")}</button>
       ${
-        st.phase === "done"
+        st.phase === "done" && !st.myTeam
           ? `<button type="button" class="btn primary" id="btn-season-offseason">${
               currentCareerDraft
                 ? L("继续选秀", "Continue draft")
@@ -10323,8 +10347,11 @@ function renderSeasonPlayoffs() {
   });
 }
 
+const MYTEAM_LOCKED_TABS = ["market", "evaluation", "draftBoard", "development", "history"];
+
 function showSeasonTab(tab) {
   state.seasonTab = tab;
+  if (state.season?.myTeam && MYTEAM_LOCKED_TABS.includes(tab)) tab = "standings";
   if (
     !isManagedCareer(state.leagueCareer) &&
     ["draftBoard", "development", "history"].includes(tab)
@@ -10715,7 +10742,7 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
     : (() => {
         const rec = st?.standings?.[st.userTeamId];
         const played = userGamesPlayed(st);
-        return `常规赛战绩 ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82。${
+        return `常规赛战绩 ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/${seasonGames(st)}。${
           st?.phase === "awards" ? " 常规赛结束，可查看评奖。" : ""
         }`;
       })();
@@ -10870,6 +10897,69 @@ function simUserPlayoffGameFromResult() {
 }
 
 $("#btn-season-back")?.addEventListener("click", () => goBack());
+/* ---- My Team Season (ADR-010 T2): start from the saved lineup, continue, lock the roster -------------------- */
+function enterMyTeamSeason(st) {
+  state.season = st;
+  state.leagueCareer = null; // same reset as a fresh quick season: a career in memory must not leak into this one
+  state.seasonPendingGame = null;
+  state.mode = "season";
+  show("season");
+  renderSeasonHub({ persist: false });
+  showSeasonTab("standings");
+}
+
+function myTeamResumeLabel() {
+  const st = readMyTeamSeason();
+  if (!st) return null;
+  const vis = saveVisibility("myteam", myTeamSig(st));
+  if (vis !== "mine" && vis !== "unassociated") return null; // another account's / the guest's: not playable here
+  try { return seasonProgressLabel(st, getLang()); } catch { return L("进行中", "In progress"); }
+}
+
+async function startMyTeamSeason(variant) {
+  const account = activeAccount();
+  if (!account) { alert(L("请先创建 / 登录账号。", "Sign in or create an account first.")); return; }
+  let built = buildMyTeamSeason(account, { variant });
+  if (!built.ok && built.reason === "repaired") {
+    const go = await confirmAction(L(
+      "你保存的阵容里有卡已不在收藏中，已按当前收藏修复。用修复后的阵容开赛？（可以先回去看一眼）",
+      "Some saved cards are no longer in your collection, so the lineup was repaired. Start with the repaired lineup? (You can go back and look first.)",
+    ), { title: L("阵容已被修复", "Lineup repaired"), acceptLabel: L("用修复后的阵容开赛", "Start with it") });
+    if (!go) { myTeamLineup.open(); return; }
+    built = buildMyTeamSeason(account, { variant, acceptRepaired: true });
+  }
+  if (!built.ok) {
+    alert(built.reason === "invalid" ? L("阵容还不满足开赛条件，请先在阵容页补齐。", "The lineup isn't ready yet; finish it on the lineup page.") : L("无法创建赛季。", "Couldn't create the season."));
+    myTeamLineup.open();
+    return;
+  }
+  const st = built.season;
+  const names = st.myTeam.start.starterIds.map((id) => {
+    const p = st.teams[st.userTeamId].players.find((x) => x.id === id);
+    return p ? (getLang() === "en" ? p.nameEn || p.name : p.name) : id;
+  });
+  const games = st.myTeam.rules.seasonLength;
+  if (!(await confirmAction(L(
+    `首发：${names.join("、")}\n${st.myTeam.roster.length} 人名单 · ${games} 场常规赛 + 季后赛。\n开赛后阵容锁定：之后抽到或升级的卡不影响这个赛季。`,
+    `Starters: ${names.join(", ")}\n${st.myTeam.roster.length}-man roster · ${games}-game regular season + playoffs.\nThe lineup locks once it starts: cards you pull or upgrade later won't affect this season.`,
+  ), { title: L("开始我的赛季？", "Start my season?"), acceptLabel: L("开赛", "Start") }))) return;
+
+  // Never silently replace a save: someone else's / unlinked is refused; my own earlier season needs a yes.
+  if (await blockedByForeignSave("myteam", { sig: myTeamSig(st) })) return;
+  if (hasMyTeamSeason() && !(await confirmAction(L("将放弃你当前进行中的「我的赛季」，确定开新赛季？", "This replaces your My Team season in progress. Start a new one?"), {
+    title: L("覆盖当前赛季？", "Replace the current season?"), acceptLabel: L("覆盖并开始", "Replace and start"),
+  }))) return;
+  if (!saveSeasonAndCareer(st)) return; // alerts on failure; nothing else was touched
+  enterMyTeamSeason(st);
+}
+
+async function resumeMyTeamSeason() {
+  const st = loadMyTeamSeason();
+  if (!st) { alert(L("没有可继续的赛季。", "No season to continue.")); return; }
+  if (await blockedByForeignSave("myteam", { sig: myTeamSig(st) })) return;
+  enterMyTeamSeason(st);
+}
+
 $("#btn-season-resume")?.addEventListener("click", () => {
   const { live, root } = savedSeasonSource();
   if (!live && root) {
@@ -11217,7 +11307,7 @@ $("#btn-season-start")?.addEventListener("click", async () => {
     }))
   ) return;
   draft.name = name;
-  if (state.season && !(await confirmAction(L("将覆盖当前赛季进度，确定开新赛季？", "This will overwrite your current season progress. Start a new season?"), {
+  if (state.season && !state.season.myTeam && !(await confirmAction(L("将覆盖当前赛季进度，确定开新赛季？", "This will overwrite your current season progress. Start a new season?"), {
     title: L("覆盖当前赛季？", "Overwrite the current season?"),
     acceptLabel: L("覆盖并开始", "Overwrite and start"),
   }))) return;
@@ -11260,6 +11350,24 @@ $("#btn-season-save")?.addEventListener("click", () => {
   }
 });
 $("#btn-season-abandon")?.addEventListener("click", async () => {
+  // A My Team season abandons ONLY its own slot. Falling through would offer to delete the whole career instead.
+  if (state.season?.myTeam) {
+    if (!(await confirmAction(L(
+      "放弃这个「我的赛季」？赛季进度会被删除；球员收藏、阵容、账号和其他存档不受影响。",
+      "Abandon this My Team season? Its progress is deleted; your collection, lineup, account and other saves are untouched.",
+    ), { title: L("放弃我的赛季？", "Abandon my season?"), acceptLabel: L("放弃赛季", "Abandon") }))) return;
+    try {
+      clearMyTeamSeason({ release: true });
+    } catch (error) {
+      if (!(error instanceof ForeignSaveError)) throw error;
+      await foreignSaveNotice("myteam", error.reason);
+      return;
+    }
+    Object.assign(state, { season: null, seasonPendingGame: null });
+    show("home");
+    refreshSaveHomeBar();
+    return;
+  }
   // B36: this deletes the whole current career (season, history, coach progress), not just "this season".
   // P0: if the slot holds another player's career (we are playing a stale in-memory copy), deleting must not touch it.
   // An unlinked career may be deleted -- this confirmed delete is exactly the explicit release it needs.
@@ -11702,6 +11810,10 @@ async function boot() {
       readSeason: () => (hasSeasonSave() ? rawSeasonSave() : null),
       seasonLabel: (st, lang) => { try { return seasonProgressLabel(st, lang); } catch { return ""; } }, // a damaged season must not break boot
       deleteSave: deleteUnlinkedSave,
+      readMyTeam: () => readMyTeamSeason(),
+      myTeamLabel: (st, lang) => { try { return seasonProgressLabel(st, lang); } catch { return ""; } },
+      myTeamSigOf: myTeamSig,
+      onResumeMyTeam: resumeMyTeamSeason,
       confirm: (message) => confirmAction(message, { title: L("认领本机存档？", "Claim this local save?"), acceptLabel: L("确认认领", "Claim it") }),
       onResumeCareer: () => !careerHidden() && resumeLongCareer(state.longCareerRoot || readRootSave()),
       onResumeSession: () => continueFromSave(),
@@ -11718,6 +11830,9 @@ async function boot() {
       saveLineup: saveMyTeamLineup,
       clearLineup: clearMyTeamLineup,
       onOpenAccounts: () => openAccountScreen(),
+      getResume: myTeamResumeLabel,
+      onStartSeason: startMyTeamSeason,
+      onResumeSeason: resumeMyTeamSeason,
     });
     $("#btn-open-my-lineup")?.addEventListener("click", () => { myTeamLineup.open(); show("myTeamLineup"); });
     $("#btn-my-lineup-back")?.addEventListener("click", () => goBack());
@@ -11759,7 +11874,7 @@ async function boot() {
     }
     const discovered = readRootSave() || migrateLegacySaves()?.root || null;
     state.longCareerRoot = discovered;
-    stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() ? rawSeasonSave() : null }); // pre-ownership saves stay unassociated
+    stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() ? rawSeasonSave() : null, myteam: readMyTeamSeason() }); // pre-ownership saves stay unassociated
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
   } catch (e) {

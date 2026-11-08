@@ -15,6 +15,9 @@ export function createMyTeamLineup({
   saveLineup, // (accountId, draft) => { ok }   explicit save only
   clearLineup, // (accountId) => { ok }          explicit reset only
   onOpenAccounts = () => {},
+  getResume = () => null, // () => label | null : this player's My Team season in progress
+  onStartSeason = async () => {}, // (variant) => void
+  onResumeSeason = () => {},
 }) {
   if (!el) return { open() {}, refresh() {} };
   let base = null; // what was loaded (saved or auto); `dirty` = draft differs from it
@@ -48,6 +51,7 @@ export function createMyTeamLineup({
       dirty: !same(draft, base),
       hasSaved: !!account?.myTeamLineup,
       notice,
+      resume: getResume(),
     });
   }
 
@@ -82,6 +86,9 @@ export function createMyTeamLineup({
         return render();
       }
       case "accounts": return onOpenAccounts();
+      case "start-quick": return onStartSeason("quick");
+      case "start-full": return onStartSeason("full");
+      case "resume-season": return onResumeSeason();
       default:
     }
   });

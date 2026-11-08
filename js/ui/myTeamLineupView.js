@@ -49,6 +49,22 @@ function rowHtml(card, { inRoster, isStarter, lang }) {
   </li>`;
 }
 
+/** Start / continue a My Team season. Starting reads the SAVED lineup, so unsaved edits must be saved first. */
+function seasonPanel({ eligible, dirty, resume, L }) {
+  const can = eligible && !dirty;
+  const hint = !eligible ? "" : dirty ? L("先点「保存阵容」，赛季会使用已保存的阵容。", "Save the lineup first: a season uses the saved lineup.") : "";
+  return `<div class="mtl-season">
+    <h4>${L("用这套阵容打赛季", "Play a season with this lineup")}</h4>
+    <div class="mtl-actions">
+      <button type="button" class="btn primary" data-act="start-quick" ${can ? "" : "disabled"}>${L("快速赛季 · 20 场", "Quick season · 20 games")}</button>
+      <button type="button" class="btn" data-act="start-full" ${can ? "" : "disabled"}>${L("完整赛季 · 82 场", "Full season · 82 games")}</button>
+      ${resume ? `<button type="button" class="btn continue" data-act="resume-season"><span>${L("继续我的赛季", "Continue my season")}</span><small class="mtl-resume-meta">${esc(resume)}</small></button>` : ""}
+    </div>
+    ${hint ? `<p class="tiny mtl-note">${esc(hint)}</p>` : ""}
+    <p class="tiny mtl-note">${L("开赛后阵容锁定；之后抽到或升级的卡不影响进行中的赛季。", "The lineup locks once the season starts; cards you pull or upgrade later don't affect it.")}</p>
+  </div>`;
+}
+
 /**
  * @param {object} p
  * @param {string} p.lang
@@ -60,8 +76,9 @@ function rowHtml(card, { inRoster, isStarter, lang }) {
  * @param {boolean} p.dirty                draft differs from what was loaded
  * @param {boolean} p.hasSaved             a saved preference exists on the account
  * @param {string} [p.notice]              last blocked-action / save message
+ * @param {string|null} [p.resume]         label of this player's My Team season in progress (shows Continue)
  */
-export function myTeamLineupHtml({ lang = "zh", account, cards = [], draft, validation, source = "auto", dirty = false, hasSaved = false, notice = "" }) {
+export function myTeamLineupHtml({ lang = "zh", account, cards = [], draft, validation, source = "auto", dirty = false, hasSaved = false, notice = "", resume = null }) {
   const L = (zh, en) => (lang === "en" ? en : zh);
   if (!account) {
     return `<section class="mtl-guest"><h3>${L("我的阵容", "My lineup")}</h3>
@@ -94,6 +111,7 @@ export function myTeamLineupHtml({ lang = "zh", account, cards = [], draft, vali
       <button type="button" class="btn ghost" data-act="auto">${L("自动推荐", "Auto-pick")}</button>
       <button type="button" class="btn ghost" data-act="reset" ${hasSaved ? "" : "disabled"}>${L("恢复自动并清除保存", "Clear saved lineup")}</button>
     </div>
+    ${seasonPanel({ eligible, dirty, resume, L })}
     <ul class="mtl-list">${cards.map((c) => rowHtml(c, { inRoster: inRoster.has(c.id), isStarter: starters.has(c.id), lang })).join("")}</ul>
   </section>`;
 }

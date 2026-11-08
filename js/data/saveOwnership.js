@@ -138,6 +138,8 @@ export function keyHasData(key, storage) {
 export const careerSig = (root) => (root?.leagueCareer ? root.story?.storyId || root.leagueCareer.careerId || "career" : null);
 export const sessionSig = (data) => (data ? "session" : null);
 export const seasonSig = (st) => (st ? "season" : null);
+/** A My Team season is its own instance (ADR-010 T2): its id, not the slot, is what "the same save" means. */
+export const myTeamSig = (st) => st?.myTeam?.seasonId || null;
 
 /** Is this quick-season slot just the long career's compat copy (same league year and team as the root's season)? */
 const mirrorsCareer = (season, career) => {
@@ -149,10 +151,10 @@ const mirrorsCareer = (season, career) => {
  * Boot: any save that exists without an entry is a legacy local save -> unassociated (an old build's compat copy of
  * the career in the root is stamped as that mirror instead). Stale entries go. `season` may be the parsed season.
  */
-export function stampLegacySaves({ career = null, session = null, season = null } = {}, storage) {
+export function stampLegacySaves({ career = null, session = null, season = null, myteam = null } = {}, storage) {
   const all = readAll(storage);
   let changed = false;
-  for (const [slot, sig] of [["career", careerSig(career)], ["session", sessionSig(session)], ["season", seasonSig(season)]]) {
+  for (const [slot, sig] of [["career", careerSig(career)], ["session", sessionSig(session)], ["season", seasonSig(season)], ["myteam", myTeamSig(myteam)]]) {
     if (sig && !all[slot]) {
       all[slot] = slot === "season" && mirrorsCareer(season, career) ? { owner: null, sig, mirror: true } : { owner: null, sig };
       changed = true;

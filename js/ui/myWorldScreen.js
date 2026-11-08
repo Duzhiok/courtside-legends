@@ -21,6 +21,10 @@ export function createMyWorld({
   sessionLabel = () => "",
   readSeason = () => null, // the quick-season save (or null)
   seasonLabel = () => "",
+  readMyTeam = () => null, // the My Team season save (or null)
+  myTeamLabel = () => "",
+  myTeamSigOf = () => null,
+  onResumeMyTeam,
   deleteSave = async () => false, // (slot) => confirmed delete of an unlinked save; the app owns confirm + release
   confirm = async () => false,
   topCards = () => [],
@@ -82,15 +86,18 @@ export function createMyWorld({
     const sessionState = saveVisibility("session", sessionSig(session));
     const season = readSeason();
     const seasonState = saveVisibility("season", seasonSig(season));
+    const myTeam = readMyTeam();
+    const myTeamState = saveVisibility("myteam", myTeamSigOf(myTeam));
     return {
       career: journey ? { journey, state: careerState } : null,
       session: shown(sessionState, "mine") ? { label: sessionLabel(session, lang), state: sessionState } : null,
       season: shown(seasonState) ? { label: seasonLabel(season, lang), state: seasonState } : null,
+      myteam: myTeam && shown(myTeamState, "mine") ? { label: myTeamLabel(myTeam, lang), state: myTeamState } : null,
       canClaim: !!account,
     };
   }
 
-  const SIG_OF = { career: () => careerSig(readRootSave()), session: () => sessionSig(readSession()), season: () => seasonSig(readSeason()) };
+  const SIG_OF = { career: () => careerSig(readRootSave()), session: () => sessionSig(readSession()), season: () => seasonSig(readSeason()), myteam: () => myTeamSigOf(readMyTeam()) };
 
   async function remove(slot) {
     if (saveVisibility(slot, SIG_OF[slot]()) !== "unassociated") return render(); // stale button: nothing to delete
@@ -313,6 +320,9 @@ export function createMyWorld({
     "claim-career": () => claim("career"),
     "claim-session": () => claim("session"),
     "claim-season": () => claim("season"),
+    "claim-myteam": () => claim("myteam"),
+    "resume-myteam": () => onResumeMyTeam?.(),
+    "delete-myteam": () => remove("myteam"),
     "delete-career": () => remove("career"),
     "delete-session": () => remove("session"),
     "delete-season": () => remove("season"),

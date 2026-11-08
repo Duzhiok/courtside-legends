@@ -30,3 +30,11 @@
 .mtl-star:disabled { opacity: 0.35; cursor: not-allowed; }
 .mtl-guest, .mtl-empty { display: grid; gap: 10px; justify-items: start; }
 @media (min-width: 720px) { .mtl-list { grid-template-columns: 1fr 1fr; } }
+.mtl-season { margin: 14px 0 6px; padding: 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: rgba(255,255,255,.04); }
+.mtl-season h4 { margin: 0 0 8px; font-size: 1rem; }
+.mtl-season .btn.continue { background: var(--gold, #f5b942); color: #1a1a1a; }
+/* confirm dialogs may carry several short lines (e.g. the My Team season summary) */
+#app-confirm-message { white-space: pre-line; }
+.mtl-season .btn.continue { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.mtl-season .mtl-resume-meta { font-size: .78rem; opacity: .8; font-weight: 400; }
+.mtl-season .mtl-actions + .mtl-note { margin-top: 10px; }

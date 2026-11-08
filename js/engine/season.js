@@ -137,6 +137,45 @@ function buildMatchupPairs(east, west, rng, confOf = conferenceOf) {
   return pairs;
 }
 
+/** Regular-season length of this save (quick My Team seasons are shorter than the NBA's 82). */
+export const seasonGames = (st) => Number(st?.rsGames) || RS_GAMES;
+
+/** A games-played threshold written for an 82-game year, scaled to this season's length (identity at 82). */
+export const scaleGames = (n, st) => Math.max(1, Math.round((n * seasonGames(st)) / RS_GAMES));
+
+/**
+ * Short regular season (e.g. 20 games). Do NOT reuse buildMatchupPairs for this: with a small quota it fills each
+ * team from its own conference first, so everyone plays only 6-9 distinct, same-conference opponents.
+ * Circle method instead: n-1 rounds where every team meets every other exactly once; take `games` of them.
+ * Every team plays exactly `games` games vs `games` DIFFERENT opponents, once per day (needs an even team count).
+ */
+export function generateShortSchedule(teamIds, seed, games) {
+  const n = teamIds.length;
+  if (n < 2 || n % 2) throw new Error(`short schedule needs an even number of teams (got ${n})`);
+  if (!(games >= 1 && games <= n - 1)) throw new Error(`short schedule supports 1..${n - 1} games (got ${games})`);
+  const rng = mulberry32(seed >>> 0);
+  const ring = shuffle([...teamIds], rng);
+  const rounds = [];
+  for (let r = 0; r < n - 1; r++) {
+    const night = [];
+    for (let i = 0; i < n / 2; i++) night.push([ring[i], ring[n - 1 - i]]);
+    rounds.push(night);
+    ring.splice(1, 0, ring.pop()); // rotate everyone but ring[0]
+  }
+  const homeCount = Object.fromEntries(teamIds.map((id) => [id, 0]));
+  return shuffle(rounds.map((_, i) => i), rng)
+    .slice(0, games)
+    .map((ri) =>
+      shuffle([...rounds[ri]], rng).map(([a, b]) => {
+        // Whoever has hosted fewer games so far hosts (keeps every team near games/2 home games).
+        const aHome = homeCount[a] < homeCount[b] || (homeCount[a] === homeCount[b] && rng() < 0.5);
+        const [homeId, awayId] = aHome ? [a, b] : [b, a];
+        homeCount[homeId]++;
+        return { homeId, awayId, played: false, result: null };
+      })
+    );
+}
+
 /**
  * Pack matchups into 82 days where each team plays at most once per day.
  * @param {string[]} teamIds
@@ -402,6 +441,7 @@ export function createSeason(opts) {
     mode = "modern",
     year: yearOpt,
     seed = Date.now(),
+    gamesPerTeam = RS_GAMES, // a shorter regular season (quick My Team seasons); modern 32-team league only
   } = opts;
 
   const historical = mode === "historical";
@@ -443,11 +483,15 @@ export function createSeason(opts) {
     }
   }
 
-  const schedule = generateSchedule(league.teamIds, seed, {
-    eastIds: league.eastIds,
-    westIds: league.westIds,
-    confById: league.confById,
-  });
+  const short = Number(gamesPerTeam) !== RS_GAMES;
+  if (short && historical) throw new Error("短赛季只支持现代 32 队联盟");
+  const schedule = short
+    ? generateShortSchedule(league.teamIds, seed, Number(gamesPerTeam))
+    : generateSchedule(league.teamIds, seed, {
+        eastIds: league.eastIds,
+        westIds: league.westIds,
+        confById: league.confById,
+      });
   const standings = Object.fromEntries(
     league.teamIds.map((id) => [
       id,
@@ -469,6 +513,7 @@ export function createSeason(opts) {
     mode: historical ? "historical" : "modern",
     year,
     seed,
+    ...(short ? { rsGames: Number(gamesPerTeam) } : {}),
     phase: "regular", // regular | awards | playoffs | done
     dayIndex: 0,
     userTeamId,
@@ -883,9 +928,9 @@ function perGame(s, key) {
   return s.gp ? s[key] / s.gp : 0;
 }
 
-function mvpScore(row, teamWins, teamGp) {
+function mvpScore(row, teamWins, teamGp, scale = (n) => n) {
   const s = row.stats;
-  if (s.gp < 20) return -1;
+  if (s.gp < scale(20)) return -1;
   const ppg = perGame(s, "pts");
   const rpg = perGame(s, "reb");
   const apg = perGame(s, "ast");
@@ -894,12 +939,12 @@ function mvpScore(row, teamWins, teamGp) {
   const winPct = teamGp ? teamWins / teamGp : 0;
   const usage =
     ppg * 1.0 + rpg * 0.85 + apg * 1.15 + spg * 2.2 + bpg * 2.0 - perGame(s, "tov") * 0.6;
-  return usage * (0.55 + winPct * 0.45) * Math.min(1, s.gp / 65);
+  return usage * (0.55 + winPct * 0.45) * Math.min(1, s.gp / scale(65));
 }
 
-function dpoyScore(row) {
+function dpoyScore(row, scale = (n) => n) {
   const s = row.stats;
-  if (s.gp < 20) return -1;
+  if (s.gp < scale(20)) return -1;
   return (
     perGame(s, "stl") * 3.2 +
     perGame(s, "blk") * 3.5 +
@@ -911,6 +956,7 @@ function dpoyScore(row) {
 
 /** 2K-like season awards. */
 export function computeAwards(st) {
+  const gpScale = (n) => scaleGames(n, st);
   const rows = Object.values(st.playerSeason);
   const scored = rows
     .map((row) => {
@@ -918,8 +964,8 @@ export function computeAwards(st) {
       const gp = rec.w + rec.l;
       return {
         row,
-        mvp: mvpScore(row, rec.w, gp),
-        dpoy: dpoyScore(row),
+        mvp: mvpScore(row, rec.w, gp, gpScale),
+        dpoy: dpoyScore(row, gpScale),
         teamW: rec.w,
         teamName: st.teams[row.teamId]?.name || row.teamId,
       };
@@ -953,12 +999,12 @@ export function computeAwards(st) {
 
   // Sixth Man: high production, started < 50% of games played
   const sixth = [...scored]
-    .filter((x) => x.row.stats.gp >= 20 && x.row.stats.gs / x.row.stats.gp < 0.5)
+    .filter((x) => x.row.stats.gp >= gpScale(20) && x.row.stats.gs / x.row.stats.gp < 0.5)
     .sort((a, b) => perGame(b.row.stats, "pts") - perGame(a.row.stats, "pts") || b.mvp - a.mvp)[0];
 
   // MIP: young-ish / mid OVR who produced above expectation
   const mip = [...scored]
-    .filter((x) => x.row.stats.gp >= 25)
+    .filter((x) => x.row.stats.gp >= gpScale(25))
     .map((x) => {
       const expect = ((x.row.ovr || 70) - 60) * 0.55;
       const over = perGame(x.row.stats, "pts") + perGame(x.row.stats, "ast") * 0.5 - expect;
@@ -970,7 +1016,7 @@ export function computeAwards(st) {
   // ROY: 真正新秀窗口——年龄≤22，且不能已是联盟顶级老将卡
   const roy = [...scored]
     .filter((x) => {
-      if (x.row.stats.gp < 40) return false;
+      if (x.row.stats.gp < gpScale(40)) return false;
       const age = x.row.age;
       if (age != null && age <= 22) return true;
       // 无年龄时：卡面赛季偏早且 OVR 未到超巨
@@ -1401,33 +1447,37 @@ export function saveSeason(st, { mirror = false } = {}) {
   if (seasonSlotLocked()) return false; // P0: another account's quick season lives here
   const owned = () => { if (mirror) recordMirrorWrite("season"); else recordSaveWrite("season", seasonSig(st)); return true; };
   try {
-    // Drop ephemeral full snaps before stringify (box lives in resultsLog)
-    if (Array.isArray(st?.schedule)) {
-      for (const night of st.schedule) {
-        for (const g of night || []) {
-          if (g && "_lastSnap" in g) delete g._lastSnap;
-        }
-      }
-    }
+    compactSeasonForSave(st);
     localStorage.setItem(SAVE_KEY, JSON.stringify(st));
     return owned();
   } catch {
     // Quota: strip older boxes and retry once
     try {
-      for (const r of st.resultsLog || []) delete r.box;
-      if (Array.isArray(st?.schedule)) {
-        for (const night of st.schedule) {
-          for (const g of night || []) {
-            if (g && "_lastSnap" in g) delete g._lastSnap;
-          }
-        }
-      }
+      compactSeasonForSave(st, { dropBoxes: true });
       localStorage.setItem(SAVE_KEY, JSON.stringify(st));
       return owned();
     } catch {
       return false;
     }
   }
+}
+
+/**
+ * Drop what must never be persisted, in place. Every played game keeps its full live snapshot (`_lastSnap`): a few
+ * games of that is megabytes and blows the ~5 MB quota (measured: 0.7 MB fresh -> 6.4 MB after five games).
+ * `dropBoxes` is the quota fallback: the per-game box scores in resultsLog go too.
+ * Shared by every season save slot (quick season, My Team season) so they can't drift apart.
+ */
+export function compactSeasonForSave(st, { dropBoxes = false } = {}) {
+  if (dropBoxes) for (const r of st?.resultsLog || []) delete r.box;
+  if (Array.isArray(st?.schedule)) {
+    for (const night of st.schedule) {
+      for (const g of night || []) {
+        if (g && "_lastSnap" in g) delete g._lastSnap;
+      }
+    }
+  }
+  return st;
 }
 
 export function loadSeason() {
@@ -1468,8 +1518,8 @@ export function seasonProgressLabel(st, lang = "zh") {
   const rec = st.standings[st.userTeamId];
   const played = userGamesPlayed(st);
   return en
-    ? `${st.teams[st.userTeamId]?.name || "Your team"} ${rec?.w || 0}-${rec?.l || 0} · ${played}/82 played`
-    : `${st.teams[st.userTeamId]?.name || "我方"} ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/82`;
+    ? `${st.teams[st.userTeamId]?.name || "Your team"} ${rec?.w || 0}-${rec?.l || 0} · ${played}/${seasonGames(st)} played`
+    : `${st.teams[st.userTeamId]?.name || "我方"} ${rec?.w || 0}胜${rec?.l || 0}负 · 已打 ${played}/${seasonGames(st)}`;
 }
 
 /**
