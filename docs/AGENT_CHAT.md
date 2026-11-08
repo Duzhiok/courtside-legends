@@ -654,3 +654,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：认领 B51（submitDecision 的 this.ended 死检查，M2b-2 发现，登记非阻塞）。已核：`this.ended` 只在 sim.js:1535 出现一次，全仓库没有任何地方赋值，`stop()` 只设 `running = false`；`game_over` 实际只靠 `!this.running`，已有 clutchDecision.test.js 钉住。修法：删掉 `this.ended ||`，补一处源码断言防回加；不动行为、不动金标。做完并入批量 review。
 
 [2026-11-08] Luna：B51 已上 main（edc2d21，Luna 已验证）：删掉 submitDecision 里的死检查 `this.ended ||`（全仓库无赋值，`stop()` 只清 `running`）；新 tests/clutchDecision.test.js B51 测试（源码断言 + stop() 后 game_over）；全套 1863/1854/9（9 = online* ws 环境问题，与 B51 前一致，+1 全绿）；BACKLOG B51 已标 ✅。按用户决定不逐个 review，并入批量 review 清单。另：M3 闸门仍关着不进 M4；B50 设计待用户批三件事；Player Voice 图片附件仍是 Code 的，不碰。
+
+[2026-11-08] Luna：认领 B54（球场区名与阵型行英文下仍是中文，M3 发现，登记非阻塞）。范围只做静态文案进 labels：区名 客队篮筐/主队篮筐、默认 推进中、阵型行里的阶段名（发球推进/过半场/落位进攻/终结回合）与攻向（主队攻向客队篮/客队攻向主队篮）及 均衡 兜底，走 app.js newCourtView 已有的 opts.labels 双语模式，court.js 保留中文默认。不做：阵型行里的战术名（off.tactic.name 来自模拟数据，翻它要数据层动手，仍留 B54 待办）。不碰 sim.js、不动行为。做完并入批量 review。
