@@ -728,3 +728,34 @@ For B50, quote the three outstanding questions and your recommended defaults so 
 [2026-11-08] Luna：认领 B39③④⑤（B19 已做完的同一行余部）。已核：④ 绝杀决策窗口——M2b-2 里 startClutchSim 从不调 start()/_loop()，resolve() 才同步 step，runFast() 也清 timer，所以决策窗口期间 12 秒时钟根本不走，天然已暂停，无需改代码，只需在 BACKLOG 记验证结论；⑤ 选秀建队「估年薪」——R149 的 renderPack 早已只在 budgetMode||buyPlayers 时才渲染该行（app.js:3363 附近注释写明），用户 2026-11-05 的移除决定已落地，只需补 BACKLOG 状态；③ 多人淘汰赛真人人数——已核实：legacy tournament 支持 2–8 名真人玩家，bracket 里可能出现双真人对阵（m.a.human && m.b.human），而 speedLocked("tournament") 恒 false，速度按钮不锁，违反 B38「只有双真人对局才锁」的规则。做法：playbackSpeed.js 的 humanSideCount/speedLocked 加可选 match 参数，tournament 且当前 bracket 对阵双真人时计 2 人、锁速度；app.js 三处调用点传 currentTournamentMatch()（state.tournament.phase==="match" 时的 bracket[currentMatch]，其余 null）；不碰 sim.js、不动行为、单真人/AI 对阵照常可加速。做完并入批量 review。
 
 [2026-11-08] Luna：B39③④⑤ 已上 main（79b1e45，Luna 已验证）：③ humanSideCount/speedLocked 加可选 match 参数，tournament 且当前 bracket 对阵双真人时锁速度（app.js 三处调用点传 currentTournamentMatch()，phase==="match" 时的 bracket[currentMatch]），单真人/AI 对阵照常可加速；不碰 sim.js、不动行为。④ 验证结论无代码改动：M2b-2 决策窗口天然已暂停（startClutchSim 不起 loop，resolve() 才 step）。⑤ 状态补记：R149 已落地，选秀建队不再显示「估年薪」。新/改 tests/playbackSpeed.test.js 3/3；全套 1878/1869/9（9 = online* ws 环境问题，与 B39 前一致，+1 全绿）；lint 在 VM 上跑不了（eslint 未装，node_modules 环境缺口，非回归）。BACKLOG B39 标 ✅。按用户决定不逐个 review，并入批量 review 清单。另：M3 闸门仍关着不进 M4；B27 设计、B50 三问仍待用户批；Player Voice 图片附件、Account Level 曲线、B54 教练播报文案仍是 Code 的，不碰。
+
+[2026-11-08] Luna（转用户决定，给 Code 的回复，用户原话）：
+B50 — Product Owner Approval
+
+All three decisions are APPROVED.
+
+1. Save both championship and elimination outcomes using the same completed-game history mechanism. Use outcome: "champion" for championships.
+2. Display completed records in My World → My Games, under a separate "History / 历史记录" section.
+3. Keep the latest 20 completed records per account.
+
+Implementation
+
+Proceed directly with implementation. No additional ADR or approval required.
+
+Requirements:
+
+* Preserve championship and elimination records.
+* Store actual results, not fabricated summaries.
+* Show completed records separately from resumable saves.
+* Use "View Results" instead of "Continue" for completed games.
+* Keep records account-scoped, including guest behavior.
+* Retain the newest 20 records.
+* Avoid duplicate history entries when a completion event fires more than once.
+* Do not change GameSim or existing save formats unnecessarily.
+
+Use focused tests and a desktop/mobile smoke test.
+
+Implement end-to-end, update BACKLOG, and report the commit SHA.
+
+Do not block this small feature with further planning.
+（Luna 注：设计文档是 Luna 的 fd0ec03（docs/implementation/b50-gold-archive-design.md），里面的存储/去重/上限方案已按这三条写好：account.archive、runId 去重、每账号 20 条、写记录在 clearSave() 之前、My Games 新开“已结束记录”区只看不续。用户另补两点定位：功能叫 Completed Game History（已结束游戏记录），夺冠/淘汰/正常结束挑战都能在 My Games 回顾，具体支持哪些终局以现有模式的真实终局事件为准；已结束记录与可继续存档分开展示，已结束的给“查看结果”不给“继续游戏”。实现归 Code，Luna 不碰，等 Code 上 main 后 Luna 按惯例验证。）
