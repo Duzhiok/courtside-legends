@@ -466,7 +466,7 @@ export function createOnlineServer({
         if (msg.roster === "online") {
           if (!account) return send(ws, { type: "decision_rejected", reason: "联机阵容需要先登录账号" });
           const cards = rosterCardsFor(account);
-          if (!cards) return send(ws, { type: "decision_rejected", reason: "联机阵容不足 5 人，先去市场补人" });
+          if (!cards) return send(ws, { type: "decision_rejected", reason: "联机阵容不足 8 人，先去市场补人" });
           leaveQueue(ws);
           const room = newRoom();
           room.seats.home = { name: account, teamId: null, ws, needsFull: true, account, rosterCards: cards };
@@ -531,7 +531,7 @@ export function createOnlineServer({
           const account = resolveAccount(msg);
           if (!account) return send(ws, { type: "decision_rejected", reason: "联机阵容需要先登录账号" });
           const cards = rosterCardsFor(account);
-          if (!cards) return send(ws, { type: "decision_rejected", reason: "联机阵容不足 5 人，先去市场补人" });
+          if (!cards) return send(ws, { type: "decision_rejected", reason: "联机阵容不足 8 人，先去市场补人" });
           leaveQueue(ws);
           target.seats.away = { name: account, teamId: null, ws, needsFull: true, account, rosterCards: cards };
           ctx.room = target;
@@ -595,7 +595,7 @@ export function createOnlineServer({
           return send(ws, { type: "decision_rejected", reason: "联机阵容需要先登录账号" });
         }
         if (online && !rosterCardsFor(account)) {
-          return send(ws, { type: "decision_rejected", reason: "联机阵容不足 5 人，先去市场补人" });
+          return send(ws, { type: "decision_rejected", reason: "联机阵容不足 8 人，先去市场补人" });
         }
         const preset = online ? null : presetById.get(msg.teamId);
         if (!online && !preset) return send(ws, { type: "decision_rejected", reason: "球队不存在" });

@@ -49,6 +49,19 @@ function renderMarket() {
   const m = state.market;
   if (!m) return;
   $("market-gold").textContent = `联机金币：${m.gold}`;
+  // 8-player unlock gate (user decision 2026-11-08; server minimum is MIN_DUEL_ROSTER in server/online-economy.mjs):
+  // online-roster duels need a full 8-man roster. New accounts start with 8; listing cards can drop you under the line.
+  const n = (m.roster || []).length;
+  const need = 8 - n;
+  for (const id of ["btn-online-queue", "btn-online-queue-ranked"]) {
+    const b = $(id);
+    if (b) b.disabled = n < 8;
+  }
+  const lockEl = $("online-roster-lock");
+  if (lockEl) {
+    lockEl.hidden = n >= 8;
+    lockEl.textContent = n >= 8 ? "" : `联机阵容还差 ${need} 人（至少 8 人才能对决）· Need ${need} more (min 8)`;
+  }
   $("market-roster").innerHTML = m.roster
     .map((c, i) => {
       const starter = i < 5 ? "（首发）" : "";
@@ -429,11 +442,13 @@ function bind() {
   });
   $("btn-online-queue").addEventListener("click", () => {
     if (!state.token) return setStatus("联机阵容需要先登录账号。", true);
+    if (state.market && (state.market.roster || []).length < 8) return setStatus("联机阵容不足 8 人，先去市场补人。", true);
     state.name = state.account ? state.account.name : state.name;
     send({ type: "queue", name: state.name, roster: "online", token: state.token });
   });
   $("btn-online-queue-ranked").addEventListener("click", () => {
     if (!state.token) return setStatus("联机阵容需要先登录账号。", true);
+    if (state.market && (state.market.roster || []).length < 8) return setStatus("联机阵容不足 8 人，先去市场补人。", true);
     state.name = state.account ? state.account.name : state.name;
     send({ type: "queue", name: state.name, roster: "online", mode: "ranked", token: state.token });
   });

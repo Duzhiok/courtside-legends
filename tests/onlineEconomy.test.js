@@ -257,7 +257,7 @@ test("economy wire: guests cannot use the market, tiny rosters cannot duel", asy
       await waitFor(a.messages, (m) => m.type === "market" && m.roster.length === board.roster.length - i - 1);
     }
     a.ws.send(JSON.stringify({ type: "queue", name: "Alice", roster: "online", token: a.token }));
-    const noDuel = await waitFor(a.messages, (m) => m.type === "decision_rejected" && /不足 5 人/.test(m.reason));
+    const noDuel = await waitFor(a.messages, (m) => m.type === "decision_rejected" && /不足 8 人/.test(m.reason));
     assert.ok(noDuel);
   } finally {
     for (const c of clients) c.ws.close();

@@ -283,6 +283,8 @@ html[lang="en"] .topbar .brand-name { display: none; }
 #screen-home .mode-card strong,
 #screen-home .mode-card > span:not(.mode-card-photo) { position: relative; z-index: 1; }
 #screen-home .mode-card > span:not(.mode-card-photo) { color: #4b5563; }
+#screen-home .mode-card.is-locked { opacity: .8; }
+#screen-home .mode-card > span.mode-lock-note { display: block; margin-top: 6px; font-weight: 700; color: #b45309; }
 .mode-card-photo {
   position: absolute;
   top: 0;

@@ -32,7 +32,7 @@ export const DEFAULT_ECONOMY_FILE = join(homedir(), ".courtside-online-economy.j
 export const START_GOLD = 1000;
 export const STARTER_SIZE = 8;
 export const ROSTER_CAP = 12;
-export const MIN_DUEL_ROSTER = 5;
+export const MIN_DUEL_ROSTER = 8; // 8-player unlock gate (user decision 2026-11-08): online-roster duels need a full 8-man roster, same as MIN_COMPETITIVE_ROSTER (js/data/competitiveGate.js). New accounts start with exactly STARTER_SIZE = 8, so listing cards can drop you back under the line.
 export const MAX_LISTINGS_PER_PLAYER = 5;
 export const MIN_PRICE = 50;
 export const MAX_PRICE = 5000;

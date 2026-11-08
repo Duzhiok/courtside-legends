@@ -37,6 +37,7 @@ import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
 import { grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
+import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
 import {
   boughtSkillCount,
   buyableSkills,
@@ -2238,7 +2239,23 @@ function refreshAccountAvatar(acc = activeAccount()) {
   if (img) img.src = portraitFor(acc).src;
 }
 
+/** 8-player unlock gate (user decision 2026-11-08): the Ranked mode card shows a locked state with the remaining count until the account holds 8 players. The card stays clickable — tapping it explains the gate (startRankedMatch). */
+function refreshRankedCardLock() {
+  const card = document.querySelector('.mode-card[data-mode="ranked"]');
+  const note = $("ranked-lock-note");
+  if (!card || !note) return;
+  const acc = activeAccount();
+  const locked = !competitiveUnlocked(acc);
+  card.classList.toggle("is-locked", locked);
+  if (!locked) { note.hidden = true; note.textContent = ""; return; }
+  note.hidden = false;
+  note.textContent = !acc
+    ? L("🔒 需账号 · 抽满 8 张球员解锁", "🔒 Needs an account · unlocks at 8 players")
+    : L(`🔒 再抽 ${competitivePlayersNeeded(acc)} 张球员即可解锁`, `🔒 Draw ${competitivePlayersNeeded(acc)} more players to unlock`);
+}
+
 function refreshAccountHomeBar() {
+  refreshRankedCardLock();
   myWorld?.refresh();
   refreshAccountAvatar(); // name/cards may have changed (switch account, onboarding, profile edit)
   refreshLongCareerHomeBar(); // a switch of account changes which saves may be offered
@@ -2294,7 +2311,7 @@ function renderAccountList() {
       return `<div class="account-row${active}">
         <div>
           <strong>${esc(a.name)}</strong>
-          <div class="tiny">${a.cardCount} 张卡 · ${a.ready ? "可排位" : "未完成开局"}</div>
+          <div class="tiny">${a.cardCount} 张卡 · ${a.ready ? (a.cardCount >= MIN_COMPETITIVE_ROSTER ? L("可排位", "Ranked ready") : L(`再抽 ${MIN_COMPETITIVE_ROSTER - a.cardCount} 张可排位`, `Draw ${MIN_COMPETITIVE_ROSTER - a.cardCount} more to unlock Ranked`)) : L("未完成开局", "Setup incomplete")}</div>
         </div>
         <div class="btn-row">
           <button class="btn small" data-acc-login="${a.id}">进入</button>
@@ -2952,6 +2969,11 @@ $("#btn-draw-pull")?.addEventListener("click", () => {
 function startRankedMatch() {
   const acc = requireAccountReady({ zh: "排位赛", en: "Ranked" });
   if (!acc) return;
+  // 8-player unlock gate (user decision 2026-11-08): ranked needs 8 players on the account.
+  if (!competitiveUnlocked(acc)) {
+    alert(L(`再抽 ${competitivePlayersNeeded(acc)} 张球员即可解锁排位赛。`, `Draw ${competitivePlayersNeeded(acc)} more players to unlock Ranked.`));
+    return;
+  }
   const home = accountToTeam(acc);
   if (!home || home.players.length < 5) {
     alert("班底不足 5 人，无法排位。");
@@ -11024,6 +11046,13 @@ function myTeamResumeLabel() {
 async function startMyTeamSeason(variant, { again = false } = {}) {
   const account = activeAccount();
   if (!account) { alert(L("请先创建 / 登录账号。", "Sign in or create an account first.")); return; }
+  // 8-player unlock gate (user decision 2026-11-08): a My Team Season (AI regular season) needs 8 players on the account.
+  // The lineup validator (validateMyTeamLineup, minRoster 8) enforces the same floor on the saved draft; this is the
+  // account-level check, so the gate also holds for programmatic starts.
+  if (!competitiveUnlocked(account)) {
+    alert(L(`再抽 ${competitivePlayersNeeded(account)} 张球员即可解锁我的赛季。`, `Draw ${competitivePlayersNeeded(account)} more players to unlock My Team Season.`));
+    return;
+  }
   let built = buildMyTeamSeason(account, { variant });
   if (!built.ok && built.reason === "repaired") {
     const go = await confirmAction(L(
@@ -11898,6 +11927,7 @@ async function boot() {
       timeTravelScreen.repaint();
       myWorld?.refresh();
       myTeamLineup?.refresh();
+      refreshRankedCardLock();
       // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
       if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
       paintLangBtn();
