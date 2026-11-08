@@ -1946,9 +1946,22 @@ async function openClutch3dReplay() {
   state.clutch3d = { view };
   setClutch3dStatus(L("正在加载 3D 回放…", "Loading the 3D replay…"));
   show("clutch3d");
-  view.resize();
   const shot = buildReplayShot(c.eventOutcome.current || c.controller.outcome, c.replayCapture?.dunkShooterId);
-  await view.playReplay(c.replaySnapshot, shot);
+  try {
+    view.resize();
+    await view.playReplay(c.replaySnapshot, shot);
+  } catch (err) {
+    // Any failure after navigating to the 3D screen must fall back to the
+    // 2D result page with a note — never strand the user on "正在加载…".
+    console.warn("[clutch-3d] replay failed:", err);
+    disposeClutch3dReplay();
+    if (note) {
+      note.hidden = false;
+      note.textContent = L("3D 回放没能播出来，已保留 2D 结果。", "The 3D replay could not play — the 2D result is kept.");
+    }
+    show("clutchResult");
+    return;
+  }
   if (!state.clutch3d || state.clutch3d.view !== view) return; // left mid-load
   setClutch3dStatus(
     shot?.kind === "dunk"

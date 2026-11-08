@@ -516,3 +516,30 @@ test("dispose stops the view and resolves a pending push", async () => {
   view.tick(99999); // no-op after dispose
   assert.equal(view._renderer.renderCalls, 0);
 });
+
+test("default rAF/cancelRaf are bound to globalThis (detached Window methods throw)", () => {
+  // Regression: the first build stored the bare Window requestAnimationFrame
+  // / cancelAnimationFrame and called them as this._raf(step) — Chrome and
+  // Safari throw "Illegal invocation" for a detached Window method, so
+  // _startLoop threw inside render(), playReplay()'s promise never
+  // resolved, and the replay screen sat on "正在加载 3D 回放…" forever with
+  // a dark canvas. Tests never caught it: Node has no global rAF, so the
+  // default was a () => 0 no-op and tick(now) was driven manually.
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCancel = globalThis.cancelAnimationFrame;
+  let rafThis;
+  let cancelThis;
+  globalThis.requestAnimationFrame = function (cb) { rafThis = this; return 0; };
+  globalThis.cancelAnimationFrame = function (id) { cancelThis = this; };
+  try {
+    const { view } = makeView(); // no raf/cancelRaf opts -> default path
+    view._raf(() => {});
+    view._cancelRaf(0);
+    assert.equal(rafThis, globalThis);
+    assert.equal(cancelThis, globalThis);
+    view.dispose();
+  } finally {
+    globalThis.requestAnimationFrame = prevRaf;
+    globalThis.cancelAnimationFrame = prevCancel;
+  }
+});

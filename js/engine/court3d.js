@@ -244,12 +244,26 @@ export class CourtView3D {
     this._clock =
       opts.clock ||
       (() => (typeof performance !== "undefined" ? performance.now() : Date.now()));
-    this._raf =
+    // rAF/cancelRaf MUST be bound: calling these Window methods detached
+    // ("Illegal invocation" in Chrome/Safari) is exactly what stuck the
+    // replay on "正在加载 3D 回放…" — the stored function is invoked as
+    // this._raf(step), so an unbound Window method throws inside _startLoop
+    // and the push promise never resolves. (Same pattern as
+    // courtAnimationQueue.js.)
+    const rafFn =
       opts.raf ||
-      (typeof requestAnimationFrame === "function" ? requestAnimationFrame : () => 0);
-    this._cancelRaf =
+      (typeof globalThis !== "undefined" &&
+      typeof globalThis.requestAnimationFrame === "function"
+        ? globalThis.requestAnimationFrame
+        : null);
+    this._raf = rafFn ? rafFn.bind(globalThis) : () => 0;
+    const cancelFn =
       opts.cancelRaf ||
-      (typeof cancelAnimationFrame === "function" ? cancelAnimationFrame : () => {});
+      (typeof globalThis !== "undefined" &&
+      typeof globalThis.cancelAnimationFrame === "function"
+        ? globalThis.cancelAnimationFrame
+        : null);
+    this._cancelRaf = cancelFn ? cancelFn.bind(globalThis) : () => {};
     this._colors = { ...CLUTCH_TEAM_COLORS, ...(opts.colors || {}) };
     this._fov = opts.fov || 50;
     this._disposed = false;
