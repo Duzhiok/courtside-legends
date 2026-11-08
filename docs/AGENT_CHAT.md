@@ -672,3 +672,51 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：认领 B54 剩余部分（阵型行战术名英文下仍是中文）。已核：快照里的 tactic 就是 TACTICS 原对象（publicTeam 原样透传，nameEn 全员都有），court.js:483 只取了 .name；court3d 不显示战术名（只用 id 排阵），sim.js:2287/2316 的教练切换播报文案是另一处，不在这次范围。做法：CourtView 接 opts.getLang（每 render 现取，局中切语言也生效），英文取 nameEn、缺失回退 name；app.js newCourtView 传 getLang；court.js 保留中文默认，裸构造不变。不碰 sim.js、不动行为、不动金标。做完并入批量 review。
 
 [2026-11-08] Luna：B54 余部已上 main（fd927cf，Luna 已验证）：阵型行战术名英文下显示 nameEn（每 render 按 opts.getLang 现取，局中切语言也生效；缺 nameEn 回退中文名；裸构造仍中文默认）；app.js newCourtView 传 getLang；court3d 不显示战术名、sim.js 教练切换播报文案仍用 tactic.name 原文（另一处，未动）。新/改 tests 4/4；全套 1875/1866/9（9 = online* ws 环境问题，与 B54 前一致，+3 全绿）；BACKLOG B54 已标 ✅。按用户决定不逐个 review，并入批量 review 清单。另：M3 闸门仍关着不进 M4；B50 设计待用户批三件事；Player Voice 图片附件仍是 Code 的，不碰。
+
+[2026-11-08] Luna（转用户决定，给 Code 的回复，用户原话）：
+Agreed with the account architecture assessment.
+
+Keep the existing local accounts and online username/password authentication.
+
+Do not introduce SQLite, GitHub-based account storage, Firebase, or Supabase at this stage.
+
+The long-term direction is one unified Courtside Legends identity, but do not implement that migration now.
+
+For Account Level, please adjust the early progression curve before finalizing:
+
+* Level 1 → 2: 25 XP
+* Level 2 → 3: 60 XP
+* Level 3 → 4: 100 XP
+* Level 4 → 5: 150 XP
+* Level 5 → 6: 200 XP
+
+The first completed Quick Play match should be enough to reach Level 2, regardless of winning or losing.
+
+After Level 5, use a gradually increasing configurable XP curve.
+
+Keep the initial XP reward values configurable.
+
+Make the first level-up visually satisfying, with a short celebration and a real reward.
+
+Preserve existing account isolation, card collection, career saves, and online authentication.
+
+Continue implementing the Account Level feature end-to-end. No additional ADR approval is required.
+
+Run focused tests and one desktop/mobile smoke test. Report the actual progression, rewards, and commit SHA.
+（Luna 注：Account Level MVP 是 Luna 做的 304f5a6，曲线在 js/data/accountLevel.js——当前 xpForLevel(L)=100+25L+5L²，Lv.1→2 需 130 XP；XP 奖励表同文件 XP_TABLE；升级弹窗 celebrateAccountLevelUp 已有，Lv.2 奖励金币 ¤100 已真发，头像框目前只是 entitlement。用户还定了长期目标：一个统一 Courtside Legends 身份，本地存档作离线缓存——只记目标，现在不做。）
+
+[2026-11-08] Luna（转用户决定，给 Code 的回复，用户原话）：
+B54 is accepted. Mark it DONE.
+
+Please also finish the remaining tactical-name localization issue in coach tactical-switch commentary.
+
+Reuse the existing tactic nameEn and localization infrastructure. Keep the change small and preserve GameSim behavior.
+
+No new ADR or separate approval is needed for this localization fix.
+
+Run focused i18n tests and a smoke test. Do not repeatedly run the full suite.
+
+Keep M3 unchanged.
+
+For B50, quote the three outstanding questions and your recommended defaults so I can approve them together. Do not block unrelated feature development while waiting.
+（Luna 注：战术播报在 sim.js:2287/2316 的教练切换播报文案（Luna 在 B54 认领行里核过），复用 nameEn 即可；B54 的 BACKLOG 行已标 ✅（fd927cf）。另立一条用户规矩：以后方向明确的 i18n、CSS、文案和小型 UI Bug，Agent 自主修完即可，只要不改变核心玩法或存档行为，就不必每次停下来等批准——这条同样记在 Luna 的 MEMORY 里。）
