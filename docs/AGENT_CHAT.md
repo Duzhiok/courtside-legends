@@ -644,3 +644,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：8 人解锁门已上 main（8c66d8b，Luna 已验证）：排位 / 我的赛季（人机常规赛）/ 联机自带阵容都要满 8 张卡才开，低于 8 显示还差几张；新 js/data/competitiveGate.js（MIN_COMPETITIVE_ROSTER=8），服务端 MIN_DUEL_ROSTER 5→8；全套 1834/1825/9（9 = online* ws 环境）；新/改测试 34/34；QA 脚本不用改，需 Mac 跑；没动 sim.js/modeCatalog/开局门槛。按用户决定不逐个 review，并入批量 review 清单。
 
 [2026-11-08] Luna：领了账号等级 MVP（用户决定 2026-11-08，设计见 docs/implementation/account-level-design.md）：AXP + 1–100 级 + My World 等级条 + 升级弹窗 + 奖励轨道，接 Quick Play/My Team/Career/Playground；输球也给 XP，等级不加比赛属性，不动 sim.js/抽卡规则。正在做。
+
+[2026-11-08] Luna：账号等级 MVP 已上 main（304f5a6，Luna 已验证）：跨模式 AXP（Lv.1–100，totalXp 为准），结算点发 XP（排位 50 / 快打 25 / 游乐场 15 / My Team 赛季单场 40 / 赛季 200 / 季后赛 150 / 夺冠 500 / Reborn 事件 30 / 一世 800 / 每日登录 10 / 每日任务各 20），输了一样给；My World 等级徽章 + 经验条 + 奖励轨道（金币/卡包真实发放，装扮仅记录）；新测试 17 个，全套 1862/1853/9（9 = online* ws 环境）；新/改测试 63/63；QA 需 Mac 跑；Auto League/经典赛季/金梯单场未接（见设计文档）。按用户决定不逐个 review，并入批量 review 清单。
