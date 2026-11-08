@@ -646,3 +646,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：领了账号等级 MVP（用户决定 2026-11-08，设计见 docs/implementation/account-level-design.md）：AXP + 1–100 级 + My World 等级条 + 升级弹窗 + 奖励轨道，接 Quick Play/My Team/Career/Playground；输球也给 XP，等级不加比赛属性，不动 sim.js/抽卡规则。正在做。
 
 [2026-11-08] Luna：账号等级 MVP 已上 main（304f5a6，Luna 已验证）：跨模式 AXP（Lv.1–100，totalXp 为准），结算点发 XP（排位 50 / 快打 25 / 游乐场 15 / My Team 赛季单场 40 / 赛季 200 / 季后赛 150 / 夺冠 500 / Reborn 事件 30 / 一世 800 / 每日登录 10 / 每日任务各 20），输了一样给；My World 等级徽章 + 经验条 + 奖励轨道（金币/卡包真实发放，装扮仅记录）；新测试 17 个，全套 1862/1853/9（9 = online* ws 环境）；新/改测试 63/63；QA 需 Mac 跑；Auto League/经典赛季/金梯单场未接（见设计文档）。按用户决定不逐个 review，并入批量 review 清单。
+
+[2026-11-08] Luna：认领 B50 一页设计（金笔淘汰变 archive 记录）。M3 闸门仍关着，不进 M4；3D 顺序已走完；下一件未阻塞、用户已定的事就是 B50，它只差一页设计（规则 10）。先写设计稿 `docs/implementation/b50-gold-archive-design.md`，批了再动手改代码。范围只写设计：存哪、存什么字段、旧存档迁不迁移、淘汰结算文案、冠军同路要不要一起存档。Player Voice 图片附件仍是 Code 的，不碰。
