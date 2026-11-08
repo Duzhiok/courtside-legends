@@ -144,3 +144,9 @@
 ## R177 · Plan：ADR-010 裁决落档 + T1 一页实现设计（未改代码）
 - 记录产品负责人裁决（Q2 改为两阶段，Q6 命名 Quick Season，Q7 OPEN）；ADR-010 与 DECISIONS 已更新。
 - 新增 `ADR-010-T1-design.md`：收藏→阵容映射、账号隔离、阵容校验、向后兼容、风险与依赖。T2–T4 未启动。
+
+## R178 · Code：ADR-010 T1 — My Team 阵容编辑器（只做 T1）
+- 新增 `js/myteam/lineup.js`（纯校验/映射，`MY_TEAM_RULES` 8–12 人、5 首发，为 My Team 配置，非 GameSim 限制）、`lineupStore.js`（唯一写入点，仅显式保存/清除）、`js/ui/myTeamLineupView.js` + `myTeamLineupScreen.js`、`css/myTeamLineup.css`；入口在"我的球员"标签（"组建我的阵容"），不新增首页标签、不新增存档槽。
+- 规则：可编辑未完成阵容，仅"开赛季资格"被拦；同人一张（重复卡替换）；位置问题只警告；游客只看引导；旧账号无 `myTeamLineup` 用自动阵容，失效卡自动修复且不写盘；教练/战术沿用账号字段（T2 开赛时快照，T1 不碰）。
+- 验证：单测 24 条；变异 10/10 红；浏览器 QA 桌面+手机 60/60（含打开不写账号、保存只写新字段、刷新恢复、清除、同人替换、中英切换保留草稿）；全量 1808/1808；lint 0 错；GameSim 金标一致；`js/engine` 零改动。
+- 未做：T2–T4（赛季创建/快照/存档槽/荣誉），按批准范围停在 T1。

@@ -110,6 +110,8 @@ export const PHRASES = [
   ["联机对战（需先启动服务端）", "Online Duel (start the server first)"],
   ["账号", "Account"],
   ["返回", "Back"],
+  ["组建我的阵容", "Build My Lineup"],
+  ["从收藏挑 8–12 人、5 名首发，为之后的常规赛做准备（暂不开赛）。", "Pick 8–12 players and 5 starters from your collection, ready for regular seasons later (no season yet)."],
   ["返回收藏", "Back to Collection"],
   ["返回自定义", "Back to Custom"],
   ["返回主页", "Back Home"],

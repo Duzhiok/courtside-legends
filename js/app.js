@@ -323,8 +323,11 @@ import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
+import { createMyTeamLineup } from "./ui/myTeamLineupScreen.js";
+import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
 /** My World controller (ADR-008 N-1); created in boot(). `?.` everywhere so early callers are safe. */
 let myWorld = null;
+let myTeamLineup = null;
 import {
   FAMILY_DUEL_THEMES,
   autoFillFamilySide,
@@ -438,6 +441,7 @@ const screens = {
   home: $("#screen-home"),
   account: $("#screen-account"),
   onboard: $("#screen-onboard"),
+  myTeamLineup: $("#screen-my-team-lineup"),
   collection: $("#screen-collection"),
   credits: $("#screen-credits"),
   draw: $("#screen-draw"),
@@ -11247,6 +11251,7 @@ async function boot() {
       applyStaticLang();
       timeTravelScreen.repaint();
       myWorld?.refresh();
+      myTeamLineup?.refresh();
       // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
       if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
       paintLangBtn();
@@ -11274,6 +11279,16 @@ async function boot() {
       onStartCareer: () => activateHomeTab?.("career"),
       onIdentitySaved: () => refreshAccountHomeBar(),
     });
+    myTeamLineup = createMyTeamLineup({
+      el: $("#my-team-lineup-root"),
+      getLang,
+      getAccount: activeAccount,
+      saveLineup: saveMyTeamLineup,
+      clearLineup: clearMyTeamLineup,
+      onOpenAccounts: () => openAccountScreen(),
+    });
+    $("#btn-open-my-lineup")?.addEventListener("click", () => { myTeamLineup.open(); show("myTeamLineup"); });
+    $("#btn-my-lineup-back")?.addEventListener("click", () => goBack());
     $("#load-status").textContent = L("正在加载名册（优先本地缓存）…", "Loading roster (local cache first)…");
     $("#load-bar").style.width = "6%";
     // Paint status before heavy work begins
