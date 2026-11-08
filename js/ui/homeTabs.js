@@ -44,7 +44,7 @@ export const HOME_CATEGORIES = TAB_META.map((tab) => ({
     .map((mode) => mode.id),
 }));
 
-export const DEFAULT_HOME_CATEGORY = "career";
+export const DEFAULT_HOME_CATEGORY = "world";
 
 export function categoryForMode(mode) {
   const found = HOME_CATEGORIES.find((cat) => cat.modes.includes(mode));
