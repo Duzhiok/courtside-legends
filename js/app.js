@@ -1283,7 +1283,7 @@ function restoreFeed(lines) {
   }
 }
 
-/** CourtView with bilingual button labels (the court module itself only knows Chinese defaults). */
+/** CourtView with bilingual labels (the court module itself only knows Chinese defaults). */
 function newCourtView() {
   return new CourtView($("#court-root"), {
     labels: {
@@ -1291,6 +1291,16 @@ function newCourtView() {
       photo: L("人物：照片", "Players: Photos"),
       fxOn: L("动效：开", "Effects: On"),
       fxOff: L("动效：关", "Effects: Off"),
+      zoneAway: L("客队篮筐", "Away basket"),
+      zoneHome: L("主队篮筐", "Home basket"),
+      advancing: L("推进中", "Advancing"),
+      phaseInbound: L("发球推进", "Inbounding"),
+      phaseCrossHalf: L("过半场", "Crossing half court"),
+      phaseSet: L("落位进攻", "Setting up offense"),
+      phaseFinish: L("终结回合", "Finishing possession"),
+      attackHome: L("主队攻向客队篮", "Home attacking the away basket"),
+      attackAway: L("客队攻向主队篮", "Away attacking the home basket"),
+      balanced: L("均衡", "Balanced"),
     },
   });
 }

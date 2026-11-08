@@ -238,6 +238,16 @@ export class CourtView {
       photo: opts.labels?.photo || "人物：照片",
       fxOn: opts.labels?.fxOn || "动效：开",
       fxOff: opts.labels?.fxOff || "动效：关",
+      zoneAway: opts.labels?.zoneAway || "客队篮筐",
+      zoneHome: opts.labels?.zoneHome || "主队篮筐",
+      advancing: opts.labels?.advancing || "推进中",
+      phaseInbound: opts.labels?.phaseInbound || "发球推进",
+      phaseCrossHalf: opts.labels?.phaseCrossHalf || "过半场",
+      phaseSet: opts.labels?.phaseSet || "落位进攻",
+      phaseFinish: opts.labels?.phaseFinish || "终结回合",
+      attackHome: opts.labels?.attackHome || "主队攻向客队篮",
+      attackAway: opts.labels?.attackAway || "客队攻向主队篮",
+      balanced: opts.labels?.balanced || "均衡",
     };
     this.tokens = new Map();
     this._built = false;
@@ -369,8 +379,8 @@ export class CourtView {
           <div class="fc-hoop bottom"></div>
           <div class="fc-backboard top"></div>
           <div class="fc-backboard bottom"></div>
-          <div class="fc-zone-tag top">客队篮筐</div>
-          <div class="fc-zone-tag bottom">主队篮筐</div>
+          <div class="fc-zone-tag top">${this.labels.zoneAway}</div>
+          <div class="fc-zone-tag bottom">${this.labels.zoneHome}</div>
         </div>
         <svg class="court-fx" id="court-fx" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <g id="court-trails"></g>
@@ -378,7 +388,7 @@ export class CourtView {
         </svg>
         <div class="ball-dot" id="court-ball"></div>
         <div class="court-tokens" id="court-tokens"></div>
-        <div class="court-label" id="court-formation">推进中</div>
+        <div class="court-label" id="court-formation">${this.labels.advancing}</div>
         <button class="court-fx-btn" id="court-fx-btn" type="button"></button>
         <button class="court-mode-btn" id="court-mode-btn" type="button"></button>
       </div>
@@ -462,10 +472,16 @@ export class CourtView {
     // Simple players bob while the team is still pushing up the court.
     if (this.stage) this.stage.classList.toggle("pushing", phase < 1);
     const phaseName =
-      phase < 0.25 ? "发球推进" : phase < 0.55 ? "过半场" : phase < 0.85 ? "落位进攻" : "终结回合";
+      phase < 0.25
+        ? this.labels.phaseInbound
+        : phase < 0.55
+          ? this.labels.phaseCrossHalf
+          : phase < 0.85
+            ? this.labels.phaseSet
+            : this.labels.phaseFinish;
 
-    this.formLabel.textContent = `${off.name} · ${off.tactic?.name || "均衡"} · ${
-      attackingUp ? "主队攻向客队篮" : "客队攻向主队篮"
+    this.formLabel.textContent = `${off.name} · ${off.tactic?.name || this.labels.balanced} · ${
+      attackingUp ? this.labels.attackHome : this.labels.attackAway
     } · ${phaseName}`;
 
     const lineup = [

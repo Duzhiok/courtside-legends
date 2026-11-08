@@ -337,3 +337,70 @@ test("B24: transition pushes the PG ahead with wide lanes", () => {
   assert.ok(Math.abs(p.h2.x - p.h3.x) > 68, "wings fill both lanes");
   assert.ok(p.h4.y - b.h4.y > 2, "PG ahead of balanced PG");
 });
+
+// B54: court zone tags, the default formation label, and the formation line
+// (phase + attack direction + balanced fallback) come from opts.labels, so
+// English mode shows no hardcoded Chinese. Tactic names are NOT covered:
+// they come from sim data (off.tactic.name) and need data-layer work.
+const EN_LABELS = {
+  zoneAway: "Away basket",
+  zoneHome: "Home basket",
+  advancing: "Advancing",
+  phaseInbound: "Inbounding",
+  phaseCrossHalf: "Crossing half court",
+  phaseSet: "Setting up offense",
+  phaseFinish: "Finishing possession",
+  attackHome: "Home attacking the away basket",
+  attackAway: "Away attacking the home basket",
+  balanced: "Balanced",
+};
+
+test("B54: English labels render zone tags and the advancing default, no hardcoded Chinese", () => {
+  const root = makeRoot();
+  const view = new CourtView(root, { labels: EN_LABELS });
+  view.ensureDom();
+  assert.ok(root.innerHTML.includes("Away basket"), "away zone tag in English");
+  assert.ok(root.innerHTML.includes("Home basket"), "home zone tag in English");
+  assert.ok(root.innerHTML.includes("Advancing"), "default formation label in English");
+  assert.ok(!root.innerHTML.includes("客队篮筐"), "no hardcoded away zone tag");
+  assert.ok(!root.innerHTML.includes("主队篮筐"), "no hardcoded home zone tag");
+  assert.ok(!root.innerHTML.includes("推进中"), "no hardcoded advancing label");
+});
+
+test("B54: no labels passed keeps the Chinese defaults", () => {
+  const root = makeRoot();
+  const view = new CourtView(root);
+  view.ensureDom();
+  assert.ok(root.innerHTML.includes("客队篮筐"), "away zone tag defaults to Chinese");
+  assert.ok(root.innerHTML.includes("主队篮筐"), "home zone tag defaults to Chinese");
+  assert.ok(root.innerHTML.includes("推进中"), "default formation label stays Chinese");
+});
+
+test("B54: formation line uses English phase and direction with labels passed", () => {
+  const root = makeRoot();
+  const view = new CourtView(root, { labels: EN_LABELS });
+  view.render(snap());
+  const line = root._parts["#court-formation"].textContent;
+  // A fresh render starts a new possession, so the phase is inbounding.
+  assert.ok(line.includes("Inbounding"), `phase in English, got: ${line}`);
+  assert.ok(
+    line.includes("Home attacking the away basket"),
+    `direction in English, got: ${line}`,
+  );
+  assert.ok(!line.includes("发球推进"), "no hardcoded phase name");
+  assert.ok(!line.includes("主队攻向客队篮"), "no hardcoded direction");
+  // Tactic name stays Chinese here on purpose: it comes from sim data
+  // (off.tactic.name) and needs data-layer work, out of B54's scope.
+  assert.ok(line.includes("均衡"), "tactic name still from sim data, unchanged");
+});
+
+test("B54: formation line falls back to the balanced label when no tactic is set", () => {
+  const root = makeRoot();
+  const view = new CourtView(root, { labels: EN_LABELS });
+  const s = snap();
+  s.home.tactic = null;
+  view.render(s);
+  const line = root._parts["#court-formation"].textContent;
+  assert.ok(line.includes("Balanced"), `balanced fallback in English, got: ${line}`);
+  assert.ok(!line.includes("均衡"), "no hardcoded balanced fallback");
+});
