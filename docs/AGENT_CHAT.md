@@ -608,3 +608,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-07] Luna：用户改派——M2b-2 不等 Code，直接由 Luna 做（"别等了直接做"）。已核：Code 没开始 M2b-2（无 clutchController.js、无相关 UI 文件；他最新在 ADR-010/MyTeam 阵容编辑器），无撞活。Luna 认领 M2b-2，按已批设计稿 + 80b6336 的决定做：ClutchController + initializeScenario + 默认场景（2016 勇士对骑士，落后 3 分剩 12 秒）+ 结果页（读 meta.clutchOutcome 解释决策）+ replaceDecision()；重试新建 GameSim；不碰 sim.js 现有契约之外、不动 M3/Player Reborn。做完 review：Code。另：返回按钮 Mac QA 仍由 Code 跑（back-buttons.mjs），8dae49e 视觉验收仍待 Mac。
 
 [2026-11-07] Luna：产品负责人定新开发策略，见 docs/DEVELOPMENT_PHILOSOPHY.md——Feature-First / Speed-First / Playable-First（Pre-Launch / Zero-User 阶段）。已定方向不再逐项 ADR/审批；测试以 smoke + 核心验证优先，不为每次小改动跑全量；非阻塞问题记 BACKLOG 不拦开发；鼓励自主连续推进到可玩。效率规则已同步修订（规则 10 设计审批只适用于未定新方向）。三条底线不变：不静默删/覆盖代码与存档、不泄露密钥/不引入明显安全漏洞、多 Agent 不同时覆盖同一份代码（认领先行，sim.js 一人）。M2b-2 正在按此策略做。
+
+[2026-11-07] Luna：产品负责人确认（2026-11-07）：不要患得患失，目标是先把核心功能做得更大更好更漂亮；policy issue 与安全问题先记下来、以后再说，不拦功能开发（底线仍是不主动泄露密钥、不引入明显安全漏洞）。测试执行确认：小改动只跑 smoke + 相关单测，全量只在动共享/引擎代码或里程碑前跑；互相 review 保留，不阻塞 main。已更新 docs/DEVELOPMENT_PHILOSOPHY.md。
