@@ -22,7 +22,7 @@ import { createAnimationQueue } from "./courtAnimationQueue.js";
  */
 const SLOT_POS = ["C", "PF", "SF", "SG", "PG"];
 
-const SETS = {
+export const SETS = {
   balanced: [
     { x: 50, y: 20 }, // C paint
     { x: 22, y: 42 }, // PF elbow/weak
@@ -125,7 +125,7 @@ const SETS = {
   ],
 };
 
-const DEF_GAP = [
+export const DEF_GAP = [
   { dx: 0, dy: -12 }, // on C
   { dx: 7, dy: -10 },
   { dx: -7, dy: -10 },
@@ -134,7 +134,7 @@ const DEF_GAP = [
 ];
 
 /** Place on-court players onto C→PG slots by playPos / natural pos. */
-function lineupForSlots(onCourt) {
+export function lineupForSlots(onCourt) {
   const list = [...(onCourt || [])];
   const used = new Set();
   const out = [];
@@ -177,7 +177,7 @@ function nearPos(have, want) {
   return a >= 0 && b >= 0 && Math.abs(a - b) === 1;
 }
 
-function handlerSlotIndex(ordered) {
+export function handlerSlotIndex(ordered) {
   const pg = ordered.findIndex((p) => normPos(p.playPos || p.pos) === "PG");
   if (pg >= 0) return pg;
   const sg = ordered.findIndex((p) => normPos(p.playPos || p.pos) === "SG");
@@ -216,7 +216,7 @@ function detectReducedMotion() {
 }
 
 /** Quadratic-bezier point for arcs (shot flight, pass arc): same curve both use. */
-function arcPoint(from, to, u) {
+export function arcPoint(from, to, u) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const len = Math.hypot(dx, dy) || 1;
@@ -408,15 +408,7 @@ export class CourtView {
 
   /** Map frontcourt-relative slot → full court % coords. attackingUp = home has ball. */
   toCourt(slot, attackingUp, phase) {
-    // Start (phase 0): backcourt near own basket; End (phase 1): set frontcourt
-    const startY = attackingUp ? 78 + slot.y * 0.12 : 22 - slot.y * 0.12;
-    const endY = attackingUp
-      ? 6 + (slot.y / 100) * 40 // top half
-      : 94 - (slot.y / 100) * 40; // bottom half
-    const y = lerp(startY, endY, easeOut(phase));
-    const startX = 50 + (slot.x - 50) * 0.35;
-    const x = lerp(startX, slot.x, easeOut(phase));
-    return { x: clamp(x, 8, 92), y: clamp(y, 6, 94) };
+    return toCourtPct(slot, attackingUp, phase);
   }
 
   /** Paint one frame from a snapshot (pure projection: never mutates the snapshot or the sim). */
@@ -950,7 +942,22 @@ export class CourtView {
   }
 }
 
-function shortName(name) {
+/** Map frontcourt-relative slot → full court % coords. attackingUp = home has ball.
+ * Module-level (pure) so the 3D replay view can reuse the exact same
+ * computation — CourtView.toCourt delegates to it. */
+export function toCourtPct(slot, attackingUp, phase) {
+  // Start (phase 0): backcourt near own basket; End (phase 1): set frontcourt
+  const startY = attackingUp ? 78 + slot.y * 0.12 : 22 - slot.y * 0.12;
+  const endY = attackingUp
+    ? 6 + (slot.y / 100) * 40 // top half
+    : 94 - (slot.y / 100) * 40; // bottom half
+  const y = lerp(startY, endY, easeOut(phase));
+  const startX = 50 + (slot.x - 50) * 0.35;
+  const x = lerp(startX, slot.x, easeOut(phase));
+  return { x: clamp(x, 8, 92), y: clamp(y, 6, 94) };
+}
+
+export function shortName(name) {
   const s = String(name || "");
   // Prefer last token of English / Chinese name, keep readable length
   const parts = s.replace(/·/g, " ").trim().split(/\s+/);
@@ -964,6 +971,6 @@ function lerp(a, b, t) {
 function easeOut(t) {
   return 1 - (1 - t) * (1 - t);
 }
-function clamp(n, a, b) {
+export function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
 }

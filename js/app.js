@@ -422,6 +422,7 @@ import {
 } from "./engine/gameplan.js";
 import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos } from "./engine/matchups.js";
 import { CourtView } from "./engine/court.js";
+import { CourtView3D, captureClutchReplaySnapshot, buildReplayShot } from "./engine/court3d.js";
 import { GameSim, suggestDefenseScheme } from "./engine/sim.js";
 import {
   createClutchController,
@@ -474,6 +475,7 @@ const screens = {
   clutch: $("#screen-clutch"),
   clutchPlay: $("#screen-clutch-play"),
   clutchResult: $("#screen-clutch-result"),
+  clutch3d: $("#screen-clutch-3d"),
 };
 
 let state = {
@@ -495,6 +497,7 @@ let state = {
   seasonRosterDraft: null,
   lastMode: null,
   clutch: null,
+  clutch3d: null,
   lineupSig: "",
   court: null,
   subOutId: null,
@@ -580,6 +583,11 @@ function handleBack() {
       return;
     }
     $("#btn-onboard-cancel")?.click();
+    return;
+  }
+  if (current === "clutch3d") {
+    // Back from the 3D replay = the 2D result page (dispose the view).
+    closeClutch3dReplay();
     return;
   }
   if (current === "clutchResult") {
@@ -1737,15 +1745,21 @@ function startClutchChallenge() {
     return;
   }
   const eventOutcome = { current: null };
+  // A dunk is a separate sim event, fired before the outcome settles;
+  // capture it so the 3D replay knows to play a dunk, not a jump shot.
+  const replayCapture = { dunkShooterId: null };
   const sim = startClutchSim(scenario, {
     onEvent: (e) => {
       if (e.meta?.clutchOutcome) eventOutcome.current = e.meta.clutchOutcome;
+      if (e.type === "dunk" && e.meta?.player?.id && !eventOutcome.current) {
+        replayCapture.dunkShooterId = e.meta.player.id;
+      }
     },
     onTick: () => {},
     onEnd: () => {},
   });
   const controller = createClutchController({ sim });
-  state.clutch = { sim, controller, scenario, eventOutcome, pickedShooterId: null, actionHint: "three" };
+  state.clutch = { sim, controller, scenario, eventOutcome, replayCapture, pickedShooterId: null, actionHint: "three" };
   controller.openDecision();
   renderClutchPlay();
   show("clutchPlay");
@@ -1827,6 +1841,10 @@ function submitClutchDecision() {
     alert(clutchRejectLabel(res.reason));
     return;
   }
+  // Retain the minimal pre-possession snapshot for the 3D replay: after
+  // resolve() + runFast() the sim is at game-end state, so the possession
+  // snapshot must be captured here, before the sim steps.
+  c.replaySnapshot = captureClutchReplaySnapshot(c.sim.snapshot());
   const done = c.controller.resolve();
   if (!done.ok) {
     alert(L("这一回合没能完成，请再试一次。", "The possession did not finish — please retry."));
@@ -1883,15 +1901,89 @@ function showClutchResult() {
     });
     body.innerHTML = clutchResultHtml(outcome, ex, final, c.sim);
   }
+  // The 3D replay button only shows when there is a settled possession to replay.
+  const replayBtn = $("#btn-clutch-3d-replay");
+  if (replayBtn) replayBtn.hidden = !(outcome && c.replaySnapshot);
+  const replayNote = $("#clutch-3d-note");
+  if (replayNote) replayNote.hidden = true;
   show("clutchResult");
 }
 
 function cancelClutchChallenge() {
   const c = state.clutch;
   if (!c) return;
+  disposeClutch3dReplay();
   c.controller.cancel();
   state.clutch = null;
 }
+
+/**
+ * 3D replay (clutch 3D prototype, Stages 0–3): replays the JUST-RESOLVED
+ * clutch possession in 3D. Reads the settled result (meta.clutchOutcome +
+ * the retained pre-possession snapshot) — never re-simulates. Default is
+ * 2D; the replay is an explicit opt-in. WebGL unavailable → stay on the
+ * 2D result page with a note, no errors, no blank screen.
+ */
+async function openClutch3dReplay() {
+  const c = state.clutch;
+  if (!c || !c.replaySnapshot || !(c.eventOutcome.current || c.controller.outcome)) return;
+  const note = $("#clutch-3d-note");
+  if (note) note.hidden = true;
+  disposeClutch3dReplay();
+  let view;
+  try {
+    view = await CourtView3D.create($("#clutch-3d-root"));
+  } catch (err) {
+    console.warn("[clutch-3d] replay unavailable:", err);
+    if (note) {
+      note.hidden = false;
+      note.textContent = L("当前设备不支持 3D 回放，已保留 2D 结果。", "3D replay is not available on this device — the 2D result is kept.");
+    }
+    return;
+  }
+  state.clutch3d = { view };
+  setClutch3dStatus(L("正在加载 3D 回放…", "Loading the 3D replay…"));
+  show("clutch3d");
+  view.resize();
+  const shot = buildReplayShot(c.eventOutcome.current || c.controller.outcome, c.replayCapture?.dunkShooterId);
+  await view.playReplay(c.replaySnapshot, shot);
+  if (!state.clutch3d || state.clutch3d.view !== view) return; // left mid-load
+  setClutch3dStatus(
+    shot?.kind === "dunk"
+      ? L("扣篮回放", "Dunk replay")
+      : shot
+        ? L("绝杀投篮回放", "Clutch shot replay")
+        : L("本回合没有形成出手", "No shot on this possession"),
+  );
+}
+
+function setClutch3dStatus(text) {
+  const el = $("#clutch-3d-status");
+  if (el) el.textContent = text;
+}
+
+function replayClutch3dAgain() {
+  const c = state.clutch;
+  const v = state.clutch3d?.view;
+  if (!c || !v || !c.replaySnapshot) return;
+  const shot = buildReplayShot(c.eventOutcome.current || c.controller.outcome, c.replayCapture?.dunkShooterId);
+  v.playReplay(c.replaySnapshot, shot);
+}
+
+function closeClutch3dReplay() {
+  disposeClutch3dReplay();
+  show("clutchResult");
+}
+
+function disposeClutch3dReplay() {
+  const v = state.clutch3d?.view;
+  if (v) v.dispose();
+  state.clutch3d = null;
+}
+
+$("#btn-clutch-3d-replay")?.addEventListener("click", () => openClutch3dReplay());
+$("#btn-clutch-3d-back")?.addEventListener("click", () => closeClutch3dReplay());
+$("#btn-clutch-3d-again")?.addEventListener("click", () => replayClutch3dAgain());
 
 $("#btn-clutch-back")?.addEventListener("click", () => goBack());
 $("#btn-clutch-entry")?.addEventListener("click", () => startMode("clutch"));

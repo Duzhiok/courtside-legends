@@ -43,8 +43,9 @@ export const STACK_BACK_SCREENS = new Set(["draft", "legend", "season", "clutchP
  * - game: pause overlay (pause = back; exit = save-first "保存并离开")
  * - clutchResult: back is the challenge entry (its own top-left control + the
  *   "其他挑战" action both go there; a finished challenge is never a back target)
+ * - clutch3d: back is the 2D result page (dispose the 3D view first)
  */
-export const EXPLICIT_BACK = new Set(["account", "onboard", "setup", "result", "game", "clutchResult"]);
+export const EXPLICIT_BACK = new Set(["account", "onboard", "setup", "result", "game", "clutchResult", "clutch3d"]);
 
 /**
  * Transient screens: never pushed onto the stack as a back target.
@@ -52,7 +53,7 @@ export const EXPLICIT_BACK = new Set(["account", "onboard", "setup", "result", "
  * a back target. onboard is consumed by cancel/finish — returning to a dead
  * wizard is meaningless (its return screen is kept by onboardReturnScreen).
  */
-export const TRANSIENT_SCREENS = new Set(["result", "game", "onboard", "clutchResult"]);
+export const TRANSIENT_SCREENS = new Set(["result", "game", "onboard", "clutchResult", "clutch3d"]);
 
 /**
  * Record a forward navigation `from -> to` in `stack` (mutated in place, also

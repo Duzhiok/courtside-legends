@@ -3626,3 +3626,22 @@ select, input[type="number"] {
   border-left: 3px solid var(--gold, #d4a017);
   padding-left: 10px;
 }
+.clutch-3d-root {
+  position: relative;
+  height: 420px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0d1f16;
+  margin: 10px 0;
+}
+@media (max-width: 640px) {
+  .clutch-3d-root { height: 320px; }
+}
+.clutch-3d-root canvas { display: block; }
+.clutch-3d-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 214, 90, 0.55), rgba(255, 214, 90, 0) 65%);
+}
+.clutch-3d-note { color: #f0b429; }
