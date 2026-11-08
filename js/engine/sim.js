@@ -3245,13 +3245,18 @@ function maybeTechnicalFoul(sim, off, def, baller, defender) {
     gradeFoul(offender);
     const shooter =
       [...victimSide.onCourt].sort((a, b) => (b.ft || 0.7) - (a.ft || 0.7))[0] || victimSide.onCourt[0];
+    // B52: the shooter is picked (deterministic FT% sort, no dice) before the
+    // emit, so the foul meta can ride on this broadcast like every other
+    // foul (charge / defensive / shooting / and_one). victimId is the FT
+    // shooter; null only when the victim side has nobody on court.
     sim.emit(
       "coach",
       sim.S(`${offender.name} 情绪失控吃到技术犯规！${
         (offender.skills || []).includes("hothead") ? "（火爆脾气）" : ""
       }`, `${offender.name} loses it — technical foul!${
         (offender.skills || []).includes("hothead") ? " (Hot Temper)" : ""
-      }`)
+      }`),
+      { foul: { foulerId: offender.id, victimId: shooter ? shooter.id : null, kind: "technical" } }
     );
     if (shooter) shootFts(shooter, victimSide, sim, 1);
     else sim.possession = flip(offenderSide.side);

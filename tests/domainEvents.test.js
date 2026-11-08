@@ -139,8 +139,14 @@ test("domain events: real seeded game — meta shapes hold on every typed event"
   assert.ok(fts.length > 0, "free throws carry meta.ft");
   for (const e of fouls) {
     assert.equal(typeof e.meta.foul.foulerId, "string");
-    assert.equal(typeof e.meta.foul.victimId, "string");
-    assert.ok(["charge", "defensive", "shooting", "and_one"].includes(e.meta.foul.kind));
+    if (e.meta.foul.kind === "technical") {
+      // B52: victimId is the FT shooter, null only when the victim side has
+      // nobody on court (defensive edge — the foul itself is still real).
+      assert.ok(e.meta.foul.victimId === null || typeof e.meta.foul.victimId === "string");
+    } else {
+      assert.equal(typeof e.meta.foul.victimId, "string");
+    }
+    assert.ok(["charge", "defensive", "shooting", "and_one", "technical"].includes(e.meta.foul.kind));
   }
   for (const e of turnovers) {
     assert.equal(typeof e.meta.turnover.actorId, "string");
@@ -167,4 +173,44 @@ test("domain events: real seeded game — meta shapes hold on every typed event"
   assert.ok(starts.length > 20, `expected many possession starts, got ${starts.length}`);
   assert.ok(periodEnds.length >= 3, `expected period ends, got ${periodEnds.length}`);
   assert.ok(derived.some((e) => e.type === "MATCH_END"), "match end derived");
+});
+
+/**
+ * B52: the technical-foul broadcast carries structured meta.foul, like every
+ * other foul. Seed 7 GSW/CLE is the pinned game: Draymond Green (hothead)
+ * draws exactly one technical in Q2, and the victim side's best FT shooter
+ * takes the single free throw right after.
+ */
+test("B52: technical foul broadcast carries meta.foul with the FT shooter as victim", () => {
+  const events = [];
+  const sim = new GameSim({
+    home: realTeam("GSW", 2016),
+    away: realTeam("CLE", 2016),
+    youSide: "home",
+    injuries: false,
+    speed: 3,
+    rng: seededStream(7),
+    onEvent: (e) => events.push(e),
+    onTick: () => {},
+    onEnd: () => {},
+  });
+  let steps = 0;
+  sim.running = true; // drive synchronously (start() would use the async _loop)
+  while (sim.running && steps < 2000) {
+    sim.step();
+    steps += 1;
+    if (sim.paused) sim.setPaused(false);
+  }
+  assert.equal(sim.running, false, "the seeded game finished");
+  const techs = events.filter((e) => /技术犯规|technical foul/i.test(e.text || ""));
+  assert.equal(techs.length, 1, `expected exactly one technical foul, got ${techs.length}`);
+  const tech = techs[0];
+  assert.equal(tech.meta?.foul?.kind, "technical");
+  assert.equal(typeof tech.meta.foul.foulerId, "string");
+  assert.equal(typeof tech.meta.foul.victimId, "string");
+  // The free throw that follows is taken by the victimId shooter.
+  const techIdx = events.indexOf(tech);
+  const ftAfter = events.slice(techIdx + 1).find((e) => e.meta?.ft);
+  assert.ok(ftAfter, "a free throw follows the technical");
+  assert.equal(ftAfter.meta.ft.shooterId, tech.meta.foul.victimId);
 });
