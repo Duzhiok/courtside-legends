@@ -7449,7 +7449,8 @@ function handleSimEvent(e) {
       console.error(err);
     }
   }
-  // Pass arc: kick events carry meta.pass (M3); the ball arcs from passer to receiver.
+  // Pass arc: every ball-change carries meta.pass (M3 kicks, B53 all passes);
+  // the ball arcs from passer to receiver.
   if (e?.meta?.pass) {
     try {
       state.court?.onPass(e.meta.pass);
@@ -7507,6 +7508,8 @@ function pushFeed(type, text, ev = null) {
   const feed = $("#play-feed");
   if (!feed) return;
   if (type === "dunk") return;
+  // B53: silent structured pass events carry the arc in meta.pass and no feed text.
+  if (type === "pass") return;
   const actor = livePlayerById(feedActorId(ev));
   const row = feedRowHtml(ev || { type, text }, {
     run: ev ? feedRuns.observe(ev) : null,

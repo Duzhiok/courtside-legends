@@ -779,6 +779,12 @@ export class GameSim {
           organizerId = baller.id;
           kickedOut = true;
         }
+        // B53: every ball-change is a structured pass event (silent "pass" type —
+        // pushFeed skips it, the court draws the arc from meta.pass). Only when
+        // the ball actually changes hands; the shooter already holding it is no pass.
+        if (baller && baller.id !== sh.id) {
+          this.emit("pass", "", { pass: { passerId: baller.id, receiverId: sh.id, kind: "handoff" } });
+        }
         baller = sh;
       }
     }
@@ -836,6 +842,8 @@ export class GameSim {
         if (ballAgg <= 0.35) {
           this.emit("coach", this.S(`${organizer.name} 攻击欲低，先传导给 ${kicked.name}`, `${organizer.name} has low shot appetite — swings it to ${kicked.name}`));
         }
+        // B53: the kick itself is the pass event; the low-appetite text above stays text-only.
+        this.emit("pass", "", { pass: { passerId: organizer.id, receiverId: kicked.id, kind: "kick" } });
         baller = kicked;
         kickedOut = true;
       }
@@ -1074,11 +1082,11 @@ export class GameSim {
         sideCtx.kickedOut = true;
         if (!sideCtx.scheme) sideCtx.scheme = "drive_kick";
         if (pressuredPick) {
-          this.emit("coach", this.S(`${passer.name} 被逼得太紧，传给空位的 ${kicked2.name}`, `${passer.name} is smothered — finds ${kicked2.name} open`), { pass: { passerId: passer.id, receiverId: kicked2.id } });
+          this.emit("coach", this.S(`${passer.name} 被逼得太紧，传给空位的 ${kicked2.name}`, `${passer.name} is smothered — finds ${kicked2.name} open`), { pass: { passerId: passer.id, receiverId: kicked2.id, kind: "repass" } });
         } else this.emit(
           "coach",
           this.S(`${passer.name}${aggNow <= 0.12 ? " 专注防守" : " 欲望低"}，机会一般先传给 ${kicked2.name}`, `${passer.name}${aggNow <= 0.12 ? " is defence-first" : " has low appetite"} — the look is not great, swings it to ${kicked2.name}`),
-          { pass: { passerId: passer.id, receiverId: kicked2.id } }
+          { pass: { passerId: passer.id, receiverId: kicked2.id, kind: "repass" } }
         );
         baller = kicked2;
         defender = pickDefender(def, baller, plan);
@@ -1101,7 +1109,9 @@ export class GameSim {
       const kick = skillKickOpenBonus(organizer, { doubled });
       if (kick.bonus) {
         open = clamp(open + kick.bonus, 0.08, 0.95);
-        if (rnd() < 0.35) this.emit("coach", this.S(`${organizer.name} ${kick.label}，${baller.name} 空位接球`, `${organizer.name} ${this.nL(kick.label)} — ${baller.name} catches it wide open`), { pass: { passerId: organizer.id, receiverId: baller.id } });
+        // B53: narration only — the pass arc already fired at the actual
+        // handoff/kick above, so no meta.pass here (it would redraw the same arc).
+        if (rnd() < 0.35) this.emit("coach", this.S(`${organizer.name} ${kick.label}，${baller.name} 空位接球`, `${organizer.name} ${this.nL(kick.label)} — ${baller.name} catches it wide open`));
       }
     }
     // 低欲望几乎不主动发动招牌绝技；空接窗（被传球手喂到）例外
