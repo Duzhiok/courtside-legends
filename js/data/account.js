@@ -13,69 +13,6 @@ import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY as ACTIVE_KEY } from "./accountKeys.js
 
 const STORE_KEY = ACCOUNTS_KEY;
 
-/**
- * Within-band soft weight (higher OVR a bit likelier inside the same rarity band).
- * Do NOT use alone on the full 20k roster — pool size would crush high cards.
- */
-export function drawWeight(ovr) {
-  if (ovr >= 100) return 12;
-  if (ovr >= 96) return 10;
-  if (ovr >= 93) return 9;
-  if (ovr >= 90) return 8;
-  if (ovr >= 85) return 7;
-  if (ovr >= 80) return 6;
-  if (ovr >= 75) return 5;
-  if (ovr >= 70) return 4;
-  if (ovr >= 65) return 3;
-  return 2;
-}
-
-/**
- * Onboarding offer odds only (开局福利, intentionally generous). Daily pulls
- * use gacha.js RATE_TABLE + pity instead.
- */
-export const DRAW_BANDS = [
-  { min: 96, max: 200, p: 0.02, label: "神话+" },
-  { min: 93, max: 96, p: 0.04, label: "传奇" },
-  { min: 90, max: 93, p: 0.08, label: "超巨" },
-  { min: 85, max: 90, p: 0.14, label: "全明星" },
-  { min: 80, max: 85, p: 0.2, label: "先发" },
-  { min: 74, max: 80, p: 0.22, label: "轮换" },
-  { min: 0, max: 74, p: 0.3, label: "普通" },
-];
-
-/** Pick a player using band probability, then soft weight inside the band.
- *  `maxOvr` (exclusive) keeps the pick below a ceiling -- used by the onboarding star budget. */
-export function pickPlayerByOdds(pool, { excludeIds = null, maxOvr = Infinity } = {}) {
-  const list = (pool || []).filter(
-    (p) => p && !(excludeIds && excludeIds.has(p.id)) && overall(p) < maxOvr,
-  );
-  if (!list.length) return null;
-
-  const roll = Math.random();
-  let acc = 0;
-  let band = DRAW_BANDS[DRAW_BANDS.length - 1];
-  for (const b of DRAW_BANDS) {
-    acc += b.p;
-    if (roll <= acc) {
-      band = b;
-      break;
-    }
-  }
-
-  let bandPool = list.filter((p) => {
-    const o = overall(p);
-    return o >= band.min && o < band.max;
-  });
-  // Empty band (e.g. no 96+ in filtered pool) → fall toward neighboring bands
-  if (!bandPool.length) {
-    bandPool = list.filter((p) => overall(p) >= band.min);
-  }
-  if (!bandPool.length) bandPool = list;
-
-  return weightedPick(bandPool, (p) => drawWeight(overall(p)));
-}
-
 // rarityLabel(ovr) used to live here (pure-OVR tag text). It is now data/playerLegacy.js's
 // legacyOvrBadge(), the fallback tier inside playerLegacyBadge() -- moved so the OVR-only bands
 // and the real-basketball-identity tiers (Legendary/Superstar/All-Star/...) share one function
@@ -325,104 +262,6 @@ export function weightedPick(list, weightFn) {
   return list[list.length - 1];
 }
 
-/**
- * Onboarding star budget. The odds above give 28% per card at 85+, so a 7-card system roll
- * plus the best 5 of a 20-card offer pool used to hand out ~7 All-Stars on day one. Now the
- * whole starting 12 holds at most STARTER_STAR_CAP cards at OVR >= STARTER_STAR_OVR (the
- * franchise face or two); everyone else is a role player you grow into.
- */
-export const STARTER_STAR_OVR = 85;
-export const STARTER_STAR_CAP = 2;
-const SYSTEM_SEVEN_STAR_CAP = 1;
-
-const isStarterStar = (p) => overall(p) >= STARTER_STAR_OVR;
-export const countStarterStars = (players) => (players || []).filter(isStarterStar).length;
-
-/** What the 5-pick offer pool may contain, given the system seven already rolled:
- *  never past the cap, and at least one star on offer if the seven rolled none. */
-export function starterStarBudget(systemSeven) {
-  const left = Math.max(0, STARTER_STAR_CAP - countStarterStars(systemSeven));
-  return { max: left, min: countStarterStars(systemSeven) === 0 ? Math.min(1, left) : 0 };
-}
-
-/** Random pool for onboarding — mostly role players, star count bounded by `starBudget`. */
-export function rollStarterOffers(count = 24, excludeIds = new Set(), starBudget = { max: STARTER_STAR_CAP, min: 0 }) {
-  const pool = PLAYERS.filter((p) => !excludeIds.has(p.id));
-  const picks = [];
-  const used = new Set(excludeIds);
-  const attempts = count * 8;
-  for (let i = 0; i < attempts && picks.length < count; i++) {
-    const capped = countStarterStars(picks) >= starBudget.max;
-    const p = pickPlayerByOdds(pool, { excludeIds: used, maxOvr: capped ? STARTER_STAR_OVR : Infinity });
-    if (!p || used.has(p.id)) continue;
-    used.add(p.id);
-    picks.push(p);
-  }
-  // Guarantee the floor: swap the weakest offer for a star if the roll came up empty-handed.
-  const starPool = pool.filter(isStarterStar);
-  while (countStarterStars(picks) < starBudget.min) {
-    const star = pickPlayerByOdds(starPool, { excludeIds: used });
-    if (!star) break;
-    let weakest = 0;
-    picks.forEach((p, i) => { if (overall(p) < overall(picks[weakest])) weakest = i; });
-    used.add(star.id);
-    picks[weakest] = star;
-  }
-  return picks.map((p) => clonePlayer(p));
-}
-
-function posBand(p) {
-  const pos = p?.playPos || p?.pos || "SF";
-  if (pos === "C") return "C";
-  if (pos === "PF" || pos === "SF") return "F";
-  return "G"; // PG / SG
-}
-
-/**
- * Roll the 7 system cards first (后卫 / 前锋 / 中锋 ≈ 2-2-3, which band gets 3 is random).
- * User reviews these, then picks 5 more from a separate offer pool.
- */
-export function rollSystemSeven(excludeIds = new Set()) {
-  const used = new Set(excludeIds);
-  const bands = ["G", "F", "C"];
-  const extra = Math.floor(Math.random() * 3);
-  const quotas = { G: 2, F: 2, C: 2 };
-  quotas[bands[extra]] = 3;
-
-  const filled = [];
-  for (const band of bands) {
-    let left = quotas[band];
-    const pool = PLAYERS.filter((p) => !used.has(p.id) && posBand(p) === band);
-    let guard = 0;
-    while (left > 0 && pool.length && guard < pool.length * 4) {
-      guard += 1;
-      const maxOvr = countStarterStars(filled) >= SYSTEM_SEVEN_STAR_CAP ? STARTER_STAR_OVR : Infinity;
-      const p = pickPlayerByOdds(pool, { excludeIds: used, maxOvr });
-      if (!p || used.has(p.id)) continue;
-      used.add(p.id);
-      filled.push(clonePlayer(p));
-      left -= 1;
-    }
-    while (left > 0) {
-      const p = pickPlayerByOdds(PLAYERS, { excludeIds: used, maxOvr: STARTER_STAR_OVR });
-      if (!p || used.has(p.id)) break;
-      used.add(p.id);
-      filled.push(clonePlayer(p));
-      left -= 1;
-    }
-  }
-  return filled.slice(0, 7);
-}
-
-/**
- * After the player picks 5 cards, auto-add 7 more (legacy helper / rematch paths).
- */
-export function autoFillOnboardRoster(pickedIds, need = 7) {
-  const picked = resolvePlayers(pickedIds);
-  const system = rollSystemSeven(new Set(pickedIds));
-  return [...picked, ...system].slice(0, picked.length + need);
-}
-
 /** Opening offers: obscure / rookie HCs only — no Phil / Pop / Kerr. */
 export function rollCoachOffers(count = 5) {
   const pool = COACHES.filter(isStarterCoach);
@@ -446,16 +285,20 @@ export function canEquipCoach(account, coachId) {
   return isStarterCoach(c);
 }
 
-export function finalizeOnboarding(account, { playerIds, coachId, tacticId }) {
+/**
+ * Opening roster is 5 starter draws (one per position, pure random, no pity)
+ * dealt by the wizard — see drawStarterFive in accountGacha.js. The caller
+ * passes the drawn ids plus the gacha state the draws carried, so the
+ * account's counters continue from the opening pulls like any other draw.
+ */
+export function finalizeOnboarding(account, { playerIds, coachId, tacticId, gacha }) {
   if (!account) throw new Error("无账号");
-  if (!playerIds || playerIds.length !== 12) throw new Error("需选定 12 名球员");
+  if (!playerIds || playerIds.length !== 5) throw new Error("开局需要 5 名球员");
   if (!coachId) throw new Error("需选定教练");
   const coach = COACHES.find((c) => c.id === coachId);
   if (!isStarterCoach(coach)) throw new Error("开局只能选用菜鸟/边缘主帅");
-  if (countStarterStars(resolvePlayers(playerIds)) > STARTER_STAR_CAP) {
-    throw new Error(`开局阵容最多 ${STARTER_STAR_CAP} 名全明星以上（OVR ${STARTER_STAR_OVR}+）球员`);
-  }
   account.playerIds = [...playerIds];
+  if (gacha) account.gacha = { ...(account.gacha || {}), ...gacha };
   account.coachIds = Array.from(new Set([...(account.coachIds || []), coachId]));
   account.coachId = coachId;
   account.tacticId = tacticId || "balanced";

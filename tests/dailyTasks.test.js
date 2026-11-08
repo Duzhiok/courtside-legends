@@ -45,31 +45,38 @@ test("daily targets are 3 played / 2 won ranked and 3 gold-challenge wins (harde
   assert.equal(MILESTONE_WINS, 10);
 });
 
-test("ranked tasks pay only once the day's count reaches the target", () => {
+test("daily tasks pay 1 ticket only when all three are complete (2026-11-07 rule)", () => {
   const acc = account();
   assert.deepEqual(playRanked(acc, true, DAY1).map((g) => g.id), [], "1 game, 1 win: nothing yet");
-  assert.deepEqual(playRanked(acc, true, DAY1).map((g) => g.id), ["win"], "2nd win pays 'win'");
-  assert.deepEqual(playRanked(acc, false, DAY1).map((g) => g.id), ["play"], "3rd game pays 'play'");
-  assert.equal(acc.tickets, 2);
+  assert.deepEqual(playRanked(acc, true, DAY1).map((g) => g.id), [], "2nd win: ranked pair done, career task still open");
+  assert.deepEqual(playRanked(acc, false, DAY1).map((g) => g.id), [], "3rd game: ranked pair done, still no ticket");
+  assert.equal(acc.tickets || 0, 0, "partial completion pays 0");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1).map((g) => g.id), [], "1 career win: not yet");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1).map((g) => g.id), [], "2 career wins: not yet");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1).map((g) => g.id), ["dailyComplete"], "3rd career win completes all three");
+  assert.equal(acc.tickets, 1);
   const board = taskBoard(acc, DAY1);
-  assert.deepEqual(board.tasks.map((t) => [t.id, t.progress, t.target]), [["play", 3, 3], ["win", 2, 2], ["careerWin", 0, 3]]);
+  assert.deepEqual(board.tasks.map((t) => [t.id, t.progress, t.target]), [["play", 3, 3], ["win", 2, 2], ["careerWin", 3, 3]]);
+  assert.equal(board.completion.claimed, true);
 });
 
-test("daily tasks pay once per day, no matter how many games", () => {
+test("daily tasks pay nothing from ranked games alone, no matter how many", () => {
   const acc = account();
   for (let i = 0; i < 6; i++) playRanked(acc, i % 2 === 0, DAY1);
-  // 3 wins → no milestone yet (needs 10); only the two ranked daily tickets
-  assert.equal(acc.tickets, 2);
+  // 3 wins → no milestone yet (needs 10); the gold-challenge task never done → 0 tickets
+  assert.equal(acc.tickets || 0, 0);
 });
 
 test("a new day resets the tasks", () => {
   const acc = account();
   for (let i = 0; i < 3; i++) playRanked(acc, true, DAY1);
-  assert.equal(acc.tickets, 2);
+  for (let i = 0; i < 3; i++) recordCareerTasks(acc, true, DAY1);
+  assert.equal(acc.tickets, 1);
   playRanked(acc, true, DAY2);
-  assert.equal(acc.tickets, 2, "day 2 starts from zero, one game pays nothing");
+  assert.equal(acc.tickets, 1, "day 2 starts from zero, one game pays nothing");
   const fresh = taskBoard(acc, "2026-03-03").tasks;
   assert.equal(fresh.every((t) => !t.claimed && t.progress === 0), true);
+  assert.equal(taskBoard(acc, "2026-03-03").completion.claimed, false);
 });
 
 test("every MILESTONE_WINS lifetime ranked wins grants one ticket, never twice", () => {
@@ -104,10 +111,10 @@ test("with no free pull, no tickets and no gold, drawing is refused", () => {
 });
 
 /**
- * The daily challenge: the two 每日任务 (play 1 ranked, win 1 ranked) pay out trivially from a
- * single match, so there was no reason to ever touch the gold tournament or a full time-travel
- * season just for ticket income. This is one randomly-assigned hard accomplishment a day, worth
- * more, reported by whatever game-mode completion hook matches its id.
+ * The daily challenge: the three 每日任务 (play 3 ranked, win 2 ranked, win 3 gold-challenge)
+ * pay out only when all three are done, so there was no reason to ever touch the gold tournament
+ * or a full time-travel season just for ticket income. This is one randomly-assigned hard
+ * accomplishment a day, worth more, reported by whatever game-mode completion hook matches its id.
  */
 test("taskBoard always surfaces today's assigned challenge, unclaimed on a fresh day", () => {
   const acc = account();
@@ -178,46 +185,59 @@ test("recordChallengeProgress is a safe no-op with no account, no id, or an unkn
  * R47 rebalance: day one used to hand out 5 premium pulls before any real
  * play (welcome 4 + free 1). The welcome gift is 2 now, and the third daily
  * task ticket moved into the gold ladder （金币挑战赛） so a daily ticket is
- * earned in the tournament mode, not only in ranked.
+ * earned in the tournament mode, not only in ranked. 2026-11-07: the three
+ * daily tasks together pay exactly 1 ticket when all three are complete.
  */
 test("welcome gift is the rebalanced 2 tickets", () => {
   assert.equal(WELCOME_TICKETS, 2);
 });
 
-test("career wins pay the 金币挑战赛 ticket once the day reaches 3 wins; losses pay nothing", () => {
+test("career wins alone pay nothing; the 3rd career win only pays when the ranked pair is also done", () => {
   const acc = account();
   assert.deepEqual(recordCareerTasks(acc, false, DAY1), [], "a loss must not pay");
   assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "1 win: not yet");
   assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "2 wins: not yet");
-  assert.deepEqual(recordCareerTasks(acc, true, DAY1).map((g) => g.id), ["careerWin"], "3rd win pays");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "3rd win: career task done, but the ranked pair is still open");
+  assert.equal(acc.tickets || 0, 0);
+  for (let i = 0; i < 3; i++) playRanked(acc, true, DAY1);
+  // the 3rd ranked win completes all three → the single daily ticket lands there
   assert.equal(acc.tickets, 1);
-  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "4th win the same day pays nothing more");
+  assert.deepEqual(recordCareerTasks(acc, true, DAY1), [], "a 4th career win the same day pays nothing more");
   assert.equal(acc.tickets, 1);
   for (let i = 0; i < 2; i++) recordCareerTasks(acc, true, DAY2);
-  assert.deepEqual(recordCareerTasks(acc, true, DAY2).map((g) => g.id), ["careerWin"], "a new day pays again");
+  for (let i = 0; i < 3; i++) playRanked(acc, true, DAY2);
+  assert.deepEqual(recordCareerTasks(acc, true, DAY2).map((g) => g.id), ["dailyComplete"], "a new day pays again once all three are done");
   assert.equal(acc.tickets, 2);
 });
 
-test("ranked pair + career task stack to 3 daily task tickets, each once", () => {
+test("all three tasks together pay exactly 1 ticket a day, once", () => {
   const acc = account();
   for (let i = 0; i < 3; i++) playRanked(acc, true, DAY1); // play + win
   for (let i = 0; i < 3; i++) recordCareerTasks(acc, true, DAY1); // careerWin
-  assert.equal(acc.tickets, 3);
+  assert.equal(acc.tickets, 1);
   const board = taskBoard(acc, DAY1);
   assert.deepEqual(board.tasks.map((t) => t.id), ["play", "win", "careerWin"]);
   assert.ok(board.tasks.every((t) => t.claimed));
+  assert.equal(board.completion.claimed, true);
+  assert.equal(board.completion.tickets, 1);
+  // replaying the same settle does not double pay
+  assert.deepEqual(recordRankedTasks(acc, true, DAY1), []);
+  assert.equal(acc.tickets, 1);
 });
 
 test("recordCareerTasks is a safe no-op without an account", () => {
   assert.deepEqual(recordCareerTasks(null, true, DAY1), []);
 });
 
-test("task board renders progress, and English mode has no Chinese left", async () => {
+test("task board renders progress and the single all-three reward, and English mode has no Chinese left", async () => {
   const { tasksHtml } = await import("../js/ui/gachaView.js");
   const acc = account();
   playRanked(acc, true, DAY1);
   const en = tasksHtml(taskBoard(acc, DAY1, "en"), "en");
   assert.match(en, /Play 3 ranked games <span class="tiny">1\/3<\/span>/);
+  assert.match(en, /Complete all three daily tasks <span class="tiny">→ Tickets \+1<\/span>/);
   assert.doesNotMatch(en, /[\u4e00-\u9fff]/, "no CJK characters in the English task board");
-  assert.match(tasksHtml(taskBoard(acc, DAY1), "zh"), /排位赢 2 场 <span class="tiny">1\/2<\/span>/);
+  const zh = tasksHtml(taskBoard(acc, DAY1), "zh");
+  assert.match(zh, /排位赢 2 场 <span class="tiny">1\/2<\/span>/);
+  assert.match(zh, /三项每日任务全部完成 <span class="tiny">→ 抽卡券 \+1<\/span>/);
 });

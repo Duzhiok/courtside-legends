@@ -121,7 +121,7 @@ test("one real person per roster: keep the best copy", () => {
   assert.ok(!lineup.some((p) => p.id === "jokic-2020"));
 });
 
-test("a coach draw still counts toward every pity counter", () => {
+test("a coach draw advances the draw count (counters are inert telemetry since pity was removed)", () => {
   const acc = account({ gacha: { sinceAllstar: 2, sinceLegend: 5, pulls: 9, hadAllstar: true, souls: {} } });
   const result = performDailyDraw(acc, { pool: [JOKIC_2020], rng: () => 0.01, date: DATE }); // 0.01 < 20% → coach
   assert.equal(result.kind, "coach");
@@ -130,15 +130,14 @@ test("a coach draw still counts toward every pity counter", () => {
   assert.equal(acc.gacha.pulls, 10);
 });
 
-test("a pity-armed pull is never a coach, even when the coach roll would hit", () => {
+test("with no pity shield, a coach roll can hit on any pull", () => {
   const star = card("star-2015", 92);
   const acc = account({ gacha: { sinceAllstar: 9, sinceLegend: 9, pulls: 30, hadAllstar: true, souls: {} } });
   const result = performDailyDraw(acc, { pool: [star], rng: () => 0.01, date: DATE });
-  assert.equal(result.kind, "player");
-  assert.ok(result.pityHit);
+  assert.equal(result.kind, "coach");
 });
 
-test("新手保底 holds even if every earlier draw was a coach: draw 5 is a real 85+ player", () => {
+test("no newbie guarantee: five straight coach rolls stay coaches, no forced 85+ player", () => {
   const star = card("star-2015", 90);
   const filler = card("filler-2015", 60);
   const acc = account({ gold: 5000 });
@@ -146,9 +145,8 @@ test("新手保底 holds even if every earlier draw was a coach: draw 5 is a rea
   for (let i = 0; i < 5; i++) {
     acc.lastDailyDraw = null; // a fresh free pull each time
     last = performDailyDraw(acc, { pool: [star, filler], rng: () => 0.01, date: new Date(2026, 9, 21 + i) });
-    if (i < 4) assert.equal(last.kind, "coach");
+    assert.equal(last.kind, "coach", `pull ${i + 1} must be a coach, not a pity player`);
   }
-  assert.equal(last.kind, "player");
-  assert.ok(last.ovr >= 85);
-  assert.equal(acc.gacha.hadAllstar, true);
+  assert.equal(acc.playerIds.length, 0, "no player was forced in");
+  assert.equal(acc.gacha.pulls, 5);
 });

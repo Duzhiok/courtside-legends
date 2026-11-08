@@ -5,7 +5,7 @@
  */
 import { getLang } from "../i18n.js";
 import { subAttrChipsHtml } from "./rotationBoard.js";
-import { EXTRA_DRAW, MAX_STARS, NEWBIE, PITY, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
+import { EXTRA_DRAW, MAX_STARS, RATE_TABLE, SOULS_PER_STAR, craftCost } from "../data/gacha.js";
 import { CHALLENGE_TICKETS, DAILY_TASKS, MILESTONE_WINS, WELCOME_TICKETS } from "../data/dailyTasks.js";
 import { GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "../data/growthPaths.js";
 import { MAX_CARDS } from "../data/accountRecycle.js";
@@ -25,28 +25,28 @@ export function rateSummary(lang = "zh") {
   return RATE_TABLE.map((band) => `${lang === "en" ? band.labelEn || band.label : band.label} ${pct(band.p)}`).join(" · ");
 }
 
-/** Daily-task summary derived from DAILY_TASKS, so the rules text cannot drift from the real targets. */
+/** The single daily-task reward, derived from DAILY_TASKS, so the rules text cannot drift from the real targets. */
 const dailyTaskSummary = (en) =>
-  DAILY_TASKS.map((t) => `${en ? t.labelEn : t.label} +${t.tickets}`).join(en ? ", " : "、");
+  en
+    ? `daily tasks (${DAILY_TASKS.map((t) => t.labelEn).join(", ")}) — complete all three for +1`
+    : `每日任务（${DAILY_TASKS.map((t) => t.label).join("、")}）——三项全完成 +1`;
 
 export function drawRulesHtml(lang = "zh") {
   const en = lang === "en";
   if (en) {
     return `<details class="draw-rules-more">
-    <summary>Rates & pity rules</summary>
+    <summary>Rates & ticket rules</summary>
     <p class="tiny"><strong>Draw order</strong>: 1 free daily draw → tickets → extra draws for gold (¤${EXTRA_DRAW.cost} each, max ${EXTRA_DRAW.perDay}/day).
     Ticket sources: welcome pack ${WELCOME_TICKETS}, daily tasks (${dailyTaskSummary(true)}), today's challenge +${CHALLENGE_TICKETS}, +1 per ${MILESTONE_WINS} ranked wins. About 20% of draws are coach cards.<br/>
-    <strong>Player rates</strong>: ${rateSummary("en")}.<br/>
-    <strong>Pity</strong>: first ${NEWBIE.allstarByPull} draws guarantee an 85+ (once, always from the standard pool); after that, an All-Star+ every ${PITY.allstarEvery} draws, a Legend+ at ${PITY.legendAt} draws. Coach cards count as draws.<br/>
+    <strong>Player rates</strong>: ${rateSummary("en")}. No pity — every draw is pure random at these rates.<br/>
     Before you pull you only see OVR — grade, hidden traits and gem tags reveal after you own the card.</p>
   </details>`;
   }
   return `<details class="draw-rules-more">
-    <summary>概率与保底规则</summary>
+    <summary>概率与抽卡券规则</summary>
     <p class="tiny"><strong>抽卡顺序</strong>：每日免费 1 抽 → 抽卡券 → 金币加抽（¤${EXTRA_DRAW.cost}/次，每天最多 ${EXTRA_DRAW.perDay} 次）。
     抽卡券来源：新手礼包 ${WELCOME_TICKETS} 张、每日任务（${dailyTaskSummary(false)}）、今日挑战 +${CHALLENGE_TICKETS}、排位累计每 ${MILESTONE_WINS} 胜 +1。约 20% 出教练卡。<br/>
-    <strong>球员概率</strong>：${rateSummary()}。<br/>
-    <strong>保底</strong>：新手前 ${NEWBIE.allstarByPull} 抽必出 85+（只一次，一定从常驻池出）；之后每 ${PITY.allstarEvery} 抽必出全明星+，${PITY.legendAt} 抽必出传奇+。教练卡也算一抽。<br/>
+    <strong>球员概率</strong>：${rateSummary()}。无保底——每次抽卡都是按这个概率纯随机。<br/>
     抽前只看得到 OVR——成色、隐藏能力、妖人标签入手后才揭晓。</p>
   </details>`;
 }
@@ -98,15 +98,11 @@ export function bannerExplainHtml(banner, stats, { days, wishName, lang = "zh" }
       <details class="banner-more">
         <summary>${en ? "How rarity is calculated" : "稀有度怎么算"}${standard ? "" : en ? " · Strongest in pool" : " · 本池最强"}</summary>
         <p class="tiny">${how}</p>
-        <p class="tiny muted">${en ? "The newbie pity pull always comes from the standard pool, whichever pool you pick." : "新手保底那一抽不论选哪个池，都从常驻池出。"}</p>
       </details>
     </div>`;
 }
 
 export function drawStatusHtml(account, availability, wishName, esc, lang = "zh") {
-  const gacha = account.gacha || {};
-  const toAllstar = PITY.allstarEvery - (gacha.sinceAllstar || 0);
-  const toLegend = PITY.legendAt - (gacha.sinceLegend || 0);
   const en = lang === "en";
   const pull = availability.free
     ? en ? "Free daily draw available" : "今日免费抽可用"
@@ -120,8 +116,6 @@ export function drawStatusHtml(account, availability, wishName, esc, lang = "zh"
       <span>${en ? "Tickets" : "抽卡券"} ${availability.tickets || 0}</span>
       <span>${en ? "Collection" : "卡库"} ${(account.playerIds || []).length}/${MAX_CARDS}</span>
       <span>${pull}</span>
-      <span>${en ? `All-Star pity in ${toAllstar} draws` : `全明星保底还差 ${toAllstar} 抽`}</span>
-      <span>${en ? `Legend pity in ${toLegend} draws` : `传奇保底还差 ${toLegend} 抽`}</span>
       <span>${en ? "Wishlist" : "心愿单"}：${wishName ? esc(wishName) : en ? "not set" : "未设置"}</span>
     </div>`;
 }
@@ -179,8 +173,6 @@ export function drawRevealHtml(result, view) {
   }
   const p = result.player;
   const flags = [
-    result.pityHit ? '<span class="draw-flag">保底触发</span>' : "",
-    result.newbieStandard ? '<span class="draw-flag">新手保底 · 从常驻池出</span>' : "",
     result.poolBand ? `<span class="draw-flag">池内 ${esc(result.poolBand)} 档</span>` : "",
     result.wishHit ? '<span class="draw-flag wish">心愿命中</span>' : "",
     paymentFlagsHtml(result),
@@ -254,7 +246,7 @@ export function favoriteControlHtml(player, growth, isFavorite) {
     </label>`;
 }
 
-/** Daily tasks + win milestone. Tickets are the reward, shown up front. */
+/** Daily tasks + win milestone. The three tasks together pay 1 ticket when all are done. */
 export function tasksHtml(board, lang = getLang()) {
   const en = lang === "en";
   const reward = (n, claimed) =>
@@ -262,9 +254,12 @@ export function tasksHtml(board, lang = getLang()) {
   const rows = board.tasks
     .map((task) => {
       const progress = !task.claimed && task.target > 1 ? ` <span class="tiny">${task.progress}/${task.target}</span>` : "";
-      return `<li class="${task.claimed ? "done" : ""}"><span aria-hidden="true">${task.claimed ? "✅" : "⬜"}</span> ${task.label}${progress} ${reward(task.tickets, task.claimed)}</li>`;
+      return `<li class="${task.claimed ? "done" : ""}"><span aria-hidden="true">${task.claimed ? "✅" : "⬜"}</span> ${task.label}${progress}</li>`;
     })
     .join("");
+  const completion = board.completion
+    ? `<li class="${board.completion.claimed ? "done" : ""}"><span aria-hidden="true">${board.completion.claimed ? "✅" : "🎫"}</span> ${board.completion.label} ${reward(board.completion.tickets, board.completion.claimed)}</li>`
+    : "";
   const challenge = board.challenge;
   const challengeRow = challenge
     ? `<li class="${challenge.claimed ? "done" : ""}"><span aria-hidden="true">${challenge.claimed ? "✅" : "🏆"}</span> ${en ? "Today's challenge: " : "今日挑战："}${challenge.label} ${reward(challenge.tickets, challenge.claimed)}</li>`
@@ -275,6 +270,6 @@ export function tasksHtml(board, lang = getLang()) {
     : `排位累计 ${next} 胜 <span class="tiny">→ 抽卡券 +1（现在 ${wins} 胜，每 ${perTicket} 胜一张）</span>`;
   return `<div class="draw-tasks">
       <strong>${en ? "Daily tasks" : "每日任务"}</strong>
-      <ul>${rows}${challengeRow}<li><span aria-hidden="true">🎯</span> ${milestone}</li></ul>
+      <ul>${rows}${completion}${challengeRow}<li><span aria-hidden="true">🎯</span> ${milestone}</li></ul>
     </div>`;
 }

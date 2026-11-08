@@ -218,7 +218,7 @@
           <li>势头条显示连续得分；暂停可打断对方高潮。赛前可设阵容包、对位方案、角色与目标分钟。</li>
           <li>按成名技术挂技能包：超巨/名人堂可有招牌绝技；另有组合技（空接之城、水花兄弟等，搭档同场才触发）与光环（潜能激发抬队友、防守统领抬全队防守）。</li>
           <li>出手按 2K 逻辑：投篮/三分倾向决定会不会投，能力值决定投得准不准；进攻方式（低位/定点/突破等）与强弱侧共同影响选择。</li>
-          <li>本地账号班底：开局先发 7 张系统卡，看完后再自选 5 张；开局只有菜鸟教头。战术板已扩充（牛角/普林斯顿/五外/挡拆轰炸/换防等），每位教练擅长体系不同；名帅与超巨一样靠抽卡。</li>
+          <li>本地账号班底：开局抽 5 张卡，每位置一张（控卫/分卫/小前/大前/中锋），纯随机、无保底；开局只有菜鸟教头。战术板已扩充（牛角/普林斯顿/五外/挡拆轰炸/换防等），每位教练擅长体系不同；名帅与超巨一样靠抽卡。</li>
           <li>重复卡：抽到已有的同一张卡 → 升 1 星（★1–★5，每星全部能力 +1），并可在新旧两份成色里二选一；已满 ★5 再抽到 → 转成 2 个球魂。抽到已有球员的另一个赛季版本 → 照常入库，并额外得 1 个球魂。3 个球魂可给该球员的任意一张卡升 1 星，用球魂升到 ★5 时赠送一个技能（靠抽卡升到 ★5 不送）。技能只有三个来源：比赛表现领悟、技能碎片购买、★5 礼物；奖项只是荣誉，不送技能。</li>
           <li>球员能力按 NBA 2K 历年标尺从当季数据推算（得分/三分/中投/内线/防守等）；乔丹 91、詹皇巅峰等关键赛季用公开 2K 锚点校正。改完后若数值异常可点「清除名册本地缓存」重建。</li>
           <li>同一球员不同赛季卡会随年龄变化：新秀更快更有弹速，老将判断力/力量/传球/投篮手感与领袖气场、大心脏更强。</li>
@@ -245,9 +245,9 @@
       <div class="panel-head">
         <button class="nav-back" id="btn-onboard-cancel" type="button"><span>取消</span></button>
         <h2>开局建队</h2>
-        <span class="tiny" id="onboard-step-label">1/4 系统先给 7 人</span>
+        <span class="tiny" id="onboard-step-label">1/3 开局抽卡</span>
       </div>
-      <p class="tiny" id="onboard-hint">开局先发 7 张系统卡供你查看；看完后再从候选池自选 5 人，凑满 12 人班底。</p>
+      <p class="tiny" id="onboard-hint">开局抽 5 张卡，每位置一张，纯随机、无保底；看完后选教练和战术。</p>
       <div id="onboard-pool" class="card-row onboard-pool"></div>
       <div class="actions">
         <button class="btn" id="btn-onboard-prev" type="button" hidden>上一步</button>
@@ -306,7 +306,7 @@
       <div id="draw-rules"></div>
       <details class="draw-wishlist" id="draw-wishlist">
         <summary>心愿单 & 金币合成</summary>
-        <p class="tiny">指定 1 名想要的球员：抽到他所在档位时 30% 概率直接变成他，传奇保底时 50%；也可以花金币直接合成他的指定年份。</p>
+        <p class="tiny">指定 1 名想要的球员：抽到他所在档位时 30% 概率直接变成他；也可以花金币直接合成他的指定年份。</p>
         <div class="search-wrap">
           <input id="wish-search" type="search" placeholder="搜球员：英文名 / 热门球星中文名 / 外号，如「Livingston」「利文斯顿」「黑曼巴」" aria-label="搜索心愿单球员" />
           <button type="button" class="search-clear" id="wish-search-clear" aria-label="清空搜索" title="清空搜索" hidden>×</button>

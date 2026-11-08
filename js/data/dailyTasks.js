@@ -2,21 +2,13 @@
  * 每日任务 + 新手礼包: the answer to "one free pull a day is too slow".
  *
  * Tasks pay 抽卡券 (extra pulls), never gold or cards directly, so progress
- * always goes through the same pity / 成色 rules. Everything is capped:
- *  - daily tasks: at most 3 tickets a day (play 3 ranked + win 2 ranked +
- *    win 3 gold-ladder games). Targets were 1/1/1 until users pointed out a
- *    single ranked game farmed two tickets in minutes; the target count now
- *    drives both the label and the check, so they cannot drift apart.
- *    The career task exists because the ranked pair
- *    alone made day one too cheap: a welcome gift + free pull + two ranked
- *    tickets handed out premium pulls before any real play (R47 rebalance --
- *    the gift was cut 4 -> 2 and the third daily ticket moved into the
- *    gold tournament, the mode the user asked to matter daily);
+ * always goes through the same draw rules. The three daily tasks TOGETHER pay
+ * exactly 1 ticket a day, and only when all three are complete (user decision
+ * 2026-11-07 — per-task tickets are gone; partial completion pays 0, and the
+ * grant is idempotent per day). The targets stay 3 played / 2 won ranked +
+ * 3 gold-ladder wins, so a single ranked game can no longer farm a ticket.
  *  - daily challenge: 1 randomly-assigned hard task a day, worth
- *    CHALLENGE_TICKETS more on top -- without this, "2 extra pulls" was
- *    trivially farmable from a single ranked game, so there was no reason
- *    to ever touch the gold tournament or a time-travel season just for
- *    ticket income;
+ *    CHALLENGE_TICKETS more on top;
  *  - win milestone: 1 ticket per MILESTONE_WINS ranked wins (lifetime).
  */
 import { saveAccount, todayKey } from "./account.js";
@@ -32,7 +24,6 @@ const dailyTask = (id, key, target, zh, en) => ({
   target,
   label: zh(target),
   labelEn: en(target),
-  tickets: 1,
   done: (day) => (day[key] || 0) >= target,
 });
 
@@ -81,16 +72,14 @@ export function winMilestone(account) {
   return { wins, earned, claimed: account.milestoneClaimed || 0, next: (earned + 1) * MILESTONE_WINS };
 }
 
-/** Claim every daily task whose condition the day now satisfies. */
-function claimReadyTasks(account, day, lang = "zh") {
-  const granted = [];
-  for (const task of DAILY_TASKS) {
-    if (day.claimed.includes(task.id) || !task.done(day)) continue;
-    day.claimed.push(task.id);
-    account.tickets = (account.tickets || 0) + task.tickets;
-    granted.push({ id: task.id, label: taskLabel(task, lang), tickets: task.tickets });
-  }
-  return granted;
+/** The day's single ticket: all three tasks done, once per day. Partial completion pays 0. */
+const DAILY_COMPLETE_ID = "dailyComplete";
+function claimDailyCompletion(account, day, lang = "zh") {
+  if (day.claimed.includes(DAILY_COMPLETE_ID)) return [];
+  if (!DAILY_TASKS.every((task) => task.done(day))) return [];
+  day.claimed.push(DAILY_COMPLETE_ID);
+  account.tickets = (account.tickets || 0) + 1;
+  return [{ id: DAILY_COMPLETE_ID, label: lang === "en" ? "All daily tasks done" : "每日任务全部完成", tickets: 1 }];
 }
 
 /**
@@ -102,7 +91,7 @@ export function recordRankedTasks(account, won, today = todayKey(), lang = "zh")
   day.played += 1;
   if (won) day.won += 1;
 
-  const granted = claimReadyTasks(account, day, lang);
+  const granted = claimDailyCompletion(account, day, lang);
 
   const milestone = winMilestone(account);
   const fresh = milestone.earned - milestone.claimed;
@@ -123,7 +112,7 @@ export function recordCareerTasks(account, won, today = todayKey(), lang = "zh")
   if (!account) return [];
   const day = dailyState(account, today);
   if (won) day.careerWon = (day.careerWon || 0) + 1;
-  const granted = claimReadyTasks(account, day, lang);
+  const granted = claimDailyCompletion(account, day, lang);
   if (granted.length || won) saveAccount(account);
   return granted;
 }
@@ -152,15 +141,21 @@ export function taskBoard(account, today = todayKey(), lang = "zh") {
   const day = dailyState(account, today);
   const milestone = winMilestone(account);
   const challengeDef = DAILY_CHALLENGES.find((c) => c.id === day.challengeId) || DAILY_CHALLENGES[0];
+  const allDone = DAILY_TASKS.every((task) => task.done(day));
   return {
     tasks: DAILY_TASKS.map((task) => ({
       id: task.id,
       label: taskLabel(task, lang),
-      tickets: task.tickets,
-      claimed: day.claimed.includes(task.id),
+      claimed: task.done(day),
       progress: Math.min(day[task.key] || 0, task.target),
       target: task.target,
     })),
+    completion: {
+      label: lang === "en" ? "Complete all three daily tasks" : "三项每日任务全部完成",
+      tickets: 1,
+      done: allDone,
+      claimed: day.claimed.includes(DAILY_COMPLETE_ID),
+    },
     challenge: { id: challengeDef.id, label: taskLabel(challengeDef, lang), tickets: challengeDef.tickets, claimed: day.claimed.includes(challengeDef.id) },
     milestone: { wins: milestone.wins, next: milestone.next, perTicket: MILESTONE_WINS },
     tickets: account.tickets || 0,

@@ -13,9 +13,6 @@ import {
   resolvePlayers,
   ownedCoaches,
   rollCoachOffers,
-  rollStarterOffers,
-  rollSystemSeven,
-  starterStarBudget,
   setActiveAccountId,
   setAccountCoach,
   setAccountTactic,
@@ -24,6 +21,7 @@ import {
   canDailyDraw,
   craftWishCard,
   drawAvailability,
+  drawStarterFive,
   pendingRollChoice,
   performDailyDraw,
   resolvePendingRoll,
@@ -2226,7 +2224,7 @@ function requireAccountReady(feature = null) {
     showAccountGate(feature);
     return null;
   }
-  if (!acc.onboardingDone || (acc.playerIds || []).length < 12 || !acc.coachId) {
+  if (!acc.onboardingDone || (acc.playerIds || []).length < 5 || !acc.coachId) {
     startOnboarding(acc);
     return null;
   }
@@ -2273,7 +2271,7 @@ function refreshAccountHomeBar() {
       ? getLang() === "en"
         ? `Coach ${coach ? `${coachName(coach, "en")} (${coachRecordLabel(coach, "en")})` : "TBD"} · Ranked ${acc.rankedWins || 0}W-${acc.rankedLosses || 0}L · ${dailyOk ? "Daily draw available" : "Drawn today"}`
         : `教练 ${coach ? `${coach.name}（${coachRecordLabel(coach)}）` : "未定"} · 排位 ${acc.rankedWins || 0}胜${acc.rankedLosses || 0}负 · ${dailyOk ? "今日可抽卡" : "今日已抽"}`
-      : L("请先完成开局：先看系统 7 人 → 自选 5 人 + 教练 + 战术", "Finish setup first: review the system's 7 → pick 5 + coach + tactics");
+      : L("请先完成开局：抽 5 张开局卡 → 选教练 + 战术", "Finish setup first: draw your opening 5 → pick a coach + tactics");
   }
   if (drawBtn) {
     drawBtn.disabled = !acc.onboardingDone;
@@ -2287,7 +2285,7 @@ function renderAccountList() {
   const list = listAccounts();
   const activeId = getActiveAccountId();
   if (!list.length) {
-    box.innerHTML = `<p class="tiny">还没有账号。上方输入昵称创建，开局先看 7 人再自选 5 人。</p>`;
+    box.innerHTML = `<p class="tiny">${L("还没有账号。上方输入昵称创建，开局抽 5 张卡再选教练。", "No account yet. Enter a nickname above to create one — you'll draw 5 opening cards, then pick a coach.")}</p>`;
     return;
   }
   box.innerHTML = list
@@ -2398,19 +2396,17 @@ function cancelOnboarding() {
 function startOnboarding(acc) {
   const from = activeScreenName();
   if (from !== "onboard") onboardReturnScreen = from === "account" ? accountReturnScreen : from;
-  const autoFilled = rollSystemSeven();
-  const exclude = new Set(autoFilled.map((p) => p.id));
+  // Opening draws: 5 cards, one per position, pure random, no pity. Drawn
+  // now (in memory only); nothing is saved until the last step.
+  const { players, gacha } = drawStarterFive();
   state.onboard = {
     accountId: acc.id,
     step: 1,
-    autoFilled,
-    offers: [],
-    selected: new Set(),
-    rosterIds: [],
+    starterDraws: players,
+    starterGacha: gacha,
     coachOffers: rollCoachOffers(5),
     coachId: null,
     tacticId: null,
-    _exclude: exclude,
   };
   renderOnboard();
   show("onboard");
@@ -2428,45 +2424,26 @@ function renderOnboard() {
   const prev = $("#btn-onboard-prev");
   if (prev) prev.hidden = ob.step === 1;
   if (ob.step === 1) {
-    const auto = ob.autoFilled || [];
-    const g = auto.filter((p) => ["PG", "SG"].includes(p.pos)).length;
-    const f = auto.filter((p) => ["SF", "PF"].includes(p.pos)).length;
-    const c = auto.filter((p) => p.pos === "C").length;
-    if (label) label.textContent = "1/4 系统先给 7 人";
+    const drawn = ob.starterDraws || [];
+    if (label) label.textContent = L("1/3 开局抽卡", "1/3 Opening draws");
     if (hint) {
-      hint.textContent = `先看这 7 张系统卡（后卫${g} / 前锋${f} / 中锋${c}）。看完后再从候选池自选 5 人，凑满 12 人班底。`;
+      hint.textContent = L(
+        "开局抽 5 张卡，每位置一张（控卫/分卫/小前/大前/中锋），纯随机、无保底。这 5 张就是你的首发五虎。",
+        "Your opening 5 cards, one per position (PG/SG/SF/PF/C), pure random with no pity. These 5 are your starting five.",
+      );
     }
-    pool.innerHTML = auto.map((p) => onboardCardHtml(p)).join("");
+    pool.innerHTML = drawn.map((p) => onboardCardHtml(p)).join("");
     if (next) {
-      next.disabled = auto.length < 7;
-      next.textContent = "看完了，去自选 5 人";
+      next.disabled = drawn.length < 5;
+      next.textContent = L("去选教练", "Pick a coach");
     }
   } else if (ob.step === 2) {
-    if (label) label.textContent = `2/4 自选球员（${ob.selected.size}/5）`;
+    if (label) label.textContent = L("2/3 选教练", "2/3 Pick a coach");
     if (hint) {
-      hint.textContent =
-        "上面那 7 人已进班底。再从候选池点选 5 人（不可整批刷新）。";
-    }
-    pool.innerHTML = ob.offers
-      .map((p) => onboardCardHtml(p, { selectable: true, selected: ob.selected.has(p.id) }))
-      .join("");
-    pool.querySelectorAll("[data-pick]").forEach((btn) => {
-      btn.onclick = () => {
-        const id = btn.dataset.pick;
-        if (ob.selected.has(id)) ob.selected.delete(id);
-        else if (ob.selected.size < 5) ob.selected.add(id);
-        renderOnboard();
-      };
-    });
-    if (next) {
-      next.disabled = ob.selected.size !== 5;
-      next.textContent = "确认自选 5 人";
-    }
-  } else if (ob.step === 3) {
-    if (label) label.textContent = "3/4 选教练";
-    if (hint) {
-      hint.textContent =
-        "班底 12 人已定。开局只能选菜鸟/边缘主帅——菲尔、波波维奇等名帅需每日抽卡获得。";
+      hint.textContent = L(
+        "首发 5 人已定。开局只能选菜鸟/边缘主帅——菲尔、波波维奇等名帅需每日抽卡获得。",
+        "Your starting five is set. You can only pick a rookie/fringe head coach to start — Phil, Popovich and other greats come from daily draws.",
+      );
     }
     pool.innerHTML = ob.coachOffers
       .map((c) => {
@@ -2490,12 +2467,12 @@ function renderOnboard() {
     });
     if (next) {
       next.disabled = !ob.coachId;
-      next.textContent = "下一步：选战术";
+      next.textContent = L("下一步：选战术", "Next: pick a system");
     }
   } else {
     const coach = ob.coachOffers.find((c) => c.id === ob.coachId) || resolveCoach(ob.coachId);
     const tactics = coachTactics(coach);
-    if (label) label.textContent = "4/4 选战术";
+    if (label) label.textContent = L("3/3 选战术", "3/3 Pick a system");
     if (hint) {
       hint.textContent = `「${coach?.name || "教练"}」擅长：${coachSpecialtyLabel(coach)}。只显示其战术板上的体系（不同教练不一样）。`;
     }
@@ -2516,7 +2493,7 @@ function renderOnboard() {
     });
     if (next) {
       next.disabled = !ob.tacticId;
-      next.textContent = "完成开局";
+      next.textContent = L("完成开局", "Finish setup");
     }
   }
 }
@@ -2533,7 +2510,7 @@ function legacyBadgeHtml(p, ovr) {
 }
 
 $("#btn-onboard-cancel")?.addEventListener("click", async () => {
-  if ((state.onboard?.step ?? 1) > 1 && !(await confirmAction(L("退出开局建队？已选的人会清空，下次重新开始。", "Leave team setup? Your picks will be cleared and you'll start over next time."), {
+  if ((state.onboard?.step ?? 1) > 1 && !(await confirmAction(L("退出开局建队？已抽的 5 张卡会清空，下次重新抽。", "Leave team setup? The 5 drawn cards will be cleared and you'll draw again next time."), {
     title: L("取消开局建队？", "Cancel team setup?"),
     acceptLabel: L("退出", "Leave"),
   }))) return;
@@ -2549,26 +2526,14 @@ $("#btn-onboard-next")?.addEventListener("click", () => {
   const ob = state.onboard;
   if (!ob) return;
   if (ob.step === 1) {
-    if ((ob.autoFilled || []).length < 7) return;
-    const exclude = ob._exclude || new Set(ob.autoFilled.map((p) => p.id));
-    ob.offers = rollStarterOffers(20, exclude, starterStarBudget(ob.autoFilled));
-    ob.selected = new Set();
+    if ((ob.starterDraws || []).length < 5) return;
     ob.step = 2;
     renderOnboard();
     return;
   }
   if (ob.step === 2) {
-    if (ob.selected.size !== 5) return;
-    const picked = resolvePlayers([...ob.selected]);
-    const full = [...(ob.autoFilled || []), ...picked];
-    ob.rosterIds = full.map((p) => p.id);
-    ob.step = 3;
-    renderOnboard();
-    return;
-  }
-  if (ob.step === 3) {
     if (!ob.coachId) return;
-    ob.step = 4;
+    ob.step = 3;
     const coach = ob.coachOffers.find((c) => c.id === ob.coachId);
     const first = coachTactics(coach)[0];
     ob.tacticId = first?.id || "balanced";
@@ -2576,11 +2541,11 @@ $("#btn-onboard-next")?.addEventListener("click", () => {
     return;
   }
   const acc = getAccount(ob.accountId);
-  const ids = ob.rosterIds?.length === 12 ? ob.rosterIds : [...ob.selected];
   finalizeOnboarding(acc, {
-    playerIds: ids,
+    playerIds: (ob.starterDraws || []).map((p) => p.id),
     coachId: ob.coachId,
     tacticId: ob.tacticId,
+    gacha: ob.starterGacha,
   });
   state.onboard = null;
   refreshAccountHomeBar();
@@ -11594,7 +11559,7 @@ function handleCareerResult(youWin, snap) {
   const kind = match?.kind ? kindLabel(match.kind) : "对决";
   const wasFinals = !!(c.finals || c.stageSize === 2);
   const result = resolveCareerYourResult(youWin, opp);
-  // 每日任务「金币挑战赛」：当日晋级赛累计赢满目标场数（见 DAILY_TASKS）+1 抽卡券；奖励说明并进 injLine，各分支结算文案都会带上。
+  // 每日任务：三项全完成才 +1 抽卡券（见 DAILY_TASKS）；奖励说明并进 injLine，各分支结算文案都会带上。
   const taskGrants = recordCareerTasks(activeAccount(), youWin, undefined, getLang());
   const taskNote = taskGrants.length
     ? ` 🎫 每日任务达成：${taskGrants.map((g) => g.label).join("、")}，抽卡券 +${taskGrants.reduce((s, g) => s + g.tickets, 0)}。`

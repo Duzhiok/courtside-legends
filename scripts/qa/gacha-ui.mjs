@@ -48,7 +48,7 @@ async function run(width, height, tag) {
   await page.waitForSelector("#screen-draw.active");
   check(`[${tag}] 3 banners`, (await page.$$(".draw-banner")).length === 3);
   const status = await page.textContent("#draw-status");
-  check(`[${tag}] pity counters shown`, /全明星保底还差 3 抽/.test(status) && /传奇保底还差 19 抽/.test(status), status.replace(/\s+/g, " "));
+  check(`[${tag}] no pity counters shown (pity removed 2026-11-07)`, !/保底/.test(status), status.replace(/\s+/g, " "));
   await page.click(".draw-banner:nth-child(2)");
   check(`[${tag}] banner select toggles`, await page.$eval(".draw-banner:nth-child(2)", (e) => e.classList.contains("active")));
   await page.click("#btn-draw-pull");

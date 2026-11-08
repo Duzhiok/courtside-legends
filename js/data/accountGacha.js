@@ -36,7 +36,6 @@ import {
   extraDrawsLeft,
   freshGachaState,
   goldForPull,
-  pityFloor,
   pullCard,
   recordExtraDraw,
   registerNonPlayerPull,
@@ -187,9 +186,9 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
   if (!account) throw new Error("无账号");
   if (cardRoom(account) <= 0) throw new Error(`卡库已满（${MAX_CARDS} 张）——先去「我的球员卡」分解一些`);
   const paid = payForPull(account, todayKey(date));
-  // A pity-armed pull is always a player (the promised card), never a coach.
+  // ~20% of draws are coach cards (no pity shield anymore — pity is gone).
   const state = gachaOf(account);
-  if (!pityFloor(state) && rng() < COACH_SHARE) {
+  if (rng() < COACH_SHARE) {
     account.gacha = registerNonPlayerPull(state);
     return drawCoach(account, paid);
   }
@@ -202,7 +201,7 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
   const goldGain = goldForPull(ovr);
   account.gold = (account.gold || 0) + goldGain;
 
-  pushHistory(account, { kind: "player", id: pull.player.id, at: Date.now(), outcome, banner: banner.id, pity: pull.pityHit, wish: pull.wishHit });
+  pushHistory(account, { kind: "player", id: pull.player.id, at: Date.now(), outcome, banner: banner.id, wish: pull.wishHit });
   saveAccount(account);
   const mod = account.cardMods?.[pull.player.id];
   const badge = playerLegacyBadge(pull.player, ovr);
@@ -218,13 +217,32 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
     cardStyle: badge.cardStyle,
     ovr,
     banner,
-    pityHit: pull.pityHit,
     wishHit: pull.wishHit,
     poolBand: pull.relative ? pull.band.label : null,
-    newbieStandard: pull.newbieForced && bannerId !== "standard",
     rollChoice,
     ...paid,
   };
+}
+
+const STARTER_POSITIONS = ["PG", "SG", "SF", "PF", "C"];
+
+/**
+ * Opening draws: 5 cards, one per position (PG → C), pure random at the
+ * rate table — no pity anywhere (removed 2026-11-07). Carries the gacha
+ * state through the 5 pulls and returns it for the caller to save; writes
+ * nothing to any account here. No gold, no draw history: these are free
+ * onboarding draws, not draw-screen pulls.
+ */
+export function drawStarterFive({ rng = Math.random, pool = PLAYERS } = {}) {
+  let gacha = freshGachaState();
+  const players = [];
+  for (const pos of STARTER_POSITIONS) {
+    const positionPool = pool.filter((p) => (p.playPos || p.pos) === pos);
+    const pull = pullCard({ pool: positionPool, gacha, rng, ovrOf: overall });
+    gacha = pull.gacha;
+    players.push(clonePlayer(pull.player));
+  }
+  return { players, gacha };
 }
 
 /** Side-by-side preview of an unsettled 成色 choice (survives leaving the screen). */

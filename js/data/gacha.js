@@ -1,7 +1,10 @@
 /**
- * Gacha rules: rate table, pity, rotating banners, wishlist and crafting.
+ * Gacha rules: rate table, rotating banners, wishlist and crafting.
  * Pure functions — randomness (`rng`) and OVR (`ovrOf`) are injected so the
  * economy can be unit-tested without the 23k-card roster.
+ *
+ * No pity: draws are pure random at the advertised rates (user decision
+ * 2026-11-07 — the old newbie / 10-pull / 50-pull forced upgrades are gone).
  */
 import { hashSeed } from "../core/seededRandom.js";
 
@@ -19,20 +22,8 @@ export const RATE_TABLE = [
   { id: "common", min: 0, max: 74, p: 0.35, label: "普通", labelEn: "Common" },
 ];
 
-export const PITY = {
-  /** Every 10th pull without an 85+ is upgraded to at least 全明星. */
-  allstarEvery: 10,
-  /** 50th pull without a 93+ is upgraded to at least 传奇. */
-  legendAt: 50,
-};
-
-/** 新手保底: within the first pulls of an account, one 85+ is guaranteed (once). */
-export const NEWBIE = { allstarByPull: 5 };
-
 /** Chance that a pull landing in a band holding a wishlist card becomes it. */
 export const WISHLIST_REDIRECT = 0.3;
-/** Wishlist share of a legend-pity pull when the wish person has a 93+ card. */
-export const WISHLIST_PITY_SHARE = 0.5;
 
 export const EXTRA_DRAW = { cost: 200, perDay: 2 };
 export const MAX_STARS = 5;
@@ -80,10 +71,6 @@ export function bandOf(ovr) {
   return RATE_TABLE.find((band) => ovr >= band.min && ovr < band.max) || RATE_TABLE.at(-1);
 }
 
-export function bandById(id) {
-  return RATE_TABLE.find((band) => band.id === id);
-}
-
 export function weekIndex(date = new Date()) {
   return Math.max(0, Math.floor((date.getTime() - BANNER_EPOCH) / WEEK_MS));
 }
@@ -125,20 +112,13 @@ export function bannerFilter(banner) {
 }
 
 export function freshGachaState() {
+  // sinceAllstar / sinceLegend / hadAllstar are inert telemetry now (pity was
+  // removed 2026-11-07); the fields stay so old saves load unchanged.
   return { sinceAllstar: 0, sinceLegend: 0, pulls: 0, hadAllstar: false, wishlist: null, souls: {}, extra: null };
 }
 
-/** Which band the pity system forces this pull into (null = roll normally). */
-export function pityFloor(gacha) {
-  // 新手保底: no 85+ yet by the 5th pull → forced once; hadAllstar then stays true.
-  if (!gacha.hadAllstar && (gacha.pulls || 0) + 1 >= NEWBIE.allstarByPull) return bandById("allstar");
-  if ((gacha.sinceLegend || 0) + 1 >= PITY.legendAt) return bandById("legend");
-  if ((gacha.sinceAllstar || 0) + 1 >= PITY.allstarEvery) return bandById("allstar");
-  return null;
-}
-
-function rollBand(rng, floor) {
-  const eligible = floor ? RATE_TABLE.filter((band) => band.min >= floor.min) : RATE_TABLE;
+function rollBand(rng) {
+  const eligible = RATE_TABLE;
   const total = eligible.reduce((sum, band) => sum + band.p, 0);
   let roll = rng() * total;
   for (const band of eligible) {
@@ -211,27 +191,23 @@ export function relativeRater(pool, source, ovrOf) {
 }
 
 /**
- * One pull. Returns { player, band, pityHit, wishHit } and the next gacha
- * state — never mutates its inputs.
+ * One pull. Returns { player, band, wishHit } and the next gacha
+ * state — never mutates its inputs. Pure random at the rate table: no
+ * pity, no forced upgrades.
  */
 export function pullCard({ pool, gacha = freshGachaState(), banner = null, rng = Math.random, ovrOf }) {
-  // 新手保底 is never wasted on a narrow pool: that one pull always uses the full pool.
-  const newbieForced = !gacha.hadAllstar && (gacha.pulls || 0) + 1 >= NEWBIE.allstarByPull;
-  const activeBanner = newbieForced ? null : banner;
-  const bannerPool = pool.filter(bannerFilter(activeBanner));
+  const bannerPool = pool.filter(bannerFilter(banner));
   const source = bannerPool.length ? bannerPool : pool;
   if (!source.length) throw new Error("卡池为空，无法抽卡");
-  const relative = !!activeBanner && activeBanner.kind !== "standard" && source !== pool;
+  const relative = !!banner && banner.kind !== "standard" && source !== pool;
   const rate = relative ? relativeRater(pool, source, ovrOf) : ovrOf;
 
-  const floor = pityFloor(gacha);
-  const band = rollBand(rng, floor);
+  const band = rollBand(rng);
   const candidates = cardsNearBand(source, band, rate);
 
   const wish = gacha.wishlist;
   const wishCards = wish ? candidates.filter((p) => p.bref === wish) : [];
-  const wishChance = floor?.id === "legend" ? WISHLIST_PITY_SHARE : WISHLIST_REDIRECT;
-  const wishHit = wishCards.length > 0 && rng() < wishChance;
+  const wishHit = wishCards.length > 0 && rng() < WISHLIST_REDIRECT;
   const player = pickOne(wishHit ? wishCards : candidates, rng);
 
   const rated = rate(player);
@@ -244,7 +220,7 @@ export function pullCard({ pool, gacha = freshGachaState(), banner = null, rng =
     pulls: (gacha.pulls || 0) + 1,
     hadAllstar: !!gacha.hadAllstar || realOvr >= 85,
   };
-  return { player, band: bandOf(rated), pityHit: !!floor, wishHit, relative, newbieForced, gacha: next };
+  return { player, band: bandOf(rated), wishHit, relative, gacha: next };
 }
 
 /** A coach draw still counts as a draw: it walks every pity counter forward. */

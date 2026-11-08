@@ -1,15 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  NEWBIE,
-  PITY,
   RATE_TABLE,
   bannerFilter,
   craftCost,
   currentBanners,
   extraDrawsLeft,
   freshGachaState,
-  pityFloor,
   pullCard,
   recordExtraDraw,
 } from "../js/data/gacha.js";
@@ -52,27 +49,28 @@ test("rate table sums to 1 and 90+ is now 7%", () => {
   assert.ok(Math.abs(ninetyPlus - 0.07) < 1e-9);
 });
 
-test("10th pull without an 85+ is forced to at least 全明星", () => {
-  // hadAllstar: skip the 新手保底 so this exercises the ordinary 10-pull pity
-  let gacha = { ...freshGachaState(), hadAllstar: true };
+test("no pity: 10 pulls without an 85+ stay ordinary — nothing is ever forced up", () => {
+  // Pity was removed 2026-11-07: draws are pure random at the rate table.
+  let gacha = freshGachaState();
   const alwaysCommon = () => 0.999;
-  for (let i = 0; i < PITY.allstarEvery - 1; i++) {
+  for (let i = 0; i < 10; i++) {
     const pull = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
-    assert.ok(pull.player.ovr < 85);
+    assert.ok(pull.player.ovr < 85, `pull ${i + 1} must stay an ordinary low roll`);
+    assert.equal("pityHit" in pull, false, "no pity field at all");
     gacha = pull.gacha;
   }
-  const pity = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
-  assert.ok(pity.pityHit);
-  assert.ok(pity.player.ovr >= 85);
-  assert.equal(pity.gacha.sinceAllstar, 0);
+  assert.equal(gacha.pulls, 10, "the draw counter still counts");
 });
 
-test("50th pull without a 93+ is forced to at least 传奇", () => {
-  const gacha = { ...freshGachaState(), sinceLegend: PITY.legendAt - 1, sinceAllstar: 3 };
-  assert.equal(pityFloor(gacha).id, "legend");
-  const pull = pullCard({ pool: POOL, gacha, rng: () => 0.999, ovrOf });
-  assert.ok(pull.player.ovr >= 93);
-  assert.equal(pull.gacha.sinceLegend, 0);
+test("no pity: 50 pulls without a 93+ stay ordinary — no legend rescue", () => {
+  let gacha = freshGachaState();
+  for (let i = 0; i < 50; i++) {
+    const pull = pullCard({ pool: POOL, gacha, rng: () => 0.999, ovrOf });
+    assert.ok(pull.player.ovr < 93, `pull ${i + 1} must stay an ordinary low roll`);
+    assert.equal("pityHit" in pull, false);
+    gacha = pull.gacha;
+  }
+  assert.equal(gacha.pulls, 50);
 });
 
 test("wishlist redirects a pull inside the wish person's band", () => {
@@ -160,28 +158,26 @@ test("the rates shown to players add up to exactly 100%", async () => {
   assert.match(rateSummary(), /传奇 1\.7%/);
 });
 
-test("新手保底: an account with no 85+ gets one by its 5th pull, once", () => {
+test("no newbie guarantee: an account with no 85+ can stay low through its first 5 pulls", () => {
   let gacha = freshGachaState();
   const alwaysCommon = () => 0.999;
-  for (let i = 0; i < NEWBIE.allstarByPull - 1; i++) {
+  for (let i = 0; i < 5; i++) {
     const pull = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
     assert.ok(pull.player.ovr < 85, `pull ${i + 1} is an ordinary pull`);
-    assert.ok(!pull.pityHit);
+    assert.equal("pityHit" in pull, false);
     gacha = pull.gacha;
   }
-  const fifth = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
-  assert.ok(fifth.pityHit && fifth.player.ovr >= 85);
-  assert.equal(fifth.gacha.hadAllstar, true);
-  assert.equal(fifth.gacha.pulls, NEWBIE.allstarByPull);
-  // after that, ordinary odds again (the 10-pull counter was reset by the 85+)
-  const sixth = pullCard({ pool: POOL, gacha: fifth.gacha, rng: alwaysCommon, ovrOf });
-  assert.ok(!sixth.pityHit && sixth.player.ovr < 85);
+  assert.equal(gacha.pulls, 5);
+  // a sixth low pull is still just a low pull
+  const sixth = pullCard({ pool: POOL, gacha, rng: alwaysCommon, ovrOf });
+  assert.ok(sixth.player.ovr < 85);
 });
 
-test("a lucky early 85+ also spends the 新手保底", () => {
+test("a lucky early 85+ is just a lucky pull — nothing is spent or tracked for pity", () => {
   const lucky = pullCard({ pool: POOL, gacha: freshGachaState(), rng: () => 0.001, ovrOf });
-  assert.ok(lucky.gacha.hadAllstar);
-  assert.equal(pityFloor(lucky.gacha), null);
+  assert.ok(lucky.player.ovr >= 85);
+  assert.equal("pityHit" in lucky, false);
+  assert.equal(lucky.gacha.pulls, 1);
 });
 
 // ---- R13: pool-relative bands for era / team banners ----
@@ -242,24 +238,29 @@ test("every rarity band is reachable inside a weak-era banner (not just rotation
   assert.ok(share("legend") > 0.005, `legend ${share("legend").toFixed(4)}`);
 });
 
-test("新手保底 ignores the chosen banner: the forced pull is a real 85+ from the full pool", () => {
+test("no pity in an era banner either: a low roll stays in the era, never forced up", () => {
   const pool = leaguePool();
-  let gacha = { ...freshGachaState(), pulls: NEWBIE.allstarByPull - 1 };
-  const pull = pullCard({ pool, gacha, banner: ERA_1950, rng: scripted(0.999, 0), ovrOf });
-  assert.ok(pull.player.ovr >= 85);
-  assert.equal(pull.player.season, 2015);
-  assert.equal(pull.newbieForced, true);
-  assert.equal(pull.relative, false);
-  assert.equal(pull.gacha.hadAllstar, true);
+  let gacha = freshGachaState();
+  // 4 low pulls, then the 5th — under the old newbie pity the 5th was forced to 85+
+  for (let i = 0; i < 5; i++) {
+    const pull = pullCard({ pool, gacha, banner: ERA_1950, rng: () => 0.999, ovrOf });
+    assert.equal(pull.player.season, 1955);
+    assert.equal("pityHit" in pull, false);
+    assert.equal("newbieForced" in pull, false);
+    gacha = pull.gacha;
+  }
 });
 
-test("pity counters follow pool-relative standing, so a weak pool cannot jam them", () => {
+test("a long drought in a weak-era banner is never rescued", () => {
   const pool = leaguePool();
   const era = pool.filter((p) => p.season === 1955);
-  const gacha = { ...freshGachaState(), hadAllstar: true, pulls: 20, sinceAllstar: 8 };
-  const pull = pullCard({ pool, gacha, banner: ERA_1950, rng: scripted(0.1, 0), ovrOf }); // 全明星+ roll
-  assert.ok(era.includes(pull.player));
-  assert.equal(pull.gacha.sinceAllstar, 0, "an era-best pull resets the 10-pull counter");
+  let gacha = { ...freshGachaState(), pulls: 20, sinceAllstar: 8 };
+  for (let i = 0; i < 10; i++) {
+    const pull = pullCard({ pool, gacha, banner: ERA_1950, rng: () => 0.999, ovrOf }); // low roll
+    assert.ok(era.includes(pull.player));
+    assert.equal("pityHit" in pull, false);
+    gacha = pull.gacha;
+  }
 });
 
 test("the standard banner is unchanged by relative rating", () => {
