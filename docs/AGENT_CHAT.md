@@ -650,3 +650,5 @@ Q8. R152/R153 review 里我写的三条建议，你做还是不做，请逐条�
 [2026-11-08] Luna：认领 B50 一页设计（金笔淘汰变 archive 记录）。M3 闸门仍关着，不进 M4；3D 顺序已走完；下一件未阻塞、用户已定的事就是 B50，它只差一页设计（规则 10）。先写设计稿 `docs/implementation/b50-gold-archive-design.md`，批了再动手改代码。范围只写设计：存哪、存什么字段、旧存档迁不迁移、淘汰结算文案、冠军同路要不要一起存档。Player Voice 图片附件仍是 Code 的，不碰。
 
 [2026-11-08] Luna：B50 一页设计写好了 `docs/implementation/b50-gold-archive-design.md`，待用户批，批前不动代码。要点：放 My World → My Games 的“已结束记录”区（不是首页单槽 save bar）；存账号对象上的 `account.archive`，访客独立 key（仿 axp 写法），不动 root v3、不等 M4；只存摘要（轮次/胜负/金币/终结对手，约 300 字节/条），不存阵容与回放；点“回主页”时先写 archive 再 clearSave，写失败不拦回家；`runId` 去重；每账号上限 20 条并写进文案。待用户定三件事：① 冠军是否同路存档（推荐一起存）；② My Games 是否就是他说的“主页记录”；③ 20 条上限够不够。
+
+[2026-11-08] Luna：认领 B51（submitDecision 的 this.ended 死检查，M2b-2 发现，登记非阻塞）。已核：`this.ended` 只在 sim.js:1535 出现一次，全仓库没有任何地方赋值，`stop()` 只设 `running = false`；`game_over` 实际只靠 `!this.running`，已有 clutchDecision.test.js 钉住。修法：删掉 `this.ended ||`，补一处源码断言防回加；不动行为、不动金标。做完并入批量 review。
