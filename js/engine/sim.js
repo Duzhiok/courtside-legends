@@ -939,7 +939,7 @@ export class GameSim {
       gradeTov(baller);
       gradeFoul(baller);
       gradeGoodContest(defender, { open: 0.2 });
-      this.emit("miss", this.S(`${defender.name} 造进攻犯规！${baller.name} 撞人`, `${defender.name} draws the charge! ${baller.name} barrels in`), { actorId: defender.id });
+      this.emit("miss", this.S(`${defender.name} 造进攻犯规！${baller.name} 撞人`, `${defender.name} draws the charge! ${baller.name} barrels in`), { actorId: defender.id, foul: { foulerId: baller.id, victimId: defender.id, kind: "charge" }, turnover: { actorId: baller.id, kind: "charge", forcedById: defender.id } });
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: true }));
       this.possession = flip(this.possession);
       return;
@@ -978,7 +978,7 @@ export class GameSim {
         stlSkill
           ? this.S(`${defender.name}「${stlSkill}」抢断 ${baller.name}！`, `${defender.name} "${this.nL(stlSkill)}" strips ${baller.name}!`)
           : this.S(`${defender.name} 抢断 ${baller.name}！`, `${defender.name} steals it from ${baller.name}!`),
-        { actorId: defender.id }
+        { actorId: defender.id, turnover: { actorId: baller.id, kind: "steal", forcedById: defender.id } }
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: true }));
       this.possession = flip(this.possession);
@@ -1025,7 +1025,7 @@ export class GameSim {
       if (rnd() < 0.12) {
         defender.stats.pf += 1;
         gradeFoul(defender);
-        this.emit("miss", this.S(`${baller.name} 失误，${defender.name} 防守犯规`, `${baller.name} turns it over; ${defender.name} is whistled for the defensive foul`), { actorId: baller.id });
+        this.emit("miss", this.S(`${baller.name} 失误，${defender.name} 防守犯规`, `${baller.name} turns it over; ${defender.name} is whistled for the defensive foul`), { actorId: baller.id, foul: { foulerId: defender.id, victimId: baller.id, kind: "defensive" }, turnover: { actorId: baller.id, kind: "foul", forcedById: defender.id } });
         applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
         shootFts(baller, off, this, 2);
         return;
@@ -1040,7 +1040,8 @@ export class GameSim {
         "miss",
         forcedHunt
           ? this.S(`${baller.name} 强行抓机会失误${wrapForced}`, `${baller.name} forces the issue and turns it over${wrapForced}`)
-          : this.S(`${baller.name} 失误${wrapForced}`, `${baller.name} turnover${wrapForced}`)
+          : this.S(`${baller.name} 失误${wrapForced}`, `${baller.name} turnover${wrapForced}`),
+        { actorId: baller.id, turnover: { actorId: baller.id, kind: forcedHunt ? "forced" : "unforced", forcedById: defender.id } }
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
       this.possession = flip(this.possession);
@@ -1073,10 +1074,11 @@ export class GameSim {
         sideCtx.kickedOut = true;
         if (!sideCtx.scheme) sideCtx.scheme = "drive_kick";
         if (pressuredPick) {
-          this.emit("coach", this.S(`${passer.name} 被逼得太紧，传给空位的 ${kicked2.name}`, `${passer.name} is smothered — finds ${kicked2.name} open`));
+          this.emit("coach", this.S(`${passer.name} 被逼得太紧，传给空位的 ${kicked2.name}`, `${passer.name} is smothered — finds ${kicked2.name} open`), { pass: { passerId: passer.id, receiverId: kicked2.id } });
         } else this.emit(
           "coach",
-          this.S(`${passer.name}${aggNow <= 0.12 ? " 专注防守" : " 欲望低"}，机会一般先传给 ${kicked2.name}`, `${passer.name}${aggNow <= 0.12 ? " is defence-first" : " has low appetite"} — the look is not great, swings it to ${kicked2.name}`)
+          this.S(`${passer.name}${aggNow <= 0.12 ? " 专注防守" : " 欲望低"}，机会一般先传给 ${kicked2.name}`, `${passer.name}${aggNow <= 0.12 ? " is defence-first" : " has low appetite"} — the look is not great, swings it to ${kicked2.name}`),
+          { pass: { passerId: passer.id, receiverId: kicked2.id } }
         );
         baller = kicked2;
         defender = pickDefender(def, baller, plan);
@@ -1099,7 +1101,7 @@ export class GameSim {
       const kick = skillKickOpenBonus(organizer, { doubled });
       if (kick.bonus) {
         open = clamp(open + kick.bonus, 0.08, 0.95);
-        if (rnd() < 0.35) this.emit("coach", this.S(`${organizer.name} ${kick.label}，${baller.name} 空位接球`, `${organizer.name} ${this.nL(kick.label)} — ${baller.name} catches it wide open`));
+        if (rnd() < 0.35) this.emit("coach", this.S(`${organizer.name} ${kick.label}，${baller.name} 空位接球`, `${organizer.name} ${this.nL(kick.label)} — ${baller.name} catches it wide open`), { pass: { passerId: organizer.id, receiverId: baller.id } });
       }
     }
     // 低欲望几乎不主动发动招牌绝技；空接窗（被传球手喂到）例外
@@ -1328,7 +1330,7 @@ export class GameSim {
       if (fouled) {
         defender.stats.pf += 1;
         gradeFoul(defender);
-        this.emit("coach", this.S(`${defender.name} 打手犯规，加罚`, `${defender.name} fouls on the shot — and-one coming`));
+        this.emit("coach", this.S(`${defender.name} 打手犯规，加罚`, `${defender.name} fouls on the shot — and-one coming`), { foul: { foulerId: defender.id, victimId: baller.id, kind: "and_one" } });
         applyPossessionFatigue(
           off,
           def,
@@ -1357,7 +1359,7 @@ export class GameSim {
         defender.stats.pf += 1;
         gradeFoul(defender);
         const foulStory = matchupFeedStory(baller, defender, shot, open, label, { made: false, fouled: true, lang: this.lang });
-        this.emit("miss", this.lang === "en" ? `${foulStory} (${pct(makeP)})` : `${foulStory}（${pct(makeP)}）`);
+        this.emit("miss", this.lang === "en" ? `${foulStory} (${pct(makeP)})` : `${foulStory}（${pct(makeP)}）`, { foul: { foulerId: defender.id, victimId: baller.id, kind: "shooting" } });
         applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt, zone: shot.zone }));
         shootFts(baller, off, this, shot.pts === 3 ? 3 : 2);
         return;
@@ -2438,7 +2440,7 @@ export class GameSim {
       }
     }
     const tag = t === this.you() ? "" : `【${t.name}】`;
-    this.emit("coach", this.S(`${tag}换人：${inbound.name} 换下 ${out.name}`, `${tag}Sub: ${inbound.name} in for ${out.name}`));
+    this.emit("coach", this.S(`${tag}换人：${inbound.name} 换下 ${out.name}`, `${tag}Sub: ${inbound.name} in for ${out.name}`), { actorId: inbound.id, sub: { inId: inbound.id, outId: out.id, side: t.side } });
     this.refreshMeters();
     return true;
   }
@@ -3207,10 +3209,10 @@ function shootFts(baller, off, sim, n) {
       sim.score[off.side] += 1;
       applyPlusMinus(off, def, 1);
       gradeFtMake(baller);
-      sim.emit("score", sim.S(`${baller.name} 罚球命中 ${sim.score.home}-${sim.score.away}`, `${baller.name} hits the free throw ${sim.score.home}-${sim.score.away}`), { actorId: baller.id });
+      sim.emit("score", sim.S(`${baller.name} 罚球命中 ${sim.score.home}-${sim.score.away}`, `${baller.name} hits the free throw ${sim.score.home}-${sim.score.away}`), { actorId: baller.id, ft: { shooterId: baller.id, made: true, pts: 1 } });
     } else {
       gradeFtMiss(baller);
-      sim.emit("miss", sim.S(`${baller.name} 罚球不中`, `${baller.name} misses the free throw`), { actorId: baller.id });
+      sim.emit("miss", sim.S(`${baller.name} 罚球不中`, `${baller.name} misses the free throw`), { actorId: baller.id, ft: { shooterId: baller.id, made: false, pts: 1 } });
       if (i === n - 1) {
         resolveRebound(off, def, sim, false);
         return;
@@ -3320,7 +3322,7 @@ function resolveRebound(off, def, sim, afterBlock) {
       off.temp.crashPutbackId = reb.id;
       off.temp.crashPutbackTtl = 1;
     }
-    sim.emit("reb", crash ? sim.S(`${reb.name} 冲到进攻篮板，准备二次进攻`, `${reb.name} crashes the offensive glass — second chance coming`) : sim.S(`${reb.name} 抢到进攻篮板`, `${reb.name} grabs the offensive board`), { actorId: reb.id });
+    sim.emit("reb", crash ? sim.S(`${reb.name} 冲到进攻篮板，准备二次进攻`, `${reb.name} crashes the offensive glass — second chance coming`) : sim.S(`${reb.name} 抢到进攻篮板`, `${reb.name} grabs the offensive board`), { actorId: reb.id, reb: { rebounderId: reb.id, offensive: true } });
     sim.clock = Math.max(0, sim.clock - 3);
     // keep possession
   } else {
@@ -3328,7 +3330,7 @@ function resolveRebound(off, def, sim, afterBlock) {
     reb.stats.reb += 1;
     reb.stats.dreb += 1;
     gradeDreb(reb);
-    sim.emit("reb", sim.S(`${reb.name} 抢到防守篮板`, `${reb.name} secures the defensive rebound`), { actorId: reb.id });
+    sim.emit("reb", sim.S(`${reb.name} 抢到防守篮板`, `${reb.name} secures the defensive rebound`), { actorId: reb.id, reb: { rebounderId: reb.id, offensive: false } });
     sim.possession = flip(off.side);
   }
 }

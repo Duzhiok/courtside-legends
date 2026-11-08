@@ -20,11 +20,11 @@ export const LINEUP_PACK_DEFS = [
 ];
 
 export const FOCUS_PLAYS = [
-  { id: "iso_star", name: "核心单打", desc: "球权集中给场上最高进攻点，持续数回合" },
-  { id: "post_up", name: "连攻内线", desc: "连续数回合偏好油漆区出手与内线持球" },
-  { id: "pace_three", name: "提速三分", desc: "提速并提高三分出手比重" },
-  { id: "slow_pace", name: "拖慢节奏", desc: "咬死进攻时间、少仓促出手，拖慢比赛节奏" },
-  { id: "hunt_mismatch", name: "清侧翼错位", desc: "攻打较弱对位，拉开单打" },
+  { id: "iso_star", name: "核心单打", nameEn: "Star ISO", desc: "球权集中给场上最高进攻点，持续数回合", descEn: "The ball goes to the best scorer on the floor for several possessions" },
+  { id: "post_up", name: "连攻内线", nameEn: "Feed the Post", desc: "连续数回合偏好油漆区出手与内线持球", descEn: "Lean on paint touches and post-ups for several possessions" },
+  { id: "pace_three", name: "提速三分", nameEn: "Push the Pace", desc: "提速并提高三分出手比重", descEn: "Speed up and take more threes" },
+  { id: "slow_pace", name: "拖慢节奏", nameEn: "Slow It Down", desc: "咬死进攻时间、少仓促出手，拖慢比赛节奏", descEn: "Burn clock, take fewer rushed shots, slow the game down" },
+  { id: "hunt_mismatch", name: "清侧翼错位", nameEn: "Hunt the Mismatch", desc: "攻打较弱对位，拉开单打", descEn: "Attack the weakest matchup, clear out for the iso" },
 ];
 
 /**
@@ -36,8 +36,11 @@ export const TEMPO_OPTIONS = [
   {
     id: "grind",
     name: "降速成功率",
+    nameEn: "Grind It Out",
     short: "降速",
+    shortEn: "Grind",
     desc: "咬死进攻时间，回合更少；出手更从容、空位更好、失误更低",
+    descEn: "Burn clock for fewer possessions; shots come easier, open looks better, fewer turnovers",
     paceMult: 0.7,
     makeBonus: 0.032,
     openBonus: 0.045,
@@ -48,8 +51,11 @@ export const TEMPO_OPTIONS = [
   {
     id: "normal",
     name: "正常节奏",
+    nameEn: "Normal Pace",
     short: "正常",
+    shortEn: "Normal",
     desc: "按战术默认节奏推进",
+    descEn: "Play at the system's default tempo",
     paceMult: 1,
     makeBonus: 0,
     openBonus: 0,
@@ -60,8 +66,11 @@ export const TEMPO_OPTIONS = [
   {
     id: "push",
     name: "提速抢回合",
+    nameEn: "Run and Gun",
     short: "提速",
+    shortEn: "Push",
     desc: "缩短进攻时间拉高回合数；出手更仓促、失误略增",
+    descEn: "Shorten possessions for more of them; shots come rushed, turnovers tick up",
     paceMult: 1.32,
     makeBonus: -0.024,
     openBonus: -0.035,
@@ -70,6 +79,19 @@ export const TEMPO_OPTIONS = [
     usedHi: 14,
   },
 ];
+
+/** Name/desc of a focus-play or tempo option in the game's language (M3: the tables used to be zh-only, so the selects leaked Chinese in English mode). */
+export function planLabel(item, lang) {
+  if (!item) return { name: "", desc: "", short: "" };
+  if (lang === "en") {
+    return {
+      name: item.nameEn || item.name,
+      desc: item.descEn || item.desc,
+      short: item.shortEn || item.short || item.nameEn || item.name,
+    };
+  }
+  return { name: item.name, desc: item.desc, short: item.short || item.name };
+}
 
 export function getTempoDef(id) {
   return TEMPO_OPTIONS.find((t) => t.id === id) || TEMPO_OPTIONS.find((t) => t.id === "normal");

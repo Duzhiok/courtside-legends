@@ -409,6 +409,7 @@ import {
   nextEmptyPlayPos,
   normalizeTempo,
   ordersLabel,
+  planLabel,
   recommendPlayPos,
   roleName,
   resolveStarterPositionCollisions,
@@ -426,6 +427,8 @@ import {
   startClutchSim,
 } from "./engine/clutchController.js";
 import { classifyClutchRole } from "./engine/clutchRole.js";
+import { createDomainEventAdapter } from "./engine/domainEvents.js";
+import { createTacticalTakeover } from "./engine/tacticalTakeover.js";
 import {
   confidenceLabel,
   formatGameLine,
@@ -1249,13 +1252,44 @@ function restoreFeed(lines) {
   }
 }
 
+/** CourtView with bilingual button labels (the court module itself only knows Chinese defaults). */
+function newCourtView() {
+  return new CourtView($("#court-root"), {
+    labels: {
+      simple: L("人物：简易", "Players: Simple"),
+      photo: L("人物：照片", "Players: Photos"),
+      fxOn: L("动效：开", "Effects: On"),
+      fxOff: L("动效：关", "Effects: Off"),
+    },
+  });
+}
+
+/** M3 domain-event adapter for the live game: derived events drive court visuals (trails reset on a new possession, sub flash on a substitution). Raw events keep flowing through handleSimEvent unchanged. */
+function wireDomainEvents() {
+  state.domainEvents = createDomainEventAdapter({ onDomainEvent: (evt) => handleDomainEvent(evt) });
+}
+
+function handleDomainEvent(evt) {
+  if (!evt) return;
+  try {
+    if (evt.type === "POSSESSION_START" || evt.type === "PERIOD_END") {
+      state.court?.clearTrails();
+    } else if (evt.type === "SUBSTITUTION" && evt.meta?.sub?.inId) {
+      state.court?.flashToken(evt.meta.sub.inId);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   if (state.sim) state.sim.stop();
   state.sim = sim;
+  wireDomainEvents();
   state.lineupSig = "";
   state.subOutId = null;
   state.subInId = null;
-  state.court = new CourtView($("#court-root"));
+  state.court = newCourtView();
   state.court.ensureDom();
   $("#game-team-a").textContent = teamNameL(homeTeam?.name || sim.home.name, getLang());
   $("#game-team-b").textContent = teamNameL(awayTeam?.name || sim.away.name, getLang());
@@ -1303,6 +1337,7 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
         paintMeters(snap);
         fillSubSelects(snap);
         state.court?.render(snap);
+        state.domainEvents?.observeTick(snap);
         syncPauseUI(snap);
       } catch (error) {
         console.error("[ui] onTick", error);
@@ -1310,6 +1345,7 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
     },
     onEnd: (snap) => {
       syncInjuriesToTeams(sim, homeTeam, awayTeam);
+      state.domainEvents?.observeEnd(snap);
       const formNotes = syncFormToTeams(sim, homeTeam, awayTeam);
       showResult(snap, { formNotes });
       onFinished?.();
@@ -5960,16 +5996,17 @@ function openSetup(home, away, youSide) {
 function fillTempoSelect(sel, currentId) {
   if (!sel) return;
   const cur = normalizeTempo(currentId);
-  sel.innerHTML = TEMPO_OPTIONS.map(
-    (t) =>
-      `<option value="${t.id}" title="${escAttr(t.desc)}" ${t.id === cur ? "selected" : ""}>${t.name}</option>`
-  ).join("");
+  const lang = getLang();
+  sel.innerHTML = TEMPO_OPTIONS.map((t) => {
+    const lbl = planLabel(t, lang);
+    return `<option value="${t.id}" title="${escAttr(lbl.desc)}" ${t.id === cur ? "selected" : ""}>${lbl.name}</option>`;
+  }).join("");
 }
 
 function syncTempoHelp(el, tempoId) {
   if (!el) return;
   const t = getTempoDef(tempoId);
-  el.textContent = t?.desc || "";
+  el.textContent = planLabel(t, getLang()).desc;
 }
 
 function renderSetupTempo() {
@@ -7151,7 +7188,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
   state.subInId = null;
   const feed = $("#play-feed");
   if (feed) feed.innerHTML = "";
-  state.court = new CourtView($("#court-root"));
+  state.court = newCourtView();
   state.court.ensureDom();
 
   $("#game-team-a").textContent = teamNameL(homeTeam.name, getLang());
@@ -7197,6 +7234,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
         paintMeters(snap);
         fillSubSelects(snap);
         state.court?.render(snap);
+        state.domainEvents?.observeTick(snap);
         syncPauseUI(snap);
       } catch (err) {
         console.error("[ui] onTick", err);
@@ -7204,6 +7242,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
     },
     onEnd: (snap) => {
       syncInjuriesToTeams(sim, homeTeam, awayTeam);
+      state.domainEvents?.observeEnd(snap);
       const formNotes = syncFormToTeams(sim, homeTeam, awayTeam);
       showResult(snap, { formNotes });
       if (state.career?.kind === "career") autosaveCareer();
@@ -7212,6 +7251,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
     },
   });
   state.sim = sim;
+  wireDomainEvents();
 
   const you = youSide === "home" ? sim.home : sim.away;
   // 开场下拉框显示本场实际开场战术（默认优先），不沿用上一场页面里剩的值。
@@ -7258,6 +7298,14 @@ function handleSimEvent(e) {
   if (e?.meta?.shot) {
     try {
       state.court?.onShot(e.meta.shot);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  // Pass arc: kick events carry meta.pass (M3); the ball arcs from passer to receiver.
+  if (e?.meta?.pass) {
+    try {
+      state.court?.onPass(e.meta.pass);
     } catch (err) {
       console.error(err);
     }
@@ -7655,6 +7703,100 @@ function syncTacticHelp() {
   help.title = t ? tacticDesc(t, lang) : "";
 }
 
+const TAKEOVER_HIDDEN_KEY = "courtside-takeover-hidden";
+
+/** M3 tactical takeover panel: live-ball setFocusPlay / setTempo via the DecisionAdapter pattern (same engine calls the dead-ball panel makes). Hiding it calls nothing, so the sim is unaffected. */
+function wireTakeoverPanel() {
+  const panel = $("#takeover-panel");
+  const showBtn = $("#btn-takeover-show");
+  if (!panel) return;
+  let hidden = false;
+  try {
+    hidden = typeof localStorage !== "undefined" && localStorage.getItem(TAKEOVER_HIDDEN_KEY) === "1";
+  } catch {
+    hidden = false;
+  }
+  panel.hidden = hidden;
+  if (showBtn) showBtn.hidden = !hidden;
+  const setHidden = (v) => {
+    try {
+      if (typeof localStorage !== "undefined") localStorage.setItem(TAKEOVER_HIDDEN_KEY, v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    panel.hidden = v;
+    if (showBtn) showBtn.hidden = !v;
+  };
+  $("#btn-takeover-hide")?.addEventListener("click", () => setHidden(true));
+  showBtn?.addEventListener("click", () => setHidden(false));
+
+  const lang = getLang();
+  const focusSel = $("#takeover-focus-select");
+  if (focusSel) {
+    focusSel.innerHTML =
+      `<option value="">${L("（无重点）", "(No focus)")}</option>` +
+      FOCUS_PLAYS.map((f) => {
+        const lbl = planLabel(f, lang);
+        return `<option value="${f.id}" title="${escAttr(lbl.desc)}">${lbl.name}</option>`;
+      }).join("");
+  }
+  const tempoRow = $("#takeover-tempo-row");
+  if (tempoRow) {
+    tempoRow.innerHTML = TEMPO_OPTIONS.map((t) => {
+      const lbl = planLabel(t, lang);
+      return `<button type="button" class="btn small takeover-tempo-btn" data-tempo="${t.id}" title="${escAttr(lbl.desc)}">${lbl.short}</button>`;
+    }).join("");
+    tempoRow.querySelectorAll("[data-tempo]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const res = createTacticalTakeover({ sim: state.sim }).setTempo(btn.dataset.tempo);
+        if (!res.ok) {
+          pushFeed("coach", L("现在不能改节奏", "Can't change pace right now"));
+          return;
+        }
+        syncTakeoverPanel();
+        syncTempoHelp($("#tempo-help"), res.tempoId);
+        const sel = $("#tempo-select");
+        if (sel) sel.value = res.tempoId;
+      });
+    });
+  }
+  $("#btn-takeover-focus")?.addEventListener("click", () => {
+    const res = createTacticalTakeover({ sim: state.sim }).setFocus(focusSel?.value || "");
+    if (!res.ok) {
+      pushFeed("coach", L("现在不能设回合重点", "Can't set a possession focus right now"));
+      return;
+    }
+    syncTakeoverPanel();
+    const deadSel = $("#focus-play-select");
+    if (deadSel) deadSel.value = res.focusId || "";
+    const help = $("#focus-help");
+    if (help) {
+      const f = FOCUS_PLAYS.find((x) => x.id === res.focusId);
+      help.textContent = f ? planLabel(f, getLang()).desc : "";
+    }
+  });
+  syncTakeoverPanel();
+}
+
+/** Reflect the sim's current focus + tempo in the takeover panel (status line + pressed tempo button). Called after any focus/tempo change and from syncPauseUI (every tick), so an expired focus clears itself. */
+function syncTakeoverPanel() {
+  const status = $("#takeover-status");
+  if (!status && !$("#takeover-tempo-row")) return;
+  const cur = createTacticalTakeover({ sim: state.sim }).current();
+  const lang = getLang();
+  const focus = cur.focusPlay ? FOCUS_PLAYS.find((f) => f.id === cur.focusPlay.id) : null;
+  const tempo = getTempoDef(cur.tempo);
+  if (status) {
+    const text = `${L("当前：", "Now: ")}${focus ? planLabel(focus, lang).name : L("无重点", "No focus")} · ${planLabel(tempo, lang).name}`;
+    if (status.textContent !== text) status.textContent = text;
+  }
+  document.querySelectorAll("#takeover-tempo-row [data-tempo]").forEach((btn) => {
+    btn.setAttribute("aria-pressed", btn.dataset.tempo === cur.tempo ? "true" : "false");
+  });
+  const focusSel = $("#takeover-focus-select");
+  if (focusSel && document.activeElement !== focusSel) focusSel.value = cur.focusPlay?.id || "";
+}
+
 function initFocusAndPacksUI(homeTeam, awayTeam, youSide) {
   const src = youSide === "home" ? homeTeam : awayTeam;
   const you = state.sim?.you?.() || src;
@@ -7671,10 +7813,15 @@ function initFocusAndPacksUI(homeTeam, awayTeam, youSide) {
   }
   const focusSel = $("#focus-play-select");
   if (focusSel) {
+    const lang = getLang();
     focusSel.innerHTML =
-      `<option value="">（无重点）</option>` +
-      FOCUS_PLAYS.map((f) => `<option value="${f.id}" title="${escAttr(f.desc)}">${f.name}</option>`).join("");
+      `<option value="">${L("（无重点）", "(No focus)")}</option>` +
+      FOCUS_PLAYS.map((f) => {
+        const lbl = planLabel(f, lang);
+        return `<option value="${f.id}" title="${escAttr(lbl.desc)}">${lbl.name}</option>`;
+      }).join("");
   }
+  wireTakeoverPanel();
   const packBox = $("#live-packs");
   if (packBox) {
     packBox.innerHTML = LINEUP_PACK_DEFS.map(
@@ -8044,6 +8191,7 @@ function syncPauseUI(snap) {
     if (showSkills && paused) renderCareerSkillShop(state.career);
   }
   syncCoachActionLocks(paused);
+  syncTakeoverPanel();
   const pauseSim = $("#btn-pause-sim");
   if (pauseSim) pauseSim.textContent = paused ? "继续模拟" : "暂停模拟";
 }
@@ -8163,6 +8311,7 @@ $("#btn-set-tempo")?.addEventListener("click", () => {
   const id = normalizeTempo($("#tempo-select")?.value);
   state.sim.setTempo(id);
   syncTempoHelp($("#tempo-help"), id);
+  syncTakeoverPanel();
 });
 $("#btn-set-focus")?.addEventListener("click", () => {
   if (!state.sim?.paused) {
@@ -8178,7 +8327,8 @@ $("#btn-set-focus")?.addEventListener("click", () => {
   state.sim.setFocusPlay(id);
   const f = FOCUS_PLAYS.find((x) => x.id === id);
   const help = $("#focus-help");
-  if (help && f) help.textContent = f.desc;
+  if (help && f) help.textContent = planLabel(f, getLang()).desc;
+  syncTakeoverPanel();
 });
 $("#btn-set-offense-focus")?.addEventListener("click", () => {
   if (!state.sim?.paused) {

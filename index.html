@@ -734,8 +734,25 @@
             <button class="btn primary" id="btn-resume" hidden>继续比赛</button>
             <button class="btn" id="btn-pause-leave" hidden title="先存档再回主页，回来可在「继续进度」接着打">保存并离开</button>
           </div>
-          <p class="tiny" id="live-action-hint">活球中：只能「大喊」或「叫暂停」。战术 / 沟通 / 换人请在暂停或节间进行。</p>
+          <p class="tiny" id="live-action-hint">活球中：只能「大喊」或「叫暂停」，回合重点与节奏可在战术接管里改。战术 / 沟通 / 换人请在暂停或节间进行。</p>
           <p class="tiny" id="pause-hint" hidden>死球窗口——可改战术、沟通、换人、站位与方针，然后点「继续比赛」。</p>
+          <!-- M3 tactical takeover: live-ball setFocusPlay / setTempo as a UI wrapper over the existing APIs (same calls the dead-ball panel makes). Hiding it calls nothing, so the sim is unaffected. -->
+          <div class="takeover-panel" id="takeover-panel">
+            <h4><span>战术接管</span><button class="btn small ghost" id="btn-takeover-hide" type="button">隐藏</button></h4>
+            <p class="tiny">活球中也能改：回合重点与节奏立即生效，下一回合就能看到。不改模拟规则，只是把暂停里的操作搬到活球。</p>
+            <div class="focus-row">
+              <label class="tiny">回合重点
+                <select id="takeover-focus-select"></select>
+              </label>
+              <button class="btn small" id="btn-takeover-focus" type="button">执行</button>
+            </div>
+            <div class="focus-row">
+              <label class="tiny">比赛节奏</label>
+              <div class="btn-row" id="takeover-tempo-row"></div>
+            </div>
+            <p class="tiny" id="takeover-status">当前：—</p>
+          </div>
+          <button class="btn small ghost" id="btn-takeover-show" type="button" hidden>显示战术接管</button>
           <div id="deadball-panel" class="deadball-panel locked">
             <div class="tactic-row">
               <label title="切换进攻体系（仅暂停/节间）">战术</label>
