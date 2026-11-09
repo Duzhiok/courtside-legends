@@ -3,7 +3,7 @@
  * out of the screen controller (where it was bound to DOM + global state) so the ORDER -- which is
  * where the subtle bugs live -- can be unit-tested with real saves.
  *
- *   goal result -> pay salary -> reputation -> age -> (drop a stale poach offer) -> next story
+ *   goal result -> pay salary -> reputation -> draft prophecy -> age -> (drop a stale poach offer) -> next story
  *   beat -> firing check -> retirement age gate -> poach offer
  *
  * Reputation goes before the firing check so a renewal menu is priced off the season just played;
@@ -12,6 +12,7 @@
  */
 import { settleSeasonReputation } from "../career/reputation.js";
 import { settleCoachFinances } from "../career/finance.js";
+import { settleProphecy } from "../career/draftProphecy.js";
 import { finalizeCareerEnding, queueNextStoryEvent } from "../story/eventEngine.js";
 import { advanceSeasonGoal, evaluateCareerEmployment } from "./careerContract.js";
 import { expirePoachOffer, maybeCreatePoachOffer } from "./poaching.js";
@@ -31,7 +32,7 @@ const justLogged = (root, type) => {
 };
 
 /**
- * @returns {{ root, resolvedGoal?, settledFinances?, settledReputation?, poachOffer?, retirement?, nextGoal? }}
+ * @returns {{ root, resolvedGoal?, settledFinances?, settledReputation?, prophecy?, poachOffer?, retirement?, nextGoal? }}
  *   `root` is the input itself when nothing changed (a coach with no job is sealed: no salary, no
  *   story beats, no aging); the other fields are the facts the caller recaps to the player.
  */
@@ -40,7 +41,8 @@ export function settleSeasonRollover(root, { year } = {}) {
   const goaled = advanceSeasonGoal(root);
   const financed = settleCoachFinances(goaled);
   const reputed = settleSeasonReputation(financed);
-  const aged = settleCoachAge(reputed);
+  const prophesied = settleProphecy(reputed, { year });
+  const aged = settleCoachAge(prophesied);
   const next = queueNextStoryEvent(expirePoachOffer(aged), { year });
   const employed = evaluateCareerEmployment(next);
   const finalized = employed === next ? finalizeCareerEnding(next) : employed;
@@ -52,6 +54,7 @@ export function settleSeasonRollover(root, { year } = {}) {
     resolvedGoal: justLogged(goaled, "season-goal-result"),
     settledFinances: justLogged(financed, "finances-settled"),
     settledReputation: justLogged(reputed, "reputation-settled"),
+    prophecy: justLogged(prophesied, "prophecy-result"),
     poachOffer: result !== retired ? result.story.poachOffer : null,
     retirement: retired !== finalized ? { age: retired.story.employment.age, tier: retired.story.ending.tier } : null,
     nextGoal: result.story.seasonGoal || null,

@@ -4,6 +4,7 @@
 // Usage: node scripts/qa/coach-origins.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { openInterview, sitInterview } from "./lib/interview.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/origins";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -56,9 +57,11 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   const trustsDiffer = plainOffers.every((text, i) => trustOf(nudgedOffers[i]) === trustOf(text) + 10);
   check(`[${tag}] former-player origin adds +10 trust to every offer`, trustsDiffer, `${plainOffers.map(trustOf)} vs ${nudgedOffers.map(trustOf)}`);
 
-  // Accept the first offer and confirm the origin's reputation delta landed in the save.
-  await page.click("#time-travel-offers button");
-  await page.click("#tt-offers-zone .tt-confirm [data-act=confirm]");
+  // Accept the first offer (since D: through a passed interview) and confirm the origin's
+  // reputation delta landed in the save -- the interview moves trust/pressure, never reputation.
+  const firstArchetype = await page.$eval("#time-travel-offers .tt-offer", (el) => el.dataset.archetype);
+  await openInterview(page, firstArchetype);
+  await sitInterview(page, firstArchetype, [1, 0, 0]);
   await page.waitForSelector("#time-travel-decision:not([hidden])", { timeout: 10000 }).catch(() => {});
   const saved = await page.evaluate(() => {
     const root = JSON.parse(localStorage.getItem("cls_root_v3") || "null");

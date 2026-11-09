@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="css/myWorld.css" />
   <link rel="stylesheet" href="css/timeTravel.css?v=5" />
   <link rel="stylesheet" href="css/timeTravelViews.css?v=4" />
+  <link rel="stylesheet" href="css/timeTravelInterview.css?v=1" />
   <link rel="stylesheet" href="css/gacha.css?v=20261023search1" />
   <link rel="stylesheet" href="css/credits.css?v=1" />
   <link rel="stylesheet" href="css/myTeamLineup.css?v=3" />
@@ -1022,6 +1023,7 @@
           </div>
           <div id="time-travel-offers" class="tt-deck" role="radiogroup"></div>
           <div class="tt-confirm-slot"></div>
+          <div id="tt-interview" class="tt-interview" hidden aria-live="polite"></div>
           <div class="tt-offers-foot">
             <button type="button" class="tt-btn" id="btn-time-travel-offers-back" data-tt="offers-back">返回修改选择</button>
           </div>
@@ -1053,7 +1055,16 @@
               <p class="tt-prose" data-tt="intro-text"></p>
               <div id="time-travel-decision-choices" class="tt-deck" role="radiogroup"></div>
               <div class="tt-confirm-slot"></div>
+              <div id="tt-prophecy-pick" class="tt-prophecy-pick" hidden>
+                <p class="tt-kicker tt-prophecy-kicker"></p>
+                <p class="tt-prose tt-prophecy-rules"></p>
+                <div class="tt-deck" role="radiogroup"></div>
+                <div class="tt-confirm-slot"></div>
+                <button type="button" class="tt-btn tt-btn-ghost tt-prophecy-back"></button>
+              </div>
             </section>
+
+            <section id="tt-prophecy" class="tt-card tt-prophecy" hidden aria-label="选秀预言"></section>
 
             <section id="time-travel-event" class="tt-card tt-decision" hidden aria-live="polite">
               <div class="tt-card-head">

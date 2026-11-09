@@ -17,23 +17,25 @@ import { offerText } from "../../career/contractOffers.js";
 import { hasExistingCareerRoot } from "../../modes/leagueCareer.js";
 import { settleSeasonRollover } from "../../modes/seasonRollover.js";
 import {
-  acceptInterviewOffer, acceptReemploymentOffer, createTimeTravelPrologue, futureKnowledgeEffects,
-  generateReemploymentOffers, resolveFutureKnowledgeChoice,
+  acceptInterviewOffer, acceptReemploymentOffer, createTimeTravelPrologue, generateReemploymentOffers,
 } from "../../modes/timeTravelCareer.js";
 import {
-  buildCareerReport, getStoryEvent, localizeStoryEvent, queueNextStoryEvent, queueStoryEvent, resolveStoryEvent,
+  buildCareerReport, getStoryEvent, localizeStoryEvent, queueNextStoryEvent, resolveStoryEvent,
 } from "../../story/eventEngine.js";
 import { buildEndingShareCard, renderEndingShareCardHtml, shareCardText } from "../../story/endingShareCard.js";
 import { confirmAction } from "../confirmModal.js";
 import { $ } from "./dom.js";
 import { choiceDeckHtml, confirmBarHtml, mountDeck } from "./choices.js";
-import { INTRO_CHOICES, paintStaticText } from "./copy.js";
+import { paintStaticText } from "./copy.js";
 import { tr } from "./format.js";
 import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml } from "./offers.js";
 import { createFinanceCard } from "./financeCard.js";
 import { createPerkCard } from "./perkCard.js";
 import { createPoachCard } from "./poachCard.js";
 import { createRetireCard } from "./retireCard.js";
+import { createInterviewCard } from "./interviewCard.js";
+import { renderProphecyCard } from "./prophecyCard.js";
+import { createIntroCard } from "./introCard.js";
 import {
   hideHq, paintEpilogue, paintGoal, paintHq, paintKpis, paintReport, paintWizard,
 } from "./paint.js";
@@ -197,6 +199,7 @@ export function createTimeTravelScreen({
           origin: origin.value || DEFAULT_COACH_ORIGIN,
           seed: Date.now() >>> 0,
         });
+        interviewCard.close();
         renderOffers();
         setStatus({ zh: "收到三份面试邀请，请选择你的历史起点。", en: "Three interview offers are in — pick your starting point in history." });
         $("#tt-offers-zone").scrollIntoView?.({ block: "start", behavior: "smooth" });
@@ -217,29 +220,62 @@ export function createTimeTravelScreen({
     }
     const l = lang();
     zone.hidden = false;
+    const rejected = prologue.rejectedOfferIds || [];
     deck.innerHTML = prologue.offers.slice(0, 3).map((offer) => interviewOfferCardHtml(offer, {
       colors: teamColorsFor(prologue.year, offer.teamId),
       core: teamCore({ players: PLAYERS, overall, year: prologue.year, teamId: offer.teamId }),
+      rejected: rejected.includes(offer.id),
       lang: l,
     })).join("");
-    zone.querySelector(".tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: tr(l, "接受邀请，开始执教", "Accept and start coaching") });
+    zone.querySelector(".tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: tr(l, "去面试", "Go to the interview") });
     mountDeck(zone, {
-      itemSelector: ".tt-offer:not(.tt-offer-locked)",
+      itemSelector: ".tt-offer:not(.tt-offer-locked):not(.tt-offer-rejected)",
       idOf: (el) => el.dataset.offerId,
       labelOf: (el) => el.dataset.team,
-      confirmText: (team) => tr(l, `接受 ${team} 的邀请，开始执教？`, `Accept ${team}'s offer and start coaching?`),
-      onConfirm: acceptOffer,
+      confirmText: (team) => tr(l, `去 ${team} 面试？三个问题，答得契合开局更好。`, `Interview with ${team}? Three questions; a good fit starts you stronger.`),
+      // D: an offer you already passed the interview for is accepted as is -- never re-scored.
+      onConfirm: (offerId) => (prologue.offers.find((offer) => offer.id === offerId)?.interview
+        ? acceptOffer(offerId)
+        : interviewCard.open(offerId)),
     });
+    interviewCard.repaint();
   }
 
-  async function acceptOffer(offerId) {
+  const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+  const interviewCard = createInterviewCard({
+    lang,
+    panel: $("#tt-interview"),
+    getPrologue: () => prologue,
+    setPrologue: (next) => { prologue = next; },
+    onHired: (offerId, { score, effects }) => acceptOffer(offerId, {
+      zh: `面试通过（契合度 ${signed(score)}）：开局信任 ${signed(effects.trust)}、压力 ${signed(effects.pressure)}。`,
+      en: `Interview passed (fit ${signed(score)}): starting trust ${signed(effects.trust)}, pressure ${signed(effects.pressure)}. `,
+    }),
+    onRejected: (offerId, { score }) => {
+      const offer = prologue.offers.find((candidate) => candidate.id === offerId);
+      const left = prologue.offers.slice(0, 3).length - (prologue.rejectedOfferIds || []).length;
+      setStatus({
+        zh: `${teamNameL(offer.teamName, "zh")} 婉拒了你（契合度 ${signed(score)}）。还可以去另外 ${left} 家面试。`,
+        en: `${teamNameL(offer.teamName, "en")} passed on you (fit ${signed(score)}). ${left} more club${left === 1 ? "" : "s"} to try.`,
+      });
+      renderOffers();
+    },
+    onClose: () => renderOffers(),
+    // Q2: "跳过面试，直接接受" -- neutral terms, no rejection, prophecy still follows.
+    onSkip: (offerId) => acceptOffer(offerId),
+  });
+
+  async function acceptOffer(offerId, note = { zh: "", en: "" }) {
     if (hasCareer()) return;
     if (await blockedByForeignSave("career")) return;
     const existing = state.longCareerRoot || readRootSave();
     if (hasExistingCareerRoot(existing) && !(await confirmAction(
       tr(lang(), "接受新邀请将替换当前长期生涯存档，确定继续？", "Accepting will replace your current long-career save. Continue?"),
       { title: tr(lang(), "覆盖长期生涯？", "Overwrite your career?"), acceptLabel: tr(lang(), "覆盖并继续", "Overwrite and continue") },
-    ))) return;
+    ))) {
+      renderOffers(); // a passed interview stays passed: the card now says so, and accepts without a retake
+      return;
+    }
     try {
       const root = acceptInterviewOffer(prologue, offerId);
       commit(root, tr(lang(), "存档写入失败，尚未接受球队邀请", "Save failed — the offer was not accepted"));
@@ -247,7 +283,10 @@ export function createTimeTravelScreen({
       const offer = prologue.offers.find((candidate) => candidate.id === offerId);
       const l = lang();
       const team = teamNameL(offer.teamName, l);
-      setStatus({ zh: `已接受 ${team} 的邀请，先决定如何使用未来知识。`, en: `You accepted ${team}'s offer. First: how will you use your foresight?` });
+      setStatus({
+        zh: `${note.zh}已接受 ${team} 的邀请，先决定如何使用未来知识。`,
+        en: `${note.en}You accepted ${team}'s offer. First: how will you use your foresight?`,
+      });
       renderScreen();
       focusDecision();
     } catch (error) {
@@ -311,39 +350,7 @@ export function createTimeTravelScreen({
   }
 
   // ---------------------------------------------------------------- decisions
-  function renderIntro() {
-    const l = lang();
-    const card = $("#time-travel-decision");
-    card.hidden = state.story?.pendingDecision !== "future-knowledge-intro";
-    if (card.hidden) return;
-    $("#time-travel-decision-choices").innerHTML = choiceDeckHtml(INTRO_CHOICES.map((choice) => ({
-      id: choice.id,
-      label: tr(l, ...choice.label),
-      description: tr(l, ...choice.description),
-      effects: futureKnowledgeEffects(choice.id),
-    })), { attr: "data-story-choice", lang: l });
-    card.querySelector(".tt-confirm-slot").innerHTML = confirmBarHtml(l);
-    mountDeck(card, {
-      idOf: (el) => el.dataset.storyChoice,
-      labelOf: (el) => el.querySelector("strong").textContent,
-      confirmText: (label) => tr(l, `就这么定：「${label}」。这个决定无法撤回。`, `Lock in "${label}". This can't be undone.`),
-      onConfirm: resolveIntro,
-    });
-  }
-
-  function resolveIntro(choiceId) {
-    if (state.story?.pendingDecision !== "future-knowledge-intro") return;
-    try {
-      const resolved = resolveFutureKnowledgeChoice(currentRootState(), choiceId);
-      const root = queueStoryEvent(resolved, "first-year-owner-test", { year: resolved.leagueCareer?.season?.year });
-      commit(root, tr(lang(), "存档写入失败，这次决定尚未生效", "Save failed — the decision did not take effect"));
-      setStatus({ zh: "决定已保存。资源与时间线已更新。", en: "Decision saved. Your resources and the timeline have shifted." });
-    } catch (error) {
-      setStatus(error?.message || { zh: "无法处理这个决定", en: "Couldn't process that decision" }, true);
-    }
-    renderScreen();
-    focusDecision();
-  }
+  const introCard = createIntroCard({ state, lang, setStatus, commit, currentRootState, renderScreen, focusDecision });
 
   function renderEvent() {
     const l = lang();
@@ -505,7 +512,7 @@ export function createTimeTravelScreen({
     renderOffers();
     const career = hasCareer();
     $("#time-travel-create").hidden = career;
-    const sections = ["#tt-poach", "#tt-retire", "#time-travel-decision", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#tt-perks", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
+    const sections = ["#tt-poach", "#tt-retire", "#time-travel-decision", "#tt-prophecy", "#time-travel-event", "#time-travel-contract", "#tt-over", "#tt-jobs", "#tt-goal", "#tt-perks", "#time-travel-finance", "#time-travel-report", "#time-travel-share", "#btn-time-travel-continue"];
     if (!career) {
       hideHq();
       for (const selector of sections) $(selector).hidden = true;
@@ -516,7 +523,7 @@ export function createTimeTravelScreen({
     const over = careerIsOver(root.story);
     paintHq(hqModel(root, report, l), l);
     paintKpis(kpiModel(root), l);
-    renderIntro();
+    introCard.render();
     renderEvent();
     renderContract();
     $("#tt-grid").dataset.over = over ? "1" : "";
@@ -530,6 +537,7 @@ export function createTimeTravelScreen({
     if (over || hasPastStints) paintEpilogue(root, report, l, { over });
     poachCard.render(root);
     retireCard.render(root);
+    renderProphecyCard($("#tt-prophecy"), root.story, l);
     if (over && !retired) renderJobs(root);
     if (over) $("#tt-goal").hidden = true;
     else paintGoal(root, l);

@@ -83,8 +83,14 @@ const offerAria = (offer, lang) => {
  */
 export function interviewOfferCardHtml(offer, ctx = {}) {
   const lang = ctx.lang ?? "zh";
-  return `<button type="button" class="tt-offer" role="radio" aria-checked="false" data-offer-id="${esc(offer.id)}" data-archetype="${esc(offer.archetype)}" data-team="${esc(teamNameL(offer.teamName, lang))}" style="${teamThemeStyle(ctx.colors)}" aria-label="${esc(offerAria(offer, lang))}">
-    ${offerBodyHtml(offer, ctx)}
+  // D: the interview leaves a mark -- turned down (greyed, can't be picked) or passed (accept straight away).
+  const stamp = ctx.rejected
+    ? `<span class="tt-stamp tt-stamp-no">${esc(tr(lang, "面试未通过", "Turned you down"))}</span>`
+    : offer.interview
+      ? `<span class="tt-stamp tt-stamp-ok">${esc(tr(lang, "面试通过", "Interview passed"))}</span>`
+      : "";
+  return `<button type="button" class="tt-offer${ctx.rejected ? " tt-offer-rejected" : ""}"${ctx.rejected ? " disabled" : ""} role="radio" aria-checked="false" data-offer-id="${esc(offer.id)}" data-archetype="${esc(offer.archetype)}" data-team="${esc(teamNameL(offer.teamName, lang))}" style="${teamThemeStyle(ctx.colors)}" aria-label="${esc(offerAria(offer, lang))}">
+    ${stamp}${offerBodyHtml(offer, ctx)}
   </button>`;
 }
 

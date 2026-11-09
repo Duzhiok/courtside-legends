@@ -9338,7 +9338,7 @@ function renderLeagueManagement() {
         try {
           const completed = completeCareerOffseason(state.leagueCareer);
           if (!commitManagedCareer(completed.career, "standings")) return;
-          const { resolvedGoal, nextGoal, settledReputation, poachOffer, retirement: coachRetirement } = queueNextTimeTravelEvent() || {};
+          const { resolvedGoal, nextGoal, settledReputation, prophecy, poachOffer, retirement: coachRetirement } = queueNextTimeTravelEvent() || {};
           const highlights = (completed.result?.log || [])
             .filter((entry) => entry.delta > 0 || (entry.salaryAfter || 0) > (entry.salaryBefore || 0) + 10)
             .slice(0, 8);
@@ -9366,6 +9366,13 @@ function renderLeagueManagement() {
           const repSummary = settledReputation
             ? `\n\n${L("教练声望", "Coaching reputation")}：${settledReputation.from} → ${settledReputation.to}`
             : "";
+          // D: the draft prophecy settles off his real third season; say how it went.
+          const sign = (n) => (n > 0 ? `+${n}` : `${n}`);
+          const prophecySummary = prophecy
+            ? `\n\n🔮 ${prophecy.hit
+              ? L(`预言成真：${prophecy.name} 前三季巅峰 OVR ${prophecy.best}（信任 ${sign(prophecy.trust)}、声望 ${sign(prophecy.reputation)}）`, `Called it: ${prophecy.name} peaked at OVR ${prophecy.best} in his first three seasons (trust ${sign(prophecy.trust)}, reputation ${sign(prophecy.reputation)})`)
+              : L(`预言落空：${prophecy.name} 前三季巅峰只有 OVR ${prophecy.best}（信任 ${sign(prophecy.trust)}）`, `Missed: ${prophecy.name} only peaked at OVR ${prophecy.best} in his first three seasons (trust ${sign(prophecy.trust)})`)}`
+            : "";
           const poachTeam = poachOffer ? teamNameL(poachOffer.teamName, getLang()) : "";
           const poachSummary = poachOffer
             ? `\n\n📨 ${L(`${poachTeam} 想挖你！请到「穿越生涯」页查看并决定——本赛季第一场比赛开打后，邀请自动作废。`, `${poachTeam} wants to hire you away! Open the Time-travel career page to decide — the offer lapses once this season's first game is played.`)}`
@@ -9389,7 +9396,7 @@ function renderLeagueManagement() {
             });
             if (axp.gained) lifetimeNote = `\n\n🎖️ ${L(`完成一世生涯，账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Completed a lifetime — Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}`;
           }
-          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`);
+          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${prophecySummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`);
         } catch (error) {
           alert(error?.message || "无法开始新赛季");
         }
