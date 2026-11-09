@@ -781,3 +781,5 @@ Do not block this small feature with further planning.
 [2026-11-09] Luna：B27 触发规则设计已上 main（8ee74b9，docs/implementation/b27-timeout-tiers-design.md）：三档保守/均衡/积极只改触发灵敏度（概率 ×0.5/×1/×1.5 封顶 0.9、阈值上下调、积极档冷却 85→60 秒），B3 留 4 底线、五个触发条件不动，普通失误不叫停；实现抽 timeoutTierParams(tier) 纯函数；代码等 B23 推上 main 后再动。待用户批四个数字问题（积极档冷却、保守档去末节触发、只管助手、默认均衡）。注：以前一版 b27-timeout-tiers.md（ffc247f）为底，规则一字未动，补了 B23 顺序与待定问题；旧文件已删（4b0050c），内容全在新文件里，不再并存。
 
 [2026-11-09] Luna：B33 合并设计已上 main（8ee74b9，docs/implementation/b33-d-segment-merge-design.md）：按用户定的选项 ① 合 main；面试（3 问、契合度打分、信任/压力、最后一家不拒）+ 预言（真沉睡者棋盘、三年后真实卡片裁决、可选 story.prophecy 字段、结算多一步）都合；裁决面试+预言与 D1–D7 各为准不同层（开局 vs 持续球探经济，M7 门控），不冲突；先 rebase 到当前 main（试合 5 个文件两边都改、3 处冲突），解完重跑分支单测 + 全量 + career-interview QA，再标 B33 ✅。待用户定四个数字/体验问题。
+
+[2026-11-09] 用户定 B10：2.0 视觉基线选深海军蓝 + 金，弃现有深绿。实现：tokens.css 基线翻绿为蓝（金 #f6c870 不变），硬编码绿色值随 token 走；视觉 QA 需 Mac 跑。
