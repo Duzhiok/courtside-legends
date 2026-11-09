@@ -847,3 +847,5 @@ Feature-first, playable-first.
 Avoid unnecessary ADR gates and repeated full-suite testing for small changes.
 
 Continue autonomous implementation of approved work, while preserving existing saves and avoiding overlapping edits between agents.
+
+[2026-11-09] Luna：B10 最终确认——用户 01:57 回"保留深绿"：深绿 + 金定案，海军蓝仅辅助。之前那一 tap 是误点，已作废；tokens 未动过。
