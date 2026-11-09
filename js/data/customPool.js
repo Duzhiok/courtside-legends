@@ -4,7 +4,9 @@
  * 每人预算 CUSTOM_BUDGET；0 价角色球员仍需轮流点选直到名单满员。
  */
 
+import { shuffle } from "../core/seededRandom.js";
 import { PLAYERS, clonePlayer, overall } from "./players.js";
+import { ROLE_FAMILIES, ROLE_FAMILY_LABELS, roleFamilyOf } from "./skills.js";
 
 export const CUSTOM_BUDGET = 15;
 export const CUSTOM_ROSTER_SIZE = 8;
@@ -229,10 +231,119 @@ export function listPaidPeaks(excludeIds = new Set()) {
 }
 
 /**
- * 补员阶段：随机抽 0 块角色巅峰卡。
+ * Deal `count` cards covering distinct role families first (one per family,
+ * families in shuffled order), then fill any remaining slots from the rest of
+ * the pool. Same cards, same prices — only the deal order changes, so a pack
+ * is a real choice between roles instead of five lookalikes.
+ * `keyOf` identifies "the same person" for de-duping (default: card id;
+ * pass bref for season-row pools where one person has many seasons).
  */
-export function drawZeroCostPack(size = 5, excludeIds = new Set()) {
+export function dealRoleDiverse(cards, count, { weightFn = null, keyOf = (c) => (c?.data || c)?.id } = {}) {
+  const picked = [];
+  const taken = new Set();
+  const avail = (list) => list.filter((c) => !taken.has(keyOf(c)));
+  const pickOne = (list) => {
+    const pool = avail(list);
+    if (!pool.length) return null;
+    let one;
+    if (weightFn) {
+      const weights = pool.map(weightFn);
+      const sum = weights.reduce((a, b) => a + b, 0);
+      let r = Math.random() * sum;
+      one = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) {
+        r -= weights[i];
+        if (r <= 0) {
+          one = pool[i];
+          break;
+        }
+      }
+    } else {
+      one = pool[Math.floor(Math.random() * pool.length)];
+    }
+    taken.add(keyOf(one));
+    return one;
+  };
+  const byFamily = new Map(ROLE_FAMILIES.map((f) => [f, []]));
+  for (const c of cards) {
+    const fam = roleFamilyOf(c?.data || c);
+    if (!byFamily.has(fam)) byFamily.set(fam, []);
+    byFamily.get(fam).push(c);
+  }
+  for (const f of shuffle([...ROLE_FAMILIES])) {
+    if (picked.length >= count) break;
+    const one = pickOne(byFamily.get(f) || []);
+    if (one) picked.push(one);
+  }
+  while (picked.length < count) {
+    const one = pickOne(cards);
+    if (!one) break;
+    picked.push(one);
+  }
+  return picked;
+}
+
+/**
+ * 推荐标记：从当前这包卡里挑一张最能补阵容缺的角色。只看已有数据：缺的
+ * 角色家族 + 有没有真实角色技能。没有缺的家族可补时返回 null。
+ */
+export function recommendRolePick(packCards, rosterPlayers, lang = "zh") {
+  const en = lang === "en";
+  const have = new Set((rosterPlayers || []).map(roleFamilyOf));
+  const missing = ROLE_FAMILIES.filter((f) => !have.has(f));
+  if (!missing.length) return null;
+  const players = (packCards || []).map((c) => c?.data || c).filter(Boolean);
+  // Prefer a real role player (has role skills) filling a missing family;
+  // otherwise any missing-family card in pack order.
+  const withRole = players.filter((p) => (p.roleSkills || []).length && missing.includes(roleFamilyOf(p)));
+  const pool = withRole.length ? withRole : players.filter((p) => missing.includes(roleFamilyOf(p)));
+  if (!pool.length) return null;
+  const pick = pool[0];
+  const fam = roleFamilyOf(pick);
+  const famLabel = ROLE_FAMILY_LABELS[fam][en ? "en" : "zh"];
+  return {
+    playerId: pick.id,
+    family: fam,
+    reason: en ? `Roster needs a ${famLabel} — ${pick.name} fills it` : `阵容缺${famLabel}，${pick.name}能补上`,
+  };
+}
+
+/** Custom Duel filler dealing: "balanced" (default, recommended) or "random" (original). Persisted. */
+export const DUEL_FILLER_KEY = "cls_duel_filler";
+export function readDuelFillerMode(storage) {
+  try {
+    const v = storage?.getItem?.(DUEL_FILLER_KEY);
+    return v === "random" ? "random" : "balanced";
+  } catch {
+    return "balanced";
+  }
+}
+export function writeDuelFillerMode(storage, mode) {
+  try {
+    storage?.setItem?.(DUEL_FILLER_KEY, mode === "random" ? "random" : "balanced");
+  } catch {
+    /* ignore storage failures (private mode, tests) */
+  }
+}
+
+/**
+ * 补员阶段：0 块角色巅峰卡。
+ * mode "balanced"（默认）：每包覆盖不同角色家族（射手/篮板/防守/组织/能量），
+ * 每家族先出一张，再补满；mode "random"：原来的均匀随机（自定义对决"完全随机"用）。
+ */
+export function drawZeroCostPack(size = 5, excludeIds = new Set(), { mode = "balanced" } = {}) {
   const pool = getPeakPool().filter((p) => !excludeIds.has(p.id) && customPriceOf(p) === 0);
+  const picked =
+    mode === "random" ? drawUniform(pool, size, excludeIds) : dealRoleDiverse(pool, size);
+  return picked.map((p) => {
+    const data = clonePlayer(p);
+    data.customPrice = 0;
+    data.peakLabel = true;
+    return { kind: "player", data };
+  });
+}
+
+function drawUniform(pool, size, excludeIds) {
   const cards = [];
   const used = new Set(excludeIds);
   for (let i = 0; i < size; i++) {
@@ -240,17 +351,14 @@ export function drawZeroCostPack(size = 5, excludeIds = new Set()) {
     if (!avail.length) break;
     const pick = avail[Math.floor(Math.random() * avail.length)];
     used.add(pick.id);
-    const data = clonePlayer(pick);
-    data.customPrice = 0;
-    data.peakLabel = true;
-    cards.push({ kind: "player", data });
+    cards.push(pick);
   }
   return cards;
 }
 
-/** @deprecated 用 listPaidPeaks + drawZeroCostPack；保留兼容 */
+/** @deprecated 用 listPaidPeaks + drawZeroCostPack；保留兼容（旧行为：均匀随机） */
 export function drawCustomPack(size = 5, excludeIds = new Set()) {
-  return drawZeroCostPack(size, excludeIds);
+  return drawZeroCostPack(size, excludeIds, { mode: "random" });
 }
 
 export function peakCardByBref(bref) {

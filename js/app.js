@@ -112,6 +112,9 @@ import {
   customPriceOf,
   drawZeroCostPack,
   listPaidPeaks,
+  readDuelFillerMode,
+  recommendRolePick,
+  writeDuelFillerMode,
 } from "./data/customPool.js";
 import { photoImg } from "./data/photo.js";
 import { teamColors } from "./data/teamColors.js";
@@ -165,6 +168,7 @@ import {
   removeSkillFromPlayer,
   rollSkillShopOffers,
   skillChipsHtml,
+  poolRoleLine,
   skillDesc,
   SKILL_PACKS,
   SKILL_SELL_RATE,
@@ -2064,6 +2068,24 @@ $("#btn-custom-duel")?.addEventListener("click", () => {
   initDraft("duel");
   show("draft");
 });
+
+// Custom Duel filler dealing (hub setup): Balanced Roles (default) vs Fully Random. Persisted.
+function syncDuelFillerButtons() {
+  const mode = readDuelFillerMode(typeof localStorage !== "undefined" ? localStorage : undefined);
+  document.querySelectorAll("[data-duel-filler]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-duel-filler") === mode);
+  });
+}
+document.querySelectorAll("[data-duel-filler]").forEach((btn) => {
+  btn.onclick = () => {
+    writeDuelFillerMode(
+      typeof localStorage !== "undefined" ? localStorage : undefined,
+      btn.getAttribute("data-duel-filler")
+    );
+    syncDuelFillerButtons();
+  };
+});
+syncDuelFillerButtons();
 $("#btn-custom-legend")?.addEventListener("click", () => {
   state.mode = "legend";
   state.lastMode = "legend";
@@ -3067,6 +3089,10 @@ function initDraft(mode) {
     mode,
     picksPerSide,
     budgetMode: isCustom, // 15 块买巅峰卡
+    // Custom Duel filler dealing: Balanced Roles (default) vs Fully Random (persisted on the hub).
+    duelFillerMode: isDuel
+      ? readDuelFillerMode(typeof localStorage !== "undefined" ? localStorage : undefined)
+      : null,
     // spend = 列出全部 5→1 价轮选花光预算；filler = 随机 0 块补大名单
     customPhase: isCustom ? "spend" : null,
     customPriceFilter: "5", // 默认先看 5 块档；可切 all/4/3/2/1
@@ -3247,6 +3273,8 @@ function dealPack() {
     includeCoach: needCoachCard || (!needPlayers && d.needCoach[side]) || Math.random() < 0.08,
     includeAssistant: needAsstCard || (!needPlayers && d.needAssistant[side]) || Math.random() < 0.08,
     excludeIds: d.used,
+    // Custom Duel only: Balanced Roles deals one card per role family, Fully Random keeps the old deal.
+    roleDiverse: d.mode === "duel" && d.duelFillerMode === "balanced",
   });
   renderPack();
   updateRefreshBtn();
@@ -3336,6 +3364,13 @@ function renderPack() {
     }</p>`;
     return;
   }
+  // B: 推荐标记——金挑战里，挑一张最能补当前阵容缺的角色（只在预算模式）。
+  let rec = null;
+  if (d.budgetMode) {
+    const gold = d.teams[d.turn].gold ?? 0;
+    const affordable = cards.filter((c) => c.kind === "player" && (!d.buyPlayers || pickCost(d, c.data) <= gold));
+    rec = recommendRolePick(affordable, d.teams[d.turn].players, getLang());
+  }
   for (const card of cards) {
     const el = document.createElement("button");
     el.type = "button";
@@ -3364,6 +3399,7 @@ function renderPack() {
       const compact = d.budgetMode && d.customPhase === "spend";
       const valueTag = valueBadgeHtml(valueBadge(p)); // nothing while this card can still be picked
       const legacy = legacyBadgeHtml(p, overall(p));
+      const role = poolRoleLine(p, getLang());
       if (legacy.cardClass) el.className += legacy.cardClass;
       if (legacy.cardStyle) el.style.cssText += legacy.cardStyle;
       el.innerHTML = `
@@ -3372,7 +3408,7 @@ function renderPack() {
           <div>
             <div class="name">${p.name} <span class="pos-badge">${normalizePos(p.pos)}</span>${legacy.tagHtml}${
               valueTag ? ` ${valueTag}` : ""
-            }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}</div>
+            }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}${rec?.playerId === p.id ? ` <span class="chip growth">${L("推荐", "Recommended")}</span>` : ""}</div>
             <div class="meta">${[p.season, p.team, p.pos, `OVR ${overall(p)}`, priceTxt].filter(Boolean).join(" · ")}</div>
             ${
               // Draft Team has no salaries and no money on the pick, so an "est. salary" line is just noise there.
@@ -3380,6 +3416,8 @@ function renderPack() {
                 ? `<div class="meta tiny">${d.budgetMode ? `当前方剩余 ${gold} 块` : marketMeta(p)}</div>`
                 : ""
             }
+            ${role.label ? `<div class="meta tiny role-line">${role.label}${role.fit ? ` · ${role.fit}` : ""}</div>` : ""}
+            ${rec?.playerId === p.id ? `<div class="tiny role-rec">★ ${rec.reason}</div>` : ""}
           </div>
         </div>
         <div class="stat-chips">
@@ -3648,6 +3686,9 @@ function renderPosBoard(players, { usePlayPosLabel = false, editable = false } =
             const label = usePlayPosLabel
               ? `${p.name} <span class="tiny">(${p.season} ${natural}${p.franchiseId || p.team || ""})</span>`
               : `${p.name} <span class="tiny">(${p.season}${p.pos && p.pos !== s.id ? ` · 原${p.pos}` : ""})</span>`;
+            // (d) 签下后角色不丢：阵容行保留同一套角色标签（角色球员/原型）。
+            const role = poolRoleLine(p, getLang());
+            const roleTag = role.label ? ` <span class="tiny role-tag">${role.label}</span>` : "";
             const boost = editable && p._posBoostNote
               ? `<div class="tiny pos-boost-note">↑ ${escAttr(p._posBoostNote)}</div>`
               : "";
@@ -3662,7 +3703,7 @@ function renderPosBoard(players, { usePlayPosLabel = false, editable = false } =
             const drag = editable ? `draggable="true" data-drag-id="${p.id}"` : "";
             return `<li class="roster-line ${editable ? "editable" : ""}" ${drag}>
               ${photoImg(p, "headshot sm")}
-              <span class="roster-line-main">${label}${boost}</span>
+              <span class="roster-line-main">${label}${roleTag}${boost}</span>
               ${sel}
             </li>`;
           })

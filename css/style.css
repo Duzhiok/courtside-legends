@@ -139,6 +139,12 @@ html, body {
   display: none;
 }
 
+/* Gold-challenge pool roles: duel filler toggle on the custom hub. */
+.duel-filler-setting { margin-top: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.duel-filler-setting .btn.active { background: #166534; color: #fff; border-color: #166534; }
+/* Recommendation marker on pool cards (role line itself reuses .meta.tiny). */
+.role-rec { color: var(--good); font-weight: 600; }
+
 .hint-panel {
   margin-top: 28px;
   padding: 18px 20px;

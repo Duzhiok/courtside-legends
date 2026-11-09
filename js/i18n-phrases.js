@@ -486,4 +486,7 @@ export const PHRASES = [
   ["15 块花光", "15 coins spent"],
   ["0 块", "0-coin"],
   ["/10 · 本轮球队：", "/10 · this round's team: "],
+  ["双人对抗填充：", "Duel filler:"],
+  ["均衡角色（推荐）", "Balanced Roles (recommended)"],
+  ["完全随机", "Fully Random"],
 ];

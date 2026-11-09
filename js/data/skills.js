@@ -1882,6 +1882,111 @@ export const ROLE_SCENARIOS = {
   crash_board: { zh: "替补上场冲前场板、拼二次进攻", en: "Checks in to crash the offensive glass for second chances" },
 };
 
+/** Short role label per role skill (zh / en), for pool cards and roster lines. */
+export const ROLE_SKILL_LABELS = {
+  sticky_wrap: { zh: "外线锁", en: "Perimeter Lock" },
+  stopper_3d: { zh: "3&D", en: "3&D" },
+  charge_taker: { zh: "造犯规", en: "Charge Taker" },
+  rim_protector: { zh: "护筐", en: "Rim Protector" },
+  motor_engine: { zh: "体能怪", en: "Motor" },
+  corner_camp: { zh: "底角射手", en: "Corner Shooter" },
+  second_unit_engine: { zh: "替补组织", en: "Second-Unit Engine" },
+  crash_board: { zh: "篮板蓝领", en: "Crash Rebounder" },
+};
+
+/** Role family per role skill — the five families a filler pack covers. */
+export const ROLE_SKILL_FAMILIES = {
+  corner_camp: "shooter",
+  stopper_3d: "shooter",
+  crash_board: "rebounder",
+  sticky_wrap: "defender",
+  charge_taker: "defender",
+  rim_protector: "defender",
+  second_unit_engine: "playmaker",
+  motor_engine: "energy",
+};
+
+/** The five role families, in the order a filler pack deals them. */
+export const ROLE_FAMILIES = ["shooter", "rebounder", "defender", "playmaker", "energy"];
+
+export const ROLE_FAMILY_LABELS = {
+  shooter: { zh: "射手", en: "Shooter" },
+  rebounder: { zh: "篮板", en: "Rebounder" },
+  defender: { zh: "防守", en: "Defender" },
+  playmaker: { zh: "组织", en: "Playmaker" },
+  energy: { zh: "能量", en: "Energy" },
+};
+
+/** Display label per player archetype key (inferArchetype in players.js). */
+export const PLAYER_ARCHETYPE_LABELS = {
+  versatile_scorer: { zh: "全能得分手", en: "Versatile Scorer" },
+  iso_creator: { zh: "持球核心", en: "Ball-Dominant Creator" },
+  floor_general: { zh: "球场指挥官", en: "Floor General" },
+  pest: { zh: "防守搅局者", en: "Defensive Pest" },
+  shooter: { zh: "射手", en: "Shooter" },
+  rebounder: { zh: "篮板手", en: "Rebounder" },
+  dominant_big: { zh: "统治内线", en: "Dominant Big" },
+  playmaking_big: { zh: "策应内线", en: "Playmaking Big" },
+  two_way_wing: { zh: "双向锋线", en: "Two-Way Wing" },
+  iso_scorer: { zh: "单打得分手", en: "Iso Scorer" },
+  connector: { zh: "连接者", en: "Connector" },
+};
+
+/**
+ * Which role family a player belongs to. Role-skill players use their first
+ * role skill's family; everyone else falls back to their strongest attribute
+ * (three → shooter, rebound → rebounder, defense → defender, pass →
+ * playmaker, stamina → energy). Pure derivation from existing data — no new
+ * numbers, no hidden bonuses.
+ */
+export function roleFamilyOf(player) {
+  const roles = player?.roleSkills || [];
+  for (const id of roles) {
+    if (ROLE_SKILL_FAMILIES[id]) return ROLE_SKILL_FAMILIES[id];
+  }
+  const attrs = {
+    shooter: player?.three || 0,
+    rebounder: player?.rebound || 0,
+    defender: player?.defense || 0,
+    playmaker: player?.pass || 0,
+    energy: player?.stamina || 0,
+  };
+  let best = ROLE_FAMILIES[0];
+  for (const f of ROLE_FAMILIES) {
+    if (attrs[f] > attrs[best]) best = f;
+  }
+  return best;
+}
+
+/**
+ * Role line for a pool card / roster line, derived from existing data only.
+ * Role players get "角色球员 · <skill labels>" plus the first role skill's
+ * scenario line as the fit line; everyone else gets their archetype label
+ * (or nothing when there is none to show).
+ */
+export function poolRoleLine(player, lang = "zh") {
+  const en = lang === "en";
+  const roles = (player?.roleSkills || []).filter((id) => ROLE_SKILL_LABELS[id]);
+  if (roles.length) {
+    const labels = roles.map((id) => (en ? ROLE_SKILL_LABELS[id].en : ROLE_SKILL_LABELS[id].zh));
+    const sc = ROLE_SCENARIOS[roles[0]];
+    return {
+      label: (en ? "Role player · " : "角色球员 · ") + labels.join(" / "),
+      fit: sc ? (en ? sc.en : sc.zh) : "",
+      family: roleFamilyOf(player),
+    };
+  }
+  const arch = player?.archetype;
+  if (arch && PLAYER_ARCHETYPE_LABELS[arch]) {
+    return {
+      label: en ? PLAYER_ARCHETYPE_LABELS[arch].en : PLAYER_ARCHETYPE_LABELS[arch].zh,
+      fit: "",
+      family: roleFamilyOf(player),
+    };
+  }
+  return { label: "", fit: "", family: roleFamilyOf(player) };
+}
+
 /**
  * Name → bref for cards that arrive without a bref (custom / legacy data).
  * Kits themselves live ONLY in SIGNATURE_SKILLS / SEASON_SIGNATURE_SKILLS,

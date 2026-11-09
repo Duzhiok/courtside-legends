@@ -1,5 +1,5 @@
 import { ASSISTANTS, COACHES } from "../data/coaches.js";
-import { CUSTOM_REFRESH_COST, customPriceOf, listPaidPeaks } from "../data/customPool.js";
+import { CUSTOM_REFRESH_COST, customPriceOf, dealRoleDiverse, listPaidPeaks } from "../data/customPool.js";
 import { playerPrice } from "../data/intangibles.js";
 import { HIDDEN_TIERS, PLAYERS, clonePlayer, overall } from "../data/players.js";
 import { shuffle } from "../core/seededRandom.js";
@@ -30,10 +30,15 @@ export function takenPeople(ids) {
   return people;
 }
 
-/** Weighted pack — hidden tiers affect odds, never revealed in UI. */
+/** Weighted pack — hidden tiers affect odds, never revealed in UI.
+ * roleDiverse: deal the player cards one per role family (shooter /
+ * rebounder / defender / playmaker / energy) instead of uniform weighted
+ * random — same pool, same tier weights, different deal. Staff extras
+ * (coach / assistant) are untouched. Default false: existing callers keep
+ * the original behavior. */
 export function drawPack(
   size = 5,
-  { includeCoach = false, includeAssistant = false, excludeIds = new Set() } = {}
+  { includeCoach = false, includeAssistant = false, excludeIds = new Set(), roleDiverse = false } = {}
 ) {
   const people = takenPeople(excludeIds);
   const pool = PLAYERS.filter((p) => !excludeIds.has(p.id) && !people.has(p.bref));
@@ -42,15 +47,27 @@ export function drawPack(
 
   const staffSlots = (includeCoach ? 1 : 0) + (includeAssistant ? 1 : 0);
   const count = Math.max(1, size - staffSlots);
-  for (let i = 0; i < count; i++) {
-    const p = weightedPick(
-      pool.filter((x) => !used.has(x.id) && !people.has(x.bref)),
-      (x) => HIDDEN_TIERS[x.hiddenTier]?.weight ?? 10
-    );
-    if (!p) break;
-    used.add(p.id);
-    if (p.bref) people.add(p.bref);
-    cards.push({ kind: "player", data: clonePlayer(p) });
+  if (roleDiverse) {
+    const picked = dealRoleDiverse(pool, count, {
+      weightFn: (x) => HIDDEN_TIERS[x.hiddenTier]?.weight ?? 10,
+      keyOf: (x) => x.bref,
+    });
+    for (const p of picked) {
+      used.add(p.id);
+      if (p.bref) people.add(p.bref);
+      cards.push({ kind: "player", data: clonePlayer(p) });
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      const p = weightedPick(
+        pool.filter((x) => !used.has(x.id) && !people.has(x.bref)),
+        (x) => HIDDEN_TIERS[x.hiddenTier]?.weight ?? 10
+      );
+      if (!p) break;
+      used.add(p.id);
+      if (p.bref) people.add(p.bref);
+      cards.push({ kind: "player", data: clonePlayer(p) });
+    }
   }
 
   if (includeCoach) {
