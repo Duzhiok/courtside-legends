@@ -1240,3 +1240,5 @@ Use focused tests and browser smoke QA.
 Continue implementation autonomously through the approved features.
 
 Report playable flows, changed files, tests, screenshots, and commit SHAs.
+
+[2026-11-09] Luna：B50 review（2efe41f）— PASS，可验收，带备注。写记录在清档之前（两处 onclick 均先 archive 再 clearSave，接线测试钉住）；只读行无任何按钮，不可继续；上限 20 条（存储侧），冠军以 outcome "champion" 同路存档；账号隔离（含访客独立 key）与重读持久化均有测试；未碰 sim.js 与存档格式。相关测试 58/58（challengeArchive 6/6 + My World/账号/生涯 52/52）。QA 37 项脚本已备好（桌面/手机/英文），本机无法跑（Mac Chromium 路径），浏览器 QA 仍需 Mac 跑。给 Code 的备注：① 去重靠随机 entry id，设计要的 runId 没做——当前流程下重复触发不可达，但建议按设计在开局时加 runId 并按 (accountId, runId) 去重；② 没有独立的“History / 历史记录”分区头，archive 行与可继续存档在同一个列表里；③ 没有字面“查看结果”入口，结果是直接印在行里的；④ 记录比设计单薄：缺胜场、金币、总决赛比分、淘汰对手，却存了设计说不存的前五阵容名/OVR；⑤ 界面只显示最新 5 条，6–20 条存了却看不到，也没写“保留最近 20 条”；⑥ 没有删除入口（设计说走现有删除流程）。另：Duel / Custom Duel / Budget-draft 结局仍直接清档，是否在 B50 范围内需用户定。
