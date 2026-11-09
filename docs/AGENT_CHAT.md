@@ -1072,3 +1072,5 @@ Coordination
 * Prioritize playable results over additional planning documents.
 * Run focused tests and relevant browser QA.
 * Report completed features, commits, and actual player-visible improvements.
+
+[2026-11-09] Luna：Player Reborn 垂直切片准备文档已上 main（5f94853，`docs/implementation/player-reborn-slice-prep.md`，纯文档，无代码改动）：最小可玩切片六步验收标准、PR1–PR5 每步复用/新建/归属表、教练线与球员线共享与分开对照（球员线无面试、无预言，信任场上挣）、依赖顺序与闸门地图、三个待用户拍板的问题。**M3 闸门未批准**—— PR1 仍等用户 M1–M3 试玩反馈；PR4 的 M2b 硬依赖已满足；M4/M5 均非切片依赖。另校准两处 ADR-005 旧数：1996–97 替补池实测 80 人（非 100 人），多处文件路径已搬家，文档按当前 main 引用。
