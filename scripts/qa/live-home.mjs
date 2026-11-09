@@ -55,6 +55,16 @@ async function run(width, height, tag) {
   check(`[${tag}] Quick Play is fully above the fold and uncovered`, cta.top >= 0 && cta.bottom <= cta.vh && cta.left >= 0 && cta.right <= cta.vw && !cta.covered, JSON.stringify(cta));
   await page.screenshot({ path: `${OUT}/${tag}-first-screen.png`, animations: "disabled" });
 
+  // Legends gallery: My World only, 40 legends, the loop copy doubles the track.
+  const gallery = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll("#mw-legends-gallery .lg-card")];
+    const unique = new Set(cards.map((c) => c.dataset.legend)).size;
+    const nav = [...document.querySelectorAll("#mw-legends-gallery .lg-nav")].map((b) => b.getAttribute("aria-label"));
+    return { n: cards.length, unique, nav, visible: !!document.querySelector("#mw-legends-gallery")?.offsetParent };
+  });
+  check(`[${tag}] the legends gallery shows 40 legends (loop copy doubles the track)`, gallery.visible && gallery.n === 80 && gallery.unique === 40, JSON.stringify(gallery));
+  check(`[${tag}] the gallery has prev/next navigation`, gallery.nav.length === 2, gallery.nav.join(" | "));
+
   for (const cat of ["players", "career", "custom"]) {
     await page.click(`.home-tab[data-category="${cat}"]`);
     await page.waitForTimeout(1500); // let lazy photos land
@@ -86,14 +96,6 @@ async function run(width, height, tag) {
     check(`[${tag}/${cat}] no sliver-narrow card`, info.cards.every((k) => k.w >= Math.min(260, info.gw / 2 - 20)), info.cards.map((k) => k.w).join("/"));
     const badImgs = info.imgs.filter((i) => i.distorted || (i.fit !== "cover" && i.fit !== "none"));
     check(`[${tag}/${cat}] photos use object-fit:cover (never stretched)`, badImgs.length === 0, `${info.imgs.length} photos, loaded=${info.imgs.filter((i) => i.ok).length}, fits=${[...new Set(info.imgs.map((i) => i.fit))].join(",") || "n/a"}`);
-    if (cat === "career") {
-      const wall = await page.evaluate(() => {
-        const tiles = [...document.querySelectorAll("#home-legends-wall .legend-tile")].filter((t) => t.offsetParent);
-        const t = tiles[0];
-        return { n: tiles.length, border: t ? parseFloat(getComputedStyle(t).borderTopWidth) : null, op: Number(getComputedStyle(document.querySelector("#home-legends-wall")).opacity), sat: t ? getComputedStyle(t.querySelector("img")).filter : "" };
-      });
-      check(`[${tag}] the photo wall is quieter (thin border, dimmed, desaturated)`, wall.n > 0 && wall.border <= 1 && wall.op < 1 && /saturate\(0\.7/.test(wall.sat), JSON.stringify(wall));
-    }
     check(`[${tag}/${cat}] no horizontal overflow`, await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     await page.screenshot({ path: `${OUT}/${tag}-${cat}.png`, fullPage: true, animations: "disabled" });
   }

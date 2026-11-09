@@ -12288,7 +12288,7 @@ async function boot() {
         : L(`已加载 ${PLAYERS.length} 张赛季卡（已写入本地缓存，下次秒开）`, `Loaded ${PLAYERS.length} season cards (cached, next launch is instant)`);
     const wd = $("#load-watchdog");
     if (wd) wd.hidden = true;
-    const poolNote = document.querySelector(".hint-panel ul");
+    const poolNote = document.querySelector("#howto-dialog ul");
     if (poolNote) {
       const li = document.createElement("li");
       li.textContent = `卡池 ${PLAYERS.length} 张；换人面板显示板凳头像与属性；传奇模式可从八队历史球员自选位置组队。`;

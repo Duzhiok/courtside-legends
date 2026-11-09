@@ -47,21 +47,19 @@ async function run(width, height, tag) {
     if (cat === "career") {
       const polish = await page.evaluate(() => {
         const cards = [...document.querySelectorAll('.home-category-panel[data-category="career"] .mode-card')];
-        const wall = document.querySelector("#home-legends-wall");
-        const tile = wall?.querySelector(".legend-tile");
+        const gallery = document.querySelector("#mw-legends-gallery");
         const bar = document.querySelector("#account-home-bar").getBoundingClientRect();
         return {
           dark: cards.map((c) => getComputedStyle(c).backgroundImage.includes("linear-gradient")),
           tags: cards.map((c) => c.querySelector(".mode-tag")?.textContent.trim() ?? ""),
           tagFirst: cards.map((c) => { const t = c.querySelector(".mode-tag"), st = c.querySelector("strong"); return !!t && !!st && t.getBoundingClientRect().bottom <= st.getBoundingClientRect().top + 1; }),
-          wallOpacity: Number(getComputedStyle(wall).opacity),
-          tileBorder: tile ? parseFloat(getComputedStyle(tile).borderTopWidth) : null,
+          galleryHiddenHere: !gallery?.offsetParent,
           barH: Math.round(bar.height),
         };
       });
       check(`[${tag}] both career cards (Reborn + Franchise) share the dark card style`, polish.dark.length === 2 && polish.dark.every(Boolean), JSON.stringify(polish.dark));
       check(`[${tag}] each career card has a positioning tag above its title`, polish.tags.every((t) => t.length > 3) && polish.tagFirst.every(Boolean), polish.tags.join(" | "));
-      check(`[${tag}] the photo wall is quieter than the cards (opacity<1)`, polish.wallOpacity < 1, `opacity=${polish.wallOpacity}`);
+      check(`[${tag}] the legends gallery is not shown under the career tab (My World only)`, polish.galleryHiddenHere);
       check(`[${tag}] the account bar is compact`, polish.barH <= (width <= 640 ? 150 : 72), `${polish.barH}px`);
     }
     await page.screenshot({ path: `${OUT}/${tag}-${cat}.png`, fullPage: true, animations: "disabled" });

@@ -72,15 +72,15 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
 
-  // ---- home wall
-  await page.waitForSelector("#home-legends-wall .legend-tile", { timeout: 60000 });
-  await page.waitForFunction(() => Array.from(document.querySelectorAll("#home-legends-wall img")).every((i) => i.complete), null, { timeout: 30000 }).catch(() => {});
-  const tiles = await page.$$eval("#home-legends-wall .legend-tile", (nodes) =>
-    nodes.map((t) => ({ name: t.querySelector("strong").textContent, src: decodeURIComponent(t.querySelector("img").src), visible: !!t.offsetParent, ok: t.querySelector("img").naturalWidth > 0 })));
+  // ---- legends gallery (My World only; the marquee duplicates the set, so only the first 40 count)
+  await page.waitForSelector("#mw-legends-gallery .lg-card", { timeout: 60000 });
+  await page.waitForFunction(() => Array.from(document.querySelectorAll("#mw-legends-gallery .lg-photo img")).every((i) => i.complete), null, { timeout: 30000 }).catch(() => {});
+  const tiles = await page.$$eval("#mw-legends-gallery .lg-card", (nodes) =>
+    nodes.slice(0, 40).map((t) => ({ name: t.querySelector(".lg-name").textContent, src: decodeURIComponent(t.querySelector(".lg-photo img").src), visible: !!t.offsetParent, ok: t.querySelector(".lg-photo img").naturalWidth > 0 })));
   const visible = tiles.filter((t) => t.visible);
-  check(`[${tag}] wall draws all 9 legends in the DOM`, tiles.length === 9, `${tiles.length}`);
-  check(`[${tag}] every visible tile really loaded a picture`, visible.length >= 6 && visible.every((t) => t.ok), `${visible.filter((t) => t.ok).length}/${visible.length} visible`);
-  const captions = await page.$$eval("#home-legends-wall .legend-tile", (nodes) => nodes.filter((t) => t.offsetParent).map((t) => ({ name: t.querySelector("strong").textContent, cut: (() => { const el = t.querySelector("strong"); const r = document.createRange(); r.selectNodeContents(el); const lines = new Set([...r.getClientRects()].map((q) => Math.round(q.top))).size; return lines > 1 || el.scrollWidth > el.clientWidth + 1; })(), era: t.querySelector("span").textContent })));
+  check(`[${tag}] gallery draws all 40 legends in the DOM`, tiles.length === 40, `${tiles.length}`);
+  check(`[${tag}] every visible card really loaded a picture`, visible.length >= 6 && visible.every((t) => t.ok), `${visible.filter((t) => t.ok).length}/${visible.length} visible`);
+  const captions = await page.$$eval("#mw-legends-gallery .lg-card", (nodes) => nodes.slice(0, 40).filter((t) => t.offsetParent).map((t) => ({ name: t.querySelector(".lg-name").textContent, cut: (() => { const el = t.querySelector(".lg-name"); const r = document.createRange(); r.selectNodeContents(el); const lines = new Set([...r.getClientRects()].map((q) => Math.round(q.top))).size; return lines > 1 || el.scrollWidth > el.clientWidth + 1; })(), era: t.querySelector(".lg-era").textContent })));
   check(`[${tag}] no legend name wraps onto a second line or is clipped (科比·布莱恩特 must fit)`, captions.length >= 6 && captions.every((c) => !c.cut), captions.filter((c) => c.cut).map((c) => c.name).join(","));
   check(`[${tag}] every era label is a full decade ("2000 年代", not "00 年代")`, captions.every((c) => /^\d{4} 年代$/.test(c.era)), captions.map((c) => c.era).join(" | "));
   const srcOf = (needle) => tiles.find((t) => t.name.includes(needle))?.src || "";
@@ -88,10 +88,12 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   const modeSrcs = await page.$$eval(".mode-card-photo img", (n) => n.map((i) => decodeURIComponent(i.src)));
   check(`[${tag}] all 10 mode cards carry a Wikimedia photo`, modeSrcs.length === 10 && modeSrcs.every((s) => /\.wikimedia\.org\//.test(s)), `${modeSrcs.length}`);
   check(`[${tag}] home has no horizontal overflow`, !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)));
-  await (await page.$("#home-legends-wall")).screenshot({ path: `${OUT}/${tag}-1-wall.png` });
+  await (await page.$("#mw-legends-gallery")).screenshot({ path: `${OUT}/${tag}-1-gallery.png` });
 
   // ---- credits page
   const creditCount = await page.evaluate(async () => Object.keys((await import("/js/data/photoCredits.js")).PHOTO_CREDITS).length);
+  await page.click("#btn-about");
+  await page.waitForSelector("#about-dialog[open]");
   await page.click("#btn-open-credits");
   await page.waitForSelector("#screen-credits.active");
   const rows = await page.$$eval(".credit-row", (n) => n.length);

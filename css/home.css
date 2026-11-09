@@ -124,50 +124,44 @@ html[lang="en"] .topbar .brand-name { display: none; }
 }
 .home-banner-facts span { font-size: .75rem; color: rgba(248, 244, 234, .8); }
 
-/* —— Legends photo wall —— */
-.legends-wall {
-  display: grid;
-  /* a strip after the modes (it used to be the banner's right column, ~800px tall) */
-  grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: 12px;
-  margin: 22px 0 6px;
-  opacity: .82; /* a mood strip, not a second set of buttons: quieter than the mode cards above it */
-  transition: opacity .2s ease;
-}
-.legends-wall:hover { opacity: 1; }
-.legend-tile {
-  position: relative;
-  margin: 0;
-  aspect-ratio: 4 / 5;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #0b1f15;
-  border: 1px solid rgba(246, 200, 112, .22);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, .22);
-  transform: rotate(calc(var(--tilt, 0deg) * .35));
-  transition: transform .2s ease, border-color .2s ease;
-}
-.legend-tile:hover { transform: rotate(0deg) scale(1.04); border-color: var(--gold); z-index: 1; }
-.legend-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 20%;
-  filter: saturate(.72) contrast(1);
-}
-.legend-tile:hover img { filter: none; }
-.legend-tile figcaption {
-  position: absolute;
-  inset: auto 0 0 0;
-  padding: 30px 8px 7px;
-  /* tall + dark enough that white text stays legible over a white jersey or a halftone background */
-  background: linear-gradient(transparent, rgba(0, 0, 0, .6) 38%, rgba(0, 0, 0, .92));
-  color: #fff;
-  line-height: 1.2;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, .7);
-}
-.legend-tile figcaption strong { display: block; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.legend-tile figcaption span { font-size: .66rem; color: var(--gold); }
+/* —— Legends Gallery (My World only) —— */
+.legends-gallery { margin: 20px 0 6px; }
+.lg-head h2 { margin: 0 0 2px; font-family: var(--font-display); font-size: 1.25rem; }
+.lg-head-sub { margin: 0 0 10px; font-size: .8rem; opacity: .75; }
+.lg-viewport { position: relative; overflow: hidden; border-radius: 14px; }
+.lg-viewport:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.lg-viewport.lg-static { overflow-x: auto; }
+.lg-track { display: flex; gap: 12px; will-change: transform; padding: 2px; }
+.lg-card { position: relative; flex: 0 0 auto; width: 150px; margin: 0; border-radius: 14px; overflow: hidden; background: #0b1f15; border: 1px solid rgba(246, 200, 112, .22); box-shadow: 0 6px 14px rgba(0, 0, 0, .22); }
+.lg-card-open { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; color: inherit; }
+.lg-card-open:hover { border-color: var(--gold); }
+.lg-photo { display: block; aspect-ratio: 4 / 5; overflow: hidden; background: #0b1f15; }
+.lg-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+.lg-caption { position: absolute; inset: auto 0 0 0; padding: 26px 8px 7px; background: linear-gradient(transparent, rgba(0, 0, 0, .6) 38%, rgba(0, 0, 0, .92)); color: #fff; line-height: 1.2; text-shadow: 0 1px 2px rgba(0, 0, 0, .7); }
+.lg-name { display: block; font-size: .78rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-era { display: block; font-size: .66rem; color: var(--gold); }
+.lg-challenge { display: block; width: calc(100% - 16px); margin: 8px; padding: 5px 0; font-size: .72rem; font-weight: 700; color: var(--gold); background: rgba(246, 200, 112, .12); border: 1px solid rgba(246, 200, 112, .45); border-radius: 8px; cursor: pointer; }
+.lg-challenge:hover { background: rgba(246, 200, 112, .25); }
+.lg-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(246, 200, 112, .5); background: rgba(11, 31, 21, .78); color: var(--gold); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.lg-prev { left: 6px; }
+.lg-next { right: 6px; }
+.lg-profile-slot { margin-top: 12px; }
+.lg-profile { position: relative; display: flex; gap: 14px; padding: 14px; border-radius: 14px; background: #0b1f15; border: 1px solid rgba(246, 200, 112, .35); color: #f8f4ea; }
+.lg-profile-photo { display: block; flex: 0 0 110px; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 10px; background: #0b1f15; }
+.lg-profile-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+.lg-profile-body { min-width: 0; }
+.lg-profile-name { margin: 2px 0 4px; font-size: 1.15rem; }
+.lg-profile-meta { margin: 0 0 4px; font-size: .8rem; color: var(--gold); }
+.lg-profile-stats { margin: 0 0 10px; font-size: .85rem; }
+.lg-profile-close { position: absolute; top: 8px; right: 10px; padding: 2px 8px; border: 0; background: none; color: #f8f4ea; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.home-utility-row { display: flex; gap: 10px; justify-content: flex-end; margin: 16px 0 4px; }
+/* How to Play / About dialogs (same <dialog> pattern as #app-confirm-dialog). */
+.info-dialog { max-width: min(680px, 92vw); width: 680px; padding: 18px 20px; border-radius: 16px; border: 1px solid rgba(246, 200, 112, .4); background: #f8f4ea; color: var(--ink); }
+.info-dialog::backdrop { background: rgba(10, 20, 14, .55); }
+.info-dialog .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.info-dialog .panel-head h2 { margin: 0; }
+.info-dialog ul { margin: 12px 0 0; padding-left: 20px; line-height: 1.55; }
+.info-dialog ul li { margin-bottom: 6px; }
 
 /* —— Account / save bars —— */
 #screen-home .account-home-bar {
@@ -332,37 +326,13 @@ html[lang="en"] .topbar .brand-name { display: none; }
   letter-spacing: .03em;
 }
 
-/* Design notes panel (collapsible) */
-#screen-home .hint-panel {
-  background: rgba(255, 255, 255, .8);
-  border-left-color: #e85d04;
-  border-radius: 14px;
-  box-shadow: 0 8px 22px rgba(15, 28, 20, .08);
-}
-#screen-home .hint-panel summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  list-style: none;
-}
-#screen-home .hint-panel summary::-webkit-details-marker { display: none; }
-#screen-home .hint-panel summary::before {
-  content: "\25B8";
-  color: #e85d04;
-  transition: transform .15s ease;
-}
-#screen-home .hint-panel[open] summary::before { transform: rotate(90deg); }
-#screen-home .hint-panel summary h2 { margin: 0; }
-#screen-home .hint-panel[open] summary { margin-bottom: 8px; }
 .home-cache-tools { margin: 10px 0 0; text-align: right; }
 
 /* —— Responsive —— */
 @media (max-width: 860px) {
   .home-banner { grid-template-columns: 1fr; padding: 24px 18px 20px; }
   .home-banner-facts { flex-direction: row; flex-wrap: wrap; }
-  .legends-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .legend-tile:nth-child(n + 9) { display: none; }
+  .lg-card { width: 132px; }
 }
 @media (max-width: 560px) {
   .topbar { border-radius: 20px; padding: 10px 12px; }
@@ -370,20 +340,20 @@ html[lang="en"] .topbar .brand-name { display: none; }
   .topbar .brand-mark { font-size: 1.3rem; }
   .topbar .brand-name { font-size: 1.25rem; }
   .topbar .tagline { display: none; }
-  .legends-wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .legend-tile:nth-child(n + 7) { display: none; }
-  .legend-tile figcaption strong { font-size: .68rem; }  /* 7-character names must fit a ~95px tile on one line */
-  .legend-tile figcaption span { font-size: .62rem; }
+  .lg-card { width: 118px; }
+  .lg-name { font-size: .7rem; }  /* 7-character names must fit a ~95px card on one line */
+  .lg-era { font-size: .6rem; }
+  .lg-profile-photo { flex-basis: 84px; }
   #screen-home .mode-card.has-photo { padding-right: 96px; }
   #screen-home :is(.mode-card-feature, .mode-card-dark).has-photo { padding-right: 120px; }
   .mode-card-photo { width: 104px; }
   #screen-home :is(.mode-card-feature, .mode-card-dark) .mode-card-photo { width: 136px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .legend-tile,
+  .lg-card,
   .mode-card-photo img,
   #screen-home .mode-card { transition: none; }
-  .legend-tile { transform: none; }
+  .lg-card { transform: none; }
 }
 
 /* —— M1: Play Now hero CTA — the single dominant home CTA (spec §3) —— */

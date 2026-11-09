@@ -489,4 +489,8 @@ export const PHRASES = [
   ["双人对抗填充：", "Duel filler:"],
   ["均衡角色（推荐）", "Balanced Roles (recommended)"],
   ["完全随机", "Fully Random"],
+  // Legends Gallery footer cleanup: How to Play / About dialogs on the home screen.
+  ["玩法说明", "How to Play"],
+  ["关于", "About"],
+  ["关闭", "Close"],
 ];

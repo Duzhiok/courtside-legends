@@ -65,7 +65,7 @@ const measure = (page) => page.evaluate(() => {
     hero: rect(hero),
     // what is really on top at the CTA's centre: the button itself, not a bar / tip / overlay
     topAtCenter: (() => { const r = hero.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, Math.min(r.top + r.height / 2, innerHeight - 1)); return el && (el === hero || hero.contains(el)); })(),
-    wallTiles: [...document.querySelectorAll("#home-legends-wall .legend-tile img")].filter((i) => i.naturalWidth > 0).length,
+    galleryCards: [...document.querySelectorAll("#mw-legends-gallery .lg-card .lg-photo img")].filter((i) => i.naturalWidth > 0).length,
     primaries: [...document.querySelectorAll("#screen-home .btn.primary")].filter((el) => vis(el) && onFirstScreen(el)).map(name),
     heroText: hero.textContent.trim(),
     cardTitle: document.querySelector('.mode-card[data-mode="quick"] strong')?.textContent.trim(),
@@ -81,8 +81,8 @@ for (const [width, height, size] of [[390, 844, "mobile"], [1280, 800, "desktop"
       const bar = await page.evaluate(() => !document.querySelector("#long-career-home-bar")?.hidden);
       check(`${tag} the saved-career bar is really showing (otherwise this scenario proves nothing)`, bar);
     }
-    // the photo wall is really rendered (otherwise this scenario measures a page nobody sees)
-    check(`${tag} the legends wall is really rendered with photos (not vacuous)`, m.wallTiles >= 6, `${m.wallTiles} photos`);
+    // the legends gallery is really rendered with photos (not vacuous)
+    check(`${tag} the legends gallery is really rendered with photos (not vacuous)`, m.galleryCards >= 6, `${m.galleryCards} photos`);
     // B16
     check(`${tag} B16 the main CTA is completely inside the first screen`, m.hero.top >= 0 && m.hero.bottom <= m.vh && m.hero.left >= 0 && m.hero.right <= m.vw, `CTA y ${m.hero.top}-${m.hero.bottom} of ${m.vh}px, x ${m.hero.left}-${m.hero.right} of ${m.vw}px`);
     check(`${tag} B16 nothing covers the CTA (the button is what is on top at its centre)`, m.topAtCenter === true);

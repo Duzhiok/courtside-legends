@@ -145,17 +145,6 @@ html, body {
 /* Recommendation marker on pool cards (role line itself reuses .meta.tiny). */
 .role-rec { color: var(--good); font-weight: 600; }
 
-.hint-panel {
-  margin-top: 28px;
-  padding: 18px 20px;
-  border-left: 4px solid var(--good);
-  background: rgba(255,255,255,.55);
-  border-radius: 0 12px 12px 0;
-}
-.hint-panel h2 { margin: 0 0 8px; font-size: 1.05rem; }
-.hint-panel ul { margin: 0; padding-left: 18px; color: #334155; }
-.hint-panel li { margin: 6px 0; }
-
 .panel-head, .draft-meta, .form-row, .btn-row, .actions, .tactic-row, .sub-box {
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
 }
@@ -173,7 +162,7 @@ html, body {
   gap: 12px;
   margin-bottom: 16px;
 }
-.roster-box, .coach-panel, .result-card, .hint-panel {
+.roster-box, .coach-panel, .result-card {
   background: rgba(255,255,255,.7);
   border: 1px solid var(--line);
   border-radius: 14px;
