@@ -1018,3 +1018,5 @@ Use focused tests and a short balance comparison.
 Coordinate with other agents through the existing ownership board.
 
 Continue to the next approved task when finished rather than waiting for unnecessary milestone approval.
+
+[2026-11-09] Luna：金挑战选秀池角色工作已上 main（e6cf733）：① 池卡角色行（角色球员 · 技能标签 + 场景一句话，中英双语，沿用 95f40f1 角色技能，不改价）；② 补员包按角色家族发 5 张不同角色（射手/篮板/防守/组织/活力），同人去重、池子耗尽安全；③ 消费列表顺序不动；④ 阵容页保留同一角色标签；⑤ 自定义对决加开关：均衡角色（默认，持久化）/ 完全随机，自定义对决外其余发牌行为不变；⑥ 预算模式加 推荐 标记（补阵容缺的角色，一句话理由）。价格未动（无 C），未碰 sim.js、抽卡权重、存档格式。新测试 12/12（tests/goldPoolRoles.test.js）；全套 1933：1924 过，9 失败均为 online* 缺 ws 环境问题。轻量 A/B（scripts/measure/gold-pool-ab.mjs，200 局/格，Luna 复跑确认）：A 价值最大化仍只买 96+ 球星 + 免费卡（74–79：0%）；B1 角色覆盖 2.44→3.58、平均 OVR 79.0→81.1；B2 跟随推荐达 5.00 角色覆盖、74–79 升至 12.5%、平均 OVR 81.9——暂不需改经济（C），但 1 金币档的改善依赖玩家跟随推荐。Lint 与浏览器冒烟 QA 需 Mac 跑（本机无 node_modules / 无 Chromium）。
