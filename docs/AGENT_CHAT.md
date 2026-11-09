@@ -1332,3 +1332,61 @@ After delivery, release file ownership so other agents can continue working.
 [2026-11-09] Luna：认领 Duel 端到端核对留下的两个小问题（263bcbe 核对记录）：① 43 位传奇全击败后「挑战下一位」循环回第一位、文案误导；② challengeLegend 未透传 Duel 未就绪的 false。范围：js/ui/duelView.js 的 nextUndefeatedLegend（全击败返回 null，结果页改显“全部击败”文案，不再循环）+ js/ui/homeShowcase.js 的 challengeLegend（Duel 返回 false 时回落到 profile），附测试。不碰 sim.js、存档、M4、Player Voice 文件（Code 的）。
 
 [2026-11-09] Luna：Duel 两个小问题已修 ✅ 25cef2a：① nextUndefeatedLegend 全击败后返回 null，不再循环回第一位；结果页无“下一位”按钮时改显“已击败全部 43 位传奇！”（双语）。② challengeLegend 透传 Duel 返回的 false，未就绪/未知传奇时回落到球员档案。测试：新增 tests/duelNextLegend.test.js（3）+ legendsGallery 补 1 例；focused 33/33；全套 1990：1981 通过，9 失败 = online* ws 环境缺口（本机）。浏览器冒烟 QA 仍欠 Mac 跑。未碰 sim.js、存档、M4、Player Voice。
+
+[2026-11-09] Luna：Legend Duel D1/D2 正式验收通过（功能核对 59/59 + 两个小问题已修 25cef2a；浏览器 QA 仍欠 Mac 跑，不阻塞 D3）。下一步 P0：D3 2D 球场表现 + 手动接管，Luna 认领。D3 在独立 worktree `~/workspace/courtside-legends-d3`（分支 feature/legend-duel-d3）开发，完成后合回 main；并行：Mac Agent 补 Gallery→Duel 浏览器 QA（含头像路径），Player Voice 仍是 Code 的，Account Level/B50/i18n 其他 Agent 并行，B27 等 B23。M3 Gate 不变：等用户亲自试玩 M1–M3 给反馈。
+
+Courtside Legends — Next Sprint Approval
+
+Legend Duel D1/D2 are accepted based on the reported functional verification.
+
+Proceed with D3: 2D Court Presentation and Manual Takeover.
+
+D3 Goal
+
+Turn the existing playable Legend Duel into a more interactive basketball experience.
+
+Deliver:
+
+* A responsive 2D half-court.
+* Visible offensive and defensive players.
+* Ball possession and movement animations.
+* Player movement controls.
+* Offensive choices including drive, shoot, and post-up.
+* Defensive positioning and contest controls.
+* Real DuelSim-driven outcomes.
+* Clear scoring, possession, and stamina feedback.
+* Mobile touch controls and desktop keyboard controls.
+* Retry and Next Legend integration.
+
+Reuse existing DuelSim and player data.
+
+Do not create a separate disconnected arcade simulation.
+
+Prioritize a playable vertical slice over polished artwork.
+
+Parallel Work
+
+* Mac-capable agent: finish Gallery → Duel browser smoke QA, including Avatar challenger.
+* Player Voice owner: finish global dialog and video attachments.
+* Other available agents: continue approved Account Level, B50, and i18n work.
+* B27 follows B23 as already coordinated.
+
+M3 Gate
+
+Keep the existing M1–M3 owner playtest requirement.
+
+Do not mark the gate approved without actual playtest feedback.
+
+Other independent approved features may continue in parallel.
+
+Delivery
+
+Use coordinated ownership and separate worktrees when appropriate.
+
+Implement D3 end-to-end.
+
+Run focused tests and relevant browser QA.
+
+Report actual player controls, playable flow, screenshots, tests, and commit SHA.
+
+Continue autonomous development after completing approved work.
