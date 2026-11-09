@@ -169,3 +169,10 @@
 - 过程中纠正自己一次：先猜"82 换 20 会让后排球队场次不够"，实测是错的（场次平衡没问题），真正的问题是对手多样性。
 - 工具坑复现：macOS 没有 `timeout`（命令秒过却没跑）；node 里 `PLAYERS` 要手动装名册，否则 `createSeason` 空转卡死。
 - 切片：T2a 引擎 → T2b 存储/归属/路由 → T2c 创建流 → T2d 续玩+验收。O1–O7 待你定。
+
+## R181 · Code：Player Voice 图片附件（产品负责人 2026-11-07 定入 MVP）
+- 做法：`feedbackImages.js`（按文件头字节认类型、>2MB 或尺寸超 1920 才重编码：WebP→JPEG，阶梯降尺寸/画质，压不下去就明说）、`feedbackAttachments.js`（按账号存 IndexedDB，不占 localStorage 配额；写失败会告诉玩家）、`feedbackTransport.js`（提交通道注册点，目前为空，所以"提交"仍是灰的并如实说明）。面板里：选择/拖拽（仅有鼠标的设备才提示拖拽）、缩略图替换/移除、`n/3` 计数。提交失败（返回 false 或抛错）文字、评分、截图全部原样保留；成功才清；提交中再点一次不会发两遍。
+- 验证：单测 `feedbackAttachments.test.js`（含伪装成 .png 的 SVG、第 4 张、替换失败保留旧图、按账号隔离、存储报错不抛）；真浏览器 `scripts/qa/feedback-attach.mjs` 桌面/手机/英文 83 项（含 10MB 噪点 PNG 压到 ≤2MB、刷新恢复、切账号、失败/抛错/慢速双击/成功四种提交、手机每行缩略图 ≤56px）。全量 npm test 2009/2009。
+- 顺带修的上游 bug：`304f5a6`（Account Level）在 `timeTravel/screen.js` 里调用了不存在的 `params.onStoryEventResolved`，每次处理 Reborn 故事事件都会 ReferenceError（被 try/catch 吞成一句怪提示，且不重绘）。已修并加回归测试（撤掉修复会变红）；这也是 lint 之前的 1 个 error。
+- 踩坑：① QA 里英文 key 是 `courtside.lang`，我先写成 `cls_lang`，结果"英文"其实跑的是中文——所以现在加了"UI 语言确实是 en"的断言。② 图片查看器会缓存同路径的图，我差点据此误判"CSS 没生效"；改用浏览器里量布局数字才定论。③ 末尾空行又触发了 `git diff --check`。
+- 没做（已进 BACKLOG）：游戏内一键截图、剪贴板粘贴、图片排序；服务端适配器（凭证只能在服务端，ADR-010）；服务端必须再校验类型/大小/张数。
