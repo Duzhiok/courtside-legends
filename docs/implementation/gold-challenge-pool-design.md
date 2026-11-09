@@ -1,6 +1,6 @@
 # Gold-challenge draft pool redesign (one-page design)
 
-**Status:** DRAFT — awaiting user approval. No code changes in this doc.
+**Status:** APPROVED (user 2026-11-09). No code changes in this doc — implementation follows §8.
 **Goal (user, 2026-11-04):** every player who appears in the gold-challenge
 draft pool should have value and a plausible post-signing role — today only
 the first few 70–80 OVR players ever get picked, while unknown low-OVR,
@@ -92,10 +92,39 @@ measurement — prices do not move on vibes.
 - **Browser QA (Mac):** one budget draft end-to-end — spend phase shows
   role lines, filler pack shows 5 distinct roles, roster keeps role labels.
 
-## 7. Open questions for the user
+## 7. Open questions for the user — RESOLVED (user 2026-11-09)
 
-1. **Presentation-only v1, or reprice now?** Recommended: (a)–(d) first,
-   reprice only if measurement still shows the 74–79 band unpicked.
-2. **Does the role-diverse filler deal also apply to custom duel mode?**
-   It shares `drawZeroCostPack` — recommended yes (same code path, same
-   benefit), but it changes duel filler dealing too.
+1. **Q1 — Presentation-only v1, or reprice now?** Both: implement (a)–(d)
+   now, prices UNCHANGED for v1; a small pricing/budget experiment is
+   pre-approved if measurement shows the 1-coin tier still unpicked.
+   Do not globally change the economy without comparing outcomes.
+2. **Q2 — Does the role-diverse filler deal also apply to custom duel
+   mode?** Yes, both modes — but Custom Duel gets a choice: Balanced
+   Roles (default, recommended) or Fully Random (original behavior).
+   Custom mode's value is freedom; the optimization must not force the
+   five-role pattern on it.
+
+## 8. User decisions (2026-11-09) — implementation basis
+
+- **Role value, not cheapness.** Low-OVR players must earn their pick by
+  complementing a star-heavy roster (corner spacer for a ball-dominant
+  star, energy rebounder, lockdown defender, backup playmaker, energy
+  guy), not by being cheap. Value comes from existing skills and game
+  mechanics — no new hidden bonuses.
+- **Card shows why to pick him.** Archetype + existing skills + one fit
+  line, all derived from the player's existing data (e.g. 76 OVR,
+  角色球员 · 3&D, 底角射手 / 外线防守, "适合搭配持球核心，提供外线空间
+  与防守轮换", ¤1). Role labels stay visible on the roster after drafting.
+- **Lightweight A/B/C comparison after implementation** (no big ADR, no
+  long large-scale sims — a few auto-picker strategies + real playtest):
+  A = existing prices + role tags; B = A + better role recommendations;
+  C = adjust low-OVR prices or budget structure. Compare pick rate by
+  tier, roster role coverage, win rate, gold remaining. If A/B clearly
+  improve selection, no economy change; if the 1-coin tier is still
+  unpicked, proceed with C (small, configurable, no further approval).
+- **Custom Duel toggle.** Balanced Roles (shooter / rebounder / defender /
+  playmaker / energy) is the recommended default; Fully Random preserves
+  the original random behavior. Player choice is kept.
+- **Proceed with implementation** and playable UI verification; focused
+  tests + short balance comparison; coordinate via the board; continue to
+  the next approved task when finished.

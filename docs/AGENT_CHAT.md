@@ -966,3 +966,55 @@ Default behavior: Keep building. Coordinate with other agents. Escalate only whe
 [2026-11-09] Luna：认领金币挑战选秀池设计（用户 2026-11-04 定的目标，排在低 OVR 角色技能 95f40f1 与防守呈现 fb7c6c9 之后、下一件未阻塞的设计）：只写一页设计稿 `docs/implementation/gold-challenge-pool-design.md`，批了再动手改代码。范围：预算轮抽（15 块、8 人）的选秀池——花钱阶段 `listPaidPeaks` 按价/OVR 排序、补员阶段 `drawZeroCostPack` 均匀随机，导致 74–79 OVR 的 1 块球员被 0 块免费球员支配、低 OVR 球员只作凑数。设计只覆盖选秀池呈现与发牌，不改 OVR/身价公式、不改抽卡隐藏权重、不碰 sim.js。B27 仍等 B23 落地；B50、Player Voice 图片附件、Account Level 曲线仍是 Code 的，不碰。
 
 [2026-11-09] Luna：金币挑战选秀池一页设计已上 main（8da1494，docs/implementation/gold-challenge-pool-design.md）：诊断已对代码核过——15 块预算轮抽里 74–79 OVR 的 1 块球员被免费 0 块球员支配、补员阶段均匀随机无角色信号、按价/OVR 排序让低球员永远输在仅有的两个维度；95f40f1 已给低 OVR 球员角色技能，但池子 UI 从不展示。推荐 v1 只做呈现、不改价：每张池卡显示角色技能一句话、补员包按角色家族（射手/篮板/防守/组织/活力）发 5 张不同角色、消费列表顺序不动、阵容页保留角色标签；先量后改（按 OVR 段统计选人率），74–79 段仍无人选才考虑改价。待用户定两件事：① v1 只做呈现还是现在就改价；② 角色多样补员是否同样用于自定义对战（同走 drawZeroCostPack）。批了再动手改代码。另：M3 闸门仍关着不进 M4；B27 仍等 B23 落地（Code 的）；B50、Player Voice 图片附件、Account Level 曲线仍是 Code 的，不碰。
+
+[2026-11-09] Luna：金挑战选秀池两个问题用户已批：Q1 先做角色展示（价格 v1 不变），同时允许小范围价格实验——实施后跑轻量 A/B/C 对照（A 现价+角色标签 / B +更好角色推荐 / C 调低 OVR 价格或预算结构），比各档被选率、阵容角色覆盖、胜率、金币剩余；A/B 明显改善就不动经济，1 金币档仍没人选再上 C（小幅、可配置、不再审批）；Q2 两模式都用角色填充包，自定义对决加开关：均衡角色（默认推荐）/ 完全随机（保留原行为）。Luna 开始实施（claim）：按 8da1494 §8 实施，不动 sim.js、不动价格公式；实施中请勿动 customPool / draft 选秀池相关文件。
+
+[2026-11-09] 用户给 Coding Agent 的金挑战选秀池批准原文：
+
+Courtside Legends — Role-Based Draft Pool Approval
+
+Both questions are resolved.
+
+Q1 — Role Visibility and Pricing
+
+Implement role-based player cards and role-aware free filler packs immediately.
+
+Keep existing prices unchanged for the initial playable version.
+
+However, do not treat UI visibility alone as proof that the 74–79 OVR tier is balanced.
+
+After implementation, run a lightweight comparison of player selection behavior with and without role recommendations.
+
+If the 1-coin tier remains unattractive, proceed with a small, configurable pricing or budget experiment without another approval round.
+
+Do not globally change the economy without comparing outcomes.
+
+Q2 — Custom Duel
+
+Apply role-aware filler packs to Gold Challenge and Custom Duel.
+
+For Custom Duel, provide two options:
+
+* Balanced Roles: shooter, rebounder, defender, playmaker, energy.
+* Fully Random: preserve the original random behavior.
+
+Use Balanced Roles as the recommended default, but preserve player choice.
+
+Player Experience
+
+* Display meaningful player archetypes and existing skills on draft cards.
+* Explain why a lower-OVR player may complement a star-heavy lineup.
+* Keep role labels visible after drafting.
+* Reuse existing player attributes and skill mechanics.
+* Avoid arbitrary hidden stat bonuses.
+* Preserve existing player prices in the first implementation.
+
+Development
+
+Proceed with implementation and playable UI verification.
+
+Use focused tests and a short balance comparison.
+
+Coordinate with other agents through the existing ownership board.
+
+Continue to the next approved task when finished rather than waiting for unnecessary milestone approval.
