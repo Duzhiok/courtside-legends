@@ -1079,3 +1079,164 @@ Coordination
 [2026-11-09] Luna：6d019e4 My Team progression review — PASS，可验收。金币按战绩推导 + 逐季账本只付差额（seasonRewards.js:51-71），刷新/重进/重结算不重复发；赛季报告、目标、My World 荣誉/历史均读真实数据；再来一季开新赛季、旧记录保留；赛季 XP 已接通（200/150/500，seasonId key 去重，304f5a6 既有接线，settleMyTeamResult 单次结算）；奖励与历史按账号存，旁观账号不受影响。相关测试 165/165 通过。QA 104/104 与脚本结构一致（52 检查/视口 × 2，含 5 标签循环与 resume 分支），本机无法复跑（Mac Chromium 路径），浏览器 QA 仍需 Mac 跑。两个低优先级问题给 Code：① awardMyTeamSeasonXp 在 owner 缺失时 fallback 到 activeAccount，金币侧是严格 owner-only，建议统一（app.js:11211）；② 单场 +40 XP 无 key，靠 game.played 兜底，崩溃窗口可重复发（304f5a6 遗留）。另：82 场赛季与非夺冠结局只有单元测试、无浏览器端到端；球队本身无成长（卡是冻结克隆），这是 P1 闭环缺的一环，需 opt-in 写回设计。
 
 [2026-11-09] Luna：金挑战选秀池"为什么推荐"已上 main（83f4faa）：推荐卡旁的理由现在说清原因——阵容已有最多的家族（≥2 名才提）+ 缺的家族（这张卡补的那个排第一，最多两个）+ 这张卡的 OVR，例如"已有 2 名射手，缺防守、篮板——76 OVR 能补上"；空阵容时说先拿哪个家族打底。中英双语，只用已有覆盖数据，不改价、不碰 sim.js、不加新数据。渲染沿用原 推荐 chip 旁的位置，预算模式两阶段共用。新测试 1 个，goldPoolRoles 13/13；全套 1948：1939 过，9 失败均为 online* 缺 ws 环境问题。浏览器冒烟 QA 需 Mac 跑。
+
+[2026-11-09] Luna：用户定 Legends Gallery 改版：球星照片墙从公共布局移走，只在 My World 展示动态传奇长廊（My Players / Career GM / Custom 不重复）；9 位固定球星扩到约 40 位跨时代传奇（按年代分布，不只挑高 OVR）；缓慢无缝滚动（20–30px/s）、悬停暂停、可拖动、支持 reduced-motion、不可见时暂停；点击开球员档案 + 传奇挑战入口；同时清理公共页脚——"设计要点 · 玩法说明"大折叠移出共享布局，玩法说明进上下文帮助 / How to Play，图片署名与缓存工具进设置 / About（署名不删）。实施 = Luna（已派工）。
+
+[2026-11-09] 用户给 Coding Agents 的 Legends Gallery 改版任务原文：
+
+Courtside Legends — Legends Gallery Redesign
+
+Redesign the existing static basketball legends photo wall into a dynamic, interactive Legends Gallery.
+
+We are in a zero-user, feature-first development stage. Implement the playable UI directly.
+
+1. Placement
+
+Remove the legends photo wall from the shared footer/layout.
+
+If there is no dedicated Landing Page, display the gallery only in My World.
+
+Do not repeat the same gallery under My Players, Career GM, or Custom.
+
+Preserve the existing main navigation and Quick Play entry.
+
+2. Dynamic Legends Gallery
+
+* Expand the featured player pool to approximately 30–50 real basketball legends.
+* Reuse existing player IDs, roster data, and locally available licensed images.
+* Represent different basketball eras rather than selecting only the highest-OVR players.
+* Implement a smooth, seamless horizontal auto-scrolling marquee.
+* Target a slow movement speed around 20–30px per second.
+* Pause on hover, focus, and user interaction.
+* Support touch swiping and manual navigation.
+* Respect reduced-motion preferences.
+* Avoid unnecessary animation when the gallery is not visible.
+
+3. Visual Design
+
+Use the existing deep-green and gold Courtside Legends visual identity.
+
+Keep cards visually consistent:
+
+* Portrait image.
+* Player name.
+* Era label.
+* Subtle gradient for text readability.
+* Rounded corners.
+* Responsive sizing.
+
+Avoid excessive shadows, flashing effects, or distracting animations.
+
+4. Player Interaction
+
+Clicking a legend should open an existing player profile or relevant supported game entry.
+
+Do not create fake or nonfunctional buttons.
+
+Where practical, prioritize legends relevant to the player’s hometown, owned cards, or selected historical era.
+
+Keep personalization optional and reuse existing data.
+
+5. Shared Footer Cleanup
+
+Remove the large “设计要点 · 玩法说明” accordion from the shared mode layout.
+
+Move gameplay instructions into contextual help or a dedicated How to Play section.
+
+Move image credits, cache maintenance, and technical utilities into Settings / About.
+
+Do not remove required attribution information.
+
+6. Validation
+
+Check:
+
+* My World gallery visibility.
+* No repeated gallery in other sections.
+* Smooth scrolling without visible jumps.
+* Desktop and mobile interaction.
+* Reduced-motion support.
+* Player-card navigation.
+* No horizontal page overflow.
+* Chinese and English names.
+* Existing mode navigation remains intact.
+
+Use focused tests and desktop/mobile browser smoke QA.
+
+Coordinate with other agents through the existing board.
+
+Deliver the working redesign, screenshots, test results, and commit SHA.
+
+[2026-11-09] Luna：用户定新模式 Legend Duel（1v1 传奇单挑）：半场 11 分、赢 2 分，内线 1 分、外线 2 分；4 个进攻选择 + 3 个防守选择；难度 Rookie / Pro / Legend；体力影响表现；三种挑战者——My Team 球员卡、My Avatar（独立 Duel Profile，能力与外观分开）、Legend vs Legend；独立 DuelSim，不改 5v5 GameSim，复用球员属性 / 技能 / 随机数；胜了不送传奇卡（不绕开抽卡）；奖励走 Account XP + Duel XP，胜负与击败传奇记进 My World。分三阶段连续开发：D1 My Team vs 传奇优先，D2 Avatar，D3 2D 表现 + 手动接管。实施 = Luna（D1 已派工）。与 Gallery 的接口：Gallery 的"挑战"按钮调 window.CourtsideDuel?.challenge(legendId)，未就绪时退回球员档案；Duel 另在 Custom / Playground 设入口。B50 验证进行中（2efe41f，My World > My Games 只读存档），核完再报。
+
+[2026-11-09] 用户给 Coding Agents 的 Legend Duel 开发任务原文：
+
+Courtside Legends — Legend Duel 1v1 Mode
+
+Build an end-to-end playable Legend Duel mode connected to the existing Legends Gallery.
+
+We are in a pre-launch, zero-user, feature-first development stage. Prioritize a fun playable vertical slice.
+
+Product Goal
+
+Allow players to challenge historical basketball legends in 1v1 games using:
+
+1. Their owned My Team player cards.
+2. Their custom My World Avatar with a separate Duel Profile.
+3. Any historical player in Legend vs Legend mode.
+
+Core Gameplay
+
+* Half-court 1v1.
+* First to 11, win by 2.
+* Inside arc = 1 point, outside arc = 2 points.
+* Four offensive choices: Drive, Midrange, Outside Shot, Post.
+* Three defensive choices: Balanced, Perimeter, Paint.
+* Player attributes and skills affect outcomes.
+* Stamina affects performance.
+* No guaranteed shots or artificial accuracy bonuses.
+* Rookie / Pro / Legend difficulties.
+* Clear score, possession, and outcome feedback.
+
+Architecture
+
+* Implement a small standalone DuelSim.
+* Reuse existing player cards, attributes, skills, and deterministic RNG infrastructure.
+* Do not duplicate the full 5v5 GameSim.
+* Keep account appearance separate from Duel Profile attributes.
+* Reuse existing account XP and achievement systems where available.
+* Store Duel progression independently from Career and My Team Season.
+
+Integration
+
+* Add “Challenge This Legend” to Legends Gallery player cards.
+* Add Legend Duel to the appropriate Custom / Playground section.
+* Support owned-card selection.
+* Support custom Avatar as a challenger.
+* Support Legend vs Legend.
+* Record wins, losses, and defeated legends in My World.
+* Award Account XP and Duel XP through existing progression APIs where possible.
+
+UX
+
+Create a polished, mobile-friendly 1v1 screen.
+
+Use existing player portraits and 3D Avatar previews.
+
+Show offense and defense choices clearly.
+
+Provide an engaging result screen with Retry, Next Legend, and Return.
+
+Development
+
+Build the playable My Team vs Legend path first.
+
+Then add Avatar Duel and Legend vs Legend.
+
+Coordinate shared-file ownership with other Coding Agents.
+
+Use focused tests and browser smoke QA.
+
+Continue implementation autonomously through the approved features.
+
+Report playable flows, changed files, tests, screenshots, and commit SHAs.
