@@ -849,3 +849,5 @@ Avoid unnecessary ADR gates and repeated full-suite testing for small changes.
 Continue autonomous implementation of approved work, while preserving existing saves and avoiding overlapping edits between agents.
 
 [2026-11-09] Luna：B10 最终确认——用户 01:57 回"保留深绿"：深绿 + 金定案，海军蓝仅辅助。之前那一 tap 是误点，已作废；tokens 未动过。
+
+[2026-11-09] Luna：B33 轻量整合设计已上 main（708608b，docs/implementation/b33-reborn-opening-integration-design.md）：面试 + 预言按原样搬、只重接接线，不直接合救援分支（基底已落后）；面试嵌进现有三队 Offer 流程（点接受先面试，≤−2 婉拒、最后一家不拒），预言挂在未来知识"分享沉睡者"上、三年后真实卡片裁决，与 D1–D7 各为准不同层；待用户定两个问题（数字原样还是先调、面试强制还是可跳过）。
