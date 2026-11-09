@@ -1,6 +1,8 @@
 // Legend Duel D1 end to end in a real browser: Custom hub entry + Gallery
 // challenge() entry, challenger/legend/difficulty select, play a full 1v1 to
 // the result screen, Retry, and the record in My World. Desktop + mobile.
+// D2 adds the My Avatar challenger: same select, same result screen, same
+// record — the avatar's Duel Profile is derived from its body preset.
 // Usage: node scripts/qa/duel.mjs /tmp/cls-qa/duel [http://127.0.0.1:5188/]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -24,6 +26,8 @@ const seedAccount = (page) => page.evaluate(async () => {
   a.playerIds = cards.map((p) => p.id);
   a.onboardingDone = true;
   a.welcomeGranted = true;
+  // D2: the QA account has an avatar (slim build), so the Avatar tab is live.
+  a.avatar = { skin: "warm", hair: "black", outfit: "forest", style: "short", body: "slim" };
   acc.saveAccount(a);
   acc.setActiveAccountId(a.id);
   return cards.length;
@@ -119,6 +123,38 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   check(`[${tag}] My World shows the duel record`, worldText.includes("传奇单挑") && /\d+ 胜/.test(worldText), worldText.slice(0, 80));
   await shoot(page, `${OUT}/${tag}-myworld.png`);
   check(`[${tag}] no horizontal overflow in My World`, await noOverflow(page));
+
+  // D2: My Avatar challenger — same select, same result screen, same record.
+  await page.click("#btn-duel-from-world");
+  await page.waitForSelector("#screen-duel.active", { timeout: 8000 });
+  await page.click('#duel-body [data-challenger-kind="avatar"]');
+  const avatarCard = await page.$('#duel-body [data-challenger^="avatar:"]');
+  check(`[${tag}] Avatar tab shows the avatar challenger`, !!avatarCard);
+  const avatarStage = await page.$("#duel-avatar-stage");
+  check(`[${tag}] Avatar tab shows the avatar preview stage`, !!avatarStage);
+  await page.click('#duel-body [data-challenger^="avatar:"]');
+  await page.click("#btn-duel-start");
+  await page.waitForFunction(() => document.querySelector("#duel-body [data-duel-choice]"), null, { timeout: 8000 });
+  check(`[${tag}] Avatar duel starts`, true);
+  let avatarFinished = false;
+  for (let i = 0; i < 90; i++) {
+    if (await page.$("#btn-duel-retry")) { avatarFinished = true; break; }
+    const choice = await page.$("#duel-body [data-duel-choice]");
+    if (!choice) break;
+    await choice.click();
+    await page.waitForTimeout(60);
+  }
+  check(`[${tag}] Avatar duel finishes with a result screen`, avatarFinished);
+  await shoot(page, `${OUT}/${tag}-avatar-result.png`);
+  const recordAfterAvatar = await duelRecord(page);
+  check(`[${tag}] Avatar duel is recorded as an avatar challenge`, recordAfterAvatar && recordAfterAvatar.games.length === 2 && recordAfterAvatar.games[0].challengerKind === "avatar", `games=${recordAfterAvatar?.games.length}`);
+  const cardCountAfterAvatar = await page.evaluate(async () => {
+    const acc = await import("/js/data/account.js");
+    return acc.getAccount()?.playerIds?.length;
+  });
+  check(`[${tag}] Avatar duel did not gift the legend card`, cardCountAfterAvatar === 12, `playerIds=${cardCountAfterAvatar}`);
+  await page.click("#btn-duel-return");
+  await page.waitForSelector("#screen-home.active", { timeout: 8000 });
 
   // Custom hub entry opens the select too (custom tab -> budget-draft card -> hub).
   await page.click('.home-tab[data-category="custom"]');

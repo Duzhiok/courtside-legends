@@ -11,11 +11,22 @@
  * the static PHRASES table). Portraits reuse resolveCardPhoto(); a legend with
  * only a generated silhouette gets no photo (same rule as the home wall).
  */
-import { L, getLang } from "../i18n.js";
+import { L, getLang, skillNameL } from "../i18n.js";
+import { SKILL_PACKS } from "../data/skills.js";
 import { GALLERY_LEGENDS, eraLabel, legendName } from "./homeShowcase.js";
 import { resolveCardPhoto } from "../data/photo.js";
 import { getAccount } from "../data/account.js";
+import { readIdentity } from "../data/profile.js";
+import { BODY_PRESETS, readLook } from "../data/avatarLook.js";
+import { mountAvatar3d } from "./avatar3d.js";
+import { portraitFor } from "./portraitFor.js";
 import { createDuel, playPossession, OFFENSE_CHOICES, DEFENSE_CHOICES, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
+import {
+  avatarChallengerKey,
+  avatarToDuelist,
+  getOrCreateAvatarDuelist,
+  hasAvatar,
+} from "../duel/duelAvatar.js";
 import {
   legendById,
   legendCard,
@@ -49,6 +60,8 @@ let showFn = null;
 let goBackFn = null;
 let current = null; // { state, challenger, legend, difficulty }
 let selection = { challengerKind: "owned", challengerId: null, legendId: null, difficulty: "pro" };
+let avatarViewer = null; // mountAvatar3d handle for the select screen's preview
+let avatarViewerToken = 0;
 
 export function initDuelView({ show, goBack }) {
   showFn = show;
@@ -80,6 +93,7 @@ function esc(text) {
 
 /** Real art for a duelist, or null when only a generated silhouette exists. */
 function duelistPhoto(duelist) {
+  if (duelist?.photo) return duelist.photo; // D2 avatar: its My World portrait
   if (!duelist?.bref) return null;
   const { photo, photoSource } = resolveCardPhoto({ bref: duelist.bref, season: duelist.season });
   return photoSource === "generated" ? null : photo;
@@ -102,13 +116,32 @@ function bodyEl() {
   return document.querySelector("#duel-body");
 }
 
+function disposeAvatarViewer() {
+  avatarViewerToken += 1;
+  if (avatarViewer) {
+    try {
+      avatarViewer.dispose();
+    } catch {
+      // Already gone; the static portrait stays.
+    }
+    avatarViewer = null;
+  }
+}
+
+/** The account's avatar as a duelist (D2), or null when no avatar exists yet. */
+function avatarDuelist(account) {
+  if (!account && !hasAvatar(null)) return null;
+  const name = readIdentity(account).name || L("我的头像", "My Avatar");
+  return getOrCreateAvatarDuelist(account, { name });
+}
+
 /** Open the select screen. `legendId` preselects a legend (Gallery challenge). */
-export function openDuelSelect({ legendId = null, challengerId = null } = {}) {
+export function openDuelSelect({ legendId = null, challengerId = null, challengerKind = null } = {}) {
   ensureDuelScreen();
   if (!duelReady()) return false;
   const legend = legendId ? legendById(legendId) : null;
   selection = {
-    challengerKind: selection.challengerKind || "owned",
+    challengerKind: challengerKind || selection.challengerKind || "owned",
     challengerId: challengerId || selection.challengerId || null,
     legendId: legend ? legend.bref : selection.legendId || null,
     difficulty: selection.difficulty || "pro",
@@ -119,40 +152,72 @@ export function openDuelSelect({ legendId = null, challengerId = null } = {}) {
 }
 
 /** Gallery entry: challenge one legend. False when not ready / unknown legend. */
-export function openDuelChallenge(legendId) {
+export function openDuelChallenge(legendId, { challengerKind = null } = {}) {
   if (!duelReady()) return false;
   const legend = legendById(legendId);
   if (!legend) return false;
   selection.legendId = legend.bref;
-  return openDuelSelect({ legendId: legend.bref });
+  return openDuelSelect({ legendId: legend.bref, challengerKind });
+}
+
+/** Gallery entry: challenge one legend with My Avatar (D2). */
+export function openDuelAvatarChallenge(legendId) {
+  return openDuelChallenge(legendId, { challengerKind: "avatar" });
 }
 
 function renderSelect() {
   const body = bodyEl();
   if (!body) return;
+  disposeAvatarViewer();
   const account = getAccount();
   const owned = ownedDuelists(account);
   const legends = legendDuelists();
   const record = readDuelRecord(account);
   const defeated = new Set(record.defeated || []);
 
+  // D2: the avatar tab shows the player's own Duel Profile (derived from the
+  // avatar look, never from a card). Display only derives it — the profile is
+  // created + stored when the challenge actually starts (resolveSelection).
+  const avatarName = readIdentity(account).name || L("我的头像", "My Avatar");
+  const avatar = selection.challengerKind === "avatar" && hasAvatar(account)
+    ? avatarToDuelist(readLook(account), { ownerId: account?.id || "guest", name: avatarName })
+    : null;
+  if (selection.challengerKind === "avatar" && avatar && !selection.challengerId?.startsWith("avatar:")) {
+    selection.challengerId = avatarChallengerKey(account);
+  }
+
   const challengerList = selection.challengerKind === "legend"
     ? legends.map((d) => ({ duelist: d, key: `legend:${d.bref}` }))
-    : owned.map((d) => ({ duelist: d, key: `owned:${d.id}` }));
+    : selection.challengerKind === "avatar"
+      ? (avatar ? [{ duelist: avatar, key: avatarChallengerKey(account) }] : [])
+      : owned.map((d) => ({ duelist: d, key: `owned:${d.id}` }));
+  const avatarBody = avatar ? BODY_PRESETS.find((b) => b.id === avatar.body) : null;
+  const avatarSkills = avatar ? avatar.skills.map((id) => (SKILL_PACKS[id]?.name ? skillNameL(SKILL_PACKS[id].name, getLang()) : id)).join(getLang() === "zh" ? "、" : ", ") : "";
 
   body.innerHTML = `
     <p class="tiny">${esc(L("半场 1v1，先到 11 分且领先 2 分获胜；内线 1 分，外线 2 分。胜了不送传奇卡——传奇还得靠抽卡。", "Half-court 1v1, first to 11 and win by 2; 1 point inside, 2 outside. Winning does not gift the legend card — legends still come from pulls."))}</p>
     <h3>${esc(L("你的挑战者", "Your challenger"))}</h3>
-    <div style="display:flex;gap:8px;margin-bottom:8px;">
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
       <button type="button" class="btn small${selection.challengerKind === "owned" ? " active" : ""}" data-challenger-kind="owned">${esc(L("我的球员", "My Team card"))}</button>
+      <button type="button" class="btn small${selection.challengerKind === "avatar" ? " active" : ""}" data-challenger-kind="avatar">${esc(L("我的头像", "My Avatar"))}</button>
       <button type="button" class="btn small${selection.challengerKind === "legend" ? " active" : ""}" data-challenger-kind="legend">${esc(L("传奇对传奇", "Legend vs Legend"))}</button>
     </div>
+    ${selection.challengerKind === "avatar" && !avatar ? `
+      <p class="tiny">${esc(L("还没有创建头像——先去我的世界捏一个头像，再回来挑战传奇。", "No avatar yet — create one in My World first, then come back to challenge a legend."))}</p>
+      <p><button type="button" class="btn small" id="btn-duel-goto-avatar">${esc(L("去我的世界创建头像", "Create my avatar in My World"))}</button></p>
+    ` : ""}
+    ${selection.challengerKind === "avatar" && avatar ? `
+      <div id="duel-avatar-stage" style="height:200px;max-width:220px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;">
+        <img class="duel-avatar-static" src="${esc(portraitFor(account)?.src || "")}" alt="" width="120" height="120" style="border-radius:50%;object-fit:cover;" />
+      </div>
+      <p class="tiny" style="text-align:center;">${esc(L(`体型：${avatarBody ? L(avatarBody.zh, avatarBody.en) : ""} · 位置 ${avatar.pos} · 投篮 ${avatar.shooting} 终结 ${avatar.finishing} 控球 ${avatar.handles} 防守 ${avatar.defense} 力量 ${avatar.strength} 速度 ${avatar.speed} 体力 ${avatar.stamina}${avatarSkills ? ` · 技能：${avatarSkills}` : ""}`, `Build: ${avatarBody ? L(avatarBody.zh, avatarBody.en) : ""} · ${avatar.pos} · Shooting ${avatar.shooting} Finishing ${avatar.finishing} Handles ${avatar.handles} Defense ${avatar.defense} Strength ${avatar.strength} Speed ${avatar.speed} Stamina ${avatar.stamina}${avatarSkills ? ` · Skill: ${avatarSkills}` : ""}`))}</p>
+    ` : ""}
     <div class="mode-grid" style="margin-bottom:12px;">
       ${challengerList.length ? challengerList.map(({ duelist, key }) => `
         <button type="button" class="mode-card" data-challenger="${esc(key)}" style="${selection.challengerId === key ? "outline:2px solid #e8c15a;" : ""}">
           <strong>${esc(duelist.displayName || duelist.name)}</strong>
           <span>${esc(duelist.pos || "")} · OVR ${esc(duelist.ovr)}${duelist.era ? ` · ${esc(duelist.era)}` : ""}</span>
-        </button>`).join("") : `<p class="tiny">${esc(selection.challengerKind === "owned" ? L("还没有自己的球员卡——先去抽卡，或者选“传奇对传奇”。", "No owned cards yet — go pull some cards, or pick Legend vs Legend.") : L("名册加载中，稍后再试。", "Roster still loading, try again in a moment."))}</p>`}
+        </button>`).join("") : (selection.challengerKind === "avatar" ? "" : `<p class="tiny">${esc(selection.challengerKind === "owned" ? L("还没有自己的球员卡——先去抽卡，或者选“传奇对传奇”。", "No owned cards yet — go pull some cards, or pick Legend vs Legend.") : L("名册加载中，稍后再试。", "Roster still loading, try again in a moment."))}</p>`)}
     </div>
     ${selection.challengerKind === "owned" && !owned.length ? `<p><button type="button" class="btn small" id="btn-duel-goto-draw">${esc(L("去抽卡", "Go pull cards"))}</button></p>` : ""}
     <h3>${esc(L("传奇守关者", "Legend defender"))}</h3>
@@ -199,7 +264,21 @@ function renderSelect() {
     });
   });
   body.querySelector("#btn-duel-goto-draw")?.addEventListener("click", () => showFn("draw"));
+  body.querySelector("#btn-duel-goto-avatar")?.addEventListener("click", () => showFn("home"));
   body.querySelector("#btn-duel-start")?.addEventListener("click", () => startDuel());
+  // D2: 3D preview of the avatar on its own tab. WebGL/model failure is not
+  // fatal — the static portrait rendered inside the stage stays visible.
+  const stage = body.querySelector("#duel-avatar-stage");
+  if (stage) {
+    const token = ++avatarViewerToken;
+    mountAvatar3d(stage, { look: readLook(getAccount()) }).then((handle) => {
+      if (token !== avatarViewerToken || !stage.isConnected) return handle.dispose();
+      avatarViewer = handle;
+      stage.querySelector(".duel-avatar-static")?.setAttribute("hidden", "");
+    }).catch(() => {
+      // No WebGL / model failed to load: keep the static portrait.
+    });
+  }
 }
 
 function resolveSelection() {
@@ -210,10 +289,18 @@ function resolveSelection() {
     const bref = selection.challengerId.slice("legend:".length);
     challenger = legendDuelists().find((d) => d.bref === bref) || null;
     challengerKind = "legend";
+  } else if (selection.challengerId?.startsWith("avatar:")) {
+    // D2: creates + stores the Duel Profile on the first Avatar challenge.
+    challenger = avatarDuelist(account);
+    challengerKind = "avatar";
   } else if (selection.challengerId?.startsWith("owned:")) {
     const id = selection.challengerId.slice("owned:".length);
     challenger = ownedDuelists(account).find((d) => d.id === id) || null;
     challengerKind = "owned";
+  }
+  if (challenger && challengerKind === "avatar") {
+    // The avatar has no card photo: show its My World portrait instead.
+    challenger = { ...challenger, photo: portraitFor(account)?.src || null };
   }
   const legendEntry = legendById(selection.legendId);
   const legendCardObj = legendEntry ? legendCard(legendEntry) : null;

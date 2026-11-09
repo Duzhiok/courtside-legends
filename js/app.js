@@ -33,7 +33,7 @@ import { searchPeople } from "./data/cardSearch.js";
 import { playerLegacyBadge } from "./data/playerLegacy.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
-import { ensureDuelScreen, initDuelView, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
+import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -495,7 +495,10 @@ const screens = {
  * the duel screen isn't ready yet or the legend is unknown — the Gallery then
  * falls back to the player profile. The screen itself is created in boot().
  */
-window.CourtsideDuel = { challenge: (legendId) => openDuelChallenge(legendId) };
+window.CourtsideDuel = {
+  challenge: (legendId) => openDuelChallenge(legendId),
+  challengeAvatar: (legendId) => openDuelAvatarChallenge(legendId),
+};
 
 let state = {
   mode: null,
