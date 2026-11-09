@@ -87,7 +87,7 @@ export const PHRASES = [
   ["本场目标", "Goals for this game"],
   ["系统自动组两队，先进赛前设置再开打", "The system builds both teams — you get the setup screen before tip-off"],
   ["设计要点 · 玩法说明", "Design Notes · How It Plays"],
-  ["球员带赛季年份：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。头像是带署名的照片；没有照片的球员显示按队色生成的剪影（见页尾「图片来源与署名」）。", "Players carry their season year: Celtics-era Shaq still has the bulk, not the wheels. Avatars are credited photos; players without one get a silhouette in team colours (see Photo Credits at the bottom)."],
+  ["球员带赛季年份：凯尔特人时期的奥尼尔吨位还在，但移动速度已非巅峰。头像是带署名的照片；没有照片的球员显示按队色生成的剪影（见「关于」里的「图片来源与署名」）。", "Players carry their season year: Celtics-era Shaq still has the bulk, not the wheels. Avatars are credited photos; players without one get a silhouette in team colours (see Photo Credits under About)."],
   ["命中率贴近真实：空位也会打铁；完整统计含盖帽、抢断、失误、罚球、前后场篮板、+/- 等。", "Realistic shooting: open looks still miss. Full box score: blocks, steals, turnovers, free throws, offensive/defensive boards, +/-, and more."],
   ["隐藏抽卡等级不会显示；巨星抱团不一定赢，化学反应与战术适配更重要。", "Hidden draw tiers are never shown; superteams can lose — chemistry and tactical fit matter more."],
   ["晋级/淘汰赛有伤病风险暗属性（如波尔津吉斯类「玻璃人」），连续作战可能伤停缺阵。", "Knockout runs carry hidden injury risk (glass cannons like Porziņģis); back-to-backs can sideline players."],
@@ -493,4 +493,6 @@ export const PHRASES = [
   ["玩法说明", "How to Play"],
   ["关于", "About"],
   ["关闭", "Close"],
+  ["篮球传奇长廊", "Legends gallery"],
+  ["场边传奇 · Courtside Legends —— 按赛季抽卡组队，临场指挥，改写篮球历史。", "Courtside Legends — draft season cards, coach live, rewrite basketball history."],
 ];
