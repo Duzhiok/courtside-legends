@@ -910,3 +910,53 @@ Run focused tests and one browser smoke test covering interview, rejection, skip
 Report the playable flow, changed files, tests, and commit SHA.
 
 Do not begin unrelated milestones.
+
+[2026-11-09] Luna：用户定新开发原则——Autonomous Development with Coordinated Ownership（自主开发 + 协调所有权），取代"只做这一项，其他不许碰"的机械限制：做完一项自主领下一个已批准任务，相关 Bug 和顺手 UX 直接修并报告，多 Agent 并行鼓励、协调文件所有权，共享引擎可改、验主要回归即可，创意可做原型，重大方向再讨论；只在真正的产品冲突、含糊的重大决策、不可逆数据丢失、密钥泄露时升级。称呼改用 Coding Agent / Assigned Agent / Review Agent，名字只在明确涉及某个 Agent 的具体工作时用。M3 门本身不变（进 M4 仍需用户试玩反馈）。详见 docs/DEVELOPMENT_PHILOSOPHY.md 新增章节。另：B33 批准里的"Do not begin unrelated milestones"是旧措辞，已被新原则取代。
+
+[2026-11-09] 用户给 Coding Agent 的默认规则原文：
+
+Courtside Legends — Autonomous Multi-Agent Development Policy
+
+We are in a zero-user, pre-launch, feature-first development stage.
+
+Prioritize playable features, creativity, rapid iteration, and visible product progress.
+
+Autonomy
+
+* Complete assigned features end-to-end.
+* Fix related bugs and improve UX without requesting additional approval.
+* After completing a task, autonomously continue with the next approved backlog item.
+* Multiple agents may work on different features concurrently.
+* Prototype promising ideas without unnecessary ADR gates.
+* Avoid excessive planning and repeated approval requests.
+
+Coordination
+
+* Claim task ownership through the existing agent coordination board.
+* Avoid concurrent edits to the same files when practical.
+* Use separate worktrees for overlapping development.
+* Integrate and review changes without overwriting another agent’s work.
+* Keep existing roadmap and backlog as the shared source of truth.
+
+Testing
+
+* Prioritize functional smoke tests and meaningful regression coverage.
+* Run broader tests when changes affect shared systems.
+* Do not repeatedly run expensive tests without a reason.
+
+Escalation
+
+Only request product-owner input when:
+
+* A major product decision is genuinely ambiguous.
+* Two approved designs fundamentally conflict.
+* An action risks irreversible data loss.
+* Credentials or sensitive data may be exposed.
+
+Delivery
+
+Continue making progress instead of stopping after every commit.
+
+Report completed features, playable results, relevant tests, commits, and remaining decisions.
+
+Default behavior: Keep building. Coordinate with other agents. Escalate only when necessary.
