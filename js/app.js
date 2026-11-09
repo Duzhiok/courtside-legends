@@ -33,6 +33,7 @@ import { searchPeople } from "./data/cardSearch.js";
 import { playerLegacyBadge } from "./data/playerLegacy.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
+import { ensureDuelScreen, initDuelView, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -488,6 +489,14 @@ const screens = {
   clutch3d: $("#screen-clutch-3d"),
 };
 
+/**
+ * Legend Duel entry for the Gallery (owned by the Gallery agent in parallel):
+ * its "挑战" button calls window.CourtsideDuel?.challenge(legendId). False when
+ * the duel screen isn't ready yet or the legend is unknown — the Gallery then
+ * falls back to the player profile. The screen itself is created in boot().
+ */
+window.CourtsideDuel = { challenge: (legendId) => openDuelChallenge(legendId) };
+
 let state = {
   mode: null,
   draft: null,
@@ -508,6 +517,7 @@ let state = {
   lastMode: null,
   clutch: null,
   clutch3d: null,
+  duel: null,
   lineupSig: "",
   court: null,
   subOutId: null,
@@ -2070,6 +2080,16 @@ $("#btn-custom-duel")?.addEventListener("click", () => {
   show("draft");
 });
 
+// Legend Duel entry (D1): the Custom hub grid is static HTML, so the entry is
+// injected here instead of editing index.html. 1v1 vs a legend, first to 11.
+const legendDuelEntry = document.createElement("button");
+legendDuelEntry.className = "mode-card";
+legendDuelEntry.id = "btn-custom-legend-duel";
+legendDuelEntry.type = "button";
+legendDuelEntry.innerHTML = `<strong>${L("传奇单挑 · Legend Duel", "Legend Duel")}</strong><span>${L("1v1 挑战历史传奇，11 分制", "1v1 vs a legend, first to 11")}</span>`;
+legendDuelEntry.addEventListener("click", () => openDuelSelect({}));
+document.querySelector(".custom-hub-grid")?.appendChild(legendDuelEntry);
+
 // Custom Duel filler dealing (hub setup): Balanced Roles (default) vs Fully Random. Persisted.
 function syncDuelFillerButtons() {
   const mode = readDuelFillerMode(typeof localStorage !== "undefined" ? localStorage : undefined);
@@ -2336,11 +2356,17 @@ function celebrateAccountLevelUp(before, after) {
   );
 }
 
+/** My World refresh + the Legend Duel record block (duelView owns the block). */
+function refreshMyWorld() {
+  myWorld?.refresh();
+  paintDuelRecordsIntoMyWorld();
+}
+
 function refreshAccountHomeBar() {
   // Daily first login (+10, once per account per day; guests level up locally too).
   recordDailyLogin(activeAccount());
   refreshRankedCardLock();
-  myWorld?.refresh();
+  refreshMyWorld();
   refreshAccountAvatar(); // name/cards may have changed (switch account, onboarding, profile edit)
   refreshLongCareerHomeBar(); // a switch of account changes which saves may be offered
   refreshSaveHomeBar();
@@ -12175,7 +12201,7 @@ async function boot() {
       screens.sandbox?.__sandboxSetLang?.(nextLang);
       applyStaticLang();
       timeTravelScreen.repaint();
-      myWorld?.refresh();
+      refreshMyWorld();
       myTeamLineup?.refresh();
       refreshRankedCardLock();
       // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
@@ -12184,7 +12210,7 @@ async function boot() {
     });
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();
-    const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") myWorld?.refresh(); } });
+    const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); } });
     myWorld = createMyWorld({
       el: $("#my-world-root"),
       getLang,
@@ -12216,6 +12242,9 @@ async function boot() {
       onStartCareer: () => activateHomeTab?.("career"),
       onIdentitySaved: () => refreshAccountHomeBar(),
     });
+    // Legend Duel screen (created dynamically by duelView) + view wiring.
+    screens.duel = ensureDuelScreen();
+    initDuelView({ show, goBack });
     myTeamLineup = createMyTeamLineup({
       el: $("#my-team-lineup-root"),
       getLang,
