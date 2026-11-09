@@ -284,8 +284,11 @@ export function dealRoleDiverse(cards, count, { weightFn = null, keyOf = (c) => 
 }
 
 /**
- * 推荐标记：从当前这包卡里挑一张最能补阵容缺的角色。只看已有数据：缺的
+ * 推荐标记：从当前这包卡里挑一张最能补当前阵容缺的角色。只看已有数据：缺的
  * 角色家族 + 有没有真实角色技能。没有缺的家族可补时返回 null。
+ * reason 是"为什么推荐"一句话：阵容已有最多的家族（≥2 名才提）+ 缺的家族
+ * （这张卡补的那个排第一，最多说两个）+ 这张卡的 OVR。渲染在 app.js 池卡
+ * 推荐 chip 旁，预算模式两阶段共用同一处。
  */
 export function recommendRolePick(packCards, rosterPlayers, lang = "zh") {
   const en = lang === "en";
@@ -300,12 +303,54 @@ export function recommendRolePick(packCards, rosterPlayers, lang = "zh") {
   if (!pool.length) return null;
   const pick = pool[0];
   const fam = roleFamilyOf(pick);
-  const famLabel = ROLE_FAMILY_LABELS[fam][en ? "en" : "zh"];
   return {
     playerId: pick.id,
     family: fam,
-    reason: en ? `Roster needs a ${famLabel} — ${pick.name} fills it` : `阵容缺${famLabel}，${pick.name}能补上`,
+    reason: whyRecommendedReason(rosterPlayers, missing, pick, fam, en),
   };
+}
+
+/**
+ * "为什么推荐"一句话，只用已有数据：阵容各家族人数、缺的家族、这张卡的
+ * 家族与 OVR。阵容为空时只说先拿哪个家族打底；阵容已有某家族 ≥2 名时点出
+ * "已有 X 名…"，否则只说缺什么；缺的家族最多说两个，这张卡补的那个排第一。
+ */
+function whyRecommendedReason(rosterPlayers, missing, pick, fam, en) {
+  const label = (f) => ROLE_FAMILY_LABELS[f][en ? "en" : "zh"];
+  const ovr = overall(pick);
+  const roster = rosterPlayers || [];
+  if (!roster.length) {
+    return en
+      ? `Start with a ${label(fam)} — ${pick.name} (${ovr} OVR)`
+      : `先拿${label(fam)}打底——${pick.name}（${ovr} OVR）`;
+  }
+  // Missing families, the one this card fills first, at most two named.
+  const ordered = [fam, ...missing.filter((f) => f !== fam)];
+  const shown = ordered.slice(0, 2).map(label);
+  const missingTxt = shown.join(en ? " and " : "、") + (ordered.length > 2 ? (en ? "…" : "等") : "");
+  // Surplus: the family the roster already has most of (only worth naming at 2+).
+  const counts = new Map();
+  for (const p of roster) {
+    const f = roleFamilyOf(p);
+    counts.set(f, (counts.get(f) || 0) + 1);
+  }
+  let top = null;
+  let topCount = 0;
+  for (const f of ROLE_FAMILIES) {
+    const n = counts.get(f) || 0;
+    if (n > topCount) {
+      top = f;
+      topCount = n;
+    }
+  }
+  if (top && topCount >= 2) {
+    return en
+      ? `Heavy on ${label(top)} (${topCount}), needs ${missingTxt} — ${pick.name} (${ovr} OVR) fills it`
+      : `已有 ${topCount} 名${label(top)}，缺${missingTxt}——${pick.name}（${ovr} OVR）能补上`;
+  }
+  return en
+    ? `Roster needs ${missingTxt} — ${pick.name} (${ovr} OVR) fills it`
+    : `阵容缺${missingTxt}——${pick.name}（${ovr} OVR）能补上`;
 }
 
 /** Custom Duel filler dealing: "balanced" (default, recommended) or "random" (original). Persisted. */

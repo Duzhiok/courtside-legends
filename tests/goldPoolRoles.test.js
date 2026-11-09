@@ -161,12 +161,36 @@ test("recommendRolePick: recommends the missing family, prefers a real role play
   assert.equal(rec.playerId, "sh", "prefers the card with a real role skill");
   assert.equal(rec.family, "shooter");
   assert.match(rec.reason, /射手/);
+  assert.match(rec.reason, /（\d+ OVR）/);
   const en = recommendRolePick([{ kind: "player", data: shooter }], roster, "en");
   assert.match(en.reason, /Shooter/);
+  assert.match(en.reason, /\(\d+ OVR\)/);
   // Full coverage: nothing to recommend.
   const full = [...roster, rolePlayer({ id: "r5", roleSkills: ["corner_camp"] })];
   assert.equal(recommendRolePick([{ kind: "player", data: shooter }], full, "zh"), null);
   assert.equal(recommendRolePick([], roster, "zh"), null);
+});
+
+test("recommendRolePick reason: names the surplus family, the missing families, and the pick's OVR (zh/en)", () => {
+  const defender = rolePlayer({ id: "df", name: "Defender Dan", roleSkills: ["sticky_wrap"] });
+  const shooter1 = rolePlayer({ id: "s1", roleSkills: ["corner_camp"] });
+  const shooter2 = rolePlayer({ id: "s2", roleSkills: ["corner_camp"] });
+  // Roster is heavy on shooters (2) and also lacks rebounder/defender/playmaker/energy.
+  const roster = [shooter1, shooter2];
+  const rec = recommendRolePick([{ kind: "player", data: defender }], roster, "zh");
+  assert.ok(rec, "expected a recommendation");
+  assert.equal(rec.family, "defender");
+  // The pick's family is named first among the missing ones, at most two named.
+  assert.match(rec.reason, /已有 2 名射手，缺防守、篮板等/);
+  assert.match(rec.reason, /Defender Dan（\d+ OVR）能补上/);
+  const en = recommendRolePick([{ kind: "player", data: defender }], roster, "en");
+  assert.match(en.reason, /Heavy on Shooter \(2\), needs Defender and Rebounder…/);
+  assert.match(en.reason, /Defender Dan \(\d+ OVR\) fills it/);
+  // Empty roster: the reason just says which family to start with.
+  const fresh = recommendRolePick([{ kind: "player", data: defender }], [], "zh");
+  assert.match(fresh.reason, /先拿防守打底——Defender Dan（\d+ OVR）/);
+  const freshEn = recommendRolePick([{ kind: "player", data: defender }], [], "en");
+  assert.match(freshEn.reason, /Start with a Defender — Defender Dan \(\d+ OVR\)/);
 });
 
 test("drawPack roleDiverse: 5 players, 5 distinct families, no duplicate people (real sample)", async () => {
