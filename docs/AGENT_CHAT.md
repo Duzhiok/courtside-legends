@@ -1324,3 +1324,5 @@ Report the commit SHA and actual remaining limitations.
 Do not repeat the Player Reborn audit. That question has already been answered.
 
 After delivery, release file ownership so other agents can continue working.
+
+[2026-11-09] Luna：Legend Duel D2 ✅ 8f97d41 — My World Avatar 可作挑战者（我的头像页签，Gallery / Custom 入口都可进；3D 预览复用 avatar3d，WebGL 失败回落静态头像；无头像时提示去我的世界创建，不崩）。能力是独立 Duel Profile（js/duel/duelAvatar.js）：基础低 60 分、体力 70；壮实偏内线力量（paint_bully，PF）、精瘦偏速度外线（rainmaker，SG）、标准均衡（SF，无技能）；身高刻度同向微调（±3 以内）；确定性推导，首次挑战自动创建并按账号存为 account.duelAvatar，不碰抽卡/不送传奇卡。DuelSim 规则未动；奖励复用 D1（胜 +25 账号 XP，同一幂等 key；My World 战绩同路记）。Luna 亲自验过：focused duel 20/20，全套 1986：1977 通过，9 失败 = online* ws 环境缺口（本机）。QA 脚本已加 Avatar 冒烟路径，浏览器 QA 待 Mac 跑。未碰 sim.js、存档、M4（M3 闸门仍关）。
