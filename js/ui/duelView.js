@@ -20,7 +20,9 @@ import { readIdentity } from "../data/profile.js";
 import { BODY_PRESETS, readLook } from "../data/avatarLook.js";
 import { mountAvatar3d } from "./avatar3d.js";
 import { portraitFor } from "./portraitFor.js";
-import { createDuel, playPossession, OFFENSE_CHOICES, DEFENSE_CHOICES, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
+import { createDuel, playPossession, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
+import { createTakeover, applyPossession, OFFENSE_LABEL, DEFENSE_LABEL } from "../duel/duelTakeover.js";
+import { mountDuelCourt } from "./duelCourtView.js";
 import {
   avatarChallengerKey,
   avatarToDuelist,
@@ -37,19 +39,6 @@ import {
   recordDuelResult,
 } from "../duel/duelStore.js";
 
-const OFFENSE_LABEL = {
-  drive: ["突破上篮", "Drive", "速度 · 控球 · 终结"],
-  midrange: ["中距离单打", "Midrange", "投篮 · 创造空间"],
-  outside: ["外线投射", "Outside Shot", "三分 · 抗干扰"],
-  post: ["背身强打", "Post Up", "力量 · 低位技术"],
-};
-
-const DEFENSE_LABEL = {
-  balanced: ["均衡防守", "Balanced", "全面，无明显弱点"],
-  perimeter: ["贴身防投", "Perimeter", "锁三分，放突破"],
-  paint: ["收缩防突破", "Protect Paint", "锁内线，放三分"],
-};
-
 const DIFFICULTY_LABEL = {
   rookie: ["新手", "Rookie", "传奇状态一般，防守很少针对你", "The legend plays loose and rarely counters you"],
   pro: ["职业", "Pro", "传奇正常发挥，会针对你的习惯", "The legend plays true to form and counters your habits"],
@@ -58,10 +47,17 @@ const DIFFICULTY_LABEL = {
 
 let showFn = null;
 let goBackFn = null;
-let current = null; // { state, challenger, legend, difficulty }
+let current = null; // { state, challenger, legend, difficulty, takeover }
+let courtController = null; // mountDuelCourt handle for the live match screen
 let selection = { challengerKind: "owned", challengerId: null, legendId: null, difficulty: "pro" };
 let avatarViewer = null; // mountAvatar3d handle for the select screen's preview
 let avatarViewerToken = 0;
+
+/** Drop the live court (keyboard + pointer listeners) when leaving the match. */
+function destroyCourtController() {
+  courtController?.destroy();
+  courtController = null;
+}
 
 export function initDuelView({ show, goBack }) {
   showFn = show;
@@ -81,6 +77,7 @@ export function ensureDuelScreen() {
   el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-duel-back" type="button"><span>${L("返回", "Back")}</span></button><h2>${L("传奇单挑 · Legend Duel", "Legend Duel")}</h2></div><div id="duel-body"></div>`;
   document.body.appendChild(el);
   el.querySelector("#btn-duel-back").addEventListener("click", () => {
+    destroyCourtController();
     if (goBackFn) goBackFn();
     else if (showFn) showFn("home");
   });
@@ -168,6 +165,7 @@ export function openDuelAvatarChallenge(legendId) {
 function renderSelect() {
   const body = bodyEl();
   if (!body) return;
+  destroyCourtController();
   disposeAvatarViewer();
   const account = getAccount();
   const owned = ownedDuelists(account);
@@ -312,77 +310,47 @@ function startDuel() {
   const { challenger, challengerKind, legend, legendEntry } = resolveSelection();
   if (!challenger || !legend) return;
   const state = createDuel({ challenger, legend, difficulty: selection.difficulty });
-  current = { state, challenger, challengerKind, legend, legendEntry, difficulty: selection.difficulty };
+  current = { state, challenger, challengerKind, legend, legendEntry, difficulty: selection.difficulty, takeover: createTakeover() };
   renderDuel();
 }
 
+/**
+ * D3: the match screen is the 2D takeover court (js/ui/duelCourtView.js).
+ * The court is presentation only — a choice resolves through playPossession
+ * in the onChoice callback below, and movement only moves markers. The
+ * result screen (finishDuel) is unchanged.
+ */
 function renderDuel() {
   const body = bodyEl();
   if (!body || !current) return;
-  const { state, challenger, legend } = current;
-  const myBall = state.possession === "a";
-  const log = state.log.slice(-6).reverse();
-  const staminaBar = (value) => `
-    <div style="height:8px;border-radius:4px;background:#1d2b23;overflow:hidden;">
-      <div style="height:100%;width:${Math.round(value)}%;background:${value < 30 ? "#c0392b" : "#e8c15a"};"></div>
-    </div>`;
-
-  body.innerHTML = `
-    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <div style="flex:1;text-align:center;">
-        <div>${photoHtml(challenger, 64)}</div>
-        <div><strong>${esc(challenger.displayName || challenger.name)}</strong></div>
-        <div class="tiny">${esc(L("你", "You"))} · OVR ${esc(challenger.ovr)}</div>
-        <div style="font-size:32px;font-weight:800;">${state.a.score}</div>
-        ${staminaBar(state.a.stamina)}
-        <div class="tiny">${esc(L("体力", "Stamina"))} ${Math.round(state.a.stamina)}</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:20px;font-weight:700;">VS</div>
-        <div class="tiny">${myBall ? esc(L("你的球权", "Your ball")) : esc(L("传奇球权", "Legend's ball"))}</div>
-        <div class="tiny">${esc(L(`第 ${state.turn + 1} 回合`, `Possession ${state.turn + 1}`))}</div>
-      </div>
-      <div style="flex:1;text-align:center;">
-        <div>${photoHtml(legend, 64)}</div>
-        <div><strong>${esc(legend.displayName || legend.name)}</strong></div>
-        <div class="tiny">${esc(eraLabel(legend.season, getLang()))} · OVR ${esc(legend.ovr)}</div>
-        <div style="font-size:32px;font-weight:800;">${state.b.score}</div>
-        ${staminaBar(state.b.stamina)}
-        <div class="tiny">${esc(L("体力", "Stamina"))} ${Math.round(state.b.stamina)}</div>
-      </div>
-    </div>
-    <h3>${esc(myBall ? L("你的进攻选择", "Your offensive move") : L("你的防守策略", "Your defensive call"))}</h3>
-    <div class="mode-grid">
-      ${(myBall ? OFFENSE_CHOICES : DEFENSE_CHOICES).map((choice) => {
-        const [zh, en, sub] = myBall ? OFFENSE_LABEL[choice] : DEFENSE_LABEL[choice];
-        return `<button type="button" class="mode-card" data-duel-choice="${choice}"><strong>${esc(L(zh, en))}</strong><span>${esc(sub)}</span></button>`;
-      }).join("")}
-    </div>
-    <p><button type="button" class="btn small ghost" id="btn-duel-quit">${esc(L("放弃本场（不计入战绩）", "Quit this duel (not recorded)"))}</button></p>
-    ${log.length ? `<h3>${esc(L("最近回合", "Recent possessions"))}</h3><ul class="tiny">${log.map((e) => {
-      const shooterName = e.shooter === "a" ? (challenger.displayName || challenger.name) : (legend.displayName || legend.name);
-      const off = OFFENSE_LABEL[e.offense];
-      const def = DEFENSE_LABEL[e.defense];
-      return `<li>${esc(shooterName)} · ${esc(L(off[0], off[1]))} vs ${esc(L(def[0], def[1]))} — ${e.made ? esc(L(`命中 +${e.points}`, `Made +${e.points}`)) : esc(L("没进", "Missed"))}（${e.scoreA}-${e.scoreB}）</li>`;
-    }).join("")}</ul>` : ""}
-  `;
-  body.querySelectorAll("[data-duel-choice]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const choice = btn.getAttribute("data-duel-choice");
-      playPossession(current.state, myBall ? { offense: choice } : { defense: choice });
+  destroyCourtController();
+  courtController = mountDuelCourt(body, {
+    getState: () => current.state,
+    getTakeover: () => current.takeover,
+    setTakeover: (t) => { current.takeover = t; },
+    challenger: current.challenger,
+    legend: current.legend,
+    photoHtml,
+    onChoice: (choice) => {
+      if (!current || current.state.over) return;
+      const myBall = current.state.possession === "a";
+      const event = playPossession(current.state, myBall ? { offense: choice } : { defense: choice });
+      current.takeover = applyPossession(current.takeover, current.state, event);
       if (current.state.over) finishDuel();
       else renderDuel();
-    });
-  });
-  body.querySelector("#btn-duel-quit")?.addEventListener("click", () => {
-    current = null;
-    openDuelSelect({});
+    },
+    onQuit: () => {
+      destroyCourtController();
+      current = null;
+      openDuelSelect({});
+    },
   });
 }
 
 function finishDuel() {
   const body = bodyEl();
   if (!body || !current) return;
+  destroyCourtController();
   const { state, challenger, challengerKind, legend, legendEntry, difficulty } = current;
   const won = state.winner === "a";
   const account = getAccount();

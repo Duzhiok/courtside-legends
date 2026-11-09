@@ -1,0 +1,168 @@
+/* Legend Duel D3 — 2D takeover court. Deep green + gold, same as the game. */
+
+.duel-court-hud {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.duel-hud-side {
+  flex: 1;
+  text-align: center;
+}
+
+.duel-hud-mid {
+  text-align: center;
+}
+
+.duel-score {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.duel-vs {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.duel-flash {
+  margin-top: 4px;
+  font-weight: 700;
+  color: #e8c15a;
+}
+
+.duel-court-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#duel-court {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.duel-court-floor {
+  fill: #0e3d27;
+}
+
+.duel-court-line {
+  fill: none;
+  stroke: rgba(232, 193, 90, 0.55);
+  stroke-width: 0.5;
+}
+
+.duel-court-paint {
+  fill: rgba(232, 193, 90, 0.12);
+}
+
+.duel-court-board {
+  stroke: #e8c15a;
+  stroke-width: 1;
+}
+
+.duel-court-rim {
+  fill: none;
+  stroke: #e07b39;
+  stroke-width: 0.8;
+}
+
+.duel-court-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.duel-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  transition: left 0.18s ease, top 0.18s ease;
+  pointer-events: none;
+}
+
+.duel-marker-disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.duel-marker-a .duel-marker-disc {
+  background: #e8c15a;
+  color: #123f2a;
+}
+
+.duel-marker-b .duel-marker-disc {
+  background: #f2f2f2;
+  color: #123f2a;
+}
+
+.duel-marker.duel-has-ball .duel-marker-disc {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.duel-marker-tag {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+  color: #e8e8e8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+.duel-ball {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e07b39;
+  border: 1px solid #7a3c14;
+  transform: translate(-50%, -50%);
+  transition: left 0.18s ease, top 0.18s ease;
+  pointer-events: none;
+}
+
+.duel-spot-line {
+  text-align: center;
+}
+
+.duel-suggested {
+  outline: 2px solid #e8c15a;
+}
+
+@media (max-width: 480px) {
+  .duel-score {
+    font-size: 26px;
+  }
+
+  .duel-marker,
+  .duel-marker-disc {
+    width: 28px;
+    height: 28px;
+  }
+
+  .duel-marker-disc {
+    font-size: 14px;
+  }
+}
