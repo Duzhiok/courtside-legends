@@ -783,3 +783,67 @@ Do not block this small feature with further planning.
 [2026-11-09] Luna：B33 合并设计已上 main（8ee74b9，docs/implementation/b33-d-segment-merge-design.md）：按用户定的选项 ① 合 main；面试（3 问、契合度打分、信任/压力、最后一家不拒）+ 预言（真沉睡者棋盘、三年后真实卡片裁决、可选 story.prophecy 字段、结算多一步）都合；裁决面试+预言与 D1–D7 各为准不同层（开局 vs 持续球探经济，M7 门控），不冲突；先 rebase 到当前 main（试合 5 个文件两边都改、3 处冲突），解完重跑分支单测 + 全量 + career-interview QA，再标 B33 ✅。待用户定四个数字/体验问题。
 
 [2026-11-09] 用户定 B10：2.0 视觉基线选深海军蓝 + 金，弃现有深绿。实现：tokens.css 基线翻绿为蓝（金 #f6c870 不变），硬编码绿色值随 token 走；视觉 QA 需 Mac 跑。
+
+[2026-11-09] Luna：用户产品决策（四项）已落：① B10 视觉基线——保留深绿 + 金（关闭），深海军蓝仅作辅助配色（转播/夜间球馆/特殊活动），不做全局换色。注：c7a0ee5 板上记的"用户选深海军蓝"已被用户随后决定推翻——当时用户在选项里点了海军蓝，但一分钟后发的决策备忘录明确改回深绿；海军蓝实现子任务已叫停，未改任何文件，tokens 仍是深绿，以备忘录为准。② B27——批准三档策略，默认均衡，合理阈值由 Agent 自定，不再需要一页审批；代码仍排 B23 之后。③ B33——原则批准，轻量整合进 Reborn 开局，不直接全量合分支；避免与三队 Offer 选择重复、避免预言与 D1–D7 冲突；救援分支保留至整合版验证通过。④ M3 门——条件批准：用户亲自试玩 M1–M3 核心切片并给"好玩/需要改进/不好玩"反馈后决定是否进 M4；小问题不拦 M4 准备；在用户反馈前不得宣称 M3 已正式验收。
+
+[2026-11-09] 用户给 VS Code Agent（Code）的产品决策回复原文：
+
+Courtside Legends — Product Decisions
+
+M3 Gate
+
+Keep the M1–M3 playable-slice review.
+
+I will personally playtest the complete slice before formally closing the M3 gate.
+
+Minor visual issues and nonblocking bugs should not prevent preparation for M4.
+
+Do not claim M3 is formally approved until I provide playtest feedback.
+
+B10 — APPROVED
+
+Use deep forest green with gold accents as the primary Courtside Legends 2.0 visual identity.
+
+Navy blue may remain an auxiliary color for game presentation and special themes.
+
+Do not initiate a global recoloring project.
+
+B27 — APPROVED
+
+Implement Conservative, Balanced, and Aggressive automatic timeout strategies.
+
+Balanced is the default.
+
+Use existing GameSim signals such as opponent scoring runs, fatigue, and game context.
+
+Preserve existing timeout limits.
+
+Do not introduce shooting accuracy bonuses.
+
+Proceed after B23 as already planned.
+
+No additional one-page approval is required for reasonable implementation details.
+
+B33 — APPROVED IN PRINCIPLE
+
+Keep the rescued interview and prophecy branch.
+
+Integrate the useful parts into the current Reborn opening flow rather than blindly merging the entire old branch.
+
+Avoid duplicating the existing three-team offer selection.
+
+Reconcile the prophecy mechanic with the existing D1–D7 design.
+
+Prioritize a playable and engaging opening experience.
+
+Use focused tests and browser smoke QA.
+
+Do not delete the rescue branch until the integrated version is verified.
+
+Development Philosophy
+
+Feature-first, playable-first.
+
+Avoid unnecessary ADR gates and repeated full-suite testing for small changes.
+
+Continue autonomous implementation of approved work, while preserving existing saves and avoiding overlapping edits between agents.
