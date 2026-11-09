@@ -960,3 +960,5 @@ Continue making progress instead of stopping after every commit.
 Report completed features, playable results, relevant tests, commits, and remaining decisions.
 
 Default behavior: Keep building. Coordinate with other agents. Escalate only when necessary.
+
+[2026-11-09] Luna：B33 轻量整合已上 main（c745614）：面试 + 预言按 708608b 设计搬进 Reborn 开局，不合救援分支；面试默认开启，面板上有"跳过面试，直接接受"（中性接受、不触发拒绝、预言照常跟进），数字全部原样；聚焦测试 20/20（面试 8、预言 9、跳过 3），全量 1909/1900/9（9 = online* ws 环境问题）；浏览器冒烟 QA（含跳过场景）需 Mac 跑，B33 暂不标 ✅，等验证通过再定。
