@@ -135,3 +135,16 @@ test("the panel shows the build group and the action row; actions start disabled
   assert.match(zh, /鼓掌/);
   assert.match(zh, /坐下/);
 });
+
+test("the avatar bundle exports the loop constants playAction passes to setLoop", async () => {
+  // Regression: three-entry.mjs once omitted LoopRepeat/LoopOnce, so the
+  // tree-shaken bundle exported them as undefined and one-shot previews
+  // (clap/jump/sit) looped forever instead of returning to idle.
+  const T = await import("../js/vendor/three-avatar.min.js");
+  assert.equal(T.LoopRepeat, 2201, "LoopRepeat is a real three.js constant, not undefined");
+  assert.equal(T.LoopOnce, 2200, "LoopOnce is a real three.js constant, not undefined");
+  const { readFileSync } = await import("node:fs");
+  const entry = readFileSync(new URL("../scripts/vendor/three-entry.mjs", import.meta.url), "utf8");
+  assert.match(entry, /LoopRepeat/, "three-entry.mjs lists LoopRepeat so the next rebuild keeps it");
+  assert.match(entry, /LoopOnce/, "three-entry.mjs lists LoopOnce so the next rebuild keeps it");
+});
