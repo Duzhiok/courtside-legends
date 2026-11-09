@@ -1074,3 +1074,4 @@ Coordination
 * Report completed features, commits, and actual player-visible improvements.
 
 [2026-11-09] Luna：Player Reborn 垂直切片准备文档已上 main（5f94853，`docs/implementation/player-reborn-slice-prep.md`，纯文档，无代码改动）：最小可玩切片六步验收标准、PR1–PR5 每步复用/新建/归属表、教练线与球员线共享与分开对照（球员线无面试、无预言，信任场上挣）、依赖顺序与闸门地图、三个待用户拍板的问题。**M3 闸门未批准**—— PR1 仍等用户 M1–M3 试玩反馈；PR4 的 M2b 硬依赖已满足；M4/M5 均非切片依赖。另校准两处 ADR-005 旧数：1996–97 替补池实测 80 人（非 100 人），多处文件路径已搬家，文档按当前 main 引用。
+[2026-11-09] Code：B50 做完（R182）：金币晋级赛淘汰/最终档通关后，存档照旧清掉，但会留一条只读 archive 记录在 My World > 我的游戏记录（无“继续”入口）。改了 `app.js` 两处点击（只加一行调用）+ `myWorldView.js`/`myWorldScreen.js` 加只读行 + 新 `js/data/challengeArchive.js`。Luna 刚动过金币池，注意这两处 `clearSave()` 前现在多了 `archiveFinishedChallenge`。

@@ -14,6 +14,7 @@ import { clearDraft, isBlankDraft, normalizeDraft, readDraft, writeDraft } from 
 import { clearAttachments, readAttachments, writeAttachments } from "../data/feedbackAttachments.js";
 import { FEEDBACK_IMAGE_MAX, addImages, browserImageDeps, replaceImage } from "../data/feedbackImages.js";
 import { getFeedbackTransport } from "../data/feedbackTransport.js";
+import { readChallengeArchive } from "../data/challengeArchive.js";
 import { attachReasonText, feedbackTemplate, journeyFromRoot, legacyFromAccount, myWorldHtml, thumbsHtml } from "./myWorldView.js";
 
 export function createMyWorld({
@@ -168,6 +169,7 @@ export function createMyWorld({
       session: shown(sessionState, "mine") ? { label: sessionLabel(session, lang), state: sessionState } : null,
       season: shown(seasonState) ? { label: seasonLabel(season, lang), state: seasonState } : null,
       myteam: myTeam && shown(myTeamState, "mine") ? { label: myTeamLabel(myTeam, lang), state: myTeamState } : null,
+      archive: readChallengeArchive(account?.id ?? null),
       canClaim: !!account,
     };
   }

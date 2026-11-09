@@ -271,6 +271,7 @@ import {
   challengeTierMeta,
   challengeTierName,
 } from "./data/careerChallenges.js";
+import { challengeArchiveEntry, recordChallengeArchive } from "./data/challengeArchive.js";
 import { historicalLadder, historicalUpsideHint } from "./engine/develop.js";
 import {
   HISTORICAL_YEARS,
@@ -4967,6 +4968,12 @@ function beginCustomHistoricalCareer(draftTeam) {
     fromCustom: true,
     hintGold: 520,
   });
+}
+
+/** B50: a finished gold-challenge run leaves a read-only record before its save slot is cleared. */
+function archiveFinishedChallenge(c, outcome) {
+  const entry = challengeArchiveEntry(c, outcome);
+  if (entry) recordChallengeArchive(activeAccount()?.id ?? null, entry);
 }
 
 function careerRoundLabel(roundOrStage, finals = false) {
@@ -11886,6 +11893,7 @@ function handleCareerResult(youWin, snap) {
       c.pendingChallenge = null;
       cont.textContent = "捧杯回主页";
       cont.onclick = () => {
+        archiveFinishedChallenge(c, "champion");
         clearSave();
         refreshSaveHomeBar();
         show("home");
@@ -11911,6 +11919,7 @@ function handleCareerResult(youWin, snap) {
     }
     cont.textContent = "回主页";
     cont.onclick = () => {
+      archiveFinishedChallenge(c, "eliminated");
       clearSave();
       refreshSaveHomeBar();
       show("home");

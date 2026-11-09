@@ -11,6 +11,7 @@
 import { avatarDataUri } from "../data/avatarArt.js";
 import { normalizeDraft } from "../data/feedbackDraft.js";
 import { FEEDBACK_IMAGE_MAX } from "../data/feedbackImages.js";
+import { challengeTierName } from "../data/careerChallenges.js";
 import { photoImg } from "../data/photo.js";
 import { lookPanelHtml } from "./avatarLookView.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
@@ -128,6 +129,24 @@ function gameRow({ title, sub, state, resume, claim, remove }, canClaim, lang) {
     <div class="mw-game-actions">${buttons}</div></li>`;
 }
 
+const ARCHIVE_SHOWN = 5;
+
+/** A finished gold-challenge run: read-only on purpose (no Continue, no Delete) -- it is a record, not a save. */
+function archiveRow(e, lang) {
+  const tier = challengeTierName(e.tier === "custom" ? "gold" : e.tier, lang);
+  const result = e.outcome === "champion"
+    ? T(lang, "通关夺冠", "Champions")
+    : e.finals ? T(lang, "总决赛出局", "Lost in the Finals") : T(lang, "淘汰出局", "Eliminated");
+  const date = new Date(e.finishedAt).toLocaleDateString(lang === "en" ? "en-US" : "zh-CN");
+  const team = e.teamName ? teamNameL(e.teamName, lang) : T(lang, "未命名球队", "Unnamed team");
+  const stars = e.roster.length ? ` · ${e.roster.map((p) => esc(p.name)).join(lang === "en" ? ", " : "、")}` : "";
+  return `<li class="mw-game mw-archive"><div class="mw-game-text">
+    <p class="mw-line"><strong>${esc(tier)}</strong> · ${esc(result)}</p>
+    <p class="mw-line tiny">${esc(team)} · ${T(lang, `第 ${e.round} 轮 · 负 ${e.losses} 场`, `Round ${e.round} · ${e.losses} loss(es)`)} · ${esc(date)}${stars}</p>
+    <p class="mw-local">${T(lang, "已结束 · 只读记录，不能继续", "Finished · read-only record, cannot be continued")}</p>
+  </div></li>`;
+}
+
 /**
  * "My Games": every save this player may see -- their own, plus unassociated local saves. Saves owned by
  * another account are never passed in (the screen filters them out), so nothing here can leak them.
@@ -167,6 +186,9 @@ export function gamesHtml(games, lang) {
       state: myteam.state, resume: "resume-myteam", claim: "claim-myteam", remove: "delete-myteam",
     }, games.canClaim, lang));
   }
+  const archive = Array.isArray(games?.archive) ? games.archive : [];
+  for (const e of archive.slice(0, ARCHIVE_SHOWN)) rows.push(archiveRow(e, lang));
+  if (archive.length > ARCHIVE_SHOWN) rows.push(`<li class="mw-game mw-archive"><p class="mw-line tiny">${T(lang, `另有 ${archive.length - ARCHIVE_SHOWN} 条更早的记录`, `${archive.length - ARCHIVE_SHOWN} older record(s) not shown`)}</p></li>`);
   if (!rows.length) {
     return `<section class="mw-card">${title}
       <p class="mw-empty">${T(lang, "还没有进行中的生涯。", "No career in progress yet.")}</p>

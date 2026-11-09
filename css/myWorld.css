@@ -203,3 +203,6 @@
   .mw-thumb img { width: 44px; height: 33px; }
   .mw-thumb-btns .btn { padding: 4px 8px; font-size: 0.75rem; min-height: 28px; }
 }
+
+/* Finished gold-challenge runs: a record, so visually quieter than a save you can continue */
+.mw-archive { opacity: 0.92; border-left: 3px solid #c9b27a; }
