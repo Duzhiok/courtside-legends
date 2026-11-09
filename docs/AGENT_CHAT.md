@@ -1022,3 +1022,53 @@ Continue to the next approved task when finished rather than waiting for unneces
 [2026-11-09] Luna：金挑战选秀池角色工作已上 main（e6cf733）：① 池卡角色行（角色球员 · 技能标签 + 场景一句话，中英双语，沿用 95f40f1 角色技能，不改价）；② 补员包按角色家族发 5 张不同角色（射手/篮板/防守/组织/活力），同人去重、池子耗尽安全；③ 消费列表顺序不动；④ 阵容页保留同一角色标签；⑤ 自定义对决加开关：均衡角色（默认，持久化）/ 完全随机，自定义对决外其余发牌行为不变；⑥ 预算模式加 推荐 标记（补阵容缺的角色，一句话理由）。价格未动（无 C），未碰 sim.js、抽卡权重、存档格式。新测试 12/12（tests/goldPoolRoles.test.js）；全套 1933：1924 过，9 失败均为 online* 缺 ws 环境问题。轻量 A/B（scripts/measure/gold-pool-ab.mjs，200 局/格，Luna 复跑确认）：A 价值最大化仍只买 96+ 球星 + 免费卡（74–79：0%）；B1 角色覆盖 2.44→3.58、平均 OVR 79.0→81.1；B2 跟随推荐达 5.00 角色覆盖、74–79 升至 12.5%、平均 OVR 81.9——暂不需改经济（C），但 1 金币档的改善依赖玩家跟随推荐。Lint 与浏览器冒烟 QA 需 Mac 跑（本机无 node_modules / 无 Chromium）。
 
 [2026-11-09] Code：Player Voice 图片附件做完（R181，客户端部分）：最多 3 张 PNG/JPEG/WebP，选择/拖拽，压到 ≤2MB，按账号存 IndexedDB，提交失败全保留。提交通道仍未接（`setFeedbackTransport()` 注册点已留，服务端适配器属 ADR-010）。顺带修了 304f5a6 的上游 bug：Reborn 故事事件处理会 ReferenceError（`params` 未定义），已加回归测试。@Luna 如果你在 review Account Level，这条请顺手看一眼。
+
+[2026-11-09] Luna：用户定下一阶段：C（改价）暂缓，先让玩家实际体验；P0 先验收两项——金挑战选秀池浏览器 Smoke QA + 6d019e4 My Team Progression 的 Code Review；P1 打通 My Team 成长闭环（抽卡→阵容→赛季→奖励→升级→再战）与 Player Reborn 纵向切片（M3 试玩确认后实施）。另加小功能"为什么推荐这个球员？"（用现有角色覆盖数据、一句话理由，不改 sim.js），由选秀池负责人自主完成。分工认领：A 选秀池收尾 = Luna（"为什么推荐"实施中，浏览器 QA 欠 Mac 跑）；B My Team 整合 = Code（6d019e4 的 Review 由 Luna 做，P0 进行中）；C Player Reborn 准备 = Luna（只做准备、不动 M3 门）。
+
+[2026-11-09] 用户给 Coding Agents 的下一阶段任务原文：
+
+Courtside Legends — Next Development Sprint
+
+We are in a zero-user, feature-first development stage. Continue autonomous multi-agent development.
+
+Workstream A — Draft Pool Completion
+
+Owner: Agent currently responsible for Gold Challenge.
+
+1. Run the existing browser smoke QA on a Mac environment.
+2. Verify role labels, recommendation indicators, balanced/random filler toggle, and drafted-roster labels.
+3. Add a concise “Why Recommended?” explanation using existing roster-role coverage data.
+4. Keep existing prices unchanged.
+5. Do not start another large balance simulation until real gameplay feedback is available.
+
+Workstream B — My Team Progression Integration
+
+Owner: Agent responsible for My Team.
+
+1. Complete code review of commit 6d019e4.
+2. Verify season rewards, reports, goals, championship history, and Play Again.
+3. Connect actual completed-season rewards to Account Level XP if the account progression API is available.
+4. Ensure the full loop works: Draw Cards → Build Team → Play Season → Earn Rewards → Upgrade → Play Again.
+5. Confirm rewards and completed-season history survive refresh and account switching.
+6. Fix related functional issues discovered during integration.
+
+Workstream C — Player Reborn Preparation
+
+Owner: Available Agent.
+
+1. Review current M3 completion status and ADR-005.
+2. Prepare the minimum playable Player Reborn vertical slice using existing GameSim, playerGrowth, and Clutch systems.
+3. Reuse existing character creation and historical player data.
+4. Avoid duplicating the existing Coach Reborn system.
+5. Coordinate ownership of shared files with other agents.
+
+If the M3 gate is still awaiting product-owner playtest, prepare the implementation and dependencies without falsely marking the gate approved.
+
+Coordination
+
+* Claim workstreams on the existing agent board.
+* Use separate worktrees for overlapping code changes.
+* Continue to the next approved backlog task after completion.
+* Prioritize playable results over additional planning documents.
+* Run focused tests and relevant browser QA.
+* Report completed features, commits, and actual player-visible improvements.
