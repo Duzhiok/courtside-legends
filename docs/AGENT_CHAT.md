@@ -1252,3 +1252,75 @@ Report playable flows, changed files, tests, screenshots, and commit SHAs.
 [2026-11-09] Gallery agent: Gallery redesign fully on main — dc96bc9 (14 files: wall out, 40-legend marquee in My World only, How to Play / About dialogs, QA scripts retargeted) + b94898e (i18n remainder: 3 PHRASES entries — About-pointing Shaq line, gallery aria-label, About tagline). Export names confirmed final: GALLERY_LEGENDS / eraLabel / legendName / challengeLegend — Duel D1 imports resolve now, no fallback needed. Focused tests i18n + legendsGallery + homeShowcase 39/39; full suite 1966/1977 (9 online* ws env gaps; the 2 i18n failures fixed by b94898e). Browser smoke QA still owed (Mac run).
 
 [2026-11-09] Luna：认领 Legend Duel D2（Avatar 挑战者，D1 已上 main 95717b3）。范围：My World Avatar 作挑战者，独立 Duel Profile（能力与外观分开——外观沿用现有 Avatar/3D 预览，能力另建可配的 Duel Profile，不改抽卡/不送传奇卡）；DuelSim 不动规则（11 分胜 2、1/2 分、难度只影响传奇），只接新一类挑战者输入；胜场 +25 账号 XP 复用 D1 幂等 key，Duel XP 与 My World 战绩同路记；Gallery challenge() 与 Custom 入口可从 Avatar 发起。实现派工给子代理（D2 体量大，Luna 派工后验收入 main）。不碰 sim.js、存档格式、M4（M3 闸门仍关）。B23/B27 仍是 Code 的 sim.js 队，不碰；B50 备注、Account Level 曲线、B54 播报文案仍是 Code 的，不碰。
+
+[2026-11-09] Luna：Gallery 改版正式接受，标记 DONE（dc96bc9 + b94898e；功能验收通过，39/39；浏览器视觉 QA 留待 Mac 上补跑，不阻塞其他开发）。下一步优先 Legend Duel。
+
+Courtside Legends — Gallery Accepted / Legend Duel Integration
+
+The Gallery redesign in dc96bc9 and b94898e is accepted.
+
+Mark the feature DONE.
+
+The remaining browser smoke QA can be completed on a Mac-capable agent without blocking other development.
+
+Next Priority — Legend Duel
+
+Use the existing Gallery exports, including GALLERY_LEGENDS, as the authoritative featured-legend directory.
+
+Connect Gallery player cards to the approved Legend Duel experience.
+
+Prioritize a playable flow:
+
+1. Select a legend from My World Gallery.
+2. Open the legend challenge entry.
+3. Choose an owned My Team player.
+4. Play a real 1v1 match.
+5. Show the actual result.
+6. Record the outcome and provide Retry / Next Legend.
+
+Then extend to custom Avatar challengers and Legend vs Legend, reusing the same Duel system.
+
+Coordinate with any agent already implementing Duel. Do not duplicate its engine or UI.
+
+Keep the current 40-player gallery. Hometown, collection, and era-based personalization can follow after the core Duel experience is playable.
+
+Run focused tests and browser smoke QA, then report the playable flow and commit SHA.
+
+Continue autonomous development through approved backlog items.
+
+Luna 注：D1（95717b3，My Team 卡 + Legend vs Legend）与 D2（8f97d41，My Avatar 挑战者，js/duel/duelAvatar.js）已在 main；Gallery 挑战入口已接通 window.CourtsideDuel.challenge()，结果页已有「再打一次 / 挑战下一位」按钮。下一步是核对端到端流程是否真的跑通 + Mac 浏览器 QA，不要重造引擎或 UI。
+
+[2026-11-09] Luna（转用户指令）：Player Voice 全局化 + 视频附件是当前任务，不是 Player Reborn。Luna 已核：本工作区干净（origin/main 8f97d41），没有未提交的 Player Voice 改动——全局/视频工作在 Code 那边，Luna 的 Agent 不会碰这些文件。
+
+Continue the interrupted Player Voice implementation.
+
+The current task is Global Player Voice + Video Attachments, NOT Player Reborn repository research.
+
+Before making changes:
+
+1. Inspect the existing uncommitted diff.
+2. Preserve all Player Voice work already completed.
+3. Check the agent coordination board for file ownership.
+4. Do not reset, discard, or overwrite another agent's changes.
+
+Complete the existing implementation:
+
+* Global feedback entry accessible across major game screens.
+* Shared Player Voice dialog.
+* Game-wide rating label.
+* Feedback module selector.
+* Existing image attachment integration.
+* One MP4/WebM video attachment with local draft persistence.
+* Account isolation.
+* Correct Chinese/English localization.
+* Working preview, remove, and restore behavior.
+
+Then run focused tests and desktop/mobile browser smoke QA.
+
+Commit and push the completed work after safely synchronizing with the latest remote changes.
+
+Report the commit SHA and actual remaining limitations.
+
+Do not repeat the Player Reborn audit. That question has already been answered.
+
+After delivery, release file ownership so other agents can continue working.
