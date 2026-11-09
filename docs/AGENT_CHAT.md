@@ -1390,3 +1390,5 @@ Run focused tests and relevant browser QA.
 Report actual player controls, playable flow, screenshots, tests, and commit SHA.
 
 Continue autonomous development after completing approved work.
+
+[2026-11-09] Luna：Legend Duel D3 ✅ f7e6b03（分支 feature/legend-duel-d3，已合 main）：2D 半场接管——SVG 半场 + 双球员 + 球 + 比分/体力 HUD；方向键/WASD + 拖动移动球员，数字键 1–4 进攻 / 1–3 防守，站位只给建议（高亮推荐按钮），不影响命中率；每回合仍走 DuelSim.playPossession，结果不变；投篮后球飞向篮筐（纯表现）。未碰 sim.js、存档、抽卡；胜了不送卡；选人/结果/再打一次/下一位流程不变。测试：新增 tests/duelTakeover.test.js（18），focused 81/81（Luna 复跑）；全套 2008：1999 通过，9 失败 = online* ws 环境缺口。Lint + 浏览器冒烟 QA（scripts/qa/duel-takeover.mjs）待 Mac 跑。
