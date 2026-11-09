@@ -9182,7 +9182,7 @@ function renderSeasonHub({ persist = true } = {}) {
       const away = st.teams[g.awayId]?.name;
       const played = userGamesPlayed(st);
       const youHome = g.homeId === st.userTeamId;
-      nextEl.innerHTML = `<div class="next-matchup"><span class="nm-team${youHome ? " nm-you" : ""}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.homeId])}"></i>${esc(home)}</span><span class="nm-vs">VS</span><span class="nm-team${youHome ? "" : " nm-you"}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.awayId])}"></i>${esc(away)}</span></div><p class="nm-meta">${L(`第 ${played + 1}/82 场 · 日程日 ${info.day + 1}`, `Game ${played + 1}/82 · Day ${info.day + 1}`)}</p>`;
+      nextEl.innerHTML = `<div class="next-matchup"><span class="nm-team${youHome ? " nm-you" : ""}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.homeId])}"></i>${esc(home)}</span><span class="nm-vs">VS</span><span class="nm-team${youHome ? "" : " nm-you"}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.awayId])}"></i>${esc(away)}</span></div><p class="nm-meta">${L(`第 ${played + 1}/${seasonGames(st)} 场 · 日程日 ${info.day + 1}`, `Game ${played + 1}/${seasonGames(st)} · Day ${info.day + 1}`)}</p>`;
       $("#btn-season-play").disabled = false;
       $("#btn-season-sim-one").disabled = false;
       $("#btn-season-sim-week").disabled = false;
@@ -9245,6 +9245,15 @@ function renderSeasonHub({ persist = true } = {}) {
       }
     }
     $("#btn-season-sim-week").disabled = true; // "模拟5场"是常规赛概念，对季后赛不适用
+  }
+
+  // B59: once the season is over there is no next game — the three action buttons are
+  // dead (they were only disabled); hide them instead. The done text already points at
+  // 「再来一季」/ the offseason, and re-rendering with a live phase un-hides them.
+  const seasonDone = st.phase === "done";
+  for (const id of ["#btn-season-play", "#btn-season-sim-one", "#btn-season-sim-week"]) {
+    const b = $(id);
+    if (b) b.hidden = seasonDone;
   }
 
   paintNextGoals(st);
@@ -10419,6 +10428,26 @@ function renderSeasonPlayoffs() {
     userRecord ? L(`${userRecord.w}胜${userRecord.l}负 · 净胜 ${userRecord.pf - userRecord.pa}`, `${userRecord.w}-${userRecord.l} · Diff ${userRecord.pf - userRecord.pa}`) : L("暂无战绩", "No record yet")
   }${L(" · 数据为赛季累计（含已模拟季后赛）", " · Season totals (including simmed playoffs)")}</p><div class="table-scroll"><table class="season-table"><thead><tr><th>${L("球员", "Player")}</th><th>GP</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>+/-</th></tr></thead><tbody>${
     playoffStats.map((row) => `<tr><td>${esc(row.name)}</td><td>${row.stats.gp}</td><td>${(row.stats.min / row.stats.gp).toFixed(1)}</td><td>${(row.stats.pts / row.stats.gp).toFixed(1)}</td><td>${(row.stats.reb / row.stats.gp).toFixed(1)}</td><td>${(row.stats.ast / row.stats.gp).toFixed(1)}</td><td>${row.stats.plusMinus / row.stats.gp >= 0 ? "+" : ""}${(row.stats.plusMinus / row.stats.gp).toFixed(1)}</td></tr>`).join("") || `<tr><td colspan="7">${L("暂无球员数据", "No player data yet")}</td></tr>`}</tbody></table></div></div>`;
+  // B59: once the season is over the bulk playoff sims are dead buttons (they were only
+  // disabled) — don't render them. The offseason button stays for non-My Team seasons;
+  // a My Team season shows its own done bar instead, so the row may end up empty.
+  const poSimButtons =
+    st.phase === "done"
+      ? ""
+      : `<button type="button" class="btn primary" id="btn-season-advance-po">${L("模拟下一轮", "Sim next round")}</button>
+      <button type="button" class="btn" id="btn-season-sim-all-po">${L("一键打完季后赛", "Sim rest of playoffs")}</button>`;
+  const poOffseasonButton =
+    st.phase === "done" && !st.myTeam
+      ? `<button type="button" class="btn primary" id="btn-season-offseason">${
+          currentCareerDraft
+            ? L("继续选秀", "Continue draft")
+            : isManagedCareer(state.leagueCareer)
+              ? L("进入休赛期选秀", "Enter offseason draft")
+              : L(`休赛期成长 · 开启 ${Number(st.year) + 1} 赛季`, `Offseason growth · Start ${Number(st.year) + 1} season`)
+        }</button>`
+      : "";
+  const poActionRow =
+    poSimButtons || poOffseasonButton ? `<div class="btn-row">${poSimButtons}${poOffseasonButton}</div>` : "";
   box.innerHTML = `
     ${playoffStatsHtml}
     ${confBlock("east", L("东部", "East"))}
@@ -10434,25 +10463,7 @@ function renderSeasonPlayoffs() {
     }
     ${finalsTeamHtml}
     ${finalsMvpHtml}
-    <div class="btn-row">
-      <button type="button" class="btn primary" id="btn-season-advance-po" ${
-        st.phase === "done" ? "disabled" : ""
-      }>${L("模拟下一轮", "Sim next round")}</button>
-      <button type="button" class="btn" id="btn-season-sim-all-po" ${
-        st.phase === "done" ? "disabled" : ""
-      }>${L("一键打完季后赛", "Sim rest of playoffs")}</button>
-      ${
-        st.phase === "done" && !st.myTeam
-          ? `<button type="button" class="btn primary" id="btn-season-offseason">${
-              currentCareerDraft
-                ? L("继续选秀", "Continue draft")
-                : isManagedCareer(state.leagueCareer)
-                  ? L("进入休赛期选秀", "Enter offseason draft")
-                  : L(`休赛期成长 · 开启 ${Number(st.year) + 1} 赛季`, `Offseason growth · Start ${Number(st.year) + 1} season`)
-            }</button>`
-          : ""
-      }
-    </div>
+    ${poActionRow}
     ${
       st.offseasonLog?.length
         ? `<div class="season-award-card"><h4>${L("上次休赛期成长 / 续约（我方）", "Last offseason growth / renewals (yours)")}</h4><div class="tiny">${st.offseasonLog
@@ -11051,7 +11062,7 @@ async function simRestOfSeason() {
   let last = null;
   let n = 0;
   const reports = [];
-  const maxGames = 82;
+  const maxGames = seasonGames(st); // B60: quick My Team seasons are 20 games, not 82 (the loop already stops when simUserNextGame returns null)
   for (let i = 0; i < maxGames; i++) {
     const r = simUserNextGame(st);
     if (!r) break;
