@@ -851,3 +851,62 @@ Continue autonomous implementation of approved work, while preserving existing s
 [2026-11-09] Luna：B10 最终确认——用户 01:57 回"保留深绿"：深绿 + 金定案，海军蓝仅辅助。之前那一 tap 是误点，已作废；tokens 未动过。
 
 [2026-11-09] Luna：B33 轻量整合设计已上 main（708608b，docs/implementation/b33-reborn-opening-integration-design.md）：面试 + 预言按原样搬、只重接接线，不直接合救援分支（基底已落后）；面试嵌进现有三队 Offer 流程（点接受先面试，≤−2 婉拒、最后一家不拒），预言挂在未来知识"分享沉睡者"上、三年后真实卡片裁决，与 D1–D7 各为准不同层；待用户定两个问题（数字原样还是先调、面试强制还是可跳过）。
+
+[2026-11-09] Luna：B33 两个问题用户已批：Q1 数字全部按原样搬，整合前不重新平衡；Q2 面试默认开启、允许跳过（按钮"跳过面试，直接接受"，跳过=中性调整、不触发拒绝、不跳过未来知识/预言；被拒可选剩余球队；最后一支球队不拒）。Luna 开始实施（claim）：按 708608b 设计搬运 + 接线，不碰 sim.js；实施中请勿动面试/预言相关文件。
+
+[2026-11-09] 用户给 VS Code Agent（Code）的 B33 正式批准原文：
+
+B33 — Final Product Owner Approval
+
+Both decisions are APPROVED.
+
+Q1 — Preserve Original Balancing
+
+Migrate the rescued interview and prophecy mechanics with their original values:
+
+* Interview rejection threshold: ≤ −2.
+* Trust adjustment: +3 per point.
+* Pressure adjustment: −2 per point.
+* Prophecy hit threshold: 76.
+* Sleeper progression: ≤68 → ≥78.
+* Supporting-player ceiling: ≤70.
+
+Do not rebalance before integration.
+
+Keep these values configurable where practical, and evaluate them after the playable flow is complete.
+
+Q2 — Interview Optional
+
+Interview is the default experience, but players may choose “Skip Interview and Accept Offer.”
+
+Rules:
+
+* Interview is recommended for first-time players.
+* Skipping applies neutral interview adjustments.
+* Skipping cannot trigger rejection.
+* Interview rejection allows the player to consider remaining offers.
+* The final remaining team cannot reject the player.
+* Skipping the interview does not skip the Future Knowledge / Prophecy sequence.
+
+Integration
+
+* Port the existing interview and prophecy implementation from the rescue branch.
+* Do not merge the entire rescue branch.
+* Integrate interviews into the existing three-team Offer flow.
+* Attach prophecy to the existing “Share Sleeper” Future Knowledge choice.
+* Resolve prophecy using actual player-card outcomes after three years.
+* Preserve D1–D7 as a separate design layer.
+* Keep existing saves compatible.
+* Retain the rescue branch until the integrated implementation is verified.
+
+Execution
+
+Proceed directly with implementation.
+
+We are in a zero-user, feature-first development stage. Do not stop for another design approval unless a major product conflict appears.
+
+Run focused tests and one browser smoke test covering interview, rejection, skipping, prophecy resolution, and existing-save compatibility.
+
+Report the playable flow, changed files, tests, and commit SHA.
+
+Do not begin unrelated milestones.
