@@ -1330,3 +1330,5 @@ After delivery, release file ownership so other agents can continue working.
 [2026-11-09] Luna：Gallery → Legend Duel 端到端核对完成——流程可玩：Gallery 点「挑战传奇」→ Duel 选人页（传奇已预选）→ 我的球员 / 头像 / 传奇对传奇三路可选 → 真实 DuelSim 对局 → 结果页显示真实比分 → 战绩 + 已击败传奇进 My World，胜场 +25 账号 XP（幂等 key），不送卡；「再打一次 / 挑战下一位」均已接通。Focused 测试 59/59（duelSim 11、duelAvatar 9、legendsGallery 9、homeShowcase 7、i18n 23）。两个小问题：① 43 位传奇全击败后「挑战下一位」会循环回第一位，文案有误导；② challengeLegend 未透传 Duel 未就绪的 false（真实应用 boot 后不可达）。浏览器冒烟 QA 仍欠 Mac 跑。
 
 [2026-11-09] Luna：认领 Duel 端到端核对留下的两个小问题（263bcbe 核对记录）：① 43 位传奇全击败后「挑战下一位」循环回第一位、文案误导；② challengeLegend 未透传 Duel 未就绪的 false。范围：js/ui/duelView.js 的 nextUndefeatedLegend（全击败返回 null，结果页改显“全部击败”文案，不再循环）+ js/ui/homeShowcase.js 的 challengeLegend（Duel 返回 false 时回落到 profile），附测试。不碰 sim.js、存档、M4、Player Voice 文件（Code 的）。
+
+[2026-11-09] Luna：Duel 两个小问题已修 ✅ 25cef2a：① nextUndefeatedLegend 全击败后返回 null，不再循环回第一位；结果页无“下一位”按钮时改显“已击败全部 43 位传奇！”（双语）。② challengeLegend 透传 Duel 返回的 false，未就绪/未知传奇时回落到球员档案。测试：新增 tests/duelNextLegend.test.js（3）+ legendsGallery 补 1 例；focused 33/33；全套 1990：1981 通过，9 失败 = online* ws 环境缺口（本机）。浏览器冒烟 QA 仍欠 Mac 跑。未碰 sim.js、存档、M4、Player Voice。
