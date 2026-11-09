@@ -1,6 +1,8 @@
 # B33 一页设计：教练路线图 D 段（面试 + 预言）合进 main
 
-状态：PROPOSED；用户方向 = 选项 ① 合 main（2026-11-09 "都批准 赶紧开始"）。
+状态：APPROVED IN PRINCIPLE（用户 2026-11-09：保留并轻量整合进 Reborn 开局，不直接全量合 main；救援分支保留至整合版验证通过）。
+
+方向变更：本文件原按选项 ① 全量合并写成；现改为轻量整合——挑选可复用功能整进当前 Reborn 开局流程，避免与现有三队 Offer 选择重复、避免预言与 D1–D7 冲突；下文合并步骤仅作可复用部分参考，实施前需另出整合设计。
 来源：分支 `rescue/d-segment-interview-prophecy`（`e2727c2`，20 个文件 +1148/−57，rebase 到 4849780 时的状态）；BACKLOG B33；`docs/CAREER_LIFE_ROADMAP.md` 的 D1–D7。
 
 ## 分支里有什么（已核 diff vs main）
