@@ -399,6 +399,7 @@ function finishDuel() {
     scoreB: state.b.score,
   });
   const nextLegend = nextUndefeatedLegend(record);
+  const allBeaten = !nextLegend && GALLERY_LEGENDS.length > 0;
   body.innerHTML = `
     <div style="text-align:center;margin:16px 0;">
       <div style="font-size:28px;font-weight:800;">${won ? esc(L("你赢了！", "You win!")) : esc(L("传奇获胜", "The legend wins"))}</div>
@@ -407,6 +408,7 @@ function finishDuel() {
       <div class="tiny">${esc(L(`投篮 ${state.a.makes}/${state.a.shots} · 传奇 ${state.b.makes}/${state.b.shots}`, `Shooting ${state.a.makes}/${state.a.shots} · Legend ${state.b.makes}/${state.b.shots}`))}</div>
       ${won ? `<p>${esc(L(`+${xp.gained || 0} Account XP（单挑胜利奖励）`, `+${xp.gained || 0} Account XP (duel win bonus)`))}</p>` : ""}
       <p class="tiny">${esc(L(`战绩：${record.wins} 胜 ${record.losses} 负 · 已击败 ${record.defeated.length} 位传奇`, `Record: ${record.wins}W ${record.losses}L · ${record.defeated.length} legends beaten`))}</p>
+      ${allBeaten ? `<p>${esc(L(`已击败全部 ${GALLERY_LEGENDS.length} 位传奇！`, `All ${GALLERY_LEGENDS.length} legends beaten!`))}</p>` : ""}
     </div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <button type="button" class="btn" id="btn-duel-retry">${esc(L("再打一次", "Retry"))}</button>
@@ -426,9 +428,13 @@ function finishDuel() {
   });
 }
 
-function nextUndefeatedLegend(record) {
+/** First gallery legend not yet beaten, or null once all are beaten. Exported for tests. */
+export function nextUndefeatedLegend(record) {
   const defeated = new Set(record.defeated || []);
-  return GALLERY_LEGENDS.find((l) => !defeated.has(l.bref)) || GALLERY_LEGENDS[0] || null;
+  // No fallback to the first legend: once every gallery legend is beaten
+  // there is no "next" one, and offering an already-defeated legend as the
+  // next challenge is misleading. Callers render no Next button then.
+  return GALLERY_LEGENDS.find((l) => !defeated.has(l.bref)) || null;
 }
 
 /** My World record block. Re-rendered after every My World refresh (see app.js refreshMyWorld). */

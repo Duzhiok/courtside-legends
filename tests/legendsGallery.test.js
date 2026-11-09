@@ -182,6 +182,15 @@ test("challengeLegend calls the Duel when loaded, falls back to the profile othe
   assert.equal(challengeLegend(GALLERY_LEGENDS[12]), "profile", "no window.CourtsideDuel in Node");
 });
 
+test("challengeLegend falls back to the profile when the Duel declines (returns false)", () => {
+  const calls = [];
+  const notReady = { challenge: (token) => { calls.push(token); return false; } };
+  assert.equal(challengeLegend(GALLERY_LEGENDS[12], notReady), "profile");
+  assert.deepEqual(calls, ["jordami01:1991"]);
+  const ready = { challenge: () => true };
+  assert.equal(challengeLegend(GALLERY_LEGENDS[12], ready), "challenged");
+});
+
 test("the gallery lives in My World only; the wall and the shared accordion are gone", () => {
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.doesNotMatch(html, /home-legends-wall/);

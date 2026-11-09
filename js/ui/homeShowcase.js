@@ -138,12 +138,14 @@ function photoImg(doc, src, alt) {
 /**
  * Challenge a legend. Returns "challenged" when the Duel is loaded and took the
  * challenge, "profile" when it is not loaded yet (the caller opens the profile instead).
+ * A Duel that returns false — its screen isn't ready yet, or the legend is unknown —
+ * also falls back to "profile".
  * `duel` is injectable for tests; it defaults to window.CourtsideDuel.
  */
 export function challengeLegend(legend, duel) {
   const target = duel !== undefined ? duel : typeof window !== "undefined" ? window.CourtsideDuel : undefined;
   if (target && typeof target.challenge === "function") {
-    target.challenge(legendToken(legend));
+    if (target.challenge(legendToken(legend)) === false) return "profile";
     return "challenged";
   }
   return "profile";
