@@ -2896,6 +2896,13 @@ select, input[type="number"] {
 #season-hub-panel .season-table .btn.ghost { color: #e6ece8; border-color: rgba(255, 255, 255, .34); }
 #season-hub-panel .season-table .btn.ghost:hover { background: rgba(255, 255, 255, .10); }
 #season-hub-panel .season-table td.team { display: flex; align-items: center; gap: 8px; }
+/* B57: tables inside the OPAQUE LIGHT award cards (playoff live-stats) sit on a white card, but the
+   hub's dark-stage table rules above target td/th directly and beat the card's inherited ink
+   (measured ~1.1:1 for #e6ece8 on #fff). These overrides restore dark ink inside light cards only;
+   schedule/standings tables on the dark stage keep their light text. */
+#season-hub-panel .season-award-card .season-table th { color: #6b7a6e; border-bottom-color: var(--line); }
+#season-hub-panel .season-award-card .season-table td { color: var(--ink); }
+#season-hub-panel .season-award-card .season-table tbody tr:nth-child(even) td { background: #f8faf8; }
 #season-hub-panel .stand-dot { width: 10px; height: 10px; border-width: 1px; }
 .season-awards {
   display: grid;
@@ -3321,6 +3328,11 @@ select, input[type="number"] {
   padding: 6px 0;
   border-bottom: 1px solid var(--line);
 }
+/* B58: keep a team name whole on narrow screens — CJK text breaks at any character by default, so
+   "凯尔特人" wrapped as "凯尔特/人". keep-all only allows breaks at spaces (the " vs " separator);
+   the score never shrinks or wraps. */
+.season-series-row span { word-break: keep-all; min-width: 0; }
+.season-series-row strong { flex-shrink: 0; white-space: nowrap; }
 .evaluation-note {
   margin-bottom: 10px;
   padding: 8px 10px;
