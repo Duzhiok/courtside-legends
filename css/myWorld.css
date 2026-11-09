@@ -182,3 +182,24 @@
 .mw-level-lv { font-weight: 800; color: var(--mw-green); min-width: 44px; }
 .mw-level-reward { flex: 1; }
 .mw-level-state { font-size: 0.85rem; color: #55695d; }
+
+/* Player Voice screenshots: compact box inside the feedback panel */
+.mw-attach { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; border: 1px dashed #b9c9bd; background: #f6faf7; color: #24352b; }
+.mw-attach-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+.mw-drop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; padding: 6px; border-radius: 8px; font-size: 0.8rem; color: #3d5246; }
+.mw-drop.is-over { background: #e2f1e6; outline: 2px solid #3f9d63; }
+.mw-thumbs { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.mw-thumb { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; background: #fff; border: 1px solid #dbe5dd; }
+.mw-thumb img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #eee; }
+.mw-thumb-meta { min-width: 0; display: flex; flex-direction: column; font-size: 0.8rem; }
+.mw-thumb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mw-thumb-meta small { color: #5a6d61; }
+.mw-thumb-btns { display: flex; gap: 4px; }
+/* Touch screens cannot drag a file in: say so only where a mouse exists. */
+@media (hover: none) { .mw-drag-only { display: none; } }
+/* One row per image on phones: thumbnail, name (ellipsis), two small buttons. */
+@media (max-width: 480px) {
+  .mw-thumb { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px; }
+  .mw-thumb img { width: 44px; height: 33px; }
+  .mw-thumb-btns .btn { padding: 4px 8px; font-size: 0.75rem; min-height: 28px; }
+}

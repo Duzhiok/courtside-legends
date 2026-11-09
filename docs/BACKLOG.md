@@ -94,3 +94,10 @@
 - Objectives are informational (no extra gold); only 4 fixed goals. Player stats in the report include the playoffs (labelled), the record does not.
 - The title path is covered by unit tests plus a real browser season where the stacked lineup won it; a non-title finish is unit-tested only.
 - Ledger is capped at 20 seasons: a season older than that could in theory be re-paid if its save were somehow resumed (not reachable today: starting a new season replaces the slot).
+
+### Player Voice screenshots (shipped, client side) — deferred
+- Submit still needs a real transport: register one with `setFeedbackTransport()` (`js/data/feedbackTransport.js`). It receives `{ category, stars, note, lang, owner, attachments:[{ name, type, size, width, height, blob }] }` with every image already <= 2 MB. The server-side adapter (private GitHub repo as dev storage, ADR-010) must hold the credentials; never the client, never the public source repo.
+- Not done: one-click in-game screenshot ("report a problem" captures the current screen). Needs a decision on what a 2D court / 3D canvas capture may contain (names, account id) before it is attached.
+- Not done: pasting an image from the clipboard; reordering the images.
+- Attachments are checked by magic bytes on the device, but the server must re-validate type, size and count; a client check is a convenience, not a guarantee.
+- Drafts live in IndexedDB per account. A browser that blocks IndexedDB keeps the images only until reload; the panel says so.

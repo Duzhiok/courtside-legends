@@ -10,6 +10,7 @@
  */
 import { avatarDataUri } from "../data/avatarArt.js";
 import { normalizeDraft } from "../data/feedbackDraft.js";
+import { FEEDBACK_IMAGE_MAX } from "../data/feedbackImages.js";
 import { photoImg } from "../data/photo.js";
 import { lookPanelHtml } from "./avatarLookView.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
@@ -254,7 +255,7 @@ const CATEGORY_LABEL = {
 const categoryLabel = (id, lang) => (lang === "en" ? CATEGORY_LABEL[id][1] : CATEGORY_LABEL[id][0]);
 
 /** Plain-text feedback the player can copy. Holds only what they chose or typed, plus version info. */
-export function feedbackTemplate({ note = "", category = "suggestion", stars = 0, lang = "zh", userAgent = "" } = {}) {
+export function feedbackTemplate({ note = "", category = "suggestion", stars = 0, lang = "zh", userAgent = "", attachmentCount = 0 } = {}) {
   const lines = [
     T(lang, "【Courtside Legends 玩家建议】", "[Courtside Legends player feedback]"),
     `${T(lang, "类型", "Type")}: ${categoryLabel(category in CATEGORY_LABEL ? category : "suggestion", lang)}`,
@@ -265,7 +266,32 @@ export function feedbackTemplate({ note = "", category = "suggestion", stars = 0
     `${T(lang, "界面语言", "UI language")}: ${lang}`,
   );
   if (userAgent) lines.push(`${T(lang, "浏览器", "Browser")}: ${userAgent}`);
+  if (attachmentCount > 0) lines.push(T(lang, `截图：${attachmentCount} 张（复制的文字不含图片，请到 GitHub 页面再手动拖入）`, `Screenshots: ${attachmentCount} (copied text does not include images; drag them into the GitHub page by hand)`));
   return lines.join("\n");
+}
+
+const REASON_TEXT = {
+  limit: ["已经有 3 张了，先移除一张再添加", "Already 3 images: remove one first"],
+  type: ["不是 PNG/JPEG/WebP 图片", "Not a PNG/JPEG/WebP image"],
+  empty: ["文件是空的", "The file is empty"],
+  huge: ["文件太大（超过 30MB）", "File too large (over 30 MB)"],
+  toobig: ["压缩后仍超过 2MB，请换一张小一点的", "Still over 2 MB after shrinking; try a smaller one"],
+  unreadable: ["读不出这张图片", "Could not read this image"],
+};
+export const attachReasonText = (reason, lang) => T(lang, ...(REASON_TEXT[reason] || REASON_TEXT.unreadable));
+
+const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+/** Thumbnails for the attachment draft. `urls[i]` is the object URL of list[i]; names are user data, so escaped. */
+export function thumbsHtml(list, urls, lang) {
+  return list.map((a, i) => `<li class="mw-thumb" data-id="${esc(a.id)}">
+    <img src="${esc(urls[i] || "")}" alt="${esc(a.name)}" />
+    <span class="mw-thumb-meta"><span class="mw-thumb-name">${esc(a.name)}</span><small>${kb(a.size)}</small></span>
+    <span class="mw-thumb-btns">
+      <button type="button" class="btn small ghost" data-mw-action="replace-attach" data-id="${esc(a.id)}">${T(lang, "替换", "Replace")}</button>
+      <button type="button" class="btn small ghost" data-mw-action="remove-attach" data-id="${esc(a.id)}" aria-label="${T(lang, "移除 ", "Remove ")}${esc(a.name)}">${T(lang, "移除", "Remove")}</button>
+    </span>
+  </li>`).join("");
 }
 
 const starRadio = (n, stars, lang) => `<label class="mw-star${n <= stars ? " on" : ""}"><input type="radio" name="mw-fb-stars" value="${n}"${n === stars ? " checked" : ""} />
@@ -293,6 +319,17 @@ export function feedbackHtml(lang, rawDraft = {}, canSubmit = false) {
     </fieldset>
     <label class="mw-sr" for="mw-feedback-note">${T(lang, "你的反馈", "Your feedback")}</label>
     <textarea id="mw-feedback-note" rows="3" maxlength="600" placeholder="${T(lang, "你希望自己的篮球人生还能做什么？", "What else should your basketball life do?")}">${esc(draft.note || "")}</textarea>
+    <div class="mw-attach" id="mw-attach">
+      <div class="mw-attach-head"><strong>${T(lang, "附上截图（可选）", "Attach screenshots (optional)")}</strong><span id="mw-attach-count" aria-live="polite">0/${FEEDBACK_IMAGE_MAX}</span></div>
+      <div class="mw-drop" id="mw-drop">
+        <button type="button" class="btn small ghost" data-mw-action="pick-attach" id="mw-attach-pick">${T(lang, "选择图片", "Choose images")}</button>
+        <span><span class="mw-drag-only">${T(lang, "或把图片拖到这里 · ", "or drop images here · ")}</span>${T(lang, `PNG/JPEG/WebP · 最多 ${FEEDBACK_IMAGE_MAX} 张，每张会自动压到 2MB 以内`, `PNG/JPEG/WebP · up to ${FEEDBACK_IMAGE_MAX}, each shrunk to 2 MB`)}</span>
+      </div>
+      <input type="file" id="mw-attach-input" class="mw-sr" accept="image/png,image/jpeg,image/webp" multiple tabindex="-1" aria-label="${T(lang, "选择要附上的图片", "Choose images to attach")}" />
+      <input type="file" id="mw-attach-replace" class="mw-sr" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-label="${T(lang, "选择替换用的图片", "Choose a replacement image")}" />
+      <ul class="mw-thumbs" id="mw-thumbs"></ul>
+      <p class="mw-status" id="mw-attach-status" role="status" aria-live="polite"></p>
+    </div>
     <p class="mw-fb-state" id="mw-feedback-state">${state}</p>
     <p class="mw-status mw-draft" id="mw-feedback-draft" role="status" aria-live="polite">${draft.note || stars ? T(lang, "已恢复你在这台设备上的草稿。", "Restored your draft from this device.") : ""}</p>
     <div class="btn-row">
