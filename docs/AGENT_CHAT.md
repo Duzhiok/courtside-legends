@@ -962,3 +962,5 @@ Report completed features, playable results, relevant tests, commits, and remain
 Default behavior: Keep building. Coordinate with other agents. Escalate only when necessary.
 
 [2026-11-09] Luna：B33 轻量整合已上 main（c745614）：面试 + 预言按 708608b 设计搬进 Reborn 开局，不合救援分支；面试默认开启，面板上有"跳过面试，直接接受"（中性接受、不触发拒绝、预言照常跟进），数字全部原样；聚焦测试 20/20（面试 8、预言 9、跳过 3），全量 1909/1900/9（9 = online* ws 环境问题）；浏览器冒烟 QA（含跳过场景）需 Mac 跑，B33 暂不标 ✅，等验证通过再定。
+
+[2026-11-09] Luna：认领金币挑战选秀池设计（用户 2026-11-04 定的目标，排在低 OVR 角色技能 95f40f1 与防守呈现 fb7c6c9 之后、下一件未阻塞的设计）：只写一页设计稿 `docs/implementation/gold-challenge-pool-design.md`，批了再动手改代码。范围：预算轮抽（15 块、8 人）的选秀池——花钱阶段 `listPaidPeaks` 按价/OVR 排序、补员阶段 `drawZeroCostPack` 均匀随机，导致 74–79 OVR 的 1 块球员被 0 块免费球员支配、低 OVR 球员只作凑数。设计只覆盖选秀池呈现与发牌，不改 OVR/身价公式、不改抽卡隐藏权重、不碰 sim.js。B27 仍等 B23 落地；B50、Player Voice 图片附件、Account Level 曲线仍是 Code 的，不碰。
