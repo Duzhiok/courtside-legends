@@ -344,6 +344,9 @@ import { confirmAction } from "./ui/confirmModal.js";
 import { myTeamSig, careerSig, foreignOwnerOf, ForeignSaveError, GUEST, hiddenFromMe, keyHasData, markSessionResumed, markSlotResumed, saveVisibility, seasonSig, sessionSig, slotLockReason, stampLegacySaves } from "./data/saveOwnership.js";
 import { buildMyTeamSeason } from "./myteam/mySeason.js";
 import { myTeamResult, recordMyTeamResult, seasonRecordSummary } from "./myteam/seasonRecord.js";
+import { grantSeasonGold } from "./myteam/seasonRewards.js";
+import { seasonObjectives, seasonReport } from "./myteam/seasonReport.js";
+import { objectivesHtml, reportHtml } from "./ui/myTeamReportView.js";
 import { clearMyTeamSeason, hasMyTeamSeason, loadMyTeamSeason, readMyTeamSeason, saveMyTeamSeason } from "./myteam/seasonStore.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
@@ -1105,6 +1108,7 @@ function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) 
   // A My Team season routes itself (the object carries `myTeam`): it must NEVER fall through to the quick-season slot.
   if (st?.myTeam) {
     settleMyTeamResult(st); // the last playoff game may be simulated without ever re-opening the hub
+    grantMyTeamGold(st); // derived from the record + a paid-ledger: every save path pays exactly the difference
     const res = saveMyTeamSeason(st);
     if (!res.ok) alert(res.reason === "storage" ? "赛季保存失败：浏览器存储空间不足。" : "赛季保存失败：存档位被其他存档占用。");
     return res.ok;
@@ -9158,7 +9162,7 @@ function renderSeasonHub({ persist = true } = {}) {
     pay.overCap ? L("（超软帽）", " (over soft cap)") : ""
   } · ${L(`空间 ${formatSalary(pay.space)}`, `Room ${formatSalary(pay.space)}`)}`;
   // A My Team roster is frozen and has no market, so payroll / cap room would only alarm: show the lock instead.
-  const metaText = st.myTeam ? `${seasonProgressLabel(st, getLang())} · ${L("阵容已锁定", "Lineup locked")}` : capMetaText;
+  const metaText = st.myTeam ? `${seasonProgressLabel(st, getLang())} · ${L("阵容已锁定", "Lineup locked")}${st.myTeam.goldEarned ? ` · 🪙 ¤${st.myTeam.goldEarned}` : ""}` : capMetaText;
   // R111：同一串信息拆成 pill（DOM 拼装，不走 innerHTML，队名原样当文本），只改外观。
   const metaEl = $("#season-hub-meta");
   metaEl.replaceChildren();
@@ -9281,6 +9285,7 @@ function renderSeasonHub({ persist = true } = {}) {
     if (st.myTeam) { abandon.dataset.myTeam = "1"; abandon.textContent = L("放弃我的赛季", "Abandon my season"); }
     else if (abandon.dataset.myTeam) { delete abandon.dataset.myTeam; abandon.textContent = L("删除当前生涯", "Delete current career"); }
   }
+  paintMyTeamGoals(st);
   paintMyTeamDoneBar(st);
   if (persist && !saveSeasonAndCareer(st)) return;
 }
@@ -11170,21 +11175,47 @@ function awardMyTeamSeasonXp(st, result) {
   return total;
 }
 
+/** Pay what the season has earned so far (idempotent: see seasonRewards.js) and remember the running total for the UI. */
+function grantMyTeamGold(st) {
+  if (!st?.myTeam) return;
+  const g = grantSeasonGold(st);
+  if (g.total) st.myTeam.goldEarned = g.total;
+  if (g.parts) st.myTeam.goldParts = g.parts;
+}
+
 function settleMyTeamResult(st) {
   if (!st?.myTeam || st.phase !== "done" || st.myTeam.result) return;
   st.myTeam.result = myTeamResult(st);
+  grantMyTeamGold(st); // the completion / playoff / title bonuses land in the same pass that records the season
+  st.myTeam.result.gold = st.myTeam.goldEarned || 0;
   const axp = awardMyTeamSeasonXp(st, st.myTeam.result);
   if (axp > 0) st.myTeam.result.axpNote = L(`🎖️ 账号经验 +${axp}`, `🎖️ Account XP +${axp}`);
   recordMyTeamResult(st.myTeam.ownerAccountId, st.myTeam.result);
   if (st.myTeam.result.champion) audio.champion();
 }
 
+/** Objectives strip while the season runs (and after, as the scoreboard of what was achieved). */
+function paintMyTeamGoals(st) {
+  const el = $("#myteam-goals");
+  if (!el) return;
+  // Once the season is over the same goals are inside the season report: don't show them twice.
+  if (!st?.myTeam || st.phase === "done") { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = objectivesHtml(seasonObjectives(st), getLang());
+}
+
 /** Season over: show the result and offer "one more season" with the same length. */
 function paintMyTeamDoneBar(st) {
   const bar = $("#myteam-done-bar");
+  const reportEl = $("#myteam-report");
   if (!bar) return;
-  if (!st?.myTeam || st.phase !== "done") { bar.hidden = true; return; }
+  if (!st?.myTeam || st.phase !== "done") { bar.hidden = true; if (reportEl) reportEl.hidden = true; return; }
   settleMyTeamResult(st);
+  grantMyTeamGold(st); // a resumed, already-settled season still gets topped up if something was missed (no-op otherwise)
+  if (reportEl) {
+    reportEl.hidden = false;
+    reportEl.innerHTML = reportHtml({ report: seasonReport(st), gold: { total: st.myTeam.goldEarned || 0, parts: st.myTeam.goldParts || null }, lang: getLang() });
+  }
   const r = st.myTeam.result;
   const acc = activeAccount();
   const lang = getLang();

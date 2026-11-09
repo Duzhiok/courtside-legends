@@ -20,6 +20,16 @@ const played = async (page) => page.evaluate(() => {
   const r = st?.standings?.[st.userTeamId];
   return r ? r.w + r.l : -1;
 });
+const accts = (page) => page.evaluate(async () => {
+  const a = await import("/js/data/account.js");
+  return Object.fromEntries(a.listAccounts().map((sum) => a.getAccount(sum.id)).map((x) => [x.name, { gold: x.gold || 0, ledger: Object.keys(x.myTeamGold || {}).length, seasons: (x.myTeamSeasons || []).length, first: (x.myTeamSeasons || [])[0] || null }]));
+});
+const expectedGold = (page) => page.evaluate(async () => {
+  const st = JSON.parse(localStorage.getItem("cls_myteam_season_v1") || "null");
+  const { goldEntitlement } = await import("/js/myteam/seasonRewards.js");
+  const e = st && goldEntitlement(st);
+  return e ? e.games + e.completion + e.playoffs + e.champion : -1;
+});
 const openEditor = async (page) => {
   await page.click('.home-tab[data-category="players"]');
   await page.click("#btn-open-my-lineup");
@@ -34,13 +44,17 @@ const confirmDialog = async (page, accept = true) => {
 };
 const seed = (page) => page.evaluate(async () => {
   const { PLAYERS, overall } = await import("/js/data/players.js");
-  const { createAccount, getAccount, saveAccount } = await import("/js/data/account.js");
+  const { createAccount, getAccount, saveAccount, setActiveAccountId } = await import("/js/data/account.js");
   const sorted = [...PLAYERS].sort((a, b) => overall(b) - overall(a));
   const seen = new Set();
   const ids = [];
   for (const p of sorted) { if (!seen.has(p.bref)) { seen.add(p.bref); ids.push(p.id); } if (ids.length === 10) break; }
   const acc = createAccount("QA 赛季");
   saveAccount({ ...getAccount(acc.id), playerIds: ids, coachId: null });
+  // A bystander on the same device: nothing My Team does may ever touch this account.
+  const other = createAccount("QA 路人");
+  saveAccount({ ...getAccount(other.id), gold: 100 });
+  setActiveAccountId(acc.id);
   return ids;
 });
 
@@ -76,6 +90,9 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const meta = await text(page, "#season-hub-meta");
   check(`[${tag}] season hub opens for my team`, title.includes("班底"), title);
   check(`[${tag}] progress shows /20`, /0\/20/.test(meta), meta);
+  const g0 = (await accts(page))["QA 赛季"].gold;
+  const goals = await text(page, "#myteam-goals");
+  check(`[${tag}] objectives strip shows 4 goals`, (await page.$$("#myteam-goals .mtg-chip")).length === 4 && goals.includes("赛季目标"), goals.slice(0, 60));
   for (const t of ["market", "evaluation", "draftBoard", "development", "history"]) {
     check(`[${tag}] ${t} tab hidden (roster is locked)`, await page.$eval(`[data-season-tab="${t}"]`, (b) => b.hidden || getComputedStyle(b).display === "none"));
   }
@@ -91,6 +108,8 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   await page.click("#btn-season-sim-one");
   await page.waitForSelector("#screen-result.active", { timeout: 20000 });
   check(`[${tag}] one game played and saved to my slot`, (await played(page)) >= 1, `${await played(page)}`);
+  const g1 = (await accts(page))["QA 赛季"].gold;
+  check(`[${tag}] a played game paid gold (win 6 / loss 2) and matches the record`, g1 - g0 > 0 && g1 - g0 === (await expectedGold(page)), `${g0} -> ${g1}`);
   await reload(page);
   await openEditor(page);
   const resumeLabel = await page.$eval('[data-act="resume-season"]', (b) => b.textContent.replace(/\s+/g, " ").trim()).catch(() => "");
@@ -100,6 +119,8 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   await page.waitForSelector("#screen-season.active #season-hub-panel:not([hidden])", { timeout: 15000 });
   const before = await played(page);
   check(`[${tag}] continuing keeps progress`, before >= 1 && /\/20/.test(await text(page, "#season-hub-meta")), `${before}`);
+  check(`[${tag}] reload + resume paid nothing extra`, (await accts(page))["QA 赛季"].gold === g1, `${(await accts(page))["QA 赛季"].gold} vs ${g1}`);
+  check(`[${tag}] hub shows the running season gold`, (await text(page, "#season-hub-meta")).includes("🪙"));
 
   // Finish the regular season: click "模拟 5 场" and poll my slot until the played count moves (no page assumption).
   for (let i = 0; i < 6 && (await played(page)) < 20; i++) {
@@ -136,6 +157,25 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const bar = await text(page, "#myteam-done-bar");
   check(`[${tag}] season-over bar shows record + title count`, /\d+胜 \d+负/.test(bar) && bar.includes("20 场"), bar.slice(0, 90));
   check(`[${tag}] bar offers play-another-season`, !!(await page.$("[data-myteam-again]")));
+  const report = await text(page, "#myteam-report");
+  check(`[${tag}] season report: finish, rank, players, gold`, report.includes("赛季报告") && /联盟第 \d+\/\d+/.test(report) && report.includes("本赛季金币") && (await page.$$("#myteam-report .mtr-table tbody tr")).length >= 5, report.slice(0, 120));
+  const gEnd = (await accts(page))["QA 赛季"].gold;
+  check(`[${tag}] season paid exactly what its record earned (games + finish + playoffs + title)`, gEnd - g0 === (await expectedGold(page)) && gEnd - g0 > 40, `${g0} -> ${gEnd}`);
+  check(`[${tag}] goals strip not duplicated once the season is over`, await page.$eval("#myteam-goals", (b) => b.hidden));
+  check(`[${tag}] report table fits its box (no hidden sideways scroll)`, await page.$eval("#myteam-report .mtr-scroll", (b) => b.scrollWidth <= b.clientWidth + 1));
+  await shoot(page, `${OUT}/${tag}-report.png`);
+  await reload(page);
+  check(`[${tag}] reloading after the season paid nothing again`, (await accts(page))["QA 赛季"].gold === gEnd);
+  await openEditor(page);
+  if (await page.$('[data-act="resume-season"]')) {
+    await page.click('[data-act="resume-season"]');
+    await page.waitForSelector("#screen-season.active #season-hub-panel:not([hidden])", { timeout: 15000 });
+    await page.waitForTimeout(600);
+    check(`[${tag}] resuming the finished season paid nothing again`, (await accts(page))["QA 赛季"].gold === gEnd);
+    check(`[${tag}] resumed finished season still shows the report`, !(await page.$eval("#myteam-report", (b) => b.hidden)));
+  } else {
+    check(`[${tag}] (no resume button for a finished season: nothing to re-pay)`, true);
+  }
   check(`[${tag}] finished season recorded on the account`, await page.evaluate(() => (localStorage.getItem("cls_accounts_v1") || "").includes("myTeamSeasons")));
   const firstId = await page.evaluate(() => JSON.parse(localStorage.getItem("cls_myteam_season_v1")).myTeam.seasonId);
   check(`[${tag}] season-over state: no horizontal overflow`, await noOverflow(page));
@@ -146,6 +186,10 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const nextMeta = await text(page, "#season-hub-meta");
   check(`[${tag}] another season started: fresh 0/20, new id, no confirm detour`, /0\/20/.test(nextMeta), nextMeta);
   check(`[${tag}] end bar hidden again for the new season`, await page.$eval("#myteam-done-bar", (b) => b.hidden));
+  check(`[${tag}] report hidden for the new season`, await page.$eval("#myteam-report", (b) => b.hidden));
+  const afterAgain = (await accts(page))["QA 赛季"];
+  check(`[${tag}] new season: history kept (1 record, 1 ledger entry), no gold from nowhere`, afterAgain.seasons === 1 && afterAgain.ledger === 1 && afterAgain.gold === gEnd, JSON.stringify({ ...afterAgain, first: undefined }));
+  check(`[${tag}] record carries finish + rank`, !!afterAgain.first?.finish && afterAgain.first.rank >= 1, JSON.stringify(afterAgain.first));
   s = await slots(page);
   check(`[${tag}] quick-season bytes still untouched`, s.cls_season_v1 === "QUICK-SEASON-SENTINEL");
 
@@ -156,6 +200,13 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   s = await slots(page);
   check(`[${tag}] abandon: my slot gone`, !s.cls_myteam_season_v1);
   check(`[${tag}] abandon: quick-season bytes still there`, s.cls_season_v1 === "QUICK-SEASON-SENTINEL");
+  check(`[${tag}] abandoning keeps the earned gold and the history`, (await accts(page))["QA 赛季"].gold === gEnd && (await accts(page))["QA 赛季"].seasons === 1);
+  const bystander = (await accts(page))["QA 路人"];
+  check(`[${tag}] the other account is untouched (gold 100, no ledger, no seasons)`, bystander.gold === 100 && bystander.ledger === 0 && bystander.seasons === 0, JSON.stringify({ ...bystander, first: undefined }));
+  await page.click('.home-tab[data-category="world"]');
+  const world = (await page.locator(".mw-card").allInnerTexts()).join(" ");
+  check(`[${tag}] My World lists the season history${afterAgain.first?.champion ? " and the title" : ""}`, world.includes("我的赛季记录") && (!afterAgain.first?.champion || world.includes("座总冠军")), world.replace(/\s+/g, " ").slice(0, 160));
+  await shoot(page, `${OUT}/${tag}-myworld.png`);
   check(`[${tag}] no page errors`, errors.length === 0, errors.slice(0, 2).join(" | "));
   await page.close();
 }

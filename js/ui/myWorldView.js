@@ -48,7 +48,22 @@ export function legacyFromAccount(account) {
     codex: new Set([...(account.codex || []), ...owned]).size,
     rankedWins: account.rankedWins || 0,
     rankedLosses: account.rankedLosses || 0,
+    myTeam: myTeamHistory(account.myTeamSeasons),
   };
+}
+
+/** My Team Season honours from the account's finished-season list (newest first). Titles are counted, never summed across 20/82. */
+export function myTeamHistory(list) {
+  const seasons = (Array.isArray(list) ? list : []).filter((r) => r && r.seasonId);
+  return { titles: seasons.filter((r) => r.champion).length, played: seasons.length, recent: seasons.slice(0, 3) };
+}
+
+const FINISH_TEXT = { champion: ["总冠军", "Champions"], finals: ["总决赛", "Finals"], playoffs: ["季后赛", "Playoffs"], missed: ["未进季后赛", "Missed playoffs"] };
+export function myTeamSeasonLine(r, lang) {
+  const f = FINISH_TEXT[r.finish || (r.champion ? "champion" : "missed")] || FINISH_TEXT.missed;
+  const len = r.variant === "full" ? T(lang, "82 场", "82 games") : T(lang, "20 场", "20 games");
+  const star = r.star?.name ? ` · ${esc(r.star.name)} ${esc(r.star.ppg)}` : "";
+  return `${len} · ${esc(r.w)}-${esc(r.l)} · ${T(lang, f[0], f[1])}${star}`;
 }
 
 const ICONS = {
@@ -162,15 +177,20 @@ export function gamesHtml(games, lang) {
 
 export function legacyHtml(legacy, journey, lang) {
   const trophies = journey?.trophies || [];
-  const trophyLine = trophies.length
-    ? `<ul class="mw-trophies">${trophies.map((t) => `<li>🏆 ${esc(t.year)} · ${esc(teamNameL(t.teamName || "", lang))}</li>`).join("")}</ul>`
+  const mt = legacy?.myTeam;
+  const mtTitles = mt?.titles ? `<li>🏆 ${T(lang, `我的赛季 · ${mt.titles} 座总冠军`, `My Team seasons · ${mt.titles} title(s)`)}</li>` : "";
+  const trophyLine = trophies.length || mtTitles
+    ? `<ul class="mw-trophies">${trophies.map((t) => `<li>🏆 ${esc(t.year)} · ${esc(teamNameL(t.teamName || "", lang))}</li>`).join("")}${mtTitles}</ul>`
     : `<p class="mw-empty">${T(lang, "还没有冠军。拿下总冠军后会出现在这里。", "No championships yet. Titles you win will show up here.")}</p>`;
+  const mtRecent = mt?.recent?.length
+    ? `<p class="mw-line tiny"><strong>${T(lang, "我的赛季记录", "My Team seasons")}</strong></p><ul class="mw-trophies mw-myteam-hist">${mt.recent.map((r) => `<li>${myTeamSeasonLine(r, lang)}</li>`).join("")}</ul>`
+    : "";
   const collection = legacy
     ? `<p class="mw-line tiny">${T(lang, `球员卡 ${legacy.cards} 张 · 图鉴 ${legacy.codex} 人 · 排位 ${legacy.rankedWins} 胜 ${legacy.rankedLosses} 负`, `${legacy.cards} cards · ${legacy.codex} in codex · Ranked ${legacy.rankedWins}-${legacy.rankedLosses}`)}</p>
        ${legacy.cards ? action("open-collection", T(lang, "打开我的球员卡", "Open my cards")) : `<p class="mw-empty">${T(lang, "还没有球员卡。", "No cards yet.")}</p>`}`
     : `<p class="mw-empty">${T(lang, "访客没有永久收藏。创建账号后可以收集球员卡。", "Guests have no permanent collection. Create an account to collect cards.")}</p>
        ${action("open-accounts", T(lang, "创建或切换账号", "Create or switch account"))}`;
-  return `<section class="mw-card">${cardHead("legacy", T(lang, "传奇荣誉", "Legacy"))}${trophyLine}${collection}</section>`;
+  return `<section class="mw-card">${cardHead("legacy", T(lang, "传奇荣誉", "Legacy"))}${trophyLine}${mtRecent}${collection}</section>`;
 }
 
 /** Lightweight local illustration (inline SVG, no external image). Real data is overlaid as HTML on top of it. */
@@ -328,5 +348,5 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, draft, l
     ${levelHtml(level, lang)}
     ${lookPanelHtml(look, identity?.name, lang, portrait)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
-    ${homeSceneHtml({ identity, frames, trophyCount: owned?.trophies?.length || 0 }, lang)}`;
+    ${homeSceneHtml({ identity, frames, trophyCount: (owned?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0) }, lang)}`;
 }

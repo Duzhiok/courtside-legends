@@ -5,6 +5,7 @@
  * Records carry `variant`, so a 20-game and an 82-game season are never summed together.
  */
 import { getAccount, saveAccount } from "../data/account.js";
+import { seasonFinish, seasonRank, myPlayerLines } from "./seasonReport.js";
 
 export const MAX_SEASON_RECORDS = 20;
 
@@ -19,6 +20,9 @@ export function myTeamResult(st) {
     w: rec.w || 0,
     l: rec.l || 0,
     champion: !!st.userTeamId && st.playoffs?.championId === st.userTeamId,
+    finish: seasonFinish(st),
+    rank: seasonRank(st).rank,
+    star: (([p]) => (p ? { name: p.name, ppg: p.ppg } : null))(myPlayerLines(st)),
     finishedAt: Date.now(),
   };
 }

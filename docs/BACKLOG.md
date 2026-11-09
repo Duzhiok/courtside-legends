@@ -87,3 +87,10 @@
 - Not covered by an automated test: a playlist file that vanishes after being listed (the skip-and-mark path is written but only unit-reasoned); the real `showResult` / draw-reveal / My Team champion stings were wired but only the facade was exercised, not heard in a full real run.
 - Headless Chromium proves the audio graph runs and the synth output is non-silent and finite, not that it sounds good: volume balance and taste need ears.
 - Season-hub era is taken from `state.season.year` at screen-show time; the Reborn era can lag one screen until the hub is shown.
+
+### My Team progression (gold / report / goals) — deferred
+- Gold rates (20-game: win 6 / loss 2 / finish 40 / playoffs 30 / title 120; 82-game: 3 / 1 / 150 / 60 / 300) are a first guess from ranked +40/+12 and the ¤200 extra draw; tune after real play. Source of truth: `js/myteam/seasonRewards.js`.
+- No in-season card growth exists for My Team (cards are season clones; owned cards must stay untouched), so the report shows what players DID, not rating changes. A real "development" step would need an explicit, opt-in write-back design.
+- Objectives are informational (no extra gold); only 4 fixed goals. Player stats in the report include the playoffs (labelled), the record does not.
+- The title path is covered by unit tests plus a real browser season where the stacked lineup won it; a non-title finish is unit-tested only.
+- Ledger is capped at 20 seasons: a season older than that could in theory be re-paid if its save were somehow resumed (not reachable today: starting a new season replaces the slot).

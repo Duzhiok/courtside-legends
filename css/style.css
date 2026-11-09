@@ -3666,3 +3666,31 @@ select, input[type="number"] {
 .myteam-done-bar .btn-row { margin-left: auto; display: flex; gap: 8px; }
 .myteam-done-bar .btn.primary { padding: 8px 18px; font-weight: 700; }
 .myteam-done-bar .btn.ghost { color: inherit; border: 1px solid rgba(255, 255, 255, 0.55); background: rgba(255, 255, 255, 0.08); }
+
+/* My Team Season: objectives strip + end-of-season report */
+.myteam-goals { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0 0; font-size: 0.85rem; }
+.myteam-goals[hidden], .myteam-report[hidden] { display: none; }
+.mtg-title { font-weight: 700; margin-right: 2px; }
+.mtg-chip { padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.06); white-space: nowrap; }
+.mtg-chip.is-done { border-color: #5fd08a; color: #9be8b6; }
+.mtg-chip.is-failed { border-color: #c96a6a; color: #f0a6a6; text-decoration: line-through; text-decoration-thickness: 1px; }
+.myteam-report { margin: 10px 0 0; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(0, 0, 0, 0.28); font-size: 0.92rem; }
+.myteam-report h4 { margin: 0 0 6px; }
+.myteam-report p { margin: 4px 0; }
+.myteam-report .mtg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0; }
+.mtr-gold { color: #ffd37a; font-weight: 700; }
+.mtr-gold span { font-weight: 400; opacity: 0.8; font-size: 0.82rem; }
+.mtr-scroll { overflow-x: auto; margin-top: 6px; }
+.mtr-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.mtr-table th, .mtr-table td { padding: 4px 6px; text-align: right; white-space: nowrap; }
+.mtr-table th:first-child, .mtr-table td:first-child { text-align: left; }
+.mtr-table thead th { border-bottom: 1px solid rgba(255, 255, 255, 0.25); font-weight: 600; }
+.mtr-name { max-width: 11em; overflow: hidden; text-overflow: ellipsis; }
+.mtr-name small { opacity: 0.7; }
+.mtr-note { margin: 8px 0 0; font-size: 0.78rem; opacity: 0.7; }
+@media (max-width: 520px) {
+  /* Four numbers must fit without a hidden sideways scroll: drop minutes, shrink the name column. */
+  .mtr-min { display: none; }
+  .mtr-name { max-width: 7.5em; }
+  .mtr-table th, .mtr-table td { padding: 4px 4px; }
+}
