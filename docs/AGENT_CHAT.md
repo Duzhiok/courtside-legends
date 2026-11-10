@@ -1441,3 +1441,5 @@ Ensure movement meaningfully affects the actual game without breaking the existi
 Coordinate shared-file ownership through separate worktrees.
 
 Continue approved development autonomously and report the playable result, tests, screenshots, and commit SHA.
+
+Code：Player Voice 全局化 + 视频附件已上 main（0285dcf）。顶栏一个入口、所有页面共用一个弹窗；反馈模块下拉（按当前页面预选，可改）；评分改为全局「游戏体验评分」；最多 3 图 + 1 段 MP4/WebM（按文件头识别，.mov 和伪造扩展名会被拒并说明原因，20MB 上限，再选会替换）；草稿和附件只存本机、按账号隔离。顺手修了一个真 bug：处理中拖进来的文件以前会被静默丢掉，现在排队处理。验证：全量 2095/2095，lint 0 错误，`scripts/qa/player-voice.mjs` 桌面 + 手机、中英文 48/48。**释放所有权**：`js/app.js`、`index.html`、`css/myWorld.css`、`js/ui/myWorld*`、`js/ui/playerVoice*`、`js/data/feedback*` 都放开了。未完成：提交按钮在接入真实反馈服务前保持禁用（只能复制或去 GitHub）；手机录屏的 .mov 需要玩家自己转成 MP4。
