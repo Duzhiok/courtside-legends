@@ -16,7 +16,7 @@ const ACC = () => localStorage.getItem("cls_accounts_v1");
 const reload = async (page) => { await page.reload({ waitUntil: "domcontentloaded" }); await homeActive(page); };
 const openEditor = async (page) => {
   await page.click('.home-tab[data-category="players"]');
-  await page.click("#btn-open-my-lineup");
+  await page.click('#my-team-clubhouse-root [data-act="edit-lineup"]');
   await page.waitForSelector("#screen-my-team-lineup.active");
 };
 const counts = (page) => page.$eval(".mtl-counts", (el) => el.textContent.replace(/\s+/g, " ").trim()).catch(() => "");
@@ -47,13 +47,9 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
 
   // 1. Guest: guidance only
   await page.click('.home-tab[data-category="players"]');
-  check(`[${tag}] entry button on the My Players tab`, await page.$eval("#btn-open-my-lineup", (el) => el.getBoundingClientRect().height > 0));
   check(`[${tag}] ranked entry untouched`, !!(await page.$('.mode-card[data-mode="ranked"]')));
-  await openEditor(page);
-  check(`[${tag}] guest sees guidance, no editor`, !!(await page.$(".mtl-guest")) && !(await page.$(".mtl-list")));
-  check(`[${tag}] guest: create-account button`, !!(await page.$('.mtl-guest [data-act="accounts"]')));
+  check(`[${tag}] guest: the clubhouse asks for an account instead of offering an editor`, !!(await page.$('#my-team-clubhouse-root .mtc-hero [data-act="accounts"]')) && !(await page.$('#my-team-clubhouse-root [data-act="edit-lineup"]')));
   check(`[${tag}] guest: no overflow`, await noOverflow(page));
-  await page.click("#btn-my-lineup-back");
 
   // 2. Account with cards: opening writes nothing
   const seeded = await seed(page);

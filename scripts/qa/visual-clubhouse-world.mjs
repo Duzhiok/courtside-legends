@@ -70,9 +70,7 @@ const openWorld = async (page) => {
 };
 const openClubhouse = async (page) => {
   await page.click('.home-tab[data-category="players"]');
-  await page.click("#btn-open-my-lineup");
-  await page.waitForSelector("#screen-my-team-clubhouse.active");
-  await page.waitForSelector("#my-team-clubhouse-root .mtc-hero");
+  await page.waitForSelector("#my-team-clubhouse-root .mtc-hero", { state: "visible" }); // the clubhouse IS the My Players tab now
 };
 
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
