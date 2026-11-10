@@ -304,8 +304,11 @@ import {
   prepareCareerOffseason,
   recoverCareerPhase,
   resolveRootLiveGame,
+  suggestCareerDraftPick,
   upgradeLeagueCareerManagement,
 } from "./modes/leagueCareer.js";
+import { canDo, careerRole, denyMessage } from "./career/careerGuards.js";
+import { setPrologueRole } from "./modes/timeTravelCareer.js";
 import { picksOwnedBy, swapDraftPicks } from "./engine/leagueDraft.js";
 import {
   careerForPersistence,
@@ -9479,7 +9482,11 @@ function renderLeagueManagement() {
             state.leagueCareer,
             (working) =>
               reconcileDevelopmentPlans(
-                makeCareerDraftPick(working, prospectId, options),
+                // A coach suggests and the front office executes
+                // (ADR-006 R4); the GM picks directly.
+                canDo(working, "draft")
+                  ? makeCareerDraftPick(working, prospectId, options)
+                  : suggestCareerDraftPick(working, prospectId),
               ),
           );
           commitManagedCareer(next, "draftBoard");
@@ -9493,7 +9500,11 @@ function renderLeagueManagement() {
             state.leagueCareer,
             (working) =>
               reconcileDevelopmentPlans(
-                forfeitCareerDraftPick(working),
+                // A coach forfeits by letting the front office decide
+                // (suggest with no prospect); the GM forfeits directly.
+                canDo(working, "draft")
+                  ? forfeitCareerDraftPick(working)
+                  : suggestCareerDraftPick(working, null),
               ),
           );
           commitManagedCareer(next, "draftBoard");
@@ -9740,6 +9751,8 @@ function renderSeasonRotation() {
     renderSeasonRotation();
   });
   $("#btn-rot-save")?.addEventListener("click", () => {
+    // Setting the rotation is the coach's job (ADR-006 R4).
+    if (!careerOperationAllowed("setRotation")) return;
     const marked = liveStarterIds(you);
     you.starterIds = marked; // only people still on the roster get saved
     if (marked.length && marked.length !== 5) {
@@ -9818,6 +9831,21 @@ function listingPrefSelectHtml(st, playerId) {
     .join("");
   const label = en ? "What do you want back?" : "出售倾向";
   return `<select class="sm-list-pref" data-list-pref="${playerId}" aria-label="${label}" title="${label}">${options}</select>`;
+}
+
+/**
+ * Career role gate for the season-hub operation buttons (ADR-006 R4).
+ * True when the operation may run. When the current managed career's
+ * role lacks the capability, it shows the reason and returns false.
+ * Plain seasons and My Team have no career role, so they are never
+ * gated here. The mode-layer functions enforce the same rule again at
+ * the operation itself — this is the UI-side refusal, not the check.
+ */
+function careerOperationAllowed(capability) {
+  if (!isManagedCareer(state.leagueCareer)) return true;
+  if (canDo(state.leagueCareer, capability)) return true;
+  alert(denyMessage(careerRole(state.leagueCareer, state.longCareerRoot), capability, getLang()));
+  return false;
 }
 
 function renderSeasonMarket() {
@@ -10192,6 +10220,9 @@ function renderSeasonMarket() {
   });
   box.querySelectorAll(".sm-cut").forEach((btn) => {
     btn.onclick = () => {
+      // Cutting a player is the GM's job (ADR-006 R4) — refuse before
+      // the confirm dialog, not after it.
+      if (!careerOperationAllowed("release")) return;
       const p = you.players.find((x) => x.id === btn.dataset.cut);
       if (!p || !confirm(L(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`, `Cut ${p.name} (${formatSalary(playerSalary(p))})? He'll enter free agency.`))) return;
       const res = cutPlayer(st, p.id, getLang());
@@ -10210,6 +10241,8 @@ function renderSeasonMarket() {
   });
   box.querySelectorAll(".sm-sign").forEach((btn) => {
     btn.onclick = () => {
+      // Signing a free agent is the GM's job (ADR-006 R4).
+      if (!careerOperationAllowed("signFreeAgent")) return;
       const res = signFreeAgent(st, btn.dataset.sign, getLang());
       if (!res.ok) {
         alert(res.reason);
@@ -10340,6 +10373,9 @@ function renderSeasonMarket() {
     updateTradeSummary();
   });
   $("#btn-sm-trade")?.addEventListener("click", () => {
+    // Executing a trade is the GM's job (ADR-006 R4) — a coach may only
+    // use the recommend button to suggest a package.
+    if (!careerOperationAllowed("trade")) return;
     const cpuId = $("#sm-trade-cpu")?.value;
     const cpu3Id = $("#sm-trade-cpu3")?.value;
     const checkedVals = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
@@ -10796,6 +10832,9 @@ function showSeasonTab(tab) {
 function playSeasonUserGame() {
   const st = state.season;
   if (!st) return;
+  // Calling a game yourself is the coach's job (ADR-006 R4) — a GM
+  // watches or simulates (the season hub's sim buttons stay open).
+  if (!careerOperationAllowed("commandGame")) return;
   if (st.phase === "playoffs") return playUserPlayoffGame();
   if (st.phase !== "regular") return;
   advanceToUserGame(st, { stopBeforeUser: true });
@@ -10858,6 +10897,8 @@ function cloneLiveTeamSide(t) {
 function playUserPlayoffGame() {
   const st = state.season;
   if (!st || st.phase !== "playoffs") return;
+  // Same gate as the regular-season entry above (ADR-006 R4).
+  if (!careerOperationAllowed("commandGame")) return;
   const info = nextUserPlayoffGame(st);
   if (!info) {
     renderSeasonHub();
@@ -11892,9 +11933,13 @@ $("#btn-season-start")?.addEventListener("click", async () => {
       year: seasonSetupMode === "historical" ? yearSel : new Date().getFullYear(),
     });
     if (seasonSetupKind === "franchise") {
+      // The League Manager setup is the GM route (ADR-006 R4): the
+      // career it creates plays as GM, so trades/drafts/signings are
+      // open and commanding games / setting the rotation are not.
       state.leagueCareer = createLeagueCareer({
         kind: "franchise",
         season: state.season,
+        role: "GM",
       });
       state.mode = "franchise";
     } else {
@@ -12565,6 +12610,15 @@ async function boot() {
     // Player Reborn dev entry: ?reborn=1 opens the slice after boot.
     if (new URLSearchParams(location.search).get("reborn") === "1") {
       setTimeout(() => { rebornView.open(); }, 250);
+    }
+    // Career Role Permissions dev entry: ?career=coach opens the Time
+    // Travel creation with the Coach role pre-set (ADR-006 R4) — the
+    // Career entry's Coach card will do the same once workstream A
+    // wires it; the GM path is the League Manager setup, the GM+Coach
+    // path is the existing card.
+    if (new URLSearchParams(location.search).get("career") === "coach") {
+      setPrologueRole("COACH");
+      setTimeout(() => { startMode("timeTravel"); }, 250);
     }
   } catch (e) {
     console.error(e);
