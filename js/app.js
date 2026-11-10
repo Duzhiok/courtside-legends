@@ -33,6 +33,7 @@ import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountPr
 import { mountSandbox } from "./ui/sandboxView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
+import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12549,6 +12550,20 @@ async function boot() {
       show,
       goBack,
     });
+    // Career Relationships dev entry (workstream E): the relationships /
+    // promises / legacy panel for the active account. ?relationships=1
+    // opens it after boot (below). It never invents offers or
+    // transitions — those come from the Opportunity engine (workstream G).
+    screens.relationships = ensureRelationshipsScreen();
+    const relationshipsView = createRelationshipsView({
+      getLang,
+      getAccount: activeAccount,
+      saveAccount,
+      readRootSave: () => state.longCareerRoot || readRootSave(),
+      writeRootSave,
+      show,
+      goBack,
+    });
     myTeamLineup = createMyTeamLineup({
       el: $("#my-team-lineup-root"),
       getLang,
@@ -12622,6 +12637,11 @@ async function boot() {
     // Player Reborn dev entry: ?reborn=1 opens the slice after boot.
     if (new URLSearchParams(location.search).get("reborn") === "1") {
       setTimeout(() => { rebornView.open(); }, 250);
+    }
+    // Career Relationships dev entry (workstream E): ?relationships=1
+    // opens the relationships / promises / legacy panel after boot.
+    if (new URLSearchParams(location.search).get("relationships") === "1") {
+      setTimeout(() => { relationshipsView.open(); }, 250);
     }
     // Career Role Permissions dev entry: ?career=coach opens the Time
     // Travel creation with the Coach role pre-set (ADR-006 R4) — the
