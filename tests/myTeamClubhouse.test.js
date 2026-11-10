@@ -38,7 +38,7 @@ test("hero counts titles from real records only; no seasons means no trophy is d
   assert.equal(two.latest.w, 18);
   const html2 = view.clubhouseHtml({ summary: two, lang: "zh" });
   assert.match(html2, /<span class="mtc-titles-num">2<\/span>/);
-  assert.match(html2, /18.*胜.*2.*负|18-2/, "latest W-L comes from the newest record");
+  assert.match(html2, /最近赛季 18–2/, "latest W-L comes from the newest record");
   assert.match(html2, /20 场赛季已打 3 季 · 2 冠/);
 });
 
@@ -131,16 +131,16 @@ test("season center: eligible lineups can start, ineligible ones show the real b
   assert.match(liveHtml, /第 8 场 · 5胜2负/);
 });
 
-test("honours room lists real champion seasons and counts finals; past lineups are honestly absent", () => {
+test("honours room lists real champion seasons; Finals appearances include the titles; past lineups are honestly absent", () => {
   const s = view.clubhouseSummary(acct({ myTeamSeasons: [
     record({ champion: true, finish: "champion", w: 18, l: 2 }),
     record({ champion: false, finish: "finals", w: 15, l: 5 }),
     record({ champion: false, finish: "missed", w: 8, l: 12 }),
   ] }));
   const html = view.clubhouseHtml({ summary: s, lang: "zh" });
-  assert.match(html, /季后赛 2 次 · 总决赛 1 次 · 共打了 3 个赛季/);
-  assert.match(html, /往季的首发阵容没有存档/);
-  assert.doesNotMatch(html, /首发阵容：/, "no historical lineup is fabricated");
+  assert.match(html, /季后赛 2 次 · 总决赛 2 次 · 共打了 3 个赛季/, "one title + one lost Final = two Finals");
+  assert.doesNotMatch(html, /没有存档|not stored/, "no developer-facing note leaks into the player UI");
+  assert.doesNotMatch(html, /mtc-five|当年首发/, "records without a saved lineup show no lineup at all (nothing fabricated)");
 });
 
 test("guest sees an honest empty state and no fake team", () => {

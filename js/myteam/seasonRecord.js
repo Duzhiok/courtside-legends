@@ -5,15 +5,47 @@
  * Records carry `variant`, so a 20-game and an 82-game season are never summed together.
  */
 import { getAccount, saveAccount } from "../data/account.js";
+import { overall } from "../data/players.js";
+import { playerSlotPos } from "../engine/gameplan.js";
 import { seasonFinish, seasonRank, myPlayerLines } from "./seasonReport.js";
+import { SLOT_ORDER } from "./courtSlots.js";
 
 export const MAX_SEASON_RECORDS = 20;
+
+/**
+ * The five who started when the season ended, copied from the season's OWN team (the cards were cloned from the
+ * collection when the season began, so later sales / upgrades cannot change them). Display fields only — id, name,
+ * the slot he played, OVR, and what the portrait needs (bref / season / team). Returns null when the save does not
+ * hold a full five: a partial or reconstructed lineup would be a made-up history.
+ */
+export function startingFiveSnapshot(st) {
+  const team = st?.teams?.[st?.userTeamId];
+  const ids = Array.isArray(team?.starterIds) && team.starterIds.length ? team.starterIds : st?.myTeam?.start?.starterIds;
+  if (!team || !Array.isArray(team.players) || !Array.isArray(ids)) return null;
+  const byId = new Map(team.players.map((p) => [p?.id, p]));
+  const five = ids.map((id) => byId.get(id)).filter(Boolean);
+  if (five.length !== SLOT_ORDER.length) return null;
+  return five.map((c) => ({
+    id: String(c.id), bref: String(c.bref || ""), name: String(c.name || ""), nameEn: String(c.nameEn || ""),
+    pos: playerSlotPos(c), ovr: overall(c), season: c.season ?? "", team: String(c.team || ""),
+  }));
+}
+
+/** A record's saved starting five, or [] when it has none (older seasons) or the data is damaged. Never guesses. */
+export function recordLineup(record) {
+  const list = record?.lineup;
+  if (!Array.isArray(list) || list.length !== SLOT_ORDER.length) return [];
+  const ok = list.every((e) => e && typeof e.id === "string" && typeof e.name === "string" && SLOT_ORDER.includes(e.pos) && Number.isFinite(e.ovr));
+  return ok ? list : [];
+}
 
 /** The user's result once the season is `done` (null before). */
 export function myTeamResult(st) {
   if (!st?.myTeam || st.phase !== "done") return null;
   const rec = st.standings?.[st.userTeamId] || {};
+  const lineup = startingFiveSnapshot(st);
   return {
+    ...(lineup ? { lineup } : {}),
     seasonId: st.myTeam.seasonId,
     variant: st.myTeam.rules?.variant || "quick",
     games: st.myTeam.rules?.seasonLength || 0,

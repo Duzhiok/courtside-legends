@@ -356,6 +356,7 @@ import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
 let myWorld = null;
 let myTeamLineup = null;
 let myTeamClubhouse = null;
+let activateHomeTab = null; // set once the home tabs are wired (wireHomeTabs returns it)
 import {
   FAMILY_DUEL_THEMES,
   autoFillFamilySide,
@@ -487,7 +488,6 @@ const screens = {
   account: $("#screen-account"),
   onboard: $("#screen-onboard"),
   myTeamLineup: $("#screen-my-team-lineup"),
-  myTeamClubhouse: $("#screen-my-team-clubhouse"),
   collection: $("#screen-collection"),
   credits: $("#screen-credits"),
   draw: $("#screen-draw"),
@@ -2455,6 +2455,7 @@ function refreshAccountHomeBar() {
   refreshGoldChip();
   refreshRankedCardLock();
   refreshMyWorld();
+  myTeamClubhouse?.refresh(); // cards, lineup and season records may have changed since the tab was last drawn
   refreshAccountAvatar(); // name/cards may have changed (switch account, onboarding, profile edit)
   refreshLongCareerHomeBar(); // a switch of account changes which saves may be offered
   refreshSaveHomeBar();
@@ -11374,8 +11375,15 @@ function paintMyTeamDoneBar(st) {
 $("#myteam-done-bar")?.addEventListener("click", (e) => {
   const again = e.target.closest("[data-myteam-again]");
   if (again) return void startMyTeamSeason(again.dataset.myteamAgain, { again: true });
-  if (e.target.closest("[data-myteam-lineup]")) { myTeamClubhouse?.open(); show("myTeamClubhouse"); }
+  if (e.target.closest("[data-myteam-lineup]")) openMyTeamHome();
 });
+
+/** The My Team clubhouse lives inside the home "My Players" tab: go there and show fresh data. */
+function openMyTeamHome() {
+  show("home");
+  activateHomeTab?.("players");
+  myTeamClubhouse?.open();
+}
 
 function myTeamResumeLabel() {
   const st = readMyTeamSeason();
@@ -12308,6 +12316,7 @@ async function boot() {
       refreshCareerEntry();
       refreshMyWorld();
       myTeamLineup?.refresh();
+      myTeamClubhouse?.refresh();
       refreshRankedCardLock();
       // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
       if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
@@ -12371,7 +12380,7 @@ async function boot() {
       },
       getAccount: activeAccount,
     });
-    const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); } });
+    activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); if (id === "players") myTeamClubhouse?.refresh(); } });
     // Legacy Museum (篮球人生博物馆): the honours wall's earned titles open the
     // career legacy detail view (user decision 2026-11-10, after 375b75d).
     screens.legacyMuseum = ensureLegacyMuseumScreen();
@@ -12513,9 +12522,7 @@ async function boot() {
       onOpenCollection: () => openCollection(),
       onOpenAccounts: () => openAccountScreen(),
     });
-    $("#btn-open-my-lineup")?.addEventListener("click", () => { myTeamClubhouse.open(); show("myTeamClubhouse"); });
     $("#btn-my-lineup-back")?.addEventListener("click", () => goBack());
-    $("#btn-my-clubhouse-back")?.addEventListener("click", () => goBack());
     $("#load-status").textContent = L("正在加载名册（优先本地缓存）…", "Loading roster (local cache first)…");
     $("#load-bar").style.width = "6%";
     // Paint status before heavy work begins

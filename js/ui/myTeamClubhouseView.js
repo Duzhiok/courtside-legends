@@ -5,32 +5,23 @@
  * championship counts from `account.myTeamSeasons`, the latest W-L from the newest record,
  * the MVP only from the current season's live report (`st.awards.mvp`). Nothing is
  * invented: no seasons means an honest empty state, a past season's MVP is not shown
- * (records don't store it), and past-season lineups are not shown (records don't store
- * them either) — the Honours room lists per-season results and star scorers instead.
+ * (records don't store it). A past season's starting five is shown only when that season's
+ * record actually saved it (see seasonRecord.startingFiveSnapshot); older seasons just show their
+ * result — nothing is reconstructed from today's collection.
  */
 import { overall } from "../data/players.js";
 import { photoImg } from "../data/photo.js";
 import { skillNameL } from "../i18n.js";
 import { SKILL_PACKS, poolRoleLine } from "../data/skills.js";
 import { playerSlotPos } from "../engine/gameplan.js";
-import { myTeamHistory, myTeamSeasonLine } from "./myWorldView.js";
+import { myTeamHistory } from "./myWorldView.js";
 import { ownedCards, resolveSavedLineup, validateMyTeamLineup } from "../myteam/lineup.js";
-import { seasonRecordSummary } from "../myteam/seasonRecord.js";
+import { recordLineup } from "../myteam/seasonRecord.js";
 import { reportHtml } from "./myTeamReportView.js";
 import { issueText } from "./myTeamLineupView.js";
-
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const T = (lang, zh, en) => (lang === "en" ? en : zh);
-
-const SLOT_ORDER = ["PG", "SG", "SF", "PF", "C"];
-/** Fixed half-court spots (basket at the top): C under the rim, wings, guards at the bottom. */
-const COURT_SPOTS = [
-  { left: 50, top: 10 }, // C
-  { left: 24, top: 30 }, // PF
-  { left: 76, top: 30 }, // SF
-  { left: 14, top: 62 }, // SG
-  { left: 50, top: 82 }, // PG
-];
+import { esc, T, displayName } from "./myTeamViewKit.js";
+import { courtHtml } from "./myTeamCourtView.js";
+import { honoursHtml } from "./myTeamHonoursView.js";
 
 /** Everything the clubhouse renders, derived from the account + the live season only. Pure. */
 export function clubhouseSummary(account, { season = null, report = null } = {}) {
@@ -53,7 +44,7 @@ export function clubhouseSummary(account, { season = null, report = null } = {})
     seasons,
     latest: seasons[0] || null,
     champions: seasons.filter((r) => r.champion),
-    finals: seasons.filter((r) => r.finish === "finals").length,
+    finals: seasons.filter((r) => ["finals", "champion"].includes(r.finish)).length, // a champion has played the Finals too
     playoffs: seasons.filter((r) => ["playoffs", "finals", "champion"].includes(r.finish)).length,
     season: season ? { finished: !!season.myTeam?.result, report, gold: { total: season.myTeam?.goldEarned || 0, parts: season.myTeam?.goldParts || null } } : null,
   };
@@ -64,74 +55,83 @@ export function cardSkillNames(card, lang = "zh") {
   return (card?.skills || []).filter((id) => SKILL_PACKS[id]).slice(0, 2).map((id) => skillNameL(SKILL_PACKS[id].name, lang));
 }
 
-function heroHtml(s, lang) {
-  const en = lang === "en";
-  if (s.guest) {
-    return `<section class="mtc-hero"><h3>${T(lang, "我的球队", "My Team")}</h3>
-      <p>${T(lang, "登录或创建账号后，才能用你的收藏组建球队、打赛季、赢冠军。", "Sign in or create an account to build a team from your collection, play seasons, and win titles.")}</p>
-      <button type="button" class="btn primary" data-act="accounts">${T(lang, "创建 / 登录账号", "Create / sign in")}</button></section>`;
+/** The one thing to do next, from the real state: continue a live season, fix a lineup that can't play, or play on. */
+function heroAction(s, resume, lang) {
+  if (resume || (s.season && !s.season.finished)) {
+    return { act: "resume-season", label: T(lang, "继续我的赛季", "Continue my season"), sub: resume || "" };
   }
-  const titleLine = s.titles
-    ? `<p class="mtc-hero-titles"><span class="mtc-trophy-big">🏆</span><span class="mtc-titles-num">${s.titles}</span><span>${T(lang, "座总冠军", s.titles === 1 ? "championship" : "championships")}</span></p>`
+  if (!s.validation.eligible) return { act: "edit-lineup", label: T(lang, "去补齐阵容", "Fix the lineup"), sub: "" };
+  const full = s.latest?.variant === "full";
+  const len = full ? T(lang, "82 场", "82 games") : T(lang, "20 场", "20 games");
+  const first = !s.latest && !s.season?.finished;
+  return {
+    act: full ? "start-full" : "start-quick",
+    label: first ? T(lang, `开始我的第一个赛季 · ${len}`, `Start my first season · ${len}`) : T(lang, `再来一季 · ${len}`, `Play another season · ${len}`),
+    sub: "",
+  };
+}
+
+/**
+ * Whose portrait fronts the hero. After a title it is that season's best starter — but only when the record saved the
+ * lineup; otherwise (and before any title) it is today's best starter, labelled as such, never passed off as the champion.
+ */
+function featuredPlayer(s, lang) {
+  const five = s.latest?.champion ? recordLineup(s.latest) : [];
+  if (five.length) {
+    const top = [...five].sort((a, b) => b.ovr - a.ovr)[0];
+    return { player: { id: top.id, bref: top.bref, name: top.name, nameEn: top.nameEn, season: top.season, team: top.team }, ovr: top.ovr, tag: T(lang, "冠军核心", "Title core") };
+  }
+  const top = [...s.starters].sort((a, b) => overall(b) - overall(a))[0];
+  if (!top) return null;
+  return { player: top, ovr: overall(top), tag: s.titles ? T(lang, "当前头号球星", "Top player now") : T(lang, "头号球星", "Top player") };
+}
+
+const TROPHY = '<svg class="mtc-trophy" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5v2a3 3 0 003 3m8-5h3v2a3 3 0 01-3 3M12 13v4m-3 3h6M10 17h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function heroHtml(s, resume, lang) {
+  if (s.guest) {
+    return `<section class="mtc-hero"><div class="mtc-hero-main"><h3>${T(lang, "我的球队", "My Team")}</h3>
+      <p>${T(lang, "登录或创建账号后，才能用你的收藏组建球队、打赛季、赢冠军。", "Sign in or create an account to build a team from your collection, play seasons, and win titles.")}</p>
+      <button type="button" class="btn primary" data-act="accounts">${T(lang, "创建 / 登录账号", "Create / sign in")}</button></div></section>`;
+  }
+  const act = heroAction(s, resume, lang);
+  const feat = featuredPlayer(s, lang);
+  const chips = [];
+  if (s.titles) chips.push(`<span class="mtc-chip mtc-chip-gold">${T(lang, "冠军 × ", "Titles × ")}<span class="mtc-titles-num">${s.titles}</span></span>`);
+  if (s.latest) {
+    chips.push(`<span class="mtc-chip">${T(lang, "最近赛季", "Latest")} ${esc(s.latest.w)}–${esc(s.latest.l)}</span>`);
+    chips.push(`<span class="mtc-chip">${s.latest.variant === "full" ? T(lang, "82 场赛制", "82-game format") : T(lang, "20 场赛制", "20-game format")}</span>`);
+  }
+  const lead = s.titles
+    ? `<p class="mtc-tagline">${T(lang, "你的球队，你的王朝。", "Your team. Your dynasty.")}</p>`
     : `<p class="mtc-hero-titles is-empty">${T(lang, "还没有总冠军 — 拿下第一座，它会出现在这里。", "No championships yet — win your first and it will show up here.")}</p>`;
-  const latest = s.latest
-    ? `<p class="mtc-hero-latest">${T(lang, "最近一季", "Latest season")} · ${myTeamSeasonLine(s.latest, lang)}</p>`
-    : `<p class="mtc-hero-latest">${T(lang, "还没有打过我的赛季。", "No My Team season played yet.")}</p>`;
-  const perVariant = ["quick", "full"].map((v) => `<span>${esc(seasonRecordSummary(s.seasons, v, lang))}</span>`).join(" · ");
   const mvp = s.season?.report?.mvp
     ? `<p class="mtc-hero-mvp">${T(lang, "本季联赛 MVP", "League MVP this season")}：<strong>${esc(s.season.report.mvp.name)}</strong>${s.season.report.mvp.mine ? ` <em>${T(lang, "（是你的球员！）", "(your player!)")}</em>` : ""}</p>`
     : "";
-  const star = s.latest?.star?.name
-    ? `<p class="mtc-hero-star">${T(lang, "最近一季球队核心", "Latest season team leader")}：<strong>${esc(s.latest.star.name)}</strong> ${esc(s.latest.star.ppg)} PTS</p>`
+  const figure = feat
+    ? `<figure class="mtc-feature"><span class="mtc-feature-photo">${photoImg(feat.player, "headshot")}</span>
+        <figcaption><small>${feat.tag}</small><strong>${esc(displayName(feat.player, lang))}</strong><span>OVR ${feat.ovr}</span></figcaption></figure>`
     : "";
-  return `<section class="mtc-hero">
-    <p class="mtc-kicker">MY TEAM · CLUBHOUSE</p>
-    <h3>${T(lang, "我的球队主场", "My Team Clubhouse")}</h3>
-    ${titleLine}${latest}${star}${mvp}
-    <p class="mtc-hero-meta">${perVariant}</p>
-  </section>`;
-}
-
-function starterCard(card, lang) {
-  const name = lang === "en" ? card.nameEn || card.name : card.name;
-  return `<div class="mtc-court-card" data-card="${esc(card.id)}">
-    <span class="mtc-court-photo">${photoImg(card, "headshot")}</span>
-    <span class="mtc-court-name">${esc(name)}</span>
-    <span class="mtc-court-meta">${esc(playerSlotPos(card))} · OVR ${overall(card)}</span>
-    <button type="button" class="btn small ghost mtc-swap-btn" data-act="swap" data-card="${esc(card.id)}">${T(lang, "换人", "Swap")}</button>
-  </div>`;
-}
-
-function courtHtml(s, lang) {
-  const ordered = [...s.starters].sort((a, b) => {
-    const ia = SLOT_ORDER.indexOf(playerSlotPos(a));
-    const ib = SLOT_ORDER.indexOf(playerSlotPos(b));
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
-  const slots = COURT_SPOTS.map((spot, i) => {
-    const card = ordered[i];
-    return `<div class="mtc-court-slot" style="left:${spot.left}%;top:${spot.top}%">${card ? starterCard(card, lang) : `<span class="mtc-court-empty">${T(lang, "空缺", "Open")}</span>`}</div>`;
-  }).join("");
-  const benchNote = s.bench.length
-    ? T(lang, `替补 ${s.bench.length} 人 · 点「换人」用替补换下首发`, `${s.bench.length} on the bench · tap Swap to bring one in`)
-    : T(lang, "没有替补可换 — 先在收藏里抽卡扩充名单", "No bench players to swap in — draw more cards to grow the roster");
-  return `<section class="mtc-card mtc-court-sec">
-    <h3>${T(lang, "首发五虎", "Starting Five")}</h3>
-    <div class="mtc-court" role="img" aria-label="${T(lang, "首发五虎站位图", "Starting five court diagram")}">
-      <div class="mtc-court-paint"></div><div class="mtc-court-arc"></div><div class="mtc-court-hoop"></div>
-      ${slots}
+  return `<section class="mtc-hero${feat ? " has-feature" : ""}">
+    <div class="mtc-hero-main">
+      <p class="mtc-kicker">${s.titles ? TROPHY : ""}MY TEAM · DYNASTY</p>
+      <h3>${s.titles ? T(lang, "冠军之家", "Championship Clubhouse") : T(lang, "我的球队主场", "My Team Clubhouse")}</h3>
+      ${lead}
+      ${chips.length ? `<p class="mtc-chips">${chips.join("")}</p>` : ""}
+      ${mvp}
+      <button type="button" class="btn primary mtc-hero-cta" data-act="${act.act}">${act.label}</button>
+      ${act.sub ? `<p class="mtc-hero-sub">${esc(act.sub)}</p>` : ""}
     </div>
-    <p class="tiny mtc-note">${benchNote}</p>
-    <div class="btn-row"><button type="button" class="btn small" data-act="edit-lineup">${T(lang, "编辑阵容", "Edit lineup")}</button></div>
+    ${figure}
   </section>`;
 }
 
 function swapPickerHtml(s, swapFor, lang) {
   if (!swapFor) return "";
   const out = s.starters.find((c) => c.id === swapFor);
-  const outName = out ? (lang === "en" ? out.nameEn || out.name : out.name) : swapFor;
+  const outName = out ? displayName(out, lang) : swapFor;
   const rows = s.bench.map((card) => {
-    const name = lang === "en" ? card.nameEn || card.name : card.name;
+    const name = displayName(card, lang);
     return `<li><button type="button" class="mtc-pick" data-act="pick-bench" data-card="${esc(card.id)}" data-out="${esc(swapFor)}">
       <span class="mtc-pick-photo">${photoImg(card, "headshot")}</span>
       <span class="mtc-pick-name"><strong>${esc(name)}</strong><small>${esc(playerSlotPos(card))} · OVR ${overall(card)}</small></span>
@@ -145,7 +145,7 @@ function swapPickerHtml(s, swapFor, lang) {
 }
 
 function wallCardHtml(card, lang) {
-  const name = lang === "en" ? card.nameEn || card.name : card.name;
+  const name = displayName(card, lang);
   const role = poolRoleLine(card, lang);
   const skills = cardSkillNames(card, lang);
   return `<li class="mtc-wall-card">
@@ -169,7 +169,6 @@ function wallHtml(s, lang) {
 }
 
 function seasonCenterHtml(s, resume, lang) {
-  const en = lang === "en";
   const season = s.season;
   const startBtns = (disabled) => `<div class="btn-row">
       <button type="button" class="btn primary" data-act="start-quick" ${disabled ? "disabled" : ""}>${T(lang, "快速赛季 · 20 场", "Quick season · 20 games")}</button>
@@ -194,24 +193,8 @@ function seasonCenterHtml(s, resume, lang) {
     </section>`;
   }
   return `<section class="mtc-card"><h3>${T(lang, "赛季中心", "Season Center")}</h3>
-    ${resume ? `<p class="mtc-note"><strong>${esc(resume)}</strong></p><div class="btn-row"><button type="button" class="btn primary" data-act="resume-season">${T(lang, "继续我的赛季", "Continue my season")}</button></div>` : ""}
+    ${resume ? `<p class="mtc-note"><strong>${esc(resume)}</strong></p>` : ""}
     ${report}
-  </section>`;
-}
-
-function honoursHtml(s, lang) {
-  const champRows = s.champions.map((r) => {
-    const date = r.finishedAt ? new Date(r.finishedAt).toLocaleDateString(lang === "en" ? "en-US" : "zh-CN") : "";
-    const star = r.star?.name ? ` · ${esc(r.star.name)} ${esc(r.star.ppg)} PTS` : "";
-    return `<li>🏆 ${esc(date)} · ${myTeamSeasonLine(r, lang)}${star}</li>`;
-  }).join("");
-  const body = s.seasons.length
-    ? `<ul class="mtc-honours-list">${champRows}</ul>
-       <p class="mtc-note">${T(lang, `季后赛 ${s.playoffs} 次 · 总决赛 ${s.finals} 次 · 共打了 ${s.played} 个赛季`, `${s.playoffs} playoff runs · ${s.finals} Finals · ${s.played} seasons played`)}</p>
-       <ul class="mtc-honours-list mtc-history">${s.seasons.map((r) => `<li>${myTeamSeasonLine(r, lang)}</li>`).join("")}</ul>`
-    : `<p class="mtc-empty">${T(lang, "还没有赛季记录。打完一个我的赛季，战绩与冠军会出现在这里。", "No season records yet. Finish a My Team season and your results and titles will show up here.")}</p>`;
-  return `<section class="mtc-card"><h3>${T(lang, "荣誉室", "Honours Room")}</h3>${body}
-    <p class="tiny mtc-note">${T(lang, "注：往季的首发阵容没有存档，这里只记战绩与每季核心球员。", "Note: past starting lineups are not stored — only results and each season's team leader are recorded.")}</p>
   </section>`;
 }
 
@@ -226,7 +209,7 @@ function honoursHtml(s, lang) {
 export function clubhouseHtml({ summary: s, resume = null, swapFor = null, notice = "", lang = "zh" }) {
   if (!s) return "";
   return `<div class="mtc">
-    ${heroHtml(s, lang)}
+    ${heroHtml(s, resume, lang)}
     ${s.guest ? "" : `${courtHtml(s, lang)}${swapPickerHtml(s, swapFor, lang)}${wallHtml(s, lang)}${seasonCenterHtml(s, resume, lang)}${honoursHtml(s, lang)}`}
     ${notice ? `<p class="mtc-notice" role="status">${esc(notice)}</p>` : ""}
   </div>`;

@@ -1,3 +1,19 @@
+/* Noto Sans SC draws Latin Extended letters badly (ć -> "c´", č -> misplaced caron, at every weight), which mangled
+   Jokić / Dončić / Dragić. Only that Unicode range is taken from a local Latin font; everything else still uses
+   the families below, so Chinese and plain Latin text look exactly as before. */
+@font-face {
+  font-family: "CLS Latin Ext";
+  font-weight: 100 500;
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Segoe UI"), local("Roboto");
+  unicode-range: U+0100-024F, U+1E00-1EFF;
+}
+@font-face {
+  font-family: "CLS Latin Ext";
+  font-weight: 600 900;
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Neue Bold"), local("Helvetica-Bold"), local("Segoe UI Bold"), local("Roboto Bold");
+  unicode-range: U+0100-024F, U+1E00-1EFF;
+}
+
 /* ==========================================================
    Design tokens — single source of truth (M1).
    Moved here from css/style.css and css/home.css so the palette,
@@ -22,8 +38,8 @@
   --bad: #c1121f;
   --muted: #6b7280;
   --shadow: 0 18px 40px rgba(15, 28, 20, 0.18);
-  --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
-  --font-body: "Noto Sans SC", "Segoe UI", sans-serif;
+  --font-display: "CLS Latin Ext", "Bebas Neue", "Arial Narrow", sans-serif;
+  --font-body: "CLS Latin Ext", "Noto Sans SC", "Segoe UI", sans-serif;
 
   /* Arena palette (was css/home.css :root) */
   --arena-1: #07130d;

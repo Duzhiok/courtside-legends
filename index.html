@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/tokens.css?v=1" />
+  <link rel="stylesheet" href="css/tokens.css?v=2" />
   <link rel="stylesheet" href="css/style.css?v=20261105m4" />
   <link rel="stylesheet" href="css/home.css?v=20261107c1" />
   <link rel="stylesheet" href="css/myWorld.css" />
@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="css/gacha.css?v=20261023search1" />
   <link rel="stylesheet" href="css/credits.css?v=1" />
   <link rel="stylesheet" href="css/myTeamLineup.css?v=3" />
-  <link rel="stylesheet" href="css/myTeamClubhouse.css?v=1" />
+  <link rel="stylesheet" href="css/myTeamClubhouse.css?v=5" />
   <link rel="stylesheet" href="css/careerPostGame.css?v=4" />
   <link rel="stylesheet" href="css/learned.css?v=20261101l1" />
   <link rel="stylesheet" href="css/rotation.css?v=5" />
@@ -144,11 +144,9 @@
         </div>
 
         <div class="home-category-panel" data-category="players">
+          <!-- My Team Clubhouse: the landing experience of this tab (js/ui/myTeamClubhouse*.js), no extra click. -->
+          <div id="my-team-clubhouse-root"></div>
           <p class="home-category-hint tiny">你的永久班底：抽卡、养成、排位。收藏、每日抽卡在上方账号条里。</p>
-          <div class="my-lineup-entry">
-            <button type="button" class="btn" id="btn-open-my-lineup">组建我的阵容</button>
-            <span class="tiny">从收藏挑 8–12 人、5 名首发，为之后的常规赛做准备（暂不开赛）。</span>
-          </div>
           <div class="mode-grid" aria-label="我的球员">
             <div class="mode-group-label">挑战与竞技</div>
             <button class="mode-card mode-card-feature" data-mode="ranked" data-legend="bryanko01:2008">
@@ -288,14 +286,6 @@
         <h2>组建我的阵容</h2>
       </div>
       <div id="my-team-lineup-root"></div>
-    </main>
-
-    <main id="screen-my-team-clubhouse" class="screen">
-      <div class="panel-head">
-        <button class="nav-back" id="btn-my-clubhouse-back"><span>返回</span></button>
-        <h2>我的球队</h2>
-      </div>
-      <div id="my-team-clubhouse-root"></div>
     </main>
 
     <main id="screen-collection" class="screen">
@@ -1400,6 +1390,6 @@
       }, 15000);
     })();
   </script>
-  <script type="module" src="js/app.js?v=20261107t4"></script>
+  <script type="module" src="js/app.js?v=20261107t5"></script>
 </body>
 </html>
