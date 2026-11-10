@@ -21,6 +21,14 @@
  *   inside DuelSim; the ball animates from the recorded shot spot to the
  *   rim and back to the ball-handler. Input is never locked for it — acting
  *   early just re-renders the next possession.
+ * - D3.2 — the player markers are bobblehead sprites (js/ui/duelSprites.js):
+ *   a big head, a small body, a team-colour jersey, with poses for idle /
+ *   moving / dribbling / shooting / contesting (celebrate lives on the
+ *   result screen). Poses are derived from the same live state the court
+ *   already renders (possession, lastShot, movement) and are swapped only
+ *   when the action changes; they never touch outcomes. The ball is a
+ *   separate element whose inner dot bounces while the ball-handler
+ *   dribbles (class duel-ball--dribbling).
  * - Choice buttons keep their `data-duel-choice` hooks (4 on offense, 3 on
  *   defense) and the quit button keeps `#btn-duel-quit`, so the existing
  *   QA script (scripts/qa/duel.mjs) keeps working against the court.
@@ -42,6 +50,7 @@ import {
   keyToMove,
   keyToChoice,
 } from "../duel/duelTakeover.js";
+import { duelSpriteHtml, spriteActionFor } from "./duelSprites.js";
 
 function esc(text) {
   return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -70,8 +79,10 @@ function staminaBar(value) {
     </div>`;
 }
 
-function marker(name, initial, cls) {
-  return `<div class="duel-marker ${cls}"><span class="duel-marker-disc">${esc(initial)}</span><span class="duel-marker-tag">${esc(name)}</span></div>`;
+/** D3.2 — one court player: a bobblehead sprite + the name tag below it. */
+function marker(duelist, side, action) {
+  const name = duelist.displayName || duelist.name;
+  return `<div class="duel-marker duel-marker-${side}" data-side="${side}">${duelSpriteHtml(duelist, { action })}<span class="duel-marker-tag">${esc(name)}</span></div>`;
 }
 
 /** Court lines for the 0 0 100 50 half-court (basket at top, y grows away). */
@@ -113,6 +124,12 @@ export function mountDuelCourt(container, opts) {
       ? L(`命中 +${shot.points}！`, `Made +${shot.points}!`)
       : L("没进", "Missed"))
     : "";
+  // D3.2 — the sprite poses at mount: the just-resolved shot is still
+  // flashing (its ~900ms window starts here), so the shooter shows the
+  // release pose and everyone else watches.
+  const shotUntil = shot ? Date.now() + 900 : 0;
+  const initialActionA = spriteActionFor({ takeover, myBall, side: "a", shotActive: !!shot });
+  const initialActionB = spriteActionFor({ takeover, myBall, side: "b", shotActive: !!shot });
 
   container.innerHTML = `
     <div class="duel-court-hud">
@@ -142,8 +159,8 @@ export function mountDuelCourt(container, opts) {
     <div class="duel-court-wrap">
       ${courtSvg()}
       <div class="duel-court-markers">
-        ${marker(challenger.displayName || challenger.name, (challenger.displayName || challenger.name || "?").slice(0, 1), "duel-marker-a")}
-        ${marker(legend.displayName || legend.name, (legend.displayName || legend.name || "?").slice(0, 1), "duel-marker-b")}
+        ${marker(challenger, "a", initialActionA)}
+        ${marker(legend, "b", initialActionB)}
       </div>
     </div>
     <p class="tiny duel-spot-line" id="duel-spot-line"></p>
@@ -178,7 +195,13 @@ export function mountDuelCourt(container, opts) {
   const [markerA, markerB] = markers;
   const ball = document.createElement("div");
   ball.className = "duel-ball";
+  // D3.2 — the ball is a positioning box; the dot inside is what bounces
+  // while the ball-handler dribbles (class duel-ball--dribbling). With a
+  // just-resolved shot the ball is in the air, so dribbling starts once
+  // the flight is over (see the shot block below).
+  ball.innerHTML = '<span class="duel-ball-dot"></span>';
   wrap.appendChild(ball);
+  if (!shot) ball.classList.add("duel-ball--dribbling");
 
   const posToPct = (p) => ({ x: (p.x / COURT.W) * 100, y: (p.y / COURT.H) * 100 });
   // Markers are positioned by left/top percentages of the court wrap (the
@@ -195,6 +218,23 @@ export function mountDuelCourt(container, opts) {
     ball.style.left = `${pct.x}%`;
     ball.style.top = `${pct.y}%`;
   };
+
+  // D3.2 — sprite pose state (view-owned transients, NOT game state):
+  // movingUntil = the ~250ms window after a move (moving pose);
+  // lastActionA/B = the pose last rendered (the SVG is only swapped when
+  // the action changes, so the CSS bob is not restarted by every move).
+  let movingUntil = 0;
+  let moveTimer = null;
+  let shotTimer = null;
+  let lastActionA = initialActionA;
+  let lastActionB = initialActionB;
+  function scheduleMoveEnd() {
+    if (moveTimer) clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => {
+      moveTimer = null;
+      updateMarkers();
+    }, 260);
+  }
 
   const spotLine = container.querySelector("#duel-spot-line");
   function updateMarkers() {
@@ -232,6 +272,25 @@ export function mountDuelCourt(container, opts) {
     if (!t.lastShot) placeBall(t.ball);
     markerA.classList.toggle("duel-has-ball", s.possession === "a");
     markerB.classList.toggle("duel-has-ball", s.possession === "b");
+    // D3.2 — sprite poses from the same live state (see duelSprites.js):
+    // the shooter holds the release pose while the shot flashes, the
+    // controlled player bobs while moving, the defender contests when
+    // tight, the ball-handler dribbles. The SVG is only swapped when the
+    // action actually changes.
+    const myBall = s.possession === "a";
+    const shotActive = !!t.lastShot && Date.now() < shotUntil;
+    const actionA = spriteActionFor({ takeover: t, myBall, side: "a", moving: Date.now() < movingUntil, shotActive });
+    const actionB = spriteActionFor({ takeover: t, myBall, side: "b", shotActive });
+    if (actionA !== lastActionA) {
+      lastActionA = actionA;
+      const slot = markerA.querySelector(".duel-sprite");
+      if (slot) slot.outerHTML = duelSpriteHtml(challenger, { action: actionA });
+    }
+    if (actionB !== lastActionB) {
+      lastActionB = actionB;
+      const slot = markerB.querySelector(".duel-sprite");
+      if (slot) slot.outerHTML = duelSpriteHtml(legend, { action: actionB });
+    }
   }
   updateMarkers();
 
@@ -241,6 +300,13 @@ export function mountDuelCourt(container, opts) {
   let flightToken = 0;
   let clearFlight = null;
   if (shot) {
+    // D3.2 — the ball is in the air: the shooting pose reverts and the
+    // dribble resumes once the flight is over (same ~950ms window).
+    shotTimer = setTimeout(() => {
+      shotTimer = null;
+      ball.classList.add("duel-ball--dribbling");
+      updateMarkers();
+    }, 950);
     const token = ++flightToken;
     ball.style.transition = "none";
     placeBall(shot.spot);
@@ -266,6 +332,9 @@ export function mountDuelCourt(container, opts) {
     if (move) {
       e.preventDefault();
       opts.setTakeover(moveControlled(opts.getTakeover(), move.dx, move.dy));
+      // D3.2 — the controlled player shows the moving pose for ~250ms.
+      movingUntil = Date.now() + 250;
+      scheduleMoveEnd();
       updateMarkers();
       return;
     }
@@ -292,12 +361,17 @@ export function mountDuelCourt(container, opts) {
     svg.setPointerCapture?.(e.pointerId);
     const p = toCourt(e);
     opts.setTakeover(moveControlledTo(opts.getTakeover(), p.x, p.y));
+    // D3.2 — a tap / drag shows the moving pose for ~250ms.
+    movingUntil = Date.now() + 250;
+    scheduleMoveEnd();
     updateMarkers();
   };
   const onPointerMove = (e) => {
     if (!dragging) return;
     const p = toCourt(e);
     opts.setTakeover(moveControlledTo(opts.getTakeover(), p.x, p.y));
+    movingUntil = Date.now() + 250;
+    scheduleMoveEnd();
     updateMarkers();
   };
   const onPointerUp = () => { dragging = false; };
@@ -316,6 +390,8 @@ export function mountDuelCourt(container, opts) {
     destroy() {
       flightToken += 1;
       if (typeof clearFlight === "function") clearFlight();
+      if (moveTimer) clearTimeout(moveTimer);
+      if (shotTimer) clearTimeout(shotTimer);
       document.removeEventListener("keydown", onKey);
       svg.removeEventListener("pointerdown", onPointerDown);
       svg.removeEventListener("pointermove", onPointerMove);

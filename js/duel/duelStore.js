@@ -66,6 +66,9 @@ export function cardToDuelist(card) {
     speed: num(card.speed),
     stamina: num(card.stamina),
     skills: Array.isArray(card.skills) ? [...card.skills] : [],
+    // Identity passthrough (not a rule change): the sprite builder reads
+    // this for the jersey colours; the avatar profile has no team (null).
+    team: card.team || null,
   };
 }
 

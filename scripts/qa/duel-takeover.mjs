@@ -1,7 +1,8 @@
 // Legend Duel D3 2D takeover in a real browser: the court renders, the
 // player moves with keyboard + touch drag, the spot suggestion follows the
 // ball, choices still resolve through DuelSim, and the result screen keeps
-// Retry / Next / Return. Desktop + mobile.
+// Retry / Next / Return. D3.2: the bobblehead sprites render in their
+// action poses (dribbling / moving / shooting / celebrate), desktop + mobile.
 // Usage: node scripts/qa/duel-takeover.mjs /tmp/cls-qa/duel-takeover [http://127.0.0.1:5188/]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -69,12 +70,25 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   await shoot(page, `${OUT}/${tag}-court.png`);
   check(`[${tag}] no horizontal overflow on the court`, await noOverflow(page));
 
+  // D3.2 — bobblehead sprites: one per marker, challenger dribbling (your
+  // ball), legend idle (the defender starts 12+ units away, not contesting).
+  const spriteActions = await page.$$eval("#duel-body .duel-marker .duel-sprite", (els) => els.map((s) => s.getAttribute("data-action")));
+  check(`[${tag}] court shows two bobblehead sprites`, spriteActions.length === 2, spriteActions.join(","));
+  check(`[${tag}] challenger sprite dribbles at tip-off, legend idles at range`, spriteActions[0] === "dribbling" && spriteActions[1] === "idle", spriteActions.join(","));
+  await shoot(page, `${OUT}/${tag}-sprites.png`);
+
   // Keyboard: ArrowRight moves the ball-handler marker; "1" resolves a possession.
   const leftBefore = await markerLeft(page, ".duel-marker-a");
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(250);
   const leftAfter = await markerLeft(page, ".duel-marker-a");
   check(`[${tag}] ArrowRight moves the ball-handler on the court`, leftAfter > leftBefore, `${leftBefore}% -> ${leftAfter}%`);
+  // D3.2 — the controlled marker shows the moving pose right after a move
+  // (fresh keypress + immediate read: the pose window is ~250ms).
+  await page.keyboard.press("ArrowRight");
+  const movingAction = await page.$eval("#duel-body .duel-marker-a .duel-sprite", (el) => el.getAttribute("data-action"));
+  check(`[${tag}] challenger sprite shows the moving pose after a move`, movingAction === "moving", movingAction);
+  await shoot(page, `${OUT}/${tag}-sprites-moving.png`);
   const spotLine = await text(page, "#duel-spot-line");
   check(`[${tag}] the spot line follows the ball`, spotLine.length > 0, spotLine.slice(0, 40));
 
@@ -102,6 +116,10 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   await page.keyboard.press("1");
   await page.waitForTimeout(200);
   check(`[${tag}] number key 1 resolves a possession`, (await scoreText(page)) !== before);
+  // D3.2 — the shooter holds the release pose while the shot flashes.
+  const shooting = await page.evaluate(() => document.querySelector('#duel-body [data-action="shooting"]') !== null);
+  check(`[${tag}] a sprite shows the shooting pose after the shot`, shooting);
+  await shoot(page, `${OUT}/${tag}-sprites-shooting.png`);
   check(`[${tag}] 3 defense choices appear on the legend's ball`, (await page.$$eval("#duel-body [data-duel-choice]", (els) => els.length)) === 3);
   await shoot(page, `${OUT}/${tag}-defense.png`);
 
@@ -136,6 +154,8 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   await page.waitForSelector("#btn-duel-retry", { timeout: 8000 });
   const resultText = await scoreText(page);
   check(`[${tag}] result shows Retry / Next / Return`, resultText.includes("再打一次") && resultText.includes("返回"));
+  // D3.2 — the winner celebrates on the result screen.
+  check(`[${tag}] the winner celebrates on the result screen`, !!(await page.$("#duel-body .duel-result-sprite .duel-sprite--celebrate")));
   await shoot(page, `${OUT}/${tag}-result.png`);
   const record = await duelRecord(page);
   check(`[${tag}] the finished duel is recorded on the account`, record && record.games.length === 1, `games=${record?.games.length}`);
@@ -160,6 +180,9 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   await page.click("#btn-duel-start");
   await page.waitForSelector("#duel-court", { timeout: 8000 });
   check(`[${tag}] Avatar duel starts on the 2D court`, true);
+  // D3.2 — the avatar court shows both sprites too (neutral palette: the
+  // avatar profile has no team).
+  check(`[${tag}] avatar court shows two sprites`, (await page.$$eval("#duel-body .duel-marker .duel-sprite", (els) => els.length)) === 2);
   await shoot(page, `${OUT}/${tag}-avatar-court.png`);
   check(`[${tag}] no horizontal overflow on the avatar court`, await noOverflow(page));
 

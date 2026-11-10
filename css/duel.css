@@ -81,66 +81,116 @@
   pointer-events: none;
 }
 
+/* D3.2 — bobblehead sprites replace the initial-letter discs. The marker
+ * box is the figure (36x48 desktop, 30x40 mobile), center-anchored on the
+ * court point like the disc was; the name tag hangs below the figure. */
 .duel-marker {
   position: absolute;
   top: 0;
   left: 0;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 48px;
   transform: translate(-50%, -50%);
   transition: left 0.18s ease, top 0.18s ease;
   pointer-events: none;
 }
 
-.duel-marker-disc {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font-weight: 700;
-  font-size: 16px;
-}
-
-.duel-marker-a .duel-marker-disc {
-  background: #e8c15a;
-  color: #123f2a;
-}
-
-.duel-marker-b .duel-marker-disc {
-  background: #f2f2f2;
-  color: #123f2a;
-}
-
-.duel-marker.duel-has-ball .duel-marker-disc {
-  outline: 2px solid #fff;
-  outline-offset: 1px;
+.duel-sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .duel-marker-tag {
-  display: block;
-  margin-top: 2px;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 1px;
   font-size: 10px;
   line-height: 1.1;
+  font-weight: 700;
   text-align: center;
   color: #e8e8e8;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
 }
 
+/* Ball-handler glow (was an outline on the disc). */
+.duel-marker.duel-has-ball .duel-sprite {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9));
+}
+
+/* D3.2 — action animations: a bob while the controlled player moves, a
+ * bounce for the winner on the result screen. The poses themselves are
+ * static SVG variants (see js/ui/duelSprites.js). */
+.duel-sprite--moving .duel-sprite-figure {
+  animation: duel-bob 0.3s ease-in-out infinite alternate;
+}
+
+.duel-sprite--celebrate .duel-sprite-figure {
+  animation: duel-celebrate 0.45s ease-in-out infinite alternate;
+}
+
+@keyframes duel-bob {
+  from { transform: translateY(0); }
+  to { transform: translateY(-2px); }
+}
+
+@keyframes duel-celebrate {
+  from { transform: translateY(0); }
+  to { transform: translateY(-5px); }
+}
+
+/* The ball is a positioning box; the dot inside bounces while the
+ * ball-handler dribbles (class duel-ball--dribbling, set by the view). */
 .duel-ball {
   position: absolute;
   top: 0;
   left: 0;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
-  background: #e07b39;
-  border: 1px solid #7a3c14;
   transform: translate(-50%, -50%);
   transition: left 0.18s ease, top 0.18s ease;
   pointer-events: none;
+}
+
+.duel-ball-dot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #e07b39;
+  border: 1px solid #7a3c14;
+}
+
+.duel-ball--dribbling .duel-ball-dot {
+  animation: duel-dribble 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes duel-dribble {
+  from { transform: translateY(0); }
+  to { transform: translateY(-5px); }
+}
+
+/* D3.2 — the winner's celebrating figure on the result screen. */
+.duel-result-sprite {
+  width: 96px;
+  aspect-ratio: 3 / 4;
+  margin: 0 auto 4px;
+}
+
+.duel-result-sprite .duel-sprite {
+  width: 100%;
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duel-sprite--moving .duel-sprite-figure,
+  .duel-sprite--celebrate .duel-sprite-figure,
+  .duel-ball--dribbling .duel-ball-dot {
+    animation: none;
+  }
 }
 
 .duel-spot-line {
@@ -167,13 +217,8 @@
     font-size: 26px;
   }
 
-  .duel-marker,
-  .duel-marker-disc {
-    width: 28px;
-    height: 28px;
-  }
-
-  .duel-marker-disc {
-    font-size: 14px;
+  .duel-marker {
+    width: 30px;
+    height: 40px;
   }
 }
