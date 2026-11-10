@@ -220,7 +220,7 @@ function handleCardClick(identityId) {
   const identity = careerIdentityById(identityId);
   if (!identity) return;
   if (identityId === "gm_coach") {
-    const { progress, unlocked } = progressState();
+    const { account, progress, unlocked } = progressState();
     if (!unlocked) {
       showEraPanel(false);
       shownDevNote = null;
@@ -229,10 +229,14 @@ function handleCardClick(identityId) {
           getLang(),
           `The Architect 尚未解锁：完成一次完整教练生涯和一次完整经理生涯即可开启（当前 ${progress.completed} / 2${
             progress.coach ? "，教练生涯已完成" : ""
-          }${progress.gm ? "，经理生涯已完成" : ""}）。`,
+          }${progress.gm ? "，经理生涯已完成" : ""}${
+            account ? "" : "；需要登录账号以记录职业成就"
+          }）。`,
           `The Architect is still locked: complete one full Coach career and one full GM career to unlock it (currently ${progress.completed} / 2${
             progress.coach ? ", Coach done" : ""
-          }${progress.gm ? ", GM done" : ""}).`,
+          }${progress.gm ? ", GM done" : ""}${
+            account ? "" : "; sign in to an account to record career achievements"
+          }).`,
         ),
       );
       return;

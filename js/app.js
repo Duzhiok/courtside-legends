@@ -13,6 +13,7 @@ import {
   resolvePlayers,
   ownedCoaches,
   rollCoachOffers,
+  saveAccount,
   setActiveAccountId,
   setAccountCoach,
   setAccountTactic,
@@ -303,11 +304,8 @@ import {
   prepareCareerOffseason,
   recoverCareerPhase,
   resolveRootLiveGame,
-  suggestCareerDraftPick,
   upgradeLeagueCareerManagement,
 } from "./modes/leagueCareer.js";
-import { canDo, careerRole, denyMessage } from "./career/careerGuards.js";
-import { setPrologueRole } from "./modes/timeTravelCareer.js";
 import { picksOwnedBy, swapDraftPicks } from "./engine/leagueDraft.js";
 import {
   careerForPersistence,
@@ -334,6 +332,11 @@ import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeC
 import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
 import { initCareerEntry, refreshCareerEntry } from "./ui/careerEntry.js";
+import {
+  architectUnlocked,
+  completionFromRoot,
+  recordCareerCompletion,
+} from "./career/careerAchievements.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
@@ -766,6 +769,10 @@ function currentRootState({ liveGame = "preserve" } = {}) {
     // createRootState()'s brand-new default -- E3's whole point is that salary/purchases
     // persist, so this must read whatever was last written to state.longCareerRoot.
     coach: state.longCareerRoot?.coach,
+    // Prestige (The Architect, 3+1): the identity marker (incl. the
+    // prestige stamp) is carried forward the same way, so a career
+    // stamped on its first save keeps its role on every later save.
+    identity: state.longCareerRoot?.identity,
     leagueCareer,
     story: state.story,
     liveGame: resolveRootLiveGame(
@@ -831,6 +838,44 @@ function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
   }
 }
 
+// Prestige (The Architect, 3+1): a career started from the GM card or
+// the unlocked Architect card is stamped on its first save, so the
+// completion record can derive its role. The stamp is armed by the
+// Career entry's onPlay (pendingCareerStart) and consumed in
+// saveLongCareer: it applies only when the saved careerId differs from
+// the one that was loaded when the card was clicked — resuming and
+// saving the old career instead clears the flag without stamping. A
+// Classic GM + Coach career (no stamp) never qualifies for the unlock;
+// a Coach career's identity is stamped by the Coach creation flow
+// (workstream B), not here — there is no Coach creation flow yet.
+let pendingCareerStart = null;
+
+function recordCareerCompletionIfEnded(rootState) {
+  try {
+    const account = activeAccount();
+    if (!account) return; // guests have no account to record on
+    const wasUnlocked = architectUnlocked(account);
+    const completion = completionFromRoot(rootState, {
+      prestige: rootState?.identity?.prestige === "architect",
+    });
+    if (!completion) return;
+    recordCareerCompletion(account, completion);
+    saveAccount(account);
+    // A completion that flips the unlock arms a one-time reveal on the
+    // Career entry (consumed by refreshCareerEntry).
+    if (!wasUnlocked && architectUnlocked(account)) {
+      try {
+        sessionStorage.setItem("architect-just-unlocked", "1");
+      } catch {
+        // Storage may be unavailable — the card still shows unlocked.
+      }
+    }
+  } catch (error) {
+    // A recording bug must never break a career save.
+    console.warn("[career-achievements]", error);
+  }
+}
+
 // Set by saveLongCareer() so the failure dialog that follows it can tell a schema bug in THIS
 // build's save data apart from a real browser-storage problem, instead of always blaming storage.
 let lastLongCareerSaveError = null;
@@ -838,12 +883,20 @@ let lastLongCareerSaveError = null;
 function saveLongCareer({ liveGame = "preserve" } = {}) {
   if (!state.leagueCareer) return false;
   const rootState = currentRootState({ liveGame });
+  if (pendingCareerStart) {
+    const newCareerId = rootState.leagueCareer?.careerId;
+    if (newCareerId && newCareerId !== pendingCareerStart.previousCareerId) {
+      rootState.identity = { ...pendingCareerStart.identity };
+    }
+    pendingCareerStart = null;
+  }
   try {
     // If the browser refuses, this frees orphaned legacy saves once and retries (saveRoot.js).
     const persisted = writeRootSaveFreeingOrphans(rootState);
     state.longCareerRoot = clonePersistedState(persisted);
     refreshLongCareerHomeBar();
     lastLongCareerSaveError = null;
+    recordCareerCompletionIfEnded(rootState);
     return true;
   } catch (error) {
     console.error("[long-career-save]", error);
@@ -9426,11 +9479,7 @@ function renderLeagueManagement() {
             state.leagueCareer,
             (working) =>
               reconcileDevelopmentPlans(
-                // A coach suggests and the front office executes
-                // (ADR-006 R4); the GM picks directly.
-                canDo(working, "draft")
-                  ? makeCareerDraftPick(working, prospectId, options)
-                  : suggestCareerDraftPick(working, prospectId),
+                makeCareerDraftPick(working, prospectId, options),
               ),
           );
           commitManagedCareer(next, "draftBoard");
@@ -9444,11 +9493,7 @@ function renderLeagueManagement() {
             state.leagueCareer,
             (working) =>
               reconcileDevelopmentPlans(
-                // A coach forfeits by letting the front office decide
-                // (suggest with no prospect); the GM forfeits directly.
-                canDo(working, "draft")
-                  ? forfeitCareerDraftPick(working)
-                  : suggestCareerDraftPick(working, null),
+                forfeitCareerDraftPick(working),
               ),
           );
           commitManagedCareer(next, "draftBoard");
@@ -9695,8 +9740,6 @@ function renderSeasonRotation() {
     renderSeasonRotation();
   });
   $("#btn-rot-save")?.addEventListener("click", () => {
-    // Setting the rotation is the coach's job (ADR-006 R4).
-    if (!careerOperationAllowed("setRotation")) return;
     const marked = liveStarterIds(you);
     you.starterIds = marked; // only people still on the roster get saved
     if (marked.length && marked.length !== 5) {
@@ -9775,21 +9818,6 @@ function listingPrefSelectHtml(st, playerId) {
     .join("");
   const label = en ? "What do you want back?" : "出售倾向";
   return `<select class="sm-list-pref" data-list-pref="${playerId}" aria-label="${label}" title="${label}">${options}</select>`;
-}
-
-/**
- * Career role gate for the season-hub operation buttons (ADR-006 R4).
- * True when the operation may run. When the current managed career's
- * role lacks the capability, it shows the reason and returns false.
- * Plain seasons and My Team have no career role, so they are never
- * gated here. The mode-layer functions enforce the same rule again at
- * the operation itself — this is the UI-side refusal, not the check.
- */
-function careerOperationAllowed(capability) {
-  if (!isManagedCareer(state.leagueCareer)) return true;
-  if (canDo(state.leagueCareer, capability)) return true;
-  alert(denyMessage(careerRole(state.leagueCareer, state.longCareerRoot), capability, getLang()));
-  return false;
 }
 
 function renderSeasonMarket() {
@@ -10164,9 +10192,6 @@ function renderSeasonMarket() {
   });
   box.querySelectorAll(".sm-cut").forEach((btn) => {
     btn.onclick = () => {
-      // Cutting a player is the GM's job (ADR-006 R4) — refuse before
-      // the confirm dialog, not after it.
-      if (!careerOperationAllowed("release")) return;
       const p = you.players.find((x) => x.id === btn.dataset.cut);
       if (!p || !confirm(L(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`, `Cut ${p.name} (${formatSalary(playerSalary(p))})? He'll enter free agency.`))) return;
       const res = cutPlayer(st, p.id, getLang());
@@ -10185,8 +10210,6 @@ function renderSeasonMarket() {
   });
   box.querySelectorAll(".sm-sign").forEach((btn) => {
     btn.onclick = () => {
-      // Signing a free agent is the GM's job (ADR-006 R4).
-      if (!careerOperationAllowed("signFreeAgent")) return;
       const res = signFreeAgent(st, btn.dataset.sign, getLang());
       if (!res.ok) {
         alert(res.reason);
@@ -10317,9 +10340,6 @@ function renderSeasonMarket() {
     updateTradeSummary();
   });
   $("#btn-sm-trade")?.addEventListener("click", () => {
-    // Executing a trade is the GM's job (ADR-006 R4) — a coach may only
-    // use the recommend button to suggest a package.
-    if (!careerOperationAllowed("trade")) return;
     const cpuId = $("#sm-trade-cpu")?.value;
     const cpu3Id = $("#sm-trade-cpu3")?.value;
     const checkedVals = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
@@ -10776,9 +10796,6 @@ function showSeasonTab(tab) {
 function playSeasonUserGame() {
   const st = state.season;
   if (!st) return;
-  // Calling a game yourself is the coach's job (ADR-006 R4) — a GM
-  // watches or simulates (the season hub's sim buttons stay open).
-  if (!careerOperationAllowed("commandGame")) return;
   if (st.phase === "playoffs") return playUserPlayoffGame();
   if (st.phase !== "regular") return;
   advanceToUserGame(st, { stopBeforeUser: true });
@@ -10841,8 +10858,6 @@ function cloneLiveTeamSide(t) {
 function playUserPlayoffGame() {
   const st = state.season;
   if (!st || st.phase !== "playoffs") return;
-  // Same gate as the regular-season entry above (ADR-006 R4).
-  if (!careerOperationAllowed("commandGame")) return;
   const info = nextUserPlayoffGame(st);
   if (!info) {
     renderSeasonHub();
@@ -11877,13 +11892,9 @@ $("#btn-season-start")?.addEventListener("click", async () => {
       year: seasonSetupMode === "historical" ? yearSel : new Date().getFullYear(),
     });
     if (seasonSetupKind === "franchise") {
-      // The League Manager setup is the GM route (ADR-006 R4): the
-      // career it creates plays as GM, so trades/drafts/signings are
-      // open and commanding games / setting the rotation are not.
       state.leagueCareer = createLeagueCareer({
         kind: "franchise",
         season: state.season,
-        role: "GM",
       });
       state.mode = "franchise";
     } else {
@@ -12396,17 +12407,43 @@ async function boot() {
     });
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();
-    // Unified Career entry (ADR-006): four identities in parallel. Player
-    // opens the Player Reborn creation flow (or resumes the run); GM opens
-    // the League Manager setup (its era is picked there); GM + Coach opens
-    // the Time Travel creation after the era step. Coach never reaches
-    // here — it only shows the honest dev note.
+    // Unified Career entry (3+1): Player opens the Player Reborn
+    // creation flow (or resumes the run); GM opens the League Manager
+    // setup; the Architect (unlocked) opens the Time Travel creation
+    // after the era step. Coach never reaches here — it only shows the
+    // honest dev note. The identity stamp (pendingCareerStart) marks the
+    // first save of a career started from the GM / Architect card, so
+    // completions can derive the role (see saveLongCareer). rebornView
+    // is a `let` declared before this call because initCareerEntry runs
+    // before the view is created.
+    let rebornView = null;
     initCareerEntry({
-      onPlay: (identityId, era) => {
-        if (identityId === "player") rebornView.open();
-        else if (identityId === "gm") startMode("franchise");
-        else if (identityId === "gm_coach" && era === "historical") startMode("timeTravel");
+      onPlay: (identityId, era, opts) => {
+        if (identityId === "player") {
+          rebornView?.open();
+          return;
+        }
+        if (identityId === "gm") {
+          pendingCareerStart = {
+            previousCareerId: state.longCareerRoot?.leagueCareer?.careerId ?? null,
+            identity: { currentRole: "GM", initialRole: "GM" },
+          };
+          startMode("franchise");
+          return;
+        }
+        if (identityId === "gm_coach" && era === "historical") {
+          pendingCareerStart = {
+            previousCareerId: state.longCareerRoot?.leagueCareer?.careerId ?? null,
+            identity: {
+              currentRole: "GM_COACH",
+              initialRole: "GM_COACH",
+              ...(opts?.prestige ? { prestige: "architect" } : {}),
+            },
+          };
+          startMode("timeTravel");
+        }
       },
+      getAccount: activeAccount,
     });
     const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); } });
     myWorld = createMyWorld({
@@ -12448,7 +12485,7 @@ async function boot() {
     // here (onPlay "player" above); ?reborn=1 opens it directly.
     // open() shows the creation flow for a new run, or resumes the run.
     screens.reborn = ensureRebornScreen();
-    const rebornView = createRebornView({
+    rebornView = createRebornView({
       getLang,
       readRootSave: () => state.longCareerRoot || readRootSave(),
       writeRootSave,
@@ -12528,15 +12565,6 @@ async function boot() {
     // Player Reborn dev entry: ?reborn=1 opens the slice after boot.
     if (new URLSearchParams(location.search).get("reborn") === "1") {
       setTimeout(() => { rebornView.open(); }, 250);
-    }
-    // Career Role Permissions dev entry: ?career=coach opens the Time
-    // Travel creation with the Coach role pre-set (ADR-006 R4) — the
-    // Career entry's Coach card will do the same once workstream A
-    // wires it; the GM path is the League Manager setup, the GM+Coach
-    // path is the existing card.
-    if (new URLSearchParams(location.search).get("career") === "coach") {
-      setPrologueRole("COACH");
-      setTimeout(() => { startMode("timeTravel"); }, 250);
     }
   } catch (e) {
     console.error(e);
