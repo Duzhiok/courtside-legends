@@ -9,10 +9,10 @@
  * All money / ownership / ticket state lives in js/data/shop.js.
  */
 import { SHOP_CATEGORIES, SHOP_ITEMS, itemsByCategory, itemById, itemName, itemDesc, kindLabel, categoryLabel } from "../data/shopCatalog.js";
-import { getShop, purchaseShopItem, equipShopItem, unequipShopItem, equippedClothingItemId, equippedFrameId, ticketBalance, autoXpRemaining } from "../data/shop.js";
+import { getShop, purchaseShopItem, equipShopItem, unequipShopItem, equippedClothingItemId, equippedFrameId, ticketBalance, autoXpRemaining, ownedItems, recentPurchases, ownedFurnitureIds } from "../data/shop.js";
 import { lookColors } from "../data/avatarLook.js";
 import { avatarDataUri } from "../data/avatarArt.js";
-import { TROPHY_CABINET_SVG } from "./myWorldView.js";
+import { furnitureSvgFor, furnitureViewBox, roomPreviewSvg } from "./shopFurniture.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
@@ -35,8 +35,10 @@ export function reasonText(reason, lang = "zh") {
 export function shopPreviewHtml(item, lang = "zh") {
   const effect = item.effect || {};
   if (effect.type === "furniture") {
-    // The same cabinet group the My Home room renders, cropped by viewBox.
-    return `<svg class="shop-preview-svg" viewBox="490 140 70 100" width="84" height="120" role="img" aria-label="${esc(itemName(item, lang))}">${TROPHY_CABINET_SVG}</svg>`;
+    // The piece's own SVG group from the furniture registry, cropped to its viewBox.
+    const svg = furnitureSvgFor(effect.furnitureId);
+    const vb = furnitureViewBox(effect.furnitureId);
+    return `<svg class="shop-preview-svg" viewBox="${esc(vb)}" width="84" height="120" role="img" aria-label="${esc(itemName(item, lang))}">${svg}</svg>`;
   }
   if (effect.type === "outfit") {
     const colors = lookColors({ outfit: effect.outfitId });
@@ -48,7 +50,8 @@ export function shopPreviewHtml(item, lang = "zh") {
     </svg>`;
   }
   if (effect.type === "frame") {
-    return `<span class="shop-preview-frame mw-frame-gold"><img src="${avatarDataUri({ name: "You", team: "NBA" })}" alt="" width="64" height="64" /></span>`;
+    // The item's own frame class (mw-frame-<frameId>) — same class the portrait wears.
+    return `<span class="shop-preview-frame mw-frame-${esc(effect.frameId)}"><img src="${avatarDataUri({ name: "You", team: "NBA" })}" alt="" width="64" height="64" /></span>`;
   }
   if (effect.type === "autoTickets") {
     return `<span class="shop-preview-ticket"><span class="shop-preview-ticket-n">×${effect.games}</span><span class="shop-preview-ticket-sub">${esc(T(lang, "托管场次", "auto games"))}</span></span>`;
@@ -77,11 +80,13 @@ function ticketUseHtml(state, lang) {
   } else if (use) {
     rows.push(`<p class="shop-status err">${esc(reasonText(use.reason, lang))}</p>`);
   }
+  const allGames = Math.min(ctx.credits, ctx.remaining);
   return `<div class="shop-ticket-use">
     <p class="shop-ticket-line">${esc(T(lang, `托管卡：${ctx.credits} 张 · 本赛季剩余 ${ctx.remaining} 场 · 今天还能计经验的托管场次：${ctx.xpRemaining} 场`, `Tickets: ${ctx.credits} · ${ctx.remaining} games left this season · XP-paying auto games left today: ${ctx.xpRemaining}`))}</p>
     <div class="btn-row">
       <button type="button" class="btn small" data-shop-action="use-tickets" data-games="5" ${!ctx.season || ctx.credits < 5 || ctx.remaining <= 0 ? "disabled" : ""}>${esc(T(lang, "托管 5 场", "Sim 5 games"))}</button>
       <button type="button" class="btn small" data-shop-action="use-tickets" data-games="20" ${!ctx.season || ctx.credits < 20 || ctx.remaining <= 0 ? "disabled" : ""}>${esc(T(lang, "托管 20 场", "Sim 20 games"))}</button>
+      <button type="button" class="btn small" data-shop-action="use-tickets" data-games="${allGames}" ${!ctx.season || allGames <= 0 ? "disabled" : ""}>${esc(T(lang, `托管全部 ${allGames} 场`, `Sim all ${allGames} games`))}</button>
     </div>
     ${rows.join("")}
   </div>`;
@@ -127,11 +132,53 @@ export function shopDetailHtml(item, state, lang = "zh") {
   </div>`;
 }
 
+/**
+ * Owned-inventory tab: what the account already owns, with its real state and
+ * the actions that apply — wear / take off clothing, apply / remove a frame,
+ * furniture already placed (shown in the room preview). Tickets are credits,
+ * shown as a balance line. This is where a player finds, equips and places
+ * what they bought instead of hunting through the shop again; My World reads
+ * the same ownership through the shop.js API (workstream D).
+ */
+export function shopInventoryHtml(state, lang = "zh") {
+  const account = state.account;
+  if (!account) {
+    return `<div class="shop-inventory"><p class="shop-empty">${esc(T(lang, "登录账号后查看已拥有的商品。", "Sign in to see what you own."))}</p></div>`;
+  }
+  const owned = state.owned || [];
+  const recent = state.recent || [];
+  const furniture = state.furniture || [];
+  const rows = owned.map(({ item, equipped }) => {
+    const effect = item.effect || {};
+    const stateText = effect.type === "furniture" ? T(lang, "已摆进房间", "Placed in your room")
+      : effect.type === "outfit" ? (equipped ? T(lang, "穿着中", "Wearing") : T(lang, "未穿", "Not wearing"))
+      : effect.type === "frame" ? (equipped ? T(lang, "已戴上", "Applied") : T(lang, "未戴上", "Not applied"))
+      : "";
+    const action = effect.type === "outfit"
+      ? `<button type="button" class="btn small${equipped ? " ghost" : ""}" data-shop-action="${equipped ? "unequip" : "equip"}" data-item-id="${esc(item.id)}">${esc(equipped ? T(lang, "换下", "Take off") : T(lang, "穿上", "Wear it"))}</button>`
+      : effect.type === "frame"
+        ? `<button type="button" class="btn small${equipped ? " ghost" : ""}" data-shop-action="${equipped ? "unequip" : "equip"}" data-item-id="${esc(item.id)}">${esc(equipped ? T(lang, "取下", "Remove") : T(lang, "戴上", "Apply"))}</button>`
+        : "";
+    return `<div class="shop-owned-row"><span class="shop-owned-name">${esc(itemName(item, lang))}</span><span class="shop-owned-state">${esc(stateText)}</span><span class="btn-row">${action}</span></div>`;
+  }).join("");
+  const recentRows = recent.map(({ item }) => `<li>${esc(itemName(item, lang))}</li>`).join("");
+  return `<div class="shop-inventory">
+    <h3>${esc(T(lang, "我的房间预览", "My room preview"))}</h3>
+    <div class="shop-room-preview">${roomPreviewSvg(furniture)}</div>
+    <p class="shop-ticket-line">${esc(T(lang, `托管卡：${state.tickets || 0} 张`, `Auto-Play Tickets: ${state.tickets || 0}`))}</p>
+    <h3>${esc(T(lang, "已拥有", "Owned"))}</h3>
+    ${owned.length ? `<div class="shop-owned-list">${rows}</div>` : `<p class="shop-empty">${esc(T(lang, "还没有买过商品——喜欢的家具、衣服和头像框都在上面几个分类里。", "Nothing bought yet — furniture, clothing and frames are in the tabs above."))}</p>`}
+    <h3>${esc(T(lang, "最近购买", "Recently bought"))}</h3>
+    ${recentRows ? `<ul class="shop-recent-list">${recentRows}</ul>` : `<p class="shop-empty">${esc(T(lang, "还没有购买记录。", "No purchases yet."))}</p>`}
+  </div>`;
+}
+
 export function shopDialogHtml(state, lang = "zh") {
   const account = state.account;
   const gold = account ? (account.gold || 0) : 0;
   const items = itemsByCategory(state.category);
   const selected = itemById(state.selectedId) || items[0] || null;
+  const inventory = state.view === "inventory";
   return `<div class="shop-head">
     <h2>${esc(T(lang, "商城", "Shop"))}</h2>
     <p class="shop-gold">${esc(T(lang, `我的金币：¤${gold}`, `My gold: ¤${gold}`))}</p>
@@ -139,18 +186,19 @@ export function shopDialogHtml(state, lang = "zh") {
   </div>
   <p class="shop-note">${esc(T(lang, "金币只买生活与便利：外观、家具、托管。金币不买球员卡、不加比赛属性。", "Gold buys lifestyle and convenience only: looks, furniture, auto-play. Gold never buys player cards or match attributes."))}</p>
   <div class="shop-tabs" role="tablist">
-    ${SHOP_CATEGORIES.map((c) => `<button type="button" role="tab" aria-selected="${state.category === c.id}" class="shop-tab${state.category === c.id ? " is-active" : ""}" data-shop-action="select-category" data-category="${esc(c.id)}">${esc(lang === "en" ? c.en : c.zh)}</button>`).join("")}
+    ${SHOP_CATEGORIES.map((c) => `<button type="button" role="tab" aria-selected="${state.category === c.id && !inventory}" class="shop-tab${state.category === c.id && !inventory ? " is-active" : ""}" data-shop-action="select-category" data-category="${esc(c.id)}">${esc(lang === "en" ? c.en : c.zh)}</button>`).join("")}
+    <button type="button" role="tab" aria-selected="${inventory}" class="shop-tab${inventory ? " is-active" : ""}" data-shop-action="select-inventory">${esc(T(lang, "已拥有", "Owned"))}</button>
   </div>
-  <div class="shop-body">
+  ${inventory ? shopInventoryHtml(state, lang) : `<div class="shop-body">
     <div class="shop-grid">${items.map((item) => shopItemCardHtml(item, state, lang)).join("")}</div>
     ${shopDetailHtml(selected, state, lang)}
-  </div>`;
+  </div>`}`;
 }
 
 export function createShop({ getLang, getAccount, onUseTickets, ticketContext, onOpenAccounts, onPurchased }) {
   const dialog = document.getElementById("shop-dialog");
   if (!dialog) return null;
-  const state = { category: "home", selectedId: null, armedBuyId: null, lastUse: null, status: null };
+  const state = { category: "home", view: "catalog", selectedId: null, armedBuyId: null, lastUse: null, status: null };
 
   function snapshot() {
     const account = getAccount ? getAccount() : null;
@@ -158,10 +206,15 @@ export function createShop({ getLang, getAccount, onUseTickets, ticketContext, o
       account,
       shop: account ? getShop(account) : { owned: {}, tickets: 0 },
       category: state.category,
+      view: state.view,
       selectedId: state.selectedId,
       armedBuyId: state.armedBuyId,
       lastUse: state.lastUse,
       status: state.status,
+      owned: account ? ownedItems(account) : [],
+      recent: account ? recentPurchases(account, 5) : [],
+      furniture: account ? ownedFurnitureIds(account) : [],
+      tickets: account ? ticketBalance(account) : 0,
       ticketCtx: ticketContext ? ticketContext() : { season: false, remaining: 0, credits: 0, xpRemaining: 0 },
     };
   }
@@ -172,6 +225,7 @@ export function createShop({ getLang, getAccount, onUseTickets, ticketContext, o
 
   function open(opts = {}) {
     if (opts.category) state.category = opts.category;
+    if (opts.view) state.view = opts.view;
     const items = itemsByCategory(state.category);
     if (!state.selectedId || !items.some((i) => i.id === state.selectedId)) state.selectedId = items[0]?.id || null;
     state.armedBuyId = null;
@@ -193,8 +247,16 @@ export function createShop({ getLang, getAccount, onUseTickets, ticketContext, o
     if (action === "close") { dialog.close(); return; }
     if (action === "select-category") {
       state.category = btn.dataset.category;
+      state.view = "catalog";
       const items = itemsByCategory(state.category);
       state.selectedId = items[0]?.id || null;
+      state.armedBuyId = null;
+      state.status = null;
+      render();
+      return;
+    }
+    if (action === "select-inventory") {
+      state.view = "inventory";
       state.armedBuyId = null;
       state.status = null;
       render();
