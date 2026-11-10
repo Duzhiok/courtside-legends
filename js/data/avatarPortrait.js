@@ -8,6 +8,10 @@
  *
  *   { source: "preset", preset: <id> }
  *   { source: "3d", image: <data:image/...>, sig: <look signature at capture time> }
+ *   { source: "photo", image: <data:image/...> }   the player's own photo, already cropped square and shrunk
+ *
+ * A photo is the player's explicit choice and is stored on this device only. Unlike a 3D picture it has no look
+ * signature: it never claims to show the avatar, so changing the character never hides it.
  *
  * A 3D portrait records the look it was taken from. If the look changes afterwards the old picture is NOT shown
  * (it would lie about how the avatar looks); resolvePortrait falls back to a preset until a new one is captured.
@@ -33,7 +37,7 @@ export const PORTRAIT_PRESETS = Object.freeze([
 /** One short string that changes whenever anything visible about the avatar changes. */
 export function lookSignature(look) {
   const l = sanitizeLook(look);
-  return [l.skin, l.hair, l.outfit, l.style, l.body].join(".");
+  return [l.skin, l.hair, l.outfit, l.style, l.body, l.figure].join(".");
 }
 
 /** Whitelist a stored/raw value. @returns {object|null} null = nothing (valid) chosen */
@@ -42,6 +46,9 @@ export function sanitizePortrait(raw) {
   if (raw.source === "preset" && PORTRAIT_PRESETS.some((p) => p.id === raw.preset)) return { source: "preset", preset: raw.preset };
   if (raw.source === "3d" && typeof raw.image === "string" && raw.image.length <= MAX_PORTRAIT_CHARS && IMAGE_RE.test(raw.image) && typeof raw.sig === "string" && raw.sig.length <= 80) {
     return { source: "3d", image: raw.image, sig: raw.sig };
+  }
+  if (raw.source === "photo" && typeof raw.image === "string" && raw.image.length <= MAX_PORTRAIT_CHARS && IMAGE_RE.test(raw.image)) {
+    return { source: "photo", image: raw.image };
   }
   return null;
 }
@@ -55,11 +62,12 @@ export function defaultPresetId(seedKey) {
 
 /**
  * What to show, given the stored value, the CURRENT look and an owner key.
- * @returns {{kind: "3d"|"preset", presetId: string|null, image: string|null, stale: boolean, chosen: boolean}}
+ * @returns {{kind: "photo"|"3d"|"preset", presetId: string|null, image: string|null, stale: boolean, chosen: boolean}}
  *   stale = a 3D portrait exists but was taken from a different look; chosen = the player explicitly picked something.
  */
 export function resolvePortrait(raw, look, seedKey) {
   const p = sanitizePortrait(raw);
+  if (p?.source === "photo") return { kind: "photo", presetId: null, image: p.image, stale: false, chosen: true };
   if (p?.source === "3d" && p.sig === lookSignature(look)) return { kind: "3d", presetId: null, image: p.image, stale: false, chosen: true };
   if (p?.source === "preset") return { kind: "preset", presetId: p.preset, image: null, stale: false, chosen: true };
   return { kind: "preset", presetId: defaultPresetId(seedKey), image: null, stale: p?.source === "3d", chosen: !!p };

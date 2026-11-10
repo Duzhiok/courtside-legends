@@ -6,7 +6,7 @@
 import { avatarDataUri } from "../data/avatarArt.js";
 import { PORTRAIT_PRESETS } from "../data/avatarPortrait.js";
 import { presetPortraitUri } from "./avatarPortraitArt.js";
-import { BODY_PRESETS, HAIR_COLORS, HAIR_STYLES, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
+import { BODY_PRESETS, FIGURE_STYLES, HAIR_COLORS, HAIR_STYLES, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
 import { AVATAR_ACTIONS } from "./avatar3d.js";
 
 const esc = (value) =>
@@ -14,6 +14,7 @@ const esc = (value) =>
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 const GROUPS = [
+  { key: "figure", zh: "形象风格", en: "Character style", items: FIGURE_STYLES, swatch: null },
   { key: "skin", zh: "肤色", en: "Skin", items: SKIN_TONES, swatch: (i) => i.hex },
   { key: "style", zh: "发型", en: "Hairstyle", items: HAIR_STYLES, swatch: null },
   { key: "hair", zh: "发色", en: "Hair", items: HAIR_COLORS, swatch: (i) => i.hex },
@@ -44,6 +45,7 @@ const groupHtml = (group, look, lang) => `<fieldset class="mw-swatches" data-mw-
 function portraitHtml(portrait, lang) {
   const picked = portrait?.kind === "preset" && portrait.chosen ? portrait.presetId : null;
   const is3d = portrait?.kind === "3d";
+  const isPhoto = portrait?.kind === "photo";
   const note = portrait?.stale
     ? T(lang, "外观改过了，旧的 3D 头像已不再显示；点下面的按钮重新用当前形象。", "Your look changed, so the old 3D picture is hidden. Use the button below to take a new one.")
     : T(lang, "3D 头像需要 3D 形象加载成功；不可用时仍可选预设头像。", "A 3D picture needs the 3D figure to load; presets always work.");
@@ -54,7 +56,9 @@ function portraitHtml(portrait, lang) {
       <img src="${presetPortraitUri(p)}" alt="${esc(T(lang, p.zh, p.en))}" width="44" height="44" />
     </label>`).join("")}
     <button type="button" class="btn ghost mw-use3d" data-mw-action="use-3d-portrait" aria-pressed="${is3d}" disabled>${T(lang, is3d ? "✓ 正在使用我的 3D 形象" : "用我的 3D 形象作头像", is3d ? "✓ Using my 3D look" : "Use my 3D look")}</button>
-    <p class="mw-note">${note}</p>
+    <button type="button" class="btn ghost mw-photo-btn" data-mw-action="pick-photo" aria-pressed="${isPhoto}">${T(lang, isPhoto ? "✓ 正在使用我的照片（点此更换）" : "上传我的照片", isPhoto ? "✓ Using my photo (tap to change)" : "Upload my photo")}</button>
+    <input type="file" class="mw-photo-input" id="mw-photo-input" accept="image/png,image/jpeg,image/webp" hidden />
+    <p class="mw-note">${note} ${T(lang, "照片只在这台设备上裁成方形保存，不会上传。", "A photo is cropped to a square and kept on this device only; it is never uploaded.")}</p>
   </fieldset>`;
 }
 

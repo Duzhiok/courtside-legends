@@ -65,19 +65,36 @@ export const BODY_BONE_GROUPS = Object.freeze({
   legs: ["UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R"],
 });
 
-/** Pure: preset id -> { height, bones: { boneName: [x, y, z] } }. Unknown ids fall back to standard. */
-export function bodyBoneScales(presetId) {
+/**
+ * Character style: one identity, two presentations. The same skin / hair / outfit / build, drawn either as a
+ * stylized athlete or as a bobblehead toy. Bobblehead is bone scaling on the SAME model, with the same safety rule
+ * as the build presets: the head grows UNIFORMLY (a uniform scale on a bone cannot shear its children) and limbs only
+ * get thicker (x/z), never shorter (y), so knees, hands and feet stay where the animations put them. The toy feel
+ * comes from the head-to-body ratio, plus a smaller overall figure so the big head still fits the frame.
+ */
+export const FIGURE_STYLES = Object.freeze([
+  { id: "stylized", zh: "风格化写实", en: "Stylized", head: 1, limbs: 1, height: 1 },
+  { id: "bobblehead", zh: "Q 版大头", en: "Bobblehead", head: 2.3, limbs: 1.32, height: 0.78 },
+]);
+
+/**
+ * Pure: (build preset id, figure style id) -> { height, bones: { boneName: [x, y, z] } }.
+ * Unknown ids fall back to standard / stylized.
+ */
+export function bodyBoneScales(presetId, figureId = "stylized") {
   const p = BODY_PRESETS.find((b) => b.id === presetId) || BODY_PRESETS[0];
+  const f = FIGURE_STYLES.find((x) => x.id === figureId) || FIGURE_STYLES[0];
   const s = p.scales;
   const bones = {};
   for (const name of BODY_BONE_GROUPS.shoulders) bones[name] = [s.shoulders, 1, 1];
   for (const name of BODY_BONE_GROUPS.spine) bones[name] = [s.spine, 1, s.spine];
-  for (const name of BODY_BONE_GROUPS.arms) bones[name] = [s.arms, 1, s.arms];
-  for (const name of BODY_BONE_GROUPS.legs) bones[name] = [s.legs, 1, s.legs];
-  return { height: p.height, bones };
+  for (const name of BODY_BONE_GROUPS.arms) bones[name] = [s.arms * f.limbs, 1, s.arms * f.limbs];
+  for (const name of BODY_BONE_GROUPS.legs) bones[name] = [s.legs * f.limbs, 1, s.legs * f.limbs];
+  bones.Head = [f.head, f.head, f.head]; // always set, so switching back to stylized resets the head
+  return { height: p.height * f.height, bones };
 }
 
-export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard" });
+export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized" });
 
 const pick = (list, id, fallback) => (list.some((item) => item.id === id) ? id : fallback);
 
@@ -90,6 +107,7 @@ export function sanitizeLook(raw) {
     outfit: pick(OUTFITS, r.outfit, DEFAULT_LOOK.outfit),
     style: pick(HAIR_STYLES, r.style, DEFAULT_LOOK.style),
     body: pick(BODY_PRESETS, r.body, DEFAULT_LOOK.body),
+    figure: pick(FIGURE_STYLES, r.figure, DEFAULT_LOOK.figure),
   };
 }
 

@@ -35,6 +35,6 @@ export const presetPortraitUri = (preset) => `data:image/svg+xml;charset=utf-8,$
 
 /** <img src> for a resolvePortrait() result. */
 export function portraitSrc(resolved) {
-  if (resolved.kind === "3d" && resolved.image) return resolved.image;
+  if ((resolved.kind === "3d" || resolved.kind === "photo") && resolved.image) return resolved.image;
   return presetPortraitUri(PORTRAIT_PRESETS.find((p) => p.id === resolved.presetId));
 }

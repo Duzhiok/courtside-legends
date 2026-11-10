@@ -123,10 +123,10 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
       if (!node.isMesh) return;
       [].concat(node.material).forEach((m) => { materials[m.name] = m; if (m.name === "Hair") hairMeshes.push(node); });
     });
-    // Body preset: bone scales + overall height. The clips carry no scale tracks (verified from the GLB), so a
-    // scale applied here is never overwritten by an animation. Factors are modest by design (0.88–1.16).
+    // Body preset + figure style: bone scales + overall height. The clips carry no scale tracks (verified from the GLB),
+    // so a scale applied here is never overwritten by an animation. See FIGURE_STYLES for why the head scale is uniform.
     const applyBody = (look) => {
-      const { height, bones: scales } = bodyBoneScales(look.body);
+      const { height, bones: scales } = bodyBoneScales(look.body, look.figure);
       for (const [name, s] of Object.entries(scales)) bones[name]?.scale.set(s[0], s[1], s[2]);
       pivot.scale.setScalar(height);
       state.heightScale = height;

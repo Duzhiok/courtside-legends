@@ -6,6 +6,7 @@
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
 import { lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
+import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
@@ -160,6 +161,12 @@ export function createMyWorld({
     if (img) img.src = p.src;
     const picked = p.kind === "preset" && p.chosen ? p.presetId : null;
     for (const radio of el.querySelectorAll('input[name="mw-portrait"]')) radio.checked = radio.value === picked;
+    const photoBtn = el.querySelector('[data-mw-action="pick-photo"]');
+    if (photoBtn) {
+      const en = getLang() === "en";
+      photoBtn.setAttribute("aria-pressed", String(p.kind === "photo"));
+      photoBtn.textContent = p.kind === "photo" ? (en ? "✓ Using my photo (tap to change)" : "✓ 正在使用我的照片（点此更换）") : (en ? "Upload my photo" : "上传我的照片");
+    }
     const btn = el.querySelector('[data-mw-action="use-3d-portrait"]');
     if (btn) {
       const en = getLang() === "en";
@@ -179,6 +186,19 @@ export function createMyWorld({
     if (res.invalid) return;
     if (!res.saved) return persistFailed(status);
     say(status, "头像已保存。", "Profile picture saved.");
+  }
+
+  /** Photo -> square crop -> small JPEG on this device. A bad file changes nothing and says why. */
+  async function usePhoto(file) {
+    const status = el.querySelector("#mw-look-status");
+    say(status, "正在处理照片…", "Processing the photo…");
+    const out = await photoToPortrait(file);
+    if (!out.ok) return say(status, `没能用这张照片：${photoReasonText(out.reason, "zh")}。`, `Could not use this photo: ${photoReasonText(out.reason, "en")}.`);
+    const res = savePortrait(getAccount(), { source: "photo", image: out.image });
+    paintPortrait();
+    if (res.invalid) return say(status, "这张照片无法保存（格式不对）。", "This photo can't be saved (wrong format).");
+    if (!res.saved) return persistFailed(status);
+    say(status, "已用你的照片作头像。", "Your photo is now your profile picture.");
   }
 
   /** Take the portrait from the live 3D figure. Never invents a picture: no viewer / no frame = nothing saved. */
@@ -271,6 +291,7 @@ export function createMyWorld({
     },
     "toggle-look": toggleLook,
     "use-3d-portrait": use3dPortrait,
+    "pick-photo": () => el.querySelector("#mw-photo-input")?.click(),
     "avatar-action-clap": () => playPreview("clap"),
     "avatar-action-jump": () => playPreview("jump"),
     "avatar-action-run": () => playPreview("run"),
@@ -308,6 +329,11 @@ export function createMyWorld({
 
   el.addEventListener("change", (event) => {
     if (event.target?.matches?.('#mw-look input[name="mw-portrait"]')) pickPortrait(event.target);
+    if (event.target?.matches?.("#mw-photo-input")) {
+      const file = event.target.files?.[0];
+      event.target.value = ""; // lets the same file be picked again
+      if (file) usePhoto(file);
+    }
     else if (event.target?.matches?.('#mw-look input[type="radio"]')) pickLook(event.target);
   });
 

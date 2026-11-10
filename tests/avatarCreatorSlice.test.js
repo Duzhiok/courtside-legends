@@ -36,7 +36,7 @@ test("bodyBoneScales: standard is the identity, broad widens, slim narrows, all 
     for (const [name, s] of Object.entries(r.bones)) {
       for (const f of s) assert.ok(f >= 0.85 && f <= 1.2, `${preset.id} ${name} ${f}`);
     }
-    assert.deepEqual(Object.keys(r.bones).sort(), [...look.BODY_BONE_GROUPS.shoulders, ...look.BODY_BONE_GROUPS.spine, ...look.BODY_BONE_GROUPS.arms, ...look.BODY_BONE_GROUPS.legs].sort());
+    assert.deepEqual(Object.keys(r.bones).sort(), [...look.BODY_BONE_GROUPS.shoulders, ...look.BODY_BONE_GROUPS.spine, ...look.BODY_BONE_GROUPS.arms, ...look.BODY_BONE_GROUPS.legs, "Head"].sort());
   }
   assert.deepEqual(look.bodyBoneScales("nope"), std, "unknown preset falls back to standard");
   assert.deepEqual(look.bodyBoneScales(undefined), std);
@@ -79,7 +79,7 @@ test("appearance-only lock: changing build/height never touches any other accoun
     assert.equal(res.saved, true);
     assert.equal(res.body, body);
     assert.deepEqual(snap(acc.getAccount(a.id)), before, `nothing but avatar changes for ${body}`);
-    assert.deepEqual(Object.keys(acc.getAccount(a.id).avatar).sort(), ["body", "hair", "outfit", "skin", "style"], "avatar holds exactly the five whitelisted fields");
+    assert.deepEqual(Object.keys(acc.getAccount(a.id).avatar).sort(), ["body", "figure", "hair", "outfit", "skin", "style"], "avatar holds exactly the six whitelisted fields");
   }
   const after = acc.getAccount(a.id);
   assert.equal(after.gold, 321, "gold untouched");
