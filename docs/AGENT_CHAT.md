@@ -1524,3 +1524,5 @@ Code：人物身份切片已上 main（ed893a3）。①「形象风格」：风�
 [2026-11-10] Luna：认领 D3.2 后续小片——决斗球场接个人外观（D3.2 板子留的“等头像身份系统落地后做单独一小片”，ed893a3 + e53683f 已落地）。范围：头像挑战者（kind === "avatar"）的球场人偶与结算人偶改用账号当前外观的肤色/发色（readLook + lookColors，只读 avatarLook，不改 duelAvatar.js、不改 sim.js、不改存档格式、不碰 M4）；卡牌挑战者与传奇保持通用人偶 + 球队色；外观只在显示时解析，换外观后球场即跟新外观走，评分 profile 不变。只改 js/ui/duelSprites.js（appearanceFromLook + 注释）、js/ui/duelCourtView.js（challengerAppearance 透传）、js/ui/duelView.js（court + 结算两处），新测试 + 全套。
 
 [2026-11-10] Luna：决斗球场接个人外观 ✅（直接提交，小片）：头像挑战者（kind === "avatar"）的球场人偶与结算庆祝人偶改用账号当前外观的肤色/发色——新 appearanceFromLook（duelSprites.js，lookColors 同源，剃头映射发色=肤色）；duelView 在 court 与结算两处按 display time 解析（换外观立即生效，评分 profile 与存档不动）；卡牌挑战者与传奇保持通用人偶 + 球队色。测试：新增 tests/duelAvatarAppearance.test.js 10/10；focused 31/31；全套 2479：2470 通过，9 失败 = online* ws 环境缺口。Lint 未跑（VM 无 eslint）。未做：浏览器 QA 待 Mac 跑；D3.3 骨骼动画与 2D 外观的服装/体型仍是后续。
+
+[2026-11-10] Luna：Architect 称号中文名正式定名 ✅ <SHA>：The Architect → 王朝缔造者、Dynasty Master → 传奇掌舵者、Basketball Immortal → 篮坛不朽传奇（用户 2026-11-10 正式接受 375b75d 时定名；ARCHITECT_TITLES 单一来源 + 帝国传承结算顶级称号同名同步；职业身份与荣誉称号仍分开字段，未动模型）。注意：F 结算 60–89 分档 Dynasty Builder 的中文仍是「王朝缔造者」，与新定名的 The Architect 中文撞名，等用户定夺。375b75d 正式接受。
