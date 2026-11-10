@@ -43,6 +43,18 @@ test("no result before the season is done; a finished season yields one", () => 
   assert.equal(typeof r.champion, "boolean");
 });
 
+test("a result carries the year and the five who started (the Legacy Room shows them), straight from the real season", () => {
+  const { season } = buildMyTeamSeason(getAccount(acc.id), { variant: "quick", seed: 8 });
+  const startIds = [...season.myTeam.start.starterIds];
+  playToDone(season);
+  const r = myTeamResult(season);
+  assert.equal(r.year, season.year);
+  assert.equal(r.lineup.length, 5);
+  assert.deepEqual(r.lineup.map((p) => p.id), startIds, "the lineup is the one that STARTED the season, in order");
+  for (const p of r.lineup) assert.ok(p.name && Number.isFinite(p.ovr) && p.pos, "display fields are present");
+  assert.ok(JSON.stringify(r).length < 1500, "a record stays small (it is stored per season on the account)");
+});
+
 test("recording is idempotent, survives a new season, and never touches the collection", () => {
   const before = JSON.stringify(getAccount(acc.id).playerIds);
   const a = playToDone(buildMyTeamSeason(getAccount(acc.id), { variant: "quick", seed: 6 }).season);

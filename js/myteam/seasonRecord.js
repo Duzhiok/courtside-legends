@@ -5,11 +5,22 @@
  * Records carry `variant`, so a 20-game and an 82-game season are never summed together.
  */
 import { getAccount, saveAccount } from "../data/account.js";
+import { overall } from "../data/players.js";
 import { seasonFinish, seasonRank, myPlayerLines } from "./seasonReport.js";
 
 export const MAX_SEASON_RECORDS = 20;
 
-/** The user's result once the season is `done` (null before). */
+/** The five who started the season (what the Legacy Room shows for a title). Small on purpose: ids + display fields. */
+function startingFive(st) {
+  const ids = st.myTeam.start?.starterIds || [];
+  const roster = st.teams?.[st.userTeamId]?.players || [];
+  return ids
+    .map((id) => roster.find((p) => p.id === id))
+    .filter(Boolean)
+    .map((p) => ({ id: p.id, name: p.name, nameEn: p.nameEn || null, season: p.season ?? null, team: p.team || null, pos: p.pos || null, ovr: overall(p) }));
+}
+
+/** The user's result once the season is `done` (null before). `year` and `lineup` are additive: older records lack them. */
 export function myTeamResult(st) {
   if (!st?.myTeam || st.phase !== "done") return null;
   const rec = st.standings?.[st.userTeamId] || {};
@@ -17,6 +28,8 @@ export function myTeamResult(st) {
     seasonId: st.myTeam.seasonId,
     variant: st.myTeam.rules?.variant || "quick",
     games: st.myTeam.rules?.seasonLength || 0,
+    year: Number(st.year) || null,
+    lineup: startingFive(st),
     w: rec.w || 0,
     l: rec.l || 0,
     champion: !!st.userTeamId && st.playoffs?.championId === st.userTeamId,

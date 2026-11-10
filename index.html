@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="css/gacha.css?v=20261023search1" />
   <link rel="stylesheet" href="css/credits.css?v=1" />
   <link rel="stylesheet" href="css/myTeamLineup.css?v=3" />
+  <link rel="stylesheet" href="css/clubhouse.css?v=1" />
   <link rel="stylesheet" href="css/careerPostGame.css?v=4" />
   <link rel="stylesheet" href="css/learned.css?v=20261101l1" />
   <link rel="stylesheet" href="css/rotation.css?v=5" />
@@ -139,11 +140,8 @@
         </div>
 
         <div class="home-category-panel" data-category="players">
-          <p class="home-category-hint tiny">你的永久班底：抽卡、养成、排位。收藏、每日抽卡、技能商店在上方账号条里。</p>
-          <div class="my-lineup-entry">
-            <button type="button" class="btn" id="btn-open-my-lineup">组建我的阵容</button>
-            <span class="tiny">从收藏挑 8–12 人、5 名首发，为之后的常规赛做准备（暂不开赛）。</span>
-          </div>
+          <!-- My Team Clubhouse: rendered by js/ui/clubhouse/ from the real account (collection, saved lineup, season history). -->
+          <div id="clubhouse-root"></div>
           <div class="mode-grid" aria-label="我的球员">
             <div class="mode-group-label">挑战与竞技</div>
             <button class="mode-card mode-card-feature" data-mode="ranked" data-legend="bryanko01:2008">

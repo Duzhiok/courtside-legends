@@ -338,10 +338,13 @@ import { createMyWorld } from "./ui/myWorldScreen.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
 import { portraitFor } from "./ui/portraitFor.js";
 import { createMyTeamLineup } from "./ui/myTeamLineupScreen.js";
+import { createClubhouse } from "./ui/clubhouse/clubhouseScreen.js";
 import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
 /** My World controller (ADR-008 N-1); created in boot(). `?.` everywhere so early callers are safe. */
 let myWorld = null;
 let myTeamLineup = null;
+/** My Team Clubhouse (the "My Players" tab); created in boot(). */
+let clubhouse = null;
 import {
   FAMILY_DUEL_THEMES,
   autoFillFamilySide,
@@ -2371,6 +2374,7 @@ function celebrateAccountLevelUp(before, after) {
 /** My World refresh + the Legend Duel record block (duelView owns the block). */
 function refreshMyWorld() {
   myWorld?.refresh();
+  clubhouse?.refresh(); // same triggers: back to home, account switch, language flip
   paintDuelRecordsIntoMyWorld();
 }
 
@@ -11364,6 +11368,19 @@ function myTeamResumeLabel() {
   try { return seasonProgressLabel(st, getLang()); } catch { return L("进行中", "In progress"); }
 }
 
+/** This player's My Team slot as the Clubhouse needs it: exists / finished / label / variant (null if none or not mine). */
+function myTeamSeasonFact() {
+  if (myTeamResumeLabel() == null) return null; // none, or not this player's
+  const st = readMyTeamSeason();
+  const done = st.phase === "done";
+  // Own label, NOT seasonProgressLabel: that one embeds the team name, which a My Team season stores in Chinese ("<name> 班底").
+  const rec = st.standings?.[st.userTeamId] || {};
+  const label = done ? ""
+    : st.phase === "playoffs" || st.phase === "awards" ? seasonProgressLabel(st, getLang())
+    : L(`${rec.w || 0}胜${rec.l || 0}负 · 已打 ${(rec.w || 0) + (rec.l || 0)}/${st.myTeam?.rules?.seasonLength || ""} 场`, `${rec.w || 0}-${rec.l || 0} · ${(rec.w || 0) + (rec.l || 0)}/${st.myTeam?.rules?.seasonLength || ""} played`);
+  return { exists: true, done, label, variant: st.myTeam?.rules?.variant || "quick" };
+}
+
 async function startMyTeamSeason(variant, { again = false } = {}) {
   const account = activeAccount();
   if (!account) { alert(L("请先创建 / 登录账号。", "Sign in or create an account first.")); return; }
@@ -12337,7 +12354,20 @@ async function boot() {
       onStartSeason: startMyTeamSeason,
       onResumeSeason: resumeMyTeamSeason,
     });
-    $("#btn-open-my-lineup")?.addEventListener("click", () => { myTeamLineup.open(); show("myTeamLineup"); });
+    clubhouse = createClubhouse({
+      el: $("#clubhouse-root"),
+      getLang,
+      getAccount: activeAccount,
+      getSeason: myTeamSeasonFact,
+      saveLineup: saveMyTeamLineup,
+      onStart: (variant) => startMyTeamSeason(variant),
+      onResume: resumeMyTeamSeason,
+      onOpenLineup: () => { myTeamLineup.open(); show("myTeamLineup"); },
+      onOpenCollection: () => openCollection(),
+      onOpenDraw: () => { if (requireAccountReady({ zh: "每日抽卡", en: "Daily Draw" })) openDailyDraw(); },
+      onOpenAccounts: () => openAccountScreen(),
+    });
+    clubhouse.render();
     $("#btn-my-lineup-back")?.addEventListener("click", () => goBack());
     $("#load-status").textContent = L("正在加载名册（优先本地缓存）…", "Loading roster (local cache first)…");
     $("#load-bar").style.width = "6%";
