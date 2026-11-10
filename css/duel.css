@@ -151,6 +151,17 @@
   outline: 2px solid #e8c15a;
 }
 
+/* D3.1 — spacing modifier chip on a choice button (empty when no terms). */
+.duel-spacing {
+  display: block;
+  font-size: 12px;
+  color: #e8c15a;
+}
+
+.duel-spacing:empty {
+  display: none;
+}
+
 @media (max-width: 480px) {
   .duel-score {
     font-size: 26px;

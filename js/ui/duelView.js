@@ -21,7 +21,7 @@ import { BODY_PRESETS, readLook } from "../data/avatarLook.js";
 import { mountAvatar3d } from "./avatar3d.js";
 import { portraitFor } from "./portraitFor.js";
 import { createDuel, playPossession, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
-import { createTakeover, applyPossession, OFFENSE_LABEL, DEFENSE_LABEL } from "../duel/duelTakeover.js";
+import { createTakeover, applyPossession, spacingByOffense, OFFENSE_LABEL, DEFENSE_LABEL } from "../duel/duelTakeover.js";
 import { mountDuelCourt } from "./duelCourtView.js";
 import {
   avatarChallengerKey,
@@ -334,7 +334,10 @@ function renderDuel() {
     onChoice: (choice) => {
       if (!current || current.state.over) return;
       const myBall = current.state.possession === "a";
-      const event = playPossession(current.state, myBall ? { offense: choice } : { defense: choice });
+      // D3.1: the live court state feeds the spacing map — the resolved
+      // offense's term applies. With no map the duel would resolve exactly
+      // as before; the map is what makes positioning matter.
+      const event = playPossession(current.state, myBall ? { offense: choice } : { defense: choice }, { spacing: spacingByOffense(current.takeover) });
       current.takeover = applyPossession(current.takeover, current.state, event);
       if (current.state.over) finishDuel();
       else renderDuel();

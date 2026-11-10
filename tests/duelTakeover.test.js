@@ -14,9 +14,12 @@ import {
   DEFENSE_LABEL,
   OFFENSE_SPOT,
   DEFENSE_SPOT,
+  SPACING_LABEL,
   zoneAt,
   suggestedOffense,
   suggestedDefense,
+  spacingForShot,
+  spacingByOffense,
   shadowDefender,
   clampPoint,
   createTakeover,
@@ -236,20 +239,35 @@ test("keyToChoice maps 1-4 to offense on my ball, 1-3 to defense on the legend's
   assert.equal(keyToChoice("x", true), null);
 });
 
-test("moving on the court never changes DuelSim odds", () => {
+test("D3.1: movement changes odds ONLY through the defined spacing terms", () => {
   const state = evenDuel();
   const a = state.a.duelist;
   const b = state.b.duelist;
   const before = makeProb(a, b, "drive", "balanced", { stamina: state.a.stamina });
-  // Dribble all over the court, then shoot the same shot from the same state.
+  // Dribble all over the court: with no spacing passed, the odds are still
+  // identical — positions never enter the sim implicitly.
   let t = createTakeover();
   t = moveControlled(t, 30, 10);
   t = moveControlled(t, -40, -5);
   t = moveControlledTo(t, 90, 45);
   const after = makeProb(a, b, "drive", "balanced", { stamina: state.a.stamina });
-  assert.equal(after, before, "positions never enter the sim — the odds are identical");
+  assert.equal(after, before, "no spacing passed — the odds are identical");
+  // But the same positions DO produce spacing terms, and passing them moves
+  // the odds by exactly the defined total — and only that. A drive from the
+  // far corner has no spacing term (too far from the rim, defender set).
+  const map = spacingByOffense(t);
+  assert.equal(map.drive, 0, "corner drive has no spacing term");
+  const spaced = makeProb(a, b, "drive", "balanced", { stamina: state.a.stamina, spacing: map.drive });
+  assert.equal(spaced, before, "zero spacing — same odds");
+  // An open corner three is +0.03, and makeProb moves by exactly that.
+  const open = spacingForShot(moveControlledTo(createTakeover(), 12, 44), "outside");
+  assert.equal(open.total, 0.03, "corner outside is an open look");
+  const plain = makeProb(a, b, "outside", "balanced", { stamina: state.a.stamina });
+  const boosted = makeProb(a, b, "outside", "balanced", { stamina: state.a.stamina, spacing: open.total });
+  assert.ok(Math.abs(boosted - plain - 0.03) < 1e-9, `open look adds exactly +0.03 (got ${boosted - plain})`);
   // And the possession still resolves through the one real path.
-  const event = playPossession(state, { offense: "drive" });
+  const event = playPossession(state, { offense: "drive" }, { spacing: map });
   assert.equal(event.offense, "drive");
   assert.equal(event.turn, 1);
+  assert.equal(event.spacing, map.drive);
 });

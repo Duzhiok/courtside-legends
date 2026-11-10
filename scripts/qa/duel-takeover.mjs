@@ -77,6 +77,27 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   check(`[${tag}] ArrowRight moves the ball-handler on the court`, leftAfter > leftBefore, `${leftBefore}% -> ${leftAfter}%`);
   const spotLine = await text(page, "#duel-spot-line");
   check(`[${tag}] the spot line follows the ball`, spotLine.length > 0, spotLine.slice(0, 40));
+
+  // D3.1: positioning changes the spacing breakdown on the choice buttons.
+  const courtBox = await page.$eval("#duel-court", (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+  const chipText = async (choice) => page.$eval(`#duel-body [data-spacing-for="${choice}"]`, (el) => el.textContent);
+  const dragTo = async (fx, fy) => {
+    if (tag === "mobile") {
+      await page.touchscreen.tap(courtBox.x + courtBox.w * fx, courtBox.y + courtBox.h * fy);
+    } else {
+      await page.mouse.move(courtBox.x + courtBox.w * 0.5, courtBox.y + courtBox.h * 0.5);
+      await page.mouse.down();
+      await page.mouse.move(courtBox.x + courtBox.w * fx, courtBox.y + courtBox.h * fy, { steps: 5 });
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(250);
+  };
+  await dragTo(0.12, 0.88); // left corner (12, 44): an open look for Outside
+  check(`[${tag}] corner position shows the open-look modifier on Outside`, (await chipText("outside")).includes("空位"), await chipText("outside"));
+  await dragTo(0.5, 0.16); // under the rim (50, 8): an at-the-rim look for Drive
+  check(`[${tag}] paint position shows the at-the-rim modifier on Drive`, (await chipText("drive")).includes("篮下"), await chipText("drive"));
+  await shoot(page, `${OUT}/${tag}-spacing.png`);
+
   const before = await scoreText(page);
   await page.keyboard.press("1");
   await page.waitForTimeout(200);

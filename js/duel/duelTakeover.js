@@ -7,8 +7,10 @@
  *
  * - The ONLY outcome path stays DuelSim.playPossession() (js/duel/duelSim.js).
  *   Nothing here rolls dice, computes a make probability, or changes a score.
- *   Positions never enter makeProb() — a moved player shoots exactly as well
- *   as a standing one. Movement is takeover feel, not a hidden modifier.
+ * - D3.1 — positions now enter the sim ONLY through the bounded spacing
+ *   terms below (spacingForShot): each term |≤0.03|, total |≤0.06|, and the
+ *   caller passes them explicitly as playPossession's opts.spacing map.
+ *   With no spacing passed, a duel resolves EXACTLY as before D3.1.
  * - The 4 offense buttons map 1:1 onto OFFENSE_CHOICES (drive / midrange /
  *   outside / post) and the 3 defense buttons map 1:1 onto DEFENSE_CHOICES
  *   (balanced / perimeter / paint). No new choice types are introduced; the
@@ -28,7 +30,7 @@
  * - zones: "paint" (inside the paint rect), "outside" (beyond the arc),
  *   "midrange" (inside the arc, outside the paint).
  */
-import { OFFENSE_CHOICES, DEFENSE_CHOICES } from "./duelSim.js";
+import { OFFENSE_CHOICES, DEFENSE_CHOICES, SPACING_TOTAL_MAX } from "./duelSim.js";
 import { clamp } from "../core/seededRandom.js";
 
 /** Court geometry (presentation units; the SVG viewBox is 0 0 100 50). */
@@ -115,6 +117,94 @@ export function suggestedDefense(zone) {
   if (zone === "paint") return "paint";
   if (zone === "outside") return "perimeter";
   return "balanced";
+}
+
+/** D3.1 — bound on a single spatial term. */
+export const SPACING_TERM_MAX = 0.03;
+
+/**
+ * D3.1 — spatial modifier labels, [zh, en], shared by the court view so the
+ * breakdown reads the same everywhere. The four terms:
+ * - open: the shooter has separation (defender ≥ 14 units away) — jump shots.
+ * - contest: the defender is right on the shooter (< 6 units) — jump shots.
+ * - rim: the ball is at the rim (≤ 10 units) — drive / post.
+ * - beaten: the defender is not between the shooter and the basket (off to
+ *   the side, under the rim, or chasing from behind) — drive / post.
+ */
+export const SPACING_LABEL = Object.freeze({
+  open: ["空位", "Open look"],
+  contest: ["贴防", "Tight contest"],
+  rim: ["篮下", "At the rim"],
+  beaten: ["失位", "Beaten defender"],
+});
+
+/** Distance between two court points. */
+function courtDist(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/**
+ * Is the defender beaten — i.e. NOT between the shooter (ball) and the
+ * basket? The defender is "set" when they sit on the ball -> basket segment
+ * (projection t in [0.1, 0.9]) within 8 units of it; anything else leaves a
+ * lane: off to the side (lateral > 8), camped under the rim (t > 0.9), or
+ * chasing from behind (t < 0.1 with real separation). A defender standing
+ * right on the ball (t ~ 0, distance < 6) is NOT beaten — they are in the
+ * shooter's jersey, which the contest term already prices.
+ * The automatic shadow (t = 0.45, lateral 0) is always set, so on offense
+ * "beaten" only ever fires when the PLAYER mispositions the defender.
+ */
+export function isDefenderBeaten(ball, defender) {
+  const bx = COURT.BASKET.x - ball.x;
+  const by = COURT.BASKET.y - ball.y;
+  const rimDist = Math.hypot(bx, by) || 1;
+  const wx = defender.x - ball.x;
+  const wy = defender.y - ball.y;
+  const t = (wx * bx + wy * by) / (rimDist * rimDist);
+  const lateral = Math.abs(wx * by - wy * bx) / rimDist;
+  const defDist = Math.hypot(wx, wy);
+  if (lateral > 8) return true;
+  if (t > 0.9) return true;
+  if (t < 0.1 && defDist >= 6) return true;
+  return false;
+}
+
+/**
+ * D3.1 — the spatial modifiers for one shot, from the LIVE court state at
+ * the moment the choice is made. Pure: same takeover + offense in, same
+ * terms out. Each term is bounded (|value| ≤ 0.03) and the total is bounded
+ * (|total| ≤ 0.06); at most two terms can co-apply (rim + beaten), and
+ * open/contest are mutually exclusive. Jump shots read defender distance
+ * (separation helps, a tight defender hurts); inside shots read rim
+ * distance (get to the basket) and whether the defender holds the lane.
+ * Returns { terms: [{ key, value }], total }.
+ */
+export function spacingForShot(takeover, offense) {
+  const ball = takeover.ball;
+  const defender = takeover.defender;
+  const defDist = courtDist(ball, defender);
+  const rimDist = courtDist(ball, COURT.BASKET);
+  const terms = [];
+  if (offense === "midrange" || offense === "outside") {
+    if (defDist >= 14) terms.push({ key: "open", value: 0.03 });
+    else if (defDist < 6) terms.push({ key: "contest", value: -0.03 });
+  } else {
+    if (rimDist <= 10) terms.push({ key: "rim", value: 0.03 });
+    if (isDefenderBeaten(ball, defender)) terms.push({ key: "beaten", value: 0.03 });
+  }
+  const total = clamp(
+    terms.reduce((sum, term) => sum + term.value, 0),
+    -SPACING_TOTAL_MAX,
+    SPACING_TOTAL_MAX,
+  );
+  return { terms, total };
+}
+
+/** D3.1 — the spacing total for every offense choice, from one court state. */
+export function spacingByOffense(takeover) {
+  const out = {};
+  for (const offense of OFFENSE_CHOICES) out[offense] = spacingForShot(takeover, offense).total;
+  return out;
 }
 
 /**

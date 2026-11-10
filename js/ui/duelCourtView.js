@@ -6,11 +6,17 @@
  * defense choice buttons, and the recent-possession log. The view is
  * PRESENTATION ONLY:
  *
- * - Player movement (keyboard arrows/WASD, number keys, touch drag) only
- *   moves markers on the court — it never touches DuelSim state and never
- *   changes a make probability. A choice button (or its number key) is the
- *   only way a possession resolves, and it goes through the onChoice
- *   callback the owner (duelView.js) wires to playPossession().
+ * - Player movement (keyboard arrows/WASD, number keys, touch drag) moves
+ *   markers on the court — and, since D3.1, feeds the spacing map: when a
+ *   choice resolves, duelView passes spacingByOffense(current.takeover)
+ *   into playPossession, so the live positions shift the make probability
+ *   through the bounded, explainable spacing terms (open / contest / rim /
+ *   beaten, each |≤3%|, total |≤6%|). A choice button (or its number key)
+ *   is still the only way a possession resolves, and it goes through the
+ *   onChoice callback the owner (duelView.js) wires to playPossession().
+ *   The active terms are shown on the choice buttons and in the spot line
+ *   so the player can see WHY a shot is better or worse from where they
+ *   stand.
  * - The ball-flight after a shot is cosmetic: the event already resolved
  *   inside DuelSim; the ball animates from the recorded shot spot to the
  *   rim and back to the ball-handler. Input is never locked for it — acting
@@ -25,9 +31,11 @@ import {
   COURT,
   OFFENSE_LABEL,
   DEFENSE_LABEL,
+  SPACING_LABEL,
   zoneAt,
   suggestedOffense,
   suggestedDefense,
+  spacingForShot,
   moveControlled,
   moveControlledTo,
   controlledPoint,
@@ -44,6 +52,16 @@ const ZONE_LABEL = {
   midrange: ["中距离", "Midrange"],
   outside: ["三分线外", "Beyond the arc"],
 };
+
+/** D3.1 — one spacing term as a chip, e.g. "空位 +3%" / "Open +3%". */
+function spacingChipText(terms) {
+  if (!terms || !terms.length) return "";
+  return terms.map((term) => {
+    const [zh, en] = SPACING_LABEL[term.key];
+    const sign = term.value >= 0 ? "+" : "−";
+    return `${L(zh, en)} ${sign}${Math.round(Math.abs(term.value) * 100)}%`;
+  }).join(" · ");
+}
 
 function staminaBar(value) {
   return `
@@ -134,12 +152,14 @@ export function mountDuelCourt(container, opts) {
       ${(myBall ? OFFENSE_CHOICES : DEFENSE_CHOICES).map((choice) => {
         const [zh, en, sub] = myBall ? OFFENSE_LABEL[choice] : DEFENSE_LABEL[choice];
         const isSuggested = choice === suggested;
-        return `<button type="button" class="mode-card${isSuggested ? " duel-suggested" : ""}" data-duel-choice="${choice}"><strong>${esc(L(zh, en))}${isSuggested ? ` ${esc(L("· 推荐", "· Suggested"))}` : ""}</strong><span>${esc(sub)}</span></button>`;
+        // D3.1: each offense button shows its live spacing terms (empty on defense).
+        const chip = myBall ? spacingChipText(spacingForShot(takeover, choice).terms) : "";
+        return `<button type="button" class="mode-card${isSuggested ? " duel-suggested" : ""}" data-duel-choice="${choice}"><strong>${esc(L(zh, en))}${isSuggested ? ` ${esc(L("· 推荐", "· Suggested"))}` : ""}</strong><span>${esc(sub)}</span><span class="duel-spacing" data-spacing-for="${choice}">${esc(chip)}</span></button>`;
       }).join("")}
     </div>
     <p class="tiny">${esc(myBall
-      ? L("方向键 / WASD 移动球员，拖动球场也可以；数字键 1–4 出手。站位只影响建议，不影响命中率——结果仍由球员属性和 DuelSim 计算。", "Move with arrow keys / WASD or drag the court; number keys 1–4 shoot. Positioning only changes the suggestion, never the make chance — DuelSim still decides the outcome.")
-      : L("方向键 / WASD 移动防守人，拖动球场也可以；数字键 1–3 选防守站位。站位只影响建议，不影响命中率——结果仍由球员属性和 DuelSim 计算。", "Move the defender with arrow keys / WASD or drag the court; number keys 1–3 set the defense. Positioning only changes the suggestion, never the make chance — DuelSim still decides the outcome."))}</p>
+      ? L("方向键 / WASD 移动球员，拖动球场也可以；数字键 1–4 出手。站位影响出手机会：空位和篮下位置提高命中率，贴防降低命中率——结果仍由球员属性和 DuelSim 计算。", "Move with arrow keys / WASD or drag the court; number keys 1–4 shoot. Positioning affects shot quality: open looks and rim position raise the make chance, tight contests lower it — DuelSim still decides the outcome.")
+      : L("方向键 / WASD 移动防守人，拖动球场也可以；数字键 1–3 选防守站位。贴住持球人能干扰传奇的跳投，放空则会送出空位——结果仍由球员属性和 DuelSim 计算。", "Move the defender with arrow keys / WASD or drag the court; number keys 1–3 set the defense. Staying tight contests the legend's jumpers; sagging off gives up open looks — DuelSim still decides the outcome."))}</p>
     <p><button type="button" class="btn small ghost" id="btn-duel-quit">${esc(L("放弃本场（不计入战绩）", "Quit this duel (not recorded)"))}</button></p>
     ${log.length ? `<h3>${esc(L("最近回合", "Recent possessions"))}</h3><ul class="tiny">${log.map((e) => {
       const shooterName = e.shooter === "a" ? (challenger.displayName || challenger.name) : (legend.displayName || legend.name);
@@ -190,9 +210,25 @@ export function mountDuelCourt(container, opts) {
     const sug = s.possession === "a" ? suggestedOffense(z) : suggestedDefense(z);
     const [zoneZh, zoneEn] = ZONE_LABEL[z];
     const sugLabel = s.possession === "a" ? OFFENSE_LABEL[sug] : DEFENSE_LABEL[sug];
-    spotLine.textContent = s.possession === "a"
-      ? L(`位置：${zoneZh} · 建议：${sugLabel[0]}`, `Spot: ${zoneEn} · Suggested: ${sugLabel[1]}`)
-      : L(`站位：${zoneZh} · 建议：${sugLabel[0]}`, `Position: ${zoneEn} · Suggested: ${sugLabel[1]}`);
+    // D3.1: live spacing breakdown — on offense, the suggested choice's
+    // terms; on defense, what the defender's position does to the legend's
+    // jump shot (tight = contested, sagged = open).
+    if (s.possession === "a") {
+      const terms = spacingChipText(spacingForShot(t, sug).terms);
+      spotLine.textContent = terms
+        ? L(`位置：${zoneZh} · 建议：${sugLabel[0]}（${terms}）`, `Spot: ${zoneEn} · Suggested: ${sugLabel[1]} (${terms})`)
+        : L(`位置：${zoneZh} · 建议：${sugLabel[0]}`, `Spot: ${zoneEn} · Suggested: ${sugLabel[1]}`);
+    } else {
+      const terms = spacingChipText(spacingForShot(t, "outside").terms);
+      spotLine.textContent = terms
+        ? L(`站位：${zoneZh} · 建议：${sugLabel[0]} · ${terms}`, `Position: ${zoneEn} · Suggested: ${sugLabel[1]} · ${terms}`)
+        : L(`站位：${zoneZh} · 建议：${sugLabel[0]}`, `Position: ${zoneEn} · Suggested: ${sugLabel[1]}`);
+    }
+    // D3.1: refresh the per-choice spacing chips as the player moves.
+    container.querySelectorAll("[data-spacing-for]").forEach((el) => {
+      const c = el.getAttribute("data-spacing-for");
+      el.textContent = s.possession === "a" ? spacingChipText(spacingForShot(t, c).terms) : "";
+    });
     if (!t.lastShot) placeBall(t.ball);
     markerA.classList.toggle("duel-has-ball", s.possession === "a");
     markerB.classList.toggle("duel-has-ball", s.possession === "b");

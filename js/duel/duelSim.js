@@ -124,14 +124,27 @@ function contestRating(defender, offense) {
   return defender.defense;
 }
 
+/** D3.1 — bound on the total spatial contribution to one shot's probability. */
+export const SPACING_TOTAL_MAX = 0.06;
+
 /**
  * Make probability for one shot. Pure. `shooterIsLegend` applies the
  * difficulty's legendMake offset (legend shots only); the challenger's dice
  * are never adjusted by difficulty. `stamina` is the shooter's CURRENT
  * stamina (0-100, drains as the duel goes on) — not the stamina attribute;
  * pass it explicitly, it defaults to 100 (fresh legs).
+ *
+ * D3.1 — `spacing` is an OPTIONAL additive term from the takeover court
+ * (see spacingForShot in duelTakeover.js): defender openness, rim
+ * proximity, a beaten defender. Each spatial term is bounded (|term| ≤
+ * 0.03) and the total is bounded (±0.06); the caller clamps it. It sits
+ * INSIDE the stamina scaling on purpose: a tired shooter gets less out of
+ * good positioning (at stamina 0 the spacing contributes ×0.82, at 100
+ * ×1.00). With no spacing passed the result is EXACTLY the pre-D3.1 value
+ * — positioning only ever enters through this explicit argument, never
+ * implicitly.
  */
-export function makeProb(shooter, defender, offense, defense, { difficulty = "pro", shooterIsLegend = false, stamina = 100 } = {}) {
+export function makeProb(shooter, defender, offense, defense, { difficulty = "pro", shooterIsLegend = false, stamina = 100, spacing = 0 } = {}) {
   const spec = OFFENSE[offense];
   if (!spec) throw new Error(`duelSim: unknown offense "${offense}"`);
   if (!MATCHUP[defense]) throw new Error(`duelSim: unknown defense "${defense}"`);
@@ -149,7 +162,8 @@ export function makeProb(shooter, defender, offense, defense, { difficulty = "pr
     (defender.skills || []).filter((s) => DEFENSE_SKILLS.includes(s)).length * 0.015,
   );
   const legendMake = shooterIsLegend ? DIFFICULTY[difficulty].legendMake : 0;
-  const prob = (spec.base + diff + matchup + skillBonus - defenseSkillBonus + legendMake) * staminaFactor;
+  const spacingTerm = clamp(spacing, -SPACING_TOTAL_MAX, SPACING_TOTAL_MAX);
+  const prob = (spec.base + diff + matchup + skillBonus - defenseSkillBonus + legendMake + spacingTerm) * staminaFactor;
   return clamp(prob, 0.08, 0.92);
 }
 
@@ -241,10 +255,15 @@ function checkWinner(state) {
 /**
  * Resolve one possession. `choice` is { offense } when the challenger has the
  * ball, { defense } when the legend has it. The other side's pick comes from
- * the CPU policy. Returns the possession event; the state is mutated in
- * place (it carries the RNG stream) and also returned.
+ * the CPU policy. `opts.spacing` is an OPTIONAL per-offense map
+ * ({ drive, midrange, outside, post } -> total modifier, see
+ * spacingByOffense in duelTakeover.js) from the takeover court state at the
+ * moment of the shot; only the resolved offense's term applies, and with no
+ * map the possession resolves EXACTLY as before D3.1. Returns the
+ * possession event; the state is mutated in place (it carries the RNG
+ * stream) and also returned.
  */
-export function playPossession(state, choice = {}) {
+export function playPossession(state, choice = {}, opts = {}) {
   if (state.over) throw new Error("duelSim: duel is already over");
   const rng = state.rng;
   const shooterSide = state.possession;
@@ -264,10 +283,12 @@ export function playPossession(state, choice = {}) {
     if (!DEFENSE_CHOICES.includes(defense)) throw new Error(`duelSim: choose a defense (${DEFENSE_CHOICES.join(", ")})`);
     offense = cpuOffenseChoice(defender.duelist, shooter.duelist, state.difficulty, rng);
   }
+  const spacing = opts.spacing ? (opts.spacing[offense] || 0) : 0;
   const prob = makeProb(shooter.duelist, defender.duelist, offense, defense, {
     difficulty: state.difficulty,
     shooterIsLegend,
     stamina: shooter.stamina,
+    spacing,
   });
   const made = rng() < prob;
   const points = made ? OFFENSE[offense].points : 0;
@@ -287,6 +308,7 @@ export function playPossession(state, choice = {}) {
     offense,
     defense,
     prob: Math.round(prob * 1000) / 1000,
+    spacing: Math.round(spacing * 1000) / 1000,
     made,
     points,
     staminaAfter: Math.round(shooter.stamina),
