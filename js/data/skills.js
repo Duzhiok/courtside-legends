@@ -2468,11 +2468,6 @@ export function removeSkillFromPlayer(player, skillId) {
   };
 }
 
-/** 金币商店可售技能（不含组合技 / 专属技 / 负面）. */
-export function listBuyableSkillPacks() {
-  return Object.values(SKILL_PACKS).filter((s) => s && isLearnableSkill(s.id));
-}
-
 /**
  * 技能稀有度 → 标价（对齐球员金币身价）：
  * mythic ≈ 超级球星（¤500+）；legendary ≈ 全明星；epic ≈ 优质首发；rare/common 更便宜。
@@ -2633,124 +2628,6 @@ export function purchasedSkillsRefund(player, rate = SKILL_SELL_RATE) {
     });
   }
   return { gold, lines };
-}
-
-/** 货架高光：体力 / 耐久类（玩家常找的铁肺·永动机·铁人） */
-const SHOP_DURABILITY_IDS = ["iron_lungs", "motor_engine", "iron_body"];
-
-function offerFromPack(s, lang = "zh") {
-  const rarity = skillRarity(s);
-  return {
-    id: s.id,
-    name: skillNameL(s.name, lang),
-    desc: skillDesc(s, lang),
-    tone: s.tone || "blue",
-    rarity,
-    rarityLabel: SKILL_RARITY_LABEL[rarity] || rarity,
-    cost: skillPackShopPrice(s),
-  };
-}
-
-// Tier-ordered pick that NEVER falls back to an avoided skill: it returns
-// null when the ordered tiers hold no fresh skill, so the caller can try
-// other tiers and only top up from avoided skills as a last resort.
-function pickFromTier(tiers, order, seen, avoid = null) {
-  for (const r of order) {
-    const list = (tiers[r] || []).filter((s) => !seen.has(s.id));
-    if (!list.length) continue;
-    const fresh = avoid ? list.filter((s) => !avoid.has(s.id)) : list;
-    if (fresh.length) return fresh[Math.floor(rand() * fresh.length)];
-  }
-  return null;
-}
-
-function buildRarityTiers(block) {
-  const tiers = { mythic: [], legendary: [], epic: [], rare: [], common: [] };
-  for (const s of listBuyableSkillPacks()) {
-    if (block.has(s.id)) continue;
-    const r = skillRarity(s);
-    (tiers[r] || tiers.common).push(s);
-  }
-  return tiers;
-}
-
-/**
- * 随机抽出一柜技能包货架。
- * 分层保底：至少 1 个神话/传奇、1 个史诗，并提高铁肺/永动机/铁人曝光；
- * excludeIds 用于刷新时避开上一柜，减少「来回就那几样」。
- * @returns {{ id, name, desc, tone, cost, rarity, rarityLabel }[]}
- */
-export function rollSkillShopOffers(size = 6, excludeIds = [], avoidIds = null, lang = "zh") {
-  const softBlock = new Set(excludeIds || []);
-  let tiers = buildRarityTiers(softBlock);
-  // 若软屏蔽把某档抽空，放开该档重来
-  const refillIfEmpty = (r) => {
-    if ((tiers[r] || []).length) return;
-    for (const s of listBuyableSkillPacks()) {
-      if (skillRarity(s) === r) (tiers[r] || (tiers[r] = [])).push(s);
-    }
-  };
-  ["mythic", "legendary", "epic", "rare", "common"].forEach(refillIfEmpty);
-
-  const picks = [];
-  const seen = new Set();
-  const take = (s) => {
-    if (!s || seen.has(s.id) || picks.length >= size) return false;
-    seen.add(s.id);
-    picks.push(offerFromPack(s, lang));
-    return true;
-  };
-
-  // ① 高光位：约 28% 神话、42% 传奇、30% 史诗；其中一半偏向体力三件套
-  const roll = rand();
-  const highOrder =
-    roll < 0.28 ? ["mythic", "legendary", "epic"] : roll < 0.7 ? ["legendary", "mythic", "epic"] : ["epic", "legendary", "mythic"];
-  if (rand() < 0.5) {
-    const dura = SHOP_DURABILITY_IDS.map((id) => SKILL_PACKS[id]).filter(
-      (s) => s && isLearnableSkill(s.id) && !seen.has(s.id)
-    );
-    // 仍尊重软屏蔽，但若全被屏蔽则忽略屏蔽；同档内优先非已拥有技能
-    let duraPool = dura.filter((s) => !softBlock.has(s.id));
-    if (!duraPool.length) duraPool = dura;
-    const duraFresh = avoidIds ? duraPool.filter((s) => !avoidIds.has(s.id)) : duraPool;
-    if (duraFresh.length) duraPool = duraFresh;
-    if (duraPool.length) take(duraPool[Math.floor(rand() * duraPool.length)]);
-  }
-  if (picks.length < 1) take(pickFromTier(tiers, highOrder, seen, avoidIds));
-
-  // ② 史诗保底
-  take(pickFromTier(tiers, ["epic", "legendary", "rare"], seen, avoidIds));
-
-  // ③ 再补一档偏传奇/史诗，避免货架全是普通
-  if (rand() < 0.65) {
-    take(pickFromTier(tiers, ["legendary", "epic", "mythic", "rare"], seen, avoidIds));
-  }
-
-  // ④ 其余：稀有/普通为主，偶尔塞史诗
-  const fillOrder =
-    rand() < 0.2
-      ? ["epic", "rare", "common", "legendary"]
-      : ["rare", "common", "epic", "legendary"];
-  let guard = 0;
-  while (picks.length < size && guard++ < 80) {
-    const s = pickFromTier(tiers, fillOrder, seen, avoidIds);
-    if (!s) break;
-    take(s);
-  }
-
-  // 最后补位：先取未屏蔽的 fresh 技能，实在不够再放宽到已拥有技能，
-  // 保证货架永远满格，同时已拥有技能只在别无选择时出现。
-  while (picks.length < size) {
-    const base = listBuyableSkillPacks().filter((x) => !seen.has(x.id));
-    const unblocked = base.filter((x) => !softBlock.has(x.id));
-    const poolA = unblocked.length ? unblocked : base;
-    const fresh = avoidIds ? poolA.filter((x) => !avoidIds.has(x.id)) : poolA;
-    const pool = fresh.length ? fresh : poolA;
-    if (!pool.length) break;
-    take(pool[Math.floor(rand() * pool.length)]);
-  }
-
-  return shuffle(picks);
 }
 
 export function skillMakeBonus(baller, shot, { quarter = 1, scoreDiff = 0, open = 0.5, onCourt = null } = {}) {

@@ -9,7 +9,6 @@ import {
   primaryPos,
   shopFit,
 } from "../js/engine/careerEconomy.js";
-import { listBuyableSkillPacks, rollSkillShopOffers } from "../js/data/skills.js";
 import { playerPrice } from "../js/data/intangibles.js";
 
 /**
@@ -105,21 +104,4 @@ test("careerRefreshCost: free while short-handed, base otherwise", () => {
   assert.equal(careerRefreshCost(full, 50), 50);
   assert.equal(careerRefreshCost(duel, 50), 50);
   assert.equal(careerRefreshCost(null, 50), 50);
-});
-
-test("rollSkillShopOffers: avoided skills lose to fresh ones", () => {
-  const all = listBuyableSkillPacks().map((s) => s.id);
-  assert.ok(all.length > 10, `buyable skills ${all.length}`);
-  // Keep the durability trio + 3 more un-avoided so the 50% durability
-  // fast-path cannot smuggle an avoided skill onto the shelf.
-  const trio = ["iron_lungs", "motor_engine", "iron_body"];
-  for (const id of trio) assert.ok(all.includes(id), `durability skill buyable: ${id}`);
-  const keep = new Set([...trio, ...all.filter((id) => !trio.includes(id)).slice(0, 3)]);
-  assert.equal(keep.size, 6);
-  const avoid = new Set(all.filter((id) => !keep.has(id)));
-  for (let i = 0; i < 5; i++) {
-    const offers = rollSkillShopOffers(6, [], avoid);
-    assert.equal(offers.length, 6);
-    for (const o of offers) assert.ok(keep.has(o.id), `avoided skill offered: ${o.id}`);
-  }
 });

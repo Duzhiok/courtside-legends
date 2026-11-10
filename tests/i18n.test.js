@@ -259,20 +259,10 @@ test("R59 skill descriptions: every pack has a CJK-free descEn", async () => {
   assert.equal(skillDesc("clutch_killer", "en"), "Clutch shooting rises in close games and the fourth quarter");
 });
 
-test("R59 skill shop offers localize name and desc in EN", async () => {
-  const { rollSkillShopOffers } = await import("../js/data/skills.js");
-  for (let run = 0; run < 3; run++) {
-    const offers = rollSkillShopOffers(6, [], null, "en");
-    assert.equal(offers.length, 6);
-    for (const offer of offers) {
-      assert.ok(!hasCJK(offer.name), `offer name has CJK: ${offer.name}`);
-      assert.ok(!hasCJK(offer.desc), `offer desc has CJK: ${offer.desc}`);
-    }
-  }
-});
-
 test("every skill has an English name and description (all of them, not a random draw of six)", async () => {
-  // The random test above only fails when the draw happens to include the one skill nobody translated.
+  // S0 removed the roll-based offer test above (the skill shop is gone);
+  // this exhaustive check is the one that actually catches an
+  // untranslated skill.
   const { SKILL_PACKS } = await import("../js/data/skills.js");
   const { SKILL_EN, skillNameL } = await import("../js/i18n.js");
   const missing = [];

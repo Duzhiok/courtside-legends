@@ -142,7 +142,7 @@
         </div>
 
         <div class="home-category-panel" data-category="players">
-          <p class="home-category-hint tiny">你的永久班底：抽卡、养成、排位。收藏、每日抽卡、技能商店在上方账号条里。</p>
+          <p class="home-category-hint tiny">你的永久班底：抽卡、养成、排位。收藏、每日抽卡在上方账号条里。</p>
           <div class="my-lineup-entry">
             <button type="button" class="btn" id="btn-open-my-lineup">组建我的阵容</button>
             <span class="tiny">从收藏挑 8–12 人、5 名首发，为之后的常规赛做准备（暂不开赛）。</span>
@@ -562,9 +562,8 @@
       </div>
       <p class="setup-how">怎么排：把球员<strong>拖到</strong>上面的 PG–C 格子里上场，拖回<strong>替补席</strong>下场；两个首发互拖可换位。也可以直接点一下上下场。满 5 人开打。</p>
       <div id="setup-skill-panel" class="setup-skill-panel" hidden>
-        <h3>技能包（随时可装）</h3>
+        <h3>已购技能（随时可装）</h3>
         <p class="tiny" id="setup-skill-hint">已购技能可在此直接装到名单球员，装完再排首发开打。</p>
-        <div id="setup-skill-shop" class="career-skill-shop"></div>
         <h4 class="career-skill-heading">已购技能库</h4>
         <div id="setup-skill-inventory" class="career-skill-shop"></div>
       </div>
@@ -682,16 +681,12 @@
       <div class="btn-row" style="margin-bottom:10px">
         <button class="btn" id="btn-refresh-market">刷新自由市场（¤50）</button>
         <button type="button" class="btn small" id="btn-refresh-coaches">只刷教练（¤30）</button>
-        <button type="button" class="btn small" id="btn-refresh-skills">只刷技能包（¤25）</button>
         <span class="tiny" id="shop-budget-hint"></span>
       </div>
       <div id="career-coach-panel" class="career-coach-panel" hidden>
         <p class="tiny" id="career-coach-current">当前教练：—</p>
-        <!-- 教练/技能包货架已并入右侧「自由市场」列表随机穿插显示，这两格只保留给 JS 内部数据渲染，不再单独展示 -->
+        <!-- 教练货架已并入右侧「自由市场」列表随机穿插显示，这格只保留给 JS 内部数据渲染，不再单独展示 -->
         <div id="career-coach-shop" class="career-coach-shop" hidden></div>
-        <h4 class="career-skill-heading" hidden>技能包货架</h4>
-        <p class="tiny" id="career-skill-hint" hidden></p>
-        <div id="career-skill-shop" class="career-skill-shop" hidden></div>
         <h4 class="career-skill-heading">已购技能库</h4>
         <p class="tiny">入库技能可随时装给名单球员（每卡约 6–7 格）。</p>
         <div id="career-skill-inventory" class="career-skill-shop"></div>
@@ -827,9 +822,8 @@
             </div>
             <p class="tiny" id="focus-help">暂停后设定未来数个进攻回合的重点。</p>
             <details class="live-skill-panel" id="live-skill-panel" hidden>
-              <summary>技能包（随时可装）</summary>
-              <p class="tiny" id="live-skill-hint">暂停/节间可买入或安装技能到名单球员。</p>
-              <div id="live-skill-shop" class="career-skill-shop"></div>
+              <summary>已购技能（随时可装）</summary>
+              <p class="tiny" id="live-skill-hint">暂停/节间可安装技能到名单球员。</p>
               <h4 class="career-skill-heading">已购技能库</h4>
               <div id="live-skill-inventory" class="career-skill-shop"></div>
             </details>
@@ -1328,7 +1322,7 @@
           <li>按成名技术挂技能包：超巨/名人堂可有招牌绝技；另有组合技（空接之城、水花兄弟等，搭档同场才触发）与光环（潜能激发抬队友、防守统领抬全队防守）。</li>
           <li>出手按 2K 逻辑：投篮/三分倾向决定会不会投，能力值决定投得准不准；进攻方式（低位/定点/突破等）与强弱侧共同影响选择。</li>
           <li>本地账号班底：开局抽 5 张卡，每位置一张（控卫/分卫/小前/大前/中锋），纯随机、无保底；开局只有菜鸟教头。战术板已扩充（牛角/普林斯顿/五外/挡拆轰炸/换防等），每位教练擅长体系不同；名帅与超巨一样靠抽卡。</li>
-          <li>重复卡：抽到已有的同一张卡 → 升 1 星（★1–★5，每星全部能力 +1），并可在新旧两份成色里二选一；已满 ★5 再抽到 → 转成 2 个球魂。抽到已有球员的另一个赛季版本 → 照常入库，并额外得 1 个球魂。3 个球魂可给该球员的任意一张卡升 1 星，用球魂升到 ★5 时赠送一个技能（靠抽卡升到 ★5 不送）。技能只有三个来源：比赛表现领悟、技能碎片购买、★5 礼物；奖项只是荣誉，不送技能。</li>
+          <li>重复卡：抽到已有的同一张卡 → 升 1 星（★1–★5，每星全部能力 +1），并可在新旧两份成色里二选一；已满 ★5 再抽到 → 转成 2 个球魂。抽到已有球员的另一个赛季版本 → 照常入库，并额外得 1 个球魂。3 个球魂可给该球员的任意一张卡升 1 星，用球魂升到 ★5 时赠送一个技能（靠抽卡升到 ★5 不送）。技能只有两个来源：比赛表现领悟、★5 礼物；奖项只是荣誉，不送技能。</li>
           <li>球员能力按 NBA 2K 历年标尺从当季数据推算（得分/三分/中投/内线/防守等）；乔丹 91、詹皇巅峰等关键赛季用公开 2K 锚点校正。改完后若数值异常可点「清除名册本地缓存」重建。</li>
           <li>同一球员不同赛季卡会随年龄变化：新秀更快更有弹速，老将判断力/力量/传球/投篮手感与领袖气场、大心脏更强。</li>
           <li>技能≠能力：巨星也可能没有技能包；托尼·阿伦「缠绕盯防」、巴蒂尔「持球克星·3D」、慈世平/考辛斯「火爆脾气」等角色特质可挂在非巨星身上，并影响抢断、空位与技术犯规。</li>
