@@ -19,9 +19,11 @@ test("the duplicate-card rule on the home page quotes the numbers the code reall
   assert.ok(line.includes(`${SOULS_PER_STAR} 个球魂可给该球员`), "souls per star");
 });
 
-test("the home page names the three skill sources and says awards give none", () => {
+test("the home page names the two skill sources and says awards give none", () => {
   const line = ruleLine("重复卡：");
-  for (const phrase of ["比赛表现领悟", "技能碎片购买", "★5 礼物", "奖项只是荣誉，不送技能"]) assert.ok(line.includes(phrase), phrase);
+  for (const phrase of ["比赛表现领悟", "★5 礼物", "奖项只是荣誉，不送技能"]) assert.ok(line.includes(phrase), phrase);
+  assert.ok(line.includes("技能只有两个来源"), "two sources, not three (S0: the fragment shop is gone)");
+  assert.doesNotMatch(line, /技能碎片购买/);
 });
 
 test("the home page points players at the credits page, which exists", () => {
