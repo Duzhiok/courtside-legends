@@ -12408,7 +12408,6 @@ async function boot() {
       show,
       goBack,
     });
-<<<<<<< HEAD
     // Career Relationships dev entry (workstream E): the relationships /
     // promises / legacy panel for the active account. ?relationships=1
     // opens it after boot (below). It never invents offers or
@@ -12507,7 +12506,6 @@ async function boot() {
     if (new URLSearchParams(location.search).get("reborn") === "1") {
       setTimeout(() => { rebornView.open(); }, 250);
     }
-<<<<<<< HEAD
     // Career Relationships dev entry (workstream E): ?relationships=1
     // opens the relationships / promises / legacy panel after boot.
     if (new URLSearchParams(location.search).get("relationships") === "1") {
