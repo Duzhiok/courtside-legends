@@ -7,6 +7,7 @@
  *     equippedFrame: string | null,     // frame item id currently on the profile portrait
  *     tickets: number,                   // Auto-Play credits (one credit = one simulated game)
  *     autoUsed: { [dateKey]: number },  // auto games already paid XP today (cap: XP_TABLE.autoDailyCap)
+ *     purchases: [{ itemId, at }],      // newest first, capped — the "recently bought" list
  *   }
  *
  * Rules enforced here (all pure apart from the saves):
@@ -29,6 +30,8 @@ import { SHOP_ITEMS, itemById } from "./shopCatalog.js";
 
 export const SHOP_AUTO_XP_PER_GAME = XP_TABLE.autoGame; // 5
 export const SHOP_AUTO_DAILY_CAP = XP_TABLE.autoDailyCap; // 20
+/** How many purchase records the "recently bought" list keeps (newest first). */
+export const SHOP_PURCHASES_KEEP = 20;
 
 /** Normalize (or create) the shop record. Pure shape, no save. */
 export function getShop(account) {
@@ -38,6 +41,9 @@ export function getShop(account) {
     equippedFrame: typeof raw.equippedFrame === "string" ? raw.equippedFrame : null,
     tickets: Math.max(0, Math.floor(raw.tickets) || 0),
     autoUsed: { ...(raw.autoUsed || {}) },
+    purchases: Array.isArray(raw.purchases)
+      ? raw.purchases.filter((p) => p && typeof p.itemId === "string").slice(0, SHOP_PURCHASES_KEEP)
+      : [],
   };
 }
 
@@ -85,6 +91,48 @@ export function equippedClothingItemId(account) {
 }
 
 /**
+ * Owned cosmetics, one entry per item, in catalog order (category, then catalog
+ * position). `equipped` is true when the item is currently worn / on the portrait /
+ * placed in the room — furniture is placed the moment it is owned. This is the
+ * inventory API the My World "recently bought / owned" area consumes (workstream D):
+ * it never reads account.shop directly, so the state shape can evolve here.
+ */
+export function ownedItems(account) {
+  if (!account) return [];
+  const shop = getShop(account);
+  const wearing = equippedClothingItemId(account);
+  const framed = equippedFrameId(account);
+  return SHOP_ITEMS.filter((item) => item.effect?.type !== "autoTickets" && shop.owned[item.id]).map((item) => ({
+    item,
+    equipped:
+      item.effect?.type === "outfit" ? wearing === item.id
+      : item.effect?.type === "frame" ? framed === item.id
+      : item.effect?.type === "furniture",
+  }));
+}
+
+/** Newest purchases first (default 5), each with its catalog item — the "recently bought" list. */
+export function recentPurchases(account, n = 5) {
+  if (!account) return [];
+  return getShop(account)
+    .purchases.slice(0, Math.max(0, n))
+    .map((p) => ({ item: itemById(p.itemId), at: p.at }))
+    .filter((entry) => entry.item);
+}
+
+/** Furniture ids placed in the My Home room — same set as ownedFurnitureIds, named for the room API. */
+export function placedFurnitureIds(account) {
+  return ownedFurnitureIds(account);
+}
+
+/** Frame item ids the account owns (any of them can go on the portrait). */
+export function ownedFrameIds(account) {
+  if (!account) return [];
+  const shop = getShop(account);
+  return SHOP_ITEMS.filter((item) => item.effect?.type === "frame" && shop.owned[item.id]).map((item) => item.effect.frameId);
+}
+
+/**
  * Buy one catalog item. Gold is deducted and ownership granted in a single save,
  * so a refresh mid-click cannot double-charge or grant without paying.
  * Tickets are consumables (no already-owned check); cosmetics refuse repeats.
@@ -101,6 +149,7 @@ export function purchaseShopItem(account, itemId) {
   account.gold = gold - item.price;
   if (isTicket) shop.tickets += item.effect.games;
   else shop.owned[item.id] = true;
+  shop.purchases = [{ itemId: item.id, at: Date.now() }, ...(shop.purchases || [])].slice(0, SHOP_PURCHASES_KEEP);
   writeShop(account, shop);
   saveAccount(account);
   return { ok: true, item, gold: account.gold, tickets: shop.tickets };
