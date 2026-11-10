@@ -5,7 +5,7 @@
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
-import { ownedFurnitureIds, ownedOutfitIds, equippedFrameId } from "../data/shop.js";
+import { ownedFurnitureIds, ownedOutfitIds, equippedFrameId, equipShopItem, unequipShopItem } from "../data/shop.js";
 import { lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
@@ -13,7 +13,7 @@ import { readIdentity, saveIdentity } from "../data/profile.js";
 import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { readChallengeArchive } from "../data/challengeArchive.js";
-import { journeyFromRoot, legacyFromAccount, myWorldHtml } from "./myWorldView.js";
+import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary } from "./myWorldView.js";
 
 export function createMyWorld({
   el,
@@ -44,13 +44,19 @@ export function createMyWorld({
 }) {
   if (!el) return { refresh() {} };
 
-  // The 3D viewer exists only while the "My look" panel is open; every re-render or close frees it.
+  // The 3D viewer exists while My World is shown: it lives in the showcase stage by default
+  // (#mw-showcase-stage, always visible) and only falls back to the look panel's stage when
+  // the showcase mount failed. `viewerStage` says which stage owns it, so closing the look
+  // panel never kills a showcase viewer. Every re-render frees it (innerHTML destroys the
+  // stage) and re-mounts it right after.
   let viewer = null;
   let viewerToken = 0;
+  let viewerStage = null; // "showcase" | "look" | null
   function disposeViewer() {
     viewerToken += 1; // a mount still in flight must not attach itself to a stale panel
     viewer?.dispose();
     viewer = null;
+    viewerStage = null;
   }
 
   /** Preview-action buttons work only while a viewer is live; otherwise they stay disabled with the panel's note. */
@@ -71,7 +77,26 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), frame: equippedFrameId(account), ownedOutfits: ownedOutfitIds(account) }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), frame: equippedFrameId(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account) }, lang);
+    mountShowcaseViewer();
+  }
+
+  /** Mount the 3D figure into the always-visible showcase stage. Failure is silent: the static portrait stays. */
+  async function mountShowcaseViewer() {
+    const stage = el.querySelector("#mw-showcase-stage");
+    if (!stage || viewer) return;
+    const token = ++viewerToken;
+    try {
+      const handle = await mountAvatar(stage, { look: readLook(getAccount()) });
+      if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
+      viewer = handle;
+      viewerStage = "showcase";
+      stage.querySelector(".mw-showcase-static")?.setAttribute("hidden", "");
+      if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
+      setActionButtons(true);
+    } catch {
+      setActionButtons(false);
+    }
   }
 
   /**
@@ -140,12 +165,14 @@ export function createMyWorld({
   async function openViewer() {
     const stage = el.querySelector("#mw-look-stage");
     const status = el.querySelector("#mw-look-status");
-    if (!stage || viewer) return;
+    if (!stage) return;
+    if (viewer) { setActionButtons(true); return; } // the showcase already owns a viewer: reuse it, don't mount a second
     const token = ++viewerToken;
     try {
       const handle = await mountAvatar(stage, { look: readLook(getAccount()) });
       if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
       viewer = handle;
+      viewerStage = "look";
       stage.querySelector(".mw-look-static")?.setAttribute("hidden", "");
       if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
       setActionButtons(true);
@@ -221,7 +248,8 @@ export function createMyWorld({
     if (!panel) return;
     panel.hidden = !panel.hidden;
     if (panel.hidden) {
-      disposeViewer();
+      // Only free a viewer the panel itself owns; the showcase viewer stays up.
+      if (viewerStage === "look") disposeViewer();
       setActionButtons(false);
       panel.querySelector(".mw-look-static")?.removeAttribute("hidden");
       return;
@@ -292,6 +320,36 @@ export function createMyWorld({
       else say(status(), "这个等级没有奖励。", "There is no reward at that level.");
     },
     "toggle-look": toggleLook,
+    "showcase-figure": (btn) => {
+      const figure = btn?.dataset?.figure;
+      if (!figure) return;
+      const saved = saveLook(getAccount(), { figure });
+      const status = () => el.querySelector("#mw-showcase-status");
+      if (!saved.saved) return say(status(), "这台设备不允许保存（浏览器存储被关闭），风格只在这次打开期间有效。", "This device can't save (browser storage is disabled); the style only lasts while this page is open.");
+      viewer?.setLook(saved);
+      render();
+      const label = figure === "bobblehead" ? (getLang() === "en" ? "Bobblehead" : "Q 版大头") : (getLang() === "en" ? "Stylized" : "风格化写实");
+      say(status(), `已切换到${label}。`, `Switched to ${label}.`);
+    },
+    /** Equip / take off an owned shop item from the My World owned area (same shop state the shop writes). */
+    "equip-owned": (btn) => {
+      const itemId = btn?.closest?.("[data-item]")?.dataset?.item;
+      if (!itemId) return;
+      const status = () => el.querySelector("#mw-owned-status");
+      const res = equipShopItem(getAccount(), itemId);
+      if (!res.ok) return say(status(), res.reason === "not-owned" ? "这件商品还没买，先去商城看看。" : "穿戴失败。", res.reason === "not-owned" ? "You don't own that item yet — take a look in the Shop." : "Couldn't equip it.");
+      render();
+      say(status(), getLang() === "en" ? `Equipped ${res.item.en}.` : `已穿戴「${res.item.zh}」。`);
+    },
+    "unequip-owned": (btn) => {
+      const itemId = btn?.closest?.("[data-item]")?.dataset?.item;
+      if (!itemId) return;
+      const status = () => el.querySelector("#mw-owned-status");
+      const res = unequipShopItem(getAccount(), itemId);
+      if (!res.ok) return say(status(), "这件商品现在没有在使用。", "That item isn't in use right now.");
+      render();
+      say(status(), getLang() === "en" ? `Took off ${res.item.en}.` : `已取下「${res.item.zh}」。`);
+    },
     "use-3d-portrait": use3dPortrait,
     "pick-photo": () => el.querySelector("#mw-photo-input")?.click(),
     "avatar-action-clap": () => playPreview("clap"),

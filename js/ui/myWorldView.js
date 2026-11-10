@@ -11,6 +11,9 @@
 import { avatarDataUri } from "../data/avatarArt.js";
 import { challengeTierName } from "../data/careerChallenges.js";
 import { photoImg } from "../data/photo.js";
+import { FIGURE_STYLES } from "../data/avatarLook.js";
+import { getShop, equippedClothingItemId } from "../data/shop.js";
+import { itemById, itemName } from "../data/shopCatalog.js";
 import { lookPanelHtml } from "./avatarLookView.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
 import { teamNameL } from "../i18n.js";
@@ -311,14 +314,111 @@ export function levelHtml(snapshot, lang) {
   </section>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], frame = null, ownedOutfits = null }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], frame = null, ownedOutfits = null, owned = null }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
-  const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
+  const ownedCareer = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
+    ${showcaseHtml({ identity, look, portrait, level }, lang)}
     ${identityCardHtml(identity, lang, portrait, frame)}
     ${levelHtml(level, lang)}
     ${lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits)}
-    <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
-    ${homeSceneHtml({ identity, frames, trophyCount: (owned?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0), furniture }, lang)}`;
+    <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
+    ${homeSceneHtml({ identity, frames, trophyCount: (ownedCareer?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0), furniture }, lang)}
+    ${ownedShopHtml(owned, lang)}`;
+}
+
+/**
+ * Character showcase (integration sprint, workstream D): the player's 3D figure, prominent
+ * and always visible — the screen mounts the 3D viewer into #mw-showcase-stage on render
+ * and the static portrait stays as the honest fallback when WebGL can't run.
+ * The Stylized / Bobblehead switch is the same `look.figure` the editor writes, so the
+ * switch and the editor can never disagree.
+ */
+export function showcaseHtml({ identity, look, portrait = null, level = null }, lang) {
+  const name = identity?.name || T(lang, "访客球员", "Guest player");
+  const figure = look?.figure || "stylized";
+  const levelChip = level ? `<p class="mw-showcase-level">Lv.${level.level} · ${esc(lang === "en" ? level.titleEn : level.title)}</p>` : "";
+  const switchBtns = FIGURE_STYLES.map((f) => `<button type="button" class="btn small ${figure === f.id ? "mw-gold" : "ghost mw-on-dark"}" data-mw-action="showcase-figure" data-figure="${f.id}" aria-pressed="${figure === f.id}">${esc(T(lang, f.zh, f.en))}</button>`).join("");
+  return `<section class="mw-showcase" aria-label="${T(lang, "我的形象展示", "My character showcase")}">
+    <div class="mw-showcase-stage" id="mw-showcase-stage">
+      <img class="mw-showcase-static" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="140" height="140" />
+    </div>
+    <div class="mw-showcase-body">
+      <h3>${esc(name)}</h3>
+      ${levelChip}
+      <div class="btn-row" role="group" aria-label="${T(lang, "形象风格", "Character style")}">${switchBtns}</div>
+      <div class="btn-row"><button type="button" class="btn small ghost mw-on-dark" data-mw-action="toggle-look">${T(lang, "编辑形象", "Edit look")}</button></div>
+      <p class="mw-note">${T(lang, "3D 形象加载成功后会在这里展示；加载失败时显示头像图片。风格切换与形象编辑器是同一个设置。", "Your 3D figure shows here once it loads; the portrait image shows if it can't. The style switch and the look editor write the same setting.")}</p>
+      <p class="mw-status" id="mw-showcase-status" role="status" aria-live="polite"></p>
+    </div>
+  </section>`;
+}
+
+/**
+ * Owned shop items, read from the SAME account.shop state the shop writes
+ * (workstream C owns shop.js; this only reads it through its public API).
+ * `Object.keys(shop.owned)` keeps insertion order, which is purchase order —
+ * that is what "recently bought" means here (the shop stores no timestamps).
+ * null = guest (no owned items exist).
+ */
+export function ownedShopSummary(account) {
+  if (!account) return null;
+  const shop = getShop(account);
+  const items = Object.keys(shop.owned).map((id) => itemById(id)).filter(Boolean);
+  const equippedOutfit = equippedClothingItemId(account);
+  return {
+    recent: items.slice(-3).reverse(),
+    outfits: items.filter((i) => i.effect?.type === "outfit").map((i) => ({ item: i, equipped: equippedOutfit === i.id })),
+    frames: items.filter((i) => i.effect?.type === "frame").map((i) => ({ item: i, equipped: shop.equippedFrame === i.id })),
+    furniture: items.filter((i) => i.effect?.type === "furniture"),
+    tickets: shop.tickets,
+  };
+}
+
+function ownedRow(entry, lang) {
+  const { item } = entry;
+  const name = esc(itemName(item, lang));
+  if (entry.kind === "furniture") {
+    return `<li class="mw-owned-row"><span class="mw-owned-name">${name}</span><span class="mw-owned-state">${T(lang, "✓ 已摆放在 My Home", "✓ Placed in My Home")}</span></li>`;
+  }
+  const equipped = entry.equipped;
+  const btn = equipped
+    ? action("unequip-owned", T(lang, "取下", "Take off"), "btn small ghost")
+    : action("equip-owned", entry.kind === "frame" ? T(lang, "设为头像框", "Set as portrait frame") : T(lang, "穿上", "Wear it"), "btn small mw-gold");
+  return `<li class="mw-owned-row"><span class="mw-owned-name">${name}</span>${equipped ? `<span class="mw-owned-state">${T(lang, "✓ 正在使用", "✓ In use")}</span>` : ""}<span class="mw-owned-actions" data-item="${esc(item.id)}">${btn}</span></li>`;
+}
+
+export function ownedShopHtml(owned, lang) {
+  const head = `<h3>${T(lang, "我的物品 · 已拥有", "My Items · Owned")}</h3>`;
+  if (owned === null) {
+    return `<section class="mw-card mw-owned">${head}
+      <p class="mw-empty">${T(lang, "访客没有已购物品。创建账号后，在商城买的商品会出现在这里，可以直接穿上或摆进房间。", "Guests have no purchased items. Create an account and the things you buy in the Shop will show up here, ready to wear or place in your room.")}</p>
+      ${action("open-accounts", T(lang, "创建或切换账号", "Create or switch account"))}</section>`;
+  }
+  const hasAnything = owned.recent.length || owned.tickets > 0;
+  if (!hasAnything) {
+    return `<section class="mw-card mw-owned">${head}
+      <p class="mw-empty">${T(lang, "还没有在商城买过东西。买到的衣服、头像框、家具会在这里出现，直接穿上或摆进房间。", "Nothing bought in the Shop yet. Clothes, frames and furniture you buy will show up here, ready to wear or place in your room.")}</p>
+      ${action("open-shop", T(lang, "🛍️ 去商城看看", "🛍️ Browse the Shop"))}</section>`;
+  }
+  const recent = owned.recent.length
+    ? `<p class="mw-line tiny"><strong>${T(lang, "最近购买", "Recently bought")}</strong></p>
+       <ul class="mw-owned-list">${owned.recent.map((item) => {
+         const kind = item.effect?.type;
+         if (kind === "furniture") return ownedRow({ item, kind }, lang);
+         const equipped = kind === "outfit" ? owned.outfits.find((o) => o.item.id === item.id)?.equipped : owned.frames.find((o) => o.item.id === item.id)?.equipped;
+         return ownedRow({ item, kind, equipped: !!equipped }, lang);
+       }).join("")}</ul>`
+    : "";
+  const outfits = owned.outfits.length
+    ? `<p class="mw-line tiny"><strong>${T(lang, "服装", "Outfits")}</strong></p><ul class="mw-owned-list">${owned.outfits.map((o) => ownedRow({ ...o, kind: "outfit" }, lang)).join("")}</ul>` : "";
+  const frames = owned.frames.length
+    ? `<p class="mw-line tiny"><strong>${T(lang, "头像框", "Portrait frames")}</strong></p><ul class="mw-owned-list">${owned.frames.map((o) => ownedRow({ ...o, kind: "frame" }, lang)).join("")}</ul>` : "";
+  const furniture = owned.furniture.length
+    ? `<p class="mw-line tiny"><strong>${T(lang, "家具", "Furniture")}</strong></p><ul class="mw-owned-list">${owned.furniture.map((i) => ownedRow({ item: i, kind: "furniture" }, lang)).join("")}</ul>` : "";
+  const tickets = owned.tickets > 0
+    ? `<p class="mw-line tiny"><strong>${T(lang, `托管卡 ${owned.tickets} 张`, `${owned.tickets} Auto-Play Ticket(s)`)}</strong> · ${T(lang, "在赛季中心用现有引擎模拟常规赛。", "Use them in the Season Center to simulate regular-season games.")}</p>` : "";
+  return `<section class="mw-card mw-owned">${head}${recent}${outfits}${frames}${furniture}${tickets}
+    <p class="mw-status" id="mw-owned-status" role="status" aria-live="polite"></p></section>`;
 }

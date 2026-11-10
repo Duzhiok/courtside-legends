@@ -93,7 +93,7 @@ test("every rendered action button has a handler; user text is escaped; English 
   const evil = { name: "<img src=x onerror=1>", hometown: "\"><script>", bio: "&", guest: false };
   const html = view.myWorldHtml({ identity: evil, journey: view.journeyFromRoot(root(1)), legacy: view.legacyFromAccount({ playerIds: [] }), frames: [] }, "zh");
   assert.doesNotMatch(html, /<img src=x|<script>/);
-  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "open-shop", "clear-stars", "use-3d-portrait", "pick-photo", "toggle-look", "avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle", "toggle-level-track", "claim-level-reward"];
+  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "open-shop", "clear-stars", "use-3d-portrait", "pick-photo", "toggle-look", "avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle", "toggle-level-track", "claim-level-reward", "showcase-figure", "equip-owned", "unequip-owned"];
   const handlerSource = (await import("node:fs")).readFileSync(new URL("../js/ui/myWorldScreen.js", import.meta.url), "utf8");
   for (const [, name] of html.matchAll(/data-mw-action="([^"]+)"/g)) {
     assert.ok(known.includes(name), name);
@@ -116,4 +116,64 @@ test("redesign: one page title, My Games naming, no feedback panel on this page,
   assert.match(en, /My Games/);
   assert.doesNotMatch(en, /My Basketball Life/);
   assert.doesNotMatch(en, CJK);
+});
+
+// Character showcase + owned shop items (integration sprint, workstream D): the showcase
+// is always visible with a Stylized/Bobblehead switch writing the same look.figure the
+// editor writes; the owned area reads the same account.shop state the shop writes.
+const shopAccount = (over = {}) => ({
+  id: "acc-shop",
+  avatar: { figure: "stylized", skin: "tone3", style: "short", hair: "black", outfit: "forest", body: "standard" },
+  shop: {
+    owned: { "frame-champion-gold": true, "outfit-champion-gold": true, "furniture-trophy-cabinet": true },
+    equippedFrame: "frame-champion-gold",
+    tickets: 5,
+    autoUsed: {},
+  },
+  ...over,
+});
+
+test("owned summary: recent follows purchase order, equipped state is derived from the look and the frame record", () => {
+  const s = view.ownedShopSummary(shopAccount());
+  assert.deepEqual(s.recent.map((i) => i.id), ["furniture-trophy-cabinet", "outfit-champion-gold", "frame-champion-gold"], "last bought first");
+  assert.equal(s.tickets, 5);
+  assert.deepEqual(s.furniture.map((i) => i.id), ["furniture-trophy-cabinet"]);
+  assert.deepEqual(s.frames.map((o) => [o.item.id, o.equipped]), [["frame-champion-gold", true]]);
+  assert.deepEqual(s.outfits.map((o) => [o.item.id, o.equipped]), [["outfit-champion-gold", false]], "forest is worn, the shop outfit is owned but not equipped");
+
+  const wearing = view.ownedShopSummary(shopAccount({ avatar: { figure: "stylized", skin: "tone3", style: "short", hair: "black", outfit: "champion", body: "standard" } }));
+  assert.deepEqual(wearing.outfits.map((o) => [o.item.id, o.equipped]), [["outfit-champion-gold", true]]);
+  assert.equal(view.ownedShopSummary(null), null, "guests own nothing");
+});
+
+test("owned area: every bought item has a findable equip/place entry; furniture is shown placed in My Home", () => {
+  const s = view.ownedShopSummary(shopAccount());
+  const html = view.ownedShopHtml(s, "zh");
+  assert.match(html, /最近购买/);
+  assert.ok(html.indexOf("冠军奖杯柜") < html.indexOf("冠军金边球衣"), "newest purchase listed first");
+  assert.match(html, /已摆放在 My Home/, "furniture shows where it lives");
+  assert.match(html, /data-mw-action="equip-owned"/, "an owned outfit has a wear button");
+  assert.match(html, /data-mw-action="unequip-owned"/, "the equipped frame has a take-off button");
+  assert.match(html, /托管卡 5 张/);
+  assert.doesNotMatch(html, /每日|换装/, "no forbidden copy in the owned area");
+
+  const guest = view.ownedShopHtml(null, "zh");
+  assert.match(guest, /访客没有已购物品/);
+  assert.match(guest, /data-mw-action="open-accounts"/);
+  const empty = view.ownedShopHtml({ recent: [], outfits: [], frames: [], furniture: [], tickets: 0 }, "zh");
+  assert.match(empty, /还没有在商城买过东西/);
+  assert.match(empty, /data-mw-action="open-shop"/);
+});
+
+test("showcase: stage is always rendered, the style switch reflects the real look, level chip comes from the snapshot", () => {
+  const level = { level: 7, title: "球场老将", titleEn: "Veteran", totalXp: 900, xpIntoLevel: 50, xpForNext: 100, pct: 50, isMax: false, track: [] };
+  const html = view.showcaseHtml({ identity: { name: "Zoro", guest: false }, look: { figure: "bobblehead" }, portrait: null, level }, "zh");
+  assert.match(html, /id="mw-showcase-stage"/);
+  assert.match(html, /data-figure="bobblehead" aria-pressed="true"/);
+  assert.match(html, /data-figure="stylized" aria-pressed="false"/);
+  assert.match(html, /Lv\.7 · 球场老将/);
+  assert.match(html, /data-mw-action="toggle-look"/, "the full editor stays one tap away");
+  const en = view.showcaseHtml({ identity: { name: "Zoro", guest: false }, look: { figure: "stylized" }, portrait: null, level }, "en");
+  assert.doesNotMatch(en, CJK);
+  assert.match(en, /Lv\.7 · Veteran/);
 });

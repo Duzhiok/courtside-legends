@@ -83,6 +83,25 @@
 }
 .mw-home .mw-note { color: #4f5e55; margin: 8px 0 0; }
 
+/* —— Character showcase (workstream D): prominent 3D stage + Stylized/Bobblehead switch —— */
+.mw-showcase { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 18px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid #d6e0d9; box-shadow: 0 2px 8px rgba(22, 58, 41, 0.06); }
+.mw-showcase-stage { position: relative; height: 300px; border-radius: 14px; overflow: hidden; background: radial-gradient(#2c6e49, #123522); display: grid; place-items: center; }
+.mw-showcase-stage canvas { position: absolute; inset: 0; }
+.mw-showcase-static { width: 140px; height: 140px; border-radius: 50%; }
+.mw-showcase-body { display: grid; gap: 8px; align-content: start; }
+.mw-showcase h3 { margin: 0; font-size: 1.35rem; color: var(--mw-green); overflow-wrap: anywhere; }
+.mw-showcase-level { margin: 0; color: #8a5a00; font-weight: 700; }
+.mw-showcase .mw-note { color: #4f5e55; margin: 0; }
+.mw-showcase .mw-status { color: #1d5a3b; }
+
+/* —— Owned shop items (workstream D): same account.shop state the shop writes —— */
+.mw-owned-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.mw-owned-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: #faf6ea; }
+.mw-owned-name { flex: 1; min-width: 120px; font-weight: 600; color: #24352b; }
+.mw-owned-state { font-size: 0.85rem; color: #1d5a3b; }
+.mw-owned-actions { display: flex; gap: 6px; }
+#mw-owned-status { color: #1d5a3b; }
+
 /* —— My look: 3D stage + preset swatches —— */
 .mw-look { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px; margin: 0 0 12px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid #d6e0d9; }
 .mw-look[hidden] { display: none; }
@@ -100,6 +119,8 @@
 .mw-swatch:has(input:focus-visible) { outline: 3px solid #1b5fd1; outline-offset: 2px; }
 .mw-look .mw-note { color: #4f5e55; margin: 6px 0 0; }
 @media (max-width: 640px) {
+  .mw-showcase { grid-template-columns: 1fr; }
+  .mw-showcase-stage { height: 260px; }
   .mw-look { grid-template-columns: 1fr; }
   .mw-look-stage { height: 280px; }
   /* the dot carries the choice visually; the name stays available to screen readers */
