@@ -1,4 +1,5 @@
 import { createCoachProfile } from "../career/coachProfile.js";
+import { validateCareerInbox } from "../career/careerInbox.js";
 import { validEpiphany, validGrowth } from "../career/growthShape.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
 import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
@@ -429,6 +430,9 @@ function validateRoot(root) {
   }
   if (root.reborn) {
     validateReborn(root.reborn);
+  }
+  if (root.careerInbox) {
+    validateCareerInbox(root.careerInbox);
   }
   return root;
 }

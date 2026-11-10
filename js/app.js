@@ -34,6 +34,7 @@ import { mountSandbox } from "./ui/sandboxView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
 import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
+import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12322,6 +12323,7 @@ async function boot() {
     // saveLongCareer). rebornView is a `let` declared before this call
     // because initCareerEntry runs before the view is created.
     let rebornView = null;
+    let careerInboxView = null;
     initCareerEntry({
       onPlay: (identityId, era, opts) => {
         if (identityId === "player") {
@@ -12420,6 +12422,16 @@ async function boot() {
       show,
       goBack,
     });
+    // Shared Career Inbox (workstream A): the dev entry is ?inbox=1 below;
+    // the view itself is reachable from the Career entry later.
+    screens.careerInbox = ensureInboxScreen();
+    careerInboxView = createCareerInboxView({
+      getLang,
+      readRootSave: () => state.longCareerRoot || readRootSave(),
+      writeRootSave,
+      show,
+      goBack,
+    });
     myTeamLineup = createMyTeamLineup({
       el: $("#my-team-lineup-root"),
       getLang,
@@ -12498,6 +12510,11 @@ async function boot() {
     // opens the relationships / promises / legacy panel after boot.
     if (new URLSearchParams(location.search).get("relationships") === "1") {
       setTimeout(() => { relationshipsView.open(); }, 250);
+    }
+    // Shared Career Inbox dev entry (workstream A): ?inbox=1 opens the
+    // inbox slice after boot.
+    if (new URLSearchParams(location.search).get("inbox") === "1") {
+      setTimeout(() => { careerInboxView.open(); }, 250);
     }
     // Career Role Permissions dev entry: ?career=coach opens the Time
     // Travel creation with the Coach role pre-set (ADR-006 R4) — the
