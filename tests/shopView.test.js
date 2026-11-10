@@ -43,10 +43,10 @@ function stateFor(account, overrides = {}) {
 
 const IDENTITY = { name: "Shop QA", hometown: "", bio: "", guest: false };
 
-test("dialog: four tabs, five items, gold balance and the no-power note", () => {
+test("dialog: five tabs (four categories + owned), twenty items, gold balance and the no-power note", () => {
   const a = richAccount(500);
   const html = view.shopDialogHtml(stateFor(a), "zh");
-  for (const tab of ["我的家", "我的形象", "我的收藏", "便利"]) assert.ok(html.includes(tab), `missing tab ${tab}`);
+  for (const tab of ["我的家", "我的形象", "我的收藏", "便利", "已拥有"]) assert.ok(html.includes(tab), `missing tab ${tab}`);
   assert.ok(html.includes("我的金币：¤500"));
   assert.ok(html.includes("金币不买球员卡、不加比赛属性"));
   const en = view.shopDialogHtml(stateFor(a), "en");
@@ -121,14 +121,19 @@ test("detail: a successful ticket use renders the real W-L and XP", () => {
   assert.ok(html.includes("剩余托管卡 0 张"));
 });
 
-test("previews: furniture reuses the room cabinet, outfit uses the real champion colours", () => {
+test("previews: furniture comes from the registry, outfit uses the real colours, frame uses its own class", () => {
   const furn = view.shopPreviewHtml(catalog.itemById("furniture-trophy-cabinet"), "zh");
   assert.ok(furn.includes('data-furniture="trophy-cabinet"'));
+  const sofa = view.shopPreviewHtml(catalog.itemById("furniture-sofa"), "zh");
+  assert.ok(sofa.includes('data-furniture="sofa"'));
   const outfit = view.shopPreviewHtml(catalog.itemById("outfit-champion-gold"), "zh");
   assert.ok(outfit.includes("#d6b25a"));
   assert.ok(outfit.includes("#1f2937"));
   const frame = view.shopPreviewHtml(catalog.itemById("frame-champion-gold"), "zh");
   assert.ok(frame.includes("mw-frame-gold"));
+  const silver = view.shopPreviewHtml(catalog.itemById("frame-silver"), "zh");
+  assert.ok(silver.includes("mw-frame-silver"));
+  assert.ok(!silver.includes("mw-frame-gold"));
   const ticket = view.shopPreviewHtml(catalog.itemById("ticket-auto-20"), "zh");
   assert.ok(ticket.includes("×20"));
 });
@@ -154,10 +159,85 @@ test("avatar editor: the shop outfit is locked until owned, free when owned, unt
   assert.ok(locked.includes('value="champion"'));
   assert.ok(locked.includes("is-locked"));
   assert.ok(locked.includes("商城"));
-  const owned = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, ["champion"]);
+  const owned = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, ["champion", "midnight", "crimson", "street", "vintage"]);
   assert.ok(owned.includes('value="champion"'));
   assert.ok(!owned.includes("is-locked"));
   const legacy = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh");
   assert.ok(legacy.includes('value="champion"'));
   assert.ok(!legacy.includes("is-locked"));
+});
+
+test("avatar editor: new shop outfits lock the same way, without an editor change", () => {
+  const locked = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, []);
+  for (const id of ["midnight", "crimson", "street", "vintage"]) {
+    assert.ok(locked.includes(`value="${id}"`), `missing outfit ${id}`);
+  }
+  assert.equal((locked.match(/is-locked/g) || []).length, 5, "all five shop outfits lock when unowned");
+  const owned = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, ["midnight"]);
+  assert.equal((owned.match(/is-locked/g) || []).length, 4, "owning midnight unlocks only midnight");
+});
+
+test("inventory: owned rows show real state, room preview shows owned furniture, recent buys list", () => {
+  const a = richAccount(2000);
+  shop.purchaseShopItem(a, "furniture-sofa");
+  shop.purchaseShopItem(acc.getAccount(a.id), "furniture-rug");
+  shop.purchaseShopItem(acc.getAccount(a.id), "outfit-midnight");
+  shop.purchaseShopItem(acc.getAccount(a.id), "frame-silver");
+  shop.equipShopItem(acc.getAccount(a.id), "outfit-midnight");
+  const st = {
+    ...stateFor(acc.getAccount(a.id)),
+    view: "inventory",
+    owned: shop.ownedItems(acc.getAccount(a.id)),
+    recent: shop.recentPurchases(acc.getAccount(a.id), 5),
+    furniture: shop.ownedFurnitureIds(acc.getAccount(a.id)),
+    tickets: shop.ticketBalance(acc.getAccount(a.id)),
+  };
+  const html = view.shopInventoryHtml(st, "zh");
+  assert.ok(html.includes("我的房间预览"));
+  assert.ok(html.includes('data-furniture="sofa"'));
+  assert.ok(html.includes('data-furniture="rug"'));
+  assert.ok(html.includes("球场沙发"));
+  assert.ok(html.includes("已摆进房间"));
+  assert.ok(html.includes("午夜蓝球衣"));
+  assert.ok(html.includes("穿着中"));
+  assert.ok(html.includes("银边头像框"));
+  assert.ok(html.includes("最近购买"));
+  // Newest purchase first.
+  const recentIdx = html.indexOf("最近购买");
+  assert.ok(html.indexOf("银边头像框", recentIdx) < html.indexOf("球场沙发", recentIdx));
+  // The dialog in inventory view renders the tab, not the catalog grid.
+  const dialog = view.shopDialogHtml(st, "zh");
+  assert.ok(dialog.includes("我的房间预览"));
+  assert.ok(!dialog.includes("shop-grid"));
+});
+
+test("inventory: guests and empty accounts get an honest empty state", () => {
+  const guest = view.shopInventoryHtml(stateFor(null), "zh");
+  assert.ok(guest.includes("登录账号后查看已拥有的商品"));
+  const a = richAccount(500);
+  const st = { ...stateFor(a), view: "inventory", owned: [], recent: [], furniture: [], tickets: 0 };
+  const html = view.shopInventoryHtml(st, "zh");
+  assert.ok(html.includes("还没有买过商品"));
+  assert.ok(html.includes("还没有购买记录"));
+  assert.ok(html.includes("房间还空着"));
+});
+
+test("detail: ticket use offers 5 / 20 / all, capped by credits and games left", () => {
+  const a = richAccount(1000);
+  const st = stateFor(a, {
+    category: "convenience",
+    selectedId: "ticket-auto-50",
+    ticketCtx: { season: true, remaining: 12, credits: 50, xpRemaining: 20 },
+  });
+  const html = view.shopDetailHtml(catalog.itemById("ticket-auto-50"), st, "zh");
+  assert.ok(html.includes('data-games="5"'));
+  assert.ok(html.includes('data-games="20"'));
+  assert.ok(html.includes('data-games="12"'), "all = min(credits 50, remaining 12)");
+  assert.ok(html.includes("托管全部 12 场"));
+  const none = view.shopDetailHtml(catalog.itemById("ticket-auto-5"), stateFor(a, {
+    category: "convenience",
+    selectedId: "ticket-auto-5",
+    ticketCtx: { season: false, remaining: 0, credits: 0, xpRemaining: 20 },
+  }), "zh");
+  assert.ok(none.includes("托管全部 0 场"));
 });
