@@ -67,7 +67,10 @@ test("a legend with no real art gets NO tile — a silhouette is not a stand-in 
 
 test("every mode card legend token in index.html has real art too", () => {
   const tokens = modeCardTokens();
-  assert.ok(tokens.length >= 9);
+  // 8, not 9: the 3+1 Career entry's photo cards use the concept-mock
+  // portraits (assets/career/*.jpg, pinned by careerEntry.test.js),
+  // not legend tokens — the Player card no longer carries jordami01:1991.
+  assert.ok(tokens.length >= 8);
   for (const token of tokens) {
     const url = legendPhotoFromToken(token);
     assert.ok(url && isRealArt(url), `${token} has no usable art`);
