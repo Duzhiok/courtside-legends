@@ -1,0 +1,80 @@
+/* [Career 2.0 G] Basketball Career Network — Scout / Film / Analytics slices. */
+#screen-network .nw-home {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+#screen-network .nw-entry {
+  text-align: left;
+  border: 1px solid var(--gold, #c9a227);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  padding: 14px;
+  cursor: pointer;
+}
+#screen-network .nw-entry:hover { background: rgba(255, 255, 255, 0.08); }
+#screen-network .nw-entry h3 { margin: 0 0 4px; font-size: 16px; }
+#screen-network .nw-entry p { margin: 0; font-size: 13px; opacity: 0.85; }
+#screen-network .nw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+#screen-network .nw-card {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+#screen-network .nw-card h4 { margin: 0 0 2px; font-size: 15px; }
+#screen-network .nw-card .nw-meta { font-size: 12px; opacity: 0.8; margin: 0 0 8px; }
+#screen-network .nw-card .nw-line { font-size: 13px; margin: 2px 0; }
+#screen-network .nw-card .nw-actions { display: flex; gap: 8px; margin-top: 10px; }
+#screen-network .nw-challenge { margin-top: 12px; }
+#screen-network .nw-challenge h3 { font-size: 16px; margin: 0 0 8px; }
+#screen-network .nw-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 6px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  cursor: pointer;
+}
+#screen-network .nw-opt:hover { border-color: var(--gold, #c9a227); }
+#screen-network .nw-opt:disabled { opacity: 0.55; cursor: default; }
+#screen-network .nw-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+#screen-network .nw-strip span {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+#screen-network .nw-board { margin-top: 12px; }
+#screen-network .nw-offer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 6px 0;
+}
+#screen-network .nw-offer .nw-why { font-size: 12px; opacity: 0.8; }
+#screen-network .nw-result { margin-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: 10px; }
+@media (max-width: 560px) {
+  #screen-network .nw-home { grid-template-columns: 1fr; }
+  #screen-network .nw-offer { flex-direction: column; align-items: stretch; }
+}
