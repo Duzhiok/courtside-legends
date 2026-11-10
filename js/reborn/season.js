@@ -25,6 +25,7 @@ import { seasonToCard, overall } from "../data/players.js";
 import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
+import { applyGameGrowth } from "./training.js";
 import {
   buildPlayerCard,
   applyIdentityToRoster,
@@ -256,6 +257,15 @@ export async function playGame(
     role: roleAfter,
     won,
   });
+  // PR3: the game's XP converts into attribute gains under the current
+  // training focus (awardGrowth + ceilings; the ledger is the only store).
+  const growthOut = applyGameGrowth(next, {
+    year,
+    cards: myCards,
+    rows: players,
+    lines: [{ id: playerCard.id, min: line.min, score: gs }],
+  });
+  next.player.growth = growthOut.growth;
   season.index += 1;
 
   return {
@@ -276,6 +286,7 @@ export async function playGame(
       trustParts: trustChange.parts,
       roleBefore: role,
       roleAfter,
+      growth: growthOut.entries,
       takeover: takeoverOutcome
         ? {
             option: takeover.actionHint,
