@@ -14,11 +14,11 @@
  * card packs (Lv.5 / Lv.50, claimed once per level). The coin extra draw
  * (¤200, 2/day) and the unconditional free daily pull are deleted.
  */
-import { saveAccount, todayKey } from "./account.js";
+import { resolvePlayers, saveAccount, todayKey, uniqueByPerson } from "./account.js";
 import { awardAccountXp, recordDailyTaskXp } from "./accountLevel.js";
 import { drawOneCard } from "./accountGacha.js";
-import { MAX_CARDS, cardRoom } from "./accountRecycle.js";
-import { PLAYERS } from "./players.js";
+import { MAX_CARDS, cardRoom, MIN_KEEP, lineupIds } from "./accountRecycle.js";
+import { overall, PLAYERS } from "./players.js";
 
 export const WELCOME_TICKETS = 2;
 export const MILESTONE_WINS = 10;
@@ -235,6 +235,33 @@ export function recordChallengeProgress(account, challengeId, today = todayKey()
 
 /** What the draw screen shows: each task with its state, plus the daily-draw slot. */
 const taskLabel = (task, lang) => (lang === "en" ? task.labelEn || task.label : task.label);
+
+/**
+ * The most recently drawn player card and where it sits in the collection:
+ * best copy per person, sorted by OVR — the top MIN_KEEP (12) are the My Team
+ * lineup, so a new card's rank tells the player immediately whether it plays.
+ * Returns null when the account has never drawn a player card.
+ */
+export function lastDrawJourney(account) {
+  if (!account) return null;
+  const entry = [...(account.drawHistory || [])].reverse().find((e) => e?.kind === "player");
+  if (!entry) return null;
+  const player = PLAYERS.find((p) => p.id === entry.id);
+  if (!player) return null;
+  const sorted = uniqueByPerson(resolvePlayers(account.playerIds || [], account)).sort((a, b) => overall(b) - overall(a));
+  const rank = sorted.findIndex((c) => c.bref === player.bref) + 1;
+  return {
+    playerId: player.id,
+    name: player.name,
+    season: player.season,
+    ovr: overall(player),
+    outcome: entry.outcome || "new",
+    at: entry.at || 0,
+    inLineup: rank > 0 && rank <= MIN_KEEP && lineupIds(account).has(player.id),
+    lineupRank: rank > 0 ? rank : null,
+    collectionSize: sorted.length,
+  };
+}
 export function taskBoard(account, today = todayKey(), lang = "zh") {
   const day = dailyState(account, today);
   const draw = dailyDrawState(account, today);
@@ -260,5 +287,16 @@ export function taskBoard(account, today = todayKey(), lang = "zh") {
     challenge: { id: challengeDef.id, label: taskLabel(challengeDef, lang), xp: CHALLENGE_XP, claimed: day.claimed.includes(challengeDef.id) },
     milestone: { wins: milestone.wins, next: milestone.next, perReward: MILESTONE_WINS, gold: MILESTONE_GOLD },
     tickets: account.tickets || 0,
+    // The Daily Basketball Journey: tasks → claim → use the new card → earn gold/XP → shop.
+    journey: {
+      tasksDone: draw.tasksDone,
+      needed: draw.needed,
+      claimedToday: draw.claimed,
+      canClaim: draw.canClaim,
+      lastDraw: lastDrawJourney(account),
+      gold: account.gold || 0,
+      tickets: account.tickets || 0,
+      cards: (account.playerIds || []).length,
+    },
   };
 }

@@ -269,5 +269,38 @@ export function tasksHtml(board, lang = getLang()) {
   return `<div class="draw-tasks">
       <strong>${en ? "Daily tasks" : "每日任务"}</strong>
       <ul>${rows}${dailyDrawRow}${challengeRow}<li><span aria-hidden="true">🎯</span> ${milestone}</li></ul>
+      ${journeyHtml(board.journey, lang)}
+    </div>`;
+}
+
+/**
+ * The Daily Basketball Journey — the whole loop in four steps, with the real
+ * state of each: tasks → claim the card → use it (where the newest card sits
+ * in the collection / lineup) → earn gold and XP → spend it in the Shop.
+ * Pure information, no dead buttons: the lineup is automatic (top 12 by OVR),
+ * so the strip tells the player where the card landed instead of pretending
+ * to place it. Renders inside the tasks block, so it refreshes with every
+ * claim (renderDrawStatus re-renders tasksHtml).
+ */
+export function journeyHtml(journey, lang = getLang()) {
+  if (!journey) return "";
+  const en = lang === "en";
+  const tasksDone = journey.tasksDone >= journey.needed;
+  const last = journey.lastDraw;
+  const useLine = !last
+    ? en ? "Draw a card and it shows up here — the top 12 by OVR make your My Team lineup." : "抽到卡后，这里会告诉你它在阵容里的位置——OVR 前 12 名自动进入首发阵容。"
+    : last.inLineup
+      ? en ? `${last.name} ${last.season} · OVR ${last.ovr} — in your My Team lineup (#${last.lineupRank}). See it in My Team.` : `${last.name} ${last.season} · OVR ${last.ovr}——已进入 My Team 首发阵容（第 ${last.lineupRank} 名），去「我的球队」查看阵容。`
+      : last.lineupRank
+        ? en ? `${last.name} ${last.season} · OVR ${last.ovr} — collection #${last.lineupRank} (top 12 make the lineup).` : `${last.name} ${last.season} · OVR ${last.ovr}——收藏第 ${last.lineupRank} 名（前 12 名自动进入首发阵容）。`
+        : en ? `${last.name} ${last.season} · OVR ${last.ovr} — no longer in your collection.` : `${last.name} ${last.season} · OVR ${last.ovr}——已不在卡库。`;
+  return `<div class="draw-journey">
+      <strong>${en ? "Daily Basketball Journey" : "今日篮球之旅"}</strong>
+      <ol>
+        <li class="${tasksDone ? "done" : ""}"><span aria-hidden="true">${tasksDone ? "✅" : "①"}</span> ${en ? `Do tasks — ${journey.tasksDone}/${journey.needed} done (any 2 unlock today's card)` : `做任务 — ${journey.tasksDone}/${journey.needed} 项完成（任意 2 项解锁领卡）`}</li>
+        <li class="${journey.claimedToday ? "done" : ""}"><span aria-hidden="true">${journey.claimedToday ? "✅" : "②"}</span> ${journey.claimedToday ? (en ? "Today's player card claimed" : "今日球员卡已领取") : journey.canClaim ? (en ? "Today's player card is ready to claim" : "今日球员卡可以领取了") : (en ? "Claim today's player card" : "领取今日球员卡")}</li>
+        <li><span aria-hidden="true">③</span> ${useLine}</li>
+        <li><span aria-hidden="true">④</span> ${en ? `Earn gold and XP — Gold ¤${journey.gold} · ${journey.cards} cards — then spend it in the Shop.` : `赚金币、攒经验 — 金币 ¤${journey.gold} · ${journey.cards} 张卡 — 再去商城装扮你的篮球人生。`}</li>
+      </ol>
     </div>`;
 }
