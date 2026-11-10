@@ -114,14 +114,37 @@ export function stageOpportunities(exec, ctx = {}) {
   return opps;
 }
 
-/** Record one season's basketball achievements into the record. */
+/** Record one season's basketball achievements into the record. Results also move the
+ * standing that gates advancement: winning raises board trust and reputation, losing
+ * lowers them. A championship season is worth +8 trust — the board notices. */
 export function recordSeasonAchievements(exec, { wins = 0, losses = 0, playoffRound = null, champion = false } = {}) {
   const games = wins + losses;
+  const winPct = games ? wins / games : 0.5;
   const a = { ...exec.achievements };
-  if (games && wins / games > 0.5) a.winningSeasons += 1;
+  if (games && winPct > 0.5) a.winningSeasons += 1;
   if (playoffRound) a.playoffRuns += 1;
   if (champion) a.championships += 1;
-  return { ...exec, achievements: a };
+  let boardTrust = exec.boardTrust ?? 50;
+  let reputation = exec.reputation ?? 50;
+  if (champion) {
+    boardTrust += 8;
+    reputation += 5;
+  } else if (playoffRound) {
+    boardTrust += 5;
+    reputation += 2;
+  } else if (winPct > 0.5) {
+    boardTrust += 3;
+    reputation += 1;
+  } else if (winPct < 0.4) {
+    boardTrust -= 5;
+    reputation -= 2;
+  }
+  return {
+    ...exec,
+    achievements: a,
+    boardTrust: Math.max(0, Math.min(100, boardTrust)),
+    reputation: Math.max(0, Math.min(100, reputation)),
+  };
 }
 
 /**

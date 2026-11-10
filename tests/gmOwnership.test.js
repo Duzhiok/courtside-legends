@@ -145,6 +145,16 @@ test("stages derive from the record: GM -> president -> minority -> controlling 
   assert.equal(stageLabel("minority", "en"), "Minority Owner");
 });
 
+test("results move standing: a title lifts trust, a bad season costs it", () => {
+  const exec = createExecutiveRecord({ reputation: 50, boardTrust: 55 });
+  const champ = recordSeasonAchievements(exec, { wins: 60, losses: 22, playoffRound: "finals", champion: true });
+  assert.equal(champ.boardTrust, 63);
+  assert.equal(champ.reputation, 55);
+  const bad = recordSeasonAchievements(exec, { wins: 15, losses: 67, playoffRound: null, champion: false });
+  assert.equal(bad.boardTrust, 50);
+  assert.equal(bad.reputation, 48);
+});
+
 test("opportunities are offered, never automatic, and list what is missing", () => {
   const exec = createExecutiveRecord({ reputation: 70, boardTrust: 70 });
   const opps = stageOpportunities(exec, { wealth: 100, valuation: 150, loanCapacity: 20 });
