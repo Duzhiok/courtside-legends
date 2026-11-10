@@ -2,13 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { COMPRESS_LADDER, FEEDBACK_IMAGE_BYTES, FEEDBACK_IMAGE_MAX, addImages, checkImageFile, fitEdge, replaceImage, shrinkImage, sniffImageType } from "../js/data/feedbackImages.js";
 import { memoryBackend, normalizeAttachments, readAttachments, writeAttachments, clearAttachments } from "../js/data/feedbackAttachments.js";
-import { attachReasonText, feedbackHtml, feedbackTemplate, thumbsHtml } from "../js/ui/myWorldView.js";
 import { getFeedbackTransport, setFeedbackTransport } from "../js/data/feedbackTransport.js";
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const JPG = [0xff, 0xd8, 0xff, 0xe0];
 const WEBP = [0x52, 0x49, 0x46, 0x46, 1, 2, 3, 4, 0x57, 0x45, 0x42, 0x50];
-const CJK = /[\u4e00-\u9fff]/;
 
 /** A fake File: real bytes at the front (so sniffing works), padded to `size`. */
 function file(name, head, size = 1000) {
@@ -134,28 +132,7 @@ test("storage trouble is reported, never thrown", async () => {
   assert.deepEqual(await readAttachments("a", null), []);
 });
 
-test("the panel: attach box present, thumbnails escape names, English has no Chinese", () => {
-  for (const lang of ["zh", "en"]) {
-    const html = feedbackHtml(lang, {}, false);
-    assert.match(html, /id="mw-attach-input"[^>]*accept="image\/png,image\/jpeg,image\/webp"[^>]*multiple/);
-    assert.match(html, /data-mw-action="pick-attach"/);
-    assert.match(html, /id="mw-drop"/);
-  }
-  assert.ok(!CJK.test(feedbackHtml("en", {}, true)));
-  const html = thumbsHtml([{ id: "i1", name: "<img src=x onerror=1>.png", size: 300 * 1024 }, { id: "i2", name: "b.png", size: 1.5 * 1048576 }], ["blob:1", "blob:2"], "en");
-  assert.ok(!html.includes("<img src=x"), "name escaped");
-  assert.match(html, /300 KB/);
-  assert.match(html, /1\.5 MB/);
-  assert.equal((html.match(/data-mw-action="remove-attach"/g) || []).length, 2);
-  assert.ok(!CJK.test(html));
-  for (const r of ["limit", "type", "empty", "huge", "toobig", "unreadable", "whatever"]) {
-    assert.ok(attachReasonText(r, "zh").length > 0 && !CJK.test(attachReasonText(r, "en")), r);
-  }
-});
-
-test("copy template says images are not included; transport registry starts empty", () => {
-  assert.match(feedbackTemplate({ note: "x", attachmentCount: 2, lang: "en" }), /Screenshots: 2 \(copied text does not include images/);
-  assert.doesNotMatch(feedbackTemplate({ note: "x", lang: "en" }), /Screenshots/);
+test("transport registry starts empty and only accepts functions", () => {
   assert.equal(getFeedbackTransport(), null);
   setFeedbackTransport(async () => true);
   assert.equal(typeof getFeedbackTransport(), "function");

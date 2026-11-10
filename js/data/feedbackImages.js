@@ -88,7 +88,7 @@ async function prepare(file, deps) {
   if (bad) return { reject: bad };
   try {
     const r = await shrinkImage(file, deps);
-    return { item: { id: makeId(), name: `${baseName(file.name)}.${extFor(r.type)}`, type: r.type, size: r.blob.size, width: r.width, height: r.height, blob: r.blob } };
+    return { item: { id: makeId(), kind: "image", name: `${baseName(file.name)}.${extFor(r.type)}`, type: r.type, size: r.blob.size, width: r.width, height: r.height, blob: r.blob } };
   } catch (e) {
     return { reject: e.message === "toobig" ? "toobig" : "unreadable" };
   }

@@ -1,10 +1,11 @@
 /**
- * Player Voice attachment DRAFT, per owner, on this device only. Images live in IndexedDB (a few MB of screenshots
+ * Player Voice attachment DRAFT (up to 3 screenshots + 1 video), per owner, on this device only. Media lives in IndexedDB (a few MB of screenshots
  * would blow the localStorage quota that saves share). Nothing here uploads anything; the screen hands the blobs to
  * the injected submit function, and only a confirmed success clears the draft.
  * The backend is injectable: tests use memoryBackend(); the browser uses IndexedDB, or null when it is unavailable.
  */
 import { FEEDBACK_IMAGE_MAX, FEEDBACK_IMAGE_TYPES } from "./feedbackImages.js";
+import { FEEDBACK_VIDEO_BYTES, FEEDBACK_VIDEO_MAX, FEEDBACK_VIDEO_TYPES } from "./feedbackVideo.js";
 
 const DB = "cls_feedback_files";
 const STORE = "drafts";
@@ -48,13 +49,22 @@ export function idbBackend(factory = globalThis.indexedDB) {
 
 const isBlob = (b) => !!b && typeof b === "object" && typeof b.size === "number" && typeof b.slice === "function";
 
-/** Whatever storage hands back is coerced into valid attachments; anything malformed is dropped. */
+const kindOf = (type) => (FEEDBACK_IMAGE_TYPES.includes(type) ? "image" : FEEDBACK_VIDEO_TYPES.includes(type) ? "video" : null);
+
+/** Whatever storage hands back is coerced into valid attachments (<= 3 images, <= 1 video); anything malformed is dropped. */
 export function normalizeAttachments(raw) {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((a) => a && typeof a === "object" && typeof a.id === "string" && isBlob(a.blob) && a.blob.size > 0 && FEEDBACK_IMAGE_TYPES.includes(a.type))
-    .slice(0, FEEDBACK_IMAGE_MAX)
-    .map((a) => ({ id: a.id, name: String(a.name || "image").slice(0, 60), type: a.type, size: a.blob.size, width: Number(a.width) || 0, height: Number(a.height) || 0, blob: a.blob }));
+  const room = { image: FEEDBACK_IMAGE_MAX, video: FEEDBACK_VIDEO_MAX };
+  const out = [];
+  for (const a of raw) {
+    const kind = a && typeof a === "object" ? kindOf(a.type) : null;
+    if (!kind || typeof a.id !== "string" || !isBlob(a.blob) || a.blob.size <= 0) continue;
+    if (kind === "video" && a.blob.size > FEEDBACK_VIDEO_BYTES) continue;
+    if (room[kind] <= 0) continue;
+    room[kind] -= 1;
+    out.push({ id: a.id, kind, name: String(a.name || kind).slice(0, 60), type: a.type, size: a.blob.size, width: Number(a.width) || 0, height: Number(a.height) || 0, blob: a.blob });
+  }
+  return out;
 }
 
 export async function readAttachments(owner, backend = idbBackend()) {

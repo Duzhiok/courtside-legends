@@ -12,7 +12,7 @@ import {
 } from "../js/data/feedbackDraft.js";
 
 test("normalizeDraft keeps good values and repairs bad ones", () => {
-  assert.deepEqual(normalizeDraft({ category: "bug", stars: 4, note: "x" }), { category: "bug", stars: 4, note: "x" });
+  assert.deepEqual(normalizeDraft({ category: "bug", module: "game", stars: 4, note: "x" }), { category: "bug", module: "game", stars: 4, note: "x" });
   assert.deepEqual(normalizeDraft(null), emptyDraft());
   assert.deepEqual(normalizeDraft("nope"), emptyDraft());
   for (const stars of [0, 6, -1, 2.5, "3x", NaN, null]) assert.equal(normalizeDraft({ stars }).stars, 0, String(stars));
@@ -24,8 +24,8 @@ test("normalizeDraft keeps good values and repairs bad ones", () => {
 
 test("a draft round-trips and is stored per owner", () => {
   const s = createMemoryStorage();
-  assert.equal(writeDraft("acc1", { category: "rating", stars: 5, note: "love it" }, s), true);
-  assert.deepEqual(readDraft("acc1", s), { category: "rating", stars: 5, note: "love it" });
+  assert.equal(writeDraft("acc1", { category: "rating", module: "game", stars: 5, note: "love it" }, s), true);
+  assert.deepEqual(readDraft("acc1", s), { category: "rating", module: "game", stars: 5, note: "love it" });
   assert.deepEqual(readDraft("acc2", s), emptyDraft(), "another account on the same device sees nothing");
   assert.deepEqual(readDraft(null, s), emptyDraft(), "guest has its own slot too");
   writeDraft(null, { note: "guest idea" }, s);

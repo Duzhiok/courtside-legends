@@ -331,6 +331,7 @@ import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
+import { createPlayerVoice } from "./ui/playerVoice.js";
 import { portraitFor } from "./ui/portraitFor.js";
 import { createMyTeamLineup } from "./ui/myTeamLineupScreen.js";
 import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
@@ -12197,6 +12198,23 @@ async function boot() {
       if (langBtn) langBtn.textContent = getLang() === "en" ? "中文" : "EN";
     };
     paintLangBtn();
+    // Player Voice: one feedback dialog for every screen, opened from the top bar.
+    const voice = createPlayerVoice({
+      getLang,
+      getAccount: activeAccount,
+      getContext: () => {
+        const screen = document.querySelector("main.screen.active")?.id || "";
+        return { screen, hint: screen === "screen-home" ? document.querySelector(".home-tab.active")?.dataset.category || "" : String(state.mode || "") };
+      },
+    });
+    const voiceBtn = $("#btn-voice");
+    const paintVoiceBtn = () => {
+      const label = getLang() === "en" ? "Player Voice: feedback" : "玩家之声：提建议 / 报问题";
+      voiceBtn?.setAttribute("aria-label", label);
+      voiceBtn?.setAttribute("title", label);
+    };
+    paintVoiceBtn();
+    voiceBtn?.addEventListener("click", () => voice.open(voiceBtn));
     langBtn?.addEventListener("click", () => {
       const nextLang = getLang() === "en" ? "zh" : "en";
       setLang(nextLang);
@@ -12210,6 +12228,8 @@ async function boot() {
       // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
       if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
       paintLangBtn();
+      paintVoiceBtn();
+      voice.refresh();
     });
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();

@@ -9,8 +9,6 @@
  * corner feedback entry. Presentation only -- same data, same actions.
  */
 import { avatarDataUri } from "../data/avatarArt.js";
-import { normalizeDraft } from "../data/feedbackDraft.js";
-import { FEEDBACK_IMAGE_MAX } from "../data/feedbackImages.js";
 import { challengeTierName } from "../data/careerChallenges.js";
 import { photoImg } from "../data/photo.js";
 import { lookPanelHtml } from "./avatarLookView.js";
@@ -18,8 +16,6 @@ import { PROFILE_LIMITS } from "../data/profile.js";
 import { teamNameL } from "../i18n.js";
 
 /** A real, public feedback channel: the project's own GitHub issue tracker. */
-export const FEEDBACK_URL = "https://github.com/Duzhiok/courtside-legends/issues/new";
-
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
@@ -71,7 +67,6 @@ export function myTeamSeasonLine(r, lang) {
 const ICONS = {
   games: '<path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 0v18M3 12h18M6 5.5c3 3 3 10 0 13m12-13c-3 3-3 10 0 13" />',
   legacy: '<path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5v2a3 3 0 003 3m8-5h3v2a3 3 0 01-3 3M12 13v4m-3 3h6M10 17h4" />',
-  voice: '<path d="M4 5h16v11H9l-5 4V5z" />',
 };
 const icon = (name) => `<svg class="mw-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
 
@@ -269,101 +264,6 @@ export function homeSceneHtml({ identity, frames = [], trophyCount = 0 }, lang) 
   </section>`;
 }
 
-const CATEGORY_LABEL = {
-  suggestion: ["建议", "Idea"],
-  bug: ["问题", "Bug"],
-  rating: ["评价", "Rating"],
-};
-const categoryLabel = (id, lang) => (lang === "en" ? CATEGORY_LABEL[id][1] : CATEGORY_LABEL[id][0]);
-
-/** Plain-text feedback the player can copy. Holds only what they chose or typed, plus version info. */
-export function feedbackTemplate({ note = "", category = "suggestion", stars = 0, lang = "zh", userAgent = "", attachmentCount = 0 } = {}) {
-  const lines = [
-    T(lang, "【Courtside Legends 玩家建议】", "[Courtside Legends player feedback]"),
-    `${T(lang, "类型", "Type")}: ${categoryLabel(category in CATEGORY_LABEL ? category : "suggestion", lang)}`,
-  ];
-  if (stars >= 1 && stars <= 5) lines.push(`${T(lang, "评分", "Rating")}: ${stars}/5`);
-  lines.push(
-    `${T(lang, "我的想法", "My idea")}: ${String(note).trim() || T(lang, "（在这里写下你的建议）", "(write your suggestion here)")}`,
-    `${T(lang, "界面语言", "UI language")}: ${lang}`,
-  );
-  if (userAgent) lines.push(`${T(lang, "浏览器", "Browser")}: ${userAgent}`);
-  if (attachmentCount > 0) lines.push(T(lang, `截图：${attachmentCount} 张（复制的文字不含图片，请到 GitHub 页面再手动拖入）`, `Screenshots: ${attachmentCount} (copied text does not include images; drag them into the GitHub page by hand)`));
-  return lines.join("\n");
-}
-
-const REASON_TEXT = {
-  limit: ["已经有 3 张了，先移除一张再添加", "Already 3 images: remove one first"],
-  type: ["不是 PNG/JPEG/WebP 图片", "Not a PNG/JPEG/WebP image"],
-  empty: ["文件是空的", "The file is empty"],
-  huge: ["文件太大（超过 30MB）", "File too large (over 30 MB)"],
-  toobig: ["压缩后仍超过 2MB，请换一张小一点的", "Still over 2 MB after shrinking; try a smaller one"],
-  unreadable: ["读不出这张图片", "Could not read this image"],
-};
-export const attachReasonText = (reason, lang) => T(lang, ...(REASON_TEXT[reason] || REASON_TEXT.unreadable));
-
-const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
-
-/** Thumbnails for the attachment draft. `urls[i]` is the object URL of list[i]; names are user data, so escaped. */
-export function thumbsHtml(list, urls, lang) {
-  return list.map((a, i) => `<li class="mw-thumb" data-id="${esc(a.id)}">
-    <img src="${esc(urls[i] || "")}" alt="${esc(a.name)}" />
-    <span class="mw-thumb-meta"><span class="mw-thumb-name">${esc(a.name)}</span><small>${kb(a.size)}</small></span>
-    <span class="mw-thumb-btns">
-      <button type="button" class="btn small ghost" data-mw-action="replace-attach" data-id="${esc(a.id)}">${T(lang, "替换", "Replace")}</button>
-      <button type="button" class="btn small ghost" data-mw-action="remove-attach" data-id="${esc(a.id)}" aria-label="${T(lang, "移除 ", "Remove ")}${esc(a.name)}">${T(lang, "移除", "Remove")}</button>
-    </span>
-  </li>`).join("");
-}
-
-const starRadio = (n, stars, lang) => `<label class="mw-star${n <= stars ? " on" : ""}"><input type="radio" name="mw-fb-stars" value="${n}"${n === stars ? " checked" : ""} />
-  <span class="mw-glyph" aria-hidden="true"></span><span class="mw-sr">${T(lang, `${n} 星`, `${n} star${n > 1 ? "s" : ""}`)}</span></label>`;
-
-/**
- * Player Voice entry (ADR-008a Q2). A compact panel behind the corner icon: type, optional 1-5 rating, note, a local
- * draft. "Submit" exists but is disabled until a real submit function is injected (canSubmit), and the panel says
- * so plainly: nothing here ever claims feedback was sent. Copy / GitHub stay as secondary fallbacks.
- */
-export function feedbackHtml(lang, rawDraft = {}, canSubmit = false) {
-  const draft = normalizeDraft(rawDraft); // never trust what a caller (or storage) hands us
-  const { category, stars } = draft;
-  const seg = Object.keys(CATEGORY_LABEL)
-    .map((id) => `<label class="mw-seg-opt"><input type="radio" name="mw-fb-category" value="${id}"${id === category ? " checked" : ""} /><span>${categoryLabel(id, lang)}</span></label>`)
-    .join("");
-  const state = canSubmit
-    ? T(lang, "写好后点「提交」。", "Press Submit when you are done.")
-    : T(lang, "反馈服务还没有上线，所以现在不能提交。你写的内容会自动保存成这台设备上的草稿，服务上线后可以直接提交。", "The feedback service is not online yet, so nothing can be submitted right now. What you write is saved as a draft on this device and can be submitted once the service is live.");
-  return `<section class="mw-feedback" id="mw-feedback" aria-label="${T(lang, "玩家建议", "Feedback")}" hidden>
-    <fieldset class="mw-seg"><legend class="mw-sr">${T(lang, "反馈类型", "Feedback type")}</legend>${seg}</fieldset>
-    <fieldset class="mw-stars"><legend>${T(lang, "给 My World 打分（可选）", "Rate My World (optional)")}</legend>
-      <span class="mw-star-row">${[1, 2, 3, 4, 5].map((n) => starRadio(n, stars, lang)).join("")}</span>
-      ${action("clear-stars", T(lang, "不评分", "No rating"), "btn small ghost mw-clear")}
-    </fieldset>
-    <label class="mw-sr" for="mw-feedback-note">${T(lang, "你的反馈", "Your feedback")}</label>
-    <textarea id="mw-feedback-note" rows="3" maxlength="600" placeholder="${T(lang, "你希望自己的篮球人生还能做什么？", "What else should your basketball life do?")}">${esc(draft.note || "")}</textarea>
-    <div class="mw-attach" id="mw-attach">
-      <div class="mw-attach-head"><strong>${T(lang, "附上截图（可选）", "Attach screenshots (optional)")}</strong><span id="mw-attach-count" aria-live="polite">0/${FEEDBACK_IMAGE_MAX}</span></div>
-      <div class="mw-drop" id="mw-drop">
-        <button type="button" class="btn small ghost" data-mw-action="pick-attach" id="mw-attach-pick">${T(lang, "选择图片", "Choose images")}</button>
-        <span><span class="mw-drag-only">${T(lang, "或把图片拖到这里 · ", "or drop images here · ")}</span>${T(lang, `PNG/JPEG/WebP · 最多 ${FEEDBACK_IMAGE_MAX} 张，每张会自动压到 2MB 以内`, `PNG/JPEG/WebP · up to ${FEEDBACK_IMAGE_MAX}, each shrunk to 2 MB`)}</span>
-      </div>
-      <input type="file" id="mw-attach-input" class="mw-sr" accept="image/png,image/jpeg,image/webp" multiple tabindex="-1" aria-label="${T(lang, "选择要附上的图片", "Choose images to attach")}" />
-      <input type="file" id="mw-attach-replace" class="mw-sr" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-label="${T(lang, "选择替换用的图片", "Choose a replacement image")}" />
-      <ul class="mw-thumbs" id="mw-thumbs"></ul>
-      <p class="mw-status" id="mw-attach-status" role="status" aria-live="polite"></p>
-    </div>
-    <p class="mw-fb-state" id="mw-feedback-state">${state}</p>
-    <p class="mw-status mw-draft" id="mw-feedback-draft" role="status" aria-live="polite">${draft.note || stars ? T(lang, "已恢复你在这台设备上的草稿。", "Restored your draft from this device.") : ""}</p>
-    <div class="btn-row">
-      <button type="button" class="btn small" data-mw-action="submit-feedback"${canSubmit ? "" : " disabled aria-disabled=\"true\""}>${T(lang, "提交", "Submit")}</button>
-      ${action("copy-feedback", T(lang, "复制反馈", "Copy feedback"), "btn small ghost")}
-      <a class="mw-fb-link" href="${FEEDBACK_URL}" target="_blank" rel="noopener noreferrer">${T(lang, "也可以复制后到 GitHub 提出", "or copy it and post on GitHub")}</a>
-    </div>
-    <p class="mw-status" id="mw-feedback-status" role="status" aria-live="polite"></p>
-    <textarea id="mw-feedback-template" class="mw-template" rows="4" readonly hidden></textarea>
-  </section>`;
-}
-
 /**
  * Account Level card (v1): level badge + title + XP bar + reward track.
  * `snapshot` is accountLevel.levelSnapshot() (null = no data, section omitted).
@@ -395,14 +295,11 @@ export function levelHtml(snapshot, lang) {
   </section>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, draft, look, portrait = null, canSubmitFeedback = false, level = null }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
-  const label = T(lang, "玩家建议", "Feedback");
-  return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span>
-      <button type="button" class="mw-voice" data-mw-action="toggle-feedback" aria-expanded="false" aria-controls="mw-feedback" aria-label="${label}" title="${label}">${icon("voice")}</button></div>
-    ${feedbackHtml(lang, draft, canSubmitFeedback)}
+  return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
     ${identityCardHtml(identity, lang, portrait)}
     ${levelHtml(level, lang)}
     ${lookPanelHtml(look, identity?.name, lang, portrait)}

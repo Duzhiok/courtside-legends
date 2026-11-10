@@ -1,0 +1,86 @@
+/* Player Voice: the game-wide feedback dialog + its top-bar button. Forest green / cream / gold, same family as My World. */
+.voice-btn {
+  width: 36px; height: 36px; padding: 0; display: grid; place-items: center; flex: none; cursor: pointer;
+  border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.35); background: transparent; color: inherit;
+}
+.voice-btn:hover, .voice-btn[aria-expanded="true"] { background: #e9c46a; color: #163a29; border-color: #e9c46a; }
+.voice-btn:focus-visible { outline: 3px solid #e9c46a; outline-offset: 2px; }
+.voice-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.pv-dialog {
+  width: min(520px, calc(100vw - 24px)); max-height: min(90vh, 860px); padding: 0; margin: auto;
+  border: 1px solid #dbe5dd; border-radius: 16px; background: #fff; color: #24352b; box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.pv-dialog::backdrop { background: rgba(10, 24, 17, 0.62); }
+.pv-form { display: grid; gap: 10px; padding: 14px 16px 16px; max-height: min(90vh, 860px); overflow-y: auto; box-sizing: border-box; }
+.pv-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.pv-form p { margin: 0; }
+
+.pv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.pv-head h2 { margin: 0; font-size: 1.15rem; color: #163a29; }
+.pv-sub { color: #3f5448; font-size: 0.85rem; margin-top: 2px; }
+.pv-close {
+  width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px solid #c9d6cc; background: #fff; color: #163a29;
+  font-size: 1.4rem; line-height: 1; cursor: pointer;
+}
+.pv-close:hover { background: #163a29; color: #e9c46a; }
+
+.pv-seg { display: flex; gap: 6px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.pv-seg-opt { position: relative; flex: 1; }
+.pv-seg-opt input, .pv-star input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.pv-seg-opt span { display: block; text-align: center; padding: 8px 10px; min-height: 20px; border-radius: 999px; border: 1px solid #c5d3c8; background: #fff; color: #24352b; cursor: pointer; }
+.pv-seg-opt input:checked + span { background: #1b4332; border-color: #1b4332; color: #fff; }
+.pv-seg-opt input:focus-visible + span, .pv-star input:focus-visible ~ .pv-glyph { outline: 3px solid #b7791f; outline-offset: 2px; }
+
+.pv-field { display: grid; gap: 4px; font-size: 0.85rem; color: #3f5448; }
+.pv-field select { padding: 8px; border-radius: 8px; border: 1px solid #c5d3c8; background: #fff; color: #24352b; font: inherit; min-height: 38px; }
+.pv-ctx { font-size: 0.8rem; color: #1d5a3b; }
+
+.pv-rate { border: 1px solid #dbe5dd; border-radius: 10px; padding: 6px 10px; background: #fbfdfb; }
+.pv-rate summary { cursor: pointer; font-size: 0.9rem; color: #24352b; min-height: 28px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pv-rate-state { margin-left: auto; font-size: 0.8rem; color: #55695d; }
+.pv-stars { border: 0; margin: 4px 0 2px; padding: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.pv-star-row { display: inline-flex; }
+.pv-star { position: relative; cursor: pointer; padding: 2px 3px; }
+.pv-glyph { display: block; min-width: 34px; min-height: 36px; text-align: center; font-size: 1.9rem; line-height: 36px; color: #55695d; }
+.pv-glyph::before { content: "\2606"; } /* hollow = not selected */
+.pv-star.on .pv-glyph { color: #8a5a00; }
+.pv-star.on .pv-glyph::before { content: "\2605"; } /* solid = selected */
+
+.pv-dialog textarea { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #c5d3c8; font: inherit; color: #24352b; background: #fff; resize: vertical; min-height: 84px; }
+.pv-template { background: #f4f7f2; }
+
+.pv-attach { padding: 8px 10px; border-radius: 10px; border: 1px dashed #b9c9bd; background: #f6faf7; color: #24352b; }
+.pv-attach-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.85rem; flex-wrap: wrap; }
+.pv-drop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; padding: 6px; border-radius: 8px; font-size: 0.8rem; color: #3d5246; }
+.pv-drop.is-over { background: #e2f1e6; outline: 2px solid #3f9d63; }
+.pv-media-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.pv-media { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; background: #fff; border: 1px solid #dbe5dd; }
+.pv-media img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #eee; }
+.pv-video { grid-template-columns: minmax(0, 1fr) auto; }
+.pv-video .pv-player { grid-column: 1 / -1; width: 100%; max-height: 220px; border-radius: 6px; background: #000; }
+.pv-media-meta { min-width: 0; display: flex; flex-direction: column; font-size: 0.8rem; }
+.pv-media-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-media-meta small { color: #55695d; }
+.pv-media-btns { display: flex; gap: 4px; }
+/* Touch screens cannot drag a file in: say so only where a mouse exists. */
+@media (hover: none) { .pv-drag-only { display: none; } }
+
+.pv-state { font-size: 0.82rem; color: #3f5448; padding: 8px 10px; border-left: 3px solid #d6b25a; background: #faf6ea; border-radius: 4px; }
+.pv-status { color: #1d5a3b; font-size: 0.85rem; }
+.pv-status:empty { display: none; }
+.pv-link { align-self: center; font-size: 0.8rem; color: #1d5a3b; text-decoration: underline; }
+.pv-dialog .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pv-dialog .btn { min-height: 36px; }
+.pv-dialog .btn.ghost { color: #163a29; border-color: #9db3a5; background: #fff; }
+.pv-dialog .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .pv-dialog { width: calc(100vw - 16px); max-height: 92vh; }
+  .pv-form { max-height: 92vh; padding: 12px; }
+  .pv-media { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px; }
+  .pv-media img { width: 44px; height: 33px; }
+  .pv-video { grid-template-columns: minmax(0, 1fr) auto; }
+  .pv-media-btns .btn { padding: 4px 8px; font-size: 0.75rem; min-height: 32px; }
+}

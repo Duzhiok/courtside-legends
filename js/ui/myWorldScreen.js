@@ -10,12 +10,8 @@ import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
-import { clearDraft, isBlankDraft, normalizeDraft, readDraft, writeDraft } from "../data/feedbackDraft.js";
-import { clearAttachments, readAttachments, writeAttachments } from "../data/feedbackAttachments.js";
-import { FEEDBACK_IMAGE_MAX, addImages, browserImageDeps, replaceImage } from "../data/feedbackImages.js";
-import { getFeedbackTransport } from "../data/feedbackTransport.js";
 import { readChallengeArchive } from "../data/challengeArchive.js";
-import { attachReasonText, feedbackTemplate, journeyFromRoot, legacyFromAccount, myWorldHtml, thumbsHtml } from "./myWorldView.js";
+import { journeyFromRoot, legacyFromAccount, myWorldHtml } from "./myWorldView.js";
 
 export function createMyWorld({
   el,
@@ -36,9 +32,6 @@ export function createMyWorld({
   onResumeCareer,
   onResumeSession,
   onClaimed = () => {},
-  submitFeedback = null, // async (draft) => boolean. Falls back to the registered transport; with neither, Submit stays disabled.
-  attachmentBackend, // injectable store for attachment drafts (default: IndexedDB; tests pass a memory backend)
-  imageDeps, // injectable decode/encode for screenshots (default: canvas)
   onOpenCollection,
   onOpenAccounts,
   onStartCareer,
@@ -47,8 +40,6 @@ export function createMyWorld({
   mountAvatar = mountAvatar3d, // (container, { look }) => Promise<handle>; injectable so tests need no WebGL
 }) {
   if (!el) return { refresh() {} };
-
-  const ownerOf = (account) => account?.id || "guest";
 
   // The 3D viewer exists only while the "My look" panel is open; every re-render or close frees it.
   let viewer = null;
@@ -67,74 +58,6 @@ export function createMyWorld({
     });
   }
 
-  const sender = () => submitFeedback || getFeedbackTransport();
-
-  // ---- Player Voice screenshots: kept in memory + IndexedDB per owner; blobs go to the sender only on Submit ----
-  let attachments = [];
-  let attachOwner;
-  let attachBusy = false;
-  let submitting = false;
-  let thumbUrls = [];
-  let replaceTarget = null;
-  const who = () => ownerOf(getAccount());
-  const backend = () => attachmentBackend; // undefined -> the module default (IndexedDB) applies
-
-  function paintAttachments() {
-    const box = el.querySelector("#mw-thumbs");
-    if (!box) return;
-    thumbUrls.forEach((u) => URL.revokeObjectURL(u));
-    thumbUrls = attachments.map((a) => URL.createObjectURL(a.blob));
-    box.innerHTML = thumbsHtml(attachments, thumbUrls, getLang());
-    const count = el.querySelector("#mw-attach-count");
-    if (count) count.textContent = `${attachments.length}/${FEEDBACK_IMAGE_MAX}`;
-    const pick = el.querySelector("#mw-attach-pick");
-    if (pick) pick.disabled = attachments.length >= FEEDBACK_IMAGE_MAX || attachBusy;
-  }
-
-  async function restoreAttachments() {
-    const owner = who();
-    if (attachOwner !== owner) { attachments = []; attachOwner = owner; }
-    if (!attachments.length) {
-      const saved = await readAttachments(owner, backend());
-      if (who() !== owner) return; // the player switched account while we were reading
-      attachments = saved;
-    }
-    paintAttachments();
-    if (attachments.length) say(el.querySelector("#mw-attach-status"), "已恢复你在这台设备上的截图草稿。", "Restored your screenshot draft from this device.");
-  }
-
-  async function handleImages(files, replaceId) {
-    if (attachBusy || !files?.length) return;
-    const status = el.querySelector("#mw-attach-status");
-    attachBusy = true;
-    paintAttachments();
-    say(status, "正在处理图片…", "Processing images…");
-    try {
-      const deps = imageDeps || browserImageDeps();
-      const res = replaceId ? await replaceImage(attachments, replaceId, files[0], deps) : await addImages(attachments, files, deps);
-      attachments = res.list;
-      const saved = await writeAttachments(who(), attachments, backend());
-      attachBusy = false;
-      paintAttachments();
-      const lang = getLang();
-      const bad = res.rejected.slice(0, 3).map((r) => `${r.name || "?"}: ${attachReasonText(r.reason, lang)}`).join(lang === "en" ? "; " : "；");
-      const kept = res.rejected.length === 0;
-      if (!saved && attachments.length) say(status, `${bad ? bad + "。" : ""}这台设备不允许保存附件草稿，刷新页面后截图会丢失。`, `${bad ? bad + ". " : ""}This device can't save the attachment draft; the images are lost if you reload.`);
-      else if (!kept) say(status, `有图片没加上：${attachReasonText(res.rejected[0].reason, "zh")}（${res.rejected[0].name || "?"}）${res.rejected.length > 1 ? ` 等 ${res.rejected.length} 张` : ""}`, `Some images were not added: ${bad}`);
-      else say(status, `已添加，现在共 ${attachments.length} 张，草稿保存在这台设备上。`, `Added. ${attachments.length} image(s) now, saved as a draft on this device.`);
-    } finally {
-      attachBusy = false;
-      paintAttachments();
-    }
-  }
-
-  async function removeImage(id) {
-    attachments = attachments.filter((a) => a.id !== id);
-    await writeAttachments(who(), attachments, backend());
-    paintAttachments();
-    say(el.querySelector("#mw-attach-status"), "已移除。", "Removed.");
-  }
-
   function render() {
     disposeViewer();
     const lang = getLang();
@@ -145,8 +68,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, draft: readDraft(ownerOf(account)), look: readLook(account), portrait: portraitFor(account), canSubmitFeedback: typeof sender() === "function", level: levelSnapshot(account, lang) }, lang);
-    restoreAttachments(); // screenshot draft: async (IndexedDB), paints the thumbnails when it is back
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang) }, lang);
   }
 
   /**
@@ -211,80 +133,6 @@ export function createMyWorld({
   const say = (node, zh, en) => {
     if (node) node.textContent = getLang() === "en" ? en : zh;
   };
-
-  /** The draft as it currently looks in the panel (the DOM is the source while the player is typing). */
-  function currentDraft() {
-    const root = el.querySelector("#mw-feedback");
-    if (!root) return normalizeDraft(null);
-    return normalizeDraft({
-      category: root.querySelector('input[name="mw-fb-category"]:checked')?.value,
-      stars: root.querySelector('input[name="mw-fb-stars"]:checked')?.value,
-      note: root.querySelector("#mw-feedback-note")?.value,
-    });
-  }
-
-  function paintStars(stars) {
-    el.querySelectorAll("#mw-feedback .mw-star").forEach((label, i) => label.classList.toggle("on", i < stars));
-  }
-
-  function saveDraft() {
-    const draft = currentDraft();
-    paintStars(draft.stars);
-    const ok = writeDraft(ownerOf(getAccount()), draft);
-    const note = el.querySelector("#mw-feedback-draft");
-    if (!ok) say(note, "这台设备不允许保存草稿（浏览器存储被关闭）。", "This device can't save the draft (browser storage is disabled).");
-    else if (isBlankDraft(draft)) say(note, "", "");
-    else say(note, "草稿已自动保存在这台设备上。", "Draft saved on this device.");
-  }
-
-  async function submitDraft() {
-    const send = sender();
-    if (typeof send !== "function") return; // the button is disabled too; never pretend
-    const draft = currentDraft();
-    const status = el.querySelector("#mw-feedback-status");
-    if (submitting) return;
-    if (attachBusy) return say(status, "图片还在处理，稍等一下再提交。", "Images are still being processed; submit in a moment.");
-    if (isBlankDraft(draft)) return say(status, "先写点内容，或选一个评分。", "Write something or pick a rating first.");
-    submitting = true;
-    say(status, attachments.length ? "正在提交（含截图）…" : "正在提交…", attachments.length ? "Submitting (with screenshots)…" : "Submitting…");
-    let ok = false;
-    try {
-      const files = attachments.map(({ id, name, type, size, width, height, blob }) => ({ id, name, type, size, width, height, blob }));
-      ok = (await send({ ...draft, lang: getLang(), owner: who(), attachments: files })) === true;
-    } catch {
-      ok = false;
-    } finally {
-      submitting = false;
-    }
-    // A failed send changes nothing: text, rating and every screenshot stay exactly as they were, ready to retry.
-    if (!ok) return say(status, attachments.length ? "没有提交成功，文字、评分和截图都还在，稍后可以再试。" : "没有提交成功，你的草稿还在，稍后可以再试。", attachments.length ? "That did not go through. Your text, rating and screenshots are still here; try again later." : "That did not go through. Your draft is still here; try again later.");
-    clearDraft(who());
-    await clearAttachments(who(), backend());
-    attachments = [];
-    render();
-    say(el.querySelector("#mw-feedback-status"), "已提交，谢谢！", "Submitted, thank you!");
-  }
-
-  async function copyFeedback() {
-    const lang = getLang();
-    const text = feedbackTemplate({ ...currentDraft(), lang, userAgent: globalThis.navigator?.userAgent || "", attachmentCount: attachments.length });
-    const status = el.querySelector("#mw-feedback-status");
-    const box = el.querySelector("#mw-feedback-template");
-    try {
-      await globalThis.navigator.clipboard.writeText(text);
-      say(status, "已复制到剪贴板。", "Copied to the clipboard.");
-      if (box) box.hidden = true;
-    } catch {
-      // No clipboard permission: show the text selected so the player can copy it by hand.
-      if (box) {
-        box.value = text;
-        box.hidden = false;
-        box.focus();
-        box.select();
-      }
-      say(status, "浏览器不允许自动复制，已选中下面的文字，请手动复制。", "This browser blocked auto-copy. The text below is selected, copy it by hand.");
-    }
-  }
 
   async function openViewer() {
     const stage = el.querySelector("#mw-look-stage");
@@ -451,27 +299,6 @@ export function createMyWorld({
     "start-career": () => onStartCareer?.(),
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),
-    "copy-feedback": () => copyFeedback(),
-    "submit-feedback": () => submitDraft(),
-    "pick-attach": () => el.querySelector("#mw-attach-input")?.click(),
-    "remove-attach": (btn) => removeImage(btn.dataset.id),
-    "replace-attach": (btn) => {
-      replaceTarget = btn.dataset.id;
-      el.querySelector("#mw-attach-replace")?.click();
-    },
-    "clear-stars": () => {
-      const none = el.querySelector('#mw-feedback input[name="mw-fb-stars"]:checked');
-      if (none) none.checked = false;
-      saveDraft();
-    },
-    "toggle-feedback": () => {
-      const panel = el.querySelector("#mw-feedback");
-      const btn = el.querySelector('[data-mw-action="toggle-feedback"]');
-      if (!panel) return;
-      panel.hidden = !panel.hidden;
-      btn?.setAttribute("aria-expanded", String(!panel.hidden));
-      if (!panel.hidden) panel.querySelector("textarea")?.focus();
-    },
   };
 
   el.addEventListener("click", (event) => {
@@ -480,40 +307,8 @@ export function createMyWorld({
   });
 
   el.addEventListener("change", (event) => {
-    const t = event.target;
-    if (t?.matches?.("#mw-attach-input, #mw-attach-replace")) {
-      const files = Array.from(t.files || []);
-      const target = t.id === "mw-attach-replace" ? replaceTarget : null;
-      t.value = ""; // picking the same file twice must fire change again
-      replaceTarget = null;
-      handleImages(files, target);
-      return;
-    }
     if (event.target?.matches?.('#mw-look input[name="mw-portrait"]')) pickPortrait(event.target);
     else if (event.target?.matches?.('#mw-look input[type="radio"]')) pickLook(event.target);
-  });
-
-  for (const type of ["input", "change"]) {
-    el.addEventListener(type, (event) => {
-      if (event.target?.closest?.("#mw-feedback") && event.target.matches("textarea, input")) saveDraft();
-    });
-  }
-
-  // Drag-and-drop onto the attachment box (the Choose button covers phones: the OS offers photos / camera).
-  const dropZone = (event) => event.target?.closest?.("#mw-drop");
-  el.addEventListener("dragover", (event) => {
-    const z = dropZone(event);
-    if (!z) return;
-    event.preventDefault();
-    z.classList.add("is-over");
-  });
-  el.addEventListener("dragleave", (event) => dropZone(event)?.classList.remove("is-over"));
-  el.addEventListener("drop", (event) => {
-    const z = dropZone(event);
-    if (!z) return;
-    event.preventDefault();
-    z.classList.remove("is-over");
-    handleImages(Array.from(event.dataTransfer?.files || []), null);
   });
 
   el.addEventListener("submit", (event) => {

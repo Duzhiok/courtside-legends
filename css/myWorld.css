@@ -1,47 +1,13 @@
 /* My World (ADR-008 N-1, visual redesign R167): forest green + warm cream + gold. Presentation only.
-   Layout: slim top bar (page title + feedback icon), compact identity hero, two compact cards, an illustrated
+   Layout: slim top bar (page title), compact identity hero, two compact cards, an illustrated
    room. The art is a local inline SVG; real cards/trophies/name are overlaid as HTML. */
 #my-world-root { display: grid; gap: 12px; --mw-green: #163a29; --mw-green-2: #1f4a35; --mw-gold: #e9c46a; --mw-cream: #f6efe0; }
 
 .mw-top { display: flex; align-items: center; justify-content: space-between; min-height: 36px; }
 .mw-kicker { margin: 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.14em; color: #2f5a45; }
-.mw-voice {
-  width: 36px; height: 36px; display: grid; place-items: center; padding: 0; cursor: pointer;
-  border-radius: 50%; border: 1px solid #c9d6cc; background: #fff; color: var(--mw-green);
-}
-.mw-voice:hover, .mw-voice[aria-expanded="true"] { background: var(--mw-green); color: var(--mw-gold); }
-.mw-voice:focus-visible, .mw-gold:focus-visible { outline: 3px solid #b7791f; outline-offset: 2px; }
+.mw-gold:focus-visible { outline: 3px solid #b7791f; outline-offset: 2px; }
 .mw-ico { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-.mw-feedback { padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid #dbe5dd; box-shadow: 0 6px 18px rgba(22, 58, 41, 0.12); }
-.mw-feedback[hidden] { display: none; }
-.mw-feedback p { color: #24352b; margin: 0 0 8px; }
-.mw-feedback textarea { width: 100%; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #c5d3c8; font: inherit; }
-.mw-feedback .btn-row { margin-top: 8px; }
-.mw-feedback .mw-status { color: #1d5a3b; }
-/* Player Voice panel: type chips + optional rating + note. Inputs are real radios, visually hidden, focus shown on the label. */
-.mw-seg, .mw-stars { border: 0; margin: 0 0 10px; padding: 0; min-width: 0; }
-.mw-seg { display: flex; gap: 6px; }
-.mw-seg-opt { position: relative; flex: 1; }
-.mw-seg-opt input, .mw-star input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
-.mw-seg-opt span { display: block; text-align: center; padding: 8px 10px; min-height: 20px; border-radius: 999px; border: 1px solid #b9c9bd; background: #fff; color: #1b3a2b; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
-.mw-seg-opt input:checked + span { background: #1b4332; border-color: #1b4332; color: #fff; }
-.mw-seg-opt input:focus-visible + span, .mw-star input:focus-visible ~ .mw-glyph { outline: 3px solid #f2c14e; outline-offset: 2px; }
-.mw-stars legend { padding: 0; margin-bottom: 4px; font-size: 0.85rem; color: #3f5448; }
-.mw-stars { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
-.mw-stars legend { flex-basis: 100%; }
-.mw-star-row { display: inline-flex; }
-.mw-star { position: relative; cursor: pointer; padding: 2px 3px; }
-.mw-glyph { display: block; min-width: 28px; min-height: 30px; text-align: center; font-size: 1.7rem; line-height: 30px; color: #55695d; }
-.mw-glyph::before { content: "\2606"; } /* hollow star */
-.mw-star.on .mw-glyph { color: #8a5a00; }
-.mw-star.on .mw-glyph::before { content: "\2605"; } /* solid star */
-.mw-clear { padding: 4px 10px; }
-.mw-fb-state { font-size: 0.82rem; color: #3f5448; padding: 8px 10px; border-left: 3px solid #d6b25a; background: #faf6ea; border-radius: 4px; }
-.mw-draft:empty, .mw-feedback .mw-status:empty { display: none; }
-.mw-feedback .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
-.mw-fb-link { align-self: center; font-size: 0.8rem; color: #1d5a3b; text-decoration: underline; }
-.mw-template { margin-top: 8px; background: #f4f7f2; }
 .mw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* Hero: portrait left, text right, compact */
@@ -182,27 +148,6 @@
 .mw-level-lv { font-weight: 800; color: var(--mw-green); min-width: 44px; }
 .mw-level-reward { flex: 1; }
 .mw-level-state { font-size: 0.85rem; color: #55695d; }
-
-/* Player Voice screenshots: compact box inside the feedback panel */
-.mw-attach { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; border: 1px dashed #b9c9bd; background: #f6faf7; color: #24352b; }
-.mw-attach-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
-.mw-drop { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; padding: 6px; border-radius: 8px; font-size: 0.8rem; color: #3d5246; }
-.mw-drop.is-over { background: #e2f1e6; outline: 2px solid #3f9d63; }
-.mw-thumbs { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
-.mw-thumb { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 8px; padding: 4px; border-radius: 8px; background: #fff; border: 1px solid #dbe5dd; }
-.mw-thumb img { width: 56px; height: 42px; object-fit: cover; border-radius: 6px; background: #eee; }
-.mw-thumb-meta { min-width: 0; display: flex; flex-direction: column; font-size: 0.8rem; }
-.mw-thumb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mw-thumb-meta small { color: #5a6d61; }
-.mw-thumb-btns { display: flex; gap: 4px; }
-/* Touch screens cannot drag a file in: say so only where a mouse exists. */
-@media (hover: none) { .mw-drag-only { display: none; } }
-/* One row per image on phones: thumbnail, name (ellipsis), two small buttons. */
-@media (max-width: 480px) {
-  .mw-thumb { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px; }
-  .mw-thumb img { width: 44px; height: 33px; }
-  .mw-thumb-btns .btn { padding: 4px 8px; font-size: 0.75rem; min-height: 28px; }
-}
 
 /* Finished gold-challenge runs: a record, so visually quieter than a save you can continue */
 .mw-archive { opacity: 0.92; border-left: 3px solid #c9b27a; }
