@@ -29,7 +29,8 @@ test("the GM + Coach card names the playable Classic flow; unfinished identities
   assert.match(gmCoach, /data-mode="timeTravel"/, "GM + Coach still routes to the Time Travel mode");
   assert.match(gmCoach, /经典玩法可玩/);
   assert.match(gmCoach, /经理兼教练/);
-  assert.equal((panel.match(/开发中/g) || []).length, 2, "Player + Coach are in development");
+  assert.equal((panel.match(/开发中/g) || []).length, 1, "only Coach is still in development");
+  assert.match(panel, /可玩/, "Player is playable now");
   assert.match(panel, /待独立身份实现/, "GM awaits its independent identity");
   assert.ok(!panel.includes("穿越生涯"), "the old Time Travel card title is gone");
   assert.ok(!panel.includes("联盟经理"), "the old League Manager card title is gone");
@@ -38,6 +39,7 @@ test("the GM + Coach card names the playable Classic flow; unfinished identities
 test("the catalog description still names the playable Classic role and does not sell unfinished careers as playable", () => {
   const desc = modeById("timeTravel").description;
   assert.match(desc, /经典 · 经理兼教练/);
-  assert.match(desc, /开发中/);
+  assert.match(desc, /球员生涯/, "Player Career is playable now");
+  assert.match(desc, /开发中/, "Coach and GM are still in development");
   assert.doesNotMatch(desc, /五年/, "five years is the initial contract, not the career length");
 });

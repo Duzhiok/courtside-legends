@@ -120,11 +120,11 @@ test("four identities, in order, with distinct statuses and routes", () => {
   );
   assert.deepEqual(
     CAREER_IDENTITIES.map((entry) => entry.status),
-    ["dev", "dev", "awaiting", "playable"],
+    ["playable", "dev", "awaiting", "playable"],
   );
   assert.deepEqual(
     CAREER_IDENTITIES.map((entry) => entry.route),
-    [null, null, "franchise", "timeTravel"],
+    ["reborn", null, "franchise", "timeTravel"],
   );
   assert.ok(careerIdentityById("gm_coach")?.status === "playable");
   assert.equal(careerIdentityById("nope"), null);
@@ -137,8 +137,12 @@ test("erasFor: only supported role/era combinations are offered as playable", ()
   ]);
   // GM picks its era on the League Manager setup screen (Modern / Historical toggle).
   assert.equal(erasFor("gm"), "setup");
-  // Player / Coach have no creation flow at all.
-  assert.deepEqual(erasFor("player"), []);
+  // Player has a creation flow (historical start 1995 / 1996, Modern not yet).
+  assert.deepEqual(erasFor("player"), [
+    { id: "historical", available: true },
+    { id: "modern", available: false },
+  ]);
+  // Coach has no creation flow at all.
   assert.deepEqual(erasFor("coach"), []);
 });
 
@@ -198,7 +202,8 @@ test("index.html: the old two-card presentation is gone; statuses are honest", (
   assert.ok(panel.includes("教练生涯"));
   assert.ok(panel.includes("经理生涯"));
   assert.ok(panel.includes("经理兼教练"));
-  assert.equal((panel.match(/开发中/g) || []).length, 2, "Player + Coach are in development");
+  assert.equal((panel.match(/开发中/g) || []).length, 1, "only Coach is still in development");
+  assert.ok(panel.includes("可玩"), "Player is playable now");
   assert.ok(panel.includes("待独立身份实现"), "GM awaits its independent identity");
   assert.ok(panel.includes("经典玩法可玩"), "GM + Coach is the classic playable flow");
   assert.ok(panel.includes('id="career-entry-note"'), "dev-note mount exists");

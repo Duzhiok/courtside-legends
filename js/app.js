@@ -12351,13 +12351,15 @@ async function boot() {
     });
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();
-    // Unified Career entry (ADR-006): four identities in parallel. GM opens
+    // Unified Career entry (ADR-006): four identities in parallel. Player
+    // opens the Player Reborn creation flow (or resumes the run); GM opens
     // the League Manager setup (its era is picked there); GM + Coach opens
-    // the Time Travel creation after the era step. Player/Coach never reach
-    // here — they only show the honest dev note.
+    // the Time Travel creation after the era step. Coach never reaches
+    // here — it only shows the honest dev note.
     initCareerEntry({
       onPlay: (identityId, era) => {
-        if (identityId === "gm") startMode("franchise");
+        if (identityId === "player") rebornView.open();
+        else if (identityId === "gm") startMode("franchise");
         else if (identityId === "gm_coach" && era === "historical") startMode("timeTravel");
       },
     });
@@ -12397,8 +12399,9 @@ async function boot() {
     // Legend Duel screen (created dynamically by duelView) + view wiring.
     screens.duel = ensureDuelScreen();
     initDuelView({ show, goBack });
-    // Player Reborn dev entry (?reborn=1) — no home-page entry yet; the
-    // unified four-card Career entry will connect the Player card here.
+    // Player Reborn — the public entry. The Career Player card routes
+    // here (onPlay "player" above); ?reborn=1 opens it directly.
+    // open() shows the creation flow for a new run, or resumes the run.
     screens.reborn = ensureRebornScreen();
     const rebornView = createRebornView({
       getLang,

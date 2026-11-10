@@ -25,7 +25,7 @@ export const MODE_GROUPS = [
       {
         id: "timeTravel",
         title: "穿越生涯",
-        description: "回到篮球历史改写命运。现可玩「经典 · 经理兼教练」；球员、教练、总经理人生开发中",
+        description: "回到篮球历史改写命运。现可玩「球员生涯」与「经典 · 经理兼教练」；教练、总经理人生开发中",
         featured: true,
         homeTab: "career",
         exploreGroup: "经理生涯",

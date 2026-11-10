@@ -1,9 +1,8 @@
 /**
- * Player Reborn — dev entry view (?reborn=1).
+ * Player Reborn — the public entry view (Career Player card, or ?reborn=1).
  *
- * A functional slice screen, not the final Career entry (the unified
- * four-card entry is built in parallel and the Player card will connect
- * here when both land). The view:
+ * A new run starts in the creation flow (year, destiny, identity); an
+ * existing run resumes on the season screen. The view:
  *   - loads the identity from root.reborn (created once, survives refresh)
  *   - plays the 1996-97 season game by game, never bulk-simming silently
  *   - offers one training focus per week, at the week's first game
@@ -11,7 +10,8 @@
  *   - settles the contract at season end and rolls the timeline over
  * Persistence is the app's root save (root.reborn, additive, v3 stays).
  */
-import { createRebornState, buildPlayerCard, REBORN_SEASON } from "../../reborn/identity.js";
+import { buildPlayerCard } from "../../reborn/identity.js";
+import { creationHtml, createRebornFromChoice } from "./creation.js";
 import { buildSeason, playGame } from "../../reborn/season.js";
 import { roleForTrust, describeTrustChange, TRUST_START } from "../../reborn/trust.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
@@ -88,6 +88,10 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   let lastReport = null;
   let contractOutcome = null;
   let busy = false;
+  // The creation flow's selection state (null once a run exists). The seed
+  // is fixed when creation opens so the random draw is stable while the
+  // player browses the lists.
+  let creating = null;
 
   const currentWeek = () => Math.floor((season?.index || 0) / 4) + 1;
 
@@ -105,6 +109,17 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
 
   function render() {
     const body = el.querySelector("#reborn-body");
+    if (creating) {
+      body.innerHTML = creationHtml({
+        rows,
+        seed: creating.seed,
+        lang: lang(),
+        startYear: creating.startYear,
+        destiny: creating.destiny,
+        pickedBref: creating.pickedBref,
+      });
+      return;
+    }
     const card = buildPlayerCard(reborn.identity, rows, {
       growth: reborn.player.growth,
       season: season.year,
@@ -168,6 +183,54 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       else if (typeof show === "function") show("home");
     });
     el.querySelector("#reborn-body").addEventListener("click", async (event) => {
+      if (creating) {
+        const yearBtn = event.target.closest("[data-reborn-year]");
+        if (yearBtn) {
+          creating.startYear = Number(yearBtn.dataset.rebornYear);
+          creating.pickedBref = null; // the pool changes with the year
+          render();
+          return;
+        }
+        const destinyBtn = event.target.closest("[data-reborn-destiny]");
+        if (destinyBtn) {
+          creating.destiny = destinyBtn.dataset.rebornDestiny;
+          creating.pickedBref = null;
+          render();
+          return;
+        }
+        const pickBtn = event.target.closest("[data-reborn-pick]");
+        if (pickBtn) {
+          creating.pickedBref = pickBtn.dataset.rebornPick;
+          render();
+          return;
+        }
+        if (event.target.closest("[data-reborn-confirm]")) {
+          try {
+            reborn = createRebornFromChoice({
+              seed: creating.seed,
+              rows,
+              choice: {
+                startYear: creating.startYear,
+                destiny: creating.destiny || "random",
+                bref: creating.pickedBref,
+              },
+            });
+          } catch (e) {
+            console.warn(e);
+            return;
+          }
+          creating = null;
+          const root = readRootSave() || {};
+          root.reborn = reborn;
+          writeRootSave(root);
+          rebuildSeason();
+          contractOutcome = null;
+          lastReport = null;
+          render();
+          return;
+        }
+        return;
+      }
       const train = event.target.closest("[data-train]");
       if (train) {
         try {
@@ -220,13 +283,25 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     rows = await loadRows();
     const root = readRootSave() || {};
     if (forceNew || !root.reborn) {
-      const seed = `reborn-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
-      reborn = createRebornState(seed, rows);
-      root.reborn = reborn;
-      writeRootSave(root);
-    } else {
-      reborn = root.reborn;
+      // No run yet: the creation flow (year, destiny, identity). The seed
+      // is fixed here so the random draw is stable while the player
+      // browses the lists; the run is created only on confirm.
+      creating = {
+        seed: `reborn-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`,
+        startYear: 1996,
+        destiny: null,
+        pickedBref: null,
+      };
+      reborn = null;
+      season = null;
+      lastReport = null;
+      contractOutcome = null;
+      render();
+      if (typeof show === "function") show("reborn");
+      return;
     }
+    creating = null;
+    reborn = root.reborn;
     if (typeof reborn.player.coachTrust !== "number") reborn.player.coachTrust = TRUST_START;
     rebuildSeason();
     // Re-opening a settled season shows the rollover button, not settle again.

@@ -11,7 +11,10 @@
  * the Coach icon header, the era step for GM + Coach, and the clicks.
  *
  * Honest labels, no fake buttons:
- * - Player / Coach: 开发中 — clicking shows an honest note, never a flow.
+ * - Player: 可玩 — opens the Player Reborn creation flow (js/ui/reborn),
+ *   then the season screen. Random destiny keeps the staged trust-40
+ *   reveal; a chosen identity is known from the start.
+ * - Coach: 开发中 — clicking shows an honest note, never a flow.
  * - GM: 待独立身份实现 — opens the existing League Manager setup (which
  *   already lets you pick Modern / Historical there); the card says
  *   plainly that coach permissions are not yet isolated.
@@ -20,10 +23,7 @@
  *   League era for GM + Coach does not exist yet and is shown disabled,
  *   never as playable.
  *
- * Player Reborn is NOT implemented here (the M3 playtest gate was lifted
- * 2026-11-09 and the Reborn slice is built in parallel in its own worktree;
- * this landing keeps the Player card 开发中 until the integration point
- * lands). The Coach/GM permission separation is NOT implemented here
+ * The Coach/GM permission separation is NOT implemented here
  * (Code's slice). This module only routes to existing flows.
  */
 import { getLang } from "../i18n.js";
@@ -36,8 +36,8 @@ export const CAREER_IDENTITIES = [
   {
     id: "player",
     role: "PLAYER",
-    status: "dev",
-    route: null,
+    status: "playable",
+    route: "reborn",
     legend: "jordami01:1991",
     iconName: null,
     details: [
@@ -54,9 +54,9 @@ export const CAREER_IDENTITIES = [
         text: ["争取上场时间，面对伤病与交易风险", "Fight for minutes; injuries and trades loom"],
       },
     ],
-    devNote: [
-      "球员生涯开发中：按 ADR-005 的 Player Reborn 路线实现，球员生涯线正在并行开发中。",
-      "Player Career is in development: it follows the ADR-005 Player Reborn plan and is being built in a parallel slice.",
+    note: [
+      "1996–97 历史开局：从训练营打起，赢得教练信任。",
+      "1996–97 historical start: begin at camp and earn the coach's trust.",
     ],
   },
   {
@@ -147,6 +147,14 @@ export function careerIdentityById(id) {
  */
 export function erasFor(identityId) {
   if (identityId === "gm_coach") {
+    return [
+      { id: "historical", available: true },
+      { id: "modern", available: false },
+    ];
+  }
+  if (identityId === "player") {
+    // Player Reborn creation offers the historical start (1995 / 1996);
+    // the Modern League era does not exist for a player career yet.
     return [
       { id: "historical", available: true },
       { id: "modern", available: false },
@@ -292,8 +300,8 @@ export function refreshCareerEntry() {
 
 /**
  * Wire the four identity cards. `onPlay(identityId, era)` routes the
- * playable flows: ("gm") and ("gm_coach", "historical"). Player/Coach
- * never call it — they only show the honest dev note.
+ * playable flows: ("player"), ("gm") and ("gm_coach", "historical").
+ * Coach never calls it — it only shows the honest dev note.
  */
 export function initCareerEntry({ onPlay } = {}) {
   onPlayCb = onPlay || null;
