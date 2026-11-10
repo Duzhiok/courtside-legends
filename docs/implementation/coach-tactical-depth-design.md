@@ -131,3 +131,10 @@ gap is the engine's own consumption of the choice.
   court; if the window never opens (deficit stays > 6), the moment never fires.
 - No playoff round / multi-game arc in the slice; the comeback is one Q4.
 - Browser QA owed (Mac): scripts/qa/coach-tactical.mjs.
+- **Synchronous-driving note (found in testing):** the opponent AI calls
+  timeouts that pause the sim, and an uncleared pause makes every later
+  `step()` a no-op (`_resolvePossession` aborts at `if (this.paused) return`).
+  Any synchronous driver of GameSim must consume timeout/quarter breaks by
+  clearing the flags directly — never `setPaused(false)`, which re-arms the
+  async `_loop`. The controller does this in `resumeBreak()`; `runFast()` is
+  immune (quiet mode never pauses).

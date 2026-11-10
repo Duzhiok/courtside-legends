@@ -219,6 +219,20 @@ test("recommendation seam (workstream G): a valid recommendation is attached, a 
   assert.equal(res.moment.kind, "opening");
 });
 
+test("panel() exposes live rosters, focus, tempo and timeouts for the view", () => {
+  const c = challenge(1);
+  c.start();
+  c.choose("switch_all");
+  const p = c.panel();
+  assert.equal(p.onCourt.length, 5);
+  assert.ok(p.bench.length >= 5);
+  assert.equal(p.tactic, "switch_all");
+  assert.equal(p.tempo, "normal");
+  assert.equal(p.timeouts, 7);
+  assert.ok(Number.isFinite(p.fit) && Number.isFinite(p.morale));
+  assert.ok(p.onCourt.every((x) => x.id && x.name && x.pos));
+});
+
 test("choose() refuses bad states: unknown choice, disabled choice, double choose", () => {
   const c = challenge(1);
   assert.deepEqual(c.choose("switch_all"), { ok: false, reason: "wrong_state", state: "idle" });

@@ -35,6 +35,7 @@ import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChalle
 import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
 import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
 import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.js";
+import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12432,6 +12433,14 @@ async function boot() {
       show,
       goBack,
     });
+    // Coach tactical depth (workstream B) — the comeback-challenge slice.
+    // Dev entry ?coach-tactics=1 opens it after boot (see below).
+    screens.coachTactics = ensureCoachingScreen();
+    const coachingMomentView = createCoachingMomentView({
+      getPool: () => PLAYERS,
+      show,
+      goBack,
+    });
     myTeamLineup = createMyTeamLineup({
       el: $("#my-team-lineup-root"),
       getLang,
@@ -12524,6 +12533,11 @@ async function boot() {
     if (new URLSearchParams(location.search).get("career") === "coach") {
       setPrologueRole("COACH");
       setTimeout(() => { startMode("timeTravel"); }, 250);
+    }
+    // Coach tactical depth dev entry (workstream B): ?coach-tactics=1 opens
+    // the tactical comeback challenge after boot.
+    if (new URLSearchParams(location.search).get("coach-tactics") === "1") {
+      setTimeout(() => { coachingMomentView.open(); }, 250);
     }
   } catch (e) {
     console.error(e);

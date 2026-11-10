@@ -593,6 +593,22 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
       return { ...live(), ...readouts(), state, events: events.slice(-8) };
     },
 
+    /** Live panel state (rosters, focus, tempo, timeouts) for the view. */
+    panel() {
+      const y = you();
+      const slim = (p) => ({ id: p.id, name: p.name, pos: p.playPos || p.pos, ovr: p.ovr || 0, fatigue: Math.round(p.fatigue || 0) });
+      return {
+        onCourt: (y?.onCourt || []).map(slim),
+        bench: (y?.bench || []).filter((p) => !(p.injuredGames > 0)).map(slim),
+        focus: sim?.focusPlay?.id || null,
+        tempo: y?.gameplan?.tempo || "normal",
+        timeouts: sim?.timeouts?.home ?? 0,
+        tactic: y?.tactic?.id || null,
+        fit: y?.fit ?? 50,
+        morale: y?.morale ?? 50,
+      };
+    },
+
     /** The stable decision-interface shape, for the view and for workstream G. */
     momentShape() {
       return {
