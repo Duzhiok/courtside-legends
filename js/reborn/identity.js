@@ -23,6 +23,22 @@ import { seasonToCard } from "../data/players.js";
 export const REBORN_START_YEAR = 1996;
 /** roster.json season = end year, so the 1996-97 season is season 1997. */
 export const REBORN_SEASON = 1997;
+/**
+ * Start years the public creation flow offers. 1995 and 1996 share the
+ * same 29-team alignment (verified: identical team sets, bench pools 88 /
+ * 80), so the same schedule layout serves both. Later years are not offered
+ * yet — each needs its team alignment + pool verified before it is sold
+ * as playable (e.g. 1997-98 renames WSB to WAS).
+ */
+export const REBORN_START_YEARS = [1995, 1996];
+/** A start year maps to the roster season that ends the following spring. */
+export function seasonForStartYear(startYear) {
+  const year = Number(startYear);
+  if (!REBORN_START_YEARS.includes(year)) {
+    throw new RangeError(`reborn start year is not offered: ${startYear}`);
+  }
+  return year + 1;
+}
 export const HISTORICAL_SHARE = 0.7;
 /** Trust at which a historical identity's real name is revealed. */
 export const REVEAL_TRUST = 40;
@@ -37,13 +53,13 @@ export const REBORN_WEST_IDS = [
 ];
 export const REBORN_TEAM_IDS = [...REBORN_EAST_IDS, ...REBORN_WEST_IDS];
 
-/** The 1996-97 bench pool, sorted by id so the draw never depends on file order. */
-export function benchPool(players) {
+/** The bench pool for one season, sorted by id so the draw never depends on file order. */
+export function benchPool(players, season = REBORN_SEASON) {
   return (players || [])
     .filter(
       (r) =>
         r &&
-        Number(r.season) === REBORN_SEASON &&
+        Number(r.season) === Number(season) &&
         Number(r.mpg) < 12 &&
         Number(r.gp) >= 10,
     )
@@ -53,12 +69,15 @@ export function benchPool(players) {
 /**
  * Seeded identity draw. Returns the identity object stored in root.reborn.
  * Historical identities start unrevealed; fictional ones are revealed at once.
+ * `season` is the roster season (1996 or 1997); it defaults to the 1996-97
+ * pool so every existing caller keeps drawing from the same 80 players.
  */
-export function drawIdentity(seed, players) {
+export function drawIdentity(seed, players, { season = REBORN_SEASON } = {}) {
+  const seasonYear = Number(season);
   const seedText = String(seed ?? "");
   if (!seedText) throw new TypeError("drawIdentity requires a seed");
-  const pool = benchPool(players);
-  if (!pool.length) throw new Error("drawIdentity: empty 1996-97 bench pool");
+  const pool = benchPool(players, seasonYear);
+  if (!pool.length) throw new Error(`drawIdentity: empty ${seasonYear} bench pool`);
   const rng = seededStream(hashSeed(seedText));
   const kind = rng() < HISTORICAL_SHARE ? "historical" : "fictional";
   if (kind === "historical") {
@@ -70,20 +89,22 @@ export function drawIdentity(seed, players) {
       nameEn: row.nameEn || row.name,
       team: row.team,
       pos: row.pos,
-      season: REBORN_SEASON,
+      season: seasonYear,
       cardId: row.id,
       revealed: false,
     };
   }
-  // Fictional: a generated rookie from the 1997 debut class, assigned to a
-  // team as a camp invitee. rookieClassForYear only generates prospects up to
-  // minimumSize, so first count the real debutants, then ask for more.
-  const historical = rookieClassForYear(REBORN_START_YEAR, {
+  // Fictional: a generated rookie from the debut class of the start year
+  // (season - 1), assigned to a team as a camp invitee. rookieClassForYear
+  // only generates prospects up to minimumSize, so first count the real
+  // debutants, then ask for more.
+  const startYear = seasonYear - 1;
+  const historical = rookieClassForYear(startYear, {
     seed: seedText,
     minimumSize: 0,
     players,
   });
-  const generated = rookieClassForYear(REBORN_START_YEAR, {
+  const generated = rookieClassForYear(startYear, {
     seed: seedText,
     minimumSize: historical.length + 20,
     players,
@@ -100,7 +121,7 @@ export function drawIdentity(seed, players) {
     nameEn: pick.nameEn || pick.name,
     team,
     pos: pick.pos,
-    season: REBORN_SEASON,
+    season: seasonYear,
     cardId: pick.id,
     revealed: true,
     generated: pick,
@@ -187,12 +208,13 @@ export function applyIdentityToRoster(teamCards, identity, { players, growth = {
 }
 
 /** The root.reborn state for a fresh run (ADR-005 §4 data model). */
-export function createRebornState(seed, players) {
-  const identity = drawIdentity(seed, players);
+export function createRebornState(seed, players, { startYear = REBORN_START_YEAR } = {}) {
+  const season = seasonForStartYear(startYear);
+  const identity = drawIdentity(seed, players, { season });
   return {
     version: 1,
     seed: String(seed),
-    startYear: REBORN_START_YEAR,
+    startYear: Number(startYear),
     boundary: "preseason",
     role: "player",
     origin: "random-destiny",
@@ -203,7 +225,7 @@ export function createRebornState(seed, players) {
       coachTrust: 25,
       rotationRole: "garbage",
       contractStatus: "camp",
-      seasonYear: REBORN_SEASON,
+      seasonYear: season,
       growth: {},
       seasonLog: [],
     },

@@ -15,6 +15,8 @@ import {
   applyIdentityToRoster,
   createRebornState,
   REBORN_SEASON,
+  REBORN_START_YEARS,
+  seasonForStartYear,
   REBORN_TEAM_IDS,
   REVEAL_TRUST,
 } from "../js/reborn/identity.js";
@@ -201,4 +203,44 @@ test("validateReborn rejects malformed reborn state", () => {
   const storage = createMemoryStorage();
   const root = createRootState({ reborn: { ...good, version: 2 } });
   assert.throws(() => writeRootSave(root, storage), /invalid root save/);
+});
+
+test("start years: 1995 and 1996 are offered, both pools measured, defaults unchanged", () => {
+  assert.deepEqual(REBORN_START_YEARS, [1995, 1996]);
+  assert.equal(seasonForStartYear(1995), 1996);
+  assert.equal(seasonForStartYear(1996), 1997);
+  assert.throws(() => seasonForStartYear(1997), /not offered/);
+  assert.throws(() => seasonForStartYear(1976), /not offered/);
+  // 1995-96 bench pool: 88 players, all season 1996 rows.
+  const pool96 = benchPool(ROWS, 1996);
+  assert.equal(pool96.length, 88);
+  assert.ok(pool96.every((r) => r.season === 1996 && r.mpg < 12 && r.gp >= 10));
+  // Default call still draws the 1996-97 pool (80 players).
+  assert.equal(benchPool(ROWS).length, 80);
+});
+
+test("drawIdentity with a start year draws from that season only", () => {
+  const a = drawIdentity("reborn-seed-7", ROWS, { season: 1996 });
+  const b = drawIdentity("reborn-seed-7", ROWS, { season: 1996 });
+  assert.deepEqual(a, b);
+  assert.equal(a.season, 1996);
+  if (a.kind === "historical") {
+    assert.ok(ROWS.some((r) => r.bref === a.bref && r.season === 1996));
+  }
+  // Same seed, different season: the draw is re-rolled from the other pool.
+  const c = drawIdentity("reborn-seed-7", ROWS, { season: 1997 });
+  assert.equal(c.season, 1997);
+});
+
+test("createRebornState with a start year records it and the season", () => {
+  const state = createRebornState("reborn-seed-7", ROWS, { startYear: 1995 });
+  assert.equal(state.startYear, 1995);
+  assert.equal(state.player.seasonYear, 1996);
+  assert.equal(state.identity.season, 1996);
+  assert.equal(state.player.teamId, state.identity.team);
+  // Default is still the 1996 start.
+  const def = createRebornState("reborn-seed-7", ROWS);
+  assert.equal(def.startYear, 1996);
+  assert.equal(def.player.seasonYear, 1997);
+  assert.throws(() => createRebornState("reborn-seed-7", ROWS, { startYear: 1997 }), /not offered/);
 });
