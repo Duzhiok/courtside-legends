@@ -96,13 +96,33 @@
 /* Shop frame on the My World profile portrait (class set by myWorldView). */
 .mw-portrait.mw-frame-gold { border: 3px solid #d6b25a; box-shadow: 0 0 14px rgba(214, 178, 90, 0.6); border-radius: 50%; }
 .mw-portrait.mw-frame-gold .mw-avatar { border-radius: 50%; display: block; }
+.mw-portrait.mw-frame-silver { border: 3px solid #c0c8d0; box-shadow: 0 0 14px rgba(192, 200, 208, 0.55); border-radius: 50%; }
+.mw-portrait.mw-frame-silver .mw-avatar { border-radius: 50%; display: block; }
+.mw-portrait.mw-frame-bronze { border: 3px solid #b07840; box-shadow: 0 0 12px rgba(176, 120, 64, 0.55); border-radius: 50%; }
+.mw-portrait.mw-frame-bronze .mw-avatar { border-radius: 50%; display: block; }
+.mw-portrait.mw-frame-allstar { border: 3px solid #d6b25a; outline: 2px solid #3b82c4; outline-offset: 2px; box-shadow: 0 0 16px rgba(59, 130, 196, 0.55); border-radius: 50%; }
+.mw-portrait.mw-frame-allstar .mw-avatar { border-radius: 50%; display: block; }
 
 /* Shop-exclusive outfits locked in the avatar editor until owned. */
 .mw-swatch.is-locked { opacity: 0.55; }
 .mw-swatch.is-locked .mw-swatch-dot { filter: grayscale(0.6); }
 .mw-swatch-lock { font-size: 11px; color: #d6b25a; border: 1px solid #d6b25a; border-radius: 999px; padding: 0 5px; }
 
+/* Owned inventory tab: room preview + owned rows + recent purchases. */
+.shop-inventory { display: flex; flex-direction: column; gap: 14px; }
+.shop-room-preview { border: 1px solid #3f7a52; border-radius: 10px; overflow: hidden; }
+.shop-room-preview-svg { display: block; width: 100%; height: auto; }
+.shop-inventory h3 { margin: 0; color: #f4d98a; font-size: 15px; }
+.shop-owned-list { display: flex; flex-direction: column; gap: 8px; }
+.shop-owned-row { display: flex; align-items: center; gap: 10px; border: 1px solid #3f7a52; border-radius: 8px; padding: 8px 10px; }
+.shop-owned-row .shop-owned-name { font-weight: 700; }
+.shop-owned-row .shop-owned-state { color: #b9c4bb; font-size: 12px; }
+.shop-owned-row .btn-row { margin-left: auto; }
+.shop-recent-list { margin: 0; padding-left: 18px; color: #b9c4bb; font-size: 13px; }
+.shop-empty { color: #b9c4bb; font-size: 13px; }
+
 @media (max-width: 640px) {
   .shop-body { grid-template-columns: 1fr; }
   .shop-dialog { padding: 14px; }
+  .shop-owned-row { flex-wrap: wrap; }
 }
