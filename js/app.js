@@ -329,6 +329,7 @@ import {
 import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeComparison.js";
 import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
+import { initCareerEntry, refreshCareerEntry } from "./ui/careerEntry.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
@@ -1576,7 +1577,11 @@ function continueFromSave() {
   }
 }
 
-document.querySelectorAll(".mode-card[data-mode]").forEach((btn) => {
+// Generic mode-card wiring skips the Career entry cards: they carry
+// data-mode for the catalog/homeTabs tests, but their clicks belong to
+// the Career entry module (era step for GM + Coach, honest dev notes
+// for Player/Coach) — the generic handler would double-dispatch.
+document.querySelectorAll(".mode-card[data-mode]:not([data-career-identity])").forEach((btn) => {
   btn.addEventListener("click", () => startMode(btn.dataset.mode));
 });
 
@@ -12237,6 +12242,7 @@ async function boot() {
       screens.sandbox?.__sandboxSetLang?.(nextLang);
       applyStaticLang();
       timeTravelScreen.repaint();
+      refreshCareerEntry();
       refreshMyWorld();
       myTeamLineup?.refresh();
       refreshRankedCardLock();
@@ -12248,6 +12254,16 @@ async function boot() {
     });
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();
+    // Unified Career entry (ADR-006): four identities in parallel. GM opens
+    // the League Manager setup (its era is picked there); GM + Coach opens
+    // the Time Travel creation after the era step. Player/Coach never reach
+    // here — they only show the honest dev note.
+    initCareerEntry({
+      onPlay: (identityId, era) => {
+        if (identityId === "gm") startMode("franchise");
+        else if (identityId === "gm_coach" && era === "historical") startMode("timeTravel");
+      },
+    });
     const activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); } });
     myWorld = createMyWorld({
       el: $("#my-world-root"),

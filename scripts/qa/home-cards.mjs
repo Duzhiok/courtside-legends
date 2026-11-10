@@ -1,5 +1,6 @@
 // Browser QA: home mode-card grid. Every card in a panel must be a sane width (no lone sliver), the grid is two
-// columns on desktop and one on mobile, and nothing overflows horizontally.
+// columns on desktop and one on mobile, and nothing overflows horizontally. The Career panel is the exception:
+// four identity cards in one row on desktop, 2x2 on tablet, one column on phones.
 // Usage: node scripts/qa/home-cards.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -37,11 +38,11 @@ async function run(width, height, tag) {
       const lonely = [...byTop.values()].filter((row) => row.length === 1).map((row) => row[0]);
       return { gw: Math.round(gw), cols, cards, lonely };
     }, cat);
-    const expectCols = width <= 640 ? 1 : 2;
+    const expectCols = cat === "career" ? (width <= 560 ? 1 : width <= 900 ? 2 : 4) : (width <= 640 ? 1 : 2);
     check(`[${tag}/${cat}] grid has ${expectCols} column(s)`, info.cols === expectCols, `cols=${info.cols}`);
     const bad = info.lonely.filter((k) => k.w < info.gw - 4);
     check(`[${tag}/${cat}] no card sits alone at partial width`, bad.length === 0, bad.map((k) => `${k.name}:${k.w}/${info.gw}`).join(", "));
-    const narrow = info.cards.filter((k) => k.w < Math.min(260, info.gw / 2 - 20));
+    const narrow = info.cards.filter((k) => k.w < Math.min(260, info.gw / info.cols - 20));
     check(`[${tag}/${cat}] no sliver-narrow card`, narrow.length === 0, narrow.map((k) => `${k.name}:${k.w}`).join(", "));
     check(`[${tag}/${cat}] no horizontal overflow`, await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     if (cat === "career") {
@@ -50,20 +51,62 @@ async function run(width, height, tag) {
         const gallery = document.querySelector("#mw-legends-gallery");
         const bar = document.querySelector("#account-home-bar").getBoundingClientRect();
         return {
+          identities: cards.map((c) => c.dataset.careerIdentity ?? ""),
           dark: cards.map((c) => getComputedStyle(c).backgroundImage.includes("linear-gradient")),
           tags: cards.map((c) => c.querySelector(".mode-tag")?.textContent.trim() ?? ""),
           tagFirst: cards.map((c) => { const t = c.querySelector(".mode-tag"), st = c.querySelector("strong"); return !!t && !!st && t.getBoundingClientRect().bottom <= st.getBoundingClientRect().top + 1; }),
+          statuses: [...document.querySelectorAll(".career-status")].map((el) => el.textContent.trim()),
+          detailCounts: cards.map((c) => c.querySelectorAll(".career-detail").length),
           galleryHiddenHere: !gallery?.offsetParent,
           barH: Math.round(bar.height),
         };
       });
-      check(`[${tag}] both career cards (Reborn + Franchise) share the dark card style`, polish.dark.length === 2 && polish.dark.every(Boolean), JSON.stringify(polish.dark));
+      check(`[${tag}] four career identities in order (Player/Coach/GM/GM+Coach)`, JSON.stringify(polish.identities) === JSON.stringify(["player", "coach", "gm", "gm_coach"]), polish.identities.join(","));
+      check(`[${tag}] all four career cards share the dark card style`, polish.dark.length === 4 && polish.dark.every(Boolean), JSON.stringify(polish.dark));
       check(`[${tag}] each career card has a positioning tag above its title`, polish.tags.every((t) => t.length > 3) && polish.tagFirst.every(Boolean), polish.tags.join(" | "));
+      check(`[${tag}] career statuses are honest (dev/dev/awaiting/playable)`, JSON.stringify(polish.statuses) === JSON.stringify(["开发中", "开发中", "待独立身份实现", "经典玩法可玩"]), polish.statuses.join(" | "));
+      check(`[${tag}] each career card explains control, progression and challenge`, polish.detailCounts.every((n) => n >= 3), polish.detailCounts.join(","));
       check(`[${tag}] the legends gallery is not shown under the career tab (My World only)`, polish.galleryHiddenHere);
       check(`[${tag}] the account bar is compact`, polish.barH <= (width <= 640 ? 150 : 72), `${polish.barH}px`);
     }
     await page.screenshot({ path: `${OUT}/${tag}-${cat}.png`, fullPage: true, animations: "disabled" });
   }
+  // Career entry interactions: each scenario reloads fresh so navigation in
+  // one scenario cannot break the next.
+  const freshCareer = async () => {
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
+    await page.click('.home-tab[data-category="career"]');
+    await page.waitForTimeout(300);
+  };
+  // Player / Coach are in development: clicking shows an honest note, never a flow.
+  await freshCareer();
+  await page.click('[data-career-identity="player"]');
+  await page.waitForTimeout(200);
+  const playerNote = await page.evaluate(() => {
+    const note = document.querySelector("#career-entry-note");
+    return { visible: !note.hidden, text: note.textContent.trim(), stillHome: document.querySelector("#screen-home")?.classList.contains("active") };
+  });
+  check(`[${tag}] Player card shows the in-development note without navigating`, playerNote.visible && playerNote.text.includes("开发中") && playerNote.stillHome, playerNote.text);
+  // GM + Coach opens the era step; Modern is disabled; Historical reaches the Time Travel screen.
+  await freshCareer();
+  await page.click('[data-career-identity="gm_coach"]');
+  await page.waitForTimeout(200);
+  const era = await page.evaluate(() => {
+    const panel = document.querySelector("#career-era-panel");
+    const modern = document.querySelector('[data-career-era="modern"]');
+    return { visible: !panel.hidden, modernDisabled: modern?.disabled === true, modernText: modern?.textContent.trim() ?? "" };
+  });
+  check(`[${tag}] GM + Coach opens the era step with Modern disabled`, era.visible && era.modernDisabled, JSON.stringify(era));
+  await page.screenshot({ path: `${OUT}/${tag}-career-era.png`, fullPage: true, animations: "disabled" });
+  await page.click('[data-career-era="historical"]');
+  await page.waitForFunction(() => document.querySelector("#screen-time-travel")?.classList.contains("active"), null, { timeout: 10000 });
+  check(`[${tag}] Historical era reaches the Time Travel career screen`, true);
+  // GM connects to the League Manager (season setup) flow.
+  await freshCareer();
+  await page.click('[data-career-identity="gm"]');
+  await page.waitForFunction(() => document.querySelector("#screen-season")?.classList.contains("active"), null, { timeout: 10000 });
+  check(`[${tag}] GM card reaches the League Manager season setup`, true);
   check(`[${tag}] no page errors`, errors.length === 0, errors.slice(0, 2).join(" | "));
   await page.close();
 }

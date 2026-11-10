@@ -41,6 +41,7 @@ async function openScenario(width, height, cashSeed = 0) {
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
   await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
+  await page.click('[data-career-era="historical"]');
   return { page, errors };
 }
 

@@ -16,7 +16,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const fresh = async () => { await page.goto(BASE, { waitUntil: "domcontentloaded" }); await page.evaluate(() => localStorage.clear()); await page.reload({ waitUntil: "domcontentloaded" }); await homeActive(page); };
   await fresh();
   check(`[${tag}] home has no Single Season card`, (await page.$$('.mode-card[data-mode="season"]')).length === 0);
-  check(`[${tag}] home keeps Reborn + Franchise cards`, (await page.$$('.mode-card[data-mode="timeTravel"], .mode-card[data-mode="franchise"]')).length === 2);
+  check(`[${tag}] home keeps GM + Coach and GM cards`, (await page.$$('.mode-card[data-mode="timeTravel"], .mode-card[data-mode="franchise"]')).length === 2);
   await page.click('.mode-card[data-mode="franchise"]'); await page.waitForSelector("#screen-season.active");
   const pressed = () => page.$$eval("[data-career-length]", (b) => b.map((x) => `${x.dataset.careerLength}:${x.getAttribute("aria-pressed")}`).join(","));
   check(`[${tag}] opening via Franchise preselects Dynasty`, (await pressed()) === "season:false,franchise:true", await pressed());

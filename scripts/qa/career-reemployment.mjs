@@ -38,6 +38,7 @@ async function openFiredCareer(width, height) {
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
   await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
+  await page.click('[data-career-era="historical"]');
   await page.waitForSelector("#tt-jobs:not([hidden])", { timeout: 10000 });
   return { page, errors };
 }
@@ -119,6 +120,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
   await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
+  await page.click('[data-career-era="historical"]');
   await page.waitForSelector(".tt-hq-name", { timeout: 10000 });
   check(`[${tag}] reload keeps the new team`, (await page.$eval(".tt-hq-name", (el) => el.textContent.trim())) === pickedTeam);
 

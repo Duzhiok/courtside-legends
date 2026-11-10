@@ -42,6 +42,7 @@ const openHq = async (page) => {
   await page.evaluate(() => document.querySelector("#btn-season-back")?.click());
   await homeActive(page);
   await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
+  await page.click('[data-career-era="historical"]');
   await page.waitForSelector("#tt-perks:not([hidden])", { timeout: 20000 });
   await settled(page);
 };

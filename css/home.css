@@ -455,3 +455,111 @@ html[lang="en"] .topbar .brand-name { display: none; }
 
 /* Profile picture in the home bar (same picture as My World). Fixed size so it never changes the bar's height. */
 #screen-home .account-home-avatar { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 32px; object-fit: cover; align-self: center; }
+
+/* —— Unified Career entry: four identities in parallel (ADR-006) —— */
+.career-entry {
+  margin-top: 4px;
+  padding: 18px 16px 16px;
+  border-radius: 20px;
+  background: linear-gradient(150deg, #07130d 0%, #0d2417 100%);
+  border: 1px solid rgba(246, 200, 112, .28);
+  color: #f8f4ea;
+}
+.career-entry-head { margin-bottom: 14px; }
+.career-entry-kicker {
+  margin: 0 0 4px;
+  color: var(--gold);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+.career-entry-head h3 {
+  margin: 0 0 4px;
+  color: #fff;
+  font-size: 1.35rem;
+}
+.career-entry-head p { margin: 0; color: rgba(248, 244, 234, .78); font-size: .92rem; }
+/* Four equal-width cards in one row on desktop, 2x2 on tablet, one column on phones. */
+#screen-home .mode-grid.career-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+  #screen-home .mode-grid.career-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  #screen-home .mode-grid.career-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.career-entry .mode-group-label { color: rgba(248, 244, 234, .6); margin-top: 2px; }
+.career-entry .mode-group-label::after {
+  background: linear-gradient(90deg, rgba(248, 244, 234, .3), transparent);
+}
+#screen-home .career-card { min-height: 0; }
+/* Narrow photo strip for the four-across cards (the dark-card default is
+   sized for full-width feature cards and would swallow a 285px card). */
+#screen-home .career-card.has-photo { padding-right: 104px; }
+#screen-home .career-card .mode-card-photo { width: 96px; }
+.career-card-details { display: block; margin-top: 10px; }
+.career-detail {
+  display: block;
+  margin-top: 6px;
+  font-size: .86rem;
+  line-height: 1.45;
+  color: rgba(248, 244, 234, .82);
+}
+.career-detail b { color: var(--gold); font-weight: 700; margin-right: 6px; }
+.career-detail--note { color: rgba(246, 200, 112, .92); }
+.career-status {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.career-status--dev { color: rgba(248, 244, 234, .75); border: 1px solid rgba(248, 244, 234, .35); }
+.career-status--awaiting { color: var(--gold); border: 1px solid rgba(246, 200, 112, .55); }
+.career-status--playable { color: var(--arena-1); background: var(--gold); border: 1px solid var(--gold); }
+/* Coach has no legend photo: the same slot, filled with a tactics icon. */
+.career-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(150deg, var(--arena-2), var(--arena-3));
+  color: var(--gold);
+}
+.career-entry-note { margin: 12px 2px 0; color: rgba(248, 244, 234, .85); }
+.career-era {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(246, 200, 112, .35);
+  background: rgba(255, 255, 255, .06);
+}
+.career-era-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.career-era-head strong { color: #fff; font-size: 1.05rem; }
+.career-era-head span { color: rgba(248, 244, 234, .7); font-size: .85rem; }
+.career-era-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+@media (max-width: 560px) {
+  .career-era-choices { grid-template-columns: minmax(0, 1fr); }
+}
+.career-era-btn {
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(246, 200, 112, .45);
+  background: rgba(246, 200, 112, .12);
+  color: #f8f4ea;
+  cursor: pointer;
+}
+.career-era-btn:hover:not(:disabled) { border-color: var(--gold); }
+.career-era-btn strong { display: block; margin-bottom: 4px; color: #fff; }
+.career-era-btn span { font-size: .88rem; color: rgba(248, 244, 234, .78); }
+.career-era-btn:disabled { opacity: .55; cursor: not-allowed; }
+.career-era-note { margin: 10px 2px 0; font-size: .88rem; color: rgba(248, 244, 234, .75); }
+.career-era-back {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gold);
+  font-size: .9rem;
+  cursor: pointer;
+}

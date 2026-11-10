@@ -24,6 +24,8 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
 
   await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
+
+  await page.click('[data-career-era="historical"]');
   await page.waitForSelector("#time-travel-origin option", { state: "attached", timeout: 10000 });
 
   const options = await page.$$eval("#time-travel-origin option", (els) => els.map((e) => e.value));
@@ -43,6 +45,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   // Go back and redo with the former-player origin; same teams/archetypes, nudged numbers.
   await page.evaluate(() => document.querySelector("#btn-time-travel-back")?.click());
   await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
+  await page.click('[data-career-era="historical"]');
   await page.waitForSelector("#time-travel-origin option", { state: "attached", timeout: 10000 });
   await page.selectOption("#time-travel-origin", "formerPlayer");
   const formerPlayerDesc = await page.$eval("#time-travel-origin-desc", (e) => e.textContent);
@@ -86,6 +89,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await langPage.reload({ waitUntil: "domcontentloaded" });
   await langPage.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await langPage.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
+  await langPage.click('[data-career-era="historical"]');
   await langPage.waitForSelector("#time-travel-origin option", { state: "attached", timeout: 10000 });
   const enLabel = await langPage.$eval("#time-travel-origin option", (e) => e.textContent);
   check(`[${tag}] origin options render in English when lang=en`, enLabel === "Generalist Coach", enLabel);
@@ -93,6 +97,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await langPage.click("#btn-lang");
   await langPage.evaluate(() => document.querySelector("#btn-time-travel-back")?.click());
   await langPage.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
+  await langPage.click('[data-career-era="historical"]');
   await langPage.waitForSelector("#time-travel-origin option", { state: "attached", timeout: 10000 });
   const zhLabelAfterToggle = await langPage.$eval("#time-travel-origin option", (e) => e.textContent);
   check(`[${tag}] origin options rebuild back to Chinese after toggling language off`, zhLabelAfterToggle === "通才教练", zhLabelAfterToggle);
