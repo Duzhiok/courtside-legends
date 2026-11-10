@@ -8,7 +8,7 @@ const { loadSampleRoster } = await import("./helpers/sampleRoster.js");
 const PLAYERS = await loadSampleRoster();
 const { overall } = await import("../js/data/players.js");
 const { resolvePlayers } = await import("../js/data/account.js");
-const { STAR_SKILL_RARITIES, performDailyDraw, starUpWithSouls } = await import("../js/data/accountGacha.js");
+const { STAR_SKILL_RARITIES, drawOneCard, starUpWithSouls } = await import("../js/data/accountGacha.js");
 const { MAX_STARS, SOULS_PER_STAR } = await import("../js/data/gacha.js");
 const { MAX_BOUGHT_SKILLS, boughtSkillCount, buyableSkills, buySkillWithFragments } = await import("../js/data/accountRecycle.js");
 const { soulStarNotice } = await import("../js/ui/gachaView.js");
@@ -54,8 +54,7 @@ test("only the 球魂 star-up that reaches ★5 gifts a skill; ★1–★4 do no
 test("reaching ★5 by DRAWING duplicates gifts nothing (the rule is about 球魂)", () => {
   const card = realCard();
   const acc = owning(card, MAX_STARS - 1);
-  acc.lastDailyDraw = null;
-  const result = performDailyDraw(acc, { pool: [card], rng: playerRng, date: DATE });
+  const result = drawOneCard(acc, { pool: [card], rng: playerRng, date: DATE });
   assert.equal(result.outcome, "starUp");
   assert.equal(result.stars, MAX_STARS);
   assert.equal(result.starSkill, undefined);
@@ -86,8 +85,7 @@ test("once per card: ★5 cannot be bought again, and later duplicate draws turn
   const { skill } = soulUp(acc, card);
   assert.throws(() => soulUp(acc, card), /已满/);
   const skillsAtFive = [...acc.cardMods[card.id].skills];
-  acc.lastDailyDraw = null;
-  const dup = performDailyDraw(acc, { pool: [card], rng: playerRng, date: DATE });
+  const dup = drawOneCard(acc, { pool: [card], rng: playerRng, date: DATE });
   assert.equal(dup.outcome, "soulConvert");
   assert.deepEqual(acc.cardMods[card.id].skills, skillsAtFive);
   assert.equal(acc.cardMods[card.id].starSkill, skill.id);

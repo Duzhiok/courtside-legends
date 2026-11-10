@@ -70,8 +70,8 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     const card = pl.PLAYERS.find((p) => !a.playerIds.includes(p.id) && pl.overall(p) < 70);
     a.playerIds.push(card.id);
     a.cardMods[card.id] = { merges: g.MAX_STARS - 1, skills: [], roll: 9 };
-    a.lastDailyDraw = null; a.pendingRoll = null;
-    const r = gacha.performDailyDraw(a, { pool: [card], rng: () => 0.5 });
+    a.pendingRoll = null;
+    const r = gacha.drawOneCard(a, { pool: [card], rng: () => 0.5 });
     return { outcome: r.outcome, stars: r.stars, starSkill: r.starSkill ?? null, mod: a.cardMods[card.id].starSkill || null };
   });
   check(`[${tag}] a duplicate DRAW to ★5 gifts nothing`, drawn.outcome === "starUp" && drawn.stars === 5 && !drawn.starSkill && !drawn.mod, JSON.stringify(drawn));

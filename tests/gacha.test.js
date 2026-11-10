@@ -5,10 +5,8 @@ import {
   bannerFilter,
   craftCost,
   currentBanners,
-  extraDrawsLeft,
   freshGachaState,
   pullCard,
-  recordExtraDraw,
 } from "../js/data/gacha.js";
 import {
   GRADE_BANDS,
@@ -111,13 +109,13 @@ test("banner pools never leak cards from outside the banner", () => {
   }
 });
 
-test("extra gold draws are capped per day and crafting scales with band", () => {
-  let gacha = freshGachaState();
-  assert.equal(extraDrawsLeft(gacha, "2026-01-01"), 2);
-  gacha = recordExtraDraw(gacha, "2026-01-01");
-  gacha = recordExtraDraw(gacha, "2026-01-01");
-  assert.equal(extraDrawsLeft(gacha, "2026-01-01"), 0);
-  assert.equal(extraDrawsLeft(gacha, "2026-01-02"), 2);
+test("gold extra draws are gone (2026-11-09 simplification) and crafting scales with band", async () => {
+  const gacha = freshGachaState();
+  assert.equal(gacha.extra, null, "the old extra-draw counter stays inert for old saves");
+  const ns = await import("../js/data/gacha.js");
+  assert.equal("EXTRA_DRAW" in ns, false, "no coin extra-draw price to buy with");
+  assert.equal("extraDrawsLeft" in ns, false);
+  assert.equal("recordExtraDraw" in ns, false);
   assert.ok(craftCost(97) > craftCost(87));
   assert.ok(craftCost(87) > craftCost(60));
 });

@@ -4,11 +4,10 @@ import { createMemoryStorage } from "./helpers/memoryStorage.js";
 
 globalThis.localStorage = createMemoryStorage();
 
-const { todayKey, uniqueByPerson } = await import("../js/data/account.js");
+const { uniqueByPerson } = await import("../js/data/account.js");
 const {
   craftWishCard,
-  drawAvailability,
-  performDailyDraw,
+  drawOneCard,
   resolvePendingRoll,
   setWishlist,
   starUpWithSouls,
@@ -25,7 +24,7 @@ const JOKIC_2021 = card("jokic-2021", 95);
 const DATE = new Date(Date.UTC(2026, 9, 21));
 
 function account(extra = {}) {
-  return { id: "acc-test", playerIds: [], cardMods: {}, gold: 0, lastDailyDraw: null, ...extra };
+  return { id: "acc-test", playerIds: [], cardMods: {}, gold: 0, ...extra };
 }
 
 /** First rng value skips the 20% coach roll; the rest just needs to be stable. */
@@ -39,7 +38,7 @@ function scripted(...values) {
 
 test("a brand-new card joins the binder with its own 成色 roll", () => {
   const acc = account();
-  const result = performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
+  const result = drawOneCard(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
   assert.equal(result.outcome, "new");
   assert.deepEqual(acc.playerIds, ["jokic-2020"]);
   assert.ok(acc.cardMods["jokic-2020"].roll > 0);
@@ -48,7 +47,7 @@ test("a brand-new card joins the binder with its own 成色 roll", () => {
 
 test("same season card → ★+1, no random skill, and a whole-roll 成色 choice", () => {
   const acc = account({ playerIds: ["jokic-2020"], cardMods: { "jokic-2020": { merges: 0, skills: [], roll: 77 } } });
-  const result = performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
+  const result = drawOneCard(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
   assert.equal(result.outcome, "starUp");
   assert.equal(result.stars, 1);
   assert.deepEqual(acc.cardMods["jokic-2020"].skills, []);
@@ -62,14 +61,14 @@ test("same season card → ★+1, no random skill, and a whole-roll 成色 choic
 
 test("taking the new 成色 swaps the whole roll", () => {
   const acc = account({ playerIds: ["jokic-2020"], cardMods: { "jokic-2020": { merges: 1, skills: [], roll: 77 } } });
-  const result = performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
+  const result = drawOneCard(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
   resolvePendingRoll(acc, true);
   assert.equal(acc.cardMods["jokic-2020"].roll, result.rollChoice.candidate.seed);
 });
 
 test("same card at ★5 converts into 球魂 instead of stacking", () => {
   const acc = account({ playerIds: ["jokic-2020"], cardMods: { "jokic-2020": { merges: MAX_STARS, skills: [], roll: 5 } } });
-  const result = performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
+  const result = drawOneCard(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
   assert.equal(result.outcome, "soulConvert");
   assert.equal(acc.gacha.souls.jokic, 2);
   assert.equal(acc.cardMods["jokic-2020"].merges, MAX_STARS);
@@ -78,7 +77,7 @@ test("same card at ★5 converts into 球魂 instead of stacking", () => {
 test("same person, other season → new version + 1 球魂", () => {
   const acc = account({ playerIds: ["jokic-2020"], cardMods: { "jokic-2020": { merges: 0, skills: [], roll: 5 } } });
   // 0.5 skips the coach roll, 0.001 rolls the myth band → nearest lower = 2021 (95)
-  const result = performDailyDraw(acc, { pool: [JOKIC_2020, JOKIC_2021], rng: scripted(0.5, 0.001, 0), date: DATE });
+  const result = drawOneCard(acc, { pool: [JOKIC_2020, JOKIC_2021], rng: scripted(0.5, 0.001, 0), date: DATE });
   assert.equal(result.player.id, "jokic-2021");
   assert.equal(result.outcome, "newVersion");
   assert.deepEqual(acc.playerIds, ["jokic-2020", "jokic-2021"]);
@@ -92,14 +91,16 @@ test("球魂 buy ★ on any card of that person", () => {
   assert.throws(() => starUpWithSouls(acc, "jokic-2021", { pool: [JOKIC_2021] }), /球魂不足/);
 });
 
-test("after the free pull, extra pulls cost gold and are capped", () => {
+test("no gold-draw path remains: drawOneCard is payment-free and the old pay API is gone", async () => {
   const acc = account({ gold: 1000 });
-  performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
-  assert.equal(drawAvailability(acc, todayKey(DATE)).free, false);
-  const paid = performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
-  assert.equal(paid.paidGold, 200);
-  performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
-  assert.throws(() => performDailyDraw(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE }), /金币也不够/);
+  const result = drawOneCard(acc, { pool: [JOKIC_2020], rng: playerRng, date: DATE });
+  assert.equal(acc.gold, 1000, "a draw never deducts gold now");
+  assert.equal(result.paidGold, 0);
+  assert.equal(result.usedTicket, false);
+  const ns = await import("../js/data/accountGacha.js");
+  assert.equal("drawAvailability" in ns, false);
+  assert.equal("performDailyDraw" in ns, false);
+  assert.equal("payForPull" in ns, false);
 });
 
 test("crafting only works for the wishlist person and costs gold", () => {
@@ -123,7 +124,7 @@ test("one real person per roster: keep the best copy", () => {
 
 test("a coach draw advances the draw count (counters are inert telemetry since pity was removed)", () => {
   const acc = account({ gacha: { sinceAllstar: 2, sinceLegend: 5, pulls: 9, hadAllstar: true, souls: {} } });
-  const result = performDailyDraw(acc, { pool: [JOKIC_2020], rng: () => 0.01, date: DATE }); // 0.01 < 20% → coach
+  const result = drawOneCard(acc, { pool: [JOKIC_2020], rng: () => 0.01, date: DATE }); // 0.01 < 20% → coach
   assert.equal(result.kind, "coach");
   assert.equal(acc.gacha.sinceAllstar, 3);
   assert.equal(acc.gacha.sinceLegend, 6);
@@ -133,7 +134,7 @@ test("a coach draw advances the draw count (counters are inert telemetry since p
 test("with no pity shield, a coach roll can hit on any pull", () => {
   const star = card("star-2015", 92);
   const acc = account({ gacha: { sinceAllstar: 9, sinceLegend: 9, pulls: 30, hadAllstar: true, souls: {} } });
-  const result = performDailyDraw(acc, { pool: [star], rng: () => 0.01, date: DATE });
+  const result = drawOneCard(acc, { pool: [star], rng: () => 0.01, date: DATE });
   assert.equal(result.kind, "coach");
 });
 
@@ -143,8 +144,7 @@ test("no newbie guarantee: five straight coach rolls stay coaches, no forced 85+
   const acc = account({ gold: 5000 });
   let last;
   for (let i = 0; i < 5; i++) {
-    acc.lastDailyDraw = null; // a fresh free pull each time
-    last = performDailyDraw(acc, { pool: [star, filler], rng: () => 0.01, date: new Date(2026, 9, 21 + i) });
+    last = drawOneCard(acc, { pool: [star, filler], rng: () => 0.01, date: new Date(2026, 9, 21 + i) });
     assert.equal(last.kind, "coach", `pull ${i + 1} must be a coach, not a pity player`);
   }
   assert.equal(acc.playerIds.length, 0, "no player was forced in");

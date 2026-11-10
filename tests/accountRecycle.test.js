@@ -18,7 +18,7 @@ const {
   recycleCards,
   recycleValue,
 } = await import("../js/data/accountRecycle.js");
-const { performDailyDraw } = await import("../js/data/accountGacha.js");
+const { drawOneCard } = await import("../js/data/accountGacha.js");
 const { resolvePlayers } = await import("../js/data/account.js");
 
 /** First seed that rolls the wanted grade (deterministic scan). */
@@ -151,11 +151,10 @@ test("not enough fragments → refuse, nothing spent", () => {
 
 test("a full binder blocks pulls before any gold is spent", () => {
   const ids = Array.from({ length: MAX_CARDS }, (_, i) => `x${i}-2000`);
-  const acc = account({ playerIds: ids, gold: 500, lastDailyDraw: "2000-01-01" });
+  const acc = account({ playerIds: ids, gold: 500 });
   assert.equal(cardRoom(acc), 0);
-  assert.throws(() => performDailyDraw(acc, { pool: POOL, rng: () => 0.5 }), /卡库已满/);
+  assert.throws(() => drawOneCard(acc, { pool: POOL, rng: () => 0.5 }), /卡库已满/);
   assert.equal(acc.gold, 500);
-  assert.equal(acc.lastDailyDraw, "2000-01-01", "free pull not consumed");
 });
 
 test("图鉴 counts people ever owned, including recycled ones", () => {

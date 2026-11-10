@@ -1,7 +1,9 @@
 /**
- * Account-side gacha flow: daily / gold pulls, duplicate handling by real
+ * Account-side gacha flow: the daily draw, duplicate handling by real
  * person, 成色 choice, souls, wishlist and crafting. Rules live in gacha.js;
- * this module only applies them to a stored account.
+ * this module only applies them to a stored account. The daily draw is
+ * claimed through dailyTasks.js (one regular card a day, earned by tasks
+ * or a banked ticket); this module only performs the pull itself.
  *
  * Duplicate rules:
  *  - Same season card  → ★+1 (all attrs +1, max ★5) and a 成色 choice:
@@ -22,22 +24,18 @@ import {
   applyCardMods,
   resolvePlayers,
   saveAccount,
-  todayKey,
   weightedPick,
 } from "./account.js";
 import { compareRolls, legacyRollSeed, newRollSeed } from "./cardRoll.js";
 import { MAX_CARDS, buyableSkills, cardRoom } from "./accountRecycle.js";
 import {
-  EXTRA_DRAW,
   MAX_STARS,
   SOULS_PER_STAR,
   craftCost,
   currentBanners,
-  extraDrawsLeft,
   freshGachaState,
   goldForPull,
   pullCard,
-  recordExtraDraw,
   registerNonPlayerPull,
 } from "./gacha.js";
 
@@ -93,36 +91,6 @@ function pushHistory(account, entry) {
   account.drawHistory = [...(account.drawHistory || []).slice(-(HISTORY_KEEP - 1)), entry];
 }
 
-export function drawAvailability(account, today = todayKey()) {
-  if (!account) return { free: false, tickets: 0, extraLeft: 0, cost: EXTRA_DRAW.cost, canPay: false, any: false };
-  const free = account.lastDailyDraw !== today;
-  const tickets = account.tickets || 0;
-  const extraLeft = extraDrawsLeft(account.gacha, today);
-  const canPay = extraLeft > 0 && (account.gold || 0) >= EXTRA_DRAW.cost;
-  return { free, tickets, extraLeft, cost: EXTRA_DRAW.cost, canPay, any: free || tickets > 0 || canPay };
-}
-
-export function canDailyDraw(account) {
-  return drawAvailability(account).any;
-}
-
-/** Spend today's free pull, then an 抽卡券, then gold. Throws when none is available. */
-function payForPull(account, today) {
-  const availability = drawAvailability(account, today);
-  if (availability.free) {
-    account.lastDailyDraw = today;
-    return { paidGold: 0, usedTicket: false };
-  }
-  if (availability.tickets > 0) {
-    account.tickets -= 1;
-    return { paidGold: 0, usedTicket: true };
-  }
-  if (!availability.canPay) throw new Error("今日免费抽卡和抽卡券都用完了，金币也不够加抽");
-  account.gold -= EXTRA_DRAW.cost;
-  account.gacha = recordExtraDraw(gachaOf(account), today);
-  return { paidGold: EXTRA_DRAW.cost, usedTicket: false };
-}
-
 function drawCoach(account, paid) {
   account.coachIds = account.coachIds || [];
   const coach = weightedPick(COACHES, (c) => coachDrawWeight(c));
@@ -139,7 +107,7 @@ function drawCoach(account, paid) {
   }
   pushHistory(account, { kind: "coach", id: coach.id, at: Date.now(), duplicate, rarity });
   saveAccount(account);
-  return { kind: "coach", coach: structuredClone(coach), duplicate, goldGain, rarity, ...paid };
+  return { kind: "coach", coach: structuredClone(coach), duplicate, goldGain, rarity, paidGold: paid.paidGold || 0, usedTicket: !!paid.usedTicket, ...paid };
 }
 
 /**
@@ -178,15 +146,18 @@ function applyPlayerPull(account, player, rng, pool) {
 }
 
 /**
- * One pull (free daily first, then gold). Options:
- *  bannerId — one of currentBanners(date) ids (default 全历史常驻池)
- *  rng / pool / date — injectable for tests.
+ * One card pull with no payment attached: the caller (the daily-draw claim
+ * in dailyTasks.js) decides how the pull is earned — 2-of-3 daily tasks, or
+ * one banked ticket. ~20% of draws are coach cards (no pity shield anymore
+ * — pity is gone); that share stays, because this is the only source of
+ * non-starter coach cards. `paid` ({ usedTicket, paidGold }) is only echoed
+ * into the reveal payload so the UI can say what the pull cost.
+ * Options: bannerId — one of currentBanners(date) ids (default 全历史常驻池);
+ * rng / pool / date — injectable for tests.
  */
-export function performDailyDraw(account, { bannerId = "standard", rng = Math.random, pool = PLAYERS, date = new Date() } = {}) {
+export function drawOneCard(account, { bannerId = "standard", rng = Math.random, pool = PLAYERS, date = new Date(), paid = {} } = {}) {
   if (!account) throw new Error("无账号");
-  if (cardRoom(account) <= 0) throw new Error(`卡库已满（${MAX_CARDS} 张）——先去「我的球员卡」分解一些`);
-  const paid = payForPull(account, todayKey(date));
-  // ~20% of draws are coach cards (no pity shield anymore — pity is gone).
+  if (cardRoom(account) <= 0) throw new Error("卡库已满：请先去分解卡牌腾出空间。");
   const state = gachaOf(account);
   if (rng() < COACH_SHARE) {
     account.gacha = registerNonPlayerPull(state);
@@ -220,6 +191,8 @@ export function performDailyDraw(account, { bannerId = "standard", rng = Math.ra
     wishHit: pull.wishHit,
     poolBand: pull.relative ? pull.band.label : null,
     rollChoice,
+    paidGold: paid.paidGold || 0,
+    usedTicket: !!paid.usedTicket,
     ...paid,
   };
 }

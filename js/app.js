@@ -18,12 +18,9 @@ import {
   setAccountTactic,
 } from "./data/account.js";
 import {
-  canDailyDraw,
   craftWishCard,
-  drawAvailability,
   drawStarterFive,
   pendingRollChoice,
-  performDailyDraw,
   resolvePendingRoll,
   setWishlist,
   starUpWithSouls,
@@ -37,7 +34,7 @@ import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChalle
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
-import { grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
+import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
 import { XP_TABLE, awardAccountXp, levelTitle, madePlayoffs, recordDailyLogin } from "./data/accountLevel.js";
 import {
@@ -2402,19 +2399,19 @@ function refreshAccountHomeBar() {
   if (switchBtn) switchBtn.textContent = L("切换账号", "Switch Account");
   const n = acc.playerIds?.length || 0;
   const coach = resolveCoach(acc.coachId);
-  const dailyOk = canDailyDraw(acc);
+  const dailyOk = canClaimDailyDraw(acc);
   if (chip) chip.textContent = acc.name;
   if (nameEl) nameEl.textContent = getLang() === "en" ? `${acc.name} · ${n} cards` : `${acc.name} · ${n} 张卡`;
   if (metaEl) {
     metaEl.textContent = acc.onboardingDone
       ? getLang() === "en"
-        ? `Coach ${coach ? `${coachName(coach, "en")} (${coachRecordLabel(coach, "en")})` : "TBD"} · Ranked ${acc.rankedWins || 0}W-${acc.rankedLosses || 0}L · ${dailyOk ? "Daily draw available" : "Drawn today"}`
-        : `教练 ${coach ? `${coach.name}（${coachRecordLabel(coach)}）` : "未定"} · 排位 ${acc.rankedWins || 0}胜${acc.rankedLosses || 0}负 · ${dailyOk ? "今日可抽卡" : "今日已抽"}`
+        ? `Coach ${coach ? `${coachName(coach, "en")} (${coachRecordLabel(coach, "en")})` : "TBD"} · Ranked ${acc.rankedWins || 0}W-${acc.rankedLosses || 0}L · ${dailyOk ? "Daily card available" : "Claimed today"}`
+        : `教练 ${coach ? `${coach.name}（${coachRecordLabel(coach)}）` : "未定"} · 排位 ${acc.rankedWins || 0}胜${acc.rankedLosses || 0}负 · ${dailyOk ? "今日球员卡可领" : "今日已领"}`
       : L("请先完成开局：抽 5 张开局卡 → 选教练 + 战术", "Finish setup first: draw your opening 5 → pick a coach + tactics");
   }
   if (drawBtn) {
     drawBtn.disabled = !acc.onboardingDone;
-    drawBtn.textContent = dailyOk ? "每日抽卡" : "抽卡 · 心愿单";
+    drawBtn.textContent = dailyOk ? "领取今日球员卡" : "抽卡 · 心愿单";
   }
 }
 
@@ -2788,7 +2785,7 @@ function openCollection() {
       <span>收藏 ${players.length} 张</span>
       <span>排位 ${acc.rankedWins || 0}-${acc.rankedLosses || 0}</span>
       <span>金币 ¤${acc.gold || 0}</span>
-      <span>${canDailyDraw(acc) ? "今日可抽" : "今日已抽"}</span>`;
+      <span>${canClaimDailyDraw(acc) ? "今日球员卡可领" : "今日已领"}</span>`;
   }
   const staff = $("#collection-staff");
   if (staff) {
@@ -2876,7 +2873,7 @@ function openCollection() {
   const drawBtn = $("#btn-collection-draw");
   if (drawBtn) {
     drawBtn.disabled = false;
-    drawBtn.textContent = canDailyDraw(acc) ? "去抽卡" : "抽卡 / 心愿单";
+    drawBtn.textContent = canClaimDailyDraw(acc) ? "去领今日球员卡" : "抽卡 / 心愿单";
   }
   show("collection");
 }
@@ -2960,26 +2957,27 @@ const drawView = () => ({ esc, photoImg, skillChipsHtml, ovrOf: overall });
 let drawBannerId = "standard";
 
 function renderDrawStatus(acc) {
-  const availability = drawAvailability(acc);
+  const state = dailyDrawState(acc);
   const wish = acc.gacha?.wishlist;
   const wishName = wish ? PLAYERS.find((p) => p.bref === wish)?.name : null;
-  $("#draw-status").innerHTML = drawStatusHtml(acc, availability, wishName, esc, getLang());
+  $("#draw-status").innerHTML = drawStatusHtml(acc, state, wishName, esc, getLang());
   $("#draw-tasks").innerHTML = tasksHtml(taskBoard(acc, undefined, getLang()));
   const pull = $("#btn-draw-pull");
   if (!pull) return;
   const full = cardRoom(acc) <= 0;
-  pull.disabled = !availability.any || !!acc.pendingRoll || full;
+  const remaining = Math.max(0, state.needed - state.tasksDone);
+  pull.disabled = !state.canClaim || !!acc.pendingRoll || full;
   pull.textContent = acc.pendingRoll
     ? "先选择成色"
     : full
       ? "卡库已满 · 先去分解"
-      : availability.free
-        ? "免费抽卡"
-        : availability.tickets > 0
-          ? `用抽卡券（剩 ${availability.tickets}）`
-          : availability.canPay
-            ? `金币加抽（¤${availability.cost}）`
-            : "今日次数用完 · 打排位赚抽卡券";
+      : state.claimed
+        ? "今日球员卡已领取"
+        : state.payWith === "tasks"
+          ? "领取今日球员卡"
+          : state.payWith === "ticket"
+            ? `用抽卡券领取（剩 ${state.tickets} 张）`
+            : `再完成 ${remaining} 项任务可领取`;
 }
 
 function renderWishPanel(acc) {
@@ -3076,9 +3074,9 @@ $("#wish-search-clear")?.addEventListener("click", () => {
 
 $("#btn-draw-pull")?.addEventListener("click", () => {
   const acc = activeAccount();
-  if (!acc || !canDailyDraw(acc) || acc.pendingRoll || cardRoom(acc) <= 0) return;
+  if (!acc || !canClaimDailyDraw(acc) || acc.pendingRoll || cardRoom(acc) <= 0) return;
   try {
-    const result = performDailyDraw(acc, { bannerId: drawBannerId });
+    const result = claimDailyDraw(acc, { bannerId: drawBannerId });
     $("#draw-stage").innerHTML = drawRevealHtml(result, drawView());
     audio.reveal(result);
     renderDrawStatus(acc);
@@ -10684,7 +10682,7 @@ function renderSeasonPlayoffs() {
           .join("\n")
       : L("本队本轮成长/涨薪幅度不大。", "Your team didn't grow or get much pricier this round.");
     if (!saveSeasonAndCareer(state.season)) return;
-    const challengeNote = challengeGrant ? L(`\n\n🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}`, `\n\n🎫 Daily challenge done! Draw tickets +${challengeGrant.tickets}`) : "";
+    const challengeNote = challengeGrant ? `\n\n${grantNote(challengeGrant, getLang())}` : "";
     alert(L(`已进入 ${res.year} 赛季。\n\n我方续约亮点：\n${tip}${challengeNote}`, `Entered the ${res.year} season.\n\nYour renewal highlights:\n${tip}${challengeNote}`));
     renderSeasonHub();
     showSeasonTab("standings");
@@ -11862,7 +11860,7 @@ function handleRankedResult(youWin, snap) {
   const axp = awardAccountXp(acc, XP_TABLE.ranked, { source: "ranked" });
   const progress = [
     ...notes.map(progressNoteText),
-    ...tickets.map((g) => `🎫 ${g.label}，抽卡券 +${g.tickets}`),
+    ...tickets.map((g) => grantNote(g, getLang())),
     axp.gained ? `🎖️ ${L(`账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}` : "",
   ].filter(Boolean).join(" ");
   celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
@@ -11913,10 +11911,10 @@ function handleCareerResult(youWin, snap) {
   const kind = match?.kind ? kindLabel(match.kind) : "对决";
   const wasFinals = !!(c.finals || c.stageSize === 2);
   const result = resolveCareerYourResult(youWin, opp);
-  // 每日任务：三项全完成才 +1 抽卡券（见 DAILY_TASKS）；奖励说明并进 injLine，各分支结算文案都会带上。
+  // 每日任务：任意 2 项完成即解锁今日球员卡（见 DAILY_TASKS）；奖励说明并进 injLine，各分支结算文案都会带上。
   const taskGrants = recordCareerTasks(activeAccount(), youWin, undefined, getLang());
   const taskNote = taskGrants.length
-    ? ` 🎫 每日任务达成：${taskGrants.map((g) => g.label).join("、")}，抽卡券 +${taskGrants.reduce((s, g) => s + g.tickets, 0)}。`
+    ? ` ${taskGrants.map((g) => grantNote(g, getLang())).join(" ")}`
     : "";
   const injLine = (injuryNotes.length ? `伤病快报：${injuryNotes.slice(0, 3).join("；")}` : "全员健康。") + taskNote;
   const losses = c.losses?.you || 0;
@@ -11925,7 +11923,7 @@ function handleCareerResult(youWin, snap) {
     const reward = 400 + (c.round || 1) * 100;
     c.gold += reward;
     const challengeGrant = recordChallengeProgress(activeAccount(), "goldChampion");
-    const challengeNote = challengeGrant ? ` 🎫 今日挑战达成！抽卡券 +${challengeGrant.tickets}` : "";
+    const challengeNote = challengeGrant ? ` ${grantNote(challengeGrant, getLang())}` : "";
     const tierId = c.challengeTier || (c.fromCustom ? "custom" : "gold");
     const tier = challengeTierMeta(tierId === "custom" ? "gold" : tierId);
     const canLadder =

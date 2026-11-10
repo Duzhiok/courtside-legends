@@ -25,7 +25,6 @@ export const RATE_TABLE = [
 /** Chance that a pull landing in a band holding a wishlist card becomes it. */
 export const WISHLIST_REDIRECT = 0.3;
 
-export const EXTRA_DRAW = { cost: 200, perDay: 2 };
 export const MAX_STARS = 5;
 export const SOULS_PER_STAR = 3;
 
@@ -239,17 +238,6 @@ export function goldForPull(ovr) {
 
 export function craftCost(ovr) {
   return CRAFT_COST[bandOf(ovr).id];
-}
-
-/** Extra paid-with-gold draws left today. */
-export function extraDrawsLeft(gacha, todayKey) {
-  const used = gacha?.extra?.day === todayKey ? gacha.extra.count : 0;
-  return Math.max(0, EXTRA_DRAW.perDay - used);
-}
-
-export function recordExtraDraw(gacha, todayKey) {
-  const used = gacha?.extra?.day === todayKey ? gacha.extra.count : 0;
-  return { ...gacha, extra: { day: todayKey, count: used + 1 } };
 }
 
 /** What a player wants to know before choosing a banner: size, best cards, wished person. */

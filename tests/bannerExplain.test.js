@@ -88,21 +88,22 @@ test("names are escaped and the picker shows size + rotation per banner", () => 
   assert.equal(bannerExplainHtml(ERA, null, {}, esc), "");
 });
 
-import { EXTRA_DRAW } from "../js/data/gacha.js";
-import { MILESTONE_WINS, WELCOME_TICKETS } from "../js/data/dailyTasks.js";
+import { CHALLENGE_XP, DAILY_DRAW_TASKS_NEEDED, MILESTONE_GOLD, MILESTONE_WINS, WELCOME_TICKETS } from "../js/data/dailyTasks.js";
 import { drawRulesHtml } from "../js/ui/gachaView.js";
 
 test("rules copy is built from the real constants (cannot drift from the code)", () => {
   const html = drawRulesHtml().replace(/<[^>]+>/g, "");
-  assert.match(html, new RegExp(`¤${EXTRA_DRAW.cost}/次，每天最多 ${EXTRA_DRAW.perDay} 次`));
+  assert.match(html, /每天最多 1 张/);
+  assert.match(html, new RegExp(`任意 ${DAILY_DRAW_TASKS_NEEDED} 项`));
   assert.match(html, new RegExp(`新手礼包 ${WELCOME_TICKETS} 张`));
-  assert.match(html, new RegExp(`每 ${MILESTONE_WINS} 胜 \\+1`));
-  assert.match(html, /三项全完成 \+1/);
+  assert.match(html, new RegExp(`每 ${MILESTONE_WINS} 胜 \\+¤${MILESTONE_GOLD} 金币`));
+  assert.match(html, new RegExp(`今日挑战 \\+${CHALLENGE_XP} 账号经验`));
   assert.match(html, /无保底——每次抽卡都是按这个概率纯随机/);
   assert.doesNotMatch(html, /必出/);
   assert.match(html, /抽卡券/);
   assert.doesNotMatch(html, /教练卡也算一抽/);
   assert.doesNotMatch(html, /每天免费 1 抽，之后可用金币加抽/, "the stale pre-ticket copy is gone");
+  assert.match(html, /没有金币加抽/, "the rules say the coin extra draw is gone");
 });
 
 test("large numbers are formatted the same way in the picker and the panel", () => {
