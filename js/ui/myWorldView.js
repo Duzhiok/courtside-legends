@@ -250,7 +250,9 @@ export function architectTitlesHtml(architect, lang) {
   const earned = Array.isArray(architect.earned) ? architect.earned : [];
   const head = `<p class="mw-line tiny"><strong>${T(lang, "建筑师称号", "Architect Titles")}</strong></p>`;
   if (earned.length) {
-    return `${head}<ul class="mw-trophies">${earned.map((t) => `<li>👑 ${esc(lang === "en" ? t.en : t.zh)}</li>`).join("")}</ul>`;
+    // Earned titles open the Legacy Museum (the career legacy detail view);
+    // locked/progress state has nothing to show, so it stays plain text.
+    return `${head}<ul class="mw-trophies">${earned.map((t) => `<li class="mw-title-item"><button type="button" class="mw-title-btn" data-mw-action="open-legacy-museum" data-title="${esc(t.id)}" title="${esc(T(lang, "查看生涯传承", "View career legacy"))}">👑 ${esc(lang === "en" ? t.en : t.zh)}</button></li>`).join("")}</ul>`;
   }
   const p = architect.progress || {};
   const mark = (done) => (done ? "✓" : "○");

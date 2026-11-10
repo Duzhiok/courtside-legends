@@ -37,6 +37,7 @@ export function createMyWorld({
   onOpenCollection,
   onOpenAccounts,
   onOpenShop, // (category) => open the Gold Lifestyle Shop dialog at a category
+  onOpenLegacyMuseum, // (titleId) => open the Legacy Museum, highlighting that title
   onStartCareer,
   onIdentitySaved = () => {},
   onPortraitChanged = () => {}, // the home bar shows the same picture; it is updated without re-rendering this screen
@@ -395,6 +396,8 @@ export function createMyWorld({
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),
     "open-shop": (btn) => onOpenShop?.(btn?.dataset?.shopCategory || "home"),
+    /** Earned Architect titles open the Legacy Museum (the tapped title's section is highlighted). */
+    "open-legacy-museum": (btn) => onOpenLegacyMuseum?.(btn?.dataset?.title || null),
   };
 
   el.addEventListener("click", (event) => {

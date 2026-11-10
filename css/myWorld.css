@@ -51,6 +51,20 @@
 #mw-games-status { color: #1d5a3b; }
 .mw-trophies { margin: 0 0 6px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
 .mw-trophies li { padding: 2px 10px; border-radius: 999px; background: #fbf3dc; border: 1px solid #ecd9a0; color: #4a3a0d; font-size: 0.85rem; }
+/* Earned Architect titles are buttons into the Legacy Museum; the pill keeps the honours-wall look. */
+.mw-trophies li.mw-title-item { padding: 0; background: none; border: none; }
+.mw-title-btn { padding: 2px 10px; border-radius: 999px; background: #fbf3dc; border: 1px solid #ecd9a0; color: #4a3a0d; font: inherit; font-size: 0.85rem; cursor: pointer; }
+.mw-title-btn:hover { background: #f6e7bd; border-color: #d6b25a; }
+.mw-title-btn:focus-visible { outline: 3px solid #b7791f; outline-offset: 2px; }
+
+/* Legacy Museum (篮球人生博物馆): the detail view behind the honours wall. */
+.lm-museum { max-width: 720px; margin: 0 auto; padding: 4px 16px 32px; display: grid; gap: 12px; }
+.lm-museum h2 { margin: 0; color: #163a29; }
+.lm-museum section { padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid #dbe5dd; box-shadow: 0 2px 8px rgba(22, 58, 41, 0.06); }
+.lm-museum section h3 { margin: 0 0 6px; color: #163a29; }
+.lm-museum section.is-selected { border-color: #d6b25a; box-shadow: 0 0 0 2px #f3d58a; }
+.lm-museum ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: #24352b; }
+.lm-museum .tiny { font-size: 0.82rem; }
 
 /* My Home: illustrated room with real data on top */
 /* Wall / wainscot / floor bands repeat the art's own so a wide room extends seamlessly past the 600px stage. */
