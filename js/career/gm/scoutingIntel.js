@@ -349,6 +349,32 @@ export function buildGamble({ players = PLAYERS, seed = GAMBLE_SEED_DEFAULT } = 
   return { prospects, hiddenByBref, reports, roster, draft, season };
 }
 
+/**
+ * Convert a finished gamble pick into workstream F's scouting-decision
+ * input ({ bref, confidence, source }) for businessScenario's
+ * resolveScoutingDecision / makeScoutingDecision — the executive
+ * scenario's step-3 draft decision, played through C's draft gamble.
+ * Confidence is the scouts' agreement on the pick's potential band: all
+ * three agree 0.8, two agree 0.6, all disagree 0.35; no reports at all
+ * 0.5 (F's default). Throws on a missing or forfeited selection — never
+ * draft a ghost, and a forfeited slot has no player to carry over.
+ */
+export function gambleDraftDecision(gamble, { pickNumber = null, bref = null } = {}) {
+  const selections = gamble?.draft?.selections || [];
+  const sel = pickNumber != null
+    ? selections.find((s) => s.pickNumber === pickNumber)
+    : selections.find((s) => s.bref === bref);
+  if (!sel || sel.forfeited || !sel.bref) {
+    throw new Error(`no completed gamble selection for ${pickNumber != null ? `pick #${pickNumber}` : `bref ${bref}`}`);
+  }
+  const reports = gamble?.reports?.[sel.bref] || [];
+  const counts = {};
+  for (const r of reports) counts[r.band] = (counts[r.band] || 0) + 1;
+  const best = Math.max(0, ...Object.values(counts));
+  const confidence = !reports.length ? 0.5 : best >= 3 ? 0.8 : best === 2 ? 0.6 : 0.35;
+  return { bref: sel.bref, confidence, source: "draft-gamble" };
+}
+
 // ---------------------------------------------------------------------------
 // Three-year projection (labelled 推演 — not GameSim results)
 // ---------------------------------------------------------------------------

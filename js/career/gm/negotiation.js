@@ -15,6 +15,16 @@
  * next time. Multi-round offers (max 3) end in accept, counter or a
  * broken-off negotiation.
  *
+ * [Career 2.0 integration] The demand also reads workstream E's
+ * negotiation standing: evaluateOffer / negotiateRound accept an optional
+ * `standing` (-2..+2, the `.modifier` from
+ * careerRelationships.negotiationStanding(account, partyId)) — a party you
+ * kept faith with deals easier, one you burned charges more. The caller
+ * reads the relationship layer; this module stays pure and takes only the
+ * number, so no import cycle. The draft-gamble view does not pass it yet
+ * (it has no account in hand) — the read lands when the gamble runs
+ * inside a career context.
+ *
  * Pure functions, seeded counters only — no Math.random, no sim.js. Trades
  * in the draft-gamble slice move pick ownership in scenario state; this
  * module evaluates, it does not execute the engine's executeTrade.
@@ -27,6 +37,22 @@ import { clamp, hashSeed, seededStream } from "../../core/seededRandom.js";
 /** Value above replacement: what one OVR-equivalent point is worth. */
 export const REPLACEMENT_OVR = 60;
 export const MAX_ROUNDS = 3;
+
+/** E's standing shifts demand 5% per point, capped at ±10% — the same
+ * 5%-per-point shape as goodwillModifier, so the two relationship
+ * effects compose instead of one swamping the other. */
+export const NEGOTIATION_STANDING_STEP = 0.05;
+export const NEGOTIATION_STANDING_CAP = 2;
+
+export function clampStanding(standing) {
+  const s = Number(standing);
+  if (!Number.isFinite(s)) return 0;
+  return Math.max(-NEGOTIATION_STANDING_CAP, Math.min(NEGOTIATION_STANDING_CAP, s));
+}
+
+export function standingModifier(standing) {
+  return 1 - clampStanding(standing) * NEGOTIATION_STANDING_STEP;
+}
 
 export const GM_PERSONAS = [
   {
@@ -191,11 +217,13 @@ function round1(n) {
  * `ledger` is the relationship ledger ({ [gmId]: { goodwill } }); a burned
  * GM demands more — see goodwillModifier.
  */
-export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, currentYear = 1996, seed = "draft-gamble-1996", lang = "zh" } = {}) {
+export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, standing = 0, currentYear = 1996, seed = "draft-gamble-1996", lang = "zh" } = {}) {
   const en = lang === "en";
   const valueIn = valueOfSide(give, persona, currentYear);
   const valueOut = valueOfSide(ask, persona, currentYear);
-  const demand = round1(valueOut.total * persona.margin * goodwillModifier(ledger, gmId));
+  const standingValue = clampStanding(standing);
+  const standingMult = standingModifier(standingValue);
+  const demand = round1(valueOut.total * persona.margin * goodwillModifier(ledger, gmId) * standingMult);
   const salaryIn = salaryOfSide(give);
   const salaryOut = salaryOfSide(ask);
   const salaryOk = salaryIn <= salaryOut * persona.salaryRatio + 40 || salaryOut === 0;
@@ -209,6 +237,8 @@ export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, cu
       valueIn: valueIn.total,
       valueOut: valueOut.total,
       demand,
+      standing: standingValue,
+      standingModifier: standingMult,
       counter: null,
     };
   }
@@ -222,6 +252,8 @@ export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, cu
       valueIn: valueIn.total,
       valueOut: valueOut.total,
       demand,
+      standing: standingValue,
+      standingModifier: standingMult,
       counter: null,
       lopsided,
     };
@@ -237,6 +269,8 @@ export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, cu
       valueIn: valueIn.total,
       valueOut: valueOut.total,
       demand,
+      standing: standingValue,
+      standingModifier: standingMult,
       counter: sweetener,
     };
   }
@@ -248,6 +282,8 @@ export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, cu
     valueIn: valueIn.total,
     valueOut: valueOut.total,
     demand,
+    standing: standingValue,
+    standingModifier: standingMult,
     counter: null,
   };
 }
@@ -316,7 +352,7 @@ export function startNegotiation({ gmId, personaId, seed = "draft-gamble-1996" }
  * state; the caller applies the accepted terms (pick ownership moves in
  * scenario state) and records the outcome in the ledger.
  */
-export function negotiateRound(state, action, { ledger = {}, currentYear = 1996, lang = "zh" } = {}) {
+export function negotiateRound(state, action, { ledger = {}, standing = 0, currentYear = 1996, lang = "zh" } = {}) {
   if (!state || state.status !== "open") return state;
   const persona = personaById(state.personaId);
   if (!persona) throw new Error(`unknown persona "${state.personaId}"`);
@@ -337,6 +373,7 @@ export function negotiateRound(state, action, { ledger = {}, currentYear = 1996,
     persona,
     ledger,
     gmId: state.gmId,
+    standing,
     currentYear,
     seed: state.seed,
     lang,

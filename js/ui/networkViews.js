@@ -23,7 +23,7 @@ import {
 } from "../career/network/scoutCareer.js";
 import {
   collectPossessionLog, buildTeamFromRows, buildFilmChallenge,
-  gradeFilmAnswer, filmRecommendation,
+  gradeFilmAnswer, filmRecommendation, fileFilmRecommendation,
 } from "../career/network/videoAnalyst.js";
 import {
   buildAnalyticsChallenge, gradeAnalyticsAnswer, findUndervalued,
@@ -244,6 +244,10 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
       btn.addEventListener("click", () => {
         const grade = gradeFilmAnswer(challenge, btn.dataset.filmOpt);
         const rec = filmRecommendation(challenge, btn.dataset.filmOpt);
+        // [Career 2.0 integration] File it so the coach challenge can
+        // actually read it this session — the "filed to the head coach"
+        // line below is now backed by the handoff, not just words.
+        fileFilmRecommendation(rec);
         body.querySelector("#film-result").innerHTML = `<div class="nw-reveal"><p>${grade.explanationZh}</p>
           <p class="tiny">${L("已提交给主教练的建议", "Recommendation filed to the head coach", lang())}: ${rec.suggestionZh}（${L("可信度", "confidence", lang)}: ${rec.confidence}）</p>
           <p class="tiny">${L("声望变化", "Reputation", lang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;

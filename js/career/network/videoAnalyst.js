@@ -435,6 +435,67 @@ export function filmRecommendation(challenge, optionId, { lang = "zh" } = {}) {
   };
 }
 
+/**
+ * Map a film recommendation onto one of the coach challenge's moment
+ * choices (workstream B's `recommend` hook contract: { choiceId, reason,
+ * source } | null). Only the mappings where the film evidence directly
+ * supports the choice are wired — everything else returns null, so the
+ * coach simply gets no suggestion for that moment instead of a
+ * dressed-up guess:
+ *  - opening + cold-shooter → pack_paint: the opponent's shooter is cold,
+ *    concede his looks and protect the rim.
+ *  - opponent_run + scoring-run → timeout_talk: a run is exactly what a
+ *    timeout breaks.
+ *  - late + late-collapse → grind: the opponent fades late; slow the game
+ *    down and make every possession count.
+ *  - late + turnover-prone → push: press the tempo against a loose handle.
+ * A misread report (wasCorrect === false) still maps — the film room can
+ * be wrong and the coach can pay for adopting it — but the reason says
+ * so. The target choice must exist in the moment and not be disabled
+ * (e.g. no timeouts left means no timeout suggestion).
+ */
+const FILM_TO_COACH_CHOICE = {
+  opening: { "cold-shooter": "pack_paint" },
+  opponent_run: { "scoring-run": "timeout_talk" },
+  late: { "late-collapse": "grind", "turnover-prone": "push" },
+};
+
+export function filmRecommendForMoment(recommendation, moment, { lang = "zh" } = {}) {
+  const kind = recommendation?.kind || null;
+  const choiceId = FILM_TO_COACH_CHOICE[moment?.kind || ""]?.[kind] || null;
+  if (!choiceId) return null;
+  const choice = (moment?.choices || []).find((c) => c.id === choiceId);
+  if (!choice || choice.disabled) return null;
+  const suggestion = lang === "en" ? recommendation.suggestionEn : recommendation.suggestionZh;
+  const uncertain = recommendation?.wasCorrect === false;
+  const reason = uncertain
+    ? lang === "en"
+      ? `${suggestion || ""} (film read is uncertain — the biggest weakness may be elsewhere)`
+      : `${suggestion || ""}（录像判断存疑，最大弱点可能在别处，仅供参考）`
+    : suggestion || "";
+  return { choiceId, reason, source: recommendation?.source || "film-room" };
+}
+
+/**
+ * In-session handoff for the film → coach seam: the film view files the
+ * graded recommendation here when it tells the player it was "filed to
+ * the head coach"; the coach challenge view reads it when opening. Same
+ * page session only — the durable transport is the inbox event
+ * (filmReportInboxEvent), not this holder. No save format is touched.
+ */
+let filedFilmRecommendation = null;
+
+export function fileFilmRecommendation(recommendation) {
+  if (!recommendation || typeof recommendation !== "object") return null;
+  if (typeof recommendation.kind !== "string" || typeof recommendation.suggestionZh !== "string") return null;
+  filedFilmRecommendation = { ...recommendation };
+  return filedFilmRecommendation;
+}
+
+export function readFiledFilmRecommendation() {
+  return filedFilmRecommendation ? { ...filedFilmRecommendation } : null;
+}
+
 /** Inbox event shape for workstream A: a film report filed to the head coach. */
 export function filmReportInboxEvent(recommendation, { teamName = "" } = {}) {
   return {

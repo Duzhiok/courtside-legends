@@ -11,6 +11,7 @@ import { L, getLang } from "../i18n.js";
 import { FOCUS_PLAYS, TEMPO_OPTIONS, planLabel } from "../engine/gameplan.js";
 import { createCoachingChallenge } from "../career/coach/coachingChallenge.js";
 import { tacticName } from "../career/coach/tacticalLearning.js";
+import { filmRecommendForMoment, readFiledFilmRecommendation } from "../career/network/videoAnalyst.js";
 
 const CHUNK = 8;
 
@@ -174,7 +175,14 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
       if (typeof show === "function") show("coachTactics");
       return { ok: false, reason: "no_pool" };
     }
-    challenge = createCoachingChallenge({ pool });
+    // [Career 2.0 integration] A film report filed this session (the film
+    // view's "filed to the head coach") feeds the challenge's recommend
+    // hook; without one the challenge simply shows no suggestion.
+    const filed = readFiledFilmRecommendation();
+    challenge = createCoachingChallenge({
+      pool,
+      recommend: filed ? (moment) => filmRecommendForMoment(filed, moment, { lang: getLang() }) : null,
+    });
     const started = challenge.start();
     if (!started.ok) {
       body.innerHTML = `<p>${esc(L("挑战启动失败：", "The challenge failed to start:"))} ${esc(started.reason || "")}</p>`;
