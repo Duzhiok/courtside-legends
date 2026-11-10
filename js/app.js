@@ -8895,6 +8895,11 @@ function syncInjuriesToTeams(sim, homeTeam, awayTeam) {
 function setResultActionMode(mode, { showContinue = false, continuePrimary = false } = {}) {
   const again = $("#btn-again");
   const cont = $("#btn-result-continue");
+  // Season-only extras: every mode shares this screen, so each call starts from "hidden" and the season flow opts in.
+  for (const sel of ["#btn-result-play-next", "#btn-result-sim5", "#btn-result-sim-season"]) {
+    const extra = $(sel);
+    if (extra) extra.hidden = true;
+  }
   again.hidden = false;
   again.textContent = "再来一局";
   cont.hidden = !showContinue;
@@ -11095,7 +11100,7 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
   const again = $("#btn-again");
   if (again) {
     again.hidden = !canKeepSimming;
-    again.classList.toggle("primary", canKeepSimming);
+    again.classList.toggle("primary", false); // 亲自指挥下一场 is the one primary action; simming is the alternative
     if (canKeepSimming) {
       again.textContent = L("模拟下一场", "Sim Next Game");
       again.onclick = () => simSeasonGames(1);
@@ -11105,6 +11110,16 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
   // Scoped to canSimWholeSeason (regular season only), not canKeepSimming: during the playoffs
   // simSeasonGames() ignores its count and sims exactly one game regardless, so a "5 games" button
   // there would be a lie. The regular season is where the count argument actually does five.
+  // 亲自指挥下一场: same entry as the season hub's 亲自指挥 (regular season and your own playoff series), so the
+  // live game, its rotation defaults and its settlement are exactly the same -- this just saves a trip back to the hub.
+  const playBtn = $("#btn-result-play-next");
+  if (playBtn) {
+    playBtn.hidden = !canKeepSimming;
+    if (canKeepSimming) {
+      playBtn.textContent = L("亲自指挥下一场", "Coach Next Game");
+      playBtn.onclick = () => playSeasonUserGame();
+    }
+  }
   const sim5Btn = $("#btn-result-sim5");
   if (sim5Btn) {
     sim5Btn.hidden = !canSimWholeSeason;
@@ -11144,7 +11159,7 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
 async function simRestOfSeason() {
   const st = state.season;
   if (!st || st.phase !== "regular") return;
-  const buttons = ["#btn-result-sim-season", "#btn-result-sim5", "#btn-again", "#btn-result-continue", "#btn-home"]
+  const buttons = ["#btn-result-sim-season", "#btn-result-sim5", "#btn-result-play-next", "#btn-again", "#btn-result-continue", "#btn-home"]
     .map((sel) => $(sel))
     .filter(Boolean);
   for (const b of buttons) b.disabled = true;

@@ -10,7 +10,7 @@ const report = [];
 const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
 const browser = await chromium.launch({ executablePath: EXE });
 
-async function run(width, height, tag) {
+async function run(width, height, tag, { stopAfterPlay = false } = {}) {
   const page = await browser.newPage({ viewport: { width, height } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -59,9 +59,28 @@ async function run(width, height, tag) {
   const simSeasonVisible = await page.$eval("#btn-result-sim-season", (b) => !b.hidden && b.textContent.trim());
   check(`[${tag}] "模拟下一场" button visible on result screen`, simNextVisible === "模拟下一场", simNextVisible);
   check(`[${tag}] "模拟整个赛季" button visible on result screen`, simSeasonVisible === "模拟整个赛季", simSeasonVisible);
+  // 亲自指挥下一场: the result screen must also offer to call the next game yourself, not only sim it.
+  const playNext = await page.$eval("#btn-result-play-next", (b) => ({ shown: !b.hidden, text: b.textContent.trim(), primary: b.classList.contains("primary") }));
+  check(`[${tag}] "亲自指挥下一场" button visible on result screen`, playNext.shown && playNext.text === "亲自指挥下一场", playNext.text);
+  const order = await page.$$eval("#screen-result .actions button:not([hidden])", (bs) => bs.map((b) => b.id));
+  check(`[${tag}] it sits before "模拟下一场" so calling the game is the first choice`, order.indexOf("btn-result-play-next") >= 0 && order.indexOf("btn-result-play-next") < order.indexOf("btn-again"), order.join(","));
+  if (stopAfterPlay) {
+    await page.click("#btn-result-play-next");
+    await page.waitForSelector("#screen-setup.active", { timeout: 10000 });
+    const pending = await page.evaluate(async () => {
+      const raw = JSON.parse(localStorage.getItem("cls_root_v3") || "{}");
+      const st = raw?.leagueCareer?.season || raw?.season;
+      return { played: !!st, hasPending: !!document.querySelector("#screen-setup.active") };
+    });
+    check(`[${tag}] clicking it opens the live-game setup for the NEXT game (same entry as the hub's 亲自指挥)`, pending.hasPending);
+    check(`[${tag}] no page errors after calling the next game`, errors.length === 0, errors.join(" ; "));
+    await page.screenshot({ path: `${OUT}/${tag}-play-next-setup.png` });
+    await page.close();
+    return;
+  }
   const contPrimary = await page.$eval("#btn-result-continue", (b) => b.classList.contains("primary"));
   const nextPrimary = await page.$eval("#btn-again", (b) => b.classList.contains("primary"));
-  check(`[${tag}] continue-sim is primary, hub-return is not`, nextPrimary && !contPrimary, `next=${nextPrimary} cont=${contPrimary}`);
+  check(`[${tag}] exactly one primary action: 亲自指挥下一场 (sim and hub-return are secondary)`, playNext.primary && !nextPrimary && !contPrimary, `play=${playNext.primary} sim=${nextPrimary} cont=${contPrimary}`);
 
   // Click "模拟下一场" and confirm we stay on the result screen with a NEW game -- no forced
   // trip back to the hub just to trigger the next one.
@@ -125,7 +144,9 @@ async function run(width, height, tag) {
   const nextHiddenAfter = await page.$eval("#btn-again", (b) => b.hidden);
   const simSeasonHiddenAfter = await page.$eval("#btn-result-sim-season", (b) => b.hidden);
   const sim5HiddenAfter = await page.$eval("#btn-result-sim5", (b) => b.hidden);
+  const playHiddenAfter = await page.$eval("#btn-result-play-next", (b) => b.hidden);
   check(`[${tag}] sim buttons hide once season is over`, nextHiddenAfter && simSeasonHiddenAfter && sim5HiddenAfter);
+  check(`[${tag}] "亲自指挥下一场" hides too once there is no next game`, playHiddenAfter);
   const contPrimaryAfter = await page.$eval("#btn-result-continue", (b) => b.classList.contains("primary"));
   check(`[${tag}] hub-return becomes primary again once season is over`, contPrimaryAfter);
   const contTextAfter = await page.textContent("#btn-result-continue");
@@ -139,6 +160,8 @@ async function run(width, height, tag) {
   await page.close();
 }
 
+await run(1280, 900, "desktop-play", { stopAfterPlay: true });
+await run(390, 844, "mobile-play", { stopAfterPlay: true });
 await run(1280, 900, "desktop");
 await run(390, 844, "mobile");
 await browser.close();
