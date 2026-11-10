@@ -10,7 +10,7 @@ const { overall } = await import("../js/data/players.js");
 const { resolvePlayers } = await import("../js/data/account.js");
 const { STAR_SKILL_RARITIES, drawOneCard, starUpWithSouls } = await import("../js/data/accountGacha.js");
 const { MAX_STARS, SOULS_PER_STAR } = await import("../js/data/gacha.js");
-const { MAX_BOUGHT_SKILLS, boughtSkillCount, buyableSkills, buySkillWithFragments } = await import("../js/data/accountRecycle.js");
+const { learnableSkills } = await import("../js/data/accountRecycle.js");
 const { soulStarNotice } = await import("../js/ui/gachaView.js");
 
 const DATE = new Date(Date.UTC(2026, 9, 21));
@@ -23,7 +23,7 @@ function account(extra = {}) {
 /** A real mid-tier card that can learn plenty of skills. */
 function realCard() {
   assert.ok(PLAYERS.length > 100, "sample roster loaded");
-  return PLAYERS.find((p) => overall(p) >= 60 && overall(p) < 78 && buyableSkills(resolvePlayers([p.id], null, PLAYERS)[0]).some((s) => STAR_SKILL_RARITIES.has(s.rarity)));
+  return PLAYERS.find((p) => overall(p) >= 60 && overall(p) < 78 && learnableSkills(resolvePlayers([p.id], null, PLAYERS)[0]).some((s) => STAR_SKILL_RARITIES.has(s.rarity)));
 }
 
 /** Owns the card at `stars` ★ with plenty of 球魂 to spend. */
@@ -62,17 +62,17 @@ test("reaching ★5 by DRAWING duplicates gifts nothing (the rule is about 球�
   assert.deepEqual(acc.cardMods[card.id].skills, []);
 });
 
-test("the gift is a skill the card could legally buy, below 传说 / 神话", () => {
+test("the gift is a skill the card could legally learn, below 传说 / 神话", () => {
   for (const card of PLAYERS.filter((p) => overall(p) < 85).slice(0, 60)) {
     // 0.3 / 0.5 / 0.999 pick the low, middle and LAST (priciest) option — the last is where a
     // missing rarity filter would hand out a 神话 skill.
     for (const roll of [0.3, 0.5, 0.999]) {
       const acc = owning(card, MAX_STARS - 1);
-      const options = buyableSkills(resolvePlayers([card.id], acc, PLAYERS)[0]);
+      const options = learnableSkills(resolvePlayers([card.id], acc, PLAYERS)[0]);
       const { skill } = soulUp(acc, card, () => roll);
       if (!skill) continue; // nothing eligible → nothing, never something illegal
       const chosen = options.find((s) => s.id === skill.id);
-      assert.ok(chosen, `${card.name}: gift must pass the shop's own gates`);
+      assert.ok(chosen, `${card.name}: gift must pass the learning gates`);
       assert.ok(STAR_SKILL_RARITIES.has(chosen.rarity), `${card.name}: ${chosen.name} is ${chosen.rarity} (rng ${roll})`);
     }
   }
@@ -91,26 +91,36 @@ test("once per card: ★5 cannot be bought again, and later duplicate draws turn
   assert.equal(acc.cardMods[card.id].starSkill, skill.id);
 });
 
-test("the gift does not use up the 2 purchasable skill slots", () => {
-  const card = realCard();
+test("the gift stacks with skills the card already learned (no purchasable slots anymore)", () => {
+  // S0 removed the fragment shop, so there are no "2 purchasable slots"
+  // left for the gift to avoid using. What must still hold: the gift is
+  // independent of skills the card already holds — it adds one more.
+  const card = PLAYERS.find(
+    (p) =>
+      overall(p) >= 60 &&
+      overall(p) < 78 &&
+      learnableSkills(resolvePlayers([p.id], null, PLAYERS)[0]).filter((s) => STAR_SKILL_RARITIES.has(s.rarity)).length >= 3
+  );
+  assert.ok(card, "a card with 3+ gift-eligible skills to learn");
   const acc = owning(card, MAX_STARS - 1);
-  soulUp(acc, card);
-  assert.equal(boughtSkillCount(acc, card.id), 0);
-  acc.fragments = 5000;
-  const [first, second] = buyableSkills(resolvePlayers([card.id], acc, PLAYERS)[0]);
-  buySkillWithFragments(acc, card.id, first.id);
-  buySkillWithFragments(acc, card.id, second.id);
-  assert.equal(boughtSkillCount(acc, card.id), MAX_BOUGHT_SKILLS);
-  const third = buyableSkills(resolvePlayers([card.id], acc, PLAYERS)[0])[0];
-  assert.throws(() => buySkillWithFragments(acc, card.id, third.id), /最多买 2 个/);
+  // Two skills learned the honest way (epiphany) before the star-up.
+  const [first, second] = learnableSkills(resolvePlayers([card.id], acc, PLAYERS)[0])
+    .filter((s) => STAR_SKILL_RARITIES.has(s.rarity))
+    .slice(0, 2);
+  acc.cardMods[card.id].skills = [first.id, second.id];
+  const before = resolvePlayers([card.id], acc, PLAYERS)[0].skills.length;
+  const { skill } = soulUp(acc, card);
+  assert.ok(skill, "the ★5 star-up still gifts a skill");
   const skills = resolvePlayers([card.id], acc, PLAYERS)[0].skills;
-  assert.ok(skills.includes(acc.cardMods[card.id].starSkill), "gift + 2 bought coexist");
+  assert.ok(skills.includes(first.id) && skills.includes(second.id), "earlier skills survive");
+  assert.ok(skills.includes(skill.id), "gift + earlier skills coexist");
+  assert.equal(skills.length, before + 1, "the gift adds exactly one skill");
 });
 
 test("nothing eligible left: the star-up still succeeds, there is just no gift", () => {
   const card = realCard();
   const probe = owning(card, MAX_STARS - 1);
-  const eligible = buyableSkills(resolvePlayers([card.id], probe, PLAYERS)[0]).filter((s) => STAR_SKILL_RARITIES.has(s.rarity));
+  const eligible = learnableSkills(resolvePlayers([card.id], probe, PLAYERS)[0]).filter((s) => STAR_SKILL_RARITIES.has(s.rarity));
   const acc = owning(card, MAX_STARS - 1, { skills: eligible.map((s) => s.id) });
   const result = soulUp(acc, card);
   assert.equal(result.stars, MAX_STARS);

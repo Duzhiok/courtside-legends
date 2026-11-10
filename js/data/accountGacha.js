@@ -13,9 +13,11 @@
  *  - Spending 球魂 to take a card to ★5 → one skill, once (see giftStarSkill).
  *    Reaching ★5 by drawing duplicates does NOT gift one.
  *
- * Skills reach a card ONLY through: 领悟 (epiphany), the 技能碎片 shop, and that
- * ★5 gift. Season awards no longer hand out skills — they made the strong stronger.
- * (Gold skill packs in the single-run 执教席 shop are a separate, run-scoped mode.)
+ * Skills reach a card ONLY through: 领悟 (epiphany) and that ★5 gift.
+ * Season awards no longer hand out skills — they made the strong stronger.
+ * (The 技能碎片 shop and the gold skill packs were cancelled with the
+ * skill-book system — S0. The ★5 gift is the one remaining non-epiphany
+ * route; whether it stays is an open product question for the user.)
  */
 import { COACHES, coachDrawWeight, isLegendCoach } from "./coaches.js";
 import { clonePlayer, overall, PLAYERS } from "./players.js";
@@ -27,7 +29,7 @@ import {
   weightedPick,
 } from "./account.js";
 import { compareRolls, legacyRollSeed, newRollSeed } from "./cardRoll.js";
-import { MAX_CARDS, buyableSkills, cardRoom } from "./accountRecycle.js";
+import { MAX_CARDS, learnableSkills, cardRoom } from "./accountRecycle.js";
 import {
   MAX_STARS,
   SOULS_PER_STAR,
@@ -40,7 +42,7 @@ import {
 } from "./gacha.js";
 
 const COACH_SHARE = 0.2;
-/** The ★5 gift never rolls the top tiers: 传说 / 神话 stay a 技能碎片 purchase. */
+/** The ★5 gift never rolls the top tiers: 传说 / 神话 stay out of the gift pool. */
 export const STAR_SKILL_RARITIES = new Set(["common", "rare", "epic"]);
 export const SOULS_AT_MAX_STAR = 2;
 const HISTORY_KEEP = 50;
@@ -57,15 +59,14 @@ function modOf(account, playerId) {
 
 /**
  * Taking a card to ★5 with 球魂 gifts one skill, once per card: a random
- * skill this card could buy (height / age / roster gates apply), below the top tiers.
- * It is stored in mod.skills + mod.starSkill, NOT mod.bought, so it does not use
- * up the card's 2 purchasable skill slots.
+ * skill this card could learn (height / age / roster gates apply), below the top tiers.
+ * It is stored in mod.skills + mod.starSkill.
  */
 function giftStarSkill(account, playerId, rng, pool) {
   const mod = modOf(account, playerId);
   if (mod.starSkill) return null;
   const [card] = resolvePlayers([playerId], account, pool);
-  const options = buyableSkills(card).filter((skill) => STAR_SKILL_RARITIES.has(skill.rarity));
+  const options = learnableSkills(card).filter((skill) => STAR_SKILL_RARITIES.has(skill.rarity));
   if (!options.length) return null;
   const pick = options[Math.floor(rng() * options.length)];
   mod.skills = [...(mod.skills || []), pick.id];

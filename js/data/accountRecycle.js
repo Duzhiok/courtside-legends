@@ -133,7 +133,7 @@ export function recycleCards(account, ids, { confirmed = false, pool = PLAYERS }
 }
 
 /** Skills a card can still learn: learnable, passes its gates, not owned. */
-export function buyableSkills(card) {
+export function learnableSkills(card) {
   const have = new Set(card.skills || []);
   return Object.keys(SKILL_PACKS)
     .filter((id) => isLearnableSkill(id) && !have.has(id) && canRetainSkill(card, id))
