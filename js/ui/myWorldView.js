@@ -12,6 +12,7 @@ import { avatarDataUri } from "../data/avatarArt.js";
 import { challengeTierName } from "../data/careerChallenges.js";
 import { photoImg } from "../data/photo.js";
 import { FIGURE_STYLES } from "../data/avatarLook.js";
+import { architectProgress, architectTitlesFor } from "../career/careerAchievements.js";
 import { getShop, equippedClothingItemId } from "../data/shop.js";
 import { itemById, itemName } from "../data/shopCatalog.js";
 import { lookPanelHtml } from "./avatarLookView.js";
@@ -51,6 +52,8 @@ export function legacyFromAccount(account) {
     rankedWins: account.rankedWins || 0,
     rankedLosses: account.rankedLosses || 0,
     myTeam: myTeamHistory(account.myTeamSeasons),
+    // Prestige titles, derived from the account's completed-career records (E).
+    architect: { earned: architectTitlesFor(account), progress: architectProgress(account) },
   };
 }
 
@@ -207,12 +210,34 @@ export function legacyHtml(legacy, journey, lang) {
   const mtRecent = mt?.recent?.length
     ? `<p class="mw-line tiny"><strong>${T(lang, "我的赛季记录", "My Team seasons")}</strong></p><ul class="mw-trophies mw-myteam-hist">${mt.recent.map((r) => `<li>${myTeamSeasonLine(r, lang)}</li>`).join("")}</ul>`
     : "";
+  const architect = architectTitlesHtml(legacy?.architect, lang);
   const collection = legacy
     ? `<p class="mw-line tiny">${T(lang, `球员卡 ${legacy.cards} 张 · 图鉴 ${legacy.codex} 人 · 排位 ${legacy.rankedWins} 胜 ${legacy.rankedLosses} 负`, `${legacy.cards} cards · ${legacy.codex} in codex · Ranked ${legacy.rankedWins}-${legacy.rankedLosses}`)}</p>
        ${legacy.cards ? action("open-collection", T(lang, "打开我的球员卡", "Open my cards")) : `<p class="mw-empty">${T(lang, "还没有球员卡。", "No cards yet.")}</p>`}`
     : `<p class="mw-empty">${T(lang, "访客没有永久收藏。创建账号后可以收集球员卡。", "Guests have no permanent collection. Create an account to collect cards.")}</p>
        ${action("open-accounts", T(lang, "创建或切换账号", "Create or switch account"))}`;
-  return `<section class="mw-card">${cardHead("legacy", T(lang, "传奇荣誉", "Legacy"))}${trophyLine}${mtRecent}${collection}</section>`;
+  return `<section class="mw-card">${cardHead("legacy", T(lang, "传奇荣誉", "Legacy"))}${trophyLine}${mtRecent}${architect}${collection}</section>`;
+}
+
+/**
+ * Prestige (Architect) titles on the My World honours wall. `architect` is
+ * legacyFromAccount()'s derived summary; null/undefined = guest, no block.
+ * Earned titles are lifetime honours; before the unlock the block shows the
+ * honest progress (which of the two qualifying careers is done), the same
+ * progress the career entry card already shows. Title names come from
+ * careerAchievements.js (the Chinese names are still the agent's provisional
+ * wording, pending the user's confirmation).
+ */
+export function architectTitlesHtml(architect, lang) {
+  if (!architect) return "";
+  const earned = Array.isArray(architect.earned) ? architect.earned : [];
+  const head = `<p class="mw-line tiny"><strong>${T(lang, "建筑师称号", "Architect Titles")}</strong></p>`;
+  if (earned.length) {
+    return `${head}<ul class="mw-trophies">${earned.map((t) => `<li>👑 ${esc(lang === "en" ? t.en : t.zh)}</li>`).join("")}</ul>`;
+  }
+  const p = architect.progress || {};
+  const mark = (done) => (done ? "✓" : "○");
+  return `${head}<p class="mw-line tiny">${T(lang, `教练生涯 ${mark(p.coach)} · 经理生涯 ${mark(p.gm)}`, `Coach career ${mark(p.coach)} · GM career ${mark(p.gm)}`)}<br />${T(lang, "完成一次完整教练生涯与一次完整经理生涯，即可解锁隐藏职业 The Architect。", "Complete one full Coach career and one full GM career to unlock the hidden Architect career.")}</p>`;
 }
 
 /** Lightweight local illustration (inline SVG, no external image). Real data is overlaid as HTML on top of it. */

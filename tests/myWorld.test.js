@@ -75,7 +75,7 @@ test("journey and legacy are read from real data; no career / no cards / guest a
   const j = view.journeyFromRoot(root(2));
   assert.deepEqual([j.kind, j.startYear, j.year, j.seasonsDone, j.trophies.length], ["timeTravel", 1995, 1998, 3, 2]);
   assert.equal(view.legacyFromAccount(null), null);
-  assert.deepEqual(view.legacyFromAccount({ playerIds: ["a", "b"], codex: ["b", "c"], rankedWins: 4 }), { cards: 2, codex: 3, rankedWins: 4, rankedLosses: 0, myTeam: { titles: 0, played: 0, recent: [] } });
+  assert.deepEqual(view.legacyFromAccount({ playerIds: ["a", "b"], codex: ["b", "c"], rankedWins: 4 }), { cards: 2, codex: 3, rankedWins: 4, rankedLosses: 0, myTeam: { titles: 0, played: 0, recent: [] }, architect: { earned: [], progress: { coach: false, gm: false, completed: 0 } } });
 
   const emptyHtml = view.myWorldHtml({ identity: { name: "", hometown: "", bio: "", guest: true }, journey: null, legacy: null, frames: [] }, "zh");
   assert.match(emptyHtml, /还没有进行中的生涯/);
