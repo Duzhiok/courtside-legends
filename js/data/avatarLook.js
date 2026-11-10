@@ -41,6 +41,13 @@ export const OUTFITS = Object.freeze([
   // locks it until owned (see avatarLookView groupHtml) so the shop purchase is real —
   // without the lock this outfit would be pickable for free and the sale would be fake.
   { id: "champion", shirt: "#d6b25a", pants: "#1f2937", zh: "冠军金", en: "Champion Gold", shop: "outfit-champion-gold" },
+  // Shop-exclusive outfits added by the Economy workstream (2026-11-09): data rows only,
+  // one per new catalog outfit. The editor lock in avatarLookView is generic — any outfit
+  // with a `shop` field is locked until owned — so no editor change was needed here.
+  { id: "midnight", shirt: "#1e2a44", pants: "#d6b25a", zh: "午夜蓝", en: "Midnight Navy", shop: "outfit-midnight" },
+  { id: "crimson", shirt: "#a31621", pants: "#f4f4f0", zh: "绯红", en: "Crimson", shop: "outfit-crimson" },
+  { id: "street", shirt: "#1b1b1b", pants: "#e85d04", zh: "街头黑橙", en: "Street Black-Orange", shop: "outfit-street" },
+  { id: "vintage", shirt: "#0f766e", pants: "#f1e6cf", zh: "复古青绿", en: "Vintage Teal", shop: "outfit-vintage" },
 ]);
 
 export const HAIR_STYLES = Object.freeze([
