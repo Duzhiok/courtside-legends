@@ -3,6 +3,7 @@ import { PLAYERS, overall } from "../data/players.js";
 import { buildCpuTeamForYear, createSeason } from "../engine/season.js";
 import { createRootState } from "../data/saveRoot.js";
 import { createLeagueCareer, recordCareerEvent } from "./leagueCareer.js";
+import { CAREER_ROLES, identityOf, setIdentity } from "../career/careerIdentity.js";
 import { buildSeasonGoal } from "../career/seasonGoals.js";
 import { createCoachProfile } from "../career/coachProfile.js";
 import { burnedBridgeTeamIds } from "../career/stints.js";
@@ -97,7 +98,7 @@ function mulberry32(seed) {
   };
 }
 
-function validateInput({ year, philosophy, seed, origin } = {}) {
+function validateInput({ year, philosophy, seed, origin, role } = {}) {
   if (!Number.isInteger(year)) {
     throw new TypeError("year must be an integer");
   }
@@ -116,6 +117,11 @@ function validateInput({ year, philosophy, seed, origin } = {}) {
   // unchanged; only an explicitly-passed unknown id is rejected.
   if (origin !== undefined && !isKnownCoachOrigin(origin)) {
     throw new TypeError("origin is not supported");
+  }
+  // role is optional the same way (defaults to the Classic GM + Coach);
+  // only an explicitly-passed unknown role is rejected.
+  if (role !== undefined && !CAREER_ROLES.includes(role)) {
+    throw new TypeError("role is not supported");
   }
   return historical;
 }
@@ -185,13 +191,38 @@ export function generateInterviewOffers(input) {
   });
 }
 
+/**
+ * The role the NEXT prologue starts as. Called by the entry before it
+ * opens the Time Travel creation screen — the screen itself never sees
+ * a role, it just builds the prologue, and createTimeTravelPrologue()
+ * picks this up. Defaults back to the Classic GM + Coach after one use.
+ */
+let pendingPrologueRole = "GM_COACH";
+export function setPrologueRole(role) {
+  if (!CAREER_ROLES.includes(role)) {
+    throw new TypeError("role must be one of CAREER_ROLES");
+  }
+  pendingPrologueRole = role;
+}
+
 export function createTimeTravelPrologue(input) {
   const { year, philosophy, seed, origin } = input || {};
+  // The role this career will play as (ADR-006 R4). The creation screen
+  // does not pass a role — the entry sets it first via setPrologueRole()
+  // (the Career entry's Coach card will do this; the ?career=coach dev
+  // entry does it today). The pending role is consumed here, so a later
+  // unrelated prologue never inherits it.
+  const role = input?.role ?? pendingPrologueRole;
+  pendingPrologueRole = "GM_COACH";
+  if (!CAREER_ROLES.includes(role)) {
+    throw new TypeError("role is not supported");
+  }
   return {
     year,
     philosophy,
     seed,
     origin: origin ?? DEFAULT_COACH_ORIGIN,
+    role,
     offers: generateInterviewOffers(input),
     selectedOfferId: null,
   };
@@ -218,11 +249,13 @@ export function acceptInterviewOffer(prologue, offerId) {
     seed: prologue.seed,
   });
   const storyId = `tt-${prologue.year}-${prologue.seed}`;
+  const role = prologue.role ?? "GM_COACH";
   let leagueCareer = createLeagueCareer({
     kind: "timeTravel",
     season,
     storyId,
     careerId: storyId,
+    role,
   });
   leagueCareer = recordCareerEvent(
     leagueCareer,
@@ -243,7 +276,11 @@ export function acceptInterviewOffer(prologue, offerId) {
   const seasonGoal = { ...buildSeasonGoal(season.teams, offer.teamId), year: prologue.year, status: "active" };
   const origin = prologue.origin ?? DEFAULT_COACH_ORIGIN;
 
-  return createRootState({
+  // Stamp the role on the save at creation (ADR-006 R4): root.identity
+  // is the save-level record, leagueCareer.role is the runtime record
+  // the guards read — setIdentity() sets both from the same value.
+  // Old saves have no identity and keep reading as GM_COACH.
+  return setIdentity(createRootState({
     activeMode: "timeTravel",
     // The origin only ever touches reputation (wired into B3's renewal menu since R101) -- not
     // coach.perks or story.relationships, which no gameplay code reads yet (see coachOrigins.js's
@@ -290,7 +327,7 @@ export function acceptInterviewOffer(prologue, offerId) {
       pendingDecision: "future-knowledge-intro",
       ending: null,
     },
-  });
+  }), role);
 }
 
 export function resolveFutureKnowledgeChoice(root, choiceId) {
@@ -432,11 +469,14 @@ export function startNewStint(root, offer, eventType = "re-employed") {
     year,
     seed: hashString(`${root.story.storyId}:reemployment:${year}:${offer.teamId}`),
   });
+  // A new stint keeps the career's role (a coach stays a coach when
+  // hired elsewhere); the root spread below keeps root.identity.
   let leagueCareer = createLeagueCareer({
     kind: "timeTravel",
     season,
     storyId: root.story.storyId,
     careerId: root.story.storyId,
+    role: root.leagueCareer?.role ?? identityOf(root),
   });
   leagueCareer = recordCareerEvent(
     leagueCareer,

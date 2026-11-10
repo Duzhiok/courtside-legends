@@ -151,7 +151,7 @@ test("time-travel prologue accepts an offer into a historical career", () => {
 
   assert.deepEqual(
     { ...prologue, offers: undefined },
-    { ...INPUT, origin: "generalist", offers: undefined, selectedOfferId: null },
+    { ...INPUT, origin: "generalist", role: "GM_COACH", offers: undefined, selectedOfferId: null },
   );
   assert.equal(root.activeMode, "timeTravel");
   assert.equal(root.leagueCareer.kind, "timeTravel");

@@ -103,12 +103,17 @@ export function autoFillTeam(name, nPlayers = 8, { excludeIds = null, power = 0 
   const n = clamp(nPlayers + Math.floor(power / 2), 8, 12);
   while (pack.length < n) {
     const batch = drawPack(5, { excludeIds: used });
+    const before = pack.length;
     for (const c of batch) {
       if (c.kind === "player" && pack.length < n) {
         pack.push(c.data);
         used.add(c.data.id);
       }
     }
+    // An exhausted pool (no players left to draw, e.g. a test building a
+    // season without seeding PLAYERS) must return a short pack, not spin
+    // forever — the power-bump loop below already guards the same way.
+    if (pack.length === before) break;
   }
   // Mild power bump: keep top-N by OVR after a few extra draws
   if (power > 0) {

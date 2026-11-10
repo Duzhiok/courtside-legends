@@ -469,3 +469,167 @@ test("a role with neither training capability cannot touch plans", () => {
     (error) => error instanceof CareerPermissionError && error.capability === "setTrainingFocus",
   );
 });
+
+// ---------------------------------------------------------------- Time Travel role flow
+
+import { historicalSeason } from "../js/data/historicalSeasons.js";
+import { PLAYERS } from "../js/data/players.js";
+import {
+  acceptInterviewOffer,
+  createTimeTravelPrologue,
+  generateInterviewOffers,
+  setPrologueRole,
+  startNewStint,
+} from "../js/modes/timeTravelCareer.js";
+
+// The real season builders need a populated roster: with PLAYERS empty,
+// buildCpuTeamForYear finds nobody and autoFillTeam's draw loop never
+// terminates (drawPack returns empty batches). Same seed as
+// timeTravelCareer.test.js — 12 synthetic cards per 1991 team, plus
+// free agents — so a real 1991 career can be built in-process.
+function playerCard(team, index) {
+  const rating = 55 + ((team.charCodeAt(0) + index) % 35);
+  return {
+    id: `test-${team}-${index}`,
+    bref: `test-${team}-${index}`,
+    name: `${team} Player ${index}`,
+    season: 1991,
+    team,
+    pos: "SF",
+    scoring: rating,
+    three: rating,
+    mid: rating,
+    paint: rating,
+    defense: rating,
+    rebound: rating,
+    pass: rating,
+    speed: rating,
+    strength: rating,
+    stamina: rating,
+    iq: rating,
+    clutch: rating,
+    steal: rating,
+    block: rating,
+  };
+}
+
+for (const team of historicalSeason(1991).teams) {
+  for (let index = 0; index < 12; index++) {
+    PLAYERS.push(playerCard(team.bref || team.id, index));
+  }
+}
+for (let index = 0; index < 12; index++) {
+  PLAYERS.push(playerCard("FREE", index));
+}
+
+const TT_INPUT = { year: 1991, philosophy: "analytics", seed: 42 };
+
+function coachRoot() {
+  const prologue = createTimeTravelPrologue({ ...TT_INPUT, role: "COACH" });
+  return acceptInterviewOffer(prologue, prologue.offers[0].id);
+}
+
+test("prologue role defaults to Classic GM+Coach; explicit role is stored", () => {
+  assert.equal(createTimeTravelPrologue(TT_INPUT).role, "GM_COACH");
+  assert.equal(createTimeTravelPrologue({ ...TT_INPUT, role: "COACH" }).role, "COACH");
+  assert.equal(createTimeTravelPrologue({ ...TT_INPUT, role: "GM" }).role, "GM");
+  assert.throws(() => createTimeTravelPrologue({ ...TT_INPUT, role: "ADMIN" }), /role is not supported/);
+});
+
+test("setPrologueRole is consumed by the next prologue and then resets", () => {
+  setPrologueRole("COACH");
+  assert.equal(createTimeTravelPrologue(TT_INPUT).role, "COACH");
+  assert.equal(createTimeTravelPrologue(TT_INPUT).role, "GM_COACH");
+  assert.throws(() => setPrologueRole("ADMIN"), /CAREER_ROLES/);
+});
+
+test("acceptInterviewOffer stamps the role on the save and the career", () => {
+  const root = coachRoot();
+  assert.equal(identityOf(root), "COACH");
+  assert.deepEqual(root.identity, { initialRole: "COACH", currentRole: "COACH" });
+  assert.equal(root.leagueCareer.role, "COACH");
+
+  const classic = acceptInterviewOffer(
+    createTimeTravelPrologue(TT_INPUT),
+    createTimeTravelPrologue(TT_INPUT).offers[0].id,
+  );
+  assert.equal(identityOf(classic), "GM_COACH");
+  assert.deepEqual(classic.identity, { initialRole: "GM_COACH", currentRole: "GM_COACH" });
+  assert.equal(classic.leagueCareer.role, "GM_COACH");
+});
+
+test("a new stint keeps the career's role", () => {
+  const root = coachRoot();
+  const offer = generateInterviewOffers({ year: 1991, philosophy: "analytics", seed: 43 })[0];
+  const next = startNewStint(root, offer);
+  assert.equal(next.leagueCareer.role, "COACH");
+  assert.equal(identityOf(next), "COACH");
+  assert.equal(next.story.employer, offer.teamId);
+});
+
+test("Coach flow end to end through the real mode layer", () => {
+  const root = coachRoot();
+  const career = root.leagueCareer;
+  const roster = career.season.teams[career.season.userTeamId].players;
+  const first = roster.find((p) => p?.bref);
+
+  // the coach may NOT execute a draft pick — the refusal comes from the
+  // permission guard, before any draft-state complaint
+  assert.throws(
+    () => makeCareerDraftPick(career, "anyone"),
+    (error) => error instanceof CareerPermissionError && error.capability === "draft",
+  );
+  // the coach MAY set a development plan on a real roster player
+  const planned = setDevelopmentPlan(career, first.bref, {
+    focus: "shooting",
+    role: "starter",
+    mentorBref: null,
+    load: "normal",
+    source: "manual",
+  });
+  assert.equal(planned.management.developmentPlans[first.bref].focus, "shooting");
+  // the coach MAY set the rotation
+  assert.deepEqual(
+    setManualOverride(career, "rotation", "starters", [first.bref]).manualOverrides.rotation.starters,
+    [first.bref],
+  );
+  // the coach MAY enter the draft (to suggest) — the fresh season is not
+  // done, so the refusal is the season state, not the permission
+  assert.throws(() => beginCareerDraft(career), /done/);
+});
+
+test("GM flow end to end through the real mode layer", () => {
+  const prologue = createTimeTravelPrologue({ ...TT_INPUT, role: "GM" });
+  const root = acceptInterviewOffer(prologue, prologue.offers[0].id);
+  const career = root.leagueCareer;
+  assert.equal(identityOf(root), "GM");
+
+  // the GM passes the permission gate for picks — the fresh season has
+  // no active draft, so the refusal is the draft state, not permission
+  assert.throws(
+    () => makeCareerDraftPick(career, "anyone"),
+    (error) => !(error instanceof CareerPermissionError) && /active draft/.test(error.message),
+  );
+  // the GM may NOT set the rotation
+  assert.throws(
+    () => setManualOverride(career, "rotation", "starters", ["x"]),
+    (error) => error instanceof CareerPermissionError && error.capability === "setRotation",
+  );
+});
+
+// ---------------------------------------------------------------- engine guard found by these fixtures
+
+import { autoFillTeam } from "../js/engine/draft.js";
+
+test("autoFillTeam returns a short pack instead of spinning when the pool is empty", () => {
+  // Regression: with PLAYERS empty, drawPack returns empty batches and
+  // the fill loop never terminated — a season built without seeding the
+  // roster hung forever (found while wiring the part-4 fixtures above).
+  // The guard mirrors the one the power-bump loop below already has.
+  const saved = PLAYERS.splice(0, PLAYERS.length);
+  try {
+    assert.equal(autoFillTeam("Empty Test", 8, { power: 0 }).players.length, 0);
+  } finally {
+    PLAYERS.push(...saved);
+  }
+});
