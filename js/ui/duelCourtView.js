@@ -79,10 +79,10 @@ function staminaBar(value) {
     </div>`;
 }
 
-/** D3.2 — one court player: a bobblehead sprite + the name tag below it. */
-function marker(duelist, side, action) {
+/** D3.2 — one court player: a bobblehead sprite + the name tag below it. `appearance` is the challenger's own skin/hair (avatar challenger only, from opts.challengerAppearance); the legend always keeps the generic figure. */
+function marker(duelist, side, action, appearance) {
   const name = duelist.displayName || duelist.name;
-  return `<div class="duel-marker duel-marker-${side}" data-side="${side}">${duelSpriteHtml(duelist, { action })}<span class="duel-marker-tag">${esc(name)}</span></div>`;
+  return `<div class="duel-marker duel-marker-${side}" data-side="${side}">${duelSpriteHtml(duelist, { action, appearance })}<span class="duel-marker-tag">${esc(name)}</span></div>`;
 }
 
 /** Court lines for the 0 0 100 50 half-court (basket at top, y grows away). */
@@ -106,6 +106,8 @@ function courtSvg() {
  * - getState() -> DuelSim state, getTakeover() -> takeover object,
  *   setTakeover(t) -> store the moved takeover (duelView's `current`).
  * - challenger / legend duelists, photoHtml(duelist, size) from duelView.
+ * - challengerAppearance: the avatar challenger's own { skin, hair } (or
+ *   null) — the legend's sprite never takes one.
  * - onChoice(choice) -> resolve one possession (playPossession in duelView).
  * - onQuit() -> abandon this duel without recording it.
  * Returns { destroy, updateMarkers }.
@@ -114,6 +116,9 @@ export function mountDuelCourt(container, opts) {
   const state = opts.getState();
   const takeover = opts.getTakeover();
   const { challenger, legend } = opts;
+  // The avatar challenger's own skin/hair (null = generic figure); the
+  // legend always keeps the generic figure + team jersey.
+  const challengerAppearance = opts.challengerAppearance || null;
   const myBall = state.possession === "a";
   const zone = zoneAt(controlledPoint(takeover).x, controlledPoint(takeover).y);
   const suggested = myBall ? suggestedOffense(zone) : suggestedDefense(zone);
@@ -159,7 +164,7 @@ export function mountDuelCourt(container, opts) {
     <div class="duel-court-wrap">
       ${courtSvg()}
       <div class="duel-court-markers">
-        ${marker(challenger, "a", initialActionA)}
+        ${marker(challenger, "a", initialActionA, challengerAppearance)}
         ${marker(legend, "b", initialActionB)}
       </div>
     </div>
@@ -284,7 +289,7 @@ export function mountDuelCourt(container, opts) {
     if (actionA !== lastActionA) {
       lastActionA = actionA;
       const slot = markerA.querySelector(".duel-sprite");
-      if (slot) slot.outerHTML = duelSpriteHtml(challenger, { action: actionA });
+      if (slot) slot.outerHTML = duelSpriteHtml(challenger, { action: actionA, appearance: challengerAppearance });
     }
     if (actionB !== lastActionB) {
       lastActionB = actionB;

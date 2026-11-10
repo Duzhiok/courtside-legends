@@ -23,7 +23,7 @@ import { portraitFor } from "./portraitFor.js";
 import { createDuel, playPossession, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
 import { createTakeover, applyPossession, spacingByOffense, OFFENSE_LABEL, DEFENSE_LABEL } from "../duel/duelTakeover.js";
 import { mountDuelCourt } from "./duelCourtView.js";
-import { duelSpriteHtml } from "./duelSprites.js";
+import { duelSpriteHtml, appearanceFromLook } from "./duelSprites.js";
 import {
   avatarChallengerKey,
   avatarToDuelist,
@@ -331,6 +331,13 @@ function renderDuel() {
     setTakeover: (t) => { current.takeover = t; },
     challenger: current.challenger,
     legend: current.legend,
+    // D3.2 follow-up — the avatar challenger's court figure wears the
+    // account's current skin/hair (resolved at display time, so a look
+    // change shows immediately); card challengers and legends keep the
+    // generic figure. Cosmetic only, no ratings or save touch.
+    challengerAppearance: current.challenger?.kind === "avatar"
+      ? appearanceFromLook(readLook(getAccount()))
+      : null,
     photoHtml,
     onChoice: (choice) => {
       if (!current || current.state.over) return;
@@ -374,7 +381,7 @@ function finishDuel() {
   const allBeaten = !nextLegend && GALLERY_LEGENDS.length > 0;
   body.innerHTML = `
     <div style="text-align:center;margin:16px 0;">
-      <div class="duel-result-sprite">${duelSpriteHtml(won ? challenger : legend, { action: "celebrate" })}</div>
+      <div class="duel-result-sprite">${duelSpriteHtml(won ? challenger : legend, { action: "celebrate", appearance: won && challenger?.kind === "avatar" ? appearanceFromLook(readLook(account)) : null })}</div>
       <div style="font-size:28px;font-weight:800;">${won ? esc(L("你赢了！", "You win!")) : esc(L("传奇获胜", "The legend wins"))}</div>
       <div style="font-size:40px;font-weight:800;margin:8px 0;">${state.a.score} — ${state.b.score}</div>
       <div class="tiny">${esc(challenger.displayName || challenger.name)} vs ${esc(legend.displayName || legend.name)} · ${esc(L(DIFFICULTY_LABEL[difficulty][0], DIFFICULTY_LABEL[difficulty][1]))}</div>

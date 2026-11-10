@@ -16,12 +16,14 @@
  *   DuelSim.playPossession(); the sprite never calls it and never reads a
  *   make probability.
  * - The skin tone is ONE generic stylized tone for v1. Real appearance
- *   (skin / hair / outfit from Code's avatar-identity slice) connects
- *   gradually AFTER that slice lands: duelSpriteHtml accepts an optional
- *   `appearance` input ({ skin, hair, jersey: { primary, secondary } } —
- *   plain CSS colours) and falls back to the generic figure for anything
- *   missing. Nothing here duplicates or invents that system; the My World
- *   avatar's look on the court is a later step, not this one.
+ *   (skin / hair from the account's avatar look, js/data/avatarLook.js)
+ *   connects for the avatar challenger only, via appearanceFromLook():
+ *   duelView resolves the current look at display time and passes it as
+ *   `opts.appearance`; card challengers and legends keep the generic
+ *   figure + team jersey. The look is cosmetic — it never touches ratings
+ *   or the stored Duel Profile, so changing the look changes the court
+ *   figure immediately. Outfit / body / figure style do not reach the 2D
+ *   sprite: it already draws a bobblehead in a team jersey.
  * - Poses are static SVG variants (different arm/leg paths per action)
  *   plus two CSS animations (a bob while moving, a bounce while
  *   celebrating) in css/duel.css. The ball is NOT part of the sprite —
@@ -41,6 +43,7 @@
  * by the SVG, so this module needs no i18n.
  */
 import { teamColors } from "../data/teamColors.js";
+import { lookColors } from "../data/avatarLook.js";
 
 export const SPRITE_ACTIONS = Object.freeze([
   "idle",
@@ -65,9 +68,9 @@ const isHexColor = (value) => typeof value === "string" && /^#[0-9a-fA-F]{6}$/.t
 
 /**
  * Appearance for one figure: team jersey (or neutral), skin, hair.
- * `opts.team` overrides `duelist.team`; `opts.appearance` (Code's
- * avatar-identity slice, later) overrides individual keys with plain CSS
- * colours. Anything missing falls back to the generic figure.
+ * `opts.team` overrides `duelist.team`; `opts.appearance` overrides
+ * individual keys with plain CSS colours. Anything missing falls back
+ * to the generic figure.
  */
 export function spriteAppearance(duelist, opts = {}) {
   const team = teamColors(opts.team || duelist?.team);
@@ -78,6 +81,20 @@ export function spriteAppearance(duelist, opts = {}) {
     skin: isHexColor(ap.skin) ? ap.skin : DEFAULT_SKIN,
     hair: isHexColor(ap.hair) ? ap.hair : DEFAULT_HAIR,
   };
+}
+
+/**
+ * Pure: an avatar look (js/data/avatarLook.js, sanitized ids) -> the
+ * `{ skin, hair }` hex pair duelSpriteHtml takes as `opts.appearance`.
+ * Only skin + hair reach the 2D sprite (it already wears a team jersey
+ * in bobblehead proportions); shaved style maps hair to the skin hex,
+ * exactly like the 3D renderer (lookColors). Returns null when there is
+ * no look at all, so the caller keeps the generic figure.
+ */
+export function appearanceFromLook(look) {
+  if (!look || typeof look !== "object") return null;
+  const colors = lookColors(look);
+  return { skin: colors.Skin, hair: colors.Hair };
 }
 
 /** Arm paths per action: [leftArm, rightArm] as "M x y L x y" (skin strokes). */
