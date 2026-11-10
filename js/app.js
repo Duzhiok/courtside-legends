@@ -38,6 +38,7 @@ import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.j
 import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { ensureDraftGambleScreen, createDraftGambleView } from "./ui/scoutingView.js";
 import { ensureGmBusinessScreen, createGmBusinessView } from "./ui/gmBusinessView.js";
+import { ensureNetworkScreen, createNetworkView } from "./ui/networkViews.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12327,6 +12328,7 @@ async function boot() {
     // because initCareerEntry runs before the view is created.
     let rebornView = null;
     let careerInboxView = null;
+    let networkView = null;
     initCareerEntry({
       onPlay: (identityId, era, opts) => {
         if (identityId === "player") {
@@ -12465,6 +12467,16 @@ async function boot() {
       show,
       goBack,
     });
+    // [Career 2.0 G] Basketball Career Network — dev entries only
+    // (?scout=1 / ?film=1 / ?analytics=1 / ?network=1). The public entry
+    // is an integration follow-up once the slices land.
+    screens.network = ensureNetworkScreen();
+    networkView = createNetworkView({
+      getLang,
+      getAccountId: () => activeAccount()?.id || null,
+      show,
+      goBack,
+    });
     myTeamLineup = createMyTeamLineup({
       el: $("#my-team-lineup-root"),
       getLang,
@@ -12577,6 +12589,15 @@ async function boot() {
     // the 1996 scouting/draft slice after boot.
     if (new URLSearchParams(location.search).get("draft-gamble") === "1") {
       setTimeout(() => { draftGambleView.open(); }, 250);
+    }
+    // [Career 2.0 G] Career Network dev entries: ?scout=1 / ?film=1 /
+    // ?analytics=1 / ?network=1 open the slices after boot.
+    {
+      const networkParam = new URLSearchParams(location.search);
+      if (networkParam.get("scout") === "1") setTimeout(() => { networkView.open("scout"); }, 250);
+      else if (networkParam.get("film") === "1") setTimeout(() => { networkView.open("film"); }, 250);
+      else if (networkParam.get("analytics") === "1") setTimeout(() => { networkView.open("analytics"); }, 250);
+      else if (networkParam.get("network") === "1") setTimeout(() => { networkView.open("board"); }, 250);
     }
   } catch (e) {
     console.error(e);
