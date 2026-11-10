@@ -36,6 +36,7 @@ import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js"
 import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
 import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.js";
 import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
+import { ensureDraftGambleScreen, createDraftGambleView } from "./ui/scoutingView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12433,6 +12434,17 @@ async function boot() {
       show,
       goBack,
     });
+    // GM draft gamble (workstream C): the 1996 scouting/draft slice.
+    // ?draft-gamble=1 opens it directly after boot. open() shows the
+    // scout phase for a new run, or resumes the saved run.
+    screens.draftGamble = ensureDraftGambleScreen();
+    const draftGambleView = createDraftGambleView({
+      getLang,
+      readRootSave: () => state.longCareerRoot || readRootSave(),
+      writeRootSave,
+      show,
+      goBack,
+    });
     // Coach tactical depth (workstream B) — the comeback-challenge slice.
     // Dev entry ?coach-tactics=1 opens it after boot (see below).
     screens.coachTactics = ensureCoachingScreen();
@@ -12538,6 +12550,11 @@ async function boot() {
     // the tactical comeback challenge after boot.
     if (new URLSearchParams(location.search).get("coach-tactics") === "1") {
       setTimeout(() => { coachingMomentView.open(); }, 250);
+    }
+    // GM draft gamble dev entry (workstream C): ?draft-gamble=1 opens
+    // the 1996 scouting/draft slice after boot.
+    if (new URLSearchParams(location.search).get("draft-gamble") === "1") {
+      setTimeout(() => { draftGambleView.open(); }, 250);
     }
   } catch (e) {
     console.error(e);

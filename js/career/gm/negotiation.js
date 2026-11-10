@@ -157,6 +157,12 @@ export function valueOfPick(pick, persona, currentYear = 1996) {
   const base = estimateDraftPickValue(pick, { currentYear }).ovrEquivalent;
   let mult = persona.pickMult;
   if (Number(pick?.year) > Number(currentYear)) mult *= persona.futurePickMult;
+  // A higher slot is worth more: +3% per slot above #15 (the model's
+  // reference slot). The view passes `slot` for 1996 picks; future picks
+  // carry no slot and keep the flat model.
+  if (Number.isFinite(Number(pick?.slot))) {
+    mult *= 1 + Math.max(0, 15 - Number(pick.slot)) * 0.03;
+  }
   return Math.round(base * mult * 10) / 10;
 }
 
@@ -212,7 +218,7 @@ export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, cu
       verdict: "accept",
       reason: en
         ? `They take the deal: ${valueIn.total} of value in for ${valueOut.total} out.`
-        : `对方接受：送出价值 ${valueOut.total}，换回价值 ${valueIn.total}。`,
+        : `对方接受：你送出价值 ${valueIn.total}，换回价值 ${valueOut.total}。`,
       valueIn: valueIn.total,
       valueOut: valueOut.total,
       demand,
@@ -227,7 +233,7 @@ export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, cu
       verdict: "counter",
       reason: en
         ? `Close, but not enough: ${valueIn.total} in against ${demand} demanded. They want ${sweetener.labelEn}.`
-        : `差一点：换回价值 ${valueIn.total}，对方要 ${demand}。对方要求${sweetener.label}。`,
+        : `差一点：你只送出价值 ${valueIn.total}，对方要 ${demand}。对方要求${sweetener.label}。`,
       valueIn: valueIn.total,
       valueOut: valueOut.total,
       demand,
@@ -238,7 +244,7 @@ export function evaluateOffer({ give, ask, persona, ledger = {}, gmId = null, cu
     verdict: "reject",
     reason: en
       ? `Not close: ${valueIn.total} in against ${demand} demanded. They walk away.`
-      : `差距太大：换回价值 ${valueIn.total}，对方要 ${demand}。对方直接拒绝。`,
+      : `差距太大：你只送出价值 ${valueIn.total}，对方要 ${demand}。对方直接拒绝。`,
     valueIn: valueIn.total,
     valueOut: valueOut.total,
     demand,

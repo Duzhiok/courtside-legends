@@ -1,0 +1,151 @@
+/* GM draft gamble — 1996 scouting/draft slice (workstream C).
+   Deep green + gold, same as the game. */
+
+#screen-draft-gamble .dg-intro {
+  border: 1px solid #c9a227;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  background: linear-gradient(180deg, #0d2b1d, #123a28);
+  color: #f3e9c8;
+}
+
+#screen-draft-gamble .dg-intro h3 {
+  margin: 0 0 6px;
+  color: #e8c85a;
+}
+
+.dg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.dg-prospect {
+  border: 1px solid #2c5a41;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #0f2f20;
+  color: #e8f0e8;
+}
+
+.dg-prospect h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.dg-pos {
+  color: #9fc3a8;
+  font-weight: 400;
+}
+
+.dg-ovr {
+  color: #e8c85a;
+  font-weight: 700;
+}
+
+.dg-prospect p {
+  margin: 4px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dg-reports {
+  margin: 6px 0;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.dg-reports li {
+  margin: 4px 0;
+}
+
+.dg-note {
+  color: #b9cdbd;
+}
+
+.dg-tryout {
+  border-top: 1px dashed #2c5a41;
+  padding-top: 6px;
+  color: #cfe3d2;
+}
+
+.dg-neg,
+.dg-board,
+.dg-pick,
+.dg-review {
+  margin: 16px 0;
+}
+
+.dg-neg-result {
+  font-weight: 600;
+  color: #f3e9c8;
+}
+
+.dg-slots {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+}
+
+.dg-slots li {
+  border: 1px solid #2c5a41;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: #0f2f20;
+  color: #e8f0e8;
+}
+
+.dg-slots li.dg-user-slot {
+  border-color: #c9a227;
+  background: #173d29;
+}
+
+.dg-bands {
+  color: #9fc3a8;
+  font-size: 12px;
+}
+
+.dg-projection-note {
+  border: 1px dashed #c9a227;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #f3e9c8;
+  background: #123a28;
+}
+
+.dg-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 16px;
+  font-size: 13px;
+}
+
+.dg-table th,
+.dg-table td {
+  border: 1px solid #2c5a41;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  color: #e8f0e8;
+}
+
+.dg-table th {
+  background: #173d29;
+  color: #e8c85a;
+}
+
+@media (max-width: 560px) {
+  .dg-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dg-slots {
+    grid-template-columns: 1fr;
+  }
+}

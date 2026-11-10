@@ -169,6 +169,15 @@ test("assignPersonas: deterministic, all five personas in play", () => {
   }
 });
 
+test("a higher slot is worth more than a lower one", () => {
+  const persona = personaById("rebuild");
+  const top = valueOfPick({ year: 1996, round: 1, slot: 5 }, persona, CURRENT_YEAR);
+  const mid = valueOfPick({ year: 1996, round: 1, slot: 13 }, persona, CURRENT_YEAR);
+  const flat = valueOfPick({ year: 1996, round: 1 }, persona, CURRENT_YEAR);
+  assert.ok(top > mid, `#5 (${top}) must beat #13 (${mid})`);
+  assert.ok(mid >= flat, "a slotted pick is worth at least the flat model");
+});
+
 test("valueOfSide breaks a side into priced pieces", () => {
   const side = valueOfSide(
     { players: [flatCard(72, 26)], picks: [first(1997)] },
