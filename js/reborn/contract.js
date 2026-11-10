@@ -13,6 +13,7 @@
  * camp for a cut player, and timeline events store aggregate values only.
  */
 import { carriedDeltas } from "../career/playerGrowth.js";
+import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { buildPlayerCard, REBORN_SEASON } from "./identity.js";
 import { roleForTrust, TRUST_START } from "./trust.js";
 
@@ -94,7 +95,13 @@ export function nextSeasonCard(reborn, { year, players } = {}) {
   const growth = {
     [reborn.identity.bref]: { year: nextYear, xp: 0, levels: 0, deltas: carried },
   };
-  return buildPlayerCard(reborn.identity, players, { growth, season: nextYear });
+  return buildPlayerCard(reborn.identity, players, {
+    growth,
+    season: nextYear,
+    // Signature Awakening (workstream D): awakened skills survive the
+    // rollover — the next season's card is a new roster row.
+    extraSkills: awakenedSkillIds(reborn.player.awakening),
+  });
 }
 
 /**

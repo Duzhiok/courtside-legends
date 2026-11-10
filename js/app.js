@@ -12537,6 +12537,12 @@ async function boot() {
     if (new URLSearchParams(location.search).get("inbox") === "1") {
       setTimeout(() => { careerInboxView.open(); }, 250);
     }
+    // Signature Awakening dev entry (workstream D): ?awakening=1 opens the
+    // Reborn slice — the awakening progress panel lives on its season
+    // screen, and a skill fired there lands on the card from the next game.
+    if (new URLSearchParams(location.search).get("awakening") === "1") {
+      setTimeout(() => { rebornView.open(); }, 250);
+    }
     // Career Role Permissions dev entry: ?career=coach opens the Time
     // Travel creation with the Coach role pre-set (ADR-006 R4) — the
     // Career entry's Coach card does the same through onPlay; the GM

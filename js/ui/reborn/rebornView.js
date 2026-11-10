@@ -25,6 +25,18 @@ import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision } from "../../reborn/contract.js";
 import { overall } from "../../data/players.js";
+// Signature Awakening (workstream D): evidence-based skill awakening for the
+// Player career — no skill books, no purchases, no dice.
+import {
+  awakenedSkillIds,
+  evidenceFromReport,
+  recordGame as recordAwakeningGame,
+} from "../../career/player/signatureAwakening.js";
+import {
+  awakeningProgressHtml,
+  awakeningBannerHtml,
+  awakeningTimelineLine,
+} from "../awakeningView.js";
 
 let ROWS_CACHE = null;
 async function loadRows() {
@@ -79,6 +91,9 @@ export function careerTimelineHtml({ reborn, lang = "zh" } = {}) {
     if (event.event === "season_start") {
       return `<p>${event.year} ${L("赛季开始", "season starts", lang)}（${L("信任", "trust", lang)} ${event.trust}）</p>`;
     }
+    if (event.event === "awakening") {
+      return awakeningTimelineLine({ event, lang });
+    }
     return "";
   }).filter(Boolean);
   if (!lines.length) return "";
@@ -118,6 +133,9 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   let lastReport = null;
   let contractOutcome = null;
   let busy = false;
+  // Skills awakened in the last run of games (manual or fast-forward) — the
+  // banner shows them until the next run starts.
+  let lastAwakened = [];
   // The creation flow's selection state (null once a run exists). The seed
   // is fixed when creation opens so the random draw is stable while the
   // player browses the lists.
@@ -134,6 +152,44 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     const root = readRootSave() || {};
     root.reborn = reborn;
     writeRootSave(root);
+  }
+
+  /**
+   * Signature Awakening (workstream D): feed one settled game's report into
+   * the awakening ledger. The card is rebuilt from the post-game state so
+   * the ability gate + grant checks see the ratings the player actually had.
+   * Newly fired skills are recorded in the career timeline (source:
+   * "awakened") and staged for the banner. Mutates `rebornState` in place —
+   * the caller persists afterwards.
+   */
+  function applyAwakening(rebornState, report) {
+    if (!rebornState || !report) return [];
+    const card = buildPlayerCard(rebornState.identity, rows, {
+      growth: rebornState.player.growth,
+      season: report.year,
+      extraSkills: awakenedSkillIds(rebornState.player.awakening),
+    });
+    const out = recordAwakeningGame(rebornState.player.awakening, {
+      evidence: evidenceFromReport(report),
+      card,
+    });
+    rebornState.player.awakening = out.state;
+    if (out.awakened.length) {
+      const events = [...(rebornState.timeline?.events || [])];
+      for (const a of out.awakened) {
+        events.push({
+          year: report.year,
+          event: "awakening",
+          skillId: a.skillId,
+          source: "awakened",
+          game: a.game,
+          evidence: a.evidence,
+        });
+      }
+      rebornState.timeline = { ...(rebornState.timeline || {}), events };
+      lastAwakened = [...lastAwakened, ...out.awakened];
+    }
+    return out.awakened;
   }
 
   function rebuildSeason() {
@@ -158,6 +214,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     const card = buildPlayerCard(reborn.identity, rows, {
       growth: reborn.player.growth,
       season: season.year,
+      // Signature Awakening (workstream D): awakened skills ride on the card.
+      extraSkills: awakenedSkillIds(reborn.player.awakening),
     });
     const summary = seasonSummary(reborn, season.year);
     const done = season.index >= season.games.length;
@@ -178,6 +236,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     const html = [
       rebornIdentityHtml({ reborn, card, lang: lang() }),
       revealBanner,
+      awakeningBannerHtml({ awakened: lastAwakened, lang: lang() }),
+      awakeningProgressHtml({ awakening: reborn.player.awakening, card, lang: lang() }),
       `<p>${L("赛季", "Season", lang)} ${season.year} · ${L("第", "Game ", lang)}${Math.min(season.index + 1, season.games.length)}/${season.games.length} ${L("场", "", lang)} · ${summary.wins}${L("胜", "W", lang)}${summary.games - summary.wins}${L("负", "L", lang)}</p>`,
       canTrain
         ? `<section class="reborn-training"><h3>${L(`第 ${week} 周训练`, `Week ${week} training`, lang)}</h3><p>${L("每周选一个训练方向。", "Pick one training focus per week.", lang)}</p><div class="reborn-training-options">${TRAINING_FOCI.map((f) => {
@@ -212,6 +272,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     if (busy || !season || season.index >= season.games.length) return;
     busy = true;
     ffState = null;
+    lastAwakened = [];
     render();
     try {
       const week = currentWeek();
@@ -222,6 +283,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       if (!out) return;
       reborn = out.reborn;
       lastReport = out.report;
+      applyAwakening(reborn, out.report);
       persist();
     } finally {
       busy = false;
@@ -234,12 +296,19 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     if (busy || !season || season.index >= season.games.length) return;
     busy = true;
     ffRunning = true;
+    lastAwakened = [];
     const trustBefore = reborn.player.coachTrust;
     render();
     try {
       const out = await fastForward(reborn, season, rows, {
         onTakeover: createTakeoverHook(),
-        onGame: () => render(),
+        // The second arg is the reborn state after that game: record the
+        // awakening evidence live, so a skill fired mid-run is on the card
+        // from the next simmed game on.
+        onGame: (report, currentReborn) => {
+          if (currentReborn) applyAwakening(currentReborn, report);
+          render();
+        },
       });
       reborn = out.reborn;
       lastReport = out.reports.length ? out.reports[out.reports.length - 1] : lastReport;

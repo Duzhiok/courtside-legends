@@ -19,6 +19,7 @@
 import { hashSeed, seededStream } from "../core/seededRandom.js";
 import { rookieClassForYear } from "../engine/leagueDraft.js";
 import { seasonToCard } from "../data/players.js";
+import { isLearnableSkill, canRetainSkill, skillSlotsFull } from "../data/skills.js";
 
 export const REBORN_START_YEAR = 1996;
 /** roster.json season = end year, so the 1996-97 season is season 1997. */
@@ -214,7 +215,7 @@ export function maybeReveal(identity, trust) {
  * mutated). Growth deltas from root.reborn.player.growth are applied on read,
  * clamped to the attribute range — the original row stays untouched.
  */
-export function buildPlayerCard(identity, players, { growth = {}, season = REBORN_SEASON } = {}) {
+export function buildPlayerCard(identity, players, { growth = {}, season = REBORN_SEASON, extraSkills = [] } = {}) {
   if (!identity) throw new TypeError("buildPlayerCard requires an identity");
   let card;
   if (identity.kind === "historical") {
@@ -239,6 +240,18 @@ export function buildPlayerCard(identity, players, { growth = {}, season = REBOR
       // Deltas are small (+1 per level); only the 99 wall binds them.
       card[attribute] = Math.max(1, Math.min(99, card[attribute] + delta));
     }
+  }
+  // Signature Awakening (workstream D): skills the player awakened through
+  // real game performance ride on the card, under the same gates the
+  // epiphany path uses — learnable, retainable, and only while a slot is
+  // free. Innate skills (from the roster row / generated prospect) are
+  // untouched; extraSkills is additive only.
+  for (const skillId of extraSkills || []) {
+    if (!isLearnableSkill(skillId)) continue;
+    if ((card.skills || []).includes(skillId)) continue;
+    if (skillSlotsFull(card)) continue;
+    if (!canRetainSkill(card, skillId)) continue;
+    card.skills = [...(card.skills || []), skillId];
   }
   card.rebornClone = true;
   return card;

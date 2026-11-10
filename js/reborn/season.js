@@ -22,6 +22,7 @@ import { generateSchedule } from "../engine/season.js";
 import { GameSim } from "../engine/sim.js";
 import { gameScore } from "../engine/matchExplain.js";
 import { seasonToCard, overall } from "../data/players.js";
+import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
@@ -163,6 +164,9 @@ export async function playGame(
   const playerCard = buildPlayerCard(reborn.identity, players, {
     growth: reborn.player.growth,
     season: year,
+    // Signature Awakening (workstream D): skills awakened through real game
+    // performance ride on the card from the next game on.
+    extraSkills: awakenedSkillIds(reborn.player.awakening),
   });
   playerCard.roleExpectation = role === "starter" ? "starter" : role === "rotation" ? "role" : "bench";
   playerCard.targetMinutes = ROLE_MINUTES[role];

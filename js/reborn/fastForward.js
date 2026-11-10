@@ -192,7 +192,10 @@ export async function fastForward(
     if (!out) break;
     current = out.reborn;
     reports.push(out.report);
-    if (typeof onGame === "function") onGame(out.report);
+    // Signature Awakening (workstream D): the second arg is the reborn state
+    // after this game, so the view can record evidence live with the right
+    // card (an awakening fired here is on the card from the next game on).
+    if (typeof onGame === "function") onGame(out.report, current);
     // After-game stops, in priority order: the moment you lived, then the
     // reveal, then a role change (starter is its own event).
     if (out.report.takeover) {
