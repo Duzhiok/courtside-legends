@@ -850,7 +850,7 @@ function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
 // saving the old career instead clears the flag without stamping. A
 // Classic GM + Coach career (no stamp) never qualifies for the unlock;
 // a Coach career's identity is stamped by the Coach creation flow
-// (workstream B), not here — there is no Coach creation flow yet.
+// (workstream B) at offer acceptance, not here.
 let pendingCareerStart = null;
 
 function recordCareerCompletionIfEnded(rootState) {
@@ -12453,19 +12453,31 @@ async function boot() {
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();
     // Unified Career entry (3+1): Player opens the Player Reborn
-    // creation flow (or resumes the run); GM opens the League Manager
-    // setup; the Architect (unlocked) opens the Time Travel creation
-    // after the era step. Coach never reaches here — it only shows the
-    // honest dev note. The identity stamp (pendingCareerStart) marks the
-    // first save of a career started from the GM / Architect card, so
-    // completions can derive the role (see saveLongCareer). rebornView
-    // is a `let` declared before this call because initCareerEntry runs
-    // before the view is created.
+    // creation flow (or resumes the run); Coach pre-sets the prologue
+    // role to COACH and opens the Time Travel creation (the same path as
+    // the ?career=coach dev entry — the creation flow stamps the identity
+    // on the save via setIdentity at offer acceptance, so no
+    // pendingCareerStart stamp is needed here); GM opens the League
+    // Manager setup; the Architect (unlocked) opens the Time Travel
+    // creation after the era step. The identity stamp
+    // (pendingCareerStart) marks the first save of a career started from
+    // the GM / Architect card, so completions can derive the role (see
+    // saveLongCareer). rebornView is a `let` declared before this call
+    // because initCareerEntry runs before the view is created.
     let rebornView = null;
     initCareerEntry({
       onPlay: (identityId, era, opts) => {
         if (identityId === "player") {
           rebornView?.open();
+          return;
+        }
+        if (identityId === "coach") {
+          // Coach career: the prologue role is pre-set before the Time
+          // Travel creation screen opens (same as the ?career=coach dev
+          // entry); createTimeTravelPrologue() consumes it, and the
+          // accepted offer stamps the identity on the save.
+          setPrologueRole("COACH");
+          startMode("timeTravel");
           return;
         }
         if (identityId === "gm") {
@@ -12613,9 +12625,9 @@ async function boot() {
     }
     // Career Role Permissions dev entry: ?career=coach opens the Time
     // Travel creation with the Coach role pre-set (ADR-006 R4) — the
-    // Career entry's Coach card will do the same once workstream A
-    // wires it; the GM path is the League Manager setup, the GM+Coach
-    // path is the existing card.
+    // Career entry's Coach card does the same through onPlay; the GM
+    // path is the League Manager setup, the GM+Coach path is the
+    // existing card.
     if (new URLSearchParams(location.search).get("career") === "coach") {
       setPrologueRole("COACH");
       setTimeout(() => { startMode("timeTravel"); }, 250);

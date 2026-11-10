@@ -15,7 +15,11 @@
  * - Player: 可玩 — opens the Player Reborn creation flow (js/ui/reborn),
  *   then the season screen. Random destiny keeps the staged trust-40
  *   reveal; a chosen identity is known from the start.
- * - Coach: 开发中 — clicking shows an honest note, never a flow.
+ * - Coach: 可玩 — sets the prologue role to COACH (setPrologueRole) and
+ *   opens the Time Travel creation screen, which stamps the identity on
+ *   the save via setIdentity at offer acceptance; coach-only growth and
+ *   storylines are still to come, but the interview → season → games
+ *   flow with the ADR-006 coach permission guards is real.
  * - GM: routes to the existing League Manager setup (coach permissions
  *   are not yet isolated — workstream B's slice).
  * - The Architect: locked until unlocked; unlocked routes to the era
@@ -42,16 +46,7 @@ const tr = (lang, zh, en) => (lang === "en" ? en : zh);
 /** Static card copy (names, taglines) lives in index.html + PHRASES. */
 export const CAREER_IDENTITIES = [
   { id: "player", role: "PLAYER", status: "playable", route: "reborn" },
-  {
-    id: "coach",
-    role: "COACH",
-    status: "dev",
-    route: null,
-    devNote: [
-      "教练生涯开发中：按 ADR-006 的权限拆分实现，教练专属成长与剧情随后到来。",
-      "Coach Career is in development: it follows the ADR-006 permission split, with coach-only growth and storylines to come.",
-    ],
-  },
+  { id: "coach", role: "COACH", status: "playable", route: "timeTravel" },
   { id: "gm", role: "GM", status: "awaiting", route: "franchise" },
   { id: "gm_coach", role: "GM_COACH", status: "prestige", route: "timeTravel", prestige: true },
 ];
@@ -82,6 +77,15 @@ export function erasFor(identityId) {
     ];
   }
   if (identityId === "gm") return "setup";
+  if (identityId === "coach") {
+    // Coach starts in the Time Travel creation screen, which offers the
+    // historical year selector (1976–2025); the Modern League era does
+    // not exist for a coach career yet.
+    return [
+      { id: "historical", available: true },
+      { id: "modern", available: false },
+    ];
+  }
   return [];
 }
 
@@ -301,9 +305,10 @@ export function refreshCareerEntry() {
 
 /**
  * Wire the identity cards. `onPlay(identityId, era, opts)` routes the
- * playable flows: ("player"), ("gm") and ("gm_coach", "historical",
- * { prestige }). Coach never calls it — it only shows the honest dev
- * note. `getAccount` supplies the active account for the Architect
+ * playable flows: ("player"), ("coach") and ("gm_coach", "historical",
+ * { prestige }). The app.js handler sets the prologue role for Coach
+ * (setPrologueRole) before opening the Time Travel creation screen.
+ * `getAccount` supplies the active account for the Architect
  * lock/progress paint; without it the card shows locked, 0/2.
  */
 export function initCareerEntry({ onPlay, getAccount } = {}) {

@@ -121,11 +121,11 @@ test("3+1 identities, in order, with distinct statuses and routes", () => {
   );
   assert.deepEqual(
     CAREER_IDENTITIES.map((entry) => entry.status),
-    ["playable", "dev", "awaiting", "prestige"],
+    ["playable", "playable", "awaiting", "prestige"],
   );
   assert.deepEqual(
     CAREER_IDENTITIES.map((entry) => entry.route),
-    ["reborn", null, "franchise", "timeTravel"],
+    ["reborn", "timeTravel", "franchise", "timeTravel"],
   );
   assert.ok(careerIdentityById("gm_coach")?.prestige, "GM + Coach is the prestige identity");
   assert.equal(careerIdentityById("nope"), null);
@@ -143,8 +143,14 @@ test("erasFor: only supported role/era combinations are offered as playable", ()
     { id: "historical", available: true },
     { id: "modern", available: false },
   ]);
-  // Coach has no creation flow at all.
-  assert.deepEqual(erasFor("coach"), []);
+  // Coach starts in the Time Travel creation screen, which offers the
+  // historical year selector (1976–2025); Modern is not open yet.
+  // Clicking the card pre-sets the prologue role to COACH
+  // (setPrologueRole) before opening that screen.
+  assert.deepEqual(erasFor("coach"), [
+    { id: "historical", available: true },
+    { id: "modern", available: false },
+  ]);
 });
 
 test("eraPanelHtml: Historical is playable, Modern is shown disabled — never as playable", () => {

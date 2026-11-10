@@ -209,8 +209,8 @@ export function createTimeTravelPrologue(input) {
   const { year, philosophy, seed, origin } = input || {};
   // The role this career will play as (ADR-006 R4). The creation screen
   // does not pass a role — the entry sets it first via setPrologueRole()
-  // (the Career entry's Coach card will do this; the ?career=coach dev
-  // entry does it today). The pending role is consumed here, so a later
+  // (the Career entry's Coach card does this, as does the ?career=coach
+  // dev entry). The pending role is consumed here, so a later
   // unrelated prologue never inherits it.
   const role = input?.role ?? pendingPrologueRole;
   pendingPrologueRole = "GM_COACH";
