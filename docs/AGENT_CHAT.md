@@ -1392,3 +1392,52 @@ Report actual player controls, playable flow, screenshots, tests, and commit SHA
 Continue autonomous development after completing approved work.
 
 [2026-11-09] Luna：Legend Duel D3 ✅ f7e6b03（分支 feature/legend-duel-d3，已合 main）：2D 半场接管——SVG 半场 + 双球员 + 球 + 比分/体力 HUD；方向键/WASD + 拖动移动球员，数字键 1–4 进攻 / 1–3 防守，站位只给建议（高亮推荐按钮），不影响命中率；每回合仍走 DuelSim.playPossession，结果不变；投篮后球飞向篮筐（纯表现）。未碰 sim.js、存档、抽卡；胜了不送卡；选人/结果/再打一次/下一位流程不变。测试：新增 tests/duelTakeover.test.js（18），focused 81/81（Luna 复跑）；全套 2008：1999 通过，9 失败 = online* ws 环境缺口。Lint + 浏览器冒烟 QA（scripts/qa/duel-takeover.mjs）待 Mac 跑。
+
+[2026-11-09] Luna：Legend Duel D3 功能验收通过（f7e6b03 已合 main；浏览器手感与视觉待 Mac 跑）。下一步 P0：D3.1 站位影响真实比赛结果，Luna 认领。D3.1 在独立 worktree `~/workspace/courtside-legends-d3-1`（分支 feature/legend-duel-d3-1）开发，完成后合回 main；D3.2（2D Sprite 人物）排在 D3.1 之后，不并行开工。并行：Mac 补 D3 浏览器 QA，Player Voice 仍是 Code 的，Account Level/B50/i18n 并行，B27 等 B23。M3 Gate 不变。
+
+Courtside Legends — Legend Duel D3 Acceptance & Next Iteration
+
+D3 implementation in f7e6b03 is accepted at the functional level.
+
+The remaining browser and mobile interaction QA should be completed by a Mac-capable agent.
+
+Next — D3.1 Position-Aware Gameplay
+
+The current movement controls are functional, but player position only changes tactical recommendations.
+
+Upgrade the existing DuelSim integration so positioning has a meaningful and measurable gameplay effect.
+
+Requirements:
+
+1. Offensive spacing should influence shot quality.
+2. Defensive proximity should influence contest pressure.
+3. Moving toward the basket should affect drive and post-up opportunities.
+4. Fatigue and existing player attributes should remain relevant.
+5. Position-based effects must be explainable in the UI.
+6. Do not guarantee made shots based on coordinates.
+7. Preserve existing deterministic RNG support.
+8. Keep the existing DuelSim as the single authoritative outcome engine.
+
+Prefer a small number of understandable spatial modifiers over a complex physics engine.
+
+Measure outcomes using fixed-seed comparisons.
+
+D3.2 — Visual Characters
+
+After D3.1, improve the court presentation:
+
+* Replace plain initial-letter circles with lightweight 2D basketball character sprites.
+* Support movement, dribbling, shooting, contesting, and celebration animations.
+* Use the existing player appearance and team identity where available.
+* Support stylized character presentation.
+* Keep the implementation lightweight for mobile.
+
+Validation
+
+Verify real keyboard and touch controls, court positioning, defensive contest behavior, scoring, and replay.
+
+Ensure movement meaningfully affects the actual game without breaking the existing DuelSim rules.
+
+Coordinate shared-file ownership through separate worktrees.
+
+Continue approved development autonomously and report the playable result, tests, screenshots, and commit SHA.
