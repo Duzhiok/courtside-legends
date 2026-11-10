@@ -53,7 +53,7 @@ function portraitHtml(portrait, lang) {
   const isPhoto = portrait?.kind === "photo";
   const note = portrait?.stale
     ? T(lang, "外观改过了，旧的 3D 头像已不再显示；点下面的按钮重新用当前形象。", "Your look changed, so the old 3D picture is hidden. Use the button below to take a new one.")
-    : T(lang, "3D 头像需要 3D 形象加载成功；不可用时仍可选预设头像。", "A 3D picture needs the 3D figure to load; presets always work.");
+    : T(lang, "3D 头像是实验功能（人物模型正在重做），建议先用上面的插画头像。", "The 3D picture is experimental (the character model is being redone); the illustrations above are the recommended choice.");
   return `<fieldset class="mw-swatches mw-portraits" data-mw-portrait-group>
     <legend>${T(lang, "头像", "Profile picture")}</legend>
     ${PORTRAIT_PRESETS.map((p) => `<label class="mw-portrait-opt" title="${esc(T(lang, p.zh, p.en))}">

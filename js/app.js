@@ -2544,13 +2544,17 @@ $("#btn-account-chip")?.addEventListener("click", openAccountScreen);
 $("#btn-switch-account")?.addEventListener("click", openAccountScreen);
 $("#btn-account-gate-create")?.addEventListener("click", openAccountScreen);
 $("#btn-account-gate-dismiss")?.addEventListener("click", hideAccountGate);
-$("#btn-profile-toggle")?.addEventListener("click", () => {
+function toggleAccountMenu() {
   const btn = $("#btn-profile-toggle");
   const panel = $("#profile-panel");
   if (!btn || !panel) return;
   panel.hidden = !panel.hidden;
   btn.setAttribute("aria-expanded", String(!panel.hidden));
-});
+}
+$("#btn-profile-toggle")?.addEventListener("click", toggleAccountMenu);
+// The avatar and the name are the natural "account" target; the panel behind them is the same one the button opens.
+$("#account-home-avatar")?.addEventListener("click", toggleAccountMenu);
+$("#account-home-bar .account-home-text")?.addEventListener("click", toggleAccountMenu); // other screens reuse the class
 $("#btn-account-back")?.addEventListener("click", () => show(accountReturnScreen || "home"));
 $("#btn-open-collection")?.addEventListener("click", () => {
   if (!requireAccountReady({ zh: "我的球员卡", en: "My Player Cards" })) return;

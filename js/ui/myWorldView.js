@@ -78,31 +78,48 @@ const ICONS = {
 const icon = (name) => `<svg class="mw-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
 
 /** `portrait` is portraitFor()'s result; `frame` is a shop frame id (e.g. "gold") — a CSS class on the portrait wrapper. */
-export function identityCardHtml(identity, lang, portrait = null, frame = null) {
+/** One stat in the hero's row; a missing value (guest) is simply not drawn, never a fake 0. */
+const heroStat = (value, label) => (value == null ? "" : `<div class="mw-hero-stat"><dt>${label}</dt><dd>${value}</dd></div>`);
+
+/**
+ * The player's identity Hero: portrait, name, hometown, level + XP bar, the three headline numbers and the edit
+ * actions, in ONE panel (it used to be three: identity card, account-level card and a second name/level in the showcase).
+ * `extras.level` = levelSnapshot (or null); `extras.stats` = { titles, cards, rankedWins } (or null for a guest).
+ */
+export function identityCardHtml(identity, lang, portrait = null, frame = null, extras = {}) {
   const name = identity.name || T(lang, "访客球员", "Guest player");
   const facts = identity.hometown ? `${T(lang, "来自", "From")} ${esc(identity.hometown)}` : T(lang, "家乡未填写", "Hometown not set");
   const note = identity.guest
     ? `<p class="mw-note">${T(lang, "访客资料只保存在这台设备的浏览器里。创建账号后，在账号下重新编辑即可保存到账号。", "Guest profiles live only in this browser on this device. Create an account and edit again to keep it with the account.")}</p>`
     : "";
-  return `<section class="mw-identity" aria-labelledby="mw-identity-title">
+  const stats = extras.stats
+    ? `<dl class="mw-hero-stats">${heroStat(extras.stats.titles, T(lang, "总冠军", "Titles"))}${heroStat(extras.stats.cards, T(lang, "球员卡", "Cards"))}${heroStat(extras.stats.rankedWins, T(lang, "排位胜场", "Ranked wins"))}</dl>`
+    : "";
+  // The 3D face is still experimental: whoever picked it gets a one-tap way back to an illustration (never forced).
+  const backToArt = `<button type="button" class="btn small ghost mw-on-dark" data-mw-action="use-preset-portrait"${portrait?.kind === "3d" ? "" : " hidden"}>${T(lang, "换成插画头像", "Use an illustration")}</button>`;
+  return `<section class="mw-identity mw-hero" aria-labelledby="mw-identity-title">
     <div class="mw-portrait${frame ? ` mw-frame-${frame}` : ""}"><img class="mw-avatar" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="96" height="96" /></div>
     <div class="mw-identity-body">
+      <p class="mw-hero-kicker">MY IDENTITY</p>
       <h3 id="mw-identity-title">${esc(name)}</h3>
       <p class="mw-facts">${facts}</p>
+      ${levelHtml(extras.level, lang)}
       <p class="mw-bio">${identity.bio ? esc(identity.bio) : T(lang, "还没有个人简介。写一句话介绍你的篮球人生。", "No bio yet. Write one line about your basketball life.")}</p>
-      <div class="btn-row">${action("edit-identity", T(lang, "编辑个人资料", "Edit profile"), "btn small mw-gold")}${action("toggle-look", T(lang, "编辑形象", "Edit look"), "btn small ghost mw-on-dark")}</div>
-      ${note}
-      <form class="mw-form" id="mw-identity-form" hidden>
-        <label>${T(lang, "昵称", "Display name")}<input name="name" maxlength="${PROFILE_LIMITS.name}" value="${esc(identity.name)}" /></label>
-        <label>${T(lang, "家乡", "Hometown")}<input name="hometown" maxlength="${PROFILE_LIMITS.hometown}" value="${esc(identity.hometown)}" /></label>
-        <label>${T(lang, "个人简介", "Bio")}<textarea name="bio" rows="2" maxlength="${PROFILE_LIMITS.bio}">${esc(identity.bio)}</textarea></label>
-        <div class="btn-row">
-          <button type="submit" class="btn small mw-gold">${T(lang, "保存", "Save")}</button>
-          ${action("cancel-identity", T(lang, "取消", "Cancel"), "btn small ghost mw-on-dark")}
-        </div>
-        <p class="mw-status" role="status" aria-live="polite"></p>
-      </form>
     </div>
+    ${stats}
+    <div class="mw-hero-actions btn-row">${action("edit-identity", T(lang, "编辑个人资料", "Edit profile"), "btn small mw-gold")}${action("toggle-look", T(lang, "编辑形象", "Edit look"), "btn small ghost mw-on-dark")}${backToArt}</div>
+    <p class="mw-status" id="mw-hero-status" role="status" aria-live="polite"></p>
+    ${note}
+    <form class="mw-form" id="mw-identity-form" hidden>
+      <label>${T(lang, "昵称", "Display name")}<input name="name" maxlength="${PROFILE_LIMITS.name}" value="${esc(identity.name)}" /></label>
+      <label>${T(lang, "家乡", "Hometown")}<input name="hometown" maxlength="${PROFILE_LIMITS.hometown}" value="${esc(identity.hometown)}" /></label>
+      <label>${T(lang, "个人简介", "Bio")}<textarea name="bio" rows="2" maxlength="${PROFILE_LIMITS.bio}">${esc(identity.bio)}</textarea></label>
+      <div class="btn-row">
+        <button type="submit" class="btn small mw-gold">${T(lang, "保存", "Save")}</button>
+        ${action("cancel-identity", T(lang, "取消", "Cancel"), "btn small ghost mw-on-dark")}
+      </div>
+      <p class="mw-status" role="status" aria-live="polite"></p>
+    </form>
   </section>`;
 }
 
@@ -212,7 +229,7 @@ export function legacyHtml(legacy, journey, lang) {
     : "";
   const architect = architectTitlesHtml(legacy?.architect, lang);
   const collection = legacy
-    ? `<p class="mw-line tiny">${T(lang, `球员卡 ${legacy.cards} 张 · 图鉴 ${legacy.codex} 人 · 排位 ${legacy.rankedWins} 胜 ${legacy.rankedLosses} 负`, `${legacy.cards} cards · ${legacy.codex} in codex · Ranked ${legacy.rankedWins}-${legacy.rankedLosses}`)}</p>
+    ? `<p class="mw-line tiny">${T(lang, `图鉴 ${legacy.codex} 人`, `${legacy.codex} in codex`) /* cards + ranked wins are in the hero; no second copy */}</p>
        ${legacy.cards ? action("open-collection", T(lang, "打开我的球员卡", "Open my cards")) : `<p class="mw-empty">${T(lang, "还没有球员卡。", "No cards yet.")}</p>`}`
     : `<p class="mw-empty">${T(lang, "访客没有永久收藏。创建账号后可以收集球员卡。", "Guests have no permanent collection. Create an account to collect cards.")}</p>
        ${action("open-accounts", T(lang, "创建或切换账号", "Create or switch account"))}`;
@@ -316,6 +333,7 @@ export function homeSceneHtml({ identity, frames = [], trophyCount = 0, furnitur
  * gold / packs grant for real. Guests see the card too; gold / pack claims
  * ask them to create an account first (handled by the screen).
  */
+/** The level block inside the hero: badge + title, XP bar, one line of numbers, and the (hidden) reward track. */
 export function levelHtml(snapshot, lang) {
   if (!snapshot) return "";
   const rows = snapshot.track.map((entry) => {
@@ -326,31 +344,31 @@ export function levelHtml(snapshot, lang) {
         : `<span class="mw-level-state">${T(lang, `Lv.${entry.level} 解锁`, `Unlocks at Lv.${entry.level}`)}</span>`;
     return `<li class="mw-level-row"><span class="mw-level-lv">Lv.${entry.level}</span><span class="mw-level-reward">${esc(entry.label)}</span>${btn}</li>`;
   }).join("");
+  const left = snapshot.xpForNext - snapshot.xpIntoLevel;
   const next = snapshot.isMax
     ? T(lang, "已满级 · 传奇荣誉（Legacy Rank）即将到来", "Max level · Legacy Rank is coming")
-    : T(lang, `升到 Lv.${snapshot.level + 1} 还需 ${snapshot.xpForNext - snapshot.xpIntoLevel} 经验`, `${snapshot.xpForNext - snapshot.xpIntoLevel} XP to Lv.${snapshot.level + 1}`);
-  return `<section class="mw-card mw-level" aria-labelledby="mw-level-title">
-    <h3 id="mw-level-title">${T(lang, "账号等级", "Account Level")}</h3>
-    <div class="mw-level-hero"><span class="mw-level-num">Lv.${snapshot.level}</span><span class="mw-level-title">${esc(lang === "en" ? snapshot.titleEn : snapshot.title)}</span></div>
+    : T(lang, `距 Lv.${snapshot.level + 1} 还差 ${left} XP`, `${left} XP to Lv.${snapshot.level + 1}`);
+  return `<div class="mw-hero-level">
+    <p class="mw-level-hero"><span class="mw-level-num">Lv.${snapshot.level}</span><span class="mw-level-title">${esc(lang === "en" ? snapshot.titleEn : snapshot.title)}</span></p>
     <div class="mw-level-bar" role="progressbar" aria-valuenow="${snapshot.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${T(lang, "账号经验进度", "Account XP progress")}"><div class="mw-level-fill" style="width: ${snapshot.pct}%"></div></div>
-    <p class="mw-line tiny">${T(lang, `账号经验 ${snapshot.xpIntoLevel} / ${snapshot.xpForNext} · 累计 ${snapshot.totalXp}`, `Account XP ${snapshot.xpIntoLevel} / ${snapshot.xpForNext} · ${snapshot.totalXp} total`)} · ${next}</p>
-    <div class="btn-row"><button type="button" class="btn small ghost" data-mw-action="toggle-level-track" aria-expanded="false" aria-controls="mw-level-track">${T(lang, "查看等级奖励", "View level rewards")}</button></div>
+    <p class="mw-level-line"><span>${snapshot.xpIntoLevel} / ${snapshot.xpForNext} XP</span><span>${next}</span><button type="button" class="mw-link" data-mw-action="toggle-level-track" aria-expanded="false" aria-controls="mw-level-track">${T(lang, "等级奖励", "Rewards")}</button></p>
     <ul class="mw-level-track" id="mw-level-track" hidden>${rows}</ul>
     <p class="mw-status" id="mw-level-status" role="status" aria-live="polite"></p>
-  </section>`;
+  </div>`;
 }
 
 export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], frame = null, ownedOutfits = null, owned = null }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const ownedCareer = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
+  const titles = (ownedCareer?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0);
+  const stats = legacy ? { titles, cards: legacy.cards, rankedWins: legacy.rankedWins } : null; // a guest has no collection or ranked record
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
-    ${showcaseHtml({ identity, look, portrait, level }, lang)}
-    ${identityCardHtml(identity, lang, portrait, frame)}
-    ${levelHtml(level, lang)}
+    ${identityCardHtml(identity, lang, portrait, frame, { level, stats })}
+    ${showcaseHtml({ identity, look, portrait }, lang)}
     ${lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
-    ${homeSceneHtml({ identity, frames, trophyCount: (ownedCareer?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0), furniture }, lang)}
+    ${homeSceneHtml({ identity, frames, trophyCount: titles, furniture }, lang)}
     ${ownedShopHtml(owned, lang)}`;
 }
 
@@ -361,21 +379,17 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, look, po
  * The Stylized / Bobblehead switch is the same `look.figure` the editor writes, so the
  * switch and the editor can never disagree.
  */
-export function showcaseHtml({ identity, look, portrait = null, level = null }, lang) {
+export function showcaseHtml({ identity, look }, lang) {
   const name = identity?.name || T(lang, "访客球员", "Guest player");
   const figure = look?.figure || "stylized";
-  const levelChip = level ? `<p class="mw-showcase-level">Lv.${level.level} · ${esc(lang === "en" ? level.titleEn : level.title)}</p>` : "";
   const switchBtns = FIGURE_STYLES.map((f) => `<button type="button" class="btn small ${figure === f.id ? "mw-gold" : "ghost mw-on-dark"}" data-mw-action="showcase-figure" data-figure="${f.id}" aria-pressed="${figure === f.id}">${esc(T(lang, f.zh, f.en))}</button>`).join("");
   return `<section class="mw-showcase" aria-label="${T(lang, "我的形象展示", "My character showcase")}">
     <div class="mw-showcase-stage" id="mw-showcase-stage">
-      <img class="mw-showcase-static" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="140" height="140" />
+      <img class="mw-showcase-static" src="${esc(avatarDataUri({ name, team: "NBA" }))}" alt="" width="140" height="140" />
     </div>
     <div class="mw-showcase-body">
-      <h3>${esc(name)}</h3>
-      ${levelChip}
+      <h4>${T(lang, "我的形象", "My character")}</h4>
       <div class="btn-row" role="group" aria-label="${T(lang, "形象风格", "Character style")}">${switchBtns}</div>
-      <div class="btn-row"><button type="button" class="btn small ghost mw-on-dark" data-mw-action="toggle-look">${T(lang, "编辑形象", "Edit look")}</button></div>
-      <p class="mw-note">${T(lang, "3D 形象加载成功后会在这里展示；加载失败时显示头像图片。风格切换与形象编辑器是同一个设置。", "Your 3D figure shows here once it loads; the portrait image shows if it can't. The style switch and the look editor write the same setting.")}</p>
       <p class="mw-status" id="mw-showcase-status" role="status" aria-live="polite"></p>
     </div>
   </section>`;

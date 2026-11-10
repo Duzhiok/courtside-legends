@@ -38,7 +38,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [1280, 800, "desktop"], [390, 84
   // 1. Navigation: fourth tab exists, the old default + Quick Play are unchanged
   const tabs = await page.$$eval(".home-tab", (els) => els.map((e) => e.dataset.category));
   check(`[${tag}] four tabs, world first`, tabs.join() === "world,players,career,custom", tabs.join());
-  check(`[${tag}] default tab is still career`, await visible(page, '.mode-card[data-mode="timeTravel"]'));
+  check(`[${tag}] default tab is My World`, await visible(page, "#my-world-root .mw-identity"));
   const cta = await page.$eval("#btn-play-now", (el) => el.getBoundingClientRect().bottom);
   check(`[${tag}] Quick Play still above the fold`, cta <= h, `${Math.round(cta)}`);
 
@@ -49,22 +49,24 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [1280, 800, "desktop"], [390, 84
   check(`[${tag}] guest note shown`, empty.includes("只保存在这台设备"));
   check(`[${tag}] no career => honest empty journey`, empty.includes("还没有进行中的生涯"));
   // 2b. Account Level (v1): badge + bar render for a guest, track toggles, Lv.2 locked.
-  check(`[${tag}] level card renders (Lv.1 guest)`, await visible(page, "#my-world-root .mw-level") && empty.includes("账号等级") && empty.includes("Lv.1"));
+  check(`[${tag}] level lives in the hero (Lv.1 guest), no separate level card`, await visible(page, "#my-world-root .mw-identity .mw-hero-level") && empty.includes("Lv.1") && !(await visible(page, "#my-world-root .mw-card.mw-level")));
   check(`[${tag}] reward track hidden by default`, !(await visible(page, "#mw-level-track")));
   await page.click('[data-mw-action="toggle-level-track"]');
   check(`[${tag}] reward track opens, Lv.2 locked for a new guest`, await visible(page, "#mw-level-track") && (await text(page, "#my-world-root")).includes("Lv.2 解锁"));
+  const trackH = await page.$eval("#mw-level-track", (el) => Math.round(el.getBoundingClientRect().height));
+  check(`[${tag}] open reward list is capped and scrolls inside the hero`, trackH <= 230, `${trackH}px`);
+  await page.click('[data-mw-action="toggle-level-track"]'); // measure the hero in its normal (closed) state below
   check(`[${tag}] no trophies drawn`, !empty.includes("🏆"));
   check(`[${tag}] no horizontal overflow (guest)`, await noOverflow(page));
   // Redesign: single title, compact hero, closed feedback behind a corner icon, honest omissions
   const hdr = await page.$$eval("#my-world-root h2, #my-world-root .mw-head", (els) => els.length);
   check(`[${tag}] no big page heading`, hdr === 0 && !empty.includes("My Basketball Life") && !empty.includes("COURTSIDE LEGENDS · MY WORLD"));
   const hero = await page.$eval(".mw-identity", (el) => Math.round(el.getBoundingClientRect().height));
-  check(`[${tag}] hero is compact`, hero <= (w <= 640 ? 260 : 190), `${hero}px`);
+  check(`[${tag}] hero is one compact panel (portrait + level + stats + actions)`, hero <= (w <= 640 ? 600 : 400), `${hero}px`);
   const heroTop = await page.$eval(".mw-identity", (el) => Math.round(el.getBoundingClientRect().top + scrollY));
   check(`[${tag}] identity near the top of the panel`, heroTop - (await page.$eval("#my-world-root", (el) => Math.round(el.getBoundingClientRect().top + scrollY))) <= 70);
-  check(`[${tag}] feedback closed by default, icon visible`, !(await visible(page, "#mw-feedback")) && (await visible(page, ".mw-voice")));
-  const iconRight = await page.$eval(".mw-voice", (el, root) => el.getBoundingClientRect().right >= document.querySelector(root).getBoundingClientRect().right - 2, "#my-world-root");
-  check(`[${tag}] feedback icon sits in the top-right`, iconRight);
+  // Feedback moved to the global Player Voice button in the top bar; My World carries no inline panel of its own.
+  check(`[${tag}] feedback is the global Voice button, no inline panel in My World`, !(await visible(page, "#mw-feedback")) && (await visible(page, "#btn-voice")));
   check(`[${tag}] My Games card, no fake Daily Hub / My Style`, empty.includes("我的游戏记录") && !/Daily Hub|My Style|换装/.test(empty));
   const cardsH = await page.$$eval(".mw-grid .mw-card", (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
   check(`[${tag}] cards are compact`, Math.max(...cardsH) <= (w <= 640 ? 230 : 190), cardsH.join());
@@ -108,17 +110,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [1280, 800, "desktop"], [390, 84
   await tab(page, "world");
   check(`[${tag}] account A edit persisted`, (await text(page, ".mw-identity")).includes("Little Rock"));
 
-  // 6. Feedback copy: real clipboard or an honest manual-copy fallback, never silent
-  await page.click(".mw-voice");
-  check(`[${tag}] icon opens the feedback panel`, await visible(page, "#mw-feedback"));
-  await page.fill("#mw-feedback-note", "Add a shooting drill");
-  await page.click('[data-mw-action="copy-feedback"]');
-  await page.waitForFunction(() => document.querySelector("#mw-feedback-status")?.textContent.trim());
-  const fb = await page.evaluate(() => ({ s: document.querySelector("#mw-feedback-status").textContent, box: document.querySelector("#mw-feedback-template") }));
-  const boxVal = await page.$eval("#mw-feedback-template", (el) => (el.hidden ? "" : el.value));
-  check(`[${tag}] copy gives feedback`, fb.s.includes("已复制") || boxVal.includes("Add a shooting drill"), fb.s);
-  const link = await page.$eval(".mw-feedback a", (a) => a.href);
-  check(`[${tag}] feedback links to the real issue tracker`, link.startsWith("https://github.com/Duzhiok/courtside-legends/issues"));
+  // 6. (Feedback is the global Player Voice button now; it is covered by scripts/qa/player-voice.mjs.)
 
   // 7. Contrast
   const darkLow = await textContrast(page, ".mw-identity", { min: 4.5, under: [30, 80, 56] });

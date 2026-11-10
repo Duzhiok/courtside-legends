@@ -6,7 +6,7 @@
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
 import { ownedFurnitureIds, ownedOutfitIds, equippedFrameId, equipShopItem, unequipShopItem } from "../data/shop.js";
-import { lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
+import { defaultPresetId, lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
@@ -202,6 +202,8 @@ export function createMyWorld({
       btn.setAttribute("aria-pressed", String(p.kind === "3d"));
       btn.textContent = p.kind === "3d" ? (en ? "✓ Using my 3D look" : "✓ 正在使用我的 3D 形象") : (en ? "Use my 3D look" : "用我的 3D 形象作头像");
     }
+    const art = el.querySelector('[data-mw-action="use-preset-portrait"]');
+    if (art) art.hidden = p.kind !== "3d";
     onPortraitChanged(account);
     return p;
   }
@@ -228,6 +230,17 @@ export function createMyWorld({
     if (res.invalid) return say(status, "这张照片无法保存（格式不对）。", "This photo can't be saved (wrong format).");
     if (!res.saved) return persistFailed(status);
     say(status, "已用你的照片作头像。", "Your photo is now your profile picture.");
+  }
+
+  /** Back from the (experimental) 3D picture to an illustration: the owner's stable default preset, one tap, no confirmation needed. */
+  function usePresetPortrait() {
+    const status = el.querySelector("#mw-hero-status");
+    const account = getAccount();
+    const res = savePortrait(account, { source: "preset", preset: defaultPresetId(account?.id || "guest") });
+    paintPortrait();
+    if (res.invalid) return;
+    if (!res.saved) return persistFailed(status);
+    say(status, "已换成插画头像。", "Switched to an illustration.");
   }
 
   /** Take the portrait from the live 3D figure. Never invents a picture: no viewer / no frame = nothing saved. */
@@ -351,6 +364,7 @@ export function createMyWorld({
       say(status(), getLang() === "en" ? `Took off ${res.item.en}.` : `已取下「${res.item.zh}」。`);
     },
     "use-3d-portrait": use3dPortrait,
+    "use-preset-portrait": usePresetPortrait,
     "pick-photo": () => el.querySelector("#mw-photo-input")?.click(),
     "avatar-action-clap": () => playPreview("clap"),
     "avatar-action-jump": () => playPreview("jump"),

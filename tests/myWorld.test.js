@@ -93,7 +93,7 @@ test("every rendered action button has a handler; user text is escaped; English 
   const evil = { name: "<img src=x onerror=1>", hometown: "\"><script>", bio: "&", guest: false };
   const html = view.myWorldHtml({ identity: evil, journey: view.journeyFromRoot(root(1)), legacy: view.legacyFromAccount({ playerIds: [] }), frames: [] }, "zh");
   assert.doesNotMatch(html, /<img src=x|<script>/);
-  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "open-shop", "clear-stars", "use-3d-portrait", "pick-photo", "toggle-look", "avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle", "toggle-level-track", "claim-level-reward", "showcase-figure", "equip-owned", "unequip-owned"];
+  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "open-shop", "clear-stars", "use-3d-portrait", "use-preset-portrait", "pick-photo", "toggle-look", "avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle", "toggle-level-track", "claim-level-reward", "showcase-figure", "equip-owned", "unequip-owned"];
   const handlerSource = (await import("node:fs")).readFileSync(new URL("../js/ui/myWorldScreen.js", import.meta.url), "utf8");
   for (const [, name] of html.matchAll(/data-mw-action="([^"]+)"/g)) {
     assert.ok(known.includes(name), name);
@@ -165,17 +165,42 @@ test("owned area: every bought item has a findable equip/place entry; furniture 
   assert.match(empty, /data-mw-action="open-shop"/);
 });
 
-test("showcase: stage is always rendered, the style switch reflects the real look, level chip comes from the snapshot", () => {
-  const level = { level: 7, title: "球场老将", titleEn: "Veteran", totalXp: 900, xpIntoLevel: 50, xpForNext: 100, pct: 50, isMax: false, track: [] };
-  const html = view.showcaseHtml({ identity: { name: "Zoro", guest: false }, look: { figure: "bobblehead" }, portrait: null, level }, "zh");
+test("showcase: stage is always rendered, the style switch reflects the real look, and it no longer repeats the name/level/edit button", () => {
+  const html = view.showcaseHtml({ identity: { name: "Zoro", guest: false }, look: { figure: "bobblehead" }, portrait: null }, "zh");
   assert.match(html, /id="mw-showcase-stage"/);
   assert.match(html, /data-figure="bobblehead" aria-pressed="true"/);
   assert.match(html, /data-figure="stylized" aria-pressed="false"/);
-  assert.match(html, /Lv\.7 · 球场老将/);
-  assert.match(html, /data-mw-action="toggle-look"/, "the full editor stays one tap away");
-  const en = view.showcaseHtml({ identity: { name: "Zoro", guest: false }, look: { figure: "stylized" }, portrait: null, level }, "en");
+  assert.doesNotMatch(html, /<h3|Lv\.|toggle-look/, "name, level and the editor button live in the hero only");
+  assert.doesNotMatch(view.showcaseHtml({ identity: { name: "Zoro" }, look: { figure: "stylized" } }, "en"), CJK);
+});
+
+test("hero: ONE panel holds name, level + XP, the three real numbers and the edit actions (no second level card)", () => {
+  const level = { level: 5, title: "轮换球员", titleEn: "Rotation", totalXp: 970, xpIntoLevel: 270, xpForNext: 350, pct: 77, isMax: false, track: [] };
+  const identity = { name: "John", hometown: "China", bio: "dunk man", guest: false };
+  const html = view.myWorldHtml({ identity, legacy: { cards: 16, codex: 16, rankedWins: 1, rankedLosses: 0, myTeam: { titles: 1 }, architect: { earned: [], progress: [] } }, frames: [], level }, "zh");
+  assert.equal((html.match(/id="mw-identity-title"/g) || []).length, 1, "the name appears once as a heading");
+  assert.match(html, /Lv\.5<\/span><span class="mw-level-title">轮换球员/);
+  assert.match(html, /270 \/ 350 XP/);
+  assert.match(html, /<dt>总冠军<\/dt><dd>1<\/dd>/);
+  assert.match(html, /<dt>球员卡<\/dt><dd>16<\/dd>/);
+  assert.match(html, /<dt>排位胜场<\/dt><dd>1<\/dd>/);
+  assert.doesNotMatch(html, /mw-card mw-level/, "the old standalone account-level card is gone");
+  assert.equal((html.match(/data-mw-action="toggle-look"/g) || []).length, 1, "one edit-look button on the page, in the hero");
+  assert.ok(html.indexOf("mw-hero") < html.indexOf("mw-showcase"), "hero first, character second");
+  assert.ok(html.indexOf("mw-showcase") < html.indexOf("mw-grid"), "then games and legacy");
+  // a guest has no collection or ranked record: the row is absent, not a row of fake zeros
+  assert.doesNotMatch(view.myWorldHtml({ identity: { ...identity, guest: true }, legacy: null, frames: [], level }, "zh"), /mw-hero-stats/);
+});
+
+test("hero: the way back to an illustration is offered only while the 3D picture is in use", () => {
+  const id = { name: "A", hometown: "", bio: "", guest: false };
+  const btn = (portrait) => view.identityCardHtml(id, "zh", portrait).match(/<button[^>]*data-mw-action="use-preset-portrait"[^>]*>/)[0];
+  assert.match(btn({ kind: "preset", src: "x" }), /hidden/);
+  assert.match(btn({ kind: "photo", src: "x" }), /hidden/);
+  assert.doesNotMatch(btn({ kind: "3d", src: "x" }), /hidden/);
+  const en = view.identityCardHtml(id, "en", { kind: "3d", src: "x" });
   assert.doesNotMatch(en, CJK);
-  assert.match(en, /Lv\.7 · Veteran/);
+  assert.match(en, /Use an illustration/);
 });
 
 test("home scene renders owned furniture in the real room (cabinet + new pieces), skips unknown ids", () => {
