@@ -15,6 +15,7 @@ import { FIGURE_STYLES } from "../data/avatarLook.js";
 import { getShop, equippedClothingItemId } from "../data/shop.js";
 import { itemById, itemName } from "../data/shopCatalog.js";
 import { lookPanelHtml } from "./avatarLookView.js";
+import { roomFurnitureSvg } from "./shopFurniture.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
 import { teamNameL } from "../i18n.js";
 
@@ -267,7 +268,7 @@ export function homeSceneHtml({ identity, frames = [], trophyCount = 0, furnitur
     : `<div class="mw-shelf is-empty">${T(lang, "奖杯架还空着", "Trophy shelf is empty")}</div>`;
   const plate = identity.name || T(lang, "访客球员", "Guest player");
   const hasCabinet = furniture.includes("trophy-cabinet");
-  const roomSvg = hasCabinet ? ROOM_SVG.replace("</svg>", `${TROPHY_CABINET_SVG}</svg>`) : ROOM_SVG;
+  const roomSvg = ROOM_SVG.replace("</svg>", `${roomFurnitureSvg(furniture)}</svg>`);
   return `<section class="mw-card mw-home"><h3>${T(lang, "我的家 · My Home", "My Home")}</h3>
     <div class="mw-room" role="img" aria-label="${T(lang, "我的篮球房间", "My basketball room")}">
       <div class="mw-stage">

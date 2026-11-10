@@ -109,18 +109,19 @@ const NEW_FURNITURE = Object.freeze({
   },
 });
 
-/** The cabinet group stays exported from myWorldView.js; same crop the shop preview used in v1. */
-const CABINET = Object.freeze({ viewBox: "490 140 70 100", svg: TROPHY_CABINET_SVG });
+/** The cabinet group stays exported from myWorldView.js (single source); read lazily so the myWorldView <-> shopFurniture import cycle never hits the TDZ at module load. */
+const CABINET_VIEWBOX = "490 140 70 100";
+const cabinetSvg = () => TROPHY_CABINET_SVG;
 
 /** SVG group for one furniture id, or "" when unknown (never throws on bad data). */
 export function furnitureSvgFor(furnitureId) {
-  if (furnitureId === "trophy-cabinet") return CABINET.svg;
+  if (furnitureId === "trophy-cabinet") return cabinetSvg();
   return NEW_FURNITURE[furnitureId]?.svg || "";
 }
 
 /** Crop box for the shop's single-item preview. */
 export function furnitureViewBox(furnitureId) {
-  if (furnitureId === "trophy-cabinet") return CABINET.viewBox;
+  if (furnitureId === "trophy-cabinet") return CABINET_VIEWBOX;
   return NEW_FURNITURE[furnitureId]?.viewBox || "0 0 600 240";
 }
 

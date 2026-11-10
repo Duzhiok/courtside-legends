@@ -177,3 +177,13 @@ test("showcase: stage is always rendered, the style switch reflects the real loo
   assert.doesNotMatch(en, CJK);
   assert.match(en, /Lv\.7 · Veteran/);
 });
+
+test("home scene renders owned furniture in the real room (cabinet + new pieces), skips unknown ids", () => {
+  const html = view.homeSceneHtml({ identity: { name: "Zoro" }, frames: [], trophyCount: 0, furniture: ["trophy-cabinet", "sofa", "rug", "no-such-piece"] }, "zh");
+  assert.match(html, /data-furniture="trophy-cabinet"/, "cabinet still renders");
+  assert.match(html, /data-furniture="sofa"/, "bought sofa is placed in the real room");
+  assert.match(html, /data-furniture="rug"/, "rug renders");
+  assert.doesNotMatch(html, /no-such-piece/, "unknown ids never break the room");
+  const empty = view.homeSceneHtml({ identity: { name: "Zoro" }, frames: [], trophyCount: 0, furniture: [] }, "zh");
+  assert.doesNotMatch(empty, /data-furniture=/, "no furniture, no furniture groups");
+});
