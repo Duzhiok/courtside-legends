@@ -13,6 +13,13 @@
 import { buildPlayerCard } from "../../reborn/identity.js";
 import { creationHtml, createRebornFromChoice } from "./creation.js";
 import { buildSeason, playGame } from "../../reborn/season.js";
+import {
+  fastForward,
+  nextFastForwardTarget,
+  describeFastForwardTarget,
+  describeFastForwardEvent,
+} from "../../reborn/fastForward.js";
+import { latestRevealHint, revealLine } from "../../reborn/reveal.js";
 import { roleForTrust, describeTrustChange, TRUST_START } from "../../reborn/trust.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
@@ -48,11 +55,34 @@ export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
   const role = roleForTrust(trust);
   const roleLabel = { dnp: L("坐冷板凳", "DNP", lang), garbage: L("垃圾时间", "Garbage time", lang), bench: L("板凳末端", "Bench", lang), rotation: L("轮换", "Rotation", lang), starter: L("首发", "Starter", lang) }[role];
   const status = reborn.player.contractStatus;
+  // Foreshadowing before the trust-40 reveal: the latest unlocked hint.
+  // It never names the player — the reveal module pins that.
+  const hint = latestRevealHint(reborn.identity, trust);
+  const hintLine = hint ? `<p class="reborn-hint">${hint[lang === "en" ? "en" : "zh"]}</p>` : "";
   return `<section class="reborn-identity"><h3>${name}</h3>`
     + `<p>${reborn.player.teamId} · ${card?.pos || ""} · OVR ${card ? overall(card) : "—"}</p>`
     + `<p>${L("教练信任", "Coach trust", lang)} ${trust} / 100 · ${roleLabel} · ${status}</p>`
     + `<div class="reborn-trust-bar" role="progressbar" aria-valuenow="${trust}" aria-valuemin="0" aria-valuemax="100"><span style="width:${trust}%"></span></div>`
+    + hintLine
     + `</section>`;
+}
+
+/** The career timeline: season-end contracts and season starts, in order. */
+export function careerTimelineHtml({ reborn, lang = "zh" } = {}) {
+  const events = (reborn?.timeline?.events || []).filter((e) => e && e.event);
+  if (!events.length) return "";
+  const lines = events.map((event) => {
+    if (event.event === "contract") {
+      const label = { resign: L("续约", "Re-signed", lang), minimum: L("底薪留队", "Minimum deal", lang), cut: L("被裁", "Cut", lang) }[event.outcome] || event.outcome;
+      return `<p>${event.year} ${L("赛季", "season", lang)}：${label}（${L("信任", "trust", lang)} ${event.trust}，${L("出战", "", lang)} ${event.games} ${L("场，场均", "games, ", lang)} ${event.avgMin} ${L("分钟", "min", lang)}）</p>`;
+    }
+    if (event.event === "season_start") {
+      return `<p>${event.year} ${L("赛季开始", "season starts", lang)}（${L("信任", "trust", lang)} ${event.trust}）</p>`;
+    }
+    return "";
+  }).filter(Boolean);
+  if (!lines.length) return "";
+  return `<section class="reborn-timeline"><h3>${L("生涯", "Career", lang)}</h3>${lines.join("")}</section>`;
 }
 
 /** One settled game's report: the line, the trust change, the growth, the takeover. */
@@ -92,6 +122,11 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   // is fixed when creation opens so the random draw is stable while the
   // player browses the lists.
   let creating = null;
+  // The last fast-forward run: { event, reports, trustBefore } — shown as a
+  // summary until the next manual game. Null when nothing was simmed yet.
+  let ffState = null;
+  // True while a fast-forward run is in flight (progress line in render).
+  let ffRunning = false;
 
   const currentWeek = () => Math.floor((season?.index || 0) / 4) + 1;
 
@@ -130,8 +165,19 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     const training = reborn.player.training;
     const canTrain = !done && (!training || training.week < week);
     const nextGame = done ? null : season.games[season.index];
+    const ffTarget = done ? null : nextFastForwardTarget(reborn, season, rows);
+    const ffLabel = ffTarget ? describeFastForwardTarget(ffTarget, lang()) : null;
+    const revealBanner = lastReport?.revealedNow
+      ? `<section class="reborn-reveal"><p>${revealLine(reborn.identity, lang())}</p></section>`
+      : "";
+    const ffSummary = ffRunning
+      ? `<p class="reborn-ff-progress">${L("模拟中……", "Simming…", lang)}${L("第", " game ", lang)}${season.index + 1}${L(" 场", "", lang)}</p>`
+      : ffState
+        ? `<section class="reborn-ff"><p>${describeFastForwardEvent(ffState.event, lang())}</p><p>${L("模拟了", "Simmed ", lang)}${ffState.reports.length}${L(" 场", " games", lang)} · ${ffState.reports.filter((r) => r.won).length}${L("胜", "W", lang)}${ffState.reports.length - ffState.reports.filter((r) => r.won).length}${L("负", "L", lang)} · ${L("信任", "Trust", lang)} ${ffState.trustBefore} → ${reborn.player.coachTrust}</p></section>`
+        : "";
     const html = [
       rebornIdentityHtml({ reborn, card, lang: lang() }),
+      revealBanner,
       `<p>${L("赛季", "Season", lang)} ${season.year} · ${L("第", "Game ", lang)}${Math.min(season.index + 1, season.games.length)}/${season.games.length} ${L("场", "", lang)} · ${summary.wins}${L("胜", "W", lang)}${summary.games - summary.wins}${L("负", "L", lang)}</p>`,
       canTrain
         ? `<section class="reborn-training"><h3>${L(`第 ${week} 周训练`, `Week ${week} training`, lang)}</h3><p>${L("每周选一个训练方向。", "Pick one training focus per week.", lang)}</p><div class="reborn-training-options">${TRAINING_FOCI.map((f) => {
@@ -145,13 +191,18 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       !done
         ? `<button type="button" data-play="1" ${busy ? "disabled" : ""}>${L("打下一场", "Play next game", lang)}${nextGame ? ` (${nextGame.homeId === reborn.player.teamId ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${nextGame.homeId === reborn.player.teamId ? nextGame.awayId : nextGame.homeId})` : ""}</button>`
         : "",
+      !done && ffLabel
+        ? `<button type="button" data-ff="1" ${busy ? "disabled" : ""}>${ffLabel}</button>`
+        : "",
       done && !contractOutcome
         ? `<button type="button" data-settle="1">${L("赛季结束，结算合同", "Season over — settle contract", lang)}</button>`
         : "",
       contractOutcome
         ? `<section class="reborn-contract"><p>${describeContract(contractOutcome, lang())}</p><button type="button" data-rollover="1">${L("开始下赛季", "Start next season", lang)}</button></section>`
         : "",
+      ffSummary,
       rebornReportHtml({ report: lastReport, lang: lang() }),
+      careerTimelineHtml({ reborn, lang: lang() }),
       `<button type="button" data-reset="1">${L("换一个身份（重新开始）", "New identity (restart)", lang)}</button>`,
     ].join("");
     body.innerHTML = html;
@@ -160,6 +211,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   async function playNext() {
     if (busy || !season || season.index >= season.games.length) return;
     busy = true;
+    ffState = null;
     render();
     try {
       const week = currentWeek();
@@ -173,6 +225,29 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       persist();
     } finally {
       busy = false;
+      render();
+    }
+  }
+
+  /** Simulate to the next meaningful event (fastForward); the takeover dialog may pause the run mid-game. */
+  async function playFastForward() {
+    if (busy || !season || season.index >= season.games.length) return;
+    busy = true;
+    ffRunning = true;
+    const trustBefore = reborn.player.coachTrust;
+    render();
+    try {
+      const out = await fastForward(reborn, season, rows, {
+        onTakeover: createTakeoverHook(),
+        onGame: () => render(),
+      });
+      reborn = out.reborn;
+      lastReport = out.reports.length ? out.reports[out.reports.length - 1] : lastReport;
+      ffState = { event: out.stoppedAt, reports: out.reports, trustBefore };
+      persist();
+    } finally {
+      busy = false;
+      ffRunning = false;
       render();
     }
   }
@@ -246,6 +321,10 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         await playNext();
         return;
       }
+      if (event.target.closest("[data-ff]")) {
+        await playFastForward();
+        return;
+      }
       if (event.target.closest("[data-settle]")) {
         const settled = settleContract(reborn, { year: season.year });
         reborn = settled.reborn;
@@ -259,6 +338,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         reborn = rolled.reborn;
         contractOutcome = null;
         lastReport = null;
+        ffState = null;
         rebuildSeason();
         persist();
         render();
@@ -295,6 +375,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       reborn = null;
       season = null;
       lastReport = null;
+      ffState = null;
       contractOutcome = null;
       render();
       if (typeof show === "function") show("reborn");

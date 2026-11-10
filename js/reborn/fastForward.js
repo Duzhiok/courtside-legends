@@ -151,14 +151,15 @@ export function describeFastForwardEvent(event, lang = "zh") {
 /**
  * Simulate forward until the next meaningful event. `playOne` defaults to
  * the real playGame and must behave like it (advance season.index, return
- * { reborn, report } or null when the schedule is exhausted). Returns
+ * { reborn, report } or null when the schedule is exhausted). `onGame`
+ * fires after every simmed game (progress). Returns
  * { reborn, reports, stoppedAt }.
  */
 export async function fastForward(
   reborn,
   season,
   players,
-  { playOne = playGame, onTakeover = null } = {},
+  { playOne = playGame, onTakeover = null, onGame = null } = {},
 ) {
   let current = reborn;
   const reports = [];
@@ -191,6 +192,7 @@ export async function fastForward(
     if (!out) break;
     current = out.reborn;
     reports.push(out.report);
+    if (typeof onGame === "function") onGame(out.report);
     // After-game stops, in priority order: the moment you lived, then the
     // reveal, then a role change (starter is its own event).
     if (out.report.takeover) {

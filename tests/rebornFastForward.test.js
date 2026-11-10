@@ -220,3 +220,17 @@ test("fastForward with no events sims to the season end", async () => {
   assert.equal(season.index, 3);
   assert.match(describeFastForwardEvent(out.stoppedAt, "en"), /Season over/);
 });
+
+test("fastForward calls onGame once per simmed game (progress)", async () => {
+  const reborn = createRebornState("reborn-ff-run-6", ROWS);
+  const season = seasonWith(reborn, NON_KEY_OPPS.slice(0, 8));
+  let calls = 0;
+  const out = await fastForward(reborn, season, ROWS, {
+    playOne: stubPlayOne([{ trustAfter: 26 }, { trustAfter: 26 }, { trustAfter: 26 }, { trustAfter: 26 }]),
+    onGame: () => {
+      calls += 1;
+    },
+  });
+  assert.equal(calls, 4, "one progress call per simmed game");
+  assert.equal(out.reports.length, 4);
+});
