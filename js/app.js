@@ -31,6 +31,7 @@ import { playerLegacyBadge } from "./data/playerLegacy.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
+import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12324,6 +12325,16 @@ async function boot() {
     // Legend Duel screen (created dynamically by duelView) + view wiring.
     screens.duel = ensureDuelScreen();
     initDuelView({ show, goBack });
+    // Player Reborn dev entry (?reborn=1) — no home-page entry yet; the
+    // unified four-card Career entry will connect the Player card here.
+    screens.reborn = ensureRebornScreen();
+    const rebornView = createRebornView({
+      getLang,
+      readRootSave: () => state.longCareerRoot || readRootSave(),
+      writeRootSave,
+      show,
+      goBack,
+    });
     myTeamLineup = createMyTeamLineup({
       el: $("#my-team-lineup-root"),
       getLang,
@@ -12378,6 +12389,10 @@ async function boot() {
     stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() ? rawSeasonSave() : null, myteam: readMyTeamSeason() }); // pre-ownership saves stay unassociated
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
+    // Player Reborn dev entry: ?reborn=1 opens the slice after boot.
+    if (new URLSearchParams(location.search).get("reborn") === "1") {
+      setTimeout(() => { rebornView.open(); }, 250);
+    }
   } catch (e) {
     console.error(e);
     const quotaError = /quota|storage quota|存储空间/i.test(e?.message || "");
