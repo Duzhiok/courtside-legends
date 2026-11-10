@@ -15,25 +15,34 @@ function careerPanelHtml() {
   return rest.slice(0, nextPanel >= 0 ? nextPanel : undefined);
 }
 
-// The unified Career entry (ADR-006) replaced the old two-card presentation:
-// the GM + Coach identity card still routes to the Time Travel mode, but the
-// card no longer carries the catalog's one-line description — it explains
-// role, control, progression and challenge, and the other identities carry
-// honest status labels instead of being sold as playable.
-test("the GM + Coach card names the playable Classic flow; unfinished identities are labelled, not sold", () => {
+// The unified Career entry (3+1, user decision 2026-11-09) replaced the
+// old two-card presentation and the four-card entry: the Architect card
+// is a locked prestige card that routes to the Time Travel mode only
+// once unlocked, the Player card routes to the Reborn flow, and the
+// Coach card is honestly in development — no identity is sold as
+// playable when it is not.
+test("the Architect card is a locked prestige card; Player routes to Reborn; Coach is honestly in development", () => {
   const panel = careerPanelHtml();
-  const gmCoach = panel.match(
+  const architect = panel.match(
     /<button[^>]*data-career-identity="gm_coach"[^>]*>[\s\S]*?<\/button>/,
   )?.[0];
-  assert.ok(gmCoach, "the GM + Coach identity card must exist");
-  assert.match(gmCoach, /data-mode="timeTravel"/, "GM + Coach still routes to the Time Travel mode");
-  assert.match(gmCoach, /经典玩法可玩/);
-  assert.match(gmCoach, /经理兼教练/);
-  assert.equal((panel.match(/开发中/g) || []).length, 1, "only Coach is still in development");
-  assert.match(panel, /可玩/, "Player is playable now");
-  assert.match(panel, /待独立身份实现/, "GM awaits its independent identity");
+  assert.ok(architect, "the Architect card must exist");
+  assert.match(architect, /data-mode="timeTravel"/, "the Architect routes to the Time Travel mode");
+  assert.match(architect, /THE ARCHITECT/);
+  assert.match(architect, /隐藏职业 · 经理兼教练/);
+  assert.match(architect, /data-architect-lock="closed"/, "the lock icon is present");
+  assert.match(architect, /data-architect-pill="coach"/, "Coach progress pill is present");
+  assert.match(architect, /data-architect-pill="gm"/, "GM progress pill is present");
+  const player = panel.match(
+    /<button[^>]*data-career-identity="player"[^>]*>[\s\S]*?<\/button>/,
+  )?.[0];
+  assert.ok(player, "the Player card must exist");
+  assert.match(player, /assets\/career\/player\.jpg/, "the Player card shows the mock portrait");
+  assert.ok(!player.includes("开发中"), "the Player card no longer carries a dev pill");
   assert.ok(!panel.includes("穿越生涯"), "the old Time Travel card title is gone");
   assert.ok(!panel.includes("联盟经理"), "the old League Manager card title is gone");
+  assert.ok(!panel.includes("经典玩法可玩"), "the old playable pill is gone");
+  assert.ok(!panel.includes("待独立身份实现"), "the old awaiting pill is gone");
 });
 
 test("the catalog description still names the playable Classic role and does not sell unfinished careers as playable", () => {

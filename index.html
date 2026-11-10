@@ -161,41 +161,49 @@
           <p class="home-category-hint tiny">长线经营：选秀、发展、市场补强、完整比赛与联盟历史。</p>
           <div class="career-entry" id="career-entry-root">
             <header class="career-entry-head">
-              <p class="career-entry-kicker">COURTSIDE LEGENDS · CAREER</p>
+              <p class="career-entry-kicker">COURTSIDE LEGENDS · REBORN</p>
               <h3>选择你的篮球人生</h3>
-              <p>同一个篮球世界，四条不同的传奇道路。</p>
+              <p>每一种身份，都是一条通往传奇的道路。</p>
             </header>
-            <div class="mode-grid career-grid" aria-label="职业经理">
-              <div class="mode-group-label">经理生涯</div>
-              <button class="mode-card mode-card-dark career-card" data-career-identity="player" data-legend="jordami01:1991">
-                <small class="mode-tag">亲自上场 · 改写历史</small>
-                <strong>球员生涯</strong>
-                <span>从新人到巨星，亲自上场改变历史。</span>
-                <span class="career-card-details" data-career-details="player"></span>
-                <span class="career-status career-status--playable">可玩</span>
+            <div class="career-photo-row" aria-label="职业身份">
+              <button class="career-photo-card" data-career-identity="player">
+                <img class="career-photo" src="assets/career/player.jpg" alt="">
+                <strong>球员</strong>
+                <span>从无名新人到传奇巨星</span>
               </button>
-              <button class="mode-card mode-card-dark career-card" data-career-identity="coach">
-                <small class="mode-tag">战术 · 轮换 · 培养</small>
-                <strong>教练生涯</strong>
-                <span>战术、轮换、培养球员，打造冠军体系。</span>
-                <span class="career-card-details" data-career-details="coach"></span>
-                <span class="career-status career-status--dev">开发中</span>
+              <button class="career-photo-card" data-career-identity="coach">
+                <img class="career-photo" src="assets/career/coach.jpg" alt="">
+                <strong>教练</strong>
+                <span>从战术大师到冠军教头</span>
               </button>
-              <button class="mode-card mode-card-dark career-card" data-mode="franchise" data-career-identity="gm" data-legend="curryst01:2016">
-                <small class="mode-tag">选秀 · 交易 · 经营</small>
-                <strong>经理生涯</strong>
-                <span>选秀、交易、合同、球队经营与长期王朝。</span>
-                <span class="career-card-details" data-career-details="gm"></span>
-                <span class="career-status career-status--awaiting">待独立身份实现</span>
-              </button>
-              <button class="mode-card mode-card-dark career-card" data-mode="timeTravel" data-career-identity="gm_coach" data-legend="jamesle01:2013">
-                <small class="mode-tag">剧情驱动 · 改写历史</small>
-                <strong>经理兼教练</strong>
-                <span>从建队到临场指挥，全面掌控球队命运。</span>
-                <span class="career-card-details" data-career-details="gm_coach"></span>
-                <span class="career-status career-status--playable">经典玩法可玩</span>
+              <!-- Screen-reader-only group label: homeTabs pins the catalog
+                   exploreGroup ("经理生涯") for franchise / timeTravel; the
+                   visual design follows the concept mock, which has no
+                   visible label here. The class must stay exactly
+                   "mode-group-label" (homeTabs matches it by string). -->
+              <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;" class="mode-group-label">经理生涯</div>
+              <button class="mode-card career-photo-card" data-mode="franchise" data-career-identity="gm">
+                <img class="career-photo" src="assets/career/gm.jpg" alt="">
+                <strong>经理</strong>
+                <span>从球队经营到王朝缔造</span>
               </button>
             </div>
+            <button class="mode-card career-architect-card" data-mode="timeTravel" data-career-identity="gm_coach" aria-describedby="career-architect-desc">
+              <span class="career-architect-top">
+                <span class="career-architect-crown" aria-hidden="true"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 8.5 6.5 11 12 4.5 17.5 11 21 8.5 19.5 17h-15L3 8.5Z"/><path d="M5 19.5h14"/></svg></span>
+                <span class="career-architect-titles">
+                  <span class="career-architect-kicker">THE ARCHITECT</span>
+                  <span class="career-architect-name">隐藏职业 · 经理兼教练</span>
+                </span>
+                <span class="career-architect-lock" aria-hidden="true"><svg data-architect-lock="closed" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><svg data-architect-lock="open" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" hidden><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.8-1.2"/></svg></span>
+              </span>
+              <span class="career-architect-desc" id="career-architect-desc">掌握战术与经营的双重权力，亲手打造属于自己的篮球王朝。</span>
+              <span class="career-architect-progress">
+                <span class="career-architect-pill" data-architect-pill="coach">教练生涯</span>
+                <span class="career-architect-pill" data-architect-pill="gm">经理生涯</span>
+                <span class="career-architect-count" data-architect-progress></span>
+              </span>
+            </button>
             <p class="career-entry-note tiny" id="career-entry-note" role="status" aria-live="polite" hidden></p>
             <div class="career-era" id="career-era-panel" hidden></div>
           </div>

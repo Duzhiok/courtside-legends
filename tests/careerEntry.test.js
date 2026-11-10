@@ -1,16 +1,18 @@
 /**
- * Unified Career entry (ADR-006): four identities in parallel, time travel
+ * Unified Career entry (3+1, user decision 2026-11-09): three standard
+ * identities + one hidden prestige identity (The Architect), time travel
  * as a shared era setting — not a fifth profession.
  *
- * Pins: the permission contract (pure, no consumers yet), the four identity
+ * Pins: the permission contract (pure, no consumers yet), the identity
  * cards and their honest statuses, the era availability per identity, the
- * static index.html structure (the two catalog modes still have their
- * cards, now as the GM / GM + Coach identities), and that the old
+ * prestige era briefing, the static index.html structure (the two catalog
+ * modes still have their cards, now as the GM / GM + Coach identities;
+ * the three portraits come from assets/career/*), and that the old
  * two-card presentation (穿越生涯 / 联盟经理） is gone.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import {
   CAREER_ROLES,
   CAREER_CAPABILITIES,
@@ -21,7 +23,6 @@ import {
   CAREER_IDENTITIES,
   careerIdentityById,
   erasFor,
-  careerDetailsHtml,
   eraPanelHtml,
 } from "../js/ui/careerEntry.js";
 
@@ -109,7 +110,7 @@ test("permissionsFor: GM + Coach is the union of the other three roles", () => {
 
 // ---------------------------------------------------------------- entry data
 
-test("four identities, in order, with distinct statuses and routes", () => {
+test("3+1 identities, in order, with distinct statuses and routes", () => {
   assert.deepEqual(
     CAREER_IDENTITIES.map((entry) => entry.id),
     ["player", "coach", "gm", "gm_coach"],
@@ -120,13 +121,13 @@ test("four identities, in order, with distinct statuses and routes", () => {
   );
   assert.deepEqual(
     CAREER_IDENTITIES.map((entry) => entry.status),
-    ["playable", "dev", "awaiting", "playable"],
+    ["playable", "dev", "awaiting", "prestige"],
   );
   assert.deepEqual(
     CAREER_IDENTITIES.map((entry) => entry.route),
     ["reborn", null, "franchise", "timeTravel"],
   );
-  assert.ok(careerIdentityById("gm_coach")?.status === "playable");
+  assert.ok(careerIdentityById("gm_coach")?.prestige, "GM + Coach is the prestige identity");
   assert.equal(careerIdentityById("nope"), null);
 });
 
@@ -146,24 +147,6 @@ test("erasFor: only supported role/era combinations are offered as playable", ()
   assert.deepEqual(erasFor("coach"), []);
 });
 
-test("careerDetailsHtml: every card explains control, progression and challenge", () => {
-  for (const identity of CAREER_IDENTITIES) {
-    const zh = careerDetailsHtml(identity, "zh");
-    assert.match(zh, /执掌/);
-    assert.match(zh, /成长/);
-    assert.match(zh, /挑战/);
-    const en = careerDetailsHtml(identity, "en");
-    assert.match(en, /Control/);
-    assert.match(en, /Growth/);
-    assert.match(en, /Challenge/);
-  }
-  // The GM card says plainly that it reuses the League Manager flow and
-  // that coach permissions are not yet isolated.
-  const gm = careerDetailsHtml(careerIdentityById("gm"), "zh");
-  assert.match(gm, /提醒/);
-  assert.match(gm, /教练权限尚未隔离/);
-});
-
 test("eraPanelHtml: Historical is playable, Modern is shown disabled — never as playable", () => {
   const zh = eraPanelHtml("zh");
   assert.match(zh, /历史穿越（1976–2025）/);
@@ -173,6 +156,25 @@ test("eraPanelHtml: Historical is playable, Modern is shown disabled — never a
   const en = eraPanelHtml("en");
   assert.match(en, /Historical Time Travel \(1976–2025\)/);
   assert.match(en, /Coming soon/);
+});
+
+test("eraPanelHtml: the prestige variant adds the Architect briefing, not a second flow", () => {
+  const zh = eraPanelHtml("zh", { prestige: true });
+  assert.match(zh, /The Architect/);
+  assert.match(zh, /隐藏职业 · 经理兼教练/);
+  assert.match(zh, /双重目标/);
+  assert.match(zh, /董事会要求本赛季进入季后赛/);
+  assert.match(zh, /决策连锁/);
+  assert.match(zh, /你作为经理交易来的球员，作为教练必须自己使用/);
+  assert.match(zh, /传奇称号/);
+  assert.match(zh, /The Architect · Dynasty Master · Basketball Immortal/);
+  // Same era choices as the classic step — prestige changes the
+  // presentation, not the engine.
+  assert.match(zh, /data-career-era="historical"/);
+  assert.match(zh, /data-career-era="modern" disabled/);
+  const classic = eraPanelHtml("zh");
+  assert.ok(!classic.includes("双重目标"), "the classic step has no prestige briefing");
+  assert.ok(!classic.includes("The Architect"), "the classic step is not branded Architect");
 });
 
 // ---------------------------------------------------------------- static HTML
@@ -194,33 +196,57 @@ test("index.html: the two catalog modes keep their cards — as the GM and GM + 
   ]);
 });
 
-test("index.html: the old two-card presentation is gone; statuses are honest", () => {
+test("index.html: the old two-card presentation is gone; the 3+1 copy matches the concept mock", () => {
   const panel = careerPanelHtml();
   assert.ok(!panel.includes("穿越生涯"), "the old Time Travel card title must be gone");
   assert.ok(!panel.includes("联盟经理"), "the old League Manager card title must be gone");
-  assert.ok(panel.includes("球员生涯"));
-  assert.ok(panel.includes("教练生涯"));
-  assert.ok(panel.includes("经理生涯"));
-  assert.ok(panel.includes("经理兼教练"));
-  assert.equal((panel.match(/开发中/g) || []).length, 1, "only Coach is still in development");
-  assert.ok(panel.includes("可玩"), "Player is playable now");
-  assert.ok(panel.includes("待独立身份实现"), "GM awaits its independent identity");
-  assert.ok(panel.includes("经典玩法可玩"), "GM + Coach is the classic playable flow");
-  assert.ok(panel.includes('id="career-entry-note"'), "dev-note mount exists");
+  assert.ok(!panel.includes("同一个篮球世界，四条不同的传奇道路。"), "the old four-card subtitle is gone");
+  assert.ok(panel.includes("COURTSIDE LEGENDS · REBORN"));
+  assert.ok(panel.includes("每一种身份，都是一条通往传奇的道路。"));
+  assert.ok(panel.includes("球员"));
+  assert.ok(panel.includes("从无名新人到传奇巨星"));
+  assert.ok(panel.includes("教练"));
+  assert.ok(panel.includes("从战术大师到冠军教头"));
+  assert.ok(panel.includes("经理"));
+  assert.ok(panel.includes("从球队经营到王朝缔造"));
+  assert.ok(panel.includes("THE ARCHITECT"));
+  assert.ok(panel.includes("隐藏职业 · 经理兼教练"));
+  assert.ok(panel.includes("掌握战术与经营的双重权力，亲手打造属于自己的篮球王朝。"));
+  // No status pills anymore — the mock has none; honesty lives in the
+  // click behaviour (Coach note, locked Architect note), not in pills.
+  assert.ok(!panel.includes("开发中"), "no dev pill on the mock's photo cards");
+  assert.ok(!panel.includes("待独立身份实现"), "no awaiting pill");
+  assert.ok(!panel.includes("经典玩法可玩"), "no playable pill");
+  assert.ok(panel.includes('id="career-entry-note"'), "note mount exists");
   assert.ok(panel.includes('id="career-era-panel"'), "era-step mount exists");
 });
 
-test("index.html: the photo legends on the identity cards are real roster rows", () => {
+test("index.html: the three portraits are the mock crops in assets/career/*", () => {
   const panel = careerPanelHtml();
-  const tokens = [...panel.matchAll(/data-legend="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(tokens, ["jordami01:1991", "curryst01:2016", "jamesle01:2013"]);
-  const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"))
-    .players;
-  for (const token of tokens) {
-    const [bref, season] = token.split(":");
+  const srcs = [...panel.matchAll(/<img class="career-photo" src="([^"]+)" alt="">/g)].map(
+    (m) => m[1],
+  );
+  assert.deepEqual(srcs, ["assets/career/player.jpg", "assets/career/coach.jpg", "assets/career/gm.jpg"]);
+  for (const src of srcs) {
     assert.ok(
-      rows.some((row) => row.bref === bref && row.season === Number(season)),
-      `${token} must be a real roster row`,
+      existsSync(new URL(`../${src}`, import.meta.url)),
+      `${src} must exist in the repo`,
     );
   }
+});
+
+test("index.html: the Architect card carries the lock, the progress pills, and the catalog route", () => {
+  const panel = careerPanelHtml();
+  const card = panel.match(
+    /<button[^>]*data-career-identity="gm_coach"[^>]*>[\s\S]*?<\/button>/,
+  )?.[0];
+  assert.ok(card, "the Architect card must exist");
+  assert.match(card, /data-mode="timeTravel"/, "the Architect still routes to the Time Travel mode");
+  assert.match(card, /data-architect-lock="closed"/);
+  assert.match(card, /data-architect-lock="open"/);
+  assert.match(card, /data-architect-pill="coach"/);
+  assert.match(card, /data-architect-pill="gm"/);
+  assert.match(card, /data-architect-progress/);
+  assert.match(card, /教练生涯/);
+  assert.match(card, /经理生涯/);
 });

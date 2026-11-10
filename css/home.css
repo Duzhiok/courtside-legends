@@ -456,12 +456,12 @@ html[lang="en"] .topbar .brand-name { display: none; }
 /* Profile picture in the home bar (same picture as My World). Fixed size so it never changes the bar's height. */
 #screen-home .account-home-avatar { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 32px; object-fit: cover; align-self: center; }
 
-/* —— Unified Career entry: four identities in parallel (ADR-006) —— */
+/* —— Unified Career entry: three standard identities + one hidden prestige identity (3+1) —— */
 .career-entry {
   margin-top: 4px;
   padding: 18px 16px 16px;
   border-radius: 20px;
-  background: linear-gradient(150deg, #07130d 0%, #0d2417 100%);
+  background: linear-gradient(150deg, #0a2417 0%, #123a24 100%);
   border: 1px solid rgba(246, 200, 112, .28);
   color: #f8f4ea;
 }
@@ -476,54 +476,139 @@ html[lang="en"] .topbar .brand-name { display: none; }
 .career-entry-head h3 {
   margin: 0 0 4px;
   color: #fff;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
 }
 .career-entry-head p { margin: 0; color: rgba(248, 244, 234, .78); font-size: .92rem; }
-/* Four equal-width cards in one row on desktop, 2x2 on tablet, one column on phones. */
-#screen-home .mode-grid.career-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 900px) {
-  #screen-home .mode-grid.career-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Three photo cards in a row, like the concept mock — at every width,
+   including mobile (the mock's layout, per the workstream brief). */
+.career-photo-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
-@media (max-width: 560px) {
-  #screen-home .mode-grid.career-grid { grid-template-columns: minmax(0, 1fr); }
+/* The "经理生涯" group label in the career panel is screen-reader-only
+   (inline style in index.html): homeTabs pins the catalog exploreGroup
+   for franchise / timeTravel, while the visual design follows the mock. */
+.career-entry .career-photo-card {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: center;
+  color: #f8f4ea;
+  cursor: pointer;
+  min-width: 0;
 }
-.career-entry .mode-group-label { color: rgba(248, 244, 234, .6); margin-top: 2px; }
-.career-entry .mode-group-label::after {
-  background: linear-gradient(90deg, rgba(248, 244, 234, .3), transparent);
-}
-#screen-home .career-card { min-height: 0; }
-/* Narrow photo strip for the four-across cards (the dark-card default is
-   sized for full-width feature cards and would swallow a 285px card). */
-#screen-home .career-card.has-photo { padding-right: 104px; }
-#screen-home .career-card .mode-card-photo { width: 96px; }
-.career-card-details { display: block; margin-top: 10px; }
-.career-detail {
+.career-photo-card .career-photo {
   display: block;
-  margin-top: 6px;
-  font-size: .86rem;
-  line-height: 1.45;
-  color: rgba(248, 244, 234, .82);
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 16px;
 }
-.career-detail b { color: var(--gold); font-weight: 700; margin-right: 6px; }
-.career-detail--note { color: rgba(246, 200, 112, .92); }
-.career-status {
-  display: inline-block;
+.career-photo-card:hover .career-photo,
+.career-photo-card:focus-visible .career-photo {
+  outline: 2px solid rgba(246, 200, 112, .65);
+  outline-offset: 2px;
+}
+.career-photo-card strong {
+  display: block;
+  margin-top: 10px;
+  color: #fff;
+  font-size: 1.25rem;
+}
+.career-photo-card span {
+  display: block;
+  margin-top: 2px;
+  color: rgba(248, 244, 234, .75);
+  font-size: .85rem;
+  line-height: 1.4;
+}
+/* The Architect: full-width prestige card, lighter green with a dark gold
+   border, per the concept mock. */
+.career-entry .career-architect-card {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 20px 22px;
+  text-align: left;
+  border-radius: 20px;
+  border: 1px solid rgba(214, 178, 90, .65);
+  background: linear-gradient(150deg, #1d4a2c 0%, #17402a 100%);
+  color: #f8f4ea;
+  cursor: pointer;
+}
+.career-entry .career-architect-card--unlocked {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px rgba(246, 200, 112, .25);
+}
+.career-architect-card--revealed { animation: career-architect-reveal 1.6s ease-out; }
+@keyframes career-architect-reveal {
+  0% { box-shadow: 0 0 0 rgba(246, 200, 112, 0); }
+  30% { box-shadow: 0 0 32px rgba(246, 200, 112, .55); }
+  100% { box-shadow: 0 0 18px rgba(246, 200, 112, .25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .career-architect-card--revealed { animation: none; }
+}
+.career-architect-top { display: flex; align-items: flex-start; gap: 14px; }
+.career-architect-crown { flex: none; margin-top: 2px; color: var(--gold); }
+.career-architect-titles { flex: 1; min-width: 0; }
+.career-architect-kicker {
+  display: block;
+  color: var(--gold);
+  font-weight: 800;
+  letter-spacing: .12em;
+  font-size: 1.05rem;
+}
+.career-architect-name {
+  display: block;
+  margin-top: 4px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.45rem;
+}
+.career-architect-lock { flex: none; margin-top: 6px; color: var(--gold); }
+.career-architect-desc {
+  display: block;
   margin-top: 12px;
-  padding: 3px 10px;
+  color: rgba(248, 244, 234, .82);
+  font-size: .98rem;
+  line-height: 1.5;
+}
+.career-architect-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+.career-architect-pill {
+  padding: 6px 14px;
   border-radius: 999px;
-  font-size: .78rem;
+  background: rgba(7, 19, 13, .55);
+  color: rgba(248, 244, 234, .85);
+  font-size: .88rem;
   font-weight: 700;
 }
-.career-status--dev { color: rgba(248, 244, 234, .75); border: 1px solid rgba(248, 244, 234, .35); }
-.career-status--awaiting { color: var(--gold); border: 1px solid rgba(246, 200, 112, .55); }
-.career-status--playable { color: var(--arena-1); background: var(--gold); border: 1px solid var(--gold); }
-/* Coach has no legend photo: the same slot, filled with a tactics icon. */
-.career-card-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(150deg, var(--arena-2), var(--arena-3));
+.career-architect-pill--done {
   color: var(--gold);
+  border: 1px solid rgba(246, 200, 112, .6);
+}
+.career-architect-count {
+  margin-left: auto;
+  color: rgba(248, 244, 234, .8);
+  font-size: .88rem;
+  font-weight: 700;
+}
+@media (max-width: 560px) {
+  .career-entry { padding: 16px 12px 14px; }
+  .career-entry-head h3 { font-size: 1.3rem; }
+  .career-photo-row { gap: 8px; }
+  .career-photo-card strong { font-size: 1.05rem; }
+  .career-photo-card span { font-size: .78rem; }
+  .career-entry .career-architect-card { padding: 16px; }
+  .career-architect-kicker { font-size: .95rem; }
+  .career-architect-name { font-size: 1.2rem; }
 }
 .career-entry-note { margin: 12px 2px 0; color: rgba(248, 244, 234, .85); }
 .career-era {
@@ -536,6 +621,14 @@ html[lang="en"] .topbar .brand-name { display: none; }
 .career-era-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .career-era-head strong { color: #fff; font-size: 1.05rem; }
 .career-era-head span { color: rgba(248, 244, 234, .7); font-size: .85rem; }
+/* Prestige briefing: dual objectives, decision chains, dynasty titles. */
+.career-era-brief {
+  margin: 10px 0 0;
+  font-size: .88rem;
+  line-height: 1.5;
+  color: rgba(248, 244, 234, .82);
+}
+.career-era-brief b { color: var(--gold); font-weight: 700; margin-right: 6px; }
 .career-era-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
 @media (max-width: 560px) {
   .career-era-choices { grid-template-columns: minmax(0, 1fr); }
