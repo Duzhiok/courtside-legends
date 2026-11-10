@@ -116,12 +116,11 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
 
     // Recolour by material name (Skin / Hair / Shirt / Pants). Materials are per-model, so no cloning is needed.
     const materials = {};
-    const hairMeshes = [];
-    const bones = {};
+        const bones = {};
     gltf.scene.traverse((node) => {
       if (node.isBone || (node.type === "Bone")) bones[node.name] = node;
       if (!node.isMesh) return;
-      [].concat(node.material).forEach((m) => { materials[m.name] = m; if (m.name === "Hair") hairMeshes.push(node); });
+      [].concat(node.material).forEach((m) => { materials[m.name] = m; });
     });
     // Body preset + figure style: bone scales + overall height. The clips carry no scale tracks (verified from the GLB),
     // so a scale applied here is never overwritten by an animation. See FIGURE_STYLES for why the head scale is uniform.
@@ -134,7 +133,7 @@ export async function mountAvatar3d(container, { src = AVATAR_MODEL_URL, timeout
     const paint = (next) => {
       state.look = sanitizeLook(next);
       for (const [name, hex] of Object.entries(lookColors(state.look))) materials[name]?.color.set(hex);
-      for (const mesh of hairMeshes) mesh.visible = state.look.style !== "shaved"; // hair is its own mesh: hide it for the shaved style
+      // Hair stays visible for every style: "shaved" is a skin-coloured scalp (see lookColors), because that mesh is the skull cap.
       applyBody(state.look);
       canvas.dataset.look = JSON.stringify(state.look); // read by QA / devtools to confirm what is actually painted
     };

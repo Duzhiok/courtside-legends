@@ -128,7 +128,9 @@ export function lookColors(look) {
   const outfit = OUTFITS.find((o) => o.id === l.outfit);
   return {
     Skin: SKIN_TONES.find((s) => s.id === l.skin).hex,
-    Hair: HAIR_COLORS.find((h) => h.id === l.hair).hex,
+    // Shaved = the scalp tinted like the skin, NOT a hidden mesh: the model's skull cap lives in the Hair mesh, so hiding
+    // it left the back of the head open and the eyeballs visible from behind.
+    Hair: l.style === "shaved" ? SKIN_TONES.find((s) => s.id === l.skin).hex : HAIR_COLORS.find((h) => h.id === l.hair).hex,
     Shirt: outfit.shirt,
     Pants: outfit.pants,
   };

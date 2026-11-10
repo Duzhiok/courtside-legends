@@ -93,3 +93,13 @@ test("the player's name is escaped in the static fallback and the panel sits rig
   assert.match(html, /data-mw-action="toggle-look"/);
   assert.doesNotMatch(html, /<b>x<\/b>/);
 });
+
+test("shaved is a skin-coloured scalp, never a hidden mesh (the skull cap lives in the Hair mesh)", () => {
+  for (const skin of look.SKIN_TONES) {
+    const shaved = look.lookColors({ skin: skin.id, hair: "red", style: "shaved" });
+    assert.equal(shaved.Hair, skin.hex, `${skin.id}: scalp matches the skin`);
+    assert.equal(shaved.Skin, skin.hex);
+  }
+  const short = look.lookColors({ skin: "deep", hair: "red", style: "short" });
+  assert.equal(short.Hair, look.HAIR_COLORS.find((h) => h.id === "red").hex, "short hair keeps its colour");
+});
