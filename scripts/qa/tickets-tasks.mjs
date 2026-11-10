@@ -45,6 +45,7 @@ async function run(width, height, tag) {
   check(`[${tag}] status shows 0 tickets and the 2-of-3 ask`, /抽卡券 0/.test(status) && /再完成 2 项任务/.test(status), status.replace(/\s+/g, " ").slice(0, 120));
   let tasks = await page.textContent("#draw-tasks");
   check(`[${tag}] task board lists 3 tasks + 2-of-3 draw row + XP challenge + gold milestone`, /打 3 场排位/.test(tasks) && /排位赢 2 场/.test(tasks) && /金币挑战赛赢 3 场/.test(tasks) && /完成任意 2 项领取今日球员卡/.test(tasks) && /账号经验 \+40/.test(tasks) && /累计 10 胜/.test(tasks) && /金币 \+50/.test(tasks));
+  check(`[${tag}] journey strip is visible before the claim`, /今日篮球之旅/.test(tasks) && /抽到卡后，这里会告诉你它在阵容里的位置/.test(tasks));
   let btn = await page.textContent("#btn-draw-pull");
   check(`[${tag}] before tasks: button disabled, asks for 2 more tasks`, /再完成 2 项任务可领取/.test(btn) && (await page.$eval("#btn-draw-pull", (b) => b.disabled)), btn.trim());
   let body = await drawText();
@@ -67,7 +68,11 @@ async function run(width, height, tag) {
   btn = await page.textContent("#btn-draw-pull");
   check(`[${tag}] after claiming: button says claimed`, /今日球员卡已领取/.test(btn), btn.trim());
   tasks = await page.textContent("#draw-tasks");
-  check(`[${tag}] after claiming: draw row marked claimed once`, (tasks.match(/已领/g) || []).length === 1, tasks.replace(/\s+/g, " ").slice(0, 120));
+  // "已领" now appears twice: the draw row + the journey step 2 line.
+  check(`[${tag}] after claiming: draw row marked claimed once`, (tasks.match(/已领/g) || []).length === 2, tasks.replace(/\s+/g, " ").slice(0, 120));
+  check(`[${tag}] journey: after claiming it names the card's lineup spot`, /今日篮球之旅/.test(tasks) && (/首发阵容/.test(tasks) || /收藏第/.test(tasks)), tasks.replace(/\s+/g, " ").slice(0, 200));
+  const revealA = await page.textContent(".draw-reveal");
+  check(`[${tag}] reveal shows the card with OVR`, /OVR/.test(revealA), revealA.replace(/\s+/g, " ").slice(0, 120));
   await page.reload({ waitUntil: "domcontentloaded" });
   await home();
   await openDraw();
