@@ -281,6 +281,7 @@ export const PHRASES = [
   ["可先买入入库，稍后再装到球员身上。组合技（如詹韦连线）不可购买，须搭档同队才显示。", "Buy into storage now, equip later. Combo skills (e.g. Wade-to-LeBron) can't be bought — they appear only when the partners share a team."],
   ["入库技能可随时装给名单球员（每卡约 6–7 格）。", "Stored skills can be equipped to any roster player anytime (~6–7 slots per card)."],
   ["我的球队（点开可对比身价）", "My Team (tap to compare value)"],
+  ["我的球队", "My Team"],
   ["自由市场", "Free Market"],
   ["排序", "Sort"],
   ["能力值 OVR", "OVR"],
