@@ -95,20 +95,9 @@ export function drawIdentity(seed, players, { season = REBORN_SEASON } = {}) {
     };
   }
   // Fictional: a generated rookie from the debut class of the start year
-  // (season - 1), assigned to a team as a camp invitee. rookieClassForYear
-  // only generates prospects up to minimumSize, so first count the real
-  // debutants, then ask for more.
+  // (season - 1), assigned to a team as a camp invitee.
   const startYear = seasonYear - 1;
-  const historical = rookieClassForYear(startYear, {
-    seed: seedText,
-    minimumSize: 0,
-    players,
-  });
-  const generated = rookieClassForYear(startYear, {
-    seed: seedText,
-    minimumSize: historical.length + 20,
-    players,
-  }).filter((p) => String(p.bref || "").startsWith("generated-"));
+  const generated = generatedProspects(seedText, players, startYear);
   if (!generated.length) throw new Error("drawIdentity: no generated prospect");
   // A generated prospect is a wrapper ({ prospectId, bref, player, ... });
   // the playable card is the nested player object.
@@ -125,6 +114,67 @@ export function drawIdentity(seed, players, { season = REBORN_SEASON } = {}) {
     cardId: pick.id,
     revealed: true,
     generated: pick,
+  };
+}
+
+/**
+ * The generated prospects for one start year (deterministic given the
+ * seed): the debut class of that year, filtered to generated rookies.
+ * Shared by the random draw and the creation flow's fictional choice.
+ */
+export function generatedProspects(seed, players, startYear) {
+  const seedText = String(seed ?? "");
+  const historical = rookieClassForYear(Number(startYear), {
+    seed: seedText,
+    minimumSize: 0,
+    players,
+  });
+  return rookieClassForYear(Number(startYear), {
+    seed: seedText,
+    minimumSize: historical.length + 20,
+    players,
+  }).filter((p) => String(p.bref || "").startsWith("generated-"));
+}
+
+/** A chosen historical identity: the row must be a bench-pool row for that season. */
+export function identityForRow(row, season = REBORN_SEASON) {
+  if (!row || !benchPool([row], Number(season)).length) {
+    throw new Error(`identityForRow: not a ${season} bench player`);
+  }
+  return {
+    kind: "historical",
+    bref: row.bref,
+    name: row.name,
+    nameEn: row.nameEn || row.name,
+    team: row.team,
+    pos: row.pos,
+    season: Number(season),
+    cardId: row.id,
+    // Chosen, not drawn: the player picked this identity, so they know who
+    // they are. The staged reveal only applies to the random draw.
+    revealed: true,
+  };
+}
+
+/** A chosen fictional identity: the prospect must be a generated rookie. */
+export function identityForGenerated(player, team, season = REBORN_SEASON) {
+  if (!player || !String(player.bref || "").startsWith("generated-")) {
+    throw new TypeError("identityForGenerated: not a generated prospect");
+  }
+  if (!REBORN_TEAM_IDS.includes(team)) {
+    throw new RangeError(`identityForGenerated: not a league team: ${team}`);
+  }
+  return {
+    kind: "fictional",
+    bref: player.bref,
+    name: player.name,
+    nameEn: player.nameEn || player.name,
+    team,
+    pos: player.pos,
+    season: Number(season),
+    cardId: player.id,
+    revealed: true,
+    generated: player,
   };
 }
 
@@ -208,20 +258,28 @@ export function applyIdentityToRoster(teamCards, identity, { players, growth = {
 }
 
 /** The root.reborn state for a fresh run (ADR-005 §4 data model). */
-export function createRebornState(seed, players, { startYear = REBORN_START_YEAR } = {}) {
+export function createRebornState(
+  seed,
+  players,
+  { startYear = REBORN_START_YEAR, identity = null, origin = null } = {},
+) {
   const season = seasonForStartYear(startYear);
-  const identity = drawIdentity(seed, players, { season });
+  // A chosen identity skips the draw (creation flow); a random run draws.
+  const drawn = identity || drawIdentity(seed, players, { season });
+  if (drawn.season !== season) {
+    throw new Error(`createRebornState: identity is from season ${drawn.season}, not ${season}`);
+  }
   return {
     version: 1,
     seed: String(seed),
     startYear: Number(startYear),
     boundary: "preseason",
     role: "player",
-    origin: "random-destiny",
+    origin: origin || (identity ? "chosen-identity" : "random-destiny"),
     difficulty: "underdog",
-    identity,
+    identity: drawn,
     player: {
-      teamId: identity.team,
+      teamId: drawn.team,
       coachTrust: 25,
       rotationRole: "garbage",
       contractStatus: "camp",
