@@ -338,10 +338,12 @@ import { createShop } from "./ui/shopView.js";
 import { ticketBalance, autoXpRemaining, consumeAutoTickets, awardAutoGameXp } from "./data/shop.js";
 import { portraitFor } from "./ui/portraitFor.js";
 import { createMyTeamLineup } from "./ui/myTeamLineupScreen.js";
+import { createMyTeamClubhouse } from "./ui/myTeamClubhouseScreen.js";
 import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
 /** My World controller (ADR-008 N-1); created in boot(). `?.` everywhere so early callers are safe. */
 let myWorld = null;
 let myTeamLineup = null;
+let myTeamClubhouse = null;
 import {
   FAMILY_DUEL_THEMES,
   autoFillFamilySide,
@@ -473,6 +475,7 @@ const screens = {
   account: $("#screen-account"),
   onboard: $("#screen-onboard"),
   myTeamLineup: $("#screen-my-team-lineup"),
+  myTeamClubhouse: $("#screen-my-team-clubhouse"),
   collection: $("#screen-collection"),
   credits: $("#screen-credits"),
   draw: $("#screen-draw"),
@@ -11407,7 +11410,7 @@ function paintMyTeamDoneBar(st) {
 $("#myteam-done-bar")?.addEventListener("click", (e) => {
   const again = e.target.closest("[data-myteam-again]");
   if (again) return void startMyTeamSeason(again.dataset.myteamAgain, { again: true });
-  if (e.target.closest("[data-myteam-lineup]")) { myTeamLineup?.open(); show("myTeamLineup"); }
+  if (e.target.closest("[data-myteam-lineup]")) { myTeamClubhouse?.open(); show("myTeamClubhouse"); }
 });
 
 function myTeamResumeLabel() {
@@ -12415,8 +12418,24 @@ async function boot() {
       onStartSeason: startMyTeamSeason,
       onResumeSeason: resumeMyTeamSeason,
     });
-    $("#btn-open-my-lineup")?.addEventListener("click", () => { myTeamLineup.open(); show("myTeamLineup"); });
+    // My Team Clubhouse (workstream D): the My Team home — hero, court, wall, season, honours.
+    // The lineup editor stays one click away inside it ("编辑阵容").
+    myTeamClubhouse = createMyTeamClubhouse({
+      el: $("#my-team-clubhouse-root"),
+      getLang,
+      getAccount: activeAccount,
+      saveLineup: saveMyTeamLineup,
+      getResume: myTeamResumeLabel,
+      getSeason: () => readMyTeamSeason(),
+      onStartSeason: startMyTeamSeason,
+      onResumeSeason: resumeMyTeamSeason,
+      onOpenLineup: () => { myTeamLineup.open(); show("myTeamLineup"); },
+      onOpenCollection: () => openCollection(),
+      onOpenAccounts: () => openAccountScreen(),
+    });
+    $("#btn-open-my-lineup")?.addEventListener("click", () => { myTeamClubhouse.open(); show("myTeamClubhouse"); });
     $("#btn-my-lineup-back")?.addEventListener("click", () => goBack());
+    $("#btn-my-clubhouse-back")?.addEventListener("click", () => goBack());
     $("#load-status").textContent = L("正在加载名册（优先本地缓存）…", "Loading roster (local cache first)…");
     $("#load-bar").style.width = "6%";
     // Paint status before heavy work begins
