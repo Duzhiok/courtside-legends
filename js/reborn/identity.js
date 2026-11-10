@@ -143,14 +143,19 @@ export function maybeReveal(identity, trust) {
  * mutated). Growth deltas from root.reborn.player.growth are applied on read,
  * clamped to the attribute range — the original row stays untouched.
  */
-export function buildPlayerCard(identity, players, { growth = {} } = {}) {
+export function buildPlayerCard(identity, players, { growth = {}, season = REBORN_SEASON } = {}) {
   if (!identity) throw new TypeError("buildPlayerCard requires an identity");
   let card;
   if (identity.kind === "historical") {
+    // The requested season's real card; a later season falls back to the
+    // 1997 card (the player's last real card) so a rollover never strands
+    // a player whose real career had already ended.
     const row = (players || []).find(
-      (r) => r?.bref === identity.bref && Number(r.season) === REBORN_SEASON,
-    );
-    if (!row) throw new Error(`buildPlayerCard: no 1997 row for ${identity.bref}`);
+      (r) => r?.bref === identity.bref && Number(r.season) === season,
+    ) || (season !== REBORN_SEASON
+      ? (players || []).find((r) => r?.bref === identity.bref && Number(r.season) === REBORN_SEASON)
+      : null);
+    if (!row) throw new Error(`buildPlayerCard: no ${season} row for ${identity.bref}`);
     card = seasonToCard(row);
   } else {
     const generated = identity.generated;
@@ -171,12 +176,13 @@ export function buildPlayerCard(identity, players, { growth = {} } = {}) {
 /**
  * Put the cloned player into his team's roster: the original card (same bref)
  * is replaced, never duplicated. A fictional identity is appended as the
- * camp invitee. Returns a new array; the input is untouched.
+ * camp invitee. Returns a new array; the input is untouched. Pass a
+ * prebuilt `clone` to insert that exact card object (season driver).
  */
-export function applyIdentityToRoster(teamCards, identity, { players, growth = {} } = {}) {
-  const clone = buildPlayerCard(identity, players, { growth });
+export function applyIdentityToRoster(teamCards, identity, { players, growth = {}, clone = null } = {}) {
+  const card = clone || buildPlayerCard(identity, players, { growth });
   const next = (teamCards || []).filter((p) => p?.bref !== identity.bref);
-  next.push(clone);
+  next.push(card);
   return next;
 }
 
@@ -197,6 +203,7 @@ export function createRebornState(seed, players) {
       coachTrust: 25,
       rotationRole: "garbage",
       contractStatus: "camp",
+      seasonYear: REBORN_SEASON,
       growth: {},
       seasonLog: [],
     },

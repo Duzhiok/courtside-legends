@@ -162,6 +162,7 @@ export async function playGame(
   const role = roleForTrust(reborn.player.coachTrust);
   const playerCard = buildPlayerCard(reborn.identity, players, {
     growth: reborn.player.growth,
+    season: year,
   });
   playerCard.roleExpectation = role === "starter" ? "starter" : role === "rotation" ? "role" : "bench";
   playerCard.targetMinutes = ROLE_MINUTES[role];
@@ -231,10 +232,14 @@ export async function playGame(
   const takeoverOutcome = takeover?.accepted
     ? sim.clutchLog.find((o) => o.attemptId === takeover.attemptId) || null
     : null;
+  // Training pays trust once a week, on the week's last game — never once
+  // per game, or a bench player could train his way to starter without
+  // ever playing.
+  const trainingThisWeek = trainingDone && isWeekBoundary(season.index + 1, REBORN_GAMES_PER_WEEK);
   const trustChange = updateTrust(trustBefore, {
     gameScore: gs,
     role,
-    trainingDone,
+    trainingDone: trainingThisWeek,
     takeover: takeoverOutcome ? { attempted: takeoverOutcome.attempted, made: takeoverOutcome.made } : null,
   });
   const trustAfter = trustChange.trust;
