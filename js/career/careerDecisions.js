@@ -112,6 +112,9 @@ export function applyDecision(inbox, state, eventId, choiceId, { gameIndex = 0, 
 
   // A choice that carries a promise records it with its deadline and
   // check condition; checkPromises() settles it later, automatically.
+  // madeAtGame is the index of the next game to play (games already
+  // played), so the promised games are [madeAtGame, dueGame] and dueGame
+  // is the LAST promised game's index: gameIndex + games - 1.
   let promise = null;
   if (choice.promise) {
     promise = {
@@ -123,7 +126,7 @@ export function applyDecision(inbox, state, eventId, choiceId, { gameIndex = 0, 
       text: choice.promise.text,
       textEn: choice.promise.textEn,
       madeAtGame: gameIndex,
-      dueGame: gameIndex + choice.promise.games,
+      dueGame: gameIndex + choice.promise.games - 1,
       condition: {
         minCorePtsPerGame: choice.promise.minCorePtsPerGame,
         games: choice.promise.games,
@@ -139,6 +142,7 @@ export function applyDecision(inbox, state, eventId, choiceId, { gameIndex = 0, 
   // reads inbox.flags via the context) and other systems see them.
   const choiceFlags = choice.flags || {};
   nextInbox.flags = { ...(nextInbox.flags || {}), ...choiceFlags };
+  nextState.flags = { ...(nextState.flags || {}), ...choiceFlags };
   // Per-instance flags (prospect investigated / veteran traded, ...) are
   // namespaced by instance so one event's flag never collides with another's.
   if (event.id === "scout-report-gem" && instance.facts?.prospect?.bref) {
@@ -199,11 +203,13 @@ export function applyDecision(inbox, state, eventId, choiceId, { gameIndex = 0, 
 
 /**
  * Settle every open promise whose deadline has passed, against the
- * per-game evidence log. A promise is fulfilled only when the recorded
- * evidence meets its condition over the promised games; otherwise it is
- * broken. Returns { inbox, state, settled } — settled is the list of
- * { promise, fulfilled, reason, reasonEn, effects } so the view can show
- * exactly what happened and why.
+ * per-game evidence log. `gameIndex` is the count of games played so
+ * far; a promise settles once the last promised game has been played
+ * (gameIndex > dueGame). A promise is fulfilled only when the recorded
+ * evidence meets its condition over the promised games [madeAtGame,
+ * dueGame]; otherwise it is broken. Returns { inbox, state, settled } —
+ * settled is the list of { promise, fulfilled, reason, reasonEn,
+ * effects } so the view can show exactly what happened and why.
  *
  * The check is deterministic: same evidence, same verdict. A game with no
  * recorded core line counts as 0 points for that game (missing evidence
@@ -215,9 +221,9 @@ export function checkPromises(inbox, state, { gameIndex = 0 } = {}) {
   const settled = [];
   for (const promise of nextInbox.promises) {
     if (promise.status !== "open") continue;
-    if (gameIndex < promise.dueGame) continue;
+    if (gameIndex <= promise.dueGame) continue;
     const window = nextInbox.evidence.filter(
-      (entry) => entry.gameIndex > promise.madeAtGame && entry.gameIndex <= promise.dueGame,
+      (entry) => entry.gameIndex >= promise.madeAtGame && entry.gameIndex <= promise.dueGame,
     );
     const games = promise.condition.games || 1;
     const total = window.reduce((sum, entry) => sum + (Number.isFinite(entry.corePts) ? entry.corePts : 0), 0);
