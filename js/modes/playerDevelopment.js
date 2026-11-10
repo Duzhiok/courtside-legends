@@ -1,5 +1,6 @@
 import { overall } from "../data/players.js";
 import { estimateAge } from "../data/careerArc.js";
+import { canDo, requireCapability } from "../career/careerGuards.js";
 
 export const FOCUS_ATTRIBUTES = {
   shooting: ["three", "mid", "scoring"],
@@ -142,6 +143,23 @@ export function setDevelopmentPlan(career, bref, plan) {
     throw new TypeError("development plan player must be on the user roster");
   }
   validatePlanForRoster(plan, bref, roster, { source: "manual" });
+
+  // Role split (ADR-006): the coach sets the whole plan (focus / role /
+  // mentor / load); the GM manages resources — they may change ONLY the
+  // load on a plan that already exists, never invent a focus, a role, or
+  // a mentor. A role with neither capability cannot touch plans at all.
+  if (!canDo(career, "setTrainingFocus")) {
+    const existing = career.management?.developmentPlans?.[bref];
+    const loadOnly =
+      canDo(career, "allocateDevelopment") &&
+      existing &&
+      existing.focus === plan.focus &&
+      existing.role === plan.role &&
+      existing.mentorBref === plan.mentorBref;
+    if (!loadOnly) {
+      requireCapability(career, "setTrainingFocus");
+    }
+  }
 
   const { manualOverrides, recommendations } = cloneTrainingMaps(career);
   manualOverrides.training[bref] = structuredClone(plan);

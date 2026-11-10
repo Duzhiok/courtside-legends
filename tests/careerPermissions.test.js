@@ -350,3 +350,122 @@ test("manual-override guards follow the category map", () => {
   // an unmapped category is not a role-gated operation
   assert.equal(setManualOverride(gm, "notes", "k", "v").manualOverrides.notes.k, "v");
 });
+
+// ---------------------------------------------------------------- development plans: coach sets, GM allocates
+
+import {
+  recommendDevelopmentPlans,
+  setDevelopmentPlan,
+} from "../js/modes/playerDevelopment.js";
+
+function devPlayer(bref, overrides = {}) {
+  return {
+    id: `${bref}-2030`,
+    bref,
+    name: bref,
+    season: 2030,
+    age: 25,
+    pos: "PG",
+    overall: 70,
+    scoring: 70,
+    three: 70,
+    mid: 70,
+    paint: 70,
+    pass: 70,
+    defense: 70,
+    rebound: 70,
+    steal: 70,
+    block: 70,
+    speed: 70,
+    strength: 70,
+    stamina: 70,
+    iq: 70,
+    clutch: 70,
+    ...overrides,
+  };
+}
+
+function devCareer(role, players = [devPlayer("alpha"), devPlayer("mentor", { age: 31, iq: 85 })]) {
+  return {
+    careerId: "development",
+    kind: "franchise",
+    role,
+    phase: "regular",
+    season: {
+      phase: "regular",
+      userTeamId: "USER",
+      teams: { USER: { players } },
+    },
+    management: {
+      draft: null,
+      draftHistory: [],
+      seasonHistory: [],
+      developmentPlans: {},
+    },
+    manualOverrides: {},
+    recommendations: {},
+  };
+}
+
+function devPlan(overrides = {}) {
+  return {
+    focus: "shooting",
+    role: "starter",
+    mentorBref: "mentor",
+    load: "normal",
+    source: "manual",
+    ...overrides,
+  };
+}
+
+test("a coach sets the whole development plan", () => {
+  const next = setDevelopmentPlan(devCareer("COACH"), "alpha", devPlan());
+  assert.deepEqual(next.management.developmentPlans.alpha, devPlan());
+  assert.deepEqual(next.manualOverrides.training.alpha, devPlan());
+});
+
+test("a GM may change only the load on an existing plan", () => {
+  const withPlan = setDevelopmentPlan(devCareer("COACH"), "alpha", devPlan());
+  const gmCareer = { ...withPlan, role: "GM" };
+  const next = setDevelopmentPlan(gmCareer, "alpha", devPlan({ load: "high" }));
+  assert.equal(next.management.developmentPlans.alpha.load, "high");
+  assert.equal(next.management.developmentPlans.alpha.focus, "shooting");
+  assert.equal(next.management.developmentPlans.alpha.role, "starter");
+  assert.equal(next.management.developmentPlans.alpha.mentorBref, "mentor");
+});
+
+test("a GM may adjust the load on an automatic (recommended) plan", () => {
+  const recommended = recommendDevelopmentPlans(devCareer("GM_COACH"));
+  const base = recommended.management.developmentPlans.alpha;
+  const gmCareer = { ...recommended, role: "GM" };
+  const next = setDevelopmentPlan(gmCareer, "alpha", { ...base, load: "low", source: "manual" });
+  assert.equal(next.management.developmentPlans.alpha.load, "low");
+  assert.equal(next.management.developmentPlans.alpha.focus, base.focus);
+});
+
+test("a GM may not invent a focus, role, or mentor — or a plan from scratch", () => {
+  const withPlan = setDevelopmentPlan(devCareer("COACH"), "alpha", devPlan());
+  const gmCareer = { ...withPlan, role: "GM" };
+  for (const change of [
+    { focus: "defense" },
+    { role: "bench" },
+    { mentorBref: null },
+  ]) {
+    assert.throws(
+      () => setDevelopmentPlan(gmCareer, "alpha", devPlan(change)),
+      (error) => error instanceof CareerPermissionError && error.capability === "setTrainingFocus",
+      JSON.stringify(change),
+    );
+  }
+  assert.throws(
+    () => setDevelopmentPlan(devCareer("GM"), "alpha", devPlan()),
+    (error) => error instanceof CareerPermissionError && error.role === "GM",
+  );
+});
+
+test("a role with neither training capability cannot touch plans", () => {
+  assert.throws(
+    () => setDevelopmentPlan(devCareer("PLAYER"), "alpha", devPlan()),
+    (error) => error instanceof CareerPermissionError && error.capability === "setTrainingFocus",
+  );
+});
