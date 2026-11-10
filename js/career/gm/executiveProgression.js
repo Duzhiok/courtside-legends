@@ -160,7 +160,7 @@ export function settleEmpireLegacy(exec, { wealth = 0, valuation = 0, years = 0 
     wealth * 0.3 + equityValue * 0.3 + a.championships * 15 + a.playoffRuns * 3 + exec.reputation * 0.2 + years * 1,
   );
   const title =
-    score >= 90 ? { zh: "篮球不朽", en: "Basketball Immortal" }
+    score >= 90 ? { zh: "篮坛不朽传奇", en: "Basketball Immortal" }
     : score >= 60 ? { zh: "王朝缔造者", en: "Dynasty Builder" }
     : score >= 35 ? { zh: "商业巨头", en: "Business Mogul" }
     : { zh: "球队建设者", en: "Franchise Builder" };

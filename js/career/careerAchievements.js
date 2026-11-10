@@ -54,9 +54,9 @@ export const LEGITIMATE_ENDING_IDS = ["retired"];
 
 /** Exclusive lifetime titles for Architect careers (My World honours wall). */
 export const ARCHITECT_TITLES = {
-  architect: { id: "architect", zh: "建筑师", en: "The Architect" },
-  dynasty: { id: "dynasty-master", zh: "王朝大师", en: "Dynasty Master" },
-  immortal: { id: "basketball-immortal", zh: "篮球不朽", en: "Basketball Immortal" },
+  architect: { id: "architect", zh: "王朝缔造者", en: "The Architect" },
+  dynasty: { id: "dynasty-master", zh: "传奇掌舵者", en: "Dynasty Master" },
+  immortal: { id: "basketball-immortal", zh: "篮坛不朽传奇", en: "Basketball Immortal" },
 };
 
 /** The completed-career records on an account (missing/invalid reads as none). */

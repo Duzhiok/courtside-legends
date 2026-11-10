@@ -60,11 +60,11 @@ test("architectTitlesHtml: locked account shows progress, no title; halfway mark
 });
 
 test("architectTitlesHtml: unlocked account lists earned titles in the page language", () => {
-  const zh = architectTitlesHtml({ earned: [{ id: "architect", zh: "建筑师", en: "The Architect" }] }, "zh");
-  assert.match(zh, /👑 建筑师/);
+  const zh = architectTitlesHtml({ earned: [{ id: "architect", zh: "王朝缔造者", en: "The Architect" }] }, "zh");
+  assert.match(zh, /👑 王朝缔造者/);
   assert.doesNotMatch(zh, /The Architect/);
   const en = architectTitlesHtml(
-    { earned: [{ id: "architect", zh: "建筑师", en: "The Architect" }, { id: "dynasty-master", zh: "王朝大师", en: "Dynasty Master" }] },
+    { earned: [{ id: "architect", zh: "王朝缔造者", en: "The Architect" }, { id: "dynasty-master", zh: "传奇掌舵者", en: "Dynasty Master" }] },
     "en",
   );
   assert.match(en, /👑 The Architect/);
@@ -82,7 +82,7 @@ test("legacyHtml: the Legacy card carries the titles block for accounts, none fo
     null,
     "zh",
   );
-  assert.match(withTitles, /👑 建筑师/);
+  assert.match(withTitles, /👑 王朝缔造者/);
   const locked = legacyHtml(legacyFromAccount(account()), null, "zh");
   assert.match(locked, /教练生涯 ○ · 经理生涯 ○/);
   assert.doesNotMatch(locked, /👑/);

@@ -175,7 +175,7 @@ test("empire legacy settles wealth, equity value, titles and years — never a G
   assert.equal(settled.equityValue, 60);
   assert.equal(settled.championships, 2);
   assert.ok(settled.score >= 90, `legacy score ${settled.score} should clear Basketball Immortal`);
-  assert.equal(settled.title.zh, "篮球不朽");
+  assert.equal(settled.title.zh, "篮坛不朽传奇");
   const mid = settleEmpireLegacy(
     { ...createExecutiveRecord({ reputation: 60 }), equityPct: 10, achievements: { championships: 1, playoffRuns: 3, winningSeasons: 4 } },
     { wealth: 40, valuation: 200, years: 8 },
