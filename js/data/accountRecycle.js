@@ -3,8 +3,11 @@
  *
  * Mature-market rules borrowed on purpose:
  *  - No player-to-player trading — the system is the only buyer (anti-RMT).
- *  - Disenchant-style recycling into a currency that buys *skills*, not cards,
- *    so dead copies feed progression instead of vanishing (Hearthstone dust).
+ *  - Disenchant-style recycling turns dead copies into gold + 技能碎片.
+ *    Fragments no longer buy skills (S0: the skill-book system was
+ *    cancelled — skills now come only from talent, real game performance,
+ *    training and key events, plus the ★5 soul gift); fragments currently
+ *    have no sink, which is an open product question, not a design here.
  *  - A hard storage cap with a one-tap "clean the obvious junk" button
  *    (FIFA club storage / quick sell).
  *  - Recycled cards still count in the 图鉴 — you never lose collection progress.
@@ -25,7 +28,6 @@ import {
 export const MAX_CARDS = 60;
 /** The account stays "ready" only with a full 12-card bench (requireAccountReady). */
 export const MIN_KEEP = 12;
-export const MAX_BOUGHT_SKILLS = 2;
 
 /** 全明星+ cards always warn; one-tap junk only takes redundant versions below this. */
 const JUNK_REDUNDANT_BELOW = 85;
@@ -130,36 +132,13 @@ export function recycleCards(account, ids, { confirmed = false, pool = PLAYERS }
   return { count: wanted.length, gold, fragments };
 }
 
-/** Skills a card can still buy: learnable, passes its gates, not owned. */
+/** Skills a card can still learn: learnable, passes its gates, not owned. */
 export function buyableSkills(card) {
   const have = new Set(card.skills || []);
   return Object.keys(SKILL_PACKS)
     .filter((id) => isLearnableSkill(id) && !have.has(id) && canRetainSkill(card, id))
     .map((id) => ({ id, name: SKILL_PACKS[id].name, cost: skillPackShopPrice(id), rarity: skillRarity(id) }))
     .sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name, "zh"));
-}
-
-export function boughtSkillCount(account, playerId) {
-  return (account.cardMods?.[playerId]?.bought || []).length;
-}
-
-export function buySkillWithFragments(account, playerId, skillId, pool = PLAYERS) {
-  if (!account.playerIds.includes(playerId)) throw new Error("未拥有该卡");
-  const base = pool.find((p) => p.id === playerId);
-  const [card] = resolvePlayers([playerId], account, pool);
-  const option = buyableSkills(card).find((s) => s.id === skillId);
-  if (!base || !option) throw new Error("这张卡学不了这个技能");
-  if (boughtSkillCount(account, playerId) >= MAX_BOUGHT_SKILLS) throw new Error(`每张卡最多买 ${MAX_BOUGHT_SKILLS} 个技能`);
-  if ((account.fragments || 0) < option.cost) throw new Error(`技能碎片不足（需要 ${option.cost}）`);
-  account.fragments -= option.cost;
-  const mod = account.cardMods[playerId] || { merges: 0, skills: [] };
-  account.cardMods[playerId] = {
-    ...mod,
-    skills: [...(mod.skills || []), skillId],
-    bought: [...(mod.bought || []), skillId],
-  };
-  saveAccount(account);
-  return option;
 }
 
 /** 图鉴: persons ever owned (recycling never removes them) vs the whole pool. */

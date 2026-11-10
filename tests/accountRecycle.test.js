@@ -6,12 +6,8 @@ globalThis.localStorage = createMemoryStorage();
 
 const { rollGrade, rollOffsets } = await import("../js/data/cardRoll.js");
 const {
-  MAX_BOUGHT_SKILLS,
   MAX_CARDS,
   MIN_KEEP,
-  boughtSkillCount,
-  buyableSkills,
-  buySkillWithFragments,
   cardRoom,
   codexProgress,
   junkIds,
@@ -19,7 +15,6 @@ const {
   recycleValue,
 } = await import("../js/data/accountRecycle.js");
 const { drawOneCard } = await import("../js/data/accountGacha.js");
-const { resolvePlayers } = await import("../js/data/account.js");
 
 /** First seed that rolls the wanted grade (deterministic scan). */
 function seedFor(grade) {
@@ -126,27 +121,6 @@ test("lineup / high 成色 / starred cards need confirmation", () => {
   );
   assert.equal(acc.playerIds.includes("p15-2000"), true, "nothing removed before confirming");
   assert.equal(recycleCards(acc, ["p15-2000"], { pool: POOL, confirmed: true }).count, 1);
-});
-
-test("技能碎片 buy a legal skill, capped per card", () => {
-  const acc = account({ fragments: 5000 });
-  const [resolved] = resolvePlayers(["p01-2000"], acc, POOL);
-  const options = buyableSkills(resolved);
-  assert.ok(options.length > 2, "a normal card has skills to buy");
-  buySkillWithFragments(acc, "p01-2000", options[0].id, POOL);
-  buySkillWithFragments(acc, "p01-2000", options[1].id, POOL);
-  assert.equal(boughtSkillCount(acc, "p01-2000"), MAX_BOUGHT_SKILLS);
-  assert.equal(acc.fragments, 5000 - options[0].cost - options[1].cost);
-  assert.throws(() => buySkillWithFragments(acc, "p01-2000", options[2].id, POOL), /最多买/);
-  const [after] = resolvePlayers(["p01-2000"], acc, POOL);
-  assert.ok(after.skills.includes(options[0].id));
-});
-
-test("not enough fragments → refuse, nothing spent", () => {
-  const acc = account({ fragments: 1 });
-  const [resolved] = resolvePlayers(["p01-2000"], acc, POOL);
-  assert.throws(() => buySkillWithFragments(acc, "p01-2000", buyableSkills(resolved)[0].id, POOL), /碎片不足/);
-  assert.equal(acc.fragments, 1);
 });
 
 test("a full binder blocks pulls before any gold is spent", () => {

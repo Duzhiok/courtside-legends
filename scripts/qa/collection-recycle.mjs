@@ -81,22 +81,13 @@ async function run(width, height, tag) {
   await page.click("#app-confirm-cancel");
   check(`[${tag}] cancelling keeps the card`, (await page.$$eval(".player-card", (n) => n.length)) === count1);
 
-  // skill shop
-  await page.click(".skill-shop summary");
-  const firstCard = await page.$eval("[data-shop-card] option:nth-child(2)", (o) => o.value);
-  await page.selectOption("[data-shop-card]", firstCard);
-  await page.waitForSelector("[data-buy-skill]");
-  const rows = await page.$$("[data-buy-skill]");
-  check(`[${tag}] shop lists skills`, rows.length > 3, `${rows.length} rows`);
-  const enabled = await page.$("[data-buy-skill]:not([disabled])");
-  if (enabled) {
-    const fragBefore = Number((await page.textContent(".manage-bar")).match(/技能碎片 (\d+)/)[1]);
-    await enabled.click();
-    await page.waitForFunction((n) => Number(document.querySelector(".manage-bar").textContent.match(/技能碎片 (\d+)/)[1]) < n, fragBefore);
-    check(`[${tag}] bought a skill with fragments`, alerts.some((m) => /已学会/.test(m)), alerts.at(-1));
-  }
-  check(`[${tag}] shop: no horizontal overflow`, !(await overflow()));
-  await page.screenshot({ path: `${OUT}/${tag}-shop.png`, fullPage: true });
+  // S0: the fragment skill shop is gone — no shop UI, no buy buttons,
+  // and the manage note says fragments currently have no sink.
+  check(`[${tag}] no skill shop anywhere`, (await page.$$(".skill-shop, [data-buy-skill], [data-shop-card]")).length === 0);
+  const manageNote = await page.textContent("#collection-manage");
+  check(`[${tag}] manage note says fragments have no sink`, /技能碎片目前没有可兑换的物品/.test(manageNote), manageNote.replace(/\s+/g, " ").slice(0, 140));
+  check(`[${tag}] collection: no horizontal overflow`, !(await overflow()));
+  await page.screenshot({ path: `${OUT}/${tag}-manage.png`, fullPage: true });
 
   // full binder
   await page.evaluate(async () => {

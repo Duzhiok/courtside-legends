@@ -41,16 +41,13 @@ import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelc
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
 import { XP_TABLE, awardAccountXp, levelTitle, madePlayoffs, recordDailyLogin } from "./data/accountLevel.js";
 import {
-  boughtSkillCount,
-  buyableSkills,
-  buySkillWithFragments,
   codexProgress,
   cardRoom,
   junkIds,
   recycleCards,
   recycleValue,
 } from "./data/accountRecycle.js";
-import { manageBarHtml, recycleButtonHtml, skillShopHtml } from "./ui/collectionManageView.js";
+import { manageBarHtml, recycleButtonHtml } from "./ui/collectionManageView.js";
 import { applyCollectionView, decadesOf, filterBarHtml, freshFilter, redundantIds } from "./ui/collectionFilter.js";
 import {
   bannerExplainHtml,
@@ -2955,8 +2952,6 @@ function openCollection() {
   show("collection");
 }
 
-let shopCardId = "";
-
 function renderCollectionManage(acc, players) {
   const box = $("#collection-manage");
   if (!box) return;
@@ -2969,19 +2964,7 @@ function renderCollectionManage(acc, players) {
     },
     { gold: 0, fragments: 0 }
   );
-  const shopCard = byId.get(shopCardId);
-  box.innerHTML =
-    manageBarHtml({ account: acc, codex: codexProgress(acc, PLAYERS), junk: { count: junk.length, ...total } }) +
-    skillShopHtml(
-      {
-        cards: players,
-        selectedId: shopCard ? shopCardId : "",
-        options: shopCard ? buyableSkills(shopCard) : [],
-        bought: shopCard ? boughtSkillCount(acc, shopCardId) : 0,
-        fragments: acc.fragments || 0,
-      },
-      esc
-    );
+  box.innerHTML = manageBarHtml({ account: acc, codex: codexProgress(acc, PLAYERS), junk: { count: junk.length, ...total } });
 }
 
 /** Recycle with a confirm that names the value; risky cards get a second, specific warning. */
@@ -3013,21 +2996,6 @@ $("#collection-manage")?.addEventListener("click", (event) => {
     recycleWithConfirm(acc, junkIds(acc));
     return;
   }
-  const buy = event.target.closest("[data-buy-skill]");
-  if (!buy) return;
-  try {
-    const skill = buySkillWithFragments(acc, shopCardId, buy.dataset.buySkill);
-    alert(`已学会「${skill.name}」（-${skill.cost} 碎片）`);
-    openCollection();
-  } catch (error) {
-    alert(error.message);
-  }
-});
-$("#collection-manage")?.addEventListener("change", (event) => {
-  if (!event.target.matches("[data-shop-card]")) return;
-  shopCardId = event.target.value;
-  const acc = activeAccount();
-  if (acc) openCollection();
 });
 
 const drawView = () => ({ esc, photoImg, skillChipsHtml, ovrOf: overall });
