@@ -109,7 +109,10 @@ export async function attemptTakeover(sim, playerId, onTakeover) {
   if (typeof onTakeover !== "function") return null;
   const decision = await onTakeover({ sim, playerId });
   if (!decision || !decision.shooterId || !decision.actionHint) return null;
-  const attemptId = sim.issueAttemptId();
+  // The hook may carry the attempt id it already issued (the takeover UI's
+  // ClutchController); otherwise issue one here. Either way, exactly one
+  // id is submitted for this possession.
+  const attemptId = decision.attemptId || sim.issueAttemptId();
   const res = sim.submitDecision({
     attemptId,
     kind: "clutch_shooter",
