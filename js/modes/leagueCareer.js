@@ -6,8 +6,15 @@ import {
   buildNaturalPicks,
   createDraftState,
   forfeitDraftPick,
+  frontOfficePick,
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
+import { CAREER_ROLES } from "../career/careerIdentity.js";
+import {
+  canDo,
+  capabilityForOverrideCategory,
+  requireCapability,
+} from "../career/careerGuards.js";
 import {
   pruneDevelopmentPlans,
   reconcileDevelopmentPlans,
@@ -60,15 +67,23 @@ function cloneCategoryMap(groups, category) {
   };
 }
 
-export function createLeagueCareer({ kind, season, storyId, careerId } = {}) {
+export function createLeagueCareer({ kind, season, storyId, careerId, role } = {}) {
   if (!CAREER_KINDS.has(kind)) {
     throw new TypeError('kind must be either "franchise" or "timeTravel"');
   }
   requireSeason(season);
+  // The role this career plays as (ADR-006 R4). An explicit unknown role
+  // fails closed at creation; an omitted role reads as the Classic GM +
+  // Coach, so every career built before roles existed keeps full control
+  // with no migration.
+  if (role !== undefined && !CAREER_ROLES.includes(role)) {
+    throw new TypeError("role must be one of CAREER_ROLES");
+  }
 
   return {
     careerId: careerId || `career-${Date.now()}`,
     kind,
+    role: role ?? "GM_COACH",
     storyId: storyId || null,
     phase: season.phase,
     season,
@@ -102,6 +117,13 @@ export function setManualOverride(career, category, key, value) {
   requireCareer(career);
   requireName(category, "category");
   requireName(key, "key");
+  // A coaching category is a coaching operation: the override refuses
+  // for roles that lack the capability, exactly like the direct
+  // operation would. Ungated categories pass through (see
+  // OVERRIDE_CAPABILITIES — a new coaching category must add its
+  // mapping there).
+  const capability = capabilityForOverrideCategory(category);
+  if (capability) requireCapability(career, capability);
 
   const manualOverrides = cloneCategoryMap(career.manualOverrides, category);
   const recommendations = cloneCategoryMap(career.recommendations, category);
@@ -115,6 +137,9 @@ export function clearManualOverride(career, category, key) {
   requireCareer(career);
   requireName(category, "category");
   requireName(key, "key");
+  // Clearing a coaching override is the same operation as setting one.
+  const capability = capabilityForOverrideCategory(category);
+  if (capability) requireCapability(career, capability);
 
   const manualOverrides = cloneCategoryMap(career.manualOverrides, category);
   const recommendations = cloneCategoryMap(career.recommendations, category);
@@ -126,6 +151,8 @@ export function clearManualOverride(career, category, key) {
 export function applyRecommendation(career, category, recommendations) {
   requireCareer(career);
   requireName(category, "category");
+  const capability = capabilityForOverrideCategory(category);
+  if (capability) requireCapability(career, capability);
   if (
     !recommendations ||
     typeof recommendations !== "object" ||
@@ -564,6 +591,12 @@ function withCompletedDraft(career, draft, management, history) {
 export function beginCareerDraft(input) {
   requireCareer(input);
   requireSeason(input.season);
+  // Taking part in the draft is the GM's pick or the coach's suggestion:
+  // the GM executes, the coach suggests and the front office executes
+  // (suggestCareerDraftPick). A role with neither cannot open the draft.
+  if (!canDo(input, "draft") && !canDo(input, "suggestDraft")) {
+    requireCapability(input, "draft");
+  }
   // An older save may have traded picks as per-club tokens; bring its ledger up to date first so the
   // draft sees those trades even if the trade market was never opened. The result is carried in the
   // returned career, so this happens once.
@@ -608,6 +641,10 @@ export function beginCareerDraft(input) {
 export function makeCareerDraftPick(career, prospectId, options = {}) {
   requireCareer(career);
   requireSeason(career.season);
+  // Executing a pick is the GM's job — a coach's attempt refuses here,
+  // at the operation, not at the button (suggestCareerDraftPick is the
+  // coach's path).
+  requireCapability(career, "draft");
   const draft = career.management?.draft;
   if (!draft || draft.status !== "in_progress") {
     throw new Error("career requires an active draft in progress");
@@ -636,6 +673,7 @@ export function makeCareerDraftPick(career, prospectId, options = {}) {
 export function forfeitCareerDraftPick(career) {
   requireCareer(career);
   requireSeason(career.season);
+  requireCapability(career, "draft");
   const draft = career.management?.draft;
   if (!draft || draft.status !== "in_progress") {
     throw new Error("career requires an active draft in progress");
@@ -646,6 +684,50 @@ export function forfeitCareerDraftPick(career) {
   const forfeited = forfeitDraftPick(draft, career.season);
   const advanced = advanceDraftToUserPick(forfeited, career.season);
   const management = careerManagement(career);
+  return withCompletedDraft(
+    career,
+    advanced,
+    management,
+    [...(career.history || [])],
+  );
+}
+
+/**
+ * Coach suggest-only draft (ADR-006): record the suggestion, then let
+ * the front office execute this slot — the suggested prospect when it is
+ * still on the board, else the engine's cpuScore-best (frontOfficePick).
+ * The draft advances exactly as a manual pick would, so the coach can
+ * suggest again at the next user slot and the offseason can complete
+ * without the coach ever executing a pick. `prospectId` null means "no
+ * suggestion — front office decides". Suggestions live in the additive
+ * optional `management.draftSuggestions` list ({prospectId, pick, year}).
+ */
+export function suggestCareerDraftPick(career, prospectId = null) {
+  requireCareer(career);
+  requireSeason(career.season);
+  requireCapability(career, "suggestDraft");
+  const draft = career.management?.draft;
+  if (!draft || draft.status !== "in_progress") {
+    throw new Error("career requires an active draft in progress");
+  }
+  if (draft.order[draft.currentPick] !== career.season.userTeamId) {
+    throw new Error("draft pick is not the user's turn");
+  }
+  if (prospectId !== null && typeof prospectId !== "string") {
+    throw new TypeError("prospectId must be a string or null");
+  }
+  const suggestions = [...(career.management?.draftSuggestions || [])];
+  if (prospectId) {
+    if (!draft.prospects.some((p) => p?.prospectId === prospectId)) {
+      throw new Error(`prospect "${prospectId}" is not available`);
+    }
+    suggestions.push({ prospectId, pick: draft.currentPick, year: draft.year });
+  }
+  const picked = frontOfficePick(draft, career.season, prospectId);
+  const selected = selectDraftProspect(draft, career.season, picked);
+  const advanced = advanceDraftToUserPick(selected, career.season);
+  const management = careerManagement(career);
+  management.draftSuggestions = suggestions;
   return withCompletedDraft(
     career,
     advanced,

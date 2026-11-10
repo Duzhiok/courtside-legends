@@ -174,3 +174,179 @@ test("override categories map to their capability, unknown categories are ungate
   assert.equal(capabilityForOverrideCategory("training"), "setTrainingFocus");
   assert.equal(capabilityForOverrideCategory("something-new"), null);
 });
+
+// ---------------------------------------------------------------- role plumbing + draft guards
+
+import {
+  beginCareerDraft,
+  clearManualOverride,
+  createLeagueCareer,
+  forfeitCareerDraftPick,
+  makeCareerDraftPick,
+  setManualOverride,
+  suggestCareerDraftPick,
+} from "../js/modes/leagueCareer.js";
+import { frontOfficePick } from "../js/engine/leagueDraft.js";
+
+function completedCareerSeason(userTeamId = "B") {
+  const ids = ["A", "B", "C", "D"];
+  return {
+    phase: "done",
+    year: 2024,
+    userTeamId,
+    league: { teamIds: ids },
+    teams: Object.fromEntries(ids.map((id) => [id, { id, players: [] }])),
+    standings: Object.fromEntries(
+      ids.map((id, index) => [id, { w: 20 + index, l: 62 - index, pf: 8000, pa: 8100 }]),
+    ),
+    freeAgents: [],
+  };
+}
+
+function careerWithRole(role, overrides = {}) {
+  return createLeagueCareer({
+    kind: "franchise",
+    season: completedCareerSeason("B"),
+    careerId: "test-career",
+    ...(role === undefined ? {} : { role }),
+    ...overrides,
+  });
+}
+
+test("createLeagueCareer stamps the role; omitted role reads as Classic GM+Coach", () => {
+  assert.equal(careerWithRole("COACH").role, "COACH");
+  assert.equal(careerWithRole("GM").role, "GM");
+  assert.equal(careerWithRole(undefined).role, "GM_COACH");
+  assert.throws(() => careerWithRole("ADMIN"), /CAREER_ROLES/);
+});
+
+test("beginCareerDraft admits the GM and the suggesting coach, refuses the player", () => {
+  assert.equal(beginCareerDraft(careerWithRole("GM")).management.draft.status, "in_progress");
+  assert.equal(beginCareerDraft(careerWithRole("COACH")).management.draft.status, "in_progress");
+  assert.equal(beginCareerDraft(careerWithRole("GM_COACH")).management.draft.status, "in_progress");
+  assert.throws(
+    () => beginCareerDraft(careerWithRole("PLAYER")),
+    (error) => error instanceof CareerPermissionError && error.capability === "draft",
+  );
+});
+
+test("makeCareerDraftPick executes for the GM and refuses for the coach, without mutation", () => {
+  const coachStarted = beginCareerDraft(careerWithRole("COACH"));
+  const before = structuredClone(coachStarted);
+  assert.throws(
+    () => makeCareerDraftPick(coachStarted, coachStarted.management.draft.prospects[0].prospectId),
+    (error) => error instanceof CareerPermissionError && error.role === "COACH" && error.capability === "draft",
+  );
+  assert.deepEqual(coachStarted, before);
+
+  const gmStarted = beginCareerDraft(careerWithRole("GM"));
+  const prospectId = gmStarted.management.draft.prospects[0].prospectId;
+  const picked = makeCareerDraftPick(gmStarted, prospectId);
+  // advanceDraftToUserPick also records the CPU picks before the user's
+  // turn, so the count is not 1 — the user's pick is the one that counts.
+  assert.ok(picked.management.draft.selections.some((s) => s.prospectId === prospectId));
+  assert.ok(picked.management.draft.selections.length >= 1);
+});
+
+test("forfeitCareerDraftPick refuses for the coach", () => {
+  const started = beginCareerDraft(careerWithRole("COACH"));
+  assert.throws(
+    () => forfeitCareerDraftPick(started),
+    (error) => error instanceof CareerPermissionError && error.capability === "draft",
+  );
+  const gmStarted = beginCareerDraft(careerWithRole("GM"));
+  const before = gmStarted.management.draft.selections.length;
+  const forfeited = forfeitCareerDraftPick(gmStarted);
+  // the forfeited slot is consumed and the draft moves on
+  assert.ok(forfeited.management.draft.selections.length > before);
+  assert.ok(forfeited.management.draft.currentPick > gmStarted.management.draft.currentPick);
+});
+
+test("frontOfficePick honors a live suggestion, else takes the cpuScore-best", () => {
+  const started = beginCareerDraft(careerWithRole("GM_COACH"));
+  const draft = started.management.draft;
+  const second = draft.prospects[1].prospectId;
+  assert.equal(frontOfficePick(draft, started.season, second), second);
+  const best = frontOfficePick(draft, started.season, null);
+  assert.equal(typeof best, "string");
+  assert.ok(draft.prospects.some((p) => p.prospectId === best));
+  assert.equal(frontOfficePick(draft, started.season, "not-on-the-board"), best);
+});
+
+test("suggestCareerDraftPick records the suggestion and lets the front office execute it", () => {
+  const started = beginCareerDraft(careerWithRole("COACH"));
+  const suggested = started.management.draft.prospects[0].prospectId;
+  const pickNumber = started.management.draft.currentPick;
+  const next = suggestCareerDraftPick(started, suggested);
+
+  assert.equal(next.management.draftSuggestions.length, 1);
+  assert.deepEqual(next.management.draftSuggestions[0], {
+    prospectId: suggested,
+    pick: pickNumber,
+    year: 2024,
+  });
+  // the suggested prospect is the one taken: it leaves the board
+  assert.equal(
+    next.management.draft.prospects.some((p) => p.prospectId === suggested),
+    false,
+  );
+  // the draft moved on (or completed) — the coach can suggest again
+  assert.notEqual(next.management.draft, started.management.draft);
+});
+
+test("suggestCareerDraftPick with no suggestion lets the front office decide", () => {
+  const started = beginCareerDraft(careerWithRole("COACH"));
+  const before = started.management.draft.selections.length;
+  const next = suggestCareerDraftPick(started, null);
+  assert.deepEqual(next.management.draftSuggestions, []);
+  assert.ok(next.management.draft.selections.length > before);
+});
+
+test("suggestCareerDraftPick refuses the GM and an unavailable prospect", () => {
+  const gmStarted = beginCareerDraft(careerWithRole("GM"));
+  assert.throws(
+    () => suggestCareerDraftPick(gmStarted, gmStarted.management.draft.prospects[0].prospectId),
+    (error) => error instanceof CareerPermissionError && error.capability === "suggestDraft",
+  );
+  const coachStarted = beginCareerDraft(careerWithRole("COACH"));
+  assert.throws(
+    () => suggestCareerDraftPick(coachStarted, "not-on-the-board"),
+    /not available/,
+  );
+});
+
+test("a coach can suggest every user pick until the draft completes", () => {
+  let career = beginCareerDraft(careerWithRole("COACH"));
+  let suggestions = 0;
+  while (career.management.draft.status === "in_progress") {
+    const draft = career.management.draft;
+    assert.equal(draft.order[draft.currentPick], "B", "draft waits at the user's turn");
+    career = suggestCareerDraftPick(career, draft.prospects[0].prospectId);
+    suggestions += 1;
+  }
+  assert.equal(career.management.draft.status, "complete");
+  assert.equal(career.management.draftSuggestions.length, suggestions);
+  assert.ok(suggestions >= 1);
+});
+
+test("manual-override guards follow the category map", () => {
+  const coach = careerWithRole("COACH");
+  const gm = careerWithRole("GM");
+  // rotation is the coach's job
+  assert.equal(setManualOverride(coach, "rotation", "starters", ["a"]).manualOverrides.rotation.starters[0], "a");
+  assert.throws(
+    () => setManualOverride(gm, "rotation", "starters", ["a"]),
+    (error) => error instanceof CareerPermissionError && error.capability === "setRotation",
+  );
+  assert.throws(
+    () => clearManualOverride(gm, "rotation", "starters"),
+    (error) => error instanceof CareerPermissionError && error.capability === "setRotation",
+  );
+  // training focus is the coach's job
+  assert.throws(
+    () => setManualOverride(gm, "training", "alpha", { focus: "shooting" }),
+    (error) => error instanceof CareerPermissionError && error.capability === "setTrainingFocus",
+  );
+  // an unmapped category is not a role-gated operation
+  assert.equal(setManualOverride(gm, "notes", "k", "v").manualOverrides.notes.k, "v");
+});

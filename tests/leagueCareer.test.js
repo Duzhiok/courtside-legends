@@ -65,6 +65,7 @@ test("league career creation initializes the shared wrapper", () => {
   assert.deepEqual(career, {
     careerId: "career-1",
     kind: "timeTravel",
+    role: "GM_COACH",
     storyId: "story-1",
     phase: "regular",
     season,

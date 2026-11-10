@@ -649,6 +649,36 @@ function cpuScore(draft, season, prospect) {
 }
 
 /**
+ * The prospect the front office takes at the current pick: the coach's
+ * suggestion when it is still on the board, else the same cpuScore-best
+ * the engine already uses for every CPU slot (no new dice — the scoring
+ * and the hash tie-break are cpuScore's, untouched). The caller owns the
+ * permission decision; this only chooses.
+ */
+export function frontOfficePick(draft, season, suggestedProspectId = null) {
+  activePick(draft, season);
+  if (typeof suggestedProspectId === "string" && suggestedProspectId) {
+    const suggested = (draft.prospects || []).find(
+      (prospect) => prospect?.prospectId === suggestedProspectId,
+    );
+    if (suggested) return suggested.prospectId;
+  }
+  if (!Array.isArray(draft.prospects) || draft.prospects.length === 0) {
+    throw new Error("active draft has no available prospects");
+  }
+  return [...draft.prospects]
+    .sort((left, right) => {
+      const a = cpuScore(draft, season, left);
+      const b = cpuScore(draft, season, right);
+      return (
+        b.score - a.score ||
+        b.tie - a.tie ||
+        left.prospectId.localeCompare(right.prospectId)
+      );
+    })[0].prospectId;
+}
+
+/**
  * Second-round transition for a 2-round draft (T6 follow-up: career drafts).
  *
  * Runs when round 1 just completed. The round-2 order is pure worst-first
