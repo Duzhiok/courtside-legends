@@ -284,6 +284,24 @@ function validatePoachOffer(offer) {
   }
 }
 
+/** Player Reborn (ADR-005 §4): optional v3 field; absent on old saves is fine. */
+export function validateReborn(reborn) {
+  if (
+    !isObject(reborn)
+    || reborn.version !== 1
+    || (typeof reborn.seed !== "string" && typeof reborn.seed !== "number")
+    || reborn.role !== "player"
+    || !isObject(reborn.identity)
+    || !["historical", "fictional"].includes(reborn.identity.kind)
+    || (reborn.identity.kind === "historical" && !isNonEmptyString(reborn.identity.bref))
+    || (reborn.player !== undefined && reborn.player !== null && !isObject(reborn.player))
+    || (reborn.player && Number.isFinite(reborn.player.coachTrust)
+      && (reborn.player.coachTrust < 0 || reborn.player.coachTrust > 100))
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
 function validateSeasonGoal(goal) {
   if (
     !isObject(goal)
@@ -393,6 +411,7 @@ function validateRoot(root) {
     || (root.leagueCareer !== null && !isObject(root.leagueCareer))
     || (root.story !== null && !isObject(root.story))
     || (root.liveGame !== null && !isObject(root.liveGame))
+    || (root.reborn !== null && root.reborn !== undefined && !isObject(root.reborn))
   ) {
     throw new Error("invalid root save");
   }
@@ -407,6 +426,9 @@ function validateRoot(root) {
   }
   if (root.liveGame) {
     validateLiveGame(root.liveGame);
+  }
+  if (root.reborn) {
+    validateReborn(root.reborn);
   }
   return root;
 }
@@ -488,6 +510,7 @@ export function createRootState(overrides = {}) {
     leagueCareer: null,
     story: null,
     liveGame: null,
+    reborn: null,
     ...overrides,
   };
 }
