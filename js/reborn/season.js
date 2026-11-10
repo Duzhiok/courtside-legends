@@ -252,6 +252,9 @@ export async function playGame(
   next.player.coachTrust = trustAfter;
   next.player.rotationRole = roleAfter;
   next.identity = maybeReveal(next.identity, trustAfter);
+  // The trust-40 reveal flips here (if it flips at all) — the report
+  // carries it so the view can stage the reveal moment.
+  const revealedNow = !reborn.identity.revealed && next.identity.revealed;
   next.player.seasonLog.push({
     year,
     game: season.index + 1,
@@ -294,6 +297,7 @@ export async function playGame(
       trustParts: trustChange.parts,
       roleBefore: role,
       roleAfter,
+      revealedNow,
       growth: growthOut.entries,
       takeover: takeoverOutcome
         ? {
