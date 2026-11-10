@@ -4,6 +4,7 @@ import { validEpiphany, validGrowth } from "../career/growthShape.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
 import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
 import { isKnownCoachOrigin } from "../career/coachOrigins.js";
+import { validateExecutive } from "../career/gm/businessScenario.js";
 import { assertSlotWritable, careerSig, clearSaveOwner, keyHasData, moveSaveOwner, recordSaveWrite, slotLocked } from "./saveOwnership.js";
 
 export const ROOT_SAVE_KEY = "cls_root_v3";
@@ -433,6 +434,10 @@ function validateRoot(root) {
   }
   if (root.careerInbox) {
     validateCareerInbox(root.careerInbox);
+  }
+  // Executive Dynasty (workstream F): optional story field; absent on old saves is fine.
+  if (root.story?.executive !== undefined) {
+    validateExecutive(root.story.executive);
   }
   return root;
 }

@@ -37,6 +37,7 @@ import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relatio
 import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.js";
 import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { ensureDraftGambleScreen, createDraftGambleView } from "./ui/scoutingView.js";
+import { ensureGmBusinessScreen, createGmBusinessView } from "./ui/gmBusinessView.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12434,6 +12435,17 @@ async function boot() {
       show,
       goBack,
     });
+    // GM Executive Dynasty dev entry (workstream F): ?gm-business=1 opens the
+    // three-season business scenario after boot.
+    let gmBusinessView = null;
+    screens.gmBusiness = ensureGmBusinessScreen();
+    gmBusinessView = createGmBusinessView({
+      getLang,
+      readRootSave: () => state.longCareerRoot || readRootSave(),
+      writeRootSave,
+      show,
+      goBack,
+    });
     // GM draft gamble (workstream C): the 1996 scouting/draft slice.
     // ?draft-gamble=1 opens it directly after boot. open() shows the
     // scout phase for a new run, or resumes the saved run.
@@ -12542,6 +12554,10 @@ async function boot() {
     // screen, and a skill fired there lands on the card from the next game.
     if (new URLSearchParams(location.search).get("awakening") === "1") {
       setTimeout(() => { rebornView.open(); }, 250);
+    }
+    // GM Executive Dynasty dev entry: ?gm-business=1 opens the business scenario after boot.
+    if (new URLSearchParams(location.search).get("gm-business") === "1") {
+      setTimeout(() => { gmBusinessView.open(gmBusinessView.createScenario({ players: PLAYERS }), PLAYERS); }, 250);
     }
     // Career Role Permissions dev entry: ?career=coach opens the Time
     // Travel creation with the Coach role pre-set (ADR-006 R4) — the
