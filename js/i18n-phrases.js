@@ -508,6 +508,7 @@ export const PHRASES = [
   // Legends Gallery footer cleanup: How to Play / About dialogs on the home screen.
   ["玩法说明", "How to Play"],
   ["关于", "About"],
+  ["商城", "Shop"],
   ["关闭", "Close"],
   ["篮球传奇长廊", "Legends gallery"],
   ["场边传奇 · Courtside Legends —— 按赛季抽卡组队，临场指挥，改写篮球历史。", "Courtside Legends — draft season cards, coach live, rewrite basketball history."],

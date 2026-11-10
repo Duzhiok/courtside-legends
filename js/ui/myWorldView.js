@@ -70,15 +70,15 @@ const ICONS = {
 };
 const icon = (name) => `<svg class="mw-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
 
-/** `portrait` is portraitFor()'s result; without one (older callers/tests) the initials avatar is the fallback. */
-export function identityCardHtml(identity, lang, portrait = null) {
+/** `portrait` is portraitFor()'s result; `frame` is a shop frame id (e.g. "gold") — a CSS class on the portrait wrapper. */
+export function identityCardHtml(identity, lang, portrait = null, frame = null) {
   const name = identity.name || T(lang, "访客球员", "Guest player");
   const facts = identity.hometown ? `${T(lang, "来自", "From")} ${esc(identity.hometown)}` : T(lang, "家乡未填写", "Hometown not set");
   const note = identity.guest
     ? `<p class="mw-note">${T(lang, "访客资料只保存在这台设备的浏览器里。创建账号后，在账号下重新编辑即可保存到账号。", "Guest profiles live only in this browser on this device. Create an account and edit again to keep it with the account.")}</p>`
     : "";
   return `<section class="mw-identity" aria-labelledby="mw-identity-title">
-    <div class="mw-portrait"><img class="mw-avatar" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="96" height="96" /></div>
+    <div class="mw-portrait${frame ? ` mw-frame-${frame}` : ""}"><img class="mw-avatar" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="96" height="96" /></div>
     <div class="mw-identity-body">
       <h3 id="mw-identity-title">${esc(name)}</h3>
       <p class="mw-facts">${facts}</p>
@@ -235,10 +235,22 @@ const ROOM_SVG = `<svg class="mw-room-art" viewBox="0 0 600 240" preserveAspectR
   <rect x="560" y="112" width="20" height="26" rx="3" fill="#7a5230"/><path d="M570 112c-14-8-16-26-4-30m4 30c14-8 16-26 4-30" fill="none" stroke="#3f7a52" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
 
+export const TROPHY_CABINET_SVG = `<g class="mw-furniture" data-furniture="trophy-cabinet" aria-label="Champion Trophy Cabinet">
+  <rect x="502" y="150" width="50" height="85" rx="4" fill="#5a3d24" stroke="#d6b25a" stroke-width="2.5"/>
+  <rect x="507" y="155" width="40" height="75" rx="2" fill="#f9f3e4" stroke="#d6b25a" stroke-width="1.5"/>
+  <line x1="507" y1="184" x2="547" y2="184" stroke="#8a6a3a" stroke-width="2"/>
+  <line x1="507" y1="209" x2="547" y2="209" stroke="#8a6a3a" stroke-width="2"/>
+  <g fill="#d6b25a" stroke="#8a6a3a" stroke-width="1">
+    <path d="M514 164h10l-1.5 7h-7z"/><rect x="518.5" y="171" width="3" height="4"/><rect x="513" y="175" width="12" height="2.5"/>
+    <path d="M530 164h10l-1.5 7h-7z"/><rect x="534.5" y="171" width="3" height="4"/><rect x="529" y="175" width="12" height="2.5"/>
+    <path d="M522 189h10l-1.5 7h-7z"/><rect x="526.5" y="196" width="3" height="4"/><rect x="521" y="200" width="12" height="2.5"/>
+  </g>
+</g>`;
+
 const emptyFrame = (lang) => `<figure class="mw-frame is-empty" aria-label="${T(lang, "空相框", "Empty frame")}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M4 22c0-5 4-8 8-8s8 3 8 8z"/></svg></figure>`;
 
 /** Frames hold your real top cards (empty frames are honest); the shelf counts real career trophies. */
-export function homeSceneHtml({ identity, frames = [], trophyCount = 0 }, lang) {
+export function homeSceneHtml({ identity, frames = [], trophyCount = 0, furniture = [] }, lang) {
   const frameHtml = [0, 1, 2]
     .map((i) => {
       const player = frames[i];
@@ -251,16 +263,20 @@ export function homeSceneHtml({ identity, frames = [], trophyCount = 0 }, lang) 
     ? `<div class="mw-shelf" aria-label="${T(lang, `${trophyCount} 座冠军奖杯`, `${trophyCount} championship trophies`)}">${"🏆".repeat(Math.min(trophyCount, 5))}${trophyCount > 5 ? ` ×${trophyCount}` : ""}</div>`
     : `<div class="mw-shelf is-empty">${T(lang, "奖杯架还空着", "Trophy shelf is empty")}</div>`;
   const plate = identity.name || T(lang, "访客球员", "Guest player");
+  const hasCabinet = furniture.includes("trophy-cabinet");
+  const roomSvg = hasCabinet ? ROOM_SVG.replace("</svg>", `${TROPHY_CABINET_SVG}</svg>`) : ROOM_SVG;
   return `<section class="mw-card mw-home"><h3>${T(lang, "我的家 · My Home", "My Home")}</h3>
     <div class="mw-room" role="img" aria-label="${T(lang, "我的篮球房间", "My basketball room")}">
       <div class="mw-stage">
-        ${ROOM_SVG}
+        ${roomSvg}
         <div class="mw-frames">${frameHtml}</div>
         ${shelf}
         <div class="mw-plate">${esc(plate)}</div>
       </div>
     </div>
     <p class="tiny mw-note">${T(lang, "相框挂着你账号里最强的三张球员卡；奖杯来自你的生涯存档。", "Frames hold the three best cards on your account; trophies come from your career save.")}</p>
+    ${hasCabinet ? `<p class="tiny mw-note">${T(lang, "🏆 已摆放冠军奖杯柜（商城）", "🏆 Champion Trophy Cabinet placed (Shop)")}</p>` : ""}
+    <div class="btn-row"><button type="button" class="btn small ghost" data-mw-action="open-shop" data-shop-category="home">${T(lang, "🛍️ 逛商城 · 家具", "🛍️ Shop · Furniture")}</button></div>
   </section>`;
 }
 
@@ -295,14 +311,14 @@ export function levelHtml(snapshot, lang) {
   </section>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], frame = null, ownedOutfits = null }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const owned = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
-    ${identityCardHtml(identity, lang, portrait)}
+    ${identityCardHtml(identity, lang, portrait, frame)}
     ${levelHtml(level, lang)}
-    ${lookPanelHtml(look, identity?.name, lang, portrait)}
+    ${lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, owned, lang)}</div>
-    ${homeSceneHtml({ identity, frames, trophyCount: (owned?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0) }, lang)}`;
+    ${homeSceneHtml({ identity, frames, trophyCount: (owned?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0), furniture }, lang)}`;
 }

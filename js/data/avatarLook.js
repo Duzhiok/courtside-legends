@@ -37,6 +37,10 @@ export const OUTFITS = Object.freeze([
   { id: "orange", shirt: "#e85d04", pants: "#2b2b2b", zh: "活力橙", en: "Orange" },
   { id: "royal", shirt: "#5b2a86", pants: "#f0b429", zh: "紫金", en: "Purple & gold" },
   { id: "white", shirt: "#f4f4f0", pants: "#1e2a44", zh: "经典白", en: "Classic white" },
+  // Shop-exclusive (Gold Lifestyle Shop, `outfit-champion-gold`): the avatar editor
+  // locks it until owned (see avatarLookView groupHtml) so the shop purchase is real —
+  // without the lock this outfit would be pickable for free and the sale would be fake.
+  { id: "champion", shirt: "#d6b25a", pants: "#1f2937", zh: "冠军金", en: "Champion Gold", shop: "outfit-champion-gold" },
 ]);
 
 export const HAIR_STYLES = Object.freeze([

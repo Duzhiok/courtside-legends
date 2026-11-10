@@ -28,6 +28,7 @@
   <link rel="stylesheet" href="css/liveGoals.css?v=1" />
   <link rel="stylesheet" href="css/radio.css?v=1" />
   <link rel="stylesheet" href="css/duel.css?v=1" />
+  <link rel="stylesheet" href="css/shop.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -43,6 +44,7 @@
         </div>
         <button type="button" class="voice-btn" id="btn-voice" aria-haspopup="dialog" data-no-i18n><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" /></svg></button>
         <button type="button" class="btn small ghost" id="btn-lang" title="Language / 语言" data-no-i18n>EN</button>
+        <button type="button" class="gold-chip" id="btn-gold-chip" title="商城"><span aria-hidden="true">¤</span><span id="gold-chip-amt">0</span></button>
         <button type="button" class="account-chip" id="btn-account-chip" title="我的球员卡">未登录</button>
         <p class="tagline">选人 · 模拟 · 临场指挥</p>
       </div>
@@ -1244,6 +1246,7 @@
           </div>
           <div class="btn-row">
             <button type="button" class="btn small ghost" id="btn-season-save">保存赛季</button>
+            <button type="button" class="btn small ghost" id="btn-season-shop">商城</button>
             <button type="button" class="btn small ghost" id="btn-season-abandon">删除当前生涯</button>
           </div>
         </div>
@@ -1334,6 +1337,9 @@
       </div>
     </form>
   </dialog>
+
+  <!-- Gold Lifestyle Shop: content is rendered by js/ui/shopView.js -->
+  <dialog id="shop-dialog" class="shop-dialog" aria-label="商城"></dialog>
 
   <script>
     // Inline watchdog: catches module failures / frozen boots before app.js runs.

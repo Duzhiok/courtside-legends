@@ -5,6 +5,7 @@
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
+import { ownedFurnitureIds, ownedOutfitIds, equippedFrameId } from "../data/shop.js";
 import { lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
@@ -35,6 +36,7 @@ export function createMyWorld({
   onClaimed = () => {},
   onOpenCollection,
   onOpenAccounts,
+  onOpenShop, // (category) => open the Gold Lifestyle Shop dialog at a category
   onStartCareer,
   onIdentitySaved = () => {},
   onPortraitChanged = () => {}, // the home bar shows the same picture; it is updated without re-rendering this screen
@@ -69,7 +71,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang) }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), frame: equippedFrameId(account), ownedOutfits: ownedOutfitIds(account) }, lang);
   }
 
   /**
@@ -320,6 +322,7 @@ export function createMyWorld({
     "start-career": () => onStartCareer?.(),
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),
+    "open-shop": (btn) => onOpenShop?.(btn?.dataset?.shopCategory || "home"),
   };
 
   el.addEventListener("click", (event) => {

@@ -32,13 +32,18 @@ function actionsHtml(lang) {
   </fieldset>`;
 }
 
-const groupHtml = (group, look, lang) => `<fieldset class="mw-swatches" data-mw-look-group="${group.key}">
+const groupHtml = (group, look, lang, ownedOutfits = null) => `<fieldset class="mw-swatches" data-mw-look-group="${group.key}">
     <legend>${T(lang, group.zh, group.en)}</legend>
-    ${group.items.map((item) => `<label class="mw-swatch${group.swatch ? "" : " is-text"}" title="${esc(T(lang, item.zh, item.en))}">
-      <input type="radio" name="mw-look-${group.key}" value="${item.id}" ${look[group.key] === item.id ? "checked" : ""} />
+    ${group.items.map((item) => {
+      // Shop-exclusive outfits (item.shop) render locked until owned, so the shop
+      // purchase is real: without this the outfit would be pickable here for free.
+      const locked = group.key === "outfit" && item.shop && ownedOutfits !== null && !ownedOutfits.includes(item.id);
+      return `<label class="mw-swatch${group.swatch ? "" : " is-text"}${locked ? " is-locked" : ""}" title="${esc(locked ? T(lang, "商城有售", "Available in the Shop") : T(lang, item.zh, item.en))}">
+      <input type="radio" name="mw-look-${group.key}" value="${item.id}" ${look[group.key] === item.id ? "checked" : ""}${locked ? " disabled" : ""} />
       ${group.swatch ? `<span class="mw-swatch-dot" style="background:${group.swatch(item)}"></span>` : ""}
-      <span class="mw-swatch-name">${esc(T(lang, item.zh, item.en))}</span>
-    </label>`).join("")}
+      <span class="mw-swatch-name">${esc(T(lang, item.zh, item.en))}${locked ? ` <span class="mw-swatch-lock">${esc(T(lang, "商城", "Shop"))}</span>` : ""}</span>
+    </label>`;
+    }).join("")}
   </fieldset>`;
 
 /** Profile-picture chooser: the preset busts, plus "use my 3D look" (enabled by the screen once the 3D figure is up). */
@@ -62,7 +67,14 @@ function portraitHtml(portrait, lang) {
   </fieldset>`;
 }
 
-export function lookPanelHtml(rawLook, name, lang, portrait = null) {
+/**
+ * The avatar customizer (all outfit / body / hair / skin / style / figure options).
+ *
+ * @param {string[]|null} ownedOutfits — shop-owned outfit ids; null disables shop
+ *   locking (backward-compatible for callers that don't know the shop), while a list
+ *   locks every shop-exclusive outfit not in it (disabled radio + "商城" tag).
+ */
+export function lookPanelHtml(rawLook, name, lang, portrait = null, ownedOutfits = null) {
   const look = sanitizeLook(rawLook);
   return `<section class="mw-look" id="mw-look" aria-label="${T(lang, "我的形象", "My look")}" hidden>
     <div class="mw-look-stage" id="mw-look-stage">
@@ -70,7 +82,7 @@ export function lookPanelHtml(rawLook, name, lang, portrait = null) {
     </div>
     <div class="mw-look-controls">
       <h3>${T(lang, "我的形象", "My look")}</h3>
-      ${GROUPS.map((g) => groupHtml(g, look, lang)).join("")}
+      ${GROUPS.map((g) => groupHtml(g, look, lang, ownedOutfits)).join("")}
       ${actionsHtml(lang)}
       ${portraitHtml(portrait, lang)}
       <p class="mw-note">${T(lang, "只是外观，不影响任何比赛能力。拖动形象可以旋转。", "Cosmetic only; it never changes any ability. Drag the figure to turn it.")}</p>

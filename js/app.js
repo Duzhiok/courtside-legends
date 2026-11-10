@@ -334,6 +334,8 @@ import { initCareerEntry, refreshCareerEntry } from "./ui/careerEntry.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
+import { createShop } from "./ui/shopView.js";
+import { ticketBalance, autoXpRemaining, consumeAutoTickets, awardAutoGameXp } from "./data/shop.js";
 import { portraitFor } from "./ui/portraitFor.js";
 import { createMyTeamLineup } from "./ui/myTeamLineupScreen.js";
 import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
@@ -552,6 +554,7 @@ let navPopping = false;
 
 function show(name) {
   const from = activeScreenName();
+  refreshGoldChip(); // the top-bar gold balance is visible on every screen
   audio.screen(name, { year: state.season?.year });
   if (from === name) {
     // Same-screen re-show (re-render flows): no stack change.
@@ -2372,9 +2375,19 @@ function refreshMyWorld() {
   paintDuelRecordsIntoMyWorld();
 }
 
+/** Top-bar gold balance (clickable → opens the shop). Kept in sync on every navigation + account change. */
+function refreshGoldChip() {
+  const amt = $("#gold-chip-amt");
+  const chip = $("#btn-gold-chip");
+  const acc = activeAccount();
+  if (amt) amt.textContent = String(acc?.gold || 0);
+  if (chip) chip.title = L("商城", "Shop");
+}
+
 function refreshAccountHomeBar() {
   // Daily first login (+10, once per account per day; guests level up locally too).
   recordDailyLogin(activeAccount());
+  refreshGoldChip();
   refreshRankedCardLock();
   refreshMyWorld();
   refreshAccountAvatar(); // name/cards may have changed (switch account, onboarding, profile edit)
@@ -11223,9 +11236,9 @@ async function simRestOfSeason() {
 
 function simSeasonGames(count = 1) {
   const st = state.season;
-  if (!st) return;
+  if (!st) return { simmed: 0, last: null, reports: [] };
   if (st.phase === "playoffs") return simUserPlayoffGameFromResult();
-  if (st.phase !== "regular") return;
+  if (st.phase !== "regular") return { simmed: 0, last: null, reports: [] };
   let last = null;
   let n = 0;
   const reports = [];
@@ -11236,17 +11249,59 @@ function simSeasonGames(count = 1) {
     n += 1;
     reports.push(settleUserGame(r.snap, userSideOf(st, r.game)));
   }
-  if (!saveSeasonAndCareer(st)) return;
+  if (!saveSeasonAndCareer(st)) return { simmed: 0, last: null, reports: [] };
   if (last?.snap) {
     const extra =
       n > 1
         ? `已连续模拟 ${n} 场；下方为最近一场（${last.snap.home?.name} ${last.snap.score.home}-${last.snap.score.away} ${last.snap.away?.name}）的完整数据。`
         : "快速模拟完成。下方为双方球员数据。";
     showSeasonSimResult({ ...last.snap, youSide: userSideOf(st, last.game) }, { summaryExtra: extra, reports });
-    return;
+    return { simmed: n, last, reports };
   }
   renderSeasonHub();
   if (st.phase === "awards") showSeasonTab("awards");
+  return { simmed: n, last, reports };
+}
+
+/**
+ * Gold Lifestyle Shop — Auto-Play Tickets (user decision 2026-11-09). A ticket simulates
+ * one regular-season game through the existing engine (simSeasonGames → simUserNextGame +
+ * settleUserGame): the result counts exactly like a quick-simmed game, with no win-rate
+ * bonus, no OVR boost and no extra competitive rewards. XP is the existing auto rate:
+ * +5 per game, max 20 XP-paying auto games per day (accountLevel XP_TABLE). Games past
+ * the cap still simulate (real season progress) but pay no XP.
+ */
+function shopTicketContext() {
+  const acc = activeAccount();
+  const st = state.season;
+  const season = Boolean(acc && st && st.phase === "regular");
+  return {
+    season,
+    remaining: season ? Math.max(0, seasonGames(st) - userGamesPlayed(st)) : 0,
+    credits: ticketBalance(acc),
+    xpRemaining: autoXpRemaining(acc),
+  };
+}
+
+function useAutoPlayTickets(n) {
+  const acc = activeAccount();
+  if (!acc) {
+    showAccountGate({ zh: "商城", en: "Shop" });
+    return { ok: false, reason: "guest" };
+  }
+  const st = state.season;
+  if (!st || st.phase !== "regular") return { ok: false, reason: "no-season" };
+  const credits = ticketBalance(acc);
+  const remaining = Math.max(0, seasonGames(st) - userGamesPlayed(st));
+  const games = Math.min(n, credits, remaining);
+  if (games <= 0) return { ok: false, reason: credits <= 0 ? "no-tickets" : "season-done", credits, remaining };
+  const res = simSeasonGames(games);
+  const used = res?.simmed || 0;
+  if (used <= 0) return { ok: false, reason: "no-games-simmed" };
+  consumeAutoTickets(acc, used);
+  const xp = awardAutoGameXp(acc, used);
+  const wins = (res.reports || []).filter((r) => r?.won).length;
+  return { ok: true, simmed: used, wins, losses: used - wins, xpGames: xp.xpGames, gained: xp.gained, tickets: ticketBalance(acc), xpRemaining: autoXpRemaining(acc) };
 }
 
 /** 「快速模拟本场」在季后赛阶段的对应物：只模拟我方当前系列赛的下一场，结果页复用和常规赛
@@ -12261,6 +12316,17 @@ async function boot() {
     };
     paintVoiceBtn();
     voiceBtn?.addEventListener("click", () => voice.open(voiceBtn));
+    // Gold Lifestyle Shop: one dialog for every screen, opened from the top-bar gold chip.
+    const shop = createShop({
+      getLang,
+      getAccount: activeAccount,
+      onUseTickets: useAutoPlayTickets,
+      ticketContext: shopTicketContext,
+      onOpenAccounts: () => openAccountScreen(),
+      onPurchased: () => { refreshGoldChip(); refreshMyWorld(); },
+    });
+    $("#btn-gold-chip")?.addEventListener("click", () => shop?.open());
+    $("#btn-season-shop")?.addEventListener("click", () => shop?.open({ category: "convenience" }));
     langBtn?.addEventListener("click", () => {
       const nextLang = getLang() === "en" ? "zh" : "en";
       setLang(nextLang);
@@ -12277,6 +12343,8 @@ async function boot() {
       paintLangBtn();
       paintVoiceBtn();
       voice.refresh();
+      refreshGoldChip();
+      shop?.refresh();
     });
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
     decorateHome();
@@ -12319,6 +12387,7 @@ async function boot() {
       onClaimed: () => { refreshLongCareerHomeBar(); refreshSaveHomeBar(); },
       onOpenCollection: () => openCollection(),
       onOpenAccounts: () => openAccountScreen(),
+      onOpenShop: (category) => shop?.open({ category }),
       onStartCareer: () => activateHomeTab?.("career"),
       onIdentitySaved: () => refreshAccountHomeBar(),
     });

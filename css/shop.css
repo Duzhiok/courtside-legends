@@ -1,0 +1,108 @@
+/* Gold Lifestyle Shop — deep green + gold, matching the game. */
+
+/* Clickable gold balance in the top bar. */
+.gold-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #d6b25a;
+  background: #14281d;
+  color: #f4d98a;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.gold-chip:hover { background: #1f4a35; }
+.gold-chip:focus-visible { outline: 2px solid #f4d98a; outline-offset: 2px; }
+
+/* The shop dialog (native <dialog>, content rendered by js/ui/shopView.js). */
+.shop-dialog {
+  width: min(760px, 94vw);
+  max-height: 88vh;
+  padding: 18px 20px;
+  border: 1px solid #d6b25a;
+  border-radius: 14px;
+  background: #14281d;
+  color: #f4f4f0;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+.shop-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.shop-head { display: flex; align-items: baseline; gap: 12px; }
+.shop-head h2 { margin: 0; color: #f4d98a; }
+.shop-gold { margin: 0; font-weight: 700; color: #f4d98a; }
+.shop-close { margin-left: auto; }
+.shop-note { margin: 8px 0 0; color: #b9c4bb; font-size: 13px; }
+
+.shop-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+.shop-tab {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #3f7a52;
+  background: transparent;
+  color: #f4f4f0;
+  cursor: pointer;
+  font-size: 14px;
+}
+.shop-tab.is-active { background: #d6b25a; border-color: #d6b25a; color: #14281d; font-weight: 700; }
+.shop-tab:focus-visible { outline: 2px solid #f4d98a; outline-offset: 2px; }
+
+.shop-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.shop-card {
+  border: 1px solid #3f7a52;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  background: #1f4a35;
+}
+.shop-card:hover { border-color: #d6b25a; }
+.shop-card.is-selected { border-color: #d6b25a; box-shadow: 0 0 0 1px #d6b25a; }
+.shop-card.is-owned { border-style: dashed; }
+.shop-card-preview { display: flex; align-items: center; justify-content: center; min-height: 72px; }
+.shop-card-name { font-weight: 700; margin-top: 6px; font-size: 14px; }
+.shop-card-meta { display: flex; justify-content: space-between; gap: 6px; margin-top: 4px; font-size: 12px; color: #b9c4bb; }
+.shop-kind { border: 1px solid #3f7a52; border-radius: 999px; padding: 1px 7px; }
+.shop-price { color: #f4d98a; font-weight: 700; }
+
+.shop-detail { border: 1px solid #3f7a52; border-radius: 10px; padding: 14px; background: #1a3527; }
+.shop-detail h3 { margin: 8px 0 4px; color: #f4d98a; }
+.shop-detail-preview { display: flex; justify-content: center; }
+.shop-detail-kind { margin: 0; color: #b9c4bb; font-size: 13px; }
+.shop-detail-desc { margin: 8px 0; font-size: 14px; line-height: 1.5; }
+.shop-detail-empty { color: #b9c4bb; }
+.shop-status { margin: 8px 0 0; font-size: 13px; }
+.shop-status.ok { color: #9fd6a8; }
+.shop-status.err { color: #ff9a8a; }
+
+.shop-preview-frame { display: inline-block; border: 3px solid #d6b25a; border-radius: 50%; box-shadow: 0 0 10px rgba(214, 178, 90, 0.6); line-height: 0; }
+.shop-preview-frame img { border-radius: 50%; display: block; }
+.shop-preview-ticket {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px dashed #d6b25a;
+  border-radius: 8px;
+  padding: 10px 18px;
+  color: #f4d98a;
+}
+.shop-preview-ticket-n { font-size: 26px; font-weight: 800; }
+.shop-preview-ticket-sub { font-size: 12px; color: #b9c4bb; }
+
+.shop-ticket-use { margin: 10px 0; border-top: 1px dashed #3f7a52; padding-top: 10px; }
+.shop-ticket-line { margin: 0 0 8px; font-size: 13px; color: #b9c4bb; }
+
+/* Shop frame on the My World profile portrait (class set by myWorldView). */
+.mw-portrait.mw-frame-gold { border: 3px solid #d6b25a; box-shadow: 0 0 14px rgba(214, 178, 90, 0.6); border-radius: 50%; }
+.mw-portrait.mw-frame-gold .mw-avatar { border-radius: 50%; display: block; }
+
+/* Shop-exclusive outfits locked in the avatar editor until owned. */
+.mw-swatch.is-locked { opacity: 0.55; }
+.mw-swatch.is-locked .mw-swatch-dot { filter: grayscale(0.6); }
+.mw-swatch-lock { font-size: 11px; color: #d6b25a; border: 1px solid #d6b25a; border-radius: 999px; padding: 0 5px; }
+
+@media (max-width: 640px) {
+  .shop-body { grid-template-columns: 1fr; }
+  .shop-dialog { padding: 14px; }
+}
