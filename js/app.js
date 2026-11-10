@@ -240,6 +240,9 @@ import {
   advanceLeagueOffseason,
   seasonGames,
   advancePlayoffs,
+  nextSeriesHomeAway,
+  openSeries,
+  simPlayoffDay,
   advanceToUserGame,
   clearSeasonSave,
   buildCpuTeamForYear,
@@ -10484,10 +10487,26 @@ function renderSeasonPlayoffs() {
     return;
   }
   const po = st.playoffs;
+  const teamName = (id) => st.teams[id]?.name || id;
+  // Every game of a series with its score (home first), so a series reads as a story instead of a bare "3-2".
+  const gameLogHtml = (s) =>
+    (s.games || []).length
+      ? `<div class="series-games">${s.games
+          .map((g, i) => `<span class="series-game${g.winnerId === s.high?.id ? " hi" : " lo"}">G${i + 1} ${esc(teamName(g.homeId))} <b>${g.homeScore}</b>–<b>${g.awayScore}</b> ${esc(teamName(g.awayId))}</span>`)
+          .join("")}</div>`
+      : "";
   const seriesHtml = (s) =>
     `<div class="season-series-row"><span>${s.high?.name || s.high?.id} vs ${
       s.low?.name || s.low?.id
-    }</span><strong>${s.winsHigh}-${s.winsLow}${s.done ? ` · ${s.winnerName || s.winnerId}` : ""}</strong></div>`;
+    }</span><strong>${s.winsHigh}-${s.winsLow}${s.done ? ` · ${s.winnerName || s.winnerId}` : ""}</strong></div>${gameLogHtml(s)}`;
+  const finalsCardHtml = (f) => {
+    const next = f.done ? null : nextSeriesHomeAway(f);
+    return `<div class="season-award-card finals-card"><h4>${L("总决赛", "Finals")} · ${L("七场四胜", "best of 7")}</h4>
+      <div class="finals-board"><span>${esc(f.high?.name || f.high?.id)}</span><strong>${f.winsHigh} – ${f.winsLow}</strong><span>${esc(f.low?.name || f.low?.id)}</span></div>
+      ${gameLogHtml(f)}
+      ${next ? `<p class="tiny">${L(`下一场：第 ${f.winsHigh + f.winsLow + 1} 场 · 主场 ${esc(teamName(next.homeId))}`, `Next: Game ${f.winsHigh + f.winsLow + 1} · home ${esc(teamName(next.homeId))}`)}</p>` : ""}
+      ${po.championId ? `<p><strong>${L(`总冠军 ${st.teams[po.championId]?.name}`, `Champions ${st.teams[po.championId]?.name}`)}</strong></p>` : ""}</div>`;
+  };
   const confBlock = (key, title) => {
     const b = po[key];
     return `<div class="season-award-card"><h4>${title} · R${b.round}</h4>${(b.series || [])
@@ -10534,7 +10553,14 @@ function renderSeasonPlayoffs() {
   const poSimButtons =
     st.phase === "done"
       ? ""
-      : `<button type="button" class="btn primary" id="btn-season-advance-po">${L("模拟下一轮", "Sim next round")}</button>
+      : `<button type="button" class="btn primary" id="btn-season-night-po">${
+          po.finals && !po.finals.done
+            ? L("模拟总决赛下一场", "Sim next Finals game")
+            : openSeries(st).length
+              ? L("模拟下一个比赛日", "Sim next playoff night")
+              : L("进入下一轮", "Start next round")
+        }</button>
+      <button type="button" class="btn" id="btn-season-advance-po">${po.finals && !po.finals.done ? L("打完总决赛", "Sim the rest of the Finals") : L("模拟下一轮", "Sim next round")}</button>
       <button type="button" class="btn" id="btn-season-sim-all-po">${L("一键打完季后赛", "Sim rest of playoffs")}</button>`;
   const poOffseasonButton =
     st.phase === "done" && !st.myTeam
@@ -10553,13 +10579,7 @@ function renderSeasonPlayoffs() {
     ${confBlock("east", L("东部", "East"))}
     ${confBlock("west", L("西部", "West"))}
     ${
-      po.finals
-        ? `<div class="season-award-card"><h4>${L("总决赛", "Finals")}</h4>${seriesHtml(po.finals)}${
-            po.championId
-              ? `<p><strong>${L(`总冠军 ${st.teams[po.championId]?.name}`, `Champions ${st.teams[po.championId]?.name}`)}</strong></p>`
-              : ""
-          }</div>`
-        : ""
+      po.finals ? finalsCardHtml(po.finals) : ""
     }
     ${finalsTeamHtml}
     ${finalsMvpHtml}
@@ -10585,6 +10605,13 @@ function renderSeasonPlayoffs() {
         : ""
     }
   `;
+  $("#btn-season-night-po")?.addEventListener("click", () => {
+    const batch = userGameBatch(st);
+    // One night: every open series plays its next game together. Nothing open (all decided) = roll to the next round.
+    if (openSeries(st).length) simPlayoffDay(st, { onUserGame: batch.settle });
+    else advancePlayoffs(st, { onUserGame: batch.settle });
+    finishBulkPlayoffSim(st, batch);
+  });
   $("#btn-season-advance-po")?.addEventListener("click", () => {
     const batch = userGameBatch(st);
     advancePlayoffs(st, { onUserGame: batch.settle });

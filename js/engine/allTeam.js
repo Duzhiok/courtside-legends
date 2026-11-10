@@ -108,13 +108,14 @@ function entryScore(row) {
  * @param {object[]|Record<string,object>} pool board values or candidate list
  * @returns {{ slot: string, player: object }[]}
  */
-export function selectAllTeamByPos(pool) {
+export function selectAllTeamByPos(pool, { lockId = null } = {}) {
   const list = Array.isArray(pool) ? pool : Object.values(pool || {});
   const scored = list
     .map((row) => ({
       ...row,
       pos: normAllTeamPos(row.pos),
-      _score: entryScore(row),
+      // lockId: someone who must be on the team (the Finals MVP) sorts first, so he takes his own slot in pass 1.
+      _score: row.id === lockId ? Number.MAX_SAFE_INTEGER : entryScore(row),
     }))
     .filter((r) => r.id && r.name)
     .sort((a, b) => b._score - a._score);
@@ -179,7 +180,7 @@ export function selectAllTeamByPos(pool) {
       ppg: pick.gp ? +(pick.pts / pick.gp).toFixed(1) : 0,
       rpg: pick.gp ? +(pick.reb / pick.gp).toFixed(1) : 0,
       apg: pick.gp ? +(pick.ast / pick.gp).toFixed(1) : 0,
-      score: +pick._score.toFixed(1),
+      score: +(pick.id === lockId ? entryScore(pick) : pick._score).toFixed(1),
       bref: pick.bref,
       nbaId: pick.nbaId,
       photo: pick.photo,

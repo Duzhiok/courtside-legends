@@ -22,7 +22,7 @@ import {
   refreshFreeAgency,
   refreshStaffMarket,
 } from "./seasonMarket.js";
-import { accumulateGameToAllTeamBoard, allTeamFromSeasonRows, selectFinalsMvp } from "./allTeam.js";
+import { accumulateGameToAllTeamBoard, allTeamFromSeasonRows, selectAllTeamByPos, selectFinalsMvp } from "./allTeam.js";
 import { GameSim } from "./sim.js";
 import { shuffle } from "../core/seededRandom.js";
 import { prunePickLedger } from "./pickLedger.js";
@@ -638,7 +638,9 @@ function ensurePlayerSeason(st, teamId, p) {
       teamId,
       playerId: p.id,
       name: p.name,
-      pos: p.playPos || p.pos,
+      // The card's real position, NOT playPos: playPos is whichever lineup slot he happened to fill in the first
+      // game seen, frozen forever -- a wing once plugged in at C was "the center" for every award that season.
+      pos: live?.pos || p.pos,
       season: p.season,
       age,
       ovr,
@@ -650,6 +652,8 @@ function ensurePlayerSeason(st, teamId, p) {
     // what is missing, never rewrite stored values. ovr stays as first written.
     const row = st.playerSeason[key];
     if (row.age == null && age != null) row.age = age;
+    // Saves from before the position fix hold a frozen lineup slot here; the live card knows the real one.
+    if (live?.pos && row.pos !== live.pos) row.pos = live.pos;
   }
   return st.playerSeason[key];
 }
@@ -1147,6 +1151,9 @@ function seriesHomeAway(highId, lowId, gameIndex) {
   return highHome[gameIndex] ? { homeId: highId, awayId: lowId } : { homeId: lowId, awayId: highId };
 }
 
+/** Home/away of the NEXT game of a series (2-2-1-1-1), for the page to say where tonight's game is. */
+export const nextSeriesHomeAway = (series) => seriesHomeAway(series.high.id, series.low.id, series.winsHigh + series.winsLow);
+
 /**
  * Sim whatever is left of a series. `onUserGame(snap, game, series)` is called once for each game the USER's
  * team plays inside this call, right after it is decided. The box score used to be made and thrown away here,
@@ -1163,38 +1170,94 @@ export function simPlayoffSeries(st, series, { onUserGame } = {}) {
     else series.winsHigh = 4;
     return series;
   }
-  const highId = series.high.id;
-  const lowId = series.low.id;
-  // Resume from however many games are ALREADY on the board (series.winsHigh + series.winsLow),
-  // not always 0 -- a user who hand-played a couple of their own games via 亲自指挥 before
-  // clicking "一键打完季后赛" would otherwise have this loop restart the 2-2-1-1-1 home/away
-  // pattern from game 1, handing the wrong team home court for the games it fills in.
-  let gi = series.winsHigh + series.winsLow;
-  while (series.winsHigh < 4 && series.winsLow < 4 && gi < 7) {
-    const { homeId, awayId } = seriesHomeAway(highId, lowId, gi);
-    const game = { homeId, awayId, played: false, result: null };
-    const snap = simScheduledGame(st, game, { recordStandings: false });
-    if (st.playoffs && series === st.playoffs.finals) {
-      st.finalsBoard = accumulateGameToAllTeamBoard(
-        st.finalsBoard || {},
-        snap,
-        { id: homeId, name: st.teams[homeId]?.name },
-        { id: awayId, name: st.teams[awayId]?.name },
-      );
-    }
-    const hs = snap.score.home;
-    const as = snap.score.away;
-    const homeWin = hs > as;
-    const winnerId = homeWin ? homeId : awayId;
-    if (winnerId === highId) series.winsHigh += 1;
-    else series.winsLow += 1;
-    gi += 1;
-    if (onUserGame && (homeId === st.userTeamId || awayId === st.userTeamId)) onUserGame(snap, game, series);
-  }
-  series.done = true;
-  series.winnerId = series.winsHigh >= 4 ? highId : lowId;
-  series.winnerName = st.teams[series.winnerId]?.name || seasonLabelOf(st, series.winnerId);
+  while (!series.done) simSeriesOneGame(st, series, { onUserGame });
   return series;
+}
+
+/** Record one decided game on its series: the running score, the game log shown on the page, and the winner. */
+function recordSeriesGame(st, series, { homeId, awayId, homeScore, awayScore }) {
+  const winnerId = homeScore > awayScore ? homeId : awayId;
+  if (winnerId === series.high.id) series.winsHigh += 1;
+  else series.winsLow += 1;
+  (series.games ||= []).push({ homeId, awayId, homeScore, awayScore, winnerId });
+  if (series.winsHigh >= 4 || series.winsLow >= 4) {
+    series.done = true;
+    series.winnerId = series.winsHigh >= 4 ? series.high.id : series.low.id;
+    series.winnerName = st.teams[series.winnerId]?.name || seasonLabelOf(st, series.winnerId);
+  }
+  return winnerId;
+}
+
+/**
+ * Play exactly ONE more game of a CPU-or-user series (quick sim) and apply it. The single primitive behind
+ * every non-live playoff game, so "sim the series", "one playoff day" and a CPU Finals stepped game by game
+ * all score, log and finish a series the same way. Resumes from the games already on the board.
+ */
+export function simSeriesOneGame(st, series, { onUserGame } = {}) {
+  if (!series || series.done) return null;
+  if (series.high?.bye || series.low?.bye) {
+    simPlayoffSeries(st, series);
+    return null;
+  }
+  const gi = series.winsHigh + series.winsLow;
+  const { homeId, awayId } = seriesHomeAway(series.high.id, series.low.id, gi);
+  const game = { homeId, awayId, played: false, result: null };
+  const snap = simScheduledGame(st, game, { recordStandings: false });
+  if (st.playoffs && series === st.playoffs.finals) {
+    st.finalsBoard = accumulateGameToAllTeamBoard(
+      st.finalsBoard || {},
+      snap,
+      { id: homeId, name: st.teams[homeId]?.name },
+      { id: awayId, name: st.teams[awayId]?.name },
+    );
+  }
+  recordSeriesGame(st, series, { homeId, awayId, homeScore: snap.score.home, awayScore: snap.score.away });
+  if (series.done && st.playoffs && series === st.playoffs.finals) finalizeFinals(st);
+  if (onUserGame && (homeId === st.userTeamId || awayId === st.userTeamId)) onUserGame(snap, game, series);
+  return { game, snap, series };
+}
+
+/** Every playoff series still open, in bracket order (East, West, Finals). */
+export function openSeries(st) {
+  const po = st?.playoffs;
+  if (!po) return [];
+  return [...(po.east?.series || []), ...(po.west?.series || []), ...(po.finals ? [po.finals] : [])].filter((x) => !x.done);
+}
+
+/**
+ * One playoff NIGHT: every open series plays its next game at the same time, like the real thing. `skip` is the
+ * series whose game was just played some other way (the user's live game), so it is not played twice.
+ */
+export function simPlayoffDay(st, { skip = null, onUserGame } = {}) {
+  const played = [];
+  for (const series of openSeries(st)) {
+    if (series === skip) continue;
+    const r = simSeriesOneGame(st, series, { onUserGame });
+    if (r) played.push(r);
+  }
+  return played;
+}
+
+/** When the champion is known: crown them, end the season, and judge the Finals awards from the Finals alone. */
+export function finalizeFinals(st) {
+  const finals = st?.playoffs?.finals;
+  if (!finals?.done) return;
+  st.playoffs.championId = finals.winnerId;
+  st.phase = "done";
+  st.finalsMvp = computeFinalsMvp(st);
+  st.finalsAllTeam = computeFinalsAllTeam(st);
+}
+
+/** Both conference champions known and no Finals yet: set the Finals up (0-0) so it can be played game by game. */
+export function ensureFinals(st) {
+  const po = st?.playoffs;
+  if (!po || po.finals || !po.east?.finalist || !po.west?.finalist) return po?.finals || null;
+  const e = standingsList(st, "East").find((x) => x.id === po.east.finalist) || { id: po.east.finalist, pct: 0 };
+  const w = standingsList(st, "West").find((x) => x.id === po.west.finalist) || { id: po.west.finalist, pct: 0 };
+  const high = e.pct >= w.pct ? e : w;
+  const low = high.id === e.id ? w : e;
+  po.finals = { id: "finals", round: 4, high, low, winsHigh: 0, winsLow: 0, done: false, winnerId: null, games: [] };
+  return po.finals;
 }
 
 /** The user's current, still-undecided playoff series, or null (eliminated / not yet in one / playoffs over). */
@@ -1230,9 +1293,6 @@ export function nextUserPlayoffGame(st) {
  * block and reseeds normally -- simPlayoffSeries() already no-ops on a series that's done.
  */
 function finishPlayoffGame(st, series, game, snap) {
-  const winnerId = game.result.winnerId;
-  if (winnerId === series.high.id) series.winsHigh += 1;
-  else series.winsLow += 1;
   // R89: Finals games accumulate onto a series-only board (not season totals),
   // so the Finals MVP is judged on Finals performance alone.
   if (series === st.playoffs.finals) {
@@ -1246,16 +1306,16 @@ function finishPlayoffGame(st, series, game, snap) {
       );
     }
   }
-  if (series.winsHigh < 4 && series.winsLow < 4) return;
-  series.done = true;
-  series.winnerId = series.winsHigh >= 4 ? series.high.id : series.low.id;
-  series.winnerName = st.teams[series.winnerId]?.name || seasonLabelOf(st, series.winnerId);
-  if (series === st.playoffs.finals) {
-    st.playoffs.championId = series.winnerId;
-    st.phase = "done";
-    st.finalsAllTeam = computeFinalsAllTeam(st);
-    st.finalsMvp = computeFinalsMvp(st);
-  }
+  recordSeriesGame(st, series, {
+    homeId: game.homeId,
+    awayId: game.awayId,
+    homeScore: game.result.homeScore,
+    awayScore: game.result.awayScore,
+  });
+  if (series.done && series === st.playoffs.finals) finalizeFinals(st);
+  // The rest of the league plays tonight too: every other open series gets its next game, so the other
+  // conference is not frozen at 0-0 while you play yours.
+  simPlayoffDay(st, { skip: series });
 }
 
 /** Quick-sim exactly one game of the user's active series (no live court, just the box score). */
@@ -1350,63 +1410,46 @@ export function advancePlayoffs(st, opts = {}) {
     return !!block.finalist;
   };
 
-  if (!po.east.finalist) {
-    advanceConf("east");
+  // Both conferences move together, one round per call -- the old code finished the whole East bracket
+  // before the West played a single game.
+  const pending = ["east", "west"].filter((c) => !po[c].finalist);
+  for (const conf of pending) advanceConf(conf);
+  if (pending.length) {
+    ensureFinals(st); // as soon as both champions are known the Finals is set up (0-0), NOT auto-played
     return st.playoffs;
   }
-  if (!po.west.finalist) {
-    advanceConf("west");
-    return st.playoffs;
-  }
-  if (!po.finals) {
-    const e = standingsList(st, "East").find((x) => x.id === po.east.finalist) || {
-      id: po.east.finalist,
-      pct: 0,
-    };
-    const w = standingsList(st, "West").find((x) => x.id === po.west.finalist) || {
-      id: po.west.finalist,
-      pct: 0,
-    };
-    const high = e.pct >= w.pct ? e : w;
-    const low = high.id === e.id ? w : e;
-    po.finals = {
-      id: "finals",
-      round: 4,
-      high,
-      low,
-      winsHigh: 0,
-      winsLow: 0,
-      done: false,
-      winnerId: null,
-    };
-  }
-  if (!po.finals.done) {
+  if (!ensureFinals(st)?.done) {
     simPlayoffSeries(st, po.finals, opts);
-    po.championId = po.finals.winnerId;
-    st.phase = "done";
-    st.finalsAllTeam = computeFinalsAllTeam(st);
-    st.finalsMvp = computeFinalsMvp(st);
+    finalizeFinals(st);
   }
   return st.playoffs;
 }
 
-/** 总决赛后最佳阵容 PG→C（决赛双方球员，按赛季累计数据） */
+/**
+ * 总决赛后最佳阵容 PG→C。Judged on the Finals-only board -- the same numbers the Finals MVP is judged on (it used
+ * to rank the two teams' SEASON totals, so the MVP could be missing from the All-Team). The MVP is locked in at his
+ * own position. Saves whose Finals predate the board fall back to season rows (with their cards' real positions).
+ */
 export function computeFinalsAllTeam(st) {
   const finals = st?.playoffs?.finals;
   if (!finals) return [];
   const ids = [finals.high?.id, finals.low?.id].filter(Boolean);
-  const rows = Object.values(st.playerSeason || {}).map((r) => ({
-    ...r,
-    teamName: st.teams[r.teamId]?.name || r.teamId,
-  }));
-  const team = allTeamFromSeasonRows(rows, ids);
+  const board = Object.values(st.finalsBoard || {}).filter((r) => r.gp > 0 && ids.includes(r.teamId));
+  const mvpId = st.playoffs.championId ? selectFinalsMvp(board, st.playoffs.championId)?.id : null;
+  let team;
+  if (board.length) {
+    team = selectAllTeamByPos(board, { lockId: mvpId });
+  } else {
+    const rows = Object.values(st.playerSeason || {}).map((r) => ({ ...r, teamName: st.teams[r.teamId]?.name || r.teamId }));
+    team = allTeamFromSeasonRows(rows, ids);
+  }
   st.finalsAllTeam = team;
   return team;
 }
 
 /**
  * R89 Finals MVP: champion team's best performer on the Finals-only board
- * (accumulated in finishPlayoffGame / simPlayoffSeries). Falls back to the best
+ * (accumulated in finishPlayoffGame / simSeriesOneGame). Falls back to the best
  * champion-team entry of the Finals All-Team for saves whose Finals predate the
  * board (their Finals games were never accumulated). Null when there is no
  * champion or no candidate at all.

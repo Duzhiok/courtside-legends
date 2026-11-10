@@ -3328,6 +3328,27 @@ select, input[type="number"] {
    the score never shrinks or wraps. */
 .season-series-row span { word-break: keep-all; min-width: 0; }
 .season-series-row strong { flex-shrink: 0; white-space: nowrap; }
+/* Game-by-game scores under a series: wrap as whole chips, never as loose words. */
+.series-games { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 4px 0 8px; }
+.series-game {
+  font-size: .76rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.series-game.hi { border-color: var(--accent); }
+/* The Finals gets a real scoreboard: the series score is the biggest thing on the card. */
+.finals-board {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+  text-align: center;
+}
+.finals-board strong { font-size: 1.8rem; line-height: 1; white-space: nowrap; }
+.finals-board span { font-weight: 700; word-break: keep-all; }
 .evaluation-note {
   margin-bottom: 10px;
   padding: 8px 10px;
