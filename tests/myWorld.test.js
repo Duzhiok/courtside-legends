@@ -75,7 +75,7 @@ test("journey and legacy are read from real data; no career / no cards / guest a
   const j = view.journeyFromRoot(root(2));
   assert.deepEqual([j.kind, j.startYear, j.year, j.seasonsDone, j.trophies.length], ["timeTravel", 1995, 1998, 3, 2]);
   assert.equal(view.legacyFromAccount(null), null);
-  assert.deepEqual(view.legacyFromAccount({ playerIds: ["a", "b"], codex: ["b", "c"], rankedWins: 4 }), { cards: 2, codex: 3, rankedWins: 4, rankedLosses: 0, myTeam: { titles: 0, played: 0, recent: [] }, architect: { earned: [], progress: { coach: false, gm: false, completed: 0 } } });
+  assert.deepEqual(view.legacyFromAccount({ playerIds: ["a", "b"], codex: ["b", "c"], rankedWins: 4 }), { cards: 2, codex: 3, rankedWins: 4, rankedLosses: 0, myTeam: { titles: 0, played: 0, recent: [] }, architect: { earned: [], progress: { coach: false, gm: false, completed: 0 } }, hometownChallenge: null });
 
   const emptyHtml = view.myWorldHtml({ identity: { name: "", hometown: "", bio: "", guest: true }, journey: null, legacy: null, frames: [] }, "zh");
   assert.match(emptyHtml, /还没有进行中的生涯/);
@@ -217,11 +217,13 @@ test("M4-A: identity form edits the three places; hero shows only the set ones, 
   for (const [field, value] of Object.entries(places)) {
     assert.match(html, new RegExp(`<input name="${field}" maxlength="40" value="${value}"`));
   }
-  assert.match(html, /出生于 上海 · 成长于 南京 · 代表 洛杉矶/);
+  assert.match(html, /出生于 上海 · 成长于 南京 · /);
+  assert.match(html, /<a href="#mw-hometown" class="mw-places-link">代表 洛杉矶<\/a>/, "M4-D: represented city links down to the hometown card");
   assert.match(html, /来自 苏州/, "hometown line is untouched by the places");
   const en = view.identityCardHtml({ ...id, hometown: "Suzhou", identityPlaces: { birthplace: "Shanghai", grewUpIn: "Nanjing", representedCity: "Los Angeles" } }, "en");
   assert.doesNotMatch(en, CJK);
-  assert.match(en, /Born in Shanghai · Grew up in Nanjing · Representing Los Angeles/);
+  assert.match(en, /Born in Shanghai · Grew up in Nanjing · /);
+  assert.match(en, /<a href="#mw-hometown" class="mw-places-link">Representing Los Angeles<\/a>/);
   assert.match(en, /Birthplace|Grew up in|Representing/);
   // Partial: only the set place is shown; none set: no places line at all, empty inputs.
   const partial = view.identityCardHtml({ ...id, identityPlaces: { birthplace: "上海", grewUpIn: null, representedCity: null } }, "zh");

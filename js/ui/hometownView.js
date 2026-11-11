@@ -51,7 +51,7 @@ export function hometownHtml({ identity, state, lang = "zh", names = {}, challen
   const head = `<h3>🏠 ${T(lang, "家乡传奇", "Hometown Legends")}</h3>`;
   const privacy = `<p class="tiny mw-note">${T(lang, "地点为玩家自述，最细到城市；不收集住址、不请求定位。出生地不会带来任何卡牌、金币或竞技加成——只有故事、荣誉与外观。", "Places are self-reported, city-level only. No address is collected and location access is never requested. A birthplace never grants cards, gold or any competitive edge — only story, honours and looks.")}</p>`;
   if (!hasPlaces && !st.idolBref) {
-    return `<section class="mw-card mw-hometown">${head}
+    return `<section class="mw-card mw-hometown" id="mw-hometown">${head}
       <p class="mw-empty">${T(lang, "还没有填写出生地、成长城市或代表城市。在「编辑个人资料」里写下你的城市，就能看到属于那里的篮球传奇。", "No birthplace, childhood city or represented city yet. Add your cities in Edit profile to see the basketball legends tied to them.")}</p>
       ${idolBlock(honours, lang, names)}
       ${privacy}</section>`;
@@ -73,7 +73,7 @@ export function hometownHtml({ identity, state, lang = "zh", names = {}, challen
   const honoursBlock = `<div class="mw-ht-honours"><p class="mw-line tiny"><strong>${T(lang, "家乡荣誉", "Hometown Honours")}</strong></p>
     <p class="mw-line tiny">${T(lang, "出生", "Born")} · ${esc(honours.birthplace || T(lang, "未填写", "Not set"))}<br />${T(lang, "成长", "Grew up")} · ${esc(honours.grewUpIn || T(lang, "未填写", "Not set"))}<br />${T(lang, "代表", "Representing")} · ${esc(honours.representedCity || T(lang, "未填写", "Not set"))}</p>
     ${challengeLine}</div>`;
-  return `<section class="mw-card mw-hometown">${head}${blocks}${idolBlock(honours, lang, names)}${challengeBtn}${honoursBlock}${privacy}
+  return `<section class="mw-card mw-hometown" id="mw-hometown">${head}${blocks}${idolBlock(honours, lang, names)}${challengeBtn}${honoursBlock}${privacy}
     <p class="mw-status" id="mw-hometown-status" role="status" aria-live="polite"></p></section>`;
 }
 

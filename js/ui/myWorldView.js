@@ -22,6 +22,7 @@ import { lookPanelHtml } from "./avatarLookView.js";
 import { resolveHome } from "../data/homeLayout.js";
 import { renderIsoRoom } from "./myHome/isoRoom.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
+import { readHometownState } from "../data/hometown/hometownState.js";
 import { teamNameL } from "../i18n.js";
 import { esc } from "../core/html.js";
 
@@ -57,7 +58,19 @@ export function legacyFromAccount(account) {
     myTeam: myTeamHistory(account.myTeamSeasons),
     // Prestige titles, derived from the account's completed-career records (E).
     architect: { earned: architectTitlesFor(account), progress: architectProgress(account) },
+    // M4-D: the hometown-challenge record, account-level and read-only here.
+    // null until at least one challenge game is played; the honours wall shows
+    // it as its own labelled line, never counted as a career trophy.
+    hometownChallenge: hometownChallengeSummary(account),
   };
+}
+
+/** M4-D: null until played; otherwise the sanitized record, safe to render. */
+export function hometownChallengeSummary(account) {
+  if (!account) return null;
+  const ch = readHometownState(account).challenge;
+  if (!ch.played) return null;
+  return { played: ch.played, wins: ch.wins, losses: ch.losses, lastRepresentedCity: ch.lastRepresentedCity || null, lastResult: ch.lastResult || null };
 }
 
 /** My Team Season honours from the account's finished-season list (newest first). Titles are counted, never summed across 20/82. */
@@ -129,10 +142,13 @@ export function identityCardHtml(identity, lang, portrait = null, frame = null, 
   // M4-A: the three structured identity places (ADR-004 D1). Only set ones are shown; the old hometown
   // free text above is never derived from these and never overwritten by them.
   const places = identity.identityPlaces || {};
+  // M4-D: the represented city links down to the Hometown Legends section
+  // (same page, `#mw-hometown`); birthplace / grew-up-in stay plain text —
+  // they have no section of their own to jump to. No link when unset.
   const placeFacts = [
     places.birthplace ? `${T(lang, "出生于", "Born in")} ${esc(places.birthplace)}` : "",
     places.grewUpIn ? `${T(lang, "成长于", "Grew up in")} ${esc(places.grewUpIn)}` : "",
-    places.representedCity ? `${T(lang, "代表", "Representing")} ${esc(places.representedCity)}` : "",
+    places.representedCity ? `<a href="#mw-hometown" class="mw-places-link">${T(lang, "代表", "Representing")} ${esc(places.representedCity)}</a>` : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -288,13 +304,19 @@ export function legacyHtml(legacy, journey, lang) {
   const mtRecent = mt?.recent?.length
     ? `<p class="mw-line tiny"><strong>${T(lang, "我的赛季记录", "My Team seasons")}</strong></p><ul class="mw-trophies mw-myteam-hist">${mt.recent.map((r) => `<li>${myTeamSeasonLine(r, lang)}</li>`).join("")}</ul>`
     : "";
+  // M4-D: the hometown-challenge record on the honours wall — its own labelled
+  // line (account-level, never a career trophy), only once a game is played.
+  const ht = legacy?.hometownChallenge;
+  const hometownLine = ht
+    ? `<p class="mw-line tiny">🏀 ${T(lang, `家乡挑战 · ${ht.played} 场 · ${ht.wins} 胜 ${ht.losses} 负`, `Hometown Challenge · ${ht.played} played · ${ht.wins}W ${ht.losses}L`)}${ht.lastRepresentedCity ? T(lang, ` · 最近代表 ${esc(ht.lastRepresentedCity)}`, ` · last represented ${esc(ht.lastRepresentedCity)}`) : ""}</p>`
+    : "";
   const architect = architectTitlesHtml(legacy?.architect, lang);
   const collection = legacy
     ? `<p class="mw-line tiny">${T(lang, `图鉴 ${legacy.codex} 人`, `${legacy.codex} in codex`) /* cards + ranked wins are in the hero; no second copy */}</p>
        ${legacy.cards ? action("open-collection", T(lang, "打开我的球员卡", "Open my cards")) : `<p class="mw-empty">${T(lang, "还没有球员卡。", "No cards yet.")}</p>`}`
     : `<p class="mw-empty">${T(lang, "访客没有永久收藏。创建账号后可以收集球员卡。", "Guests have no permanent collection. Create an account to collect cards.")}</p>
        ${action("open-accounts", T(lang, "创建或切换账号", "Create or switch account"))}`;
-  return `<section class="mw-card">${cardHead("legacy", T(lang, "传奇荣誉", "Legacy"))}${trophyLine}${mtRecent}${architect}${collection}</section>`;
+  return `<section class="mw-card">${cardHead("legacy", T(lang, "传奇荣誉", "Legacy"))}${trophyLine}${hometownLine}${mtRecent}${architect}${collection}</section>`;
 }
 
 /**

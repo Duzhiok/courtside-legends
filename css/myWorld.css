@@ -20,6 +20,8 @@
 .mw-avatar { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #fff; }
 .mw-identity h3 { margin: 0 0 2px; font-size: 1.35rem; color: #fff; overflow-wrap: anywhere; }
 .mw-facts { margin: 0 0 4px; color: var(--mw-gold); font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
+/* M4-D: the hero's represented-city link down to the Hometown Legends card — same gold, underlined. */
+.mw-places-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .mw-bio { margin: 0 0 10px; color: #e6eee8; overflow-wrap: anywhere; }
 .mw-gold { background: var(--mw-gold); color: #2a2208; border-color: #c9a24a; font-weight: 700; }
 .mw-gold:hover { background: #f2d386; }
