@@ -381,7 +381,7 @@ export function levelHtml(snapshot, lang) {
   </div>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], homeLayout = null, frame = null, ownedOutfits = null, owned = null }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], homeLayout = null, frame = null, ownedOutfits = null, owned = null, hometown = "" }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const ownedCareer = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
@@ -391,6 +391,7 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, look, po
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
     ${identityCardHtml(identity, lang, portrait, frame, { level, stats, champion, look, editorHtml: lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits) })}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
+    ${hometown}
     ${homeSceneHtml({ identity, frames, trophyCount: titles, furniture, layout: homeLayout, portrait }, lang)}
     ${ownedShopHtml(owned, lang)}`;
 }

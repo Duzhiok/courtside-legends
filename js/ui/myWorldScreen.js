@@ -14,6 +14,8 @@ import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { readChallengeArchive } from "../data/challengeArchive.js";
 import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary, trophyCountOf } from "./myWorldView.js";
+import { hometownHtml } from "./hometownView.js";
+import { readHometownState, setIdol } from "../data/hometown/hometownState.js";
 
 export function createMyWorld({
   el,
@@ -40,6 +42,12 @@ export function createMyWorld({
   onOpenHome, // () => open the full My Home screen
   onOpenLegacyMuseum, // (titleId) => open the Legacy Museum, highlighting that title
   onStartCareer,
+  // M4-B Hometown Legends (optional; the section renders read-only without them):
+  hometownNames = () => ({}), // (account) => { bref: displayName } for curated + idol brefs
+  hometownChallengeAvailable = () => false, // (account) => represented-city lineup reached 5 people
+  hometownKnownBrefs = null, // () => Set<bref> for idol validation, when the roster is loaded
+  onSearchIdol = () => [], // (query) => [{ bref, name }] from the full roster
+  onPlayHometownChallenge = () => {},
   onIdentitySaved = () => {},
   onPortraitChanged = () => {}, // the home bar shows the same picture; it is updated without re-rendering this screen
   mountAvatar = mountAvatar3d, // (container, { look }) => Promise<handle>; injectable so tests need no WebGL
@@ -88,7 +96,9 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account) }, lang);
+    const identity = readIdentity(account);
+    const hometown = hometownHtml({ identity, state: readHometownState(account), lang, names: hometownNames(account), challengeAvailable: hometownChallengeAvailable(account) });
+    el.innerHTML = myWorldHtml({ identity, games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account), hometown }, lang);
     mountShowcaseViewer();
   }
 
@@ -398,6 +408,20 @@ export function createMyWorld({
     "open-shop": (btn) => onOpenShop?.(btn?.dataset?.shopCategory || "home"),
     /** Earned Architect titles open the Legacy Museum (the tapped title's section is highlighted). */
     "open-legacy-museum": (btn) => onOpenLegacyMuseum?.(btn?.dataset?.title || null),
+    /** M4-B: pick the childhood idol from the search results (full roster, no timeline limits). */
+    "set-idol": (btn) => {
+      const bref = btn?.dataset?.bref;
+      if (!bref) return;
+      try {
+        setIdol(getAccount(), bref, { knownBrefs: hometownKnownBrefs?.() || null });
+      } catch {
+        return say(el.querySelector("#mw-hometown-status"), "没找到这位球员，偶像没有改动。", "That player was not found; your idol is unchanged.");
+      }
+      render();
+      say(el.querySelector("#mw-hometown-status"), "童年偶像已保存。", "Childhood idol saved.");
+    },
+    /** M4-B: launch the Hometown Challenge (the app builds both teams and opens the game). */
+    "play-hometown-challenge": () => onPlayHometownChallenge(),
   };
 
   el.addEventListener("click", (event) => {
@@ -416,6 +440,18 @@ export function createMyWorld({
   });
 
   el.addEventListener("submit", (event) => {
+    if (event.target?.id === "mw-hometown-idol-form") {
+      event.preventDefault();
+      const query = new FormData(event.target).get("idol-query");
+      const box = el.querySelector("#mw-hometown-idol-results");
+      if (!box) return;
+      const results = onSearchIdol(String(query || ""));
+      const escHtml = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+      box.innerHTML = results.length
+        ? results.map((r) => `<button type="button" class="btn small ghost" data-mw-action="set-idol" data-bref="${escHtml(r.bref)}">${escHtml(r.name)}</button>`).join(" ")
+        : `<span class="tiny">${getLang() === "en" ? "No player found." : "没有找到这位球员。"}</span>`;
+      return;
+    }
     if (event.target?.id !== "mw-identity-form") return;
     event.preventDefault();
     const data = new FormData(event.target);

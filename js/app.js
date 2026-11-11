@@ -359,6 +359,10 @@ import { createMyWorld } from "./ui/myWorldScreen.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
 import { createShop } from "./ui/shopView.js";
 import { ticketBalance, autoXpRemaining, consumeAutoTickets, awardAutoGameXp } from "./data/shop.js";
+import { readIdentity } from "./data/profile.js";
+import { LEGEND_LOCATIONS } from "./data/hometown/legendLocations.js";
+import { readHometownState, recordChallengeResult } from "./data/hometown/hometownState.js";
+import { buildChallengeTeam, pickOpponentTeam } from "./data/hometown/hometownChallenge.js";
 import { portraitFor } from "./ui/portraitFor.js";
 import { createMyTeamLineup } from "./ui/myTeamLineupScreen.js";
 import { createMyTeamClubhouse } from "./ui/myTeamClubhouseScreen.js";
@@ -1849,6 +1853,43 @@ $("#btn-halfcourt-back")?.addEventListener("click", () => {
   halfCourtScreen?.dispose();
   goBack();
 });
+
+// —— M4-B Hometown Challenge (ADR-009 H4) ——
+// Your represented city's legends (sourced relation table only, fallback
+// levels fill the lineup; fewer than 5 people = no game, never fabricated)
+// vs a random historic strong team, on the existing GameSim via openSetup.
+// The result is recorded in showResult() against the city represented in
+// THIS game; changing the represented city later does not rewrite it.
+const bestCardByBref = (bref) => {
+  let best = null;
+  for (const p of PLAYERS) if (p.bref === bref && (!best || overall(p) > overall(best))) best = p;
+  return best;
+};
+function hometownChallengeFor(account) {
+  const place = readIdentity(account).identityPlaces?.representedCity;
+  if (!place) return null;
+  const built = buildChallengeTeam({
+    placeText: place,
+    cardFor: (bref) => bestCardByBref(bref),
+    teamName: getLang() === "en" ? `${place} Legends` : `${place}传奇阵`,
+  });
+  return built.available ? { place, built } : null;
+}
+function startHometownChallenge() {
+  const found = hometownChallengeFor(activeAccount());
+  if (!found) return;
+  const opp = pickOpponentTeam(PLAYERS, {});
+  if (!opp) return;
+  state.mode = "sandbox";
+  state.lastMode = "sandbox";
+  state.career = null;
+  state.hometownChallenge = { representedCity: found.place };
+  openSetup(
+    { name: found.built.team.name, players: found.built.players.map((p) => clonePlayer(p)) },
+    { name: opp.name, players: opp.players.map((p) => clonePlayer(p)) },
+    "home",
+  );
+}
 
 // —— M2b-2 Clutch Challenge ——
 // Guest-accessible: no account gate anywhere in this flow. One scenario only
@@ -9035,6 +9076,12 @@ function showResult(snap, { formNotes = [] } = {}) {
   const youScore = youSide === "home" ? hs : as;
   const oppScore = youSide === "home" ? as : hs;
   const youWin = youScore > oppScore;
+  // M4-B: a finished Hometown Challenge is recorded against the city that
+  // was represented in this game (snapshot; later edits do not rewrite it).
+  if (state.hometownChallenge) {
+    recordChallengeResult(activeAccount(), { won: youWin, representedCity: state.hometownChallenge.representedCity });
+    state.hometownChallenge = null;
+  }
   audio.outcome(youWin);
   const winner = hs === as ? L("平局", "Tie") : hs > as ? snap.home.name : snap.away.name;
   $("#result-title").textContent = hs === as ? L("加时仍平——以模拟终局计", "Still tied after OT — decided by sim") : L(`${winner} 获胜`, `${winner} wins`);
@@ -12576,6 +12623,28 @@ async function boot() {
       onOpenLegacyMuseum: (titleId) => legacyMuseumView.open(titleId),
       onStartCareer: () => activateHomeTab?.("career"),
       onIdentitySaved: () => refreshAccountHomeBar(),
+      // M4-B Hometown Legends wiring (the section itself lives in hometownView.js).
+      hometownNames: (account) => {
+        const names = {};
+        const brefs = new Set(LEGEND_LOCATIONS.map((r) => r.bref));
+        const idol = readHometownState(account).idolBref;
+        if (idol) brefs.add(idol);
+        for (const bref of brefs) {
+          const card = bestCardByBref(bref);
+          if (card) names[bref] = card.name;
+        }
+        return names;
+      },
+      hometownChallengeAvailable: (account) => !!hometownChallengeFor(account),
+      hometownKnownBrefs: () => new Set(PLAYERS.map((p) => p.bref)),
+      onSearchIdol: (query) => {
+        const seen = new Set();
+        return searchPeople(PLAYERS, query, { ovrOf: overall })
+          .filter((p) => (seen.has(p.bref) ? false : (seen.add(p.bref), true)))
+          .slice(0, 8)
+          .map((p) => ({ bref: p.bref, name: `${p.name} · ${p.season}` }));
+      },
+      onPlayHometownChallenge: () => startHometownChallenge(),
     });
     // Legend Duel screen (created dynamically by duelView) + view wiring.
     screens.duel = ensureDuelScreen();
