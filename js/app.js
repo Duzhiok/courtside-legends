@@ -30,6 +30,7 @@ import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js"
 import { readIdentity } from "./data/profile.js";
 import { searchPeople } from "./data/cardSearch.js";
 import { playerLegacyBadge } from "./data/playerLegacy.js";
+import { careerPhaseLabelL, playerCardHtml } from "./ui/playerCard.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
@@ -2596,18 +2597,9 @@ $("#btn-account-create")?.addEventListener("click", () => {
 
 function onboardCardHtml(p, { selectable = false, selected = false } = {}) {
   const ovr = overall(p);
-  const sel = selected ? " selected" : "";
-  const tag = selectable ? ` data-pick="${p.id}"` : "";
-  const el = selectable ? "button" : "div";
-  const type = selectable ? ' type="button"' : "";
-  const view = selectable ? "" : " view-only";
-  const badge = legacyBadgeHtml(p, ovr);
-  const styleAttr = badge.cardStyle ? ` style="${badge.cardStyle}"` : "";
-  return `<${el}${type} class="player-card${sel}${view}${badge.cardClass}"${tag}${styleAttr}>
-    ${photoImg(p, "headshot lg")}
-    <div class="name">${esc(p.name)}${badge.tagHtml}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
-    <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.twilight ? " · 头像为生涯照" : ""}</div>
-  </${el}>`;
+  const tag = selectable ? "button" : "div";
+  const attrs = selectable ? `type="button" data-pick="${esc(p.id)}"` : "";
+  return playerCardHtml(p, { ovr, lang: getLang(), tag, attrs, selected, viewOnly: !selectable });
 }
 
 // Where Cancel goes: the page onboarding was started from (the account page hands over to wherever
@@ -2799,28 +2791,29 @@ function paintCollectionGrid(acc, players) {
   if (!grid) return;
   const view = applyCollectionView(players, collectionFilter, collectionContext(acc, players));
   const souls = acc.gacha?.souls || {};
+  const lang = getLang();
   grid.innerHTML = view.length
     ? view
         .map((p) => {
           const ovr = overall(p);
-          const badge = legacyBadgeHtml(p, ovr);
-          const styleAttr = badge.cardStyle ? ` style="${badge.cardStyle}"` : "";
-          return `<div class="player-card${badge.cardClass}"${styleAttr}>
-          ${photoImg(p, "headshot lg")}
-          <div class="name">${esc(p.name)}${badge.tagHtml}${p.twilight ? '<span class="tag-twilight">生涯末期</span>' : ""}</div>
-          <div class="meta">${p.season} · ${esc(p.teamLabel || p.team || "")} · ${p.pos} · OVR ${ovr}${p.age ? ` · ${p.age}岁` : ""}${p.careerPhaseLabel ? ` · ${esc(p.careerPhaseLabel)}` : ""}${p.twilight ? " · 头像为生涯照" : ""}</div>
-          <div class="rot-attrs sub-attrs">${subAttrChipsHtml(p, getLang())}</div>
+          const footMeta = [
+            p.age ? L(`${p.age}岁`, `${p.age} yrs`) : "",
+            p.careerPhaseLabel ? esc(careerPhaseLabelL(p.careerPhaseLabel, lang)) : "",
+            p.twilight ? L("头像为生涯照", "Career photo") : "",
+          ].filter(Boolean).join(" · ");
+          return playerCardHtml(p, {
+            ovr, lang,
+            extra: `${footMeta ? `<div class="meta">${footMeta}</div>` : ""}
+          <div class="rot-attrs sub-attrs">${subAttrChipsHtml(p, lang)}</div>
           <div class="meta">${hiddenBadgesHtml(p, esc)}</div>
-          ${skillChipsHtml(p, getLang())}
-          ${soulButtonHtml(p, souls[p.bref] || 0)}
-          ${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}
-          ${recycleButtonHtml(p, { isFavorite: acc.favoriteId === p.id })}
-        </div>`;
+          ${skillChipsHtml(p, lang)}
+          <div class="card-actions">${soulButtonHtml(p, souls[p.bref] || 0)}${favoriteControlHtml(p, acc.cardMods?.[p.id]?.growth, acc.favoriteId === p.id)}${recycleButtonHtml(p, { isFavorite: acc.favoriteId === p.id })}</div>`,
+          });
         })
         .join("")
-    : '<p class="tiny">没有符合条件的卡——放宽筛选试试。</p>';
+    : `<p class="tiny">${L("没有符合条件的卡——放宽筛选试试。", "No matching cards — try widening the filter.")}</p>`;
   const count = $("[data-cf-count]");
-  if (count) count.textContent = `显示 ${view.length}/${players.length} 张`;
+  if (count) count.textContent = L(`显示 ${view.length}/${players.length} 张`, `Showing ${view.length}/${players.length}`);
 }
 
 function paintCollectionFilter(players) {

@@ -57,6 +57,19 @@
 .mw-title-btn:hover { background: #f6e7bd; border-color: #d6b25a; }
 .mw-title-btn:focus-visible { outline: 3px solid #b7791f; outline-offset: 2px; }
 
+/* Championship celebration (Workstream A): gold band in the identity Hero, shown only when
+   the account has a title. The five are the saved champion five — never invented players.
+   Static gold (no animation) so it needs no reduced-motion handling. */
+.mw-champion { grid-column: 1 / -1; margin-top: 4px; padding: 12px 14px; border-radius: 12px; color: #2a2208; background: radial-gradient(120% 160% at 50% 0%, #ffe9a8 0%, #f6c870 45%, #d9a441 100%); border: 1px solid #b7791f; box-shadow: 0 4px 16px rgba(183, 121, 31, 0.35); }
+.mw-champion-title { margin: 0 0 2px; font-weight: 800; font-size: 1.05rem; }
+.mw-champion-line { margin: 0 0 8px; font-size: 0.85rem; color: #5c430a; }
+.mw-champion-five { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.mw-champion-five li { display: grid; grid-template-columns: 28px 1fr; gap: 0 8px; align-items: center; padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.55); }
+.mw-champion-five .photo-wrap { grid-row: 1 / 3; }
+.mw-champion-five .team-badge { display: none; }
+.mw-champ-name { font-weight: 700; font-size: 0.85rem; overflow-wrap: anywhere; }
+.mw-champ-meta { font-size: 0.78rem; color: #5c430a; }
+
 /* Legacy Museum (篮球人生博物馆): the detail view behind the honours wall. */
 .lm-museum { max-width: 720px; margin: 0 auto; padding: 4px 16px 32px; display: grid; gap: 12px; }
 .lm-museum h2 { margin: 0; color: #163a29; }

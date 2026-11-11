@@ -85,8 +85,10 @@ test("journey and legacy are read from real data; no career / no cards / guest a
   assert.match(emptyHtml, /访客资料只保存在这台设备/);
 
   const full = view.myWorldHtml({ identity: { name: "Z", hometown: "", bio: "", guest: false }, journey: view.journeyFromRoot(root(2)), legacy: view.legacyFromAccount({ playerIds: ["a"] }), frames: [] }, "zh");
-  assert.equal((full.match(/🏆/g) || []).length, 2, "two trophies in the list");
+  assert.equal((full.match(/🏆/g) || []).length, 3, "two trophies in the list + one in the Hero celebration band");
   assert.equal((full.match(/class="mh-cup"/g) || []).length, 2, "and two cups on the room's shelf");
+  assert.match(full, /mw-champion/);
+  assert.match(full, /总冠军 ×2/, "career-only titles celebrate the count, with no five");
   assert.match(full, /data-mw-action="resume-career"/);
 });
 
@@ -252,4 +254,69 @@ test("home scene renders owned furniture in the real room (cabinet + new pieces)
   assert.doesNotMatch(html, /no-such-piece/, "unknown ids never break the room");
   const empty = view.homeSceneHtml({ identity: { name: "Zoro" }, frames: [], trophyCount: 0, furniture: [] }, "zh");
   assert.doesNotMatch(empty, /data-furniture=/, "no furniture, no furniture groups");
+});
+
+// Championship celebration (Workstream A): the Hero celebrates only with real titles and
+// real saved champion-five players — never invented ones, never a fake trophy.
+const fiveOf = (season = 1996, team = "CHI") => [
+  { id: "a-pg", bref: "jordami01", name: "Michael Jordan", nameEn: "Michael Jordan", pos: "PG", ovr: 97, season, team },
+  { id: "a-sg", bref: "pippsco01", name: "Scottie Pippen", nameEn: "Scottie Pippen", pos: "SG", ovr: 93, season, team },
+  { id: "a-sf", bref: "rodmade01", name: "Dennis Rodman", nameEn: "Dennis Rodman", pos: "SF", ovr: 88, season, team },
+  { id: "a-pf", bref: "kukocto01", name: "Toni Kukoc", nameEn: "Toni Kukoc", pos: "PF", ovr: 85, season, team },
+  { id: "a-c", bref: "longlru01", name: "Luc Longley", nameEn: "Luc Longley", pos: "C", ovr: 78, season, team },
+];
+const champSeason = (lineup) => ({ seasonId: "s-1996", variant: "quick", w: 15, l: 5, finish: "champion", champion: true, lineup });
+const legacyWith = (recent, titles) => ({ myTeam: { titles, played: recent.length, recent } });
+
+test("championCelebration: a title + a saved five returns the real five and the season line", () => {
+  const champ = view.championCelebration(legacyWith([champSeason(fiveOf())], 1), 0, "zh");
+  assert.equal(champ.titles, 1);
+  assert.equal(champ.five.length, 5);
+  assert.equal(champ.five[0].name, "Michael Jordan");
+  assert.match(champ.line, /15-5 · 总冠军/);
+  const en = view.championCelebration(legacyWith([champSeason(fiveOf())], 1), 0, "en");
+  assert.match(en.line, /15-5 · Champions/);
+  assert.doesNotMatch(en.line, CJK);
+});
+
+test("championCelebration: no titles at all returns null — the Hero shows no celebration", () => {
+  assert.equal(view.championCelebration(legacyWith([], 0), 0, "zh"), null);
+  assert.equal(view.championCelebration({ myTeam: { titles: 0, played: 0, recent: [] } }, 0, "zh"), null);
+  assert.equal(view.championCelebration(null, 0, "zh"), null);
+});
+
+test("championCelebration: a title without a full saved five celebrates the count but invents no players", () => {
+  // A damaged/partial lineup (or an older title outside the 3-season recent window) must never
+  // be reconstructed into heroes: the five is empty, the title count still shows.
+  const partial = view.championCelebration(legacyWith([champSeason(fiveOf().slice(0, 3))], 1), 0, "zh");
+  assert.equal(partial.titles, 1);
+  assert.deepEqual(partial.five, []);
+  const older = view.championCelebration(legacyWith([{ seasonId: "s-1995", variant: "quick", w: 10, l: 10, finish: "missed", champion: false }], 1), 0, "zh");
+  assert.equal(older.titles, 1);
+  assert.deepEqual(older.five, []);
+  assert.equal(older.line, "");
+});
+
+test("championCelebration: career-only titles count toward the total, with no five", () => {
+  const champ = view.championCelebration(legacyWith([], 0), 2, "zh");
+  assert.equal(champ.titles, 2);
+  assert.deepEqual(champ.five, []);
+});
+
+test("hero: the celebration band renders the real five only when a championship exists", () => {
+  const id = { name: "A", hometown: "", bio: "", guest: false };
+  const champ = view.championCelebration(legacyWith([champSeason(fiveOf())], 1), 0, "zh");
+  const html = view.identityCardHtml(id, "zh", null, null, { champion: champ });
+  assert.match(html, /mw-champion/);
+  assert.match(html, /总冠军 ×1/);
+  assert.match(html, /Michael Jordan/);
+  assert.match(html, /Scottie Pippen/);
+  assert.match(html, /Dennis Rodman/);
+  assert.match(html, /Toni Kukoc/);
+  assert.match(html, /Luc Longley/);
+  const en = view.identityCardHtml(id, "en", null, null, { champion: view.championCelebration(legacyWith([champSeason(fiveOf())], 1), 0, "en") });
+  assert.match(en, /Champions ×1/);
+  // No championship: no band at all — the Legacy section keeps its honest empty state instead.
+  assert.doesNotMatch(view.identityCardHtml(id, "zh"), /mw-champion/);
+  assert.doesNotMatch(view.identityCardHtml(id, "zh", null, null, { champion: null }), /mw-champion/);
 });

@@ -10,6 +10,8 @@
  */
 import { avatarDataUri } from "../data/avatarArt.js";
 import { challengeTierName } from "../data/careerChallenges.js";
+import { photoImg } from "../data/photo.js";
+import { recordLineup } from "../myteam/seasonRecord.js";
 import { FIGURE_STYLES } from "../data/avatarLook.js";
 import { architectProgress, architectTitlesFor } from "../career/careerAchievements.js";
 import { getShop, equippedClothingItemId } from "../data/shop.js";
@@ -71,6 +73,39 @@ export function myTeamSeasonLine(r, lang) {
   return `${len} · ${esc(r.w)}-${esc(r.l)} · ${T(lang, f[0], f[1])}${star}`;
 }
 
+/**
+ * Championship celebration data for the identity Hero (Workstream A). Honest by
+ * construction: null when the account has no titles at all. `five` is the saved
+ * starting five of the most recent My Team title — recordLineup() returns [] when
+ * the record has no full five (e.g. an older title outside the 3-season recent
+ * window), so a title never invents its heroes. Career-only titles celebrate
+ * with the trophy count and no five.
+ */
+export function championCelebration(legacy, careerTrophies = 0, lang = "zh") {
+  const myTeamTitles = legacy?.myTeam?.titles || 0;
+  const titles = myTeamTitles + (careerTrophies || 0);
+  if (!titles) return null;
+  const champ = (legacy?.myTeam?.recent || []).find((r) => r.champion);
+  return {
+    titles,
+    five: champ ? recordLineup(champ) : [],
+    line: champ ? myTeamSeasonLine(champ, lang) : "",
+  };
+}
+
+function championBandHtml(champ, lang) {
+  const five = champ.five.length
+    ? `<ul class="mw-champion-five">${champ.five
+        .map((c) => `<li>${photoImg(c, "headshot sm")}<span class="mw-champ-name">${esc(c.name)}</span><span class="mw-champ-meta">${esc(c.pos)} · OVR ${esc(c.ovr)}</span></li>`)
+        .join("")}</ul>`
+    : "";
+  return `<div class="mw-champion" role="group" aria-label="${T(lang, "总冠军庆祝", "Championship celebration")}">
+    <p class="mw-champion-title">🏆 ${T(lang, `总冠军 ×${champ.titles}`, `Champions ×${champ.titles}`)}</p>
+    ${champ.line ? `<p class="mw-champion-line">${esc(champ.line)}</p>` : ""}
+    ${five}
+  </div>`;
+}
+
 const ICONS = {
   games: '<path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 0v18M3 12h18M6 5.5c3 3 3 10 0 13m12-13c-3 3-3 10 0 13" />',
   legacy: '<path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5v2a3 3 0 003 3m8-5h3v2a3 3 0 01-3 3M12 13v4m-3 3h6M10 17h4" />',
@@ -85,6 +120,7 @@ const heroStat = (value, label) => (value == null ? "" : `<div class="mw-hero-st
  * The player's identity Hero: portrait, name, hometown, level + XP bar, the three headline numbers and the edit
  * actions, in ONE panel (it used to be three: identity card, account-level card and a second name/level in the showcase).
  * `extras.level` = levelSnapshot (or null); `extras.stats` = { titles, cards, rankedWins } (or null for a guest).
+ * `extras.champion` = championCelebration() result (or null) — the celebration band renders only then.
  */
 export function identityCardHtml(identity, lang, portrait = null, frame = null, extras = {}) {
   const name = identity.name || T(lang, "访客球员", "Guest player");
@@ -119,6 +155,7 @@ export function identityCardHtml(identity, lang, portrait = null, frame = null, 
       <p class="mw-bio">${identity.bio ? esc(identity.bio) : T(lang, "还没有个人简介。写一句话介绍你的篮球人生。", "No bio yet. Write one line about your basketball life.")}</p>
     </div>
     ${stats}
+    ${extras.champion ? championBandHtml(extras.champion, lang) : ""}
     <div class="mw-hero-actions btn-row">${action("edit-identity", T(lang, "编辑个人资料", "Edit profile"), "btn small mw-gold")}${action("toggle-look", T(lang, "编辑形象", "Edit look"), "btn small ghost mw-on-dark")}${backToArt}</div>
     <p class="mw-status" id="mw-hero-status" role="status" aria-live="polite"></p>
     ${note}
@@ -341,8 +378,9 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, look, po
   const ownedCareer = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
   const titles = trophyCountOf(g, legacy);
   const stats = legacy ? { titles, cards: legacy.cards, rankedWins: legacy.rankedWins } : null; // a guest has no collection or ranked record
+  const champion = championCelebration(legacy, ownedCareer?.trophies?.length || 0, lang);
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
-    ${identityCardHtml(identity, lang, portrait, frame, { level, stats })}
+    ${identityCardHtml(identity, lang, portrait, frame, { level, stats, champion })}
     ${showcaseHtml({ identity, look, portrait }, lang)}
     ${lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>

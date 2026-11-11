@@ -604,6 +604,41 @@ html, body {
   transform: none;
   box-shadow: none;
 }
+
+/* Player Cards v2 (Workstream A): layered collectible template — the portrait dominates
+   the card face (3/4 aspect), identity overlays the bottom on a dark gradient, rarity is
+   a distinct frame per tier. Scoped to .card-v2 so the older flat .player-card layout
+   (draft pack) keeps working untouched. The management strip (.card-foot) sits below
+   the face; onboarding cards render face-only. */
+.player-card.card-v2 { position: relative; padding: 0; overflow: hidden; border-radius: 18px; display: flex; flex-direction: column; }
+.player-card.card-v2 .card-face { position: relative; aspect-ratio: 3 / 4; overflow: hidden; flex: 0 0 auto; background: var(--court); }
+.player-card.card-v2 .card-face .photo-wrap { position: absolute; inset: 0; display: block; }
+.player-card.card-v2 .card-face .photo-wrap .team-badge { display: none; }
+.player-card.card-v2 .card-face img.card-portrait { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; display: block; }
+.player-card.card-v2 .card-face-shade { position: absolute; left: 0; right: 0; bottom: 0; height: 58%; background: linear-gradient(180deg, transparent, rgba(5, 20, 14, 0.88)); pointer-events: none; }
+.player-card.card-v2 .card-ovr { position: absolute; top: 10px; right: 10px; display: grid; justify-items: center; min-width: 52px; padding: 4px 8px 5px; border-radius: 12px; background: rgba(5, 20, 14, 0.85); border: 1px solid rgba(246, 200, 112, 0.8); color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
+.player-card.card-v2 .card-ovr span { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; color: var(--gold); }
+.player-card.card-v2 .card-ovr strong { font-size: 1.35rem; line-height: 1; font-family: var(--font-display); }
+.player-card.card-v2 .card-info { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px 12px; color: #fff; }
+.player-card.card-v2 .card-info .name { font-size: 1.05rem; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.player-card.card-v2 .card-info .meta { color: rgba(255, 255, 255, 0.88); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); margin: 2px 0 0; }
+.player-card.card-v2 .card-foot { padding: 10px 12px 12px; background: linear-gradient(180deg, #fffdf8, #f2ebe0); display: grid; gap: 8px; }
+.player-card.card-v2 .card-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.player-card.card-v2.legend-season .card-foot { color: #fff; background: transparent; }
+.player-card.card-v2.legend-season .card-foot .meta { color: rgba(255, 255, 255, 0.85); }
+/* Rarity frames: clearly distinct per tier (myth / legend also get the one-time shine). */
+.player-card.card-v2.rarity-myth { border: 2px solid var(--card-frame-myth); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 8px 22px rgba(0, 0, 0, 0.3), 0 0 18px rgba(168, 85, 247, 0.45); }
+.player-card.card-v2.rarity-legend { border: 2px solid var(--card-frame-legend); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 8px 22px rgba(0, 0, 0, 0.3), 0 0 18px rgba(255, 215, 0, 0.45); }
+.player-card.card-v2.rarity-super { border: 2px solid var(--card-frame-super); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 8px 22px rgba(0, 0, 0, 0.28), 0 0 12px rgba(239, 68, 68, 0.3); }
+.player-card.card-v2.rarity-allstar { border: 2px solid var(--card-frame-allstar); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 8px 22px rgba(0, 0, 0, 0.28), 0 0 12px rgba(34, 211, 238, 0.3); }
+.player-card.card-v2.rarity-star { border: 2px solid var(--card-frame-star); }
+.player-card.card-v2.rarity-goto { border: 2px solid var(--card-frame-goto); }
+.player-card.card-v2.rarity-myth::after, .player-card.card-v2.rarity-legend::after {
+  content: ""; position: absolute; inset: -40% -10%; pointer-events: none;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.4) 50%, transparent 60%);
+  transform: translateX(-120%); animation: legend-sweep 1.6s ease-out 0.15s 1;
+}
+
 .card-head {
   display: flex;
   gap: 10px;
@@ -2352,7 +2387,7 @@ select, input[type="number"] {
   color: #1a1a1a;
 }
 @media (prefers-reduced-motion: reduce) {
-  .player-card.legend-season::after, .draw-reveal.legend-season::after { animation: none; display: none; }
+  .player-card.legend-season::after, .draw-reveal.legend-season::after, .player-card.card-v2.rarity-myth::after, .player-card.card-v2.rarity-legend::after { animation: none; display: none; }
 }
 .draw-stage {
   min-height: 220px; display: flex; align-items: center; justify-content: center;

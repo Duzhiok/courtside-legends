@@ -48,6 +48,14 @@
   --gold: #f6c870;
   --gold-soft: rgba(246, 200, 112, .22);
 
+  /* Player-card rarity frames (Workstream A): same hues as the .rarity-tag gradients. */
+  --card-frame-myth: #a855f7;
+  --card-frame-legend: #ffd700;
+  --card-frame-super: #ef4444;
+  --card-frame-allstar: #22d3ee;
+  --card-frame-star: #84cc16;
+  --card-frame-goto: #64748b;
+
   /* Spacing + radius scale (new in M1; existing screens migrate gradually) */
   --space-xs: 4px;
   --space-sm: 8px;
