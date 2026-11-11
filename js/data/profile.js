@@ -8,7 +8,7 @@
  */
 import { saveAccount } from "./account.js";
 
-export const PROFILE_LIMITS = Object.freeze({ name: 24, hometown: 40, bio: 160 });
+export const PROFILE_LIMITS = Object.freeze({ name: 24, hometown: 40, bio: 160, identityPlace: 40 });
 export const GUEST_PROFILE_KEY = "cls_guest_profile_v1";
 
 // Control characters become spaces, runs of whitespace collapse, then trim + cap. Plain text only:
@@ -20,12 +20,32 @@ const clean = (value, max) =>
     .trim()
     .slice(0, max);
 
+/**
+ * ADR-004 D1: structured identity places (account-level, not per career).
+ * Each field is a city name, capped like the hometown free text; an empty
+ * field is null (unset), and all-empty is null (absent). The old hometown
+ * free text is a separate field and is never migrated into these — it stays
+ * display-only. Career snapshots (Reborn) copy from here at creation and
+ * never write back.
+ */
+export function sanitizeIdentityPlaces(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const places = {
+    birthplace: clean(raw.birthplace, PROFILE_LIMITS.identityPlace) || null,
+    grewUpIn: clean(raw.grewUpIn, PROFILE_LIMITS.identityPlace) || null,
+    representedCity: clean(raw.representedCity, PROFILE_LIMITS.identityPlace) || null,
+  };
+  return places.birthplace || places.grewUpIn || places.representedCity ? places : null;
+}
+
 export function sanitizeProfile(raw = {}) {
-  return {
+  const base = {
     name: clean(raw?.name, PROFILE_LIMITS.name),
     hometown: clean(raw?.hometown, PROFILE_LIMITS.hometown),
     bio: clean(raw?.bio, PROFILE_LIMITS.bio),
   };
+  const places = sanitizeIdentityPlaces(raw?.identityPlaces);
+  return places ? { ...base, identityPlaces: places } : base;
 }
 
 export function defaultStore() {
@@ -48,7 +68,15 @@ export function readGuestProfile(store = defaultStore()) {
 export function readIdentity(account, store = defaultStore()) {
   if (!account) return { ...readGuestProfile(store), guest: true };
   const profile = account.profile || {};
-  return { ...sanitizeProfile({ name: account.name, hometown: profile.hometown, bio: profile.bio }), guest: false };
+  return {
+    ...sanitizeProfile({
+      name: account.name,
+      hometown: profile.hometown,
+      bio: profile.bio,
+      identityPlaces: profile.identityPlaces,
+    }),
+    guest: false,
+  };
 }
 
 /**
@@ -68,7 +96,13 @@ export function saveIdentity(account, patch, { store = defaultStore(), persist =
     return { ...next, guest: true, saved: true };
   }
   if (next.name) account.name = next.name;
-  account.profile = { hometown: next.hometown, bio: next.bio };
+  // Identity places ride along with the profile (never derived from the
+  // hometown free text, and never written back from a career snapshot).
+  account.profile = {
+    hometown: next.hometown,
+    bio: next.bio,
+    ...(next.identityPlaces ? { identityPlaces: next.identityPlaces } : {}),
+  };
   persist(account);
   return { ...readIdentity(account, store), saved: true };
 }

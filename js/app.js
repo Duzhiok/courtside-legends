@@ -12559,7 +12559,19 @@ async function boot() {
       li.textContent = `卡池 ${PLAYERS.length} 张；换人面板显示板凳头像与属性；传奇模式可从八队历史球员自选位置组队。`;
       poolNote.appendChild(li);
     }
-    const discovered = readRootSave() || migrateLegacySaves()?.root || null;
+    // ADR-004 D5: the read path runs the lazy v3→v4 migration (inside
+    // migrateLegacySaves). A failed migration returns the v3 root plus the
+    // error instead of throwing, so boot still reaches home and the next
+    // boot retries.
+    const legacyDiscovery = migrateLegacySaves();
+    const discovered = legacyDiscovery?.root || readRootSave() || null;
+    if (legacyDiscovery?.migrationError) {
+      console.warn("[long-career-migration]", legacyDiscovery.migrationError);
+      alert(L(
+        `旧存档升级失败（${legacyDiscovery.migrationError.message}），原存档已保留；你仍可继续游玩，下次启动时会重试升级。`,
+        `Upgrading the old save failed (${legacyDiscovery.migrationError.message}); the original is kept. You can keep playing — the upgrade will be retried on the next launch.`,
+      ));
+    }
     state.longCareerRoot = discovered;
     stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() ? rawSeasonSave() : null, myteam: readMyTeamSeason() }); // pre-ownership saves stay unassociated
     refreshAccountHomeBar();

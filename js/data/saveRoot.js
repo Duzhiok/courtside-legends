@@ -5,10 +5,17 @@ import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
 import { FINISH_TIERS, SEASON_GOAL_KINDS, SEASON_GOAL_STATUSES, SEASON_GOAL_TIERS } from "../career/seasonGoals.js";
 import { isKnownCoachOrigin } from "../career/coachOrigins.js";
 import { validateExecutive } from "../career/gm/businessScenario.js";
+import { MIGRATION_BACKUP_KEY, migrateRoot, migrateV3ToV4 } from "./saveMigration.js";
 import { assertSlotWritable, careerSig, clearSaveOwner, keyHasData, moveSaveOwner, recordSaveWrite, slotLocked } from "./saveOwnership.js";
 
 export const ROOT_SAVE_KEY = "cls_root_v3";
-export const ROOT_SAVE_VERSION = 3;
+export const ROOT_SAVE_VERSION = 4;
+/**
+ * Oldest root version this build reads (ADR-004 D0: a v3-shaped root stays
+ * legal under v4 — every v4 field is optional, same rule as root.coach).
+ * Kept in sync with MIGRATION_MIN_VERSION in saveMigration.js.
+ */
+export const ROOT_SAVE_MIN_VERSION = 3;
 
 const TEMP_ROOT_SAVE_KEY = "cls_root_v3_tmp";
 // NOTE: "cls_savegame_v1" (js/data/savegame.js) is deliberately NOT a legacy key here. It is the live
@@ -390,7 +397,7 @@ function validateLiveGame(liveGame) {
   }
 }
 
-function validateRoot(root) {
+export function validateRoot(root) {
   if (!isObject(root)) {
     throw new Error("invalid root save");
   }
@@ -400,7 +407,7 @@ function validateRoot(root) {
   if (root.schemaVersion > ROOT_SAVE_VERSION) {
     throw new Error("save was created by a newer game version");
   }
-  if (root.schemaVersion < ROOT_SAVE_VERSION) {
+  if (root.schemaVersion < ROOT_SAVE_MIN_VERSION) {
     throw new Error("save was created by an unsupported older game version");
   }
   if (
@@ -537,17 +544,25 @@ export class StorageWriteError extends Error {
   }
 }
 
-/** opts.release: only deleteCareerSave's explicit, confirmed delete may replace an unassociated career. */
-export function writeRootSave(root, storage, { release = false } = {}) {
-  const target = getStorage(storage);
-  // never replace another player's career, nor silently an unassociated one (continuing the same career is fine)
-  assertSlotWritable("career", rootPresent(target), target, { sig: careerSig(root), release });
+/** Compact, stamp and validate a root for writing. Returns { persisted, serialized, savedAt }. */
+function prepareRootForWrite(root) {
   const persisted = compactRootForStorage(cloneJson(root));
   const savedAt = Date.now();
   persisted.savedAt = savedAt;
   validateRoot(persisted);
+  return { persisted, serialized: JSON.stringify(persisted), savedAt };
+}
 
-  const serialized = JSON.stringify(persisted);
+/**
+ * Commit via the tmp key: write tmp, read it back, validate, swap it into
+ * the official key. With directFallback the old direct-write fallback runs
+ * when the tmp path fails (a full localStorage often cannot hold both the old
+ * root and a full-sized tmp copy); without it any failure throws
+ * StorageWriteError and the official key is untouched. The migration path
+ * always uses directFallback: false — the fallback would overwrite the only
+ * good copy without the backup verification (ADR-004 D3).
+ */
+function commitRootSave(target, serialized, { directFallback }) {
   try {
     target.setItem(TEMP_ROOT_SAVE_KEY, serialized);
     const verified = parseJson(target.getItem(TEMP_ROOT_SAVE_KEY));
@@ -555,6 +570,10 @@ export function writeRootSave(root, storage, { release = false } = {}) {
     target.setItem(ROOT_SAVE_KEY, JSON.stringify(verified));
     target.removeItem(TEMP_ROOT_SAVE_KEY);
   } catch (error) {
+    if (!directFallback) {
+      try { target.removeItem(TEMP_ROOT_SAVE_KEY); } catch (_) { /* best effort */ }
+      throw new StorageWriteError("storage quota exceeded while saving career", { cause: error });
+    }
     // A full localStorage often cannot hold both the old root and a temporary
     // full-sized copy. Fall back to replacing the official root directly so a
     // large roster cache does not masquerade as a roster boot failure.
@@ -567,9 +586,157 @@ export function writeRootSave(root, storage, { release = false } = {}) {
       throw new StorageWriteError("storage quota exceeded while saving career", { cause: directError || error });
     }
   }
+}
+
+/**
+ * Read the official key back and validate it. A save only counts as verified
+ * when the bytes actually in the official key parse and validate — merely
+ * calling the save function does not (ADR-004 Q3 ruling).
+ */
+function verifyRootKey(target) {
+  const text = target.getItem(ROOT_SAVE_KEY);
+  if (text === null) {
+    throw new StorageWriteError("saved career is missing after write");
+  }
+  let parsed;
+  try {
+    parsed = parseJson(text);
+  } catch (error) {
+    throw new StorageWriteError("saved career failed read-back verification", { cause: error });
+  }
+  try {
+    validateRoot(parsed);
+  } catch (error) {
+    throw new StorageWriteError("saved career failed read-back verification", { cause: error });
+  }
+  return parsed;
+}
+
+/** Drop the migration backup. Best effort: a leftover backup is harmless (it is just retained longer). */
+function deleteMigrationBackup(target) {
+  try { target.removeItem(MIGRATION_BACKUP_KEY); } catch (_) { /* best effort */ }
+}
+
+/** opts.release: only deleteCareerSave's explicit, confirmed delete may replace an unassociated career. */
+export function writeRootSave(root, storage, { release = false } = {}) {
+  const target = getStorage(storage);
+  // never replace another player's career, nor silently an unassociated one (continuing the same career is fine)
+  assertSlotWritable("career", rootPresent(target), target, { sig: careerSig(root), release });
+  const { persisted, serialized, savedAt } = prepareRootForWrite(root);
+  commitRootSave(target, serialized, { directFallback: true });
+  // Q3 ruling: the migration backup is only deleted after a save that is
+  // verified (write + read-back + integrity check). A failed read-back keeps
+  // the backup, so the migration can still be retried.
+  verifyRootKey(target);
+  deleteMigrationBackup(target);
   root.savedAt = savedAt;
   recordSaveWrite("career", careerSig(persisted), target);
   return root;
+}
+
+/**
+ * writeRootSave for the migration commit (ADR-004 D2④/D3): the same tmp
+ * commit, but the direct-write fallback is banned, and the backup is NOT
+ * deleted here — it is retained until a later, separate verified save (Q3).
+ */
+export function writeRootSaveStrict(root, storage, { release = false } = {}) {
+  const target = getStorage(storage);
+  assertSlotWritable("career", rootPresent(target), target, { sig: careerSig(root), release });
+  const { persisted, serialized, savedAt } = prepareRootForWrite(root);
+  commitRootSave(target, serialized, { directFallback: false });
+  root.savedAt = savedAt;
+  recordSaveWrite("career", careerSig(persisted), target);
+  return root;
+}
+
+/**
+ * ADR-004 D2: migrate the stored v3 root to v4, step by step. Returns the v4
+ * root; an already-v4 root is returned as-is (a no-op). Throws on failure —
+ * but only after restoring the original v3 bytes from the backup and
+ * re-validating them, so a failed migration never costs the player their
+ * save. Callers that must not fail boot (migrateLegacySaves) catch this and
+ * keep playing on the restored v3 root.
+ */
+export function migrateRootSave(storage) {
+  const target = getStorage(storage);
+  let raw = target.getItem(ROOT_SAVE_KEY);
+  if (raw === null) return null;
+  let parsed = null;
+  try {
+    parsed = parseJson(raw);
+  } catch {
+    parsed = null;
+  }
+  if (!isObject(parsed) || !Number.isInteger(parsed.schemaVersion)) {
+    // Unreadable root bytes: a previous failed migration may have left the
+    // key damaged — restore the known-good v3 bytes from the backup first,
+    // then retry from the restored root.
+    if (!restoreRootFromBackup(target)) throw new Error("invalid root save");
+    raw = target.getItem(ROOT_SAVE_KEY);
+    parsed = parseJson(raw);
+  }
+  if (parsed.schemaVersion === ROOT_SAVE_VERSION) return validateRoot(parsed);
+  if (parsed.schemaVersion !== ROOT_SAVE_MIN_VERSION) {
+    validateRoot(parsed); // throws the canonical newer/older error
+  }
+  // ① validate the v3 root before touching anything.
+  validateRoot(parsed);
+  // ② back up the original bytes, and prove the backup landed intact.
+  try {
+    target.setItem(MIGRATION_BACKUP_KEY, raw);
+  } catch (error) {
+    throw new StorageWriteError("storage quota exceeded while backing up career for migration", { cause: error });
+  }
+  if (target.getItem(MIGRATION_BACKUP_KEY) !== raw) {
+    deleteMigrationBackup(target);
+    throw new StorageWriteError("migration backup failed verification");
+  }
+  // ③ migrate in memory and validate the result as v4.
+  const migrated = migrateV3ToV4(parsed);
+  validateRoot(migrated);
+  // ④ commit via the strict tmp path (no direct-write fallback, D3);
+  // ⑤ read back and validate as v4. Any failure here restores the v3 bytes.
+  try {
+    writeRootSaveStrict(migrated, target);
+    const readBack = verifyRootKey(target);
+    if (readBack.schemaVersion !== ROOT_SAVE_VERSION) {
+      throw new Error("invalid root save");
+    }
+    // ⑥ retain the backup until the next verified save (Q3) — deliberately
+    // not deleted here.
+    return readBack;
+  } catch (error) {
+    restoreRootFromBackup(target);
+    throw error;
+  }
+}
+
+/**
+ * Put the backup's bytes back into the official key and prove they are a
+ * valid v3 root. Returns true when the root was restored, false when there
+ * is no usable backup (none, unreadable, or not a v3 root). Never throws.
+ * Used both for the "previous run failed, restore first then retry" path and
+ * for recovery after a failed commit.
+ */
+function restoreRootFromBackup(target) {
+  let backup;
+  try {
+    backup = target.getItem(MIGRATION_BACKUP_KEY);
+    if (backup === null) return false;
+    const parsed = parseJson(backup);
+    if (!isObject(parsed) || parsed.schemaVersion !== ROOT_SAVE_MIN_VERSION) return false;
+    validateRoot(parsed);
+    target.setItem(ROOT_SAVE_KEY, backup);
+  } catch {
+    return false;
+  }
+  try {
+    const restored = parseJson(target.getItem(ROOT_SAVE_KEY));
+    validateRoot(restored);
+    return restored.schemaVersion === ROOT_SAVE_MIN_VERSION;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -604,6 +771,8 @@ export function clearRootSave(storage, { release = false } = {}) {
   assertSlotWritable("career", rootPresent(target), target, { release });
   target.removeItem(ROOT_SAVE_KEY);
   target.removeItem(TEMP_ROOT_SAVE_KEY);
+  // A deleted career must never be resurrected from its migration backup.
+  deleteMigrationBackup(target);
   clearSaveOwner("career", target);
 }
 
@@ -632,6 +801,8 @@ export function deleteCareerSave(storage, { release = false } = {}) {
     writeRootSave(createRootState({ profile }), target, { release });
   } else {
     target.removeItem(ROOT_SAVE_KEY);
+    // The career is gone: its migration backup goes with it, never to resurrect it.
+    deleteMigrationBackup(target);
     clearSaveOwner("career", target);
   }
 }
@@ -677,11 +848,14 @@ export function importRootSave(text) {
   if (envelope.schemaVersion > ROOT_SAVE_VERSION) {
     throw new Error("save file requires a newer game version");
   }
-  if (envelope.schemaVersion < ROOT_SAVE_VERSION) {
+  if (envelope.schemaVersion < ROOT_SAVE_MIN_VERSION) {
     throw new Error("save file uses an unsupported older game version");
   }
   try {
-    return validateRoot(cloneJson(envelope.root));
+    // A v3 envelope is migrated in memory with the same migration the lazy
+    // hook runs (ADR-004 D4); a v4 envelope validates as-is (migrateRoot is
+    // a no-op on v4). The import never writes the migration to storage.
+    return validateRoot(migrateRoot(cloneJson(envelope.root)));
   } catch (error) {
     if (/newer game version|older game version/.test(error.message)) {
       throw error;
@@ -701,6 +875,19 @@ export function migrateLegacySaves(storage) {
     // quota this origin gets. Only clean up once we know cls_root_v3 is genuinely readable --
     // a corrupt or newer-schema root must leave every byte untouched, same as before this fix.
     purgeOrphanedLegacySaves(target);
+    if (existingRoot.schemaVersion === ROOT_SAVE_MIN_VERSION) {
+      // ADR-004 D5: lazy v3→v4 migration on first read. A failed migration
+      // must not break boot: the migrator restores the original v3 bytes
+      // and the game keeps playing on them (v3 stays legal under v4), the
+      // failure is reported for the UI to tell the player, and the next
+      // boot retries.
+      try {
+        const migrated = migrateRootSave(target);
+        if (migrated) return { root: migrated, source: ROOT_SAVE_KEY };
+      } catch (error) {
+        return { root: existingRoot, source: ROOT_SAVE_KEY, migrationError: error };
+      }
+    }
     return { root: existingRoot, source: ROOT_SAVE_KEY };
   }
 
