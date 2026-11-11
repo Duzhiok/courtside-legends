@@ -52,7 +52,7 @@
 
 ### ADR-004（占位）：存档版本升级策略 `schemaVersion` 3→4
 
-- **状态**：✅ APPROVED IN PRINCIPLE（2026-11-04）。详细迁移契约仍 OPEN，M4 开工前必须评审。
+- **状态**：✅ APPROVED IN PRINCIPLE（2026-11-04）。详细迁移契约草案：`docs/implementation/ADR-004-migration-contract.md`（PROPOSED，2026-11-10，待评审）；M4 开工前必须评审批准。
 - **背景事实**：`BASELINE_AUDIT.md` §4.1——`validateRoot` 对 `schemaVersion` 高于或低于当前 `ROOT_SAVE_VERSION`（3）**直接拒读**，没有逐版本迁移函数；`migrateLegacySaves` 只处理 v1 legacy key 向 v3 的搬运，不是通用迁移链。
 - **需要在 M4 开工前明确的问题**：升到 v4 时，v3 存档是直接判"旧版本不支持"（会报废老玩家存档，违反 Master Spec 的"不破坏旧存档"底线），还是写一个 v3→v4 的迁移函数（给新字段填缺省值）？本文档默认建议后者，但具体迁移函数设计留到 M4 门控打开后再细化。
 
@@ -158,7 +158,7 @@
 
 ### 仍为 OPEN
 - ADR-002 最终阈值（实测后确认）+ M2b 实现契约。
-- ADR-004 详细迁移契约（M4 前）。
+- ADR-004 详细迁移契约（M4 前）——草案已出（`docs/implementation/ADR-004-migration-contract.md`），待评审。
 - D4 生产美术管线（M3 完成前）。
 - D5 OVR 99 vs 传奇 100（M8 ADR）。
 
