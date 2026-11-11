@@ -31,13 +31,13 @@ const countPixels = (buf, rule) => scratch.evaluate(async ([b64, body]) => {
   return n;
 }, [buf.toString("base64"), rule]);
 const ORANGE = "return r > 150 && r > g * 1.8 && g > b * 2.2;"; // #e85d04 under lighting
-const stageShot = (page, name) => page.locator("#mw-look-stage").screenshot({ path: `${OUT}/${name}.png` });
+const stageShot = (page, name) => page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/${name}.png` });
 const openPanel = async (page) => {
   await page.click('[data-mw-action="toggle-look"]');
-  await page.waitForFunction(() => document.querySelector("#mw-look-stage canvas[data-look]") || /3D|can't be shown/.test(document.querySelector("#mw-look-status")?.textContent || ""), null, { timeout: 12000 });
+  await page.waitForFunction(() => document.querySelector("#mw-showcase-stage canvas[data-look]") || /3D|can't be shown/.test(document.querySelector("#mw-look-status")?.textContent || ""), null, { timeout: 12000 });
 };
 const pick = (page, group, id) => page.click(`.mw-swatch:has(input[name="mw-look-${group}"][value="${id}"])`);
-const lookOf = (page) => page.$eval("#mw-look-stage canvas", (c) => JSON.parse(c.dataset.look)).catch(() => null);
+const lookOf = (page) => page.$eval("#mw-showcase-stage canvas", (c) => JSON.parse(c.dataset.look)).catch(() => null);
 const checkedLook = (page) => page.evaluate(() => Object.fromEntries(["skin", "hair", "outfit", "style"].map((g) => [g, document.querySelector(`input[name="mw-look-${g}"]:checked`)?.value])));
 const fresh = async (viewport, { noWebgl = false, blockModel = false, lang = null } = {}) => {
   const page = await browser.newPage({ viewport });
@@ -62,24 +62,24 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] panel is closed by default`, !(await page.$eval("#mw-look", (el) => !el.hidden)));
   await openPanel(page);
   check(`[${tag}] opening the panel loads the library + model`, requests.some((u) => /three-avatar/.test(u)) && requests.some((u) => /\.glb/.test(u)));
-  check(`[${tag}] a canvas is mounted and the static fallback is hidden`, (await page.locator("#mw-look-stage canvas").count()) === 1 && (await page.$eval(".mw-look-static", (el) => el.hidden)));
+  check(`[${tag}] a canvas is mounted and the static fallback is hidden`, (await page.locator("#mw-showcase-stage canvas").count()) === 1 && (await page.$eval(".mw-look-static", (el) => el.hidden)));
   check(`[${tag}] default look is painted`, JSON.stringify(await lookOf(page)) === JSON.stringify({ skin: "warm", hair: "black", outfit: "forest", style: "short" }));
-  const before = await countPixels(await stageShot(page, `${tag}-default`).then(() => page.locator("#mw-look-stage").screenshot()), ORANGE);
+  const before = await countPixels(await stageShot(page, `${tag}-default`).then(() => page.locator("#mw-showcase-stage").screenshot()), ORANGE);
   // hairstyle: the red hair is only visible while the hair mesh is shown
   const RED_HAIR = "return r > 110 && r < 200 && r > g * 2 && g > b * 1.2;";
   await pick(page, "hair", "red");
   await page.waitForTimeout(250);
-  const withHair = await countPixels(await page.locator("#mw-look-stage").screenshot(), RED_HAIR);
+  const withHair = await countPixels(await page.locator("#mw-showcase-stage").screenshot(), RED_HAIR);
   await pick(page, "style", "shaved");
   await page.waitForTimeout(250);
-  const shavedBuf = await page.locator("#mw-look-stage").screenshot({ path: `${OUT}/${tag}-shaved.png` });
+  const shavedBuf = await page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/${tag}-shaved.png` });
   const shaved = await countPixels(shavedBuf, RED_HAIR);
   check(`[${tag}] shaved style really hides the hair`, withHair > 40 && shaved < withHair / 3, `${withHair} -> ${shaved} red-hair pixels`);
   check(`[${tag}] the shaved style is what is painted and saved`, (await lookOf(page)).style === "shaved" && (await page.evaluate(() => localStorage.getItem("cls_guest_avatar_v1"))).includes('"style":"shaved"'));
   await pick(page, "style", "short");
   await pick(page, "outfit", "orange");
   await page.waitForTimeout(300);
-  const afterBuf = await page.locator("#mw-look-stage").screenshot({ path: `${OUT}/${tag}-orange.png` });
+  const afterBuf = await page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/${tag}-orange.png` });
   const after = await countPixels(afterBuf, ORANGE);
   check(`[${tag}] picking the orange outfit really recolours the figure`, after > before + 300, `${before} -> ${after} orange pixels`);
   check(`[${tag}] the painted look matches the picks`, JSON.stringify(await lookOf(page)) === JSON.stringify({ skin: "warm", hair: "red", outfit: "orange", style: "short" }));
@@ -96,7 +96,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] after a reload the picks are still selected`, JSON.stringify(await checkedLook(page)) === JSON.stringify({ skin: "warm", hair: "red", outfit: "orange", style: "short" }));
   check(`[${tag}] after a reload the figure is painted with them`, JSON.stringify(await lookOf(page)) === JSON.stringify({ skin: "warm", hair: "red", outfit: "orange", style: "short" }));
   await page.click('[data-mw-action="toggle-look"]');
-  check(`[${tag}] closing the panel removes the canvas and restores the static avatar`, (await page.locator("#mw-look-stage canvas").count()) === 0 && !(await page.$eval(".mw-look-static", (el) => el.hidden)));
+  check(`[${tag}] closing the panel removes the canvas and restores the static avatar`, (await page.locator("#mw-showcase-stage canvas").count()) === 0 && !(await page.$eval(".mw-look-static", (el) => el.hidden)));
   // C. accounts, switched through the REAL account picker (a direct storage call would not refresh the page)
   const ids = await page.evaluate(async () => {
     const a = await import("/js/data/account.js");
@@ -124,7 +124,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] the guest key was not touched by the account's picks`, (await page.evaluate(() => localStorage.getItem("cls_guest_avatar_v1"))) === JSON.stringify({ skin: "warm", hair: "red", outfit: "orange", style: "short" }));
   await switchTo(ids.y);
   check(`[${tag}] switched to Bravo`, (await page.$eval("#mw-identity-title", (e) => e.textContent)) === "Bravo");
-  check(`[${tag}] the panel closed and the previous viewer was freed on the switch`, (await page.locator("#mw-look-stage canvas").count()) === 0);
+  check(`[${tag}] the panel closed and the previous viewer was freed on the switch`, (await page.locator("#mw-showcase-stage canvas").count()) === 0);
   await openPanel(page);
   check(`[${tag}] Bravo sees the default look, not Alpha's`, JSON.stringify(await checkedLook(page)) === JSON.stringify({ skin: "warm", hair: "black", outfit: "forest", style: "short" }) && JSON.stringify(await lookOf(page)) === JSON.stringify({ skin: "warm", hair: "black", outfit: "forest", style: "short" }));
   await switchTo(ids.x);
@@ -146,7 +146,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   // E. model fails to load: same fallback, no stray canvas
   const bad = await fresh({ width: w, height: h }, { blockModel: true });
   await openPanel(bad.page);
-  check(`[${tag}] model 404: message + static avatar, no leftover canvas`, (await bad.page.locator("#mw-look-stage canvas").count()) === 0 && !(await bad.page.$eval(".mw-look-static", (e) => e.hidden)));
+  check(`[${tag}] model 404: message + static avatar, no leftover canvas`, (await bad.page.locator("#mw-showcase-stage canvas").count()) === 0 && !(await bad.page.$eval(".mw-look-static", (e) => e.hidden)));
   await bad.page.close();
 }
 

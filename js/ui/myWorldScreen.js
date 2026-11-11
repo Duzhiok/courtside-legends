@@ -46,19 +46,15 @@ export function createMyWorld({
 }) {
   if (!el) return { refresh() {} };
 
-  // The 3D viewer exists while My World is shown: it lives in the showcase stage by default
-  // (#mw-showcase-stage, always visible) and only falls back to the look panel's stage when
-  // the showcase mount failed. `viewerStage` says which stage owns it, so closing the look
-  // panel never kills a showcase viewer. Every re-render frees it (innerHTML destroys the
-  // stage) and re-mounts it right after.
+  // The 3D viewer exists while My World is shown, in the hero's one showcase stage (#mw-showcase-stage). The look editor
+  // has no stage of its own: it edits the very figure the player is looking at. Every re-render frees the viewer
+  // (innerHTML destroys the stage) and re-mounts it right after.
   let viewer = null;
   let viewerToken = 0;
-  let viewerStage = null; // "showcase" | "look" | null
   function disposeViewer() {
     viewerToken += 1; // a mount still in flight must not attach itself to a stale panel
     viewer?.dispose();
     viewer = null;
-    viewerStage = null;
   }
 
   /** Preview-action buttons work only while a viewer is live; otherwise they stay disabled with the panel's note. */
@@ -102,10 +98,9 @@ export function createMyWorld({
     if (!stage || viewer) return;
     const token = ++viewerToken;
     try {
-      const handle = await mountAvatar(stage, { look: readLook(getAccount()) });
+      const handle = await mountAvatar(stage, { look: readLook(getAccount()), stage: true });
       if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
       viewer = handle;
-      viewerStage = "showcase";
       stage.querySelector(".mw-showcase-static")?.setAttribute("hidden", "");
       if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
       setActionButtons(true);
@@ -178,23 +173,10 @@ export function createMyWorld({
   };
 
   async function openViewer() {
-    const stage = el.querySelector("#mw-look-stage");
     const status = el.querySelector("#mw-look-status");
-    if (!stage) return;
-    if (viewer) { setActionButtons(true); return; } // the showcase already owns a viewer: reuse it, don't mount a second
-    const token = ++viewerToken;
-    try {
-      const handle = await mountAvatar(stage, { look: readLook(getAccount()) });
-      if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
-      viewer = handle;
-      viewerStage = "look";
-      stage.querySelector(".mw-look-static")?.setAttribute("hidden", "");
-      if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
-      setActionButtons(true);
-    } catch {
-      setActionButtons(false);
-      if (token === viewerToken) say(status, "3D 形象在这台设备上暂时无法显示。你仍可以选择外观，它会被保存。", "The 3D figure can't be shown on this device right now. You can still pick a look and it will be saved.");
-    }
+    if (!viewer) await mountShowcaseViewer(); // the first mount may have failed or still be in flight: try once more
+    if (viewer) return setActionButtons(true);
+    say(status, "3D 形象在这台设备上暂时无法显示。你仍可以选择外观，它会被保存。", "The 3D figure can't be shown on this device right now. You can still pick a look and it will be saved.");
   }
 
   /** Show the resolved portrait everywhere it appears, in place (a re-render would destroy the 3D viewer). */
@@ -271,18 +253,15 @@ export function createMyWorld({
     say(status, "已用你的 3D 形象作头像。", "Your 3D look is now your profile picture.");
   }
 
+  /** Open / close the look editor. It takes over the hero's right side (the figure stays on screen, live) and closes back. */
   function toggleLook() {
     const panel = el.querySelector("#mw-look");
     if (!panel) return;
     panel.hidden = !panel.hidden;
-    if (panel.hidden) {
-      // Only free a viewer the panel itself owns; the showcase viewer stays up.
-      if (viewerStage === "look") disposeViewer();
-      setActionButtons(false);
-      panel.querySelector(".mw-look-static")?.removeAttribute("hidden");
-      return;
-    }
+    el.querySelector(".mw-hero")?.classList.toggle("is-editing", !panel.hidden);
+    if (panel.hidden) return setActionButtons(false);
     openViewer();
+    el.querySelector(".mw-hero-stage")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }
 
   /** Play one of the model's own clips in the preview (or stand back up). Visual only, like everything in this panel. */
@@ -352,6 +331,7 @@ export function createMyWorld({
       else say(status(), "这个等级没有奖励。", "There is no reward at that level.");
     },
     "toggle-look": toggleLook,
+    "close-look": () => { if (!el.querySelector("#mw-look")?.hidden) toggleLook(); },
     "showcase-figure": (btn) => {
       const figure = btn?.dataset?.figure;
       if (!figure) return;

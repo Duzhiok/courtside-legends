@@ -125,7 +125,7 @@
 /* Shop-exclusive outfits locked in the avatar editor until owned. */
 .mw-swatch.is-locked { opacity: 0.55; }
 .mw-swatch.is-locked .mw-swatch-dot { filter: grayscale(0.6); }
-.mw-swatch-lock { font-size: 11px; color: #d6b25a; border: 1px solid #d6b25a; border-radius: 999px; padding: 0 5px; }
+.mw-swatch-lock { font-size: 11px; color: #8a5a00; border: 1px solid #d6b25a; border-radius: 999px; padding: 0 5px; }
 
 /* Owned inventory tab: room preview + owned rows + recent purchases. */
 .shop-inventory { display: flex; flex-direction: column; gap: 14px; }

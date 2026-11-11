@@ -37,12 +37,12 @@ const shotDiff = (a, b) => scratch.evaluate(async ([sa, sb]) => {
 }, [`data:image/png;base64,${a.toString("base64")}`, `data:image/png;base64,${b.toString("base64")}`]);
 
 const stored = (page, key) => page.evaluate((k) => localStorage.getItem(k), key);
-const lookOf = (page) => page.$eval("#mw-look-stage canvas", (c) => JSON.parse(c.dataset.look || "{}"));
-const actionOf = (page) => page.$eval("#mw-look-stage canvas", (c) => c.dataset.action || "");
-const stageShot = (page) => page.locator("#mw-look-stage").screenshot();
+const lookOf = (page) => page.$eval("#mw-showcase-stage canvas", (c) => JSON.parse(c.dataset.look || "{}"));
+const actionOf = (page) => page.$eval("#mw-showcase-stage canvas", (c) => c.dataset.action || "");
+const stageShot = (page) => page.locator("#mw-showcase-stage").screenshot();
 const openPanel = async (page) => {
   await page.click('[data-mw-action="toggle-look"]');
-  await page.waitForFunction(() => document.querySelector("#mw-look-stage canvas[data-look]") || /can't be shown|暂时无法/.test(document.querySelector("#mw-look-status")?.textContent || ""), null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector("#mw-showcase-stage canvas[data-look]") || /can't be shown|暂时无法/.test(document.querySelector("#mw-look-status")?.textContent || ""), null, { timeout: 15000 });
 };
 const fresh = async (viewport, { noWebgl = false } = {}) => {
   const page = await browser.newPage({ viewport });
@@ -58,14 +58,14 @@ const fresh = async (viewport, { noWebgl = false } = {}) => {
 };
 const pickBody = async (page, id) => {
   await page.click(`.mw-swatch:has(input[name="mw-look-body"][value="${id}"])`);
-  await page.waitForFunction((want) => JSON.parse(document.querySelector("#mw-look-stage canvas").dataset.look || "{}").body === want, id, { timeout: 5000 });
+  await page.waitForFunction((want) => JSON.parse(document.querySelector("#mw-showcase-stage canvas").dataset.look || "{}").body === want, id, { timeout: 5000 });
   await page.waitForTimeout(600); // let a frame render with the new bone scales
 };
 
 for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const { page, errors } = await fresh({ width: w, height: h });
   await openPanel(page);
-  check(`[${tag}] 3D figure loaded`, (await page.locator("#mw-look-stage canvas").count()) === 1);
+  check(`[${tag}] 3D figure loaded`, (await page.locator("#mw-showcase-stage canvas").count()) === 1);
   check(`[${tag}] three build presets offered`, (await page.$$eval('input[name="mw-look-body"]', (r) => r.length)) === 3);
   check(`[${tag}] default build is standard`, (await lookOf(page)).body === "standard");
   check(`[${tag}] five preview actions offered, all enabled once the figure loads`, (await page.$$eval('[data-mw-action^="avatar-action-"]', (b) => b.filter((x) => !x.disabled).length)) === 5
@@ -78,7 +78,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
     check(`[${tag}] picking ${id} applies it in the viewer`, (await lookOf(page)).body === id);
     check(`[${tag}] picking ${id} saves only the look`, JSON.parse(await stored(page, "cls_guest_avatar_v1")).body === id);
     shots[id] = await stageShot(page);
-    await page.locator("#mw-look-stage").screenshot({ path: `${OUT}/${tag}-build-${id}.png` });
+    await page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/${tag}-build-${id}.png` });
   }
   const broadVsStd = await shotDiff(shots.broad, shots.standard);
   const slimVsStd = await shotDiff(shots.slim, shots.standard);
@@ -96,14 +96,14 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const idleShot = await stageShot(page);
   for (const [id, label] of [["celebrate", "Celebrate"], ["clap", "Clap"], ["jump", "Jump"], ["run", "Run"], ["sit", "Sit"]]) {
     await page.click(`[data-mw-action="avatar-action-${id}"]`);
-    await page.waitForFunction((want) => document.querySelector("#mw-look-stage canvas").dataset.action === want, id, { timeout: 5000 });
+    await page.waitForFunction((want) => document.querySelector("#mw-showcase-stage canvas").dataset.action === want, id, { timeout: 5000 });
     check(`[${tag}] ${label} starts (canvas reports the action)`, (await actionOf(page)) === id);
     await page.waitForTimeout(700);
     const moved = await shotDiff(await stageShot(page), idleShot);
     check(`[${tag}] ${label} visibly moves the figure`, moved.share > 0.002, `share ${moved.share.toFixed(4)}`);
-    await page.locator("#mw-look-stage").screenshot({ path: `${OUT}/${tag}-action-${id}.png` });
+    await page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/${tag}-action-${id}.png` });
     await page.click('[data-mw-action="avatar-idle"]');
-    await page.waitForFunction(() => document.querySelector("#mw-look-stage canvas").dataset.action === "idle", null, { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelector("#mw-showcase-stage canvas").dataset.action === "idle", null, { timeout: 5000 });
     check(`[${tag}] Stand returns to idle after ${label}`, (await actionOf(page)) === "idle");
   }
 

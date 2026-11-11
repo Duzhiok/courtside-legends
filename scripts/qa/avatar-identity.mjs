@@ -38,9 +38,9 @@ const fresh = async (viewport, lang = "zh") => {
 };
 const openPanel = async (page) => {
   await page.click('[data-mw-action="toggle-look"]');
-  await page.waitForFunction(() => document.querySelector("#mw-look-stage canvas[data-look]"), null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector("#mw-showcase-stage canvas[data-look]"), null, { timeout: 15000 });
 };
-const lookOf = (page) => page.$eval("#mw-look-stage canvas", (c) => JSON.parse(c.dataset.look || "{}"));
+const lookOf = (page) => page.$eval("#mw-showcase-stage canvas", (c) => JSON.parse(c.dataset.look || "{}"));
 const headerSrc = (page) => page.$eval(".mw-avatar", (i) => i.src);
 
 for (const [name, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobile", { width: 390, height: 844 }]]) {
@@ -54,13 +54,13 @@ for (const [name, viewport] of [["desktop", { width: 1280, height: 800 }], ["mob
   await page.click('.mw-swatch:has(input[name="mw-look-figure"][value="bobblehead"])');
   await page.waitForTimeout(500);
   check(t("Bobblehead reaches the 3D figure"), (await lookOf(page)).figure === "bobblehead");
-  await page.locator("#mw-look-stage").screenshot({ path: `${OUT}/${name}-bobblehead.png` });
+  await page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/${name}-bobblehead.png` });
   check(t("style is saved to the guest look"), JSON.parse(await page.evaluate(() => localStorage.getItem("cls_guest_avatar_v1"))).figure === "bobblehead");
   await page.click('.mw-swatch:has(input[name="mw-look-skin"][value="deep"])');
   check(t("other choices still work in Bobblehead and the style is kept"), (await lookOf(page)).skin === "deep" && (await lookOf(page)).figure === "bobblehead");
   await page.click('.mw-swatch:has(input[name="mw-look-figure"][value="stylized"])');
   await page.waitForTimeout(400);
-  await page.locator("#mw-look-stage").screenshot({ path: `${OUT}/${name}-stylized.png` });
+  await page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/${name}-stylized.png` });
   check(t("switching back to Stylized keeps skin"), (await lookOf(page)).figure === "stylized" && (await lookOf(page)).skin === "deep");
 
   // 2. own photo as profile picture (3D look untouched)

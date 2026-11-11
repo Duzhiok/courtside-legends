@@ -10,14 +10,13 @@
 
 .mw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-/* Hero: portrait left, text right, compact */
+/* Hero: one dark panel. Layout (stage beside identity) is in the Identity Hero block further down. */
 .mw-identity {
-  display: grid; grid-template-columns: 112px 1fr; gap: 18px; align-items: center;
-  padding: 16px 20px; border-radius: 16px; color: #f4f7f2;
+  padding: 18px; border-radius: 18px; color: #f4f7f2;
   background: radial-gradient(120% 140% at 0% 0%, #2c6a4a 0%, var(--mw-green) 60%);
   box-shadow: 0 8px 22px rgba(22, 58, 41, 0.25);
 }
-.mw-portrait { width: 112px; height: 112px; border-radius: 50%; padding: 4px; background: linear-gradient(135deg, #f3d58a, #b7791f); }
+.mw-portrait { width: 56px; height: 56px; flex: none; border-radius: 50%; padding: 4px; background: linear-gradient(135deg, #f3d58a, #b7791f); }
 .mw-avatar { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #fff; }
 .mw-identity h3 { margin: 0 0 2px; font-size: 1.35rem; color: #fff; overflow-wrap: anywhere; }
 .mw-facts { margin: 0 0 4px; color: var(--mw-gold); font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
@@ -84,15 +83,6 @@
 .mw-room .mh-room-svg { display: block; width: 100%; height: auto; }
 .mw-home .mw-note { color: #4f5e55; margin: 8px 0 0; }
 
-/* —— Character showcase (workstream D): prominent 3D stage + Stylized/Bobblehead switch —— */
-.mw-showcase { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 18px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid #d6e0d9; box-shadow: 0 2px 8px rgba(22, 58, 41, 0.06); }
-.mw-showcase-stage { position: relative; height: 300px; border-radius: 14px; overflow: hidden; background: radial-gradient(#2c6e49, #123522); display: grid; place-items: center; }
-.mw-showcase-stage canvas { position: absolute; inset: 0; }
-.mw-showcase-static { width: 140px; height: 140px; border-radius: 50%; }
-.mw-showcase h4 { margin: 0; font-size: 1rem; color: var(--mw-green); }
-.mw-showcase-body { display: grid; gap: 8px; align-content: start; }
-.mw-showcase .mw-status { color: #1d5a3b; }
-
 /* —— Owned shop items (workstream D): same account.shop state the shop writes —— */
 .mw-owned-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
 .mw-owned-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: #faf6ea; }
@@ -101,13 +91,11 @@
 .mw-owned-actions { display: flex; gap: 6px; }
 #mw-owned-status { color: #1d5a3b; }
 
-/* —— My look: 3D stage + preset swatches —— */
-.mw-look { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px; margin: 0 0 12px; padding: 14px; border-radius: 16px; background: #fff; border: 1px solid #d6e0d9; }
+/* —— Edit look: the editor swaps in over the hero's right side; the figure stays on screen, live —— */
+.mw-look { padding: 14px; border-radius: 14px; background: #fff; color: #1f2a23; border: 1px solid #d6e0d9; }
 .mw-look[hidden] { display: none; }
-.mw-look-stage { position: relative; height: 300px; border-radius: 14px; overflow: hidden; background: radial-gradient(#2c6e49, #123522); display: grid; place-items: center; }
-.mw-look-stage canvas { position: absolute; inset: 0; }
-.mw-look-static { width: 120px; height: 120px; border-radius: 50%; }
-.mw-look h3 { margin: 0 0 8px; color: #123522; }
+.mw-look-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -14px -14px 10px; padding: 12px 14px; background: #fff; border-bottom: 1px solid #e3ebe5; border-radius: 14px 14px 0 0; }
+.mw-look h3 { margin: 0; color: #123522; }
 .mw-swatches { border: 0; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .mw-swatches legend { float: left; width: 100%; padding: 0; margin-bottom: 4px; font-size: 0.82rem; font-weight: 700; color: #3c4a41; }
 .mw-swatch { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; min-height: 40px; border-radius: 999px; border: 2px solid #cfd8d2; background: #f6f8f6; color: #1f2a23; font-size: 0.82rem; cursor: pointer; }
@@ -117,11 +105,8 @@
 .mw-swatch:has(input:checked) { border-color: #b7791f; background: #fff7e0; font-weight: 700; }
 .mw-swatch:has(input:focus-visible) { outline: 3px solid #1b5fd1; outline-offset: 2px; }
 .mw-look .mw-note { color: #4f5e55; margin: 6px 0 0; }
+.mw-look .mw-status { color: #1d5a3b; }
 @media (max-width: 640px) {
-  .mw-showcase { grid-template-columns: 1fr; }
-  .mw-showcase-stage { height: 260px; }
-  .mw-look { grid-template-columns: 1fr; }
-  .mw-look-stage { height: 280px; }
   /* the dot carries the choice visually; the name stays available to screen readers */
   .mw-swatch.is-text .mw-swatch-name { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
   .mw-swatch-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -130,8 +115,6 @@
 
 @media (max-width: 640px) {
   .mw-grid { grid-template-columns: 1fr; }
-  .mw-identity { grid-template-columns: 76px 1fr; gap: 12px; padding: 14px; }
-  .mw-portrait { width: 76px; height: 76px; }
   .mw-identity h3 { font-size: 1.15rem; }
 }
 
@@ -164,25 +147,55 @@
 /* Finished gold-challenge runs: a record, so visually quieter than a save you can continue */
 .mw-archive { opacity: 0.92; border-left: 3px solid #c9b27a; }
 
-/* Identity Hero: portrait + name + level/XP + three numbers + actions in one dark panel (was three cards) */
-.mw-hero { grid-template-columns: 112px 1fr; align-items: start; row-gap: 12px; }
-.mw-hero .mw-identity-body { min-width: 0; }
-.mw-hero-kicker { margin: 0 0 2px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; color: var(--mw-gold); }
-.mw-hero .mw-bio { margin: 6px 0 0; }
-.mw-hero .mw-level-hero { margin: 4px 0 6px; display: flex; align-items: baseline; gap: 10px; }
-.mw-hero .mw-level-num { color: #fff; font-size: 1.25rem; }
-.mw-hero .mw-level-title { color: var(--mw-gold); font-size: 1rem; }
-.mw-hero .mw-level-bar { height: 8px; margin: 4px 0; background: rgba(255, 255, 255, 0.18); }
+/* Identity Hero: a LARGE character stage beside identity, XP and actions, all in one dark panel. The look editor takes over the
+   right side while editing (the stage stays, live); on a phone the stage sits on top and stays pinned while editing. */
+.mw-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.mw-hero-stage { position: sticky; top: 12px; }
+/* the identity column is as tall as the stage and spreads its blocks over it: name + numbers on top, actions at the bottom */
+.mw-hero-side { min-width: 0; align-self: stretch; display: flex; flex-direction: column; }
+.mw-hero-info { flex: 1; display: grid; gap: 12px; align-content: space-between; }
+.mw-hero.is-editing .mw-hero-info { display: none; }
+.mw-hero [hidden] { display: none; }
+.mw-namebar { display: flex; align-items: center; gap: 12px; }
+.mw-namebar-text { min-width: 0; }
+.mw-namebar .mw-facts, .mw-namebar h3 { margin: 0; }
+.mw-hero .mw-bio { margin: 0; font-size: 1.02rem; }
+.mw-hero .mw-level-hero { margin: 0 0 4px; display: flex; align-items: baseline; gap: 10px; }
+.mw-hero .mw-level-num { color: #fff; font-size: 2rem; }
+.mw-hero .mw-level-title { color: var(--mw-gold); font-size: 1.1rem; }
+.mw-namebar h3 { font-size: 1.9rem; line-height: 1.15; }
+.mw-namebar .mw-portrait { width: 64px; height: 64px; }
+.mw-hero .mw-level-bar { height: 10px; margin: 4px 0; background: rgba(255, 255, 255, 0.18); }
 .mw-level-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 14px; margin: 0; font-size: 0.78rem; color: #cfdcd3; }
 .mw-link { padding: 4px 0; background: none; border: 0; color: var(--mw-gold); text-decoration: underline; cursor: pointer; font: inherit; }
 .mw-hero .mw-level-track { list-style: none; margin: 8px 0 0; padding: 6px 10px; max-height: 210px; overflow-y: auto; border-radius: 10px; background: var(--mw-cream); color: var(--mw-green); }
-.mw-hero-stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.18); text-align: center; }
-.mw-hero-stat { display: flex; flex-direction: column-reverse; }
-.mw-hero-stat dt { font-size: 0.76rem; color: #cfdcd3; }
-.mw-hero-stat dd { margin: 0; font-size: 1.4rem; font-weight: 800; color: #fff; line-height: 1.2; }
-.mw-hero-actions, .mw-hero > .mw-status, .mw-hero > .mw-note, .mw-hero > .mw-form { grid-column: 1 / -1; }
-.mw-hero-actions .btn { flex: 1 1 130px; }
-.mw-hero [hidden] { display: none; }
-/* the showcase card is white: the dark-panel "ghost" buttons (white text) would be invisible on it */
-.mw-showcase .mw-on-dark { color: var(--mw-green); border-color: #9db8a8; background: #fff; }
-.mw-hero .mw-status:empty { display: none; } /* an empty status line must not add grid gaps */
+/* the three real numbers as chips */
+.mw-hero-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; }
+.mw-hero-stat { display: flex; flex-direction: row-reverse; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+.mw-hero-stat dt { font-size: 0.8rem; color: #dbe6de; }
+.mw-hero-stat dd { margin: 0; font-size: 1.3rem; font-weight: 800; color: #fff; line-height: 1.2; }
+.mw-hero-actions .btn { flex: 1 1 140px; min-height: 44px; }
+.mw-hero .mw-status:empty { display: none; } /* an empty status line must not add gaps */
+
+/* Showcase: locker-room backdrop (inline SVG), the live 3D figure + platform on top, a slim bar under it */
+.mw-showcase { display: grid; gap: 8px; }
+.mw-showcase-stage { position: relative; width: 100%; aspect-ratio: 5 / 6; min-height: 380px; max-height: 72vh; border-radius: 16px; overflow: hidden; background: #0a2218; box-shadow: inset 0 0 0 1px rgba(233, 196, 106, 0.3); display: grid; place-items: center; }
+.mw-stage-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mw-showcase-stage canvas { position: absolute; inset: 0; z-index: 1; }
+.mw-showcase-static { position: relative; z-index: 1; width: 140px; height: 140px; border-radius: 50%; }
+.mw-showcase-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.mw-showcase-hint { font-size: 0.78rem; color: #cfdcd3; }
+
+@media (max-width: 760px) {
+  .mw-identity { padding: 14px; }
+  .mw-hero { grid-template-columns: 1fr; gap: 14px; }
+  .mw-hero-stage { position: static; }
+  .mw-hero-side { align-self: auto; }
+  .mw-hero-info { align-content: start; }
+  .mw-namebar h3 { font-size: 1.5rem; }
+  .mw-showcase-stage { aspect-ratio: auto; height: min(62vh, 470px); min-height: 360px; }
+  /* editing on a phone: the figure stays pinned on top while the swatches scroll under it */
+  .mw-hero.is-editing .mw-hero-stage { position: sticky; top: 0; z-index: 3; padding-bottom: 6px; background: var(--mw-green); }
+  .mw-hero.is-editing .mw-showcase-stage { height: 36vh; min-height: 240px; }
+  .mw-hero.is-editing .mw-showcase-hint { display: none; }
+}

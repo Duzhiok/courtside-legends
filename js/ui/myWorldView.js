@@ -16,6 +16,7 @@ import { FIGURE_STYLES } from "../data/avatarLook.js";
 import { architectProgress, architectTitlesFor } from "../career/careerAchievements.js";
 import { getShop, equippedClothingItemId } from "../data/shop.js";
 import { SHOP_ITEMS, itemById, itemName } from "../data/shopCatalog.js";
+import { lockerRoomSvg } from "./myWorldStage.js";
 import { lookPanelHtml } from "./avatarLookView.js";
 import { resolveHome } from "../data/homeLayout.js";
 import { renderIsoRoom } from "./myHome/isoRoom.js";
@@ -143,35 +144,43 @@ export function identityCardHtml(identity, lang, portrait = null, frame = null, 
     ? `<dl class="mw-hero-stats">${heroStat(extras.stats.titles, T(lang, "总冠军", "Titles"))}${heroStat(extras.stats.cards, T(lang, "球员卡", "Cards"))}${heroStat(extras.stats.rankedWins, T(lang, "排位胜场", "Ranked wins"))}</dl>`
     : "";
   // The 3D face is still experimental: whoever picked it gets a one-tap way back to an illustration (never forced).
-  const backToArt = `<button type="button" class="btn small ghost mw-on-dark" data-mw-action="use-preset-portrait"${portrait?.kind === "3d" ? "" : " hidden"}>${T(lang, "换成插画头像", "Use an illustration")}</button>`;
+  const backToArt = `<button type="button" class="btn ghost mw-on-dark" data-mw-action="use-preset-portrait"${portrait?.kind === "3d" ? "" : " hidden"}>${T(lang, "换成插画头像", "Use an illustration")}</button>`;
+  const editButtons = `${action("toggle-look", T(lang, "编辑形象", "Edit look"), "btn mw-gold")}${action("edit-identity", T(lang, "编辑资料", "Edit profile"), "btn ghost mw-on-dark")}${action("open-home", T(lang, "进入我的家", "Enter My Home"), "btn ghost mw-on-dark")}${backToArt}`;
   return `<section class="mw-identity mw-hero" aria-labelledby="mw-identity-title">
-    <div class="mw-portrait${frame ? ` mw-frame-${frame}` : ""}"><img class="mw-avatar" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="96" height="96" /></div>
-    <div class="mw-identity-body">
-      <p class="mw-hero-kicker">MY IDENTITY</p>
-      <h3 id="mw-identity-title">${esc(name)}</h3>
-      <p class="mw-facts">${facts}</p>
-      ${placesHtml}
-      ${levelHtml(extras.level, lang)}
-      <p class="mw-bio">${identity.bio ? esc(identity.bio) : T(lang, "还没有个人简介。写一句话介绍你的篮球人生。", "No bio yet. Write one line about your basketball life.")}</p>
-    </div>
-    ${stats}
-    ${extras.champion ? championBandHtml(extras.champion, lang) : ""}
-    <div class="mw-hero-actions btn-row">${action("edit-identity", T(lang, "编辑个人资料", "Edit profile"), "btn small mw-gold")}${action("toggle-look", T(lang, "编辑形象", "Edit look"), "btn small ghost mw-on-dark")}${backToArt}</div>
-    <p class="mw-status" id="mw-hero-status" role="status" aria-live="polite"></p>
-    ${note}
-    <form class="mw-form" id="mw-identity-form" hidden>
-      <label>${T(lang, "昵称", "Display name")}<input name="name" maxlength="${PROFILE_LIMITS.name}" value="${esc(identity.name)}" /></label>
-      <label>${T(lang, "家乡", "Hometown")}<input name="hometown" maxlength="${PROFILE_LIMITS.hometown}" value="${esc(identity.hometown)}" /></label>
-      <label>${T(lang, "出生地", "Birthplace")}<input name="birthplace" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.birthplace)}" /></label>
-      <label>${T(lang, "成长城市", "Grew up in")}<input name="grewUpIn" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.grewUpIn)}" /></label>
-      <label>${T(lang, "代表城市", "Representing")}<input name="representedCity" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.representedCity)}" /></label>
-      <label>${T(lang, "个人简介", "Bio")}<textarea name="bio" rows="2" maxlength="${PROFILE_LIMITS.bio}">${esc(identity.bio)}</textarea></label>
-      <div class="btn-row">
-        <button type="submit" class="btn small mw-gold">${T(lang, "保存", "Save")}</button>
-        ${action("cancel-identity", T(lang, "取消", "Cancel"), "btn small ghost mw-on-dark")}
+    <div class="mw-hero-stage">${showcaseHtml({ identity, look: extras.look }, lang)}</div>
+    <div class="mw-hero-side">
+      <div class="mw-hero-info">
+        <div class="mw-namebar">
+          <div class="mw-portrait${frame ? ` mw-frame-${frame}` : ""}"><img class="mw-avatar" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="56" height="56" /></div>
+          <div class="mw-namebar-text">
+            <h3 id="mw-identity-title">${esc(name)}</h3>
+            <p class="mw-facts">${facts}</p>
+            ${placesHtml}
+          </div>
+        </div>
+        ${stats}
+        ${levelHtml(extras.level, lang)}
+        ${extras.champion ? championBandHtml(extras.champion, lang) : ""}
+        <p class="mw-bio">${identity.bio ? esc(identity.bio) : T(lang, "还没有个人简介。写一句话介绍你的篮球人生。", "No bio yet. Write one line about your basketball life.")}</p>
+        <div class="mw-hero-actions btn-row">${editButtons}</div>
+        <p class="mw-status" id="mw-hero-status" role="status" aria-live="polite"></p>
+        ${note}
+        <form class="mw-form" id="mw-identity-form" hidden>
+          <label>${T(lang, "昵称", "Display name")}<input name="name" maxlength="${PROFILE_LIMITS.name}" value="${esc(identity.name)}" /></label>
+          <label>${T(lang, "家乡", "Hometown")}<input name="hometown" maxlength="${PROFILE_LIMITS.hometown}" value="${esc(identity.hometown)}" /></label>
+          <label>${T(lang, "出生地", "Birthplace")}<input name="birthplace" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.birthplace)}" /></label>
+          <label>${T(lang, "成长城市", "Grew up in")}<input name="grewUpIn" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.grewUpIn)}" /></label>
+          <label>${T(lang, "代表城市", "Representing")}<input name="representedCity" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.representedCity)}" /></label>
+          <label>${T(lang, "个人简介", "Bio")}<textarea name="bio" rows="2" maxlength="${PROFILE_LIMITS.bio}">${esc(identity.bio)}</textarea></label>
+          <div class="btn-row">
+            <button type="submit" class="btn small mw-gold">${T(lang, "保存", "Save")}</button>
+            ${action("cancel-identity", T(lang, "取消", "Cancel"), "btn small ghost mw-on-dark")}
+          </div>
+          <p class="mw-status" role="status" aria-live="polite"></p>
+        </form>
       </div>
-      <p class="mw-status" role="status" aria-live="polite"></p>
-    </form>
+      ${extras.editorHtml || ""}
+    </div>
   </section>`;
 }
 
@@ -380,9 +389,7 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, look, po
   const stats = legacy ? { titles, cards: legacy.cards, rankedWins: legacy.rankedWins } : null; // a guest has no collection or ranked record
   const champion = championCelebration(legacy, ownedCareer?.trophies?.length || 0, lang);
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
-    ${identityCardHtml(identity, lang, portrait, frame, { level, stats, champion })}
-    ${showcaseHtml({ identity, look, portrait }, lang)}
-    ${lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits)}
+    ${identityCardHtml(identity, lang, portrait, frame, { level, stats, champion, look, editorHtml: lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits) })}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
     ${homeSceneHtml({ identity, frames, trophyCount: titles, furniture, layout: homeLayout, portrait }, lang)}
     ${ownedShopHtml(owned, lang)}`;
@@ -401,13 +408,14 @@ export function showcaseHtml({ identity, look }, lang) {
   const switchBtns = FIGURE_STYLES.map((f) => `<button type="button" class="btn small ${figure === f.id ? "mw-gold" : "ghost mw-on-dark"}" data-mw-action="showcase-figure" data-figure="${f.id}" aria-pressed="${figure === f.id}">${esc(T(lang, f.zh, f.en))}</button>`).join("");
   return `<section class="mw-showcase" aria-label="${T(lang, "我的形象展示", "My character showcase")}">
     <div class="mw-showcase-stage" id="mw-showcase-stage">
+      ${lockerRoomSvg()}
       <img class="mw-showcase-static" src="${esc(avatarDataUri({ name, team: "NBA" }))}" alt="" width="140" height="140" />
     </div>
-    <div class="mw-showcase-body">
-      <h4>${T(lang, "我的形象", "My character")}</h4>
+    <div class="mw-showcase-bar">
       <div class="btn-row" role="group" aria-label="${T(lang, "形象风格", "Character style")}">${switchBtns}</div>
-      <p class="mw-status" id="mw-showcase-status" role="status" aria-live="polite"></p>
+      <span class="mw-showcase-hint">${T(lang, "拖动形象可以旋转", "Drag the figure to turn it")}</span>
     </div>
+    <p class="mw-status" id="mw-showcase-status" role="status" aria-live="polite"></p>
   </section>`;
 }
 

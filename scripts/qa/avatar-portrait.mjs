@@ -32,7 +32,7 @@ const isPreset = (src) => src.startsWith("data:image/svg+xml") && decodeURICompo
 const stored = (page, key) => page.evaluate((k) => localStorage.getItem(k), key);
 const openPanel = async (page) => {
   await page.click('[data-mw-action="toggle-look"]');
-  await page.waitForFunction(() => document.querySelector("#mw-look-stage canvas[data-look]") || /can't be shown|暂时无法/.test(document.querySelector("#mw-look-status")?.textContent || ""), null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector("#mw-showcase-stage canvas[data-look]") || /can't be shown|暂时无法/.test(document.querySelector("#mw-look-status")?.textContent || ""), null, { timeout: 15000 });
 };
 const fresh = async (viewport, { noWebgl = false } = {}) => {
   const page = await browser.newPage({ viewport });
@@ -68,7 +68,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   await page.click('.mw-portrait-opt:has(input[value="p2"])');
   const p2 = await avatarSrc(page);
   check(`[${tag}] picking a preset changes the My World picture`, isPreset(p2) && p2 !== def);
-  check(`[${tag}] ...and the home bar, without closing the 3D figure`, (await barSrc(page)) === p2 && (await page.locator("#mw-look-stage canvas").count()) === 1);
+  check(`[${tag}] ...and the home bar, without closing the 3D figure`, (await barSrc(page)) === p2 && (await page.locator("#mw-showcase-stage canvas").count()) === 1);
   check(`[${tag}] preset saved for the guest`, JSON.parse(await stored(page, "cls_guest_portrait_v1")).preset === "p2");
   await reload(page);
   check(`[${tag}] preset survives a reload (page + bar)`, (await avatarSrc(page)) === p2 && (await barSrc(page)) === p2);
@@ -85,13 +85,13 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] capture is quick`, tCapture < 1500, `${tCapture}ms`);
   check(`[${tag}] picture is small enough to store`, shot.length < 40000, `${shot.length} chars`);
   check(`[${tag}] home bar shows the 3D picture too`, (await barSrc(page)) === shot);
-  check(`[${tag}] the on-screen 3D figure is intact after capture (canvas visible, not 128px)`, await page.$eval("#mw-look-stage canvas", (c) => c.getBoundingClientRect().width > 100 && c.getBoundingClientRect().height > 100));
+  check(`[${tag}] the on-screen 3D figure is intact after capture (canvas visible, not 128px)`, await page.$eval("#mw-showcase-stage canvas", (c) => c.getBoundingClientRect().width > 100 && c.getBoundingClientRect().height > 100));
   check(`[${tag}] button shows the pressed state (attribute AND label)`, (await page.getAttribute('[data-mw-action="use-3d-portrait"]', "aria-pressed")) === "true" && /✓/.test(await page.textContent('[data-mw-action="use-3d-portrait"]')));
   await page.click('.mw-portrait-opt:has(input[value="p1"])');
   check(`[${tag}] picking a preset un-presses the 3D button and restores its label`, (await page.getAttribute('[data-mw-action="use-3d-portrait"]', "aria-pressed")) === "false" && !/✓/.test(await page.textContent('[data-mw-action="use-3d-portrait"]')));
   await page.click('[data-mw-action="use-3d-portrait"]');
   await page.locator(".mw-identity").screenshot({ path: `${OUT}/${tag}-identity-3d.png` });
-  const rot0 = await page.evaluate(() => document.querySelector("#mw-look-stage canvas").dataset.look);
+  const rot0 = await page.evaluate(() => document.querySelector("#mw-showcase-stage canvas").dataset.look);
   // 3D picture follows a look change
   await page.click('.mw-swatch:has(input[name="mw-look-hair"][value="red"])');
   await page.waitForTimeout(200);

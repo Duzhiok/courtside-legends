@@ -5,6 +5,7 @@
  */
 import { avatarModelFile, bodyBoneScales, lookColors, sanitizeLook } from "../data/avatarLook.js";
 import { AVATAR_ACTIONS, findActionClip, findExitClip, holdsPose } from "./avatarActions.js";
+import { createStage } from "./avatarStage.js";
 
 const LIB_URL = new URL("../vendor/three-avatar.min.js", import.meta.url).href;
 /** Pure: the GLB URL for a look (see avatarModelFile). */
@@ -23,6 +24,7 @@ const PORTRAIT_HEAD_DOWN = 0.085; // head centre, measured down from the top of 
 const PORTRAIT_FRAME = 0.27;      // visible height of the frame
 const DRAG_RADIANS_PER_PX = 0.012;
 export const DEFAULT_YAW = -0.5;     // three-quarter turn toward the ball hand; drag still spins freely
+const STAGE_PAD = 1.3;                // wider margin when the showcase platform is on, so its rim is not cropped
 const FRAME_PAD = 1.16;               // camera distance as a multiple of "model height fills the view"
 const ZOOM_LERP = 4;                 // 1/s: how fast the camera eases between idle framing and an action's framing
 
@@ -72,12 +74,12 @@ function disposeTree(root) {
   });
 }
 
-function fitCamera(T, camera, model) {
+function fitCamera(T, camera, model, pad = FRAME_PAD) {
   const box = new T.Box3().setFromObject(model);
   const size = box.getSize(new T.Vector3());
   const center = box.getCenter(new T.Vector3());
   model.position.sub(center);                       // centre the model on the pivot so it spins in place
-  const dist = (size.y / 2) / Math.tan((camera.fov * Math.PI) / 360) * FRAME_PAD;
+  const dist = (size.y / 2) / Math.tan((camera.fov * Math.PI) / 360) * pad;
   camera.userData.baseDist = dist;
   camera.position.set(0, 0, dist);
   camera.lookAt(0, 0, 0);
@@ -88,7 +90,7 @@ function fitCamera(T, camera, model) {
  * Mount a rotatable idle avatar in `container` (it must have a size). Resolves with a handle once the first
  * frame is drawn; rejects (after cleaning up) if anything fails or takes longer than `timeoutMs`.
  */
-export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TIMEOUT_MS, look } = {}) {
+export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TIMEOUT_MS, look, stage = false } = {}) {
   if (!webglAvailable(container.ownerDocument)) throw new Error("WebGL unavailable");
   const T = await withTimeout(import(LIB_URL), timeoutMs, "3D library");
   const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
@@ -101,11 +103,13 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
     document.removeEventListener("visibilitychange", onVisibility);
     resizeObserver?.disconnect();
     visibilityObserver?.disconnect();
+    floor?.dispose();
     renderer.dispose();
     canvas.remove();
   };
   let resizeObserver = null;
   let visibilityObserver = null;
+  let floor = null;                              // the optional showcase platform (see avatarStage.js)
   const onVisibility = () => { if (!document.hidden && !state.disposed) { clock.getDelta(); tick(); } else cancelAnimationFrame(state.raf); };
   const clock = new T.Clock();
   try {
@@ -121,6 +125,7 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
     const rim = new T.DirectionalLight(0xffffff, 1.6);
     rim.position.set(1.5, 3.0, -3.5);
     scene.add(key, fill, rim);
+    if (stage) { floor = createStage(T); scene.add(floor.group); }
 
     renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.toneMapping = 7;                     // THREE.NeutralToneMapping (r162+): true colours, no highlight clipping
@@ -169,7 +174,7 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
       const seatParent = m.seat?.parent;
       m.seat?.removeFromParent();
       pivot.add(gltf.scene);
-      state.height = fitCamera(T, camera, gltf.scene);
+      state.height = fitCamera(T, camera, gltf.scene, floor ? STAGE_PAD : FRAME_PAD);
       if (m.seat) { seatParent.add(m.seat); m.seat.visible = false; }
       m.mixer = new T.AnimationMixer(gltf.scene);
       const idle = gltf.animations.find((clip) => /idle/i.test(clip.name)) || gltf.animations[0];
@@ -193,6 +198,7 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
       for (const [name, s] of Object.entries(scales)) m.bones[boneKey(name)]?.scale.set(s[0], s[1], s[2]);
       pivot.scale.setScalar(height);
       state.heightScale = height;
+      floor?.place((state.height || 2) * height);   // the platform follows the figure's feet when the build changes
     };
     const paint = (next) => {
       state.look = sanitizeLook(next);
@@ -345,6 +351,7 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
     // so the WebGL buffer is still valid and `preserveDrawingBuffer` (a permanent perf cost) is not needed.
     state.capture = (bg = "#1f6b45") => {
       const saved = { pos: camera.position.clone(), aspect: camera.aspect, rot: state.pivot.rotation.y };
+      if (floor) floor.group.visible = false;       // a profile picture is the head, not the platform
       try {
         const height = state.height * (state.heightScale || 1); // the body preset's overall scale moves the head
         const headY = height / 2 - height * PORTRAIT_HEAD_DOWN;
@@ -366,6 +373,7 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
       } catch {
         return null;
       } finally {
+        if (floor) floor.group.visible = true;
         camera.position.copy(saved.pos);
         camera.aspect = saved.aspect;
         camera.lookAt(0, 0, 0);

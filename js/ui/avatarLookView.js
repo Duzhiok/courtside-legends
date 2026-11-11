@@ -1,9 +1,8 @@
 /**
- * "My look" panel (ADR-008a N-1f step 2): pure HTML, no DOM, no storage. The 3D stage is mounted into
- * #mw-look-stage by myWorldScreen.js; until (or unless) it loads, the static avatar image is what the player sees,
- * and the swatches still work and still save.
+ * "Edit look" panel (ADR-008a N-1f step 2): pure HTML, no DOM, no storage. It has no stage of its own: the live 3D figure is
+ * the hero's showcase (#mw-showcase-stage), so the player watches every swatch change it. The swatches still work and still
+ * save when the 3D figure can't load.
  */
-import { avatarDataUri } from "../data/avatarArt.js";
 import { PORTRAIT_PRESETS } from "../data/avatarPortrait.js";
 import { presetPortraitUri } from "./avatarPortraitArt.js";
 import { BODY_PRESETS, FIGURE_STYLES, HAIR_COLORS, HAIR_STYLES, OUTFIT_CUTS, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
@@ -77,16 +76,16 @@ function portraitHtml(portrait, lang) {
  */
 export function lookPanelHtml(rawLook, name, lang, portrait = null, ownedOutfits = null) {
   const look = sanitizeLook(rawLook);
-  return `<section class="mw-look" id="mw-look" aria-label="${T(lang, "我的形象", "My look")}" hidden>
-    <div class="mw-look-stage" id="mw-look-stage">
-      <img class="mw-look-static" src="${avatarDataUri({ name: name || "Guest", team: "NBA" })}" alt="" width="120" height="120" />
+  return `<section class="mw-look" id="mw-look" aria-label="${T(lang, "编辑形象", "Edit look")}" hidden>
+    <div class="mw-look-head">
+      <h3>${T(lang, "编辑形象", "Edit look")}</h3>
+      <button type="button" class="btn small mw-gold" data-mw-action="close-look">${T(lang, "完成", "Done")}</button>
     </div>
     <div class="mw-look-controls">
-      <h3>${T(lang, "我的形象", "My look")}</h3>
       ${GROUPS.map((g) => groupHtml(g, look, lang, ownedOutfits)).join("")}
       ${actionsHtml(lang)}
       ${portraitHtml(portrait, lang)}
-      <p class="mw-note">${T(lang, "只是外观，不影响任何比赛能力。拖动形象可以旋转。", "Cosmetic only; it never changes any ability. Drag the figure to turn it.")}</p>
+      <p class="mw-note">${T(lang, "只是外观，不影响任何比赛能力。左边的形象会实时变化，拖动可以旋转。", "Cosmetic only; it never changes any ability. The figure beside it updates live; drag it to turn.")}</p>
       <p class="mw-status" id="mw-look-status" role="status" aria-live="polite"></p>
     </div>
   </section>`;
