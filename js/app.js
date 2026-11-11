@@ -27,6 +27,7 @@ import {
   starUpWithSouls,
 } from "./data/accountGacha.js";
 import { bannerStats, currentBanners, daysUntilRotation } from "./data/gacha.js";
+import { readIdentity } from "./data/profile.js";
 import { searchPeople } from "./data/cardSearch.js";
 import { playerLegacyBadge } from "./data/playerLegacy.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
@@ -1144,6 +1145,10 @@ const timeTravelScreen = createTimeTravelScreen({
   renderSeasonHub,
   showSeasonTab,
   blockedByForeignSave,
+  // M4-C: the screen snapshots the account's identity places when a
+  // career is created (acceptInterviewOffer); injected like the other
+  // views' getAccount callback.
+  getAccount: activeAccount,
   // Account Level: a resolved Reborn story event pays +30 XP (win or lose —
   // every choice counts). Keyed per event+year so a replayed event pays once.
   onStoryEventResolved: ({ eventId, year } = {}) => {
@@ -11817,6 +11822,10 @@ $("#btn-season-start")?.addEventListener("click", async () => {
         kind: "franchise",
         season: state.season,
         role: "GM",
+        // M4-C: freeze the account's identity places as they are at
+        // creation (readIdentity covers guests too); later account edits
+        // never rewrite this career's snapshot.
+        identityPlaces: readIdentity(activeAccount()).identityPlaces,
       });
       state.mode = "franchise";
     } else {
@@ -12436,6 +12445,9 @@ async function boot() {
       writeRootSave,
       show,
       goBack,
+      // M4-C: the view snapshots the account's identity places when a
+      // Reborn career is created; injected like the other views' getAccount.
+      getAccount: activeAccount,
     });
     // Career Relationships dev entry (workstream E): the relationships /
     // promises / legacy panel for the active account. ?relationships=1

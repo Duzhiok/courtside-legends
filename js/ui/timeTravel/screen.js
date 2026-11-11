@@ -10,6 +10,7 @@ import { getLang, L, teamNameL } from "../../i18n.js";
 import { PLAYERS, overall } from "../../data/players.js";
 import { listHistoricalYears } from "../../data/historicalSeasons.js";
 import { readRootSave } from "../../data/saveRoot.js";
+import { readIdentity } from "../../data/profile.js";
 import { DEFAULT_COACH_ORIGIN, listCoachOrigins } from "../../career/coachOrigins.js";
 import { ensureCoachProfile } from "../../career/coachProfile.js";
 import { acceptCareerContract, declineCareerContracts } from "../../modes/careerContract.js";
@@ -90,6 +91,7 @@ export function createTimeTravelScreen({
   state, show, saveLongCareer, currentRootState, renderSeasonHub, showSeasonTab,
   blockedByForeignSave = async () => false,
   onStoryEventResolved = () => {}, // Account Level hook, injected by app.js
+  getAccount = () => null, // M4-C: snapshot the account's places at career creation
 }) {
   let prologue = null;
   let wizardWired = false;
@@ -278,7 +280,12 @@ export function createTimeTravelScreen({
       return;
     }
     try {
-      const root = acceptInterviewOffer(prologue, offerId);
+      // M4-C: freeze the account's identity places as they are at creation
+      // (readIdentity covers guests too); later account edits never
+      // rewrite this career's snapshot, and it never writes back.
+      const root = acceptInterviewOffer(prologue, offerId, {
+        identityPlaces: readIdentity(getAccount()).identityPlaces,
+      });
       commit(root, tr(lang(), "存档写入失败，尚未接受球队邀请", "Save failed — the offer was not accepted"));
       prologue.selectedOfferId = offerId;
       const offer = prologue.offers.find((candidate) => candidate.id === offerId);

@@ -10,6 +10,7 @@ import {
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
 import { CAREER_ROLES } from "../career/careerIdentity.js";
+import { snapshotIdentityPlaces } from "../career/careerIdentitySnapshot.js";
 import {
   canDo,
   capabilityForOverrideCategory,
@@ -67,7 +68,7 @@ function cloneCategoryMap(groups, category) {
   };
 }
 
-export function createLeagueCareer({ kind, season, storyId, careerId, role } = {}) {
+export function createLeagueCareer({ kind, season, storyId, careerId, role, identityPlaces } = {}) {
   if (!CAREER_KINDS.has(kind)) {
     throw new TypeError('kind must be either "franchise" or "timeTravel"');
   }
@@ -79,12 +80,17 @@ export function createLeagueCareer({ kind, season, storyId, careerId, role } = {
   if (role !== undefined && !CAREER_ROLES.includes(role)) {
     throw new TypeError("role must be one of CAREER_ROLES");
   }
+  // M4-C: freeze the account's identity places as they are at creation
+  // (ADR-004 D1). Absent when the account has none — old saves and
+  // place-less accounts read through the live-account fallback instead.
+  const identitySnapshot = snapshotIdentityPlaces(identityPlaces);
 
   return {
     careerId: careerId || `career-${Date.now()}`,
     kind,
     role: role ?? "GM_COACH",
     storyId: storyId || null,
+    ...(identitySnapshot ? { identitySnapshot } : {}),
     phase: season.phase,
     season,
     history: [],

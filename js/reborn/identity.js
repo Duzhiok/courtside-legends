@@ -20,6 +20,7 @@ import { hashSeed, seededStream } from "../core/seededRandom.js";
 import { rookieClassForYear } from "../engine/leagueDraft.js";
 import { seasonToCard } from "../data/players.js";
 import { isLearnableSkill, canRetainSkill, skillSlotsFull } from "../data/skills.js";
+import { snapshotIdentityPlaces } from "../career/careerIdentitySnapshot.js";
 
 export const REBORN_START_YEAR = 1996;
 /** roster.json season = end year, so the 1996-97 season is season 1997. */
@@ -274,7 +275,7 @@ export function applyIdentityToRoster(teamCards, identity, { players, growth = {
 export function createRebornState(
   seed,
   players,
-  { startYear = REBORN_START_YEAR, identity = null, origin = null } = {},
+  { startYear = REBORN_START_YEAR, identity = null, origin = null, identityPlaces } = {},
 ) {
   const season = seasonForStartYear(startYear);
   // A chosen identity skips the draw (creation flow); a random run draws.
@@ -282,6 +283,10 @@ export function createRebornState(
   if (drawn.season !== season) {
     throw new Error(`createRebornState: identity is from season ${drawn.season}, not ${season}`);
   }
+  // M4-C: freeze the account's identity places as they are at creation
+  // (ADR-004 D1). Absent when the account has none — old saves and
+  // place-less accounts read through the live-account fallback instead.
+  const identitySnapshot = snapshotIdentityPlaces(identityPlaces);
   return {
     version: 1,
     seed: String(seed),
@@ -290,6 +295,7 @@ export function createRebornState(
     role: "player",
     origin: origin || (identity ? "chosen-identity" : "random-destiny"),
     difficulty: "underdog",
+    ...(identitySnapshot ? { identitySnapshot } : {}),
     identity: drawn,
     player: {
       teamId: drawn.team,

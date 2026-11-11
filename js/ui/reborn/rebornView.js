@@ -25,6 +25,7 @@ import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision } from "../../reborn/contract.js";
 import { overall } from "../../data/players.js";
+import { readIdentity } from "../../data/profile.js";
 // Signature Awakening (workstream D): evidence-based skill awakening for the
 // Player career — no skill books, no purchases, no dice.
 import {
@@ -124,7 +125,7 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
   return `<section class="reborn-report">${lines.join("")}</section>`;
 }
 
-export function createRebornView({ getLang, readRootSave, writeRootSave, show, goBack } = {}) {
+export function createRebornView({ getLang, readRootSave, writeRootSave, show, goBack, getAccount = () => null } = {}) {
   const lang = () => (typeof getLang === "function" ? getLang() : "zh");
   let el = null;
   let rows = null;
@@ -358,6 +359,10 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
                 destiny: creating.destiny || "random",
                 bref: creating.pickedBref,
               },
+              // M4-C: freeze the account's identity places as they are at
+              // creation (readIdentity covers guests too); later account
+              // edits never rewrite this career's snapshot.
+              identityPlaces: readIdentity(getAccount()).identityPlaces,
             });
           } catch (e) {
             console.warn(e);

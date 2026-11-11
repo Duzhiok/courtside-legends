@@ -91,14 +91,15 @@ export function creationChoices(rows, seed, startYear) {
  * { startYear, destiny: "random" | "historical" | "fictional", bref? }.
  * Random draws from the seed; chosen identities are built from the row /
  * prospect the player picked. The 70/30 split lives in the draw and is
- * not changed here.
+ * not changed here. `identityPlaces` is the account's current places,
+ * frozen onto the run as its identity snapshot (M4-C).
  */
-export function createRebornFromChoice({ seed, rows, choice } = {}) {
+export function createRebornFromChoice({ seed, rows, choice, identityPlaces } = {}) {
   const startYear = Number(choice?.startYear ?? 1996);
   const season = seasonForStartYear(startYear);
   const destiny = choice?.destiny || "random";
   if (destiny === "random") {
-    return createRebornState(seed, rows, { startYear });
+    return createRebornState(seed, rows, { startYear, identityPlaces });
   }
   if (destiny === "historical") {
     const row = benchPool(rows, season).find((r) => r.bref === choice.bref);
@@ -106,6 +107,7 @@ export function createRebornFromChoice({ seed, rows, choice } = {}) {
     return createRebornState(seed, rows, {
       startYear,
       identity: identityForRow(row, season),
+      identityPlaces,
     });
   }
   if (destiny === "fictional") {
@@ -117,6 +119,7 @@ export function createRebornFromChoice({ seed, rows, choice } = {}) {
     return createRebornState(seed, rows, {
       startYear,
       identity: identityForGenerated(found.player, team, season),
+      identityPlaces,
     });
   }
   throw new TypeError(`creation: unknown destiny ${destiny}`);

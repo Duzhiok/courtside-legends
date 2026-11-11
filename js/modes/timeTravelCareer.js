@@ -228,7 +228,7 @@ export function createTimeTravelPrologue(input) {
   };
 }
 
-export function acceptInterviewOffer(prologue, offerId) {
+export function acceptInterviewOffer(prologue, offerId, { identityPlaces } = {}) {
   const historical = validateInput(prologue);
   const offer = prologue.offers?.find((candidate) => candidate.id === offerId);
   if (!offer) {
@@ -256,6 +256,8 @@ export function acceptInterviewOffer(prologue, offerId) {
     storyId,
     careerId: storyId,
     role,
+    // M4-C: the account's identity places as they are at creation.
+    identityPlaces,
   });
   leagueCareer = recordCareerEvent(
     leagueCareer,
@@ -471,12 +473,16 @@ export function startNewStint(root, offer, eventType = "re-employed") {
   });
   // A new stint keeps the career's role (a coach stays a coach when
   // hired elsewhere); the root spread below keeps root.identity.
+  // M4-C: a new stint is NOT a new career — the identity snapshot from
+  // the career's creation carries forward untouched (never re-snapshotted
+  // from the account's current places).
   let leagueCareer = createLeagueCareer({
     kind: "timeTravel",
     season,
     storyId: root.story.storyId,
     careerId: root.story.storyId,
     role: root.leagueCareer?.role ?? identityOf(root),
+    identityPlaces: root.leagueCareer?.identitySnapshot,
   });
   leagueCareer = recordCareerEvent(
     leagueCareer,

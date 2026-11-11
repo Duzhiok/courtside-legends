@@ -218,6 +218,10 @@ function validateLeagueCareer(career) {
   if (career.management !== undefined) {
     validateManagement(career.management);
   }
+  // M4-C: optional snapshot; only validate it when present, never require it.
+  if (career.identitySnapshot !== undefined) {
+    validateIdentitySnapshot(career.identitySnapshot);
+  }
 }
 
 function validateTimeTravelStory(root) {
@@ -306,6 +310,30 @@ export function validateReborn(reborn) {
     || (reborn.player !== undefined && reborn.player !== null && !isObject(reborn.player))
     || (reborn.player && Number.isFinite(reborn.player.coachTrust)
       && (reborn.player.coachTrust < 0 || reborn.player.coachTrust > 100))
+  ) {
+    throw new Error("invalid root save");
+  }
+  // M4-C: optional snapshot; only validate it when present, never require it.
+  if (reborn.identitySnapshot !== undefined) {
+    validateIdentitySnapshot(reborn.identitySnapshot);
+  }
+}
+
+/**
+ * M4-C career identity snapshot: optional on leagueCareer and reborn,
+ * absent on old saves. When present it must be an object whose three
+ * fields are each null or a ≤40-char string (the sanitizeIdentityPlaces
+ * contract); anything else is a corrupt save, not a silent pass-through.
+ */
+function validateIdentitySnapshot(snapshot) {
+  if (
+    !isObject(snapshot)
+    || !["birthplace", "grewUpIn", "representedCity"].every(
+      (field) =>
+        snapshot[field] === undefined
+        || snapshot[field] === null
+        || (typeof snapshot[field] === "string" && snapshot[field].length <= 40),
+    )
   ) {
     throw new Error("invalid root save");
   }
