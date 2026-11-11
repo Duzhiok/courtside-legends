@@ -221,14 +221,11 @@ test("furniture: every furniture item has a real SVG group in the registry", () 
     assert.ok(vb.every((n) => Number.isFinite(n)));
   }
   assert.equal(furniture.furnitureSvgFor("no-such-furniture"), "");
-  const all = furniture.roomFurnitureSvg(furniture.furnitureIds());
-  for (const item of furnitureItems) assert.ok(all.includes(`data-furniture="${item.effect.furnitureId}"`));
-  // Rug first: everything else sits on it.
-  assert.ok(all.indexOf('data-furniture="rug"') < all.indexOf('data-furniture="sofa"'));
   const preview = furniture.roomPreviewSvg(["sofa", "rug"]);
   assert.ok(preview.includes('data-furniture="sofa"'));
   assert.ok(preview.includes('data-furniture="rug"'));
-  assert.ok(furniture.roomPreviewSvg([]).includes("房间还空着"));
+  assert.ok(!furniture.roomPreviewSvg([]).includes("data-furniture="), "no furniture owned, none drawn");
+  assert.deepEqual(furniture.furnitureIds().sort(), furnitureItems.map((i) => i.effect.furnitureId).sort());
 });
 
 test("outfits: every catalog outfit is a real OUTFITS row, locked until owned", () => {

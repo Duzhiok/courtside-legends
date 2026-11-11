@@ -13,7 +13,7 @@ import { readIdentity, saveIdentity } from "../data/profile.js";
 import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { readChallengeArchive } from "../data/challengeArchive.js";
-import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary } from "./myWorldView.js";
+import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary, trophyCountOf } from "./myWorldView.js";
 
 export function createMyWorld({
   el,
@@ -37,6 +37,7 @@ export function createMyWorld({
   onOpenCollection,
   onOpenAccounts,
   onOpenShop, // (category) => open the Gold Lifestyle Shop dialog at a category
+  onOpenHome, // () => open the full My Home screen
   onOpenLegacyMuseum, // (titleId) => open the Legacy Museum, highlighting that title
   onStartCareer,
   onIdentitySaved = () => {},
@@ -68,6 +69,19 @@ export function createMyWorld({
     });
   }
 
+  /** What the My Home screen shows, read fresh: real trophies, best three cards, portrait, name. */
+  function homeModel() {
+    const lang = getLang();
+    const account = getAccount();
+    let cards = [];
+    try {
+      cards = account ? topCards(account) : [];
+    } catch {
+      cards = [];
+    }
+    return { account, cards, trophyCount: trophyCountOf(visibleGames(account, lang), legacyFromAccount(account)), portrait: portraitFor(account), name: readIdentity(account).name };
+  }
+
   function render() {
     disposeViewer();
     const lang = getLang();
@@ -78,7 +92,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), frame: equippedFrameId(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account) }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameId(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account) }, lang);
     mountShowcaseViewer();
   }
 
@@ -399,6 +413,7 @@ export function createMyWorld({
     "start-career": () => onStartCareer?.(),
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),
+    "open-home": () => onOpenHome?.(),
     "open-shop": (btn) => onOpenShop?.(btn?.dataset?.shopCategory || "home"),
     /** Earned Architect titles open the Legacy Museum (the tapped title's section is highlighted). */
     "open-legacy-museum": (btn) => onOpenLegacyMuseum?.(btn?.dataset?.title || null),
@@ -444,5 +459,5 @@ export function createMyWorld({
   });
 
   render();
-  return { refresh: render };
+  return { refresh: render, homeModel };
 }

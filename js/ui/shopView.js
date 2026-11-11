@@ -164,7 +164,8 @@ export function shopInventoryHtml(state, lang = "zh") {
   const recentRows = recent.map(({ item }) => `<li>${esc(itemName(item, lang))}</li>`).join("");
   return `<div class="shop-inventory">
     <h3>${esc(T(lang, "我的房间预览", "My room preview"))}</h3>
-    <div class="shop-room-preview">${roomPreviewSvg(furniture)}</div>
+    <div class="shop-room-preview">${roomPreviewSvg(furniture, account.homeLayout ?? null, lang)}</div>
+    ${furniture.length ? "" : `<p class="shop-empty">${esc(T(lang, "房间还空着——买件家具，它会立刻摆进来。", "The room is still empty — buy a piece and it is placed at once."))}</p>`}
     <p class="shop-ticket-line">${esc(T(lang, `托管卡：${state.tickets || 0} 张`, `Auto-Play Tickets: ${state.tickets || 0}`))}</p>
     <h3>${esc(T(lang, "已拥有", "Owned"))}</h3>
     ${owned.length ? `<div class="shop-owned-list">${rows}</div>` : `<p class="shop-empty">${esc(T(lang, "还没有买过商品——喜欢的家具、衣服和头像框都在上面几个分类里。", "Nothing bought yet — furniture, clothing and frames are in the tabs above."))}</p>`}

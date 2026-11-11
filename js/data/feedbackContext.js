@@ -16,6 +16,7 @@ const BY_SCREEN = {
   "screen-legend": "custom",
   "screen-tournament": "custom",
   "screen-time-travel": "career",
+  "screen-my-home": "world",
   "screen-market": "career",
   "screen-clutch": "gameplay",
   "screen-clutch-play": "gameplay",

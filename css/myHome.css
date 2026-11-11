@@ -1,0 +1,39 @@
+/* My Home screen (Home 2.0): a big isometric room plus a furniture side panel. Same forest green / cream / gold as My World. */
+#screen-my-home { --mh-green: #163a29; --mh-gold: #e9c46a; --mh-cream: #f6efe0; }
+.mh-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.mh-stage-card { border-radius: 16px; background: radial-gradient(120% 120% at 50% 0%, #1f4a35 0%, #10241a 70%); padding: 12px; box-shadow: 0 10px 26px rgba(16, 36, 26, 0.35); }
+.mh-stage { max-width: 760px; margin: 0 auto; }
+.mh-room-svg { display: block; width: 100%; height: auto; }
+.mh-status { margin: 8px 4px 2px; min-height: 1.3em; color: #f2e7c9; font-size: 0.9rem; text-align: center; }
+
+/* Hit areas: invisible until hovered; the selected footprint is drawn by the renderer. */
+.mh-room-svg.is-interactive .mh-cell { cursor: pointer; }
+.mh-room-svg.is-interactive .mh-cell:hover { fill: rgba(233, 196, 106, 0.28); }
+.mh-room-svg.is-interactive .mh-slot { cursor: pointer; stroke: transparent; stroke-width: 2; }
+.mh-room-svg.is-interactive .mh-slot:hover { fill: rgba(233, 196, 106, 0.22); stroke: #f4d98a; stroke-dasharray: 5 4; }
+
+.mh-side { display: grid; gap: 12px; padding: 14px; border-radius: 16px; background: var(--mh-cream); border: 1px solid #d5c6a6; }
+.mh-side h3 { margin: 0; font-size: 1rem; color: var(--mh-green); }
+.mh-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mh-stats div { display: grid; justify-items: center; padding: 8px 4px; border-radius: 10px; background: #fff; border: 1px solid #e3d6b8; }
+.mh-stats b { font-size: 1.3rem; color: var(--mh-green); }
+.mh-stats span { font-size: 0.72rem; color: #4f5e55; }
+.mh-tray { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.mh-chip { display: inline-flex; align-items: baseline; gap: 6px; min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid #b9a77f; background: #fff; color: #24352b; font-weight: 600; cursor: pointer; }
+.mh-chip small { font-weight: 500; font-size: 0.7rem; color: #6b5a3a; }
+.mh-chip:hover { border-color: #b7791f; }
+.mh-chip.is-selected { background: var(--mh-green); color: #fff; border-color: #d6b25a; box-shadow: 0 0 0 2px rgba(214, 178, 90, 0.55); }
+.mh-chip.is-selected small { color: #e6d6a6; }
+.mh-chip:focus-visible, .mh-step:focus-visible { outline: 3px solid #b7791f; outline-offset: 2px; }
+.mh-empty { margin: 0; color: #4f5e55; font-size: 0.9rem; }
+.mh-controls { display: grid; gap: 10px; }
+.mh-dpad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.mh-step { min-height: 44px; border-radius: 10px; border: 1px solid #b9a77f; background: #fff; font-size: 1.2rem; cursor: pointer; color: var(--mh-green); }
+.mh-step:disabled { opacity: 0.4; cursor: default; }
+.mh-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mh-note { margin: 0; color: #4f5e55; }
+
+@media (max-width: 860px) {
+  .mh-layout { grid-template-columns: 1fr; }
+  .mh-stage-card { padding: 8px; border-radius: 12px; }
+}

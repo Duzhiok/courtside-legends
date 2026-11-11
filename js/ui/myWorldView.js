@@ -10,13 +10,13 @@
  */
 import { avatarDataUri } from "../data/avatarArt.js";
 import { challengeTierName } from "../data/careerChallenges.js";
-import { photoImg } from "../data/photo.js";
 import { FIGURE_STYLES } from "../data/avatarLook.js";
 import { architectProgress, architectTitlesFor } from "../career/careerAchievements.js";
 import { getShop, equippedClothingItemId } from "../data/shop.js";
-import { itemById, itemName } from "../data/shopCatalog.js";
+import { SHOP_ITEMS, itemById, itemName } from "../data/shopCatalog.js";
 import { lookPanelHtml } from "./avatarLookView.js";
-import { roomFurnitureSvg } from "./shopFurniture.js";
+import { resolveHome } from "../data/homeLayout.js";
+import { renderIsoRoom } from "./myHome/isoRoom.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
 import { teamNameL } from "../i18n.js";
 
@@ -274,73 +274,34 @@ export function architectTitlesHtml(architect, lang) {
   return `${head}<p class="mw-line tiny">${T(lang, `教练生涯 ${mark(p.coach)} · 经理生涯 ${mark(p.gm)}`, `Coach career ${mark(p.coach)} · GM career ${mark(p.gm)}`)}<br />${T(lang, "完成一次完整教练生涯与一次完整经理生涯，即可解锁隐藏职业 The Architect。", "Complete one full Coach career and one full GM career to unlock the hidden Architect career.")}</p>`;
 }
 
-/** Lightweight local illustration (inline SVG, no external image). Real data is overlaid as HTML on top of it. */
-const ROOM_SVG = `<svg class="mw-room-art" viewBox="0 0 600 240" preserveAspectRatio="xMaxYMid slice" aria-hidden="true" focusable="false">
-  <defs>
-    <linearGradient id="mw-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1e6cf"/><stop offset="1" stop-color="#e6d6b6"/></linearGradient>
-    <linearGradient id="mw-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9954f"/><stop offset="1" stop-color="#a97835"/></linearGradient>
-    <radialGradient id="mw-glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".75"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></radialGradient>
-  </defs>
-  <rect x="-2000" width="4600" height="240" fill="url(#mw-wall)"/>
-  <rect x="-2000" y="120" width="4600" height="38" fill="#1f4a35"/>
-  <rect x="-2000" y="116" width="4600" height="6" fill="#d6b25a"/>
-  <rect x="-2000" y="158" width="4600" height="82" fill="url(#mw-floor)"/>
-  <path d="M-2000 176h4600M-2000 196h4600M-2000 218h4600" stroke="#8c6226" stroke-opacity=".35"/>
-  <rect x="26" y="26" width="86" height="66" rx="5" fill="#f9f3e4" stroke="#8a6a3a" stroke-width="5"/>
-  <rect x="32" y="32" width="74" height="54" fill="#f6c36a"/><circle cx="82" cy="70" r="14" fill="#ffe08a"/><path d="M32 86l22-22 18 14 12-10 22 18z" fill="#2f5a45"/>
-  <path d="M470 24h84v44h-84z" fill="#fff" stroke="#303030" stroke-width="5"/><rect x="496" y="42" width="32" height="22" fill="none" stroke="#e2622b" stroke-width="3"/>
-  <path d="M492 76q22 10 44 0" fill="none" stroke="#e2622b" stroke-width="4"/><path d="M496 80l6 18m8-17l2 19m8-19l-2 19m8-18l-6 18" stroke="#fff" stroke-opacity=".9" stroke-width="2"/>
-  <path d="M300 0v14" stroke="#4a3b24" stroke-width="3"/><path d="M280 14h40l10 16h-60z" fill="#f4d98a"/><ellipse cx="300" cy="0" rx="280" ry="160" fill="url(#mw-glow)"/>
-  <g transform="translate(440 110)"><path d="M0 0l12 8h22l12-8 14 16-10 8v34H-4V24l-10-8z" fill="#1f4a35" stroke="#d6b25a" stroke-width="2"/><rect x="6" y="30" width="34" height="5" fill="#d6b25a"/></g>
-  <g class="mw-floor-prop" transform="translate(196 216)"><path d="M0 0c0-10 6-14 14-14h14l8 6c10 0 14 4 14 8z" fill="#fff" stroke="#2a2a2a" stroke-width="2"/><path d="M6 -4h20" stroke="#e2622b" stroke-width="3"/></g>
-  <g class="mw-floor-prop" transform="translate(262 220)"><path d="M0 0c0-10 6-14 14-14h14l8 6c10 0 14 4 14 8z" fill="#fff" stroke="#2a2a2a" stroke-width="2"/><path d="M6 -4h20" stroke="#e2622b" stroke-width="3"/></g>
-  <g class="mw-floor-prop"><circle cx="396" cy="210" r="15" fill="#e2622b" stroke="#7a2e10" stroke-width="2"/><path d="M396 195v30M381 210h30" stroke="#7a2e10" stroke-width="2"/></g>
-  <rect x="560" y="112" width="20" height="26" rx="3" fill="#7a5230"/><path d="M570 112c-14-8-16-26-4-30m4 30c14-8 16-26 4-30" fill="none" stroke="#3f7a52" stroke-width="5" stroke-linecap="round"/>
-</svg>`;
-
-export const TROPHY_CABINET_SVG = `<g class="mw-furniture" data-furniture="trophy-cabinet" aria-label="Champion Trophy Cabinet">
-  <rect x="502" y="150" width="50" height="85" rx="4" fill="#5a3d24" stroke="#d6b25a" stroke-width="2.5"/>
-  <rect x="507" y="155" width="40" height="75" rx="2" fill="#f9f3e4" stroke="#d6b25a" stroke-width="1.5"/>
-  <line x1="507" y1="184" x2="547" y2="184" stroke="#8a6a3a" stroke-width="2"/>
-  <line x1="507" y1="209" x2="547" y2="209" stroke="#8a6a3a" stroke-width="2"/>
-  <g fill="#d6b25a" stroke="#8a6a3a" stroke-width="1">
-    <path d="M514 164h10l-1.5 7h-7z"/><rect x="518.5" y="171" width="3" height="4"/><rect x="513" y="175" width="12" height="2.5"/>
-    <path d="M530 164h10l-1.5 7h-7z"/><rect x="534.5" y="171" width="3" height="4"/><rect x="529" y="175" width="12" height="2.5"/>
-    <path d="M522 189h10l-1.5 7h-7z"/><rect x="526.5" y="196" width="3" height="4"/><rect x="521" y="200" width="12" height="2.5"/>
-  </g>
-</g>`;
-
-const emptyFrame = (lang) => `<figure class="mw-frame is-empty" aria-label="${T(lang, "空相框", "Empty frame")}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4"/><path d="M4 22c0-5 4-8 8-8s8 3 8 8z"/></svg></figure>`;
-
-/** Frames hold your real top cards (empty frames are honest); the shelf counts real career trophies. */
-export function homeSceneHtml({ identity, frames = [], trophyCount = 0, furniture = [] }, lang) {
-  const frameHtml = [0, 1, 2]
-    .map((i) => {
-      const player = frames[i];
-      return player
-        ? `<figure class="mw-frame">${photoImg(player, "mw-frame-photo")}<figcaption>${esc(player.name)}</figcaption></figure>`
-        : emptyFrame(lang);
-    })
-    .join("");
-  const shelf = trophyCount
-    ? `<div class="mw-shelf" aria-label="${T(lang, `${trophyCount} 座冠军奖杯`, `${trophyCount} championship trophies`)}">${"🏆".repeat(Math.min(trophyCount, 5))}${trophyCount > 5 ? ` ×${trophyCount}` : ""}</div>`
-    : `<div class="mw-shelf is-empty">${T(lang, "奖杯架还空着", "Trophy shelf is empty")}</div>`;
-  const plate = identity.name || T(lang, "访客球员", "Guest player");
-  const hasCabinet = furniture.includes("trophy-cabinet");
-  const roomSvg = ROOM_SVG.replace("</svg>", `${roomFurnitureSvg(furniture)}</svg>`);
+/**
+ * My World keeps a compact preview of the home (the same isometric room as the My Home screen, without hit areas)
+ * and a door into the full space. Everything in it is real: trophies from the career save, frames = best cards,
+ * furniture = what the shop sold this account, in the layout the player arranged.
+ */
+export function homeSceneHtml({ identity, frames = [], trophyCount = 0, furniture = [], layout = null, portrait = null }, lang) {
+  const placed = resolveHome(furniture, layout);
+  const room = renderIsoRoom({
+    placed,
+    trophyCount,
+    cards: frames,
+    portrait: portrait?.src || null,
+    name: identity.name,
+    lang,
+  });
+  const names = placed.map((p) => SHOP_ITEMS.find((i) => i.effect?.type === "furniture" && i.effect.furnitureId === p.id)).filter(Boolean).map((i) => itemName(i, lang));
+  const placedNote = names.length ? `${T(lang, `已摆放${names.join("、")}。`, `Placed: ${names.join(", ")}. `)}` : "";
   return `<section class="mw-card mw-home"><h3>${T(lang, "我的家 · My Home", "My Home")}</h3>
-    <div class="mw-room" role="img" aria-label="${T(lang, "我的篮球房间", "My basketball room")}">
-      <div class="mw-stage">
-        ${roomSvg}
-        <div class="mw-frames">${frameHtml}</div>
-        ${shelf}
-        <div class="mw-plate">${esc(plate)}</div>
-      </div>
-    </div>
-    <p class="tiny mw-note">${T(lang, "相框挂着你账号里最强的三张球员卡；奖杯来自你的生涯存档。", "Frames hold the three best cards on your account; trophies come from your career save.")}</p>
-    ${hasCabinet ? `<p class="tiny mw-note">${T(lang, "🏆 已摆放冠军奖杯柜（商城）", "🏆 Champion Trophy Cabinet placed (Shop)")}</p>` : ""}
-    <div class="btn-row"><button type="button" class="btn small ghost" data-mw-action="open-shop" data-shop-category="home">${T(lang, "🛍️ 逛商城 · 家具", "🛍️ Shop · Furniture")}</button></div>
+    <div class="mw-room" role="img" aria-label="${T(lang, "我的篮球房间", "My basketball room")}">${room}</div>
+    <p class="tiny mw-note">${placedNote}${T(lang, "相框挂着你账号里最强的三张球员卡；奖杯来自你的生涯存档；家具来自商城。", "Frames hold the three best cards on your account; trophies come from your career save; furniture comes from the Shop.")}</p>
+    <div class="btn-row"><button type="button" class="btn small mw-gold" data-mw-action="open-home">${T(lang, "🏠 进入我的家", "🏠 Enter My Home")}</button><button type="button" class="btn small ghost" data-mw-action="open-shop" data-shop-category="home">${T(lang, "🛍️ 逛商城 · 家具", "🛍️ Shop · Furniture")}</button></div>
   </section>`;
+}
+
+/** Championship count shown in the home: trophies of the player's own career + My Team season titles. */
+export function trophyCountOf(games, legacy) {
+  const ownedCareer = games?.career?.state === "mine" ? games.career.journey : null; // trophies only from a career that is yours
+  return (ownedCareer?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0);
 }
 
 /**
@@ -374,18 +335,18 @@ export function levelHtml(snapshot, lang) {
   </div>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], frame = null, ownedOutfits = null, owned = null }, lang) {
+export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], homeLayout = null, frame = null, ownedOutfits = null, owned = null }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const ownedCareer = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
-  const titles = (ownedCareer?.trophies?.length || 0) + (legacy?.myTeam?.titles || 0);
+  const titles = trophyCountOf(g, legacy);
   const stats = legacy ? { titles, cards: legacy.cards, rankedWins: legacy.rankedWins } : null; // a guest has no collection or ranked record
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
     ${identityCardHtml(identity, lang, portrait, frame, { level, stats })}
     ${showcaseHtml({ identity, look, portrait }, lang)}
     ${lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits)}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
-    ${homeSceneHtml({ identity, frames, trophyCount: titles, furniture }, lang)}
+    ${homeSceneHtml({ identity, frames, trophyCount: titles, furniture, layout: homeLayout, portrait }, lang)}
     ${ownedShopHtml(owned, lang)}`;
 }
 

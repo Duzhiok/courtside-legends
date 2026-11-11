@@ -35,6 +35,7 @@ import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChalle
 import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
 import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
 import { ensureLegacyMuseumScreen, createLegacyMuseumView } from "./ui/legacyMuseumView.js";
+import { createMyHome, ensureMyHomeScreen } from "./ui/myHome/myHomeScreen.js";
 import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.js";
 import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { ensureDraftGambleScreen, createDraftGambleView } from "./ui/scoutingView.js";
@@ -12385,6 +12386,8 @@ async function boot() {
     // Legacy Museum (篮球人生博物馆): the honours wall's earned titles open the
     // career legacy detail view (user decision 2026-11-10, after 375b75d).
     screens.legacyMuseum = ensureLegacyMuseumScreen();
+    screens.myHome = ensureMyHomeScreen();
+    const myHome = createMyHome({ getLang, getModel: () => myWorld.homeModel(), show, goBack, onOpenShop: (category) => shop?.open({ category }) });
     const legacyMuseumView = createLegacyMuseumView({ getLang, getAccount: activeAccount, show, goBack });
     myWorld = createMyWorld({
       el: $("#my-world-root"),
@@ -12415,6 +12418,7 @@ async function boot() {
       onOpenCollection: () => openCollection(),
       onOpenAccounts: () => openAccountScreen(),
       onOpenShop: (category) => shop?.open({ category }),
+      onOpenHome: () => myHome.open(),
       onOpenLegacyMuseum: (titleId) => legacyMuseumView.open(titleId),
       onStartCareer: () => activateHomeTab?.("career"),
       onIdentitySaved: () => refreshAccountHomeBar(),

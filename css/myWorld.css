@@ -66,35 +66,9 @@
 .lm-museum ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: #24352b; }
 .lm-museum .tiny { font-size: 0.82rem; }
 
-/* My Home: illustrated room with real data on top */
-/* Wall / wainscot / floor bands repeat the art's own so a wide room extends seamlessly past the 600px stage. */
-.mw-room {
-  position: relative; border-radius: 12px; overflow: hidden; height: 240px; border: 1px solid #d5c6a6;
-  background: linear-gradient(#f1e6cf 0, #e6d6b6 48%, #d6b25a 48% 50%, #1f4a35 50% 66%, #c9954f 66%, #a97835 100%);
-}
-.mw-stage { position: relative; width: min(100%, 600px); height: 100%; margin: 0 auto; }
-/* The art's bands are drawn far wider than the stage, so a wide room is one continuous scene (no seams). */
-.mw-room-art { overflow: visible; }
-.mw-room-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.mw-frames { position: absolute; left: 24%; top: 19%; display: flex; gap: 10px; }
-.mw-frame {
-  margin: 0; width: 66px; padding: 4px 4px 2px; background: var(--mw-cream); border: 3px solid #7a5a36;
-  border-radius: 3px; text-align: center; font-size: 0.62rem; color: #3a2c1c; box-shadow: 0 3px 6px rgba(60, 40, 10, 0.3);
-}
-.mw-frame img, .mw-frame .mw-frame-photo { width: 100%; height: 58px; object-fit: cover; display: block; border-radius: 2px; }
-.mw-frame figcaption { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mw-frame.is-empty { height: 76px; display: grid; place-items: center; background: #efe5cf; border-color: #9a7a52; }
-.mw-frame.is-empty svg { width: 30px; height: 30px; fill: #c9b896; }
-.mw-shelf {
-  position: absolute; left: 3%; bottom: 8%; padding: 6px 12px; border-radius: 8px; font-size: 1rem;
-  background: #4a3118; color: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-}
-.mw-shelf.is-empty { font-size: 0.78rem; color: #f3e3c4; }
-.mw-plate {
-  position: absolute; right: 4%; bottom: 8%; max-width: 38%; padding: 6px 12px; border-radius: 8px;
-  background: var(--mw-green); color: #fff; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  border: 1px solid #d6b25a;
-}
+/* My Home preview: the isometric room (js/ui/myHome) at a comfortable size; the full space is its own screen. */
+.mw-room { max-width: 560px; margin: 0 auto; border-radius: 14px; overflow: hidden; background: #14281d; border: 1px solid #0f2118; }
+.mw-room .mh-room-svg { display: block; width: 100%; height: auto; }
 .mw-home .mw-note { color: #4f5e55; margin: 8px 0 0; }
 
 /* —— Character showcase (workstream D): prominent 3D stage + Stylized/Bobblehead switch —— */
@@ -146,14 +120,6 @@
   .mw-identity { grid-template-columns: 76px 1fr; gap: 12px; padding: 14px; }
   .mw-portrait { width: 76px; height: 76px; }
   .mw-identity h3 { font-size: 1.15rem; }
-  .mw-room { height: 220px; }
-  .mw-stage { width: 100%; }
-  .mw-floor-prop { display: none; } /* on a narrow room the floor belongs to the shelf and the nameplate */
-  .mw-frames { left: 5%; top: 14%; gap: 6px; }
-  .mw-frame { width: 54px; }
-  .mw-frame img, .mw-frame .mw-frame-photo { height: 46px; }
-  .mw-frame.is-empty { height: 64px; }
-  .mw-plate { max-width: 44%; }
 }
 
 /* Profile-picture chooser inside the "My look" panel (ADR-008a addendum W1) */
