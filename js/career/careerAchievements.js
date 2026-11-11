@@ -40,6 +40,7 @@
  * in — the override is session-scoped and never written as a
  * qualification.
  */
+import { careerIdentitySnapshot } from "./careerIdentitySnapshot.js";
 import { identityOf } from "./careerIdentity.js";
 import { buildLegacy } from "./legacy.js";
 
@@ -89,6 +90,11 @@ export function completionFromRoot(root, { prestige = false } = {}) {
   const legacy = buildLegacy(root.coach || {});
   if (legacy.seasons < 1) return null;
   const year = root?.leagueCareer?.season?.year ?? legacy.lastYear;
+  // M4-D D3: freeze the represented city the career was created under
+  // (M4-C identitySnapshot on the career record). A career created before
+  // snapshots existed — or with no places set — carries null, and the
+  // museum omits the line instead of inventing one.
+  const representedCity = careerIdentitySnapshot(root?.leagueCareer)?.representedCity ?? null;
   return {
     careerId,
     role,
@@ -98,6 +104,7 @@ export function completionFromRoot(root, { prestige = false } = {}) {
     championships: legacy.titles,
     tier: legacy.tier,
     reason: root.story.employment.reason || null,
+    representedCity,
     at: Date.now(),
   };
 }

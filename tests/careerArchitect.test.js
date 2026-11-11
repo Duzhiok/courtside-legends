@@ -107,6 +107,27 @@ test("completionFromRoot: prestige marks an Architect career only for GM + Coach
   assert.equal(classic.prestige, false);
 });
 
+test("completionFromRoot: the completion freezes the represented city the career was created under (M4-D D3)", () => {
+  // Snapshot on the career record (M4-C): the city is copied, not re-read live.
+  const withSnapshot = retiredRoot();
+  withSnapshot.leagueCareer = {
+    careerId: "career-1",
+    season: { year: 2001 },
+    identitySnapshot: { birthplace: "Akron", grewUpIn: "Akron", representedCity: "Akron" },
+  };
+  assert.equal(completionFromRoot(withSnapshot).representedCity, "Akron");
+  // No snapshot (career created before M4-C, or no places set): null, never invented.
+  assert.equal(completionFromRoot(retiredRoot()).representedCity, null);
+  // Snapshot with no represented city: null, not the birthplace.
+  const noCity = retiredRoot();
+  noCity.leagueCareer = {
+    careerId: "career-1",
+    season: { year: 2001 },
+    identitySnapshot: { birthplace: "Akron", grewUpIn: null, representedCity: null },
+  };
+  assert.equal(completionFromRoot(noCity).representedCity, null);
+});
+
 // ---------------------------------------------------------------- records
 
 test("recordCareerCompletion: one record per careerId, never double-awarded", () => {

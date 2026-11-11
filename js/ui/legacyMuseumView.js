@@ -75,6 +75,10 @@ export function museumCareerLine(career, lang) {
   if (tier) facts.push(esc(lang === "en" ? tier.labelEn : tier.label));
   else if (career.tier) facts.push(esc(career.tier));
   if (reason) facts.push(esc(T(lang, reason[0], reason[1])));
+  // M4-D D3: the city the career represented when it was created (M4-C
+  // snapshot, frozen at creation — later account edits never rewrite it).
+  // Missing on old records: omitted, never filled in.
+  if (career.representedCity) facts.push(esc(T(lang, `创建时代表 ${career.representedCity}`, `Represented ${career.representedCity} at creation`)));
   const chips = facts.length
     ? facts.map((f) => `<span class="lm-chip">${f}</span>`).join("")
     : `<span class="lm-chip lm-chip--muted">${T(lang, "记录不完整", "Incomplete record")}</span>`;

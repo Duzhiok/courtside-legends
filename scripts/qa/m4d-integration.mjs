@@ -1,11 +1,17 @@
 // M4-D My World integration QA (node-only, no browser): the hero's represented-city
 // anchor points at the hometown section, and the honours wall carries one labelled
 // hometown-challenge line only after a game is played — never as a trophy.
+// D3: museum career lines show the represented city frozen at career creation
+// (M4-C snapshot), omitted when the completion record carries none.
 // Mac browser QA is still owed: open My World, click the "代表" place and confirm the
 // page scrolls to the Hometown Legends card; play a hometown challenge and confirm
-// the honours wall gains exactly one 🏀 line (desktop + mobile).
+// the honours wall gains exactly one 🏀 line (desktop + mobile); open the Legacy
+// Museum and confirm a career line shows its creation-time city.
 // Usage: node scripts/qa/m4d-integration.mjs
+import { completionFromRoot } from "../../js/career/careerAchievements.js";
+import { legacyMuseumFor } from "../../js/career/legacyMuseum.js";
 import { hometownHtml } from "../../js/ui/hometownView.js";
+import { museumCareerLine } from "../../js/ui/legacyMuseumView.js";
 import { identityCardHtml, legacyFromAccount, legacyHtml } from "../../js/ui/myWorldView.js";
 
 const out = [];
@@ -41,6 +47,30 @@ const en = legacyHtml(legacyFromAccount(account(played)), null, "en");
 check("[en] challenge line is English", en.includes("🏀 Hometown Challenge · 3 played · 2W 1L · last represented 阿克伦") && !CJK.test(en.replaceAll("阿克伦", "")));
 const noCity = legacyHtml(legacyFromAccount(account({ played: 1, wins: 0, losses: 1, lastRepresentedCity: null, lastResult: "loss", lastAt: null })), null, "zh");
 check("city-free record: line renders without a city fragment", noCity.includes("家乡挑战 · 1 场 · 0 胜 1 负") && !noCity.includes("最近代表"));
+
+// D3: creation-time represented city, from snapshot to museum line
+const retiredRoot = (snapshot) => ({
+  identity: { currentRole: "COACH" },
+  leagueCareer: { careerId: "c1", season: { year: 2001 }, ...(snapshot ? { identitySnapshot: snapshot } : {}) },
+  story: { employment: { status: "retired", reason: "voluntary" }, ending: { id: "retired" } },
+  coach: { reputation: 50, age: 60, stints: [{ teamId: "LAL", startYear: 1998, seasons: 3, wins: 150, losses: 96, championships: 0 }] },
+});
+const snap = { birthplace: "Akron", grewUpIn: "Akron", representedCity: "Akron" };
+const rec = completionFromRoot(retiredRoot(snap));
+check("completion freezes the snapshot represented city", rec?.representedCity === "Akron");
+check("completion without a snapshot carries null, never invented", completionFromRoot(retiredRoot(null))?.representedCity === null);
+const museumModel = legacyMuseumFor({
+  playerIds: [],
+  careerCompletions: [
+    { ...rec, role: "COACH" },
+    { careerId: "c2", role: "GM", prestige: false, year: 2001, seasons: 3, championships: 0, tier: "solid", reason: "voluntary", at: 1700001000000 },
+  ],
+});
+check("museum model passes the city through", museumModel?.qualifications?.coach?.representedCity === "Akron");
+check("museum model reads an old record without the field as null", museumModel?.qualifications?.gm?.representedCity === null);
+check("[zh] museum line shows 创建时代表 Akron", museumCareerLine(museumModel.qualifications.coach, "zh").includes("创建时代表 Akron"));
+check("[en] museum line shows Represented Akron at creation", museumCareerLine(museumModel.qualifications.coach, "en").includes("Represented Akron at creation"));
+check("museum line omits the city for an old record", !museumCareerLine(museumModel.qualifications.gm, "zh").includes("创建时代表"));
 
 console.log(out.join("\n"));
 console.log(`${out.length - failures}/${out.length} passed`);

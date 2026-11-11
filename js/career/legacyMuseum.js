@@ -44,6 +44,10 @@ function careerEntry(entry) {
     championships: Number.isInteger(entry.championships) ? entry.championships : null,
     tier: typeof entry.tier === "string" ? entry.tier : null,
     reason: typeof entry.reason === "string" ? entry.reason : null,
+    // M4-D D3: the represented city frozen at career creation (M4-C
+    // snapshot, stamped onto the completion record by completionFromRoot).
+    // Old records carry no field and read as null — the view omits it.
+    representedCity: typeof entry.representedCity === "string" ? entry.representedCity : null,
     at: Number.isFinite(entry.at) ? entry.at : null,
   };
 }

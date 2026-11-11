@@ -44,8 +44,16 @@ test("legacyMuseumFor: unlocked account shows both qualifying careers with their
   assert.deepEqual(model.architectCareers, []);
 });
 
-test("legacyMuseumFor: unlock date is the earliest date both qualifications were held", () => {
+test("legacyMuseumFor: the creation-time represented city passes through; old records read as null (M4-D D3)", () => {
   const model = legacyMuseumFor(account([
+    { ...completion({ careerId: "c1", role: "COACH" }), representedCity: "阿克伦" },
+    completion({ careerId: "c2", role: "GM" }),
+  ]));
+  assert.equal(model.qualifications.coach.representedCity, "阿克伦");
+  assert.equal(model.qualifications.gm.representedCity, null);
+});
+
+test("legacyMuseumFor: unlock date is the earliest date both qualifications were held", () => {  const model = legacyMuseumFor(account([
     completion({ careerId: "c1", role: "COACH", at: 1700000000000 }),
     completion({ careerId: "c1b", role: "COACH", at: 1700000500000 }),
     completion({ careerId: "c2", role: "GM", at: 1700000200000 }),
@@ -158,8 +166,7 @@ test("legacyMuseumHtml: the tapped title's section is marked; other sections are
   assert.doesNotMatch(html, /is-selected[^>]*data-lm-title="dynasty-master"/);
 });
 
-test("museumCareerLine: missing fields render without invented values", () => {
-  const line = museumCareerLine({ careerId: "c9", role: "COACH", prestige: false, year: null, seasons: 2, championships: null, tier: null, reason: null, at: null }, "zh");
+test("museumCareerLine: missing fields render without invented values", () => {  const line = museumCareerLine({ careerId: "c9", role: "COACH", prestige: false, year: null, seasons: 2, championships: null, tier: null, reason: null, at: null }, "zh");
   assert.match(line, /教练生涯/);
   assert.match(line, /2 个赛季/);
   assert.doesNotMatch(line, /undefined|NaN|null/);
@@ -167,6 +174,21 @@ test("museumCareerLine: missing fields render without invented values", () => {
   assert.doesNotMatch(line, /球队|战绩|财富|身家/); // no team, no record, no wealth anywhere
   const empty = museumCareerLine({ careerId: "c9", role: "GM", prestige: false, year: null, seasons: null, championships: null, tier: null, reason: null, at: null }, "en");
   assert.match(empty, /Incomplete record/);
+});
+
+test("museumCareerLine: shows the creation-time represented city when present, omits it when missing (M4-D D3)", () => {
+  const base = { careerId: "c1", role: "COACH", prestige: false, year: 2001, seasons: 3, championships: 0, tier: "solid", reason: "voluntary", at: 1700000000000 };
+  const zh = museumCareerLine({ ...base, representedCity: "阿克伦" }, "zh");
+  assert.match(zh, /创建时代表 阿克伦/);
+  const en = museumCareerLine({ ...base, representedCity: "Akron" }, "en");
+  assert.match(en, /Represented Akron at creation/);
+  // Old record without the field: no line, no invented city.
+  const old = museumCareerLine({ ...base, representedCity: null }, "zh");
+  assert.doesNotMatch(old, /创建时代表/);
+  // Free-text city is escaped, never raw HTML.
+  const evil = museumCareerLine({ ...base, representedCity: "<b>Akron</b>" }, "en");
+  assert.match(evil, /&lt;b&gt;Akron&lt;\/b&gt;/);
+  assert.doesNotMatch(evil, /<b>Akron<\/b>/);
 });
 
 test("legacyMuseumHtml: an unknown unlock date says so instead of guessing one", () => {
