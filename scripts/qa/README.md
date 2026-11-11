@@ -45,3 +45,18 @@ Visual checks
 - `cdn.nba.com` can be unreachable from a sandbox while `curl` works; treat those tiles as "unverified", not "broken".
 - **Screenshot the element you are verifying, not the viewport.** A viewport shot of the draw page showed only the header; the gift message was below the fold and the check looked done when it was not.
 - `node --check` does not catch a missing export — one removed name would blank the whole app in the browser. Boot the real page after deleting exports.
+
+## Rule: whoever moves a UI entry point maintains the E2E that goes through it
+
+When a button, tab or screen changes (top-bar chip, My Team entry, lineup editor, ...), the change is not done until
+every browser flow that used the old entry runs green again against the new one. Do not ship a new-button check and
+leave the old end-to-end flow failing: a flow that is permanently red stops guarding anything.
+
+- Select what the player actually sees. When the same `data-act` exists on several screens, scope it to the active one
+  (`#screen-my-team-lineup.active [data-act="start-quick"]`), not the first DOM match, which may be hidden.
+- A modal covers the top bar. Close it (button, Escape) before clicking anything behind it.
+- Before trusting a QA run, check which tree the port serves (`lsof -p <pid> | grep cwd`): another worktree's server
+  on the same port will answer with old code and produce failures that are not yours. Use your own free port.
+- Tell a stale assumption from a product bug before touching an assertion. Fix the assumption, or fix the product, but
+  never delete or weaken a meaningful check to get green. (Shop QA found two real bugs this way: a frame class built
+  from the item id so no ring drew, and a stale-account save that erased season gold after using tickets.)

@@ -11266,10 +11266,13 @@ function useAutoPlayTickets(n) {
   const res = simSeasonGames(games);
   const used = res?.simmed || 0;
   if (used <= 0) return { ok: false, reason: "no-games-simmed" };
-  consumeAutoTickets(acc, used);
-  const xp = awardAutoGameXp(acc, used);
+  // The simulated games already wrote to the account (My Team season gold is saved per game), so `acc` read before the
+  // run is stale. Saving it would overwrite that gold with the old balance: re-read before touching tickets and XP.
+  const live = activeAccount() || acc;
+  consumeAutoTickets(live, used);
+  const xp = awardAutoGameXp(live, used);
   const wins = (res.reports || []).filter((r) => r?.won).length;
-  return { ok: true, simmed: used, wins, losses: used - wins, xpGames: xp.xpGames, gained: xp.gained, tickets: ticketBalance(acc), xpRemaining: autoXpRemaining(acc) };
+  return { ok: true, simmed: used, wins, losses: used - wins, xpGames: xp.xpGames, gained: xp.gained, tickets: ticketBalance(live), xpRemaining: autoXpRemaining(live) };
 }
 
 /** 「快速模拟本场」在季后赛阶段的对应物：只模拟我方当前系列赛的下一场，结果页复用和常规赛

@@ -70,6 +70,15 @@ export function equippedFrameId(account) {
   return account ? getShop(account).equippedFrame : null;
 }
 
+/**
+ * The CSS key of the equipped frame (`mw-frame-<key>` on the portrait), or null. NOT the item id: the item is
+ * "frame-champion-gold", its class key is the effect's frameId, "gold". Mixing the two renders no ring at all.
+ */
+export function equippedFrameClassKey(account) {
+  const id = equippedFrameId(account);
+  return (id && itemById(id)?.effect?.frameId) || null;
+}
+
 /** Auto-Play credits held. */
 export function ticketBalance(account) {
   return account ? getShop(account).tickets : 0;

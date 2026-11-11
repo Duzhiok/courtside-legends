@@ -5,7 +5,7 @@
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
-import { ownedFurnitureIds, ownedOutfitIds, equippedFrameId, equipShopItem, unequipShopItem } from "../data/shop.js";
+import { ownedFurnitureIds, ownedOutfitIds, equippedFrameClassKey, equipShopItem, unequipShopItem } from "../data/shop.js";
 import { defaultPresetId, lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
@@ -88,7 +88,7 @@ export function createMyWorld({
     } catch {
       frames = [];
     }
-    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameId(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account) }, lang);
+    el.innerHTML = myWorldHtml({ identity: readIdentity(account), games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account) }, lang);
     mountShowcaseViewer();
   }
 

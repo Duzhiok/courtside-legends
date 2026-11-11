@@ -32,7 +32,7 @@ const expectedGold = (page) => page.evaluate(async () => {
 });
 const openEditor = async (page) => {
   await page.click('.home-tab[data-category="players"]');
-  await page.click("#btn-open-my-lineup");
+  await page.click('.mtc-link[data-act="edit-lineup"]'); // the clubhouse "Edit lineup" link (the old standalone button is gone)
   await page.waitForSelector("#screen-my-team-lineup.active");
 };
 const confirmDialog = async (page, accept = true) => {
@@ -72,18 +72,18 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   // Pre-existing quick-season bytes: this feature must never touch them.
   await page.evaluate(() => localStorage.setItem("cls_season_v1", "QUICK-SEASON-SENTINEL"));
   await openEditor(page);
-  check(`[${tag}] start buttons enabled with a ready lineup`, await page.$eval('[data-act="start-quick"]', (b) => !b.disabled) && await page.$eval('[data-act="start-full"]', (b) => !b.disabled));
+  check(`[${tag}] start buttons enabled with a ready lineup`, await page.$eval('#screen-my-team-lineup.active [data-act="start-quick"]', (b) => !b.disabled) && await page.$eval('[data-act="start-full"]', (b) => !b.disabled));
   check(`[${tag}] no Continue before any season`, !(await page.$('[data-act="resume-season"]')));
   check(`[${tag}] lineup page: no overflow`, await noOverflow(page));
 
   // Cancelling the confirm creates nothing.
-  await page.click('[data-act="start-quick"]');
+  await page.click('#screen-my-team-lineup.active [data-act="start-quick"]');
   const msg = await confirmDialog(page, false);
   check(`[${tag}] confirm lists starters + length + lock`, msg.includes("首发") && msg.includes("20") && msg.includes("锁定"), msg.slice(0, 80));
   check(`[${tag}] cancelled: nothing written`, !(await slots(page)).cls_myteam_season_v1);
 
   // Start for real.
-  await page.click('[data-act="start-quick"]');
+  await page.click('#screen-my-team-lineup.active [data-act="start-quick"]');
   await confirmDialog(page, true);
   await page.waitForSelector("#screen-season.active #season-hub-panel:not([hidden])", { timeout: 15000 });
   const title = await text(page, "#season-hub-title");
@@ -112,10 +112,10 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] a played game paid gold (win 6 / loss 2) and matches the record`, g1 - g0 > 0 && g1 - g0 === (await expectedGold(page)), `${g0} -> ${g1}`);
   await reload(page);
   await openEditor(page);
-  const resumeLabel = await page.$eval('[data-act="resume-season"]', (b) => b.textContent.replace(/\s+/g, " ").trim()).catch(() => "");
+  const resumeLabel = await page.$eval('#screen-my-team-lineup.active [data-act="resume-season"]', (b) => b.textContent.replace(/\s+/g, " ").trim()).catch(() => "");
   check(`[${tag}] after reload the lineup page offers Continue with progress`, /\/20/.test(resumeLabel), resumeLabel);
   await shoot(page, `${OUT}/${tag}-lineup-resume.png`);
-  await page.click('[data-act="resume-season"]');
+  await page.click('#screen-my-team-lineup.active [data-act="resume-season"]');
   await page.waitForSelector("#screen-season.active #season-hub-panel:not([hidden])", { timeout: 15000 });
   const before = await played(page);
   check(`[${tag}] continuing keeps progress`, before >= 1 && /\/20/.test(await text(page, "#season-hub-meta")), `${before}`);
@@ -168,7 +168,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] reloading after the season paid nothing again`, (await accts(page))["QA 赛季"].gold === gEnd);
   await openEditor(page);
   if (await page.$('[data-act="resume-season"]')) {
-    await page.click('[data-act="resume-season"]');
+    await page.click('#screen-my-team-lineup.active [data-act="resume-season"]');
     await page.waitForSelector("#screen-season.active #season-hub-panel:not([hidden])", { timeout: 15000 });
     await page.waitForTimeout(600);
     check(`[${tag}] resuming the finished season paid nothing again`, (await accts(page))["QA 赛季"].gold === gEnd);

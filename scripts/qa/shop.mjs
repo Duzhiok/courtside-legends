@@ -3,6 +3,8 @@
 // clothing on the avatar, frame on the portrait, tickets simulate real games),
 // the Owned tab shows the room preview + recent purchases, purchases persist
 // across reload, and guests can browse but not buy.
+// Desktop + mobile (real touch taps on the phone). Every way out of the dialog is exercised: the gold X button
+// and Escape (the dialog has no backdrop-click close). A modal covers the top bar, so each step closes it first.
 // Desktop + mobile. Usage: node scripts/qa/shop.mjs /tmp/cls-qa/shop [http://127.0.0.1:5188/]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -47,7 +49,7 @@ const played = async (page) => page.evaluate(() => {
 
 const openEditor = async (page) => {
   await page.click('.home-tab[data-category="players"]');
-  await page.click("#btn-open-my-lineup");
+  await page.click('.mtc-link[data-act="edit-lineup"]'); // the clubhouse "Edit lineup" link (the old standalone button is gone)
   await page.waitForSelector("#screen-my-team-lineup.active");
 };
 const confirmDialog = async (page, accept = true) => {
@@ -58,20 +60,25 @@ const confirmDialog = async (page, accept = true) => {
   return msg;
 };
 const openShop = async (page) => {
-  await page.click("#btn-gold-chip");
+  await press(page, "#btn-gold-chip");
   await page.waitForSelector("#shop-dialog[open]", { timeout: 8000 });
 };
+let goldAfterTickets = 0; // balance right after the ticket run (season games may add gold)
+let touch = false; // set per viewport: the phone run closes and opens with real taps
+const press = (page, sel) => (touch ? page.tap(sel) : page.click(sel));
 const closeShop = async (page) => {
-  await page.click('#shop-dialog [data-shop-action="close"]');
+  await press(page, '#shop-dialog [data-shop-action="close"]');
   await page.waitForFunction(() => !document.querySelector("#shop-dialog").open);
 };
+const chipAmount = (page) => text(page, "#gold-chip-amt");
 const buySelected = async (page) => {
   await page.click('#shop-dialog [data-shop-action="buy"]');
   await page.click('#shop-dialog [data-shop-action="buy"]'); // two-step: arm, then confirm
 };
 
 for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobile", { width: 390, height: 844 }]]) {
-  const page = await browser.newPage({ viewport, hasTouch: tag === "mobile" });
+  touch = tag === "mobile";
+  const page = await browser.newPage({ viewport, hasTouch: touch });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("dialog", (d) => d.accept());
@@ -178,6 +185,10 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   check(`[${tag}] owned: sofa placed, midnight wearing`, ownedText.includes("已摆进房间") && ownedText.includes("穿着中"));
   const recentNames = await page.$$eval("#shop-dialog .shop-recent-list li", (els) => els.map((el) => el.textContent));
   check(`[${tag}] owned: recent purchases newest first (frame → cabinet)`, recentNames[0]?.includes("冠军金边头像框") && recentNames[recentNames.length - 1]?.includes("冠军奖杯柜"), recentNames.join(" | "));
+  const coveredByModal = await page.evaluate(() => { const c = document.querySelector("#btn-gold-chip").getBoundingClientRect(); const top = document.elementFromPoint(c.x + c.width / 2, c.y + c.height / 2); return !!top?.closest("#shop-dialog"); });
+  check(`[${tag}] while the shop is open the dialog (not the top bar) takes the click`, coveredByModal);
+  await closeShop(page);
+  check(`[${tag}] after closing, the gold chip is back and reads ¤1100 (frame bought last)`, (await chipAmount(page)) === "1100", await chipAmount(page));
 
   // 4) Tickets: buy both bundles, then use 5 inside a real 20-game season.
   await openShop(page);
@@ -193,9 +204,10 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   await page.click('#shop-dialog [data-shop-action="select-category"][data-category="home"]');
   check(`[${tag}] no duplicate buy: owned cabinet card says 已拥有`, (await text(page, "#shop-dialog")).includes("已拥有"));
   await closeShop(page);
+  check(`[${tag}] gold chip follows the spending: ¤650`, (await chipAmount(page)) === "650", await chipAmount(page));
 
   await openEditor(page);
-  await page.click('[data-act="start-quick"]');
+  await page.click('#screen-my-team-lineup.active [data-act="start-quick"]');
   await confirmDialog(page, true);
   await page.waitForSelector("#screen-season.active #season-hub-panel:not([hidden])", { timeout: 15000 });
   check(`[${tag}] season hub opens for the ticket use`, /0\/20/.test(await text(page, "#season-hub-meta")));
@@ -209,10 +221,13 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   const useText = await text(page, "#shop-dialog");
   check(`[${tag}] tickets: use reports real W-L and +25 XP`, /已托管 5 场：\d+ 胜 \d+ 负/.test(useText) && useText.includes("账号经验 +25"), useText.slice(0, 120));
   st = await shopState(page);
-  check(`[${tag}] tickets: 5 credits consumed, 20 left, gold untouched`, st.shop.tickets === 20 && st.gold === 650, `tickets ${st.shop.tickets}, gold ${st.gold}`);
+  // Tickets never cost gold, but the simulated My Team games pay season gold, and that must survive the ticket bookkeeping.
+  check(`[${tag}] tickets: 5 credits consumed, 20 left, gold never lower than before`, st.shop.tickets === 20 && st.gold >= 650, `tickets ${st.shop.tickets}, gold ${st.gold}`);
+  goldAfterTickets = st.gold;
   check(`[${tag}] tickets: XP delta is exactly +25 (5 × 5)`, st.totalXp - xpBefore === 25, `${xpBefore} → ${st.totalXp}`);
   check(`[${tag}] tickets: season really advanced 5 games`, (await played(page)) === 5, `played ${await played(page)}`);
   await closeShop(page);
+  check(`[${tag}] gold chip equals the stored balance after using tickets (no season gold lost to a stale save)`, (await chipAmount(page)) === String(goldAfterTickets) && (await shopState(page)).gold === goldAfterTickets, `chip ${await chipAmount(page)}, stored ${(await shopState(page)).gold}, expected ${goldAfterTickets}`);
   await shoot(page, `${OUT}/${tag}-shop-tickets.png`);
 
   // Persistence across reload.
@@ -220,13 +235,21 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   await page.click('.home-tab[data-category="world"]');
   st = await shopState(page);
   check(`[${tag}] reload: cabinet + outfit + frame + 20 tickets survive`, !!(await page.$('#my-world-root [data-furniture="trophy-cabinet"]')) && st.outfit === "midnight" && st.frame === "frame-champion-gold" && st.shop.tickets === 20, JSON.stringify(st.shop));
-  check(`[${tag}] reload: gold still ¤650`, st.gold === 650);
+  check(`[${tag}] reload: gold unchanged (${goldAfterTickets}) and the chip agrees`, st.gold === goldAfterTickets && (await chipAmount(page)) === String(goldAfterTickets), `stored ${st.gold}, chip ${await chipAmount(page)}`);
+  check(`[${tag}] reload: the equipped frame still draws its gold ring on the portrait`, !!(await page.$("#my-world-root .mw-portrait.mw-frame-gold")));
+  await openShop(page);
+  await page.click('#shop-dialog [data-shop-action="select-inventory"]');
+  const ownedAfter = await text(page, "#shop-dialog");
+  check(`[${tag}] reload: the Owned tab still shows sofa placed, midnight worn, frame on`, ownedAfter.includes("已摆进房间") && ownedAfter.includes("穿着中") && ownedAfter.includes("已戴上"), ownedAfter.replace(/\s+/g, " ").slice(0, 160));
+  await shoot(page, `${OUT}/${tag}-shop-owned-after-reload.png`);
+  await closeShop(page);
   check(`[${tag}] no page errors`, errors.length === 0, errors.slice(0, 3).join(" | "));
   await page.close();
 }
 
 // Guests browse but cannot buy.
 {
+  touch = false; // the guest page is a plain desktop page
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
