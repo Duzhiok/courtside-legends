@@ -89,6 +89,17 @@ const heroStat = (value, label) => (value == null ? "" : `<div class="mw-hero-st
 export function identityCardHtml(identity, lang, portrait = null, frame = null, extras = {}) {
   const name = identity.name || T(lang, "访客球员", "Guest player");
   const facts = identity.hometown ? `${T(lang, "来自", "From")} ${esc(identity.hometown)}` : T(lang, "家乡未填写", "Hometown not set");
+  // M4-A: the three structured identity places (ADR-004 D1). Only set ones are shown; the old hometown
+  // free text above is never derived from these and never overwritten by them.
+  const places = identity.identityPlaces || {};
+  const placeFacts = [
+    places.birthplace ? `${T(lang, "出生于", "Born in")} ${esc(places.birthplace)}` : "",
+    places.grewUpIn ? `${T(lang, "成长于", "Grew up in")} ${esc(places.grewUpIn)}` : "",
+    places.representedCity ? `${T(lang, "代表", "Representing")} ${esc(places.representedCity)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const placesHtml = placeFacts ? `<p class="mw-facts mw-places">${placeFacts}</p>` : "";
   const note = identity.guest
     ? `<p class="mw-note">${T(lang, "访客资料只保存在这台设备的浏览器里。创建账号后，在账号下重新编辑即可保存到账号。", "Guest profiles live only in this browser on this device. Create an account and edit again to keep it with the account.")}</p>`
     : "";
@@ -103,6 +114,7 @@ export function identityCardHtml(identity, lang, portrait = null, frame = null, 
       <p class="mw-hero-kicker">MY IDENTITY</p>
       <h3 id="mw-identity-title">${esc(name)}</h3>
       <p class="mw-facts">${facts}</p>
+      ${placesHtml}
       ${levelHtml(extras.level, lang)}
       <p class="mw-bio">${identity.bio ? esc(identity.bio) : T(lang, "还没有个人简介。写一句话介绍你的篮球人生。", "No bio yet. Write one line about your basketball life.")}</p>
     </div>
@@ -113,6 +125,9 @@ export function identityCardHtml(identity, lang, portrait = null, frame = null, 
     <form class="mw-form" id="mw-identity-form" hidden>
       <label>${T(lang, "昵称", "Display name")}<input name="name" maxlength="${PROFILE_LIMITS.name}" value="${esc(identity.name)}" /></label>
       <label>${T(lang, "家乡", "Hometown")}<input name="hometown" maxlength="${PROFILE_LIMITS.hometown}" value="${esc(identity.hometown)}" /></label>
+      <label>${T(lang, "出生地", "Birthplace")}<input name="birthplace" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.birthplace)}" /></label>
+      <label>${T(lang, "成长城市", "Grew up in")}<input name="grewUpIn" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.grewUpIn)}" /></label>
+      <label>${T(lang, "代表城市", "Representing")}<input name="representedCity" maxlength="${PROFILE_LIMITS.identityPlace}" value="${esc(places.representedCity)}" /></label>
       <label>${T(lang, "个人简介", "Bio")}<textarea name="bio" rows="2" maxlength="${PROFILE_LIMITS.bio}">${esc(identity.bio)}</textarea></label>
       <div class="btn-row">
         <button type="submit" class="btn small mw-gold">${T(lang, "保存", "Save")}</button>

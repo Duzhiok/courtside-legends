@@ -203,6 +203,46 @@ test("hero: the way back to an illustration is offered only while the 3D picture
   assert.match(en, /Use an illustration/);
 });
 
+test("M4-A: identity form edits the three places; hero shows only the set ones, hometown stays separate", () => {
+  const places = { birthplace: "上海", grewUpIn: "南京", representedCity: "洛杉矶" };
+  const id = { name: "A", hometown: "苏州", bio: "", guest: false, identityPlaces: places };
+  const html = view.identityCardHtml(id, "zh");
+  for (const [field, value] of Object.entries(places)) {
+    assert.match(html, new RegExp(`<input name="${field}" maxlength="40" value="${value}"`));
+  }
+  assert.match(html, /出生于 上海 · 成长于 南京 · 代表 洛杉矶/);
+  assert.match(html, /来自 苏州/, "hometown line is untouched by the places");
+  const en = view.identityCardHtml({ ...id, hometown: "Suzhou", identityPlaces: { birthplace: "Shanghai", grewUpIn: "Nanjing", representedCity: "Los Angeles" } }, "en");
+  assert.doesNotMatch(en, CJK);
+  assert.match(en, /Born in Shanghai · Grew up in Nanjing · Representing Los Angeles/);
+  assert.match(en, /Birthplace|Grew up in|Representing/);
+  // Partial: only the set place is shown; none set: no places line at all, empty inputs.
+  const partial = view.identityCardHtml({ ...id, identityPlaces: { birthplace: "上海", grewUpIn: null, representedCity: null } }, "zh");
+  assert.match(partial, /出生于 上海/);
+  assert.doesNotMatch(partial, /成长于|代表 /);
+  const none = view.identityCardHtml({ name: "A", hometown: "", bio: "", guest: false }, "zh");
+  assert.doesNotMatch(none, /mw-places/);
+  assert.match(none, /<input name="birthplace" maxlength="40" value=""/);
+});
+
+test("M4-A: a form-shaped saveIdentity patch persists places, and clearing all three drops them but keeps hometown", () => {
+  fresh();
+  const a = acc.createAccount("阿尔法");
+  const saved = saveIdentity(acc.getAccount(a.id), {
+    name: "Zoro",
+    hometown: "Arkansas",
+    bio: "",
+    identityPlaces: { birthplace: "Little Rock", grewUpIn: "Fayetteville", representedCity: "Chicago" },
+  });
+  assert.deepEqual(saved.identityPlaces, { birthplace: "Little Rock", grewUpIn: "Fayetteville", representedCity: "Chicago" });
+  assert.equal(acc.getAccount(a.id).profile.hometown, "Arkansas");
+  const cleared = saveIdentity(acc.getAccount(a.id), {
+    identityPlaces: { birthplace: "  ", grewUpIn: "", representedCity: null },
+  });
+  assert.equal(cleared.identityPlaces, undefined, "all-empty places are absent, not stored as nulls");
+  assert.equal(acc.getAccount(a.id).profile.hometown, "Arkansas", "clearing places never touches hometown");
+});
+
 test("home scene renders owned furniture in the real room (cabinet + new pieces), skips unknown ids", () => {
   const html = view.homeSceneHtml({ identity: { name: "Zoro" }, frames: [], trophyCount: 0, furniture: ["trophy-cabinet", "sofa", "rug", "no-such-piece"] }, "zh");
   assert.match(html, /data-furniture="trophy-cabinet"/, "cabinet still renders");

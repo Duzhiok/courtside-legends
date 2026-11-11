@@ -427,6 +427,13 @@ export function createMyWorld({
       name: data.get("name"),
       hometown: data.get("hometown"),
       bio: data.get("bio"),
+      // M4-A: the three identity places ride the existing saveIdentity path (40-char cap, empty -> null);
+      // the old hometown free text is a separate field and is never derived from these.
+      identityPlaces: {
+        birthplace: data.get("birthplace"),
+        grewUpIn: data.get("grewUpIn"),
+        representedCity: data.get("representedCity"),
+      },
     });
     if (!saved.saved) {
       say(event.target.querySelector(".mw-status"), "这台设备不允许保存（浏览器存储被关闭）。", "This device can't save (browser storage is disabled).");
