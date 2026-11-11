@@ -354,8 +354,11 @@ def street():
          caps=(False, False))
     for s, sx, el in (("L", 1, ELBOW_L), ("R", -1, ELBOW_R)):
         sh = Vector((sx * 0.228, 0, 1.51))
-        o = tube(f"Outfit_Sleeve{s}", [sh + Vector((-sx * 0.030, 0, 0.0)), sh.lerp(el, 0.3), sh.lerp(el, 0.55)],
-                 [.070, .069, .064], M["shirt"], f"UpperArm.{s}", seg=24, caps=(False, False))
+        # The tee's shoulder line passes ~z1.54 at this x. A first ring centred on the joint with r.07 pokes 4 cm above it
+        # (the "horn"); start lower and tuck the open first ring inside the torso so it is hidden; the radius grows so the top stays flush.
+        o = tube(f"Outfit_Sleeve{s}", [sh.lerp(el, 0.14) + Vector((-sx * 0.085, 0, 0.012)), sh.lerp(el, 0.26), sh.lerp(el, 0.42),
+                                      sh.lerp(el, 0.58)],
+                 [.060, .068, .069, .064], M["shirt"], f"UpperArm.{s}", seg=24, caps=(False, False))
         solidify(o, 0.008)
     # headband over the hair line
     tube("Outfit_Headband", [(0, 0.004, 1.868), (0, 0.006, 1.894)], [(.116, .128), (.112, .124)], M["trim"], "Head",
@@ -364,8 +367,10 @@ def street():
 
 
 def shorts(long):
-    hip = lathe_z("Outfit_ShortsHip", [(1.085, .198, .130, 0), (1.00, .208, .136, 0), (0.92, .210, .136, 0)],
-                  M["pants"], "Hips", seg=36)
+    # The skirt reaches down to z.80 so the thigh tubes' open tops sit INSIDE it: when a clip pitches the thigh forward
+    # (jump, run, sit) there is no slit between the waist piece and the leg.
+    hip = lathe_z("Outfit_ShortsHip", [(1.085, .198, .130, 0), (1.00, .200, .132, 0), (0.92, .214, .138, 0),
+                                       (0.80, .208, .136, 0)], M["pants"], "Hips", seg=36)
     solidify(hip, 0.010)
     for s, (hp, kn, an) in LEG.items():
         top = Vector((hp[0] * 1.0, hp[1], 0.95))   # starts under the jersey hem, never wider than it
@@ -377,10 +382,15 @@ def shorts(long):
             tube(f"Outfit_ShortsTrim{s}", [kn + Vector((0, 0, 0.077)), kn + Vector((0, 0, 0.098))], [.1405, .1395],
                  M["trim"], f"UpperLeg.{s}", seg=30, caps=(False, False))
         else:          # tapered joggers to the ankle, cuffed
-            # one seamless tube: legs presets scale UpperLeg and LowerLeg identically and the idle clip never moves legs
-            o = tube(f"Outfit_Pants{s}", [top, top.lerp(kn, 0.5), kn, kn.lerp(an, 0.5), an + Vector((0, 0, 0.04))],
-                     [.102, .100, .090, .080, .066], M["pants"], f"UpperLeg.{s}", seg=28, caps=(False, False))
+            # Thigh and shin are separate tubes on their own bones (clips bend the knee), joined by a knee ball that
+            # hides the bend; at rest the three read as one continuous leg.
+            o = tube(f"Outfit_PantsThigh{s}", [top, top.lerp(kn, 0.5), kn], [.102, .100, .090], M["pants"], f"UpperLeg.{s}",
+                     seg=28, caps=(False, False))
             solidify(o, 0.008)
+            o = tube(f"Outfit_PantsShin{s}", [kn + Vector((0, 0, 0.03)), kn.lerp(an, 0.5), an + Vector((0, 0, 0.04))],
+                     [.090, .080, .066], M["pants"], f"LowerLeg.{s}", seg=28, caps=(False, False))
+            solidify(o, 0.008)
+            ell(f"Outfit_PantsKnee{s}", kn, (0.094, 0.094, 0.094), M["pants"], f"LowerLeg.{s}", seg=28, rings=16)
             tube(f"Outfit_Cuff{s}", [an + Vector((0, 0, 0.02)), an + Vector((0, 0, 0.05))], [.062, .064], M["trim"],
                  f"LowerLeg.{s}", seg=24, caps=(False, False))
 
@@ -442,15 +452,16 @@ for s, (hp, kn, an) in LEG.items():
         rot=(math.radians(14), 0, turn[2]))
 # ---- basketball resting on the left palm ------------------------------------------------------------------
 ball_c = BALL_C
-ell("Ball", ball_c, (0.121, 0.121, 0.121), M["ball"], "Prop", seg=40, rings=24, sub=0)
+ell("Prop_Ball", ball_c, (0.121, 0.121, 0.121), M["ball"], "Prop", seg=40, rings=24, sub=0)
 for i, rot in enumerate(((math.radians(90), 0, 0), (0, math.radians(90), 0), (0, 0, 0))):
     bpy.ops.mesh.primitive_torus_add(major_radius=0.1215, minor_radius=0.0028, major_segments=64, minor_segments=8,
                                      location=ball_c, rotation=rot)
     t = bpy.context.active_object
-    t.name = f"Seam{i}"
+    t.name = f"Prop_Seam{i}"
     finish(t, M["seam"], "Prop")
 bpy.ops.mesh.primitive_torus_add(major_radius=0.0865, minor_radius=0.0028, major_segments=48, minor_segments=8,
                                  location=ball_c + Vector((0, 0, 0.086)), rotation=(0, 0, 0))
+bpy.context.active_object.name = "Prop_SeamEq"
 finish(bpy.context.active_object, M["seam"], "Prop")
 
 # ---- bind: one vertex group per part (rigid skinning, so Shoulder/Torso/Head scale presets just work) -------
@@ -488,18 +499,23 @@ for bone, amp in (("Torso", (1.4, 0, 0)), ("Head", (-0.8, 0.0, 0)), ("UpperArm.R
     key(bone, FR + 1, (0, 0, 0))
 key("Head", 12, (0, 4.0, 0))
 key("Head", 36, (0, -4.0, 0))
-for bone in ("Head",):
-    for fc in act.fcurves if hasattr(act, "fcurves") else []:
-        pass
 scene.frame_start, scene.frame_end = 1, FR + 1
 bpy.ops.object.mode_set(mode="OBJECT")
 for pb in arm.pose.bones:
     pb.rotation_euler = (0, 0, 0)
+# the shared animation library (scripts/avatar/stylized_clips.py): same clips on the same rig for every outfit
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import stylized_clips  # noqa: E402
+import stylized_merge  # noqa: E402
+import stylized_props  # noqa: E402
+print("clips", stylized_clips.build_all(bpy, arm, SK, idle=act))
 
 # ---- report: bone axes sanity (Shoulder local X should be world X) ----------------------------------------
 for n in ("Shoulder.L", "Torso", "UpperArm.L"):
     mx = arm.data.bones[n].matrix_local.to_3x3()
     print("axes", n, [tuple(round(c, 2) for c in mx.col[i]) for i in range(3)])
+
+seat = stylized_props.make_seat(bpy, mat("Seat", "#7a5230", 0.75))
 
 # ---- stage ------------------------------------------------------------------------------------------------
 bpy.ops.mesh.primitive_plane_add(size=14, location=(0, 0, -0.001))
@@ -551,31 +567,33 @@ for vt in ("Khronos PBR Neutral", "AgX", "Standard"):
     except TypeError:
         continue
 
-VIEWS = {"front": 0, "three_quarter": 32, "side": 90, "back": 180, "face": 0}
+VIEWS = {"front": 0, "three_quarter": 32, "side": 90, "back": 180, "face": 0, "shoulder": 0}
 for name in [v for v in args.views.split(",") if v]:
+    clip = name.startswith("clip:")
+    if clip:   # clip:<Action>:<frame>[:<yaw deg>] poses the rig and renders it from the three-quarter angle, framed wider
+        _, cname, cframe, *yaw = name.split(":")
+        arm.animation_data.use_nla, arm.animation_data.action = False, bpy.data.actions[cname]
+        scene.frame_set(int(cframe))
+        VIEWS[name] = int(yaw[0]) if yaw else 32
+        seat.hide_render = cname != "Stylized_Sit"
     a = math.radians(VIEWS[name])
-    if name == "face":
+    if clip:
+        cam.location, look_at.location = (math.sin(a) * 6.4, -math.cos(a) * 6.4, 1.3), (0, 0, 1.05)
+        cam_d.lens = 85
+    elif name == "face":
         cam.location, look_at.location = (0.0, -1.35, 1.80), (0, 0, 1.79)
+        cam_d.lens = 110
+    elif name == "shoulder":
+        cam.location, look_at.location = (0.95, -1.5, 1.62), (0.18, 0, 1.48)
         cam_d.lens = 110
     else:
         d = 5.3
         cam.location = (math.sin(a) * d, -math.cos(a) * d, 1.15)
         look_at.location = (0, 0, 0.99)
         cam_d.lens = 85
-    scene.render.filepath = os.path.join(args.out, f"stylized_{name}.png")
+    scene.render.filepath = os.path.join(args.out, f"stylized_{name.replace(':', '_')}.png")
     bpy.ops.render.render(write_still=True)
     print("rendered", scene.render.filepath)
 
 if not args.no_glb:
-    try:
-        bpy.ops.preferences.addon_enable(module="io_scene_gltf2")
-    except Exception as e:  # noqa: BLE001
-        print("gltf addon enable:", e)
-    for o in list(bpy.data.objects):
-        if o.name in ("Cam", "LookAt") or o.type in ("LIGHT", "CAMERA") or o.name.startswith("Plane"):
-            bpy.data.objects.remove(o, do_unlink=True)
-    glb = args.glb or os.path.join(args.out, "stylized.glb")
-    os.makedirs(os.path.dirname(os.path.abspath(glb)), exist_ok=True)
-    bpy.ops.export_scene.gltf(filepath=glb, export_format="GLB", export_yup=True, export_animations=True,
-                              export_apply=False, export_skins=True)
-    print("exported", glb, os.path.getsize(glb))
+    stylized_merge.export_glb(bpy, args.glb or os.path.join(args.out, "stylized.glb"))

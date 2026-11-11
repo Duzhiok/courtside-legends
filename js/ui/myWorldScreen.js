@@ -385,6 +385,7 @@ export function createMyWorld({
     "use-3d-portrait": use3dPortrait,
     "use-preset-portrait": usePresetPortrait,
     "pick-photo": () => el.querySelector("#mw-photo-input")?.click(),
+    "avatar-action-celebrate": () => playPreview("celebrate"),
     "avatar-action-clap": () => playPreview("clap"),
     "avatar-action-jump": () => playPreview("jump"),
     "avatar-action-run": () => playPreview("run"),

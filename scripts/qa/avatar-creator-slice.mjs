@@ -68,7 +68,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] 3D figure loaded`, (await page.locator("#mw-look-stage canvas").count()) === 1);
   check(`[${tag}] three build presets offered`, (await page.$$eval('input[name="mw-look-body"]', (r) => r.length)) === 3);
   check(`[${tag}] default build is standard`, (await lookOf(page)).body === "standard");
-  check(`[${tag}] four preview actions offered, all enabled once the figure loads`, (await page.$$eval('[data-mw-action^="avatar-action-"]', (b) => b.filter((x) => !x.disabled).length)) === 4
+  check(`[${tag}] five preview actions offered, all enabled once the figure loads`, (await page.$$eval('[data-mw-action^="avatar-action-"]', (b) => b.filter((x) => !x.disabled).length)) === 5
     && !(await page.$eval('[data-mw-action="avatar-idle"]', (b) => b.disabled)));
 
   // A. body presets: applied (dataset + saved), and visibly different on screen.
@@ -94,7 +94,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   // B. animations: each action switches the figure (dataset + pixels), Stand returns to idle.
   await pickBody(page, "standard");
   const idleShot = await stageShot(page);
-  for (const [id, label] of [["clap", "Cheer"], ["jump", "Jump"], ["run", "Run"], ["sit", "Sit"]]) {
+  for (const [id, label] of [["celebrate", "Celebrate"], ["clap", "Clap"], ["jump", "Jump"], ["run", "Run"], ["sit", "Sit"]]) {
     await page.click(`[data-mw-action="avatar-action-${id}"]`);
     await page.waitForFunction((want) => document.querySelector("#mw-look-stage canvas").dataset.action === want, id, { timeout: 5000 });
     check(`[${tag}] ${label} starts (canvas reports the action)`, (await actionOf(page)) === id);

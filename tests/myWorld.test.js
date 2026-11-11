@@ -96,7 +96,7 @@ test("every rendered action button has a handler; user text is escaped; English 
   const evil = { name: "<img src=x onerror=1>", hometown: "\"><script>", bio: "&", guest: false };
   const html = view.myWorldHtml({ identity: evil, journey: view.journeyFromRoot(root(1)), legacy: view.legacyFromAccount({ playerIds: [] }), frames: [] }, "zh");
   assert.doesNotMatch(html, /<img src=x|<script>/);
-  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "open-shop", "open-home", "clear-stars", "use-3d-portrait", "use-preset-portrait", "pick-photo", "toggle-look", "avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle", "toggle-level-track", "claim-level-reward", "showcase-figure", "equip-owned", "unequip-owned"];
+  const known = ["edit-identity", "cancel-identity", "resume-career", "start-career", "open-collection", "open-accounts", "open-shop", "open-home", "clear-stars", "use-3d-portrait", "use-preset-portrait", "pick-photo", "toggle-look", "avatar-action-celebrate", "avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle", "toggle-level-track", "claim-level-reward", "showcase-figure", "equip-owned", "unequip-owned"];
   const handlerSource = (await import("node:fs")).readFileSync(new URL("../js/ui/myWorldScreen.js", import.meta.url), "utf8");
   for (const [, name] of html.matchAll(/data-mw-action="([^"]+)"/g)) {
     assert.ok(known.includes(name), name);

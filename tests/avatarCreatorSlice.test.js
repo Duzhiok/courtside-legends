@@ -110,7 +110,8 @@ test("findActionClip matches the model's own clips exactly, never a look-alike",
   assert.equal(findActionClip(clips, "dance"), null, "no such action");
   assert.equal(findActionClip([], "clap"), null);
   assert.equal(findActionClip(clips, "idle"), null, "idle is not a preview action");
-  assert.deepEqual(AVATAR_ACTIONS.map((a) => a.id), ["clap", "jump", "run", "sit"]);
+  assert.deepEqual(AVATAR_ACTIONS.map((a) => a.id), ["celebrate", "clap", "jump", "run", "sit"]);
+  assert.equal(findActionClip(clips, "celebrate")?.name, "HumanArmature|Man_Clapping", "the Man model has no celebrate clip: it cheers instead");
   for (const a of AVATAR_ACTIONS) {
     assert.ok(findActionClip(clips, a.id), `${a.id} has a clip in the model`);
     assert.match(a.zh, /\S/);
@@ -124,7 +125,7 @@ test("the panel shows the build group and the action row; actions start disabled
   assert.equal(checked.length, 1, "exactly one build checked");
   assert.match(html, /value="broad" checked/);
   assert.match(html, /Build/);
-  for (const action of ["avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle"]) {
+  for (const action of ["avatar-action-celebrate", "avatar-action-clap", "avatar-action-jump", "avatar-action-run", "avatar-action-sit", "avatar-idle"]) {
     assert.match(html, new RegExp(`data-mw-action="${action}" disabled`), `${action} starts disabled`);
   }
   assert.match(html, /Preview actions/);
