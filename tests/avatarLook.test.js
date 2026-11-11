@@ -16,7 +16,7 @@ const fresh = () => {
 test("sanitizeLook whitelists every field and falls back per field, never throwing on junk", () => {
   assert.deepEqual(look.sanitizeLook(undefined), look.DEFAULT_LOOK);
   assert.deepEqual(look.sanitizeLook("nope"), look.DEFAULT_LOOK);
-  assert.deepEqual(look.sanitizeLook({ skin: "deep", hair: "<script>", outfit: 7 }), { skin: "deep", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized" });
+  assert.deepEqual(look.sanitizeLook({ skin: "deep", hair: "<script>", outfit: 7 }), { skin: "deep", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized", cut: "jersey" });
   assert.deepEqual(look.sanitizeLook({ skin: "__proto__", hair: "constructor", style: "mohawk" }), look.DEFAULT_LOOK);
   assert.equal(look.sanitizeLook({ style: "shaved" }).style, "shaved");
   assert.ok(look.HAIR_STYLES.length >= 2, "at least two hairstyles");
@@ -25,7 +25,7 @@ test("sanitizeLook whitelists every field and falls back per field, never throwi
 test("lookColors maps every preset to hex colours for exactly the four recolourable materials", () => {
   for (const skin of look.SKIN_TONES) for (const outfit of look.OUTFITS) {
     const colors = look.lookColors({ skin: skin.id, outfit: outfit.id });
-    assert.deepEqual(Object.keys(colors).sort(), ["Hair", "Pants", "Shirt", "Skin"]);
+    assert.deepEqual(Object.keys(colors).sort(), ["Hair", "Pants", "Shirt", "Skin", "Trim"]);
     for (const hex of Object.values(colors)) assert.match(hex, /^#[0-9a-f]{6}$/i);
     assert.equal(colors.Skin, skin.hex);
     assert.equal(colors.Shirt, outfit.shirt);
@@ -43,7 +43,7 @@ test("a signed-in look persists on the account across a reload and never reaches
   const res = look.saveLook(acc.getAccount(a.id), { hair: "red", outfit: "royal" });
   assert.equal(res.saved, true);
   const reloaded = acc.getAccount(a.id);
-  assert.deepEqual(look.readLook(reloaded), { skin: "warm", hair: "red", outfit: "royal", style: "short", body: "standard", figure: "stylized" });
+  assert.deepEqual(look.readLook(reloaded), { skin: "warm", hair: "red", outfit: "royal", style: "short", body: "standard", figure: "stylized", cut: "jersey" });
   assert.equal(reloaded.gold, 321, "nothing else on the account changes");
   assert.deepEqual(look.readLook(acc.getAccount(b.id)), look.DEFAULT_LOOK, "other account untouched");
   assert.equal(localStorage.getItem(look.GUEST_LOOK_KEY), null);
@@ -53,7 +53,7 @@ test("a signed-in look persists on the account across a reload and never reaches
 test("a guest look lives in one local key; a corrupt value or blocked storage degrades safely", () => {
   fresh();
   assert.equal(look.saveLook(null, { skin: "tan" }).saved, true);
-  assert.deepEqual(look.readLook(null), { skin: "tan", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized" });
+  assert.deepEqual(look.readLook(null), { skin: "tan", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized", cut: "jersey" });
   localStorage.setItem(look.GUEST_LOOK_KEY, "{not json");
   assert.deepEqual(look.readLook(null), look.DEFAULT_LOOK);
   const blocked = { getItem() { throw new Error("denied"); }, setItem() { throw new Error("denied"); } };
@@ -68,7 +68,7 @@ test("a hand-edited account.avatar cannot smuggle values past the whitelist", ()
   const a = acc.createAccount("x");
   a.avatar = { skin: "red\"onerror=1", hair: "gray", outfit: "<img>" };
   acc.saveAccount(a);
-  assert.deepEqual(look.readLook(acc.getAccount(a.id)), { skin: "warm", hair: "gray", outfit: "forest", style: "short", body: "standard", figure: "stylized" });
+  assert.deepEqual(look.readLook(acc.getAccount(a.id)), { skin: "warm", hair: "gray", outfit: "forest", style: "short", body: "standard", figure: "stylized", cut: "jersey" });
 });
 
 test("the panel has one checked radio per group, named swatches in both languages, and no fake controls (hairstyles included)", () => {

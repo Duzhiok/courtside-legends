@@ -287,14 +287,18 @@ export function createMyWorld({
     const saved = saveLook(getAccount(), { [group]: input.value });
     const status = el.querySelector("#mw-look-status");
     if (!saved.saved) return say(status, "这台设备不允许保存（浏览器存储被关闭），外观只在这次打开期间有效。", "This device can't save (browser storage is disabled); the look only lasts while this page is open.");
-    viewer?.setLook(saved);
-    // A 3D portrait follows the look: retake it now (the figure is on screen). If it can't be retaken the old picture
-    // is already hidden by its signature, so it never shows an avatar that no longer looks like this.
-    if (readPortrait(getAccount())?.source === "3d" && viewer?.capturePortrait) {
-      const image = viewer.capturePortrait();
-      if (image) savePortrait(getAccount(), { source: "3d", image, sig: lookSignature(readLook(getAccount())) });
-    }
-    paintPortrait();
+    // A 3D portrait follows the look: retake it once the figure shows it (a cut / style change loads another model, so
+    // setLook can resolve later). If it can't be retaken the old picture is already hidden by its signature, so it
+    // never shows an avatar that no longer looks like this.
+    const retake = () => {
+      if (readPortrait(getAccount())?.source === "3d" && viewer?.capturePortrait) {
+        const image = viewer.capturePortrait();
+        if (image) savePortrait(getAccount(), { source: "3d", image, sig: lookSignature(readLook(getAccount())) });
+      }
+      paintPortrait();
+    };
+    const painting = viewer?.setLook(saved);
+    if (painting?.then) painting.then(retake, retake); else retake();
     say(status, "已保存。", "Saved.");
   }
 

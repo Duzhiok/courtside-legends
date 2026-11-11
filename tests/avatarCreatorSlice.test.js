@@ -79,7 +79,7 @@ test("appearance-only lock: changing build/height never touches any other accoun
     assert.equal(res.saved, true);
     assert.equal(res.body, body);
     assert.deepEqual(snap(acc.getAccount(a.id)), before, `nothing but avatar changes for ${body}`);
-    assert.deepEqual(Object.keys(acc.getAccount(a.id).avatar).sort(), ["body", "figure", "hair", "outfit", "skin", "style"], "avatar holds exactly the six whitelisted fields");
+    assert.deepEqual(Object.keys(acc.getAccount(a.id).avatar).sort(), ["body", "cut", "figure", "hair", "outfit", "skin", "style"], "avatar holds exactly the seven whitelisted fields");
   }
   const after = acc.getAccount(a.id);
   assert.equal(after.gold, 321, "gold untouched");

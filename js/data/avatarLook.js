@@ -105,7 +105,25 @@ export function bodyBoneScales(presetId, figureId = "stylized") {
   return { height: p.height * f.height, bones };
 }
 
-export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized" });
+/**
+ * Garment cut of the Stylized figure. Each cut is its own modelled outfit (different meshes, not a recolour), built by
+ * scripts/avatar/build_stylized.py into assets/avatar3d/stylized_<id>.glb. The colours still come from OUTFITS.
+ */
+export const OUTFIT_CUTS = Object.freeze([
+  { id: "jersey", zh: "球衣短裤", en: "Jersey & shorts" },
+  { id: "street", zh: "街头 T 恤", en: "Street tee & joggers" },
+]);
+
+export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized", cut: "jersey" });
+
+/**
+ * Pure: which GLB in assets/avatar3d draws this look. Stylized has one model per cut; Bobblehead is still the bone-scaled
+ * shared model until its own GLB lands.
+ */
+export function avatarModelFile(look) {
+  const l = sanitizeLook(look);
+  return l.figure === "bobblehead" ? "man.glb" : `stylized_${l.cut}.glb`;
+}
 
 const pick = (list, id, fallback) => (list.some((item) => item.id === id) ? id : fallback);
 
@@ -119,7 +137,22 @@ export function sanitizeLook(raw) {
     style: pick(HAIR_STYLES, r.style, DEFAULT_LOOK.style),
     body: pick(BODY_PRESETS, r.body, DEFAULT_LOOK.body),
     figure: pick(FIGURE_STYLES, r.figure, DEFAULT_LOOK.figure),
+    cut: pick(OUTFIT_CUTS, r.cut, DEFAULT_LOOK.cut),
   };
+}
+
+const INK_LIGHT = "#f4f4f0";
+const INK_DARK = "#1e2a44";
+const luminance = (hex) => {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => lin(c / 255));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+/** Pure: the trim / number colour that reads best on a shirt colour (light or dark ink, whichever contrasts more). */
+export function trimInk(shirtHex) {
+  return contrast(shirtHex, INK_LIGHT) >= contrast(shirtHex, INK_DARK) ? INK_LIGHT : INK_DARK;
 }
 
 /** Model material name -> hex, for the renderer. */
@@ -133,6 +166,7 @@ export function lookColors(look) {
     Hair: l.style === "shaved" ? SKIN_TONES.find((s) => s.id === l.skin).hex : HAIR_COLORS.find((h) => h.id === l.hair).hex,
     Shirt: outfit.shirt,
     Pants: outfit.pants,
+    Trim: trimInk(outfit.shirt), // jersey number, hems, socks bands; models without a Trim material just ignore it
   };
 }
 

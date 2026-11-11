@@ -6,7 +6,7 @@
 import { avatarDataUri } from "../data/avatarArt.js";
 import { PORTRAIT_PRESETS } from "../data/avatarPortrait.js";
 import { presetPortraitUri } from "./avatarPortraitArt.js";
-import { BODY_PRESETS, FIGURE_STYLES, HAIR_COLORS, HAIR_STYLES, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
+import { BODY_PRESETS, FIGURE_STYLES, HAIR_COLORS, HAIR_STYLES, OUTFIT_CUTS, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
 import { AVATAR_ACTIONS } from "./avatar3d.js";
 
 const esc = (value) =>
@@ -18,7 +18,8 @@ const GROUPS = [
   { key: "skin", zh: "肤色", en: "Skin", items: SKIN_TONES, swatch: (i) => i.hex },
   { key: "style", zh: "发型", en: "Hairstyle", items: HAIR_STYLES, swatch: null },
   { key: "hair", zh: "发色", en: "Hair", items: HAIR_COLORS, swatch: (i) => i.hex },
-  { key: "outfit", zh: "服装", en: "Outfit", items: OUTFITS, swatch: (i) => `linear-gradient(135deg, ${i.shirt} 50%, ${i.pants} 50%)` },
+  { key: "cut", zh: "服装款式", en: "Outfit cut", items: OUTFIT_CUTS, swatch: null },
+  { key: "outfit", zh: "服装配色", en: "Outfit colours", items: OUTFITS, swatch: (i) => `linear-gradient(135deg, ${i.shirt} 50%, ${i.pants} 50%)` },
   { key: "body", zh: "体型", en: "Build", items: BODY_PRESETS, swatch: null },
 ];
 
