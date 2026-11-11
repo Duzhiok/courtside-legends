@@ -12444,6 +12444,7 @@ async function boot() {
       // M4-C: the view snapshots the account's identity places when a
       // Reborn career is created; injected like the other views' getAccount.
       getAccount: activeAccount,
+      saveAccount,
     });
     // Career Relationships dev entry (workstream E): the relationships /
     // promises / legacy panel for the active account. ?relationships=1
@@ -12468,6 +12469,8 @@ async function boot() {
       writeRootSave,
       show,
       goBack,
+      getAccount: activeAccount,
+      saveAccount,
     });
     // GM Executive Dynasty dev entry (workstream F): ?gm-business=1 opens the
     // three-season business scenario after boot.

@@ -46,6 +46,8 @@
  * record and the state snapshot the caller passes in.
  */
 
+import { PROMISE_EFFECTS } from "./promiseEffects.js";
+
 export const RELATIONSHIP_KINDS = ["rivalry", "mentorship", "coaching-trust", "management", "owner"];
 export const PROMISE_KINDS = ["minutes", "role", "start", "trade", "contract"];
 export const PROMISE_STATUSES = ["open", "fulfilled", "broken"];
@@ -56,10 +58,10 @@ export const ROLE_RANK = { dnp: 0, garbage: 1, bench: 2, rotation: 3, starter: 4
 
 /** Promise effects. Sized like a single game's trust swing (trust.js
  * bounds one game to -5..+7) so one promise never swings a season. */
-export const PROMISE_TRUST_FULFILLED = 3;
-export const PROMISE_TRUST_BROKEN = -5;
-export const PROMISE_REL_FULFILLED = 8;
-export const PROMISE_REL_BROKEN = -12;
+export const PROMISE_TRUST_FULFILLED = PROMISE_EFFECTS.relationship.fulfilled.trust;
+export const PROMISE_TRUST_BROKEN = PROMISE_EFFECTS.relationship.broken.trust;
+export const PROMISE_REL_FULFILLED = PROMISE_EFFECTS.relationship.fulfilled.relationship;
+export const PROMISE_REL_BROKEN = PROMISE_EFFECTS.relationship.broken.relationship;
 /** Negotiation standing: one step per net kept/broken promise, capped. */
 export const NEGOTIATION_STEP = 1;
 export const NEGOTIATION_CAP = 2;
@@ -379,11 +381,13 @@ export function resolveDuePromises(account, state = {}) {
   const resolved = [];
   for (const promise of store.promises) {
     if (promise.status !== "open") continue;
-    const outcome = evaluatePromise(promise, state);
+    // `state` may be a function so each promise is judged over its own window.
+    const outcome = evaluatePromise(promise, typeof state === "function" ? state(promise) : state);
     if (outcome === "open") continue;
     const effect = promiseEffect(promise, outcome);
     promise.status = outcome;
-    promise.resolvedSeason = Number.isInteger(state.season) ? state.season : promise.madeSeason;
+    const snapshot = typeof state === "function" ? state(promise) : state;
+    promise.resolvedSeason = Number.isInteger(snapshot?.season) ? snapshot.season : promise.madeSeason;
     promise.effect = { ...effect, promiseId: promise.id, targetId: promise.targetId, makerId: promise.makerId };
     const rel = relationshipBetween(account, promise.makerId, promise.targetId);
     if (rel) {

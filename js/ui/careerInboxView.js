@@ -220,7 +220,7 @@ export async function playDemoGame(demo, players) {
   };
 }
 
-export function createCareerInboxView({ getLang, readRootSave, writeRootSave, show, goBack } = {}) {
+export function createCareerInboxView({ getLang, readRootSave, writeRootSave, show, goBack, getAccount = () => null, saveAccount = () => {} } = {}) {
   const lang = () => (typeof getLang === "function" ? getLang() : "zh");
   let el = null;
   let rows = null;
@@ -380,13 +380,19 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
     render();
     const startIndex = demo().index;
     const trustBefore = slice.state.trust;
+    const account = getAccount();
     const out = await advanceTimeline(slice.inbox, slice.state, {
       playOne,
       speed,
       gameIndex: startIndex,
       gamesTotal: INBOX_SEASON_GAMES,
       onGame: () => {},
+      account,
     });
+    // The engine mirrors settled promises into the account's legacy record.
+    if (account && out.stoppedAt?.type === "promise") {
+      try { saveAccount(account); } catch { /* guests have no account store */ }
+    }
     // The timeline worked on copies; the demo advanced for real inside
     // playOne. Take the timeline's inbox/state back, fold the per-game
     // news in, and persist once.

@@ -33,7 +33,7 @@ import {
   queueInboxEvents,
   recordGameEvidence,
 } from "./careerInbox.js";
-import { checkPromises } from "./careerDecisions.js";
+import { settleGamePromises } from "./promiseEngine.js";
 
 export const TIMELINE_SPEEDS = ["next-game", "next-event", "next-key-node"];
 
@@ -130,7 +130,7 @@ export function describeTimelineStop(stoppedAt, lang = "zh") {
 export async function advanceTimeline(
   inbox,
   state,
-  { playOne, speed = "next-event", gameIndex = 0, gamesTotal = 82, onGame = null } = {},
+  { playOne, speed = "next-event", gameIndex = 0, gamesTotal = 82, onGame = null, account = null, relationshipState = null } = {},
 ) {
   if (!TIMELINE_SPEEDS.includes(speed)) throw new RangeError(`unknown timeline speed: ${speed}`);
   if (typeof playOne !== "function") throw new TypeError("playOne is required");
@@ -183,7 +183,14 @@ export async function advanceTimeline(
       corePts: report.corePts ?? null,
       won: report.won ?? null,
     });
-    const settled = checkPromises(currentInbox, currentState, { gameIndex: index });
+    // One settlement entry for every promise store (see promiseEngine.js).
+    const settled = settleGamePromises({
+      inbox: currentInbox,
+      state: currentState,
+      gameIndex: index,
+      account,
+      relationshipState,
+    });
     currentInbox = settled.inbox;
     currentState = settled.state;
     if (settled.settled.length) {
@@ -191,7 +198,7 @@ export async function advanceTimeline(
       stoppedAt = {
         type: "promise",
         gameIndex: index,
-        detail: { text: first.reason, textEn: first.reasonEn, fulfilled: first.fulfilled },
+        detail: { text: first.reason, textEn: first.reasonEn, fulfilled: first.status === "fulfilled" },
       };
       break;
     }

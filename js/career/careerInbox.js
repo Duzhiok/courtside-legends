@@ -523,9 +523,12 @@ export function markNewsRead(inbox, { all = false, index = null } = {}) {
  * line that game. Promises are only ever checked against this log —
  * never against a summary or a guess.
  */
-export function recordGameEvidence(inbox, { gameIndex, corePts = null, won = null } = {}) {
+export function recordGameEvidence(inbox, { gameIndex, corePts = null, won = null, season = null } = {}) {
   const next = structuredClone(inbox);
-  next.evidence.push({ gameIndex, corePts, won, at: Date.now() });
+  // One entry per game: submitting the same game again must not add evidence,
+  // or a promise that needs N games could be "met" by one game recorded N times.
+  const seen = next.evidence.some((entry) => entry.gameIndex === gameIndex && (entry.season ?? null) === season);
+  if (!seen) next.evidence.push({ gameIndex, corePts, won, ...(season !== null ? { season } : {}), at: Date.now() });
   return next;
 }
 

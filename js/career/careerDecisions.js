@@ -24,6 +24,10 @@
  * Pure functions: every function takes (inbox, state, ...) and returns
  * new objects; nothing here touches the DOM, storage, or GameSim.
  */
+import { PROMISE_EFFECTS } from "./promiseEffects.js";
+
+/** Promises saved before they recorded their own year were all made in the one 1997 inbox slice. */
+export const LEGACY_PROMISE_YEAR = 1997;
 import { inboxEventById } from "./careerInbox.js";
 
 /** Clamp helper (trust and pressure live on the 0-100 scale). */
@@ -126,6 +130,7 @@ export function applyDecision(inbox, state, eventId, choiceId, { gameIndex = 0, 
       text: choice.promise.text,
       textEn: choice.promise.textEn,
       madeAtGame: gameIndex,
+      year,
       dueGame: gameIndex + choice.promise.games - 1,
       condition: {
         minCorePtsPerGame: choice.promise.minCorePtsPerGame,
@@ -231,9 +236,8 @@ export function checkPromises(inbox, state, { gameIndex = 0 } = {}) {
     const fulfilled = window.length >= games && avg >= (promise.condition.minCorePtsPerGame ?? 0);
     promise.status = fulfilled ? "fulfilled" : "broken";
     promise.resolvedAtGame = gameIndex;
-    const effects = fulfilled
-      ? { trust: 5, relationship: { players: 3 } }
-      : { trust: -6, relationship: { players: -4 } };
+    const table = PROMISE_EFFECTS.inbox[fulfilled ? "fulfilled" : "broken"];
+    const effects = { trust: table.trust, relationship: { players: table.relationship } };
     nextState = applyInboxEffects(nextState, effects);
     if (!fulfilled) {
       nextState.flags[`promise-broken:${promise.id}`] = true;
@@ -248,7 +252,7 @@ export function checkPromises(inbox, state, { gameIndex = 0 } = {}) {
       fulfilled,
       avgCorePts: Math.round(avg * 10) / 10,
       gamesObserved: window.length,
-      year: 1997,
+      year: promise.year ?? LEGACY_PROMISE_YEAR,
       gameIndex,
       effects: structuredClone(effects),
       at: Date.now(),

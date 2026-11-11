@@ -21,11 +21,14 @@ import {
 } from "../../reborn/fastForward.js";
 import { latestRevealHint, revealLine } from "../../reborn/reveal.js";
 import { roleForTrust, describeTrustChange, TRUST_START } from "../../reborn/trust.js";
+import { settleRebornPromises } from "../../reborn/promiseSettle.js";
+import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision } from "../../reborn/contract.js";
 import { overall } from "../../data/players.js";
 import { readIdentity } from "../../data/profile.js";
+import { createRootState } from "../../data/saveRoot.js";
 // Signature Awakening (workstream D): evidence-based skill awakening for the
 // Player career — no skill books, no purchases, no dice.
 import {
@@ -125,7 +128,7 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
   return `<section class="reborn-report">${lines.join("")}</section>`;
 }
 
-export function createRebornView({ getLang, readRootSave, writeRootSave, show, goBack, getAccount = () => null } = {}) {
+export function createRebornView({ getLang, readRootSave, writeRootSave, show, goBack, getAccount = () => null, saveAccount = () => {} } = {}) {
   const lang = () => (typeof getLang === "function" ? getLang() : "zh");
   let el = null;
   let rows = null;
@@ -137,6 +140,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   // Skills awakened in the last run of games (manual or fast-forward) — the
   // banner shows them until the next run starts.
   let lastAwakened = [];
+  let lastPromises = [];
   // The creation flow's selection state (null once a run exists). The seed
   // is fixed when creation opens so the random draw is stable while the
   // player browses the lists.
@@ -149,10 +153,19 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
 
   const currentWeek = () => Math.floor((season?.index || 0) / 4) + 1;
 
-  function persist() {
-    const root = readRootSave() || {};
+  /**
+   * The root to write this run into: the visible root save, or a fresh valid
+   * one when none is visible (a new account, or after switching accounts). A
+   * bare `{ reborn }` is not a valid root and fails the save validator.
+   */
+  function rootWithReborn() {
+    const root = readRootSave() || createRootState();
     root.reborn = reborn;
-    writeRootSave(root);
+    return root;
+  }
+
+  function persist() {
+    writeRootSave(rootWithReborn());
   }
 
   /**
@@ -163,6 +176,26 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
    * "awakened") and staged for the banner. Mutates `rebornState` in place —
    * the caller persists afterwards.
    */
+  /**
+   * Settle the account's due promises against this run after a game (same
+   * in-place pattern as applyAwakening). The unified engine does the
+   * settling and moves coach trust; this only persists the account and keeps
+   * the results for the banner.
+   */
+  function applyPromises(rebornState) {
+    const account = getAccount();
+    if (!account || !rebornState) return [];
+    const out = settleRebornPromises(account, rebornState);
+    if (!out.settled.length) return [];
+    if (out.reborn !== rebornState) {
+      rebornState.player.coachTrust = out.reborn.player.coachTrust;
+      rebornState.player.rotationRole = out.reborn.player.rotationRole;
+    }
+    try { saveAccount(account); } catch { /* a guest has no account store; trust already moved */ }
+    lastPromises = [...lastPromises, ...out.settled];
+    return out.settled;
+  }
+
   function applyAwakening(rebornState, report) {
     if (!rebornState || !report) return [];
     const card = buildPlayerCard(rebornState.identity, rows, {
@@ -238,6 +271,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       rebornIdentityHtml({ reborn, card, lang: lang() }),
       revealBanner,
       awakeningBannerHtml({ awakened: lastAwakened, lang: lang() }),
+      promiseBannerHtml({ settled: lastPromises, lang: lang() }),
       awakeningProgressHtml({ awakening: reborn.player.awakening, card, lang: lang() }),
       `<p>${L("赛季", "Season", lang)} ${season.year} · ${L("第", "Game ", lang)}${Math.min(season.index + 1, season.games.length)}/${season.games.length} ${L("场", "", lang)} · ${summary.wins}${L("胜", "W", lang)}${summary.games - summary.wins}${L("负", "L", lang)}</p>`,
       canTrain
@@ -274,6 +308,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     busy = true;
     ffState = null;
     lastAwakened = [];
+    lastPromises = [];
     render();
     try {
       const week = currentWeek();
@@ -285,6 +320,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       reborn = out.reborn;
       lastReport = out.report;
       applyAwakening(reborn, out.report);
+      applyPromises(reborn);
       persist();
     } finally {
       busy = false;
@@ -298,6 +334,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     busy = true;
     ffRunning = true;
     lastAwakened = [];
+    lastPromises = [];
     const trustBefore = reborn.player.coachTrust;
     render();
     try {
@@ -307,7 +344,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         // awakening evidence live, so a skill fired mid-run is on the card
         // from the next simmed game on.
         onGame: (report, currentReborn) => {
-          if (currentReborn) applyAwakening(currentReborn, report);
+          if (currentReborn) { applyAwakening(currentReborn, report); applyPromises(currentReborn); }
           render();
         },
       });
@@ -369,9 +406,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
             return;
           }
           creating = null;
-          const root = readRootSave() || {};
-          root.reborn = reborn;
-          writeRootSave(root);
+          persist();
           rebuildSeason();
           contractOutcome = null;
           lastReport = null;
