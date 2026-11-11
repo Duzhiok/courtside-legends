@@ -52,7 +52,7 @@
 
 ### ADR-004（占位）：存档版本升级策略 `schemaVersion` 3→4
 
-- **状态**：✅ APPROVED（2026-11-10，用户裁决）：Q1 批准契约作为 M4 开门条件；Q2 身份地点放账号 `account.identityPlaces = { birthplace, grewUpIn, representedCity }`；Q3 备份保留至下一次成功且已验证的保存；Q4 降级导出本阶段暂不支持。详细契约：`docs/implementation/ADR-004-migration-contract.md`（APPROVED 2026-11-10）。
+- **状态**：✅ APPROVED（2026-11-10，用户裁决）：Q1 批准契约作为 M4 开门条件；Q2 身份地点放账号 `account.identityPlaces = { birthplace, grewUpIn, representedCity }`；Q3 备份保留至下一次成功且已验证的保存；Q4 降级导出本阶段暂不支持。详细契约：`docs/implementation/ADR-004-migration-contract.md`（APPROVED 2026-11-10）。**迁移验收通过（2026-11-11，用户裁决，commit 2220875，board bc11f09）：M4 Migration DONE，迁移 Gate 正式解除。**验收：v3→v4 懒迁移、备份保留至下次验证保存、失败恢复、账号级 Identity Places、旧 hometown 保留原文均接受；存储峰值约 5 MiB 预算的 20%（阈值 1,712,172 units 为本次测量条件下的结果，非所有浏览器/设备保证值）；全量测试 2538/2547（9 项 online* ws 已知环境失败）有条件通过——数字由 Luna 在本会话独立复跑确认，非仅采信交付报告；浏览器迁移 QA 尚未执行，后续补充。技术边界：v4 目前只是版本标记，账号级 identityPlaces 已落地，但 Reborn 职业快照仍需后续实现，文档中不得把两者都标为 DONE。下一步（用户 2026-11-11）：M4-A 身份地点编辑界面 + M4-B Hometown Legends 并行优先；M4-C 职业身份快照与 Reborn 工作线协调（不得两个 Agent 同时改职业创建入口）；M4-D My World 视觉整合随后。
 - **背景事实**：`BASELINE_AUDIT.md` §4.1——`validateRoot` 对 `schemaVersion` 高于或低于当前 `ROOT_SAVE_VERSION`（3）**直接拒读**，没有逐版本迁移函数；`migrateLegacySaves` 只处理 v1 legacy key 向 v3 的搬运，不是通用迁移链。
 - **需要在 M4 开工前明确的问题**：升到 v4 时，v3 存档是直接判"旧版本不支持"（会报废老玩家存档，违反 Master Spec 的"不破坏旧存档"底线），还是写一个 v3→v4 的迁移函数（给新字段填缺省值）？本文档默认建议后者，但具体迁移函数设计留到 M4 门控打开后再细化。
 
@@ -88,7 +88,7 @@
 | G1 | 玩家选的出手人不会被引擎兑现，终场脚本介不介入都一样 | §0（2026-11-03 复核）、§2.3、§9 | M2b 的核心工程项，见 ADR-002 | 🔴 已证实，处理方案见 ADR-002（OPEN） |
 | G2 | spec 写于 ZIP 快照，没整合仓库里已有的 4 份路线图 | `ROADMAP.md` §9 合并表 | 已在 `ROADMAP.md` §9 逐项并入，不另起炉灶 | ✅ 已处理 |
 | G3 | 存档体积：Reborn 要存"世界快照 + 时间线事件"，root 存档目前全压在一个 localStorage 键 | §4.1，`writeRootSaveFreeingOrphans` 就是为配额写的 | M4 前必须先定存储方案（存储预算 / 是否迁 IndexedDB） | 🟡 PROPOSED，M4 门控打开时细化 |
-| G4 | 存档没有逐版本迁移，`schemaVersion < 3` 直接拒读 | §4.1 | 见 ADR-004 | 🟡 实施中（迁移契约已批 2026-11-10，M4 开工） |
+| G4 | 存档没有逐版本迁移，`schemaVersion < 3` 直接拒读 | §4.1 | 见 ADR-004 | ✅ 迁移完成 2026-11-11（2220875，用户验收通过）；浏览器迁移 QA 待补 |
 | G5 | i18n 没在 spec 里提到；项目是中英双语，所有新 UI 必须走 `L()`/`tr()` | 近期英文化系列提交（`docs/AGENT_CHAT.md` 记录） | 所有里程碑验收加一条"英文模式无中文泄漏"（已写入 `ROADMAP.md` §10 通用验收） | ✅ 已处理 |
 | G6 | 无遥测；spec 的成功指标（首局完成率、重玩率）需要埋点，仓库里没有 | 全仓 grep 无 analytics | 先做本地计数器（不上传），够做 5–10 人可用性测试；真遥测是隐私/合规议题，延后 | 🟡 PROPOSED（本地计数，不上传），默认采纳 |
 | G7 | 命名冲突：spec 的"传奇时刻 Legendary Moments"和现有模式 id `legend`（传奇球队，`startLegendMode`）撞名 | `app.js` 现有模式分发 | 新模式 id 用 `clutch`，分组 id 用 `moments`；`legend` 保持原义不改 | ✅ 已处理（命名约定，M2b 实现时遵守） |

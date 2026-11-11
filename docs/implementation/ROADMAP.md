@@ -236,6 +236,8 @@
 
 ### M4 — P1 My Legacy：存储基础设施 + 身份/捏脸/家乡（门控：M3 批准）
 
+- **迁移 ✅ DONE 2026-11-11（2220875，用户验收通过，迁移 Gate 正式解除）**：v3→v4 懒迁移 + `cls_root_v3_backup` 保留至下次验证保存 + `account.identityPlaces { birthplace, grewUpIn, representedCity }`；存储峰值约 5 MiB 预算的 20%，阈值 1,712,172 units（本次测量条件下的结果，非所有浏览器/设备保证值）；全量测试 2538/2547（9 项 online* ws 已知环境失败）有条件通过；浏览器迁移 QA 待补。**技术边界**：v4 目前只是版本标记，账号级 identityPlaces 已落地，但 Reborn 职业快照仍需后续实现，文档中不得把两者都标为 DONE。
+- **下一步（用户 2026-11-11 裁决，不再围绕迁移本身开发）**：M4-A 身份地点编辑界面（My World 内编辑出生地/成长城市/代表城市，保留 40 字契约与旧 hometown 原文不覆盖）与 M4-B Hometown Legends（ADR-009 首批策展地点，核验过的城市/国家关联、相关传奇、本地化故事、市→省→国回退，出生地不给竞技加成）**并行优先**；M4-C 职业身份快照（创建职业时记录当时地点身份，之后改账号资料不改写已有职业故事）与 Reborn 工作线协调，**不得两个 Agent 同时改职业创建入口**；M4-D My World 视觉整合（家乡身份与 Avatar、称号、荣誉连接，不新增孤立数据卡）随后。分工：M4-A 走 Luna 的每小时循环，M4-B 由新加入的 Coding Agent 按 ADR-009 + 已批 identityPlaces 契约实施。
 - **Scope（高层）**：先做存储预算与版本迁移链（`BASELINE_AUDIT.md` §4.1，`schemaVersion` 3→4 必须可逆、配旧存档夹具测试），再做身份 schema（出生地/家乡/代表地区/资格/隐私分离，默认不公开）+ 捏脸（复用 `js/data/avatarArt.js` 程序化头像，§6.2 已确认存在）。家乡只影响叙事文案，不影响能力值数值（避免"家乡加成"这种需要重新做平衡测试的设计）。
 - **Dependencies**：M1-M3 批准；DECISIONS.md 需要先有存档版本升级的 ADR（补充 ADR-001 的存档部分，或单独立 ADR-004）。
 - **Tasks（高层）**：`saveRoot.js` 迁移链（v3→v4，`validateRoot` 增加逐版本迁移函数而不是直接拒读）；身份 schema 设计与存储位置（`profile` 字段扩展）；捏脸 UI。
