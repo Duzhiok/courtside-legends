@@ -91,6 +91,28 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   check(`[${tag}] dialog: no overflow`, await noOverflow(page));
   await shoot(page, `${OUT}/${tag}-shop-open.png`);
 
+  // The close button must be clearly visible and reachable, even after scrolling the shop body.
+  const closeInfo = await page.evaluate(() => {
+    const btn = document.querySelector("#shop-dialog .shop-close");
+    const dlg = document.querySelector("#shop-dialog");
+    const lum = (rgb) => { const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map((c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const cs = getComputedStyle(btn);
+    const head = getComputedStyle(btn.parentElement).backgroundColor;
+    const [hi, lo] = [lum(cs.color), lum(head)].sort((x, y) => y - x);
+    dlg.scrollTop = dlg.scrollHeight;
+    const r = btn.getBoundingClientRect();
+    const d = dlg.getBoundingClientRect();
+    return { w: r.width, h: r.height, contrast: (hi + 0.05) / (lo + 0.05), inView: r.top >= d.top && r.bottom <= d.bottom && r.right <= d.right };
+  });
+  check(`[${tag}] close button is a >=40px target`, closeInfo.w >= 40 && closeInfo.h >= 40, `${closeInfo.w}x${closeInfo.h}`);
+  check(`[${tag}] close button contrast >= 4.5`, closeInfo.contrast >= 4.5, closeInfo.contrast.toFixed(2));
+  check(`[${tag}] close button stays in view after scrolling`, closeInfo.inView);
+  await page.evaluate(() => { document.querySelector("#shop-dialog").scrollTop = 0; });
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => !document.querySelector("#shop-dialog").open);
+  check(`[${tag}] Escape closes the shop`, true);
+  await openShop(page);
+
   // 1) Furniture: buy the trophy cabinet, it appears in the My Home room.
   await page.click('#shop-dialog [data-item-id="furniture-trophy-cabinet"]');
   await buySelected(page);

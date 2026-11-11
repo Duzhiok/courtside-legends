@@ -671,12 +671,13 @@ function handleBack() {
   goBack();
 }
 
-// Escape goes back one layer, same as the top-left back control. A native
-// <dialog> (confirm) handles its own Escape; while typing in a field, Escape
-// first blurs the field instead of navigating away.
+// Escape goes back one layer, same as the top-left back control. Any open native
+// <dialog> (confirm, shop, ...) handles its own Escape: we must not preventDefault it
+// (that blocks the close) nor navigate the screen underneath. While typing in a field,
+// Escape first blurs the field instead of navigating away.
 window.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || e.defaultPrevented) return;
-  if (document.querySelector("#app-confirm-dialog")?.open) return;
+  if (document.querySelector("dialog[open]")) return;
   const tag = document.activeElement?.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
     document.activeElement.blur();
