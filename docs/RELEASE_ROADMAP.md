@@ -1,5 +1,7 @@
 # 发行路线图(Release Roadmap)—— 平台、里程碑、Action Item
 
+> **平台策略（2026 年 11 月起）**：Web First · Mobile Compatible · Native Later。原生 Android/iOS 与商店相关条目暂缓，恢复条件见 `docs/WEB_FIRST_STRATEGY.md`。
+
 本页是「场边传奇 / Courtside Legends」从本地玩具项目走向"能让别人玩到"的总体规划,持续更新。
 
 **和其他文档的分工**:

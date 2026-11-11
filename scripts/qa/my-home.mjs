@@ -45,7 +45,7 @@ const openHome = async (page) => {
 const pick = (page, id) => page.click(`#screen-my-home [data-mh-pick="${id}"]`);
 const status = (page) => text(page, "#screen-my-home .mh-status");
 
-for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobile", { width: 390, height: 844 }]]) {
+for (const [tag, viewport] of [["desktop", { width: 1440, height: 900 }], ["mobile", { width: 390, height: 844 }]]) {
   const page = await browser.newPage({ viewport, hasTouch: tag === "mobile" });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));

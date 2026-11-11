@@ -137,3 +137,7 @@ Continue making progress instead of stopping after every commit.
 Report completed features, playable results, relevant tests, commits, and remaining decisions.
 
 Default behavior: Keep building. Coordinate with other agents. Escalate only when necessary.
+
+## 平台优先级
+
+Web First · Mobile Compatible · Native Later，测试按风险分级。详见 `docs/WEB_FIRST_STRATEGY.md`。

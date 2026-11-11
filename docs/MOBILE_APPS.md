@@ -1,5 +1,7 @@
 # 打包成 Android / iOS App，然后怎么上架
 
+> **状态（Web-First）**：原生 Android/iOS 专项开发已暂停，保留 Capacitor 工程待恢复。见 `docs/WEB_FIRST_STRATEGY.md`。本页作为恢复原生阶段时的参考。
+
 本页记录「场边传奇 / Courtside Legends」怎么从一个纯前端网页（`index.html` + `css/` + `js/` +
 `assets/`，零构建、零框架）变成真的 Android / iOS 应用，以及接下来上架两个商店要走哪些步骤。
 

@@ -83,6 +83,8 @@ python3 scripts/build_full_roster.py
 
 ### 打包成 Android / iOS App
 
+> 当前阶段原生端已暂停（Web First · Mobile Compatible · Native Later），见 [docs/WEB_FIRST_STRATEGY.md](docs/WEB_FIRST_STRATEGY.md)；下面的步骤保留，恢复原生阶段时使用。
+
 用 [Capacitor](https://capacitorjs.com/) 把这套纯前端代码装进原生壳子，不需要重写。
 
 ```bash
