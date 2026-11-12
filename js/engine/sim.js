@@ -2284,7 +2284,7 @@ export class GameSim {
         p.tempTacticFocus = Math.max(p.tempTacticFocus || 0, 3);
       }
     }
-    const tName = t.tactic?.name || this.S("当前战术", "the current system");
+    const tName = this.tacticName(t.tactic) || this.S("当前战术", "the current system");
     this.emit(
       "coach",
       drifted
@@ -2307,13 +2307,21 @@ export class GameSim {
     this.emit("coach", this.S("场边沟通：士气与化学反应小幅上升——请为每人布置进攻与防守指令", "Sideline talk: morale and chemistry tick up — now set each player an offense and defense instruction"));
   }
 
+  /** B54: tactic display name in this game's language — nameEn in EN,
+   *  falling back to the Chinese name when a tactic has no nameEn. */
+  tacticName(tactic) {
+    if (!tactic) return "";
+    return this.lang === "en" ? tactic.nameEn || tactic.name : tactic.name;
+  }
+
   setTactic(tacticId, sideKey) {
     const t = sideKey ? this.sideByKey(sideKey) : this.you();
     const tactic = TACTICS[tacticId] || TACTICS.balanced;
     t.tactic = tactic;
     t.fit = lineupFit(t.onCourt, t.coach, t.tactic, this.ballOpts(t));
     if (tactic.morale) t.morale = clamp(t.morale + tactic.morale, 0, 100);
-    this.emit("coach", this.S(`战术切换为「${tactic.name}」适配度 ${t.fit}`, `System switched to "${tactic.name}" — fit ${t.fit}`));
+    const name = this.tacticName(tactic);
+    this.emit("coach", this.S(`战术切换为「${name}」适配度 ${t.fit}`, `System switched to "${name}" — fit ${t.fit}`));
     this.refreshMeters();
   }
 
