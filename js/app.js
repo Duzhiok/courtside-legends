@@ -37,11 +37,11 @@ import { mountSandbox } from "./ui/sandboxView.js";
 import { createHalfCourtScreen } from "./ui/halfCourtView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { buySkillOffer } from "./engine/skillShopPurchase.js";
-import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
-import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
+import { createRebornView } from "./ui/reborn/rebornView.js";
+import { createRelationshipsView } from "./ui/relationshipsView.js";
 import { createLegacyMuseumView } from "./ui/legacyMuseumView.js";
 import { relocalizeShellScreens } from "./ui/screenShell.js";
-import { createMyHome, ensureMyHomeScreen } from "./ui/myHome/myHomeScreen.js";
+import { createMyHome } from "./ui/myHome/myHomeScreen.js";
 import { createCareerInboxView } from "./ui/careerInboxView.js";
 import { createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { createDraftGambleView } from "./ui/scoutingView.js";
@@ -359,7 +359,6 @@ import { createMyWorld } from "./ui/myWorldScreen.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
 import { createShop } from "./ui/shopView.js";
 import { ticketBalance, autoXpRemaining, consumeAutoTickets, awardAutoGameXp } from "./data/shop.js";
-import { readIdentity } from "./data/profile.js";
 import { LEGEND_LOCATIONS } from "./data/hometown/legendLocations.js";
 import { readHometownState, recordChallengeResult } from "./data/hometown/hometownState.js";
 import { buildChallengeTeam, pickOpponentTeam } from "./data/hometown/hometownChallenge.js";
@@ -12586,8 +12585,9 @@ async function boot() {
     activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); if (id === "players") myTeamClubhouse?.refresh(); } });
     // Legacy Museum (篮球人生博物馆): the honours wall's earned titles open the
     // career legacy detail view (user decision 2026-11-10, after 375b75d).
-    screens.myHome = ensureMyHomeScreen();
+    // My Home screen — Screen Shell: mount once at boot (museum pattern); open() only renders.
     const myHome = createMyHome({ getLang, getModel: () => myWorld.homeModel(), show, goBack, onOpenShop: (category) => shop?.open({ category }) });
+    screens.myHome = myHome.mount();
     const legacyMuseumView = createLegacyMuseumView({ getLang, getAccount: activeAccount, show, goBack });
     screens.legacyMuseum = legacyMuseumView.mount();
     myWorld = createMyWorld({
@@ -12653,7 +12653,7 @@ async function boot() {
     // Player Reborn — the public entry. The Career Player card routes
     // here (onPlay "player" above); ?reborn=1 opens it directly.
     // open() shows the creation flow for a new run, or resumes the run.
-    screens.reborn = ensureRebornScreen();
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
     rebornView = createRebornView({
       getLang,
       readRootSave: () => state.longCareerRoot || readRootSave(),
@@ -12665,11 +12665,12 @@ async function boot() {
       getAccount: activeAccount,
       saveAccount,
     });
+    screens.reborn = rebornView.mount();
     // Career Relationships dev entry (workstream E): the relationships /
     // promises / legacy panel for the active account. ?relationships=1
     // opens it after boot (below). It never invents offers or
     // transitions — those come from the Opportunity engine (workstream G).
-    screens.relationships = ensureRelationshipsScreen();
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
     const relationshipsView = createRelationshipsView({
       getLang,
       getAccount: activeAccount,
@@ -12679,6 +12680,7 @@ async function boot() {
       show,
       goBack,
     });
+    screens.relationships = relationshipsView.mount();
     // Shared Career Inbox (workstream A): the dev entry is ?inbox=1 below;
     // the view itself is reachable from the Career entry later.
     // Screen Shell: mount once at boot (museum pattern); open() only renders.

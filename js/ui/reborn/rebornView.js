@@ -10,6 +10,7 @@
  *   - settles the contract at season end and rolls the timeline over
  * Persistence is the app's root save (root.reborn, additive, v3 stays).
  */
+import { mountScreen } from "../screenShell.js";
 import { buildPlayerCard } from "../../reborn/identity.js";
 import { creationHtml, createRebornFromChoice } from "./creation.js";
 import { buildSeason, playGame } from "../../reborn/season.js";
@@ -54,15 +55,26 @@ async function loadRows() {
   return ROWS_CACHE;
 }
 
-export function ensureRebornScreen() {
-  let el = document.querySelector("#screen-reborn");
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = "screen-reborn";
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-reborn-back" type="button"><span>返回</span></button><h2>球员重生 · Player Reborn</h2></div><div id="reborn-body"></div>`;
-  document.body.appendChild(el);
-  return el;
+/** The page title, rendered once by the shell in the current language. */
+export const REBORN_TITLE = Object.freeze({ zh: "球员重生", en: "Player Reborn" });
+
+/**
+ * Mount the Player Reborn screen on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language title),
+ * the focus/scroll lifecycle and the language switch; this view keeps its own
+ * business state and renders into the shell body.
+ * Host "app" (the default): the creation flow and the season screen are plain
+ * long-form page screens that scroll with the page, as before — nothing about
+ * them needs to cover the viewport or scroll on its own, so no overlay
+ * behaviour. Mounting moves the screen from document.body into the #app
+ * column, like the museum / inbox / coaching / gamble / duel / network /
+ * relationships screens before it.
+ * The back button used to be wired once by wire() behind a __rebornWired
+ * guard; that wiring is gone — the shell wires it to onBack, so the
+ * goBack-or-home fallback now lives in the factory's mount() instead.
+ */
+export function ensureRebornScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+  return mountScreen({ id: "reborn", title: REBORN_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
@@ -399,10 +411,6 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   }
 
   function wire() {
-    el.querySelector("#btn-reborn-back").addEventListener("click", () => {
-      if (typeof goBack === "function") goBack();
-      else if (typeof show === "function") show("home");
-    });
     el.querySelector("#reborn-body").addEventListener("click", async (event) => {
       if (creating) {
         const yearBtn = event.target.closest("[data-reborn-year]");
@@ -561,5 +569,23 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     if (typeof show === "function") show("reborn");
   }
 
-  return { open, render };
+  /** Mount once (boot) so the screen registry has the element; open() only renders and shows. */
+  function mount() {
+    return ensureRebornScreen({
+      getLang: lang,
+      onBack: () => {
+        if (typeof goBack === "function") goBack();
+        else if (typeof show === "function") show("home");
+      },
+      // The creation flow and the season screen are both pure renders from
+      // state, so a language toggle re-renders the body; before open the
+      // body is empty (and the roster is not loaded yet) and relocalize
+      // leaves it alone.
+      onRelocalize: () => {
+        if (el?.querySelector("#reborn-body")?.hasChildNodes?.()) render();
+      },
+    });
+  }
+
+  return { open, render, mount };
 }

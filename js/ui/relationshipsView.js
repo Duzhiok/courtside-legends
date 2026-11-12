@@ -13,6 +13,7 @@
  */
 import { settleGamePromises } from "../career/promiseEngine.js";
 import { rebornPromiseWindow } from "../reborn/promiseSettle.js";
+import { mountScreen } from "./screenShell.js";
 import {
   RELATIONSHIP_KINDS,
   addRelationship,
@@ -28,15 +29,25 @@ import {
 } from "../career/careerRelationships.js";
 import { esc } from "../core/html.js";
 
-export function ensureRelationshipsScreen() {
-  let el = document.querySelector("#screen-relationships");
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = "screen-relationships";
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-relationships-back" type="button"><span>返回</span></button><h2>职业关系 · Relationships (DEV)</h2></div><div id="relationships-body"></div>`;
-  document.body.appendChild(el);
-  return el;
+/** The page title, rendered once by the shell in the current language. */
+export const RELATIONSHIPS_TITLE = Object.freeze({ zh: "职业关系（开发）", en: "Relationships (DEV)" });
+
+/**
+ * Mount the Career Relationships dev panel on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language title),
+ * the focus/scroll lifecycle and the language switch; this view keeps its own
+ * business state and renders into the shell body.
+ * Host "app" (the default): the panel is a plain long-form page screen that
+ * scrolls with the page, as before — nothing about it needs to cover the
+ * viewport or scroll on its own, so no overlay behaviour. Mounting moves the
+ * screen from document.body into the #app column, like the museum / inbox /
+ * coaching / gamble / duel / network screens before it.
+ * The back button used to be wired by the view factory with a backWired flag;
+ * that branch is gone — the shell wires it to onBack, so a click can no
+ * longer fire goBack twice.
+ */
+export function ensureRelationshipsScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+  return mountScreen({ id: "relationships", title: RELATIONSHIPS_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
@@ -61,7 +72,6 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
   let el = null;
   let body = null;
   let lastResult = "";
-  let backWired = false;
 
   const personOptions = (store, selectedId = "") =>
     store.people
@@ -275,18 +285,28 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
     if (!body) return;
     body.removeEventListener("click", handleClick);
     body.addEventListener("click", handleClick);
-    if (!backWired) {
-      backWired = true;
-      el.querySelector("#btn-relationships-back")?.addEventListener("click", () => {
-        if (typeof goBack === "function") goBack();
-        else el.classList.remove("active");
-      });
-    }
     lastResult = "";
     render();
     if (typeof show === "function") show("relationships");
     else el.classList.add("active");
   }
 
-  return { open, render };
+  /** Mount once (boot) so the screen registry has the element; open() only renders and shows. */
+  function mount() {
+    return ensureRelationshipsScreen({
+      getLang: lang,
+      onBack: () => {
+        if (typeof goBack === "function") goBack();
+        else el?.classList.remove("active");
+      },
+      // The whole panel is one deterministic render from the account store,
+      // so a language toggle re-renders it (same as every action already
+      // does); before open the body is empty and relocalize leaves it alone.
+      onRelocalize: () => {
+        if (body?.hasChildNodes?.()) render();
+      },
+    });
+  }
+
+  return { open, render, mount };
 }

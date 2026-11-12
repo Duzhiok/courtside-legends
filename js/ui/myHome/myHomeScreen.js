@@ -4,6 +4,7 @@
  * (real trophies, best cards, portrait). Writes only `account.homeLayout`, through data/homeLayout.js —
  * the rules (owned only, no overlaps, slots) live there, this file only turns clicks into moves.
  */
+import { mountScreen } from "../screenShell.js";
 import { HOME_GRID, WALL_SLOTS, getHomeLayout, movePiece, resetHomeLayout, resolveHome, rotatePiece, saveHomeLayout } from "../../data/homeLayout.js";
 import { ownedFurnitureIds } from "../../data/shop.js";
 import { SHOP_ITEMS, itemName } from "../../data/shopCatalog.js";
@@ -11,17 +12,26 @@ import { renderIsoRoom } from "./isoRoom.js";
 import { esc } from "../../core/html.js";
 
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
-const SCREEN_ID = "screen-my-home";
 
-export function ensureMyHomeScreen() {
-  let el = document.querySelector(`#${SCREEN_ID}`);
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = SCREEN_ID;
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-my-home-back" type="button"><span>返回</span></button><h2>我的家 · My Home</h2></div><div id="my-home-body"></div>`;
-  (document.querySelector("#app") || document.body).appendChild(el); // inside #app: it carries the page padding and max width
-  return el;
+/** The page title, rendered once by the shell in the current language. */
+export const MY_HOME_TITLE = Object.freeze({ zh: "我的家", en: "My Home" });
+
+/**
+ * Mount the My Home screen on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language title),
+ * the focus/scroll lifecycle and the language switch; this screen keeps its
+ * own business state and renders into the shell body.
+ * Host "app" (the default): the room is a plain long-form page screen that
+ * scrolls with the page, as before — nothing about it needs to cover the
+ * viewport or scroll on its own, so no overlay behaviour. Mounting keeps the
+ * screen in the #app column, where the old ensure already put it, like the
+ * museum / inbox / coaching / gamble / duel / network / relationships /
+ * reborn screens before it.
+ * The back button used to be wired once by wire() behind a `wired` guard;
+ * that wiring is gone — the shell wires it to onBack.
+ */
+export function ensureMyHomeScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+  return mountScreen({ id: "my-home", title: MY_HOME_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
 /** Display name of a furniture id, from the shop catalog that sells it. */
@@ -200,7 +210,6 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
   function wire() {
     if (wired) return;
     wired = true;
-    el.querySelector("#btn-my-home-back")?.addEventListener("click", () => (typeof goBack === "function" ? goBack() : el.classList.remove("active")));
     body.addEventListener("click", (e) => {
       const pick = e.target.closest("[data-mh-pick]");
       const cell = e.target.closest("[data-cell]");
@@ -237,5 +246,20 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
     else el.classList.add("active");
   }
 
-  return { open, refresh: render };
+  /** Mount once (boot) so the screen registry has the element; open() only renders and shows. */
+  function mount() {
+    return ensureMyHomeScreen({
+      getLang: lang,
+      onBack: () => {
+        if (typeof goBack === "function") goBack();
+        else el?.classList.remove("active");
+      },
+      // The room re-renders from fresh account state, so a language toggle
+      // re-renders the body; before open render() is a no-op (no body yet)
+      // and relocalize leaves it alone.
+      onRelocalize: () => render(),
+    });
+  }
+
+  return { open, refresh: render, mount };
 }
