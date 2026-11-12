@@ -1958,6 +1958,10 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
 - [2026-11-12 03:26] Muse 认领已知缺口：`variantOf:"franchise"` 无断言——
   只补测试断言 + 注释说明为备用标记，不改行为、不动 sim.js。✅ 已完成
   （本轮，见下方本轮记录）。
+- [2026-11-12 04:26] Muse 认领已知缺口：`executeTrade` 本体无
+  `requireCapability` 守卫——在 `executeTrade` / `executeThreeTeamTrade`
+  入口加 `"trade"` 能力守卫（`acceptTradeProposal` 透传 career/root，
+  报价接受路径同样守住），按钮层 gate 不动；不碰 sim.js。
 - Screen Architecture P1 已收尾（9 个自建 panel-head 屏幕全部迁到 mountScreen，
   0c2734d）；P2 归档本文件（2026-11-12 进行中）。P2 之后的方向等用户裁决。
 
