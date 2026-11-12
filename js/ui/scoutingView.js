@@ -44,18 +44,26 @@ import {
 } from "../engine/leagueDraft.js";
 import { PLAYERS } from "../data/players.js";
 import { esc } from "../core/html.js";
+import { mountScreen } from "./screenShell.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
-export function ensureDraftGambleScreen() {
-  let el = document.querySelector("#screen-draft-gamble");
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = "screen-draft-gamble";
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-draft-gamble-back" type="button"><span>返回</span></button><h2>1996 选秀赌局 · Draft Gamble</h2></div><div id="draft-gamble-body"></div>`;
-  document.body.appendChild(el);
-  return el;
+/** The page title, rendered once by the shell in the current language. */
+export const DRAFT_GAMBLE_TITLE = Object.freeze({ zh: "1996 选秀赌局", en: "1996 Draft Gamble" });
+
+/**
+ * Mount the Draft Gamble screen on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language title),
+ * the focus/scroll lifecycle and the language switch; this view keeps its own
+ * business state and renders into the shell body.
+ * Host "app" (the default): the gamble is a plain long-form page screen that
+ * scrolls with the page, as before — nothing about it needs to cover the
+ * viewport or scroll on its own, so no overlay behaviour.
+ * The old per-view back branch in wire() is gone: the shell wires the back
+ * button to onBack exactly once, so a click can no longer call goBack twice.
+ */
+export function ensureDraftGambleScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+  return mountScreen({ id: "draft-gamble", title: DRAFT_GAMBLE_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
 function bandLabel(bandId, lang) {
@@ -234,6 +242,7 @@ export function reviewHtml({ review, lang = "zh" } = {}) {
 export function createDraftGambleView({ getLang, readRootSave, writeRootSave, show, goBack } = {}) {
   const lang = () => (typeof getLang === "function" ? getLang() : "zh");
   let el = null;
+  let shell = null;
   let gamble = null;
   let state = null;
   // Transient negotiation UI (not persisted; a refresh resets the talks).
@@ -336,11 +345,8 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
 
   function wire() {
     el.addEventListener("click", async (event) => {
-      const back = event.target.closest("#btn-draft-gamble-back");
-      if (back) {
-        if (typeof goBack === "function") goBack();
-        return;
-      }
+      // The back button is the shell's now (wired once by mountScreen via
+      // onBack); this delegated handler only serves [data-action] controls.
       const target = event.target.closest("[data-action]");
       if (!target || !state) return;
       const action = target.dataset.action;
@@ -488,8 +494,25 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
     persist();
   }
 
+  /** Mount once (boot) so the screen registry has the element; open() only renders and shows. */
+  function mount() {
+    if (!shell) {
+      el = ensureDraftGambleScreen({
+        getLang: lang,
+        onBack: () => goBack?.(),
+        // Before open there is no gamble/state to re-render; render() would
+        // only write its loading line into an unopened screen.
+        onRelocalize: () => {
+          if (gamble && state) render();
+        },
+      });
+      shell = el.__shell;
+    }
+    return shell.el;
+  }
+
   async function open(forceNew = false) {
-    el = ensureDraftGambleScreen();
+    mount();
     if (!el.__gambleWired) {
       wire();
       el.__gambleWired = true;
@@ -523,5 +546,5 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
     if (typeof show === "function") show("draft-gamble");
   }
 
-  return { open, render };
+  return { open, mount, render };
 }

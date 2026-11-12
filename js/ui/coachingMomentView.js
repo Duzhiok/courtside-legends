@@ -13,18 +13,26 @@ import { createCoachingChallenge } from "../career/coach/coachingChallenge.js";
 import { tacticName } from "../career/coach/tacticalLearning.js";
 import { filmRecommendForMoment, readFiledFilmRecommendation } from "../career/network/videoAnalyst.js";
 import { esc } from "../core/html.js";
+import { mountScreen } from "./screenShell.js";
 
 const CHUNK = 8;
 
-export function ensureCoachingScreen() {
-  let el = document.querySelector("#screen-coach-tactics");
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = "screen-coach-tactics";
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-coach-tactics-back" type="button"><span>${L("返回", "Back")}</span></button><h2>${L("教练战术逆转挑战", "Coach Comeback Challenge")}</h2></div><div id="coach-tactics-body"></div>`;
-  document.body.appendChild(el);
-  return el;
+/** The page title, rendered once by the shell in the current language. */
+export const COACHING_MOMENT_TITLE = Object.freeze({ zh: "教练战术逆转挑战", en: "Coach Comeback Challenge" });
+
+/**
+ * Mount the Coaching Moment screen on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language title),
+ * the focus/scroll lifecycle and the language switch; this view keeps its own
+ * business state and renders into the shell body.
+ * Host "app" (the default): the challenge is a plain long-form page screen
+ * that scrolls with the page, as before — nothing about it needs to cover
+ * the viewport or scroll on its own, so no overlay behaviour.
+ * The back button was never wired before (no listener anywhere); the shell
+ * wires it to onBack, so it works now.
+ */
+export function ensureCoachingScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+  return mountScreen({ id: "coach-tactics", title: COACHING_MOMENT_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
 const pick = (pair) => (getLang() === "en" ? pair?.en || pair?.zh || "" : pair?.zh || "");
@@ -42,6 +50,7 @@ function metersHtml(panel, snap) {
 
 export function createCoachingMomentView({ getPool, show, goBack } = {}) {
   let el = null;
+  let shell = null;
   let body = null;
   let challenge = null;
   let report = null;
@@ -193,8 +202,17 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
     render();
   }
 
+  /** Mount once (boot) so the screen registry has the element; open() only renders and shows. */
+  function mount() {
+    if (!shell) {
+      el = ensureCoachingScreen({ getLang, onBack: () => goBack?.(), onRelocalize: render });
+      shell = el.__shell;
+    }
+    return shell.el;
+  }
+
   function open() {
-    el = ensureCoachingScreen();
+    mount();
     body = el.querySelector("#coach-tactics-body");
     report = null;
     const pool = typeof getPool === "function" ? getPool() : [];
@@ -222,5 +240,5 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
     return { ok: true };
   }
 
-  return { open, ensureScreen: ensureCoachingScreen };
+  return { open, mount, ensureScreen: ensureCoachingScreen };
 }

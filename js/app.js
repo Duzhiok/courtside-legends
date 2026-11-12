@@ -43,8 +43,8 @@ import { createLegacyMuseumView } from "./ui/legacyMuseumView.js";
 import { relocalizeShellScreens } from "./ui/screenShell.js";
 import { createMyHome, ensureMyHomeScreen } from "./ui/myHome/myHomeScreen.js";
 import { createCareerInboxView } from "./ui/careerInboxView.js";
-import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
-import { ensureDraftGambleScreen, createDraftGambleView } from "./ui/scoutingView.js";
+import { createCoachingMomentView } from "./ui/coachingMomentView.js";
+import { createDraftGambleView } from "./ui/scoutingView.js";
 import { createGmBusinessView } from "./ui/gmBusinessView.js";
 import { ensureNetworkScreen, createNetworkView } from "./ui/networkViews.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
@@ -12706,7 +12706,7 @@ async function boot() {
     // GM draft gamble (workstream C): the 1996 scouting/draft slice.
     // ?draft-gamble=1 opens it directly after boot. open() shows the
     // scout phase for a new run, or resumes the saved run.
-    screens.draftGamble = ensureDraftGambleScreen();
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
     const draftGambleView = createDraftGambleView({
       getLang,
       readRootSave: () => state.longCareerRoot || readRootSave(),
@@ -12714,14 +12714,16 @@ async function boot() {
       show,
       goBack,
     });
+    screens.draftGamble = draftGambleView.mount();
     // Coach tactical depth (workstream B) — the comeback-challenge slice.
     // Dev entry ?coach-tactics=1 opens it after boot (see below).
-    screens.coachTactics = ensureCoachingScreen();
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
     const coachingMomentView = createCoachingMomentView({
       getPool: () => PLAYERS,
       show,
       goBack,
     });
+    screens.coachTactics = coachingMomentView.mount();
     // [Career 2.0 G] Basketball Career Network — dev entries only
     // (?scout=1 / ?film=1 / ?analytics=1 / ?network=1). The public entry
     // is an integration follow-up once the slices land.

@@ -12,6 +12,14 @@ import { CLUTCH_POOL } from "./helpers/clutchSim.js";
 import { createCoachingMomentView } from "../js/ui/coachingMomentView.js";
 import { FOCUS_PLAYS } from "../js/engine/gameplan.js";
 
+// mountScreen observes class changes and escapes opener selectors; the
+// stubs below are enough because the observer never fires in these tests.
+globalThis.MutationObserver = class {
+  observe() {}
+  disconnect() {}
+};
+globalThis.CSS = { escape: (s) => String(s) };
+
 function makeClassList() {
   const set = new Set();
   return {
@@ -75,10 +83,84 @@ function makeEl(tag = "div") {
     get: () => el._html,
     set: (v) => {
       el._html = v;
+      // The shell's head markup is materialised so mountScreen's
+      // querySelector calls find real elements; anything else is just text.
+      if (v.includes("panel-head") && v.includes("screen-shell-body")) {
+        el.children = parseShellHtml(v);
+        for (const c of el.children) c.parent = el;
+      }
     },
     configurable: true,
   });
   return el;
+}
+
+/** Materialise the shell head: panel-head > button > span + h2, then the body div. */
+function parseShellHtml(html) {
+  const head = makeEl("div");
+  head.classList.add("panel-head");
+  const btn = makeEl("button");
+  btn.id = html.match(/<button[^>]*id="([^"]+)"/)?.[1] || "";
+  btn.classList.add("nav-back");
+  const span = makeEl("span");
+  span.textContent = html.match(/<button[^>]*>[\s\S]*?<span>([^<]*)<\/span>/)?.[1] || "";
+  btn.children = [span];
+  span.parent = btn;
+  const h2 = makeEl("h2");
+  h2.id = html.match(/<h2 id="([^"]+)"/)?.[1] || "";
+  h2.textContent = html.match(/<h2[^>]*>([^<]*)<\/h2>/)?.[1] || "";
+  head.children = [btn, h2];
+  btn.parent = head;
+  h2.parent = head;
+  const body = makeTacticsBody();
+  body.id = html.match(/<div class="screen-shell-body" id="([^"]+)"/)?.[1] || "";
+  body.classList.add("screen-shell-body");
+  return [head, body];
+}
+
+/** The #coach-tactics-body element: writing panel HTML materialises the
+ * selects / buttons / meters the view drives, as in parseBodyHtml. */
+function makeTacticsBody() {
+  const body = makeEl("div");
+  Object.defineProperty(body, "innerHTML", {
+    get: () => body._html,
+    set: (v) => {
+      body._html = v;
+      body.children = parseBodyHtml(v);
+      for (const c of body.children) c.parent = body;
+    },
+    configurable: true,
+  });
+  return body;
+}
+
+function makeDoc() {
+  const app = makeEl("div");
+  app.id = "app";
+  const body = makeEl("body");
+  const doc = {
+    body,
+    createElement: (tag) => makeEl(tag),
+    querySelector: (sel) => (sel === "#app" ? app : null),
+    getElementById: (id) => {
+      const walk = (node) => {
+        if (node.id === id) return node;
+        for (const child of node.children || []) {
+          const found = walk(child);
+          if (found) return found;
+        }
+        return null;
+      };
+      return walk(app) || walk(body);
+    },
+  };
+  return { doc, app };
+}
+
+function installDoc() {
+  const { doc } = makeDoc();
+  globalThis.document = doc;
+  return doc;
 }
 
 function matchesSelector(node, selector) {
@@ -153,32 +235,15 @@ function parseBodyHtml(html) {
 /** Mount the real view on the fake DOM and drive it to the live panel
  * (opening moment choice -> no moment -> focus/tempo/sub selects). */
 function openPanel() {
-  const body = makeEl("div");
-  body.id = "coach-tactics-body";
-  Object.defineProperty(body, "innerHTML", {
-    get: () => body._html,
-    set: (v) => {
-      body._html = v;
-      body.children = parseBodyHtml(v);
-      for (const c of body.children) c.parent = body;
-    },
-    configurable: true,
-  });
-  const screen = makeEl("main");
-  screen.id = "screen-coach-tactics";
-  screen.children = [body];
-  body.parent = screen;
-  globalThis.document = {
-    querySelector: (sel) => (sel === "#screen-coach-tactics" ? screen : null),
-    createElement: (tag) => makeEl(tag),
-    body: { appendChild: () => {} },
-  };
+  const doc = installDoc();
   const view = createCoachingMomentView({
     getPool: () => CLUTCH_POOL,
     show: () => {},
   });
   const opened = view.open();
   assert.ok(opened.ok, "view must open with the full pool");
+  const body = doc.getElementById("coach-tactics-body");
+  assert.ok(body, "shell must materialise #coach-tactics-body");
   // Opening moment -> pick the first enabled choice until the live panel
   // (focus/tempo/sub selects) appears.
   for (let guard = 0; guard < 10; guard += 1) {
