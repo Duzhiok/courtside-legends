@@ -11,6 +11,7 @@ import {
   budgetGold,
   buildAffordableShop,
   rollScoutPackOffer,
+  chargeScoutPack,
   simulateCpuMatch,
   teamStarters,
 } from "../js/engine/careerEconomy.js";
@@ -244,4 +245,74 @@ test("buildAffordableShop: returned cards are clones, not live references into P
   } finally {
     PLAYERS.splice(originalLength);
   }
+});
+
+// ---------------------------------------------------------------- chargeScoutPack: who pays, exactly once
+
+const offerOf = (cost = 80) => ({ cost, bought: false, reason: "round" });
+
+test("chargeScoutPack: career pays once from the challenge budget, a second click is a no-op", () => {
+  const c = { kind: "career", gold: 500, scoutOffer: offerOf(80) };
+  assert.deepEqual(chargeScoutPack(c), { ok: true, cost: 80, buyer: null });
+  assert.equal(c.gold, 420);
+  assert.equal(c.scoutActive, true);
+  assert.equal(c.scoutOffer.bought, true);
+  assert.deepEqual(chargeScoutPack(c), { ok: false, reason: "bought" });
+  assert.equal(c.gold, 420); // never charged twice
+});
+
+test("chargeScoutPack: duel charges ONLY the buyer, even when both sides could afford it", () => {
+  const c = { kind: "duel", goldA: 600, goldB: 600, scoutOffer: offerOf(90) };
+  const res = chargeScoutPack(c, "B");
+  assert.equal(res.ok, true);
+  assert.equal(res.buyer, "B");
+  assert.equal(c.goldA, 600, "A paid nothing: they did not buy");
+  assert.equal(c.goldB, 510);
+  assert.equal(c.scoutBuyer, "B");
+  assert.equal(c.scoutActive, true);
+});
+
+test("chargeScoutPack: duel needs an explicit buyer and never guesses one", () => {
+  for (const side of [undefined, null, "", "C", "a"]) {
+    const c = { kind: "duel", goldA: 600, goldB: 600, scoutOffer: offerOf(90) };
+    assert.deepEqual(chargeScoutPack(c, side), { ok: false, reason: "side", cost: 90 }, String(side));
+    assert.equal(c.goldA + c.goldB, 1200);
+    assert.equal(c.scoutOffer.bought, false);
+    assert.equal(c.scoutActive === true, false);
+  }
+});
+
+test("chargeScoutPack: the buyer must be able to pay for themselves (the other side's gold does not help)", () => {
+  const c = { kind: "duel", goldA: 10, goldB: 900, scoutOffer: offerOf(90) };
+  assert.deepEqual(chargeScoutPack(c, "A"), { ok: false, reason: "funds", cost: 90 });
+  assert.equal(c.goldA, 10);
+  assert.equal(c.goldB, 900);
+  assert.equal(c.scoutOffer.bought, false);
+  const career = { kind: "career", gold: 79, scoutOffer: offerOf(80) };
+  assert.equal(chargeScoutPack(career).reason, "funds");
+  assert.equal(career.gold, 79);
+});
+
+test("chargeScoutPack: no offer, no charge; a new batch forgets the previous buyer", () => {
+  const c = { kind: "duel", goldA: 600, goldB: 600, scoutOffer: null };
+  assert.equal(chargeScoutPack(c, "A").reason, "none");
+  c.scoutOffer = offerOf(90);
+  chargeScoutPack(c, "A");
+  assert.equal(c.scoutBuyer, "A");
+  const keep = Math.random;
+  Math.random = () => 0.99; // above both chances: no pack this batch
+  try {
+    rollScoutPackOffer(c, "round");
+  } finally {
+    Math.random = keep;
+  }
+  assert.equal(c.scoutActive, false);
+  assert.equal(c.scoutBuyer, null);
+});
+
+test("chargeScoutPack: only the challenge budget moves; account lifestyle gold is not part of it", () => {
+  const account = { gold: 1234 };
+  const c = { kind: "career", gold: 500, scoutOffer: offerOf(80), account };
+  chargeScoutPack(c);
+  assert.equal(account.gold, 1234);
 });

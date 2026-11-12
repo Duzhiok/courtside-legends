@@ -238,6 +238,7 @@ import {
   buildAffordableShop,
   careerRefreshCost,
   rollScoutPackOffer,
+  chargeScoutPack,
   rosterFitDelta,
   rosterFitTier,
   teamStarters,
@@ -5349,7 +5350,8 @@ function paintScoutPackOffer(c) {
   if (!offer || offer.bought) {
     if (c.scoutActive) {
       el.hidden = false;
-      el.innerHTML = `<span class="scout-pack-active">球探已启用 · 本批名单已标出妖人 / 板凳匪徒</span>`;
+      const by = c.scoutBuyer ? `（${c.scoutBuyer} 方付费，双方可见）` : "";
+      el.innerHTML = `<span class="scout-pack-active">球探已启用${by} · 本批名单已标出妖人 / 板凳匪徒</span>`;
     } else {
       // 本批没有球探包：轻提示，避免误以为每轮都能买
       el.hidden = false;
@@ -5357,47 +5359,29 @@ function paintScoutPackOffer(c) {
     }
     return;
   }
-  const budget = c.kind === "duel" ? Math.max(c.goldA || 0, c.goldB || 0) : c.gold || 0;
-  const can = budget >= offer.cost;
+  const isDuel = c.kind === "duel";
+  const buttons = isDuel
+    ? ["A", "B"].map((side) => `<button class="btn small" data-scout-buyer="${side}" ${(c[side === "A" ? "goldA" : "goldB"] || 0) >= offer.cost ? "" : "disabled"}>${side} 买入 ¤${offer.cost}</button>`).join("")
+    : `<button class="btn small" id="btn-buy-scout-pack" ${(c.gold || 0) >= offer.cost ? "" : "disabled"}>买入 ¤${offer.cost}</button>`;
   el.hidden = false;
   el.innerHTML = `<div class="scout-pack-card">
     <div>
       <strong>球探包</strong>
-      <div class="tiny">花 ¤${offer.cost} 买球探报告：标出本批里的性价比妖人与板凳匪徒（换货随机刷出）</div>
+      <div class="tiny">花 ¤${offer.cost} 买球探报告：标出本批里的性价比妖人与板凳匪徒${isDuel ? "。谁点谁付费，双方都能看到报告" : "（换货随机刷出）"}</div>
     </div>
-    <button class="btn small" id="btn-buy-scout-pack" ${can ? "" : "disabled"}>买入 ¤${offer.cost}</button>
+    <div class="btn-row">${buttons}</div>
   </div>`;
-  const btn = $("#btn-buy-scout-pack");
-  if (btn) btn.onclick = () => buyScoutPack();
+  el.querySelector("#btn-buy-scout-pack")?.addEventListener("click", () => buyScoutPack());
+  el.querySelectorAll("[data-scout-buyer]").forEach((b) => b.addEventListener("click", () => buyScoutPack(b.dataset.scoutBuyer)));
 }
 
-function buyScoutPack() {
+function buyScoutPack(side = null) {
   const c = state.career;
-  if (!c?.scoutOffer || c.scoutOffer.bought) return;
-  const cost = c.scoutOffer.cost || SCOUT_PACK_COST_MIN;
-  if (c.kind === "career") {
-    if ((c.gold || 0) < cost) {
-      alert(`球探包需要 ¤${cost}`);
-      return;
-    }
-    c.gold -= cost;
-  } else {
-    let charged = false;
-    if ((c.goldA || 0) >= cost) {
-      c.goldA -= cost;
-      charged = true;
-    }
-    if ((c.goldB || 0) >= cost) {
-      c.goldB -= cost;
-      charged = true;
-    }
-    if (!charged) {
-      alert(`球探包需要至少一方有 ¤${cost}`);
-      return;
-    }
+  const res = chargeScoutPack(c, side);
+  if (!res.ok) {
+    if (res.reason === "funds") alert(c.kind === "career" ? `球探包需要 ¤${res.cost}` : `${side} 方的挑战赛预算不够 ¤${res.cost}`);
+    return;
   }
-  c.scoutOffer.bought = true;
-  c.scoutActive = true;
   openMarket({ career: c.kind === "career", duel: c.kind === "duel" });
 }
 

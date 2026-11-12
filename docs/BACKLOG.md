@@ -106,3 +106,9 @@
 - Gold challenge: "back to home" after an elimination, or after winning the LAST tier, now writes a read-only record (`js/data/challengeArchive.js`) and then clears the slot. Moving on to the next tier is unchanged. Records live on the account (`account.challengeArchive`, cap 20); a guest gets a device key. My World > My Games lists the newest 5, no buttons.
 - Not covered: the tap itself was not exercised by playing a real 32-team bracket in a browser; it is covered by a wiring test (both call sites run before `clearSave()`) plus a mutation check. Worth one manual run.
 - Not done: Duel / Custom Duel / Budget-draft endings still just clear (only the gold-challenge bracket was in scope); records are not shown on the home save bar; no way to delete a record.
+
+### Gold challenge / Duel review (external) — status after the scout-pack fix
+- DONE: scout pack in the duel market charged BOTH sides when both could pay, with no buyer. Now `chargeScoutPack(c, side)` (`js/engine/careerEconomy.js`): the buyer pays exactly once, A/B each get a 44px button, the pack is announced as "X paid, visible to both". Unit tests + `scripts/qa/scout-pack-duel.mjs` (real duel draft, seeded; takes ~5 min because a market where BOTH sides can still afford the pack is rare after drafting).
+- NOT DONE (the review's other findings, nothing started): (A) per-player default role + tendency sliders in the tactic editor (6 presets incl. Interior Scorer; independent shoot/pass/drive weights that bias choices, never hit %), (B) playoff/series flow checks, (C) the rest of the duel economy audit.
+- UI wording to settle: the header gold chip is the ACCOUNT gold, the market line "金币 A / B" is the challenge budget. Side by side they read as a mismatch; rename the budget "挑战预算".
+- Known existing: mobile duel market left panel is very narrow and both lists clip their last card inside their own scroll area.

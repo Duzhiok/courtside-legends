@@ -536,6 +536,9 @@ html, body {
   border: 1px dashed #c45c26;
   background: rgba(196, 92, 38, .08);
 }
+.scout-pack-card .btn-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.scout-pack-card .btn { min-height: 44px; } /* two explicit buyers in a duel: both are touch targets */
+@media (max-width: 480px) { .scout-pack-card { flex-wrap: wrap; } .scout-pack-card .btn-row { width: 100%; justify-content: stretch; } .scout-pack-card .btn-row .btn { flex: 1; } }
 .scout-pack-active {
   display: block;
   padding: 8px 12px;

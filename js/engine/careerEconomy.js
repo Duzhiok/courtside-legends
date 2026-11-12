@@ -267,6 +267,7 @@ export function buildAffordableShop(c, size = 12) {
  */
 export function rollScoutPackOffer(c, reason = "round") {
   c.scoutActive = false;
+  c.scoutBuyer = null;
   const chance = reason === "refresh" ? SCOUT_PACK_REFRESH_CHANCE : SCOUT_PACK_CHANCE;
   if (Math.random() >= chance) {
     c.scoutOffer = null;
@@ -275,4 +276,33 @@ export function rollScoutPackOffer(c, reason = "round") {
   const span = SCOUT_PACK_COST_MAX - SCOUT_PACK_COST_MIN;
   const cost = SCOUT_PACK_COST_MIN + Math.floor(Math.random() * (span + 1));
   c.scoutOffer = { cost, bought: false, reason };
+}
+
+/**
+ * Buy the current scout pack. Pure state change on the challenge object `c`; the UI only calls this and repaints.
+ *  - career: the single challenge budget `c.gold` pays.
+ *  - duel:   the BUYER (`side` "A" | "B") pays from `goldA` / `goldB`, and only the buyer, exactly once. The report is
+ *            then visible to both players (they share one market on one device), recorded in `c.scoutBuyer`.
+ * Only the challenge budget is touched, never the account's lifestyle gold.
+ * Returns { ok: true, cost, buyer } or { ok: false, reason: "none" | "bought" | "side" | "funds", cost? }.
+ */
+export function chargeScoutPack(c, side = null) {
+  const offer = c?.scoutOffer;
+  if (!offer) return { ok: false, reason: "none" };
+  if (offer.bought) return { ok: false, reason: "bought" };
+  const cost = offer.cost || SCOUT_PACK_COST_MIN;
+  if (c.kind === "career") {
+    if ((c.gold || 0) < cost) return { ok: false, reason: "funds", cost };
+    c.gold -= cost;
+    side = null;
+  } else {
+    if (side !== "A" && side !== "B") return { ok: false, reason: "side", cost };
+    const key = side === "A" ? "goldA" : "goldB";
+    if ((c[key] || 0) < cost) return { ok: false, reason: "funds", cost };
+    c[key] -= cost;
+  }
+  offer.bought = true;
+  c.scoutActive = true;
+  c.scoutBuyer = side;
+  return { ok: true, cost, buyer: side };
 }
