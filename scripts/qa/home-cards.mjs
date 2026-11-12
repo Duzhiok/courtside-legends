@@ -4,6 +4,7 @@
 // Usage: node scripts/qa/home-cards.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { textContrast } from "./lib/page.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/home-cards";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -53,6 +54,20 @@ async function run(width, height, tag) {
       check(`[${tag}/career] photo row is 3 across`, career.cols === 3, `cols=${career.cols}`);
       check(`[${tag}/career] three photo cards in order (Player/Coach/GM)`, JSON.stringify(career.photos.map((p) => p.id)) === JSON.stringify(["player", "coach", "gm"]), career.photos.map((p) => p.id).join(","));
       check(`[${tag}/career] photo cards share one row`, new Set(career.photos.map((p) => p.top)).size === 1, career.photos.map((p) => `${p.id}:${p.top}`).join(", "));
+      // Same root cause as the stray full-width GM card: legacy .mode-card surface rules reaching the new career cards.
+      const uniform = await page.evaluate(() => ["player", "coach", "gm"].map((id) => {
+        const c = document.querySelector(`[data-career-identity="${id}"]`);
+        return { id, imgTop: Math.round(c.querySelector("img").getBoundingClientRect().top), spanColor: getComputedStyle(c.querySelector("span")).color, bg: getComputedStyle(c).backgroundColor };
+      }));
+      check(`[${tag}/career] the three photo cards are visually identical (image top, caption colour, no panel surface)`, new Set(uniform.map((u) => u.imgTop)).size === 1 && new Set(uniform.map((u) => u.spanColor)).size === 1 && uniform.every((u) => u.bg === "rgba(0, 0, 0, 0)"), JSON.stringify(uniform));
+      // Panel gradient #0a2417 -> #123a24: its lightest stop is the hardest case for the light captions.
+      // The sr-only group label is a 1px clipped element (not visible text): assert that instead of measuring it.
+      const srLabel = await page.evaluate(() => { const r = document.querySelector(".career-photo-row .mode-group-label").getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; });
+      check(`[${tag}/career] the "经理生涯" group label stays screen-reader-only (1px clip)`, srLabel.w <= 1 && srLabel.h <= 1, JSON.stringify(srLabel));
+      const photoLow = (await textContrast(page, ".career-photo-row", { min: 4.5, gradient: [18, 58, 36] })).filter((row) => !row.startsWith("div.mode-group-label"));
+      check(`[${tag}/career] photo-card captions meet 4.5:1 on the dark panel`, photoLow.length === 0, photoLow.join(" | "));
+      const archLow = await textContrast(page, ".career-architect-card", { min: 4.5, gradient: [29, 74, 44] });
+      check(`[${tag}/career] Architect text (kicker, name, description, pills, count) meets 4.5:1`, archLow.length === 0, archLow.join(" | "));
       check(`[${tag}/career] all three portraits loaded`, career.photos.every((p) => p.imgLoaded), career.photos.map((p) => p.src).join(", "));
       check(`[${tag}/career] prestige card spans the full entry width`, Math.abs(career.archW - career.rowW) <= 4, `${career.archW}/${career.rowW}`);
       check(`[${tag}/career] exactly one lock state is shown`, career.lockClosedVisible !== career.lockOpenVisible, `closed=${career.lockClosedVisible} open=${career.lockOpenVisible}`);
@@ -97,23 +112,31 @@ async function run(width, height, tag) {
     await page.click('.home-tab[data-category="career"]');
     await page.waitForTimeout(300);
   };
-  // Player routes to the Reborn flow; Coach is in development and shows an honest note, never a flow.
+  // Player routes to the Reborn flow; Coach is playable too (CAREER_IDENTITIES status "playable") and opens the Time Travel creation screen.
   await freshCareer();
   await page.click('[data-career-identity="player"]');
   await page.waitForFunction(() => document.querySelector("#screen-reborn")?.classList.contains("active"), null, { timeout: 15000 });
   check(`[${tag}] Player card reaches the Reborn screen`, true);
   await freshCareer();
   await page.click('[data-career-identity="coach"]');
-  await page.waitForTimeout(200);
+  await page.waitForFunction(() => document.querySelector("#screen-time-travel")?.classList.contains("active"), null, { timeout: 15000 });
   const coachNote = await page.evaluate(() => {
     const note = document.querySelector("#career-entry-note");
-    return { visible: !note.hidden, text: note.textContent.trim(), stillHome: document.querySelector("#screen-home")?.classList.contains("active") };
+    return { noteShown: !note.hidden && note.textContent.trim().length > 0, text: note.textContent.trim() };
   });
-  check(`[${tag}] Coach card shows the in-development note without navigating`, coachNote.visible && coachNote.text.includes("开发中") && coachNote.stillHome, coachNote.text);
+  check(`[${tag}] Coach card opens the Time Travel (coach career) screen, no "in development" note`, !coachNote.noteShown && !coachNote.text.includes("开发中"), coachNote.text);
   // The Architect is locked for a fresh account: clicking shows the
   // requirements, never a flow, and the era panel stays hidden.
   await freshCareer();
-  await page.click('[data-career-identity="gm_coach"]');
+  // The locked card is aria-disabled on purpose (it is still clickable so it can explain itself), which Playwright
+  // treats as "not enabled". Prove it really is in the locked state, then click it with a real mouse press at its position.
+  const lockedState = await page.evaluate(() => {
+    const el = document.querySelector('[data-career-identity="gm_coach"]');
+    const r = el.getBoundingClientRect();
+    return { ariaDisabled: el.getAttribute("aria-disabled") === "true", lockedClass: el.classList.contains("career-architect-card--locked"), nativeDisabled: el.disabled, visible: r.width > 0 && r.height > 0 };
+  });
+  check(`[${tag}] fresh account: Architect is in the locked state (aria-disabled, locked style, visible, still a real button)`, lockedState.ariaDisabled && lockedState.lockedClass && lockedState.visible && !lockedState.nativeDisabled, JSON.stringify(lockedState));
+  await page.click('[data-career-identity="gm_coach"]', { force: true });
   await page.waitForTimeout(200);
   const archNote = await page.evaluate(() => {
     const note = document.querySelector("#career-entry-note");

@@ -237,13 +237,14 @@ html[lang="en"] .topbar .brand-name { display: none; }
 }
 .home-category-panel[hidden] { display: none; }
 /* —— Mode-card grid: two columns, never content-sized (an auto-fit grid let one lone card shrink to a sliver).
-   Group labels and featured cards span both columns; a plain card with no partner in its row takes the whole row. —— */
+   Group labels and featured cards span both columns; a plain card with no partner in its row takes the whole row.
+   Scoped to .mode-grid: the Career photo row has its own 3-up grid and must not be re-flowed by this rule. —— */
 #screen-home .mode-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 #screen-home .mode-group-label { grid-column: 1 / -1; }
 #screen-home .mode-card { min-width: 0; }
-#screen-home :is(.mode-group-label, .mode-card-feature) + .mode-card:not(.mode-card-feature):is(
+#screen-home .mode-grid :is(.mode-group-label, .mode-card-feature) + .mode-card:not(.mode-card-feature):is(
   :last-child,
   :has(+ :is(.mode-group-label, .mode-card-feature))
 ) { grid-column: 1 / -1; }
@@ -483,6 +484,41 @@ html[lang="en"] .topbar .brand-name { display: none; }
   cursor: pointer;
   min-width: 0;
 }
+/* The GM card is ALSO a .mode-card (it routes through data-mode), so the light #screen-home .mode-card surface reaches it.
+   Inside the photo row it must stay one plain photo cell like Player and Coach. */
+#screen-home .career-photo-row > .mode-card.career-photo-card {
+  background: none;
+  backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  transform: none;
+  min-height: 0;
+  overflow: visible; /* the hover outline on the photo must not be clipped (only GM had overflow:hidden) */
+}
+#screen-home .career-photo-row > .mode-card.career-photo-card strong { margin-bottom: 0; }
+#screen-home .career-photo-row > .mode-card.career-photo-card > span { color: rgba(248, 244, 234, .75); }
+/* The Architect is a .mode-card too: the light panel surface + grey span colour turned its dark-green design (gold kicker,
+   white name, cream pills, written for a dark ground) into pale-on-pale text. Restore the designed surface. */
+#screen-home .career-entry .career-architect-card {
+  background: linear-gradient(150deg, #1d4a2c 0%, #17402a 100%);
+  border: 1px solid rgba(214, 178, 90, .65);
+  box-shadow: none;
+  min-height: 0;
+}
+#screen-home .career-entry .career-architect-card--unlocked {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px rgba(246, 200, 112, .25);
+}
+/* Legacy `.mode-card span { color: var(--muted) }` (style.css) out-ranks every single-class colour below and greyed the whole card. */
+#screen-home .career-entry .career-architect-card .career-architect-crown,
+#screen-home .career-entry .career-architect-card .career-architect-kicker,
+#screen-home .career-entry .career-architect-card .career-architect-lock { color: var(--gold); }
+#screen-home .career-entry .career-architect-card .career-architect-name { color: #fff; }
+#screen-home .career-entry .career-architect-card .career-architect-desc { color: rgba(248, 244, 234, .82); }
+#screen-home .career-entry .career-architect-card .career-architect-pill { color: rgba(248, 244, 234, .85); }
+#screen-home .career-entry .career-architect-card .career-architect-pill--done { color: var(--gold); }
+#screen-home .career-entry .career-architect-card .career-architect-count { color: rgba(248, 244, 234, .8); }
 .career-photo-card .career-photo {
   display: block;
   width: 100%;

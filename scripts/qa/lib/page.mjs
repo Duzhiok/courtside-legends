@@ -48,13 +48,18 @@ export const lowContrast = (page, root, selectors, min = 4.5) => page.evaluate((
  * images/gradients are not measured: look at the screenshot for those.
  * Returns one line per offending element kind: "tag.class xN worst 1.13 \"sample\"".
  */
-export const textContrast = (page, root, { min = 4.5, under = [255, 255, 255] } = {}) => page.evaluate(([rootSel, floor, base0]) => {
+/** `gradient`: the colour to treat a gradient-painted ancestor as (its LIGHTEST stop is the worst case for light text); backgroundColor alone cannot see gradients. */
+export const textContrast = (page, root, { min = 4.5, under = [255, 255, 255], gradient = null } = {}) => page.evaluate(([rootSel, floor, base0, grad]) => {
   const parse = (css) => { const m = css.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; };
   const over = (top, under) => ({ r: top.r * top.a + under.r * (1 - top.a), g: top.g * top.a + under.g * (1 - top.a), b: top.b * top.a + under.b * (1 - top.a), a: 1 });
   const lum = ({ r, g, b }) => [r, g, b].map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
   const backdrop = (el) => {
     const layers = [];
-    for (let n = el; n; n = n.parentElement) { const c = parse(getComputedStyle(n).backgroundColor); if (c.a > 0) layers.push(c); if (c.a >= 1) break; }
+    for (let n = el; n; n = n.parentElement) {
+      const st = getComputedStyle(n);
+      if (grad && st.backgroundImage.includes("gradient")) { layers.push({ r: grad[0], g: grad[1], b: grad[2], a: 1 }); break; }
+      const c = parse(st.backgroundColor); if (c.a > 0) layers.push(c); if (c.a >= 1) break;
+    }
     return layers.reverse().reduce((base, c) => over(c, base), { r: base0[0], g: base0[1], b: base0[2], a: 1 });
   };
   const hasOwnText = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
@@ -77,7 +82,7 @@ export const textContrast = (page, root, { min = 4.5, under = [255, 255, 255] } 
     found.set(key, seen);
   }
   return [...found].map(([key, v]) => `${key} x${v.n} worst ${v.worst.toFixed(2)} "${v.sample}"`);
-}, [root, min, under]);
+}, [root, min, under, gradient]);
 /** The dark stage behind the season hub tabs (#season-hub-panel's gradient, sampled at its middle). */
 export const SEASON_HUB_BASE = [14, 24, 20];
 // Guest-first home: the card/draw/switch buttons sit in the collapsed My Profile panel, so open it first.
