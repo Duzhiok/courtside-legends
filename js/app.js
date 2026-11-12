@@ -46,7 +46,7 @@ import { createCareerInboxView } from "./ui/careerInboxView.js";
 import { createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { createDraftGambleView } from "./ui/scoutingView.js";
 import { createGmBusinessView } from "./ui/gmBusinessView.js";
-import { ensureNetworkScreen, createNetworkView } from "./ui/networkViews.js";
+import { createNetworkView } from "./ui/networkViews.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
@@ -12647,7 +12647,8 @@ async function boot() {
       onPlayHometownChallenge: () => startHometownChallenge(),
     });
     // Legend Duel screen (created dynamically by duelView) + view wiring.
-    screens.duel = ensureDuelScreen();
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
+    screens.duel = ensureDuelScreen({ getLang });
     initDuelView({ show, goBack });
     // Player Reborn — the public entry. The Career Player card routes
     // here (onPlay "player" above); ?reborn=1 opens it directly.
@@ -12727,13 +12728,14 @@ async function boot() {
     // [Career 2.0 G] Basketball Career Network — dev entries only
     // (?scout=1 / ?film=1 / ?analytics=1 / ?network=1). The public entry
     // is an integration follow-up once the slices land.
-    screens.network = ensureNetworkScreen();
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
     networkView = createNetworkView({
       getLang,
       getAccountId: () => activeAccount()?.id || null,
       show,
       goBack,
     });
+    screens.network = networkView.mount();
     myTeamLineup = createMyTeamLineup({
       el: $("#my-team-lineup-root"),
       getLang,

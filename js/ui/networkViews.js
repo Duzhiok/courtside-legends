@@ -32,6 +32,7 @@ import {
   NETWORK_ROLES, emptyNetworkProfile, generateOpportunities,
   acceptOpportunity, dismissalOutcome, recordSliceResult, reputationStanding,
 } from "../career/network/careerOpportunities.js";
+import { mountScreen } from "./screenShell.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 const STORE_PREFIX = "cl-network-v1";
@@ -45,15 +46,25 @@ async function loadRows() {
   return ROWS_CACHE;
 }
 
-export function ensureNetworkScreen() {
-  let el = document.querySelector("#screen-network");
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = "screen-network";
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-network-back" type="button"><span>返回</span></button><h2>篮球职业网络 · Career Network</h2></div><div id="network-body"></div>`;
-  document.body.appendChild(el);
-  return el;
+/** The page title, rendered once by the shell in the current language. */
+export const NETWORK_TITLE = Object.freeze({ zh: "篮球职业网络", en: "Career Network" });
+
+/**
+ * Mount the Career Network screen on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language title),
+ * the focus/scroll lifecycle and the language switch; this view keeps its own
+ * business state and renders into the shell body.
+ * Host "app" (the default): the network slices are plain long-form page
+ * screens that scroll with the page, as before — nothing about them needs to
+ * cover the viewport or scroll on its own, so no overlay behaviour. Mounting
+ * moves the screen from document.body into the #app column, like the museum /
+ * inbox / coaching / gamble screens before it.
+ * The back button used to be wired by the view factory with a backWired flag;
+ * that branch is gone — the shell wires it to onBack, so a click can no
+ * longer fire goBack twice.
+ */
+export function ensureNetworkScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+  return mountScreen({ id: "network", title: NETWORK_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
 function storeKey(kind, accountId) {
@@ -158,21 +169,41 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   const accountId = () => (typeof getAccountId === "function" ? getAccountId() : null);
   let screen = null;
   let body = null;
+  let currentView = null; // "home" | "scout" | "film" | "analytics" | "board"
 
   const profile = () => readStore("profile", accountId(), emptyNetworkProfile({}));
   const saveProfile = (p) => writeStore("profile", accountId(), p);
 
+  /** Mount once (boot) so the screen registry has the element; open() only renders and shows. */
   function mount() {
-    screen = ensureNetworkScreen();
-    body = screen.querySelector("#network-body");
-    if (!screen.dataset.backWired) {
-      screen.dataset.backWired = "1";
-      screen.querySelector("#btn-network-back")?.addEventListener("click", () => {
-        if (typeof goBack === "function") goBack();
-        else if (typeof show === "function") show("home");
+    if (!screen) {
+      screen = ensureNetworkScreen({
+        getLang: lang,
+        onBack: () => {
+          if (typeof goBack === "function") goBack();
+          else if (typeof show === "function") show("home");
+        },
+        // Home and the opportunity board are cheap deterministic re-renders.
+        // Scout / film / analytics rebuild their challenge from a fresh
+        // seed on re-render, so a language toggle leaves those bodies alone
+        // (same as before the migration, when a toggle never re-rendered
+        // the body) — the next navigation renders in the new language.
+        onRelocalize: () => {
+          if (!body?.hasChildNodes()) return;
+          if (currentView === "home") renderHome();
+          else if (currentView === "board") openBoard();
+        },
       });
+      body = screen.querySelector("#network-body");
     }
-    return body;
+    return screen;
+  }
+
+  function renderHome() {
+    body.innerHTML = homeHtml();
+    body.querySelectorAll("[data-nw-open]").forEach((btn) => {
+      btn.addEventListener("click", () => open(btn.dataset.nwOpen));
+    });
   }
 
   function homeHtml() {
@@ -189,6 +220,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   }
 
   async function openScout({ season = 1997, seed = 7 } = {}) {
+    currentView = "scout";
     const rows = await getRows();
     const pool = prospectPool(rows, season);
     const picked = pickProspects(pool, 5, seed);
@@ -228,6 +260,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   }
 
   async function openFilm({ seed = 11 } = {}) {
+    currentView = "film";
     const rows = await getRows();
     body.innerHTML = `<p>${L("正在模拟一场比赛，生成真实回合记录…", "Simulating a game to build a real possession log…", lang())}</p>`;
     const home = buildTeamFromRows(rows, "CHI", 1997);
@@ -258,6 +291,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   }
 
   async function openAnalytics({ season = 1997, seed = 3 } = {}) {
+    currentView = "analytics";
     const rows = await getRows();
     const challenge = buildAnalyticsChallenge(rows, { season, seed });
     const board = findUndervalued(rows, { season, minGp: 20, limit: 5 });
@@ -281,6 +315,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   }
 
   function openBoard() {
+    currentView = "board";
     const p = profile();
     const { offers, unemployedNote } = generateOpportunities(p, DEMO_JOB_BOARD, { seed: 5 });
     body.innerHTML = networkBoardHtml({ profile: p, offers, unemployedNote, lang: lang() })
@@ -311,12 +346,10 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     else if (which === "analytics") openAnalytics();
     else if (which === "board") openBoard();
     else {
-      body.innerHTML = homeHtml();
-      body.querySelectorAll("[data-nw-open]").forEach((btn) => {
-        btn.addEventListener("click", () => open(btn.dataset.nwOpen));
-      });
+      currentView = "home";
+      renderHome();
     }
   }
 
-  return { open, openScout, openFilm, openAnalytics, openBoard, profile, saveProfile };
+  return { open, mount, openScout, openFilm, openAnalytics, openBoard, profile, saveProfile };
 }

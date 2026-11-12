@@ -18,6 +18,7 @@ import { resolveCardPhoto } from "../data/photo.js";
 import { getAccount } from "../data/account.js";
 import { readIdentity } from "../data/profile.js";
 import { BODY_PRESETS, readLook } from "../data/avatarLook.js";
+import { mountScreen } from "./screenShell.js";
 import { mountAvatar3d } from "./avatar3d.js";
 import { portraitFor } from "./portraitFor.js";
 import { createDuel, playPossession, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
@@ -70,20 +71,43 @@ export function duelReady() {
   return !!showFn && !!document.querySelector("#screen-duel");
 }
 
-export function ensureDuelScreen() {
-  let el = document.querySelector("#screen-duel");
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = "screen-duel";
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-duel-back" type="button"><span>${L("返回", "Back")}</span></button><h2>${L("传奇单挑 · Legend Duel", "Legend Duel")}</h2></div><div id="duel-body"></div>`;
-  document.body.appendChild(el);
-  el.querySelector("#btn-duel-back").addEventListener("click", () => {
-    destroyCourtController();
-    if (goBackFn) goBackFn();
-    else if (showFn) showFn("home");
-  });
-  return el;
+/** The page title, rendered once by the shell in the current language. */
+export const DUEL_TITLE = Object.freeze({ zh: "传奇单挑", en: "Legend Duel" });
+
+/**
+ * Mount the Legend Duel screen on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language title),
+ * the focus/scroll lifecycle and the language switch; this view keeps its own
+ * business state and renders into the shell body.
+ * Host "app" (the default): the select / match / result screens are plain
+ * long-form page screens that scroll with the page, as before — nothing about
+ * them needs to cover the viewport or scroll on its own, so no overlay
+ * behaviour. Mounting moves the screen from document.body into the #app
+ * column, like the museum / inbox / coaching / gamble screens before it.
+ * The back button used to destroy the live court controller and then goBack
+ * (or fall back to home); that exact sequence moves into onBack, read at
+ * click time so boot order — ensure before initDuelView — does not matter.
+ */
+export function ensureDuelScreen({ getLang: langFn = getLang, onBack, onRelocalize } = {}) {
+  return mountScreen({
+    id: "duel",
+    title: DUEL_TITLE,
+    getLang: langFn,
+    onBack: onBack || (() => {
+      destroyCourtController();
+      if (goBackFn) goBackFn();
+      else if (showFn) showFn("home");
+    }),
+    // Only the select screen is cheap to re-render: a live match owns a
+    // mounted court controller, and a result screen is one render away from
+    // fresh copy — so relocalize leaves those alone (same as before the
+    // migration, when a language toggle never re-rendered the body).
+    onRelocalize: onRelocalize || (() => {
+      if (current) return;
+      const body = bodyEl();
+      if (body?.hasChildNodes()) renderSelect();
+    }),
+  }).el;
 }
 
 /** Real art for a duelist, or null when only a generated silhouette exists. */
