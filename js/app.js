@@ -36,7 +36,8 @@ import { mountSandbox } from "./ui/sandboxView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
 import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
-import { ensureLegacyMuseumScreen, createLegacyMuseumView } from "./ui/legacyMuseumView.js";
+import { createLegacyMuseumView } from "./ui/legacyMuseumView.js";
+import { relocalizeShellScreens } from "./ui/screenShell.js";
 import { createMyHome, ensureMyHomeScreen } from "./ui/myHome/myHomeScreen.js";
 import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.js";
 import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
@@ -12345,6 +12346,7 @@ async function boot() {
       // Sandbox is mount-once: re-render its language chrome in place (picks stay).
       screens.sandbox?.__sandboxSetLang?.(nextLang);
       applyStaticLang();
+      relocalizeShellScreens(screens); // screens built on the Screen Shell re-render their own language
       timeTravelScreen.repaint();
       refreshCareerEntry();
       refreshMyWorld();
@@ -12416,10 +12418,10 @@ async function boot() {
     activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); if (id === "players") myTeamClubhouse?.refresh(); } });
     // Legacy Museum (篮球人生博物馆): the honours wall's earned titles open the
     // career legacy detail view (user decision 2026-11-10, after 375b75d).
-    screens.legacyMuseum = ensureLegacyMuseumScreen();
     screens.myHome = ensureMyHomeScreen();
     const myHome = createMyHome({ getLang, getModel: () => myWorld.homeModel(), show, goBack, onOpenShop: (category) => shop?.open({ category }) });
     const legacyMuseumView = createLegacyMuseumView({ getLang, getAccount: activeAccount, show, goBack });
+    screens.legacyMuseum = legacyMuseumView.mount();
     myWorld = createMyWorld({
       el: $("#my-world-root"),
       getLang,

@@ -57,14 +57,14 @@ check("model: empty account has no museum", legacyMuseumFor(account()) === null)
 // 4. View: unlocked museum, both languages
 for (const lang of ["zh", "en"]) {
   const html = legacyMuseumHtml(model, lang);
-  check(`[${lang}] museum renders the title, both careers and the unlock date`, html.includes(lang === "en" ? "Legacy Museum" : "篮球人生博物馆") && html.includes(lang === "en" ? "Coach career" : "教练生涯") && html.includes(lang === "en" ? "GM career" : "经理生涯") && html.includes(lang === "en" ? "Unlocked" : "解锁于"));
+  check(`[${lang}] museum body renders both careers and the unlock date, and does NOT repeat the page title`, !html.includes(lang === "en" ? "Legacy Museum" : "篮球人生博物馆") && !html.includes("<h2") && html.includes(lang === "en" ? "Coach career" : "教练生涯") && html.includes(lang === "en" ? "GM career" : "经理生涯") && html.includes(lang === "en" ? "Unlocked" : "解锁于"));
   check(`[${lang}] museum shows the legacy headline in the page language`, html.includes(lang === "en" ? "Moved to a new team" : "转投新球队"));
   check(`[${lang}] museum HTML has no leaked undefined/NaN`, noLeak(html));
   const other = lang === "en" ? "王朝缔造者" : "The Architect";
   check(`[${lang}] museum has no title names in the other language`, !html.includes(other));
 }
 const prestigeHtml = legacyMuseumHtml(prestigeModel, "zh", "dynasty-master");
-check("view: tapped title section is highlighted", /data-lm-title="dynasty-master" class="is-selected"/.test(prestigeHtml));
+check("view: tapped title section is highlighted", /is-selected[^>]*data-lm-title="dynasty-master"/.test(prestigeHtml));
 check("view: prestige championship career shown under Dynasty Master", prestigeHtml.includes("1 座总冠军") && prestigeHtml.includes("2005"));
 check("view: no museum for a null model", legacyMuseumHtml(null, "zh") === "");
 

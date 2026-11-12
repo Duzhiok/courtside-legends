@@ -17,6 +17,7 @@ import { architectProgress, architectTitlesFor } from "../career/careerAchieveme
 import { getShop, equippedClothingItemId } from "../data/shop.js";
 import { SHOP_ITEMS, itemById, itemName } from "../data/shopCatalog.js";
 import { lockerRoomSvg } from "./myWorldStage.js";
+import { titleIconOf } from "./legacyMuseumView.js";
 import { lookPanelHtml } from "./avatarLookView.js";
 import { resolveHome } from "../data/homeLayout.js";
 import { renderIsoRoom } from "./myHome/isoRoom.js";
@@ -313,7 +314,7 @@ export function architectTitlesHtml(architect, lang) {
   if (earned.length) {
     // Earned titles open the Legacy Museum (the career legacy detail view);
     // locked/progress state has nothing to show, so it stays plain text.
-    return `${head}<ul class="mw-trophies">${earned.map((t) => `<li class="mw-title-item"><button type="button" class="mw-title-btn" data-mw-action="open-legacy-museum" data-title="${esc(t.id)}" title="${esc(T(lang, "查看生涯传承", "View career legacy"))}">👑 ${esc(lang === "en" ? t.en : t.zh)}</button></li>`).join("")}</ul>`;
+    return `${head}<ul class="mw-trophies">${earned.map((t) => `<li class="mw-title-item"><button type="button" class="mw-title-btn mw-title-btn--${esc(t.id)}" data-mw-action="open-legacy-museum" data-title="${esc(t.id)}" title="${esc(T(lang, "查看生涯传承", "View career legacy"))}"><span aria-hidden="true">${titleIconOf(t.id)}</span> ${esc(lang === "en" ? t.en : t.zh)}</button></li>`).join("")}</ul>`;
   }
   const p = architect.progress || {};
   const mark = (done) => (done ? "✓" : "○");

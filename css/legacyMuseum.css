@@ -1,0 +1,31 @@
+/* Legacy Museum body (the title, back button and scroll/focus belong to the Screen Shell). */
+.lm-museum { max-width: 720px; margin: 0 auto; padding: 4px 0 32px; display: grid; gap: 12px; }
+.lm-lead { margin: 0; color: #4a5a50; font-size: 0.9rem; }
+.lm-museum section { padding: 14px; border-radius: 16px; background: #fff; border: 1px solid #dbe5dd; box-shadow: 0 2px 8px rgba(0, 0, 0, .05); }
+.lm-museum section.is-selected { border-color: #d6b25a; box-shadow: 0 0 0 2px #f3d58a; }
+.lm-museum section { scroll-margin-top: 16px; } /* the tapped title lands with air above it, not clipped at the edge */
+.lm-museum h3 { margin: 0; color: #163a29; font-size: 1.05rem; }
+.lm-title-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.lm-title-text { min-width: 0; }
+.lm-req { margin: 2px 0 0; font-size: 0.82rem; color: #4a5a50; }
+.lm-icon { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; font-size: 1.5rem; background: #d6b25a; border: 2px solid #a8842f; }
+.lm-title--dynasty-master .lm-icon { background: #d9806f; border-color: #a94a38; }
+.lm-title--basketball-immortal .lm-icon { background: #8c97d6; border-color: #5560ad; }
+.lm-title--architect h3 { color: #5a430a; }
+.lm-title--dynasty-master h3 { color: #7a2415; }
+.lm-title--basketball-immortal h3 { color: #243073; }
+.lm-careers, .lm-headlines { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.lm-career { display: grid; gap: 4px; padding: 8px 10px; border-radius: 10px; background: #f4f7f4; }
+.lm-career strong { color: #163a29; }
+.lm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lm-chip { padding: 2px 10px; border-radius: 999px; background: #e6eee8; color: #1d3326; font-size: 0.82rem; }
+.lm-chip--muted { background: #eceeec; color: #4f5a53; }
+.lm-chip--ok { background: #d9efdd; color: #14532d; }
+.lm-chip--bad { background: #f7dcd6; color: #7a1f12; }
+.lm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px; margin: 10px 0; }
+.lm-stat { display: grid; justify-items: center; gap: 2px; padding: 10px 6px; border-radius: 12px; background: #f4f7f4; text-align: center; }
+.lm-stat b { font-size: 1.4rem; color: #163a29; line-height: 1.1; }
+.lm-stat span { font-size: 0.78rem; color: #3f4f45; }
+.lm-promises { margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lm-headlines li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid #e6eee8; font-size: 0.9rem; }
+.lm-meta { flex: none; color: #4f5a53; font-size: 0.78rem; }

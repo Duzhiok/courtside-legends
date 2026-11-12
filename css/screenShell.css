@@ -1,0 +1,9 @@
+/* Screen Shell (js/ui/screenShell.js): the shared frame of secondary screens.
+   "app" host: lives in #app like every static screen, nothing extra needed.
+   "overlay" host: on <body>, covers the viewport and scrolls on its own. */
+.screen-shell > .panel-head { align-items: center; gap: 10px; }
+.screen-shell > .panel-head > h2 { margin: 0; font-size: 1.25rem; color: var(--ink); }
+.screen-shell > .panel-head > h2:focus { outline: none; } /* focus lands here for screen readers; it is not a control */
+.screen-shell-body { min-width: 0; }
+.screen-shell[data-shell-host="overlay"] { position: fixed; inset: 0; z-index: 40; overflow-y: auto; padding: 20px; background: var(--bg, #eef3ef); }
+.screen-shell[data-shell-host="overlay"]:not(.active) { display: none; }

@@ -13,7 +13,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ARCHITECT_TITLES, architectTitlesFor } from "../js/career/careerAchievements.js";
 import { legacyMuseumFor } from "../js/career/legacyMuseum.js";
-import { legacyMuseumHtml, museumCareerLine } from "../js/ui/legacyMuseumView.js";
+import { LEGACY_MUSEUM_TITLE, legacyMuseumHtml, museumCareerLine, titleIconOf } from "../js/ui/legacyMuseumView.js";
+import { screenHeadHtml, mountScreen } from "../js/ui/screenShell.js";
 import { architectTitlesHtml } from "../js/ui/myWorldView.js";
 
 function completion({ careerId, role, prestige = false, year = 2001, seasons = 3, championships = 0, tier = "solid", reason = "voluntary", at = 1700000000000 } = {}) {
@@ -128,7 +129,7 @@ test("legacyMuseumHtml: unlocked account renders titles, unlock date, both caree
     legacy: [{ type: "transition", season: 1997, year: 1997, summary: "转投新球队", summaryEn: "Moved to a new team" }],
   };
   const zh = legacyMuseumHtml(legacyMuseumFor(acc), "zh");
-  assert.match(zh, /篮球人生博物馆/);
+  assert.doesNotMatch(zh, /篮球人生博物馆|<h2/); // the Screen Shell owns the one page title; the body never repeats it
   assert.match(zh, /王朝缔造者/);
   assert.match(zh, /解锁于/);
   assert.match(zh, /教练生涯/);
@@ -138,10 +139,12 @@ test("legacyMuseumHtml: unlocked account renders titles, unlock date, both caree
   assert.match(zh, /稳健的主教练/);
   assert.match(zh, /主动退役/);
   assert.match(zh, /转投新球队/);
-  assert.match(zh, /承诺 0 待处理 \/ 1 兑现 \/ 0 落空/);
+  assert.match(zh, /待处理 0/);
+  assert.match(zh, /兑现 1/);
+  assert.match(zh, /落空 0/);
   assert.doesNotMatch(zh, /The Architect/);
   const en = legacyMuseumHtml(legacyMuseumFor(acc), "en");
-  assert.match(en, /Legacy Museum/);
+  assert.doesNotMatch(en, /Legacy Museum|LEGACY MUSEUM|<h2/);
   assert.match(en, /The Architect/);
   assert.match(en, /Coach career/);
   assert.match(en, /A Solid Head Coach/);
@@ -151,8 +154,8 @@ test("legacyMuseumHtml: unlocked account renders titles, unlock date, both caree
 
 test("legacyMuseumHtml: the tapped title's section is marked; other sections are not", () => {
   const html = legacyMuseumHtml(legacyMuseumFor(unlockedAccount()), "zh", "architect");
-  assert.match(html, /data-lm-title="architect" class="is-selected"/);
-  assert.doesNotMatch(html, /data-lm-title="dynasty-master" class="is-selected"/);
+  assert.match(html, /<section class="[^"]*is-selected[^"]*" data-lm-title="architect"/);
+  assert.doesNotMatch(html, /is-selected[^>]*data-lm-title="dynasty-master"/);
 });
 
 test("museumCareerLine: missing fields render without invented values", () => {
@@ -203,4 +206,74 @@ test("architectTitlesHtml: earned titles are clickable into the museum; locked p
   assert.match(earned, /王朝缔造者/);
   const locked = architectTitlesHtml({ earned: [], progress: { coach: true, gm: false, completed: 1 } }, "zh");
   assert.doesNotMatch(locked, /open-legacy-museum/);
+});
+
+// ---------------------------------------------------------------- Screen Shell + museum polish
+
+test("LEGACY_MUSEUM_TITLE is one title per language, never a bilingual string", () => {
+  assert.equal(LEGACY_MUSEUM_TITLE.zh, "篮球人生博物馆");
+  assert.equal(LEGACY_MUSEUM_TITLE.en, "Legacy Museum");
+  const zh = screenHeadHtml({ id: "legacy-museum", title: LEGACY_MUSEUM_TITLE, lang: "zh" });
+  const en = screenHeadHtml({ id: "legacy-museum", title: LEGACY_MUSEUM_TITLE, lang: "en" });
+  assert.match(zh, /<h2[^>]*>篮球人生博物馆<\/h2>/);
+  assert.doesNotMatch(zh, /Legacy Museum/);
+  assert.match(en, /<h2[^>]*>Legacy Museum<\/h2>/);
+  assert.doesNotMatch(en, /篮球人生博物馆|返回/);
+  assert.match(en, /aria-label="Back"/);
+  assert.equal((zh.match(/<h2/g) || []).length, 1);
+});
+
+test("mountScreen validates its contract before touching the DOM", () => {
+  assert.throws(() => mountScreen({ title: LEGACY_MUSEUM_TITLE }), /id and a/);
+  assert.throws(() => mountScreen({ id: "x" }), /id and a/);
+  assert.throws(() => mountScreen({ id: "x", title: LEGACY_MUSEUM_TITLE, host: "body" }), /unknown host/);
+});
+
+test("the three titles get distinct badges (icon + class) and the name is always written out", () => {
+  const model = legacyMuseumFor(account([
+    completion({ careerId: "c1", role: "COACH" }),
+    completion({ careerId: "c2", role: "GM" }),
+    completion({ careerId: "c3", role: "GM_COACH", prestige: true, championships: 1, year: 2005, tier: "great" }),
+  ]));
+  const html = legacyMuseumHtml(model, "zh");
+  const icons = ["architect", "dynasty-master", "basketball-immortal"].map(titleIconOf);
+  assert.equal(new Set(icons).size, 3, icons.join(" "));
+  for (const id of ["architect", "dynasty-master", "basketball-immortal"]) {
+    assert.match(html, new RegExp(`lm-title--${id}`));
+    assert.match(html, new RegExp(`<h3>${model.titles.find((t) => t.id === id).zh}</h3>`));
+  }
+  assert.equal(titleIconOf("something-new"), "🏅");
+});
+
+test("legacy record is grouped tiles + promise chips, with real counts and no long inline sentence", () => {
+  const acc = unlockedAccount();
+  acc.careerRelationships = { people: [], relationships: [{ kind: "rivalry", state: "active" }], promises: [{ status: "fulfilled" }, { status: "open" }], legacy: [] };
+  const html = legacyMuseumHtml(legacyMuseumFor(acc), "en");
+  assert.match(html, /<div class="lm-stat"><b>1<\/b><span>Rivals<\/span><\/div>/);
+  assert.match(html, /Open 1/);
+  assert.match(html, /Kept 1/);
+  assert.doesNotMatch(html, / · Promises:/); // the old one-line sentence is gone
+  assert.doesNotMatch(html, /undefined|NaN/);
+});
+
+test("museumCareerLine: one chip per real field, none invented", () => {
+  const line = museumCareerLine({ careerId: "c9", role: "COACH", year: 2001, seasons: 3, championships: 0, tier: null, reason: "voluntary", at: null }, "zh");
+  assert.equal((line.match(/class="lm-chip"/g) || []).length, 4); // year, seasons, titles, reason
+  assert.match(line, /0 座总冠军/); // a real zero is still a real record
+});
+
+test("headline kinds are shown in the page language; an unknown kind is left off, never printed raw", () => {
+  const legacy = { transitions: [], trades: [], drafts: [], divergences: [], rivalries: 0, promises: { open: 0, fulfilled: 0, broken: 0 },
+    headlines: [
+      { zh: "转投新球队", en: "Moved to a new team", season: 1997, type: "transition" },
+      { zh: "某事", en: "Something", season: 1998, type: "internal-debug-kind" },
+    ] };
+  const model = { titles: [{ id: "architect", zh: "王朝缔造者", en: "The Architect" }], unlockedAt: null, qualifications: { coach: null, gm: null }, architectCareers: [], legacy };
+  const zh = legacyMuseumHtml(model, "zh");
+  const en = legacyMuseumHtml(model, "en");
+  assert.match(zh, /1997 · 转岗/);
+  assert.match(en, /1997 · Move/);
+  assert.doesNotMatch(zh, /transition|internal-debug-kind/);
+  assert.doesNotMatch(en, /internal-debug-kind/);
+  assert.match(zh, /<span class="lm-meta">1998<\/span>/); // season alone, no invented kind
 });
