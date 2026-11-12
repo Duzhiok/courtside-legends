@@ -473,7 +473,7 @@ export function declineTradeProposal(st, proposalId, lang = "zh") {
   return { ok: true, proposal };
 }
 
-export function acceptTradeProposal(st, proposalId, lang = "zh") {
+export function acceptTradeProposal(st, proposalId, lang = "zh", { career, root } = {}) {
   const proposals = ensureTradeProposals(st, lang);
   const proposal = proposals.find((item) => item.id === proposalId);
   if (!proposal) return { ok: false, reason: lang === "en" ? "That offer no longer exists" : "报价已不存在" };
@@ -488,6 +488,8 @@ export function acceptTradeProposal(st, proposalId, lang = "zh") {
     cpuTeamId: proposal.fromTeamId,
     acceptedProposal: true,
     lang,
+    career,
+    root,
   });
   if (!result.ok) return result;
   if (proposal.offerPicks.length) result.message = lang === "en" ? `${result.message}; plus ${proposal.offerPicks.length} future picks` : `${result.message}；另获 ${proposal.offerPicks.length} 个未来选秀权`;

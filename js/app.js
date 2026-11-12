@@ -10382,7 +10382,7 @@ function renderSeasonMarket() {
       const proposalId = button.dataset.proposalId;
       const action = button.dataset.tradeProposalAction;
       const result = action === "accept"
-        ? acceptTradeProposal(st, proposalId, getLang())
+        ? acceptTradeProposal(st, proposalId, getLang(), { career: state.leagueCareer, root: state.longCareerRoot })
         : action === "counter"
           ? counterTradeProposal(st, proposalId, getLang())
           : declineTradeProposal(st, proposalId, getLang());
@@ -10449,6 +10449,8 @@ function renderSeasonMarket() {
           team3Id: cpu3Id,
           team3PlayerIds: checkedVals(".sm-want3-player:checked"),
           lang: getLang(),
+          career: state.leagueCareer,
+          root: state.longCareerRoot,
         })
       : executeTrade(st, {
           giveIds,
@@ -10457,6 +10459,8 @@ function renderSeasonMarket() {
           wantPickIds: checkedVals(".sm-want-pick:checked"),
           cpuTeamId: cpuId,
           lang: getLang(),
+          career: state.leagueCareer,
+          root: state.longCareerRoot,
         });
     const hint = $("#sm-trade-hint");
     if (!res.ok) {

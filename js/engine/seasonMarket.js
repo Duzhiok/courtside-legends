@@ -4,6 +4,7 @@
  * Coaches & assistants also hire from a staff free-agent pool (count vs cap).
  */
 import { ASSISTANTS, COACHES, coachDrawWeight, coachSpecialtyLabel, coachTactics } from "../data/coaches.js";
+import { CareerPermissionError, denyMessage, requireCapability } from "../career/careerGuards.js";
 import { estimateDraftPickValue } from "./draftPickValue.js";
 import { ensurePickLedger, parsePickId, picksHeldBy, setPickOwner } from "./pickLedger.js";
 import { playerPrice, marketMeta } from "../data/intangibles.js";
@@ -517,16 +518,39 @@ export function pickValueOf(st, pick) {
 }
 
 /**
+ * Executing a trade is the GM's job (ADR-006 R4; R5 leftover: only the trade
+ * button's canDo gate guarded it, so accepting a CPU proposal executed a trade
+ * for any role). The operation itself refuses here, before any validation or
+ * mutation. A missing career/root reads as the Classic GM + Coach (the
+ * careerGuards fallback), so plain seasons and callers without a career keep
+ * working. The refusal is returned in this module's { ok, reason } contract,
+ * in the player's language, so both UI call sites can alert it as-is.
+ */
+function tradeCapabilityCheck(career, root, lang = "zh") {
+  try {
+    requireCapability(career, "trade", root);
+    return null;
+  } catch (error) {
+    if (error instanceof CareerPermissionError) {
+      return { ok: false, reason: denyMessage(error.role, "trade", lang) };
+    }
+    throw error;
+  }
+}
+
+/**
  * 1-for-1 or N-for-M trade with a CPU club; either side may also throw in draft picks.
  * Salary match: outgoing within 25% + ¤40 of incoming (NBA-ish simplified). Picks don't carry
  * salary (nothing to assign one to yet), so they only move the OVR/value side of the ledger.
  */
 export function executeTrade(
   st,
-  { giveIds = [], wantIds = [], givePickIds = [], wantPickIds = [], cpuTeamId, acceptedProposal = false, lang = "zh" } = {},
+  { giveIds = [], wantIds = [], givePickIds = [], wantPickIds = [], cpuTeamId, acceptedProposal = false, lang = "zh", career, root } = {},
 ) {
   ensureSeasonMarket(st);
   const en = lang === "en";
+  const refused = tradeCapabilityCheck(career, root, lang);
+  if (refused) return refused;
   if (st.phase !== "regular") return { ok: false, reason: en ? "Trades are only available during the regular season" : "仅常规赛期间可交易" };
   const window = tradeWindowCheck(st, lang);
   if (!window.ok) return window;
@@ -655,10 +679,12 @@ export function executeTrade(
  */
 export function executeThreeTeamTrade(
   st,
-  { giveIds = [], team2Id, team2PlayerIds = [], team3Id, team3PlayerIds = [], acceptedProposal = false, lang = "zh" } = {},
+  { giveIds = [], team2Id, team2PlayerIds = [], team3Id, team3PlayerIds = [], acceptedProposal = false, lang = "zh", career, root } = {},
 ) {
   ensureSeasonMarket(st);
   const en = lang === "en";
+  const refused = tradeCapabilityCheck(career, root, lang);
+  if (refused) return refused;
   if (st.phase !== "regular") return { ok: false, reason: en ? "Trades are only available during the regular season" : "仅常规赛期间可交易" };
   const window = tradeWindowCheck(st, lang);
   if (!window.ok) return window;
