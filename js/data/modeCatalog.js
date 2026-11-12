@@ -62,6 +62,11 @@ export const MODE_GROUPS = [
       {
         id: "season",
         title: "单赛季（联盟经理的经营长度之一）",
+        // Reserve marker: documents that season is entered from the
+        // franchise setup page ("单赛季" length option). No production
+        // code reads this yet — variantsOf("franchise") is only covered
+        // by tests/modeCatalog.test.js. If a consumer is added, keep
+        // this marker and the test in sync.
         variantOf: "franchise",
         description:
           "32 队或穿越历史整年（如 1991：当年全联盟常规赛→季后赛，总决赛才可能遇乔丹）· 自命名拉斯维加斯队 · 评奖；在联盟经理的设置页里选「单赛季」进入",

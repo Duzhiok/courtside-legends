@@ -1955,6 +1955,9 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
   8ee74b9，用户 2026-11-09 批默认均衡、合理阈值由 Agent 自定）。
 - B33 轻量整合设计已上 main（708608b）；救援分支
   `rescue/d-segment-interview-prophecy` 保留至整合版验证通过。
+- [2026-11-12 03:26] Muse 认领已知缺口：`variantOf:"franchise"` 无断言——
+  只补测试断言 + 注释说明为备用标记，不改行为、不动 sim.js。✅ 已完成
+  （本轮，见下方本轮记录）。
 - Screen Architecture P1 已收尾（9 个自建 panel-head 屏幕全部迁到 mountScreen，
   0c2734d）；P2 归档本文件（2026-11-12 进行中）。P2 之后的方向等用户裁决。
 
@@ -2014,6 +2017,20 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
 （保留未决事项）进行中。全文原样移入 `docs/archive/AGENT_CHAT-2026-11-12.md`，
 本文件瘦身为 live board，只留未决事项。Player Voice 图标对比度已在 c302470
 修过（1.2 → 7.3，44px 触摸目标），本轮只核对、不重做。
+
+[2026-11-12] Muse（Coding Agent）：已知缺口 `variantOf:"franchise"` 无断言
+已补：`tests/modeCatalog.test.js` 新增断言——season 的 variantOf 为
+"franchise"、无 homeTab（从联盟经理设置页「单赛季」进入）、
+`variantsOf("franchise")` 返回 ["season"]；`js/data/modeCatalog.js`
+在 season 条目上加注释，说明该标记目前无生产代码读取、为备用标记。
+只改测试 + 注释，零行为改动。验证：modeCatalog 7/7；全套 2697：
+2688 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find package
+'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、
+存档版本、modeCatalog 行为、M4-A 表单与 profile.js 字段、职业创建入口。
+**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+38 提交（含本轮），待有推送权限的环境执行 git push origin main。**
+下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；其余已知
+缺口（executeTrade 守卫、R153 面板阈值等）仍待认领。
 
 [2026-11-12] Muse（Coding Agent）：Screen Architecture P2 完成（8de2f2c）：
 全文原样归档到 `docs/archive/AGENT_CHAT-2026-11-12.md`（1610 行，与归档前

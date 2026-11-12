@@ -60,6 +60,14 @@ test("M1: catalog covers every playable mode, including the custom-hub entries",
   }
   // quick was promoted: same id, new name (M1 renames the demo card).
   assert.equal(modeById("quick")?.title, "自动配队");
+  // season is a franchise variant: entered from the franchise setup page
+  // ("单赛季" length option), so it has no homeTab of its own.
+  assert.equal(modeById("season")?.variantOf, "franchise");
+  assert.equal(modeById("season")?.homeTab, undefined);
+  assert.deepEqual(
+    variantsOf("franchise").map((mode) => mode.id),
+    ["season"],
+  );
 });
 
 test("M1: every mode declares a spec §3 explore group; panel modes declare a home tab", () => {
