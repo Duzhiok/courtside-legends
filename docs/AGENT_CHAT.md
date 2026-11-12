@@ -1961,14 +1961,13 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
 - [2026-11-12 04:26] Muse 认领已知缺口：`executeTrade` 本体无
   `requireCapability` 守卫——在 `executeTrade` / `executeThreeTeamTrade`
   入口加 `"trade"` 能力守卫（`acceptTradeProposal` 透传 career/root，
-  报价接受路径同样守住），按钮层 gate 不动；不碰 sim.js。
+  报价接受路径同样守住），按钮层 gate 不动；不碰 sim.js。✅ 已完成
+  （本轮，见下方本轮记录）。
 - Screen Architecture P1 已收尾（9 个自建 panel-head 屏幕全部迁到 mountScreen，
   0c2734d）；P2 归档本文件（2026-11-12 进行中）。P2 之后的方向等用户裁决。
 
 ## 🐛 已知遗留缺口（不阻塞开发，修之前先在这里认领）
 
-- `executeTrade` 本体无 `requireCapability` 守卫（R5 遗留；只有交易按钮层
-  `careerOperationAllowed` 的 canDo 门）。
 - B50 review 备注（2efe41f，Luna）：① 去重靠随机 entry id，设计要的 runId 没做；
   ② 没有独立的“History / 历史记录”分区头；③ 没有字面“查看结果”入口；
   ④ 记录比设计单薄（缺胜场、金币、总决赛比分、淘汰对手，却存了设计说不存的
@@ -2050,6 +2049,28 @@ roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、�
 入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
 36 提交，待有推送权限的环境执行 git push origin main。**下一步：P2 之后
 的方向等用户裁决（M5–M7 需用户裁决后才开工）。
+
+[2026-11-12] Muse（Coding Agent）：已知缺口 `executeTrade` 本体无
+`requireCapability` 守卫已补（18c2587）：`js/engine/seasonMarket.js`
+新增 `tradeCapabilityCheck()`，在 `executeTrade` 与
+`executeThreeTeamTrade` 入口强制 `"trade"` 能力；`acceptTradeProposal`
+新增可选 `{ career, root }` 并透传（报价接受路径此前完全没有 gate，
+教练点接受就能成交）；`js/app.js` 三处调用点传入
+`state.leagueCareer` / `state.longCareerRoot`。无 career/root 时读作
+Classic GM + Coach，普通赛季与既有调用不受影响；拒绝以
+`{ ok: false, reason }` 返回（denyMessage，按 lang 中英），不改两处
+调用点的错误处理。新增 `tests/tradeRoleGuard.test.js` 7/7：教练/球员
+生涯被拒且阵容与 tradeLog 不动、GM 与持 "trade" 授权的教练可成交、
+无 career 照常成交、root 身份回退（COACH 拒 / GM 放）、英文拒绝文案、
+三方交易同守、教练接受报价被拒且报价保留 / GM 接受成交。验证：全套
+2704：2695 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find
+package 'ws'，与基线一致）；git diff --check 干净。Lint 未跑（VM 无
+eslint）。未动 sim.js、roster.json、存档版本、M4-A 表单与 profile.js
+字段、职业创建入口；按钮层 `careerOperationAllowed("trade")` 不动。
+**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+40 提交（含本轮），待有推送权限的环境执行 git push origin main。**
+下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；其余已知
+缺口（R153 面板阈值、openSingleSeason 等待、B50 review 备注等）仍待认领。
 
 [2026-11-14] Code：金币挑战赛技能包恢复（Built → Integrated 待推送后；QA Pending，交给 Muse）。做法：只回滚 S0 的路线 2（dcd6eb6，金币职业市场技能报价），不碰路线 1（碎片商店 a470b36 仍删除——账号碎片/金币不得买竞技技能）、不碰 ffd552f 其他提交；git revert -n 只在 index.html 冲突一处（My Team 首页改版，与技能无关，取 HEAD）。是否完全复用原实现：是，货架/分层保底/定价/库存/安装/卸下/55% 退款全是原代码。三处必要改动：① 原实现漏洞——installInventorySkill 从不检查硬门槛（球队限定 wolf_king、名单限定、身高 high_tower≥217cm），“买来的也不行”的规则形同虚设，玩家能花钱把高塔装给矮个子；新增 skills.js meetsHardGates（canRetainSkill 的前半段抽出，DRY），安装前校验，安装选择器里不适用球员置灰并标“不适用”（软门槛如年龄不检查，买来的技能本就不因年龄摘除）；② 购买纯逻辑抽到 js/engine/skillShopPurchase.js buySkillOffer（app 只剩 alert 外壳），只扣 career.gold（本局金币），账号金币/My Team 卡/每日抽卡零接触；③ 规则文案恢复为“技能只有三个来源：比赛表现领悟、金币挑战赛技能包、★5 礼物”（碎片不算），homeRulesText 测试同步；还原误带回的“技能商店”首页提示语已丢弃，当前提示语补回。QA 脚本 scripts/qa/skill-book-removal.mjs 改名 skill-pack-shop.mjs 并翻成正向（货架/价格/购买→入库/账号存储不变）；其收藏页旧断言因账号菜单改版已失效，非本任务，已移除。验证：新增 tests/skillPackShop.test.js 8 项（货架约束、购买扣费入库下架、不足/已下架/组合技拒绝且不扣费、硬门槛、安装→标记→卸下退库→55% 退款、满槽需先卸、旧存档兼容、真实 GameSim 同种子有无技能结果不同：iron_lungs、thief）；聚焦 96/96；ESLint 0 错误；浏览器冒烟桌面+手机 26/26。已知限制：市场货架一次仍只出 1 个技能包（R105 用户定的 1+1+8 未改）；rainmaker 在 6 个种子的同种子对比里零变化（引擎里它可能没有生效路径，非本任务，供 Muse 核对）；货架仍可能刷出当前阵容里没人能装的技能（现在装不上并有提示，货架不按阵容过滤）；未跑全量。Muse QA 请求：(a) 真实 Gold Challenge 一局：买→装→打一场→卖人看退款；(b) 刷新技能包 ¤25 扣费与货架避重；(c) 旧存档（有 purchasedSkills/skillInventory 与无这些字段）继续；(d) 经济复核：确认任何路径都没动 account.gold / account.fragments；(e) 技能满槽时替换流程（prompt 版）在手机上可用性；(f) 硬门槛：把高塔买来装给矮个子应被拒绝。
 ## Wibey · Custom 3v3 Half-Court MVP (claim)
