@@ -42,10 +42,10 @@ import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relatio
 import { createLegacyMuseumView } from "./ui/legacyMuseumView.js";
 import { relocalizeShellScreens } from "./ui/screenShell.js";
 import { createMyHome, ensureMyHomeScreen } from "./ui/myHome/myHomeScreen.js";
-import { ensureInboxScreen, createCareerInboxView } from "./ui/careerInboxView.js";
+import { createCareerInboxView } from "./ui/careerInboxView.js";
 import { ensureCoachingScreen, createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { ensureDraftGambleScreen, createDraftGambleView } from "./ui/scoutingView.js";
-import { ensureGmBusinessScreen, createGmBusinessView } from "./ui/gmBusinessView.js";
+import { createGmBusinessView } from "./ui/gmBusinessView.js";
 import { ensureNetworkScreen, createNetworkView } from "./ui/networkViews.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
@@ -12680,7 +12680,7 @@ async function boot() {
     });
     // Shared Career Inbox (workstream A): the dev entry is ?inbox=1 below;
     // the view itself is reachable from the Career entry later.
-    screens.careerInbox = ensureInboxScreen();
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
     careerInboxView = createCareerInboxView({
       getLang,
       readRootSave: () => state.longCareerRoot || readRootSave(),
@@ -12690,10 +12690,11 @@ async function boot() {
       getAccount: activeAccount,
       saveAccount,
     });
+    screens.careerInbox = careerInboxView.mount();
     // GM Executive Dynasty dev entry (workstream F): ?gm-business=1 opens the
     // three-season business scenario after boot.
+    // Screen Shell: mount once at boot (museum pattern); open() only renders.
     let gmBusinessView = null;
-    screens.gmBusiness = ensureGmBusinessScreen();
     gmBusinessView = createGmBusinessView({
       getLang,
       readRootSave: () => state.longCareerRoot || readRootSave(),
@@ -12701,6 +12702,7 @@ async function boot() {
       show,
       goBack,
     });
+    screens.gmBusiness = gmBusinessView.mount();
     // GM draft gamble (workstream C): the 1996 scouting/draft slice.
     // ?draft-gamble=1 opens it directly after boot. open() shows the
     // scout phase for a new run, or resumes the saved run.

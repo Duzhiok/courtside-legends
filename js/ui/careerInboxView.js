@@ -49,6 +49,10 @@ import {
   nextTimelineTarget,
 } from "../career/careerTimeline.js";
 import { careerSummary, describeHistoryEntry } from "../career/careerHistory.js";
+import { mountScreen } from "./screenShell.js";
+
+/** The page title, rendered once by the shell in the current language. */
+export const CAREER_INBOX_TITLE = Object.freeze({ zh: "职业收件箱", en: "Career Inbox" });
 
 export const INBOX_SEASON_YEAR = 1997;
 export const INBOX_SEASON_GAMES = 82;
@@ -64,15 +68,19 @@ async function loadRows() {
   return ROWS_CACHE;
 }
 
-export function ensureInboxScreen() {
-  let el = document.querySelector("#screen-career-inbox");
-  if (el) return el;
-  el = document.createElement("main");
-  el.id = "screen-career-inbox";
-  el.className = "screen";
-  el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-career-inbox-back" type="button"><span>返回</span></button><h2>职业收件箱 · Career Inbox</h2></div><div id="career-inbox-body"></div>`;
-  document.body.appendChild(el);
-  return el;
+/**
+ * Mount the inbox screen on the shared Screen Shell (screenShell.js) —
+ * the shell owns the panel head (one back button, one single-language
+ * title), the focus/scroll lifecycle and the language switch; this view
+ * keeps its own business state and renders into the shell body.
+ * Host "app" (the default): the inbox is a plain long-form page screen
+ * that scrolls with the page, as before — nothing about it needs to
+ * cover the viewport or scroll on its own, so no overlay behaviour.
+ * The factory's mount() is the wiring point (getLang/goBack/render);
+ * this stays exported for direct mounts.
+ */
+export function ensureInboxScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+  return mountScreen({ id: "career-inbox", title: CAREER_INBOX_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
 /**
@@ -223,6 +231,7 @@ export async function playDemoGame(demo, players) {
 export function createCareerInboxView({ getLang, readRootSave, writeRootSave, show, goBack, getAccount = () => null, saveAccount = () => {} } = {}) {
   const lang = () => (typeof getLang === "function" ? getLang() : "zh");
   let el = null;
+  let shell = null;
   let rows = null;
   let slice = null;
   let lastResult = null;
@@ -460,6 +469,8 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
   }
 
   function render() {
+    // A language switch can relocalize before the demo has opened.
+    if (!el || !slice) return;
     const body = el.querySelector("#career-inbox-body");
     const l = lang();
     const summary = inboxSummary(slice.inbox);
@@ -577,10 +588,19 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
     return INBOX_EVENTS.find((event) => event.id === eventId) || { choices: [] };
   }
 
+  /** Mount once (boot) so the screen registry has the element; open() only renders and shows. */
+  function mount() {
+    if (!shell) {
+      el = ensureInboxScreen({ getLang: lang, onBack: () => goBack?.(), onRelocalize: () => render() });
+      shell = el.__shell;
+    }
+    return shell.el;
+  }
+
   return {
+    mount,
     async open() {
-      el = ensureInboxScreen();
-      el.querySelector("#btn-career-inbox-back")?.addEventListener("click", () => goBack());
+      mount();
       rows = await loadRows();
       loadSlice();
       render();
