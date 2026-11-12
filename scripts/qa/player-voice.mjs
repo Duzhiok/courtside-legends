@@ -26,7 +26,7 @@ const counts = (page) => page.$eval("#pv-attach-count", (el) => el.textContent.r
 const media = (page) => page.$$eval("#pv-media .pv-media", (els) => els.map((e) => (e.classList.contains("pv-video") ? "video" : "image")));
 const dlgText = (page) => page.$eval("#pv-title", (t) => t.closest("dialog").innerText);
 
-for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
+for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"], [360, 800, "narrow"]]) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.setDefaultTimeout(8000);
   const errors = [];
@@ -39,7 +39,21 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
 
     // Entry: one global button, visible, inside the viewport, a real tap target.
     const box = await page.$eval("#btn-voice", (el) => { const r = el.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, w: r.width, h: r.height, vis: r.width > 0 }; });
-    check(L("global entry is visible, on screen, and tappable"), box.vis && box.l >= 0 && box.r <= w && box.h >= 28 && box.w >= 28, JSON.stringify(box));
+    check(L("global entry is visible, on screen, and a 44x44 touch target"), box.vis && box.l >= 0 && box.r <= w && box.h >= 44 && box.w >= 44, JSON.stringify(box));
+    // Legibility: icon vs the button's own fill, and the ring vs the dark bar behind it (WCAG non-text contrast, 3:1).
+    const ratios = await page.$eval("#btn-voice", (el) => {
+      const rgb = (css) => css.match(/[\d.]+/g).map(Number);
+      const lum = ([r, g, b]) => [r, g, b].map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((n, v, i) => n + v * [0.2126, 0.7152, 0.0722][i], 0);
+      const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+      const cs = getComputedStyle(el);
+      let bar = [255, 255, 255];
+      for (let n = el.parentElement; n; n = n.parentElement) { const c = rgb(getComputedStyle(n).backgroundColor); if (c.length < 4 || c[3] > 0.5) { bar = c.slice(0, 3); break; } }
+      return { icon: +ratio(rgb(getComputedStyle(el.querySelector("svg")).stroke), rgb(cs.backgroundColor)).toFixed(2), ring: +ratio(rgb(cs.borderTopColor), bar).toFixed(2), bar };
+    });
+    check(L("icon contrast on its button is at least 3:1"), ratios.icon >= 3, JSON.stringify(ratios));
+    check(L("button ring contrast on the top bar is at least 3:1"), ratios.ring >= 3, JSON.stringify(ratios));
+    check(L("the top bar does not overflow with the bigger button"), await noOverflow(page) && (await page.$eval("header.topbar", (el) => el.scrollWidth <= el.clientWidth + 1)));
+    await page.locator("header.topbar").screenshot({ path: `${OUT}/${tag}-topbar.png` });
     check(L("old My World feedback panel is gone"), (await page.$("#mw-feedback, .mw-voice")) === null);
 
     // Module pre-pick follows the real tab, and the player can override it.

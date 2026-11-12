@@ -1,11 +1,13 @@
 /* Player Voice: the game-wide feedback dialog + its top-bar button. Forest green / cream / gold, same family as My World. */
+/* Same family as the shop's close button: solid forest green, gold ring, pale-gold icon (icon ~8:1 on the fill, ring well
+   above 3:1 on the dark top bar). 44x44 is the touch target; the old transparent 36px version vanished on the dark bar. */
 .voice-btn {
-  width: 36px; height: 36px; padding: 0; display: grid; place-items: center; flex: none; cursor: pointer;
-  border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.35); background: transparent; color: inherit;
+  width: 44px; height: 44px; padding: 0; display: grid; place-items: center; flex: none; cursor: pointer;
+  border-radius: 50%; border: 1.5px solid #d6b25a; background: #1f4a35; color: #f4d98a;
 }
 .voice-btn:hover, .voice-btn[aria-expanded="true"] { background: #e9c46a; color: #163a29; border-color: #e9c46a; }
-.voice-btn:focus-visible { outline: 3px solid #e9c46a; outline-offset: 2px; }
-.voice-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.voice-btn:focus-visible { outline: 3px solid #f4d98a; outline-offset: 2px; }
+.voice-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .pv-dialog {
   width: min(520px, calc(100vw - 24px)); max-height: min(90vh, 860px); padding: 0; margin: auto;
