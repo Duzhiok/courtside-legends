@@ -1,4 +1,5 @@
 import { createCoachProfile } from "../career/coachProfile.js";
+import { CAREER_ROLES } from "../career/careerIdentity.js";
 import { validateCareerInbox } from "../career/careerInbox.js";
 import { validEpiphany, validGrowth } from "../career/growthShape.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
@@ -222,6 +223,10 @@ function validateLeagueCareer(career) {
   if (career.identitySnapshot !== undefined) {
     validateIdentitySnapshot(career.identitySnapshot);
   }
+  // ADR-006 R4: optional stamped role; only validate it when present.
+  if (career.role !== undefined && !CAREER_ROLES.includes(career.role)) {
+    throw new Error("invalid root save");
+  }
 }
 
 function validateTimeTravelStory(root) {
@@ -334,6 +339,32 @@ function validateIdentitySnapshot(snapshot) {
         || snapshot[field] === null
         || (typeof snapshot[field] === "string" && snapshot[field].length <= 40),
     )
+  ) {
+    throw new Error("invalid root save");
+  }
+}
+
+/**
+ * ADR-006 R1: optional role identity (setIdentity stamps it at career
+ * creation). Absent on old saves — never required, and a missing identity
+ * still reads as the Classic GM + Coach through identityOf(). Present
+ * roles must be known roles (null reads as absent, same as the M4-C
+ * snapshot fields); a history entry must carry a known role. Illegal
+ * values are rejected, same as story.poachOffer.
+ */
+function validateRoleIdentity(identity) {
+  const roleOk = (role) =>
+    role === undefined || role === null || CAREER_ROLES.includes(role);
+  if (
+    !isObject(identity)
+    || !roleOk(identity.initialRole)
+    || !roleOk(identity.currentRole)
+    || (identity.history !== undefined
+      && identity.history !== null
+      && (!Array.isArray(identity.history)
+        || identity.history.some(
+          (entry) => !isObject(entry) || !CAREER_ROLES.includes(entry.role),
+        )))
   ) {
     throw new Error("invalid root save");
   }
@@ -454,6 +485,10 @@ export function validateRoot(root) {
   }
   if (root.coach !== undefined && root.coach !== null) {
     validateCoachProfile(root.coach);
+  }
+  // ADR-006 R1: optional role identity; absent on old saves is fine.
+  if (root.identity !== undefined && root.identity !== null) {
+    validateRoleIdentity(root.identity);
   }
   if (root.leagueCareer) {
     validateLeagueCareer(root.leagueCareer);

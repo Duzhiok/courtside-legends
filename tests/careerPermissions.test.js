@@ -633,3 +633,81 @@ test("autoFillTeam returns a short pack instead of spinning when the pool is emp
     PLAYERS.push(...saved);
   }
 });
+
+// ---------------------------------------------------------------- ADR-006 R1: save validation
+
+import {
+  createRootState,
+  readRootSave,
+  ROOT_SAVE_KEY,
+  validateRoot,
+  writeRootSave,
+} from "../js/data/saveRoot.js";
+import { createMemoryStorage } from "./helpers/memoryStorage.js";
+
+/** A root whose leagueCareer passes validateLeagueCareer. */
+function rootWithCareer(role, overrides = {}) {
+  const career = careerWithRole(role);
+  return createRootState({
+    leagueCareer: {
+      ...career,
+      season: { ...career.season, schedule: [] },
+      ...overrides,
+    },
+  });
+}
+
+test("validateRoot accepts a root without an identity — old saves stay Classic", () => {
+  const root = createRootState();
+  assert.doesNotThrow(() => validateRoot(root));
+  assert.equal(identityOf(root), "GM_COACH");
+});
+
+test("validateRoot accepts a stamped identity and the write/read round-trip keeps it", () => {
+  const stamped = setIdentity(createRootState(), "COACH");
+  assert.doesNotThrow(() => validateRoot(stamped));
+  const storage = createMemoryStorage();
+  writeRootSave(stamped, storage);
+  const loaded = readRootSave(storage);
+  assert.deepEqual(loaded.identity, { initialRole: "COACH", currentRole: "COACH" });
+  assert.equal(identityOf(loaded), "COACH");
+});
+
+test("validateRoot rejects an illegal identity", () => {
+  const bad = [
+    { currentRole: "ADMIN" },
+    { initialRole: "PLAYER2" },
+    { currentRole: 3 },
+    "COACH",
+    { history: [{ role: "ADMIN" }] },
+    { history: "COACH" },
+    { history: [{ teamId: "B" }] },
+  ];
+  for (const identity of bad) {
+    assert.throws(
+      () => validateRoot(createRootState({ identity })),
+      /invalid root save/,
+      `identity ${JSON.stringify(identity)} must be rejected`,
+    );
+  }
+  // Absent, null, and empty read as Classic — never required.
+  for (const identity of [undefined, null, {}, { currentRole: null }]) {
+    assert.doesNotThrow(
+      () => validateRoot(createRootState({ identity })),
+      `identity ${JSON.stringify(identity)} must be accepted`,
+    );
+  }
+});
+
+test("validateRoot rejects an illegal stamped career role", () => {
+  assert.doesNotThrow(() => validateRoot(rootWithCareer("GM")));
+  const tampered = rootWithCareer("GM", { role: "ADMIN" });
+  assert.throws(() => validateRoot(tampered), /invalid root save/);
+});
+
+test("a stored root with an illegal identity does not load", () => {
+  const raw = setIdentity(createRootState(), "COACH");
+  raw.identity.currentRole = "ADMIN";
+  const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: JSON.stringify(raw) });
+  assert.equal(readRootSave(storage), null);
+});
