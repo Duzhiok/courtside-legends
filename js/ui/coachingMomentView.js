@@ -32,6 +32,14 @@ const fmtClock = (s) => {
   const total = Math.max(0, Math.ceil(s || 0));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 };
+/** Meters row (fit / morale / buy-in / timeouts / tactic) — shared by the full
+ * render and by the light in-place refresh after a focus/tempo change. */
+function metersHtml(panel, snap) {
+  const meter = (label, v) =>
+    `<div class="ct-meter"><span>${esc(label)}</span><div class="ct-bar"><i style="width:${Math.max(0, Math.min(100, v))}%"></i></div><b>${Math.round(v)}</b></div>`;
+  return `${meter(L("战术适配", "Fit"), panel.fit)}${meter(L("士气", "Morale"), panel.morale)}${meter(L("球员认同", "Buy-in"), snap.buyIn)}<span class="ct-pill">${L("暂停", "Timeouts")} ${panel.timeouts}</span><span class="ct-pill">${esc(tacticName(panel.tactic || "balanced", getLang()))}</span>`;
+}
+
 export function createCoachingMomentView({ getPool, show, goBack } = {}) {
   let el = null;
   let body = null;
@@ -49,10 +57,8 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
     const panel = challenge.panel();
     const m = challenge.moment;
     const score = snap.score;
-    const meter = (label, v) =>
-      `<div class="ct-meter"><span>${esc(label)}</span><div class="ct-bar"><i style="width:${Math.max(0, Math.min(100, v))}%"></i></div><b>${Math.round(v)}</b></div>`;
     let html = `<div class="ct-score"><div class="ct-team"><b>GSW</b><span>${score.home}</span></div><div class="ct-clock">Q4 · ${fmtClock(snap.clock)}<small>${L("落后", "Down")} ${Math.max(0, score.away - score.home)} ${L("分", "pts")}</small></div><div class="ct-team"><b>CLE</b><span>${score.away}</span></div></div>`;
-    html += `<div class="ct-meters">${meter(L("战术适配", "Fit"), panel.fit)}${meter(L("士气", "Morale"), panel.morale)}${meter(L("球员认同", "Buy-in"), snap.buyIn)}<span class="ct-pill">${L("暂停", "Timeouts")} ${panel.timeouts}</span><span class="ct-pill">${esc(tacticName(panel.tactic || "balanced", getLang()))}</span></div>`;
+    html += `<div class="ct-meters">${metersHtml(panel, snap)}</div>`;
 
     if (m) {
       html += `<section class="ct-moment"><h3>${esc(pick(m.title))}</h3><p class="ct-analysis">${esc(pick(m.analysis))}</p>`;
@@ -148,15 +154,38 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
     render();
   }
 
+  /** Refresh only the meters row after a focus/tempo change. Rebuilding the
+   * whole panel here would destroy the <select> the user just used, so the
+   * dropdown visibly flickers / closes on every change (B61). Focus and
+   * tempo change nothing else on screen: the selects already show the new
+   * value, and the score / clock / feed are untouched. */
+  function updateMeters() {
+    if (!body || !challenge) return;
+    const meters = body.querySelector(".ct-meters");
+    if (!meters) return;
+    meters.innerHTML = metersHtml(challenge.panel(), challenge.snapshot());
+  }
+
   function onPanel(act, value) {
     if (!challenge) return;
     if (act === "continue") return advance();
     if (act === "timeout") challenge.callTimeout();
     else if (act === "shout") challenge.shout();
     else if (act === "talk") challenge.talk();
-    else if (act === "focus") challenge.setFocus(value || "");
-    else if (act === "tempo") challenge.setTempo(value);
-    else if (act === "sub") {
+    else if (act === "focus") {
+      challenge.setFocus(value || "");
+      updateMeters();
+      return;
+    } else if (act === "tempo") {
+      challenge.setTempo(value);
+      updateMeters();
+      return;
+    } else if (act === "sub-out" || act === "sub-in") {
+      // Picking a player only records the pending selection in the DOM;
+      // the Substitute button reads the live values. No state changes, so
+      // no re-render — rebuilding here destroyed the open dropdown (B61).
+      return;
+    } else if (act === "sub") {
       const out = body.querySelector('[data-act="sub-out"]')?.value;
       const inn = body.querySelector('[data-act="sub-in"]')?.value;
       if (out && inn) challenge.substitute(out, inn);
