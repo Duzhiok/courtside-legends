@@ -140,3 +140,41 @@ test("the outcome is described as what happened, zh + en", () => {
   );
   assert.equal(describeTakeoverOutcome(null, "zh"), null);
 });
+
+test("R7: a coach or GM root is refused at the takeover entry, before any dialog opens", async () => {
+  const { sim, clone } = eligibleSim("reborn-take-r7");
+  let asked = false;
+  for (const role of ["COACH", "GM"]) {
+    await assert.rejects(
+      askTakeover({
+        sim,
+        playerId: clone.id,
+        onAsk: async () => {
+          asked = true;
+          return "drive";
+        },
+        root: { identity: { currentRole: role } },
+      }),
+      (error) => {
+        assert.equal(error.name, "CareerPermissionError");
+        assert.equal(error.code, "ROLE_NOT_PERMITTED");
+        assert.equal(error.capability, "takeover");
+        assert.equal(error.role, role);
+        return true;
+      },
+      `takeover must refuse ${role}`,
+    );
+  }
+  assert.equal(asked, false, "the dialog must never open for a refused role");
+  // a player root passes through to the dialog
+  const out = await askTakeover({
+    sim,
+    playerId: clone.id,
+    onAsk: async () => "drive",
+    root: { reborn: { role: "player" } },
+  });
+  assert.equal(out.actionHint, "attack");
+  // no root: the Classic GM+Coach holds everything, as before
+  const classic = await askTakeover({ sim, playerId: clone.id, onAsk: async () => "drive" });
+  assert.equal(classic.actionHint, "attack");
+});

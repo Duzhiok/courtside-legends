@@ -8,6 +8,13 @@
  * `identityOf(root)` answers "who are you now" for an existing save.
  * A save without an identity is the Classic GM + Coach (the old
  * implementation), per ADR-006 Q1 — old saves are never migrated.
+ * R7: a pre-R7 Player Reborn save has root.reborn and no stamp — the
+ * reborn record is unambiguous evidence of a player career
+ * (validateReborn requires role === "player"), so identityOf() derives
+ * PLAYER for it, read-only, without writing anything back. The
+ * derivation only applies when there is no leagueCareer: a root with
+ * both could be an old coach career, which must keep reading as the
+ * Classic GM + Coach.
  *
  * `permissionsFor(role)` is the target permission matrix (ADR-006 §0/§3.3).
  * Its consumers live in careerGuards.js (R4): `requireCapability()` enforces
@@ -63,14 +70,21 @@ export const CAREER_CAPABILITIES = [
 ];
 
 /**
- * Which role a save plays as. Missing or invalid identity reads as the
- * Classic GM + Coach — the save is never rewritten for this.
+ * Which role a save plays as. A stamped identity wins; a pre-R7 Player
+ * Reborn save (root.reborn, no stamp, no leagueCareer) derives PLAYER;
+ * everything else without a valid stamp reads as the Classic GM + Coach
+ * — the save is never rewritten for this.
  * @param {object|null|undefined} root the long-career root save (v3)
  * @returns {"PLAYER"|"COACH"|"GM"|"GM_COACH"}
  */
 export function identityOf(root) {
   const role = root?.identity?.currentRole;
-  return CAREER_ROLES.includes(role) ? role : "GM_COACH";
+  if (CAREER_ROLES.includes(role)) return role;
+  // R7: a pre-R7 Player Reborn save has no stamp — the reborn record is
+  // unambiguous evidence of a player career. Only without a leagueCareer:
+  // a root with both could be an old coach career, which keeps Q1.
+  if (root?.reborn && !root?.leagueCareer) return "PLAYER";
+  return "GM_COACH";
 }
 
 /**

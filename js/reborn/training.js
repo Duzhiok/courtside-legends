@@ -10,6 +10,8 @@
  */
 import { awardGrowth, trainedAttributes } from "../career/playerGrowth.js";
 import { seasonToCard } from "../data/players.js";
+import { identityOf } from "../career/careerIdentity.js";
+import { requireCapability } from "../career/careerGuards.js";
 
 export const TRAINING_FOCI = ["shooting", "defense", "playmaking"];
 
@@ -28,8 +30,15 @@ export function focusAttributes(focus) {
  * Choose this week's training focus. One choice per week — choosing again
  * in the same week throws. Returns a new reborn state; the input is never
  * mutated. `week` is the season week number (1-based).
+ *
+ * R7: personal training is the Player career's own play — a coach or GM
+ * root reaching this entry is refused with CareerPermissionError. `root`
+ * is the long-career root save (optional; a missing root reads as the
+ * Classic GM + Coach, which holds everything). Reborn has no
+ * leagueCareer object, so the guard reads a bare { role }.
  */
-export function chooseFocus(reborn, focus, week) {
+export function chooseFocus(reborn, focus, week, root) {
+  requireCapability({ role: identityOf(root) }, "personalTraining", root);
   if (!TRAINING_FOCI.includes(focus)) {
     throw new TypeError(`training focus is invalid: ${focus}`);
   }

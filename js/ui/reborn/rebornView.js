@@ -31,6 +31,7 @@ import { settleContract, rolloverSeason, describeContract, seasonSummary, contra
 import { overall } from "../../data/players.js";
 import { readIdentity } from "../../data/profile.js";
 import { createRootState } from "../../data/saveRoot.js";
+import { setIdentity } from "../../career/careerIdentity.js";
 // Signature Awakening (workstream D): evidence-based skill awakening for the
 // Player career — no skill books, no purchases, no dice.
 import {
@@ -133,6 +134,23 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
   return `<section class="reborn-report">${lines.join("")}</section>`;
 }
 
+/**
+ * R7: stamp the PLAYER identity for a newly created reborn run. Pure —
+ * returns a new root; the input is untouched. The stamp is the save-level
+ * identity only: a leagueCareer already in this root keeps its own role
+ * (a coach career must not turn PLAYER because a player run was created
+ * alongside it — the design's "互不干扰"). The M4-C snapshot on the
+ * reborn run is untouched by the stamp. Exported for the Node tests —
+ * the screen wiring itself needs a DOM and is covered by the Mac
+ * browser QA.
+ */
+export function stampRebornIdentity(root) {
+  const leagueCareer = root?.leagueCareer;
+  const stamped = setIdentity(root, "PLAYER");
+  if (leagueCareer) stamped.leagueCareer = leagueCareer;
+  return stamped;
+}
+
 export function createRebornView({ getLang, readRootSave, writeRootSave, show, goBack, getAccount = () => null, saveAccount = () => {} } = {}) {
   const lang = () => (typeof getLang === "function" ? getLang() : "zh");
   let el = null;
@@ -162,15 +180,19 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
    * The root to write this run into: the visible root save, or a fresh valid
    * one when none is visible (a new account, or after switching accounts). A
    * bare `{ reborn }` is not a valid root and fails the save validator.
+   * `stampPlayer` (R7, creation only): stamp the PLAYER identity in the
+   * same write that stores the reborn run — never a half-stamped save.
+   * Later persists read the stamped root back and never re-stamp.
    */
-  function rootWithReborn() {
-    const root = readRootSave() || createRootState();
+  function rootWithReborn({ stampPlayer = false } = {}) {
+    let root = readRootSave() || createRootState();
     root.reborn = reborn;
+    if (stampPlayer) root = stampRebornIdentity(root);
     return root;
   }
 
-  function persist() {
-    writeRootSave(rootWithReborn());
+  function persist(options) {
+    writeRootSave(rootWithReborn(options));
   }
 
   /**
@@ -330,7 +352,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     try {
       const week = currentWeek();
       const out = await playGame(reborn, season, rows, {
-        onTakeover: createTakeoverHook(),
+        onTakeover: createTakeoverHook({ root: readRootSave() }),
         trainingDone: reborn.player.training?.week === week,
       });
       if (!out) return;
@@ -356,7 +378,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     render();
     try {
       const out = await fastForward(reborn, season, rows, {
-        onTakeover: createTakeoverHook(),
+        onTakeover: createTakeoverHook({ root: readRootSave() }),
         // The second arg is the reborn state after that game: record the
         // awakening evidence live, so a skill fired mid-run is on the card
         // from the next simmed game on.
@@ -423,7 +445,9 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
             return;
           }
           creating = null;
-          persist();
+          // R7: stamp PLAYER at creation, in the same save as the reborn
+          // run itself — later resume / fast-forward persists never re-stamp.
+          persist({ stampPlayer: true });
           rebuildSeason();
           contractOutcome = null;
           lastReport = null;
@@ -447,7 +471,9 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       const train = event.target.closest("[data-train]");
       if (train) {
         try {
-          reborn = chooseFocus(reborn, train.dataset.train, currentWeek());
+          // R7: personal training is the Player career's own play — the
+          // guard refuses a coach/GM root (the handler warns, no crash).
+          reborn = chooseFocus(reborn, train.dataset.train, currentWeek(), readRootSave());
           persist();
           render();
         } catch (e) {

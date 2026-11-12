@@ -868,3 +868,79 @@ test("validateRoot rejects illegal grants and keeps legal ones on a write/read r
   assert.deepEqual(loaded.leagueCareer.grants, ["trade", "draft"]);
   assert.equal(canDo(loaded.leagueCareer, "trade"), true);
 });
+
+// ---------------------------------------------------------------- ADR-006 R7: Player Reborn joins the identity system
+
+import { readFileSync } from "node:fs";
+import { createRebornState } from "../js/reborn/identity.js";
+
+const ROSTER_ROWS = JSON.parse(
+  readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"),
+).players;
+
+test("identityOf derives PLAYER for a pre-R7 reborn save — read-only, nothing is stamped", () => {
+  const preR7 = { reborn: { role: "player", identity: { bref: "jamesle01" } } };
+  const snapshot = structuredClone(preR7);
+  assert.equal(identityOf(preR7), "PLAYER");
+  assert.deepEqual(preR7, snapshot, "derivation must not write an identity onto the save");
+  // a stamp still wins over the derivation
+  assert.equal(identityOf({ ...preR7, identity: { currentRole: "COACH" } }), "COACH");
+  assert.equal(identityOf({ ...preR7, identity: { currentRole: "PLAYER" } }), "PLAYER");
+  // an old save with neither stays Classic
+  assert.equal(identityOf({}), "GM_COACH");
+  assert.equal(identityOf({ identity: {} }), "GM_COACH");
+});
+
+test("identityOf does not derive PLAYER when a leagueCareer is also present", () => {
+  // a root with both could be an old coach career — it keeps Q1 Classic
+  const mixed = { reborn: { role: "player" }, leagueCareer: { careerId: "c1" } };
+  assert.equal(identityOf(mixed), "GM_COACH");
+  // ... unless the save carries its own stamp
+  assert.equal(identityOf({ ...mixed, identity: { currentRole: "GM" } }), "GM");
+});
+
+test("setIdentity stamps PLAYER on a reborn root without a leagueCareer", () => {
+  const stamped = setIdentity({ reborn: { role: "player" } }, "PLAYER");
+  assert.deepEqual(stamped.identity, { initialRole: "PLAYER", currentRole: "PLAYER" });
+  assert.equal(stamped.leagueCareer, undefined, "no leagueCareer is invented");
+  assert.equal(identityOf(stamped), "PLAYER");
+  // the stamp survives a write/read round-trip (a real reborn state, so
+  // validateReborn accepts the root)
+  const reborn = createRebornState("r7-roundtrip", ROSTER_ROWS);
+  const stored = setIdentity(createRootState({ reborn }), "PLAYER");
+  const storage = createMemoryStorage();
+  writeRootSave(stored, storage);
+  const loaded = readRootSave(storage);
+  assert.equal(identityOf(loaded), "PLAYER");
+  assert.deepEqual(loaded.identity, { initialRole: "PLAYER", currentRole: "PLAYER" });
+});
+
+test("the reborn guard reads a bare role: PLAYER and Classic pass, COACH and GM are refused", () => {
+  for (const capability of ["takeover", "personalTraining"]) {
+    for (const root of [
+      { identity: { currentRole: "PLAYER" } },
+      { reborn: { role: "player" } },
+      {},
+    ]) {
+      assert.equal(
+        requireCapability({ role: identityOf(root) }, capability, root),
+        identityOf(root),
+        `${capability} must pass for ${JSON.stringify(root)}`,
+      );
+    }
+    for (const role of ["COACH", "GM"]) {
+      const root = { identity: { currentRole: role } };
+      assert.throws(
+        () => requireCapability({ role: identityOf(root) }, capability, root),
+        (error) => {
+          assert.equal(error.name, "CareerPermissionError");
+          assert.equal(error.code, "ROLE_NOT_PERMITTED");
+          assert.equal(error.role, role);
+          assert.equal(error.capability, capability);
+          return true;
+        },
+        `${capability} must refuse ${role}`,
+      );
+    }
+  }
+});

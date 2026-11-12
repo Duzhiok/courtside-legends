@@ -12,6 +12,8 @@
  * to show, and the choice is yours to feel, not to optimize.
  */
 import { createClutchController } from "../../engine/clutchController.js";
+import { identityOf } from "../../career/careerIdentity.js";
+import { requireCapability } from "../../career/careerGuards.js";
 
 /** The three takeover options. `pass` declines the moment (no decision). */
 export const TAKEOVER_OPTIONS = Object.freeze([
@@ -64,8 +66,16 @@ export function takeoverDecisionFor(optionId) {
  * the returned decision — the attempt id travels with it so the sim honors
  * exactly this pick. Returns null when the moment is declined or the pick
  * cannot be validated.
+ *
+ * R7: the takeover moment is the Player career's own play — a coach or GM
+ * root reaching this entry is refused with CareerPermissionError, not
+ * silently skipped. `root` is the long-career root save (optional; a
+ * missing root reads as the Classic GM + Coach, which holds everything).
  */
-export async function askTakeover({ sim, playerId, onAsk }) {
+export async function askTakeover({ sim, playerId, onAsk, root } = {}) {
+  // Reborn has no leagueCareer object, so the guard reads a bare
+  // { role } — careerRole accepts that (see careerGuards.js).
+  requireCapability({ role: identityOf(root) }, "takeover", root);
   const controller = createClutchController({ sim });
   const opened = controller.openDecision();
   if (!opened.ok) return null;
@@ -77,10 +87,10 @@ export async function askTakeover({ sim, playerId, onAsk }) {
   return { ...controller.selection, attemptId: controller.attemptId };
 }
 
-/** The season driver's onTakeover hook. `onAsk` is the view's dialog. */
-export function createTakeoverHook({ onAsk } = {}) {
+/** The season driver's onTakeover hook. `onAsk` is the view's dialog. `root` is the long-career root save, passed through so the takeover guard (R7) reads the save's identity. */
+export function createTakeoverHook({ onAsk, root } = {}) {
   const ask = onAsk || showTakeoverDialog;
-  return ({ sim, playerId }) => askTakeover({ sim, playerId, onAsk: ask });
+  return ({ sim, playerId }) => askTakeover({ sim, playerId, onAsk: ask, root });
 }
 
 /** Pure HTML for the takeover dialog (no percentages, no win probability). */

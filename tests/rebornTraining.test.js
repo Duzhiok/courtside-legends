@@ -107,3 +107,26 @@ test("growth entries render with their source on the card", () => {
     ["Training XP +77 (Darius Daniels)"],
   );
 });
+
+test("R7: personal training is the Player career's own play — a coach or GM root is refused", () => {
+  const reborn = createRebornState("reborn-train-r7", ROWS);
+  const playerRoot = { reborn };
+  assert.deepEqual(chooseFocus(reborn, "shooting", 1, playerRoot).player.training, {
+    focus: "shooting",
+    week: 1,
+  });
+  for (const role of ["COACH", "GM"]) {
+    assert.throws(
+      () => chooseFocus(reborn, "shooting", 1, { identity: { currentRole: role } }),
+      (error) => {
+        assert.equal(error.name, "CareerPermissionError");
+        assert.equal(error.capability, "personalTraining");
+        assert.equal(error.role, role);
+        return true;
+      },
+      `personalTraining must refuse ${role}`,
+    );
+  }
+  // no root: the Classic GM+Coach holds everything, as before
+  assert.doesNotThrow(() => chooseFocus(reborn, "shooting", 1));
+});

@@ -1,6 +1,6 @@
 # R7 设计：Player Reborn 接入身份与权限（ADR-006 §3，R7）
 
-- **状态**：设计稿（本轮；ADR-006 已批，R1–R6 已落地；实现下一轮按本设计直接做）
+- **状态**：已实现（本轮；ADR-006 已批，R1–R7 已落地）
 - **目标**：把已可玩的 Player Reborn 生涯（PR1–PR5，`js/reborn/`）接进 ADR-006 的身份与权限体系——球员生涯创建时盖 `PLAYER` 身份章，`identityOf()` 对球员存档答得出 PLAYER，接管/个人训练第一次走守卫。只做连接，不做新玩法、不改球员规则。
 - **现状核查（2026-11-11，main 实测）**：球员创建走 `js/ui/reborn/creation.js` + `rebornView.js`，`rootWithReborn()` 只写 `root.reborn`，从不调 `setIdentity`——球员存档无 `root.identity`，`identityOf()` 按 Q1 读成 GM_COACH，球员生涯静默持有全部权限。`js/reborn/` 与 `js/ui/reborn/` 里零 `requireCapability`/`canDo` 调用——矩阵里的 `takeover`/`personalTraining` 至今无消费者。入口已无工作：`careerEntry.js` 球员卡已是 `playable`；`validateReborn` 已在 `saveRoot.js`；M4-C 快照已接进 `createRebornState`。另核实：reborn 流里无交易/选秀/签约入口（grep `trade|draft|signFreeAgent` 无命中），UI 隔离无欠账。
 

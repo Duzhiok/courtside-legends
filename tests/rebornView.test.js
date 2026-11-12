@@ -7,7 +7,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { rebornIdentityHtml, rebornReportHtml, careerTimelineHtml } from "../js/ui/reborn/rebornView.js";
+import { rebornIdentityHtml, rebornReportHtml, careerTimelineHtml, stampRebornIdentity } from "../js/ui/reborn/rebornView.js";
+import { createRebornFromChoice } from "../js/ui/reborn/creation.js";
 import { createRebornState, buildPlayerCard, maybeReveal } from "../js/reborn/identity.js";
 
 const ROWS = JSON.parse(
@@ -100,4 +101,27 @@ test("careerTimelineHtml lists contract outcomes and season starts in order", ()
   const en = careerTimelineHtml({ reborn, lang: "en" });
   assert.match(en, /Minimum deal/);
   assert.match(en, /Re-signed/);
+});
+
+test("R7: stamping PLAYER at creation freezes the identity and leaves the M4-C snapshot and any leagueCareer alone", () => {
+  const places = { birthplace: "Akron", grewUpIn: "Akron", representedCity: "Akron" };
+  const reborn = createRebornFromChoice({
+    seed: "reborn-view-r7",
+    rows: ROWS,
+    choice: { startYear: 1996, destiny: "random" },
+    identityPlaces: places,
+  });
+  const root = { reborn };
+  const stamped = stampRebornIdentity(root);
+  assert.deepEqual(stamped.identity, { initialRole: "PLAYER", currentRole: "PLAYER" });
+  assert.deepEqual(stamped.reborn.identitySnapshot, places, "the M4-C snapshot stays frozen at creation");
+  assert.equal(stamped.leagueCareer, undefined, "no leagueCareer is invented");
+  assert.equal(root.identity, undefined, "the input is untouched");
+  // a leagueCareer already in the root keeps its own role — creating a
+  // player run must not flip a coach career to PLAYER
+  const mixed = { reborn, leagueCareer: { careerId: "c1", role: "COACH" } };
+  const stampedMixed = stampRebornIdentity(mixed);
+  assert.equal(stampedMixed.identity.currentRole, "PLAYER");
+  assert.equal(stampedMixed.leagueCareer.role, "COACH");
+  assert.equal(mixed.leagueCareer.role, "COACH", "the input is untouched");
 });
