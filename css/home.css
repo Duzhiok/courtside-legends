@@ -32,13 +32,11 @@ html[lang="en"] .topbar .brand-name { display: none; }
     radial-gradient(circle at 35% 30%, #ffb26b, #e85d04 60%, #a33f00);
 }
 .topbar .tagline { color: rgba(243, 239, 228, .7); }
-.topbar .btn.ghost,
-.topbar .account-chip {
+.topbar .btn.ghost {
   color: #f3efe4;
   background: rgba(255, 255, 255, .08);
   border-color: rgba(255, 255, 255, .2);
 }
-.topbar .account-chip:hover,
 .topbar .btn.ghost:hover { border-color: var(--gold); }
 
 /* —— Arena banner —— */
@@ -391,13 +389,10 @@ html[lang="en"] .topbar .brand-name { display: none; }
 #screen-home .account-home-bar .btn { padding: 5px 12px; font-size: .84rem; min-height: 0; }
 /* Guest-first: guests get a neutral stripe (nothing is wrong), the profile panel opens on its own row. */
 #screen-home .account-home-bar.is-guest::before { background: linear-gradient(#94a3b8, #64748b); }
-#screen-home .profile-panel { flex: 1 1 100%; justify-content: flex-start; gap: 8px; padding-top: 6px; border-top: 1px solid rgba(15, 28, 20, .08); }
-#screen-home .profile-panel[hidden] { display: none; }
 /* Phones: keep My Profile beside the status text instead of on a third row. Only the profile bar: the save bars
    carry three buttons, and squeezing their text column to zero width left it one word wide (B49) -- there the
    text gets its own full row and the buttons wrap beneath it. */
 @media (max-width: 560px) {
-  #screen-home .profile-bar .account-home-text { flex: 1 1 0; min-width: 0; }
   #screen-home .save-home-bar .account-home-text { flex: 1 1 100%; }
 }
 
@@ -436,16 +431,6 @@ html[lang="en"] .topbar .brand-name { display: none; }
   min-height: 40px;
   white-space: nowrap;
 }
-/* Guest / account status shrinks to one line; the full sentence stays in the Landing view. */
-#screen-home[data-home-tab]:not([data-home-tab="career"]) .profile-bar .account-home-text { flex-wrap: nowrap; }
-#screen-home[data-home-tab]:not([data-home-tab="career"]) .profile-bar .account-home-text strong { flex: none; }
-#screen-home[data-home-tab]:not([data-home-tab="career"]) .profile-bar .account-home-text .tiny {
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 @media (max-width: 560px) {
   .home-category-tabs { gap: 4px; padding: 4px; }
   .home-tab { padding: 10px 10px; font-size: .86rem; letter-spacing: 0; }
@@ -454,7 +439,7 @@ html[lang="en"] .topbar .brand-name { display: none; }
 }
 
 /* Profile picture in the home bar (same picture as My World). Fixed size so it never changes the bar's height. */
-#screen-home .account-home-avatar { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 32px; object-fit: cover; align-self: center; }
+.account-home-avatar { width: 28px; height: 28px; border-radius: 50%; flex: 0 0 28px; object-fit: cover; }
 
 /* —— Unified Career entry: three standard identities + one hidden prestige identity (3+1) —— */
 .career-entry {
@@ -655,4 +640,44 @@ html[lang="en"] .topbar .brand-name { display: none; }
   color: var(--gold);
   font-size: .9rem;
   cursor: pointer;
+}
+
+/* —— Compact global account menu (top bar): avatar + "name · Lv.N" + "current account", a caret, a popover —— */
+.account-menu { position: relative; }
+.account-menu-btn {
+  display: flex; align-items: center; gap: 8px; max-width: 220px; min-height: 40px;
+  padding: 5px 10px 5px 6px; border-radius: 999px; cursor: pointer; font: inherit; color: #f3efe4;
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .2);
+}
+.account-menu-btn:hover, .account-menu-btn[aria-expanded="true"] { border-color: var(--gold); }
+.account-menu-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.account-menu-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; line-height: 1.15; }
+.account-menu-line { display: flex; align-items: baseline; gap: 0; min-width: 0; max-width: 100%; white-space: nowrap; }
+.account-menu-line strong { overflow: hidden; text-overflow: ellipsis; font-size: .9rem; }
+.account-menu-lv { color: var(--gold); font-size: .85rem; flex: none; }
+.account-menu-text .tiny { color: rgba(243, 239, 228, .7); font-size: .7rem; }
+.account-menu-caret { color: var(--gold); font-size: .8rem; }
+/* today's card is waiting: a small gold dot on the avatar */
+.account-menu.has-daily .account-menu-btn::after {
+  content: ""; position: absolute; top: 4px; left: 28px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 2px #1a2b22;
+}
+.profile-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; min-width: 220px; max-width: min(300px, 86vw);
+  display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px;
+  background: #fff; color: var(--ink); border: 1px solid rgba(15, 28, 20, .12); box-shadow: 0 16px 36px rgba(15, 28, 20, .28);
+}
+.profile-panel[hidden] { display: none; }
+.profile-panel .btn { width: 100%; min-height: 44px; justify-content: center; }
+/* the popover sits inside the dark top bar: its buttons must not inherit the bar's light-on-dark ghost style */
+.topbar .profile-panel .btn.ghost { color: var(--ink); background: #eef3ef; border-color: rgba(15, 28, 20, .25); }
+.topbar .profile-panel .btn.ghost:hover { border-color: var(--ink); }
+.profile-hint { margin: 0; color: #4b5b52; line-height: 1.4; }
+.profile-hint[hidden] { display: none; }
+@media (max-width: 560px) {
+  .account-menu-btn { max-width: min(240px, 66vw); }
+  /* the top bar wraps on a phone, so the control can sit at the left: anchor the popover to its left edge */
+  .profile-panel { left: 0; right: auto; }
+  .account-menu-text .tiny { display: none; }
+  .account-menu-btn { min-height: 40px; }
 }

@@ -49,7 +49,23 @@
         <button type="button" class="voice-btn" id="btn-voice" aria-haspopup="dialog" data-no-i18n><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" /></svg></button>
         <button type="button" class="btn small ghost" id="btn-lang" title="Language / 语言" data-no-i18n>EN</button>
         <button type="button" class="gold-chip" id="btn-gold-chip" title="商城"><span aria-hidden="true">¤</span><span id="gold-chip-amt">0</span></button>
-        <button type="button" class="account-chip" id="btn-account-chip" title="我的球员卡">未登录</button>
+        <!-- Compact global account menu (was a big bar on the home page): who is signed in + the account actions, on every screen -->
+        <div class="account-menu" id="account-home-bar">
+          <button type="button" class="account-menu-btn" id="btn-profile-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="profile-panel" aria-label="账号菜单">
+            <img class="account-home-avatar" id="account-home-avatar" alt="" width="28" height="28" />
+            <span class="account-menu-text">
+              <span class="account-menu-line"><strong id="account-home-name">访客</strong><span class="account-menu-lv" id="account-home-lv"></span></span>
+              <span class="tiny" id="account-home-meta">未登录</span>
+            </span>
+            <span class="account-menu-caret" aria-hidden="true">▾</span>
+          </button>
+          <div class="profile-panel" id="profile-panel" role="menu" aria-label="账号菜单" hidden>
+            <p class="profile-hint tiny" id="account-home-hint" hidden></p>
+            <button type="button" class="btn small" id="btn-open-collection" role="menuitem">我的球员卡</button>
+            <button type="button" class="btn small" id="btn-daily-draw" role="menuitem">每日抽卡</button>
+            <button type="button" class="btn small ghost" id="btn-switch-account" role="menuitem">切换账号</button>
+          </div>
+        </div>
         <p class="tagline">选人 · 模拟 · 临场指挥</p>
       </div>
     </header>
@@ -113,21 +129,6 @@
             <button type="button" class="btn ghost" id="btn-long-career-export">导出</button>
             <button type="button" class="btn ghost" id="btn-long-career-import">导入</button>
             <input type="file" id="long-career-import-file" accept=".json" hidden />
-          </div>
-        </div>
-        <!-- B16: returning players need Continue on the first screen; the account bar is the least urgent block, so it goes last -->
-        <!-- Guest-first: a one-line status bar; card/draw/switch live in the My Profile panel, not on the first screen -->
-        <div class="account-home-bar profile-bar" id="account-home-bar">
-          <img class="account-home-avatar" id="account-home-avatar" alt="" width="32" height="32" />
-          <div class="account-home-text">
-            <strong id="account-home-name">访客模式</strong>
-            <span class="tiny" id="account-home-meta">无需注册即可开打；球员卡、抽卡、排位需账号。</span>
-          </div>
-          <button type="button" class="btn small ghost" id="btn-profile-toggle" aria-expanded="false" aria-controls="profile-panel" aria-label="账号菜单">账号 ▾</button>
-          <div class="profile-panel btn-row" id="profile-panel" hidden>
-            <button type="button" class="btn small" id="btn-open-collection">我的球员卡</button>
-            <button type="button" class="btn small" id="btn-daily-draw">每日抽卡</button>
-            <button type="button" class="btn small ghost" id="btn-switch-account">切换账号</button>
           </div>
         </div>
         <div class="home-category-tabs" role="tablist" aria-label="模式分类">
@@ -1391,6 +1392,6 @@
       }, 15000);
     })();
   </script>
-  <script type="module" src="js/app.js?v=20261107t5"></script>
+  <script type="module" src="js/app.js?v=20261111t1"></script>
 </body>
 </html>

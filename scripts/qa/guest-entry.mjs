@@ -33,7 +33,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const bar = await page.$eval("#account-home-bar", (el) => ({ guest: el.classList.contains("is-guest"), h: Math.round(el.getBoundingClientRect().height) }));
   check(`[${tag}] guest bar is marked guest`, bar.guest);
   check(`[${tag}] guest bar is compact`, bar.h <= (tag === "mobile" ? 96 : 60), `${bar.h}px`);
-  check(`[${tag}] guest bar says Guest`, (await text(page, "#account-home-name")) === "访客模式");
+  check(`[${tag}] guest bar says Guest`, (await text(page, "#account-home-name")) === "访客");
   check(`[${tag}] profile panel starts closed`, await page.$eval("#profile-panel", (el) => el.hidden));
   const cta = await page.$eval("#btn-play-now", (el) => el.getBoundingClientRect().bottom);
   check(`[${tag}] Quick Play is above the fold`, cta <= h, `${Math.round(cta)} <= ${h}`);
@@ -123,7 +123,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   await page.click(`[data-acc-login="${betaId}"]`);
   await homeActive(page);
   check(`[${tag}] switching updates the bar`, (await text(page, "#account-home-name")).startsWith("贝塔"), await text(page, "#account-home-name"));
-  check(`[${tag}] switching updates the top chip`, (await text(page, "#btn-account-chip")) === "贝塔");
+  check(`[${tag}] the top menu shows the new account's level`, /Lv\.\d+/.test(await text(page, "#account-home-lv")), await text(page, "#account-home-lv"));
   const after = await page.evaluate(async () => (await import("/js/data/account.js")).listAccounts().map((a) => `${a.name}:${a.cardCount}`).join(","));
   check(`[${tag}] both collections intact after switching`, after === before, after);
   check(`[${tag}] no horizontal overflow (account)`, await noOverflow(page));

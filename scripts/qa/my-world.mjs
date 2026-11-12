@@ -61,8 +61,19 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [1280, 800, "desktop"], [390, 84
   // Redesign: single title, compact hero, closed feedback behind a corner icon, honest omissions
   const hdr = await page.$$eval("#my-world-root h2, #my-world-root .mw-head", (els) => els.length);
   check(`[${tag}] no big page heading`, hdr === 0 && !empty.includes("My Basketball Life") && !empty.includes("COURTSIDE LEGENDS · MY WORLD"));
+  // The Hero is stage-driven now (a tall 3D stage beside/above the identity column), so its total height is no
+  // longer the thing to guard. What matters is that the identity column is a TIGHT stack: its height is its own
+  // content plus the grid gaps, i.e. nothing is stretched/spread apart into big empty bands.
+  const stack = await page.$eval(".mw-hero-info", (el) => {
+    const kids = [...el.children].filter((k) => k.getBoundingClientRect().height > 0);
+    const gap = parseFloat(getComputedStyle(el).rowGap) || 0;
+    const content = kids.reduce((n, k) => n + k.getBoundingClientRect().height, 0) + gap * Math.max(0, kids.length - 1);
+    return { slack: Math.round(el.getBoundingClientRect().height - content), h: Math.round(el.getBoundingClientRect().height) };
+  });
+  check(`[${tag}] hero identity column is a tight stack (no stretched gaps)`, stack.slack <= 16, // a few px of child margins (e.g. the button row); a stretched column would be hundreds of px
+     `slack ${stack.slack}px of ${stack.h}px`);
   const hero = await page.$eval(".mw-identity", (el) => Math.round(el.getBoundingClientRect().height));
-  check(`[${tag}] hero is one compact panel (portrait + level + stats + actions)`, hero <= (w <= 640 ? 600 : 400), `${hero}px`);
+  check(`[${tag}] hero stays one panel (stage + identity), not a sprawl`, hero <= (w <= 640 ? 1000 : 800), `${hero}px`);
   const heroTop = await page.$eval(".mw-identity", (el) => Math.round(el.getBoundingClientRect().top + scrollY));
   check(`[${tag}] identity near the top of the panel`, heroTop - (await page.$eval("#my-world-root", (el) => Math.round(el.getBoundingClientRect().top + scrollY))) <= 70);
   // Feedback moved to the global Player Voice button in the top bar; My World carries no inline panel of its own.

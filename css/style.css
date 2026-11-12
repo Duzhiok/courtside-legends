@@ -2263,19 +2263,6 @@ select, input[type="number"] {
   border-color: var(--ink);
 }
 .bgm-pick { opacity: 0.75; font-size: 0.78rem; padding: 5px 8px; }
-.account-chip {
-  border: 1px solid rgba(15,28,20,.18);
-  background: rgba(255,255,255,.8);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: .85rem;
-  cursor: pointer;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.account-chip:hover { border-color: var(--accent); }
 .account-home-bar {
   display: flex;
   flex-wrap: wrap;

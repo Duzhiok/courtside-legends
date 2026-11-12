@@ -36,6 +36,8 @@ export const PHRASES = [
   ["年穿越任期", "yr time-travel tenure"],
   ["队淘汰赛", "-team knockout"],
   ["访客模式", "Guest"],
+  ["访客", "Guest"],
+  ["当前账号", "Current account"],
   ["无需注册即可开打；球员卡、抽卡、排位需账号。", "Play with no sign-up; cards, draws and ranked need an account."],
   ["账号 ▾", "Account ▾"],
   ["账号菜单", "Account menu"],

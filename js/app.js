@@ -48,7 +48,7 @@ import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
 import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
-import { XP_TABLE, awardAccountXp, levelTitle, madePlayoffs, recordDailyLogin } from "./data/accountLevel.js";
+import { XP_TABLE, awardAccountXp, levelSnapshot, levelTitle, madePlayoffs, recordDailyLogin } from "./data/accountLevel.js";
 import {
   codexProgress,
   cardRoom,
@@ -2467,17 +2467,27 @@ function refreshAccountHomeBar() {
   refreshAccountAvatar(); // name/cards may have changed (switch account, onboarding, profile edit)
   refreshLongCareerHomeBar(); // a switch of account changes which saves may be offered
   refreshSaveHomeBar();
-  const chip = $("#btn-account-chip");
   const nameEl = $("#account-home-name");
+  const lvEl = $("#account-home-lv");
   const metaEl = $("#account-home-meta");
+  const hintEl = $("#account-home-hint");
   const drawBtn = $("#btn-daily-draw");
   const switchBtn = $("#btn-switch-account");
   const acc = activeAccount();
-  $("#account-home-bar")?.classList.toggle("is-guest", !acc);
+  const bar = $("#account-home-bar");
+  bar?.classList.toggle("is-guest", !acc);
+  // Compact identity only: name + level. Cards, ranked record and titles live in My World, not up here.
+  if (lvEl) lvEl.textContent = ` · Lv.${levelSnapshot(acc).level}`;
+  const setHint = (text) => {
+    if (!hintEl) return;
+    hintEl.textContent = text || "";
+    hintEl.hidden = !text;
+  };
   if (!acc) {
-    if (chip) chip.textContent = L("访客", "Guest");
-    if (nameEl) nameEl.textContent = L("访客模式", "Guest");
-    if (metaEl) metaEl.textContent = L("无需注册即可开打；球员卡、抽卡、排位需账号。", "Play with no sign-up; cards, draws and ranked need an account.");
+    bar?.classList.remove("has-daily");
+    if (nameEl) nameEl.textContent = L("访客", "Guest");
+    if (metaEl) metaEl.textContent = L("未登录", "Not signed in");
+    setHint(L("无需注册即可开打；球员卡、抽卡、排位需账号。", "Play with no sign-up; cards, draws and ranked need an account."));
     // Enabled on purpose: tapping it explains what an account is for instead of doing nothing.
     if (drawBtn) drawBtn.disabled = false;
     if (switchBtn) switchBtn.textContent = L("创建 / 切换账号", "Create / Switch Account");
@@ -2485,21 +2495,14 @@ function refreshAccountHomeBar() {
   }
   hideAccountGate();
   if (switchBtn) switchBtn.textContent = L("切换账号", "Switch Account");
-  const n = acc.playerIds?.length || 0;
-  const coach = resolveCoach(acc.coachId);
   const dailyOk = canClaimDailyDraw(acc);
-  if (chip) chip.textContent = acc.name;
-  if (nameEl) nameEl.textContent = getLang() === "en" ? `${acc.name} · ${n} cards` : `${acc.name} · ${n} 张卡`;
-  if (metaEl) {
-    metaEl.textContent = acc.onboardingDone
-      ? getLang() === "en"
-        ? `Coach ${coach ? `${coachName(coach, "en")} (${coachRecordLabel(coach, "en")})` : "TBD"} · Ranked ${acc.rankedWins || 0}W-${acc.rankedLosses || 0}L · ${dailyOk ? "Daily card available" : "Claimed today"}`
-        : `教练 ${coach ? `${coach.name}（${coachRecordLabel(coach)}）` : "未定"} · 排位 ${acc.rankedWins || 0}胜${acc.rankedLosses || 0}负 · ${dailyOk ? "今日球员卡可领" : "今日已领"}`
-      : L("请先完成开局：抽 5 张开局卡 → 选教练 + 战术", "Finish setup first: draw your opening 5 → pick a coach + tactics");
-  }
+  if (nameEl) nameEl.textContent = acc.name;
+  if (metaEl) metaEl.textContent = L("当前账号", "Current account");
+  setHint(acc.onboardingDone ? "" : L("请先完成开局：抽 5 张开局卡 → 选教练 + 战术", "Finish setup first: draw your opening 5 → pick a coach + tactics"));
+  bar?.classList.toggle("has-daily", !!acc.onboardingDone && dailyOk); // a gold dot: today's card is waiting
   if (drawBtn) {
     drawBtn.disabled = !acc.onboardingDone;
-    drawBtn.textContent = dailyOk ? "领取今日球员卡" : "抽卡 · 心愿单";
+    drawBtn.textContent = dailyOk ? L("领取今日球员卡", "Claim today's card") : L("抽卡 · 心愿单", "Draw · Wishlist");
   }
 }
 
@@ -2550,21 +2553,44 @@ function renderAccountList() {
   });
 }
 
-$("#btn-account-chip")?.addEventListener("click", openAccountScreen);
 $("#btn-switch-account")?.addEventListener("click", openAccountScreen);
 $("#btn-account-gate-create")?.addEventListener("click", openAccountScreen);
 $("#btn-account-gate-dismiss")?.addEventListener("click", hideAccountGate);
-function toggleAccountMenu() {
+/**
+ * Compact account menu: the button toggles the panel; Esc and a click/tap outside close it (Esc hands focus back to
+ * the button), Arrow keys move between the items, and picking an item closes it. Keyboard + touch reachable.
+ */
+function setAccountMenu(open, { focusButton = false } = {}) {
   const btn = $("#btn-profile-toggle");
   const panel = $("#profile-panel");
   if (!btn || !panel) return;
-  panel.hidden = !panel.hidden;
-  btn.setAttribute("aria-expanded", String(!panel.hidden));
+  panel.hidden = !open;
+  btn.setAttribute("aria-expanded", String(open));
+  if (!open && focusButton) btn.focus();
 }
-$("#btn-profile-toggle")?.addEventListener("click", toggleAccountMenu);
-// The avatar and the name are the natural "account" target; the panel behind them is the same one the button opens.
-$("#account-home-avatar")?.addEventListener("click", toggleAccountMenu);
-$("#account-home-bar .account-home-text")?.addEventListener("click", toggleAccountMenu); // other screens reuse the class
+const accountMenuItems = () => [...document.querySelectorAll("#profile-panel [role='menuitem']:not([disabled])")];
+$("#btn-profile-toggle")?.addEventListener("click", () => setAccountMenu($("#profile-panel")?.hidden !== false));
+$("#btn-profile-toggle")?.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowDown") return;
+  e.preventDefault();
+  setAccountMenu(true);
+  accountMenuItems()[0]?.focus();
+});
+$("#profile-panel")?.addEventListener("click", (e) => {
+  if (e.target.closest("[role='menuitem']")) setAccountMenu(false);
+});
+$("#profile-panel")?.addEventListener("keydown", (e) => {
+  const items = accountMenuItems();
+  const at = items.indexOf(document.activeElement);
+  if (e.key === "ArrowDown") { e.preventDefault(); items[(at + 1) % items.length]?.focus(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); items[(at - 1 + items.length) % items.length]?.focus(); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("#profile-panel")?.hidden === false) setAccountMenu(false, { focusButton: true });
+});
+document.addEventListener("click", (e) => {
+  if ($("#profile-panel")?.hidden === false && !e.target.closest("#account-home-bar")) setAccountMenu(false);
+});
 $("#btn-account-back")?.addEventListener("click", () => show(accountReturnScreen || "home"));
 $("#btn-open-collection")?.addEventListener("click", () => {
   if (!requireAccountReady({ zh: "我的球员卡", en: "My Player Cards" })) return;

@@ -15,6 +15,11 @@ mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ executablePath: EXE });
 const out = [];
 const check = (l, ok, d = "") => out.push(`${ok ? "PASS" : "FAIL"} ${l}${d ? " — " + d : ""}`);
+// textContrast() returns the list of offending elements ([] = all fine). An empty array is truthy, so never pass it to check() directly.
+const contrastCheck = async (tag, label, page, root, opts) => {
+  const bad = await textContrast(page, root, opts).catch((e) => [`error: ${e.message}`]);
+  check(`[${tag}] ${label}`, bad.length === 0, bad.slice(0, 3).join(" | "));
+};
 const isSvg = (src) => src.startsWith("data:image/svg+xml");
 const visible = (page, sel) => page.$eval(sel, (el) => !el.hidden && el.getBoundingClientRect().height > 0).catch(() => false);
 const avatar = (page) => page.$eval(".mw-hero .mw-avatar", (i) => i.src);
@@ -32,19 +37,44 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   });
   await boot();
 
-  // 1. Account menu: compact "账号 ▾", the old loud label is gone, avatar + name + button all open the same panel
-  const label = await text(page, "#btn-profile-toggle");
-  check(`[${tag}] account entry is the compact menu button, not "我的档案"`, label === "账号 ▾" && !(await text(page, "#account-home-bar")).includes("我的档案"), label);
+  // 1. Compact global account menu (top bar): avatar + "name · Lv.N" + "current account", one caret, a popover.
+  const nameTxt = await text(page, "#account-home-name");
+  const lvTxt = await text(page, "#account-home-lv");
+  const barBox = await page.$eval("#account-home-bar", (el) => ({ inTopbar: !!el.closest("header.topbar"), h: Math.round(el.getBoundingClientRect().height) }));
+  check(`[${tag}] the account control lives in the global top bar and is compact`, barBox.inTopbar && barBox.h <= 48, JSON.stringify(barBox));
+  check(`[${tag}] it shows "name · Lv.N" and "current account"`, nameTxt === "Hero Tester" && /^·\s*Lv\.\d+$/.test(lvTxt) && (await text(page, "#account-home-meta")) === "当前账号", `${nameTxt}|${lvTxt}`);
+  check(`[${tag}] the old big bar is gone from the home page (no card count / rank record repeated above My World)`, (await page.$$eval("#screen-home #account-home-bar", (e) => e.length)) === 0 && !(await text(page, "#account-home-bar")).includes("张卡") && !(await text(page, "#account-home-bar")).includes("排位"));
   const open = () => page.$eval("#btn-profile-toggle", (b) => b.getAttribute("aria-expanded") === "true");
   check(`[${tag}] menu closed by default`, !(await open(page)) && !(await visible(page, "#profile-panel")));
   await page.click("#account-home-avatar");
-  check(`[${tag}] clicking the avatar opens it`, (await open(page)) && (await visible(page, "#profile-panel")));
-  await page.click("#account-home-bar .account-home-text");
-  check(`[${tag}] clicking the name closes it`, !(await open(page)));
+  check(`[${tag}] tapping the avatar/name opens the popover`, (await open(page)) && (await visible(page, "#profile-panel")));
+  const pbox = await page.$eval("#profile-panel", (el) => { const r = el.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right), vw: innerWidth }; });
+  check(`[${tag}] the popover stays inside the viewport`, pbox.l >= 0 && pbox.r <= pbox.vw, JSON.stringify(pbox));
+  await contrastCheck(tag, "the popover's text is readable (WCAG AA; disabled items are exempt)", page, "#profile-panel", { min: 4.5 });
+  const shown = await page.$eval("#account-home-name", (el) => ({ cut: el.scrollWidth > el.clientWidth + 1, w: el.clientWidth }));
+  check(`[${tag}] the account name is not truncated (${shown.w}px)`, !shown.cut);
+  await shoot(page, `${OUT}/${tag}-menu-open.png`);
+  await page.keyboard.press("Escape");
+  check(`[${tag}] Esc closes it and returns focus to the button`, !(await open(page)) && (await page.evaluate(() => document.activeElement?.id)) === "btn-profile-toggle");
+  await page.focus("#btn-profile-toggle");
+  await page.keyboard.press("ArrowDown");
+  check(`[${tag}] ArrowDown opens it and focuses the first item`, (await open(page)) && (await page.evaluate(() => document.activeElement?.id)) === "btn-open-collection");
+  await page.keyboard.press("ArrowDown");
+  // (a not-yet-onboarded account has the daily-draw item disabled: arrow keys skip disabled items)
+  check(`[${tag}] ArrowDown moves to the next enabled item`, await page.evaluate(() => { const el = document.activeElement; return !!el && el.id !== "btn-open-collection" && !!el.closest("#profile-panel") && !el.disabled; }));
+  await page.mouse.click(4, Math.round((await page.evaluate(() => innerHeight)) * 0.6));
+  check(`[${tag}] a tap outside closes it`, !(await open(page)));
   await page.click("#btn-profile-toggle");
   const kept = await page.evaluate(() => ["btn-open-collection", "btn-daily-draw", "btn-switch-account"].every((id) => document.getElementById(id) && !document.getElementById(id).closest("[hidden]")));
-  check(`[${tag}] every account function is still in the panel (cards, daily draw, switch account)`, kept);
+  check(`[${tag}] every account function is still in the menu (cards, daily draw, switch account)`, kept);
   await page.click("#btn-profile-toggle");
+  for (const tab of ["world", "players", "career", "custom"]) {
+    await page.click(`.home-tab[data-category="${tab}"]`);
+    await page.click("#btn-profile-toggle");
+    check(`[${tag}] the account menu works on the "${tab}" tab`, (await open(page)) && (await visible(page, "#btn-switch-account")));
+    await page.keyboard.press("Escape");
+  }
+  await page.click('.home-tab[data-category="world"]');
 
   // 2. One hero, nothing repeated
   check(`[${tag}] the player's name is a heading exactly once`, (await page.$$eval("#my-world-root h3#mw-identity-title", (e) => e.length)) === 1);
@@ -87,8 +117,8 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   await boot();
 
   // 5. Readability + layout
-  check(`[${tag}] showcase buttons are readable on the white card (the style switch used to be invisible)`, await textContrast(page, ".mw-showcase-body", { min: 4.5 }));
-  check(`[${tag}] hero text readable on the dark panel`, await textContrast(page, ".mw-hero", { min: 4.5, under: [30, 80, 56] }).catch(() => false));
+  await contrastCheck(tag, "showcase text and controls are readable on the dark panel", page, ".mw-showcase", { min: 4.5, under: [30, 80, 56] });
+  await contrastCheck(tag, "hero text readable on the dark panel", page, ".mw-hero", { min: 4.5, under: [30, 80, 56] });
   check(`[${tag}] no horizontal overflow`, await noOverflow(page));
   await shoot(page, `${OUT}/${tag}-world.png`);
   await page.locator(".mw-hero").screenshot({ path: `${OUT}/${tag}-hero.png` });
@@ -98,7 +128,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   await boot();
   const en = await text(page, ".mw-hero");
   check(`[${tag}] English hero has no Chinese`, !CJK.test(en), en.slice(0, 80));
-  check(`[${tag}] English account menu`, (await text(page, "#btn-profile-toggle")) === "Account ▾", await text(page, "#btn-profile-toggle"));
+  check(`[${tag}] English account menu`, (await text(page, "#account-home-meta")) === "Current account" && (await text(page, "#account-home-lv")).includes("Lv."), await text(page, "#account-home-meta"));
   await page.locator(".mw-hero").screenshot({ path: `${OUT}/${tag}-hero-en.png` });
   check(`[${tag}] no page errors`, errors.length === 0, errors.join(" | "));
   await page.close();
