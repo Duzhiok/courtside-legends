@@ -2010,6 +2010,26 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
 - 完整历史：`docs/archive/AGENT_CHAT-2026-11-12.md`（2026-10-28 至 2026-11-12）。
 
 ## 📝 本轮记录
+[2026-11-12] Muse（Coding Agent）：Screen Architecture P2——归档 AGENT_CHAT.md
+（保留未决事项）进行中。全文原样移入 `docs/archive/AGENT_CHAT-2026-11-12.md`，
+本文件瘦身为 live board，只留未决事项。Player Voice 图标对比度已在 c302470
+修过（1.2 → 7.3，44px 触摸目标），本轮只核对、不重做。
+
+[2026-11-12] Muse（Coding Agent）：Screen Architecture P2 完成（8de2f2c）：
+全文原样归档到 `docs/archive/AGENT_CHAT-2026-11-12.md`（1610 行，与归档前
+HEAD 逐字一致，文件头只加 2 行归档说明），本文件瘦身为 144 行 live board，
+只留未决事项：待回答的问题 5 项（Cursor review 的 Code 生涯 P0/联机 P1、
+B35/B40 待 review、ADR-007/008 批示来源未注明、C6b 未落地）、等用户拍板
+12 项、进行中/排队（B23→B27）、已知遗留缺口 8 项、待 Mac 浏览器 QA 汇总
+12 组，另附 BACKLOG/ROADMAP/WORKNOTE 指针。Player Voice 图标对比度核对
+无误（c302470，1.2 → 7.3，44px），未重做。验证：全套 2697：2688 通过，
+9 失败 = online* ws 环境缺口（9 处均为 Cannot find package 'ws'，与归档前
+一致）；git diff --check 干净。Lint 未跑（VM 无 eslint）。未动 sim.js、
+roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建
+入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+36 提交，待有推送权限的环境执行 git push origin main。**下一步：P2 之后
+的方向等用户裁决（M5–M7 需用户裁决后才开工）。
+
 [2026-11-14] Code：金币挑战赛技能包恢复（Built → Integrated 待推送后；QA Pending，交给 Muse）。做法：只回滚 S0 的路线 2（dcd6eb6，金币职业市场技能报价），不碰路线 1（碎片商店 a470b36 仍删除——账号碎片/金币不得买竞技技能）、不碰 ffd552f 其他提交；git revert -n 只在 index.html 冲突一处（My Team 首页改版，与技能无关，取 HEAD）。是否完全复用原实现：是，货架/分层保底/定价/库存/安装/卸下/55% 退款全是原代码。三处必要改动：① 原实现漏洞——installInventorySkill 从不检查硬门槛（球队限定 wolf_king、名单限定、身高 high_tower≥217cm），“买来的也不行”的规则形同虚设，玩家能花钱把高塔装给矮个子；新增 skills.js meetsHardGates（canRetainSkill 的前半段抽出，DRY），安装前校验，安装选择器里不适用球员置灰并标“不适用”（软门槛如年龄不检查，买来的技能本就不因年龄摘除）；② 购买纯逻辑抽到 js/engine/skillShopPurchase.js buySkillOffer（app 只剩 alert 外壳），只扣 career.gold（本局金币），账号金币/My Team 卡/每日抽卡零接触；③ 规则文案恢复为“技能只有三个来源：比赛表现领悟、金币挑战赛技能包、★5 礼物”（碎片不算），homeRulesText 测试同步；还原误带回的“技能商店”首页提示语已丢弃，当前提示语补回。QA 脚本 scripts/qa/skill-book-removal.mjs 改名 skill-pack-shop.mjs 并翻成正向（货架/价格/购买→入库/账号存储不变）；其收藏页旧断言因账号菜单改版已失效，非本任务，已移除。验证：新增 tests/skillPackShop.test.js 8 项（货架约束、购买扣费入库下架、不足/已下架/组合技拒绝且不扣费、硬门槛、安装→标记→卸下退库→55% 退款、满槽需先卸、旧存档兼容、真实 GameSim 同种子有无技能结果不同：iron_lungs、thief）；聚焦 96/96；ESLint 0 错误；浏览器冒烟桌面+手机 26/26。已知限制：市场货架一次仍只出 1 个技能包（R105 用户定的 1+1+8 未改）；rainmaker 在 6 个种子的同种子对比里零变化（引擎里它可能没有生效路径，非本任务，供 Muse 核对）；货架仍可能刷出当前阵容里没人能装的技能（现在装不上并有提示，货架不按阵容过滤）；未跑全量。Muse QA 请求：(a) 真实 Gold Challenge 一局：买→装→打一场→卖人看退款；(b) 刷新技能包 ¤25 扣费与货架避重；(c) 旧存档（有 purchasedSkills/skillInventory 与无这些字段）继续；(d) 经济复核：确认任何路径都没动 account.gold / account.fragments；(e) 技能满槽时替换流程（prompt 版）在手机上可用性；(f) 硬门槛：把高塔买来装给矮个子应被拒绝。
 ## Wibey · Custom 3v3 Half-Court MVP (claim)
 
