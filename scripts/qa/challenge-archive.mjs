@@ -45,10 +45,11 @@ for (const [w, h, tag, lang] of [[1280, 800, "desktop", "zh"], [390, 844, "mobil
     let r = await rows(page);
     check(`[${tag}] three records listed, newest first`, r.length === 3 && (zh ? r[0].includes("通关夺冠") : r[0].includes("Champions")), r[0]?.slice(0, 80));
     check(`[${tag}] finals loss and earlier elimination are told apart`, zh ? r[1].includes("总决赛出局") && r[2].includes("淘汰出局") : r[1].includes("Lost in the Finals") && r[2].includes("Eliminated"));
-    check(`[${tag}] records are read-only: no buttons inside`, await page.$$eval(".mw-archive", (els) => els.every((e) => !e.querySelector("button, [data-mw-action], a"))));
+    check(`[${tag}] records have View result + Delete, but no Continue`, await page.$$eval(".mw-archive", (els) => els.every((e) => e.querySelector('[data-mw-action="view-archive"]') && e.querySelector('[data-mw-action="delete-archive"]') && !e.querySelector('[data-mw-action="resume-career"]'))));
+    check(`[${tag}] records sit under their own History head`, await page.$eval(".mw-subhead", (e) => /History|历史记录/.test(e.textContent)).catch(() => false));
     check(`[${tag}] says it is finished and cannot be continued`, r.every((t) => (zh ? t.includes("只读记录") : t.includes("read-only"))));
     check(`[${tag}] team name is escaped (no live <i> element)`, (await page.$$(".mw-archive i")).length === 0 && r[0].includes("<i>Hawks</i>"));
-    check(`[${tag}] top players listed`, r[0].includes("Star 0"));
+    check(`[${tag}] W-L and gold shown, no lineup names stored any more`, r[0].includes("¤") && !r[0].includes("Star 0"));
     if (!zh) check(`[${tag}] English card has no Chinese`, !CJK.test((await text(page, "#mw-games, .mw-games"). catch(() => "")) || r.join(" ")));
     check(`[${tag}] no continue/start buttons for a run that is over`, !(await page.$('.mw-archive [data-mw-action="resume-career"]')));
     check(`[${tag}] no horizontal overflow`, await noOverflow(page));

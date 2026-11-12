@@ -12,7 +12,7 @@ import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
-import { readChallengeArchive } from "../data/challengeArchive.js";
+import { deleteChallengeArchive, readChallengeArchive } from "../data/challengeArchive.js";
 import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary, trophyCountOf } from "./myWorldView.js";
 import { hometownHtml } from "./hometownView.js";
 import { readHometownState, setIdol } from "../data/hometown/hometownState.js";
@@ -401,6 +401,28 @@ export function createMyWorld({
     "delete-career": () => remove("career"),
     "delete-session": () => remove("session"),
     "delete-season": () => remove("season"),
+    /** B50: a finished-run record can be viewed (inline detail) or deleted (same confirm flow as saves). */
+    "view-archive": (btn) => {
+      const detail = btn?.closest?.(".mw-archive")?.querySelector(".mw-archive-detail");
+      if (!detail) return;
+      const open = detail.hidden;
+      detail.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+      btn.textContent = getLang() === "en" ? (open ? "Hide result" : "View result") : (open ? "收起" : "查看结果");
+    },
+    "delete-archive": async (btn) => {
+      const key = btn?.dataset?.archiveId;
+      if (!key) return;
+      const ok = await confirm(
+        getLang() === "en"
+          ? "Delete this finished-run record? This cannot be undone."
+          : "删除这条已结束记录？删除后无法恢复。",
+      );
+      if (!ok) return;
+      const res = deleteChallengeArchive(getAccount()?.id ?? null, key);
+      render();
+      say(el.querySelector("#mw-games-status"), res.changed ? "已删除这条记录。" : "这条记录已经不在了。", res.changed ? "That record is deleted." : "That record is already gone.");
+    },
     "start-career": () => onStartCareer?.(),
     "open-collection": () => onOpenCollection?.(),
     "open-accounts": () => onOpenAccounts?.(),

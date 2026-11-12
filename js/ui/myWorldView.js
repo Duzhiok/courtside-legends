@@ -225,9 +225,8 @@ function gameRow({ title, sub, state, resume, claim, remove }, canClaim, lang) {
     <div class="mw-game-actions">${buttons}</div></li>`;
 }
 
-const ARCHIVE_SHOWN = 5;
 
-/** A finished gold-challenge run: read-only on purpose (no Continue, no Delete) -- it is a record, not a save. */
+/** A finished gold-challenge run: a record, not a save -- no Continue, but View result and Delete. */
 function archiveRow(e, lang) {
   const tier = challengeTierName(e.tier === "custom" ? "gold" : e.tier, lang);
   const result = e.outcome === "champion"
@@ -235,11 +234,29 @@ function archiveRow(e, lang) {
     : e.finals ? T(lang, "总决赛出局", "Lost in the Finals") : T(lang, "淘汰出局", "Eliminated");
   const date = new Date(e.finishedAt).toLocaleDateString(lang === "en" ? "en-US" : "zh-CN");
   const team = e.teamName ? teamNameL(e.teamName, lang) : T(lang, "未命名球队", "Unnamed team");
-  const stars = e.roster.length ? ` · ${e.roster.map((p) => esc(p.name)).join(lang === "en" ? ", " : "、")}` : "";
+  const round = e.finals ? T(lang, "总决赛", "Finals") : T(lang, `第 ${e.round} 轮`, `Round ${e.round}`);
+  const score = T(lang, `胜 ${e.wins} · 负 ${e.losses}`, `${e.wins}W–${e.losses}L`);
+  const gold = `¤${e.gold}`;
+  const finalsLine = e.finalsScore
+    ? `<dt>${T(lang, "总决赛比分", "Finals score")}</dt><dd>${esc(e.finalsScore)}</dd>` : "";
+  const elimLine = e.eliminatedBy
+    ? `<dt>${T(lang, "淘汰对手", "Eliminated by")}</dt><dd>${esc(e.eliminatedBy)}</dd>` : "";
+  const key = esc(e.runId || e.id);
   return `<li class="mw-game mw-archive"><div class="mw-game-text">
     <p class="mw-line"><strong>${esc(tier)}</strong> · ${esc(result)}</p>
-    <p class="mw-line tiny">${esc(team)} · ${T(lang, `第 ${e.round} 轮 · 负 ${e.losses} 场`, `Round ${e.round} · ${e.losses} loss(es)`)} · ${esc(date)}${stars}</p>
+    <p class="mw-line tiny">${esc(team)} · ${esc(round)} · ${esc(score)} · ${esc(gold)} · ${esc(date)}</p>
     <p class="mw-local">${T(lang, "已结束 · 只读记录，不能继续", "Finished · read-only record, cannot be continued")}</p>
+    <div class="mw-archive-detail" hidden><dl>
+      <dt>${T(lang, "结果", "Result")}</dt><dd>${esc(result)}</dd>
+      <dt>${T(lang, "止步轮次", "Reached")}</dt><dd>${esc(round)}</dd>
+      <dt>${T(lang, "战绩", "Record")}</dt><dd>${esc(score)}</dd>
+      <dt>${T(lang, "结束时金币", "Gold at the end")}</dt><dd>${esc(gold)}</dd>
+      ${finalsLine}${elimLine}
+      <dt>${T(lang, "结束日期", "Finished")}</dt><dd>${esc(date)}</dd>
+    </dl></div>
+  </div><div class="mw-game-actions">
+    <button type="button" class="btn small ghost" data-mw-action="view-archive" data-archive-id="${key}" aria-expanded="false">${T(lang, "查看结果", "View result")}</button>
+    <button type="button" class="btn small ghost" data-mw-action="delete-archive" data-archive-id="${key}">${T(lang, "删除", "Delete")}</button>
   </div></li>`;
 }
 
@@ -283,14 +300,17 @@ export function gamesHtml(games, lang) {
     }, games.canClaim, lang));
   }
   const archive = Array.isArray(games?.archive) ? games.archive : [];
-  for (const e of archive.slice(0, ARCHIVE_SHOWN)) rows.push(archiveRow(e, lang));
-  if (archive.length > ARCHIVE_SHOWN) rows.push(`<li class="mw-game mw-archive"><p class="mw-line tiny">${T(lang, `另有 ${archive.length - ARCHIVE_SHOWN} 条更早的记录`, `${archive.length - ARCHIVE_SHOWN} older record(s) not shown`)}</p></li>`);
-  if (!rows.length) {
+  const archiveBlock = archive.length
+    ? `<h4 class="mw-subhead">${T(lang, "历史记录", "History")}</h4>
+    <ul class="mw-games">${archive.map((e) => archiveRow(e, lang)).join("")}</ul>
+    <p class="mw-line tiny">${T(lang, "只保留最近 20 条已结束记录。", "Only the most recent 20 finished records are kept.")}</p>`
+    : "";
+  if (!rows.length && !archive.length) {
     return `<section class="mw-card">${title}
       <p class="mw-empty">${T(lang, "还没有进行中的生涯。", "No career in progress yet.")}</p>
       ${action("start-career", T(lang, "去开始一段生涯", "Start a career"))}</section>`;
   }
-  return `<section class="mw-card">${title}<ul class="mw-games">${rows.join("")}</ul>
+  return `<section class="mw-card">${title}${rows.length ? `<ul class="mw-games">${rows.join("")}</ul>` : ""}${archiveBlock}
     <p class="mw-status" id="mw-games-status" role="status" aria-live="polite"></p></section>`;
 }
 

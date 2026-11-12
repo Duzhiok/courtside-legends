@@ -287,7 +287,7 @@ import {
   challengeTierMeta,
   challengeTierName,
 } from "./data/careerChallenges.js";
-import { challengeArchiveEntry, recordChallengeArchive } from "./data/challengeArchive.js";
+import { challengeArchiveEntry, makeRunId, recordChallengeArchive } from "./data/challengeArchive.js";
 import { historicalLadder, historicalUpsideHint } from "./engine/develop.js";
 import {
   HISTORICAL_YEARS,
@@ -4967,6 +4967,7 @@ function bootCareerBracket({
   const startSize = stageSize || (n <= 2 ? 2 : n <= 8 ? 8 : n <= 16 ? 16 : 32);
   state.career = {
     kind: "career",
+    runId: makeRunId(), // B50: the archive dedup key; a new bracket (incl. the next tier) is a new run
     fieldSource: fieldSource || "random", // historical | random
     fromCustom: !!fromCustom,
     challengeTier: challengeTier || "gold",
@@ -5153,6 +5154,7 @@ function beginCustomHistoricalCareer(draftTeam) {
 
 /** B50: a finished gold-challenge run leaves a read-only record before its save slot is cleared. */
 function archiveFinishedChallenge(c, outcome) {
+  if (c && !c.runId) c.runId = makeRunId(); // runs started before runId existed get one at archive time
   const entry = challengeArchiveEntry(c, outcome);
   if (entry) recordChallengeArchive(activeAccount()?.id ?? null, entry);
 }
