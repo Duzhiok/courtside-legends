@@ -568,14 +568,27 @@ for vt in ("Khronos PBR Neutral", "AgX", "Standard"):
         continue
 
 VIEWS = {"front": 0, "three_quarter": 32, "side": 90, "back": 180, "face": 0, "shoulder": 0}
+
+
+def pose_with(action, frame):
+    """Channels an action does not key keep the LAST evaluated value, so clear every bone before switching actions."""
+    for pb in arm.pose.bones:
+        pb.location, pb.scale = (0, 0, 0), (1, 1, 1)
+        pb.rotation_quaternion, pb.rotation_euler = (1, 0, 0, 0), (0, 0, 0)
+    arm.animation_data.use_nla, arm.animation_data.action = False, action
+    scene.frame_set(frame)
+
+
 for name in [v for v in args.views.split(",") if v]:
     clip = name.startswith("clip:")
     if clip:   # clip:<Action>:<frame>[:<yaw deg>] poses the rig and renders it from the three-quarter angle, framed wider
         _, cname, cframe, *yaw = name.split(":")
-        arm.animation_data.use_nla, arm.animation_data.action = False, bpy.data.actions[cname]
-        scene.frame_set(int(cframe))
+        pose_with(bpy.data.actions[cname], int(cframe))
         VIEWS[name] = int(yaw[0]) if yaw else 32
         seat.hide_render = cname != "Stylized_Sit"
+    else:      # approval views are the standing rest pose, never whatever clip build_all left on the rig
+        pose_with(act, 1)
+        seat.hide_render = True
     a = math.radians(VIEWS[name])
     if clip:
         cam.location, look_at.location = (math.sin(a) * 6.4, -math.cos(a) * 6.4, 1.3), (0, 0, 1.05)
