@@ -49,7 +49,9 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
     await page.reload({ waitUntil: "domcontentloaded" }); await homeActive(page);
     await page.click("#btn-long-career-resume").catch(() => {});
     const back = await page.evaluate(() => document.querySelector("main.screen.active")?.id);
-    check(`[${tag}] ${len} save resumes after reload`, back === "screen-season", back);
+    // A season save resumes because migrateLegacySaves wraps the legacy
+    // season into a franchise on reload (saveRoot.js) — the check name says so.
+    check(`[${tag}] ${len} save resumes after reload${len === "season" ? " (legacy season migrated into franchise)" : ""}`, back === "screen-season", back);
   }
   // Onboarding Cancel: an account that never finished team setup is sent there when a feature needs it;
   // Cancel must put the player back where they were, mid-form, instead of trapping them.

@@ -79,7 +79,21 @@ test("M1: every mode declares a spec §3 explore group; panel modes declare a ho
     );
   }
   const panelModes = allModes().filter((mode) => mode.homeTab);
-  assert.ok(panelModes.length >= 9, "most modes should render on a home tab");
+  // Pinned exactly (R153 review): a lower bound would not catch a deleted card.
+  assert.deepEqual(
+    panelModes.map((mode) => mode.id).sort(),
+    [
+      "career",
+      "custom",
+      "draft",
+      "franchise",
+      "quick",
+      "ranked",
+      "sandbox",
+      "timeTravel",
+      "tournament",
+    ],
+  );
   for (const mode of panelModes) {
     assert.ok(
       ["players", "career", "custom"].includes(mode.homeTab),

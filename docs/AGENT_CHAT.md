@@ -1963,6 +1963,11 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
   入口加 `"trade"` 能力守卫（`acceptTradeProposal` 透传 career/root，
   报价接受路径同样守住），按钮层 gate 不动；不碰 sim.js。✅ 已完成
   （本轮，见下方本轮记录）。
+- [2026-11-12 05:26] Muse 认领已知缺口：R153 review 备注三项——① 面板模式数
+  阈值 `>= 9` 改钉死具体 9 张卡；② `openSingleSeason` 两下点击之间等设置页
+  出现（`#screen-season.active`）；③ career-length QA 里 season 的 resume
+  检查改名，注明是靠 `migrateLegacySaves` 把旧赛季包成 franchise 才过。
+  只改测试 + QA 脚本，不改行为、不动 sim.js。✅ 已完成（本轮，见下方本轮记录）。
 - Screen Architecture P1 已收尾（9 个自建 panel-head 屏幕全部迁到 mountScreen，
   0c2734d）；P2 归档本文件（2026-11-12 进行中）。P2 之后的方向等用户裁决。
 
@@ -1979,12 +1984,6 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
   `scripts/qa/avatar-creator-slice.mjs` 在基线上就已失败（与本次无关）。
 - My Home 2.0（b12fd5b）与用户“暂缓”裁决不一致，已告知用户。
 - `mobile/www/` 快照仍留旧文案，等下次 mobile:sync。
-- `variantOf:"franchise"` 现在没代码读、也没测试断言（只有测试里对
-  sandbox/custom 的 variantOf 断言），建议补个断言或注明是备用标记。
-- R153 review 备注：面板模式数阈值 10→9 是下限不断言，未来误删一张卡也测
-  不出来；`openSingleSeason` 两下点击之间没等设置页出现（目前同步所以能跑）；
-  career-length QA 里 season 的 resume 检查能过是靠 `migrateLegacySaves`
-  把旧赛季包成 franchise，检查名略有误导。
 - 教练专属成长/剧情仍待后续；赛季内双重目标执行仍是 E 的后续。
 
 ## 🧪 待 Mac 浏览器 QA（汇总，不阻塞开发）
@@ -2071,6 +2070,24 @@ eslint）。未动 sim.js、roster.json、存档版本、M4-A 表单与 profile.
 40 提交（含本轮），待有推送权限的环境执行 git push origin main。**
 下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；其余已知
 缺口（R153 面板阈值、openSingleSeason 等待、B50 review 备注等）仍待认领。
+
+[2026-11-12] Muse（Coding Agent）：R153 review 备注三项已补：①
+`tests/modeCatalog.test.js` 面板模式数由下限 `>= 9` 改为钉死具体 9 张卡
+（career/custom/draft/franchise/quick/ranked/sandbox/timeTravel/
+tournament），变异核查：删一张卡断言即失败；② `scripts/qa/lib/page.mjs`
+的 `openSingleSeason` 在点 Franchise 卡后等 `#screen-season.active`
+再点长度按钮；③ `scripts/qa/career-length.mjs` 的 season resume 检查改名，
+注明是靠 `migrateLegacySaves` 把旧赛季包成 franchise 才过。只改测试 +
+QA 脚本，零行为改动。验证：modeCatalog 7/7；两份 QA 脚本 node --check
+通过（浏览器 QA 本机跑不了，待 Mac）；全套 2704：2695 通过，9 失败 =
+online* ws 环境缺口（9 处均为 Cannot find package 'ws'，与基线一致）；
+git diff --check 干净。Lint 未跑（VM 无 eslint）。未动 sim.js、
+roster.json、存档版本、modeCatalog 行为、M4-A 表单与 profile.js 字段、
+职业创建入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前
+origin/main 42 提交（含本轮），待有推送权限的环境执行 git push origin
+main。**下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；
+其余已知缺口（B50 review 备注、B54 sim.js 战术名、R153 已清）中 B50/B54
+仍待认领。
 
 [2026-11-14] Code：金币挑战赛技能包恢复（Built → Integrated 待推送后；QA Pending，交给 Muse）。做法：只回滚 S0 的路线 2（dcd6eb6，金币职业市场技能报价），不碰路线 1（碎片商店 a470b36 仍删除——账号碎片/金币不得买竞技技能）、不碰 ffd552f 其他提交；git revert -n 只在 index.html 冲突一处（My Team 首页改版，与技能无关，取 HEAD）。是否完全复用原实现：是，货架/分层保底/定价/库存/安装/卸下/55% 退款全是原代码。三处必要改动：① 原实现漏洞——installInventorySkill 从不检查硬门槛（球队限定 wolf_king、名单限定、身高 high_tower≥217cm），“买来的也不行”的规则形同虚设，玩家能花钱把高塔装给矮个子；新增 skills.js meetsHardGates（canRetainSkill 的前半段抽出，DRY），安装前校验，安装选择器里不适用球员置灰并标“不适用”（软门槛如年龄不检查，买来的技能本就不因年龄摘除）；② 购买纯逻辑抽到 js/engine/skillShopPurchase.js buySkillOffer（app 只剩 alert 外壳），只扣 career.gold（本局金币），账号金币/My Team 卡/每日抽卡零接触；③ 规则文案恢复为“技能只有三个来源：比赛表现领悟、金币挑战赛技能包、★5 礼物”（碎片不算），homeRulesText 测试同步；还原误带回的“技能商店”首页提示语已丢弃，当前提示语补回。QA 脚本 scripts/qa/skill-book-removal.mjs 改名 skill-pack-shop.mjs 并翻成正向（货架/价格/购买→入库/账号存储不变）；其收藏页旧断言因账号菜单改版已失效，非本任务，已移除。验证：新增 tests/skillPackShop.test.js 8 项（货架约束、购买扣费入库下架、不足/已下架/组合技拒绝且不扣费、硬门槛、安装→标记→卸下退库→55% 退款、满槽需先卸、旧存档兼容、真实 GameSim 同种子有无技能结果不同：iron_lungs、thief）；聚焦 96/96；ESLint 0 错误；浏览器冒烟桌面+手机 26/26。已知限制：市场货架一次仍只出 1 个技能包（R105 用户定的 1+1+8 未改）；rainmaker 在 6 个种子的同种子对比里零变化（引擎里它可能没有生效路径，非本任务，供 Muse 核对）；货架仍可能刷出当前阵容里没人能装的技能（现在装不上并有提示，货架不按阵容过滤）；未跑全量。Muse QA 请求：(a) 真实 Gold Challenge 一局：买→装→打一场→卖人看退款；(b) 刷新技能包 ¤25 扣费与货架避重；(c) 旧存档（有 purchasedSkills/skillInventory 与无这些字段）继续；(d) 经济复核：确认任何路径都没动 account.gold / account.fragments；(e) 技能满槽时替换流程（prompt 版）在手机上可用性；(f) 硬门槛：把高塔买来装给矮个子应被拒绝。
 ## Wibey · Custom 3v3 Half-Court MVP (claim)
