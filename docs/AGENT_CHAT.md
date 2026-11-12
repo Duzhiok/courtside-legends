@@ -6,7 +6,8 @@
 
 > 归档：2026-11-12 按已批 Screen Architecture P2 归档。2026-10-28 至
 > 2026-11-12 的完整历史（1610 行原文，一字未改）在
-> `docs/archive/AGENT_CHAT-2026-11-12.md`。本文件只留未决事项；
+> `docs/archive/AGENT_CHAT-2026-11-12.md`；归档后新增的已完成记录与
+> 远端 Code 的两条补在该文件末尾附录。本文件只留未决事项；
 > 已完成/已拍板的事不再留在这里，细节去归档文件里查。
 
 ## 使用规则
@@ -1955,30 +1956,12 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
   8ee74b9，用户 2026-11-09 批默认均衡、合理阈值由 Agent 自定）。
 - B33 轻量整合设计已上 main（708608b）；救援分支
   `rescue/d-segment-interview-prophecy` 保留至整合版验证通过。
-- [2026-11-12 03:26] Muse 认领已知缺口：`variantOf:"franchise"` 无断言——
-  只补测试断言 + 注释说明为备用标记，不改行为、不动 sim.js。✅ 已完成
-  （本轮，见下方本轮记录）。
-- [2026-11-12 04:26] Muse 认领已知缺口：`executeTrade` 本体无
-  `requireCapability` 守卫——在 `executeTrade` / `executeThreeTeamTrade`
-  入口加 `"trade"` 能力守卫（`acceptTradeProposal` 透传 career/root，
-  报价接受路径同样守住），按钮层 gate 不动；不碰 sim.js。✅ 已完成
-  （本轮，见下方本轮记录）。
-- [2026-11-12 05:26] Muse 认领已知缺口：R153 review 备注三项——① 面板模式数
-  阈值 `>= 9` 改钉死具体 9 张卡；② `openSingleSeason` 两下点击之间等设置页
-  出现（`#screen-season.active`）；③ career-length QA 里 season 的 resume
-  检查改名，注明是靠 `migrateLegacySaves` 把旧赛季包成 franchise 才过。
-  只改测试 + QA 脚本，不改行为、不动 sim.js。✅ 已完成（本轮，见下方本轮记录）。
 - Screen Architecture P1 已收尾（9 个自建 panel-head 屏幕全部迁到 mountScreen，
-  0c2734d）；P2 归档本文件（2026-11-12 进行中）。P2 之后的方向等用户裁决。
+  0c2734d）；P2 归档本文件已完成（8de2f2c），2026-11-12 变基后曾被合并且
+  回到 1850 行，本轮已按 8de2f2c 原样恢复为 live board。P2 之后的方向等用户裁决。
 
 ## 🐛 已知遗留缺口（不阻塞开发，修之前先在这里认领）
 
-- B50 review 备注（2efe41f，Luna）：① 去重靠随机 entry id，设计要的 runId 没做；
-  ② 没有独立的“History / 历史记录”分区头；③ 没有字面“查看结果”入口；
-  ④ 记录比设计单薄（缺胜场、金币、总决赛比分、淘汰对手，却存了设计说不存的
-  前五阵容名/OVR）；⑤ 界面只显示最新 5 条，6–20 条存了却看不到，也没写
-  “保留最近 20 条”；⑥ 没有删除入口（设计说走现有删除流程）。
-- B54：`sim.js` 教练切换播报文案仍用 `tactic.name` 原文（另一处，未动）。
 - B1 动作库已知未做：坐姿时短裤腿口正对镜头略显空；Bobblehead（man.glb）
   没有庆祝/板凳（庆祝退化成鼓掌，坐下不保持）；旧
   `scripts/qa/avatar-creator-slice.mjs` 在基线上就已失败（与本次无关）。
@@ -2012,24 +1995,33 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
 - 路线图与里程碑状态：`docs/implementation/ROADMAP.md`；工作记录：
   `docs/WORKNOTE.md`；任务打卡：`docs/TASKS.md`；已定结论：
   `docs/implementation/DECISIONS.md`。
-- 完整历史：`docs/archive/AGENT_CHAT-2026-11-12.md`（2026-10-28 至 2026-11-12）。
+- 完整历史：`docs/archive/AGENT_CHAT-2026-11-12.md`（2026-10-28 至 2026-11-12，
+  另附归档后新增记录与远端 Code 两条）。
 
 ## 📝 本轮记录
-[2026-11-12] Muse（Coding Agent）：Screen Architecture P2——归档 AGENT_CHAT.md
-（保留未决事项）进行中。全文原样移入 `docs/archive/AGENT_CHAT-2026-11-12.md`，
-本文件瘦身为 live board，只留未决事项。Player Voice 图标对比度已在 c302470
-修过（1.2 → 7.3，44px 触摸目标），本轮只核对、不重做。
 
-[2026-11-12] Muse（Coding Agent）：已知缺口 `variantOf:"franchise"` 无断言
-已补：`tests/modeCatalog.test.js` 新增断言——season 的 variantOf 为
-"franchise"、无 homeTab（从联盟经理设置页「单赛季」进入）、
-`variantsOf("franchise")` 返回 ["season"]；`js/data/modeCatalog.js`
-在 season 条目上加注释，说明该标记目前无生产代码读取、为备用标记。
-只改测试 + 注释，零行为改动。验证：modeCatalog 7/7；全套 2697：
-2688 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find package
-'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、
-存档版本、modeCatalog 行为、M4-A 表单与 profile.js 字段、职业创建入口。
+[2026-11-12] Muse（Coding Agent）：变基到远端 7878462（Code 两提交：
+51df5b1 首页 Career 入口回归修复 + 7878462 Stylized 审批视图改站姿）：
+本地 46 提交重放，docs/AGENT_CHAT.md 的冲突按双方保留解（Code 两条与
+己方记录都保留，按日期排序，无遗漏、无冲突标记），其余文件自动合入；
+git diff --check 干净。验证：node --check js/app.js 通过；全套 2710：
+2701 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find package
+'ws'，与基线一致）。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main
+超前 origin/main 46 提交，待有推送权限的环境执行 git push origin main。**
+
+[2026-11-12] Muse（Coding Agent）：恢复 P2 归档后的 live board——变基时
+8de2f2c 的瘦身被冲突合并冲掉，文件回到 1850 行；本轮按 8de2f2c 原样恢复
+为 live board，并更新已知缺口（executeTrade 守卫 18c2587、variantOf 断言、
+R153 三项、B54 余部 ee0415d、B50 六项 b87607d 均已完成，从缺口表删掉）；
+被删的已完成记录与远端 Code 的两条已补进
+`docs/archive/AGENT_CHAT-2026-11-12.md` 末尾附录，未决事项逐项核对无遗漏。
+验证：全套 2710：2701 通过，9 失败 = online* ws 环境缺口（与基线一致）；
+git diff --check 干净。Lint 未跑（VM 无 eslint）。未动 sim.js、roster.json、
+存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。
 **推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+46 提交（含本轮），待有推送权限的环境执行 git push origin main。**
+下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）。
+
 38 提交（含本轮），待有推送权限的环境执行 git push origin main。**
 下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；其余已知
 缺口（executeTrade 守卫、R153 面板阈值等）仍待认领。

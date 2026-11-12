@@ -1616,3 +1616,140 @@ Code：人物身份切片已上 main（ed893a3）。①「形象风格」：风�
 [2026-11-12] Muse（Coding Agent）：Screen Shell P1 第四批完成（0c2734d，relationshipsView + rebornView + myHomeScreen 已合 main；P1 至此收尾——9 个自建 panel-head 屏幕全部迁到 mountScreen）：三个 ensure*Screen 手写 panel-head 改走 mountScreen，id 保持 screen-relationships / screen-reborn / screen-my-home，返回按钮与 body 容器 id 不变，标题拆单语（关系“职业关系（开发）/Relationships (DEV)”、重生“球员重生/Player Reborn”、家“我的家/My Home”，英文取自现有文案）；app.js 照博物馆模式在 boot 时经工厂 mount() 挂载一次，open() 只渲染+显示；三屏旧返回接线删除（relationships backWired 分支、reborn __rebornWired 返回接线、myHome wire() 返回接线），改由 shell 接 onBack（reborn 保留“无 goBack 时回首页”的原有兜底）；onRelocalize 重渲染 body（relationships 面板、myHome 房间、reborn 创建流/赛季屏均由 render() 从状态重建；三屏 open 前 body 为空时不渲染、不崩）。Host 决定：三屏均为 app——都是随页面滚动的普通长页面屏，无覆盖/独立滚动需求，overlay 会改行为；与前三批一致。业务状态一律不动，shell 不拥有业务状态。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。验证：新 tests/screenShellBatch4.test.js 9/9（fake DOM：双 mount 单实例、单语标题、返回按钮调 goBack 一次、relocalize 前/后行为）；focused（batch1–4 + reborn + myHome + careerRelationships + homeLayout）59/59；全套 2697：2688 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find package 'ws'，已核实）；git diff --check 干净。Lint 未跑（VM 无 eslint）。浏览器 QA 待 Mac 跑（三屏开/关、返回+Esc、中英切换、桌面+手机、无重复实例、无滚动/焦点异常；reborn 的 relocalize-after-open 也需浏览器跑）。顺手修了一个启动级 bug：js/app.js 重复 import 了 readIdentity（M4-B 327a46e 与 M4-C b5c1ede 各加了一行，第 30 与 356 行），属于 SyntaxError、模块根本加载不了——本批删掉重复行后 node --check 干净；远端 main 只有一行，此为本地独有缺陷。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 33 提交，待有推送权限的环境执行 git push origin main。**分支与 worktree 在推送完成前保留，不删。下一步：P2（archive AGENT_CHAT.md 等）按既定顺序推进，或等用户裁决 P1 后的方向。
 
 [2026-11-12] Muse（Coding Agent）：认领 Screen Architecture P2——归档 AGENT_CHAT.md（保留未决事项）+ 核对 Player Voice 图标对比度小修（P1 第四批已合 main，9 屏全部迁完；本轮按既定顺序推进 P2）。范围：全文原样移入 docs/archive/AGENT_CHAT-2026-11-12.md，docs/AGENT_CHAT.md 瘦身为 live board，只留未决事项（待回答问题、等用户拍板、进行中/排队、已知遗留缺口、待 Mac 浏览器 QA 汇总）+ 归档指针；Player Voice 图标已在 c302470 修过（对比度 1.2 → 7.3，44px），本轮只核对、不重做。工作流：直接提交小片，验证后合本地 main。不动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。
+
+---
+
+## 附录：2026-11-12 归档后新增记录（变基后补归）
+
+> 本附录补记归档后至本次恢复 live board 之间产生的已完成记录：远端
+> origin/main 上 Code 的两条（2026-11-12，随变基 7878462 合入）与本地
+> main 上归档后新增的各轮记录。原文一字未改，只加本段说明；归档正文
+> （2026-10-28 至 2026-11-12，1610 行）保持原样。
+
+[2026-11-12] Code：【结论，请所有 Agent 不要再重复调查】"个人穿越回过去打球"已经存在，且分两条：①教练穿越（Time Travel career，`screen-time-travel`、`js/modes/timeTravelCareer.js`，Coach 身份 status=playable）；②球员穿越（Player Reborn，`screen-reborn`，Player 身份 status=playable，1995/1996 历史起点）。现在要验证的是 Player Reborn 的**完整可玩闭环**（创建→承诺→训练/比赛→证据→结算→信任/关系→存档），不是这个功能是否存在。
+
+[2026-11-12] Code：首页 Career 入口两处回归修复 + QA 对齐。根因同一类：旧的 `.mode-card` 规则（`#screen-home .mode-grid` 之外误伤 / `style.css` 的 `.mode-card span {color: var(--muted)}` / `#screen-home .mode-card` 浅色面板）泄漏进新的 Career 2.0 入口。①经理卡被 `grid-column:1/-1` 撑成整行巨幅 → 旧规则加 `.mode-grid` 作用域；②经理卡说明灰字（约 2:1）→ 还原奶白；③Architect 卡被刷成浅底灰字、胶囊/标题近乎隐形 → 还原设计稿深绿面与金/白/奶白文字。`home-cards.mjs` 过期断言：锁定的 Architect 带 aria-disabled，Playwright 判"不可用"而超时（真实玩家点得到）→ 先断言确为锁定态再真实鼠标点击；Coach 已是 playable，断言改为"进入 Time Travel 创建页"。新增 4 条断言（三卡一致、说明对比度、Architect 对比度、sr-only 标签），还原 CSS 后 8 条变红（变异验证）。`textContrast` 新增可选 `gradient` 参数（只读 background-color 看不见渐变底）。
+
+[2026-11-12] Muse（Coding Agent）：Screen Architecture P2——归档 AGENT_CHAT.md
+（保留未决事项）进行中。全文原样移入 `docs/archive/AGENT_CHAT-2026-11-12.md`，
+本文件瘦身为 live board，只留未决事项。Player Voice 图标对比度已在 c302470
+修过（1.2 → 7.3，44px 触摸目标），本轮只核对、不重做。
+
+[2026-11-12] Muse（Coding Agent）：已知缺口 `variantOf:"franchise"` 无断言
+已补：`tests/modeCatalog.test.js` 新增断言——season 的 variantOf 为
+"franchise"、无 homeTab（从联盟经理设置页「单赛季」进入）、
+`variantsOf("franchise")` 返回 ["season"]；`js/data/modeCatalog.js`
+在 season 条目上加注释，说明该标记目前无生产代码读取、为备用标记。
+只改测试 + 注释，零行为改动。验证：modeCatalog 7/7；全套 2697：
+2688 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find package
+'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、
+存档版本、modeCatalog 行为、M4-A 表单与 profile.js 字段、职业创建入口。
+**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+38 提交（含本轮），待有推送权限的环境执行 git push origin main。**
+下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；其余已知
+缺口（executeTrade 守卫、R153 面板阈值等）仍待认领。
+
+[2026-11-12] Muse（Coding Agent）：Screen Architecture P2 完成（8de2f2c）：
+全文原样归档到 `docs/archive/AGENT_CHAT-2026-11-12.md`（1610 行，与归档前
+HEAD 逐字一致，文件头只加 2 行归档说明），本文件瘦身为 144 行 live board，
+只留未决事项：待回答的问题 5 项（Cursor review 的 Code 生涯 P0/联机 P1、
+B35/B40 待 review、ADR-007/008 批示来源未注明、C6b 未落地）、等用户拍板
+12 项、进行中/排队（B23→B27）、已知遗留缺口 8 项、待 Mac 浏览器 QA 汇总
+12 组，另附 BACKLOG/ROADMAP/WORKNOTE 指针。Player Voice 图标对比度核对
+无误（c302470，1.2 → 7.3，44px），未重做。验证：全套 2697：2688 通过，
+9 失败 = online* ws 环境缺口（9 处均为 Cannot find package 'ws'，与归档前
+一致）；git diff --check 干净。Lint 未跑（VM 无 eslint）。未动 sim.js、
+roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建
+入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+36 提交，待有推送权限的环境执行 git push origin main。**下一步：P2 之后
+的方向等用户裁决（M5–M7 需用户裁决后才开工）。
+
+[2026-11-12] Muse（Coding Agent）：已知缺口 `executeTrade` 本体无
+`requireCapability` 守卫已补（18c2587）：`js/engine/seasonMarket.js`
+新增 `tradeCapabilityCheck()`，在 `executeTrade` 与
+`executeThreeTeamTrade` 入口强制 `"trade"` 能力；`acceptTradeProposal`
+新增可选 `{ career, root }` 并透传（报价接受路径此前完全没有 gate，
+教练点接受就能成交）；`js/app.js` 三处调用点传入
+`state.leagueCareer` / `state.longCareerRoot`。无 career/root 时读作
+Classic GM + Coach，普通赛季与既有调用不受影响；拒绝以
+`{ ok: false, reason }` 返回（denyMessage，按 lang 中英），不改两处
+调用点的错误处理。新增 `tests/tradeRoleGuard.test.js` 7/7：教练/球员
+生涯被拒且阵容与 tradeLog 不动、GM 与持 "trade" 授权的教练可成交、
+无 career 照常成交、root 身份回退（COACH 拒 / GM 放）、英文拒绝文案、
+三方交易同守、教练接受报价被拒且报价保留 / GM 接受成交。验证：全套
+2704：2695 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find
+package 'ws'，与基线一致）；git diff --check 干净。Lint 未跑（VM 无
+eslint）。未动 sim.js、roster.json、存档版本、M4-A 表单与 profile.js
+字段、职业创建入口；按钮层 `careerOperationAllowed("trade")` 不动。
+**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+40 提交（含本轮），待有推送权限的环境执行 git push origin main。**
+下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；其余已知
+缺口（R153 面板阈值、openSingleSeason 等待、B50 review 备注等）仍待认领。
+
+[2026-11-12] Muse（Coding Agent）：R153 review 备注三项已补：①
+`tests/modeCatalog.test.js` 面板模式数由下限 `>= 9` 改为钉死具体 9 张卡
+（career/custom/draft/franchise/quick/ranked/sandbox/timeTravel/
+tournament），变异核查：删一张卡断言即失败；② `scripts/qa/lib/page.mjs`
+的 `openSingleSeason` 在点 Franchise 卡后等 `#screen-season.active`
+再点长度按钮；③ `scripts/qa/career-length.mjs` 的 season resume 检查改名，
+注明是靠 `migrateLegacySaves` 把旧赛季包成 franchise 才过。只改测试 +
+QA 脚本，零行为改动。验证：modeCatalog 7/7；两份 QA 脚本 node --check
+通过（浏览器 QA 本机跑不了，待 Mac）；全套 2704：2695 通过，9 失败 =
+online* ws 环境缺口（9 处均为 Cannot find package 'ws'，与基线一致）；
+git diff --check 干净。Lint 未跑（VM 无 eslint）。未动 sim.js、
+roster.json、存档版本、modeCatalog 行为、M4-A 表单与 profile.js 字段、
+职业创建入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前
+origin/main 42 提交（含本轮），待有推送权限的环境执行 git push origin
+main。**下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；
+其余已知缺口（B50 review 备注、B54 sim.js 战术名、R153 已清）中 B50/B54
+仍待认领。
+
+[2026-11-12] Muse（Coding Agent）：认领 B54 余部——sim.js 教练切换播报
+（setTactic）与大喊播报仍用 tactic.name 中文原名，英文局泄漏中文。
+只动 sim.js 两处播报 + 新增测试，不动 court.js、roster.json、存档版本、
+M4-A 表单与 profile.js 字段、职业创建入口。
+
+[2026-11-12] Muse（Coding Agent）：B54 余部已补（ee0415d）：`js/engine/
+sim.js` 新增 `GameSim.tacticName()`，英文局取战术 `nameEn`（缺失回退中
+文名），`setTactic` 教练切换播报与大喊播报改用它；24 个战术均有
+nameEn。零行为改动：战术、适配度与士气效果不变。新增
+`tests/b54SimTacticName.test.js` 5/5（英文切换行用 nameEn、中文行不变、
+英文大喊行用 nameEn、nameEn 缺失回退、未知战术 id 回退 balanced 且英文
+命名）；变异验证：helper 改回 `tactic.name` 则英文测试失败。验证：全套
+2709：2700 通过，9 失败 = online* ws 环境缺口（与基线一致）；
+git diff --check 干净。Lint 未跑（VM 无 eslint）。未动 court.js、
+roster.json、存档版本、M4-A 表单与 profile.js 字段、职业创建入口。
+**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+43 提交（含本轮），待有推送权限的环境执行 git push origin main。**
+下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；其余已知
+缺口（B50 review 备注等）仍待认领。
+
+[2026-11-12] Muse（Coding Agent）：认领 B50 review 备注六项（2efe41f，Luna）：
+① 去重改 runId（生涯创建时生成，(accountId, runId) 去重）；② My Games
+内独立“历史记录”分区头；③ 每条记录加字面“查看结果”入口；④ 记录按
+设计补齐胜场/金币/总决赛比分/淘汰对手，不再存前五阵容名/OVR；⑤ 显示
+全部 20 条并写明“保留最近 20 条”；⑥ 删除入口走现有确认删除流程。只动
+challengeArchive.js、myWorldView.js、myWorldScreen.js、myWorld.css、
+app.js（runId 生成 + 结算补戳）与相关测试/QA 脚本，不动 sim.js、
+roster.json、存档版本、M4-A 表单与 profile.js 字段、职业创建入口。
+
+[2026-11-12] Muse（Coding Agent）：B50 review 备注六项已补（b87607d）：
+① `bootCareerBracket` 生成 `runId`（新 bracket/下一阶 = 新 run），
+无 runId 的旧生涯在归档时补戳，`recordChallengeArchive` 按
+(accountId, runId) 去重，双击“回主页”只留一条；② My Games 内独立
+“历史记录”分区头；③ 每条记录加字面“查看结果”入口（行内展开详情：
+结果/轮次/战绩/金币/总决赛比分/淘汰对手/日期）与“删除”（走现有确认
+流程，`deleteChallengeArchive`，按 runId 或旧 id 删）；④ 记录按设计
+补齐胜场/负场（bracketLog + 当前 pods；总决赛只计 bracketLog +
+series，不重复计 pods）、金币、总决赛比分、淘汰对手，不再存前五阵容
+名/OVR（旧记录仍可读，roster 在 normalize 时丢弃）；⑤ 显示全部 20 条
+并写明“只保留最近 20 条”；⑥ 见③。验证：challengeArchive 7/7；
+变异验证（去掉 pod 胜场）1 项失败、恢复后 7/7；My World 相关 31/31；
+容量脚本通过；全套 2710：2701 通过，9 失败 = online* ws 环境缺口
+（与基线一致）；git diff --check 干净。Lint 未跑（VM 无 eslint）。
+未动 sim.js、roster.json、存档版本、M4-A 表单与 profile.js 字段、
+职业创建入口；QA 脚本同步更新（按钮/阵容断言，浏览器 QA 仍待 Mac）。
+**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main
+45 提交（含本轮），待有推送权限的环境执行 git push origin main。**
+下一步：P2 之后的方向等用户裁决（M5–M7 需用户裁决后才开工）；B50
+review 备注已清，其余已知缺口仍待认领。
