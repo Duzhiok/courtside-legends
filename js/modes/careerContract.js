@@ -10,7 +10,7 @@ import {
 } from "../career/balance.js";
 import { buildSeasonGoal, goalAchieved } from "../career/seasonGoals.js";
 import { buildStintRecord } from "../career/stints.js";
-import { OFFER_TEMPLATES } from "../career/contractOffers.js";
+import { OFFER_TEMPLATES, grantsForPrivileges } from "../career/contractOffers.js";
 
 /**
  * B3: which offer ids a tenure actually earns, from worst to best. A great tenure (2+ rings)
@@ -252,8 +252,15 @@ export function acceptCareerContract(root, offerId) {
   // departure does that). tenureStartSeasonCount snapshots the season count right now so the
   // NEXT contractExpired() check measures from this moment, under this contract's own `years`,
   // not from whenever the whole tenure first began.
+  // ADR-006 R6: the signed offer's privileges replace the previous
+  // contract's grants — a new contract is a new job, so nothing from
+  // the old one survives, even when the new offer grants less.
   return {
     ...root,
+    leagueCareer: {
+      ...root.leagueCareer,
+      grants: grantsForPrivileges(offer.privileges),
+    },
     story: {
       ...root.story,
       employment: {

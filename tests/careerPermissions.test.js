@@ -711,3 +711,160 @@ test("a stored root with an illegal identity does not load", () => {
   const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: JSON.stringify(raw) });
   assert.equal(readRootSave(storage), null);
 });
+
+// ---------------------------------------------------------------- ADR-006 R6: contract grants
+
+import { OFFER_TEMPLATES, grantsForPrivileges } from "../js/career/contractOffers.js";
+import { effectivePermissions } from "../js/career/careerGuards.js";
+import { acceptCareerContract, evaluateCareerEmployment } from "../js/modes/careerContract.js";
+
+test("grantsForPrivileges maps each contract privilege to the audit table, and nothing else", () => {
+  const byId = Object.fromEntries(OFFER_TEMPLATES.map((offer) => [offer.id, grantsForPrivileges(offer.privileges)]));
+  assert.deepEqual(byId["trial-extension"], []);
+  assert.deepEqual(byId["rebuild-extension"], ["setTrainingFocus", "draft"]);
+  assert.deepEqual(byId["contender-extension"], ["trade", "signFreeAgent"]);
+  assert.deepEqual(byId["dynasty-extension"], ["trade", "signFreeAgent", "release", "draft"]);
+  // The two budget lines are dead promises (no budget field exists) and
+  // the max-renewal priority is a payroll operation — none of them grants.
+  assert.deepEqual(grantsForPrivileges(["额外教练预算", "专属训练设施预算", "顶薪续约优先权"]), []);
+  // Unknown labels and non-arrays grant nothing, never throw.
+  assert.deepEqual(grantsForPrivileges(["完全人事决定权", "不存在的特权"]), ["trade", "signFreeAgent", "release", "draft"]);
+  assert.deepEqual(grantsForPrivileges(["完全人事决定权", "季中补强额度"]), ["trade", "signFreeAgent", "release", "draft"]);
+  assert.deepEqual(grantsForPrivileges(undefined), []);
+  assert.deepEqual(grantsForPrivileges("完全人事决定权"), []);
+});
+
+test("effectivePermissions adds the contract's grants to the role matrix and ignores unknown ids", () => {
+  const coach = { role: "COACH", grants: ["trade", "draft"] };
+  assert.deepEqual(
+    [...effectivePermissions(coach)].sort(),
+    [...permissionsFor("COACH"), "trade", "draft"].sort(),
+  );
+  assert.equal(canDo(coach, "trade"), true);
+  assert.equal(canDo(coach, "setRotation"), true);
+  assert.equal(canDo(coach, "release"), false);
+  assert.equal(requireCapability(coach, "trade"), "COACH");
+
+  // Unknown grant ids and a non-array grants field change nothing.
+  assert.equal(canDo({ role: "COACH", grants: ["ADMIN", "trade"] }, "trade"), true);
+  assert.equal(canDo({ role: "COACH", grants: ["ADMIN"] }, "trade"), false);
+  assert.equal(canDo({ role: "COACH", grants: "trade" }, "trade"), false);
+  // A career without grants reads exactly as its role matrix.
+  assert.deepEqual([...effectivePermissions({ role: "GM" })].sort(), [...permissionsFor("GM")].sort());
+  // A grant also works for the GM: it adds a capability the role lacks.
+  const gm = { role: "GM", grants: ["commandGame"] };
+  assert.deepEqual(
+    [...effectivePermissions(gm)].sort(),
+    [...permissionsFor("GM"), "commandGame"].sort(),
+  );
+  assert.equal(canDo(gm, "commandGame"), true);
+  assert.equal(canDo(gm, "trade"), true);
+});
+
+/** A root five seasons in, contract expired, renewal offers on the table. */
+function renewalRoot(role, championSeasons = 0, { reputation = 50, goalResults = [] } = {}) {
+  const history = Array.from({ length: 5 }, (_, index) => ({
+    year: 1991 + index,
+    teamId: "CHI",
+    teamName: "Bulls",
+    record: { w: 45 + index, l: 37 - index },
+    championId: index < championSeasons ? "CHI" : "LAL",
+  }));
+  const root = {
+    leagueCareer: {
+      role,
+      season: { year: 1996 },
+      management: { seasonHistory: history },
+    },
+    coach: { reputation },
+    story: {
+      currentChapter: "year-five",
+      frontOfficeTrust: 50,
+      mediaPressure: 20,
+      timelineDivergence: 5,
+      eventLog: goalResults.map((achieved) => ({ type: "season-goal-result", achieved })),
+      pendingDecision: null,
+      employment: { status: "active" },
+    },
+  };
+  return evaluateCareerEmployment(root);
+}
+
+test("accepting a rebuild extension grants the coach draft, not trade", () => {
+  const renewal = renewalRoot("COACH");
+  assert.equal(renewal.story.employment.status, "renewal");
+  const accepted = acceptCareerContract(renewal, "rebuild-extension");
+  assert.deepEqual(accepted.leagueCareer.grants, ["setTrainingFocus", "draft"]);
+  assert.equal(canDo(accepted.leagueCareer, "draft"), true);
+  assert.equal(canDo(accepted.leagueCareer, "setTrainingFocus"), true);
+  assert.equal(canDo(accepted.leagueCareer, "trade"), false);
+  // The original root is untouched (accept is immutable).
+  assert.equal(renewal.leagueCareer.grants, undefined);
+
+  // The same check the trade button runs (app.js careerOperationAllowed)
+  // refuses the trade, and the real draft entry admits the pick: the
+  // grant is consumed by the guard, not just displayed.
+  assert.throws(
+    () => requireCapability(accepted.leagueCareer, "trade"),
+    (error) => error instanceof CareerPermissionError && error.capability === "trade",
+  );
+  const drafted = beginCareerDraft(careerWithRole("COACH", { grants: ["draft"] }));
+  assert.equal(drafted.management.draft.status, "in_progress");
+  const picked = makeCareerDraftPick(drafted, drafted.management.draft.prospects[0].prospectId);
+  assert.ok(picked.management.draft.selections.length >= 1);
+});
+
+test("accepting a dynasty extension grants the coach full personnel control", () => {
+  const renewal = renewalRoot("COACH", 2);
+  assert.ok(renewal.story.employment.offers.some((offer) => offer.id === "dynasty-extension"));
+  const accepted = acceptCareerContract(renewal, "dynasty-extension");
+  assert.deepEqual(accepted.leagueCareer.grants, ["trade", "signFreeAgent", "release", "draft"]);
+  for (const capability of ["trade", "signFreeAgent", "release", "draft"]) {
+    assert.equal(canDo(accepted.leagueCareer, capability), true, capability);
+  }
+  // A renewal that grants less replaces the old grants instead of adding:
+  // a rough ride (no rings, 1-in-3 goals hit, low reputation) earns only
+  // the trial extension, which grants nothing. The last two goals are not
+  // both missed, or the tenure would be fired before any renewal.
+  const reRenewal = renewalRoot("COACH", 0, { reputation: 30, goalResults: [false, false, true] });
+  assert.deepEqual(reRenewal.story.employment.offers.map((offer) => offer.id), ["trial-extension"]);
+  const reAccepted = acceptCareerContract(reRenewal, "trial-extension");
+  assert.deepEqual(reAccepted.leagueCareer.grants, []);
+});
+
+test("a first hire starts with no grants; a new stint resets them", () => {
+  const hired = coachRoot();
+  assert.deepEqual(hired.leagueCareer.grants, []);
+
+  const granted = {
+    ...hired,
+    leagueCareer: { ...hired.leagueCareer, grants: ["trade", "signFreeAgent", "release", "draft"] },
+  };
+  assert.equal(canDo(granted.leagueCareer, "trade"), true);
+  const offer = generateInterviewOffers({ year: 1991, philosophy: "analytics", seed: 43 })[0];
+  const next = startNewStint(granted, offer);
+  assert.deepEqual(next.leagueCareer.grants, []);
+  assert.equal(next.leagueCareer.role, "COACH");
+  assert.equal(canDo(next.leagueCareer, "trade"), false);
+  assert.equal(canDo(next.leagueCareer, "setRotation"), true);
+});
+
+test("validateRoot rejects illegal grants and keeps legal ones on a write/read round-trip", () => {
+  assert.doesNotThrow(() => validateRoot(rootWithCareer("COACH", { grants: ["trade", "draft"] })));
+  assert.doesNotThrow(() => validateRoot(rootWithCareer("COACH", { grants: [] })));
+  // Absent grants — every save written before R6 — stay valid.
+  assert.doesNotThrow(() => validateRoot(rootWithCareer("COACH")));
+  for (const grants of [["trade", "ADMIN"], "trade", [3], [null]]) {
+    assert.throws(
+      () => validateRoot(rootWithCareer("COACH", { grants })),
+      /invalid root save/,
+      `grants ${JSON.stringify(grants)} must be rejected`,
+    );
+  }
+  const stored = rootWithCareer("COACH", { grants: ["trade", "draft"] });
+  const storage = createMemoryStorage();
+  writeRootSave(stored, storage);
+  const loaded = readRootSave(storage);
+  assert.deepEqual(loaded.leagueCareer.grants, ["trade", "draft"]);
+  assert.equal(canDo(loaded.leagueCareer, "trade"), true);
+});

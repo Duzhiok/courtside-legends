@@ -14,6 +14,9 @@
  * - a career without a role falls back to `identityOf(root)` — which reads
  *   `root.identity.currentRole` and maps a missing/invalid identity to the
  *   Classic GM + Coach, so old saves keep full control with no migration.
+ * - on top of the role matrix, `effectivePermissions()` adds the current
+ *   contract's grants (`career.grants`, ADR-006 R6): a coach who signed
+ *   "完全人事决定权" may execute trades until that contract ends.
  *
  * `CareerPermissionError` is thrown, never returned as a boolean: the
  * existing career UI handlers already `catch (error) { alert(error.message) }`,
@@ -21,6 +24,7 @@
  * silent no-op or a crash.
  */
 import {
+  CAREER_CAPABILITIES,
   CAREER_ROLES,
   identityOf,
   permissionsFor,
@@ -55,13 +59,34 @@ export function careerRole(career, root) {
 }
 
 /**
+ * The capabilities a career effectively holds: its role's matrix plus
+ * whatever its current contract granted (ADR-006 R6). Grants live on
+ * `career.grants` and belong to the job, not the person — a new hire or
+ * a new stint rewrites them, and the identity is untouched. Unknown
+ * grant ids are ignored, never thrown: a hand-edited or older save
+ * must not explode the guard.
+ * @param {object|null|undefined} career the leagueCareer wrapper (may be a bare test double)
+ * @param {object|null|undefined} root the long-career root save (v3), optional
+ * @returns {Set<string>} the effective capability set
+ */
+export function effectivePermissions(career, root) {
+  const effective = permissionsFor(careerRole(career, root));
+  if (Array.isArray(career?.grants)) {
+    for (const capability of career.grants) {
+      if (CAREER_CAPABILITIES.includes(capability)) effective.add(capability);
+    }
+  }
+  return effective;
+}
+
+/**
  * Read-only check, for UI gating (disable/hide) and for branching a
  * handler between the execute path and the suggest path. The operation
  * itself must still call requireCapability() — this read alone is not
  * a permission check.
  */
 export function canDo(career, capability, root) {
-  return permissionsFor(careerRole(career, root)).has(capability);
+  return effectivePermissions(career, root).has(capability);
 }
 
 /**
@@ -70,7 +95,7 @@ export function canDo(career, capability, root) {
  */
 export function requireCapability(career, capability, root) {
   const role = careerRole(career, root);
-  if (!permissionsFor(role).has(capability)) {
+  if (!effectivePermissions(career, root).has(capability)) {
     throw new CareerPermissionError(role, capability);
   }
   return role;

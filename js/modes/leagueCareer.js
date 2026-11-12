@@ -9,7 +9,7 @@ import {
   frontOfficePick,
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
-import { CAREER_ROLES } from "../career/careerIdentity.js";
+import { CAREER_ROLES, CAREER_CAPABILITIES } from "../career/careerIdentity.js";
 import { snapshotIdentityPlaces } from "../career/careerIdentitySnapshot.js";
 import {
   canDo,
@@ -68,7 +68,7 @@ function cloneCategoryMap(groups, category) {
   };
 }
 
-export function createLeagueCareer({ kind, season, storyId, careerId, role, identityPlaces } = {}) {
+export function createLeagueCareer({ kind, season, storyId, careerId, role, identityPlaces, grants } = {}) {
   if (!CAREER_KINDS.has(kind)) {
     throw new TypeError('kind must be either "franchise" or "timeTravel"');
   }
@@ -80,6 +80,14 @@ export function createLeagueCareer({ kind, season, storyId, careerId, role, iden
   if (role !== undefined && !CAREER_ROLES.includes(role)) {
     throw new TypeError("role must be one of CAREER_ROLES");
   }
+  // ADR-006 R6: the current contract's grants (capability ids the signed
+  // offer conferred). Omitted entirely when the caller passes none — a
+  // career built before grants existed carries no field, and the guard
+  // reads it as "no grants", so old saves need no migration. Unknown
+  // ids are dropped here, matching the guard's ignore-unknown rule.
+  const cleanGrants = Array.isArray(grants)
+    ? [...new Set(grants.filter((capability) => CAREER_CAPABILITIES.includes(capability)))]
+    : undefined;
   // M4-C: freeze the account's identity places as they are at creation
   // (ADR-004 D1). Absent when the account has none — old saves and
   // place-less accounts read through the live-account fallback instead.
@@ -89,6 +97,7 @@ export function createLeagueCareer({ kind, season, storyId, careerId, role, iden
     careerId: careerId || `career-${Date.now()}`,
     kind,
     role: role ?? "GM_COACH",
+    ...(cleanGrants !== undefined ? { grants: cleanGrants } : {}),
     storyId: storyId || null,
     ...(identitySnapshot ? { identitySnapshot } : {}),
     phase: season.phase,

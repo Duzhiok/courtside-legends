@@ -50,6 +50,47 @@ export const OFFER_TEMPLATES = [
   },
 ];
 
+/**
+ * R6 of ADR-006: what a contract privilege actually grants (design
+ * docs/implementation/reborn-role-grants-r6-design.md §2). Keys are the
+ * canonical Chinese labels from OFFER_TEMPLATES above — grants are
+ * always derived from the template, never from the displayed text, so
+ * the English rendering in offerText() cannot change what is granted.
+ * Only privileges with a real consumer in CAREER_CAPABILITIES map to
+ * anything: "顶薪续约优先权" is a payroll operation with no capability
+ * id, and the two budget lines point at budget fields that do not
+ * exist (audit R5 dead promises) — neither grants anything, and this
+ * module does not change their wording; deleting the copy or building
+ * the budget fields is a separate user decision.
+ */
+export const PRIVILEGE_GRANTS = {
+  "完全人事决定权": ["trade", "signFreeAgent", "release", "draft"],
+  "季中补强额度": ["trade", "signFreeAgent"],
+  "自定义训练计划": ["setTrainingFocus"],
+  "发展联盟优先权": ["draft"],
+  "顶薪续约优先权": [],
+  "额外教练预算": [],
+  "专属训练设施预算": [],
+};
+
+/**
+ * The capability ids a contract's privilege labels grant, deduplicated
+ * in template order. Unknown labels grant nothing (never throw) — a
+ * hand-edited or future privilege must not break the save.
+ * @param {string[]|undefined|null} privileges the offer's privilege labels
+ * @returns {string[]} capability ids from CAREER_CAPABILITIES
+ */
+export function grantsForPrivileges(privileges) {
+  if (!Array.isArray(privileges)) return [];
+  const granted = [];
+  for (const label of privileges) {
+    for (const capability of PRIVILEGE_GRANTS[label] || []) {
+      if (!granted.includes(capability)) granted.push(capability);
+    }
+  }
+  return granted;
+}
+
 const OFFER_TEXT_EN = {
   "trial-extension": { title: "Trial Extension", description: "Your record and goal results aren't convincing. The owner will only give you a one-year audition — prove yourself to earn the next contract.", privileges: [] },
   "rebuild-extension": { title: "Rebuild Extension", description: "The owner offers long-term time and wide authority, but a conservative salary.", privileges: ["Custom training plan", "Development-league priority"] },

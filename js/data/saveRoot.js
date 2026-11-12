@@ -1,5 +1,5 @@
 import { createCoachProfile } from "../career/coachProfile.js";
-import { CAREER_ROLES } from "../career/careerIdentity.js";
+import { CAREER_CAPABILITIES, CAREER_ROLES } from "../career/careerIdentity.js";
 import { validateCareerInbox } from "../career/careerInbox.js";
 import { validEpiphany, validGrowth } from "../career/growthShape.js";
 import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../career/balance.js";
@@ -225,6 +225,17 @@ function validateLeagueCareer(career) {
   }
   // ADR-006 R4: optional stamped role; only validate it when present.
   if (career.role !== undefined && !CAREER_ROLES.includes(career.role)) {
+    throw new Error("invalid root save");
+  }
+  // ADR-006 R6: optional contract grants; only validate them when
+  // present. Old saves have no field and keep loading unchanged; a
+  // present field must be an array of known capability ids, so a
+  // hand-edited save cannot smuggle an unknown capability in.
+  if (
+    career.grants !== undefined
+    && (!Array.isArray(career.grants)
+      || career.grants.some((capability) => !CAREER_CAPABILITIES.includes(capability)))
+  ) {
     throw new Error("invalid root save");
   }
 }

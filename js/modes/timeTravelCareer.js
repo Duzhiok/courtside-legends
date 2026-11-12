@@ -4,6 +4,7 @@ import { buildCpuTeamForYear, createSeason } from "../engine/season.js";
 import { createRootState } from "../data/saveRoot.js";
 import { createLeagueCareer, recordCareerEvent } from "./leagueCareer.js";
 import { CAREER_ROLES, identityOf, setIdentity } from "../career/careerIdentity.js";
+import { grantsForPrivileges } from "../career/contractOffers.js";
 import { buildSeasonGoal } from "../career/seasonGoals.js";
 import { createCoachProfile } from "../career/coachProfile.js";
 import { burnedBridgeTeamIds } from "../career/stints.js";
@@ -256,6 +257,11 @@ export function acceptInterviewOffer(prologue, offerId, { identityPlaces } = {})
     storyId,
     careerId: storyId,
     role,
+    // ADR-006 R6: the signed offer's privileges become this job's grants.
+    // Interview offers carry no privileges, so a first hire starts with
+    // an empty grant list — the mapping still runs so a future offer
+    // that does carry one is honored without touching this call site.
+    grants: grantsForPrivileges(offer.privileges),
     // M4-C: the account's identity places as they are at creation.
     identityPlaces,
   });
@@ -482,6 +488,10 @@ export function startNewStint(root, offer, eventType = "re-employed") {
     storyId: root.story.storyId,
     careerId: root.story.storyId,
     role: root.leagueCareer?.role ?? identityOf(root),
+    // ADR-006 R6: a new stint is a new job — the previous contract's
+    // grants do not carry over. Re-employment offers carry no
+    // privileges today, so this resets to an empty list.
+    grants: grantsForPrivileges(offer.privileges),
     identityPlaces: root.leagueCareer?.identitySnapshot,
   });
   leagueCareer = recordCareerEvent(
