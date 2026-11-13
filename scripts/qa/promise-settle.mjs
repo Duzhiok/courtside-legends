@@ -41,6 +41,7 @@ const readState = (page) =>
       pending: rel.pendingTrustEffects(account).length,
       legacy: rel.legacyOf(account).filter((e) => e.type === "promise").length,
       trust: root?.reborn?.player?.coachTrust ?? null,
+      log: (root?.reborn?.player?.seasonLog || []).map((g) => ({ gameId: g.gameId, started: g.started })),
     };
   });
 
@@ -50,6 +51,8 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("dialog", (d) => d.accept());
+  // web fonts are decoration; a blocked CDN must not stall screenshots
+  await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -79,10 +82,12 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     rel.recordPerson(account, { id: "me", name: "Me", role: "player" });
     rel.makePromise(account, { makerId: "coach", targetId: "me", kind: "role", text: "<b>Rotation spot</b>", madeSeason: null, madeGame: 0, check: { type: "role", role: "dnp", dueAfterGames: 5 } });
     rel.makePromise(account, { makerId: "coach", targetId: "me", kind: "role", text: "Starter by game 2", madeSeason: null, madeGame: 0, check: { type: "role", role: "starter", dueAfterGames: 2 } });
+    // a "start" promise: settled from the real tip-off lineup the season log records
+    rel.makePromise(account, { makerId: "coach", targetId: "me", kind: "start", text: "Start within 2 games", madeSeason: null, madeGame: 0, check: { type: "start", dueAfterGames: 2 } });
     acc.saveAccount(account);
   });
   const before = await readState(page);
-  check(`[${tag}] both promises start open`, before.promises.length === 2 && before.promises.every((p) => p.status === "open"), JSON.stringify(before.promises.map((p) => p.status)));
+  check(`[${tag}] both promises start open`, before.promises.length === 3 && before.promises.every((p) => p.status === "open"), JSON.stringify(before.promises.map((p) => p.status)));
 
   check(`[${tag}] game 1 settles`, await playOneGame(page));
   const afterOne = await readState(page);
@@ -90,11 +95,16 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   check(`[${tag}] game 1: the deadline-2 promise is still open`, afterOne.promises[1].status === "open", afterOne.promises[1].status);
   check(`[${tag}] game 1: banner shows the kept promise, text escaped`, (await visible(page, ".reborn-promise-banner")) && (await text(page, ".reborn-promise-banner")).includes("承诺结算") && !(await page.$(".reborn-promise-banner b")));
   check(`[${tag}] game 1: trust effect applied exactly once (nothing left pending)`, afterOne.pending === 0 && afterOne.promises[0].applied === true);
+  check(`[${tag}] game 1: the log recorded a stable id and a real started flag`, afterOne.log.length === 1 && /^game:/.test(afterOne.log[0].gameId || "") && typeof afterOne.log[0].started === "boolean", JSON.stringify(afterOne.log));
+  // the start promise follows the recorded fact — fulfilled iff he started, otherwise still open until its deadline
+  check(`[${tag}] game 1: start promise follows the recorded lineup`, afterOne.promises[2].status === (afterOne.log[0].started ? "fulfilled" : "open"), `${afterOne.promises[2].status} / started=${afterOne.log[0].started}`);
   await shoot(page, `${OUT}/${tag}-kept.png`);
 
   check(`[${tag}] game 2 settles`, await playOneGame(page));
   const afterTwo = await readState(page);
   check(`[${tag}] game 2: the starter promise is broken`, afterTwo.promises[1].status === "broken", afterTwo.promises[1].status);
+  const startedEver = afterTwo.log.some((g) => g.started);
+  check(`[${tag}] game 2: start promise ${startedEver ? "kept" : "broken"} by the real lineups`, afterTwo.promises[2].status === (startedEver ? "fulfilled" : "broken"), `${afterTwo.promises[2].status} / ${JSON.stringify(afterTwo.log.map((g) => g.started))}`);
   check(`[${tag}] game 2: broken effect is a trust loss, applied once`, afterTwo.promises[1].trustDelta < 0 && afterTwo.promises[1].applied === true && afterTwo.pending === 0);
   check(`[${tag}] game 2: banner shows the broken promise`, (await text(page, ".reborn-promise-banner")).includes("✗"));
   check(`[${tag}] the first promise was not settled again`, afterTwo.promises[0].status === "fulfilled" && afterTwo.promises[0].trustDelta === afterOne.promises[0].trustDelta);

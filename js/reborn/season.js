@@ -27,6 +27,7 @@ import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { applyGameGrowth } from "./training.js";
+import { gameEvidenceId } from "./promiseEvidence.js";
 import {
   buildPlayerCard,
   applyIdentityToRoster,
@@ -187,17 +188,14 @@ export async function playGame(
   const myCards = isHome ? homeCards : awayCards;
   const myClone = myCards.find((p) => p.id === playerCard.id) || playerCard;
 
+  const homeStarters = startersFor(homeCards, myClone, isHome, role);
+  const awayStarters = startersFor(awayCards, myClone, !isHome, role);
+  // The tip-off lineup is the real fact behind a "start" promise.
+  const started = (isHome ? homeStarters : awayStarters).includes(playerCard.id);
+
   const sim = new GameSim({
-    home: {
-      name: game.homeId,
-      players: homeCards,
-      starterIds: startersFor(homeCards, myClone, isHome, role),
-    },
-    away: {
-      name: game.awayId,
-      players: awayCards,
-      starterIds: startersFor(awayCards, myClone, !isHome, role),
-    },
+    home: { name: game.homeId, players: homeCards, starterIds: homeStarters },
+    away: { name: game.awayId, players: awayCards, starterIds: awayStarters },
     youSide: isHome ? "home" : "away",
     injuries: false,
     speed: 3,
@@ -262,6 +260,8 @@ export async function playGame(
   next.player.seasonLog.push({
     year,
     game: season.index + 1,
+    gameId: gameEvidenceId(reborn.seed, year, season.index + 1),
+    started,
     opp: oppId,
     home: isHome,
     min: line.min,

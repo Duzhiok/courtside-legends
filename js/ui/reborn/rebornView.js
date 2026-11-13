@@ -438,6 +438,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         const settled = settleContract(reborn, { year: season.year });
         reborn = settled.reborn;
         contractOutcome = settled.outcome;
+        applyPromises(reborn); // the contract event is evidence for contract promises
         persist();
         render();
         return;
@@ -445,6 +446,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       if (event.target.closest("[data-rollover]")) {
         const rolled = rolloverSeason(reborn, { year: season.year, players: rows });
         reborn = rolled.reborn;
+        applyPromises(reborn); // the new season passes every old deadline
         contractOutcome = null;
         lastReport = null;
         ffState = null;

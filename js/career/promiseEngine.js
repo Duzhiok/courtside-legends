@@ -151,7 +151,9 @@ function unifiedFromRelationship(effect, account) {
  * promiseType, status, effects: { trust, relationship }, reason, reasonEn }.
  */
 export function settleGamePromises({ inbox, state, gameIndex = 0, account = null, relationshipState = null } = {}) {
-  const inboxOut = checkPromises(inbox, state, { gameIndex });
+  // No inbox (e.g. a Reborn run, which only has relationship promises): nothing
+  // to settle there, but the relationship store below still is.
+  const inboxOut = inbox ? checkPromises(inbox, state, { gameIndex }) : { inbox, state, settled: [] };
   const settled = inboxOut.settled.map(unifiedFromInbox);
 
   if (account) {

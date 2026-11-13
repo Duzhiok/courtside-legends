@@ -11,6 +11,8 @@
  * same module. It never invents offers or transitions: transitions are
  * recorded by the Opportunity engine (workstream G) and read here.
  */
+import { settleGamePromises } from "../career/promiseEngine.js";
+import { rebornPromiseWindow } from "../reborn/promiseSettle.js";
 import {
   RELATIONSHIP_KINDS,
   addRelationship,
@@ -24,7 +26,6 @@ import {
   recordPerson,
   recordRivalryGame,
   relationshipsStore,
-  resolveDuePromises,
   rivalryStakes,
 } from "../career/careerRelationships.js";
 
@@ -233,12 +234,16 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
         });
         lastResult = L(`已立下承诺：${p.text}`, `Promise made: ${p.text}`, lang());
       } else if (action === "resolve") {
-        const state = readState();
-        const { resolved, count } = resolveDuePromises(account, state);
+        const root = typeof readRootSave === "function" ? readRootSave() : null;
+        // A live Reborn run is the real evidence; the typed-in snapshot is only
+        // for exercising the panel when there is no run. Either way the ONE
+        // settlement entry (promiseEngine) does the settling.
+        const state = root?.reborn?.player ? rebornPromiseWindow(root.reborn, { account }) : readState();
+        const { settled } = settleGamePromises({ inbox: null, state: null, account, relationshipState: state });
+        const count = settled.length;
         let trustNote = "";
         if (count > 0) {
           const pending = pendingTrustEffects(account);
-          const root = typeof readRootSave === "function" ? readRootSave() : null;
           if (root?.reborn?.player && pending.length) {
             const before = root.reborn.player.coachTrust;
             const next = applyPromiseTrustToRoot(root, pending);
