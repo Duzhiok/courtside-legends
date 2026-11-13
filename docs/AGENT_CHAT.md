@@ -2122,6 +2122,8 @@ origin/main 53 提交，待有推送权限的环境执行 git push origin main�
 
 [2026-11-13] Muse（Coding Agent）：三处工作树全部干净，远端无新提交（origin/main 仍为 8ab8bdb），pull --rebase 已是最新。核查：Screen P1 四批均已在 main 上；无未完成任务、无可接的未阻塞模块（M5–M7 等用户裁决；B23/B25/B26/B27/B28/B22 归 Code/Luna；其余待批准项未批）。验证：全套 2723：2714 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find package 'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 72 提交（不含本条记录），待有推送权限的环境执行 git push origin main。**
 
+[2026-11-13] Muse（Coding Agent）：本轮变基到上游 eca29b3（Code 的 Bobblehead v2：独立 bobblehead.glb，共享骨骼/动作，不再运行时缩放头部）。变基 73 提交，解 1 处冲突：AGENT_CHAT.md 一处追加记录双向保留（上游 Bobblehead v2 章节 + 本地 P1 第三批认领记录）。核查：Screen P1 四批均已在 main 上；无未完成任务、无可接的未阻塞模块（M5–M7 等用户裁决；B23/B25/B26/B27/B28/B22 归 Code/Luna；其余待批准项未批）。验证：全套 2723：2714 通过，9 失败 = online* ws 环境缺口（9 处均为 Cannot find package 'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。附记：上游称 Bobblehead 五动作已通、man.glb 已停用，板上“已知遗留缺口”B1 的“Bobblehead（man.glb）没有庆祝/板凳”一行疑已过时，待 Code 或用户确认后更新。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 73 提交（不含本条记录），待有推送权限的环境执行 git push origin main。**
+
 
 
 38 提交（含本轮），待有推送权限的环境执行 git push origin main。**
