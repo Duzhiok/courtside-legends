@@ -15,10 +15,15 @@ import argparse
 import math
 import os
 import sys
+from types import SimpleNamespace
 
 import bpy
 import bmesh
 from mathutils import Euler, Matrix, Vector
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # sibling modules: stylized_clips/limbs/merge/props
+import stylized_face  # noqa: E402
+import stylized_limbs  # noqa: E402
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
 ap = argparse.ArgumentParser()
@@ -69,10 +74,10 @@ def mat(name, hex_, rough=0.5, sheen=0.0, sss=0.0, metal=0.0):
 
 
 M = dict(
-    skin=mat("Skin", args.skin, 0.52, sss=0.12), hair=mat("Hair", args.hair_color, 0.42),
+    skin=mat("Skin", args.skin, 0.52, sss=0.12), hair=mat("Hair", args.hair_color, 0.62),
     shirt=mat("Shirt", args.shirt, 0.62), pants=mat("Pants", args.pants, 0.66),
     trim=mat("Trim", args.trim, 0.55), eye=mat("Eye", "#f7f7f2", 0.15), pupil=mat("Pupil", "#1d1410", 0.1),
-    brow=mat("Brow", "#2a1b12", 0.6), mouth=mat("Mouth", "#8f3b3b", 0.4), sock=mat("Sock", "#f4f4f0", 0.8),
+    brow=mat("Brow", "#2a1b12", 0.6), lash=mat("Lash", "#1a120d", 0.55), mouth=mat("Mouth", "#8f3b3b", 0.4), sock=mat("Sock", "#f4f4f0", 0.8),
     shoe=mat("Shoe", "#f2f2ee" if args.outfit == "jersey" else "#23262c", 0.45), sole=mat("Sole", "#e9e9e4" if args.outfit == "street" else "#26282c", 0.7),
     accent=mat("ShoeAccent", "#2d3138" if args.outfit == "jersey" else "#e85d04", 0.5),
     ball=mat("Ball", "#d9611a", 0.55), seam=mat("Seam", "#15110e", 0.7),
@@ -261,6 +266,11 @@ def surface(x, z, axis="y", side=-1):
     return loc + head.location if ok else None
 
 
+# continuous limbs (scripts/avatar/stylized_limbs.py) register their two-bone joint split here; the bind step reads it
+BLEND = {}   # object name -> (bone_a, bone_b, point, normal, half_width), read by the bind step
+_h = SimpleNamespace(tube=tube, ell=ell, finish=finish, M=M)
+
+
 for sx in (-1, 1):
     ex, ez = sx * 0.042, 1.810
     ey = surface(ex, ez).y
@@ -270,6 +280,7 @@ for sx in (-1, 1):
     ell(f"Pupil{sx}", (ex - sx * 0.001, ey - 0.0075, ez - 0.001), (0.0062, 0.0035, 0.0062), M["pupil"], "Head", seg=16, rings=10)
     ell(f"Shine{sx}", (ex - sx * 0.004 + 0.003, ey - 0.0095, ez + 0.004), (0.0026, 0.0015, 0.0026), M["eye"], "Head", seg=10, rings=6)
     ell(f"Lid{sx}", (ex, ey + 0.0035, ez + 0.0150), (0.0255, 0.0115, 0.0045), M["skin"], "Head", seg=20, rings=10)
+    stylized_face.build_lash(_h, sx, ex, ey, ez, surface)
     pb = surface(ex + sx * 0.003, 1.842)
     ell(f"Brow{sx}", (ex + sx * 0.003, pb.y + 0.0005, 1.842), (0.029, 0.0065, 0.0068), M["brow"], "Head",
         rot=(0, sx * math.radians(-8), 0), seg=16, rings=10)
@@ -286,32 +297,11 @@ arc = [(-0.030 + 0.060 * i / 16, 1.739 - 0.0068 * (1 - ((i - 8) / 8) ** 2)) for 
 tube("Mouth", [(x, my + 0.002 + 0.20 * x * x * 40, z) for x, z in arc], [0.0024] * 17, M["mouth"], "Head", seg=8)
 ell("Lip", (0, surface(0, 1.722).y + 0.0035, 1.723), (0.016, 0.0048, 0.0048), M["skin"], "Head", seg=12, rings=8)
 
-# hair: cap with a natural hairline; sides fade down to the ears, back to the nape
-SM = lambda e0, e1, x: 0.0 if x <= e0 else (1.0 if x >= e1 else (lambda t: t * t * (3 - 2 * t))((x - e0) / (e1 - e0)))
-bpy.ops.mesh.primitive_uv_sphere_add(segments=72, ring_count=48, radius=1.0, location=HC + Vector((0, 0.006, 0.008)))
-hair = bpy.context.active_object
-hair.name = "Hair"
-bm = bmesh.new()
-bm.from_mesh(hair.data)
-# No deleted vertices (that leaves a stair-stepped edge): below the hairline the shell dives smoothly under the
-# scalp, so the hairline is a soft, clean curve from every angle.
-for v in bm.verts:
-    nx, ny, nz = v.co
-    front = SM(0.05, 0.62, -ny)
-    temple = SM(0.28, 0.62, abs(nx)) * front            # M-shaped hairline: recedes at the temples
-    back = SM(0.0, 0.5, ny)
-    thr = -0.10 - 0.75 * back + 0.50 * front + 0.12 * temple   # sides: ear top; back: nape; front: high forehead
-    above = SM(-0.16, 0.08, nz - thr)                   # 0 below the hairline -> 1 above it (wide = soft edge)
-    side = SM(0.55, 0.95, abs(nx))                      # crop hugs the head at the sides (no mushroom bowl)
-    shell = 0.88 + (0.175 - 0.035 * side) * above       # 0.88 sits inside the skin, ~1.055 is the hair surface
-    lift = 1.0 + 0.06 * SM(0.3, 1.0, nz)                # a touch of volume on top
-    v.co = Vector((nx * HRX * shell, ny * HRY * shell * (1 + 0.02 * above), nz * HRZ * shell * lift))
-bm.to_mesh(hair.data)
-bm.free()
-finish(hair, M["hair"], "Head")
+# hair (scripts/avatar/stylized_face.py): matte cap, M hairline, sideburns, combed-back strand grooves
+stylized_face.build_hair(_h, HC, (HRX, HRY, HRZ))
 
 # neck + torso skin (sloped trapezius) -- the body every outfit is dressed onto
-tube("Neck", [(0, 0.004, 1.60), (0, 0.010, 1.72)], [(0.064, 0.058), (0.058, 0.056)], M["skin"], "Neck", seg=24)
+tube("Neck", [(0, 0.004, 1.60), (0, 0.008, 1.66), (0, 0.010, 1.72)], [(0.072, 0.066), (0.062, 0.058), (0.056, 0.054)], M["skin"], "Neck", seg=28)
 lathe_z("TorsoSkin", [(0.98, .168, .105, 0), (1.08, .166, .106, 0), (1.22, .186, .114, 0), (1.38, .218, .124, 0),
                       (1.48, .228, .118, 0), (1.565, .150, .088, 0), (1.635, .060, .058, 0.004)], M["skin"], "Torso", seg=32)
 
@@ -367,30 +357,24 @@ def street():
 
 
 def shorts(long):
-    # The skirt reaches down to z.80 so the thigh tubes' open tops sit INSIDE it: when a clip pitches the thigh forward
-    # (jump, run, sit) there is no slit between the waist piece and the leg.
-    hip = lathe_z("Outfit_ShortsHip", [(1.085, .198, .130, 0), (1.00, .200, .132, 0), (0.92, .214, .138, 0),
-                                       (0.80, .208, .136, 0)], M["pants"], "Hips", seg=36)
+    # The waist piece overlaps the thigh tubes' open tops (clips pitch the thigh forward: no slit), but its lower edge
+    # tucks INSIDE them: a hip piece that is deeper than the legs pokes out as a torn seam and a second layer.
+    hip = lathe_z("Outfit_ShortsHip", [(1.085, .198, .130, 0), (1.00, .202, .132, 0), (0.92, .206, .126, 0),
+                                       (0.86, .192, .102, 0)], M["pants"], "Hips", seg=36)
     solidify(hip, 0.010)
     for s, (hp, kn, an) in LEG.items():
         top = Vector((hp[0] * 1.0, hp[1], 0.95))   # starts under the jersey hem, never wider than it
         kn, an = Vector(kn), Vector(an)
         if not long:   # long basketball cut, slight A-line, ends just above the knee
             o = tube(f"Outfit_ShortsLeg{s}", [top, top.lerp(kn, 0.5), kn + Vector((0, 0, 0.075))],
-                     [(.100, .102), (.122, .124), (.136, .136)], M["pants"], f"UpperLeg.{s}", seg=30, caps=(False, False))
+                     [(.104, .128), (.122, .127), (.136, .135)], M["pants"], f"UpperLeg.{s}", seg=30, caps=(False, False))
             solidify(o, 0.010)
             tube(f"Outfit_ShortsTrim{s}", [kn + Vector((0, 0, 0.077)), kn + Vector((0, 0, 0.098))], [.1405, .1395],
                  M["trim"], f"UpperLeg.{s}", seg=30, caps=(False, False))
         else:          # tapered joggers to the ankle, cuffed
-            # Thigh and shin are separate tubes on their own bones (clips bend the knee), joined by a knee ball that
-            # hides the bend; at rest the three read as one continuous leg.
-            o = tube(f"Outfit_PantsThigh{s}", [top, top.lerp(kn, 0.5), kn], [.102, .100, .090], M["pants"], f"UpperLeg.{s}",
-                     seg=28, caps=(False, False))
+            # One tube hip to ankle, weighted across the knee (stylized_limbs.build_pants_leg): no knee ball
+            o = stylized_limbs.build_pants_leg(_h, s, top, kn, an + Vector((0, 0, 0.04)), BLEND)
             solidify(o, 0.008)
-            o = tube(f"Outfit_PantsShin{s}", [kn + Vector((0, 0, 0.03)), kn.lerp(an, 0.5), an + Vector((0, 0, 0.04))],
-                     [.090, .080, .066], M["pants"], f"LowerLeg.{s}", seg=28, caps=(False, False))
-            solidify(o, 0.008)
-            ell(f"Outfit_PantsKnee{s}", kn, (0.094, 0.094, 0.094), M["pants"], f"LowerLeg.{s}", seg=28, rings=16)
             tube(f"Outfit_Cuff{s}", [an + Vector((0, 0, 0.02)), an + Vector((0, 0, 0.05))], [.062, .064], M["trim"],
                  f"LowerLeg.{s}", seg=24, caps=(False, False))
 
@@ -406,21 +390,10 @@ def socks():
 
 (jersey if args.outfit == "jersey" else street)()
 
-# ---- arms -------------------------------------------------------------------------------------------------
+# ---- arms (scripts/avatar/stylized_limbs.py): one continuous arm per side, five-digit hands ----------------
 for s, sx, el, wr in (("L", 1, ELBOW_L, WRIST_L), ("R", -1, ELBOW_R, WRIST_R)):
-    sh = Vector((sx * 0.228, 0, 1.51))
-    if args.outfit == "jersey":   # a sleeve covers the shoulder cap; a bare one needs the deltoid
-        ell(f"Delt{s}", sh + Vector((0, 0, -0.004)), (0.052, 0.056, 0.056), M["skin"], f"UpperArm.{s}")
-    arm_top = sh if args.outfit == "jersey" else sh.lerp(el, 0.2)   # under a sleeve the top is hidden anyway
-    tube(f"UpperArm{s}", [arm_top, sh.lerp(el, 0.45) + Vector((sx * 0.004, 0.006, 0)), el], [.054, .050, .040], M["skin"],
-         f"UpperArm.{s}", seg=22)
-    ell(f"Elbow{s}", el, (0.040, 0.040, 0.040), M["skin"], f"LowerArm.{s}")
-    tube(f"LowerArm{s}", [el, el.lerp(wr, 0.35), wr], [.040, .043, .029], M["skin"], f"LowerArm.{s}", seg=22)
+    stylized_limbs.build_arm(_h, s, sx, el, wr, BALL_C, BLEND, sleeved=args.outfit != "jersey")
     d = (wr - el).normalized()
-    rot = tuple(Vector((0, 0, 1)).rotation_difference(d).to_euler())
-    ell(f"Palm{s}", wr + d * 0.050, (0.036, 0.019, 0.055), M["skin"], f"Hand.{s}", rot=rot)
-    ell(f"Fingers{s}", wr + d * 0.098, (0.033, 0.016, 0.030), M["skin"], f"Hand.{s}", rot=rot)
-    ell(f"Thumb{s}", wr + d * 0.035 + Vector((-sx * 0.020, -0.020, 0.0)), (0.012, 0.012, 0.032), M["skin"], f"Hand.{s}", rot=rot)
     if args.outfit == "jersey":
         tube(f"Outfit_Wrist{s}", [wr - d * 0.035, wr + d * 0.012], [.0335, .0335], M["trim"], f"LowerArm.{s}", seg=20,
              caps=(False, False))
@@ -429,11 +402,7 @@ for s, sx, el, wr in (("L", 1, ELBOW_L, WRIST_L), ("R", -1, ELBOW_R, WRIST_R)):
 for s, (hp, kn, an) in LEG.items():
     sx = 1 if s == "L" else -1
     top, knee, ankle = Vector((hp[0] * 0.95, hp[1], 0.96)), Vector(kn), Vector(an)
-    tube(f"Thigh{s}", [top, top.lerp(knee, 0.45) + Vector((0, -0.006, 0)), knee], [.090, .078, .058], M["skin"],
-         f"UpperLeg.{s}", seg=24)
-    ell(f"Knee{s}", knee + Vector((0, -0.006, 0)), (0.053, 0.054, 0.056), M["skin"], f"LowerLeg.{s}")
-    tube(f"Calf{s}", [knee, knee.lerp(ankle, 0.30) + Vector((0, 0.014, 0)), knee.lerp(ankle, 0.75), ankle],
-         [.057, .064, .046, .040], M["skin"], f"LowerLeg.{s}", seg=24)
+    stylized_limbs.build_leg(_h, s, top, knee, ankle, BLEND)
     # sneaker (Outfit_Shoe*): midsole, upper, toe box, high collar, laces, heel counter, side stripe
     fx, fy = ankle.x, ankle.y - 0.045
     turn = (0, 0, math.radians(sx * 6))
@@ -472,8 +441,7 @@ for o, bone in parts:
         bake(o)
     if three_name(o.name) in bone_names:   # GLTFLoader de-duplicates names: a "Head" mesh would rename the Head bone to Head_1
         o.name = f"Body_{o.name}"
-    vg = o.vertex_groups.new(name=bone)
-    vg.add([v.index for v in o.data.vertices], 1.0, "REPLACE")
+    stylized_limbs.bind(o, bone, BLEND)
     mod = o.modifiers.new("Rig", "ARMATURE")
     mod.object = arm
     o.parent = arm
@@ -504,7 +472,6 @@ bpy.ops.object.mode_set(mode="OBJECT")
 for pb in arm.pose.bones:
     pb.rotation_euler = (0, 0, 0)
 # the shared animation library (scripts/avatar/stylized_clips.py): same clips on the same rig for every outfit
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stylized_clips  # noqa: E402
 import stylized_merge  # noqa: E402
 import stylized_props  # noqa: E402
@@ -579,6 +546,8 @@ def pose_with(action, frame):
     scene.frame_set(frame)
 
 
+pose_with(act, 1)
+stylized_merge.assert_sane_bounds(bpy)   # every pose-1 vertex inside the figure box: no runaway spikes in the GLB
 for name in [v for v in args.views.split(",") if v]:
     clip = name.startswith("clip:")
     if clip:   # clip:<Action>:<frame>[:<yaw deg>] poses the rig and renders it from the three-quarter angle, framed wider

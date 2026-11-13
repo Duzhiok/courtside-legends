@@ -54,3 +54,25 @@ def export_glb(bpy, glb):
     bpy.ops.export_scene.gltf(filepath=glb, export_format="GLB", export_yup=True, export_animations=True,
                               export_apply=False, export_skins=True)
     print("exported", glb, os.path.getsize(glb))
+
+
+def assert_sane_bounds(bpy, lo=(-0.8, -0.8, -0.05), hi=(0.8, 0.8, 2.15), skip=("Plane",)):
+    """Fail the build if any skinned mesh has a vertex outside the figure's box in the current pose.
+
+    A single runaway vertex (e.g. an even-offset Solidify across a kink) renders as a metres-long spike in the GLB.
+    """
+    dg = bpy.context.evaluated_depsgraph_get()
+    bad = []
+    for o in bpy.data.objects:
+        if o.type != "MESH" or o.name.startswith(skip):
+            continue
+        ev = o.evaluated_get(dg)
+        me = ev.to_mesh()
+        for v in me.vertices:
+            p = ev.matrix_world @ v.co
+            if any(c < a or c > b for c, a, b in zip(p, lo, hi)):
+                bad.append(f"{o.name}#{v.index} {tuple(round(c, 3) for c in p)}")
+                break
+        ev.to_mesh_clear()
+    if bad:
+        raise RuntimeError("vertices outside the figure box: " + "; ".join(bad))
