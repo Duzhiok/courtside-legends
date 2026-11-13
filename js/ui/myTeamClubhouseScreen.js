@@ -10,6 +10,7 @@ import { toggleStarter } from "../myteam/lineup.js";
 import { MY_TEAM_RULES } from "../myteam/lineup.js";
 import { clubhouseHtml, clubhouseSummary } from "./myTeamClubhouseView.js";
 import { seasonReport } from "../myteam/seasonReport.js";
+import { createTeamIntelligence } from "./teamIntelligenceController.js";
 
 export function createMyTeamClubhouse({
   el,
@@ -28,6 +29,7 @@ export function createMyTeamClubhouse({
   let swapFor = null;
   let notice = "";
   let ownerId = null;
+  const intel = createTeamIntelligence({ getLang, getAccount, saveLineup });
 
   function summary() {
     const account = getAccount();
@@ -41,7 +43,8 @@ export function createMyTeamClubhouse({
     const account = getAccount();
     if ((account?.id || null) !== ownerId) { swapFor = null; notice = ""; }
     ownerId = account?.id || null;
-    el.innerHTML = clubhouseHtml({ summary: summary(), resume: getResume(), swapFor, notice, lang: getLang() });
+    const s = summary();
+    el.innerHTML = clubhouseHtml({ summary: s, resume: getResume(), swapFor, notice, lang: getLang(), intel: intel.html(s) });
   }
 
   el.addEventListener("click", (e) => {
@@ -49,6 +52,7 @@ export function createMyTeamClubhouse({
     if (!btn || btn.disabled) return;
     const lang = getLang();
     const account = getAccount();
+    if (btn.dataset.act?.startsWith("intel-")) { if (intel.onClick(btn, summary())) render(); return; }
     switch (btn.dataset.act) {
       case "accounts": return onOpenAccounts();
       case "open-collection": return onOpenCollection();
@@ -91,6 +95,8 @@ export function createMyTeamClubhouse({
       default:
     }
   });
+
+  el.addEventListener("change", (e) => { if (e.target.matches("[data-role-for]") && intel.onRoleChange(e.target)) render(); });
 
   return {
     /** Entering the screen: read fresh data from the account (read-only). */

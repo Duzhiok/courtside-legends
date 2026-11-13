@@ -124,3 +124,40 @@
   .mtc-five-photo { width: 52px; height: 52px; }
   .mtc-five-name { font-size: 0.76rem; }
 }
+
+/* Team Intelligence v3 (coach-driven analysis) */
+.mti h4 { margin: 14px 0 6px; font-size: 0.95rem; color: var(--mtc-green); }
+.mti-coach h4 small { font-weight: 400; color: #4f5e55; margin-left: 6px; }
+.mti-note { margin: 4px 0 8px; color: #4f5e55; font-size: 0.88rem; }
+.mti-coaches, .mti-systems { display: flex; flex-wrap: wrap; gap: 6px; }
+.mti-sys { min-height: 40px; padding: 6px 12px; border-radius: 999px; border: 1px solid #b9c9be; background: #f4f8f5; color: #163a29; font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.mti-sys.on { background: var(--mtc-green); color: #fff; border-color: var(--mtc-green); }
+.mti-sys i { font-style: normal; font-size: 0.7rem; padding: 1px 6px; border-radius: 8px; background: rgba(233, 196, 106, 0.35); }
+.mti-sys.on i { background: rgba(255, 255, 255, 0.22); }
+.mti-score { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 10px 0; }
+.mti-score span, .mti-strengths span { display: block; font-size: 0.82rem; color: #3d4c43; margin-bottom: 2px; }
+.mti-bar { position: relative; display: block; height: 18px; border-radius: 9px; background: #e3ebe6; overflow: hidden; }
+.mti-bar i { position: absolute; inset: 0 auto 0 0; background: #2f7a55; }
+.mti-bar b { position: relative; padding-left: 8px; font-size: 0.78rem; line-height: 18px; color: #fff; mix-blend-mode: normal; text-shadow: 0 0 2px rgba(0,0,0,.45); }
+.mti-roles { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.mti-roles th { text-align: left; font-size: 0.78rem; color: #4f5e55; padding: 4px 6px; }
+.mti-roles td { padding: 6px; border-top: 1px solid #e3ebe6; vertical-align: middle; }
+.mti-roles td small { display: block; color: #4f5e55; font-size: 0.74rem; }
+.mti-roles tr.warn td:first-child { box-shadow: inset 3px 0 0 #c4553a; }
+.mti-roles select { max-width: 100%; min-height: 36px; font: inherit; }
+.mti-strengths { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 14px; }
+.mti-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 0.9rem; }
+.mti-list li { padding: 6px 8px; border-radius: 8px; background: #f7f1e4; border-left: 3px solid #e9c46a; }
+.mti-list li.high { background: #fbe9e4; border-color: #c4553a; }
+.mti-list.good li { background: #e8f3ec; border-color: #2f7a55; }
+.mti-tag { font-style: normal; font-size: 0.68rem; margin-right: 6px; padding: 1px 6px; border-radius: 8px; vertical-align: 1px; }
+.mti-tag.sim { background: #1f4a35; color: #fff; }
+.mti-tag.adv { background: #e5e5e5; color: #333; }
+.mti-rec .btn { margin-top: 6px; }
+.mti-rec small { margin-left: 8px; color: #4f5e55; }
+@media (max-width: 480px) { .mti-roles { font-size: 0.82rem; } .mti-roles th:nth-child(3), .mti-roles td:nth-child(3) { width: 84px; } }
+.mti-gain { margin: 4px 0; color: #1d5a3b; }
+.mti-loss { margin: 4px 0; color: #9b3b25; }
+.mti-roles { max-width: 640px; }
+.mti-roles th:first-child, .mti-roles td:first-child { width: 34%; }
+.mti-roles th:nth-child(3), .mti-roles td:nth-child(3) { width: 26%; }

@@ -206,11 +206,11 @@ function seasonCenterHtml(s, resume, lang) {
  * @param {string} [p.notice] last swap / save message
  * @param {string} [p.lang]
  */
-export function clubhouseHtml({ summary: s, resume = null, swapFor = null, notice = "", lang = "zh" }) {
+export function clubhouseHtml({ summary: s, resume = null, swapFor = null, notice = "", lang = "zh", intel = "" }) {
   if (!s) return "";
   return `<div class="mtc">
     ${heroHtml(s, resume, lang)}
-    ${s.guest ? "" : `${courtHtml(s, lang)}${swapPickerHtml(s, swapFor, lang)}${wallHtml(s, lang)}${seasonCenterHtml(s, resume, lang)}${honoursHtml(s, lang)}`}
+    ${s.guest ? "" : `${courtHtml(s, lang)}${swapPickerHtml(s, swapFor, lang)}${intel}${wallHtml(s, lang)}${seasonCenterHtml(s, resume, lang)}${honoursHtml(s, lang)}`}
     ${notice ? `<p class="mtc-notice" role="status">${esc(notice)}</p>` : ""}
   </div>`;
 }
