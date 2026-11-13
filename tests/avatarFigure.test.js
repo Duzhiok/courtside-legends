@@ -23,17 +23,12 @@ test("bobblehead keeps every other choice: same skin, hair, outfit and build", (
   assert.deepEqual(look.lookColors(a), look.lookColors(b), "same colours in both styles");
 });
 
-test("bobblehead: bigger head (uniform, so it cannot shear), thicker limbs, never longer or shorter limbs", () => {
+test("bobblehead is its own model: the figure style adds no bone scaling, so the baked toy proportions are what you see", () => {
   const s = look.bodyBoneScales("standard", "stylized");
   const b = look.bodyBoneScales("standard", "bobblehead");
-  assert.deepEqual(s.bones.Head, [1, 1, 1], "stylized resets the head, so switching back is exact");
-  const [hx, hy, hz] = b.bones.Head;
-  assert.ok(hx > 1.5 && hx === hy && hy === hz, "head grows uniformly");
-  assert.ok(b.height < s.height, "smaller overall figure so the big head still fits the frame");
-  for (const name of [...look.BODY_BONE_GROUPS.arms, ...look.BODY_BONE_GROUPS.legs]) {
-    assert.ok(b.bones[name][0] > s.bones[name][0], `${name} thicker`);
-    assert.equal(b.bones[name][1], 1, `${name} length untouched, so hands and feet stay on the animation`);
-  }
+  assert.deepEqual(b, s, "no extra head/limb/height scaling on top of the toy model");
+  assert.deepEqual(b.bones.Head, [1, 1, 1], "the big head is in the mesh, never a runtime scale");
+  assert.equal(b.height, 1);
   assert.deepEqual(look.bodyBoneScales("standard"), s, "figure argument is optional");
   assert.deepEqual(look.bodyBoneScales("standard", "nope"), s, "unknown figure falls back to stylized");
 });

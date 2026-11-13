@@ -47,7 +47,7 @@ await page.screenshot({ path: `${OUT}/3-street-broad.png` });
 await set({ figure: "bobblehead", body: "standard" });
 await page.waitForTimeout(500);
 s = await state();
-check(s.model === "man.glb", `bobblehead falls back to the shared model (${s.model})`);
+check(s.model === "bobblehead.glb", `bobblehead loads its own toy model (${s.model})`);
 
 await set({ figure: "stylized", cut: "jersey", outfit: "royal" });
 await page.waitForTimeout(500);

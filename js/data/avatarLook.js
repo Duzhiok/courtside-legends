@@ -77,15 +77,14 @@ export const BODY_BONE_GROUPS = Object.freeze({
 });
 
 /**
- * Character style: one identity, two presentations. The same skin / hair / outfit / build, drawn either as a
- * stylized athlete or as a bobblehead toy. Bobblehead is bone scaling on the SAME model, with the same safety rule
- * as the build presets: the head grows UNIFORMLY (a uniform scale on a bone cannot shear its children) and limbs only
- * get thicker (x/z), never shorter (y), so knees, hands and feet stay where the animations put them. The toy feel
- * comes from the head-to-body ratio, plus a smaller overall figure so the big head still fits the frame.
+ * Character style: one identity, two presentations. The same skin / hair / outfit colours / build, drawn either as the
+ * stylized athlete or as a purpose-built bobblehead toy (its own GLB, assets/avatar3d/bobblehead.glb, built by
+ * scripts/avatar/build_bobble2.py: baked big head, stubby limbs, big sneakers). The toy's proportions live in the model,
+ * so the figure style adds NO bone scaling of its own; build presets still scale the same-named bones on top.
  */
 export const FIGURE_STYLES = Object.freeze([
   { id: "stylized", zh: "风格化写实", en: "Stylized", head: 1, limbs: 1, height: 1 },
-  { id: "bobblehead", zh: "Q 版大头", en: "Bobblehead", head: 2.3, limbs: 1.32, height: 0.78 },
+  { id: "bobblehead", zh: "Q 版大头", en: "Bobblehead", head: 1, limbs: 1, height: 1 },
 ]);
 
 /**
@@ -117,12 +116,12 @@ export const OUTFIT_CUTS = Object.freeze([
 export const DEFAULT_LOOK = Object.freeze({ skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard", figure: "stylized", cut: "jersey" });
 
 /**
- * Pure: which GLB in assets/avatar3d draws this look. Stylized has one model per cut; Bobblehead is still the bone-scaled
- * shared model until its own GLB lands.
+ * Pure: which GLB in assets/avatar3d draws this look. Stylized has one model per cut; Bobblehead is its own toy model
+ * (one outfit: the toy wears a jersey; the cut choice only changes the Stylized figure).
  */
 export function avatarModelFile(look) {
   const l = sanitizeLook(look);
-  return l.figure === "bobblehead" ? "man.glb" : `stylized_${l.cut}.glb`;
+  return l.figure === "bobblehead" ? "bobblehead.glb" : `stylized_${l.cut}.glb`;
 }
 
 const pick = (list, id, fallback) => (list.some((item) => item.id === id) ? id : fallback);

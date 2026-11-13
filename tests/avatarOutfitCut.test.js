@@ -16,13 +16,14 @@ test("cut is whitelisted and defaults to jersey", () => {
   assert.equal(sanitizeLook({ cut: "__proto__" }).cut, "jersey");
 });
 
-test("every Stylized cut has a real GLB; Bobblehead keeps the shared model", () => {
+test("every Stylized cut has a real GLB; Bobblehead has its own toy model", () => {
   for (const c of OUTFIT_CUTS) {
     const file = avatarModelFile({ figure: "stylized", cut: c.id });
     assert.equal(file, `stylized_${c.id}.glb`);
     assert.ok(existsSync(new URL(`../assets/avatar3d/${file}`, import.meta.url)), file);
   }
-  assert.equal(avatarModelFile({ figure: "bobblehead", cut: "street" }), "man.glb");
+  assert.equal(avatarModelFile({ figure: "bobblehead", cut: "street" }), "bobblehead.glb");
+  assert.ok(existsSync(new URL("../assets/avatar3d/bobblehead.glb", import.meta.url)), "bobblehead.glb");
   assert.match(avatarModelUrl({ cut: "street" }), /assets\/avatar3d\/stylized_street\.glb$/);
 });
 

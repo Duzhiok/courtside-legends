@@ -14,7 +14,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
 const browser = await chromium.launch({ executablePath: EXE, args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 
-async function session(tag, viewport, box, cut, body = "standard") {
+async function session(tag, viewport, box, cut, body = "standard", figure = "stylized") {
   const page = await browser.newPage({ viewport });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -29,10 +29,10 @@ async function session(tag, viewport, box, cut, body = "standard") {
     document.body.style.margin = "0";
     document.body.append(el);
   }, box);
-  await page.evaluate(async ({ cut, body }) => {
+  await page.evaluate(async ({ cut, body, figure }) => {
     const { mountAvatar3d } = await import("/js/ui/avatar3d.js");
-    window.__v = await mountAvatar3d(document.getElementById("box"), { timeoutMs: 20000, look: { skin: "warm", hair: "black", outfit: "forest", style: "short", body, figure: "stylized", cut } });
-  }, { cut, body });
+    window.__v = await mountAvatar3d(document.getElementById("box"), { timeoutMs: 20000, look: { skin: "warm", hair: "black", outfit: "forest", style: "short", body, figure, cut } });
+  }, { cut, body, figure });
   await page.waitForTimeout(800);
   const info = () => page.evaluate(() => window.__v.inspect());
   const act = async (id, ms) => { const ok = await page.evaluate((i) => window.__v.playAction(i), id); await page.waitForTimeout(ms); return ok; };
@@ -85,6 +85,35 @@ for (const cut of ["jersey", "street"]) {
   await s.act("run", 1800);
   const swapped = await s.info();
   check(`${t} sit -> run directly: not stuck seated, stool gone`, swapped.action === "run" && !swapped.holding && !swapped.seatVisible && near(swapped.hips[1], idle.hips[1], 0.12), `hips ${swapped.hips}`);
+  check(`${t} no page errors`, s.errors.length === 0, s.errors.slice(0, 2).join(" | "));
+  await s.page.close();
+}
+
+// the Bobblehead is its own toy model: same rig, same clips, same ball, its own (shorter) legs and stool
+for (const [w, h, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]]) {
+  const s = await session(`${tag}-bobble`, { width: w, height: h }, { w: 360, h: 520 }, "jersey", "standard", "bobblehead");
+  const idle = await s.info();
+  const t = `[${tag} bobblehead]`;
+  check(`${t} loads bobblehead.glb, fast`, idle.model === "bobblehead.glb" && idle.loadMs < 6000, `${idle.model} ${idle.loadMs}ms`);
+  check(`${t} all seven clips, no scale track, head not runtime-scaled`, idle.clips.length === 7 && idle.scaleTracks === 0 && (idle.scales.Head || [1, 1, 1]).every((v) => near(v, 1, 0.001)), `${idle.clips.length} clips, head ${JSON.stringify(idle.scales.Head)}`);
+  check(`${t} cheap to draw`, idle.drawCalls <= 30 && idle.triangles < 60000, `${idle.triangles} tris, ${idle.drawCalls} draw calls`);
+  check(`${t} ball in hand, stool hidden at rest`, idle.ballVisible && idle.hasSeat && !idle.seatVisible);
+  await s.shot("idle");
+  for (const [id, ball] of ACTIONS) {
+    const ok = await s.act(id, id === "jump" ? 750 : 900);
+    const i = await s.info();
+    check(`${t} ${id}: plays, ball ${ball ? "kept" : "put away"}`, ok && i.action === id && i.ballVisible === ball && i.seatVisible === (id === "sit"));
+    await s.shot(`action-${id}`);
+    if (id === "sit") {
+      await s.page.waitForTimeout(1800);
+      const held = await s.info();
+      const drop = idle.hips[1] - held.hips[1];
+      check(`${t} sit: hips drop to the toy's own height (${drop.toFixed(3)}), feet stay on the floor`, drop > 0.05 && drop < 0.3 && held.feet.every((f, k) => near(f[1], idle.feet[k][1], 0.03)),
+        `hips y ${idle.hips[1]} -> ${held.hips[1]}`);
+      await s.page.evaluate(() => window.__v.playIdle());
+      await s.page.waitForTimeout(1600);
+    }
+  }
   check(`${t} no page errors`, s.errors.length === 0, s.errors.slice(0, 2).join(" | "));
   await s.page.close();
 }

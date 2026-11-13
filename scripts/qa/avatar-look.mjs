@@ -46,7 +46,7 @@ const fresh = async (viewport, { noWebgl = false, blockModel = false, lang = nul
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("request", (r) => requests.push(r.url()));
   if (noWebgl) await page.addInitScript(() => { const real = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/i.test(t) ? null : real.call(this, t, ...a); }; });
-  if (blockModel) await page.route("**/man.glb", (route) => route.abort());
+  if (blockModel) await page.route("**/*.glb", (route) => route.abort());
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate((l) => { localStorage.clear(); if (l) localStorage.setItem("courtside.lang", "en"); }, lang);
   await page.reload({ waitUntil: "domcontentloaded" });
