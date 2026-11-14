@@ -26,6 +26,7 @@ import {
   recordPerson,
   relationshipsStore,
 } from "../career/careerRelationships.js";
+import { esc } from "../core/html.js";
 
 export function ensureRelationshipsScreen() {
   let el = document.querySelector("#screen-relationships");
@@ -39,13 +40,6 @@ export function ensureRelationshipsScreen() {
 }
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
-const esc = (v) =>
-  String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-
 const KIND_LABEL = {
   rivalry: ["宿敌", "Rivalry"],
   mentorship: ["师徒", "Mentorship"],

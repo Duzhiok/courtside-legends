@@ -17,14 +17,12 @@
 import { LEGACY_TIERS } from "../career/legacy.js";
 import { legacyMuseumFor } from "../career/legacyMuseum.js";
 import { mountScreen } from "./screenShell.js";
+import { esc } from "../core/html.js";
 
 /** The page title, rendered once by the shell in the current language. */
 export const LEGACY_MUSEUM_TITLE = Object.freeze({ zh: "篮球人生博物馆", en: "Legacy Museum" });
 
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
-const esc = (value) =>
-  String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
-
 const ROLE_LABEL = {
   COACH: ["教练生涯", "Coach career"],
   GM: ["经理生涯", "GM career"],

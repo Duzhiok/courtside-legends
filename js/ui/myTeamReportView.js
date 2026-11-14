@@ -1,7 +1,7 @@
 /** My Team Season end-of-season panel + objectives strip (pure HTML strings; every dynamic value is escaped). */
 import { objectiveText } from "../myteam/seasonReport.js";
+import { esc } from "../core/html.js";
 
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const MARK = { done: "✓", failed: "✗", open: "·" };
 
 const FINISH = {

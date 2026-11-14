@@ -1,9 +1,8 @@
 /** Small shared helpers for the time-travel views: language pick, escaping, tones, effect chips. */
+import { esc } from "../../core/html.js";
+export { esc };
 
 export const tr = (lang, zh, en) => (lang === "en" ? en : zh);
-
-const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-export const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ESC[char]);
 
 export const clamp = (value, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Number(value) || 0));
 

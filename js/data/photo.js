@@ -22,6 +22,7 @@ import { wikimediaFile } from "./photoSource.js";
 import { CURATED_PHOTOS } from "./photos.curated.js";
 import { PHOTO_BY_BREF as SCRAPED_BY_BREF, PHOTO_BY_BREF_DECADE as SCRAPED_BY_DECADE } from "./photos.scraped.js";
 import { PHOTO_BY_BREF_WIKI } from "./photos.wiki.js";
+import { esc as escapeAttr } from "../core/html.js";
 
 export { NOT_A_PORTRAIT, isPortrait } from "./photoBlocklist.js";
 
@@ -116,8 +117,6 @@ export function resolveCardPhoto(playerLike) {
   if (era) return { photo: era, photoCareerDefault: false, photoSource: "era" };
   return { photo: null, photoCareerDefault: false, photoSource: "generated" };
 }
-
-const escapeAttr = (text) => String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 const TIP_SUFFIX = { local: " · 插画", era: "", hotlinked: "", generated: "" };
 

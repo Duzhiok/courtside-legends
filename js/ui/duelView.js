@@ -39,6 +39,7 @@ import {
   readDuelRecord,
   recordDuelResult,
 } from "../duel/duelStore.js";
+import { esc } from "../core/html.js";
 
 const DIFFICULTY_LABEL = {
   rookie: ["新手", "Rookie", "传奇状态一般，防守很少针对你", "The legend plays loose and rarely counters you"],
@@ -83,10 +84,6 @@ export function ensureDuelScreen() {
     else if (showFn) showFn("home");
   });
   return el;
-}
-
-function esc(text) {
-  return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
 
 /** Real art for a duelist, or null when only a generated silhouette exists. */

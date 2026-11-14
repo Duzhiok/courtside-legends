@@ -9,6 +9,7 @@ import { applyFrameDelta } from "./delta.js";
 import { loadRecord, saveRecord, recordGame, formatRecord } from "./record.js";
 import { prizeNotice } from "./prizeNotice.js";
 import { awardFriendMatchXp } from "../data/accountLevelOnline.js";
+import { esc } from "../core/html.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -40,10 +41,6 @@ const state = {
  */
 function defaultServerUrl() {
   return window.location.protocol === "http:" ? "ws://localhost:3001" : "";
-}
-
-function esc(text) {
-  return String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
 function renderMarket() {

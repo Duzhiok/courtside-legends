@@ -7,8 +7,7 @@ import { photoImg } from "../data/photo.js";
 import { MY_TEAM_RULES } from "../myteam/lineup.js";
 import { playerSlotPos } from "../engine/gameplan.js";
 import { subAttrChipsHtml } from "./rotationBoard.js";
-
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+import { esc } from "../core/html.js";
 
 /** Plain-language text for a validation issue (or a blocked editor action). */
 export function issueText(issue, lang = "zh") {

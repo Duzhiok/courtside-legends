@@ -5,8 +5,8 @@
 import * as manager from "./audioManager.js";
 import * as library from "./playlistStore.js";
 import * as playlist from "./playlistPlayer.js";
+import { esc } from "../core/html.js";
 
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const REASON = {
   "not-audio": ["不是音频文件", "not an audio file"],
   "too-big": ["超过 30MB", "over 30MB"],

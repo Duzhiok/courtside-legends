@@ -8,8 +8,8 @@ import { HOME_GRID, WALL_SLOTS, getHomeLayout, movePiece, resetHomeLayout, resol
 import { ownedFurnitureIds } from "../../data/shop.js";
 import { SHOP_ITEMS, itemName } from "../../data/shopCatalog.js";
 import { renderIsoRoom } from "./isoRoom.js";
+import { esc } from "../../core/html.js";
 
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
 const SCREEN_ID = "screen-my-home";
 

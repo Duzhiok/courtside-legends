@@ -51,10 +51,7 @@ import {
   keyToChoice,
 } from "../duel/duelTakeover.js";
 import { duelSpriteHtml, spriteActionFor } from "./duelSprites.js";
-
-function esc(text) {
-  return String(text ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-}
+import { esc } from "../core/html.js";
 
 const ZONE_LABEL = {
   paint: ["内线", "In the paint"],

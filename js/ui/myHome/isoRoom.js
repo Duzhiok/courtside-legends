@@ -8,8 +8,8 @@ import { photoUrl } from "../../data/photo.js";
 import { HOME_GRID, WALL_SLOTS, isFlat } from "../../data/homeLayout.js";
 import { floorArt, wallArt } from "./isoFurniture.js";
 import { GRID as N, TILE, VIEW_H, VIEW_W, WALL_H, cupAt, faceL, footprintPoly, poly, proj, shade, slotRect, wallGroup, wallX } from "./isoGeometry.js";
+import { esc } from "../../core/html.js";
 
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
 const WALL = "#f1e6cf";
 const GREEN = "#1f4a35";

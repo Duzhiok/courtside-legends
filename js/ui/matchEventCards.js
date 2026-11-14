@@ -30,6 +30,8 @@
  * SUBSTITUTION, PERIOD_START, PERIOD_END, MATCH_END); nothing here picks
  * when an event fires.
  */
+import { esc } from "../core/html.js";
+
 export const MATCH_EVENT_FAMILIES = ["takeover", "weakness", "foulTrouble"];
 export const MATCH_EVENT_SEVERITIES = ["info", "decision"];
 
@@ -39,7 +41,6 @@ const FAMILY_LABEL = {
   foulTrouble: ["犯规麻烦", "Foul trouble"],
 };
 
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const pick = (pair, lang) => {
   if (pair == null) return "";
   if (typeof pair === "string") return pair;

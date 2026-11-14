@@ -1,5 +1,7 @@
 /** Small helpers shared by the My Team clubhouse views. Pure, no DOM. */
-export const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+import { esc } from "../core/html.js";
+export { esc };
+
 export const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 /**

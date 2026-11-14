@@ -3,15 +3,7 @@ import {
   buildCareerTimeline,
   filterCareerTimeline,
 } from "../modes/careerTimeline.js";
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+import { esc as escapeHtml } from "../core/html.js";
 
 function sourceLabel(source) {
   return source === "historical-debut"

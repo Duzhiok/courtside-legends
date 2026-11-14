@@ -7,6 +7,7 @@ import { offerText } from "../career/contractOffers.js";
 import { stintSpan } from "../ui/timeTravel/epilogue.js";
 import { teamNameFor } from "../ui/timeTravel/viewModel.js";
 import { buildCareerReport } from "./eventEngine.js";
+import { esc as escapeHtml } from "../core/html.js";
 
 const MAX_SIGNATURE_TRADES = 3;
 const FINISH_LABELS = {
@@ -27,15 +28,6 @@ export function finishLabel(season, lang = "zh") {
   const labels = lang === "en" ? FINISH_LABELS_EN : FINISH_LABELS;
   if (season?.champion) return labels.champion;
   return labels[season?.finish] || season?.finish || "—";
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 // Why a coach was let go: the keys are careerContract.js's firing reasons. A save from before B2 has no

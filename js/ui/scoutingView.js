@@ -43,6 +43,7 @@ import {
   selectDraftProspect,
 } from "../engine/leagueDraft.js";
 import { PLAYERS } from "../data/players.js";
+import { esc } from "../core/html.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
@@ -55,10 +56,6 @@ export function ensureDraftGambleScreen() {
   el.innerHTML = `<div class="panel-head"><button class="nav-back" id="btn-draft-gamble-back" type="button"><span>返回</span></button><h2>1996 选秀赌局 · Draft Gamble</h2></div><div id="draft-gamble-body"></div>`;
   document.body.appendChild(el);
   return el;
-}
-
-function esc(text) {
-  return String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function bandLabel(bandId, lang) {

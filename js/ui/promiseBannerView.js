@@ -3,8 +3,9 @@
  * engine settled — what was promised, kept or broken, and the exact trust /
  * relationship change. Promise text can be player-typed, so it is escaped.
  */
+import { esc } from "../core/html.js";
+
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
-const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const signed = (n) => (n > 0 ? `+${n}` : String(n));
 
 export function promiseBannerHtml({ settled = [], lang = "zh" } = {}) {

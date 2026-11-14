@@ -12,6 +12,7 @@ import { FOCUS_PLAYS, TEMPO_OPTIONS, planLabel } from "../engine/gameplan.js";
 import { createCoachingChallenge } from "../career/coach/coachingChallenge.js";
 import { tacticName } from "../career/coach/tacticalLearning.js";
 import { filmRecommendForMoment, readFiledFilmRecommendation } from "../career/network/videoAnalyst.js";
+import { esc } from "../core/html.js";
 
 const CHUNK = 8;
 
@@ -31,8 +32,6 @@ const fmtClock = (s) => {
   const total = Math.max(0, Math.ceil(s || 0));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 };
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
 export function createCoachingMomentView({ getPool, show, goBack } = {}) {
   let el = null;
   let body = null;

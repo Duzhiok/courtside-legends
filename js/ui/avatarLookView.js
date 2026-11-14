@@ -7,9 +7,8 @@ import { PORTRAIT_PRESETS } from "../data/avatarPortrait.js";
 import { presetPortraitUri } from "./avatarPortraitArt.js";
 import { BODY_PRESETS, FIGURE_STYLES, HAIR_COLORS, HAIR_STYLES, OUTFIT_CUTS, OUTFITS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
 import { AVATAR_ACTIONS } from "./avatar3d.js";
+import { esc } from "../core/html.js";
 
-const esc = (value) =>
-  String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 const GROUPS = [

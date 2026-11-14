@@ -23,10 +23,9 @@ import { resolveHome } from "../data/homeLayout.js";
 import { renderIsoRoom } from "./myHome/isoRoom.js";
 import { PROFILE_LIMITS } from "../data/profile.js";
 import { teamNameL } from "../i18n.js";
+import { esc } from "../core/html.js";
 
 /** A real, public feedback channel: the project's own GitHub issue tracker. */
-const esc = (value) =>
-  String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
 const action = (name, label, cls = "btn small") => `<button type="button" class="${cls}" data-mw-action="${name}">${label}</button>`;
 

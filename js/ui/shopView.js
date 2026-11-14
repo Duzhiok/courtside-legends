@@ -13,8 +13,8 @@ import { getShop, purchaseShopItem, equipShopItem, unequipShopItem, equippedClot
 import { lookColors } from "../data/avatarLook.js";
 import { avatarDataUri } from "../data/avatarArt.js";
 import { furnitureSvgFor, furnitureViewBox, roomPreviewSvg } from "./shopFurniture.js";
+import { esc } from "../core/html.js";
 
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 export function reasonText(reason, lang = "zh") {

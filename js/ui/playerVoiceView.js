@@ -7,11 +7,10 @@
 import { FEEDBACK_MODULES, normalizeDraft } from "../data/feedbackDraft.js";
 import { FEEDBACK_IMAGE_MAX } from "../data/feedbackImages.js";
 import { FEEDBACK_VIDEO_BYTES, FEEDBACK_VIDEO_MAX } from "../data/feedbackVideo.js";
+import { esc } from "../core/html.js";
 
 export const FEEDBACK_URL = "https://github.com/Duzhiok/courtside-legends/issues/new";
 
-const esc = (value) =>
-  String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 export const T = (lang, zh, en) => (lang === "en" ? en : zh);
 const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
