@@ -7,6 +7,10 @@ function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
 }
 
+import { gameNote, NEGATIVE_NOTES, rateGame } from "./formRating.js";
+
+export { NEGATIVE_NOTES };
+
 /** Human label for confidence band. */
 export function confidenceLabel(conf) {
   const c = Number(conf) || 50;
@@ -29,95 +33,50 @@ export function tacticalLabel(tac) {
 }
 
 /**
- * Rate one box line into scoring / passing impact (-30..+35-ish).
+ * Rate one box line (role-aware; see formRating.js). `passing`/`twoWay`
+ * are kept as aliases for older callers.
  */
 export function rateBoxImpact(player, stats = {}) {
-  const pts = stats.pts || 0;
-  const ast = stats.ast || 0;
-  const reb = stats.reb || 0;
-  const stl = stats.stl || 0;
-  const blk = stats.blk || 0;
-  const tov = stats.tov || 0;
-  const fgm = stats.fgm || 0;
-  const fga = Math.max(0, stats.fga || 0);
-  const min = Math.max(1, stats.min || 1);
-  const fg = fga > 0 ? fgm / fga : 0.4;
-  const expectPts = clamp(((player.scoring || 70) - 55) * 0.65 + 6, 4, 32);
-  const expectAst = clamp(((player.pass || 55) - 55) * 0.22 + 1.5, 0.5, 12);
+  const r = rateGame(player, stats);
+  return { ...r, passing: r.playmaking, twoWay: r.defense };
+}
 
-  let scoring =
-    (pts - expectPts) * 1.35 +
-    (fg - 0.43) * 55 +
-    Math.min(12, fga) * 0.35 +
-    Math.max(0, pts - 20) * 0.45 -
-    Math.max(0, expectPts - pts) * 0.35;
-  // Volume without efficiency is only mild credit
-  if (fga >= 15 && fg < 0.38) scoring -= 6;
+// Game-Score delta -> state pull. Tuned so a +10 night ≈ +16 confidence.
+const CONF_PER_POINT = 1.6;
+const TAC_PER_POINT = 1.4;
+const MIN_PER_TAC = 0.14;
 
-  let passing =
-    (ast - expectAst) * 3.4 +
-    Math.max(0, ast - 6) * 1.2 -
-    tov * 1.6 +
-    (ast >= 8 && pts >= 12 ? 4 : 0);
-
-  const twoWay = reb * 0.35 + stl * 1.1 + blk * 0.9;
-  // Per-minute soft floor so DNP doesn't tank forever
-  if (min < 8 && pts + ast < 4) {
-    scoring *= 0.35;
-    passing *= 0.35;
-  }
-
-  return {
-    scoring: clamp(scoring, -28, 36),
-    passing: clamp(passing, -22, 32),
-    twoWay: clamp(twoWay, 0, 18),
-    pts,
-    ast,
-    reb,
-    fgPct: fga > 0 ? Math.round(fg * 100) : null,
-    min: Math.round(min),
-  };
+/** Identity of one settled game for one player (guards double settlement). */
+function formKey(stats, won, ctx = "") {
+  const s = stats || {};
+  return [ctx, won ? 1 : 0, s.min, s.pts, s.reb, s.ast, s.stl, s.blk, s.tov, s.fga, s.fgm, s.pm].join("|");
 }
 
 /**
  * Apply last-game impact onto persistent player card fields.
- * Mutates `src` (roster card). Returns a short note for UI.
+ * Mutates `src` (roster card). Returns the game row, or null when skipped
+ * (no sim player, a true DNP, or the same game already settled).
  */
-export function applyFormAfterGame(src, simPlayer, { won = false } = {}) {
+export function applyFormAfterGame(src, simPlayer, { won = false, gameKey = "" } = {}) {
   if (!src || !simPlayer) return null;
   const stats = simPlayer.stats || {};
-  const impact = rateBoxImpact(src, stats);
+  if (!(Number(stats.min) > 0)) return null; // DNP: no form change at all
+  const key = formKey(stats, won, gameKey);
+  if (src._formKey === key) return null;
+
+  const impact = rateGame(src, stats);
   const prevC = clamp(Number(src.confidence) || 50, 25, 92);
   const prevT = clamp(Number(src.tacticalStatus) || 50, 25, 92);
-
-  const winBump = won ? 3.5 : -2;
-  // Big nights should visibly lift confidence / tactical gravity for next tip-off.
-  // scoring and passing get near-parity weight here: an 18-assist, 0-point floor-general
-  // performance is a genuinely elite night and should not crash confidence just because
-  // this player's box line wasn't a scoring one -- rateBoxImpact() below already calls that
-  // same game "组织统治" (passing dominance), and confidence shouldn't contradict the note.
-  const scorePull =
-    impact.scoring * 0.85 + impact.passing * 0.85 + impact.twoWay * 0.25 + winBump;
-  const tacPull =
-    impact.scoring * 0.7 + impact.passing * 0.75 + impact.twoWay * 0.2 + (won ? 2.5 : -1.5);
-
-  // Keep a slice of prior form, but let this game swing hard
-  const nextC = clamp(prevC * 0.38 + 22 + scorePull, 28, 92);
-  const nextT = clamp(prevT * 0.36 + 20 + tacPull, 28, 92);
-
-  src.confidence = Math.round(nextC);
-  src.tacticalStatus = Math.round(nextT);
-  src.scoreForm = clamp(Math.round(50 + impact.scoring * 1.1), 20, 95);
-  src.passForm = clamp(Math.round(50 + impact.passing * 1.15), 20, 95);
-
-  let note = "平稳";
-  if (impact.scoring >= 12 && impact.passing >= 8) note = "全能爆发";
-  else if (impact.scoring >= 14) note = "得分大火";
-  else if (impact.passing >= 12) note = "组织统治";
-  else if (impact.scoring >= 6) note = "进攻高效";
-  else if (impact.passing >= 6) note = "串联出色";
-  else if (impact.scoring <= -10) note = "进攻哑火";
-  else if (impact.passing <= -8) note = "传导不顺";
+  // Limited minutes still count, but only lightly.
+  const weight = impact.rated ? 1 : 0.3;
+  const confPull = impact.total * CONF_PER_POINT + (won ? 3.5 : -2) * weight;
+  const tacPull = impact.total * TAC_PER_POINT + (won ? 2.5 : -1.5) * weight;
+  // Neutral game holds 50: carry 38%/36% of prior deviation, then this game's pull.
+  src.confidence = Math.round(clamp(50 + (prevC - 50) * 0.38 + confPull, 28, 92));
+  src.tacticalStatus = Math.round(clamp(50 + (prevT - 50) * 0.36 + tacPull, 28, 92));
+  src.scoreForm = clamp(Math.round(50 + impact.scoring * 2.2), 20, 95);
+  src.passForm = clamp(Math.round(50 + impact.playmaking * 2.2), 20, 95);
+  src._formKey = key;
 
   const gameRow = {
     pts: impact.pts,
@@ -128,7 +87,8 @@ export function applyFormAfterGame(src, simPlayer, { won = false } = {}) {
     tov: stats.tov || 0,
     fgPct: impact.fgPct,
     min: impact.min,
-    note,
+    note: gameNote(impact),
+    rating: impact.total,
     won: !!won,
     confidence: src.confidence,
     tacticalStatus: src.tacticalStatus,
@@ -139,10 +99,13 @@ export function applyFormAfterGame(src, simPlayer, { won = false } = {}) {
   hist.push(gameRow);
   src.recentGames = hist.slice(-5);
 
-  // Soft minutes / role gravity for next tip-off
+  // Minutes nudge is an offset from the coach's base, replaced (not stacked) each game.
+  const prevOffset = Number(src._formMinOffset) || 0;
+  const base = (src.targetMinutes ?? 24) - prevOffset;
+  const offset = Math.round((src.tacticalStatus - 50) * MIN_PER_TAC);
+  src.targetMinutes = clamp(Math.round(base + offset), 8, 40);
+  src._formMinOffset = src.targetMinutes - base;
   const baseRole = src.roleExpectation || null;
-  const baseMin = src.targetMinutes ?? 24;
-  src.targetMinutes = clamp(Math.round(baseMin + (src.tacticalStatus - 50) * 0.14), 8, 40);
   if (src.tacticalStatus >= 78 && baseRole && baseRole !== "alpha") {
     src._formRoleBoost = "alpha";
   } else if (src.tacticalStatus >= 68 && (baseRole === "role" || baseRole === "bench" || baseRole === "sixth")) {
@@ -172,6 +135,10 @@ export function summarizeRecentForm(p) {
   const avg = (k) => games.reduce((s, g) => s + (Number(g[k]) || 0), 0) / n;
   const wins = games.filter((g) => g.won === true).length;
   const losses = games.filter((g) => g.won === false).length;
+  // Old rows (pre role-aware rating) have no `rating`; only average real ones.
+  const rated = games.filter((g) => Number.isFinite(g.rating));
+  const avgRating = rated.length ? +(rated.reduce((s, g) => s + g.rating, 0) / rated.length).toFixed(1) : null;
+  const lastNote = games[games.length - 1]?.note || "";
   return {
     games: n,
     ppg: +avg("pts").toFixed(1),
@@ -182,22 +149,27 @@ export function summarizeRecentForm(p) {
     mpg: Math.round(avg("min")),
     wins,
     losses,
-    lastNote: games[games.length - 1]?.note || "",
+    lastNote,
+    avgRating,
+    // Poor form = rated games average clearly below expectation; legacy rows fall back to the note.
+    poor: avgRating != null ? avgRating <= -4 : NEGATIVE_NOTES.includes(lastNote) || /哑火|不顺/.test(lastNote),
   };
 }
 
 /** Sync form from both sim sides onto persistent team rosters. */
 export function syncFormToTeams(sim, homeTeam, awayTeam) {
-  if (!sim) return [];
+  if (!sim || sim._formSynced) return [];
+  sim._formSynced = true;
   const notes = [];
   const hs = sim.score?.home ?? 0;
   const as = sim.score?.away ?? 0;
+  const gameKey = `${homeTeam?.name || ""}-${awayTeam?.name || ""}-${hs}-${as}`;
   const syncSide = (simTeam, srcTeam, won) => {
     if (!simTeam || !srcTeam?.players) return;
     for (const p of simTeam.roster || []) {
       const src = srcTeam.players.find((x) => x.id === p.id);
       if (!src) continue;
-      const g = applyFormAfterGame(src, p, { won });
+      const g = applyFormAfterGame(src, p, { won, gameKey });
       if (g && (g.confidence >= 68 || g.confidence <= 38 || g.note?.includes("大火") || g.note?.includes("爆发"))) {
         notes.push(`${src.name}：${g.note}（自信${g.confidence} · ${tacticalLabel(g.tacticalStatus)}）`);
       }
