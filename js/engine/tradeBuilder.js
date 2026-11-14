@@ -24,7 +24,10 @@ export { teamDraftAssets, pickValueOf };
  * salary-dump rescue: shedding 80+ salary excuses a value gap for the shedder.
  */
 function packageWorks(salOut, salIn, ovrOut, ovrIn) {
-  const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
+  // G-P1-2: one-directional band — the package may not bring back much more salary
+  // than it sends (with || this never refused anything). Taking back less is a
+  // salary dump, which the value checks price separately via their own rescues.
+  const salaryOk = salIn <= salOut * 1.25 + 40;
   const cpuOk = ovrOut + 4 >= ovrIn * 0.9 || salIn >= salOut + 80;
   const userOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80;
   return salaryOk && cpuOk && userOk;

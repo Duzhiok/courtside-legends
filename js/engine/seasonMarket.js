@@ -606,7 +606,14 @@ export function executeTrade(
   // checks, but only CPU-dangled offers (which buildProposal pre-filters to compliant
   // packages, so the bypass is a no-op for them in practice) and ledger tests ever pass
   // it; the market UI never does, so no gameplay trade can skip the checks.
-  const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
+  // G-P1-2: one-directional band — the user may not take back much more salary
+  // than they send (25% + ¤40, NBA-style). With || this never refused anything.
+  // Taking back LESS is a salary dump, a legitimate move the value check prices
+  // separately, and a picks-only offer sends no salary at all (its cap is the
+  // apron check above and valueOk below) — so neither is gated here. A symmetric
+  // && would kill both, and both are designed features (consolidation offers,
+  // picks-only offers).
+  const salaryOk = !giveIds.length || salIn <= salOut * 1.25 + 40;
   // CPU perspective (this is the CPU deciding on the user's proposal): the CPU
   // receives ovrOut/salOut and sends ovrIn/salIn, so it rejects when what it gets
   // is under 90% of what it gives — unless it sheds 80+ salary in the deal.
@@ -735,7 +742,10 @@ export function executeThreeTeamTrade(
     const salIn = inPlayers.reduce((s, p) => s + playerSalary(p), 0);
     const ovrOut = outPlayers.reduce((s, p) => s + overall(p), 0);
     const ovrIn = inPlayers.reduce((s, p) => s + overall(p), 0);
-    const salaryOk = salIn <= salOut * 1.25 + 40 || salOut <= salIn * 1.25 + 40;
+    // G-P1-2: one-directional band (see executeTrade above) — a leg may not take
+    // back much more salary than it sends; taking back less is a dump. Every leg
+    // always carries players, so no picks-only carve-out is needed here.
+    const salaryOk = salIn <= salOut * 1.25 + 40;
     const valueOk = ovrIn + 4 >= ovrOut * 0.9 || salOut >= salIn + 80;
     const needsSpace = teamPayroll(team) > SEASON_SALARY_CAP && salOut < salIn;
     if (!acceptedProposal && !salaryOk && !needsSpace) return { ok: false, reason: en ? "Salary gap too wide — they refuse (salaries must roughly match)" : "薪资差太大，对方拒绝（需大致匹配）" };

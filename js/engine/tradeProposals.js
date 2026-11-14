@@ -348,14 +348,21 @@ function buildProposal(st, { player, row, listed: isListed, pref, fromTeamId, fr
       + picks.reduce((sum, pick) => sum + pickValueOf(st, pick), 0);
     const capOk = teamPayroll(user) - givenSalary + pkgSalary <= SEASON_APRON
       && !cpuCapBlocksTrade(teamPayroll(fromTeam), givenSalary, pkgSalary);
-    const salaryOk = pkgSalary <= givenSalary * 1.25 + 40 || givenSalary <= pkgSalary * 1.25 + 40;
+    // No salary gate here, deliberately (G-P1-2): the old `||` band was vacuous, and
+    // a live band does not fit this filter — a package routinely carries more players
+    // than the target (offerPlayer + prospect vs one player), so its salary is
+    // structurally ~2x the target's and any totals band rejects legitimate offers
+    // (e.g. a hot ¤60 bench man drawing a two-player call). Salary matching is
+    // enforced where the user initiates (executeTrade / packageWorks); dangled offers
+    // are shaped by the generator around the target's OVR and guarded here by value
+    // (package within 90% of what the user gives) and cap (both clubs fit the apron).
     // User-fairness filter for dangled offers (NOT executeTrade's math): a dangled
     // offer bypasses executeTrade's value check on accept (acceptedProposal), so
     // this guarantees the user is not ripped off instead — package within 90% of
     // what the user gives. It deliberately differs in perspective from
     // executeTrade's CPU acceptance; do not "fix" it to match.
     const valueOk = pkgOvr + 4 >= givenOvr * 0.9 || givenSalary >= pkgSalary + 80;
-    return { ok: rosterOk && capOk && salaryOk && valueOk, userAfter, cpuAfter, capOk, fairOk: salaryOk && valueOk };
+    return { ok: rosterOk && capOk && valueOk, userAfter, cpuAfter, capOk, fairOk: valueOk };
   };
   for (let guard = 0; guard < 4; guard++) {
     const v = check();
