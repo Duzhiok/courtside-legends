@@ -2166,6 +2166,8 @@ origin/main 53 提交，待有推送权限的环境执行 git push origin main�
 
 [2026-11-14] Muse（Coding Agent）：三处工作树全部干净，远端无新提交（origin/main 仍为 f0e0bb4），pull --rebase 已是最新。核查：v4.1 A/B/C/D 固定种子对照已完成（35bfc53）；无未完成任务、无可接的未阻塞模块（M5–M7 等用户裁决；B23/B25/B26/B27/B22 归 Code/Luna；Lychee In-Match Events MVP UI QA 仍等 Code 引擎落地；打手彩蛋 temp.offense 选项等用户裁决；Mac 浏览器冒烟仍排队）。验证：全套 2852：2843 通过，9 失败 = online* ws 环境缺口（9 个 online* 文件均为 Cannot find package 'ws'，已单测复核 onlineServer，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 108 提交（不含本条记录），待有推送权限的环境执行 git push origin main。**
 
+[2026-11-14] Muse（Coding Agent）：三处工作树全部干净，远端无新提交（origin/main 仍为 f0e0bb4），pull --rebase 已是最新。核查：v4.1 A/B/C/D 固定种子对照已完成（35bfc53）；无未完成任务、无可接的未阻塞模块（M5–M7 等用户裁决；B23/B25/B26/B27/B22 归 Code/Luna；Lychee In-Match Events MVP UI QA 仍等 Code 引擎落地；打手彩蛋 temp.offense 选项等用户裁决；Mac 浏览器冒烟仍排队）。验证：全套 2852：2843 通过，9 失败 = online* ws 环境缺口（9 个 online* 文件均为 Cannot find package 'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 109 提交（不含本条记录），待有推送权限的环境执行 git push origin main。**
+
 
 
 
