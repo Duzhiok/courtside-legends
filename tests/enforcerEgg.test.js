@@ -21,6 +21,7 @@ import { hashSeed, seededStream } from "../js/core/seededRandom.js";
 import { GameSim } from "../js/engine/sim.js";
 import { buildSeason, driveGame, playGame, rosterCards } from "../js/reborn/season.js";
 import { createRebornState } from "../js/reborn/identity.js";
+import { rivalryReportHtml } from "../js/ui/reborn/rivalryView.js";
 
 const ROWS = JSON.parse(
   readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"),
@@ -348,4 +349,46 @@ test("playGame: rival but no enforcer on the team, no egg", async () => {
   assert.ok(!van.some((c) => (c.skills || []).includes("enforcer")), "VAN has no enforcer in 1996-97");
   const out = await rivalryGame("egg-e2e-1"); // VAN
   assert.equal(out.report.enforcerEgg, null);
+});
+
+// --- View: the egg line in the post-game rivalry report ---
+
+test("rivalryReportHtml renders the egg line (zh + en, both edges)", () => {
+  const base = { gameId: "g1", rivalry: { formed: [], met: [], missed: [] } };
+  const rattle = {
+    ...base,
+    enforcerEgg: {
+      fired: true,
+      edge: "rattle",
+      enforcer: { name: "罗德曼", nameEn: "Dennis Rodman" },
+      rival: { name: "乔丹", nameEn: "Michael Jordan" },
+    },
+  };
+  const zh = rivalryReportHtml({ report: rattle, reborn: null, lang: "zh" });
+  assert.ok(zh.includes("reborn-enforcer-egg"), "egg line has its class");
+  assert.ok(zh.includes("罗德曼") && zh.includes("乔丹"));
+  const en = rivalryReportHtml({ report: rattle, reborn: null, lang: "en" });
+  assert.ok(en.includes("Rodman") && en.includes("Jordan"));
+  const foul = { ...base, enforcerEgg: { ...rattle.enforcerEgg, edge: "foul" } };
+  assert.ok(rivalryReportHtml({ report: foul, reborn: null, lang: "zh" }).includes("犯规"));
+  assert.ok(rivalryReportHtml({ report: foul, reborn: null, lang: "en" }).includes("foul"));
+});
+
+test("rivalryReportHtml shows no egg line when the egg did not fire", () => {
+  const met = {
+    bref: "jordami01",
+    name: "乔丹",
+    nameEn: "Michael Jordan",
+    you: { pts: 20 },
+    rival: { pts: 22 },
+    won: false,
+    wins: 0,
+    losses: 1,
+  };
+  const report = { gameId: "g1", rivalry: { formed: [], met: [met], missed: [] }, enforcerEgg: null };
+  const html = rivalryReportHtml({ report, reborn: null });
+  assert.ok(html.includes("reborn-rivalry"), "section still renders");
+  assert.ok(!html.includes("reborn-enforcer-egg"), "no egg line");
+  const noField = { gameId: "g1", rivalry: { formed: [], met: [met], missed: [] } };
+  assert.ok(!rivalryReportHtml({ report: noField, reborn: null }).includes("reborn-enforcer-egg"));
 });

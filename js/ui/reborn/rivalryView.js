@@ -13,6 +13,7 @@ import {
   rivalsOnRoster,
 } from "../../reborn/rivalry.js";
 import { rosterCards } from "../../reborn/season.js";
+import { eggCopy } from "../../reborn/enforcerEgg.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 const nameOf = (r, lang) => (lang === "en" ? r.nameEn || r.name : r.name);
@@ -74,6 +75,10 @@ export function rivalryReportHtml({ report, reborn, lang = "zh" } = {}) {
   }
   for (const m of report.rivalry.met) {
     lines.push(`<p>${L(`宿敌对决 vs ${m.name}：你 ${m.you.pts} 分，他 ${m.rival.pts} 分，${m.won ? "你赢了" : "你输了"} · 现在 ${m.wins}胜${m.losses}负`, `Rivalry game vs ${m.nameEn || m.name}: you ${m.you.pts}, him ${m.rival.pts}, ${m.won ? "you won" : "you lost"} · now ${m.wins}-${m.losses}`, lang)}</p>`);
+  }
+  // Enforcer egg: one line, only when it fired tonight.
+  if (report.enforcerEgg?.fired) {
+    lines.push(`<p class="reborn-enforcer-egg">${eggCopy(report.enforcerEgg, lang)}</p>`);
   }
   for (const m of report.rivalry.missed || []) {
     const n = nameOf(m, lang);
