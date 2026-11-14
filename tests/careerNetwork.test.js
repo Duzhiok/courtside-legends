@@ -222,7 +222,6 @@ test("G analytics: the challenge's correct answer is the top value ratio, and ve
   const right = gradeAnalyticsAnswer(challenge, challenge.correctOptionId);
   assert.equal(right.correct, true);
   assert.equal(right.reputationDelta, 3);
-  const kobeRow = ROWS.find((r) => r.bref === "bryanko01" && r.season === 1997);
   const verified = verifyAnalyticsReport({ bref: "bryanko01", season: 1997, production: 31.2 }, ROWS, { years: 2 });
   assert.equal(verified.verified, true, "Kobe's production really did rise after 1997");
   assert.ok(verified.laterPeakProduction > 31.2);

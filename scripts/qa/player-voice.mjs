@@ -20,7 +20,6 @@ const browser = await chromium.launch({ executablePath: EXE });
 const out = [];
 const check = (l, ok, d = "") => out.push(`${ok ? "PASS" : "FAIL"} ${l}${d ? " — " + d : ""}`);
 const reload = async (page) => { await page.reload({ waitUntil: "domcontentloaded" }); await homeActive(page); };
-const dlgOpen = (page) => page.$eval("#pv-dialog, dialog.pv-dialog, dialog[open]", (d) => d.open).catch(() => false);
 const openVoice = async (page) => { await page.click("#btn-voice"); await page.waitForSelector("#pv-note"); };
 const counts = (page) => page.$eval("#pv-attach-count", (el) => el.textContent.replace(/\s+/g, " ").trim());
 const media = (page) => page.$$eval("#pv-media .pv-media", (els) => els.map((e) => (e.classList.contains("pv-video") ? "video" : "image")));

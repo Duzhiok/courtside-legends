@@ -92,7 +92,7 @@ for (const [w, h, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] dragging the figure rotates it`, before !== after && yaw0 === "idle");
 
   // 4. edit look: the editor opens beside / under the SAME live figure
-  const sameCanvas = await canvas.evaluate((c) => (window.__cv = c, true));
+  await canvas.evaluate((c) => (window.__cv = c, true));
   await page.click('[data-mw-action="toggle-look"]');
   await page.waitForTimeout(500);
   check(`[${tag}] editor opens and replaces the info column`, await page.$eval("#mw-look", (e) => !e.hidden) && await page.$eval(".mw-hero-info", (e) => getComputedStyle(e).display === "none"));

@@ -25,7 +25,6 @@ import {
   runTryout,
   scoutById,
   scoutEstimate,
-  scoutReports,
   validGambleState,
 } from "../js/career/gm/scoutingIntel.js";
 

@@ -21,7 +21,7 @@ import { BODY_PRESETS, readLook } from "../data/avatarLook.js";
 import { mountAvatar3d } from "./avatar3d.js";
 import { portraitFor } from "./portraitFor.js";
 import { createDuel, playPossession, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
-import { createTakeover, applyPossession, spacingByOffense, OFFENSE_LABEL, DEFENSE_LABEL } from "../duel/duelTakeover.js";
+import { createTakeover, applyPossession, spacingByOffense } from "../duel/duelTakeover.js";
 import { mountDuelCourt } from "./duelCourtView.js";
 import { duelSpriteHtml, appearanceFromLook } from "./duelSprites.js";
 import {
@@ -100,11 +100,6 @@ function photoHtml(duelist, size = 72) {
     return `<span class="duel-photo-fallback" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:#123f2a;color:#e8c15a;font-weight:700;font-size:20px;">${esc((duelist?.name || "?").slice(0, 1))}</span>`;
   }
   return `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;" onerror="this.remove()">`;
-}
-
-function duelistLine(duelist) {
-  const name = duelist.displayName || duelist.name;
-  return `${esc(name)} · ${esc(duelist.pos || "")} · OVR ${esc(duelist.ovr)}`;
 }
 
 function bodyEl() {
@@ -359,7 +354,7 @@ function finishDuel() {
   const body = bodyEl();
   if (!body || !current) return;
   destroyCourtController();
-  const { state, challenger, challengerKind, legend, legendEntry, difficulty } = current;
+  const { state, challenger, challengerKind, legend, difficulty } = current;
   const won = state.winner === "a";
   const account = getAccount();
   const { record, xp } = recordDuelResult(account, {

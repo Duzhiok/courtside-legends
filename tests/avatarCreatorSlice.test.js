@@ -70,7 +70,7 @@ test("appearance-only lock: changing build/height never touches any other accoun
   a.cardMods = { p1: { merges: 2, skills: ["s1"] } };
   acc.saveAccount(a);
   const snap = (x) => {
-    const { avatar, ...rest } = x;
+    const { avatar: _avatar, ...rest } = x;
     return rest;
   };
   const before = snap(acc.getAccount(a.id));

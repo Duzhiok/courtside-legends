@@ -210,7 +210,6 @@ export function userPickHtml({ state, gamble, lang = "zh" } = {}) {
 /** The three-year review (labelled projection throughout). */
 export function reviewHtml({ review, lang = "zh" } = {}) {
   if (!review) return "";
-  const label = L("推演", "Projection", lang);
   const gradeLine = {
     A: L("A · 你赌对了，选秀改变了球队。", "A · You called it — the draft changed the franchise."),
     B: L("B · 选秀基本合格，没有错过太多。", "B · A solid draft; little left on the table."),
@@ -404,7 +403,6 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
         }
         if (action === "neg-accept-counter") {
           if (!neg?.state?.lastCounter) return;
-          const owner = state.pickOwnership[neg.targetSlot];
           const otherPick = myPickSlots().find((s) => !neg.giveSlots.includes(s));
           if (otherPick == null) return;
           const giveSlots = [...neg.giveSlots, otherPick];

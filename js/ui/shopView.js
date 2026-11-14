@@ -8,8 +8,8 @@
  * (selected category/item, armed two-step buy, last ticket-use result).
  * All money / ownership / ticket state lives in js/data/shop.js.
  */
-import { SHOP_CATEGORIES, SHOP_ITEMS, itemsByCategory, itemById, itemName, itemDesc, kindLabel, categoryLabel } from "../data/shopCatalog.js";
-import { getShop, purchaseShopItem, equipShopItem, unequipShopItem, equippedClothingItemId, equippedFrameId, ticketBalance, autoXpRemaining, ownedItems, recentPurchases, ownedFurnitureIds } from "../data/shop.js";
+import { SHOP_CATEGORIES, itemsByCategory, itemById, itemName, itemDesc, kindLabel, categoryLabel } from "../data/shopCatalog.js";
+import { getShop, purchaseShopItem, equipShopItem, unequipShopItem, equippedClothingItemId, equippedFrameId, ticketBalance, ownedItems, recentPurchases, ownedFurnitureIds } from "../data/shop.js";
 import { lookColors } from "../data/avatarLook.js";
 import { avatarDataUri } from "../data/avatarArt.js";
 import { furnitureSvgFor, furnitureViewBox, roomPreviewSvg } from "./shopFurniture.js";

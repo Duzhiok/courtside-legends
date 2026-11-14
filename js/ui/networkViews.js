@@ -27,10 +27,9 @@ import {
 } from "../career/network/videoAnalyst.js";
 import {
   buildAnalyticsChallenge, gradeAnalyticsAnswer, findUndervalued,
-  contractValueReport,
 } from "../career/network/analyticsSpecialist.js";
 import {
-  NETWORK_ROLES, ENTRY_ROLES, emptyNetworkProfile, generateOpportunities,
+  NETWORK_ROLES, emptyNetworkProfile, generateOpportunities,
   acceptOpportunity, dismissalOutcome, recordSliceResult, reputationStanding,
 } from "../career/network/careerOpportunities.js";
 

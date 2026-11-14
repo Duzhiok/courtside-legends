@@ -13,7 +13,6 @@
 // type, not the dice.
 import { readFileSync } from "node:fs";
 import { GameSim } from "../../js/engine/sim.js";
-import { seasonToCard } from "../../js/data/players.js";
 import { createRebornState, buildPlayerCard, REBORN_TEAM_IDS } from "../../js/reborn/identity.js";
 import { rosterCards } from "../../js/reborn/season.js";
 

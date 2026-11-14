@@ -135,7 +135,7 @@ test("three qualifying games without a key game do not awaken", () => {
 });
 
 test("glass cleaner awakens on repeated rebounding plus a 14-board key game", () => {
-  const { state, fired } = play(createAwakeningState(1997), BIG, [
+  const { fired } = play(createAwakeningState(1997), BIG, [
     ev(1, { min: 18, reb: 6 }), // 12.0 / 36
     ev(2, { min: 15, reb: 5 }), // 12.0 / 36
     ev(3, { min: 24, reb: 15 }), // 22.5 / 36 + key game

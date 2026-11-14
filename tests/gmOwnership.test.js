@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  CONTROL_PREMIUM,
   DIVIDEND_PAYOUT,
   PERSONAL_CASH_UNIT_M,
   acquireControl,

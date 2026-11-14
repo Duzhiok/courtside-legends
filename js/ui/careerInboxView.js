@@ -229,7 +229,6 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
   let lastStop = null;
   let lastRun = null;
   let busy = false;
-  let starting = null; // team picker state before the demo starts
 
   function persist() {
     const root = readRootSave() || {};
@@ -330,7 +329,6 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
       });
     }
     const wins = d.results.filter((entry) => entry.won).length;
-    const losses = d.results.length - wins;
     if (d.results.length >= 3 && wins === d.results.length) {
       items.push({
         kind: "streak",
@@ -447,7 +445,6 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
       coreLog: [],
       results: [],
     };
-    starting = null;
     persist();
     // Screen once on the fresh state so week-1 facts (if any) show up.
     const screened = screenInboxEvents(slice.inbox, demoContext());

@@ -11,7 +11,7 @@
 // Usage: node scripts/qa/career-roles.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
-import { CJK, homeActive, noOverflow, shoot, text } from "./lib/page.mjs";
+import { CJK, homeActive, noOverflow, shoot } from "./lib/page.mjs";
 import { openInterview, skipInterview } from "./lib/interview.mjs";
 import { openCareer, resumeToHub } from "./lib/career.mjs";
 

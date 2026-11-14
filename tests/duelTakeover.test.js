@@ -14,7 +14,6 @@ import {
   DEFENSE_LABEL,
   OFFENSE_SPOT,
   DEFENSE_SPOT,
-  SPACING_LABEL,
   zoneAt,
   suggestedOffense,
   suggestedDefense,

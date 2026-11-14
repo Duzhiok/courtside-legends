@@ -21,7 +21,6 @@
 import {
   createDuel,
   playPossession,
-  makeProb,
   OFFENSE,
 } from "../../js/duel/duelSim.js";
 import {

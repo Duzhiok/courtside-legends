@@ -25,7 +25,6 @@
  * state on `reborn.player.awakening` (additive, optional).
  */
 import {
-  SKILL_PACKS,
   isLearnableSkill,
   canRetainSkill,
   skillSlotsFull,
@@ -132,9 +131,6 @@ export const MISSING_EVIDENCE = [
     neededEn: "The engine must record a shot type (stepback) and defensive pressure per shot; sim.js today records only shot totals, no shot types.",
   },
 ];
-
-const ruleById = (id) => AWAKENING_RULES.find((r) => r.id === id) || null;
-const ruleBySkill = (skillId) => AWAKENING_RULES.find((r) => r.skillId === skillId) || null;
 
 /**
  * Extract the awakening evidence from one playGame report. Only the fields

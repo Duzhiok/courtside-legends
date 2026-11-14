@@ -3,7 +3,6 @@
  * one collapsed <details>, two threat lines, four plan tabs, ONE selected plan at a time.
  */
 import { tacticName, TACTICS } from "../data/coaches.js";
-import { roleName } from "../myteam/playerRoleFit.js";
 import { esc } from "./myTeamViewKit.js";
 
 const KIND = { interior: ["内线威胁", "Interior threat"], perimeter: ["外线威胁", "Perimeter threat"] };

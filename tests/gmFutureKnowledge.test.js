@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   CLUE_COST,
-  LINK_DECAY,
   MEDICAL_LEVELS,
   TRENDS,
   clueReliability,

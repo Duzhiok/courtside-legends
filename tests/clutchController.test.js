@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { createClutchController, explainClutchOutcome } from "../js/engine/clutchController.js";
+import { createClutchController } from "../js/engine/clutchController.js";
 import { buildClutchSim, otherThanClutch } from "./helpers/clutchSim.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));

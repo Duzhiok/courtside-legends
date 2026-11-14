@@ -16,7 +16,7 @@ import {
   recommendRolePick,
   writeDuelFillerMode,
 } from "../js/data/customPool.js";
-import { ROLE_FAMILIES, poolRoleLine, roleFamilyOf } from "../js/data/skills.js";
+import { poolRoleLine, roleFamilyOf } from "../js/data/skills.js";
 import { drawPack } from "../js/engine/draft.js";
 import { loadSampleRoster } from "./helpers/sampleRoster.js";
 

@@ -111,7 +111,6 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
   let possessionsByTactic = {};
   let promisesWindow = null; // { startPossession, starId, starFga }
   let possessionCount = 0;
-  let finalSnapshot = null;
 
   const you = () => sim?.you?.() || sim?.home;
   const live = () => ({
@@ -552,7 +551,7 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
     finish() {
       if (state === "ended") return { ok: true, status: "ended", report: buildReport() };
       if (!sim) return { ok: false, reason: "not_started" };
-      if (sim.running && !sim.ended) finalSnapshot = sim.runFast();
+      if (sim.running && !sim.ended) sim.runFast();
       state = "ended";
       return { ok: true, status: "ended", report: buildReport() };
     },

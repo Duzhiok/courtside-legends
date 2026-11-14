@@ -217,7 +217,7 @@ export function grantPackDraws(account, count, { rng = Math.random, pool = PLAYE
     const pull = pullCard({ pool, gacha: gachaOf(account), banner, rng, ovrOf: overall });
     account.gacha = pull.gacha;
     const ovr = overall(pull.player);
-    const { outcome, souls, rollChoice } = applyPlayerPull(account, pull.player, rng, pool);
+    const { outcome, souls } = applyPlayerPull(account, pull.player, rng, pool);
     const goldGain = goldForPull(ovr);
     account.gold = (account.gold || 0) + goldGain;
     pushHistory(account, { kind: "player", id: pull.player.id, at: Date.now(), outcome, banner: banner.id, wish: pull.wishHit, source: "pack" });

@@ -20,10 +20,6 @@ function tmpFile(tag) {
 const POOL = Array.from({ length: 20 }, (_, i) => `c${i + 1}`);
 const OVR = new Map(POOL.map((id, i) => [id, 70 + i]));
 
-function fakeStore(tag) {
-  return createEconomyStore({ file: tmpFile(tag), cardIds: POOL, cardOvr: OVR });
-}
-
 test("economy store: starter career is 1000 gold + 8 cards", () => {
   const file = tmpFile("starter");
   try {
