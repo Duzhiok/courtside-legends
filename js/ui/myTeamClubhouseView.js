@@ -16,6 +16,7 @@ import { SKILL_PACKS, poolRoleLine } from "../data/skills.js";
 import { playerSlotPos } from "../engine/gameplan.js";
 import { myTeamHistory } from "./myWorldView.js";
 import { ownedCards, resolveSavedLineup, validateMyTeamLineup } from "../myteam/lineup.js";
+import { subAttrChipsHtml } from "./rotationBoard.js";
 import { recordLineup } from "../myteam/seasonRecord.js";
 import { reportHtml } from "./myTeamReportView.js";
 import { issueText } from "./myTeamLineupView.js";
@@ -154,6 +155,7 @@ function wallCardHtml(card, lang) {
     <span class="mtc-wall-name"><strong>${esc(name)}</strong><small>${esc(card.season || "")} · ${esc(card.team || "")} · ${esc(playerSlotPos(card))}</small></span>
     ${role.label ? `<span class="mtc-wall-role">${esc(role.label)}</span>` : ""}
     ${skills.length ? `<span class="mtc-wall-skills">${skills.map((n) => esc(n)).join(" · ")}</span>` : ""}
+    <div class="rot-attrs sub-attrs">${subAttrChipsHtml(card, lang)}</div>
   </li>`;
 }
 

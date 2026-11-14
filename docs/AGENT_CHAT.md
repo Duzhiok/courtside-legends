@@ -1637,3 +1637,5 @@ Not done (out of scope for this P0): real-time "opponent star enters/leaves
 -> auto-adjust" -- GameSim has no such trigger yet, deferred to v4.2 per the
 user's ruling. Season-hub matchup panel UI itself (Lychee's playoff wiring,
 `b69d56a`) untouched.
+
+[2026-11-14] Lychee：球员属性不可见（用户截图反馈，2026-11-14）：11-02 的修复（rotationBoard SUB_ATTRS + subAttrChipsHtml）只覆盖了轮换行、评估卡、卡库卡、抽卡揭示，以及完整收藏页（app.js paintCollectionGrid）；但用户截图的两处用的是另外的渲染器，从来没拿到过 chips——俱乐部收藏卡墙（myTeamClubhouseView.js wallCardHtml 自写模板）与组建阵容行（myTeamLineupView.js rowHtml）。修复：两处都补同一行 `<div class="rot-attrs sub-attrs">subAttrChipsHtml</div>`（与收藏页同款七项：控球/外防/内防/接球投/持球投/前板/后板，老卡走 deriveSubAttributes 兜底）；行内 chips 用 `.mtl-attrs { grid-column: 1 / -1; }` 跨列成第二行；样式复用 css/rotation.css 的全局 .rot-attrs，无新样式体系。测试：俱乐部墙 10/10 卡有 chips、阵容行 9/9 行有 chips；聚焦 32/32（clubhouse + lineupView + clubhouseCourt）。浏览器实测待 Mac（Muse 队列里已有 matchup-scout；本修复的视觉确认可并入同一趟）。

@@ -6,6 +6,7 @@ import { overall } from "../data/players.js";
 import { photoImg } from "../data/photo.js";
 import { MY_TEAM_RULES } from "../myteam/lineup.js";
 import { playerSlotPos } from "../engine/gameplan.js";
+import { subAttrChipsHtml } from "./rotationBoard.js";
 
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
@@ -46,6 +47,7 @@ function rowHtml(card, { inRoster, isStarter, lang }) {
       <span class="mtl-ovr">${overall(card)}</span>
     </button>
     <button type="button" class="mtl-star" data-act="starter" aria-pressed="${isStarter}" ${inRoster ? "" : "disabled"} aria-label="${esc(en ? `Starter: ${name}` : `首发：${name}`)}">${isStarter ? "★" : "☆"}</button>
+    <div class="rot-attrs sub-attrs mtl-attrs">${subAttrChipsHtml(card, lang)}</div>
   </li>`;
 }
 

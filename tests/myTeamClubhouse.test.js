@@ -96,6 +96,8 @@ test("collection wall shows real OVR and names; skill names come from the card's
   const html = view.clubhouseHtml({ summary: s, lang: "zh" });
   assert.match(html, /共 10 张球员卡/);
   assert.equal((html.match(/mtc-wall-card/g) || []).length, 10, "all ten owned cards on the wall");
+  assert.equal((html.match(/rot-attrs sub-attrs/g) || []).length, 10, "every wall card shows the seven sub-attribute chips");
+  assert.match(html, /控球/, "chip labels are the same seven sub-attributes as the collection screen");
   for (const c of s.cards.slice(0, 3)) assert.ok(html.includes(`OVR ${overall(c)}`), "OVR is the card's real overall");
   assert.deepEqual(view.cardSkillNames({ skills: ["clutch_killer", "mid_maestro", "nope"] }, "zh"), ["杀手时刻", "中投大师"]);
   assert.deepEqual(view.cardSkillNames({ skills: ["clutch_killer"] }, "en"), ["Clutch Killer"]);

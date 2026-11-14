@@ -25,6 +25,8 @@ test("the view shows roster / starter counts and the ready banner for an eligibl
   assert.match(html, /首发 <b>5<\/b>\/5/);
   assert.match(html, /这份阵容可以开赛季/);
   assert.equal((html.match(/class="mtl-row/g) || []).length, 9);
+  assert.equal((html.match(/rot-attrs sub-attrs mtl-attrs/g) || []).length, 9, "every builder row shows the seven sub-attribute chips");
+  assert.match(html, /控球/, "chip labels are the same seven sub-attributes as the collection screen");
 });
 
 test("an incomplete lineup says what is missing and still offers Save once edited", () => {
