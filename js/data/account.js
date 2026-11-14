@@ -9,7 +9,7 @@ import { MERGE_ATTR_KEYS, SKILL_PACKS } from "./skills.js";
 import { applyHiddenRoll, legacyRollSeed } from "./cardRoll.js";
 import { MAX_STARS } from "./gacha.js";
 import { applyGrowth } from "./growthPaths.js";
-import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY as ACTIVE_KEY } from "./accountKeys.js";
+import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY as ACTIVE_KEY, CORRUPT_ACCOUNTS_KEY } from "./accountKeys.js";
 import { rand } from "../core/rng.js";
 
 const STORE_KEY = ACCOUNTS_KEY;
@@ -30,16 +30,70 @@ function uid() {
   return `acc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function loadStore() {
+/**
+ * D-P1-2: a corrupt store is quarantined, never mistaken for an empty one. The raw bytes are
+ * preserved under CORRUPT_ACCOUNTS_KEY so no later write can overwrite the only copy of every
+ * account's cards/gold/progress. Best effort only: if even the backup write fails (quota),
+ * the corrupt flag below still stops the overwrite.
+ */
+function quarantineCorruptStore(raw) {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return { accounts: [] };
+    localStorage.setItem(CORRUPT_ACCOUNTS_KEY, raw);
+  } catch (err) {
+    console.error("[account] could not back up the corrupt account store", err);
+  }
+}
+
+function loadStore() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(STORE_KEY);
+  } catch {
+    return { accounts: [] }; // storage unreadable: behave as empty, quarantine nothing (nothing was read)
+  }
+  if (!raw) return { accounts: [] };
+  try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed.accounts)) return { accounts: [] };
+    if (!Array.isArray(parsed.accounts)) {
+      quarantineCorruptStore(raw);
+      return { accounts: [], corrupt: true };
+    }
     return parsed;
   } catch {
-    return { accounts: [] };
+    quarantineCorruptStore(raw);
+    return { accounts: [], corrupt: true };
   }
+}
+
+/** D-P1-2: is the on-disk account store unreadable right now? (A missing store is not corrupt.) */
+export function isAccountStoreCorrupt() {
+  return loadStore().corrupt === true;
+}
+
+/** The quarantined raw bytes of the corrupt store, for export/repair — null when there is no backup. */
+export function getCorruptAccountsBackup() {
+  try {
+    return localStorage.getItem(CORRUPT_ACCOUNTS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Discard a corrupt store so the player can start fresh. Refuses when the store is healthy
+ * (this must never become a way to delete good accounts), and deliberately keeps the
+ * quarantined backup: it only removes the damaged live key, never the only surviving copy.
+ */
+export function discardCorruptAccountStore() {
+  if (!isAccountStoreCorrupt()) return false;
+  try {
+    localStorage.removeItem(STORE_KEY);
+  } catch (err) {
+    console.error("[account] discardCorruptAccountStore failed", err);
+    return false;
+  }
+  setActiveAccountId(null);
+  return true;
 }
 
 /**
@@ -105,6 +159,18 @@ export function getAccount(id = getActiveAccountId()) {
 
 export function saveAccount(account) {
   const store = loadStore();
+  if (store.corrupt) {
+    // D-P1-2: never overwrite a corrupt store with an (empty) one — that would permanently
+    // erase every account. The raw bytes are quarantined under CORRUPT_ACCOUNTS_KEY; the
+    // account screen tells the player and offers export + a fresh start. The return contract
+    // (always the account object, never throws) is unchanged: the caller cannot persist.
+    console.error(
+      "[account] refusing to save: the account store is corrupt; the raw bytes are preserved under "
+        + CORRUPT_ACCOUNTS_KEY
+        + " — export the backup before discarding the damaged store",
+    );
+    return account;
+  }
   const i = store.accounts.findIndex((a) => a.id === account.id);
   if (i >= 0) store.accounts[i] = account;
   else store.accounts.push(account);
@@ -138,6 +204,12 @@ export function createAccount(name) {
 
 export function deleteAccount(id) {
   const store = loadStore();
+  if (store.corrupt) {
+    // D-P1-2: same as saveAccount — deleting from a corrupt store would write an empty
+    // store over the only copy of every account. Refuse; the account screen offers repair.
+    console.error("[account] refusing to delete from a corrupt account store; the raw bytes are preserved under " + CORRUPT_ACCOUNTS_KEY);
+    return;
+  }
   store.accounts = store.accounts.filter((a) => a.id !== id);
   saveStore(store);
   if (getActiveAccountId() === id) setActiveAccountId(store.accounts[0]?.id || null);

@@ -4,9 +4,12 @@ import {
   coachRecordLabel,
   createAccount,
   deleteAccount,
+  discardCorruptAccountStore,
   finalizeOnboarding,
   getAccount,
   getActiveAccountId,
+  getCorruptAccountsBackup,
+  isAccountStoreCorrupt,
   listAccounts,
   recordRankedResult,
   resolveCoach,
@@ -812,6 +815,19 @@ function downloadLongCareerExport(root) {
   const link = document.createElement("a");
   link.href = url;
   link.download = "courtside-legends-save.json";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** D-P1-2: download the quarantined raw bytes of a corrupt account store, so the player keeps a copy. */
+function downloadCorruptAccountsBackup() {
+  const backup = getCorruptAccountsBackup();
+  if (!backup) return;
+  const blob = new Blob([backup], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "courtside-legends-accounts-corrupt-backup.json";
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -2589,6 +2605,28 @@ function renderAccountList() {
   if (!box) return;
   const list = listAccounts();
   const activeId = getActiveAccountId();
+  if (isAccountStoreCorrupt()) {
+    // D-P1-2: the store is damaged, so listAccounts() is empty — but that is not "no
+    // accounts yet". Offer the export + fresh-start path instead of the create prompt
+    // (creating an account right now could not persist anyway: saveAccount refuses).
+    box.innerHTML = `<p class="tiny">${L(
+      "账号数据已损坏，原始数据已自动备份，未被覆盖。建议先下载备份，再删除损坏的账号库重新开始。",
+      "Your account data is damaged; the original bytes were automatically backed up and not overwritten. Download the backup first, then discard the damaged store to start fresh.",
+    )}</p>
+      <div class="btn-row">
+        <button type="button" class="btn small" id="btn-corrupt-accounts-download">${L("下载备份", "Download backup")}</button>
+        <button type="button" class="btn small ghost" id="btn-corrupt-accounts-discard">${L("删除损坏的账号库", "Discard damaged store")}</button>
+      </div>`;
+    box.querySelector("#btn-corrupt-accounts-download").onclick = downloadCorruptAccountsBackup;
+    box.querySelector("#btn-corrupt-accounts-discard").onclick = () => {
+      if (!confirm(L("删除损坏的账号库并重新开始？备份仍保留在浏览器中，不会被删除。", "Discard the damaged account store and start fresh? The backup stays in the browser and is not deleted."))) return;
+      if (discardCorruptAccountStore()) {
+        renderAccountList();
+        refreshAccountHomeBar();
+      }
+    };
+    return;
+  }
   if (!list.length) {
     box.innerHTML = `<p class="tiny">${L("还没有账号。上方输入昵称创建，开局抽 5 张卡再选教练。", "No account yet. Enter a nickname above to create one — you'll draw 5 opening cards, then pick a coach.")}</p>`;
     return;
@@ -2692,6 +2730,12 @@ $("#btn-collection-draw")?.addEventListener("click", () => openDailyDraw());
 $("#btn-collection-ranked")?.addEventListener("click", () => startRankedMatch());
 
 $("#btn-account-create")?.addEventListener("click", () => {
+  // D-P1-2: an account created over a corrupt store could not persist (saveAccount
+  // refuses), so stop here with an explanation instead of a silently lost account.
+  if (isAccountStoreCorrupt()) {
+    alert(L("账号数据已损坏，暂时无法创建新账号。请先在账号列表处下载备份并删除损坏的账号库。", "Account data is damaged, so no new account can be created right now. Download the backup from the account list and discard the damaged store first."));
+    return;
+  }
   const name = $("#account-new-name")?.value || "";
   const acc = createAccount(name);
   forgetOtherAccountsProgress();
@@ -12822,6 +12866,17 @@ async function boot() {
     }
     state.longCareerRoot = discovered;
     stampLegacySaves({ career: discovered, session: peekSave(), season: hasSeasonSave() ? rawSeasonSave() : null, myteam: readMyTeamSeason() }); // pre-ownership saves stay unassociated
+    // D-P1-2: a corrupt account store is quarantined, never overwritten — but the player
+    // would otherwise just see an empty guest bar with no explanation. Tell them now, before
+    // any write attempt, and point at the account screen where the backup can be downloaded
+    // or the damaged store discarded. (Same one-alert-per-boot pattern as the migration
+    // failure above: the damage persists until the player acts on it.)
+    if (isAccountStoreCorrupt()) {
+      alert(L(
+        "账号数据已损坏，原始数据已自动备份，未被覆盖。损坏期间账号写入会被拒绝，数据不会丢失。请前往「账号」页下载备份，或删除损坏的账号库重新开始。",
+        "Your account data is damaged; the original bytes were automatically backed up and not overwritten. Account writes are refused while it stays damaged, so nothing is lost. Go to the Accounts page to download the backup or discard the damaged store and start fresh.",
+      ));
+    }
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
     // Player Reborn dev entry: ?reborn=1 opens the slice after boot.
