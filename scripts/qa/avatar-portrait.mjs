@@ -81,11 +81,11 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const shot = await avatarSrc(page);
   check(`[${tag}] 3D picture replaces the preset (JPEG data URL)`, shot.startsWith("data:image/jpeg;base64,"));
   const info = await inspect(shot, [0x1f, 0x6b, 0x45]);
-  check(`[${tag}] 3D picture is 128px and actually contains the figure`, info.w === 128 && info.h === 128 && info.share > 0.15 && info.share < 0.97, JSON.stringify(info));
+  check(`[${tag}] 3D picture is 256px and actually contains the figure`, info.w === 256 && info.h === 256 && info.share > 0.15 && info.share < 0.97, JSON.stringify(info));
   check(`[${tag}] capture is quick`, tCapture < 1500, `${tCapture}ms`);
   check(`[${tag}] picture is small enough to store`, shot.length < 40000, `${shot.length} chars`);
   check(`[${tag}] home bar shows the 3D picture too`, (await barSrc(page)) === shot);
-  check(`[${tag}] the on-screen 3D figure is intact after capture (canvas visible, not 128px)`, await page.$eval("#mw-showcase-stage canvas", (c) => c.getBoundingClientRect().width > 100 && c.getBoundingClientRect().height > 100));
+  check(`[${tag}] the on-screen 3D figure is intact after capture (canvas visible, not 256px)`, await page.$eval("#mw-showcase-stage canvas", (c) => c.getBoundingClientRect().width > 100 && c.getBoundingClientRect().height > 100));
   check(`[${tag}] button shows the pressed state (attribute AND label)`, (await page.getAttribute('[data-mw-action="use-3d-portrait"]', "aria-pressed")) === "true" && /✓/.test(await page.textContent('[data-mw-action="use-3d-portrait"]')));
   await page.click('.mw-portrait-opt:has(input[value="p1"])');
   check(`[${tag}] picking a preset un-presses the 3D button and restores its label`, (await page.getAttribute('[data-mw-action="use-3d-portrait"]', "aria-pressed")) === "false" && !/✓/.test(await page.textContent('[data-mw-action="use-3d-portrait"]')));

@@ -3,7 +3,8 @@
  * Three.js is loaded with a dynamic import() the first time a viewer mounts, so no other screen pays for it.
  * Any failure (no WebGL, 404, timeout) rejects; the caller keeps showing its static avatar.
  */
-import { avatarModelFile, bodyBoneScales, lookColors, sanitizeLook } from "../data/avatarLook.js";
+import { avatarModelFile, bodyBoneScales, lookColors, portraitFraming, sanitizeLook } from "../data/avatarLook.js";
+import { addAvatarLights } from "./avatarLighting.js";
 import { AVATAR_ACTIONS, findActionClip, findExitClip, holdsPose } from "./avatarActions.js";
 import { createStage } from "./avatarStage.js";
 
@@ -16,17 +17,19 @@ export const avatarModelUrl = (look) => new URL(`../../assets/avatar3d/${avatarM
  */
 export const boneKey = (name) => String(name).replace(/\s/g, "_").replace(/[[\].:/]/g, "");
 export const LOAD_TIMEOUT_MS = 6000;
-export const PORTRAIT_PX = 128;
+export const PORTRAIT_PX = 256;
 
 export { AVATAR_ACTIONS, findActionClip } from "./avatarActions.js";
-// Head-and-shoulders framing as fractions of the model height (the figure is centred on the pivot).
-const PORTRAIT_HEAD_DOWN = 0.085; // head centre, measured down from the top of the model
-const PORTRAIT_FRAME = 0.27;      // visible height of the frame
 const DRAG_RADIANS_PER_PX = 0.012;
 export const DEFAULT_YAW = -0.5;     // three-quarter turn toward the ball hand; drag still spins freely
 const STAGE_PAD = 1.3;                // wider margin when the showcase platform is on, so its rim is not cropped
 const FRAME_PAD = 1.16;               // camera distance as a multiple of "model height fills the view"
 const ZOOM_LERP = 4;                 // 1/s: how fast the camera eases between idle framing and an action's framing
+
+/** Light rig: "classic" unless the page is opened with ?avatarLight=studio (before/after review, not a launch). */
+const defaultLighting = () => {
+  try { return new URLSearchParams(globalThis.location?.search || "").get("avatarLight") === "studio" ? "studio" : "classic"; } catch { return "classic"; }
+};
 
 /** True when the browser can create a WebGL context at all (checked on a throwaway canvas). */
 export function webglAvailable(doc = document) {
@@ -90,7 +93,7 @@ function fitCamera(T, camera, model, pad = FRAME_PAD) {
  * Mount a rotatable idle avatar in `container` (it must have a size). Resolves with a handle once the first
  * frame is drawn; rejects (after cleaning up) if anything fails or takes longer than `timeoutMs`.
  */
-export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TIMEOUT_MS, look, stage = false } = {}) {
+export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TIMEOUT_MS, look, stage = false, lighting = defaultLighting() } = {}) {
   if (!webglAvailable(container.ownerDocument)) throw new Error("WebGL unavailable");
   const T = await withTimeout(import(LIB_URL), timeoutMs, "3D library");
   const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
@@ -115,16 +118,8 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
   try {
     const scene = new T.Scene();
     const camera = new T.PerspectiveCamera(28, 1, 0.1, 100);
-    // Three-point light: a warm key high and in front (so the face and eyes read), a cool fill from the other side to lift
-    // the shadow, a rim from behind for the silhouette, and a sky/ground hemisphere so no surface goes flat black.
-    scene.add(new T.HemisphereLight(0xdfe9ff, 0x8a7766, 0.9));
-    const key = new T.DirectionalLight(0xfff1de, 2.6);
-    key.position.set(-2.2, 3.6, 4.2);
-    const fill = new T.DirectionalLight(0xdbe8ff, 1.0);
-    fill.position.set(3.2, 1.4, 3.0);
-    const rim = new T.DirectionalLight(0xffffff, 1.6);
-    rim.position.set(1.5, 3.0, -3.5);
-    scene.add(key, fill, rim);
+    // Light rig: see avatarLighting.js (classic three-point by default; "studio" modes are the before/after experiment).
+    addAvatarLights(T, scene, renderer, lighting);
     if (stage) { floor = createStage(T); scene.add(floor.group); }
 
     renderer.outputColorSpace = T.SRGBColorSpace;
@@ -354,8 +349,9 @@ export async function mountAvatar3d(container, { src = null, timeoutMs = LOAD_TI
       if (floor) floor.group.visible = false;       // a profile picture is the head, not the platform
       try {
         const height = state.height * (state.heightScale || 1); // the body preset's overall scale moves the head
-        const headY = height / 2 - height * PORTRAIT_HEAD_DOWN;
-        const dist = (height * PORTRAIT_FRAME) / 2 / Math.tan((camera.fov * Math.PI) / 360);
+        const framing = portraitFraming(state.look.figure); // per figure: a Bobblehead's head is half its height
+        const headY = height / 2 - height * framing.headDown;
+        const dist = (height * framing.frame) / 2 / Math.tan((camera.fov * Math.PI) / 360);
         state.pivot.rotation.y = 0;
         camera.aspect = 1;
         camera.position.set(0, headY, dist);

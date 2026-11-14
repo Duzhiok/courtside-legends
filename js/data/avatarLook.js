@@ -105,6 +105,18 @@ export function bodyBoneScales(presetId, figureId = "stylized") {
 }
 
 /**
+ * Head-and-shoulders framing of the profile-picture capture, per figure, as fractions of the model height:
+ * `headDown` = head centre measured down from the top, `frame` = visible height of the shot. Stylized has a small
+ * head on a tall body; the Bobblehead's head is about half its height, so it needs its own numbers (sharing the
+ * Stylized ones framed only its scalp).
+ */
+export const PORTRAIT_FRAMING = Object.freeze({
+  stylized: Object.freeze({ headDown: 0.075, frame: 0.21 }),
+  bobblehead: Object.freeze({ headDown: 0.245, frame: 0.62 }),
+});
+export const portraitFraming = (figure) => PORTRAIT_FRAMING[figure] || PORTRAIT_FRAMING.stylized;
+
+/**
  * Garment cut of the Stylized figure. Each cut is its own modelled outfit (different meshes, not a recolour), built by
  * scripts/avatar/build_stylized.py into assets/avatar3d/stylized_<id>.glb. The colours still come from OUTFITS.
  */

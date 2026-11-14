@@ -120,7 +120,7 @@ for (const [w, h, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]]) {
   const avatar = await page.$eval(".mw-hero .mw-avatar", (i) => i.src);
   check(`[${tag}] "use my 3D look" captures a real JPEG portrait`, avatar.startsWith("data:image/jpeg"), avatar.slice(0, 22));
   const portraitShot = await page.$eval(".mw-hero .mw-avatar", (i) => i.naturalWidth);
-  check(`[${tag}] captured portrait is the head, platform hidden (128px square)`, portraitShot === 128);
+  check(`[${tag}] captured portrait is the head, platform hidden (256px square)`, portraitShot === 256);
 
   // 6. Done closes the editor; the way back to an illustration lives in the identity column
   await page.click('[data-mw-action="close-look"]');
