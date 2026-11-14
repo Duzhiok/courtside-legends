@@ -198,7 +198,7 @@ test("uncurated skills still respect athletic thresholds", () => {
 test("大虫 is Rodman's nickname, not a skill", () => {
   assert.equal(SKILL_PACKS.the_worm, undefined);
   const rodman = assignSkillPacks(athlete("rodmade01", "Dennis Rodman"));
-  assert.deepEqual(rodman.skills.sort(), ["lockdown", "rebound_maniac", "stamina_monster"]);
+  assert.deepEqual(rodman.skills.sort(), ["enforcer", "lockdown", "rebound_maniac", "stamina_monster"]);
 });
 
 test("篮板痴汉 triggers far more often in a blue-collar second-chance role", () => {

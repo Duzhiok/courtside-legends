@@ -1544,6 +1544,17 @@ export const TRAIT_SKILLS = {
   bellra01: ["sticky_wrap", "lockdown"],
   // Kendrick Perkins / enforcer bigs
   perkike01: ["enforcer", "rim_protector"],
+  // 1996-97 打手四人组（宿敌打手彩蛋需要 1996-97 池子里有打手——此前 423 人里一个都没有，
+  // 启发式门槛力量 ≥86 对那个年代的角色球员几乎够不着）。四人都是联盟公认的硬汉/搅局者。
+  // Dennis Rodman — 公牛篮板痴汉 + 场上搅局者；招牌三件套在 SIGNATURE_SKILLS 里，这里只补 enforcer
+  rodmade01: ["enforcer"],
+  // Charles Oakley — 尼克斯硬汉；motor_engine/crash_board 是他原来的角色层技能，显式保留
+  // （进了显式名单后角色层推导不再跑，不写出来就丢了）
+  oaklech01: ["enforcer", "motor_engine", "crash_board"],
+  // Anthony Mason — 夏洛特壮汉，低位肉搏
+  masonan01: ["enforcer"],
+  // Rick Mahorn — 坏小子队原装打手（上面 Isiah 条目注释里说的"马霍金"就是他）
+  mahorri01: ["enforcer"],
   // Rasheed Wallace — technicals
   wallara01: ["hothead", "mid_maestro", "lockdown"],
   // Draymond temper lite
