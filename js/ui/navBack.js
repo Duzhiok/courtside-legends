@@ -29,6 +29,7 @@ export const STATIC_BACK_TARGETS = {
   tournament: "home",
   timeTravel: "home",
   clutch: "home",
+  halfCourt: "home",
 };
 
 /** Screens whose parent comes from the nav stack (entry-dependent). */

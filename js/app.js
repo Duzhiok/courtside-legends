@@ -34,6 +34,7 @@ import { playerLegacyBadge } from "./data/playerLegacy.js";
 import { careerPhaseLabelL, playerCardHtml } from "./ui/playerCard.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
+import { createHalfCourtScreen } from "./ui/halfCourtView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { buySkillOffer } from "./engine/skillShopPurchase.js";
 import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
@@ -517,6 +518,7 @@ const screens = {
   clutchPlay: $("#screen-clutch-play"),
   clutchResult: $("#screen-clutch-result"),
   clutch3d: $("#screen-clutch-3d"),
+  halfCourt: $("#screen-halfcourt"),
 };
 
 /**
@@ -1752,6 +1754,13 @@ function startMode(mode) {
     openClutchChallenge();
     return;
   }
+  if (mode === "halfcourt") {
+    // Custom 3v3 half-court: standalone like clutch — not a catalog mode, not resumable, no save,
+    // no rewards; lastMode / career / tournament state are left alone.
+    state.mode = "halfcourt";
+    openHalfCourt();
+    return;
+  }
   state.mode = mode;
   state.lastMode = mode;
   state.career = null;
@@ -1818,6 +1827,27 @@ function openSandbox() {
   show("sandbox");
 }
 $("#btn-sandbox-back")?.addEventListener("click", () => goBack());
+
+// —— Custom 3v3 Half-Court (js/ui/halfCourtView.js; engine js/modes/halfCourt3v3.js) ——
+const halfCourtScreen = screens.halfCourt
+  ? createHalfCourtScreen({
+    root: screens.halfCourt,
+    pool: () => PLAYERS,
+    ovrOf: overall,
+    esc,
+    getLang,
+    onBack: () => goBack(),
+  })
+  : null;
+function openHalfCourt() {
+  halfCourtScreen?.open();
+  show("halfCourt");
+}
+$("#btn-halfcourt-entry")?.addEventListener("click", () => startMode("halfcourt"));
+$("#btn-halfcourt-back")?.addEventListener("click", () => {
+  halfCourtScreen?.dispose();
+  goBack();
+});
 
 // —— M2b-2 Clutch Challenge ——
 // Guest-accessible: no account gate anywhere in this flow. One scenario only
@@ -12456,6 +12486,7 @@ async function boot() {
       setLang(nextLang);
       // Sandbox is mount-once: re-render its language chrome in place (picks stay).
       screens.sandbox?.__sandboxSetLang?.(nextLang);
+      halfCourtScreen?.setLang(nextLang);
       applyStaticLang();
       relocalizeShellScreens(screens); // screens built on the Screen Shell re-render their own language
       timeTravelScreen.repaint();

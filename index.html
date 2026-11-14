@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="css/liveGoals.css?v=1" />
   <link rel="stylesheet" href="css/radio.css?v=1" />
   <link rel="stylesheet" href="css/duel.css?v=1" />
+  <link rel="stylesheet" href="css/halfCourt.css?v=1" />
   <link rel="stylesheet" href="css/shop.css?v=1" />
   <link rel="stylesheet" href="css/draftGamble.css?v=1" />
   <link rel="stylesheet" href="css/network.css?v=1" />
@@ -240,6 +241,11 @@
               <strong>时空对决</strong>
               <span>搜索任意球员任意年份组队：五个乔丹 vs 五个科比也行 · 可开跨时代平衡</span>
             </button>
+            <button class="mode-card" id="btn-halfcourt-entry" type="button">
+              <small class="mode-tag">3v3 · 半场</small>
+              <strong>3v3 半场</strong>
+              <span>双方各选 3 人：21 分制、领先 2 分获胜，弧内 1 分、弧外 2 分，12 秒进攻，自动模拟</span>
+            </button>
             <button class="mode-card" data-mode="quick" data-legend="westbru01:2016">
               <strong>自动配队</strong>
               <span>系统自动组两队，先进赛前设置再开打</span>
@@ -352,6 +358,31 @@
       </div>
       <p class="tiny">自由度拉满：任意球员、任意年份、可以重复。五个 1991 乔丹 vs 五个 2006 科比？点「×5」就行。这是唯一允许同一球员重复上场的模式；结果不影响账号和存档。</p>
       <div data-sandbox-body></div>
+    </main>
+
+    <main id="screen-halfcourt" class="screen">
+      <div class="panel-head">
+        <button class="nav-back" id="btn-halfcourt-back"><span>返回</span></button>
+        <h2>3v3 半场</h2>
+      </div>
+      <section data-hc-panel="pick">
+        <p class="tiny">双方各选 3 名球员（每队同一球员只能选一次）。先到 21 分且领先 2 分获胜；弧内 1 分、弧外 2 分；12 秒进攻；防守篮板或抢断后要先清球到弧外。比赛由真实比赛引擎模拟，结果不影响账号和存档。</p>
+        <div data-hc-picker><div data-sandbox-body></div></div>
+      </section>
+      <section data-hc-panel="play" hidden>
+        <div class="hc-stage" data-hc-stage></div>
+        <div class="actions">
+          <button type="button" class="btn" data-hc-action="skip">跳到结果</button>
+        </div>
+      </section>
+      <section data-hc-panel="result" hidden>
+        <div data-hc-result-body></div>
+        <div class="actions">
+          <button type="button" class="btn primary" data-hc-action="retry">再来一场</button>
+          <button type="button" class="btn" data-hc-action="repick">重新选人</button>
+          <button type="button" class="btn" data-hc-action="back">返回主页</button>
+        </div>
+      </section>
     </main>
 
     <main id="screen-clutch" class="screen">

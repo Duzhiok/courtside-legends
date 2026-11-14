@@ -50,6 +50,7 @@ const SCREEN_IDS = {
   clutchPlay: "screen-clutch-play",
   clutchResult: "screen-clutch-result",
   clutch3d: "screen-clutch-3d",
+  halfCourt: "screen-halfcourt",
 };
 
 /** Markup chunk of one screen: from its <main> to the next <main> (or EOF). */

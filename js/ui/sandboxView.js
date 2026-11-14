@@ -17,9 +17,12 @@ const RESULT_LIMIT = 12;
 /** Keeps duplicate ids unique across both teams (Jordan can be on both sides). */
 const SLOT_OFFSET = { A: 0, B: 100 };
 
-function sideTemplate(side, lang = "zh") {
+const defaultTeamName = (side, lang) => (lang === "en" ? `Time Team ${side}` : `时空队 ${side}`);
+const defaultStartLabel = (lang) => (lang === "en" ? "Tip Off · Time Duel" : "开打 · 时空对决");
+
+function sideTemplate(side, lang = "zh", teamNameOf = defaultTeamName) {
   const en = lang === "en";
-  const teamName = side === "A" ? (en ? "Time Team A" : "时空队 A") : en ? "Time Team B" : "时空队 B";
+  const teamName = teamNameOf(side, lang);
   return `<section class="sandbox-side" data-side="${side}" aria-label="${en ? `Team ${side}` : `${side} 队`}">
       <input class="sandbox-name" data-name="${side}" value="${teamName}" aria-label="${en ? `Team ${side} name` : `${side} 队队名`}" maxlength="20" />
       <div class="search-wrap">
@@ -32,7 +35,23 @@ function sideTemplate(side, lang = "zh") {
     </section>`;
 }
 
-export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
+/**
+ * Options beyond the sandbox defaults let other free modes reuse this picker (3v3 half-court:
+ * `min: 3, max: 3, unique: true`, its own team names and start label). Defaults are unchanged.
+ */
+export function mountSandbox({
+  root,
+  pool,
+  ovrOf,
+  esc,
+  onStart,
+  lang = "zh",
+  min = SANDBOX_MIN,
+  max = SANDBOX_MAX,
+  unique = false,
+  teamName: teamNameOf = defaultTeamName,
+  startLabel = defaultStartLabel,
+}) {
   if (root.dataset.mounted) return;
   root.dataset.mounted = "1";
   let currentLang = lang;
@@ -40,9 +59,9 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
   const found = { A: [], B: [] };
   root.querySelector("[data-sandbox-body]").innerHTML = `
     <label class="tiny sandbox-option"><input type="checkbox" data-parity checked /> ${lang === "en" ? "Cross-era balance (fills in blocks / steals / threes missing from old-era stats)" : "跨时代平衡（补齐老年代没统计的盖帽 / 抢断 / 三分）"}</label>
-    <div class="sandbox-sides">${SIDES.map((s) => sideTemplate(s, lang)).join("")}</div>
+    <div class="sandbox-sides">${SIDES.map((s) => sideTemplate(s, lang, teamNameOf)).join("")}</div>
     <p class="tiny sandbox-error" role="alert" data-error></p>
-    <div class="actions sandbox-start"><button type="button" class="btn primary" data-start>${lang === "en" ? "Tip Off · Time Duel" : "开打 · 时空对决"}</button></div>`;
+    <div class="actions sandbox-start"><button type="button" class="btn primary" data-start>${startLabel(lang)}</button></div>`;
 
   const q = (selector) => root.querySelector(selector);
   const cardLine = (card) => `${esc(card.name)} · ${card.season} · ${esc(card.team)} · ${card.pos} · OVR ${ovrOf(card)}`;
@@ -53,7 +72,7 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
           <span>${cardLine(card)}</span>
           <span class="btn-row">
             <button type="button" class="btn small" data-add="${side}:${i}">+1</button>
-            <button type="button" class="btn small ghost" data-fill="${side}:${i}" title="${currentLang === "en" ? `Fill the whole team with ${SANDBOX_MIN} copies of them` : `整队换成 ${SANDBOX_MIN} 个他`}">×${SANDBOX_MIN}</button>
+            ${unique ? "" : `<button type="button" class="btn small ghost" data-fill="${side}:${i}" title="${currentLang === "en" ? `Fill the whole team with ${min} copies of them` : `整队换成 ${min} 个他`}">×${min}</button>`}
           </span>
         </div>`)
       .join("");
@@ -71,13 +90,13 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
   }
 
   function renderRoster(side) {
-    q(`[data-count="${side}"]`).textContent = currentLang === "en" ? `Picked ${picks[side].length}/${SANDBOX_MAX} (min ${SANDBOX_MIN})` : `已选 ${picks[side].length}/${SANDBOX_MAX}（至少 ${SANDBOX_MIN}）`;
+    q(`[data-count="${side}"]`).textContent = currentLang === "en" ? `Picked ${picks[side].length}/${max} (min ${min})` : `已选 ${picks[side].length}/${max}（至少 ${min}）`;
     q(`[data-roster="${side}"]`).innerHTML = groupedRows(side)
       .map(({ card, first, count }) => `<li><span>${cardLine(card)}</span>
           <span class="sandbox-qty">
             <button type="button" class="btn small ghost" data-remove="${side}:${first}" aria-label="${currentLang === "en" ? `One fewer ${esc(card.name)}` : `少一个 ${esc(card.name)}`}">−</button>
             <strong aria-label="${currentLang === "en" ? `${count} copies` : `${count} 个`}">×${count}</strong>
-            <button type="button" class="btn small ghost" data-more="${side}:${first}" aria-label="${currentLang === "en" ? `One more ${esc(card.name)}` : `多一个 ${esc(card.name)}`}">+</button>
+            ${unique ? "" : `<button type="button" class="btn small ghost" data-more="${side}:${first}" aria-label="${currentLang === "en" ? `One more ${esc(card.name)}` : `多一个 ${esc(card.name)}`}">+</button>`}
             <button type="button" class="btn small ghost sandbox-remove-all" data-remove-all="${side}:${first}" aria-label="${currentLang === "en" ? `Remove all ${esc(card.name)}` : `一键移除全部 ${esc(card.name)}`}" title="${currentLang === "en" ? `Remove this player entirely (all ${count})` : `一键移除这名球员（全部 ${count} 个）`}">✕</button>
           </span></li>`)
       .join("");
@@ -116,7 +135,7 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
       if (button.dataset.start != null) {
         const options = { eraParity: q("[data-parity]").checked, pool: pool() };
         const [teamA, teamB] = SIDES.map((side) =>
-          buildSandboxTeam(q(`[data-name="${side}"]`).value.trim() || (currentLang === "en" ? `Time Team ${side}` : `时空队 ${side}`), picks[side], { ...options, slotOffset: SLOT_OFFSET[side] })
+          buildSandboxTeam(q(`[data-name="${side}"]`).value.trim() || teamNameOf(side, currentLang), picks[side], { ...options, slotOffset: SLOT_OFFSET[side], min, max })
         );
         onStart(teamA, teamB);
         return;
@@ -130,9 +149,10 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
         return;
       }
       const [side, index] = (button.dataset.add || button.dataset.fill || button.dataset.remove || button.dataset.more).split(":");
-      if (button.dataset.add) picks[side] = addToSide(picks[side], found[side][index]);
-      else if (button.dataset.fill) picks[side] = fillWithCopies(found[side][index]);
-      else if (button.dataset.more) picks[side] = addToSide(picks[side], picks[side][Number(index)]);
+      const limits = { max, unique };
+      if (button.dataset.add) picks[side] = addToSide(picks[side], found[side][index], limits);
+      else if (button.dataset.fill) picks[side] = fillWithCopies(found[side][index], min);
+      else if (button.dataset.more) picks[side] = addToSide(picks[side], picks[side][Number(index)], limits);
       else picks[side] = removeFromSide(picks[side], Number(index));
       renderRoster(side);
     } catch (error) {
@@ -152,13 +172,13 @@ export function mountSandbox({ root, pool, ovrOf, esc, onStart, lang = "zh" }) {
       });
     }
     const startBtn = q("[data-start]");
-    if (startBtn) startBtn.textContent = en ? "Tip Off · Time Duel" : "开打 · 时空对决";
+    if (startBtn) startBtn.textContent = startLabel(nextLang);
     for (const side of SIDES) {
       const section = q(`[data-side="${side}"]`);
       if (section) section.setAttribute("aria-label", en ? `Team ${side}` : `${side} 队`);
       const nameInput = q(`[data-name="${side}"]`);
-      const prevDefault = prevLang === "en" ? `Time Team ${side}` : `时空队 ${side}`;
-      if (nameInput && nameInput.value === prevDefault) nameInput.value = en ? `Time Team ${side}` : `时空队 ${side}`;
+      const prevDefault = teamNameOf(side, prevLang);
+      if (nameInput && nameInput.value === prevDefault) nameInput.value = teamNameOf(side, nextLang);
       if (nameInput) nameInput.setAttribute("aria-label", en ? `Team ${side} name` : `${side} 队队名`);
       const searchInput = q(`[data-search="${side}"]`);
       if (searchInput) {

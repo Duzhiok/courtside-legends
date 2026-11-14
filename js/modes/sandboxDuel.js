@@ -28,8 +28,13 @@ export function sandboxCopy(card, slot) {
   return copy;
 }
 
-export function addToSide(side, card) {
-  if (side.length >= SANDBOX_MAX) throw new Error(`每队最多 ${SANDBOX_MAX} 人`);
+/**
+ * `max` / `unique` let other free modes reuse the picker (3v3 half-court: exactly 3, one copy of a
+ * player per side). Defaults are the sandbox's own rules, unchanged.
+ */
+export function addToSide(side, card, { max = SANDBOX_MAX, unique = false } = {}) {
+  if (side.length >= max) throw new Error(`每队最多 ${max} 人`);
+  if (unique && side.some((c) => c.id === card.id)) throw new Error("同一名球员每队只能选一次");
   return [...side, card];
 }
 
@@ -46,9 +51,9 @@ export function fillWithCopies(card, count = SANDBOX_MIN) {
  * Match-ready team. `eraParity` fills stats the old eras never recorded
  * (blocks/steals before 1974, threes before 1980) on the match copies only.
  */
-export function buildSandboxTeam(name, cards, { eraParity = false, pool = [], slotOffset = 0 } = {}) {
-  if (cards.length < SANDBOX_MIN) throw new Error(`每队至少 ${SANDBOX_MIN} 人`);
-  if (cards.length > SANDBOX_MAX) throw new Error(`每队最多 ${SANDBOX_MAX} 人`);
+export function buildSandboxTeam(name, cards, { eraParity = false, pool = [], slotOffset = 0, min = SANDBOX_MIN, max = SANDBOX_MAX } = {}) {
+  if (cards.length < min) throw new Error(`每队至少 ${min} 人`);
+  if (cards.length > max) throw new Error(`每队最多 ${max} 人`);
   const model = eraParity && pool.length ? parityModelFor(pool) : null;
   const players = cards.map((card, i) => {
     const copy = sandboxCopy(card, slotOffset + i);
