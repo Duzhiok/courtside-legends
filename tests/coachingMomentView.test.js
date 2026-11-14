@@ -1,5 +1,5 @@
 // Coaching Moment view — changing a panel <select> must not rebuild the panel
-// (B61: every change used to run a full body.innerHTML rebuild, destroying the
+// (B66: every change used to run a full body.innerHTML rebuild, destroying the
 // dropdown the user was interacting with, so it flickered on every pick).
 //
 // Drives the real view against the real challenge controller with a minimal

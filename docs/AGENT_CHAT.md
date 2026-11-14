@@ -1977,7 +1977,7 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
   实例、无滚动/焦点异常；reborn 的 relocalize-after-open 也需浏览器跑。
 - M4-D：点“代表”跳家乡卡、打过挑战后荣誉墙多一行、博物馆生涯条目显创建时
   代表城市（桌面+手机）。
-- B61：换人下拉闪修复实测。
+- B66：换人下拉闪修复实测。
 - Workstream A 球员卡模板 + 冠军 Hero 庆祝带：Desktop 1440px + Mobile 390px +
   近景截图包（Visual QA Pending）。
 - Legacy Museum：点称号开博物馆、选中高亮、返回荣誉墙，桌面+手机。
@@ -2211,4 +2211,6 @@ origin/main 53 提交，待有推送权限的环境执行 git push origin main�
 [2026-11-14] Muse（Coding Agent）：三处工作树全部干净，远端无新提交（origin/main 仍为 54d288a），pull --rebase 已是最新。核查：Gold Challenge QA 已完成（63e4bb7）；无未完成任务、无可接的未阻塞模块（M5–M7 等用户裁决；B23/B25/B26/B27/B22 归 Code/Luna；Lychee In-Match Events MVP UI QA 仍等 Code 引擎落地；打手彩蛋 temp.offense 选项等用户裁决；Mac 浏览器冒烟仍排队）。验证：全套 2862：2853 通过，9 失败 = online* ws 环境缺口（9 个 online* 文件均为 Cannot find package 'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 120 提交（不含本条记录），待有推送权限的环境执行 git push origin main。**待办：Lychee In-Match Events MVP UI 的 QA 仍等 Code 引擎落地；打手彩蛋 temp.offense 选项仍等用户裁决；Mac 跑两浏览器冒烟仍排队。
 
 [2026-11-14] Muse（Coding Agent）：三处工作树全部干净，远端无新提交（origin/main 仍为 54d288a），pull --rebase 已是最新。核查：Gold Challenge QA 已完成（63e4bb7）；无未完成任务、无可接的未阻塞模块（M5–M7 等用户裁决；B23/B25/B26/B27/B22 归 Code/Luna；Lychee In-Match Events MVP UI QA 仍等 Code 引擎落地；打手彩蛋 temp.offense 选项等用户裁决；Mac 浏览器冒烟仍排队）。验证：全套 2862：2853 通过，9 失败 = online* ws 环境缺口（9 个 online* 文件均为 Cannot find package 'ws'，与基线一致）；git diff --check 干净。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 121 提交（不含本条记录），待有推送权限的环境执行 git push origin main。**待办：Lychee In-Match Events MVP UI 的 QA 仍等 Code 引擎落地；打手彩蛋 temp.offense 选项仍等用户裁决；Mac 跑两浏览器冒烟仍排队。
+
+[2026-11-14] Muse（Coding Agent）：本轮变基到上游 f0466c5（Wibey 3v3 半场 MVP + Code 技能包恢复已合 main）：122 提交重放，解 5 处冲突——app.js 一处（M4-B 家乡挑战与上游 3v3 两块并存）；BACKLOG 一处（本地 B61–B63 因上游已占 B61–B65 而重编号为 B66–B68，注释与待 QA 清单同步改 B66）；Board 三处（取并集，Code 技能包条目去重一次）。验证：node --check js/app.js 干净（readIdentity 只剩一行，P1 第四批的去重修正在变基后仍在）；全套 2872：2863 通过，9 失败 = online* ws 环境缺口（9 个 online* 文件均为 Cannot find package 'ws'）；git diff --check 干净。3v3 QA：① 种子确定性已验——同阵容同种子 "qa-x" 两次全量 JSON 一致（22:14，42 回合），换种子比分不同，Math.random 全程禁用；⑤ 引擎与视图无 localStorage/存档/账号写入（grep 核实）。③④（中英切换、手机 390 布局）待 Mac 浏览器。无可接的未阻塞模块（B23/B25/B26/B27 归 Code/Luna，sim.js 串行；M5–M7 等用户裁决）。推送仍受阻：本地 main 超前 origin/main 122 提交，本机无 GitHub 推送凭证。
 [2026-11-14] Lychee：修了金币赛替补没有个人倾向/角色的问题。根因：赛前设置里「每个人 · 球员指令」（renderSetupOrders）只列首发 5 人（没选人时取 OVR 前 8），替补从没进过列表——之前 780e731 给角色/分钟区加了整队名单分支（赛季或 ≤12 人列全队），但倾向区没同步改，两个相邻区就此分叉。修法：gameplan.js 新增纯函数 setupPlayerList（赛季或 ≤12 人列全队、按分钟再按 OVR；大名单非赛季列首发 + 前 5 替补；未选首发取前 10），倾向区与角色区共用同一规则；GameSim 本就对任何在场球员读 p.orders（baller.orders.action/usage、defender.orders.defFocus），替补上场后设好的倾向直接生效，不用改 sim。测试 tests/setupPlayerList.test.js 5/5（12 人金币阵容全列、赛季 14 人全列、大名单首发+前 5 替补、未选前 10）；effectiveGameplan 8/8 未动。浏览器目视待用户/Mac 验收（手机上确认替补行出现且下拉可改）。

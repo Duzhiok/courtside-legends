@@ -165,7 +165,7 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
 
   /** Refresh only the meters row after a focus/tempo change. Rebuilding the
    * whole panel here would destroy the <select> the user just used, so the
-   * dropdown visibly flickers / closes on every change (B61). Focus and
+   * dropdown visibly flickers / closes on every change (B66). Focus and
    * tempo change nothing else on screen: the selects already show the new
    * value, and the score / clock / feed are untouched. */
   function updateMeters() {
@@ -192,7 +192,7 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
     } else if (act === "sub-out" || act === "sub-in") {
       // Picking a player only records the pending selection in the DOM;
       // the Substitute button reads the live values. No state changes, so
-      // no re-render — rebuilding here destroyed the open dropdown (B61).
+      // no re-render — rebuilding here destroyed the open dropdown (B66).
       return;
     } else if (act === "sub") {
       const out = body.querySelector('[data-act="sub-out"]')?.value;
