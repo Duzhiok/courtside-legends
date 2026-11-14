@@ -37,6 +37,7 @@ import {
   rivalsOnRoster,
   takeoverWindowFor,
 } from "./rivalry.js";
+import { createEggWatcher } from "./enforcerEgg.js";
 import {
   buildPlayerCard,
   applyIdentityToRoster,
@@ -135,21 +136,31 @@ export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAUL
   return { ...decision, attemptId, accepted: true };
 }
 
-/** Drive one live game possession by possession; the takeover hook fires at most once. */
-export async function driveGame(sim, playerId, { onTakeover = null, window = DEFAULT_TAKEOVER_WINDOW } = {}) {
+/**
+ * Drive one live game possession by possession; the takeover hook fires at most once.
+ * `egg` is the enforcer-egg context ({ rivalBrefs, rng }) or null: when present,
+ * the watcher rolls once, the first time your enforcer shares the floor
+ * with a rival, and fires at most once per game (see enforcerEgg.js). The egg rolls
+ * on its own seeded stream, never the sim's, so the sim's dice are identical
+ * with the egg on or off.
+ */
+export async function driveGame(sim, playerId, { onTakeover = null, window = DEFAULT_TAKEOVER_WINDOW, egg = null } = {}) {
   sim._quiet = true;
   sim.running = true;
   sim.paused = false;
   sim.breakReason = null;
   let takeover = null;
+  let eggIncident = null;
+  const watcher = egg ? createEggWatcher({ sim, rivalBrefs: egg.rivalBrefs, rng: egg.rng }) : null;
   let guard = 0;
   while (sim.running && guard++ < 8000) {
     sim.step();
     if (!takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
       takeover = await attemptTakeover(sim, playerId, onTakeover, window);
     }
+    if (watcher && !eggIncident) eggIncident = watcher.maybeFire();
   }
-  return { takeover };
+  return { takeover, egg: eggIncident };
 }
 
 /**
@@ -204,13 +215,14 @@ export async function playGame(
   // The tip-off lineup is the real fact behind a "start" promise.
   const started = (isHome ? homeStarters : awayStarters).includes(playerCard.id);
 
+  const simRng = rng || seededStream(hashSeed(`${reborn.seed}|${year}|${season.index}`));
   const sim = new GameSim({
     home: { name: game.homeId, players: homeCards, starterIds: homeStarters },
     away: { name: game.awayId, players: awayCards, starterIds: awayStarters },
     youSide: isHome ? "home" : "away",
     injuries: false,
     speed: 3,
-    rng: rng || seededStream(hashSeed(`${reborn.seed}|${year}|${season.index}`)),
+    rng: simRng,
     onEvent: () => {},
     onTick: () => {},
     onEnd: () => {},
@@ -219,7 +231,17 @@ export async function playGame(
   sim.autoDefense = true;
   sim.autoRotation = true;
 
-  const { takeover } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards) });
+  // Enforcer egg: only in a rivalry game (a rival on tonight's opponent
+  // roster). The egg rolls on its own seeded stream so the sim's dice
+  // are untouched by the egg's existence.
+  const rivalsTonight = rivalsOnRoster(rivalryLedger(reborn), oppCards);
+  const eggCtx = rivalsTonight.length
+    ? {
+        rivalBrefs: rivalsTonight.map((r) => r.bref),
+        rng: seededStream(hashSeed(`${reborn.seed}|${year}|${season.index}|enforcer-egg`)),
+      }
+    : null;
+  const { takeover, egg: eggIncident } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx });
 
   const youSide = sim.youSide === "home" ? sim.home : sim.away;
   const stats = youSide.roster.find((p) => p.id === playerCard.id)?.stats || {};
@@ -362,6 +384,7 @@ export async function playGame(
           }
         : null,
       weekBoundary: isWeekBoundary(season.index, REBORN_GAMES_PER_WEEK),
+      enforcerEgg: eggIncident || null,
       rivalry: {
         formed: rivalry.formed.map((r) => ({ bref: r.bref, name: r.name, nameEn: r.nameEn, origin: r.origin, reason: r.reason })),
         met: rivalry.met.map(({ rival, meeting }) => ({ bref: rival.bref, name: rival.name, nameEn: rival.nameEn, ...meeting, ...headToHead(rival) })),

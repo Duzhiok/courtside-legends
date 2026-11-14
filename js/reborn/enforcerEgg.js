@@ -20,20 +20,26 @@
  * anyone in the ledger, so he gets no egg.
  *
  * Wiring: the Reborn driver (season.js driveGame) calls the watcher once
- * per possession step. The watcher rolls on its OWN seeded stream (game
- * seed + "|enforcer-egg"), so the sim's dice are byte-identical whether
- * the egg is on or off — the only thing that changes a game is an actual
+ * per possession step. The watcher rolls ONCE per game, the first time
+ * your enforcer shares the floor with a rival — a per-step roll would
+ * make the egg nearly invisible on teams whose enforcer rides the bench
+ * (Rodman plays ~8 min in the sim; Oakley ~30). One roll per game keeps
+ * the rate uniform (20% of eligible rivalry games) whatever the rotation.
+ * The roll runs on the egg's own seeded stream (game seed +
+ * "|enforcer-egg"), so the sim's dice are byte-identical whether the egg
+ * is on or off — the only thing that changes a game is an actual
  * incident. At most one incident per game.
  */
 import { clamp } from "../core/seededRandom.js";
 import { gradeFoul } from "../engine/grade.js";
 
 /**
- * Per eligible possession-step chance the incident fires. An eligible
- * rivalry game has roughly 60-140 eligible steps (enforcer + rival share
- * the floor), so this works out to about 15-25% of eligible games.
+ * Chance the incident fires, rolled once per game the first time your
+ * enforcer shares the floor with a rival. About 2 incidents per season
+ * for a run that plays ~10 rivalry games — rare enough to be an egg,
+ * common enough to be discovered.
  */
-export const ENFORCER_EGG_STEP_CHANCE = 0.002;
+export const ENFORCER_EGG_GAME_CHANCE = 0.2;
 /** Share of incidents that rattle the rival (the rest are fouls on the enforcer). */
 export const ENFORCER_EGG_RATTLE_WEIGHT = 0.5;
 /** Rattle edge: breakMomentum's magnitudes (hot/mood only — never temp.offense). */
@@ -87,22 +93,25 @@ export function eggCopy(incident, lang = "zh") {
 /**
  * One watcher per game. Call maybeFire() after every sim.step(); it
  * returns the incident record the first time the egg fires, null after.
- * `rng` is the egg's own seeded stream (never the sim's).
+ * The fire roll happens once, at the first step where the pair shares
+ * the floor; `rng` is the egg's own seeded stream (never the sim's).
  */
 export function createEggWatcher({ sim, rivalBrefs = [], rng = Math.random } = {}) {
   const rivals = new Set(rivalBrefs || []);
   let fired = 0;
+  let decided = false;
   return {
     get firedCount() {
       return fired;
     },
     maybeFire() {
-      if (fired >= ENFORCER_EGG_MAX_PER_GAME || !sim?.running || !rivals.size) return null;
+      if (decided || fired >= ENFORCER_EGG_MAX_PER_GAME || !sim?.running || !rivals.size) return null;
       const you = sim.youSide === "home" ? sim.home : sim.away;
       const opp = sim.youSide === "home" ? sim.away : sim.home;
       const pair = findEggPair(you?.onCourt, opp?.onCourt, rivals);
       if (!pair) return null;
-      if (rng() >= ENFORCER_EGG_STEP_CHANCE) return null;
+      decided = true;
+      if (rng() >= ENFORCER_EGG_GAME_CHANCE) return null;
       const edge = rng() < ENFORCER_EGG_RATTLE_WEIGHT ? "rattle" : "foul";
       fired += 1;
       const incident = {

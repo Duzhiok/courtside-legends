@@ -12,12 +12,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { seasonToCard } from "../js/data/players.js";
 import {
-  ENFORCER_EGG_STEP_CHANCE,
+  ENFORCER_EGG_GAME_CHANCE,
   createEggWatcher,
   eggCopy,
   findEggPair,
 } from "../js/reborn/enforcerEgg.js";
 import { hashSeed, seededStream } from "../js/core/seededRandom.js";
+import { GameSim } from "../js/engine/sim.js";
+import { buildSeason, driveGame, playGame, rosterCards } from "../js/reborn/season.js";
+import { createRebornState } from "../js/reborn/identity.js";
 
 const ROWS = JSON.parse(
   readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"),
@@ -174,7 +177,21 @@ test("same egg seed, same outcome — fixed-seed reproducible", () => {
   assert.deepEqual(run(), run());
 });
 
-test("fire rate is conservative: ~15-25% per 100-step eligible game", () => {
+test("one roll per game: a miss at first overlap never fires later", () => {
+  const { sim } = fakeSim();
+  // 0.99 misses the fire roll; the 0.001/0.1 that follow must never be read.
+  const watcher = createEggWatcher({
+    sim,
+    rivalBrefs: ["jordami01"],
+    rng: scriptedRng([0.99, 0.001, 0.1]),
+  });
+  let hits = 0;
+  for (let i = 0; i < 500; i++) if (watcher.maybeFire()) hits += 1;
+  assert.equal(hits, 0, "the single roll missed; later steps do not re-roll");
+  assert.equal(watcher.firedCount, 0);
+});
+
+test("fire rate is conservative: ~20% of eligible rivalry games", () => {
   const trials = 2000;
   let fires = 0;
   let rattles = 0;
@@ -185,16 +202,16 @@ test("fire rate is conservative: ~15-25% per 100-step eligible game", () => {
       rivalBrefs: ["jordami01"],
       rng: seededStream(hashSeed(`egg-rate|${t}`)),
     });
-    let out = null;
-    for (let i = 0; i < 100 && !out; i++) out = watcher.maybeFire();
+    // One call = one game: the pair shares the floor from the tip-off,
+    // so the first call is the game's single roll.
+    const out = watcher.maybeFire();
     if (out) {
       fires += 1;
       if (out.edge === "rattle") rattles += 1;
     }
   }
   const rate = fires / trials;
-  const expected = 1 - Math.pow(1 - ENFORCER_EGG_STEP_CHANCE, 100);
-  assert.ok(Math.abs(rate - expected) < 0.04, `fire rate ${rate}, expected ~${expected.toFixed(3)}`);
+  assert.ok(Math.abs(rate - ENFORCER_EGG_GAME_CHANCE) < 0.04, `fire rate ${rate}, expected ~${ENFORCER_EGG_GAME_CHANCE}`);
   const rattleShare = rattles / fires;
   assert.ok(rattleShare > 0.4 && rattleShare < 0.6, `rattle share ${rattleShare}`);
 });
@@ -210,4 +227,125 @@ test("eggCopy is bilingual on both edges", () => {
   const foul = { ...incident, edge: "foul" };
   assert.ok(eggCopy(foul, "zh").includes("犯规"));
   assert.ok(eggCopy(foul, "en").includes("foul"));
+});
+
+// --- Integration: real GameSim + real Reborn driver ---
+
+/** A real GameSim with the enforcer and the rival forced into the starting five. */
+function eggSim({ homeTeam = "CHI", awayTeam = "NYK", enforcer = "rodmade01", rival = "ewingpa01", seed = "egg-ab-1" } = {}) {
+  const homeCards = rosterCards(ROWS, homeTeam, 1997);
+  const awayCards = rosterCards(ROWS, awayTeam, 1997);
+  const starters = (cards, first) => {
+    const head = cards.find((c) => c.bref === first);
+    return [head, ...cards.filter((c) => c.bref !== first)].slice(0, 5).map((p) => p.id);
+  };
+  const sim = new GameSim({
+    home: { name: homeTeam, players: homeCards, starterIds: starters(homeCards, enforcer) },
+    away: { name: awayTeam, players: awayCards, starterIds: starters(awayCards, rival) },
+    youSide: "home",
+    injuries: false,
+    speed: 3,
+    rng: seededStream(hashSeed(seed)),
+    onEvent: () => {},
+    onTick: () => {},
+    onEnd: () => {},
+  });
+  sim.autoOffense = true;
+  sim.autoDefense = true;
+  sim.autoRotation = true;
+  return sim;
+}
+
+test("driveGame: foul edge costs exactly one foul and a grade hit — and nothing else", async () => {
+  const eggCtx = { rivalBrefs: ["ewingpa01"], rng: scriptedRng([0.001, 0.9]) }; // fires, foul
+  const simA = eggSim();
+  const a = await driveGame(simA, "nobody", { egg: eggCtx });
+  const simB = eggSim();
+  const b = await driveGame(simB, "nobody");
+  assert.equal(a.egg.edge, "foul");
+  assert.equal(a.egg.enforcer.bref, "rodmade01");
+  assert.equal(a.egg.rival.bref, "ewingpa01");
+  assert.equal(b.egg, null);
+  // The foul edge is dice-neutral (pf and grade are never read by the sim),
+  // so the two games must be identical everywhere except the foul itself.
+  assert.deepEqual(simA.score, simB.score, "identical scores: the foul edge never touches the dice");
+  const rodA = simA.home.roster.find((p) => p.bref === "rodmade01");
+  const rodB = simB.home.roster.find((p) => p.bref === "rodmade01");
+  assert.equal(rodA.stats.pf, rodB.stats.pf + 1, "exactly one extra foul");
+  // Grade: both runs saturate at 100 here (Rodman boards everything), so
+  // the -0.75 is absorbed at the ceiling; the unit test pins the drop
+  // itself. The egg must never raise the grade.
+  assert.ok(rodA.gradeScore <= rodB.gradeScore, "grade never rises");
+});
+
+test("rattle edge on a real GameSim: rival cools, ratings and shooting levers untouched", () => {
+  const sim = eggSim({ homeTeam: "NYK", awayTeam: "LAL", enforcer: "oaklech01", rival: "onealsh01" });
+  sim.running = true;
+  const shaq = sim.away.onCourt.find((p) => p.bref === "onealsh01");
+  assert.ok(shaq, "Shaq starts");
+  const before = {
+    hot: shaq.hot,
+    mood: shaq.mood,
+    ovr: shaq.ovr,
+    morale: sim.away.morale,
+    tempOffense: sim.away.temp?.offense,
+    skills: [...(shaq.skills || [])],
+  };
+  const watcher = createEggWatcher({ sim, rivalBrefs: ["onealsh01"], rng: scriptedRng([0.001, 0.1]) });
+  const incident = watcher.maybeFire();
+  assert.equal(incident.edge, "rattle");
+  assert.equal(shaq.hot, Math.max(-2, (before.hot || 0) - 2), "hot dips (floored at -2)");
+  assert.equal(shaq.mood, Math.min(95, Math.max(15, (before.mood ?? 50) - 4)), "mood dips");
+  assert.equal(sim.away.morale, Math.min(100, Math.max(0, (before.morale ?? 50) - 3)), "opp morale dips");
+  // Ruling guard: no attribute, no rating, no shooting lever.
+  assert.equal(sim.away.temp?.offense, before.tempOffense, "temp.offense untouched");
+  assert.equal(shaq.ovr, before.ovr, "OVR untouched");
+  assert.deepEqual(shaq.skills, before.skills, "skills untouched");
+});
+
+/** One rivalry game: the opponent's top scorer is the rival. */
+async function rivalryGame(seed, opp = "LAL") {
+  const reborn = createRebornState(seed, ROWS);
+  reborn.player.coachTrust = 80;
+  const star = ROWS.filter((r) => r.team === opp && r.season === 1997).sort((a, b) => b.ppg - a.ppg)[0];
+  const withRival = {
+    ...reborn,
+    rivalries: { version: 1, watch: {}, rivals: [{ bref: star.bref, name: star.name, nameEn: star.name, games: [] }] },
+  };
+  const season = buildSeason(withRival, ROWS, {
+    games: [{ homeId: withRival.player.teamId, awayId: opp, day: 1, played: false }],
+  });
+  return playGame(withRival, season, ROWS);
+}
+
+test("playGame: egg-e2e-125 fires the rattle edge (Oakley vs Shaq)", async () => {
+  const out = await rivalryGame("egg-e2e-125");
+  assert.equal(out.report.enforcerEgg.edge, "rattle");
+  assert.equal(out.report.enforcerEgg.enforcer.bref, "oaklech01");
+  assert.equal(out.report.enforcerEgg.rival.bref, "onealsh01");
+  assert.ok(out.report.rivalry.met.some((m) => m.bref === "onealsh01"), "rivalry meeting still recorded");
+});
+
+test("playGame: egg-e2e-47 fires the foul edge (Mason vs Shaq)", async () => {
+  const out = await rivalryGame("egg-e2e-47");
+  assert.equal(out.report.enforcerEgg.edge, "foul");
+  assert.equal(out.report.enforcerEgg.enforcer.bref, "masonan01");
+  assert.equal(out.report.enforcerEgg.rival.bref, "onealsh01");
+});
+
+test("playGame: no rival, no egg — even on a seed that would fire", async () => {
+  const reborn = createRebornState("egg-e2e-125", ROWS);
+  reborn.player.coachTrust = 80;
+  const season = buildSeason(reborn, ROWS, {
+    games: [{ homeId: reborn.player.teamId, awayId: "LAL", day: 1, played: false }],
+  });
+  const out = await playGame(reborn, season, ROWS);
+  assert.equal(out.report.enforcerEgg, null);
+});
+
+test("playGame: rival but no enforcer on the team, no egg", async () => {
+  const van = rosterCards(ROWS, "VAN", 1997);
+  assert.ok(!van.some((c) => (c.skills || []).includes("enforcer")), "VAN has no enforcer in 1996-97");
+  const out = await rivalryGame("egg-e2e-1"); // VAN
+  assert.equal(out.report.enforcerEgg, null);
 });
