@@ -105,7 +105,8 @@ export function nextFastForwardTarget(reborn, season, players) {
         return { type: "training", gameIndex: i, detail: { week } };
       }
     }
-    const stop = gameStop(reborn, players, season.games[i], season);
+    // The game on screen is already the next one: only stop BEFORE a later game.
+    const stop = i > start ? gameStop(reborn, players, season.games[i], season) : null;
     if (stop) return { ...stop, gameIndex: i };
   }
   return { type: "season-end", gameIndex: season.games.length, detail: null };
@@ -201,7 +202,7 @@ export async function fastForward(
       }
     }
     const game = season.games[i];
-    const stop = gameStop(current, players, game, season);
+    const stop = i > startIndex ? gameStop(current, players, game, season) : null;
     if (stop) {
       stoppedAt = { ...stop, gameIndex: i };
       break;

@@ -234,3 +234,10 @@ test("fastForward calls onGame once per simmed game (progress)", async () => {
   assert.equal(calls, 4, "one progress call per simmed game");
   assert.equal(out.reports.length, 4);
 });
+
+test("nextFastForwardTarget never points at the game already on screen", () => {
+  const reborn = createRebornState("reborn-ff-target-now", ROWS);
+  const keyOpp = reborn.player.teamId === "LAL" ? "UTA" : "LAL";
+  const season = seasonWith(reborn, [keyOpp, "CHI", keyOpp]);
+  assert.equal(nextFastForwardTarget(reborn, season, ROWS).gameIndex, 2, "skips the key game you are about to play");
+});

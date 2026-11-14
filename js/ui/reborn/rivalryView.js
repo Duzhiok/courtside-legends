@@ -75,6 +75,12 @@ export function rivalryReportHtml({ report, reborn, lang = "zh" } = {}) {
   for (const m of report.rivalry.met) {
     lines.push(`<p>${L(`宿敌对决 vs ${m.name}：你 ${m.you.pts} 分，他 ${m.rival.pts} 分，${m.won ? "你赢了" : "你输了"} · 现在 ${m.wins}胜${m.losses}负`, `Rivalry game vs ${m.nameEn || m.name}: you ${m.you.pts}, him ${m.rival.pts}, ${m.won ? "you won" : "you lost"} · now ${m.wins}-${m.losses}`, lang)}</p>`);
   }
+  for (const m of report.rivalry.missed || []) {
+    const n = nameOf(m, lang);
+    lines.push(`<p class="tiny">${m.why === "you-dnp"
+      ? L(`${n} 就在对面，但你今晚没有上场——这不算一次交手。`, `${n} was right there, but you didn't get in tonight — not a meeting.`, lang)
+      : L(`${n} 今晚没有上场，这场不算宿敌交手。`, `${n} didn't play tonight — not a rivalry meeting.`, lang)}</p>`);
+  }
   const candidates = challengeCandidates(rivalryLedger(reborn), report);
   if (candidates.length) {
     const buttons = candidates.map((o) => `<button type="button" data-rival-challenge="${o.bref}">${L(`向 ${o.name} 下战书`, `Challenge ${o.nameEn || o.name}`, lang)}（${o.pts} ${L("分", "pts", lang)}）</button>`);

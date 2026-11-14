@@ -34,6 +34,7 @@ import {
   recordRivalryMeetings,
   rivalryLedger,
   rivalryTimelineEvent,
+  rivalsOnRoster,
   takeoverWindowFor,
 } from "./rivalry.js";
 import {
@@ -324,6 +325,11 @@ export async function playGame(
   };
   const rivalry = recordRivalryMeetings(rivalryLedger(reborn), reportCore);
   next.rivalries = rivalry.ledger;
+  // Rivals on tonight's roster who did not make it a meeting, and why (never silent).
+  const metBrefs = new Set(rivalry.met.map((m) => m.rival.bref));
+  const missed = rivalsOnRoster(rivalryLedger(reborn), oppCards)
+    .filter((r) => !metBrefs.has(r.bref))
+    .map((r) => ({ bref: r.bref, name: r.name, nameEn: r.nameEn, why: line.min <= 0 ? "you-dnp" : "he-dnp" }));
   if (rivalry.formed.length) {
     next.timeline = { ...(next.timeline || {}), events: [...(next.timeline?.events || []), ...rivalry.formed.map(rivalryTimelineEvent)] };
   }
@@ -359,6 +365,7 @@ export async function playGame(
       rivalry: {
         formed: rivalry.formed.map((r) => ({ bref: r.bref, name: r.name, nameEn: r.nameEn, origin: r.origin, reason: r.reason })),
         met: rivalry.met.map(({ rival, meeting }) => ({ bref: rival.bref, name: rival.name, nameEn: rival.nameEn, ...meeting, ...headToHead(rival) })),
+        missed,
       },
     },
   };
