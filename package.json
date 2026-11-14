@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "lint": "eslint js scripts tests server --max-warnings 7",
+    "lint": "eslint js scripts tests server --max-warnings 2",
     "mobile:sync-web": "node scripts/mobile/sync-www.mjs",
     "mobile:sync": "npm run mobile:sync-web && npx cap sync",
     "mobile:android": "npm run mobile:sync && npx cap open android",

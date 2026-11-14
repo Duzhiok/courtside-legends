@@ -16,7 +16,8 @@
 //           under the account key, where it actually costs quota.
 //
 // Other keys: account store (skeleton + a collection scenario), guest keys
-// (profile / avatar / AXP / challenge archive), mid-match autosave.
+// (profile / avatar / AXP / challenge archive), mid-match autosave. Each one is
+// counted as key name + value, the way the browser charges the quota.
 //
 // Budget model (contract D3): localStorage is ~5 MiB per origin, counted in
 // UTF-16 code units — the same unit the repo's quota simulation uses
@@ -53,6 +54,8 @@ const GUEST_ARCHIVE_KEY = "cls_challenge_archive_v1";
 const AUTOSAVE_KEY = "cls_savegame_v1";
 
 const utf8 = (s) => Buffer.byteLength(s, "utf8");
+/** Quota cost of one key: browsers count the key name AND the value (UTF-16 units). */
+const entry = (key, text) => ({ units: key.length + text.length, bytes: utf8(key) + utf8(text) });
 const fmt = (n) => `${n.toLocaleString("en-US")} u (${(n / 1024).toFixed(1)} KiB)`;
 
 /** A real mid-game sim export: real rosters, real engine, exported at Q1. */
@@ -155,14 +158,8 @@ function main() {
   globalThis.localStorage = createMemoryStorage();
   const account = createAccount("测试教练");
   const skeletonStore = JSON.parse(globalThis.localStorage.getItem(ACCOUNTS_KEY));
-  const skeleton = {
-    units: globalThis.localStorage.getItem(ACCOUNTS_KEY).length,
-    bytes: utf8(globalThis.localStorage.getItem(ACCOUNTS_KEY)),
-  };
-  const activeKey = {
-    units: globalThis.localStorage.getItem(ACTIVE_ACCOUNT_KEY).length,
-    bytes: utf8(globalThis.localStorage.getItem(ACTIVE_ACCOUNT_KEY)),
-  };
+  const skeleton = entry(ACCOUNTS_KEY, globalThis.localStorage.getItem(ACCOUNTS_KEY));
+  const activeKey = entry(ACTIVE_ACCOUNT_KEY, globalThis.localStorage.getItem(ACTIVE_ACCOUNT_KEY));
 
   // Collection scenario: 100 real player ids, 20 merged cards, a full 20-entry
   // challenge archive, 2 completed careers, identity places set.
@@ -187,21 +184,19 @@ function main() {
   account.profile = { hometown: "上海", bio: "老球迷，湖蜜二十年。" };
   skeletonStore.accounts = [account];
   const accountsFullText = JSON.stringify(skeletonStore);
-  const accountsFull = { units: accountsFullText.length, bytes: utf8(accountsFullText) };
+  const accountsFull = entry(ACCOUNTS_KEY, accountsFullText);
 
   // Guest keys: a filled guest profile, the default look, a mid-level AXP record,
   // and a full 20-entry guest challenge archive.
-  const guestProfile = { units: 0, bytes: 0 };
-  {
-    const text = JSON.stringify(sanitizeProfile({ name: "游客教练", hometown: "南京", bio: "刚入坑的新手教练，目标是带湖人重回巅峰。" }));
-    guestProfile.units = text.length;
-    guestProfile.bytes = utf8(text);
-  }
-  const guestAvatar = { units: JSON.stringify(DEFAULT_LOOK).length, bytes: utf8(JSON.stringify(DEFAULT_LOOK)) };
+  const guestProfile = entry(
+    GUEST_PROFILE_KEY,
+    JSON.stringify(sanitizeProfile({ name: "游客教练", hometown: "南京", bio: "刚入坑的新手教练，目标是带湖人重回巅峰。" })),
+  );
+  const guestAvatar = entry(GUEST_LOOK_KEY, JSON.stringify(DEFAULT_LOOK));
   const guestAxpText = JSON.stringify({ totalXp: 1250, claimed: ["level_2_reward", "level_3_reward"], once: { first_win: true } });
-  const guestAxp = { units: guestAxpText.length, bytes: utf8(guestAxpText) };
+  const guestAxp = entry(GUEST_AXP_KEY, guestAxpText);
   const guestArchiveText = JSON.stringify(account.challengeArchive);
-  const guestArchive = { units: guestArchiveText.length, bytes: utf8(guestArchiveText) };
+  const guestArchive = entry(GUEST_ARCHIVE_KEY, guestArchiveText);
 
   // Mid-match autosave: the exact payload shape writeSave() stores.
   const autosaveText = JSON.stringify({
@@ -213,7 +208,7 @@ function main() {
     sim: simExport,
     feed,
   });
-  const autosave = { units: autosaveText.length, bytes: utf8(autosaveText) };
+  const autosave = entry(AUTOSAVE_KEY, autosaveText);
 
   const otherSignedIn = skeleton.units + activeKey.units + autosave.units;
   const otherCollection = accountsFull.units + activeKey.units + autosave.units;
