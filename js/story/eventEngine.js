@@ -353,22 +353,6 @@ export function queueNextStoryEvent(root, { year } = {}) {
   return queueStoryEvent(root, next.id, { year: currentYear });
 }
 
-/**
- * B4 of the roadmap: this used to force an ending the instant seasonHistory hit 5 entries,
- * regardless of what careerContract.js's evaluateCareerEmployment() had actually decided -- which
- * is exactly the "five years is a hard cap" bug a multi-stint career can no longer afford (a
- * renewed coach happily playing a 6th, 7th, 20th season would still have had THIS function force
- * a premature ending on every single later transition, since `history.length >= 5` never stops
- * being true). evaluateCareerEmployment() is now the only place that decides a stint is over
- * (fired/departed, both of which already set root.story.ending themselves); this stays only as an
- * idempotent no-op guard for callers that always chain it afterwards (js/app.js's
- * queueNextTimeTravelEvent()), not as a second source of truth about when a career ends.
- */
-export function finalizeCareerEnding(root) {
-  requireStory(root);
-  return root;
-}
-
 export function buildCareerReport(root) {
   requireStory(root);
   const career = root.leagueCareer;

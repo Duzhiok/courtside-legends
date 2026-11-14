@@ -13,7 +13,7 @@
 import { settleSeasonReputation } from "../career/reputation.js";
 import { settleCoachFinances } from "../career/finance.js";
 import { settleProphecy } from "../career/draftProphecy.js";
-import { finalizeCareerEnding, queueNextStoryEvent } from "../story/eventEngine.js";
+import { queueNextStoryEvent } from "../story/eventEngine.js";
 import { advanceSeasonGoal, evaluateCareerEmployment } from "./careerContract.js";
 import { expirePoachOffer, maybeCreatePoachOffer } from "./poaching.js";
 import { retireIfDue, settleCoachAge } from "./retirement.js";
@@ -45,8 +45,7 @@ export function settleSeasonRollover(root, { year } = {}) {
   const aged = settleCoachAge(prophesied);
   const next = queueNextStoryEvent(expirePoachOffer(aged), { year });
   const employed = evaluateCareerEmployment(next);
-  const finalized = employed === next ? finalizeCareerEnding(next) : employed;
-  const retired = retireIfDue(finalized);
+  const retired = retireIfDue(employed);
   const result = maybeCreatePoachOffer(retired);
   if (result === root) return { root };
   return {
@@ -56,7 +55,7 @@ export function settleSeasonRollover(root, { year } = {}) {
     settledReputation: justLogged(reputed, "reputation-settled"),
     prophecy: justLogged(prophesied, "prophecy-result"),
     poachOffer: result !== retired ? result.story.poachOffer : null,
-    retirement: retired !== finalized ? { age: retired.story.employment.age, tier: retired.story.ending.tier } : null,
+    retirement: retired !== employed ? { age: retired.story.employment.age, tier: retired.story.ending.tier } : null,
     nextGoal: result.story.seasonGoal || null,
   };
 }

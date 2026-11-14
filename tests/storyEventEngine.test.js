@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   buildCareerReport,
   deriveEnding,
-  finalizeCareerEnding,
   getStoryEvent,
   listStoryEvents,
   queueNextStoryEvent,
@@ -140,23 +139,3 @@ test("career report summarizes history and derives a meaningful ending preview",
   assert.deepEqual(deriveEnding(root), report.ending);
 });
 
-// B4 of docs/CAREER_LIFE_ROADMAP.md: finalizeCareerEnding() used to force an ending onto ANY
-// career with 5+ seasons of history -- which would wrongly re-fire on every later season of a
-// renewed, still-active multi-stint career, since seasonHistory.length >= 5 never stops being
-// true. evaluateCareerEmployment() (careerContract.js) is now the only thing that ends a stint;
-// this is just an idempotent no-op kept for the orchestration chain that still calls it.
-test("finalizeCareerEnding is a no-op -- evaluateCareerEmployment owns ending the career now", () => {
-  const summaries = Array.from({ length: 7 }, (_, index) => ({
-    year: 1991 + index,
-    teamId: "CHI",
-    teamName: "Bulls",
-    record: { w: 50, l: 32 },
-    finish: "playoffs",
-    championId: "CHI",
-  }));
-  const root = rootFixture({
-    leagueCareer: { season: { year: 1998 }, management: { seasonHistory: summaries } },
-    story: { ...rootFixture().story, employment: { status: "active" } },
-  });
-  assert.equal(finalizeCareerEnding(root), root, "7 seasons of an ACTIVE tenure must not force an ending");
-});
