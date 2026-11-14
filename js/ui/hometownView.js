@@ -11,9 +11,8 @@
  */
 import { hometownHonours, levelLabel, locationName, relationLabel, resolveForIdentity } from "../data/hometown/hometown.js";
 import { sanitizeHometownState } from "../data/hometown/hometownState.js";
+import { esc } from "../core/html.js";
 
-const esc = (value) =>
-  String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 function legendRows(resolution, lang, names) {

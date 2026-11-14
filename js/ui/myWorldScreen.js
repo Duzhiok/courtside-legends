@@ -10,6 +10,7 @@ import { defaultPresetId, lookSignature, readPortrait, savePortrait } from "../d
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
+import { esc } from "../core/html.js";
 import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { deleteChallengeArchive, readChallengeArchive } from "../data/challengeArchive.js";
@@ -468,9 +469,8 @@ export function createMyWorld({
       const box = el.querySelector("#mw-hometown-idol-results");
       if (!box) return;
       const results = onSearchIdol(String(query || ""));
-      const escHtml = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
       box.innerHTML = results.length
-        ? results.map((r) => `<button type="button" class="btn small ghost" data-mw-action="set-idol" data-bref="${escHtml(r.bref)}">${escHtml(r.name)}</button>`).join(" ")
+        ? results.map((r) => `<button type="button" class="btn small ghost" data-mw-action="set-idol" data-bref="${esc(r.bref)}">${esc(r.name)}</button>`).join(" ")
         : `<span class="tiny">${getLang() === "en" ? "No player found." : "没有找到这位球员。"}</span>`;
       return;
     }
