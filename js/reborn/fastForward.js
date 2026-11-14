@@ -29,6 +29,7 @@
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { ROLE_LABEL } from "./trust.js";
 import { playGame, rosterCards } from "./season.js";
+import { rivalryLedger, rivalsOnRoster } from "./rivalry.js";
 import { overall } from "../data/players.js";
 
 /** An opponent whose best card is at least this OVR counts as a key game. */
@@ -36,9 +37,11 @@ export const KEY_GAME_STAR_OVR = 85;
 
 export const FAST_FORWARD_EVENTS = [
   "training",
+  "rivalry",
   "key-game",
   "takeover",
   "reveal",
+  "rivalry-formed",
   "role",
   "starter",
   "season-end",
@@ -70,6 +73,20 @@ function keyGameDetail(players, game, myTeamId, season) {
 }
 
 /**
+ * The before-game stop for one game, or null: a rival on the other side
+ * first (play your rivalry yourself), then a superstar key game.
+ */
+export function gameStop(reborn, players, game, season) {
+  if (!game) return null;
+  const teamId = reborn.player.teamId;
+  const oppId = game.homeId === teamId ? game.awayId : game.homeId;
+  const rivals = rivalsOnRoster(rivalryLedger(reborn), rosterCards(players, oppId, season.year));
+  if (rivals.length) return { type: "rivalry", detail: { opp: oppId, rival: rivals[0].name, rivalEn: rivals[0].nameEn } };
+  if (isKeyGame(players, game, teamId, season.year)) return { type: "key-game", detail: keyGameDetail(players, game, teamId, season.year) };
+  return null;
+}
+
+/**
  * The next predictable event, without simming. Returns
  * { type, gameIndex, detail } — gameIndex is the 0-based index the event
  * sits at (the game to play for training / key-game, the schedule length
@@ -77,7 +94,6 @@ function keyGameDetail(players, game, myTeamId, season) {
  * the week the run starts in already shows its training choice on screen.
  */
 export function nextFastForwardTarget(reborn, season, players) {
-  const teamId = reborn.player.teamId;
   const start = season.index;
   if (start >= season.games.length) {
     return { type: "season-end", gameIndex: season.games.length, detail: null };
@@ -89,13 +105,8 @@ export function nextFastForwardTarget(reborn, season, players) {
         return { type: "training", gameIndex: i, detail: { week } };
       }
     }
-    if (isKeyGame(players, season.games[i], teamId, season.year)) {
-      return {
-        type: "key-game",
-        gameIndex: i,
-        detail: keyGameDetail(players, season.games[i], teamId, season.year),
-      };
-    }
+    const stop = gameStop(reborn, players, season.games[i], season);
+    if (stop) return { ...stop, gameIndex: i };
   }
   return { type: "season-end", gameIndex: season.games.length, detail: null };
 }
@@ -108,6 +119,11 @@ export function describeFastForwardTarget(target, lang = "zh") {
     return zh
       ? `模拟到第 ${target.detail.week} 周训练`
       : `Sim to week ${target.detail.week} training`;
+  }
+  if (target.type === "rivalry") {
+    return zh
+      ? `模拟到宿敌对决（vs ${target.detail.rival}）`
+      : `Sim to the rivalry game (vs ${target.detail.rivalEn || target.detail.rival})`;
   }
   if (target.type === "key-game") {
     return zh
@@ -127,6 +143,14 @@ export function describeFastForwardEvent(event, lang = "zh") {
       return zh
         ? `第 ${d.week} 周训练时间到了，选一个训练方向再继续。`
         : `Week ${d.week} training is here — pick a focus to continue.`;
+    case "rivalry":
+      return zh
+        ? `下一场对阵 ${d.opp}，你的宿敌 ${d.rival} 在对面——亲自打这场吧。`
+        : `Next up: ${d.opp}, and your rival ${d.rivalEn || d.rival} is on the other side — play this one yourself.`;
+    case "rivalry-formed":
+      return zh
+        ? `一段宿敌关系诞生了：${d.rival}。`
+        : `A rivalry is born: ${d.rivalEn || d.rival}.`;
     case "key-game":
       return zh
         ? `下一场是硬仗，对阵 ${d.opp}${d.star ? `（${d.star} 在对面）` : ""}——亲自打这场吧。`
@@ -177,12 +201,9 @@ export async function fastForward(
       }
     }
     const game = season.games[i];
-    if (isKeyGame(players, game, current.player.teamId, season.year)) {
-      stoppedAt = {
-        type: "key-game",
-        gameIndex: i,
-        detail: keyGameDetail(players, game, current.player.teamId, season.year),
-      };
+    const stop = gameStop(current, players, game, season);
+    if (stop) {
+      stoppedAt = { ...stop, gameIndex: i };
       break;
     }
     const out = await playOne(current, season, players, {
@@ -204,6 +225,11 @@ export async function fastForward(
     }
     if (out.report.revealedNow) {
       stoppedAt = { type: "reveal", gameIndex: i, detail: null };
+      break;
+    }
+    const born = out.report.rivalry?.formed?.[0];
+    if (born) {
+      stoppedAt = { type: "rivalry-formed", gameIndex: i, detail: { rival: born.name, rivalEn: born.nameEn, origin: born.origin } };
       break;
     }
     if (out.report.roleAfter !== out.report.roleBefore) {

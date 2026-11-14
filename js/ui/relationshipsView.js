@@ -24,9 +24,7 @@ import {
   pendingTrustEffects,
   recordDivergence,
   recordPerson,
-  recordRivalryGame,
   relationshipsStore,
-  rivalryStakes,
 } from "../career/careerRelationships.js";
 
 export function ensureRelationshipsScreen() {
@@ -105,12 +103,7 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
           .map((r) => {
             const a = store.people.find((p) => p.id === r.aId);
             const b = store.people.find((p) => p.id === r.bId);
-            const rivalBtns =
-              r.kind === "rivalry" && r.state === "active"
-                ? ` <button type="button" data-action="rivalry-game" data-opp="${esc(b?.bref || b?.id || "")}" data-won="1">${L("赢了宿敌", "Beat rival", lang())}</button>
-                    <button type="button" data-action="rivalry-game" data-opp="${esc(b?.bref || b?.id || "")}" data-won="0">${L("输给宿敌", "Lost to rival", lang())}</button>`
-                : "";
-            return `<li>${esc(a?.name || r.aId)} ↔ ${esc(b?.name || r.bId)} · ${L(...(KIND_LABEL[r.kind] || [r.kind, r.kind]), lang())} · ${r.strength}/100${rivalBtns}</li>`;
+            return `<li>${esc(a?.name || r.aId)} ↔ ${esc(b?.name || r.bId)} · ${L(...(KIND_LABEL[r.kind] || [r.kind, r.kind]), lang())} · ${r.strength}/100</li>`;
           })
           .join("")
       : `<li class="tiny">${L("还没有关系。", "No relationships yet.", lang())}</li>`;
@@ -260,15 +253,6 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
           count === 0
             ? L("没有到期的承诺。", "No promises due.", lang())
             : L(`结算 ${count} 条承诺${trustNote ? `。${trustNote}` : ""}`, `Settled ${count} promise(s)${trustNote ? `. ${trustNote}` : ""}`, lang());
-      } else if (action === "rivalry-game") {
-        const opp = btn.dataset.opp || "";
-        const rel = recordRivalryGame(account, { season: num("#rel-state-season", 1996), opponentBref: opp, won: btn.dataset.won === "1" });
-        if (rel) {
-          const stakes = rivalryStakes(account, opp);
-          lastResult = L(`宿敌对决已记录，关系强度 ${rel.strength}，下场关键战信任赌注 ${stakes.trustSwing}`, `Rivalry game recorded, strength ${rel.strength}, next key game stakes ${stakes.trustSwing} trust`, lang());
-        } else {
-          lastResult = L("没有找到这名对手的宿敌关系。", "No active rivalry with that opponent.", lang());
-        }
       } else if (action === "record-divergence") {
         const subject = val("#rel-dv-subject");
         if (!subject) return;

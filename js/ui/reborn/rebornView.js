@@ -22,6 +22,8 @@ import {
 import { latestRevealHint, revealLine } from "../../reborn/reveal.js";
 import { roleForTrust, describeTrustChange, TRUST_START } from "../../reborn/trust.js";
 import { settleRebornPromises } from "../../reborn/promiseSettle.js";
+import { challengeRival, mirrorRivalriesToAccount, rivalryLedger, rivalryTimelineEvent } from "../../reborn/rivalry.js";
+import { rivalryPregameHtml, rivalryReportHtml, rivalryTimelineLine, rivalsPanelHtml } from "./rivalryView.js";
 import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
@@ -97,6 +99,9 @@ export function careerTimelineHtml({ reborn, lang = "zh" } = {}) {
     }
     if (event.event === "awakening") {
       return awakeningTimelineLine({ event, lang });
+    }
+    if (event.event === "rivalry") {
+      return rivalryTimelineLine({ event, lang });
     }
     return "";
   }).filter(Boolean);
@@ -177,16 +182,23 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
    * the caller persists afterwards.
    */
   /**
-   * Settle the account's due promises against this run after a game (same
+   * Sync the account after a game: mirror the run's rivals, then settle the
+   * account's due promises against this run (same
    * in-place pattern as applyAwakening). The unified engine does the
    * settling and moves coach trust; this only persists the account and keeps
    * the results for the banner.
    */
-  function applyPromises(rebornState) {
+  function syncAccount(rebornState) {
     const account = getAccount();
     if (!account || !rebornState) return [];
+    // Rivalries: the run's ledger is the truth; the account gets an idempotent copy.
+    const hasRivals = rivalryLedger(rebornState).rivals.length > 0;
+    if (hasRivals) mirrorRivalriesToAccount(account, rebornState);
     const out = settleRebornPromises(account, rebornState);
-    if (!out.settled.length) return [];
+    if (!out.settled.length) {
+      if (hasRivals) { try { saveAccount(account); } catch { /* guest */ } }
+      return [];
+    }
     if (out.reborn !== rebornState) {
       rebornState.player.coachTrust = out.reborn.player.coachTrust;
       rebornState.player.rotationRole = out.reborn.player.rotationRole;
@@ -284,6 +296,9 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         ? `<p>${L("本周训练：", "This week's training: ", lang)}${TRAINING_FOCUS_LABEL[training.focus][lang() === "en" ? "en" : "zh"]}</p>`
         : "",
       !done
+        ? rivalryPregameHtml({ reborn, rows, nextGame, year: season.year, lang: lang() })
+        : "",
+      !done
         ? `<button type="button" data-play="1" ${busy ? "disabled" : ""}>${L("打下一场", "Play next game", lang)}${nextGame ? ` (${nextGame.homeId === reborn.player.teamId ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${nextGame.homeId === reborn.player.teamId ? nextGame.awayId : nextGame.homeId})` : ""}</button>`
         : "",
       !done && ffLabel
@@ -297,6 +312,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         : "",
       ffSummary,
       rebornReportHtml({ report: lastReport, lang: lang() }),
+      rivalryReportHtml({ report: lastReport, reborn, lang: lang() }),
+      rivalsPanelHtml({ reborn, lang: lang() }),
       careerTimelineHtml({ reborn, lang: lang() }),
       `<button type="button" data-reset="1">${L("换一个身份（重新开始）", "New identity (restart)", lang)}</button>`,
     ].join("");
@@ -320,7 +337,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       reborn = out.reborn;
       lastReport = out.report;
       applyAwakening(reborn, out.report);
-      applyPromises(reborn);
+      syncAccount(reborn);
       persist();
     } finally {
       busy = false;
@@ -344,7 +361,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         // awakening evidence live, so a skill fired mid-run is on the card
         // from the next simmed game on.
         onGame: (report, currentReborn) => {
-          if (currentReborn) { applyAwakening(currentReborn, report); applyPromises(currentReborn); }
+          if (currentReborn) { applyAwakening(currentReborn, report); syncAccount(currentReborn); }
           render();
         },
       });
@@ -415,6 +432,18 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         }
         return;
       }
+      const challenge = event.target.closest("[data-rival-challenge]");
+      if (challenge && lastReport) {
+        const out = challengeRival(rivalryLedger(reborn), lastReport, challenge.dataset.rivalChallenge);
+        if (out.rival) {
+          reborn.rivalries = out.ledger;
+          reborn.timeline = { ...(reborn.timeline || {}), events: [...(reborn.timeline?.events || []), rivalryTimelineEvent(out.rival)] };
+          syncAccount(reborn);
+          persist();
+        }
+        render();
+        return;
+      }
       const train = event.target.closest("[data-train]");
       if (train) {
         try {
@@ -438,7 +467,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         const settled = settleContract(reborn, { year: season.year });
         reborn = settled.reborn;
         contractOutcome = settled.outcome;
-        applyPromises(reborn); // the contract event is evidence for contract promises
+        syncAccount(reborn); // the contract event is evidence for contract promises
         persist();
         render();
         return;
@@ -446,7 +475,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       if (event.target.closest("[data-rollover]")) {
         const rolled = rolloverSeason(reborn, { year: season.year, players: rows });
         reborn = rolled.reborn;
-        applyPromises(reborn); // the new season passes every old deadline
+        syncAccount(reborn); // the new season passes every old deadline
         contractOutcome = null;
         lastReport = null;
         ffState = null;

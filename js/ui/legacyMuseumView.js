@@ -45,6 +45,7 @@ const HEADLINE_TYPE = {
   divergence: ["历史偏离", "Divergence"],
   promise: ["承诺", "Promise"],
   "promise-resolved": ["承诺结算", "Promise settled"],
+  rivalry: ["宿敌诞生", "Rivalry born"],
   "rivalry-game": ["宿敌对决", "Rivalry game"],
 };
 

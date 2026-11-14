@@ -100,11 +100,9 @@ async function run(width, height, tag) {
   check(`[${tag}] trust effect recorded as pending (no Reborn run loaded)`, /待 Reborn/.test(state.result) && state.text.includes("（待应用）"), state.result);
   await page.screenshot({ path: `${OUT}/${tag}-promise-resolved.png`, fullPage: true, animations: "disabled" });
 
-  // Rivalry game: beat Jordan -> strength 80 -> 84.
-  await page.click('[data-action="rivalry-game"][data-won="1"]');
-  await page.waitForTimeout(200);
-  state = await page.evaluate(panelState);
-  check(`[${tag}] rivalry win moves strength to 84`, state.text.includes("84/100"), state.result);
+  // Rivalry results come only from real Reborn games (Career 2.0 decision 2):
+  // the panel must not offer buttons that fabricate one.
+  check(`[${tag}] no fabricated rivalry-result buttons`, (await page.locator('[data-action="rivalry-game"]').count()) === 0);
 
   // Record a historical divergence.
   await page.fill("#rel-dv-subject", "1996 draft");

@@ -31,10 +31,10 @@
  * - Promise history -> negotiationStanding(), the -2..+2 modifier the
  *   GM negotiation layer (workstream C) reads when pricing a deal with
  *   a party the account has kept or broken promises to.
- * - Rivalry strength -> rivalryStakes(), the trust swing at stake in
- *   the next key game against that rival (read by the takeover / key-game
- *   UI, workstream A). Stakes change what a game MEANS (trust), never
- *   the dice.
+ * - Rivalry strength -> rivalryStakes(), the strength + head-to-head shown
+ *   before a game against that rival. Rivalries are born and recorded from
+ *   real Reborn games (js/reborn/rivalry.js); they never touch the dice,
+ *   ratings or trust.
  * - Coaching trust -> coachingTrustFor(), the 0-100 coaching-trust value
  *   between a coach and a player, read by the trust path.
  * - The legacy record -> legacySummaryFor(), the presentation-ready
@@ -51,7 +51,7 @@ import { PROMISE_EFFECTS } from "./promiseEffects.js";
 export const RELATIONSHIP_KINDS = ["rivalry", "mentorship", "coaching-trust", "management", "owner"];
 export const PROMISE_KINDS = ["minutes", "role", "start", "trade", "contract"];
 export const PROMISE_STATUSES = ["open", "fulfilled", "broken"];
-export const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry-game"];
+export const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry", "rivalry-game"];
 
 /** Role order for the "role" promise check (same ladder as trust.js). */
 export const ROLE_RANK = { dnp: 0, garbage: 1, bench: 2, rotation: 3, starter: 4 };
@@ -65,9 +65,8 @@ export const PROMISE_REL_BROKEN = PROMISE_EFFECTS.relationship.broken.relationsh
 /** Negotiation standing: one step per net kept/broken promise, capped. */
 export const NEGOTIATION_STEP = 1;
 export const NEGOTIATION_CAP = 2;
-/** Rivalry strength moves 4 points per game against the rival. */
-export const RIVALRY_WIN_DELTA = 4;
-export const RIVALRY_LOSS_DELTA = -4;
+/** Every real meeting deepens a rivalry, win or lose (losing to him does not cool it). */
+export const RIVALRY_MEETING_DELTA = 4;
 /** Coaching trust with no recorded relationship: neutral. */
 export const NEUTRAL_COACHING_TRUST = 50;
 /** A promise implies a working relationship; created at this strength. */
@@ -498,51 +497,59 @@ export function negotiationStanding(account, partyId) {
   return { modifier, fulfilled, broken, label, labelEn };
 }
 
-/**
- * The stakes of the next key game against a rival: an active rivalry
- * with the opponent, its strength, and the trust swing on the line.
- * Stakes change what the game means, never the dice.
- */
-export function rivalryStakes(account, opponentBref) {
-  const empty = { active: false, strength: 0, trustSwing: 0, label: "", labelEn: "" };
-  if (!isNonEmptyString(opponentBref)) return empty;
-  const person = peopleOf(account).find((p) => p.bref === opponentBref || p.id === opponentBref);
-  if (!person) return empty;
-  const rel = relationshipsOf(account).find(
-    (r) => r.kind === "rivalry" && r.state === "active" && (r.aId === person.id || r.bId === person.id),
-  );
-  if (!rel) return empty;
-  const trustSwing = Math.round(clamp100(rel.strength) / 25);
-  return {
-    active: true,
-    strength: clamp100(rel.strength),
-    trustSwing,
-    label: `宿敌对决：胜负将影响 ${trustSwing} 点信任`,
-    labelEn: `Rivalry game: ${trustSwing} trust on the line`,
-  };
-}
-
-/**
- * Record a game against a rival: a win heats the rivalry up (+4), a
- * loss cools it (-4). Writes a legacy event. Returns the rivalry record
- * (or null when no active rivalry exists with that opponent).
- */
-export function recordRivalryGame(account, { season = null, opponentBref, won } = {}) {
-  if (!account || !isNonEmptyString(opponentBref) || typeof won !== "boolean") return null;
+function activeRivalry(account, opponentBref) {
+  if (!isNonEmptyString(opponentBref)) return null;
   const person = peopleOf(account).find((p) => p.bref === opponentBref || p.id === opponentBref);
   if (!person) return null;
   const rel = relationshipsOf(account).find(
     (r) => r.kind === "rivalry" && r.state === "active" && (r.aId === person.id || r.bId === person.id),
   );
-  if (!rel) return null;
-  const delta = won ? RIVALRY_WIN_DELTA : RIVALRY_LOSS_DELTA;
-  const updated = adjustRelationship(account, rel.id, delta, won ? "宿敌对决取胜" : "宿敌对决落败");
+  return rel ? { person, rel } : null;
+}
+
+/**
+ * What is at stake against a rival: the rivalry's strength and the recorded
+ * head-to-head. Stakes change what the game means, never the dice.
+ */
+export function rivalryStakes(account, opponentBref) {
+  const empty = { active: false, strength: 0, wins: 0, losses: 0, label: "", labelEn: "" };
+  const found = activeRivalry(account, opponentBref);
+  if (!found) return empty;
+  const games = legacyOf(account).filter((e) => e.type === "rivalry-game" && e.data?.opponentBref === found.person.bref);
+  const wins = games.filter((e) => e.data?.won).length;
+  const losses = games.length - wins;
+  const strength = clamp100(found.rel.strength);
+  return {
+    active: true,
+    strength,
+    wins,
+    losses,
+    label: `宿敌对决：交手 ${wins}胜${losses}负，宿敌强度 ${strength}`,
+    labelEn: `Rivalry game: ${wins}-${losses} head to head, intensity ${strength}`,
+  };
+}
+
+/**
+ * Record one REAL game against a rival (the caller passes the game's stable
+ * evidence id). Every meeting deepens the rivalry; the W/L is kept for the
+ * head-to-head. Idempotent per gameId: the same game never counts twice.
+ * Returns the rivalry record, or null when there is no active rivalry.
+ */
+export function recordRivalryGame(account, { season = null, opponentBref, won, gameId } = {}) {
+  if (!account || typeof won !== "boolean" || !isNonEmptyString(gameId)) return null;
+  const found = activeRivalry(account, opponentBref);
+  if (!found) return null;
+  const { person, rel } = found;
+  const eventId = `rivalry-game:${gameId}:${person.id}`;
+  if (legacyOf(account).some((e) => e.id === eventId)) return rel;
+  const updated = adjustRelationship(account, rel.id, RIVALRY_MEETING_DELTA, won ? "宿敌对决取胜" : "宿敌对决落败");
   appendLegacyEvent(account, {
+    id: eventId,
     type: "rivalry-game",
     season,
     summary: `宿敌对决${won ? "取胜" : "落败"}：${person.name}`,
     summaryEn: `Rivalry game ${won ? "won" : "lost"} vs ${person.nameEn || person.name}`,
-    data: { opponentBref, won, strength: updated?.strength ?? rel.strength },
+    data: { opponentBref: person.bref || person.id, gameId, won, strength: updated?.strength ?? rel.strength },
   });
   return updated;
 }

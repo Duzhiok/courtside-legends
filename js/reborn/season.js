@@ -29,6 +29,14 @@ import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { applyGameGrowth } from "./training.js";
 import { gameEvidenceId } from "./promiseEvidence.js";
 import {
+  DEFAULT_TAKEOVER_WINDOW,
+  headToHead,
+  recordRivalryMeetings,
+  rivalryLedger,
+  rivalryTimelineEvent,
+  takeoverWindowFor,
+} from "./rivalry.js";
+import {
   buildPlayerCard,
   applyIdentityToRoster,
   maybeReveal,
@@ -86,13 +94,14 @@ function startersFor(cards, playerCard, isMyTeam, role) {
 
 /**
  * Takeover window (PR4): 4th quarter or OT, last 2:00, margin <= 5, your
- * possession, you on court, no decision already armed.
+ * possession, you on court, no decision already armed. A rivalry game
+ * widens the clock/margin (RIVALRY_TAKEOVER_WINDOW): more chances, same dice.
  */
-export function takeoverEligible(sim, playerId) {
+export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW) {
   if (!sim || !sim.running) return false;
   if (sim.quarter < 4) return false;
-  if (sim.clock > 120) return false;
-  if (Math.abs(sim.score.home - sim.score.away) > 5) return false;
+  if (sim.clock > window.clock) return false;
+  if (Math.abs(sim.score.home - sim.score.away) > window.margin) return false;
   if (sim.possession !== sim.youSide) return false;
   const you = sim.youSide === "home" ? sim.home : sim.away;
   if (!you.onCourt?.some((p) => p.id === playerId)) return false;
@@ -106,8 +115,8 @@ export function takeoverEligible(sim, playerId) {
  * / rejected). Purely the interface call — the choice itself comes from the
  * hook (PR4 builds the options, the player picks).
  */
-export async function attemptTakeover(sim, playerId, onTakeover) {
-  if (!takeoverEligible(sim, playerId)) return null;
+export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAULT_TAKEOVER_WINDOW) {
+  if (!takeoverEligible(sim, playerId, window)) return null;
   if (typeof onTakeover !== "function") return null;
   const decision = await onTakeover({ sim, playerId });
   if (!decision || !decision.shooterId || !decision.actionHint) return null;
@@ -126,7 +135,7 @@ export async function attemptTakeover(sim, playerId, onTakeover) {
 }
 
 /** Drive one live game possession by possession; the takeover hook fires at most once. */
-export async function driveGame(sim, playerId, { onTakeover = null } = {}) {
+export async function driveGame(sim, playerId, { onTakeover = null, window = DEFAULT_TAKEOVER_WINDOW } = {}) {
   sim._quiet = true;
   sim.running = true;
   sim.paused = false;
@@ -135,8 +144,8 @@ export async function driveGame(sim, playerId, { onTakeover = null } = {}) {
   let guard = 0;
   while (sim.running && guard++ < 8000) {
     sim.step();
-    if (!takeover && onTakeover && takeoverEligible(sim, playerId)) {
-      takeover = await attemptTakeover(sim, playerId, onTakeover);
+    if (!takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
+      takeover = await attemptTakeover(sim, playerId, onTakeover, window);
     }
   }
   return { takeover };
@@ -187,6 +196,7 @@ export async function playGame(
   const awayCards = teamOf(game.awayId);
   const myCards = isHome ? homeCards : awayCards;
   const myClone = myCards.find((p) => p.id === playerCard.id) || playerCard;
+  const oppCards = isHome ? awayCards : homeCards;
 
   const homeStarters = startersFor(homeCards, myClone, isHome, role);
   const awayStarters = startersFor(awayCards, myClone, !isHome, role);
@@ -208,7 +218,7 @@ export async function playGame(
   sim.autoDefense = true;
   sim.autoRotation = true;
 
-  const { takeover } = await driveGame(sim, playerCard.id, { onTakeover });
+  const { takeover } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards) });
 
   const youSide = sim.youSide === "home" ? sim.home : sim.away;
   const stats = youSide.roster.find((p) => p.id === playerCard.id)?.stats || {};
@@ -249,6 +259,23 @@ export async function playGame(
   const won = isHome
     ? sim.score.home > sim.score.away
     : sim.score.away > sim.score.home;
+  const gameId = gameEvidenceId(reborn.seed, year, season.index + 1);
+  // Real opponent box lines (the only evidence a rivalry is built from).
+  const oppSide = sim.youSide === "home" ? sim.away : sim.home;
+  const opponents = oppSide.roster
+    .filter((p) => (p.stats?.min || 0) > 0)
+    .map((p) => ({
+      id: p.id,
+      bref: p.bref,
+      name: p.name,
+      nameEn: p.nameEn || p.name,
+      pos: p.pos,
+      team: oppId,
+      ovr: overall(p),
+      min: Math.round((p.stats.min || 0) * 10) / 10,
+      pts: p.stats.pts || 0,
+      gs: Math.round(gameScore(p.stats) * 10) / 10,
+    }));
 
   const next = structuredClone(reborn);
   next.player.coachTrust = trustAfter;
@@ -260,7 +287,7 @@ export async function playGame(
   next.player.seasonLog.push({
     year,
     game: season.index + 1,
-    gameId: gameEvidenceId(reborn.seed, year, season.index + 1),
+    gameId,
     started,
     opp: oppId,
     home: isHome,
@@ -283,18 +310,32 @@ export async function playGame(
   next.player.growth = growthOut.growth;
   season.index += 1;
 
+  const reportCore = {
+    gameId,
+    year,
+    game: season.index,
+    won,
+    margin: Math.abs(sim.score.home - sim.score.away),
+    line: { ...line, score: gs },
+    gameScore: gs,
+    you: { pos: playerCard.pos, ovr: overall(myClone) },
+    opponents,
+    takeover: takeoverOutcome ? { attempted: takeoverOutcome.attempted, made: takeoverOutcome.made } : null,
+  };
+  const rivalry = recordRivalryMeetings(rivalryLedger(reborn), reportCore);
+  next.rivalries = rivalry.ledger;
+  if (rivalry.formed.length) {
+    next.timeline = { ...(next.timeline || {}), events: [...(next.timeline?.events || []), ...rivalry.formed.map(rivalryTimelineEvent)] };
+  }
+
   return {
     reborn: next,
     report: {
-      year,
-      game: season.index,
+      ...reportCore,
       day: game.day,
       opp: oppId,
       home: isHome,
       score: { ...sim.score },
-      won,
-      line: { ...line, score: gs },
-      gameScore: gs,
       trustBefore,
       trustAfter,
       trustDelta: trustChange.delta,
@@ -315,6 +356,10 @@ export async function playGame(
           }
         : null,
       weekBoundary: isWeekBoundary(season.index, REBORN_GAMES_PER_WEEK),
+      rivalry: {
+        formed: rivalry.formed.map((r) => ({ bref: r.bref, name: r.name, nameEn: r.nameEn, origin: r.origin, reason: r.reason })),
+        met: rivalry.met.map(({ rival, meeting }) => ({ bref: rival.bref, name: rival.name, nameEn: rival.nameEn, ...meeting, ...headToHead(rival) })),
+      },
     },
   };
 }

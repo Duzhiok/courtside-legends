@@ -311,20 +311,19 @@ test("negotiationStanding: capped at +/-2, counts kept vs broken", () => {
   assert.equal(negotiationStanding(account, "nobody").modifier, 0);
 });
 
-test("rivalryStakes + recordRivalryGame move strength and write legacy", () => {
+test("recordRivalryGame: real game id required, every meeting deepens it, idempotent per game", () => {
   const account = seedPeople(freshAccount());
   assert.deepEqual(rivalryStakes(account, "jordami01").active, false);
   addRelationship(account, { aId: "bryanko01", bId: "jordami01", kind: "rivalry", strength: 80 });
+  assert.equal(rivalryStakes(account, "jordami01").strength, 80);
+  assert.equal(recordRivalryGame(account, { season: 1996, opponentBref: "jordami01", won: true }), null, "no game id: no fabricated result");
+  assert.equal(recordRivalryGame(account, { season: 1996, opponentBref: "jordami01", won: true, gameId: "g1" }).strength, 84);
+  assert.equal(recordRivalryGame(account, { season: 1996, opponentBref: "jordami01", won: false, gameId: "g2" }).strength, 88, "losing to him does not cool it");
+  assert.equal(recordRivalryGame(account, { season: 1996, opponentBref: "jordami01", won: false, gameId: "g2" }).strength, 88, "same game twice counts once");
+  assert.equal(relationshipsStore(account).legacy.filter((e) => e.type === "rivalry-game").length, 2, "same season, same rival: both games kept");
   const stakes = rivalryStakes(account, "jordami01");
-  assert.equal(stakes.active, true);
-  assert.equal(stakes.strength, 80);
-  assert.equal(stakes.trustSwing, 3);
-  const afterWin = recordRivalryGame(account, { season: 1996, opponentBref: "jordami01", won: true });
-  assert.equal(afterWin.strength, 84);
-  const afterLoss = recordRivalryGame(account, { season: 1996, opponentBref: "jordami01", won: false });
-  assert.equal(afterLoss.strength, 80);
-  assert.equal(relationshipsStore(account).legacy.filter((e) => e.type === "rivalry-game").length, 2);
-  assert.equal(recordRivalryGame(account, { season: 1996, opponentBref: "nobody", won: true }), null);
+  assert.deepEqual([stakes.wins, stakes.losses, stakes.trustSwing], [1, 1, undefined], "no trust stake is advertised");
+  assert.equal(recordRivalryGame(account, { season: 1996, opponentBref: "nobody", won: true, gameId: "g3" }), null);
 });
 
 test("legacy record functions dedupe by id and group in the summary", () => {
