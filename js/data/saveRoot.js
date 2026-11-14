@@ -967,25 +967,35 @@ export function migrateLegacySaves(storage) {
 
   const season = parseLegacy(target, LEGACY_SEASON_KEY, [1, 2]);
   if (season) {
-    const root = createRootState({
-      activeMode: "franchise",
-      leagueCareer: {
-        kind: "franchise",
-        careerId: "legacy-season",
-        phase: season.phase,
-        season,
-        history: [],
-        manualOverrides: {},
-        recommendations: {},
-      },
-    });
-    validateRoot(root);
-    writeRootSave(root, target);
-    moveSaveOwner("season", "career", careerSig(root), target); // whoever owned the quick season owns it here too
-    // The data now lives in cls_root_v3 -- drop the legacy copy so it stops doubling this
-    // origin's storage footprint on every future save.
-    target.removeItem(LEGACY_SEASON_KEY);
-    return { root, source: LEGACY_SEASON_KEY };
+    // D-P1-4: same ADR-004 D5 rule as the root branch above — a failed migration must not
+    // break boot. A parseable-but-incomplete season (validateRoot throws) or a full store
+    // (writeRootSave throws) used to escape into the boot catch, which blamed the roster
+    // and stranded the player on the loading screen. Now the failure is returned like the
+    // root branch's, the legacy key is left untouched for the next boot to retry, and the
+    // caller reports it to the player.
+    try {
+      const root = createRootState({
+        activeMode: "franchise",
+        leagueCareer: {
+          kind: "franchise",
+          careerId: "legacy-season",
+          phase: season.phase,
+          season,
+          history: [],
+          manualOverrides: {},
+          recommendations: {},
+        },
+      });
+      validateRoot(root);
+      writeRootSave(root, target);
+      moveSaveOwner("season", "career", careerSig(root), target); // whoever owned the quick season owns it here too
+      // The data now lives in cls_root_v3 -- drop the legacy copy so it stops doubling this
+      // origin's storage footprint on every future save.
+      target.removeItem(LEGACY_SEASON_KEY);
+      return { root, source: LEGACY_SEASON_KEY };
+    } catch (error) {
+      return { root: null, source: LEGACY_SEASON_KEY, migrationError: error };
+    }
   }
 
   return null;

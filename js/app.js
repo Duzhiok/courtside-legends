@@ -12854,8 +12854,15 @@ async function boot() {
     // ADR-004 D5: the read path runs the lazy v3→v4 migration (inside
     // migrateLegacySaves). A failed migration returns the v3 root plus the
     // error instead of throwing, so boot still reaches home and the next
-    // boot retries.
-    const legacyDiscovery = migrateLegacySaves();
+    // boot retries. The call itself is guarded too (D-P1-4): an unexpected
+    // throw inside the migrator must not land in the boot catch below, which
+    // would blame the roster and strand the player on the loading screen.
+    let legacyDiscovery = null;
+    try {
+      legacyDiscovery = migrateLegacySaves();
+    } catch (error) {
+      legacyDiscovery = { root: null, migrationError: error };
+    }
     const discovered = legacyDiscovery?.root || readRootSave() || null;
     if (legacyDiscovery?.migrationError) {
       console.warn("[long-career-migration]", legacyDiscovery.migrationError);

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   ROOT_SAVE_KEY,
   createRootState,
@@ -903,4 +904,41 @@ test("season summary transactions accept trade_3team, trade_declined and trade_c
     }],
   });
   assert.throws(() => importRootSave(exportEnvelope(madeUp)), /invalid save file/);
+});
+
+test("D-P1-4: a parseable-but-incomplete legacy season fails migration without throwing — the old key is kept for retry", () => {
+  // parseLegacy only checks v ∈ [1,2]; a season missing teams/schedule passes it and used
+  // to throw out of validateRoot, killing boot with a misleading 'roster failed' message.
+  const damaged = JSON.stringify(validSeason({ teams: undefined, schedule: undefined }));
+  const storage = createMemoryStorage({ [LEGACY_SEASON_KEY]: damaged });
+
+  let result;
+  assert.doesNotThrow(() => { result = migrateLegacySaves(storage); });
+  assert.equal(result.root, null);
+  assert.equal(result.source, LEGACY_SEASON_KEY);
+  assert.ok(result.migrationError instanceof Error, "the failure is reported, not swallowed");
+  assert.equal(storage.getItem(LEGACY_SEASON_KEY), damaged, "the legacy key is untouched for the next boot to retry");
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), null, "no half-migrated root is left behind");
+});
+
+test("D-P1-4: a full store during legacy migration fails the same way, not with a boot crash", () => {
+  const seasonJson = JSON.stringify(validSeason());
+  const backing = createMemoryStorage({ [LEGACY_SEASON_KEY]: seasonJson });
+  const failingStorage = {
+    getItem: (key) => backing.getItem(key),
+    setItem: () => { throw new Error("quota exceeded"); },
+    removeItem: (key) => backing.removeItem(key),
+  };
+
+  let result;
+  assert.doesNotThrow(() => { result = migrateLegacySaves(failingStorage); });
+  assert.equal(result.root, null);
+  assert.ok(result.migrationError instanceof Error);
+  assert.equal(backing.getItem(LEGACY_SEASON_KEY), seasonJson, "the legacy key survives the failed write");
+});
+
+test("D-P1-4: boot guards the migrateLegacySaves call itself, so a migrator throw never blames the roster (source check)", () => {
+  const src = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
+  assert.ok(/try \{\s*legacyDiscovery = migrateLegacySaves\(\);/.test(src), "boot wraps the migration call in try/catch");
+  assert.ok(/legacyDiscovery = \{ root: null, migrationError: error \}/.test(src), "an unexpected migrator throw degrades to a reported migrationError");
 });
