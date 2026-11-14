@@ -7,6 +7,7 @@
 import { shuffle } from "../core/seededRandom.js";
 import { PLAYERS, clonePlayer, overall } from "./players.js";
 import { ROLE_FAMILIES, ROLE_FAMILY_LABELS, roleFamilyOf } from "./skills.js";
+import { rand } from "../core/rng.js";
 
 export const CUSTOM_BUDGET = 15;
 export const CUSTOM_ROSTER_SIZE = 8;
@@ -249,7 +250,7 @@ export function dealRoleDiverse(cards, count, { weightFn = null, keyOf = (c) => 
     if (weightFn) {
       const weights = pool.map(weightFn);
       const sum = weights.reduce((a, b) => a + b, 0);
-      let r = Math.random() * sum;
+      let r = rand() * sum;
       one = pool[pool.length - 1];
       for (let i = 0; i < pool.length; i++) {
         r -= weights[i];
@@ -259,7 +260,7 @@ export function dealRoleDiverse(cards, count, { weightFn = null, keyOf = (c) => 
         }
       }
     } else {
-      one = pool[Math.floor(Math.random() * pool.length)];
+      one = pool[Math.floor(rand() * pool.length)];
     }
     taken.add(keyOf(one));
     return one;
@@ -394,7 +395,7 @@ function drawUniform(pool, size, excludeIds) {
   for (let i = 0; i < size; i++) {
     const avail = pool.filter((x) => !used.has(x.id));
     if (!avail.length) break;
-    const pick = avail[Math.floor(Math.random() * avail.length)];
+    const pick = avail[Math.floor(rand() * avail.length)];
     used.add(pick.id);
     cards.push(pick);
   }

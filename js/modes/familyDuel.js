@@ -20,6 +20,7 @@
 import { FAMILY_GROUPS } from "../data/family.js";
 import { playerPrice } from "../data/intangibles.js";
 import { PLAYERS, clonePlayer, overall } from "../data/players.js";
+import { rand } from "../core/rng.js";
 
 /** Starting gold per side — same number career mode gives the human (js/app.js bootCareerBracket). */
 export const FAMILY_DUEL_GOLD = 600;
@@ -134,7 +135,7 @@ export function familyDuelShop(pool, excludeIds, gold, size = 10) {
     const copy = [...arr];
     const out = [];
     while (copy.length && out.length < n) {
-      const i = Math.floor(Math.random() * copy.length);
+      const i = Math.floor(rand() * copy.length);
       out.push(copy.splice(i, 1)[0]);
     }
     return out;

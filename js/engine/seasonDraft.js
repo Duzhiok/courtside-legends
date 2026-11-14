@@ -6,6 +6,7 @@ import { FRANCHISES, POS_SLOTS, playersForFranchise } from "../data/franchises.j
 import { clonePlayer, overall, PLAYERS } from "../data/players.js";
 import { playerSalary, SEASON_SALARY_CAP } from "./seasonMarket.js";
 import { shuffle } from "../core/seededRandom.js";
+import { rand } from "../core/rng.js";
 
 const OFFER_COUNT = 10;
 /** Opening draft fills to this size when salary space runs out. */
@@ -20,11 +21,11 @@ export function draftableFranchises() {
 
 function pickOne(list) {
   if (!list?.length) return null;
-  return list[Math.floor(Math.random() * list.length)];
+  return list[Math.floor(rand() * list.length)];
 }
 
 function randInt(lo, hi) {
-  return lo + Math.floor(Math.random() * (hi - lo + 1));
+  return lo + Math.floor(rand() * (hi - lo + 1));
 }
 
 /** Bucket by rough NBA roster role using OVR + hidden tier. */
@@ -264,7 +265,7 @@ export function autoFillSeasonDraft(roster, opts = {}) {
         (posRank < 0 ? 0 : (POS_SLOTS.length - posRank) * 6) +
         (space - sal) * 0.15 -
         o * 0.35 +
-        Math.random() * 8;
+        rand() * 8;
       if (score > bestScore) {
         bestScore = score;
         best = p;

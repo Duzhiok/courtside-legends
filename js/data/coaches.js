@@ -1,3 +1,4 @@
+import { rand } from "../core/rng.js";
 /**
  * 2K-inspired playbooks. Each coach only unlocks a subset (specialTactics).
  * needs[] boost chemistry when roster tags/archetypes match.
@@ -1049,7 +1050,7 @@ export function rollRandomCoach({ excludeIds = [], preferStarter = true } = {}) 
     if (starters.length) pool = starters;
   }
   if (!pool.length) pool = COACHES.filter((c) => c?.id);
-  const pick = pool[Math.floor(Math.random() * pool.length)] || COACHES[0];
+  const pick = pool[Math.floor(rand() * pool.length)] || COACHES[0];
   return pick ? structuredClone(pick) : null;
 }
 
@@ -1065,7 +1066,7 @@ export function rollRandomAssistant({ excludeIds = [], preferObscure = true } = 
     if (obscure.length) pool = obscure;
   }
   if (!pool.length) pool = ASSISTANTS.filter((a) => a?.id);
-  const pick = pool[Math.floor(Math.random() * pool.length)] || ASSISTANTS[0];
+  const pick = pool[Math.floor(rand() * pool.length)] || ASSISTANTS[0];
   return pick ? structuredClone(pick) : null;
 }
 

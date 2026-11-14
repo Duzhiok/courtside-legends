@@ -13,6 +13,7 @@ import { teamChemistry, lineupFit } from "./chemistry.js";
 import { teamPowerLabel } from "./draft.js";
 import { nextEmptyPlayPos } from "./gameplan.js";
 import { GameSim } from "./sim.js";
+import { rand } from "../core/rng.js";
 
 /** 换货时出现球探包的基础概率（新一轮 / 手动刷新都会重 roll，不是每轮必出） */
 export const SCOUT_PACK_CHANCE = 0.28;
@@ -207,7 +208,7 @@ export function buildAffordableShop(c, size = 12) {
     for (const group of groups) {
       const copy = [...group];
       while (copy.length && out.length < n) {
-        const i = Math.floor(Math.random() * copy.length);
+        const i = Math.floor(rand() * copy.length);
         out.push(copy.splice(i, 1)[0].p);
       }
       if (out.length >= n) break;
@@ -217,7 +218,7 @@ export function buildAffordableShop(c, size = 12) {
 
   // Mostly buyable: 7 cheap + 4 mid + 1 stretch tease; sometimes seed hidden gems
   let shop = [...pick(cheap, 7), ...pick(mid, 4), ...pick(stretch, 1)];
-  if (gems.length && Math.random() < 0.62) {
+  if (gems.length && rand() < 0.62) {
     shop = [...pick(gems, Math.min(2, gems.length)), ...shop];
   }
   if (shop.length < size) {
@@ -269,12 +270,12 @@ export function rollScoutPackOffer(c, reason = "round") {
   c.scoutActive = false;
   c.scoutBuyer = null;
   const chance = reason === "refresh" ? SCOUT_PACK_REFRESH_CHANCE : SCOUT_PACK_CHANCE;
-  if (Math.random() >= chance) {
+  if (rand() >= chance) {
     c.scoutOffer = null;
     return;
   }
   const span = SCOUT_PACK_COST_MAX - SCOUT_PACK_COST_MIN;
-  const cost = SCOUT_PACK_COST_MIN + Math.floor(Math.random() * (span + 1));
+  const cost = SCOUT_PACK_COST_MIN + Math.floor(rand() * (span + 1));
   c.scoutOffer = { cost, bought: false, reason };
 }
 

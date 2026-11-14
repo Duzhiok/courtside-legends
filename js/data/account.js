@@ -10,6 +10,7 @@ import { applyHiddenRoll, legacyRollSeed } from "./cardRoll.js";
 import { MAX_STARS } from "./gacha.js";
 import { applyGrowth } from "./growthPaths.js";
 import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY as ACTIVE_KEY } from "./accountKeys.js";
+import { rand } from "../core/rng.js";
 
 const STORE_KEY = ACCOUNTS_KEY;
 
@@ -254,7 +255,7 @@ export function weightedPick(list, weightFn) {
     total += w;
     return w;
   });
-  let r = Math.random() * total;
+  let r = rand() * total;
   for (let i = 0; i < list.length; i++) {
     r -= weights[i];
     if (r <= 0) return list[i];
@@ -266,7 +267,7 @@ export function weightedPick(list, weightFn) {
 export function rollCoachOffers(count = 5) {
   const pool = COACHES.filter(isStarterCoach);
   const shuffled = [...(pool.length ? pool : COACHES.filter((c) => (c.fame ?? 50) < 40))].sort(
-    () => Math.random() - 0.5
+    () => rand() - 0.5
   );
   return shuffled.slice(0, count).map((c) => structuredClone(c));
 }

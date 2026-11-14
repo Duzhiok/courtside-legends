@@ -9,6 +9,7 @@ import { simulateCpuMatch } from "./careerEconomy.js";
 import { cpuUpgradeRoster } from "./draft.js";
 import { rollAdvancementInjuries } from "../data/intangibles.js";
 import { shuffle } from "../core/seededRandom.js";
+import { rand } from "../core/rng.js";
 
 export const CAREER_STAGES = [32, 16, 8, 4, 2];
 
@@ -378,11 +379,11 @@ export function upgradeCpuAdvancers(c, survivors) {
   const passes = randomField ? 1 + Math.floor(depth) : 1; // 随机联队：越往后多轮换血
   for (const t of survivors) {
     if (!t?.isCpu) continue;
-    t.gold = (t.gold || 0) + purse + Math.floor(Math.random() * (randomField ? 120 : 80));
+    t.gold = (t.gold || 0) + purse + Math.floor(rand() * (randomField ? 120 : 80));
     for (let i = 0; i < passes; i++) {
       const spend = Math.min(
         t.gold,
-        110 + Math.floor(purse * 0.75) + Math.floor(Math.random() * 70) + depth * 40
+        110 + Math.floor(purse * 0.75) + Math.floor(rand() * 70) + depth * 40
       );
       if (spend < 40) break;
       const res = cpuUpgradeRoster(t, spend, c.used);

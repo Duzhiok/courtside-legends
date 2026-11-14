@@ -3,6 +3,7 @@ import { CUSTOM_REFRESH_COST, customPriceOf, dealRoleDiverse, listPaidPeaks } fr
 import { playerPrice } from "../data/intangibles.js";
 import { HIDDEN_TIERS, PLAYERS, clonePlayer, overall } from "../data/players.js";
 import { shuffle } from "../core/seededRandom.js";
+import { rand } from "../core/rng.js";
 
 /** Free refreshes per side before the pick-and-pack draft starts charging gold. */
 export const DRAFT_FREE_REFRESHES = 3;
@@ -169,7 +170,7 @@ export function cpuUpgradeRoster(team, budget, globalUsed = new Set()) {
 
     if (!candidates.length) break;
     // Bias pick among top value options
-    const pick = candidates[Math.floor(Math.random() * Math.min(8, candidates.length))];
+    const pick = candidates[Math.floor(rand() * Math.min(8, candidates.length))];
     if (!pick) break;
 
     if (team.players.length < maxRoster) {
@@ -291,7 +292,7 @@ function weightedPick(arr, weightFn) {
   if (!arr.length) return null;
   const weights = arr.map(weightFn);
   const sum = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * sum;
+  let r = rand() * sum;
   for (let i = 0; i < arr.length; i++) {
     r -= weights[i];
     if (r <= 0) return arr[i];
