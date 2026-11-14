@@ -135,6 +135,18 @@ export function keyHasData(key, storage) {
   }
 }
 
+/**
+ * Storage keys for the four owned slots. Literals on purpose: the canonical
+ * constants live in saveRoot.js / savegame.js / seasonStore.js, and all three
+ * import this module — importing them back would be a cycle. Keep in sync.
+ */
+const SLOT_KEYS = {
+  career: "cls_root_v3",
+  session: "cls_savegame_v1",
+  season: "cls_season_v1",
+  myteam: "cls_myteam_season_v1",
+};
+
 export const careerSig = (root) => (root?.leagueCareer ? root.story?.storyId || root.leagueCareer.careerId || "career" : null);
 export const sessionSig = (data) => (data ? "session" : null);
 export const seasonSig = (st) => (st ? "season" : null);
@@ -159,8 +171,23 @@ export function stampLegacySaves({ career = null, session = null, season = null,
       all[slot] = slot === "season" && mirrorsCareer(season, career) ? { owner: null, sig, mirror: true } : { owner: null, sig };
       changed = true;
     } else if (!sig && all[slot]) {
-      delete all[slot];
-      changed = true;
+      if (keyHasData(SLOT_KEYS[slot], storage)) {
+        // D-P1-1: the slot still holds bytes we cannot parse (a newer-schema save on an
+        // older build, or a corrupt one) — the save is unreadable, not gone. Dropping its
+        // entry here would leave the slot unguarded and let the next new save silently
+        // overwrite those bytes. Keep the entry, downgraded to unassociated: the recorded
+        // owner can no longer be proven, and only an unassociated entry arms the write
+        // guard for every player (keeping the owner would leave the same owner's
+        // overwrite unblocked). Continuing the same save still works once it is readable
+        // again: the sig is preserved, so the guard recognises it.
+        if (all[slot].owner != null) {
+          all[slot] = { ...all[slot], owner: null };
+          changed = true;
+        }
+      } else {
+        delete all[slot];
+        changed = true;
+      }
     }
   }
   if (changed) writeAll(all, storage);

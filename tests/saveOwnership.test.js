@@ -4,9 +4,9 @@ import { createMemoryStorage } from "./helpers/memoryStorage.js";
 import { hiredRoot } from "./helpers/careerFixtures.js";
 import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY } from "../js/data/accountKeys.js";
 import {
-  OWNERS_KEY, _resetOwnershipForTests, careerSig, claimSave, markSessionResumed, recordSaveWrite, saveVisibility, stampLegacySaves,
+  OWNERS_KEY, _resetOwnershipForTests, careerSig, claimSave, ForeignSaveError, markSessionResumed, recordSaveWrite, saveVisibility, stampLegacySaves,
 } from "../js/data/saveOwnership.js";
-import { clearRootSave, deleteCareerSave, readRootSave, writeRootSave } from "../js/data/saveRoot.js";
+import { clearRootSave, deleteCareerSave, readRootSave, ROOT_SAVE_KEY, writeRootSave } from "../js/data/saveRoot.js";
 
 // Accounts that sign in really exist on the device (ownership treats a deleted owner as gone).
 function device(activeId = null) {
@@ -118,4 +118,61 @@ test("no ownership bookkeeping before the boot stamp (legacy migration writes st
   const { storage } = device("acc-a");
   writeRootSave(hiredRoot(60), storage);
   assert.equal(storage.getItem(OWNERS_KEY), null);
+});
+
+const otherCareer = (root, tag = "new") => {
+  const storyId = `${root.story.storyId}-${tag}`;
+  return { ...root, leagueCareer: { ...root.leagueCareer, storyId }, story: { ...root.story, storyId } };
+};
+
+test("D-P1-1: a newer-schema career survives a downgrade boot — its entry is kept unassociated, not deleted", () => {
+  const { storage } = device("acc-a");
+  stampLegacySaves({}, storage);
+  const root = hiredRoot(60);
+  writeRootSave(root, storage);
+  assert.equal(owners(storage).career.owner, "acc-a");
+  // The player then plays on a newer build (v5 root) and comes back to this one:
+  // this build cannot parse the v5 root, so boot sees "no career".
+  const newer = JSON.stringify({ ...JSON.parse(storage.getItem(ROOT_SAVE_KEY)), schemaVersion: 5 });
+  storage.setItem(ROOT_SAVE_KEY, newer);
+  assert.equal(readRootSave(storage), null, "a newer-schema root reads as no save on this build");
+  _resetOwnershipForTests();
+  stampLegacySaves({ career: readRootSave(storage) }, storage);
+  const entry = owners(storage).career;
+  assert.ok(entry, "the entry is kept while the slot still holds bytes");
+  assert.equal(entry.owner, null, "unreadable means unassociated, not the recorded owner");
+  assert.equal(entry.sig, careerSig(root), "the sig is preserved so the save is recognisable again on upgrade");
+  // A new career over it is refused; the newer bytes are untouched.
+  assert.throws(() => writeRootSave(otherCareer(root), storage), (e) => e instanceof ForeignSaveError && e.reason === "unassociated");
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), newer, "the newer save is byte-for-byte untouched");
+  // An explicit confirmed delete still frees the slot.
+  deleteCareerSave(storage, { release: true });
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), null);
+});
+
+test("D-P1-1: a corrupt career (unparseable bytes) keeps its entry too", () => {
+  const { storage } = device("acc-a");
+  stampLegacySaves({}, storage);
+  const root = hiredRoot(60);
+  writeRootSave(root, storage);
+  const before = "{not json";
+  storage.setItem(ROOT_SAVE_KEY, before);
+  assert.equal(readRootSave(storage), null);
+  _resetOwnershipForTests();
+  stampLegacySaves({ career: readRootSave(storage) }, storage);
+  assert.ok(owners(storage).career, "unparseable bytes still count as a save");
+  assert.equal(owners(storage).career.owner, null);
+  assert.throws(() => writeRootSave(otherCareer(root), storage), ForeignSaveError);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), before);
+});
+
+test("D-P1-1: a stale entry whose slot holds no data is still cleaned up", () => {
+  const { storage } = device("acc-a");
+  stampLegacySaves({}, storage);
+  writeRootSave(hiredRoot(60), storage);
+  assert.ok(owners(storage).career);
+  storage.removeItem(ROOT_SAVE_KEY); // the save itself is gone (deleted out-of-band)
+  _resetOwnershipForTests();
+  stampLegacySaves({ career: null }, storage);
+  assert.equal(owners(storage).career, undefined, "no bytes left: the stale entry goes");
 });
