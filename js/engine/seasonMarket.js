@@ -538,6 +538,10 @@ function tradeCapabilityCheck(career, root, lang = "zh") {
   }
 }
 
+/** G-P1-1: the same id twice in one list maps to the same player twice — the executor
+ * clones per list entry but filters per id, so a duplicate copies the player. */
+const hasDuplicates = (ids) => new Set(ids).size !== ids.length;
+
 /**
  * 1-for-1 or N-for-M trade with a CPU club; either side may also throw in draft picks.
  * Salary match: outgoing within 25% + ¤40 of incoming (NBA-ish simplified). Picks don't carry
@@ -559,6 +563,9 @@ export function executeTrade(
   if (!you || !cpu || cpuTeamId === st.userTeamId) return { ok: false, reason: en ? "Invalid opponent" : "对手无效" };
   if ((!giveIds.length && !givePickIds.length) || (!wantIds.length && !wantPickIds.length)) {
     return { ok: false, reason: en ? "Both sides need to offer something (players or picks)" : "双方都需出点东西（球员或选秀权）" };
+  }
+  if (hasDuplicates(giveIds) || hasDuplicates(wantIds) || hasDuplicates(givePickIds) || hasDuplicates(wantPickIds)) {
+    return { ok: false, reason: en ? "Duplicate players or picks in the offer" : "报价里有重复的球员或选秀权" };
   }
 
   const give = giveIds.map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
@@ -696,6 +703,9 @@ export function executeThreeTeamTrade(
   }
   if (!giveIds.length || !team2PlayerIds.length || !team3PlayerIds.length) {
     return { ok: false, reason: en ? "All three teams must offer players" : "三方都需出人" };
+  }
+  if (hasDuplicates(giveIds) || hasDuplicates(team2PlayerIds) || hasDuplicates(team3PlayerIds)) {
+    return { ok: false, reason: en ? "Duplicate players in the offer" : "报价里有重复的球员" };
   }
   const give = giveIds.map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
   const p2 = team2PlayerIds.map((id) => t2.players.find((p) => p.id === id)).filter(Boolean);
