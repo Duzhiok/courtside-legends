@@ -5640,7 +5640,7 @@ function marketFormBlock(p) {
         recent.wins + recent.losses
           ? ` · ${recent.wins}胜${recent.losses}负`
           : ""
-      }${recent.lastNote ? ` · 近况「${recent.lastNote}」` : ""}</div>`
+      }${recent.avgRating != null ? ` · 平均评分 ${recent.avgRating > 0 ? "+" : ""}${recent.avgRating}` : ""}</div>`
     : "";
   const log =
     games.length > 0
@@ -5654,17 +5654,7 @@ function marketFormBlock(p) {
           .join("")}</ul>`
       : "";
   const cardLine = cardAvg ? `<div class="tiny market-form-card">${cardAvg}</div>` : "";
-  // 卖人提示：上场哑火 / 高薪低能近况差
-  let tip = "";
-  // Verdict comes from the role-aware rating (summarizeRecentForm.poor), never from points alone.
-  if (recent && recent.games >= 2 && recent.poor && recent.ppg < 6 && (p.scoring || 0) >= 78) {
-    tip = `<div class="tiny market-form-tip warn">巨星近况低迷，可考虑卖出换血</div>`;
-  } else if (recent?.poor) {
-    tip = `<div class="tiny market-form-tip warn">近况不佳</div>`;
-  } else if (recent && recent.ppg >= 22) {
-    tip = `<div class="tiny market-form-tip hot">近期火力足，慎卖</div>`;
-  }
-  return `<div class="market-form">${mood}${avgLine}${log}${cardLine}${tip}</div>`;
+  return `<div class="market-form">${mood}${avgLine}${log}${cardLine}</div>`;
 }
 
 function marketOwnedCard(p, canSell, sideLabel = "") {

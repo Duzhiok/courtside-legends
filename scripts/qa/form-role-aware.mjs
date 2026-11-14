@@ -53,8 +53,10 @@ const forms = await page.$$eval("#screen-market.active .market-form", (els) =>
 );
 const played = forms.filter((f) => /上场/.test(f.text));
 check("market shows recent-form blocks for players who played", played.length >= 5, `${played.length} blocks`);
-const positiveButPoor = played.filter((f) => f.poor && /篮板统治|护框统治|组织统治|防守尽责|攻弱守强|防守锁死/.test(f.text));
-check("no 近况不佳 on a positive role-aware night", positiveButPoor.length === 0, positiveButPoor.map((f) => f.text.slice(0, 80)).join(" | "));
+const VERDICT = /哑火|统治|锁死|近况不佳|低迷|攻强守弱|攻弱守强|高产低效|防守尽责|慎卖|火力足/;
+const verdicts = played.filter((f) => VERDICT.test(f.text) || f.poor);
+check("no subjective verdict text or warn tip in market form blocks", verdicts.length === 0, verdicts.map((f) => f.text.slice(0, 80)).join(" | "));
+check("lines show TS/未出手, +/- and real state deltas", played.some((f) => /TS \d+%|未出手/.test(f.text)) && played.some((f) => /\+\/- /.test(f.text)) && played.some((f) => /信心 \d+→\d+/.test(f.text)));
 check("no page errors", errors.length === 0, errors.join(" | "));
 await page.screenshot({ path: `${OUT}/market.png`, fullPage: true });
 console.log(played.slice(0, 8).map((f) => f.text.slice(0, 140)).join("\n"));

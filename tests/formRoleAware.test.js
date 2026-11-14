@@ -112,3 +112,36 @@ test("legacy saves: rows without rating fall back to the note; missing fields de
   const g = applyFormAfterGame(bare, { stats: { min: 30, pts: 8, reb: 9, fga: 6, fgm: 4 } }, { won: true });
   assert.ok(g && Number.isFinite(bare.confidence) && Number.isFinite(bare.targetMinutes));
 });
+
+// ---- presentation: objective numbers only, no player-facing verdicts ----
+import { formatGameLine, formDelta, trueShooting } from "../js/engine/form.js";
+const VERDICTS = /哑火|统治|锁死|近况不佳|低迷|攻强守弱|攻弱守强|高产低效|防守尽责|慎卖|火力足/;
+
+test("Mozgov line shows raw stats, TS sample, +/-, rating and real before→after state; no verdict", () => {
+  const src = card("mozgoti01", 2015);
+  const g = play(src, { min: 42, pts: 0, reb: 17, ast: 1, blk: 2, stl: 1, tov: 1, fga: 3, fgm: 0, pm: 9 }, true);
+  const line = formatGameLine(g);
+  assert.match(line, /0分17板1助 1断 2帽/);
+  assert.match(line, /投0\/3 TS 0%/);
+  assert.match(line, /\+\/- \+9/);
+  assert.match(line, /评分 \+\d/);
+  assert.match(line, new RegExp(`信心 50→${src.confidence} \\(\\+${src.confidence - 50}\\)`));
+  assert.doesNotMatch(line, VERDICTS);
+  assert.equal(g.pm, 9);
+  assert.equal(g.prevConfidence, 50);
+});
+
+test("TS shows the attempt count: 0/3 and 0/15 are distinguishable; no shots says 未出手", () => {
+  assert.deepEqual(trueShooting({ pts: 0, fga: 3, fgm: 0 }), { pct: 0, fga: 3, fgm: 0 });
+  assert.equal(trueShooting({ pts: 0, fga: 15, fgm: 0 }).fga, 15);
+  assert.equal(trueShooting({ pts: 0, fga: 0, fta: 0 }), null);
+  assert.match(formatGameLine({ pts: 0, reb: 9, ast: 0, min: 30, fga: 0, fta: 0 }), /未出手/);
+});
+
+test("legacy rows (no pm / rating / prev state) render without fabricated deltas or errors", () => {
+  const line = formatGameLine({ pts: 8, reb: 4, ast: 2, min: 20, fgPct: 50, note: "进攻哑火", won: false, confidence: 40 });
+  assert.match(line, /命中 50%/);
+  assert.doesNotMatch(line, /信心|评分|\+\/-|进攻哑火/);
+  assert.equal(formDelta(undefined, 55), "");
+  assert.equal(formatGameLine(null), "");
+});

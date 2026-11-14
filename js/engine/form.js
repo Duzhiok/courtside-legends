@@ -87,9 +87,17 @@ export function applyFormAfterGame(src, simPlayer, { won = false, gameKey = "" }
     tov: stats.tov || 0,
     fgPct: impact.fgPct,
     min: impact.min,
+    // Objective shooting/impact inputs for display (TS%, +/-). `note` stays for
+    // save compatibility only -- the UI no longer shows it as a verdict.
+    fga: stats.fga || 0,
+    fgm: stats.fgm || 0,
+    fta: stats.fta || 0,
+    pm: Number.isFinite(Number(stats.pm)) ? Number(stats.pm) : null,
     note: gameNote(impact),
     rating: impact.total,
     won: !!won,
+    prevConfidence: prevC,
+    prevTacticalStatus: prevT,
     confidence: src.confidence,
     tacticalStatus: src.tacticalStatus,
   };
@@ -117,14 +125,42 @@ export function applyFormAfterGame(src, simPlayer, { won = false, gameKey = "" }
   return src.lastGame;
 }
 
-/** One-line box for market / UI. */
+/** True shooting % with the attempt count, or null when no shots were taken. */
+export function trueShooting(g) {
+  const att = (Number(g?.fga) || 0) + 0.44 * (Number(g?.fta) || 0);
+  if (!(att > 0)) return null;
+  return { pct: Math.round(((Number(g.pts) || 0) / (2 * att)) * 100), fga: Number(g.fga) || 0, fgm: Number(g.fgm) || 0 };
+}
+
+const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+/** "50→62 (+12)" only when the real before value was stored; never inferred. */
+export function formDelta(before, after) {
+  if (!Number.isFinite(Number(before)) || !Number.isFinite(Number(after))) return "";
+  const d = Math.round(after) - Math.round(before);
+  return `${Math.round(before)}→${Math.round(after)} (${signed(d)})`;
+}
+
+/** Objective one-line box for market / UI: raw stats, shooting sample, +/-, rating, state change. */
 export function formatGameLine(g) {
   if (!g) return "";
-  const fg = g.fgPct != null ? ` ${g.fgPct}%` : "";
   const w = g.won === true ? "胜" : g.won === false ? "负" : "";
-  return `${w ? w + " · " : ""}${g.pts}分${g.reb}板${g.ast}助${
-    g.stl ? ` ${g.stl}断` : ""
-  }${g.blk ? ` ${g.blk}帽` : ""} · ${g.min || 0}分钟${fg}${g.note ? ` · ${g.note}` : ""}`;
+  const ts = trueShooting(g);
+  const shoot = ts
+    ? ` · 投${ts.fgm}/${ts.fga} TS ${ts.pct}%`
+    : g.fgPct != null
+      ? ` · 命中 ${g.fgPct}%`
+      : Number.isFinite(g.fga) && g.fga === 0 && g.min > 0
+        ? " · 未出手"
+        : "";
+  const pm = Number.isFinite(g.pm) ? ` · +/- ${signed(g.pm)}` : "";
+  const rating = Number.isFinite(g.rating) ? ` · 评分 ${signed(g.rating)}` : "";
+  const c = formDelta(g.prevConfidence, g.confidence);
+  const t = formDelta(g.prevTacticalStatus, g.tacticalStatus);
+  const state = c || t ? ` · ${c ? `信心 ${c}` : ""}${c && t ? " " : ""}${t ? `战术 ${t}` : ""}` : "";
+  return `${w ? w + " · " : ""}${g.pts}分${g.reb}板${g.ast}助${g.stl ? ` ${g.stl}断` : ""}${
+    g.blk ? ` ${g.blk}帽` : ""
+  } · ${g.min || 0}分钟${shoot}${pm}${rating}${state}`;
 }
 
 /** Avg line across recentGames for sell decisions. */
@@ -170,8 +206,9 @@ export function syncFormToTeams(sim, homeTeam, awayTeam) {
       const src = srcTeam.players.find((x) => x.id === p.id);
       if (!src) continue;
       const g = applyFormAfterGame(src, p, { won, gameKey });
-      if (g && (g.confidence >= 68 || g.confidence <= 38 || g.note?.includes("大火") || g.note?.includes("爆发"))) {
-        notes.push(`${src.name}：${g.note}（自信${g.confidence} · ${tacticalLabel(g.tacticalStatus)}）`);
+      // Report only players whose state actually moved a lot; objective numbers, no verdict.
+      if (g && Math.abs(g.confidence - g.prevConfidence) >= 8) {
+        notes.push(`${src.name}：${g.pts}分${g.reb}板${g.ast}助 · 信心 ${formDelta(g.prevConfidence, g.confidence)}`);
       }
     }
   };
