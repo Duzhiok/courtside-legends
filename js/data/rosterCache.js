@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 66; // bump: role skill layer for low-OVR players (corner_camp / second_unit_engine / crash_board + roleSkills provenance)
+export const ROSTER_SCHEMA = 67; // bump: 1996-97 enforcers gain the enforcer trait (Rodman / Oakley / Mason / Mahorn)
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good
