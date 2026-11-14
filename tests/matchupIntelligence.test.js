@@ -6,6 +6,7 @@ import { overall } from "../js/data/players.js";
 import { scoutOpponent } from "../js/myteam/opponentScouting.js";
 import { counterStrategies, PLAN_IDS } from "../js/myteam/counterStrategy.js";
 import { applyCounterPlan } from "../js/myteam/applyPlan.js";
+import { createMatchupController } from "../js/ui/matchupController.js";
 
 const card = (b, y) => { const c = realCards(b); if (!c.length) return null; return c.find((x) => x.season === y) || [...c].sort((p, q) => overall(q) - overall(p))[0]; };
 const squad = (list) => list.map(([b, y]) => card(b, y)).filter(Boolean);
@@ -84,4 +85,76 @@ test("previewing never writes; applying writes only starters, system and rotatio
   const stale = structuredClone(team);
   assert.equal(applyCounterPlan(stale, { ...plan, ids: ["ghost", ...plan.ids.slice(1)] }), false);
   assert.deepEqual(stale.starterIds, team.starterIds);
+});
+
+// ---- v4.1 P1: the same panel before playoff games, with series context ----
+const playoffState = (series) => ({
+  phase: "playoffs",
+  userTeamId: "YOU",
+  teams: {
+    YOU: { name: "YOU", players: structuredClone(MINE), starterIds: [...CUR], coach: structuredClone(coach("rookie-hc-2024")), assistant: structuredClone(coach("phil-1996-chi")) },
+    LAL: { name: "LAL", players: structuredClone(LAL.players), starterIds: LAL.players.slice(0, 5).map((p) => p.id), coach: structuredClone(coach("phil-1996-chi")), assistant: structuredClone(coach("rookie-hc-2024")) },
+    GSW: { name: "GSW", players: structuredClone(GSW.players), starterIds: GSW.players.slice(0, 5).map((p) => p.id), coach: structuredClone(coach("phil-1996-chi")), assistant: structuredClone(coach("rookie-hc-2024")) },
+  },
+  playoffs: { east: { series: [series] }, west: { series: [] }, finals: null, championId: null },
+});
+const stubBox = () => ({ innerHTML: "", hidden: true, _season: null, addEventListener(_type, fn) { this._listener = fn; }, querySelector() { return null; }, contains() { return true; } });
+const playoffController = (st, commit = () => true) => {
+  const box = stubBox();
+  const ctl = createMatchupController({ box, getLang: () => "zh", allow: () => true, commit });
+  ctl.bind(() => st);
+  return { box, ctl };
+};
+const click = (box, act) => box._listener({ target: { closest: () => ({ dataset: { act } }) } });
+
+test("playoffs: the panel resolves the series opponent and shows game, score and home/away", () => {
+  const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
+  const { box, ctl } = playoffController(st);
+  ctl.paint(st);
+  assert.equal(box.hidden, false);
+  assert.match(box.innerHTML, /东部 · R1 · 第 3 场 · 1-1 · 客场/);
+  assert.match(box.innerHTML, /Shaquille O/);
+  assert.match(box.innerHTML, /应用此方案/);
+});
+
+test("playoffs: Apply writes starters/system/rotation for the series opponent, same as the regular season", () => {
+  const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
+  let committed = false;
+  const { box, ctl } = playoffController(st, () => { committed = true; return true; });
+  ctl.paint(st);
+  const team = st.teams.YOU;
+  const r = counterStrategies({ coach: team.coach, roster: team.players, opponent: scoutOpponent(LAL), currentIds: team.starterIds, currentTacticId: team.coach.specialTactics[0] });
+  const plan = r.plans.find((x) => x.id === r.recommended);
+  click(box, "scout-apply");
+  assert.equal(committed, true);
+  assert.equal(box.innerHTML.includes("已应用"), true);
+  assert.deepEqual(team.starterIds, plan.ids);
+  assert.equal(team.coach.specialTactics[0], plan.tacticId);
+  assert.ok(team.rotation);
+});
+
+test("playoffs: the panel follows the series — a new round re-scouts, and the next game re-renders the score", () => {
+  const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
+  const { box, ctl } = playoffController(st);
+  ctl.paint(st);
+  assert.match(box.innerHTML, /第 3 场 · 1-1/);
+  // Game 4 of the same series: the score moves even though the opponent, starters and tactic are unchanged.
+  st.playoffs.east.series[0].winsHigh = 2;
+  ctl.paint(st);
+  assert.match(box.innerHTML, /第 4 场 · 2-1/);
+  assert.match(box.innerHTML, /Shaquille O/);
+  // Round 2, new opponent: the panel re-scouts instead of showing the old series.
+  st.playoffs.east.series[0] = { high: { id: "YOU" }, low: { id: "GSW" }, winsHigh: 0, winsLow: 0, round: 2, done: false };
+  ctl.paint(st);
+  assert.match(box.innerHTML, /东部 · R2 · 第 1 场 · 0-0 · 主场/);
+  assert.match(box.innerHTML, /Stephen Curry/);
+  assert.doesNotMatch(box.innerHTML, /Shaquille O/);
+});
+
+test("playoffs: no active series, no panel", () => {
+  const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 4, winsLow: 1, round: 1, done: true });
+  const { box, ctl } = playoffController(st);
+  ctl.paint(st);
+  assert.equal(box.hidden, true);
+  assert.equal(box.innerHTML, "");
 });

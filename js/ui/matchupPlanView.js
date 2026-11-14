@@ -24,12 +24,13 @@ const SACRIFICE = {
 const METRIC = [["counterEffect", "克制效果", "Counter effect"], ["execution", "我方执行", "Our execution"], ["proficiency", "教练熟练度", "Coach comfort"]];
 const STRENGTH = { interiorDefense: ["内线防守", "Interior D"], perimeterDefense: ["外线防守", "Perimeter D"], rebounding: ["篮板", "Rebounding"], shooting: ["外线投射", "Shooting"], creation: ["持球创造", "Creation"], athleticism: ["运动能力", "Athleticism"], benchDepth: ["替补深度", "Bench"] };
 
-export function matchupPlanHtml({ scout, strategy, cards, selected, lang = "zh", applied = false }) {
+export function matchupPlanHtml({ scout, strategy, cards, selected, lang = "zh", applied = false, series = null }) {
   const L = (zh, en) => (lang === "en" ? en : zh);
   const pick = (pair) => (lang === "en" ? pair[1] : pair[0]);
   if (!scout || !strategy) return "";
   const nm = (id) => esc(cards.find((c) => c.id === id)?.name || id);
   const plan = strategy.plans.find((p) => p.id === (selected || strategy.recommended)) || strategy.plans[0];
+  const seriesLine = series ? `<p class="msc-series">${series.conf === "finals" ? L("总决赛", "Finals") : series.conf === "east" ? L(`东部 · R${series.round}`, `East · R${series.round}`) : series.conf === "west" ? L(`西部 · R${series.round}`, `West · R${series.round}`) : L("季后赛", "Playoffs")} · ${L(`第 ${series.gameNumber} 场`, `Game ${series.gameNumber}`)} · ${series.myWins}-${series.theirWins} · ${series.atHome ? L("主场", "Home") : L("客场", "Away")}</p>` : "";
   const threats = scout.threats.map((t) => `<li><b>${esc(t.name)}</b> <small>${esc(t.pos)} · OVR ${t.ovr}</small> <span class="msc-pill">${pick(KIND[t.kind])} · ${pick(LEVEL[t.level])}</span><small class="msc-from">${L("来源", "from")}: ${esc(t.from)}</small></li>`).join("");
   const tabs = strategy.plans.map((p) => `<button class="mti-sys${p.id === plan.id ? " on" : ""}" data-act="scout-plan" data-plan="${p.id}">${pick(NAME[p.id])}${p.id === strategy.recommended ? ` <small>★ ${L("推荐", "pick")}</small>` : ""}</button>`).join("");
   const star = scout.threats[0];
@@ -45,6 +46,7 @@ export function matchupPlanHtml({ scout, strategy, cards, selected, lang = "zh",
   const defs = rot.defenders.filter((d) => d.defenderId).map((d) => L(`${esc(d.defenderName)} 盯防 ${esc(d.threatName)}`, `${esc(d.defenderName)} guards ${esc(d.threatName)}`)).join(L("；", "; "));
   const sys = TACTICS[plan.tacticId] ? tacticName(TACTICS[plan.tacticId], lang) : plan.tacticId;
   return `<details class="msc"><summary>${L("对手球探 · 比赛方案", "Opponent scouting · game plans")} <small>${esc(scout.name)}</small></summary>
+    ${seriesLine}
     <ul class="msc-threats">${threats}</ul>
     <p class="mti-note">${L("依据球员卡属性，不是今晚的真实轮换。", "Read from card attributes, not tonight's real rotation.")}</p>
     <div class="mti-systems" role="tablist">${tabs}</div>

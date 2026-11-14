@@ -54,6 +54,29 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["mo
   await page.waitForFunction(() => /已应用|Applied/.test(document.querySelector(".msc")?.textContent || ""), null, { timeout: 8000 }).catch(() => {});
   check(`[${label}] Apply writes (and says so)`, /已应用|Applied/.test(await page.$eval(".msc", (e) => e.textContent)) && (await slot(page)) !== saved0);
   check(`[${label}] no page errors`, errors.length === 0, errors.join("|").slice(0, 160));
+  // v4.1 P1: the same panel before a playoff game. The slot holds the raw
+  // season state, so flip it to the playoffs phase with a live series (1-1,
+  // game 3 next) and resume it from the clubhouse.
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem("cls_myteam_season_v1"));
+    const opp = Object.keys(raw.teams).find((id) => id !== raw.userTeamId);
+    raw.phase = "playoffs";
+    raw.playoffs = { east: { series: [{ high: { id: raw.userTeamId }, low: { id: opp }, winsHigh: 1, winsLow: 1, round: 1, done: false }] }, west: { series: [] }, finals: null, championId: null };
+    localStorage.setItem("cls_myteam_season_v1", JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: "domcontentloaded" }); await homeActive(page);
+  await page.click('.home-tab[data-category="players"]');
+  await page.waitForSelector("#my-team-clubhouse-root", { timeout: 15000 });
+  await page.getByText(/继续我的赛季|Continue my season/).first().click();
+  await page.waitForSelector("#screen-season.active #season-hub-panel:not([hidden])", { timeout: 20000 });
+  await page.waitForSelector("#season-next-scout:not([hidden]) details", { timeout: 15000 });
+  check(`[${label}] playoff panel appears under the next series game`, true);
+  check(`[${label}] playoff series line (game, score, home/away)`, /第 3 场 · 1-1 · (主场|客场)/.test(await page.$eval(".msc-series", (e) => e.textContent)));
+  const savedP = await slot(page);
+  await page.click('[data-act="scout-apply"]');
+  await page.waitForFunction(() => /已应用|Applied/.test(document.querySelector(".msc")?.textContent || ""), null, { timeout: 8000 }).catch(() => {});
+  check(`[${label}] playoff Apply writes (and says so)`, /已应用|Applied/.test(await page.$eval(".msc", (e) => e.textContent)) && (await slot(page)) !== savedP);
+  check(`[${label}] no page errors (playoffs)`, errors.length === 0, errors.join("|").slice(0, 160));
   await page.close();
 }
 await browser.close();
