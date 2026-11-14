@@ -26,7 +26,7 @@ export function createTacticalTakeover({ sim } = {}) {
     sim && typeof sim.setFocusPlay === "function" && typeof sim.setTempo === "function"
       ? null
       : { ok: false, reason: "no_sim" };
-  const needLive = () => (sim.running === false || sim.ended ? { ok: false, reason: "game_over" } : null);
+  const needLive = () => (sim.running === false ? { ok: false, reason: "game_over" } : null);
 
   return {
     /** Set the possession focus for ~6 offensive possessions ("" clears it). Live-ball safe. */

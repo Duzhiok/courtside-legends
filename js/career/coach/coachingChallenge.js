@@ -113,6 +113,9 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
   let possessionCount = 0;
 
   const you = () => sim?.you?.() || sim?.home;
+  // GameSim has no `ended` flag: a game is over once stop() clears `running` (pause does not),
+  // or once finish() has built the report.
+  const gameOver = () => !sim || state === "ended" || !sim.running;
   const live = () => ({
     fit: you()?.fit ?? 50,
     morale: you()?.morale ?? 50,
@@ -359,7 +362,7 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
   }
 
   function checkTriggers() {
-    if (!sim?.running || sim.ended) return null;
+    if (!sim?.running) return null;
     const l = live();
     const deficit = margin(l.score);
     if (!lateFired && l.clock <= LATE_CLOCK && deficit >= 1 && deficit <= LATE_DEFICIT_MAX) {
@@ -527,7 +530,7 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
     playChunk(maxPossessions = 8) {
       if (state !== "playing" && state !== "clutch_pending") return { ok: false, reason: "wrong_state", state };
       let stepped = 0;
-      while (stepped < maxPossessions && sim?.running && !sim.ended) {
+      while (stepped < maxPossessions && sim?.running) {
         stepOnce();
         stepped += 1;
         if (state === "clutch_pending" && clutchOutcome !== null) {
@@ -539,9 +542,9 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
           moment = buildMoment(trigger);
           return { ok: true, status: "moment", moment, stepped };
         }
-        if (!sim.running || sim.ended) break;
+        if (!sim.running) break;
       }
-      if (!sim.running || sim.ended) {
+      if (!sim.running) {
         return this.finish();
       }
       return { ok: true, status: "paused", stepped, snapshot: live() };
@@ -551,39 +554,39 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
     finish() {
       if (state === "ended") return { ok: true, status: "ended", report: buildReport() };
       if (!sim) return { ok: false, reason: "not_started" };
-      if (sim.running && !sim.ended) sim.runFast();
+      if (sim.running) sim.runFast();
       state = "ended";
       return { ok: true, status: "ended", report: buildReport() };
     },
 
     /** Timeout any time (real callTimeout; 7 per side, run-break is the engine's). */
     callTimeout() {
-      if (!sim || sim.ended) return { ok: false, reason: "game_over" };
+      if (gameOver()) return { ok: false, reason: "game_over" };
       const ok = sim.callTimeout("home", { pause: false });
       return ok ? { ok: true, timeoutsLeft: sim.timeouts.home } : { ok: false, reason: "no_timeout" };
     },
 
     /** Live panel: focus / tempo / shout / talk / substitute, all logged. */
     setFocus(focusId) {
-      if (!sim || sim.ended) return { ok: false, reason: "game_over" };
+      if (gameOver()) return { ok: false, reason: "game_over" };
       return takeover.setFocus(focusId);
     },
     setTempo(tempoId) {
-      if (!sim || sim.ended) return { ok: false, reason: "game_over" };
+      if (gameOver()) return { ok: false, reason: "game_over" };
       return takeover.setTempo(tempoId);
     },
     shout() {
-      if (!sim || sim.ended) return { ok: false, reason: "game_over" };
+      if (gameOver()) return { ok: false, reason: "game_over" };
       sim.shout();
       return { ok: true };
     },
     talk() {
-      if (!sim || sim.ended) return { ok: false, reason: "game_over" };
+      if (gameOver()) return { ok: false, reason: "game_over" };
       sim.talk();
       return { ok: true };
     },
     substitute(outId, inId) {
-      if (!sim || sim.ended) return { ok: false, reason: "game_over" };
+      if (gameOver()) return { ok: false, reason: "game_over" };
       return sim.substitute(outId, inId) ? { ok: true } : { ok: false, reason: "invalid" };
     },
 

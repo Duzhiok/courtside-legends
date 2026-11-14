@@ -103,6 +103,34 @@ test("panel actions flow through the existing sim interfaces and cost real timeo
   assert.ok(c._sim().you().onCourt.some((p) => p.id === inn.id));
 });
 
+// B63: these guards used to check `sim.ended`, which GameSim never sets, so a finished game
+// still took timeouts / shouts / subs after the report was built.
+test("panel actions refuse with game_over once the game has ended", () => {
+  const c = challenge(3);
+  c.start();
+  c.choose("zone_drop");
+  assert.equal(c.finish().status, "ended");
+  assert.equal(c._sim().running, false);
+  const timeoutsBefore = c._sim().timeouts.home;
+  const out = c._sim().you().onCourt[0];
+  const inn = c._sim().you().bench[0];
+  for (const [name, call] of [
+    ["callTimeout", () => c.callTimeout()],
+    ["setFocus", () => c.setFocus("iso_star")],
+    ["setTempo", () => c.setTempo("push")],
+    ["shout", () => c.shout()],
+    ["talk", () => c.talk()],
+    ["substitute", () => c.substitute(out.id, inn.id)],
+  ]) {
+    assert.deepEqual(call(), { ok: false, reason: "game_over" }, `${name} after the final buzzer`);
+  }
+  assert.equal(c._sim().timeouts.home, timeoutsBefore, "no timeout is spent on a finished game");
+});
+
+test("panel actions before start still report game_over (no sim yet)", () => {
+  assert.deepEqual(challenge(3).shout(), { ok: false, reason: "game_over" });
+});
+
 test("determinism: same seed + same choices => identical final score and swings", () => {
   const a = playThrough(7, "switch_all");
   const b = playThrough(7, "switch_all");
