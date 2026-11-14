@@ -136,6 +136,23 @@ test("playoffs: Apply writes an opponent-bound plan for the series opponent, sam
   assert.equal(team.matchupPlan.tacticId, plan.tacticId);
 });
 
+test("v4.1 P0: 'Keep current' clears an already-applied matchup plan (QA handoff gap -- was untested)", () => {
+  const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
+  let commits = 0;
+  const { box, ctl } = playoffController(st, () => { commits += 1; return true; });
+  ctl.paint(st);
+  const team = st.teams.YOU;
+  click(box, "scout-apply");
+  assert.ok(team.matchupPlan, "a plan is applied first");
+  assert.equal(commits, 1);
+  click(box, "scout-keep");
+  assert.equal(team.matchupPlan, undefined, "keep-current drops the opponent-bound plan");
+  assert.equal(commits, 2, "the cleared state is saved too, not just held in memory");
+  // Keeping current with nothing applied is a no-op: no spurious save.
+  click(box, "scout-keep");
+  assert.equal(commits, 2);
+});
+
 test("playoffs: the panel follows the series — a new round re-scouts, and the next game re-renders the score", () => {
   const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
   const { box, ctl } = playoffController(st);

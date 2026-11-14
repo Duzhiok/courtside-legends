@@ -1659,3 +1659,66 @@ user's ruling. Season-hub matchup panel UI itself (Lychee's playoff wiring,
 - 全量 2778/2778，lint 0 错误（只剩 app.js 2 个警告）。
 - **B61（app.js 拆分）仍未开始**：`cls-tend` 还有 app.js / sim.js / gameplan.js 的未提交改动，按规则不重叠。等它提交后，Code Puppy 或我可以从 `renderSeasonMarket` 开始抽。
 - 还有一批测试不带种子跑 GameSim（autoDefenseMatchups、garbageTime、jumboCounter、shout、playerPrefs、rebornSeason、rebornTakeover、i18n、gameRewards）：用 Math.random 抛错的钩子检查，它们都会消耗随机数，但断言看起来是结构性的（不是区间/计数），所以这次没改，未逐条确认。
+
+## QA review — Career 2.0 (promises/rivalries/epiphany) + Matchup v4.1
+
+Independent verification of `ab2e27c` + `d886fdc` against the handoff checklist.
+Read the source for every invariant below (not just "tests are green") and ran
+one fixed-seed experiment for rivalry frequency. One real gap found and fixed.
+
+**Career 2.0 — all 7 checks hold, traced in source:**
+- Promises: `settleRebornPromises` is the only Reborn caller of
+  `settleGamePromises` (the unified entry); `resolveDuePromises` only
+  touches `status === "open"` promises, so repeated evidence can never
+  re-resolve or re-apply trust to an already-settled promise.
+- Rivalries: `recordRivalryMeetings` requires a real `report.gameId` and a
+  `directMatchup` filtered by position group / minutes / OVR gap (`RIVAL_OVR_GAP`);
+  a repeated game id is a no-op (`rival.games.some(g => g.gameId === ...)`).
+  `mirrorRivalriesToAccount` replays the FULL game list on every call (by
+  design, "safe to call after every game") but `recordRivalryGame` guards on
+  `legacy.some(e => e.id === "rivalry-game:<gameId>:<personId>")` before
+  moving relationship strength -- confirmed no duplicate trust/strength
+  accumulation from repeated projection.
+- Epiphany: `epiphanyCandidates` weighs a family `TRAINING_WEIGHT×` only
+  when `RULE_FOCUS[rule.id] === focus` (the player's actual development
+  plan), and `epiphanyChance` scales off real stat/bar margin -- not a flat
+  coin flip anymore. `recordGameAndCheck` resets `form: []` after a learn
+  and caps at `MAX_EPIPHANY`, so one streak can't double-award.
+
+**Fixed-seed rivalry frequency probe** (new starter vs. the same repeated
+opponent, 20 games, 5 seeds): 4/5 seeds formed exactly one rivalry (first
+auto-rivalry at game 4-6), 1/5 formed none (no stable direct-matchup
+opponent that game). This is the worst-case (facing one team every single
+game) and it still self-limits to one rivalry via `isRival()` -- a real
+season (facing a team 2-4x) will be much slower, "story"/"challenge" are
+the realistic paths. Reasonable; not reported as a bug.
+
+**Matchup v4.1 — 6/7 confirmed by source trace, 1 gap found and fixed:**
+- Manual + simulated both resolve through `resolveEffectiveGameplan` (my
+  own d886fdc change) -- re-confirmed by tracing `applyRotationPlan`: it
+  writes `team.coach.specialTactics` (read by `coachTactics()` in
+  `sim.js:2005`) and `p.targetMinutes` directly onto the cloned team
+  `liveTeam()` hands to `new GameSim(...)` -- rotation minutes and tactics
+  really do reach the sim, not just sit in a plan object.
+- Opponent scoping, default-lineup integrity, playoff opponent binding,
+  preview-never-writes: all covered by `tests/effectiveGameplan.test.js`
+  and the updated `matchupIntelligence.test.js` (regular season + playoffs).
+- **Gap: "Keep current" had zero test coverage of the actual UI path.**
+  `clearMatchupPlan` existed as a unit (tested), but nothing exercised
+  `scout-keep` through `createMatchupController` end to end. Added
+  `v4.1 P0: 'Keep current' clears an already-applied matchup plan` to
+  `tests/matchupIntelligence.test.js`: apply -> plan exists, commit #1 ->
+  keep -> plan gone, commit #2 -> keep again with nothing applied -> no
+  spurious 3rd commit. Passes against the current code (no production bug,
+  just an untested path that is now locked down).
+
+Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
+
+**Remaining limitations (not fixed, out of scope for this review):**
+- Rivalry/epiphany probability constants (`AUTO_HEAT_TO_FORM`,
+  `EPIPHANY_BASE_CHANCE`/`EPIPHANY_MAX_CHANCE`) are explicitly flagged
+  provisional in their own docstrings -- balance tuning is separate work.
+- Real-time "opponent star enters/leaves -> auto-adjust gameplan" is still
+  deferred to v4.2 (no GameSim trigger for it yet) per the user's ruling.
+- Did not re-verify fragments (decision 4) -- out of this handoff's scope,
+  already logged as deferred on the board.
