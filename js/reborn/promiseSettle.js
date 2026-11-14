@@ -13,13 +13,8 @@
  * start promise, and a trade/contract promise only resolves on a real event
  * or once the deadline season has passed.
  */
-import {
-  markTrustEffectsApplied,
-  pendingTrustEffects,
-  relationshipsStore,
-  resolveDuePromises,
-} from "../career/careerRelationships.js";
-import { effectsForType } from "../career/promiseEffects.js";
+import { markTrustEffectsApplied, pendingTrustEffects } from "../career/careerRelationships.js";
+import { settleGamePromises } from "../career/promiseEngine.js";
 import { collectEvidence, evidenceWindow } from "./promiseEvidence.js";
 import { roleForTrust } from "./trust.js";
 
@@ -41,8 +36,13 @@ export function rebornPromiseWindow(reborn, { account = null } = {}) {
  */
 export function settleRebornPromises(account, reborn) {
   if (!account || !reborn?.player) return { reborn, settled: [], account };
-  const { resolved } = resolveDuePromises(account, rebornPromiseWindow(reborn, { account }));
-  if (!resolved.length) return { reborn, settled: [], account };
+  // The ONE settlement entry (no inbox in a Reborn run, only relationship promises).
+  const { settled } = settleGamePromises({
+    inbox: null,
+    account,
+    relationshipState: rebornPromiseWindow(reborn, { account }),
+  });
+  if (!settled.length) return { reborn, settled: [], account };
 
   const pending = pendingTrustEffects(account);
   const bref = reborn.identity?.bref || null;
@@ -55,19 +55,5 @@ export function settleRebornPromises(account, reborn) {
     next.player.rotationRole = roleForTrust(next.player.coachTrust);
   }
   markTrustEffectsApplied(account, pending.map((e) => e.promiseId));
-
-  const promises = relationshipsStore(account).promises;
-  const settled = resolved.map((effect) => {
-    const p = promises.find((x) => x.id === effect.promiseId);
-    return {
-      promiseId: effect.promiseId,
-      source: "relationship",
-      promiseType: "relationship",
-      status: effect.outcome,
-      effects: { trust: effectsForType("relationship")[effect.outcome].trust, relationship: effect.relationshipDelta },
-      reason: `${effect.label}：${p?.text ?? ""}`,
-      reasonEn: `${effect.labelEn}: ${p?.textEn || p?.text || ""}`,
-    };
-  });
   return { reborn: next, settled, account };
 }
