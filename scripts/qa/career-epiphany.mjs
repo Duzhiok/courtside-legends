@@ -24,8 +24,8 @@ const browser = await chromium.launch({ executablePath: EXE });
 
 // ---- the relaxed copy of the rule module (and a loud failure if the module stops looking as expected)
 const SRC = readFileSync(new URL("../../js/engine/epiphany.js", import.meta.url), "utf8");
-const RELAXED = SRC.replace("MIN_MINUTES = 18", "MIN_MINUTES = 1").replace("EPIPHANY_CHANCE = 0.5", "EPIPHANY_CHANCE = 1").replace(/min: \d+, skills/g, "min: 1, skills");
-check("the relaxed rule module was built from the real one", RELAXED !== SRC && /MIN_MINUTES = 1\b/.test(RELAXED) && /EPIPHANY_CHANCE = 1\b/.test(RELAXED) && (RELAXED.match(/min: 1, skills/g) || []).length === 7);
+const RELAXED = SRC.replace("MIN_MINUTES = 18", "MIN_MINUTES = 1").replace("EPIPHANY_BASE_CHANCE = 0.4", "EPIPHANY_BASE_CHANCE = 1").replace("EPIPHANY_MAX_CHANCE = 0.75", "EPIPHANY_MAX_CHANCE = 1").replace(/min: \d+, skills/g, "min: 1, skills");
+check("the relaxed rule module was built from the real one", RELAXED !== SRC && /MIN_MINUTES = 1\b/.test(RELAXED) && /EPIPHANY_BASE_CHANCE = 1\b/.test(RELAXED) && /EPIPHANY_MAX_CHANCE = 1\b/.test(RELAXED) && (RELAXED.match(/min: 1, skills/g) || []).length === 7);
 const relax = (page) => page.route(/\/js\/engine\/epiphany\.js/, (route) => route.fulfill({ contentType: "text/javascript", body: RELAXED }));
 
 /** What the SAVE says: the ledger, games played, and every skill of every player on my roster. */

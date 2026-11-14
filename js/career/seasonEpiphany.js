@@ -1,7 +1,7 @@
 /**
  * C3 of docs/CAREER_LIFE_ROADMAP.md: 领悟 (epiphany) for a season/career game.
  *
- * The rules are `engine/epiphany.js` (a streak of qualifying games, a roll, a per-person cap); this
+ * The rules are `engine/epiphany.js` (evidence-chosen candidates, a controlled roll, a per-person cap); this
  * is only the ledger around them, so a managed career reuses exactly what ranked play already has.
  *
  *   management.epiphany = { [bref]: { form: [last <=5 games], learned: [skillId] } }
@@ -32,9 +32,10 @@ const fromMod = (mod) => ({ form: mod.form, learned: mod.epiphany || [] });
  * @param ledger   `{ [bref]: { form, learned } }` (undefined for a career that has none yet)
  * @param players  the user's live roster cards (id, bref, name, skills, height, team ...)
  * @param lines    this game's box-score lines for the user's side (`gameRewards.settleGame().lines`)
+ * @param plans    `management.developmentPlans` ({ [bref]: { focus } }): training history that weights the candidates
  * @returns { ledger, learned: [{ id, name, skillId, skill, rule, games }], heat: [{ id, name, rule, games, of }] }
  */
-export function settleEpiphany({ ledger = {}, players = [], lines = [], rng = Math.random } = {}) {
+export function settleEpiphany({ ledger = {}, players = [], lines = [], plans = {}, rng = Math.random } = {}) {
   const lineById = new Map(lines.map((line) => [line.id, line]));
   const onRoster = new Set(players.map((player) => player.bref));
   const next = {};
@@ -55,7 +56,7 @@ export function settleEpiphany({ ledger = {}, players = [], lines = [], rng = Ma
     if (!line && !entry) continue;
     // Full card (7 skills): nothing to learn and no promise to make.
     if (skillSlotsFull(player)) continue;
-    const result = recordGameAndCheck(toMod(entry), player, formLine(line || {}), rng);
+    const result = recordGameAndCheck(toMod(entry), player, formLine(line || {}), rng, { focus: plans?.[player.bref]?.focus || null });
     next[player.bref] = fromMod(result.mod);
     if (result.learned) {
       learned.push({

@@ -10993,7 +10993,7 @@ function awardGameEpiphany(report) {
   const st = state.season;
   if (!report || !st || !isManagedCareer(career)) return;
   const players = st.teams[st.userTeamId]?.players || [];
-  const result = awardEpiphany({ ledger: career.management?.epiphany, players, lines: report.lines });
+  const result = awardEpiphany({ ledger: career.management?.epiphany, players, lines: report.lines, plans: career.management?.developmentPlans });
   state.leagueCareer = { ...career, management: { ...career.management, epiphany: result.ledger } };
   report.rewards.epiphanies = result.learned;
   report.rewards.heat = result.heat;
