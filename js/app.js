@@ -301,6 +301,7 @@ import { teamRosterStrength } from "./career/seasonGoals.js";
 import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
 import { liveGoalsHtml } from "./ui/liveGoals.js";
 import { pregameCardHtml } from "./ui/pregameCard.js";
+import { createMatchupController } from "./ui/matchupController.js";
 import {
   advanceCareerOffseason,
   completeCareerOffseason,
@@ -9185,6 +9186,15 @@ function paintNextGoals(st) {
   box.hidden = !hasGame;
 }
 
+// v4: opponent scouting + counter-plans under the next-game card. Applying is the only write, via the normal season save.
+const matchupScout = createMatchupController({
+  box: $("#season-next-scout"),
+  getLang,
+  allow: () => careerOperationAllowed("setRotation"),
+  commit: (st) => saveSeasonAndCareer(st),
+});
+matchupScout.bind(() => state.season);
+
 function renderSeasonHub({ persist = true } = {}) {
   const st = prepareSeasonState(state.season);
   if (!st) return;
@@ -9305,6 +9315,7 @@ function renderSeasonHub({ persist = true } = {}) {
   }
 
   paintNextGoals(st);
+  matchupScout.paint(st);
   renderSeasonStandings();
   renderSeasonRotation();
   renderSeasonMarket();

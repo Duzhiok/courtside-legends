@@ -161,3 +161,20 @@
 .mti-roles { max-width: 640px; }
 .mti-roles th:first-child, .mti-roles td:first-child { width: 34%; }
 .mti-roles th:nth-child(3), .mti-roles td:nth-child(3) { width: 26%; }
+.msc { margin-top: 10px; border: 1px solid #c9d6cd; border-radius: 12px; background: #fbfdfb; padding: 8px 12px; color: #163a29; }
+.msc summary { cursor: pointer; font-weight: 700; min-height: 36px; display: flex; align-items: center; gap: 8px; }
+.msc-threats { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 6px; }
+.msc-pill { padding: 1px 8px; border-radius: 999px; background: #f3e1d8; color: #7a2e17; font-size: .8rem; margin-left: 6px; }
+.msc-from { display: block; color: #4f5e55; }
+.msc-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.msc-chip { display: inline-flex; flex-direction: column; padding: 4px 10px; border: 1px solid #c9d6cd; border-radius: 8px; min-width: 84px; }
+.msc-chip small { color: #4f5e55; } .msc-chip b { font-size: 1.1rem; }
+.msc-warn { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: #fbeee0; color: #7a3b10; }
+.msc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.msc-actions .btn { min-height: 44px; }
+/* the panel sits on the season hub's dark stage: give its controls their own colours (the clubhouse vars aren't in scope there) */
+#season-next-scout .msc .mti-sys { color: #163a29; background: #f4f8f5; border: 1px solid #b9c9be; }
+#season-next-scout .msc .mti-sys.on { color: #fff; background: #1f6f54; border-color: #1f6f54; }
+#season-next-scout .msc .mti-sys.on small { color: #e6f3ec; }
+#season-next-scout .msc .btn:not(.primary) { color: #163a29 !important; background: #f4f8f5 !important; border: 1px solid #b9c9be; }
+#season-next-scout .msc .btn.primary { color: #fff; background: #1f6f54; }
