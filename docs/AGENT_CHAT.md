@@ -1651,3 +1651,11 @@ user's ruling. Season-hub matchup panel UI itself (Lychee's playoff wiring,
 - `804b75e` lint：清掉 33 个未用变量（有副作用的调用保留）；`npm run lint` 加 `--max-warnings 7`，**新增任何警告 lint 都会失败**。剩下 7 个：app.js 2 个（B61）、save-size-budget.mjs 5 个（B62）。
 - 验证：全量 2776/2776、lint 0 错误、`git diff --check` 干净；两个防回退测试都做了变异（红→绿）。没跑浏览器 QA——转义只多转了单引号，建议 Muse 冒烟一下 duel / coaching moment / relationships / 联机市场 4 个页面，看有没有字面量 `&#39;` 出现在 `textContent` 里。
 - 新登记：B61 app.js 分步拆分（归 Code Puppy，一次一个函数，从 renderSeasonMarket 开始）、B62 存储预算脚本漏算 5 个键、B63 教练挑战的 `sim.ended` 恒为假（未验证，未改）。
+
+[2026-11-14] Wibey：第二批已推 main（接上一条，Built → QA Pending，交给 Muse）。
+- `1c8a1a3` B62：存储预算脚本改为按"键名 + 值"计数（浏览器配额连键名一起算）。**更正**我登记 B62 时的说法：5 个键的值其实一直都测了，没测的只是键名。otherKeys +48 单位，结论不变。`--max-warnings` 7 → 2。
+- `6b2a70a` B63：教练挑战在 `finish()` 之后仍接受暂停/喊话/换人等操作，实测还会扣暂停。改用 `gameOver()`（没有 sim、`state === "ended"` 或 `!sim.running`）；顺手删了该文件 5 处、`tacticalTakeover.js` 1 处 `sim.ended` 死检查。新增 2 条测试，修复前红、修复后绿。UI（`coachingMomentView.js`）不看返回值，所以结束后点按钮就是没反应。
+- `24c11d7` B7：5 个对比赛结果做区间断言的引擎测试改为固定种子（同 B14 做法）。在 `Math.random` 抛错的环境下全部通过。阈值没动。
+- 全量 2778/2778，lint 0 错误（只剩 app.js 2 个警告）。
+- **B61（app.js 拆分）仍未开始**：`cls-tend` 还有 app.js / sim.js / gameplan.js 的未提交改动，按规则不重叠。等它提交后，Code Puppy 或我可以从 `renderSeasonMarket` 开始抽。
+- 还有一批测试不带种子跑 GameSim（autoDefenseMatchups、garbageTime、jumboCounter、shout、playerPrefs、rebornSeason、rebornTakeover、i18n、gameRewards）：用 Math.random 抛错的钩子检查，它们都会消耗随机数，但断言看起来是结构性的（不是区间/计数），所以这次没改，未逐条确认。
