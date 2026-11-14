@@ -17,6 +17,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { seasonToCard } from "../js/data/players.js";
 import { GameSim } from "../js/engine/sim.js";
+import { seededStream } from "../js/core/seededRandom.js";
+
+// Fixed seeds (AI_EFFICIENCY_POLICY rule 7, same fix as B14): each game gets seededStream(SEED + i),
+// so a failure here reproduces instead of flaking.
+const SEED = 20261114;
 
 const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 
@@ -48,6 +53,7 @@ test("a five-center team plays full games with sane turnover totals under the bi
   const games = 30;
   for (let i = 0; i < games; i++) {
     const sim = new GameSim({
+      rng: seededStream(SEED + i),
       home: { players: CENTERS, starterIds: CENTERS.map((p) => p.id), coach },
       away: { players: OPPONENT, starterIds: OPPONENT.map((p) => p.id), coach },
       youSide: "home",

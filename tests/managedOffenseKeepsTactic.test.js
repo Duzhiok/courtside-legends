@@ -5,6 +5,8 @@ import { seasonToCard } from "../js/data/players.js";
 import { buildCareerSpanIndex } from "../js/data/careerArc.js";
 import { GameSim } from "../js/engine/sim.js";
 import { TACTICS } from "../js/data/coaches.js";
+import { seededStream } from "../js/core/seededRandom.js";
+import { withRng } from "../js/core/rng.js";
 
 /**
  * B34: 「进攻托管」只在你当前用的是进攻体系战术时才换战术（group = offense / spacing / pace_transition）。
@@ -19,14 +21,19 @@ const team = (name, offset) => {
   const players = pool.slice(offset, offset + 12);
   return { name, players, starterIds: players.slice(0, 5).map((p) => p.id) };
 };
+// Fixed seed (AI_EFFICIENCY_POLICY rule 7): the sim and every managedOffensePlan call roll from
+// seededStream, so "how many systems were swapped" reproduces instead of depending on luck.
+const SEED = 20261114;
 const sim = (tacticId) => {
-  const s = new GameSim({ home: team("Home", 0), away: team("Away", 12), youSide: "home", onEvent: () => {}, onTick: () => {}, onEnd: () => {} });
+  const s = new GameSim({ rng: seededStream(SEED), home: team("Home", 0), away: team("Away", 12), youSide: "home", onEvent: () => {}, onTick: () => {}, onEnd: () => {} });
   // every tactic is available to this coach, so the only thing that can stop a swap is the rule under test
   s.you().coach = { ...(s.you().coach || {}), name: "Coach", specialTactics: Object.keys(TACTICS) };
   s.setTactic(tacticId);
   s.setAutoOffense(true);
   return s;
 };
+/** managedOffensePlan is not a seeded entry point, so run it under the sim's own rng. */
+const plan = (s) => withRng(s.rng, () => s.managedOffensePlan({ light: false }));
 /** A deficit big enough that the autopilot WANTS to switch to an attacking system. */
 const trailing = (s) => {
   s.score[s.opp().side] = 60;
@@ -59,7 +66,7 @@ for (const [id, label] of Object.entries(PROTECTED)) {
   test(`${label} (${id}) is NOT replaced by 进攻托管, even when trailing`, () => {
     const s = sim(id);
     trailing(s);
-    s.managedOffensePlan({ light: false });
+    plan(s);
     assert.equal(s.you().tactic.id, id);
   });
 }
@@ -67,7 +74,7 @@ for (const [id, label] of Object.entries(PROTECTED)) {
 test("a protected tactic still gets the rest of the autopilot: play focus and coaching buffs", () => {
   const s = sim("zone_drop");
   trailing(s);
-  s.managedOffensePlan({ light: false });
+  plan(s);
   assert.equal(s.you().tactic.id, "zone_drop");
   assert.ok(s.focusPlay?.id, "a play focus was still chosen");
   assert.equal(s.you().coach.buffs.offense, 12, "trailing by 20 early still moves the offence dial (12), as before");
@@ -78,7 +85,7 @@ test("an offensive system IS still swapped when the situation asks for it (behav
   for (const id of SWAPPABLE.filter((t) => t !== "motion" && t !== "iso_heavy")) {
     const s = sim(id);
     trailing(s);
-    s.managedOffensePlan({ light: false });
+    plan(s);
     if (s.you().tactic.id !== id) swapped++;
   }
   assert.ok(swapped >= 3, `only ${swapped} offensive systems were ever swapped; the autopilot must still work`);
@@ -88,6 +95,6 @@ test("the rule lives inside managedOffensePlan itself, so it holds however the p
   const s = sim("zone_drop");
   s.setAutoOffense(false); // the switch being off is the caller's business; called directly the rule still holds
   trailing(s);
-  s.managedOffensePlan({ light: false });
+  plan(s);
   assert.equal(s.you().tactic.id, "zone_drop");
 });

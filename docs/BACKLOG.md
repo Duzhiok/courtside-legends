@@ -8,7 +8,7 @@
 | B4 | 大比分落后时 AI 换策略拼翻盘：提速、提高三分出手、抓机会欲望更强；节奏按阵容有利弊，不是一律有害 | L3（动 GameSim 决策） | 与 ADR-002/M2b 同一块，需契约 | 待批准 |
 | B5 | 战术面板合理性审查：对标成熟产品（2K MyGM/NBA2K 战术板、Basketball GM、FM 战术板）+ 找可借鉴开源代码 | 调研 | M3 前 | 🟡 部分完成（R142）内部代码审计已出：`docs/implementation/tactics-audit.md`；**对标 2K/FM/BBGM 与开源调研未做**，仍待批准 |
 | B6 | 39 张风格参考图分析并映射到里程碑（docs/references/style-2026-11） | 调研 | M1/M3 | ✅ 已完成（见该目录 README） |
-| B7 | Feed 测试改成确定性 fixture：`feedActorCoverage.test.js` 依赖随机比赛（"至少一次抢断"），换成固定事件 fixture，只留 1 个轻量引擎契约测试 | L2 | Feed 收尾 | 待批准 |
+| B7 | Feed 测试改成确定性 fixture：`feedActorCoverage.test.js` 依赖随机比赛（"至少一次抢断"），换成固定事件 fixture，只留 1 个轻量引擎契约测试 | L2 | Feed 收尾 | ✅ 已完成：R134 已把 `feedActorCoverage.test.js` 改成只测契约（不断言某事件一定发生），固定事件夹具在 `feedView.test.js`；2026-11-14 Wibey 补上种子：它和 `bigHandlerTov`/`blockRate`/`jumboLineupSpacing`/`managedOffenseKeepsTactic` 这 5 个对引擎结果做区间或计数断言的测试，每场都传 `seededStream(SEED + i)`（同 B14 做法）；在 `Math.random` 一调用就抛错的环境下全部通过，失败可复现 |
 | B8 | 抽卡展示视觉升级：高稀有度卡的金边/编号/等级字（参考图 35、37），仅视觉，不改评分（D5） | L1–L2 | 抽卡页 | 待批准 |
 | B9 | 创建球员的属性分组 + 原型模板（参考 2K 构建器 17–20）：新手选原型，高手再调属性 | L2–L3 | M4/M5 | 待批准 |
 | B10 | 2.0 统一视觉基线：深海军蓝 + 金色强调（09/13/21/36/39）vs 现有深绿——M1 前需产品拍板 | 设计决策 | M1 | ✅ 已关闭（用户 2026-11-09 定：保留深绿 + 金；深海军蓝仅作辅助配色——比赛转播/夜间球馆/特殊活动；不做全局换色） |

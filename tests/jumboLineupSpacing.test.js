@@ -28,6 +28,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { seasonToCard } from "../js/data/players.js";
 import { GameSim } from "../js/engine/sim.js";
+import { seededStream } from "../js/core/seededRandom.js";
+
+// Fixed seeds (AI_EFFICIENCY_POLICY rule 7, same fix as B14): each game gets seededStream(SEED + i),
+// so a failure here reproduces instead of flaking.
+const SEED = 20261114;
 
 const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 
@@ -89,6 +94,7 @@ function simulateGames(home, away, games) {
   let wins = 0;
   for (let i = 0; i < games; i++) {
     const sim = new GameSim({
+      rng: seededStream(SEED + i),
       home: { players: home, starterIds: home.map((p) => p.id), coach: shootersCoach },
       away: { players: away, starterIds: away.map((p) => p.id), coach: defCoach },
       youSide: "home",
@@ -115,6 +121,7 @@ function playFullGames(home, away, homeTactic, awayTactic, games) {
   let margin = 0;
   for (let i = 0; i < games; i++) {
     const sim = new GameSim({
+      rng: seededStream(SEED + i),
       home: { players: structuredClone(home), starterIds: home.map((p) => p.id), coach: homeCoach },
       away: { players: structuredClone(away), starterIds: away.map((p) => p.id), coach: awayCoach },
       youSide: "home",
