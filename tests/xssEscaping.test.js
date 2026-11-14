@@ -99,6 +99,11 @@ test("S-P1-1: a gameplan style name with markup is stripped and capped before it
 
 test("A-P2-14: coachingMomentView's esc covers the single quote like every other esc", () => {
   const src = readFileSync(new URL("../js/ui/coachingMomentView.js", import.meta.url), "utf8");
-  assert.ok(src.includes("[&<>\"']"), "the esc character class includes the single quote");
-  assert.ok(src.includes("&#39;"), "the single quote is escaped to &#39;");
+  // Since the shared-esc refactor (c2cccf2) the view imports esc from core/html.js
+  // instead of defining its own; the single-quote coverage now lives there.
+  assert.ok(!src.includes("const esc ="), "no local esc definition shadows the shared one");
+  assert.ok(src.includes('from "../core/html.js"'), "esc is imported from the shared module");
+  const shared = readFileSync(new URL("../js/core/html.js", import.meta.url), "utf8");
+  assert.ok(shared.includes("[&<>\"']"), "the shared esc character class includes the single quote");
+  assert.ok(shared.includes("&#39;"), "the single quote is escaped to &#39;");
 });
