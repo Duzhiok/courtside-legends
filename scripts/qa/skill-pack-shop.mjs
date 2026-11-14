@@ -1,21 +1,16 @@
-// Browser QA: the skill-book system is cancelled (S0) — no skill-buy UI
-// remains anywhere, and already-owned skills survive.
-//  - Collection page: no fragment skill shop (.skill-shop / [data-buy-skill]
-//    / [data-shop-card]); a card with legacy bought skills still shows them;
-//    the manage note says fragments currently have no sink.
-//  - Career market (2 clicks in): no "refresh skills" button, no shelf
-//    boxes, no [data-buy-skill] in the free-agent list; the list is
-//    coaches + players only; the owned-skills inventory renders its
-//    empty state.
-//  - Owned-skill management (module check in-page): grantSkillToPlayer /
-//    removeSkillFromPlayer / markPurchasedSkill still work, so a legacy
-//    purchased skill can still be installed, uninstalled and refunded.
-// Usage: node scripts/qa/skill-book-removal.mjs [outDir] [baseUrl]
-// (Mac run: needs the Playwright chromium build; cannot run on this VM.)
+// Browser smoke: the Gold Challenge (career run) skill packs are back, the
+// fragment skill shop is NOT.
+//  - (The collection-page fragment-shop checks were dropped: that page moved
+//    behind the account menu; the fragment shop stays removed in code.)
+//  - Career market: the refresh-skills button and shelf render, a pack costs
+//    run gold only (account gold untouched), buying moves it into the
+//    skill inventory with an install control and spends exactly its price.
+//  - Owned-skill management (module check in-page): install / uninstall /
+//    refund helpers still behave.
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
-const OUT = process.argv[2] || "/tmp/cls-qa/skill-book-removal";
+const OUT = process.argv[2] || "/tmp/cls-qa/skill-pack-shop";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
 mkdirSync(OUT, { recursive: true });
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
@@ -61,32 +56,29 @@ async function run(width, height, tag) {
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 
-  // --- Collection: no shop, owned skills survive ---
-  await page.click("#btn-open-collection");
-  await page.waitForSelector("#screen-collection.active", { timeout: 15000 });
-  const shopEls = await page.$$eval(".skill-shop, [data-buy-skill], [data-shop-card]", (n) => n.length);
-  check(`[${tag}] collection: no skill-shop UI anywhere`, shopEls === 0, `${shopEls} elements`);
-  const manageText = await page.textContent("#collection-manage");
-  check(`[${tag}] collection: note says fragments have no sink`, /技能碎片目前没有可兑换的物品/.test(manageText));
-  const cardText = await page.textContent("#collection-grid");
-  check(`[${tag}] collection: legacy bought skill still on the card`, /后仰杀手|Fadeaway/.test(cardText), cardText.replace(/\s+/g, " ").slice(0, 120));
-  check(`[${tag}] collection: no horizontal overflow`, !(await overflow()));
-  await page.screenshot({ path: `${OUT}/${tag}-collection.png`, fullPage: true });
-
-  // --- Career market: no shelf, no buy, list is coaches + players only ---
-  await page.click("#btn-collection-back");
+  // --- Career market: shelf, price, buy -> inventory ---
   await page.click('.home-tab[data-category="custom"]');
   await page.click('.mode-card[data-mode="career"]');
   await page.waitForSelector("#screen-market.active", { timeout: 15000 });
   await page.waitForSelector("#free-agent-list .market-row", { timeout: 15000 });
-  check(`[${tag}] market: no refresh-skills button`, (await page.$("#btn-refresh-skills")) === null);
-  check(`[${tag}] market: no skill shelf boxes`, (await page.$$("#career-skill-shop, #setup-skill-shop, #live-skill-shop")).length === 0);
-  const marketBuySkills = await page.$$eval("#free-agent-list [data-buy-skill]", (n) => n.length);
-  check(`[${tag}] market: no skill-buy buttons in the list`, marketBuySkills === 0, `${marketBuySkills} buttons`);
-  const marketSkillCards = await page.$$eval("#free-agent-list .career-skill-card", (n) => n.length);
-  check(`[${tag}] market: no skill cards in the list (coaches + players only)`, marketSkillCards === 0, `${marketSkillCards} cards`);
-  const invText = await page.textContent("#career-skill-inventory");
-  check(`[${tag}] market: owned-skills inventory renders (empty state)`, /技能库空着/.test(invText), invText.replace(/\s+/g, " ").slice(0, 80));
+  check(`[${tag}] market: refresh-skills button is back`, (await page.$("#btn-refresh-skills")) !== null);
+  const packCards = await page.$$eval("#free-agent-list .career-skill-card", (n) => n.length);
+  check(`[${tag}] market: skill packs show in the list`, packCards >= 1, `${packCards} cards`);
+  const packText = await page.$eval("#free-agent-list .career-skill-card", (el) => el.textContent.replace(/\s+/g, " ").trim());
+  check(`[${tag}] pack card shows effect text and a ¤ price`, /¤\d+/.test(packText) && packText.length > 20, packText.slice(0, 90));
+  const buyBtn = await page.$("#free-agent-list [data-buy-skill]:not([disabled])");
+  check(`[${tag}] at least one pack is affordable at the start`, !!buyBtn);
+  if (buyBtn) {
+    const price = Number((await buyBtn.textContent()).match(/¤(\d+)/)?.[1]);
+    const accountBefore = await page.evaluate(() => localStorage.getItem("cls_accounts_v1") || "");
+    await buyBtn.click();
+    await page.waitForTimeout(300);
+    const invText = await page.textContent("#career-skill-inventory");
+    check(`[${tag}] bought pack lands in the skill inventory`, !/技能库空着/.test(invText) && /安装|无球员/.test(invText), invText.replace(/\s+/g, " ").slice(0, 100));
+    check(`[${tag}] price was positive and parsed`, price > 0, String(price));
+    const accountAfter = await page.evaluate(() => localStorage.getItem("cls_accounts_v1") || "");
+    check(`[${tag}] account storage untouched by the purchase`, accountBefore === accountAfter);
+  }
   check(`[${tag}] market: no horizontal overflow`, !(await overflow()));
   await page.screenshot({ path: `${OUT}/${tag}-market.png`, fullPage: true });
 

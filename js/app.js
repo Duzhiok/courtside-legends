@@ -35,6 +35,7 @@ import { careerPhaseLabelL, playerCardHtml } from "./ui/playerCard.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
+import { buySkillOffer } from "./engine/skillShopPurchase.js";
 import { ensureRebornScreen, createRebornView } from "./ui/reborn/rebornView.js";
 import { ensureRelationshipsScreen, createRelationshipsView } from "./ui/relationshipsView.js";
 import { createLegacyMuseumView } from "./ui/legacyMuseumView.js";
@@ -171,10 +172,12 @@ import {
 import {
   grantSkillToPlayer,
   markPurchasedSkill,
+  meetsHardGates,
   skillSlotsFull,
   purchasedSkillsRefund,
   removableSkills,
   removeSkillFromPlayer,
+  rollSkillShopOffers,
   skillChipsHtml,
   poolRoleLine,
   skillDesc,
@@ -4192,10 +4195,31 @@ $("#btn-legend-finish").onclick = () => {
 
 const MARKET_REFRESH_COST = 50;
 const COACH_REFRESH_COST = 30;
-// 金币晋级赛合并列表固定 9 行：1 教练 + 8 球员（教练固定在第 1 行，
+const SKILL_REFRESH_COST = 25;
+// 金币晋级赛合并列表固定 10 行：1 教练 + 1 技能包 + 8 球员（教练/技能包固定在第 1、2 行，
 // 球员在后按排序下拉框排好），不再随机穿插。
 const CAREER_SHOP_SIZE = 8;
 const CAREER_COACH_SHOP_SIZE = 1;
+const SKILL_SHOP_SIZE = 1;
+
+/** 刷新教练货架 + 技能包货架（可只刷其一） */
+function rollCareerStaffShops(c, { coaches = true, skills = true } = {}) {
+  if (!c || c.kind !== "career") return;
+  if (coaches) rollCareerCoachShop(c);
+  if (skills) {
+    const prev = (c.skillShop || []).map((x) => x.id);
+    // 连续刷新避开上一柜，并记住近期出现过的，减少「来回就那几样」
+    const recent = [...new Set([...(c.skillShopRecent || []), ...prev])].slice(-18);
+    // 绑定刷新：阵容里已有 2 人以上拥有的技能降权，少推重复货
+    const ownedCounts = {};
+    for (const pl of c.team?.players || []) {
+      for (const s of pl.skills || []) ownedCounts[s] = (ownedCounts[s] || 0) + 1;
+    }
+    const avoid = new Set(Object.keys(ownedCounts).filter((id) => ownedCounts[id] >= 2));
+    c.skillShop = rollSkillShopOffers(SKILL_SHOP_SIZE, recent, avoid, getLang());
+    c.skillShopRecent = [...new Set([...recent, ...c.skillShop.map((x) => x.id)])].slice(-24);
+  }
+}
 /** Gold cost to hire a coach in 晋级赛 (one-time buyout). */
 function careerCoachPrice(coach) {
   if (!coach) return 80;
@@ -4284,8 +4308,11 @@ function renderCareerCoachPanel(c) {
   const show = c?.kind === "career";
   panel.hidden = !show;
   if (!show) return;
-  if (!c.coachShop?.length) {
-    rollCareerCoachShop(c);
+  if (!c.coachShop?.length || !c.skillShop?.length) {
+    rollCareerStaffShops(c, {
+      coaches: !c.coachShop?.length,
+      skills: !c.skillShop?.length,
+    });
   }
   const coach = c.team?.coach;
   const tactics = coach ? coachTactics(coach) : [];
@@ -4310,7 +4337,7 @@ function renderCareerCoachPanel(c) {
   shopBox.querySelectorAll("[data-hire-career-coach]").forEach((btn) => {
     btn.onclick = () => hireCareerCoach(btn.dataset.hireCareerCoach);
   });
-  renderCareerSkillInventory(c);
+  renderCareerSkillShop(c);
 }
 
 /** 单个教练招聘卡的 HTML——被金币晋级赛合并列表和被隐藏的旧面板共用，不重复模板。 */
@@ -4341,31 +4368,65 @@ function ensureSkillInventory(c) {
   return c.skillInventory;
 }
 
-/** 市场 / 选首发 / 暂停 — 三处已购技能库（S0 后只有库存，没有货架） */
+/** 市场 / 选首发 / 暂停 — 三处技能货架与技能库 */
 function skillPanelRoots() {
   return [
-    { inv: $("#career-skill-inventory") },
-    { inv: $("#setup-skill-inventory") },
-    { inv: $("#live-skill-inventory") },
+    {
+      shop: $("#career-skill-shop"),
+      inv: $("#career-skill-inventory"),
+      hint: $("#career-skill-hint"),
+    },
+    {
+      shop: $("#setup-skill-shop"),
+      inv: $("#setup-skill-inventory"),
+      hint: $("#setup-skill-hint"),
+    },
+    {
+      shop: $("#live-skill-shop"),
+      inv: $("#live-skill-inventory"),
+      hint: $("#live-skill-hint"),
+    },
   ];
 }
 
 /** 单个技能包购买卡的 HTML——被金币晋级赛合并列表和 setup/live 两处技能货架共用。 */
-/**
- * 已购技能库 (S0): the skill SHOP is gone — no shelf, no buying. This
- * only renders packs the run already owns (bought before the
- * cancellation, or returned here when an installed skill is removed),
- * plus the installed-skills manage block. Rendered into the market /
- * setup / live roots by renderCareerSkillInventory.
- */
-function paintSkillInventoryRoot({ inv: invBox }, c) {
-  if (!invBox) return;
+function skillOfferCardHtml(offer, gold) {
+  const cost = offer.cost || 99;
+  const canAfford = gold >= cost;
+  const rarity = offer.rarityLabel || offer.rarity || "";
+  return `<div class="career-skill-card rarity-${escAttr(offer.rarity || "common")}">
+    <strong>${esc(offer.name)}${
+      rarity ? ` <span class="rarity-tag ${escAttr(offer.rarity || "")}">${esc(rarity)}</span>` : ""
+    }</strong>
+    <div class="tiny">${esc(offer.desc || "")}</div>
+    <div class="tiny">标价 ¤${cost}${offer.rarity === "mythic" ? " · 对齐超巨身价" : ""}</div>
+    <button type="button" class="btn small primary" data-buy-skill="${offer.id}" ${
+      canAfford ? "" : "disabled"
+    }>${canAfford ? `买入入库 ¤${cost}` : shortfallLabel(cost, gold)}</button>
+  </div>`;
+}
+
+function paintSkillShopRoot({ shop: skillBox, inv: invBox, hint }, c) {
+  if (!skillBox) return;
+  if (!c?.skillShop?.length) rollCareerStaffShops(c, { coaches: false, skills: true });
   const roster = c.team?.players || [];
+  const gold = c.gold || 0;
   const inv = ensureSkillInventory(c);
+  if (hint) {
+    hint.textContent = `货架 ${SKILL_SHOP_SIZE} 格，刷新会避开近期出现过的包；铁肺/永动机/铁人会提高曝光。满员可卸或替换。已购卸下退回库；卖掉按约 ${Math.round(SKILL_SELL_RATE * 100)}% 变现。组合技不可买/卸。刷新 ¤${SKILL_REFRESH_COST}。`;
+  }
+  skillBox.innerHTML = (c.skillShop || [])
+    .map((offer) => skillOfferCardHtml(offer, gold))
+    .join("") || `<p class="tiny">货架空了——可在市场刷新技能包。</p>`;
+  skillBox.querySelectorAll("[data-buy-skill]").forEach((btn) => {
+    btn.onclick = () => buyCareerSkillPack(btn.dataset.buySkill);
+  });
+
+  if (!invBox) return;
   const manageHtml = paintSkillManageBlock(roster);
   if (!inv.length) {
     invBox.innerHTML =
-      `<p class="tiny">技能库空着——已购的技能包会出现在这里，可随时安装。</p>` + manageHtml;
+      `<p class="tiny">技能库空着——买入后会出现在这里，可随时安装。</p>` + manageHtml;
     bindSkillManageClicks(invBox);
     return;
   }
@@ -4377,13 +4438,14 @@ function paintSkillInventoryRoot({ inv: invBox }, c) {
           .map((p) => {
             const have = (p.skills || []).includes(owned.id);
             const full = skillSlotsFull(p);
-            const disabled = have || !roster.length;
-            const tag = have ? " · 已有" : full ? " · 已满可替换" : "";
+            const eligible = meetsHardGates(p, owned.id);
+            const disabled = have || !eligible || !roster.length;
+            const tag = have ? " · 已有" : !eligible ? " · 不适用" : full ? " · 已满可替换" : "";
             const seasonBit = p.season ? ` ${p.season}` : "";
             return `<option value="${p.id}" ${disabled ? "disabled" : ""}>${esc(p.name)}${seasonBit}${tag}</option>`;
           })
           .join("");
-        const anyTarget = roster.some((p) => !(p.skills || []).includes(owned.id));
+        const anyTarget = roster.some((p) => !(p.skills || []).includes(owned.id) && meetsHardGates(p, owned.id));
         const dropOpts = roster
           .flatMap((p) =>
             removableSkills(p).map((sid) => {
@@ -4454,10 +4516,10 @@ function bindSkillManageClicks(root) {
   });
 }
 
-function renderCareerSkillInventory(c) {
+function renderCareerSkillShop(c) {
   if (!c || c.kind !== "career") return;
   syncTeamDuoSkills(c.team?.players || []);
-  for (const root of skillPanelRoots()) paintSkillInventoryRoot(root, c);
+  for (const root of skillPanelRoots()) paintSkillShopRoot(root, c);
 }
 
 /** 金币变动后立刻刷新自由市场可买态（否则会「显示可点、点了才说差钱」） */
@@ -4508,7 +4570,7 @@ function afterSkillChange(msg) {
       /* ignore */
     }
   } else {
-    renderCareerSkillInventory(c);
+    renderCareerSkillShop(c);
     const goldEl = $("#gold-amt");
     if (goldEl) goldEl.textContent = String(c.gold || 0);
   }
@@ -4516,7 +4578,7 @@ function afterSkillChange(msg) {
   if (state.setup?.you && screen === "setup") {
     try {
       renderSetupRoster();
-      renderCareerSkillInventory(c);
+      renderCareerSkillShop(c);
     } catch (_) {
       /* ignore */
     }
@@ -4527,12 +4589,25 @@ function afterSkillChange(msg) {
       const snap = state.sim.snapshot();
       paintLineups(snap);
       paintMeters(snap);
-      renderCareerSkillInventory(c);
+      renderCareerSkillShop(c);
     } catch (_) {
       /* ignore */
     }
   }
   if (msg) alert(msg);
+}
+
+/** 买入入库（不立刻装到球员） */
+function buyCareerSkillPack(skillId) {
+  const c = state.career;
+  const res = buySkillOffer(c, skillId);
+  if (!res.ok) {
+    if (res.reason === "not-on-shelf") alert("该技能包已不在货架上");
+    else if (res.reason === "not-purchasable") alert("组合技 / 专属技不可购买学习");
+    else if (res.reason === "short") alert(`「${res.offer.name}」需要 ¤${res.cost}，当前 ¤${res.gold}`);
+    return;
+  }
+  afterSkillChange(`已将「${res.offer.name}」放入技能库（¤${res.cost}）——可随时安装`);
 }
 
 /** 收集同 id 球员的所有活引用（生涯名单 / 赛前 / 场上 clone） */
@@ -4614,6 +4689,10 @@ function installInventorySkill(invIndex, playerId, dropSkillId = null) {
   }
   if ((player.skills || []).includes(owned.id)) {
     alert(`${player.name} 已有「${owned.name}」`);
+    return;
+  }
+  if (!meetsHardGates(player, owned.id)) {
+    alert(`「${owned.name}」不适用于 ${player.name}（球队 / 名单 / 身高限制）`);
     return;
   }
   let dropId = dropSkillId;
@@ -4829,6 +4908,7 @@ function bootCareerBracket({
     hiredCoachIds: hiredCoachIds || (you.coach?.id ? [you.coach.id] : []),
     shop: null,
     coachShop: null,
+    skillShop: null,
     skillInventory: Array.isArray(skillInventory) ? skillInventory : [],
     finals: startSize === 2,
     series: null,
@@ -5406,8 +5486,11 @@ function openMarket({ career = false, duel = false, afterWin = false, refillShop
     c.shop = buildAffordableShop(c, isDuel ? 12 : CAREER_SHOP_SIZE);
     rollScoutPackOffer(c, "round");
   }
-  if (!isDuel && (refillShop || !c.coachShop?.length)) {
-    rollCareerCoachShop(c);
+  if (!isDuel && (refillShop || !c.coachShop?.length || !c.skillShop?.length)) {
+    rollCareerStaffShops(c, {
+      coaches: refillShop || !c.coachShop?.length,
+      skills: refillShop || !c.skillShop?.length,
+    });
   }
 
   if (!isDuel) {
@@ -5433,7 +5516,7 @@ function openMarket({ career = false, duel = false, afterWin = false, refillShop
     $("#market-hint").textContent = afterWin
       ? lang === "en"
         ? `Game bonus banked · ${tierName}. Buy players / coaches / skill packs; refresh ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}. Scout packs appear randomly. ${roundBit}`
-        : `赛果奖金已入账 · ${tier.name}。可买球员/教练；刷新 ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}。球探包随机刷出。${roundBit}`
+        : `赛果奖金已入账 · ${tier.name}。可买球员/教练/技能包；刷新 ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}。球探包随机刷出。${roundBit}`
       : lang === "en"
         ? `${fieldBit}. Now ¤${c.gold || 600}. Scout packs appear randomly (about 30% refresh). ${roundBit}`
         : `${fieldBit}。当前 ¤${c.gold || 600}。球探包随机出现（约三成换货）。${roundBit}`;
@@ -5857,9 +5940,8 @@ function paintFreeAgentList(c, duel = false) {
   });
 }
 
-/** 金币晋级赛专用：球员+教练合并成一个右侧列表，不再把教练
- * 放在顶部单独的面板里——用户反馈每次还得拉到顶部看金币，很烦。
- * (S0: 技能包已从市场移除，列表只有教练 + 球员。) */
+/** 金币晋级赛专用：球员+教练+技能包合并成一个右侧列表，不再把教练/技能包
+ * 放在顶部单独的面板里——用户反馈每次还得拉到顶部看金币，很烦。 */
 function paintCareerMarketList(c) {
   const box = $("#free-agent-list");
   if (!box) return;
@@ -5868,7 +5950,8 @@ function paintCareerMarketList(c) {
   if (sortEl && state.marketSort) sortEl.value = state.marketSort;
   const hasPlayers = !!c.shop?.length;
   const hasCoaches = !!c.coachShop?.length;
-  if (!hasPlayers && !hasCoaches) {
+  const hasSkills = !!c.skillShop?.length;
+  if (!hasPlayers && !hasCoaches && !hasSkills) {
     box.innerHTML = `<p class="tiny">${careerRefreshCost(c, MARKET_REFRESH_COST) === 0 ? "市场空了。阵容不满 8 人，本次刷新免费，点「刷新自由市场」换一批。" : `市场空了。点「刷新自由市场」花 ¤${MARKET_REFRESH_COST} 换一批。`}</p>`;
     return;
   }
@@ -5878,7 +5961,8 @@ function paintCareerMarketList(c) {
     playerMarketCardHtml(p, c, { duel: false, scoutOn, homeTactic, budget })
   );
   const coachCards = (c.coachShop || []).map((offer) => coachMarketCardHtml(offer, budget, c.team?.coach));
-  box.innerHTML = [...coachCards, ...playerCards].join("");
+  const skillCards = (c.skillShop || []).map((offer) => skillOfferCardHtml(offer, budget));
+  box.innerHTML = [...coachCards, ...skillCards, ...playerCards].join("");
   box.querySelectorAll("[data-buy]").forEach((btn) => {
     if (btn.disabled) return;
     btn.onclick = () => buyPlayer(btn.dataset.buy);
@@ -5886,6 +5970,10 @@ function paintCareerMarketList(c) {
   box.querySelectorAll("[data-hire-career-coach]").forEach((btn) => {
     if (btn.disabled) return;
     btn.onclick = () => hireCareerCoach(btn.dataset.hireCareerCoach);
+  });
+  box.querySelectorAll("[data-buy-skill]").forEach((btn) => {
+    if (btn.disabled) return;
+    btn.onclick = () => buyCareerSkillPack(btn.dataset.buySkill);
   });
 }
 
@@ -5905,7 +5993,19 @@ $("#btn-refresh-coaches")?.addEventListener("click", () => {
     return;
   }
   c.gold -= COACH_REFRESH_COST;
-  rollCareerCoachShop(c);
+  rollCareerStaffShops(c, { coaches: true, skills: false });
+  openMarket({ career: true });
+});
+
+$("#btn-refresh-skills")?.addEventListener("click", () => {
+  const c = state.career;
+  if (!c || c.kind !== "career") return;
+  if ((c.gold || 0) < SKILL_REFRESH_COST) {
+    alert(`刷新技能包货架需要 ¤${SKILL_REFRESH_COST}，当前 ¤${c.gold || 0}`);
+    return;
+  }
+  c.gold -= SKILL_REFRESH_COST;
+  rollCareerStaffShops(c, { coaches: false, skills: true });
   openMarket({ career: true });
 });
 
@@ -5921,8 +6021,8 @@ $("#btn-refresh-market").onclick = () => {
     c.gold -= refreshCost;
     c.shop = buildAffordableShop(c, CAREER_SHOP_SIZE);
     rollScoutPackOffer(c, "refresh");
-    // 球员市场刷新时，教练也一起随机换一批
-    rollCareerCoachShop(c);
+    // 球员市场刷新时，教练与技能包也一起随机换一批
+    rollCareerStaffShops(c, { coaches: true, skills: true });
     openMarket({ career: true });
     return;
   }
@@ -6186,7 +6286,7 @@ function openSetup(home, away, youSide) {
       } else if (state.career.team && you?.players) {
         state.career.team.players = you.players;
       }
-      renderCareerSkillInventory(state.career);
+      renderCareerSkillShop(state.career);
     }
   }
   if (backBtn) {
@@ -8429,7 +8529,7 @@ function syncPauseUI(snap) {
   if (liveSkills) {
     const showSkills = state.career?.kind === "career";
     liveSkills.hidden = !showSkills;
-    if (showSkills && paused) renderCareerSkillInventory(state.career);
+    if (showSkills && paused) renderCareerSkillShop(state.career);
   }
   syncCoachActionLocks(paused);
   syncTakeoverPanel();
