@@ -12,7 +12,7 @@
  */
 import { mountScreen } from "../screenShell.js";
 import { buildPlayerCard } from "../../reborn/identity.js";
-import { creationHtml, createRebornFromChoice } from "./creation.js";
+import { creationHtml, createRebornFromChoice, seedFromSearch } from "./creation.js";
 import { buildSeason, playGame } from "../../reborn/season.js";
 import {
   fastForward,
@@ -539,9 +539,12 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     if (forceNew || !root.reborn) {
       // No run yet: the creation flow (year, destiny, identity). The seed
       // is fixed here so the random draw is stable while the player
-      // browses the lists; the run is created only on confirm.
+      // browses the lists; the run is created only on confirm. A
+      // `?reborn-seed=` URL param pins the seed (QA scripts; see
+      // seedFromSearch) — normal play always generates a fresh one.
       creating = {
-        seed: `reborn-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`,
+        seed: seedFromSearch(typeof location !== "undefined" ? location.search : "")
+          || `reborn-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`,
         startYear: 1996,
         destiny: null,
         pickedBref: null,

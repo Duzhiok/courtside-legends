@@ -4,6 +4,11 @@
 // playing until his team comes up -> the pre-game rivalry card shows ->
 // play it -> the head-to-head line appears. Desktop 1440 + mobile 390.
 // The takeover dialog may pop mid-game; the script passes on it.
+// The run seed is pinned (?reborn-seed=, see seedFromSearch) so the
+// schedule is the same every run: with a random seed the rival's team
+// might not come up within the 40-game window and the smoke FAILs for
+// nothing. The pinned seed was verified in Node
+// (scripts/qa/career2-qa-probe.mjs, section e): pre-game card at game 3.
 // Usage: node scripts/qa/reborn-rivalry.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -11,6 +16,7 @@ import { homeActive, noOverflow, shoot } from "./lib/page.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/reborn-rivalry";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
+const URL = `${BASE}${BASE.includes("?") ? "&" : "?"}reborn-seed=career2-qa-rivalry-2`;
 mkdirSync(OUT, { recursive: true });
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 let failed = 0;
@@ -39,7 +45,7 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("dialog", (d) => d.accept());
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
+  await page.goto(URL, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);

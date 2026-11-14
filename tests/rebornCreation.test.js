@@ -11,12 +11,23 @@ import {
   createRebornFromChoice,
   creationHtml,
   campTeamFor,
+  seedFromSearch,
 } from "../js/ui/reborn/creation.js";
 import { drawIdentity, benchPool } from "../js/reborn/identity.js";
 
 const ROWS = JSON.parse(
   readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"),
 ).players;
+
+test("seedFromSearch: ?reborn-seed= pins the run seed for QA; absent or blank means fresh", () => {
+  assert.equal(seedFromSearch("?reborn-seed=career2-qa-rivalry"), "career2-qa-rivalry");
+  assert.equal(seedFromSearch("?foo=1&reborn-seed=abc"), "abc");
+  assert.equal(seedFromSearch(""), null);
+  assert.equal(seedFromSearch("?reborn-seed="), null);
+  assert.equal(seedFromSearch("?reborn-seed=%20%20"), null);
+  assert.equal(seedFromSearch(null), null);
+  assert.equal(seedFromSearch(undefined), null);
+});
 
 test("creationChoices: the bench pool and the generated prospects for a start year", () => {
   const choices = creationChoices(ROWS, "reborn-create-1", 1996);

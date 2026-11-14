@@ -43,6 +43,21 @@ export const ERA_BACKGROUND = {
 
 export const CREATION_DESTINIES = ["random", "historical", "fictional"];
 
+/**
+ * A fixed run seed from the URL (`?reborn-seed=...`), for QA scripts that
+ * need a reproducible run (scripts/qa/reborn-rivalry.mjs). Null when absent
+ * or blank — normal play always generates a fresh seed. Pure and testable;
+ * the view passes `location.search`.
+ */
+export function seedFromSearch(search) {
+  try {
+    const value = new URLSearchParams(typeof search === "string" ? search : "").get("reborn-seed");
+    return value && value.trim() ? value.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The camp team for a chosen fictional prospect — deterministic per seed + bref. */
 export function campTeamFor(seed, bref) {
   const rng = seededStream(hashSeed(`${String(seed)}|${String(bref)}`));
