@@ -57,6 +57,40 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim() !== "";
 }
 
+// S-P1-1 defence in depth: team / player / coach names reach innerHTML in several season
+// views, so a save whose names carry markup is refused at load/import rather than trusted.
+// Legitimate names never contain < or > and are far shorter than 60 chars; the two
+// user-editable names (custom team name, gameplan style) are sanitised on entry
+// (accountToTeam, applyRotationPlan), so no save made through the UI can trip this.
+const MAX_SAVE_NAME_LENGTH = 60;
+function isSafeDisplayName(value) {
+  return typeof value === "string" && value.length <= MAX_SAVE_NAME_LENGTH && !/[<>]/.test(value);
+}
+
+function validateCareerNames(season) {
+  for (const team of Object.values(season.teams)) {
+    if (!isObject(team)) continue;
+    if (team.name !== undefined && !isSafeDisplayName(team.name)) {
+      throw new Error("invalid root save");
+    }
+    if (Array.isArray(team.players)) {
+      for (const p of team.players) {
+        if (p && p.name !== undefined && !isSafeDisplayName(p.name)) {
+          throw new Error("invalid root save");
+        }
+      }
+    }
+    if (isObject(team.coach)) {
+      if (team.coach.name !== undefined && !isSafeDisplayName(team.coach.name)) {
+        throw new Error("invalid root save");
+      }
+      if (team.coach.style !== undefined && !isSafeDisplayName(team.coach.style)) {
+        throw new Error("invalid root save");
+      }
+    }
+  }
+}
+
 function validateDraft(draft, { completed = false } = {}) {
   const validSeed =
     (typeof draft?.seed === "number" && Number.isFinite(draft.seed))
@@ -219,6 +253,7 @@ function validateLeagueCareer(career) {
   if (career.management !== undefined) {
     validateManagement(career.management);
   }
+  validateCareerNames(season);
   // M4-C: optional snapshot; only validate it when present, never require it.
   if (career.identitySnapshot !== undefined) {
     validateIdentitySnapshot(career.identitySnapshot);

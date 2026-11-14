@@ -3646,10 +3646,10 @@ function renderPack() {
         <div class="card-head">
           ${photoImg(p, compact ? "headshot" : "headshot lg")}
           <div>
-            <div class="name">${p.name} <span class="pos-badge">${normalizePos(p.pos)}</span>${legacy.tagHtml}${
+            <div class="name">${esc(p.name)} <span class="pos-badge">${normalizePos(p.pos)}</span>${legacy.tagHtml}${
               valueTag ? ` ${valueTag}` : ""
             }${cantAfford ? ` <span class="chip warn">买不起</span>` : ""}${rec?.playerId === p.id ? ` <span class="chip growth">${L("推荐", "Recommended")}</span>` : ""}</div>
-            <div class="meta">${[p.season, p.team, p.pos, `OVR ${overall(p)}`, priceTxt].filter(Boolean).join(" · ")}</div>
+            <div class="meta">${[p.season, esc(p.team), esc(p.pos), `OVR ${overall(p)}`, priceTxt].filter(Boolean).join(" · ")}</div>
             ${
               // Draft Team has no salaries and no money on the pick, so an "est. salary" line is just noise there.
               d.budgetMode || d.buyPlayers
@@ -3675,7 +3675,7 @@ function renderPack() {
     } else if (card.kind === "assistant") {
       const a = card.data;
       el.innerHTML = `
-        <div class="name">助教 · ${a.name}</div>
+        <div class="name">助教 · ${esc(a.name)}</div>
         <div class="meta">${a.season} · ${a.role || "助教"} · 名气 ${a.fame ?? "-"}</div>
         <div class="stat-chips">
           <span class="chip">攻 +${a.buffs?.offense || 0}</span>
@@ -3683,21 +3683,21 @@ function renderPack() {
           <span class="chip">自主 +${a.playerAutonomy || 0}</span>
           <span class="chip growth">激发 ${a.sparkPotential || 0}</span>
         </div>
-        <p class="tiny" style="margin:8px 0 0">${a.note || ""}</p>`;
+        <p class="tiny" style="margin:8px 0 0">${esc(a.note || "")}</p>`;
     } else {
       const c = card.data;
       const auto = c.playerAutonomy ?? "-";
       const obscure = isObscureStaff(c);
       el.innerHTML = `
-        <div class="name">教练 · ${c.name}</div>
-        <div class="meta">${c.season} · ${c.team} · ${c.style}${obscure ? " · 放权型" : ""}</div>
+        <div class="name">教练 · ${esc(c.name)}</div>
+        <div class="meta">${c.season} · ${esc(c.team)} · ${esc(c.style)}${obscure ? " · 放权型" : ""}</div>
         <div class="stat-chips">
           <span class="chip">攻 +${c.buffs?.offense || 0}</span>
           <span class="chip">防 +${c.buffs?.defense || 0}</span>
           <span class="chip">士气 +${c.buffs?.morale || 0}</span>
           <span class="chip growth">自主 ${auto}</span>
         </div>
-        <p class="tiny" style="margin:8px 0 0">${c.note || ""}</p>`;
+        <p class="tiny" style="margin:8px 0 0">${esc(c.note || "")}</p>`;
     }
     el.onclick = () => {
       if (d.cpu && d.turn === "B") return;
@@ -10024,7 +10024,7 @@ function renderSeasonMarket() {
     .filter((id) => id !== st.userTeamId)
     .map((id) => ({ id, name: st.teams[id].name || id }))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), "zh"))
-    .map((t) => `<option value="${t.id}">${t.name}</option>`)
+    .map((t) => `<option value="${escAttr(t.id)}">${esc(t.name)}</option>`)
     .join("");
 
   refreshStaffMarket(st);
@@ -10616,7 +10616,7 @@ function renderSeasonStandings() {
           ${rows
             .map((r, i) => {
               const you = r.id === st.userTeamId ? " you" : "";
-              return `<tr class="${you}"><td class="num rank">${i + 1}</td><td class="team"><i class="stand-dot" style="background:${hubTeamHex(st.teams[r.id])}"></i>${r.name}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${(
+              return `<tr class="${you}"><td class="num rank">${i + 1}</td><td class="team"><i class="stand-dot" style="background:${hubTeamHex(st.teams[r.id])}"></i>${esc(r.name)}</td><td class="num">${r.w}</td><td class="num">${r.l}</td><td class="num">${(
                 r.pct * 100
               ).toFixed(1)}%</td><td class="num">${r.diff > 0 ? "+" : ""}${r.diff}</td></tr>`;
             })
@@ -10630,7 +10630,7 @@ function renderSeasonStandings() {
 
 function awardLine(a) {
   if (!a) return "—";
-  return L(`${a.name}（${a.teamName}）· ${a.ppg}分 ${a.rpg}板 ${a.apg}助 · ${a.gp}场`, `${a.name} (${a.teamName}) · ${a.ppg} pts ${a.rpg} reb ${a.apg} ast · ${a.gp} G`);
+  return L(`${esc(a.name)}（${esc(a.teamName)}）· ${a.ppg}分 ${a.rpg}板 ${a.apg}助 · ${a.gp}场`, `${esc(a.name)} (${esc(a.teamName)}) · ${a.ppg} pts ${a.rpg} reb ${a.apg} ast · ${a.gp} G`);
 }
 
 function renderSeasonAwards() {
@@ -10644,7 +10644,7 @@ function renderSeasonAwards() {
   }
   const teamList = (list, label) =>
     `<div class="season-award-card"><h4>${label}</h4><div class="all-nba-row">${(list || [])
-      .map((p) => `<span>${p.pos || ""} ${p.name} <em class="tiny">${p.teamName}</em></span>`)
+      .map((p) => `<span>${esc(p.pos || "")} ${esc(p.name)} <em class="tiny">${esc(p.teamName)}</em></span>`)
       .join("") || "—"}</div></div>`;
   box.innerHTML = `
     <div class="season-award-card"><h4>${L("常规赛 MVP", "Regular-season MVP")}</h4><p>${awardLine(a.mvp)}</p></div>
@@ -10653,7 +10653,7 @@ function renderSeasonAwards() {
     <div class="season-award-card"><h4>${L("最快进步 MIP", "Most Improved Player")}</h4><p>${awardLine(a.mip)}</p></div>
     <div class="season-award-card"><h4>${L("最佳新秀 ROY", "Rookie of the Year")}</h4><p>${awardLine(a.roy)}</p></div>
     <div class="season-award-card"><h4>${L("最佳教练", "Coach of the Year")}</h4><p>${
-      a.coty ? L(`${a.coty.name}（${a.coty.teamName} ${a.coty.w}胜${a.coty.l}负）`, `${a.coty.name} (${a.coty.teamName} ${a.coty.w}-${a.coty.l})`) : "—"
+      a.coty ? L(`${esc(a.coty.name)}（${esc(a.coty.teamName)} ${a.coty.w}胜${a.coty.l}负）`, `${esc(a.coty.name)} (${esc(a.coty.teamName)} ${a.coty.w}-${a.coty.l})`) : "—"
     }</p></div>
     ${teamList(a.allNba?.first, L("一阵 All-NBA 1st", "All-NBA 1st"))}
     ${teamList(a.allNba?.second, L("二阵 All-NBA 2nd", "All-NBA 2nd"))}
@@ -12357,7 +12357,7 @@ function boxTable(team) {
       const grade = p.grade || "—";
       const gTone = p.gradeTone || "grade-c";
       return `<tr>
-        <td class="player-cell">${photoImg(p, "headshot sm")} ${p.name}<div class="tiny">${p.season}</div></td>
+        <td class="player-cell">${photoImg(p, "headshot sm")} ${esc(p.name)}<div class="tiny">${p.season}</div></td>
         <td><span class="live-grade ${gTone}">${grade}</span></td>
         <td>${s.min}</td><td>${s.pts}</td><td>${s.reb}</td><td>${s.oreb}</td><td>${s.dreb}</td>
         <td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.tov}</td><td>${s.pf}</td>
@@ -12366,7 +12366,7 @@ function boxTable(team) {
       </tr>`;
     })
     .join("");
-  return `<div class="box-wrap"><strong>${team.name}</strong>
+  return `<div class="box-wrap"><strong>${esc(team.name)}</strong>
     <div class="table-scroll"><table>
       <thead><tr>
         <th>球员</th><th>评级</th><th>MIN</th><th>PTS</th><th>REB</th><th>OREB</th><th>DREB</th>

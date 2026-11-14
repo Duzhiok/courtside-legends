@@ -299,8 +299,12 @@ export function accountToTeam(account, teamName) {
   if (!players.length) return null;
   for (const p of players) applyPlayerPrefs(p, account.playerPrefs?.[p.id]);
   const coach = resolveCoach(account.coachId) || structuredClone(COACHES[0]);
+  // S-P1-1: the custom team name (and the account-name fallback) is user-typed and flows
+  // into season renders; strip markup characters here so no save made through the UI can
+  // carry a name the save validator refuses (both sources are already length-capped).
+  const name = String(teamName || `${account.name} 班底`).replace(/[<>]/g, "");
   return {
-    name: teamName || `${account.name} 班底`,
+    name,
     players,
     coach,
     tacticId: account.tacticId || "balanced",

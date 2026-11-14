@@ -844,7 +844,10 @@ export function applyRotationPlan(team, plan) {
       morale: plan.phil.morale,
       stamina: plan.phil.stamina,
     };
-    if (plan.phil.styleName) team.coach.style = plan.phil.styleName;
+    // S-P1-1: the philosophy name is user-typed and lands on team.coach.style, which is
+    // rendered into the coach card — strip markup characters and cap the length so no save
+    // made through the UI can carry a style the save validator refuses.
+    if (plan.phil.styleName) team.coach.style = String(plan.phil.styleName).replace(/[<>]/g, "").slice(0, 60);
   }
   if (plan.specialTactics?.length && team.coach) {
     team.coach.specialTactics = [...plan.specialTactics];

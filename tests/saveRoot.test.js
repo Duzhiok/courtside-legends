@@ -942,3 +942,48 @@ test("D-P1-4: boot guards the migrateLegacySaves call itself, so a migrator thro
   assert.ok(/try \{\s*legacyDiscovery = migrateLegacySaves\(\);/.test(src), "boot wraps the migration call in try/catch");
   assert.ok(/legacyDiscovery = \{ root: null, migrationError: error \}/.test(src), "an unexpected migrator throw degrades to a reported migrationError");
 });
+
+function careerRootWithSeason(season) {
+  return createRootState({
+    activeMode: "franchise",
+    leagueCareer: {
+      careerId: "career-1",
+      kind: "franchise",
+      phase: "regular",
+      season,
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+  });
+}
+
+test("S-P1-1: importing a career whose team name carries markup is refused", () => {
+  const season = validSeason({ teams: { POR: { id: "POR", name: "</td><img src=x onerror=alert(1)>", players: [] } } });
+  assert.throws(() => importRootSave(exportEnvelope(careerRootWithSeason(season))), /invalid save file/);
+});
+
+test("S-P1-1: importing a career with markup in a player, coach or style name is refused", () => {
+  const playerBad = validSeason({ teams: { POR: { id: "POR", players: [{ id: "p1", name: "<script>alert(1)</script>" }] } } });
+  assert.throws(() => importRootSave(exportEnvelope(careerRootWithSeason(playerBad))), /invalid save file/);
+  const coachBad = validSeason({ teams: { POR: { id: "POR", players: [], coach: { name: "坏<x" } } } });
+  assert.throws(() => importRootSave(exportEnvelope(careerRootWithSeason(coachBad))), /invalid save file/);
+  const styleBad = validSeason({ teams: { POR: { id: "POR", players: [], coach: { name: "Phil", style: "体系<img>" } } } });
+  assert.throws(() => importRootSave(exportEnvelope(careerRootWithSeason(styleBad))), /invalid save file/);
+});
+
+test("S-P1-1: names over 60 chars are refused, 60 chars pass", () => {
+  const long = validSeason({ teams: { POR: { id: "POR", name: "x".repeat(61), players: [] } } });
+  assert.throws(() => importRootSave(exportEnvelope(careerRootWithSeason(long))), /invalid save file/);
+  const edge = validSeason({ teams: { POR: { id: "POR", name: "x".repeat(60), players: [] } } });
+  assert.doesNotThrow(() => importRootSave(exportEnvelope(careerRootWithSeason(edge))));
+});
+
+test("S-P1-1: ordinary team, player, coach and style names still import fine", () => {
+  const season = validSeason({
+    teams: { POR: { id: "POR", name: "波特兰开拓者", players: [{ id: "p1", name: "克莱德·德雷克斯勒" }], coach: { name: "里克·阿德尔曼", style: "普林斯顿" } } },
+  });
+  const imported = importRootSave(exportEnvelope(careerRootWithSeason(season)));
+  assert.equal(imported.leagueCareer.season.teams.POR.name, "波特兰开拓者");
+  assert.equal(imported.leagueCareer.season.teams.POR.coach.style, "普林斯顿");
+});
