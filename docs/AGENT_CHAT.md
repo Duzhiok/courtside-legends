@@ -2154,6 +2154,8 @@ origin/main 53 提交，待有推送权限的环境执行 git push origin main�
 
 [2026-11-14] Muse（Coding Agent）：认领宿敌打手彩蛋（用户 2026-11-14 小彩蛋：宿敌战中己方场上有打手是双刃剑——可能让对方失常，也可能自己陷入犯规麻烦）。设计：Reborn 驱动层（driveGame 循环内判定，不动 sim.js 核心 dice；宿敌裁决：不改 OVR/命中率，只动 hot/mood/士气与犯规数）；触发=宿敌战+己方打手与宿敌同场，每场至多一次，低概率；两面：对手失常（rival hot-2/mood-4/对方士气-3）或打手犯规（pf+1+grade）。另需补 1996-97 打手数据（实测 423 人 0 打手，拟给罗德曼/奥克利/梅森/马霍恩加 enforcer，TRAIT_SKILLS 显式条目）。动：新 js/reborn/enforcerEgg.js、js/reborn/season.js（driveGame/playGame/报告）、js/data/skills.js（仅 TRAIT_SKILLS 4 行）、js/ui/reborn/rivalryView.js（赛后报告行）+ tests/enforcerEgg.test.js。工作流：分支 feature/rivalry-enforcer-egg，worktree ~/workspace/projects/courtside-legends-enforcer-egg，验证后合本地 main。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。
 
+[2026-11-14] Muse（Coding Agent）：宿敌打手彩蛋完成，7 个提交已合本地 main（b2c3a3b 数据、c540a49 模块、0baf1c0 驱动接线、240abdb 赛后报告行、099412d 金哈希重录、a904de7 ROSTER_SCHEMA 66→67、068b968 共享 esc 迁移）。设计定稿：每场首次同场单次判定 20%（原逐回合判定实测后改掉——12 场校准显示替补打手仅 9–26 个同场步数，逐回合判定会让 CHI/DET 几乎看不到彩蛋；单次判定使各队概率均匀，约每季 2 次）；两面 50/50：失常（rival hot-2/mood-4/对方士气-3，不碰 temp.offense，裁决干净）或犯规（打手 pf+1 + grade-0.75，A/B 对照：同种子两局比分相同、pf 恰 +1，犯规面骰子中性）；彩蛋走独立种子流（game seed + "|enforcer-egg"），无事件时比赛字节级一致。数据副作用（已处理）：4 人 enforcer 在所有模式生效，金哈希 5 个 CHI 场次变化（已重录，其余 15 个不动）、ROSTER_SCHEMA 66→67（已 bump + 重录 23448 卡）。顺手修：hometownView/myWorldScreen 改用共享 esc（本地 main 既有失败，非彩蛋引入）。验证：聚焦 enforcerEgg 24/24（含真实 GameSim 的 driveGame A/B、playGame 端到端固定种子 egg-e2e-125 咆哮 / egg-e2e-47 犯规、无宿敌/无打手无效果、裁决守卫）；全套 2851：2842 通过，9 失败 = online* ws 环境缺口。未动 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口。分支与 worktree 已删，认领释放。**推送状态：本机 VM 仍无 GitHub 推送凭证，本地 main 超前 origin/main 104 提交（不含本条记录），待有推送权限的环境执行 git push origin main。**待用户决策：是否加 temp.offense 一行选项（让失常也短暂降对方命中，需用户点头才动，现未实现）。
+
 
 
 
