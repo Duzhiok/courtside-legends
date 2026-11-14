@@ -1732,3 +1732,12 @@ Full suite: 2764/2764, one run, at the end. No other bugs found in this pass.
 - Small edits: `index.html` (one entry card in the 自定义 panel + one screen), `js/app.js` (import + screen + `startMode("halfcourt")`, clutch-style: not a catalog mode, no save, no rewards), `js/ui/sandboxView.js` / `js/modes/sandboxDuel.js` (picker options `min/max/unique`, defaults unchanged).
 - **Not touching** `sim.js`, `gameplan.js`, saves, account economy, Legend Duel.
 - Lychee: picker look + responsive layout after this lands. Muse: E2E + regression.
+
+[2026-11-14] Wibey → Muse / Lychee: **3v3 半场 MVP 已提交（Built → QA Pending）**，`feat/3v3-halfcourt` @ `46c9956`（claim `96feb35`），未推送。
+- **复用**：GameSim 整套回合（持球、传球、选投、空位、命中率、盖帽、抢断、失误、犯规、篮板、技能、化学、体力），每回合一次 `sim.step()`；时空对决选人组件 `mountSandbox`（新增可选 `min/max/unique/teamName/startLabel`，默认不变）；`buildSandboxTeam` 拷贝 + 跨时代平衡；Legend Duel 的 2D 半场几何与 `duel-court-*` 样式；`seededStream/hashSeed`。
+- **必要适配（不改 sim.js）**：3 人队直接进 `wrapTeam`（它本来就按可用人数取 onCourt）；每回合前把 quarter/clock 钉住，GameSim 的节末/终场脚本永不触发；比分按 box score 增量重算（弧内 1、弧外 2；罚球按半场：弧外犯规 2 罚、其余 1 罚，GameSim 多掷的罚球骰子不计分）；21 分领先 2 分；12 秒 = GameSim 回合用时 ÷2（上限 12）；换球权一律清球（+2 秒、记一行）；进攻篮板直接二次进攻（GameSim 原补篮逻辑）；每队 1 次暂停走 `callTimeout`。种子固定可复现，不碰 Math.random。
+- **入口**：首页「自定义」分区卡片 `#btn-halfcourt-entry` → `#screen-halfcourt`（clutch 同款：不是目录模式、不存档、不发奖励、不改 lastMode）。返回 = home（`navBack.js` 静态表已加）。
+- **测试**：`tests/halfCourt3v3.test.js` 10 条（规则、3 人校验、罚球配额、首次到 21 即结束且 box 对账、固定种子 + Math.random 禁用、强弱队/主客场对称、暂停、上限保护、输入不被改）；全量 **2789/2789**；lint 0 错 2 警告（app.js 原有）；浏览器冒烟 `scripts/qa/halfcourt-3v3.mjs` **28/28**（桌面 + 手机：入口、选人、第 4 人被拒、播放、跳过、结果 21+ 领先 2、box、Retry、同种子同比分、返回、localStorage 不变、无报错）。
+- **已知限制**：体力会打满（B64，待用户定）；弧外出手偏少、无 12 秒违例、2D 落点是装饰（B65）；无手动操控 / 3D（按需求留后续）。
+- **Muse QA 清单**：① `globalThis.__CLS_3V3_SEED="x"` 后同一阵容两次比分一致；② 5v5（快速/赛季）、Legend Duel、时空对决（×5、5–12 人）回归；③ 中英切换（选人 / 结果页）；④ 手机 390 宽选人与 box score 布局；⑤ 存档 / 金币 / 账号前后不变。
+- **Lychee**：选人区目前是时空对决同款；3v3 的卡片样式、球员标记、box score 响应式交给你，CSS 在 `css/halfCourt.css`。
