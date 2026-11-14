@@ -5,7 +5,7 @@
 import { liveTeam, nextUserGame, nextUserPlayoffGame } from "../engine/season.js";
 import { scoutOpponent } from "../myteam/opponentScouting.js";
 import { counterStrategies } from "../myteam/counterStrategy.js";
-import { applyCounterPlan } from "../myteam/applyPlan.js";
+import { applyCounterPlan, clearMatchupPlan } from "../myteam/applyPlan.js";
 import { matchupPlanHtml } from "./matchupPlanView.js";
 
 function nextOpponentId(st) {
@@ -73,13 +73,20 @@ export function createMatchupController({ box, getLang, allow = () => true, comm
     const st = box._season?.();
     const act = btn.dataset.act;
     if (act === "scout-plan") { selected = btn.dataset.plan; applied = false; paint(st); box.querySelector("details")?.setAttribute("open", ""); return; }
-    if (act === "scout-keep") { selected = null; applied = false; paint(st); return; }
+    if (act === "scout-keep") {
+      selected = null; applied = false;
+      // "Keep current" also clears a previously-applied matchup plan for this opponent -- the saved default resumes.
+      const team = st?.teams[st.userTeamId];
+      if (team && clearMatchupPlan(team) && allow()) commit(st);
+      cache = null; paint(st); return;
+    }
     if (act === "scout-apply") {
       const data = st && compute(st);
       const plan = data?.strategy.plans.find((p) => p.id === (selected || data.strategy.recommended));
-      if (!plan || !allow()) return;
+      const oppId = nextOpponentId(st);
+      if (!plan || !oppId || !allow()) return;
       const team = st.teams[st.userTeamId];
-      if (applyCounterPlan(team, plan) && commit(st)) { applied = true; cache = null; paint(st); box.querySelector("details")?.setAttribute("open", ""); }
+      if (applyCounterPlan(team, plan, oppId) && commit(st)) { applied = true; cache = null; paint(st); box.querySelector("details")?.setAttribute("open", ""); }
     }
   });
   return { paint, bind: (getSeason) => { if (box) box._season = getSeason; } };

@@ -1598,3 +1598,45 @@ Bobblehead is now its own model, `assets/avatar3d/bobblehead.glb`, built by `scr
 =======
 [2026-11-14] Code：Career 2.0 最终裁决缺口已交付（Built → QA Pending，交给 Muse）。① 承诺：fa117d1，Reborn 改走 settleGamePromises 单入口（删除手抄的结果映射），数值不变；开发面板此前已走统一入口，无其他缺口。② 宿敌（P1）：3e0ca49 + 96ed874。js/reborn/rivalry.js（纯函数，账本 reborn.rivalries，访客也能用）；三种来源：auto（直接对位、同位置组、双方≥12 分钟、OVR 差≤12，≥3 次交手且热度≥6）、story（第 2 次交手起：对方≥20 分且 GS 比你高≥10 且你队输=赛后嘲讽；或一分差内你接管=关键回合）、challenge（只能挑战当场真实上场的对手，最多 3 个宿敌）。影响：赛前宿敌卡、对宿敌时接管窗口放宽到末节最后 3 分钟/分差≤8（仍需第四节，出手结果仍由 GameSim 决定），H2H 战绩、生涯时间线、fast-forward 在宿敌战前停下/宿敌诞生后停下、账户关系+legacy 幂等镜像（新 legacy 类型 rivalry，博物馆已加标签）。不提供任何 OVR/命中率加成。recordRivalryGame 现在必须带真实 gameId，按 gameId 幂等（修了同季同对手第二场被去重吞掉的 bug），输给宿敌不再“降温”；rivalryStakes 不再宣称有信任赌注（从来没人应用过）。开发面板删除「赢了/输给宿敌」造结果按钮（career-relationships.mjs 已改为断言按钮不存在）。③ 觉醒（P1）：cc4b079。engine/epiphany.js：所有被证据证明的家族都是候选（不再只取最强一条），觉醒概率随超出门槛的幅度上升（暂定 0.4 基础 / 0.75 上限，待固定种子调参），联赛生涯 developmentPlans 的 focus 让对应家族权重 ×1.5；EPIPHANY_CHANCE 移除，career-epiphany.mjs 的放宽替换已同步。Reborn Signature Awakening 本身已是证据驱动、无骰子，未改。④ 碎片（P2）：本轮未做，单独小功能。注意陷阱：account.fragments 现在只来自分解 My Team 卡，而卡包可用金币买 → 如果 Reborn 专精直接花 account.fragments，等于金币间接买战力，违反经济原则；Reborn 专精需要独立的、只靠比赛/生涯获得的资源。验证：全量 2750/2750（在最后两处小 UX 修复前跑一次），之后 Reborn/承诺/关系聚焦 151/151；新浏览器冒烟 scripts/qa/reborn-rivalry.mjs 桌面 1440 + 手机 390 全过。给 Muse 的 QA 需求：(a) 固定种子 Reborn 整季实验：auto/story/challenge 诞生频率（我跑的两个种子：一个 0 个（几乎没上场），一个 auto×1 + 嘲讽×2——嘲讽可能偏多）；(b) 宿敌战接管窗口放宽后的接管次数/信任变化幅度是否可接受；(c) 觉醒新概率 vs 旧 0.5 的固定种子联赛对比，调 EPIPHANY_BASE_CHANCE/MAX_CHANCE/TRAINING_WEIGHT；(d) 存档：旧 Reborn 存档无 rivalries 字段可正常继续；账户镜像重复调用不重复写；(e) reborn-rivalry.mjs 的身份是随机种子，若 40 场内碰不到宿敌球队会报 FAIL（已打印原因），可改为固定种子；(f) 浏览器里“宿敌真正上场交手 → H2H 行”的路径需要玩家有出场时间的存档（冒烟里两次都是你 DNP，界面已明确说明“不算一次交手”），单测已覆盖真实 GameSim 路径。UI polish（宿敌卡样式）可交 Lychee。释放认领文件。
 >>>>>>> 1c373e1 (Board: Career 2.0 gaps delivered (promise single entry, Reborn rivalries, evidence epiphany); QA handoff to Muse; fragments deferred with the gold->fragments trap noted)
+
+## Code · v4.1 P0: applied matchup plan now honored by sim, not just manual play
+
+Gap found in the user's ruling: the Team Intelligence v4 panel let you "Apply"
+a plan, but `liveTeam()` (used by `simScheduledGame`, which every sim button
+-- simulate next game, batch, advance-to-user-game, playoffs -- calls through)
+ignored it and kept re-picking starters by OVR. Only the manual "亲自指挥"
+path (`openSetup`) read the applied plan. Fixed:
+
+- New `js/engine/effectiveGameplan.js`: the one resolver.
+  `resolveEffectiveGameplan(team, { opponentId })` -> opponent-bound matchup
+  plan (if one exists for THIS opponent) -> the team's saved default
+  (re-captured live, not a stale snapshot) -> engine default. Pure, no writes.
+- `applyCounterPlan(team, plan, opponentId)` now writes `team.matchupPlan =
+  { opponentId, planId, tacticId, rotation }` instead of overwriting
+  `team.starterIds` / `team.coach.specialTactics` directly. A plan built to
+  stop Shaq's team never silently follows you into a game against anyone
+  else -- that was the whole point of the P0. New `clearMatchupPlan(team)`
+  backs it out; the matchup controller's "保持现状" button now calls it.
+- `liveTeam(st, teamId, { opponentId })` passes the game's actual opponent
+  through for the user's team only; CPU teams are untouched (regular-season
+  CPU-vs-CPU sims are unchanged).
+- `openSetup()` now calls the SAME resolver (with the actual opponent side)
+  instead of always re-capturing the saved default, so manual and simulated
+  games can never disagree about what lineup is in effect.
+- Tweaks you make inside Setup while a matchup plan is active refine that
+  plan (`persistMatchupRotationFromTeam`); they don't silently overwrite the
+  saved default team.
+
+Updated two matchupIntelligence tests that were pinned to the old
+overwrite-starterIds contract (regular season + playoffs apply). Added
+`tests/effectiveGameplan.test.js` (8 tests): default/engine fallback, a
+GSW-bound plan never leaking onto a LAL game, refuse missing opponentId /
+bad five / unknown id, clear-plan round trip, `matchupPlanFor` scoping,
+`matchupRotation` minute nudging.
+
+Full suite: 2763/2763, one run, at the end.
+
+Not done (out of scope for this P0): real-time "opponent star enters/leaves
+-> auto-adjust" -- GameSim has no such trigger yet, deferred to v4.2 per the
+user's ruling. Season-hub matchup panel UI itself (Lychee's playoff wiring,
+`b69d56a`) untouched.

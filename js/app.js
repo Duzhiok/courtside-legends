@@ -1,3 +1,4 @@
+import { matchupPlanFor, resolveEffectiveGameplan } from "./engine/effectiveGameplan.js";
 import {
   accountToTeam,
   coachRecordLabel,
@@ -6142,8 +6143,10 @@ function openSetup(home, away, youSide) {
   if (state.season) {
     const live = state.season.teams[state.season.userTeamId];
     if (live) {
-      const plan = captureRotationPlan(live, live.starterIds);
-      applyRotationPlan(you, plan);
+      // Same resolver every simulated game uses: this opponent's matchup plan, else the saved default.
+      const oppSide = youSide === "home" ? away : home;
+      const plan = resolveEffectiveGameplan(live, { opponentId: oppSide?.teamId }).plan || captureRotationPlan(live, live.starterIds);
+      applyRotationPlan(you, structuredClone(plan));
       if (plan.starterIds?.length === 5) {
         state.setup.selected = new Set(plan.starterIds.filter((id) => you.players.some((p) => p.id === id)));
       }
@@ -6490,6 +6493,17 @@ function renderSetupRoles() {
     persistSeasonRotationFromTeam(you, [...(state.setup?.selected || [])]);
     alert("已保存为本赛季默认轮换（位置 / 分钟 / 角色 / 指令 / 首发）。下场比赛会自动套用。");
   });
+}
+
+/** When this game is played under an opponent-bound matchup plan, store the setup's final choices on that plan. */
+function persistMatchupRotationFromTeam(youTeam, opponentId) {
+  const st = state.season;
+  const team = st?.teams[st.userTeamId];
+  const m = matchupPlanFor(team, opponentId);
+  if (!m || !youTeam) return false;
+  m.rotation = captureRotationPlan(youTeam, youTeam.starterIds);
+  saveSeasonAndCareer(st);
+  return true;
 }
 
 /** Write setup/rotation fields back onto the live season roster. */
@@ -7375,7 +7389,8 @@ $("#btn-setup-confirm").onclick = () => {
   you.lineupPacks = you.lineupPacks || autoBuildAllPacks(you.players);
   // Persist as season default rotation so next game / hub board stay in sync
   if (state.season) {
-    persistSeasonRotationFromTeam(you, you.starterIds);
+    // Tweaks made while a matchup plan is active refine THAT plan; the saved default stays the default.
+    if (!persistMatchupRotationFromTeam(you, (youSide === "home" ? away : home)?.teamId)) persistSeasonRotationFromTeam(you, you.starterIds);
   } else if (state.career?.kind === "ranked") {
     // B2: ranked has no season roster to write back to — the account remembers the hand-set bits
     rememberPlayerPrefs(state.career.accountId, you.players);
@@ -10763,6 +10778,7 @@ function cloneLiveTeamSide(t) {
   const st = state.season;
   const teamId = st ? Object.keys(st.teams).find((id) => st.teams[id] === t) : null;
   return {
+    teamId,
     staffBonus: teamId ? seasonStaffBonus(st, teamId) : null,
     name: t.name,
     players: t.players.map((p) => clonePlayer(p)),

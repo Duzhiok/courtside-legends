@@ -69,7 +69,7 @@ test("the active coach changes the systems chosen and the comfort reading", () =
   assert.notEqual(key(a), key(b));
 });
 
-test("previewing never writes; applying writes only starters, system and rotation, and refuses stale ids", () => {
+test("previewing never writes; applying writes an opponent-bound plan, refuses stale ids, never touches the saved default", () => {
   const roster = structuredClone(MINE);
   const team = { players: structuredClone(MINE), starterIds: [...CUR], coach: structuredClone(coach("rookie-hc-2024")) };
   const before = JSON.stringify(team);
@@ -77,14 +77,17 @@ test("previewing never writes; applying writes only starters, system and rotatio
   assert.equal(JSON.stringify(team), before, "preview left the team untouched");
   assert.equal(JSON.stringify(MINE), JSON.stringify(roster));
   const plan = r.plans.find((p) => p.id === "exhaust");
-  assert.ok(applyCounterPlan(team, plan));
-  assert.deepEqual(team.starterIds, plan.ids);
-  assert.equal(team.coach.specialTactics[0], plan.tacticId);
-  assert.ok(team.rotation);
+  assert.ok(applyCounterPlan(team, plan, "GSW"));
+  // v4.1 P0: a plan is bound to the opponent it was built for -- the saved default is untouched.
+  assert.deepEqual(team.starterIds, CUR, "saved default starters untouched");
+  assert.equal(team.coach.specialTactics[0], coach("rookie-hc-2024").specialTactics[0], "saved default tactic untouched");
+  assert.equal(team.matchupPlan.opponentId, "GSW");
+  assert.equal(team.matchupPlan.tacticId, plan.tacticId);
+  assert.deepEqual(team.matchupPlan.rotation.starterIds, plan.ids);
   assert.deepEqual(team.players, JSON.parse(before).players, "player cards untouched");
   const stale = structuredClone(team);
-  assert.equal(applyCounterPlan(stale, { ...plan, ids: ["ghost", ...plan.ids.slice(1)] }), false);
-  assert.deepEqual(stale.starterIds, team.starterIds);
+  assert.equal(applyCounterPlan(stale, { ...plan, ids: ["ghost", ...plan.ids.slice(1)] }, "GSW"), false);
+  assert.equal(applyCounterPlan(team, plan), false, "no opponentId -- refused, never silently applies");
 });
 
 // ---- v4.1 P1: the same panel before playoff games, with series context ----
@@ -117,7 +120,7 @@ test("playoffs: the panel resolves the series opponent and shows game, score and
   assert.match(box.innerHTML, /应用此方案/);
 });
 
-test("playoffs: Apply writes starters/system/rotation for the series opponent, same as the regular season", () => {
+test("playoffs: Apply writes an opponent-bound plan for the series opponent, same as the regular season", () => {
   const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
   let committed = false;
   const { box, ctl } = playoffController(st, () => { committed = true; return true; });
@@ -128,9 +131,9 @@ test("playoffs: Apply writes starters/system/rotation for the series opponent, s
   click(box, "scout-apply");
   assert.equal(committed, true);
   assert.equal(box.innerHTML.includes("已应用"), true);
-  assert.deepEqual(team.starterIds, plan.ids);
-  assert.equal(team.coach.specialTactics[0], plan.tacticId);
-  assert.ok(team.rotation);
+  assert.equal(team.matchupPlan.opponentId, "LAL");
+  assert.deepEqual(team.matchupPlan.rotation.starterIds, plan.ids);
+  assert.equal(team.matchupPlan.tacticId, plan.tacticId);
 });
 
 test("playoffs: the panel follows the series — a new round re-scouts, and the next game re-renders the score", () => {

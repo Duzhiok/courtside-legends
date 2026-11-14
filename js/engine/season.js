@@ -1,6 +1,8 @@
 /**
  * NBA-style season: 32 teams (modern) or historical year rosters, 82-game RS, playoffs, awards.
  */
+import { resolveEffectiveGameplan } from "./effectiveGameplan.js";
+import { applyRotationPlan } from "./gameplan.js";
 import {
   EAST_IDS,
   WEST_IDS,
@@ -786,11 +788,11 @@ export function seasonStaffBonus(st, teamId) {
 }
 
 /** Clone team blob for a fresh GameSim (reset night stats via wrapTeam). */
-export function liveTeam(st, teamId) {
+export function liveTeam(st, teamId, { opponentId = null } = {}) {
   const t = st.teams[teamId];
   // 没请主教练/助教：当场 roll 补齐，并写回赛季存档，避免每场重抽
   if (!t.coach?.id || !t.assistant?.id) ensureTeamStaff(t, { preferStarter: true });
-  return {
+  const out = {
     name: t.name,
     players: t.players.map((p) => clonePlayer(p)),
     coach: t.coach ? structuredClone(t.coach) : null,
@@ -800,14 +802,22 @@ export function liveTeam(st, teamId) {
     teamId,
     staffBonus: seasonStaffBonus(st, teamId),
   };
+  // The user's team plays with the one effective gameplan (matchup plan for this opponent -> saved default),
+  // the same one 亲自指挥 uses. CPU teams keep the engine default so league sims are unchanged.
+  if (teamId === st.userTeamId) {
+    const { source, plan } = resolveEffectiveGameplan(t, { opponentId });
+    if (plan) applyRotationPlan(out, structuredClone(plan));
+    out.gameplanSource = source;
+  }
+  return out;
 }
 
 /** Instant-sim one scheduled game; returns snapshot. */
 export function simScheduledGame(st, game, { youSide = null, recordStandings = true } = {}) {
   // 已赛场次绝不重打，否则统计会翻倍（场均六七十分）
   if (game.played) return game._lastSnap || null;
-  const home = liveTeam(st, game.homeId);
-  const away = liveTeam(st, game.awayId);
+  const home = liveTeam(st, game.homeId, { opponentId: game.awayId });
+  const away = liveTeam(st, game.awayId, { opponentId: game.homeId });
   const side =
     youSide ||
     (game.homeId === st.userTeamId ? "home" : game.awayId === st.userTeamId ? "away" : "home");
