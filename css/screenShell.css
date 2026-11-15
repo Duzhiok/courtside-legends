@@ -7,3 +7,21 @@
 .screen-shell-body { min-width: 0; }
 .screen-shell[data-shell-host="overlay"] { position: fixed; inset: 0; z-index: 40; overflow-y: auto; padding: 20px; background: var(--bg, #eef3ef); }
 .screen-shell[data-shell-host="overlay"]:not(.active) { display: none; }
+
+/* Modal variant (js/ui/screenShell.js, variant: "modal"): no panel-head — the dialog carries its own
+   heading. The overlay host already covers the viewport; centre the dialog in it. */
+.screen-shell-modal.active { display: flex; align-items: center; justify-content: center; }
+.screen-shell-modal .screen-shell-body { width: min(560px, 100%); }
+
+/* B69 — Reborn takeover dialog (js/ui/reborn/takeover.js). Structural only: a real modal surface
+   (the dialog had zero CSS rules before the A-P1-5 migration) and ≥44px option targets. Visual
+   polish stays with Lychee's visual line. */
+.reborn-takeover-dialog { background: var(--paper, #f3efe4); color: var(--ink); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
+.reborn-takeover-dialog h2 { margin: 0 0 8px; font-size: 1.25rem; }
+.reborn-takeover-situation { margin: 0; color: var(--muted); }
+.reborn-takeover-options { display: grid; gap: 10px; margin: 16px 0 8px; }
+.reborn-takeover-option { display: flex; align-items: baseline; gap: 10px; width: 100%; min-height: 44px; text-align: left; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg, #eef3ef); color: var(--ink); cursor: pointer; }
+.reborn-takeover-key { font-weight: 700; }
+.reborn-takeover-label { font-weight: 700; }
+.reborn-takeover-desc { color: var(--muted); }
+.reborn-takeover-hint { margin: 0; color: var(--muted); }

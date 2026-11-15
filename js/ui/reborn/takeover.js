@@ -14,6 +14,7 @@
 import { createClutchController } from "../../engine/clutchController.js";
 import { identityOf } from "../../career/careerIdentity.js";
 import { requireCapability } from "../../career/careerGuards.js";
+import { mountScreen } from "../screenShell.js";
 
 /** The three takeover options. `pass` declines the moment (no decision). */
 export const TAKEOVER_OPTIONS = Object.freeze([
@@ -123,35 +124,45 @@ export function takeoverDialogHtml({ sim, playerId, lang = "zh" } = {}) {
 }
 
 /**
- * Default dialog: mounts the takeover overlay and resolves with the chosen
- * option id (or null on dismiss). Keys 1/2/3 choose. Requires a DOM.
+ * Default dialog: mounts the takeover question on the Shell's modal variant
+ * (overlay host: the shell owns the full-viewport element, the opener-focus
+ * restore and the Esc=dismiss claim) and resolves with the chosen option id
+ * (or null on dismiss). Keys 1/2/3 choose; a click on the shell itself — the
+ * backdrop outside the dialog — dismisses. Requires a DOM.
  */
 export function showTakeoverDialog({ sim, playerId, lang = "zh" } = {}) {
   if (typeof document === "undefined") {
     return Promise.resolve(null);
   }
   return new Promise((resolve) => {
-    const overlay = document.createElement("div");
-    overlay.className = "reborn-takeover-overlay";
-    overlay.innerHTML = takeoverDialogHtml({ sim, playerId, lang });
+    let settled = false;
+    const shell = mountScreen({
+      id: "takeover",
+      variant: "modal",
+      host: "overlay",
+      onDismiss: () => done(null),
+      doc: document,
+    });
     const done = (choice) => {
-      overlay.remove();
+      if (settled) return;
+      settled = true;
       document.removeEventListener("keydown", onKey, true);
+      shell.destroy();
       resolve(choice);
     };
     const onKey = (event) => {
       const index = ["1", "2", "3"].indexOf(event.key);
       if (index >= 0) done(TAKEOVER_OPTIONS[index].id);
-      else if (event.key === "Escape") done(null);
     };
-    overlay.addEventListener("click", (event) => {
+    shell.el.addEventListener("click", (event) => {
       const button = event.target.closest("[data-option]");
       if (button) done(button.dataset.option);
-      else if (event.target === overlay) done(null);
+      else if (event.target === shell.el || event.target === shell.body) done(null);
     });
     document.addEventListener("keydown", onKey, true);
-    document.body.appendChild(overlay);
-    overlay.querySelector("[data-option]")?.focus?.();
+    // Set the body before opening: the shell focuses the first option on activation.
+    shell.body.innerHTML = takeoverDialogHtml({ sim, playerId, lang });
+    shell.open();
   });
 }
 
