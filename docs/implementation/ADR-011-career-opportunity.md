@@ -106,11 +106,13 @@ offer = {
 
 | 转职 | 获得 | 失去 | 比赛形态 |
 |---|---|---|---|
-| `COACH → GM`（接受总裁/总经理职位） | `trade` / `signFreeAgent` / `release` / `draft` / `allocateDevelopment` | `commandGame` / `setRotation` / `teamTraining` / `setTrainingFocus` | 自动模拟 + 观战（ADR-006 Q2：GM 不自动获得教练临场权限） |
-| `GM → GM_COACH`（兼任邀请） | 加回教练组权限（`commandGame` / `setRotation` / `teamTraining` / `setTrainingFocus`） | —（承担 §7 风险，见 Riley 提案 §7） | 完整双权限 |
-| `GM_COACH → GM`（卸任主教练） | — | 收回教练组权限；轮换与训练委托 AI 教练（委托机制是 ADR-006 §3.5 后续项，行为待定） | 自动模拟 + 观战 |
-| `GM → COACH`（回任主教练） | 加回教练组权限 | 失去 GM 组权限（`trade` / `signFreeAgent` / `release` / `draft` / `allocateDevelopment`），保留 `suggestTrade` / `suggestDraft` | 亲自指挥 |
+| `COACH → GM`（接受总裁/总经理职位） | `trade` / `signFreeAgent` / `release` / `draft` / `allocateDevelopment` | `commandGame` / `setRotation` / `teamTraining` / `setTrainingFocus` / `suggestTrade` / `suggestDraft`（6 项全列：教练组权限含建议权） | 自动模拟 + 观战（ADR-006 Q2：GM 不自动获得教练临场权限） |
+| `GM → GM_COACH`（兼任邀请） | 8 项全列：`commandGame` / `setRotation` / `teamTraining` / `setTrainingFocus` / `suggestTrade` / `suggestDraft` / `takeover` / `personalTraining` | —（承担 §7 风险，见 Riley 提案 §7） | 完整双权限 |
+| `GM_COACH → GM`（卸任主教练） | — | 8 项全列：`takeover` / `personalTraining` / `commandGame` / `setRotation` / `teamTraining` / `setTrainingFocus` / `suggestTrade` / `suggestDraft`；轮换与训练委托 AI 教练（委托机制是 ADR-006 §3.5 后续项，行为待定） | 自动模拟 + 观战 |
+| `GM → COACH`（回任主教练） | 6 项全列：`commandGame` / `setRotation` / `teamTraining` / `setTrainingFocus` / `suggestTrade` / `suggestDraft`（含建议权——GM 本不持有，是获得不是保留） | 失去 GM 组权限（`trade` / `signFreeAgent` / `release` / `draft` / `allocateDevelopment`） | 亲自指挥 |
 | `PLAYER → COACH` 等球员线转职 | 不在本 ADR 范围，走 ADR-005 体系；本 ADR 的机会引擎可复用，但权限切换按球员线规则另行定义 | — | — |
+
+**差分口径（`permissionDelta` 的算出值）**：`permissionDelta = permissionsFor(新身份) − permissionsFor(旧身份)`，按 `js/career/careerIdentity.js` 的 15 项矩阵算出，上表列的是完整差分。`GM_COACH` = 全部 15 项，所以凡是进出 `GM_COACH` 的差分都含球员侧两项（`takeover` / `personalTraining`）——它们随经典身份一并获得/收回，不是教练组权限。
 
 **实现约束（继承 ADR-006 R4）**：
 - 身份戳记用 `setIdentity`（保留 `initialRole`，只动 `currentRole`；同时写 `root.identity` 与 `leagueCareer.role`，两者永不一致）。
@@ -173,7 +175,7 @@ offer = {
 - **唯一结算入口**：机会决定经 `applyDecision` 结算一次；决定产生的承诺经 `settleGamePromises` 结算一次。**不引入第二个承诺、关系或事件结算引擎。**
 - **幂等键**：复用 inbox 的事件实例 id（`instanceIdFor`）+ `pendingInstance` / `validateDecision`：同一 offer 实例只能结算一次；重载、重放、重试不得重复应用信任效果与权限切换。信任效果的重复应用防护复用 `markTrustEffectsApplied`。
 - **结算顺序**：决定 → 权限切换（`setIdentity`）→ 合同签署 → transition 记录 → 承诺创建（如有）。任一步失败 → 整个决定不提交（不出现“权限切了但合同没签”的半态）；失败原因记入决定记录，不静默吞掉。
-- **重放安全**：`generateOpportunities` 是确定性的（seeded）；同一 seed 下重复生成不得产生重复 offer 实例（`id` 去重，`job.id || role-team`）。
+- **重放安全**：`generateOpportunities` 是确定性的（seeded）；同一 seed 下重复生成不得产生重复 offer 实例——**这是实现要求，不是现状**：当前 `generateOpportunities`（`js/career/network/careerOpportunities.js:113`）只用 `job.id || role-team` 生成 id，不做去重；board 里两个同 role+team 且无 `job.id` 的空缺会产出相同 offer id。落实现时需补 id 去重，或由 board 保证 id 唯一；去重不得改变资格判定与排序（rng 只用于排序）。
 
 ## 10. 与现有存档的兼容性（Proposed）
 
