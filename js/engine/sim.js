@@ -2743,7 +2743,9 @@ function wrapTeam(team, side) {
     coach,
     tactic,
     lineupPacks: team.lineupPacks || null,
-    gameplan: team.gameplan || null,
+    // A copy, not the caller's object: live overrides (setTempo, setOffenseFocus, autopilot) belong to this match.
+    // Gold passes career.team itself, so sharing the reference leaked them into the save as the next Team Default.
+    gameplan: team.gameplan ? structuredClone(team.gameplan) : null,
     chem: teamChemistry(onCourt, { primaryId: team.gameplan?.offenseFocusId || null }),
     fit: lineupFit(onCourt, coach, tactic, { primaryId: team.gameplan?.offenseFocusId || null }),
     morale: clamp(55 + (coach?.buffs?.morale || 0), 20, 90),

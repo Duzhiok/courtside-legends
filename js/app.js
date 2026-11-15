@@ -392,6 +392,7 @@ import { seasonObjectives, seasonReport } from "./myteam/seasonReport.js";
 import { objectivesHtml, reportHtml } from "./ui/myTeamReportView.js";
 import { clearMyTeamSeason, hasMyTeamSeason, loadMyTeamSeason, readMyTeamSeason, saveMyTeamSeason } from "./myteam/seasonStore.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
+import { composeGameplan } from "./ui/tactics/tacticalDraft.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
   SEASON_APRON,
@@ -7556,21 +7557,14 @@ $("#btn-setup-confirm").onclick = () => {
   const focusId = $("#setup-offense-focus")?.value || null;
   const ballAction = $("#setup-ball-action")?.value || null;
   const tempoId = normalizeTempo($("#setup-tempo-select")?.value || you.gameplan?.tempo);
-  const focusDef = defId || (tgtId && assignments[tgtId]) || null;
-  you.gameplan = {
-    matchup:
-      tgtId || Object.keys(assignments).length
-        ? {
-            defenderId: focusDef,
-            targetId: tgtId || null,
-            scheme: tgtId ? scheme : null,
-            assignments,
-          }
-        : null,
-    matchupAssignments: assignments,
-    offenseFocusId: focusId || null,
+  you.gameplan = composeGameplan({
+    defenderId: defId,
+    targetId: tgtId,
+    scheme,
+    assignments,
+    offenseFocusId: focusId,
     tempo: tempoId,
-  };
+  });
   ensurePlayerOrders(you.players);
   if (focusId) {
     const bp = you.players.find((x) => x.id === focusId);
