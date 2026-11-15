@@ -249,8 +249,10 @@ export const GROWTH_AGE_TABLE = [
  * The slack is the "you changed his timeline" part; without a real career (generated rookies) only
  * the per-season level cap applies. */
 export const GROWTH_CEILING_SLACK = 1;
-/** Share of a season's growth that survives into the next year's real card (rounded half up). */
-export const GROWTH_CARRYOVER = 0.5;
+/** Share of a season's growth that survives into the next year's real card (rounded half up).
+ * Lives in js/core/tuning.js (A-P2-7 direction) so the engine layer can use it
+ * without importing career/; re-exported here so existing imports keep working. */
+export { GROWTH_CARRYOVER } from "../core/tuning.js";
 
 // ---------------------------------------------------------------- C4: highlights and market buzz
 // "Buzz" is how loudly the trade market is talking about a player right now. (Not C3's "heating up",

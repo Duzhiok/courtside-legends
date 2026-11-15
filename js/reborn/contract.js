@@ -12,7 +12,7 @@
  * (carriedDeltas), the coach's trust carries on the same team and resets to
  * camp for a cut player, and timeline events store aggregate values only.
  */
-import { carriedDeltas } from "../career/playerGrowth.js";
+import { carriedDeltas } from "../engine/developmentRules.js";
 import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { buildPlayerCard, REBORN_SEASON } from "./identity.js";
 import { roleForTrust, TRUST_START } from "./trust.js";

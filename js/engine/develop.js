@@ -6,8 +6,7 @@ import { careerPhase, estimateAge, PHASE_LABEL } from "../data/careerArc.js";
 import { clonePlayer, overall, PLAYERS } from "../data/players.js";
 import { playerPrice } from "../data/intangibles.js";
 import { MAX_SKILL_SLOTS, pruneAgedSkills } from "../data/skills.js";
-import { carriedDeltas } from "../career/playerGrowth.js";
-import { developmentModifier } from "../modes/playerDevelopment.js";
+import { carriedDeltas, developmentModifier } from "./developmentRules.js";
 
 const ATTR_KEYS = [
   "scoring",

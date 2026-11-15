@@ -5,7 +5,8 @@ import {
 } from "../js/career/balance.js";
 import { foldBatch, settleGame } from "../js/career/gameRewards.js";
 import { validGrowth } from "../js/career/growthShape.js";
-import { ageRow, attributeCeiling, awardGrowth, carriedDeltas, gameXp, trainedAttributes } from "../js/career/playerGrowth.js";
+import { ageRow, attributeCeiling, awardGrowth, gameXp, trainedAttributes } from "../js/career/playerGrowth.js";
+import { carriedDeltas } from "../js/engine/developmentRules.js";
 import { developLeagueRosters, historicalLadder } from "../js/engine/develop.js";
 import { installRealCards, realGame, realTeam } from "./helpers/realGame.js";
 

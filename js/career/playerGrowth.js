@@ -12,7 +12,6 @@
  */
 import {
   GROWTH_AGE_TABLE,
-  GROWTH_CARRYOVER,
   GROWTH_CEILING_SLACK,
   GROWTH_PERF_BASE,
   GROWTH_PERF_MAX,
@@ -20,7 +19,8 @@ import {
   GROWTH_PERF_PER_SCORE,
   GROWTH_XP_PER_LEVEL,
 } from "./balance.js";
-import { FOCUS_ATTRIBUTES, resolvedAge } from "../modes/playerDevelopment.js";
+import { FOCUS_ATTRIBUTES } from "../engine/developmentRules.js";
+import { resolvedAge } from "../modes/playerDevelopment.js";
 import { clamp } from "../core/seededRandom.js";
 
 const ATTRIBUTE_MAX = 99;
@@ -132,18 +132,4 @@ export function awardGrowth({ growth = {}, plans = {}, year, players = [], lines
 
   entries.sort((a, b) => b.leveled.length - a.leveled.length || b.xp - a.xp);
   return { growth: next, changes, entries };
-}
-
-/**
- * What survives the rollover into next year's real card: GROWTH_CARRYOVER of each attribute gain
- * (rounded half up). Entries from any other year carry nothing -- they are stale.
- */
-export function carriedDeltas(entry, year) {
-  if (!entry || entry.year !== year) return {};
-  const kept = {};
-  for (const [attribute, delta] of Object.entries(entry.deltas || {})) {
-    const amount = Math.round(delta * GROWTH_CARRYOVER);
-    if (amount > 0) kept[attribute] = amount;
-  }
-  return kept;
 }
