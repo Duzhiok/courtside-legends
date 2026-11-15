@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GALLERY_LEGENDS } from "../js/ui/homeShowcase.js";
+import { GALLERY_LEGENDS } from "../js/data/galleryLegends.js";
 import { nextUndefeatedLegend } from "../js/ui/duelView.js";
 
 test("nextUndefeatedLegend picks the first unbeaten legend", () => {

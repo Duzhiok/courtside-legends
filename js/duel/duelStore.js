@@ -12,7 +12,7 @@
 import { getAccount, saveAccount, resolvePlayers } from "../data/account.js";
 import { PLAYERS, overall } from "../data/players.js";
 import { awardAccountXp } from "../data/accountLevel.js";
-import { GALLERY_LEGENDS } from "../ui/homeShowcase.js";
+import { GALLERY_LEGENDS } from "../data/galleryLegends.js";
 
 export const DUEL_WIN_XP = 25;
 export const DUEL_RECORD_KEY = "cls_duel_record_v1";

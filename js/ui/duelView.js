@@ -13,7 +13,8 @@
  */
 import { L, getLang, skillNameL } from "../i18n.js";
 import { SKILL_PACKS } from "../data/skills.js";
-import { GALLERY_LEGENDS, eraLabel, legendName } from "./homeShowcase.js";
+import { GALLERY_LEGENDS } from "../data/galleryLegends.js";
+import { eraLabel, legendName } from "./homeShowcase.js";
 import { resolveCardPhoto } from "../data/photo.js";
 import { getAccount } from "../data/account.js";
 import { readIdentity } from "../data/profile.js";

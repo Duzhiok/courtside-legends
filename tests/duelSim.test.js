@@ -30,7 +30,7 @@ import {
   DUEL_WIN_XP,
 } from "../js/duel/duelStore.js";
 import { loadSampleRoster } from "./helpers/sampleRoster.js";
-import { GALLERY_LEGENDS } from "../js/ui/homeShowcase.js";
+import { GALLERY_LEGENDS } from "../js/data/galleryLegends.js";
 import { overall } from "../js/data/players.js";
 
 function duelist(overrides = {}) {

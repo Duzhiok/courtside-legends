@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { GALLERY_LEGENDS } from "../js/data/galleryLegends.js";
 import {
-  GALLERY_LEGENDS,
   GALLERY_PX_PER_SECOND,
   advanceOffset,
   challengeLegend,
