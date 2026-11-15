@@ -232,3 +232,12 @@ test("engine failure on the first possession still returns a viewable result", (
     console.error = origError;
   }
 });
+
+test("plays carry no dead points/gained fields (score deltas already tell the story)", () => {
+  const r = playHalfCourtGame({ ...teams(), seed: "dead" });
+  assert.ok(r.plays.length > 0);
+  for (const p of r.plays) {
+    assert.ok(!("points" in p) && !("gained" in p), "no dead per-possession point fields");
+    assert.deepEqual(Object.keys(p).sort(), ["clear", "elapsedSec", "lines", "n", "offense", "score", "shotClockUsed"]);
+  }
+});

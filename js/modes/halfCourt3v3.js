@@ -298,8 +298,6 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
       offense,
       shotClockUsed: sec,
       elapsedSec,
-      points: gained[offense] + gained[offense === "home" ? "away" : "home"],
-      gained,
       lines,
       clear: changed,
       score: { ...score },
