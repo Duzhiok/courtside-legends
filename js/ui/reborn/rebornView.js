@@ -11,6 +11,7 @@
  * Persistence is the app's root save (root.reborn, additive, v3 stays).
  */
 import { mountScreen } from "../screenShell.js";
+import { confirmAction } from "../confirmModal.js";
 import { buildPlayerCard } from "../../reborn/identity.js";
 import { creationHtml, createRebornFromChoice, seedFromSearch } from "./creation.js";
 import { buildSeason, playGame } from "../../reborn/season.js";
@@ -519,7 +520,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         return;
       }
       if (event.target.closest("[data-reset]")) {
-        if (!window.confirm(L("确定换一个身份？现在的重生进度会被清除。", "Start over with a new identity? Current progress will be cleared.", lang()))) return;
+        if (!(await confirmAction(L("确定换一个身份？现在的重生进度会被清除。", "Start over with a new identity? Current progress will be cleared.", lang())))) return;
         const root = readRootSave() || {};
         delete root.reborn;
         writeRootSave(root);

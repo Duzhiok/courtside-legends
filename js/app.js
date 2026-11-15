@@ -9000,17 +9000,22 @@ for (const { btn: sel, stateKey, setter } of AUTOPILOT_BUTTONS) {
 }
 
 /** Instant-sim the rest of the live game with auto rotation on both sides. */
-$("#btn-quick-sim").onclick = () => {
+$("#btn-quick-sim").onclick = async () => {
   const sim = state.sim;
   if (!sim || !sim.running) return;
   const anyOn = sim.isAutopilotOn();
-  const ok = window.confirm(
+  const ok = await confirmAction(L(
     "将用当前阵容、战术与指令立刻打完剩余比赛。\n" +
       (anyOn
         ? "已开的托管会继续自动处理。\n"
         : "将临时全开托管（进攻/防守/换人）以自动轮换疲劳球员。\n") +
-      "期间无法再手动干预。确定？"
-  );
+      "期间无法再手动干预。确定？",
+    "Finish the rest of this game instantly with the current lineup, tactics and instructions.\n" +
+      (anyOn
+        ? "Autopilot already on will keep handling things.\n"
+        : "Autopilot (offense, defense and rotation) will be temporarily turned on to rotate tired players.\n") +
+      "You won't be able to intervene manually. Confirm?",
+  ), { title: L("快速模拟整场？", "Quick-sim the rest of the game?") });
   if (!ok) return;
   const btn = $("#btn-quick-sim");
   if (btn) btn.disabled = true;

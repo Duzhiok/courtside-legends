@@ -45,6 +45,7 @@ import {
 import { PLAYERS } from "../data/players.js";
 import { esc } from "../core/html.js";
 import { mountScreen } from "./screenShell.js";
+import { confirmAction } from "./confirmModal.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
@@ -465,7 +466,7 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
           return;
         }
         if (action === "restart") {
-          if (!window.confirm(L("换个种子重新开始？当前这次选秀的结果会被清除。", "Start over with a new seed? This draft's outcome will be cleared.", lang()))) return;
+          if (!(await confirmAction(L("换个种子重新开始？当前这次选秀的结果会被清除。", "Start over with a new seed? This draft's outcome will be cleared.", lang())))) return;
           const root = readRootSave() || {};
           delete root.gmDraftGamble;
           writeRootSave(root);
