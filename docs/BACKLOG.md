@@ -70,6 +70,7 @@
 | B66 | **教练时刻换人下拉框点击一直闪**（Notion 对照，2026-11-11；原本地编号 B61，2026-11-14 变基时因上游已占用 B61–B65 而重编号）：coachingMomentView 每次 change 都全量 body.innerHTML 重建，下拉被销毁重建 | L1 | 教练时刻小修 | ✅ 已完成（2026-11-11，Muse）：focus/tempo 改动只原地更新仪表条，换人下拉 change 不重建（选择已在 DOM 里，换人按钮读现值），换人按钮仍全量重建；新 tests/coachingMomentView.test.js 3/3（fake DOM 钉住下拉对象身份；变异核查：旧代码下测试变红）；浏览器实测待 Mac 补 |
 | B67 | **双人竞价 bid**（Notion 对照，2026-11-11 上一轮误记为缺口，核实后非缺口；原本地编号 B62）：已实现——app.js `#bid-panel` / `#btn-bid-resolve` / `data-bid="加入竞价"`（同球员出价、价高者得、出价相同须再加价、胜出方扣金币 + 12 人满员检查），i18n-phrases.js:309–311 有中英文案 | — | — | ✅ 已核实存在（2026-11-11，Muse），无需实现 |
 | B68 | **晋级制金币买卖 / 12 人上限 / 总决赛七场**（Notion 对照，2026-11-11 上一轮误记为缺口，核实后非缺口；原本地编号 B63）：12 人上限已实现（draft.js:160 maxRoster=12，app.js 名单已满 12 人）；轮间金币买卖已实现（career 市场为晋级 hub，总决赛每场之间走市场调整，见 careerBracket.js 注释 + app.js `#btn-market-done` finals 分支；CPU 晋级队拿晋级奖金换血 upgradeCpuAdvancers）；七场总决赛是用户 2026-10-23 已拍板改为三局两胜（FINALS_TARGET_WINS=2），不是缺口 | — | — | ✅ 已核实存在/已拍板（2026-11-11，Muse），无需实现 |
+| B69 | **Reborn 接管弹窗没有任何 CSS**（A-P1-5 审查 2026-11-15 新发现）：`showTakeoverDialog` 自造的 `.reborn-takeover-overlay` / `.reborn-takeover-dialog` / `.reborn-takeover-option` 等 class 在全仓库（css/、index.html）零规则——overlay 无定位/遮罩/z-index，实际只是体尾一个无样式 in-flow 块，不是全屏模态。功能可用（QA 脚本能点中 pass），视觉未验收。补样式前需先定：随 A-P1-5 迁入 Shell overlay host（样式走 screenShell.css），还是就地补 reborn 样式 | L1–L2 | Lychee（视觉）/ Muse（迁移） | 登记 |
 
 ## 2026-11-05 已批准决策（Zoro）
 
