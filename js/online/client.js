@@ -10,6 +10,7 @@ import { loadRecord, saveRecord, recordGame, formatRecord } from "./record.js";
 import { prizeNotice } from "./prizeNotice.js";
 import { awardFriendMatchXp } from "../data/accountLevelOnline.js";
 import { esc } from "../core/html.js";
+import { fmtClock } from "../core/format.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -128,11 +129,6 @@ function setStatus(text, isError = false) {
   if (!el) return;
   el.textContent = text;
   el.className = isError ? "error" : "";
-}
-
-function fmtClock(sec) {
-  const s = Math.max(0, Math.round(sec));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 function quarterLabel(q) {

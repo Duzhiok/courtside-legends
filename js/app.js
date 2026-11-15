@@ -190,6 +190,7 @@ import {
 } from "./data/skills.js";
 import { lineupBallNote, lineupFit, teamChemistry } from "./engine/chemistry.js";
 import { shuffle } from "./core/seededRandom.js";
+import { fmtClock } from "./core/format.js";
 import { meterText } from "./ui/teamStats.js";
 import {
   acceptTradeProposal,
@@ -8577,13 +8578,6 @@ function fillSubSelects(snap, force = false) {
           : injuredBench
             ? `点选场上 + 健康板凳换人（伤停 ${injuredBench} 人不能上场）`
             : "点选场上 + 板凳换人；场上球员卡可点 PG–C 改打位置";
-}
-
-function fmtClock(sec) {
-  const s = Math.max(0, Math.floor(sec));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${m}:${String(r).padStart(2, "0")}`;
 }
 
 function syncPauseUI(snap) {

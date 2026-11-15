@@ -13,6 +13,7 @@ import { createCoachingChallenge } from "../career/coach/coachingChallenge.js";
 import { tacticName } from "../career/coach/tacticalLearning.js";
 import { filmRecommendForMoment, readFiledFilmRecommendation } from "../career/network/videoAnalyst.js";
 import { esc } from "../core/html.js";
+import { fmtClock } from "../core/format.js";
 import { mountScreen } from "./screenShell.js";
 
 const CHUNK = 8;
@@ -36,10 +37,6 @@ export function ensureCoachingScreen({ getLang = () => "zh", onBack, onRelocaliz
 }
 
 const pick = (pair) => (getLang() === "en" ? pair?.en || pair?.zh || "" : pair?.zh || "");
-const fmtClock = (s) => {
-  const total = Math.max(0, Math.ceil(s || 0));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-};
 /** Meters row (fit / morale / buy-in / timeouts / tactic) — shared by the full
  * render and by the light in-place refresh after a focus/tempo change. */
 function metersHtml(panel, snap) {
