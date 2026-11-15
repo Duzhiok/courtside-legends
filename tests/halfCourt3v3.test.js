@@ -7,6 +7,7 @@ import {
   countedFreeThrows,
   halfCourtTeamTotals,
   playHalfCourtGame,
+  playLines,
 } from "../js/modes/halfCourt3v3.js";
 import { SANDBOX_MAX, addToSide, buildSandboxTeam } from "../js/modes/sandboxDuel.js";
 
@@ -156,4 +157,26 @@ test("teams passed in are not mutated into match state (Retry replays the same p
   playHalfCourtGame({ ...t, seed: "m1" });
   assert.equal(JSON.stringify(t.home.players.map((p) => ({ id: p.id, ovr: p.ovr, fatigue: p.fatigue, stats: p.stats }))), before);
   assert.deepEqual(playHalfCourtGame({ ...t, seed: "m2" }), playHalfCourtGame({ ...teams(), seed: "m2" }));
+});
+
+test("playLines: an event carrying foul+turnover yields BOTH lines (charge, loose-ball foul)", () => {
+  const nameOf = (id) => ({ baller: "持球人", defender: "防守人" }[id] || id);
+  // sim.js:950 charge: the fouler is the baller, turnover kind charge.
+  const charge = [{ meta: { actorId: "defender", foul: { foulerId: "baller", victimId: "defender", kind: "charge" }, turnover: { actorId: "baller", kind: "charge", forcedById: "defender" } } }];
+  const chargeLines = playLines(charge, nameOf, "zh");
+  assert.equal(chargeLines.length, 2);
+  assert.deepEqual(chargeLines.map((l) => l.kind), ["turnover", "foul"]);
+  assert.equal(chargeLines[1].playerId, "baller");
+  // sim.js:1036 loose-ball foul after a turnover: the fouler is the defender.
+  const loose = [{ meta: { actorId: "baller", foul: { foulerId: "defender", victimId: "baller", kind: "defensive" }, turnover: { actorId: "baller", kind: "foul", forcedById: "defender" } } }];
+  const looseLines = playLines(loose, nameOf, "zh");
+  assert.equal(looseLines.length, 2);
+  assert.deepEqual(looseLines.map((l) => l.kind), ["turnover", "foul"]);
+  assert.equal(looseLines[1].playerId, "defender");
+  // Foul-only events still yield exactly one foul line (and-one / shooting / technical).
+  const solo = [{ meta: { foul: { foulerId: "defender", victimId: "baller", kind: "shooting" } } }];
+  assert.deepEqual(playLines(solo, nameOf, "zh").map((l) => l.kind), ["foul"]);
+  // And a plain turnover still yields exactly one line.
+  const tov = [{ meta: { actorId: "baller", turnover: { actorId: "baller", kind: "unforced", forcedById: "defender" } } }];
+  assert.deepEqual(playLines(tov, nameOf, "zh").map((l) => l.kind), ["turnover"]);
 });

@@ -141,8 +141,11 @@ function maybeTimeout(sim, left, rules) {
   return null;
 }
 
-/** One possession's GameSim events -> short half-court play lines (own text: GameSim's carries 5v5 scores). */
-function playLines(events, nameOf, lang) {
+/**
+ * One possession's GameSim events -> short half-court play lines (own text: GameSim's carries 5v5 scores).
+ * Exported for tests (like countedFreeThrows): the foul+turnover shapes only occur on rare dice.
+ */
+export function playLines(events, nameOf, lang) {
   const lines = [];
   for (const e of events) {
     const m = e?.meta;
@@ -176,7 +179,10 @@ function playLines(events, nameOf, lang) {
           ? { kind: "oreb", playerId: m.reb.rebounderId, text: L(lang, `${who} 进攻篮板，直接二次进攻`, `${who} offensive board — straight back up`) }
           : { kind: "dreb", playerId: m.reb.rebounderId, text: L(lang, `${who} 防守篮板`, `${who} defensive board`) }
       );
-    } else if (m.foul) {
+    }
+    // A foul can ride along with another outcome (charge: sim.js:950, loose-ball foul after a
+    // turnover: :1036) — it is its own line, never swallowed by the outcome branch above.
+    if (m.foul) {
       lines.push({ kind: "foul", playerId: m.foul.foulerId, text: L(lang, `${nameOf(m.foul.foulerId)} 犯规`, `Foul on ${nameOf(m.foul.foulerId)}`) });
     }
   }
