@@ -212,3 +212,41 @@ Moving setup/live render code out of `app.js` into `js/ui/gameplan/` and `js/ui/
 4. **"Offensive and defensive systems"**: GameSim has one active tactic. Proposed honest mapping:
    *System* = the one active tactic (any group); *Defence* = pressure slider + matchup schemes. No
    second simultaneous system unless the user wants an engine change (not recommended in this phase).
+
+---
+
+# Addendum A — reconciliation with the "Tactical Command Center v3.0" spec
+
+The spec asks Phase 0 to confirm its assumptions against code. Everything below was read at `65b46f8`.
+
+## A1. Spec assumption vs. what the code does
+
+| Spec assumption | Reality (file:line) | Consequence for the build |
+|---|---|---|
+| Player owns several **coach cards** and switches between them | **No.** Gold's coach is `career.team.coach`. It is hired from the market's `coachShop` with *career gold* (`hireCoach` flow, app.js:4295-4326; cards app.js:5983). `ownedCoaches(acc)` / `resolveCoach(acc.coachId)` belong to the account coach page (app.js:2927-2979) and My Team, not Gold. | `CoachSelector` in Gold = the current coach as a card (system list, proficiency) + the existing market hire flow. **No free switching**, no pretending ownership. A coach bench for Gold would be a new feature and needs a decision. |
+| An **offensive system** and a **defensive system**, both selectable | GameSim has **one active tactic**: first of `coach.specialTactics` at tip-off (`coachTactics()`), the rest are the in-game switch pool (`setTactic`, sim.js:2310). Defence is `defensePlan = {scheme: focus\|double\|bump, targetId, defenderId, assignments}` (`setDefenseScheme`, sim.js:1391; reads at sim.js:3782) plus `coach.buffs` (defence slider). There is no zone/man "defensive system". | Honest mapping that keeps the spec's draft shape: `offensiveSchemeId` = the active tactic; `defensiveSchemeId` = `defensePlan.scheme` (+ target/defender/assignments). Nothing else is labelled a system. |
+| Precedence **Live Override > Opponent Plan > Team Default** | Gold has only one mutable team object. No Matchup Plan exists in Gold (`resolveEffectiveGameplan` only runs under `state.season`, app.js:6263). And Live Override **already overwrites Team Default** (P0 #1: `wrapTeam` shares `gameplan` by reference). | Slice 0 must land first: it is the precondition for the rule the spec states. |
+| `scope: "team-default" \| "opponent"` | Opponent plans are season/account-bound (`matchupController`, `state.season`). | Gold slice 1 = **Team Default + "this match" draft**. Persisted per-opponent plans for Gold are deferred (new store = new feature). |
+| Live overrides survive a mid-game reload | **Yes, inside the sim:** Gold's save carries `sim: state.sim.exportState()` (app.js:1320); `exportState` includes `defensePlan` incl. assignments, `focusPlay`, `offenseFocusId` (sim.js:226-251). But they are *also* leaked into `career.team` today (the bug). | After Slice 0 they live only in the sim snapshot, which matches spec §7.2 (no leak into the next game). |
+| Apply must be atomic | Gold persists via `autosaveCareer()` → `saveProgress` → one whole-career write (app.js:738, 1269). Setup edits currently mutate `career.team` first. | Apply = validate on a clone → swap → one autosave; on save failure restore the previous team fields and report. |
+| "Edit one supported player role" | `roleExpectation` has **no direct dice** (only `isBlueCollarRebounder`, skills.js:3254). Real levers: `offenseFocusId` (ball handler), `orders.action/usage/attack/hunt/defFocus`, `targetMinutes`. | Slice 1's role edit = **ball handler + ball action** (both read by GameSim). Minutes belong to the Rotation tab (later slice). |
+| Show "Simulation Active" vs "Analysis Only" | Sim reads are listed per control in §3; `coachSystemFit` is `lineupFit`, which GameSim reads; `lineupRecommendations`, `playerRoleFit`, `scoutOpponent` are advice only. | Tag every row from that table; no win-probability numbers. |
+
+## A2. Adjusted slice 0 / slice 1 (what is built first, and where)
+
+Module names follow the spec (`js/ui/tactics/`), reusing instead of duplicating: `courtSlots.js` / `myTeamCourtView.js` (court slots),
+`coachTacticalProfile.js` / `coachSystemFit.js` (systems, fit), `opponentScouting.js` (opponent card), `playerCard.js` (card face).
+
+- **Slice 0 (pure, no UI):** `wrapTeam` clones `gameplan` (1 line in `sim.js`); `js/ui/tactics/tacticalDraft.js`
+  (create / reduce / dirty / validate / `applyDraft` onto a clone) + `tests/tacticalDraft.test.js` incl. a real-GameSim
+  leak regression.
+- **Slice 1 (Gold only, behind the existing setup screen):** coach card (read-only) + system picker, court with five
+  clickable slots, role drawer (ball handler + action), analysis rows tagged *Sim effect* / *Analysis only*, sticky
+  Apply / Reset. Other modes keep the old setup untouched until the user approves widening it.
+- Files touched in `app.js`: wiring only (mount, apply hook).
+
+## A3. Decisions still open
+1. `cls-tend` (uncommitted per-player tendencies): its diff touches `sim.js` (17 lines) and `gameplan.js` (16). Slice 0 changes
+   one line of `wrapTeam`; expect a trivial rebase conflict if that work lands. The slice does not touch `p.orders` editing.
+2. A Gold **coach bench** (switching between hired coaches) is not in the product today. Needed, or is "current coach + market" enough for the spec's CoachSelector?
+3. Persisted **per-opponent plans in Gold**: deferred; confirm.
