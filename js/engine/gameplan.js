@@ -620,6 +620,25 @@ export function ensurePlayerOrders(players) {
   return players;
 }
 
+/**
+ * Which players the setup screen's per-player sections list — roles/minutes
+ * AND tendencies/orders share this one rule. The two sections drifted apart
+ * before: roles got the full-roster branch in 780e731 while orders stayed
+ * starters-only, so bench players lost their tendencies in every mode,
+ * including the Gold League. Season games and small rosters (<= 12) list
+ * the whole roster, minutes first; big quick-game rosters list starters +
+ * top 5 bench (top 10 when nothing is picked yet).
+ */
+export function setupPlayerList(players, selectedIds, { season = false } = {}) {
+  const list = [...(players || [])];
+  const byMinutesThenOvr = (a, b) => (b.targetMinutes || 0) - (a.targetMinutes || 0) || overall(b) - overall(a);
+  const byOvr = (a, b) => overall(b) - overall(a);
+  if (season || list.length <= 12) return list.sort(byMinutesThenOvr);
+  const picked = list.filter((p) => selectedIds?.has?.(p.id));
+  if (!picked.length) return list.sort(byOvr).slice(0, 10);
+  return [...picked, ...list.filter((p) => !selectedIds.has(p.id)).sort(byOvr).slice(0, 5)];
+}
+
 /** 批量套用推荐位置+指令（未手动调整的球员） */
 export function ensurePlayerDefaults(players, opts = {}) {
   for (const p of players || []) applyRecommendedDefaults(p, opts);

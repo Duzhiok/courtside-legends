@@ -439,6 +439,7 @@ import {
   captureRotationPlan,
   staminaMinuteCap,
   staminaMinuteHint,
+  setupPlayerList,
   suggestTargetMinutes,
   autoBuildAllPacks,
   applyRecommendedDefaults,
@@ -6472,8 +6473,9 @@ function renderSetupOrders() {
   const you = state.setup?.you;
   if (!you) return;
   ensurePlayerOrders(you.players);
-  const picked = you.players.filter((p) => state.setup.selected.has(p.id));
-  const list = picked.length ? picked : [...you.players].sort((a, b) => overall(b) - overall(a)).slice(0, 8);
+  // Same list rule as renderSetupRoles (setupPlayerList): the orders section
+  // used to list starters only, so bench players had no tendencies to set.
+  const list = setupPlayerList(you.players, state.setup.selected, { season: !!state.season });
   if (focusSel) {
     const prev = you.gameplan?.offenseFocusId || focusSel.value || "";
     focusSel.innerHTML =
@@ -6552,20 +6554,8 @@ function renderSetupRoles() {
   if (!box || !you) return;
   ensureRoles(you.players);
   ensurePlayerOrders(you.players);
-  // Season / experiment: show full roster minutes; otherwise starters + top bench
-  const picked = you.players.filter((p) => state.setup.selected.has(p.id));
-  const list =
-    state.season || you.players.length <= 12
-      ? [...you.players].sort((a, b) => (b.targetMinutes || 0) - (a.targetMinutes || 0) || overall(b) - overall(a))
-      : picked.length
-        ? [
-            ...picked,
-            ...you.players
-              .filter((p) => !state.setup.selected.has(p.id))
-              .sort((a, b) => overall(b) - overall(a))
-              .slice(0, 5),
-          ]
-        : [...you.players].sort((a, b) => overall(b) - overall(a)).slice(0, 10);
+  // One shared list rule with the orders section (setupPlayerList).
+  const list = setupPlayerList(you.players, state.setup.selected, { season: !!state.season });
   const totalMin = list.reduce((s, p) => s + (Number(p.targetMinutes) || 0), 0);
   box.innerHTML =
     `<p class="tiny">目标分钟合计约 <strong>${totalMin}</strong>（五人同时上场约 240）。体能差的人打 35+ 会崩，铁肺可接近 48。</p>` +
