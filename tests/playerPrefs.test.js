@@ -4,7 +4,8 @@ import { createMemoryStorage } from "./helpers/memoryStorage.js";
 globalThis.localStorage = createMemoryStorage();
 
 const { extractPlayerPrefs, applyPlayerPrefs, mergePlayerPrefs } = await import("../js/data/playerPrefs.js");
-const { applyRecommendedDefaults, markOrdersManual, markPlayPosManual, suggestTargetMinutes } = await import("../js/engine/gameplan.js");
+const { applyRecommendedDefaults, markOrdersManual, markPlayPosManual } = await import("../js/engine/gameplan.js");
+const { suggestTargetMinutes } = await import("../js/data/playerMinutes.js");
 const { createAccount, saveAccount, getAccount, rememberPlayerPrefs, accountToTeam } = await import("../js/data/account.js");
 const { realTeam } = await import("./helpers/realGame.js");
 const { GameSim } = await import("../js/engine/sim.js");

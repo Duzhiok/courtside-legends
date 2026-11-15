@@ -5,7 +5,7 @@
 // streak the ledger really holds, and nothing may change on the roster that the card doesn't announce.
 //
 // Real thresholds (3 games of 9+ assists...) can't be conjured on demand, so the plumbing is proven with
-// the SAME app code against a relaxed copy of js/engine/epiphany.js (every rule: 1+ of its stat, 1+
+// the SAME app code against a relaxed copy of js/data/epiphany.js (every rule: 1+ of its stat, 1+
 // minute, a sure roll), served by intercepting that one module. The real thresholds are covered by the
 // unit tests and by the "real thresholds" pass here (no false claims, no silent changes).
 // Usage: [QA_VIEWPORT=desktop|mobile] node scripts/qa/career-epiphany.mjs [outDir] [baseUrl]
@@ -23,7 +23,7 @@ const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} $
 const browser = await chromium.launch({ executablePath: EXE });
 
 // ---- the relaxed copy of the rule module (and a loud failure if the module stops looking as expected)
-const SRC = readFileSync(new URL("../../js/engine/epiphany.js", import.meta.url), "utf8");
+const SRC = readFileSync(new URL("../../js/data/epiphany.js", import.meta.url), "utf8");
 const RELAXED = SRC.replace("MIN_MINUTES = 18", "MIN_MINUTES = 1").replace("EPIPHANY_BASE_CHANCE = 0.4", "EPIPHANY_BASE_CHANCE = 1").replace("EPIPHANY_MAX_CHANCE = 0.75", "EPIPHANY_MAX_CHANCE = 1").replace(/min: \d+, skills/g, "min: 1, skills");
 check("the relaxed rule module was built from the real one", RELAXED !== SRC && /MIN_MINUTES = 1\b/.test(RELAXED) && /EPIPHANY_BASE_CHANCE = 1\b/.test(RELAXED) && /EPIPHANY_MAX_CHANCE = 1\b/.test(RELAXED) && (RELAXED.match(/min: 1, skills/g) || []).length === 7);
 const relax = (page) => page.route(/\/js\/engine\/epiphany\.js/, (route) => route.fulfill({ contentType: "text/javascript", body: RELAXED }));
@@ -42,7 +42,7 @@ const saved = (page) => page.evaluate(() => {
 
 /** The rule module the PAGE is using (real or relaxed) and the card's unit/skill tables. */
 const config = (page) => page.evaluate(async () => {
-  const ep = await import("/js/engine/epiphany.js");
+  const ep = await import("/js/data/epiphany.js");
   const view = await import("/js/ui/careerPostGameView.js");
   const sk = await import("/js/data/skills.js");
   const i18n = await import("/js/i18n.js");

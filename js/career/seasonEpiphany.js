@@ -1,7 +1,7 @@
 /**
  * C3 of docs/CAREER_LIFE_ROADMAP.md: 领悟 (epiphany) for a season/career game.
  *
- * The rules are `engine/epiphany.js` (evidence-chosen candidates, a controlled roll, a per-person cap); this
+ * The rules are `data/epiphany.js` (evidence-chosen candidates, a controlled roll, a per-person cap); this
  * is only the ledger around them, so a managed career reuses exactly what ranked play already has.
  *
  *   management.epiphany = { [bref]: { form: [last <=5 games], learned: [skillId] } }
@@ -16,7 +16,7 @@
  * be hung (a ledger that remembers a skill the card doesn't have would later learn it twice, and the
  * save validator refuses a duplicate -- the career would be bricked).
  */
-import { STREAK, formLine, heatHint, recordGameAndCheck } from "../engine/epiphany.js";
+import { STREAK, formLine, heatHint, recordGameAndCheck } from "../data/epiphany.js";
 import { grantSkillToPlayer, skillSlotsFull } from "../data/skills.js";
 
 /** The rule a card shows: just what the UI needs, no engine internals. */

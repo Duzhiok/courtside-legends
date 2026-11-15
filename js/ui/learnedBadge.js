@@ -1,6 +1,6 @@
 // "已领悟" (skills learned from play, the C3 ledger) as a badge + a one-line list, for every place that shows a
 // player row: the rotation board, the roster evaluation, the season market. Pure HTML builders.
-import { MAX_EPIPHANY } from "../engine/epiphany.js";
+import { MAX_EPIPHANY } from "../data/epiphany.js";
 import { SKILL_PACKS } from "../data/skills.js";
 import { TL, skillNameL } from "../i18n.js";
 import { esc } from "./timeTravel/format.js";

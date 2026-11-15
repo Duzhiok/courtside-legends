@@ -12,7 +12,7 @@ import {
   formLine,
   hotStreak,
   recordGameAndCheck,
-} from "../js/engine/epiphany.js";
+} from "../js/data/epiphany.js";
 
 const GUARD = { id: "liv", bref: "livinsh01", team: "GSW", heightCm: 201, age: 29, pass: 80, block: 40, speed: 60, strength: 60, stamina: 70, skills: [] };
 const dimeGame = { min: 30, pts: 8, reb: 4, ast: 11, stl: 1, blk: 0, fgm: 4, tpm: 0 };

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SKILL_PACKS } from "../js/data/skills.js";
-import { staminaMinuteCap, staminaMinuteHint } from "../js/engine/gameplan.js";
+import { staminaMinuteCap, staminaMinuteHint } from "../js/data/playerMinutes.js";
 import {
   attributeChipsHtml,
   benchSectionHtml,

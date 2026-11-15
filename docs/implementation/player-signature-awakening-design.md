@@ -9,7 +9,7 @@ acquisition path for Player careers.
 ## 1. Evidence audit — what the engine actually records
 
 Read, not assumed. Sources: `js/engine/sim.js` (emit + stats), `js/engine/domainEvents.js`,
-`js/reborn/season.js` (`playGame` report), `js/engine/epiphany.js`,
+`js/reborn/season.js` (`playGame` report), `js/data/epiphany.js`,
 `js/career/seasonEpiphany.js`, `js/data/skills.js`.
 
 | Evidence the five skills need | Exists? | Where |
@@ -36,7 +36,7 @@ forbidden; the module never reads `pts` / `fgm` for any rule).
 
 ## 2. The old system being replaced — seasonEpiphany (flagged, NOT rewritten here)
 
-`js/engine/epiphany.js` + `js/career/seasonEpiphany.js` grant skills today, live in
+`js/data/epiphany.js` + `js/career/seasonEpiphany.js` grant skills today, live in
 two places:
 
 - `js/app.js:11106` — classic long career: `awardEpiphany({ ledger: career.management?.epiphany, players, lines: report.lines })`.

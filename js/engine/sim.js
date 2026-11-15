@@ -46,7 +46,6 @@ import {
   fitMinuteBudget,
   FOCUS_PLAYS,
   getTempoDef,
-  inferPlayerRole,
   isAllOutDefense,
   isHustleOffense,
   normalizeTempo,
@@ -55,6 +54,7 @@ import {
   shotOpenThreshold,
   usageForBallAction,
 } from "./gameplan.js";
+import { inferPlayerRole } from "../data/playerMinutes.js";
 import {
   confidenceLabel,
   formConfidence,

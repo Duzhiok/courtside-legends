@@ -4,7 +4,7 @@
  */
 import { overall, PLAYERS } from "./players.js";
 import { applyCardMods, saveAccount } from "./account.js";
-import { recordGameAndCheck } from "../engine/epiphany.js";
+import { recordGameAndCheck } from "./epiphany.js";
 import { GROWTH_OVR_HEADROOM, GROWTH_PATHS, MAX_GROWTH_LEVEL, XP_PER_LEVEL } from "./growthPaths.js";
 
 const BASE_XP = 10;

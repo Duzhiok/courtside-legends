@@ -13,7 +13,7 @@ export const TRUST_START = 25;
 
 export const ROTATION_ROLES = ["dnp", "garbage", "bench", "rotation", "starter"];
 
-/** Target minutes per game for each role (aligns with gameplan PLAYER_ROLES). */
+/** Target minutes per game for each role (aligns with data/playerMinutes.js PLAYER_ROLES). */
 export const ROLE_MINUTES = { dnp: 0, garbage: 4, bench: 10, rotation: 18, starter: 30 };
 
 export const ROLE_LABEL = {

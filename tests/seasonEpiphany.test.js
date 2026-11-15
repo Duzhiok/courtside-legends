@@ -8,7 +8,7 @@ import {
   MAX_SKILL_SLOTS, SKILL_PACKS, canRetainSkill, grantSkillToPlayer, isLearnableSkill, skillSlotsFull,
 } from "../js/data/skills.js";
 import { advancePlayerOneYear } from "../js/engine/develop.js";
-import { EPIPHANY_RULES, MAX_EPIPHANY, MIN_MINUTES, STREAK, heatHint } from "../js/engine/epiphany.js";
+import { EPIPHANY_RULES, MAX_EPIPHANY, MIN_MINUTES, STREAK, heatHint } from "../js/data/epiphany.js";
 import { installRealCards, realCards, realGame, realTeam } from "./helpers/realGame.js";
 
 const ALWAYS = () => 0; // the roll always succeeds, and always picks the first option

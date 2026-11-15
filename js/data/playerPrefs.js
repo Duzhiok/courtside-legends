@@ -1,4 +1,4 @@
-import { suggestTargetMinutes } from "../engine/gameplan.js";
+import { suggestTargetMinutes } from "./playerMinutes.js";
 
 /**
  * B2 — 球员个人战术偏好：玩家赛前亲手设的位置 / 指令 / 角色 / 分钟，下一场开赛继续沿用。

@@ -438,14 +438,10 @@ import {
   ORDER_AGGRESSION,
   ORDER_HUNT,
   ORDER_USAGE,
-  PLAYER_ROLES,
   TEMPO_OPTIONS,
   applyRotationPlan,
   captureRotationPlan,
-  staminaMinuteCap,
-  staminaMinuteHint,
   setupPlayerList,
-  suggestTargetMinutes,
   autoBuildAllPacks,
   applyRecommendedDefaults,
   ensurePlayerDefaults,
@@ -453,7 +449,6 @@ import {
   ensureRoles,
   getTempoDef,
   groupByPosition,
-  inferPlayerRole,
   liveStarterIds,
   markOrdersManual,
   markPlayPosManual,
@@ -468,6 +463,13 @@ import {
   toggleStarter,
   usageForBallAction,
 } from "./engine/gameplan.js";
+import {
+  PLAYER_ROLES,
+  inferPlayerRole,
+  staminaMinuteCap,
+  staminaMinuteHint,
+  suggestTargetMinutes,
+} from "./data/playerMinutes.js";
 import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos } from "./engine/matchups.js";
 import { CourtView } from "./engine/court.js";
 import { CourtView3D, captureClutchReplaySnapshot, buildReplayShot } from "./engine/court3d.js";

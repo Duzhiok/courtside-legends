@@ -18,7 +18,7 @@ import { GameSim } from "../../js/engine/sim.js";
 import { createRebornState, buildPlayerCard, REBORN_TEAM_IDS } from "../../js/reborn/identity.js";
 import { rosterCards, buildSeason, playSeason, takeoverEligible } from "../../js/reborn/season.js";
 import { rivalryLedger, mirrorRivalriesToAccount, DEFAULT_TAKEOVER_WINDOW, RIVALRY_TAKEOVER_WINDOW } from "../../js/reborn/rivalry.js";
-import { epiphanyCandidates, epiphanyChance, recordGameAndCheck, EPIPHANY_RULES } from "../../js/engine/epiphany.js";
+import { epiphanyCandidates, epiphanyChance, recordGameAndCheck, EPIPHANY_RULES } from "../../js/data/epiphany.js";
 import { seededStream, hashSeed } from "../../js/core/seededRandom.js";
 
 const ROWS = JSON.parse(readFileSync(new URL("../../js/data/roster.json", import.meta.url), "utf8")).players;

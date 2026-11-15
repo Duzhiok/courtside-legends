@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MAX_EPIPHANY } from "../js/engine/epiphany.js";
+import { MAX_EPIPHANY } from "../js/data/epiphany.js";
 import { SKILL_PACKS } from "../js/data/skills.js";
 import { setLang } from "../js/i18n.js";
 import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "../js/ui/learnedBadge.js";
