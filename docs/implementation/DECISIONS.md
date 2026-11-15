@@ -19,6 +19,7 @@
 | 2026-11-04 | ADR-005 APPROVED：Q1–Q4 按默认值批准。 |
 | 2026-11-06 | 产品负责人追加裁决：选秀候选池 76 人/届（实际选中按联盟顺位）、位置软约束；M2b-1 份额选 (b)、45–70% 初始实验区间；`already_armed`；My World MVP 获批（N-1a/b/c）。详见文末"八"。 |
 | 2026-11-06 | ADR-007 ✅ APPROVED WITH MODIFICATIONS；ADR-008 ✅ APPROVED IN PRINCIPLE。要点：重生每人一次、历史低频/幻想高频、成长不被历史封顶、Original Reborn = 玩家自建角色并另加 Legendary Reborn、Career Retirement ≠ Lifetime Finale；中文名定为"我的篮球人生"；托管奖励金币和 XP 同时递减；N-1 导航骨架获批为 Navigation-Only 例外。详见文末"七"。 |
+| 2026-11-14 | 新增 ADR-011（Career Opportunity 职业机会系统，PROPOSED），全文在 `ADR-011-career-opportunity.md`。Riley/Architect 提案（256a08f，PROPOSED）的下一步交付：职业转型做成所有 Career 身份复用的基础系统（机会生成、offer 结构、接受/拒绝/谈判、权限切换、合同、老板信任、历史持久化、幂等结算、存档兼容、Team Culture 交互），复用 workstream G 的机会生成器、ADR-006 权限矩阵、Career Inbox、统一承诺引擎，不建第二个结算引擎。Riley 提案 §9 的八项裁决同步记录：Q1/Q3/Q4/Q5/Q7/Q8 已拍板为设计原则，Q2 量纲（0–100/初始 50）已定、增量与衰减待平衡实验，Q6 股权原型单独研究。 |
 
 ---
 
@@ -250,3 +251,11 @@
 - 硬规则：赛季引用卡牌、不修改卡牌（开赛固化快照）；MVP 不发金币、不改 Elo；GitHub 不是事务库，金币/抽卡/排位必须服务端裁决；不另开路线图，工作包映射到现有 M 编号。
 - 详见 ADR-010 §11 的 7 个待决问题。仅规划，未改代码。
 - **2026-11-07 裁决**：Q1/Q3/Q4/Q5/Q6 批准；Q2 修改为"单机本地权威、联机服务端权威"两阶段（客户端收藏不得决定联机排位/交易/奖励，联机市场与名册规则不变，不自动同步）；Q7 OPEN（未确认服务器常驻前不宣称跨设备同步）。快照须存完整比赛属性；Quick Season（20 场）与完整赛季共用引擎，纪录与荣誉分开标记；存档位 `cls_myteam_season_v1`。T1 设计见 `ADR-010-T1-design.md`，T2–T4 不自动启动。
+
+## 十三、Career Opportunity（ADR-011，PROPOSED）
+
+- 方向：职业转型做成所有 Career 身份复用的基础系统——一个机会引擎、一套 offer 结构、一套结算规则、一套权限切换；未来服务球员退役转教练、助教晋升、主教练转 GM、GM 兼任主教练、被解雇后重返执教、总裁获股权机会六种转型，不为每种单独写一套事件引擎。
+- 核实事实：机会生成器已实现（`js/career/network/careerOpportunities.js`，workstream G，确定性 seeded 生成、声望/成就/关系资格检查、失业回退），但网络里没有总裁与双重身份角色；身份戳记（`setIdentity`）与权限守卫（`careerGuards`）已实现；承诺唯一结算入口是 `settleGamePromises`；老板信任的数值字段是 `boardTrust`（`executiveProgression.js`，0–100，初始 50）；transition 事件已在 `LEGACY_EVENT_TYPES` 里，`root.identity` 尚无 `history` 数组（ADR-006 §3.2 提案过形状，未实现）。
+- 硬规则：复用现有系统——机会生成复用 workstream G、权限切换复用 ADR-006 矩阵、呈现与结算走 Career Inbox 与统一承诺引擎、合同复用 `contractOffers.js`；不建第二个 inbox、第二个承诺引擎、第二个关系系统；不新增权限能力项；不改经典解锁路径、不改存档结构、不升版本；转职不是菜单切换，每次都要真实职位机会、合同与权限变化；被解雇不是 Game Over。
+- 详见 ADR-011 §14 的 8 个未决数值决定（声望阈值、老板信任阈值、生成频率、拒绝冷却期、合同数值、双职代价机制、文化挂钩、`identity.history` 实现方式）。仅规划，未改代码。
+- **2026-11-14 裁决（Riley 提案 §9 同步）**：Q1/Q3/Q4/Q5/Q7/Q8 批准为设计原则；Q2 量纲（0–100、初始 50）批准，增量与衰减待平衡实验；Q6 股权原型单独研究。256a08f 保持 PROPOSED。
