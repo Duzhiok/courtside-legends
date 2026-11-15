@@ -250,3 +250,49 @@ Module names follow the spec (`js/ui/tactics/`), reusing instead of duplicating:
    one line of `wrapTeam`; expect a trivial rebase conflict if that work lands. The slice does not touch `p.orders` editing.
 2. A Gold **coach bench** (switching between hired coaches) is not in the product today. Needed, or is "current coach + market" enough for the spec's CoachSelector?
 3. Persisted **per-opponent plans in Gold**: deferred; confirm.
+
+---
+
+# Addendum B — read-only audit of `cls-tend` (`feat/player-tendencies`, uncommitted)
+
+Inspected read-only at the worktree's current state (base `02fe315`, 40 commits behind main; nothing was edited, staged or run with writes).
+Owner is not on the board. Newest file mtime 11:05 today, `sim.js` 07:46.
+
+## B1. State: the worktree cannot load the engine
+`sim.js:58` imports `{ attachTendency, driveMult, passFirst, passMult, shootMult }` from `playerTendencies.js`, which (rewritten at 11:05)
+exports only `shootShift, passMult, driveMult, attachTendency, …`. `import('./js/engine/sim.js')` fails:
+*"does not provide an export named 'passFirst'"*. Both of its own test files fail for the same reason (0/2 files pass).
+It looks like a mid-refactor (shoot moved to `shootShift` inside `gameplan.shotOpenThreshold`; `sim.js` not updated).
+Not on main: `playerTendencies.js`, `tendencyEdit.js`, `tendencyEditor.js`, `tendencies.css`, both tests, the QA/research scripts.
+The two test files and `tests/helpers/tendencyAb.js` are **untracked**, i.e. one `git clean` away from being lost.
+
+## B2. What the engine actually consumes
+| Piece | Consumed by GameSim? | New gameplay effect? |
+|---|---|---|
+| 6 presets → `orders.{usage,action,attack,hunt,aggression,defFocus}` | **Yes, already** (all six fields exist on main and are read; the preset only fills them) | **No** |
+| Level `shoot` (−2..+2, step 0.1) | shifts `shotOpenThreshold` (gameplan.js), clamped 0.2–0.8; raw read kept for the accuracy penalty | **Yes**: how good a look he waits for |
+| Level `pass` (step 0.12) | `kickChance`, `pickPasser`, "pass-first" forces a kick attempt | **Yes** |
+| Level `drive` (step 0.15) | `chooseShot` paint weight | **Yes**: shot location only |
+| `p.tend` on snapshots (`slim`) | read-only view for the coach panel | no |
+Design intent is sound (decision weights only, never accuracy/OVR/skills; no tendency ⇒ byte-identical games) but the three levels
+are **new mechanics**, which this phase excludes.
+
+## B3. What main already has
+Per-player orders editor for every starter **and bench** (Lychee `65b46f8`, `setupPlayerList` + `renderSetupOrders`), persisted for season/ranked
+by `playerPrefs`. The six presets are named bundles of those same fields: a convenience layer, not a new capability.
+
+## B4. Conflicts with the tactical-draft architecture
+1. `applyPreset` / `setLevel` **mutate the live player on click** (`markOrdersManual`), the same preview-writes-the-save problem Slice 0 removed. It must act on a draft/clone and commit through `applyDraft`.
+2. New persisted field `p.tendency` through `playerPrefs` (ranked/season) and `persistSeasonRotationFromTeam`; Gold would persist it via the shared `career.team` reference. New save surface.
+3. `tendencyEditorHtml` is injected into `renderSetupOrders`, the block Slice 1 replaces.
+4. 40 commits stale: `app.js`/`sim.js`/`gameplan.js` hunks will not apply cleanly.
+5. No textual conflict with Slice 0 (`wrapTeam`'s `gameplan:` line vs its `attachTendency({` wrapper are different lines).
+
+## B5. Reusable, without taking the branch
+- **Presets as data** (`TENDENCY_PRESETS`: ids → existing order ids): a "role preset" picker for the drawer with **no engine change**. Re-derive from this file; verify every id against `ORDER_*` (its own first test does exactly that).
+- `normalizeTendency`-style sanitising of untrusted saved data; the "unset levels follow the preset" idea.
+- Test ideas worth keeping if levels ever land: byte-identical-without-config, "called play is not a guaranteed shot", "accounts do not leak".
+- Not reusable as is: the slider editor, `p.tend`, `shotOpenThreshold` change.
+
+## B6. Recommendation
+Do not merge or cherry-pick. Slice 1 uses presets-as-orders only (existing engine inputs). The three levels need their own approved gameplay task by the branch owner, rebased on main, with the untracked tests committed on their branch first.
