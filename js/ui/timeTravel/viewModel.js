@@ -14,12 +14,6 @@ export function teamColorsFor(year, teamId) {
   return teamColors(meta?.bref || meta?.id || teamId);
 }
 
-/** Display name for a team in a given historical year (stints only store the id). */
-export function teamNameFor(year, teamId) {
-  const meta = historicalSeason(year)?.teams?.find((team) => team.id === teamId);
-  return meta?.name || teamId;
-}
-
 /** Top-N players of one historical team by overall, for the "core players" row on offer cards. */
 export function teamCore({ players, overall, year, teamId, count = 3 }) {
   const meta = historicalSeason(year)?.teams?.find((team) => team.id === teamId);

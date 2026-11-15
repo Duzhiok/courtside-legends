@@ -3,6 +3,7 @@ import { teamNameL } from "../../i18n.js";
 import { crestHtml } from "./hq.js";
 import { esc } from "./format.js";
 import { TL } from "../../i18n.js";
+import { stintSpan } from "../../career/stints.js";
 
 /** Every value careerContract.js can write as an employment/stint reason (plus the status names). */
 const REASON = {
@@ -16,13 +17,6 @@ const REASON = {
 };
 /** Never leak a raw id to the player: unknown reasons fall back to a neutral "left the team". */
 export const reasonLabel = (reason, lang) => TL(lang, REASON[reason]?.[0] ?? "已离任", REASON[reason]?.[1] ?? "Left the team");
-
-/** A finished stint ends with its last COACHED season (startYear + seasons - 1), not the year you were let go. */
-export function stintSpan(stint) {
-  if (!Number.isInteger(stint.startYear)) return "";
-  const last = stint.startYear + Math.max(1, stint.seasons) - 1;
-  return last > stint.startYear ? `${stint.startYear}–${last}` : String(stint.startYear);
-}
 
 /** stint + { teamName, colors } -> one card in the career-so-far strip */
 export function stintCardHtml(stint, { teamName, colors }, lang = "zh") {

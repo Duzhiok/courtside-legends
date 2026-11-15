@@ -14,7 +14,8 @@ import { houseRowHtml, investRowHtml } from "./finance.js";
 import { careerHeaderHtml, teamThemeStyle, timelineHtml } from "./hq.js";
 import { icon } from "./icons.js";
 import { kpiStripHtml } from "./kpis.js";
-import { onThinIce, teamColorsFor, teamNameFor } from "./viewModel.js";
+import { onThinIce, teamColorsFor } from "./viewModel.js";
+import { teamNameFor } from "../../data/historicalTeams.js";
 import {
   decadeChipsHtml, eraNote, originChipsHtml, originDeltasHtml, philosophyCardsHtml,
 } from "./wizard.js";

@@ -15,7 +15,8 @@ import { $ } from "./dom.js";
 import { esc } from "./format.js";
 import { icon } from "./icons.js";
 import { poachCardHtml } from "./offers.js";
-import { teamColorsFor, teamCore, teamNameFor } from "./viewModel.js";
+import { teamColorsFor, teamCore } from "./viewModel.js";
+import { teamNameFor } from "../../data/historicalTeams.js";
 import { TL } from "../../i18n.js";
 
 export function createPoachCard({ state, lang, setStatus, commit, currentRootState, renderScreen }) {

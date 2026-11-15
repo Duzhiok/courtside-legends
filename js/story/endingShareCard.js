@@ -4,8 +4,8 @@
  */
 import { teamNameL } from "../i18n.js";
 import { offerText } from "../career/contractOffers.js";
-import { stintSpan } from "../ui/timeTravel/epilogue.js";
-import { teamNameFor } from "../ui/timeTravel/viewModel.js";
+import { stintSpan } from "../career/stints.js";
+import { teamNameFor } from "../data/historicalTeams.js";
 import { buildCareerReport } from "./eventEngine.js";
 import { esc as escapeHtml } from "../core/html.js";
 

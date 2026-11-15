@@ -50,3 +50,16 @@ export function burnedBridgeTeamIds(root) {
   const stints = Array.isArray(root?.coach?.stints) ? root.coach.stints : [];
   return stints.filter((stint) => stint.reason === "poached").map((stint) => stint.teamId);
 }
+
+/**
+ * Display span of a completed stint, e.g. "1991–1995" or "1991" for a single
+ * season. A finished stint ends with its last CACHED season (startYear +
+ * seasons - 1), not the year you were let go. Pure function of the stint
+ * record; moved here from `js/ui/timeTravel/epilogue.js` (A-P2-3) so the
+ * story layer (`js/story/endingShareCard.js`) no longer imports from `js/ui/`.
+ */
+export function stintSpan(stint) {
+  if (!Number.isInteger(stint.startYear)) return "";
+  const last = stint.startYear + Math.max(1, stint.seasons) - 1;
+  return last > stint.startYear ? `${stint.startYear}–${last}` : String(stint.startYear);
+}

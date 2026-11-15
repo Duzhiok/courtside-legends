@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildStintRecord } from "../js/career/stints.js";
+import { buildStintRecord, stintSpan } from "../js/career/stints.js";
 
 function root(overrides = {}) {
   return {
@@ -44,4 +44,16 @@ test("buildStintRecord falls back to null for a missing startYear or season year
 test("buildStintRecord requires a root with a career story", () => {
   assert.throws(() => buildStintRecord({}, performance, "fired"), TypeError);
   assert.throws(() => buildStintRecord(null, performance, "fired"), TypeError);
+});
+
+// A-P2-3: stintSpan moved here verbatim from js/ui/timeTravel/epilogue.js.
+test("stintSpan spans startYear through the last cached season", () => {
+  assert.equal(stintSpan({ startYear: 1991, seasons: 5 }), "1991–1995");
+  assert.equal(stintSpan({ startYear: 1991, seasons: 1 }), "1991");
+  assert.equal(stintSpan({ startYear: 1991, seasons: 0 }), "1991");
+});
+
+test("stintSpan returns empty when startYear is not an integer", () => {
+  assert.equal(stintSpan({ startYear: null, seasons: 3 }), "");
+  assert.equal(stintSpan({ seasons: 3 }), "");
 });
