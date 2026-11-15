@@ -9,8 +9,8 @@ import { queueStoryEvent } from "../../story/eventEngine.js";
 import { $ } from "./dom.js";
 import { choiceDeckHtml, confirmBarHtml, mountDeck } from "./choices.js";
 import { INTRO_CHOICES } from "./copy.js";
-import { tr } from "./format.js";
 import { createProphecyPicker } from "./prophecyCard.js";
+import { TL } from "../../i18n.js";
 
 /** @param {{ state, lang, setStatus, commit, currentRootState, renderScreen, focusDecision }} deps */
 export function createIntroCard({ state, lang, setStatus, commit, currentRootState, renderScreen, focusDecision }) {
@@ -43,11 +43,11 @@ export function createIntroCard({ state, lang, setStatus, commit, currentRootSta
     introConfirm().hidden = false;
     introDeck().innerHTML = choiceDeckHtml(INTRO_CHOICES.map((choice) => ({
       id: choice.id,
-      label: tr(l, ...choice.label),
-      description: tr(l, ...choice.description) + (choice.id === SLEEPER
+      label: TL(l, ...choice.label),
+      description: TL(l, ...choice.description) + (choice.id === SLEEPER
         ? " " + (board.length
-          ? tr(l, "（接下来要你说出一个名字。）", "(Next you'll have to name him.)")
-          : tr(l, "（这几届里找不到拿得准的遗珠，只按上面的数值生效。）", "(No sleeper in these classes you could vouch for: only the numbers below apply.)"))
+          ? TL(l, "（接下来要你说出一个名字。）", "(Next you'll have to name him.)")
+          : TL(l, "（这几届里找不到拿得准的遗珠，只按上面的数值生效。）", "(No sleeper in these classes you could vouch for: only the numbers below apply.)"))
         : ""),
       effects: futureKnowledgeEffects(choice.id),
     })), { attr: "data-story-choice", lang: l });
@@ -55,7 +55,7 @@ export function createIntroCard({ state, lang, setStatus, commit, currentRootSta
     mountDeck(card, {
       idOf: (el) => el.dataset.storyChoice,
       labelOf: (el) => el.querySelector("strong").textContent,
-      confirmText: (label) => tr(l, `就这么定：「${label}」。这个决定无法撤回。`, `Lock in "${label}". This can't be undone.`),
+      confirmText: (label) => TL(l, `就这么定：「${label}」。这个决定无法撤回。`, `Lock in "${label}". This can't be undone.`),
       onConfirm: (choiceId) => (choiceId === SLEEPER && board.length ? openProphecyPicker(board) : resolveIntro(choiceId)),
     });
   }
@@ -66,7 +66,7 @@ export function createIntroCard({ state, lang, setStatus, commit, currentRootSta
       const chosen = resolveFutureKnowledgeChoice(currentRootState(), choiceId);
       const resolved = prophecyBref ? pledgeProphecy(chosen, prophecyBref) : chosen;
       const root = queueStoryEvent(resolved, "first-year-owner-test", { year: resolved.leagueCareer?.season?.year });
-      commit(root, tr(lang(), "存档写入失败，这次决定尚未生效", "Save failed — the decision did not take effect"));
+      commit(root, TL(lang(), "存档写入失败，这次决定尚未生效", "Save failed — the decision did not take effect"));
       setStatus({ zh: "决定已保存。资源与时间线已更新。", en: "Decision saved. Your resources and the timeline have shifted." });
     } catch (error) {
       setStatus(error?.message || { zh: "无法处理这个决定", en: "Couldn't process that decision" }, true);

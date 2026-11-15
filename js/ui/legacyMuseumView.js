@@ -18,11 +18,11 @@ import { LEGACY_TIERS } from "../career/legacy.js";
 import { legacyMuseumFor } from "../career/legacyMuseum.js";
 import { mountScreen } from "./screenShell.js";
 import { esc } from "../core/html.js";
+import { TL } from "../i18n.js";
 
 /** The page title, rendered once by the shell in the current language. */
 export const LEGACY_MUSEUM_TITLE = Object.freeze({ zh: "篮球人生博物馆", en: "Legacy Museum" });
 
-const T = (lang, zh, en) => (lang === "en" ? en : zh);
 const ROLE_LABEL = {
   COACH: ["教练生涯", "Coach career"],
   GM: ["经理生涯", "GM career"],
@@ -69,20 +69,20 @@ export function museumCareerLine(career, lang) {
   const tier = career.tier && LEGACY_TIERS[career.tier] ? LEGACY_TIERS[career.tier] : null;
   const reason = career.reason ? REASON_LABEL[career.reason] || [career.reason, career.reason] : null;
   const facts = [];
-  if (career.year != null) facts.push(T(lang, `结束于 ${career.year} 赛季`, `Ended in the ${career.year} season`));
-  if (career.seasons != null) facts.push(T(lang, `${career.seasons} 个赛季`, `${career.seasons} season(s)`));
-  if (career.championships != null) facts.push(T(lang, `${career.championships} 座总冠军`, `${career.championships} title(s)`));
+  if (career.year != null) facts.push(TL(lang, `结束于 ${career.year} 赛季`, `Ended in the ${career.year} season`));
+  if (career.seasons != null) facts.push(TL(lang, `${career.seasons} 个赛季`, `${career.seasons} season(s)`));
+  if (career.championships != null) facts.push(TL(lang, `${career.championships} 座总冠军`, `${career.championships} title(s)`));
   if (tier) facts.push(esc(lang === "en" ? tier.labelEn : tier.label));
   else if (career.tier) facts.push(esc(career.tier));
-  if (reason) facts.push(esc(T(lang, reason[0], reason[1])));
+  if (reason) facts.push(esc(TL(lang, reason[0], reason[1])));
   // M4-D D3: the city the career represented when it was created (M4-C
   // snapshot, frozen at creation — later account edits never rewrite it).
   // Missing on old records: omitted, never filled in.
-  if (career.representedCity) facts.push(esc(T(lang, `创建时代表 ${career.representedCity}`, `Represented ${career.representedCity} at creation`)));
+  if (career.representedCity) facts.push(esc(TL(lang, `创建时代表 ${career.representedCity}`, `Represented ${career.representedCity} at creation`)));
   const chips = facts.length
     ? facts.map((f) => `<span class="lm-chip">${f}</span>`).join("")
-    : `<span class="lm-chip lm-chip--muted">${T(lang, "记录不完整", "Incomplete record")}</span>`;
-  return `<li class="lm-career"><strong>${esc(T(lang, role[0], role[1]))}</strong><span class="lm-chips">${chips}</span></li>`;
+    : `<span class="lm-chip lm-chip--muted">${TL(lang, "记录不完整", "Incomplete record")}</span>`;
+  return `<li class="lm-career"><strong>${esc(TL(lang, role[0], role[1]))}</strong><span class="lm-chips">${chips}</span></li>`;
 }
 
 /** The evidence careers behind one title: qualifications for The Architect, prestige careers for the other two. */
@@ -106,13 +106,13 @@ function titleSection(model, title, lang, selectedTitleId) {
   const evidence = titleEvidence(model, title.id, lang);
   const evidenceHtml = evidence.length
     ? `<ul class="lm-careers">${evidence.join("")}</ul>`
-    : `<p class="mw-empty">${T(lang, "暂无相关生涯记录。", "No career records for this title yet.")}</p>`;
+    : `<p class="mw-empty">${TL(lang, "暂无相关生涯记录。", "No career records for this title yet.")}</p>`;
   return `<section class="lm-title lm-title--${id}${title.id === selectedTitleId ? " is-selected" : ""}" data-lm-title="${id}">
     <header class="lm-title-head">
       <span class="lm-icon" aria-hidden="true">${titleIconOf(title.id)}</span>
       <div class="lm-title-text">
         <h3>${name}</h3>
-        ${requirement ? `<p class="lm-req">${esc(T(lang, requirement[0], requirement[1]))}</p>` : ""}
+        ${requirement ? `<p class="lm-req">${esc(TL(lang, requirement[0], requirement[1]))}</p>` : ""}
       </div>
     </header>
     ${evidenceHtml}
@@ -123,26 +123,26 @@ function legacyRecordHtml(legacy, lang) {
   if (!legacy) return "";
   const promises = legacy.promises || { open: 0, fulfilled: 0, broken: 0 };
   const tiles = [
-    [legacy.transitions?.length || 0, T(lang, "转会 / 转岗", "Transitions")],
-    [legacy.trades?.length || 0, T(lang, "交易", "Trades")],
-    [legacy.drafts?.length || 0, T(lang, "选秀", "Drafts")],
-    [legacy.divergences?.length || 0, T(lang, "历史偏离", "Divergences")],
-    [legacy.rivalries || 0, T(lang, "宿敌", "Rivals")],
+    [legacy.transitions?.length || 0, TL(lang, "转会 / 转岗", "Transitions")],
+    [legacy.trades?.length || 0, TL(lang, "交易", "Trades")],
+    [legacy.drafts?.length || 0, TL(lang, "选秀", "Drafts")],
+    [legacy.divergences?.length || 0, TL(lang, "历史偏离", "Divergences")],
+    [legacy.rivalries || 0, TL(lang, "宿敌", "Rivals")],
   ];
   const tilesHtml = tiles.map(([n, label]) => `<div class="lm-stat"><b>${n}</b><span>${label}</span></div>`).join("");
-  const promisesHtml = `<p class="lm-promises"><strong>${T(lang, "承诺", "Promises")}</strong>
-      <span class="lm-chip">${T(lang, "待处理", "Open")} ${promises.open}</span>
-      <span class="lm-chip lm-chip--ok">${T(lang, "兑现", "Kept")} ${promises.fulfilled}</span>
-      <span class="lm-chip lm-chip--bad">${T(lang, "落空", "Broken")} ${promises.broken}</span></p>`;
+  const promisesHtml = `<p class="lm-promises"><strong>${TL(lang, "承诺", "Promises")}</strong>
+      <span class="lm-chip">${TL(lang, "待处理", "Open")} ${promises.open}</span>
+      <span class="lm-chip lm-chip--ok">${TL(lang, "兑现", "Kept")} ${promises.fulfilled}</span>
+      <span class="lm-chip lm-chip--bad">${TL(lang, "落空", "Broken")} ${promises.broken}</span></p>`;
   const headlines = Array.isArray(legacy.headlines) ? legacy.headlines : [];
   const headlinesHtml = headlines.length
     ? `<ul class="lm-headlines">${headlines.map((h) => {
-        const meta = [h.season != null ? h.season : null, HEADLINE_TYPE[h.type] ? esc(T(lang, HEADLINE_TYPE[h.type][0], HEADLINE_TYPE[h.type][1])) : null].filter((v) => v != null).join(" · ");
+        const meta = [h.season != null ? h.season : null, HEADLINE_TYPE[h.type] ? esc(TL(lang, HEADLINE_TYPE[h.type][0], HEADLINE_TYPE[h.type][1])) : null].filter((v) => v != null).join(" · ");
         return `<li><span>${esc(lang === "en" ? h.en : h.zh)}</span>${meta ? `<span class="lm-meta">${meta}</span>` : ""}</li>`;
       }).join("")}</ul>`
-    : `<p class="mw-empty">${T(lang, "还没有 legacy 记录。承诺结算、宿敌对决和历史偏离会写在这里。", "No legacy records yet. Resolved promises, rivalry games and divergences land here.")}</p>`;
+    : `<p class="mw-empty">${TL(lang, "还没有 legacy 记录。承诺结算、宿敌对决和历史偏离会写在这里。", "No legacy records yet. Resolved promises, rivalry games and divergences land here.")}</p>`;
   return `<section class="lm-record">
-    <h3>${T(lang, "生涯记录", "Career record")}</h3>
+    <h3>${TL(lang, "生涯记录", "Career record")}</h3>
     <div class="lm-stats">${tilesHtml}</div>
     ${promisesHtml}
     ${headlinesHtml}
@@ -160,10 +160,10 @@ export function legacyMuseumHtml(model, lang, selectedTitleId = null) {
   if (!titles.length) return "";
   const unlocked = model.unlockedAt != null ? fmtDate(model.unlockedAt, lang) : null;
   const unlockLine = unlocked
-    ? T(lang, `解锁于 ${unlocked}`, `Unlocked ${unlocked}`)
-    : T(lang, "解锁日期未知", "Unlock date unknown");
+    ? TL(lang, `解锁于 ${unlocked}`, `Unlocked ${unlocked}`)
+    : TL(lang, "解锁日期未知", "Unlock date unknown");
   return `<div class="lm-museum">
-    <p class="lm-lead">${esc(unlockLine)} · ${T(lang, "以下全部来自你的生涯记录。", "Everything below comes from your career records.")}</p>
+    <p class="lm-lead">${esc(unlockLine)} · ${TL(lang, "以下全部来自你的生涯记录。", "Everything below comes from your career records.")}</p>
     ${titles.map((title) => titleSection(model, title, lang, selectedTitleId)).join("")}
     ${legacyRecordHtml(model.legacy, lang)}
   </div>`;
@@ -178,7 +178,7 @@ export function createLegacyMuseumView({ getLang, getAccount, show, goBack } = {
     if (!shell) return false;
     const model = legacyMuseumFor(typeof getAccount === "function" ? getAccount() : null);
     if (!model) {
-      shell.body.innerHTML = `<p class="mw-empty">${T(lang(), "还没有可以展示的传承。完成一次完整教练生涯与一次完整经理生涯后，这里会打开。", "Nothing to show yet. Complete one full Coach career and one full GM career and this museum opens.")}</p>`;
+      shell.body.innerHTML = `<p class="mw-empty">${TL(lang(), "还没有可以展示的传承。完成一次完整教练生涯与一次完整经理生涯后，这里会打开。", "Nothing to show yet. Complete one full Coach career and one full GM career and this museum opens.")}</p>`;
       return false;
     }
     shell.body.innerHTML = legacyMuseumHtml(model, lang(), selectedTitle);

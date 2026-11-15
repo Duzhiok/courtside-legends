@@ -50,7 +50,7 @@ import { createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { createDraftGambleView } from "./ui/scoutingView.js";
 import { createGmBusinessView } from "./ui/gmBusinessView.js";
 import { createNetworkView } from "./ui/networkViews.js";
-import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
+import { TL, getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
 import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
@@ -132,7 +132,6 @@ import {
 } from "./data/customPool.js";
 import { photoImg } from "./data/photo.js";
 import { teamColors } from "./data/teamColors.js";
-import { tr } from "./ui/timeTravel/format.js";
 import { attributeChipsHtml, benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinuteConflicts, startersSectionHtml, subAttrChipsHtml } from "./ui/rotationBoard.js";
 import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "./ui/learnedBadge.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
@@ -9757,7 +9756,7 @@ function renderSeasonRotation() {
       .join("");
     const recPos = recommendPlayPos(p);
     const posOpts = POS_SLOTS.map(
-      (s) => `<option value="${s.id}" ${normalizePos(p.playPos || p.pos) === s.id ? "selected" : ""}>${s.id}${s.id === recPos ? tr(lang, "（推荐）", " (rec.)") : ""}</option>`
+      (s) => `<option value="${s.id}" ${normalizePos(p.playPos || p.pos) === s.id ? "selected" : ""}>${s.id}${s.id === recPos ? TL(lang, "（推荐）", " (rec.)") : ""}</option>`
     ).join("");
     const cap = staminaMinuteCap(p);
     return rotationRowHtml(p, {
@@ -9782,32 +9781,32 @@ function renderSeasonRotation() {
   box.innerHTML = `
     <div class="sm-cap-card rot-card">
       <div class="rot-card-head">
-        <h4>${tr(lang, "排兵布阵", "Rotation board")}<small>${tr(lang, "默认轮换", "default rotation")}</small></h4>
+        <h4>${TL(lang, "排兵布阵", "Rotation board")}<small>${TL(lang, "默认轮换", "default rotation")}</small></h4>
         <div class="rot-stats">
-          <span class="rot-stat" title="${tr(lang, "要选满 5 个首发才有意义", "Only meaningful with a full five")}"><em>${tr(lang, "首发适配", "Lineup fit")}</em><strong>${fitLabel(startersNow.length, fit)}</strong></span>
-          <span class="rot-stat"><em>${tr(lang, "化学反应", "Chemistry")}</em><strong>${chem ?? "—"}</strong></span>
+          <span class="rot-stat" title="${TL(lang, "要选满 5 个首发才有意义", "Only meaningful with a full five")}"><em>${TL(lang, "首发适配", "Lineup fit")}</em><strong>${fitLabel(startersNow.length, fit)}</strong></span>
+          <span class="rot-stat"><em>${TL(lang, "化学反应", "Chemistry")}</em><strong>${chem ?? "—"}</strong></span>
         </div>
       </div>
       ${budgetBarHtml(sorted, [...starters], lang)}
-      <p class="tiny">${tr(lang, "设定首发、位置、角色、目标分钟与持球人；会在每场「亲自指挥」时自动套用。一场共 240 分钟；分钟条上的黑线是这个人能稳打的上限，体能差的人不宜长期 35+ 分钟。", "Set starters, positions, roles, target minutes and the ball handler; they apply whenever you coach a game yourself. A game has 240 player-minutes; the dark tick on a minutes bar is how many he can carry without tiring, and tired players shouldn't play 35+ for long.")}</p>
+      <p class="tiny">${TL(lang, "设定首发、位置、角色、目标分钟与持球人；会在每场「亲自指挥」时自动套用。一场共 240 分钟；分钟条上的黑线是这个人能稳打的上限，体能差的人不宜长期 35+ 分钟。", "Set starters, positions, roles, target minutes and the ball handler; they apply whenever you coach a game yourself. A game has 240 player-minutes; the dark tick on a minutes bar is how many he can carry without tiring, and tired players shouldn't play 35+ for long.")}</p>
       <div class="rot-toolbar">
-        <label class="rot-field"><span>${tr(lang, "默认战术", "Default tactic")}</span>
+        <label class="rot-field"><span>${TL(lang, "默认战术", "Default tactic")}</span>
           <select id="rot-tactic">${tactics
             .map((t) => `<option value="${t.id}" ${t.id === tacticId ? "selected" : ""}>${esc(t.name)}</option>`)
             .join("")}</select>
         </label>
-        <label class="rot-field"><span>${tr(lang, "默认持球人", "Ball handler")}</span>
+        <label class="rot-field"><span>${TL(lang, "默认持球人", "Ball handler")}</span>
           <select id="rot-focus">
-            <option value="">${tr(lang, "（不指定）", "(none)")}</option>
+            <option value="">${TL(lang, "（不指定）", "(none)")}</option>
             ${sorted
               .map((p) => `<option value="${p.id}" ${p.id === focusId ? "selected" : ""}>${esc(p.name)}</option>`)
               .join("")}
           </select>
         </label>
         <span class="rot-actions">
-          <button type="button" class="btn small" id="btn-rot-suggest">${tr(lang, "按体能建议分钟", "Suggest minutes")}</button>
-          <button type="button" class="btn small" id="btn-rot-top5">${tr(lang, "OVR 前五当首发", "Top 5 by OVR")}</button>
-          <button type="button" class="btn primary small" id="btn-rot-save">${tr(lang, "保存默认轮换", "Save rotation")}</button>
+          <button type="button" class="btn small" id="btn-rot-suggest">${TL(lang, "按体能建议分钟", "Suggest minutes")}</button>
+          <button type="button" class="btn small" id="btn-rot-top5">${TL(lang, "OVR 前五当首发", "Top 5 by OVR")}</button>
+          <button type="button" class="btn primary small" id="btn-rot-save">${TL(lang, "保存默认轮换", "Save rotation")}</button>
         </span>
       </div>
     </div>

@@ -34,14 +34,13 @@
  * screen-reader-only "经理生涯" group label (same reason); the
  * .mode-card[data-mode] click wiring in app.js skips career cards.
  */
-import { getLang } from "../i18n.js";
+import { TL, getLang } from "../i18n.js";
 import {
   architectProgress,
   architectUnlocked,
   readArchitectDevOverride,
 } from "../career/careerAchievements.js";
 
-const tr = (lang, zh, en) => (lang === "en" ? en : zh);
 
 /** Static card copy (names, taglines) lives in index.html + PHRASES. */
 export const CAREER_IDENTITIES = [
@@ -97,17 +96,17 @@ export function erasFor(identityId) {
  */
 export function eraPanelHtml(lang = "zh", { prestige = false } = {}) {
   const brief = prestige
-    ? `<p class="career-era-brief"><b>${tr(lang, "双重目标", "Dual objectives")}</b>${tr(
+    ? `<p class="career-era-brief"><b>${TL(lang, "双重目标", "Dual objectives")}</b>${TL(
         lang,
         "董事会要求本赛季进入季后赛，同时控制薪资并培养新人。",
         "The board wants the playoffs this season — while you control the salary cap and develop rookies.",
       )}</p>
-    <p class="career-era-brief"><b>${tr(lang, "决策连锁", "Every decision chains")}</b>${tr(
+    <p class="career-era-brief"><b>${TL(lang, "决策连锁", "Every decision chains")}</b>${TL(
         lang,
         "你作为经理交易来的球员，作为教练必须自己使用。",
         "Every player you trade for as GM, you must coach yourself.",
       )}</p>
-    <p class="career-era-brief"><b>${tr(lang, "传奇称号", "Legendary titles")}</b>${tr(
+    <p class="career-era-brief"><b>${TL(lang, "传奇称号", "Legendary titles")}</b>${TL(
         lang,
         "The Architect · Dynasty Master · Basketball Immortal，进入 My World 终身荣誉墙。",
         "The Architect · Dynasty Master · Basketball Immortal — they join your My World lifetime honours wall.",
@@ -115,31 +114,31 @@ export function eraPanelHtml(lang = "zh", { prestige = false } = {}) {
     : "";
   return `<div class="career-era-head">
       <strong>${
-        prestige ? "The Architect" : tr(lang, "选择开局时代", "Choose your starting era")
+        prestige ? "The Architect" : TL(lang, "选择开局时代", "Choose your starting era")
       }</strong>
       <span>${
         prestige
-          ? tr(lang, "隐藏职业 · 经理兼教练", "Hidden Career · GM + Coach")
-          : tr(lang, "经理兼教练 · 经典玩法", "GM + Coach · Classic")
+          ? TL(lang, "隐藏职业 · 经理兼教练", "Hidden Career · GM + Coach")
+          : TL(lang, "经理兼教练 · 经典玩法", "GM + Coach · Classic")
       }</span>
     </div>
     ${brief}
     <div class="career-era-choices">
       <button type="button" class="career-era-btn" data-career-era="historical">
-        <strong>${tr(lang, "历史穿越（1976–2025）", "Historical Time Travel (1976–2025)")}</strong>
-        <span>${tr(lang, "回到真实历史年份，改写篮球时间线。", "Start in a real historical year and rewrite the timeline.")}</span>
+        <strong>${TL(lang, "历史穿越（1976–2025）", "Historical Time Travel (1976–2025)")}</strong>
+        <span>${TL(lang, "回到真实历史年份，改写篮球时间线。", "Start in a real historical year and rewrite the timeline.")}</span>
       </button>
       <button type="button" class="career-era-btn" data-career-era="modern" disabled aria-disabled="true">
-        <strong>${tr(lang, "现代联盟", "Modern League")}</strong>
-        <span>${tr(lang, "即将推出", "Coming soon")}</span>
+        <strong>${TL(lang, "现代联盟", "Modern League")}</strong>
+        <span>${TL(lang, "即将推出", "Coming soon")}</span>
       </button>
     </div>
     <p class="career-era-note">${
       prestige
-        ? tr(lang, "以 The Architect 的身份穿越回历史，亲手打造王朝。", "Travel back as The Architect and build the dynasty yourself.")
-        : tr(lang, "经理兼教练的现代开局尚未开放，先穿越回历史吧。", "A modern GM + Coach start is not open yet — travel back in time for now.")
+        ? TL(lang, "以 The Architect 的身份穿越回历史，亲手打造王朝。", "Travel back as The Architect and build the dynasty yourself.")
+        : TL(lang, "经理兼教练的现代开局尚未开放，先穿越回历史吧。", "A modern GM + Coach start is not open yet — travel back in time for now.")
     }</p>
-    <button type="button" class="career-era-back" data-career-era-back>← ${tr(
+    <button type="button" class="career-era-back" data-career-era-back>← ${TL(
       lang,
       "返回选择身份",
       "Back to identities",
@@ -199,8 +198,8 @@ function paintArchitect(lang) {
   if (closed) closed.hidden = unlocked;
   if (open) open.hidden = !unlocked;
   const labels = {
-    coach: [tr(lang, "教练生涯", "Coach Career"), progress.coach],
-    gm: [tr(lang, "经理生涯", "General Manager Career"), progress.gm],
+    coach: [TL(lang, "教练生涯", "Coach Career"), progress.coach],
+    gm: [TL(lang, "经理生涯", "General Manager Career"), progress.gm],
   };
   for (const [key, [label, done]] of Object.entries(labels)) {
     const pill = card.querySelector(`[data-architect-pill="${key}"]`);
@@ -211,8 +210,8 @@ function paintArchitect(lang) {
   const count = card.querySelector("[data-architect-progress]");
   if (count) {
     count.textContent = unlocked
-      ? tr(lang, "已解锁", "Unlocked")
-      : tr(
+      ? TL(lang, "已解锁", "Unlocked")
+      : TL(
           lang,
           `职业资历 ${progress.completed} / 2`,
           `Career standing ${progress.completed} / 2`,
@@ -229,7 +228,7 @@ function handleCardClick(identityId) {
       showEraPanel(false);
       shownDevNote = null;
       showNote(
-        tr(
+        TL(
           getLang(),
           `The Architect 尚未解锁：完成一次完整教练生涯和一次完整经理生涯即可开启（当前 ${progress.completed} / 2${
             progress.coach ? "，教练生涯已完成" : ""
@@ -253,7 +252,7 @@ function handleCardClick(identityId) {
   if (identity.status === "dev") {
     showEraPanel(false);
     shownDevNote = identityId;
-    showNote(tr(getLang(), identity.devNote[0], identity.devNote[1]));
+    showNote(TL(getLang(), identity.devNote[0], identity.devNote[1]));
     return;
   }
   shownDevNote = null;
@@ -287,7 +286,7 @@ export function refreshCareerEntry() {
     card.classList.add("career-architect-card--revealed");
     shownDevNote = null;
     showNote(
-      tr(
+      TL(
         lang,
         "The Architect 已解锁：你完成了教练与经理两段职业人生，现在可以亲手打造属于自己的王朝了。",
         "The Architect is unlocked: you completed both a Coach and a GM career — now build a dynasty of your own.",
@@ -295,7 +294,7 @@ export function refreshCareerEntry() {
     );
   } else if (shownDevNote) {
     const identity = careerIdentityById(shownDevNote);
-    if (identity?.devNote) showNote(tr(lang, identity.devNote[0], identity.devNote[1]));
+    if (identity?.devNote) showNote(TL(lang, identity.devNote[0], identity.devNote[1]));
   }
   if (eraOpen) {
     const panel = document.querySelector("#career-era-panel");

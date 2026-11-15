@@ -28,6 +28,7 @@ import {
 } from "../../reborn/identity.js";
 import { seasonToCard, overall } from "../../data/players.js";
 import { hashSeed, seededStream } from "../../core/seededRandom.js";
+import { TL } from "../../i18n.js";
 
 /** One line of era background per offered start year. */
 export const ERA_BACKGROUND = {
@@ -140,7 +141,6 @@ export function createRebornFromChoice({ seed, rows, choice, identityPlaces } = 
   throw new TypeError(`creation: unknown destiny ${destiny}`);
 }
 
-const L = (lang, zh, en) => (lang === "en" ? en : zh);
 
 /** The creation panel. Pure HTML — the view holds the selection state. */
 export function creationHtml({
@@ -155,23 +155,23 @@ export function creationHtml({
   const choices = creationChoices(rows, seed, startYear);
   const yearButtons = REBORN_START_YEARS.map((year) => {
     const active = year === Number(startYear);
-    return `<button type="button" class="reborn-create-year${active ? " is-active" : ""}" data-reborn-year="${year}">${year}–${String(year + 1).slice(2)}${active ? ` · ${L(lang, "已选", "selected")}` : ""}</button>`;
+    return `<button type="button" class="reborn-create-year${active ? " is-active" : ""}" data-reborn-year="${year}">${year}–${String(year + 1).slice(2)}${active ? ` · ${TL(lang, "已选", "selected")}` : ""}</button>`;
   }).join("");
   const destinyButtons = [
     {
       id: "random",
-      title: L(lang, "随机命运", "Random destiny"),
-      desc: L(lang, "70% 真实历史替补 / 30% 虚构新秀，种子决定一切", "70% real historical bench / 30% fictional rookie — the seed decides"),
+      title: TL(lang, "随机命运", "Random destiny"),
+      desc: TL(lang, "70% 真实历史替补 / 30% 虚构新秀，种子决定一切", "70% real historical bench / 30% fictional rookie — the seed decides"),
     },
     {
       id: "historical",
-      title: L(lang, "自选历史替补", "Pick a historical bench player"),
-      desc: L(lang, "从当季替补池里选一个人，你就是他", "Choose someone from this season's bench — you are him"),
+      title: TL(lang, "自选历史替补", "Pick a historical bench player"),
+      desc: TL(lang, "从当季替补池里选一个人，你就是他", "Choose someone from this season's bench — you are him"),
     },
     {
       id: "fictional",
-      title: L(lang, "自选虚构新秀", "Pick a fictional rookie"),
-      desc: L(lang, "原创身份，从训练营打起", "An original identity, starting at camp"),
+      title: TL(lang, "自选虚构新秀", "Pick a fictional rookie"),
+      desc: TL(lang, "原创身份，从训练营打起", "An original identity, starting at camp"),
     },
   ]
     .map(
@@ -190,25 +190,25 @@ export function creationHtml({
       })
       .join("");
     listHtml =
-      `<section class="reborn-create-list"><h3>${destiny === "historical" ? L(lang, "当季替补池", "This season's bench pool") : L(lang, "训练营新秀", "Camp rookies")}</h3>`
-      + `<p>${L(lang, `共 ${list.length} 人`, `${list.length} players`)}</p>`
+      `<section class="reborn-create-list"><h3>${destiny === "historical" ? TL(lang, "当季替补池", "This season's bench pool") : TL(lang, "训练营新秀", "Camp rookies")}</h3>`
+      + `<p>${TL(lang, `共 ${list.length} 人`, `${list.length} players`)}</p>`
       + `<div class="reborn-create-list-body">${rowsHtml}</div></section>`;
   }
 
   const canConfirm = destiny === "random" || !!pickedBref;
   const confirmLabel =
     destiny === "random"
-      ? L(lang, "抽取命运，进入训练营", "Draw your destiny, enter camp")
-      : L(lang, "以这个身份进入训练营", "Enter camp as this player");
+      ? TL(lang, "抽取命运，进入训练营", "Draw your destiny, enter camp")
+      : TL(lang, "以这个身份进入训练营", "Enter camp as this player");
   const eraNote = ERA_BACKGROUND[startYear] ? ERA_BACKGROUND[startYear][zh ? "zh" : "en"] : "";
   return `<section class="reborn-create">
-    <h3>${L(lang, "创建球员生涯", "Create your player career")}</h3>
-    <section class="reborn-create-era"><h4>${L(lang, "起始赛季", "Starting season")}</h4>
+    <h3>${TL(lang, "创建球员生涯", "Create your player career")}</h3>
+    <section class="reborn-create-era"><h4>${TL(lang, "起始赛季", "Starting season")}</h4>
       <div class="reborn-create-years">${yearButtons}</div>
       <p>${eraNote}</p>
-      <p class="reborn-create-note">${L(lang, "更多历史年代即将推出。", "More historical eras coming soon.")}</p>
+      <p class="reborn-create-note">${TL(lang, "更多历史年代即将推出。", "More historical eras coming soon.")}</p>
     </section>
-    <section class="reborn-create-destiny"><h4>${L(lang, "命运", "Destiny")}</h4>
+    <section class="reborn-create-destiny"><h4>${TL(lang, "命运", "Destiny")}</h4>
       <div class="reborn-create-destinies">${destinyButtons}</div>
     </section>
     ${listHtml}

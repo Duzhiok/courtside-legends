@@ -11,9 +11,9 @@ import {
 } from "../../career/finance.js";
 import { ASSET_LABELS_EN, HOUSE_LABELS_EN } from "./copy.js";
 import { $ } from "./dom.js";
-import { tr } from "./format.js";
 import { paintFinance, paintKpis } from "./paint.js";
 import { kpiModel } from "./viewModel.js";
+import { TL } from "../../i18n.js";
 
 export function financeModel(root, l) {
   const coach = ensureCoachProfile(root);
@@ -62,14 +62,14 @@ export function createFinanceCard({ lang, commit, currentRootState }) {
   function wire() {
     $("#time-travel-house-list")?.addEventListener("click", (event) => {
       const id = event.target.closest("[data-house]")?.dataset.house;
-      if (id) financeAction((coach) => buyHouse(coach, id), tr(lang(), "无法买这套房子", "Couldn't buy that home"));
+      if (id) financeAction((coach) => buyHouse(coach, id), TL(lang(), "无法买这套房子", "Couldn't buy that home"));
     });
     $("#time-travel-invest-list")?.addEventListener("click", (event) => {
       const id = event.target.closest("[data-asset]")?.dataset.asset;
       if (id) {
         financeAction(
           (coach, root) => placeInvestment(coach, id, INVESTMENT_STAKE, root.leagueCareer?.season?.year),
-          tr(lang(), "无法完成这笔投资", "Couldn't place that investment"),
+          TL(lang(), "无法完成这笔投资", "Couldn't place that investment"),
         );
       }
     });

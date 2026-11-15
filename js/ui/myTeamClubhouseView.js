@@ -11,7 +11,7 @@
  */
 import { overall } from "../data/players.js";
 import { photoImg } from "../data/photo.js";
-import { skillNameL } from "../i18n.js";
+import { TL, skillNameL } from "../i18n.js";
 import { SKILL_PACKS, poolRoleLine } from "../data/skills.js";
 import { playerSlotPos } from "../engine/gameplan.js";
 import { myTeamHistory } from "./myWorldView.js";
@@ -20,7 +20,7 @@ import { subAttrChipsHtml } from "./rotationBoard.js";
 import { recordLineup } from "../myteam/seasonRecord.js";
 import { reportHtml } from "./myTeamReportView.js";
 import { issueText } from "./myTeamLineupView.js";
-import { esc, T, displayName } from "./myTeamViewKit.js";
+import { esc, displayName } from "./myTeamViewKit.js";
 import { courtHtml } from "./myTeamCourtView.js";
 import { honoursHtml } from "./myTeamHonoursView.js";
 
@@ -59,15 +59,15 @@ export function cardSkillNames(card, lang = "zh") {
 /** The one thing to do next, from the real state: continue a live season, fix a lineup that can't play, or play on. */
 function heroAction(s, resume, lang) {
   if (resume || (s.season && !s.season.finished)) {
-    return { act: "resume-season", label: T(lang, "继续我的赛季", "Continue my season"), sub: resume || "" };
+    return { act: "resume-season", label: TL(lang, "继续我的赛季", "Continue my season"), sub: resume || "" };
   }
-  if (!s.validation.eligible) return { act: "edit-lineup", label: T(lang, "去补齐阵容", "Fix the lineup"), sub: "" };
+  if (!s.validation.eligible) return { act: "edit-lineup", label: TL(lang, "去补齐阵容", "Fix the lineup"), sub: "" };
   const full = s.latest?.variant === "full";
-  const len = full ? T(lang, "82 场", "82 games") : T(lang, "20 场", "20 games");
+  const len = full ? TL(lang, "82 场", "82 games") : TL(lang, "20 场", "20 games");
   const first = !s.latest && !s.season?.finished;
   return {
     act: full ? "start-full" : "start-quick",
-    label: first ? T(lang, `开始我的第一个赛季 · ${len}`, `Start my first season · ${len}`) : T(lang, `再来一季 · ${len}`, `Play another season · ${len}`),
+    label: first ? TL(lang, `开始我的第一个赛季 · ${len}`, `Start my first season · ${len}`) : TL(lang, `再来一季 · ${len}`, `Play another season · ${len}`),
     sub: "",
   };
 }
@@ -80,34 +80,34 @@ function featuredPlayer(s, lang) {
   const five = s.latest?.champion ? recordLineup(s.latest) : [];
   if (five.length) {
     const top = [...five].sort((a, b) => b.ovr - a.ovr)[0];
-    return { player: { id: top.id, bref: top.bref, name: top.name, nameEn: top.nameEn, season: top.season, team: top.team }, ovr: top.ovr, tag: T(lang, "冠军核心", "Title core") };
+    return { player: { id: top.id, bref: top.bref, name: top.name, nameEn: top.nameEn, season: top.season, team: top.team }, ovr: top.ovr, tag: TL(lang, "冠军核心", "Title core") };
   }
   const top = [...s.starters].sort((a, b) => overall(b) - overall(a))[0];
   if (!top) return null;
-  return { player: top, ovr: overall(top), tag: s.titles ? T(lang, "当前头号球星", "Top player now") : T(lang, "头号球星", "Top player") };
+  return { player: top, ovr: overall(top), tag: s.titles ? TL(lang, "当前头号球星", "Top player now") : TL(lang, "头号球星", "Top player") };
 }
 
 const TROPHY = '<svg class="mtc-trophy" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5v2a3 3 0 003 3m8-5h3v2a3 3 0 01-3 3M12 13v4m-3 3h6M10 17h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function heroHtml(s, resume, lang) {
   if (s.guest) {
-    return `<section class="mtc-hero"><div class="mtc-hero-main"><h3>${T(lang, "我的球队", "My Team")}</h3>
-      <p>${T(lang, "登录或创建账号后，才能用你的收藏组建球队、打赛季、赢冠军。", "Sign in or create an account to build a team from your collection, play seasons, and win titles.")}</p>
-      <button type="button" class="btn primary" data-act="accounts">${T(lang, "创建 / 登录账号", "Create / sign in")}</button></div></section>`;
+    return `<section class="mtc-hero"><div class="mtc-hero-main"><h3>${TL(lang, "我的球队", "My Team")}</h3>
+      <p>${TL(lang, "登录或创建账号后，才能用你的收藏组建球队、打赛季、赢冠军。", "Sign in or create an account to build a team from your collection, play seasons, and win titles.")}</p>
+      <button type="button" class="btn primary" data-act="accounts">${TL(lang, "创建 / 登录账号", "Create / sign in")}</button></div></section>`;
   }
   const act = heroAction(s, resume, lang);
   const feat = featuredPlayer(s, lang);
   const chips = [];
-  if (s.titles) chips.push(`<span class="mtc-chip mtc-chip-gold">${T(lang, "冠军 × ", "Titles × ")}<span class="mtc-titles-num">${s.titles}</span></span>`);
+  if (s.titles) chips.push(`<span class="mtc-chip mtc-chip-gold">${TL(lang, "冠军 × ", "Titles × ")}<span class="mtc-titles-num">${s.titles}</span></span>`);
   if (s.latest) {
-    chips.push(`<span class="mtc-chip">${T(lang, "最近赛季", "Latest")} ${esc(s.latest.w)}–${esc(s.latest.l)}</span>`);
-    chips.push(`<span class="mtc-chip">${s.latest.variant === "full" ? T(lang, "82 场赛制", "82-game format") : T(lang, "20 场赛制", "20-game format")}</span>`);
+    chips.push(`<span class="mtc-chip">${TL(lang, "最近赛季", "Latest")} ${esc(s.latest.w)}–${esc(s.latest.l)}</span>`);
+    chips.push(`<span class="mtc-chip">${s.latest.variant === "full" ? TL(lang, "82 场赛制", "82-game format") : TL(lang, "20 场赛制", "20-game format")}</span>`);
   }
   const lead = s.titles
-    ? `<p class="mtc-tagline">${T(lang, "你的球队，你的王朝。", "Your team. Your dynasty.")}</p>`
-    : `<p class="mtc-hero-titles is-empty">${T(lang, "还没有总冠军 — 拿下第一座，它会出现在这里。", "No championships yet — win your first and it will show up here.")}</p>`;
+    ? `<p class="mtc-tagline">${TL(lang, "你的球队，你的王朝。", "Your team. Your dynasty.")}</p>`
+    : `<p class="mtc-hero-titles is-empty">${TL(lang, "还没有总冠军 — 拿下第一座，它会出现在这里。", "No championships yet — win your first and it will show up here.")}</p>`;
   const mvp = s.season?.report?.mvp
-    ? `<p class="mtc-hero-mvp">${T(lang, "本季联赛 MVP", "League MVP this season")}：<strong>${esc(s.season.report.mvp.name)}</strong>${s.season.report.mvp.mine ? ` <em>${T(lang, "（是你的球员！）", "(your player!)")}</em>` : ""}</p>`
+    ? `<p class="mtc-hero-mvp">${TL(lang, "本季联赛 MVP", "League MVP this season")}：<strong>${esc(s.season.report.mvp.name)}</strong>${s.season.report.mvp.mine ? ` <em>${TL(lang, "（是你的球员！）", "(your player!)")}</em>` : ""}</p>`
     : "";
   const figure = feat
     ? `<figure class="mtc-feature"><span class="mtc-feature-photo">${photoImg(feat.player, "headshot")}</span>
@@ -116,7 +116,7 @@ function heroHtml(s, resume, lang) {
   return `<section class="mtc-hero${feat ? " has-feature" : ""}">
     <div class="mtc-hero-main">
       <p class="mtc-kicker">${s.titles ? TROPHY : ""}MY TEAM · DYNASTY</p>
-      <h3>${s.titles ? T(lang, "冠军之家", "Championship Clubhouse") : T(lang, "我的球队主场", "My Team Clubhouse")}</h3>
+      <h3>${s.titles ? TL(lang, "冠军之家", "Championship Clubhouse") : TL(lang, "我的球队主场", "My Team Clubhouse")}</h3>
       ${lead}
       ${chips.length ? `<p class="mtc-chips">${chips.join("")}</p>` : ""}
       ${mvp}
@@ -138,10 +138,10 @@ function swapPickerHtml(s, swapFor, lang) {
       <span class="mtc-pick-name"><strong>${esc(name)}</strong><small>${esc(playerSlotPos(card))} · OVR ${overall(card)}</small></span>
     </button></li>`;
   }).join("");
-  return `<section class="mtc-card mtc-picker" aria-label="${T(lang, "换人", "Swap player")}">
-    <h3>${T(lang, `换下 ${outName}，换上谁？`, `Replace ${outName} with whom?`)}</h3>
-    ${rows ? `<ul class="mtc-pick-list">${rows}</ul>` : `<p class="mtc-empty">${T(lang, "没有替补可换。", "No bench players to swap in.")}</p>`}
-    <div class="btn-row"><button type="button" class="btn small ghost" data-act="cancel-swap">${T(lang, "取消", "Cancel")}</button></div>
+  return `<section class="mtc-card mtc-picker" aria-label="${TL(lang, "换人", "Swap player")}">
+    <h3>${TL(lang, `换下 ${outName}，换上谁？`, `Replace ${outName} with whom?`)}</h3>
+    ${rows ? `<ul class="mtc-pick-list">${rows}</ul>` : `<p class="mtc-empty">${TL(lang, "没有替补可换。", "No bench players to swap in.")}</p>`}
+    <div class="btn-row"><button type="button" class="btn small ghost" data-act="cancel-swap">${TL(lang, "取消", "Cancel")}</button></div>
   </section>`;
 }
 
@@ -164,37 +164,37 @@ function wallHtml(s, lang) {
   const shown = s.cards.slice(0, SHOWN);
   const body = s.cards.length
     ? `<ul class="mtc-wall">${shown.map((c) => wallCardHtml(c, lang)).join("")}</ul>
-       <p class="tiny mtc-note">${T(lang, `共 ${s.cards.length} 张球员卡`, `${s.cards.length} cards in your collection`)}${s.cards.length > SHOWN ? T(lang, ` · 展示最强的 ${SHOWN} 张`, ` · showing the strongest ${SHOWN}`) : ""}</p>
-       <div class="btn-row"><button type="button" class="btn small ghost" data-act="open-collection">${T(lang, "打开完整收藏", "Open full collection")}</button></div>`
-    : `<p class="mtc-empty">${T(lang, "还没有球员卡。先去抽卡，抽到的球员会出现在这里。", "You have no player cards yet. Draw some and they will appear here.")}</p>`;
-  return `<section class="mtc-card"><h3>${T(lang, "收藏卡墙", "Collection Wall")}</h3>${body}</section>`;
+       <p class="tiny mtc-note">${TL(lang, `共 ${s.cards.length} 张球员卡`, `${s.cards.length} cards in your collection`)}${s.cards.length > SHOWN ? TL(lang, ` · 展示最强的 ${SHOWN} 张`, ` · showing the strongest ${SHOWN}`) : ""}</p>
+       <div class="btn-row"><button type="button" class="btn small ghost" data-act="open-collection">${TL(lang, "打开完整收藏", "Open full collection")}</button></div>`
+    : `<p class="mtc-empty">${TL(lang, "还没有球员卡。先去抽卡，抽到的球员会出现在这里。", "You have no player cards yet. Draw some and they will appear here.")}</p>`;
+  return `<section class="mtc-card"><h3>${TL(lang, "收藏卡墙", "Collection Wall")}</h3>${body}</section>`;
 }
 
 function seasonCenterHtml(s, resume, lang) {
   const season = s.season;
   const startBtns = (disabled) => `<div class="btn-row">
-      <button type="button" class="btn primary" data-act="start-quick" ${disabled ? "disabled" : ""}>${T(lang, "快速赛季 · 20 场", "Quick season · 20 games")}</button>
-      <button type="button" class="btn" data-act="start-full" ${disabled ? "disabled" : ""}>${T(lang, "完整赛季 · 82 场", "Full season · 82 games")}</button>
+      <button type="button" class="btn primary" data-act="start-quick" ${disabled ? "disabled" : ""}>${TL(lang, "快速赛季 · 20 场", "Quick season · 20 games")}</button>
+      <button type="button" class="btn" data-act="start-full" ${disabled ? "disabled" : ""}>${TL(lang, "完整赛季 · 82 场", "Full season · 82 games")}</button>
     </div>`;
   const blocking = s.validation.issues.filter((i) => i.level === "block");
   if (!season) {
-    return `<section class="mtc-card"><h3>${T(lang, "赛季中心", "Season Center")}</h3>
+    return `<section class="mtc-card"><h3>${TL(lang, "赛季中心", "Season Center")}</h3>
       ${s.validation.eligible
-        ? `<p class="mtc-note">${T(lang, "阵容已就绪，可以开赛。", "Your lineup is ready — start a season.")}</p>${startBtns(false)}`
-        : `<p class="mtc-note">${T(lang, "阵容还不能开赛季：", "Your lineup isn't ready for a season yet:")}</p>
+        ? `<p class="mtc-note">${TL(lang, "阵容已就绪，可以开赛。", "Your lineup is ready — start a season.")}</p>${startBtns(false)}`
+        : `<p class="mtc-note">${TL(lang, "阵容还不能开赛季：", "Your lineup isn't ready for a season yet:")}</p>
            <ul class="mtl-issues">${blocking.map((i) => `<li class="${i.level}">${esc(issueText(i, lang))}</li>`).join("")}</ul>
-           <div class="btn-row"><button type="button" class="btn small" data-act="edit-lineup">${T(lang, "去补齐阵容", "Fix the lineup")}</button></div>`}
+           <div class="btn-row"><button type="button" class="btn small" data-act="edit-lineup">${TL(lang, "去补齐阵容", "Fix the lineup")}</button></div>`}
     </section>`;
   }
   const report = season.report ? reportHtml({ report: season.report, gold: season.gold, lang }) : "";
   if (season.finished) {
-    return `<section class="mtc-card"><h3>${T(lang, "赛季中心", "Season Center")}</h3>
+    return `<section class="mtc-card"><h3>${TL(lang, "赛季中心", "Season Center")}</h3>
       ${report}
-      <p class="mtc-note">${T(lang, "上个赛季已结束，战绩已记入荣誉室。再来一季？", "The last season is over and recorded in the Honours Room. Play another?")}</p>
+      <p class="mtc-note">${TL(lang, "上个赛季已结束，战绩已记入荣誉室。再来一季？", "The last season is over and recorded in the Honours Room. Play another?")}</p>
       ${startBtns(!s.validation.eligible)}
     </section>`;
   }
-  return `<section class="mtc-card"><h3>${T(lang, "赛季中心", "Season Center")}</h3>
+  return `<section class="mtc-card"><h3>${TL(lang, "赛季中心", "Season Center")}</h3>
     ${resume ? `<p class="mtc-note"><strong>${esc(resume)}</strong></p>` : ""}
     ${report}
   </section>`;

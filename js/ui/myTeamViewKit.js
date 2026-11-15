@@ -1,8 +1,8 @@
 /** Small helpers shared by the My Team clubhouse views. Pure, no DOM. */
 import { esc } from "../core/html.js";
+import { TL } from "../i18n.js";
 export { esc };
 
-export const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 /**
  * A player's name as it should be drawn. NFC-normalised: some roster names are stored decomposed ("Jokic" + a combining

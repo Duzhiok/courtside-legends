@@ -10,7 +10,8 @@ import { addImages, browserImageDeps, replaceImage } from "../data/feedbackImage
 import { setVideo } from "../data/feedbackVideo.js";
 import { moduleForScreen } from "../data/feedbackContext.js";
 import { getFeedbackTransport } from "../data/feedbackTransport.js";
-import { T, attachCountText, attachReasonText, feedbackTemplate, mediaListHtml, notePlaceholder, playerVoiceHtml, ratingStateText } from "./playerVoiceView.js";
+import { attachCountText, attachReasonText, feedbackTemplate, mediaListHtml, notePlaceholder, playerVoiceHtml, ratingStateText } from "./playerVoiceView.js";
+import { TL } from "../i18n.js";
 
 const isVideo = (a) => a.kind === "video";
 const videoLike = (f) => /^video\//.test(f?.type || "") || /\.(mp4|webm|mov|m4v)$/i.test(f?.name || "");
@@ -43,7 +44,7 @@ export function createPlayerVoice({
 
   const q = (sel) => dlg?.querySelector(sel);
   const say = (node, zh, en) => {
-    if (node) node.textContent = T(getLang(), zh, en);
+    if (node) node.textContent = TL(getLang(), zh, en);
   };
 
   // ---------------------------------------------------------------- draft (text, type, module, rating)
@@ -141,8 +142,8 @@ export function createPlayerVoice({
       const saved = await writeAttachments(who(), attachments, attachmentBackend);
       busy = false;
       paintMedia();
-      const why = (r) => (r.reason === "limit" && r.kind === "video" ? T(lang, "只能附 1 段视频", "Only 1 video can be attached") : attachReasonText(r.reason, lang, r.kind));
-      const bad = rejected.slice(0, 3).map((r) => `${r.name || "?"}: ${why(r)}`).join(T(lang, "；", "; "));
+      const why = (r) => (r.reason === "limit" && r.kind === "video" ? TL(lang, "只能附 1 段视频", "Only 1 video can be attached") : attachReasonText(r.reason, lang, r.kind));
+      const bad = rejected.slice(0, 3).map((r) => `${r.name || "?"}: ${why(r)}`).join(TL(lang, "；", "; "));
       const nImg = attachments.filter((a) => !isVideo(a)).length;
       if (!saved && attachments.length) say(status, `${bad ? `${bad}。` : ""}这台设备不允许保存附件草稿，刷新页面后附件会丢失。`, `${bad ? `${bad}. ` : ""}This device can't save the attachment draft; the files will be lost on refresh.`);
       else if (rejected.length) say(status, `有文件没加上：${bad}${rejected.length > 3 ? ` 等 ${rejected.length} 个` : ""}`, `Some files were not added: ${bad}${rejected.length > 3 ? ` (+${rejected.length - 3} more)` : ""}`);

@@ -31,6 +31,7 @@
  * when an event fires.
  */
 import { esc } from "../core/html.js";
+import { TL } from "../i18n.js";
 
 export const MATCH_EVENT_FAMILIES = ["takeover", "weakness", "foulTrouble"];
 export const MATCH_EVENT_SEVERITIES = ["info", "decision"];
@@ -46,7 +47,6 @@ const pick = (pair, lang) => {
   if (typeof pair === "string") return pair;
   return lang === "en" ? pair.en || pair.zh || "" : pair.zh || pair.en || "";
 };
-const L = (lang, zh, en) => (lang === "en" ? en : zh);
 
 export function matchEventFamilyLabel(family, lang = "zh") {
   const pair = FAMILY_LABEL[family];
@@ -70,12 +70,12 @@ function contextLine(event, lang) {
   const parts = [];
   if (event.clock) parts.push(esc(event.clock));
   if (event.score) {
-    const home = esc(event.score.homeName || L(lang, "主队", "Home"));
-    const away = esc(event.score.awayName || L(lang, "客队", "Away"));
+    const home = esc(event.score.homeName || TL(lang, "主队", "Home"));
+    const away = esc(event.score.awayName || TL(lang, "客队", "Away"));
     parts.push(`${home} ${event.score.home}–${event.score.away} ${away}`);
   }
   if (event.player?.name) {
-    const fouls = Number.isFinite(event.player.fouls) ? ` · ${L(lang, `${event.player.fouls} 犯`, `${event.player.fouls} fouls`)}` : "";
+    const fouls = Number.isFinite(event.player.fouls) ? ` · ${TL(lang, `${event.player.fouls} 犯`, `${event.player.fouls} fouls`)}` : "";
     parts.push(`${esc(event.player.name)}${event.player.pos ? ` · ${esc(event.player.pos)}` : ""}${fouls}`);
   }
   return parts.join(" · ");
@@ -85,9 +85,9 @@ function choicesHtml(event, lang) {
   const choices = event.choices || [];
   if (!choices.length) return "";
   return `<div class="mev-choices">${choices.map((c) => {
-    const rec = c.recommended ? ` <small>★ ${L(lang, "推荐", "pick")}</small>` : "";
+    const rec = c.recommended ? ` <small>★ ${TL(lang, "推荐", "pick")}</small>` : "";
     const isDefault = event.defaultChoiceId && c.id === event.defaultChoiceId;
-    const def = isDefault ? ` <small>(${L(lang, "默认", "default")})</small>` : "";
+    const def = isDefault ? ` <small>(${TL(lang, "默认", "default")})</small>` : "";
     const why = c.disabled && c.disabledReason ? `<span class="mev-why">${esc(pick(c.disabledReason, lang))}</span>` : "";
     return `<button type="button" class="mev-choice${c.recommended ? " rec" : ""}" data-choice="${esc(c.id)}" ${c.disabled ? "disabled" : ""}>
       <b>${esc(pick(c.label, lang))}${rec}${def}</b>
@@ -110,7 +110,7 @@ export function matchEventToastHtml(event, lang = "zh") {
   return `<div class="mev-toast mev-fam-${esc(event.family)}" data-event-id="${esc(event.id)}" role="status">
     <b>${esc(matchEventFamilyLabel(event.family, lang))}</b>
     <span>${esc(pick(event.title, lang))}</span>
-    <button type="button" class="mev-dismiss" data-act="mev-dismiss" aria-label="${L(lang, "关闭", "Dismiss")}">×</button>
+    <button type="button" class="mev-dismiss" data-act="mev-dismiss" aria-label="${TL(lang, "关闭", "Dismiss")}">×</button>
   </div>`;
 }
 
@@ -132,7 +132,7 @@ export function matchEventCardHtml(event, lang = "zh") {
 export function matchEventSheetHtml(event, lang = "zh") {
   if (!validateMatchEvent(event).ok) return "";
   const score = event.score
-    ? `<div class="mev-sheet-score"><span>${esc(event.score.homeName || L(lang, "主队", "Home"))} <b>${event.score.home}</b></span><span class="mev-sheet-clock">${esc(event.clock || "")}</span><span><b>${event.score.away}</b> ${esc(event.score.awayName || L(lang, "客队", "Away"))}</span></div>`
+    ? `<div class="mev-sheet-score"><span>${esc(event.score.homeName || TL(lang, "主队", "Home"))} <b>${event.score.home}</b></span><span class="mev-sheet-clock">${esc(event.clock || "")}</span><span><b>${event.score.away}</b> ${esc(event.score.awayName || TL(lang, "客队", "Away"))}</span></div>`
     : "";
   return `<div class="mev-sheet mev-fam-${esc(event.family)}" data-event-id="${esc(event.id)}" role="dialog" aria-label="${esc(pick(event.title, lang))}">
     <div class="mev-sheet-handle" aria-hidden="true"></div>
@@ -142,16 +142,16 @@ export function matchEventSheetHtml(event, lang = "zh") {
       <h4>${esc(pick(event.title, lang))}</h4>
       ${bodyHtml(event, lang)}
     </div>
-    <button type="button" class="mev-dismiss" data-act="mev-dismiss" aria-label="${L(lang, "关闭", "Dismiss")}">×</button>
+    <button type="button" class="mev-dismiss" data-act="mev-dismiss" aria-label="${TL(lang, "关闭", "Dismiss")}">×</button>
   </div>`;
 }
 
 /** Decisions taken and what actually happened — one line per event, newest first. */
 export function matchEventHistoryHtml(events, lang = "zh") {
   const list = (events || []).filter(Boolean);
-  if (!list.length) return `<p class="mev-history-empty">${L(lang, "本场还没有触发事件。", "No events yet this game.")}</p>`;
+  if (!list.length) return `<p class="mev-history-empty">${TL(lang, "本场还没有触发事件。", "No events yet this game.")}</p>`;
   return `<ul class="mev-history">${list.map((e) => {
-    const decision = e.choiceLabel ? esc(e.choiceLabel) : L(lang, "已忽略", "Ignored");
+    const decision = e.choiceLabel ? esc(e.choiceLabel) : TL(lang, "已忽略", "Ignored");
     const outcome = e.outcome ? ` — ${esc(pick(e.outcome, lang))}` : "";
     return `<li class="mev-history-row mev-fam-${esc(e.family)}"><span class="mev-history-clock">${esc(e.clock || "")}</span><b>${esc(matchEventFamilyLabel(e.family, lang))}</b><span>${esc(pick(e.title, lang))}</span><span class="mev-history-decision">${decision}${outcome}</span></li>`;
   }).join("")}</ul>`;

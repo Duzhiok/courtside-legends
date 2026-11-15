@@ -9,8 +9,8 @@ import { HOME_GRID, WALL_SLOTS, isFlat } from "../../data/homeLayout.js";
 import { floorArt, wallArt } from "./isoFurniture.js";
 import { GRID as N, TILE, VIEW_H, VIEW_W, WALL_H, cupAt, faceL, footprintPoly, poly, proj, shade, slotRect, wallGroup, wallX } from "./isoGeometry.js";
 import { esc } from "../../core/html.js";
+import { TL } from "../../i18n.js";
 
-const T = (lang, zh, en) => (lang === "en" ? en : zh);
 const WALL = "#f1e6cf";
 const GREEN = "#1f4a35";
 const GOLD = "#d6b25a";
@@ -51,7 +51,7 @@ function collectionWall(cards, lang, uid) {
     if (card) {
       out += `<clipPath id="mh-f${uid}-${i}"><rect x="${x + 3}" y="${y + 3}" width="${TILE - 6}" height="50"/></clipPath><image href="${esc(photoUrl(card))}" x="${x + 3}" y="${y + 3}" width="${TILE - 6}" height="50" preserveAspectRatio="xMidYMid slice" clip-path="url(#mh-f${uid}-${i})"><title>${esc(card.name)}</title></image>`;
     } else {
-      out += `<title>${esc(T(lang, "空相框", "Empty frame"))}</title><circle cx="${x + TILE / 2}" cy="${y + 22}" r="7" fill="#c9b896"/><path d="M${x + 9} ${y + 50}c0-10 6-15 11-15s11 5 11 15z" fill="#c9b896"/>`;
+      out += `<title>${esc(TL(lang, "空相框", "Empty frame"))}</title><circle cx="${x + TILE / 2}" cy="${y + 22}" r="7" fill="#c9b896"/><path d="M${x + 9} ${y + 50}c0-10 6-15 11-15s11 5 11 15z" fill="#c9b896"/>`;
     }
     out += `<rect x="${x + 6}" y="${y + 60}" width="${TILE - 12}" height="4" rx="1" fill="${GOLD}"/>`;
   }
@@ -66,7 +66,7 @@ function trophyShelf(count, lang) {
   let out = `<rect x="${x0}" y="${y}" width="${x1 - x0}" height="6" rx="2" fill="#6b4a2b" stroke="#1b1b1b" stroke-width=".8"/><path d="M${x0 + 8} ${y + 6}l-5 12M${x1 - 8} ${y + 6}l5 12" stroke="#6b4a2b" stroke-width="3"/>`;
   const shown = Math.min(count, 5);
   for (let i = 0; i < shown; i++) out += `<g class="mh-cup">${cupAt(x0 + 16 + i * ((x1 - x0 - 32) / Math.max(shown - 1, 1) || 0), y - 1, 1.15)}</g>`;
-  if (!count) out += `<text x="${(x0 + x1) / 2}" y="${y - 10}" text-anchor="middle" font-size="12" font-weight="600" fill="#8a6a3a">${esc(T(lang, "奖杯架还空着", "Trophy shelf is empty"))}</text>`;
+  if (!count) out += `<text x="${(x0 + x1) / 2}" y="${y - 10}" text-anchor="middle" font-size="12" font-weight="600" fill="#8a6a3a">${esc(TL(lang, "奖杯架还空着", "Trophy shelf is empty"))}</text>`;
   else if (count > 5) out += `<text x="${x1 - 6}" y="${y - 14}" text-anchor="end" font-size="13" font-weight="700" fill="#8a6a1f">×${count}</text>`;
   return wallGroup("right", out, "mh-trophies");
 }
@@ -119,7 +119,7 @@ export function renderIsoRoom({ placed = [], trophyCount = 0, cards = [], portra
     wallPieces.map((p) => wallGroup(WALL_SLOTS[p.slot].side, wallArt(p.id, slotRect(WALL_SLOTS[p.slot])))).join("") +
     floor() +
     floorPieces.map((p) => floorArt(p.id, p.x, p.y, p.rot, ctx)).join("") +
-    podium({ portrait, name: name || T(lang, "访客球员", "Guest player") }, uid) +
+    podium({ portrait, name: name || TL(lang, "访客球员", "Guest player") }, uid) +
     (interactive ? hitAreas(selectedId, byId) : "");
-  return `<svg class="mh-room-svg${interactive ? " is-interactive" : ""}" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" aria-label="${esc(label || T(lang, "我的篮球房间", "My basketball room"))}" preserveAspectRatio="xMidYMid meet">${art}</svg>`;
+  return `<svg class="mh-room-svg${interactive ? " is-interactive" : ""}" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" aria-label="${esc(label || TL(lang, "我的篮球房间", "My basketball room"))}" preserveAspectRatio="xMidYMid meet">${art}</svg>`;
 }

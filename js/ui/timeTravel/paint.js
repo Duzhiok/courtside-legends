@@ -9,7 +9,7 @@ import { stintCardHtml, verdictHtml } from "./epilogue.js";
 import { legacyTilesHtml } from "./legacy.js";
 import { finishLabel } from "../../story/endingShareCard.js";
 import { $ } from "./dom.js";
-import { esc, tr } from "./format.js";
+import { esc } from "./format.js";
 import { houseRowHtml, investRowHtml } from "./finance.js";
 import { careerHeaderHtml, teamThemeStyle, timelineHtml } from "./hq.js";
 import { icon } from "./icons.js";
@@ -18,6 +18,7 @@ import { onThinIce, teamColorsFor, teamNameFor } from "./viewModel.js";
 import {
   decadeChipsHtml, eraNote, originChipsHtml, originDeltasHtml, philosophyCardsHtml,
 } from "./wizard.js";
+import { TL } from "../../i18n.js";
 
 
 /** Re-theme the whole screen to one team (or back to neutral when there is no career). */
@@ -67,7 +68,7 @@ export function paintWizard(lang) {
   range.min = 0;
   range.max = years.length - 1;
   range.value = years.indexOf(year);
-  range.setAttribute("aria-label", tr(lang, "穿越年份", "Year to travel to"));
+  range.setAttribute("aria-label", TL(lang, "穿越年份", "Year to travel to"));
   range.setAttribute("aria-valuetext", String(year));
   $("#tt-year-readout").textContent = year;
   $("#tt-era-note").textContent = eraNote(year, lang);
@@ -76,21 +77,21 @@ export function paintWizard(lang) {
   const origins = listCoachOrigins();
   const origin = coachOrigin(originSelect.value);
   $("#tt-origin-chips").innerHTML = originChipsHtml(origins, origin.id, lang);
-  $("#time-travel-origin-desc").textContent = tr(lang, origin.description, origin.descriptionEn);
+  $("#time-travel-origin-desc").textContent = TL(lang, origin.description, origin.descriptionEn);
   $("#tt-origin-deltas").innerHTML = originDeltasHtml(origin, lang);
   const philosophyLabel = philosophySelect.selectedOptions[0]?.textContent ?? "";
-  $("#tt-wizard-summary").textContent = tr(
+  $("#tt-wizard-summary").textContent = TL(
     lang,
     `${year} 年 · ${philosophyLabel} · ${origin.label}`,
     `${year} · ${philosophyLabel} · ${origin.labelEn}`,
   );
-  $("#btn-time-travel-interview").textContent = tr(lang, "参加球队面试", "Go to the interviews");
+  $("#btn-time-travel-interview").textContent = TL(lang, "参加球队面试", "Go to the interviews");
 }
 
 /** coach + housing/investment rows. `model` is built by screen.js from the real finance module. */
 export function paintFinance(model, lang) {
-  $("#tt-finance-title").innerHTML = `${icon("coin", { size: 18 })}<h3>${esc(tr(lang, "个人财务", "Personal finance"))}</h3>`;
-  $("#time-travel-finance-summary").textContent = tr(
+  $("#tt-finance-title").innerHTML = `${icon("coin", { size: 18 })}<h3>${esc(TL(lang, "个人财务", "Personal finance"))}</h3>`;
+  $("#time-travel-finance-summary").textContent = TL(
     lang,
     `现金 ¤${model.cash} · 年薪 ¤${model.salary} · 住房：${model.housingLabel || "暂无"}`,
     `Cash ¤${model.cash} · Salary ¤${model.salary} · Housing: ${model.housingLabel || "none"}`,
@@ -100,7 +101,7 @@ export function paintFinance(model, lang) {
   model.houses.forEach((house, index) => { houseButtons[index].dataset.house = house.id; });
   $("#time-travel-invest-list").innerHTML = model.investments.length
     ? model.investments.map((position) => investRowHtml(position, model.cash, lang)).join("")
-    : `<p class="tt-faint">${esc(tr(lang, "这个年代还没有任何可投资的资产类别。", "No asset classes exist in this era yet."))}</p>`;
+    : `<p class="tt-faint">${esc(TL(lang, "这个年代还没有任何可投资的资产类别。", "No asset classes exist in this era yet."))}</p>`;
   const investButtons = $("#time-travel-invest-list").querySelectorAll("button");
   model.investments.forEach((position, index) => { investButtons[index].dataset.asset = position.id; });
 }
@@ -114,40 +115,40 @@ export function paintGoal(root, lang) {
     return;
   }
   card.hidden = false;
-  $("#tt-goal-title").innerHTML = `${icon("flag", { size: 18 })}<h3>${esc(tr(lang, "董事会目标", "Board goal"))}</h3>`;
+  $("#tt-goal-title").innerHTML = `${icon("flag", { size: 18 })}<h3>${esc(TL(lang, "董事会目标", "Board goal"))}</h3>`;
   const warning = onThinIce(root)
-    ? `<p class="tt-goal-meta"><span class="tt-pill tt-pill-alert">${esc(tr(lang, "上季目标落空：再落空一次就会被解雇", "Missed last season — miss again and you're out"))}</span></p>`
+    ? `<p class="tt-goal-meta"><span class="tt-pill tt-pill-alert">${esc(TL(lang, "上季目标落空：再落空一次就会被解雇", "Missed last season — miss again and you're out"))}</span></p>`
     : "";
-  $("#tt-goal-body").innerHTML = `<p class="tt-goal-text">${esc(tr(lang, goal.label, goal.labelEn || goal.label))}</p>
+  $("#tt-goal-body").innerHTML = `<p class="tt-goal-text">${esc(TL(lang, goal.label, goal.labelEn || goal.label))}</p>
     <div class="tt-goal-meta">
-      <span class="tt-eff tt-eff-good"><span class="tt-eff-name">${esc(tr(lang, "达成", "Hit"))}</span><span class="tt-eff-num">${esc(tr(lang, "信任", "Trust"))} +${Math.abs(SEASON_GOAL_TRUST_BONUS)}</span></span>
-      <span class="tt-eff tt-eff-bad"><span class="tt-eff-name">${esc(tr(lang, "落空", "Miss"))}</span><span class="tt-eff-num">${esc(tr(lang, "信任", "Trust"))} −${Math.abs(SEASON_GOAL_TRUST_PENALTY)}</span></span>
+      <span class="tt-eff tt-eff-good"><span class="tt-eff-name">${esc(TL(lang, "达成", "Hit"))}</span><span class="tt-eff-num">${esc(TL(lang, "信任", "Trust"))} +${Math.abs(SEASON_GOAL_TRUST_BONUS)}</span></span>
+      <span class="tt-eff tt-eff-bad"><span class="tt-eff-name">${esc(TL(lang, "落空", "Miss"))}</span><span class="tt-eff-num">${esc(TL(lang, "信任", "Trust"))} −${Math.abs(SEASON_GOAL_TRUST_PENALTY)}</span></span>
     </div>
     ${warning}
-    <p class="tt-faint">${esc(tr(lang, `连续两季落空，或信任跌到 ${FIRING_TRUST_FLOOR} 以下，都会被解雇。`, `Two missed goals in a row — or trust below ${FIRING_TRUST_FLOOR} — gets you fired.`))}</p>`;
+    <p class="tt-faint">${esc(TL(lang, `连续两季落空，或信任跌到 ${FIRING_TRUST_FLOOR} 以下，都会被解雇。`, `Two missed goals in a row — or trust below ${FIRING_TRUST_FLOOR} — gets you fired.`))}</p>`;
 }
 
 /** Season cards + "history rewritten" diff rows (replaces the old bullet lists). */
 export function paintReport(report, lang) {
   const finish = (season) => (season.champion
-    ? `${icon("trophy", { size: 13 })}${esc(tr(lang, "夺冠", "Champions"))}`
-    : esc(season.finish ? finishLabel(season, lang) : tr(lang, "赛季进行中", "In progress")));
+    ? `${icon("trophy", { size: 13 })}${esc(TL(lang, "夺冠", "Champions"))}`
+    : esc(season.finish ? finishLabel(season, lang) : TL(lang, "赛季进行中", "In progress")));
   $("#time-travel-report-seasons").innerHTML = report.seasons.map((season) => `<li class="tt-season" data-champ="${season.champion}">
       <span class="tt-season-year">${esc(season.year)}</span>
       <span class="tt-season-rec">${season.record ? `${season.record.w}-${season.record.l}` : "—"}</span>
       <span class="tt-season-fin">${finish(season)}</span>
     </li>`).join("");
   $("#time-travel-report-list").innerHTML = report.historyChanges.length
-    ? report.historyChanges.map((change) => `<li class="tt-change"><b>${esc(change.year)}</b><span>${esc(tr(lang, "史实冠军", "Real champion"))}</span><s>${esc(change.historicalChampion)}</s><span aria-hidden="true">→</span><strong>${esc(change.currentChampion)}</strong></li>`).join("")
-    : `<li class="tt-change tt-change-empty">${esc(tr(lang, "目前还没有改写史实冠军，分叉仍在积累。", "No real-world champion rewritten yet — the fork is still building."))}</li>`;
+    ? report.historyChanges.map((change) => `<li class="tt-change"><b>${esc(change.year)}</b><span>${esc(TL(lang, "史实冠军", "Real champion"))}</span><s>${esc(change.historicalChampion)}</s><span aria-hidden="true">→</span><strong>${esc(change.currentChampion)}</strong></li>`).join("")
+    : `<li class="tt-change tt-change-empty">${esc(TL(lang, "目前还没有改写史实冠军，分叉仍在积累。", "No real-world champion rewritten yet — the fork is still building."))}</li>`;
 }
 
 /** "Retired at 61 — your call" / "Retired at 70 — the age limit". */
 function retirementNote(employment, lang) {
   const age = Number.isFinite(employment.age) ? employment.age : "";
   return employment.reason === "forced"
-    ? tr(lang, `${age} 岁，到了退休年龄，依规挂靴`, `Age ${age}: the retirement age — the whistle goes up for you`)
-    : tr(lang, `${age} 岁，自己决定挂靴`, `Age ${age}: your call to hang up the whistle`);
+    ? TL(lang, `${age} 岁，到了退休年龄，依规挂靴`, `Age ${age}: the retirement age — the whistle goes up for you`)
+    : TL(lang, `${age} 岁，自己决定挂靴`, `Age ${age}: your call to hang up the whistle`);
 }
 
 /**
@@ -161,8 +162,8 @@ export function paintEpilogue(root, report, lang, { over = true } = {}) {
   $("#tt-verdict").innerHTML = over ? verdictHtml({
     status: story.employment?.status,
     tone: tier?.tone || report.ending?.tone,
-    tierLabel: tier ? tr(lang, tier.label, tier.labelEn || tier.label) : "",
-    endingLabel: report.ending ? tr(lang, report.ending.label, report.ending.labelEn || report.ending.label) : "",
+    tierLabel: tier ? TL(lang, tier.label, tier.labelEn || tier.label) : "",
+    endingLabel: report.ending ? TL(lang, report.ending.label, report.ending.labelEn || report.ending.label) : "",
     note: retired ? retirementNote(story.employment, lang) : "",
   }, lang) : "";
   // B7: a retired career is summed up as a whole (the seasons report below only covers the last job).

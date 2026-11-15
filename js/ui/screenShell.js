@@ -26,7 +26,8 @@
  * Navigation itself stays with the app: `onBack` is whatever the app's back action is (goBack). Esc is handled
  * globally by the app and arrives at the same place.
  */
-const T = (lang, zh, en) => (lang === "en" ? en : zh);
+
+import { TL } from "../i18n.js";
 
 export const SHELL_HOSTS = Object.freeze(["app", "overlay"]);
 
@@ -34,8 +35,8 @@ const hostElement = (host, doc) => (host === "overlay" ? doc.body : doc.querySel
 
 /** The head markup: back button first, then ONE heading in the current language. Pure, so it is unit-testable. */
 export function screenHeadHtml({ id, title, lang }) {
-  const back = T(lang, "返回", "Back");
-  return `<div class="panel-head"><button class="nav-back" id="btn-${id}-back" type="button" aria-label="${back}"><span>${back}</span></button><h2 id="${id}-title" tabindex="-1">${T(lang, title.zh, title.en)}</h2></div>`;
+  const back = TL(lang, "返回", "Back");
+  return `<div class="panel-head"><button class="nav-back" id="btn-${id}-back" type="button" aria-label="${back}"><span>${back}</span></button><h2 id="${id}-title" tabindex="-1">${TL(lang, title.zh, title.en)}</h2></div>`;
 }
 
 /** A selector that finds "the same control" again after a re-render: its id, else tag + data-* attributes. */
@@ -152,10 +153,10 @@ export function mountScreen({ id, title, host = "app", variant = "screen", getLa
     relocalize() {
       const lang = getLang();
       if (variant === "screen") {
-        heading.textContent = T(lang, title.zh, title.en);
+        heading.textContent = TL(lang, title.zh, title.en);
         const back = el.querySelector(`#btn-${id}-back`);
-        back.setAttribute("aria-label", T(lang, "返回", "Back"));
-        back.querySelector("span").textContent = T(lang, "返回", "Back");
+        back.setAttribute("aria-label", TL(lang, "返回", "Back"));
+        back.querySelector("span").textContent = TL(lang, "返回", "Back");
       }
       onRelocalize?.(lang);
     },

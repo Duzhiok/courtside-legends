@@ -5,8 +5,9 @@
  */
 import { conductInterview, interviewQuestions } from "../../career/interview.js";
 import { teamNameL } from "../../i18n.js";
-import { esc, tr } from "./format.js";
+import { esc } from "./format.js";
 import { archetypeLabel } from "./offers.js";
+import { TL } from "../../i18n.js";
 
 const KEYS = "ABC";
 
@@ -19,12 +20,12 @@ const OPENERS = {
 
 function panelHtml(offer, answers, lang) {
   const questions = interviewQuestions(offer).map((question, qi) => {
-    const prompt = tr(lang, ...question.prompt);
+    const prompt = TL(lang, ...question.prompt);
     const buttons = question.answers.map((answer, ai) => {
       const on = answers[question.id] === answer.id;
       return `<button type="button" class="tt-choice tt-answer${on ? " is-selected" : ""}" role="radio" aria-checked="${on}" data-q="${esc(question.id)}" data-a="${esc(answer.id)}">
         <span class="tt-choice-key" aria-hidden="true">${KEYS[ai]}</span>
-        <span class="tt-choice-body"><strong>${esc(tr(lang, ...answer.label))}</strong></span>
+        <span class="tt-choice-body"><strong>${esc(TL(lang, ...answer.label))}</strong></span>
       </button>`;
     }).join("");
     return `<li class="tt-question">
@@ -35,18 +36,18 @@ function panelHtml(offer, answers, lang) {
   const left = interviewQuestions(offer).filter((question) => !answers[question.id]).length;
   const team = teamNameL(offer.teamName, lang);
   return `<div class="tt-interview-head">
-      <p class="tt-kicker">${esc(tr(lang, "面试", "Interview"))} · ${esc(archetypeLabel(offer.archetype, lang))}</p>
+      <p class="tt-kicker">${esc(TL(lang, "面试", "Interview"))} · ${esc(archetypeLabel(offer.archetype, lang))}</p>
       <h3>${esc(team)}</h3>
-      <p class="tt-prose">${esc(tr(lang, ...(OPENERS[offer.archetype] || OPENERS.middle)))}</p>
-      <p class="tt-faint">${esc(tr(lang, "答得契合球队的处境，开局信任更高、压力更小；答得很差可能被婉拒（最后一家不会拒你）。", "Answers that fit the club's situation start you with more trust and less pressure; a poor fit can get you turned down (the last club standing never will)."))}</p>
+      <p class="tt-prose">${esc(TL(lang, ...(OPENERS[offer.archetype] || OPENERS.middle)))}</p>
+      <p class="tt-faint">${esc(TL(lang, "答得契合球队的处境，开局信任更高、压力更小；答得很差可能被婉拒（最后一家不会拒你）。", "Answers that fit the club's situation start you with more trust and less pressure; a poor fit can get you turned down (the last club standing never will)."))}</p>
     </div>
     <ol class="tt-questions">${questions}</ol>
     <div class="tt-interview-actions">
-      <button type="button" class="tt-btn tt-btn-ghost" data-act="back">${esc(tr(lang, "换一家", "Try another club"))}</button>
-      <button type="button" class="tt-btn tt-btn-ghost" data-act="skip">${esc(tr(lang, "跳过面试，直接接受", "Skip the interview and accept"))}</button>
+      <button type="button" class="tt-btn tt-btn-ghost" data-act="back">${esc(TL(lang, "换一家", "Try another club"))}</button>
+      <button type="button" class="tt-btn tt-btn-ghost" data-act="skip">${esc(TL(lang, "跳过面试，直接接受", "Skip the interview and accept"))}</button>
       <button type="button" class="tt-btn tt-btn-primary" data-act="submit"${left ? " disabled" : ""}>${esc(left
-        ? tr(lang, `还差 ${left} 题`, `${left} to go`)
-        : tr(lang, "提交面试", "Finish the interview"))}</button>
+        ? TL(lang, `还差 ${left} 题`, `${left} to go`)
+        : TL(lang, "提交面试", "Finish the interview"))}</button>
     </div>`;
 }
 

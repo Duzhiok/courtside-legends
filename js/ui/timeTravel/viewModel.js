@@ -6,7 +6,7 @@ import { ensureCoachProfile } from "../../career/coachProfile.js";
 import { INITIAL_CONTRACT_YEARS } from "../../career/balance.js";
 import { historicalSeason } from "../../data/historicalSeasons.js";
 import { teamColors } from "../../data/teamColors.js";
-import { tr } from "./format.js";
+import { TL } from "../../i18n.js";
 
 /** Roster code for a historical team (cards use `bref || id`), then its colours. */
 export function teamColorsFor(year, teamId) {
@@ -47,10 +47,10 @@ export function hqModel(root, report, lang = "zh") {
   const lastSeason = report.seasons.at(-1);
   const status = employment.status;
   let label = "";
-  if (status === "fired") label = tr(lang, "已被解雇", "Fired");
-  else if (status === "departed") label = tr(lang, "已离任", "Departed");
-  else if (status === "retired") label = tr(lang, "已退休", "Retired");
-  else if (story.pendingDecision?.type === "contract-renewal") label = tr(lang, "续约谈判中", "Renewal talks");
+  if (status === "fired") label = TL(lang, "已被解雇", "Fired");
+  else if (status === "departed") label = TL(lang, "已离任", "Departed");
+  else if (status === "retired") label = TL(lang, "已退休", "Retired");
+  else if (story.pendingDecision?.type === "contract-renewal") label = TL(lang, "续约谈判中", "Renewal talks");
   return {
     labelTone: status === "retired" ? "gold" : "alert",
     teamId,

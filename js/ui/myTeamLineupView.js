@@ -8,24 +8,24 @@ import { MY_TEAM_RULES } from "../myteam/lineup.js";
 import { playerSlotPos } from "../engine/gameplan.js";
 import { subAttrChipsHtml } from "./rotationBoard.js";
 import { esc } from "../core/html.js";
+import { TL } from "../i18n.js";
 
 /** Plain-language text for a validation issue (or a blocked editor action). */
 export function issueText(issue, lang = "zh") {
-  const L = (zh, en) => (lang === "en" ? en : zh);
   switch (issue.code) {
-    case "guest": return L("登录或创建账号后，才能用你的收藏组建 My Team 球队。", "Sign in or create an account to build a My Team lineup from your collection.");
-    case "not_owned": return L("名单里有不属于你收藏的球员卡。", "The roster contains cards that are not in your collection.");
-    case "duplicate_person": return L("同一位球员只能选一张赛季卡。", "Only one season card per player.");
-    case "roster_small": return L(`名单还差 ${issue.min - issue.have} 人（至少 ${issue.min} 人才能开赛季，现有 ${issue.have}）。`, `Add ${issue.min - issue.have} more (a season needs at least ${issue.min}; you have ${issue.have}).`);
-    case "roster_large": return L(`名单最多 ${issue.max} 人，现有 ${issue.have}。`, `At most ${issue.max} players; you have ${issue.have}.`);
-    case "starters_count": return L(`需要正好 ${issue.need} 名首发，现有 ${issue.have}。`, `Exactly ${issue.need} starters needed; you have ${issue.have}.`);
-    case "starter_not_in_roster": return L("有首发不在名单内。", "A starter is not on the roster.");
-    case "coach_not_owned": return L("当前教练不在你的收藏里，请到收藏页重新选择教练。", "The selected coach is not in your collection; pick a coach in the collection.");
-    case "position_stack": return L(`首发里有 ${issue.count} 人挤在 ${issue.slot}，可能不平衡（不影响开赛）。`, `${issue.count} starters share ${issue.slot}; may feel lopsided (does not block).`);
-    case "no_guard": return L("首发里没有后卫，持球和外线可能吃紧（不影响开赛）。", "No guard in the starting five; ball handling may suffer (does not block).");
-    case "roster_full": return L(`名单已满（最多 ${MY_TEAM_RULES.maxRoster} 人），先移出一人。`, `Roster is full (max ${MY_TEAM_RULES.maxRoster}); remove someone first.`);
-    case "starters_full": return L(`首发已满 ${MY_TEAM_RULES.starters} 人，先取消一人。`, `Starting five is full; unmark someone first.`);
-    case "not_on_roster": return L("先把他加入名单，才能设为首发。", "Add him to the roster before making him a starter.");
+    case "guest": return TL(lang, "登录或创建账号后，才能用你的收藏组建 My Team 球队。", "Sign in or create an account to build a My Team lineup from your collection.");
+    case "not_owned": return TL(lang, "名单里有不属于你收藏的球员卡。", "The roster contains cards that are not in your collection.");
+    case "duplicate_person": return TL(lang, "同一位球员只能选一张赛季卡。", "Only one season card per player.");
+    case "roster_small": return TL(lang, `名单还差 ${issue.min - issue.have} 人（至少 ${issue.min} 人才能开赛季，现有 ${issue.have}）。`, `Add ${issue.min - issue.have} more (a season needs at least ${issue.min}; you have ${issue.have}).`);
+    case "roster_large": return TL(lang, `名单最多 ${issue.max} 人，现有 ${issue.have}。`, `At most ${issue.max} players; you have ${issue.have}.`);
+    case "starters_count": return TL(lang, `需要正好 ${issue.need} 名首发，现有 ${issue.have}。`, `Exactly ${issue.need} starters needed; you have ${issue.have}.`);
+    case "starter_not_in_roster": return TL(lang, "有首发不在名单内。", "A starter is not on the roster.");
+    case "coach_not_owned": return TL(lang, "当前教练不在你的收藏里，请到收藏页重新选择教练。", "The selected coach is not in your collection; pick a coach in the collection.");
+    case "position_stack": return TL(lang, `首发里有 ${issue.count} 人挤在 ${issue.slot}，可能不平衡（不影响开赛）。`, `${issue.count} starters share ${issue.slot}; may feel lopsided (does not block).`);
+    case "no_guard": return TL(lang, "首发里没有后卫，持球和外线可能吃紧（不影响开赛）。", "No guard in the starting five; ball handling may suffer (does not block).");
+    case "roster_full": return TL(lang, `名单已满（最多 ${MY_TEAM_RULES.maxRoster} 人），先移出一人。`, `Roster is full (max ${MY_TEAM_RULES.maxRoster}); remove someone first.`);
+    case "starters_full": return TL(lang, `首发已满 ${MY_TEAM_RULES.starters} 人，先取消一人。`, `Starting five is full; unmark someone first.`);
+    case "not_on_roster": return TL(lang, "先把他加入名单，才能设为首发。", "Add him to the roster before making him a starter.");
     default: return "";
   }
 }
@@ -51,18 +51,18 @@ function rowHtml(card, { inRoster, isStarter, lang }) {
 }
 
 /** Start / continue a My Team season. Starting reads the SAVED lineup, so unsaved edits must be saved first. */
-function seasonPanel({ eligible, dirty, resume, L }) {
+function seasonPanel({ eligible, dirty, resume, lang }) {
   const can = eligible && !dirty;
-  const hint = !eligible ? "" : dirty ? L("先点「保存阵容」，赛季会使用已保存的阵容。", "Save the lineup first: a season uses the saved lineup.") : "";
+  const hint = !eligible ? "" : dirty ? TL(lang, "先点「保存阵容」，赛季会使用已保存的阵容。", "Save the lineup first: a season uses the saved lineup.") : "";
   return `<div class="mtl-season">
-    <h4>${L("用这套阵容打赛季", "Play a season with this lineup")}</h4>
+    <h4>${TL(lang, "用这套阵容打赛季", "Play a season with this lineup")}</h4>
     <div class="mtl-actions">
-      <button type="button" class="btn primary" data-act="start-quick" ${can ? "" : "disabled"}>${L("快速赛季 · 20 场", "Quick season · 20 games")}</button>
-      <button type="button" class="btn" data-act="start-full" ${can ? "" : "disabled"}>${L("完整赛季 · 82 场", "Full season · 82 games")}</button>
-      ${resume ? `<button type="button" class="btn continue" data-act="resume-season"><span>${L("继续我的赛季", "Continue my season")}</span><small class="mtl-resume-meta">${esc(resume)}</small></button>` : ""}
+      <button type="button" class="btn primary" data-act="start-quick" ${can ? "" : "disabled"}>${TL(lang, "快速赛季 · 20 场", "Quick season · 20 games")}</button>
+      <button type="button" class="btn" data-act="start-full" ${can ? "" : "disabled"}>${TL(lang, "完整赛季 · 82 场", "Full season · 82 games")}</button>
+      ${resume ? `<button type="button" class="btn continue" data-act="resume-season"><span>${TL(lang, "继续我的赛季", "Continue my season")}</span><small class="mtl-resume-meta">${esc(resume)}</small></button>` : ""}
     </div>
     ${hint ? `<p class="tiny mtl-note">${esc(hint)}</p>` : ""}
-    <p class="tiny mtl-note">${L("开赛后阵容锁定；之后抽到或升级的卡不影响进行中的赛季。", "The lineup locks once the season starts; cards you pull or upgrade later don't affect it.")}</p>
+    <p class="tiny mtl-note">${TL(lang, "开赛后阵容锁定；之后抽到或升级的卡不影响进行中的赛季。", "The lineup locks once the season starts; cards you pull or upgrade later don't affect it.")}</p>
   </div>`;
 }
 
@@ -80,15 +80,14 @@ function seasonPanel({ eligible, dirty, resume, L }) {
  * @param {string|null} [p.resume]         label of this player's My Team season in progress (shows Continue)
  */
 export function myTeamLineupHtml({ lang = "zh", account, cards = [], draft, validation, source = "auto", dirty = false, hasSaved = false, notice = "", resume = null }) {
-  const L = (zh, en) => (lang === "en" ? en : zh);
   if (!account) {
-    return `<section class="mtl-guest"><h3>${L("我的阵容", "My lineup")}</h3>
+    return `<section class="mtl-guest"><h3>${TL(lang, "我的阵容", "My lineup")}</h3>
       <p>${esc(issueText({ code: "guest" }, lang))}</p>
-      <button type="button" class="btn primary" data-act="accounts">${L("创建 / 登录账号", "Create / sign in")}</button></section>`;
+      <button type="button" class="btn primary" data-act="accounts">${TL(lang, "创建 / 登录账号", "Create / sign in")}</button></section>`;
   }
   if (!cards.length) {
-    return `<section class="mtl-empty"><h3>${L("我的阵容", "My lineup")}</h3>
-      <p>${L("你还没有球员卡。先去抽卡，抽到的球员会出现在这里。", "You have no player cards yet. Draw some and they will appear here.")}</p></section>`;
+    return `<section class="mtl-empty"><h3>${TL(lang, "我的阵容", "My lineup")}</h3>
+      <p>${TL(lang, "你还没有球员卡。先去抽卡，抽到的球员会出现在这里。", "You have no player cards yet. Draw some and they will appear here.")}</p></section>`;
   }
   const inRoster = new Set(draft.rosterIds);
   const starters = new Set(draft.starterIds);
@@ -96,23 +95,23 @@ export function myTeamLineupHtml({ lang = "zh", account, cards = [], draft, vali
   const blocking = issues.filter((i) => i.level === "block");
   const warns = issues.filter((i) => i.level === "warn");
   const status = eligible
-    ? `<p class="mtl-status ok" role="status">${L("✓ 这份阵容可以开赛季", "✓ This lineup is ready for a season")}</p>`
-    : `<p class="mtl-status todo" role="status">${L("还不能开赛季，但可以继续编辑和保存：", "Not ready for a season yet, but you can keep editing and saving:")}</p>`;
+    ? `<p class="mtl-status ok" role="status">${TL(lang, "✓ 这份阵容可以开赛季", "✓ This lineup is ready for a season")}</p>`
+    : `<p class="mtl-status todo" role="status">${TL(lang, "还不能开赛季，但可以继续编辑和保存：", "Not ready for a season yet, but you can keep editing and saving:")}</p>`;
   const list = (items) => (items.length ? `<ul class="mtl-issues">${items.map((i) => `<li class="${i.level}">${esc(issueText(i, lang))}</li>`).join("")}</ul>` : "");
   const [zh, en] = SOURCE_NOTE[source] || SOURCE_NOTE.auto;
   return `<section class="mtl">
     <header class="mtl-head">
-      <div class="mtl-counts" aria-live="polite"><span>${L("名单", "Roster")} <b>${counts.roster}</b>/${MY_TEAM_RULES.maxRoster}</span><span>${L("首发", "Starters")} <b>${counts.starters}</b>/${MY_TEAM_RULES.starters}</span></div>
+      <div class="mtl-counts" aria-live="polite"><span>${TL(lang, "名单", "Roster")} <b>${counts.roster}</b>/${MY_TEAM_RULES.maxRoster}</span><span>${TL(lang, "首发", "Starters")} <b>${counts.starters}</b>/${MY_TEAM_RULES.starters}</span></div>
     </header>
-    <p class="tiny mtl-note">${L(zh, en)} ${L("点球员加入/移出名单，点星标设首发；同一球员只能选一张卡。", "Tap a player to add or remove; tap the star to start him. One card per player.")}</p>
+    <p class="tiny mtl-note">${TL(lang, zh, en)} ${TL(lang, "点球员加入/移出名单，点星标设首发；同一球员只能选一张卡。", "Tap a player to add or remove; tap the star to start him. One card per player.")}</p>
     ${status}${list(eligible ? [] : blocking)}${list(warns)}
     ${notice ? `<p class="mtl-notice" role="status">${esc(notice)}</p>` : ""}
     <div class="mtl-actions">
-      <button type="button" class="btn primary" data-act="save" ${dirty ? "" : "disabled"}>${L("保存阵容", "Save lineup")}</button>
-      <button type="button" class="btn ghost" data-act="auto">${L("自动推荐", "Auto-pick")}</button>
-      <button type="button" class="btn ghost" data-act="reset" ${hasSaved ? "" : "disabled"}>${L("恢复自动并清除保存", "Clear saved lineup")}</button>
+      <button type="button" class="btn primary" data-act="save" ${dirty ? "" : "disabled"}>${TL(lang, "保存阵容", "Save lineup")}</button>
+      <button type="button" class="btn ghost" data-act="auto">${TL(lang, "自动推荐", "Auto-pick")}</button>
+      <button type="button" class="btn ghost" data-act="reset" ${hasSaved ? "" : "disabled"}>${TL(lang, "恢复自动并清除保存", "Clear saved lineup")}</button>
     </div>
-    ${seasonPanel({ eligible, dirty, resume, L })}
+    ${seasonPanel({ eligible, dirty, resume, lang })}
     <ul class="mtl-list">${cards.map((c) => rowHtml(c, { inRoster: inRoster.has(c.id), isStarter: starters.has(c.id), lang })).join("")}</ul>
   </section>`;
 }

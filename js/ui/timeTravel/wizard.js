@@ -1,5 +1,6 @@
 import { icon } from "./icons.js";
-import { esc, tr } from "./format.js";
+import { esc } from "./format.js";
+import { TL } from "../../i18n.js";
 
 /** One-line flavour per decade, shown under the year dial. Trivia, not mechanics. */
 const ERA_NOTES = {
@@ -17,7 +18,7 @@ export const decadeOf = (year) => Math.floor(Number(year) / 10) * 10;
 
 export function eraNote(year, lang = "zh") {
   const note = ERA_NOTES[decadeOf(year)];
-  return note ? tr(lang, note[0], note[1]) : "";
+  return note ? TL(lang, note[0], note[1]) : "";
 }
 
 /** Quick-jump chips: the first available year of each decade present in `years`. */
@@ -29,7 +30,7 @@ export function decadeChipsHtml(years, selectedYear, lang = "zh") {
   const active = decadeOf(selectedYear);
   return [...firstOfDecade].map(([decade, year]) => {
     const on = decade === active;
-    return `<button type="button" class="tt-chip${on ? " is-on" : ""}" data-decade-year="${year}" aria-pressed="${on}">${esc(tr(lang, `${decade}年代`, `${decade}s`))}</button>`;
+    return `<button type="button" class="tt-chip${on ? " is-on" : ""}" data-decade-year="${year}" aria-pressed="${on}">${esc(TL(lang, `${decade}年代`, `${decade}s`))}</button>`;
   }).join("");
 }
 
@@ -49,7 +50,7 @@ export function philosophyCardsHtml(selected, lang = "zh") {
     const on = p.id === selected;
     return `<button type="button" class="tt-pick${on ? " is-on" : ""}" role="radio" aria-checked="${on}" data-philosophy="${p.id}">
       <span class="tt-pick-ico">${icon(p.ico, { size: 20 })}</span>
-      <span class="tt-pick-text"><strong>${esc(tr(lang, p.zh, p.en))}</strong><span>${esc(tr(lang, p.blurbZh, p.blurbEn))}</span></span>
+      <span class="tt-pick-text"><strong>${esc(TL(lang, p.zh, p.en))}</strong><span>${esc(TL(lang, p.blurbZh, p.blurbEn))}</span></span>
     </button>`;
   }).join("");
 }
@@ -59,10 +60,10 @@ const SIGNED = (n) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)}`;
 /** Origin tweaks are real, exact numbers (unlike story choices), so show them as they are. */
 export function originDeltasHtml(origin, lang = "zh") {
   const rows = [
-    ["reputationDelta", tr(lang, "声望", "Reputation"), 1],
-    ["trustDelta", tr(lang, "信任", "Trust"), 1],
-    ["authorityDelta", tr(lang, "权限", "Authority"), 1],
-    ["pressureDelta", tr(lang, "压力", "Pressure"), -1],
+    ["reputationDelta", TL(lang, "声望", "Reputation"), 1],
+    ["trustDelta", TL(lang, "信任", "Trust"), 1],
+    ["authorityDelta", TL(lang, "权限", "Authority"), 1],
+    ["pressureDelta", TL(lang, "压力", "Pressure"), -1],
   ];
   const chips = rows
     .filter(([key]) => origin[key])
@@ -72,12 +73,12 @@ export function originDeltasHtml(origin, lang = "zh") {
     });
   return chips.length
     ? `<span class="tt-effects">${chips.join("")}</span>`
-    : `<span class="tt-faint">${esc(tr(lang, "没有任何加成或惩罚", "No bonuses or penalties"))}</span>`;
+    : `<span class="tt-faint">${esc(TL(lang, "没有任何加成或惩罚", "No bonuses or penalties"))}</span>`;
 }
 
 export function originChipsHtml(origins, selected, lang = "zh") {
   return origins.map((origin) => {
     const on = origin.id === selected;
-    return `<button type="button" class="tt-chip tt-chip-origin${on ? " is-on" : ""}" role="radio" aria-checked="${on}" data-origin="${esc(origin.id)}">${esc(tr(lang, origin.label, origin.labelEn))}</button>`;
+    return `<button type="button" class="tt-chip tt-chip-origin${on ? " is-on" : ""}" role="radio" aria-checked="${on}" data-origin="${esc(origin.id)}">${esc(TL(lang, origin.label, origin.labelEn))}</button>`;
   }).join("");
 }

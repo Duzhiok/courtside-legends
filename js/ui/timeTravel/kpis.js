@@ -1,23 +1,24 @@
 import { FIRING_TRUST_FLOOR } from "../../career/balance.js";
 import { icon } from "./icons.js";
-import { clamp, esc, gaugeTone, tr } from "./format.js";
+import { clamp, esc, gaugeTone } from "./format.js";
+import { TL } from "../../i18n.js";
 
 /** One word for each gauge so the number is never the only signal (and never colour-only). */
 export function trustWord(value, lang) {
-  if (value <= FIRING_TRUST_FLOOR) return tr(lang, "解雇边缘", "On the brink");
-  if (value >= 65) return tr(lang, "稳固", "Secure");
-  if (value >= 35) return tr(lang, "摇摆", "Wavering");
-  return tr(lang, "危险", "Danger");
+  if (value <= FIRING_TRUST_FLOOR) return TL(lang, "解雇边缘", "On the brink");
+  if (value >= 65) return TL(lang, "稳固", "Secure");
+  if (value >= 35) return TL(lang, "摇摆", "Wavering");
+  return TL(lang, "危险", "Danger");
 }
 export function pressureWord(value, lang) {
-  if (value >= 65) return tr(lang, "高压", "Intense");
-  if (value >= 35) return tr(lang, "适中", "Steady");
-  return tr(lang, "平静", "Calm");
+  if (value >= 65) return TL(lang, "高压", "Intense");
+  if (value >= 35) return TL(lang, "适中", "Steady");
+  return TL(lang, "平静", "Calm");
 }
 export function divergenceWord(value, lang) {
-  if (value >= 40) return tr(lang, "蝴蝶效应", "Butterfly effect");
-  if (value >= 15) return tr(lang, "分叉", "Forking");
-  return tr(lang, "微扰", "Ripples");
+  if (value >= 40) return TL(lang, "蝴蝶效应", "Butterfly effect");
+  if (value >= 15) return TL(lang, "分叉", "Forking");
+  return TL(lang, "微扰", "Ripples");
 }
 
 function gauge(label, value, markAt, markLabel = "") {
@@ -46,31 +47,31 @@ export function kpiStripHtml({ trust = 0, pressure = 0, divergence = 0, knowledg
   const tiles = [
     tile({
       kpi: "trust", tone: gaugeTone(trust, true), ico: "shield",
-      label: tr(lang, "管理层信任", "Front-office trust"), value: trust, word: trustWord(trust, lang),
-      gaugeHtml: gauge(tr(lang, "管理层信任", "Front-office trust"), trust, FIRING_TRUST_FLOOR, tr(lang, "解雇线", "Firing line")),
+      label: TL(lang, "管理层信任", "Front-office trust"), value: trust, word: trustWord(trust, lang),
+      gaugeHtml: gauge(TL(lang, "管理层信任", "Front-office trust"), trust, FIRING_TRUST_FLOOR, TL(lang, "解雇线", "Firing line")),
     }),
     tile({
       kpi: "pressure", tone: gaugeTone(pressure, false), ico: "flame",
-      label: tr(lang, "媒体压力", "Media pressure"), value: pressure, word: pressureWord(pressure, lang),
-      gaugeHtml: gauge(tr(lang, "媒体压力", "Media pressure"), pressure),
+      label: TL(lang, "媒体压力", "Media pressure"), value: pressure, word: pressureWord(pressure, lang),
+      gaugeHtml: gauge(TL(lang, "媒体压力", "Media pressure"), pressure),
     }),
     tile({
       kpi: "divergence", tone: "violet", ico: "branch",
-      label: tr(lang, "时间线偏离", "Timeline drift"), value: divergence, word: divergenceWord(divergence, lang),
-      gaugeHtml: gauge(tr(lang, "时间线偏离", "Timeline drift"), divergence),
+      label: TL(lang, "时间线偏离", "Timeline drift"), value: divergence, word: divergenceWord(divergence, lang),
+      gaugeHtml: gauge(TL(lang, "时间线偏离", "Timeline drift"), divergence),
     }),
     tile({
       kpi: "knowledge", tone: knowledge > 0 ? "gold" : "mid", ico: "eye",
-      label: tr(lang, "未来知识", "Foresight"), value: knowledge,
-      word: knowledge > 0 ? tr(lang, "可动用", "Available") : tr(lang, "已耗尽", "Spent"),
+      label: TL(lang, "未来知识", "Foresight"), value: knowledge,
+      word: knowledge > 0 ? TL(lang, "可动用", "Available") : TL(lang, "已耗尽", "Spent"),
       gaugeHtml: pips(knowledge),
     }),
   ];
   if (cash != null) {
     tiles.push(tile({
       kpi: "cash", tone: "gold", ico: "coin",
-      label: tr(lang, "个人现金", "Personal cash"), value: `¤${Math.round(cash)}`,
-      word: tr(lang, "可支配", "Spendable"),
+      label: TL(lang, "个人现金", "Personal cash"), value: `¤${Math.round(cash)}`,
+      word: TL(lang, "可支配", "Spendable"),
     }));
   }
   return tiles.join("");

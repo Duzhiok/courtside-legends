@@ -39,6 +39,17 @@ export function L(zh, en) {
   return getLang() === "en" ? en : zh;
 }
 
+/**
+ * Pick the string for an explicit language (same rule as L, but the caller
+ * owns `lang`). Used by pure view helpers that render for a caller-supplied
+ * language instead of the current one — e.g. `reasonText(reason, lang = "zh")`
+ * or tests that render with lang "en" while the UI language is "zh".
+ * A-P2-17: replaces the local T/tr/L copies that used to live in every view.
+ */
+export function TL(lang, zh, en) {
+  return lang === "en" ? en : zh;
+}
+
 const phraseMap = new Map(PHRASES);
 const phrasesByLength = [...PHRASES].sort((a, b) => b[0].length - a[0].length);
 

@@ -28,7 +28,6 @@ import { confirmAction } from "../confirmModal.js";
 import { $ } from "./dom.js";
 import { choiceDeckHtml, confirmBarHtml, mountDeck } from "./choices.js";
 import { paintStaticText } from "./copy.js";
-import { tr } from "./format.js";
 import { contractOfferCardHtml, interviewOfferCardHtml, jobBoardHtml } from "./offers.js";
 import { createFinanceCard } from "./financeCard.js";
 import { createPerkCard } from "./perkCard.js";
@@ -41,6 +40,7 @@ import {
   hideHq, paintEpilogue, paintGoal, paintHq, paintKpis, paintReport, paintWizard,
 } from "./paint.js";
 import { hqModel, kpiModel, teamColorsFor, teamCore } from "./viewModel.js";
+import { TL } from "../../i18n.js";
 
 /** Employment states that end a stint: no season left to coach on this career until you re-hire
  * (or, for "retired", ever: there is no job board after the last whistle). */
@@ -60,30 +60,30 @@ export function statusTextFor(message, lang) {
 
 export function careerStateNotice(story, lang = getLang()) {
   const tier = story?.ending?.narrativeTier;
-  const suffix = tier ? tr(lang, ` 成绩评级：${tier.label}。`, ` Verdict: ${tier.labelEn || tier.label}.`) : "";
+  const suffix = tier ? TL(lang, ` 成绩评级：${tier.label}。`, ` Verdict: ${tier.labelEn || tier.label}.`) : "";
   switch (story?.employment?.status) {
     case "fired":
-      return tr(
+      return TL(
         lang,
         "你被解雇了。这段执教结束，但经验、声望和积蓄都还在 — 去找下一份工作吧。",
         "You were fired. That stint is over, but your experience, reputation and savings come with you — go find the next job.",
       ) + suffix;
     case "departed":
-      return tr(
+      return TL(
         lang,
         "你带着成果离开了这支球队。经验、声望和积蓄都还在 — 去找下一份工作吧。",
         "You left the team with your results in hand. Experience, reputation and savings come with you — go find the next job.",
       ) + suffix;
     case "retired":
-      return tr(
+      return TL(
         lang,
         "你已经挂靴退休。这一生的执教生涯封存在这里，下面是完整的总评。",
         "You've retired. Your coaching career is sealed here — the full verdict is below.",
       ) + suffix;
     case "renewed":
-      return tr(lang, "续约已签署，薪资和特权已写入生涯记录。", "Contract renewed. Your salary and privileges are in the career record.") + suffix;
+      return TL(lang, "续约已签署，薪资和特权已写入生涯记录。", "Contract renewed. Your salary and privileges are in the career record.") + suffix;
     default:
-      return tr(lang, "生涯已经建立，可以继续进入赛季中心。", "Career established. Continue to the season center.");
+      return TL(lang, "生涯已经建立，可以继续进入赛季中心。", "Career established. Continue to the season center.");
   }
 }
 
@@ -230,12 +230,12 @@ export function createTimeTravelScreen({
       rejected: rejected.includes(offer.id),
       lang: l,
     })).join("");
-    zone.querySelector(".tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: tr(l, "去面试", "Go to the interview") });
+    zone.querySelector(".tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: TL(l, "去面试", "Go to the interview") });
     mountDeck(zone, {
       itemSelector: ".tt-offer:not(.tt-offer-locked):not(.tt-offer-rejected)",
       idOf: (el) => el.dataset.offerId,
       labelOf: (el) => el.dataset.team,
-      confirmText: (team) => tr(l, `去 ${team} 面试？三个问题，答得契合开局更好。`, `Interview with ${team}? Three questions; a good fit starts you stronger.`),
+      confirmText: (team) => TL(l, `去 ${team} 面试？三个问题，答得契合开局更好。`, `Interview with ${team}? Three questions; a good fit starts you stronger.`),
       // D: an offer you already passed the interview for is accepted as is -- never re-scored.
       onConfirm: (offerId) => (prologue.offers.find((offer) => offer.id === offerId)?.interview
         ? acceptOffer(offerId)
@@ -273,8 +273,8 @@ export function createTimeTravelScreen({
     if (await blockedByForeignSave("career")) return;
     const existing = state.longCareerRoot || readRootSave();
     if (hasExistingCareerRoot(existing) && !(await confirmAction(
-      tr(lang(), "接受新邀请将替换当前长期生涯存档，确定继续？", "Accepting will replace your current long-career save. Continue?"),
-      { title: tr(lang(), "覆盖长期生涯？", "Overwrite your career?"), acceptLabel: tr(lang(), "覆盖并继续", "Overwrite and continue") },
+      TL(lang(), "接受新邀请将替换当前长期生涯存档，确定继续？", "Accepting will replace your current long-career save. Continue?"),
+      { title: TL(lang(), "覆盖长期生涯？", "Overwrite your career?"), acceptLabel: TL(lang(), "覆盖并继续", "Overwrite and continue") },
     ))) {
       renderOffers(); // a passed interview stays passed: the card now says so, and accepts without a retake
       return;
@@ -286,7 +286,7 @@ export function createTimeTravelScreen({
       const root = acceptInterviewOffer(prologue, offerId, {
         identityPlaces: readIdentity(getAccount()).identityPlaces,
       });
-      commit(root, tr(lang(), "存档写入失败，尚未接受球队邀请", "Save failed — the offer was not accepted"));
+      commit(root, TL(lang(), "存档写入失败，尚未接受球队邀请", "Save failed — the offer was not accepted"));
       prologue.selectedOfferId = offerId;
       const offer = prologue.offers.find((candidate) => candidate.id === offerId);
       const l = lang();
@@ -330,17 +330,17 @@ export function createTimeTravelScreen({
       coreOf: (offer) => teamCore({ players: PLAYERS, overall, year, teamId: offer.teamId }),
       lang: l,
     });
-    $("#tt-jobs-note").textContent = tr(
+    $("#tt-jobs-note").textContent = TL(
       l,
       `你的教练声望是 ${reputation}。声望越高，愿意见你的球队越多、档次越好；前东家不会再约你。`,
       `Your coaching reputation is ${reputation}. The higher it is, the more — and better — teams will meet you; your last employer won't call.`,
     );
-    $("#tt-jobs .tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: tr(l, "接受邀请，重新出发", "Accept and start over") });
+    $("#tt-jobs .tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: TL(l, "接受邀请，重新出发", "Accept and start over") });
     mountDeck($("#tt-jobs"), {
       itemSelector: ".tt-offer:not(.tt-offer-locked)",
       idOf: (el) => el.dataset.offerId,
       labelOf: (el) => el.dataset.team,
-      confirmText: (team) => tr(l, `接受 ${team} 的邀请，开始新的执教生涯？`, `Accept ${team}'s offer and start a new chapter?`),
+      confirmText: (team) => TL(l, `接受 ${team} 的邀请，开始新的执教生涯？`, `Accept ${team}'s offer and start a new chapter?`),
       onConfirm: (offerId, el) => acceptReemployment(offerId, el.dataset.team),
     });
   }
@@ -348,7 +348,7 @@ export function createTimeTravelScreen({
   function acceptReemployment(offerId, teamName) {
     try {
       const root = acceptReemploymentOffer(currentRootState(), offerId);
-      commit(root, tr(lang(), "存档写入失败，尚未接受新工作", "Save failed — the new job was not accepted"));
+      commit(root, TL(lang(), "存档写入失败，尚未接受新工作", "Save failed — the new job was not accepted"));
       setStatus({ zh: `已接受 ${teamName} 的邀请。新的执教生涯开始了，你的声望、积蓄和过往战绩都带在身上。`, en: `You joined ${teamName}. A new chapter begins — your reputation, savings and record come with you.` });
       renderScreen();
       window.scrollTo?.({ top: 0, behavior: "smooth" });
@@ -367,7 +367,7 @@ export function createTimeTravelScreen({
     card.hidden = pending?.type !== "story-event";
     if (card.hidden) return;
     const event = localizeStoryEvent(getStoryEvent(pending.eventId), l);
-    $("#time-travel-event-kicker").textContent = tr(l, "本季关键事件", "Key event this season");
+    $("#time-travel-event-kicker").textContent = TL(l, "本季关键事件", "Key event this season");
     $("#time-travel-event-title").textContent = event.title;
     $("#time-travel-event-prompt").textContent = event.prompt;
     $("#time-travel-event-choices").innerHTML = choiceDeckHtml(event.choices, { attr: "data-event-choice", lang: l });
@@ -375,7 +375,7 @@ export function createTimeTravelScreen({
     mountDeck(card, {
       idOf: (el) => el.dataset.eventChoice,
       labelOf: (el) => el.querySelector("strong").textContent,
-      confirmText: (label) => tr(l, `就这么定：「${label}」。这个决定会写进历史。`, `Lock in "${label}". It goes into the record.`),
+      confirmText: (label) => TL(l, `就这么定：「${label}」。这个决定会写进历史。`, `Lock in "${label}". It goes into the record.`),
       onConfirm: resolveEvent,
     });
   }
@@ -385,7 +385,7 @@ export function createTimeTravelScreen({
       const pending = currentRootState()?.story?.pendingDecision;
       const resolved = resolveStoryEvent(currentRootState(), choiceId);
       const root = queueNextStoryEvent(resolved, { year: resolved.leagueCareer?.season?.year });
-      commit(root, tr(lang(), "存档写入失败，这次事件尚未生效", "Save failed — the event did not take effect"));
+      commit(root, TL(lang(), "存档写入失败，这次事件尚未生效", "Save failed — the event did not take effect"));
       // Account Level: a resolved Reborn story event pays +30 XP (once per
       // event+year — the key in the callback makes replays no-ops).
       onStoryEventResolved({ eventId: pending?.eventId || null, year: pending?.year ?? null });
@@ -402,19 +402,19 @@ export function createTimeTravelScreen({
     const card = $("#time-travel-contract");
     card.hidden = state.story?.pendingDecision?.type !== "contract-renewal";
     if (card.hidden) return;
-    $("#time-travel-contract-title").textContent = tr(l, "球队愿意继续合作吗？", "Will the team keep you?");
-    $("#time-travel-contract-prompt").textContent = tr(
+    $("#time-travel-contract-title").textContent = TL(l, "球队愿意继续合作吗？", "Will the team keep you?");
+    $("#time-travel-contract-prompt").textContent = TL(
       l,
       "你的冠军数、目标达成率和声望决定了桌上的合同。每份的年限、薪资、权限和特权都不同 — 选一份，或者离开。",
       "Your titles, goal record and reputation decided what is on the table. Years, salary, authority and perks all differ — pick one, or walk away.",
     );
     $("#time-travel-contract-options").innerHTML = (state.story.employment?.offers || []).map((offer) => contractOfferCardHtml(offer, l)).join("");
-    card.querySelector(".tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: tr(l, "签署这份合同", "Sign this contract") });
+    card.querySelector(".tt-confirm-slot").innerHTML = confirmBarHtml(l, { confirmLabel: TL(l, "签署这份合同", "Sign this contract") });
     mountDeck(card, {
       itemSelector: ".tt-contract",
       idOf: (el) => el.dataset.offerId,
       labelOf: (el) => el.querySelector("strong").textContent,
-      confirmText: (label) => tr(l, `签署「${label}」？`, `Sign "${label}"?`),
+      confirmText: (label) => TL(l, `签署「${label}」？`, `Sign "${label}"?`),
       onConfirm: signContract,
     });
   }
@@ -422,7 +422,7 @@ export function createTimeTravelScreen({
   function signContract(offerId) {
     try {
       const root = acceptCareerContract(currentRootState(), offerId);
-      commit(root, tr(lang(), "续约保存失败", "Couldn't save the renewal"), { full: false });
+      commit(root, TL(lang(), "续约保存失败", "Couldn't save the renewal"), { full: false });
       // B4: a signed contract keeps the career going (status back to "active"), so build the notice
       // straight from the offer just accepted rather than from a terminal-flavoured status.
       const offer = root.story.employment?.offer;
@@ -439,12 +439,12 @@ export function createTimeTravelScreen({
     if (state.story?.pendingDecision?.type !== "contract-renewal") return;
     const l = lang();
     if (!(await confirmAction(
-      tr(l, "拒绝续约后，你将离开这支球队。经验和声望会跟着你，但这份合同不会再回来。", "If you decline, you leave this team. Experience and reputation come with you, but this contract won't return."),
-      { title: tr(l, "离开球队？", "Leave the team?"), acceptLabel: tr(l, "确认离开", "Leave") },
+      TL(l, "拒绝续约后，你将离开这支球队。经验和声望会跟着你，但这份合同不会再回来。", "If you decline, you leave this team. Experience and reputation come with you, but this contract won't return."),
+      { title: TL(l, "离开球队？", "Leave the team?"), acceptLabel: TL(l, "确认离开", "Leave") },
     ))) return;
     try {
       const root = declineCareerContracts(currentRootState());
-      commit(root, tr(l, "离队决定保存失败", "Couldn't save your decision to leave"), { full: false });
+      commit(root, TL(l, "离队决定保存失败", "Couldn't save your decision to leave"), { full: false });
       setStatus({ zh: careerStateNotice(root.story, "zh"), en: careerStateNotice(root.story, "en") });
       renderScreen();
       focusDecision();
@@ -460,30 +460,30 @@ export function createTimeTravelScreen({
     card.hidden = report.choices === 0;
     if (card.hidden) return;
     const latest = report.seasons.at(-1);
-    const record = latest?.record ? tr(l, `${latest.record.w}胜${latest.record.l}负`, `${latest.record.w}-${latest.record.l}`) : tr(l, "赛季尚未结算", "season not settled yet");
+    const record = latest?.record ? TL(l, `${latest.record.w}胜${latest.record.l}负`, `${latest.record.w}-${latest.record.l}`) : TL(l, "赛季尚未结算", "season not settled yet");
     const tier = report.ending?.narrativeTier;
-    const tierLabel = tier ? tr(l, tier.label, tier.labelEn || tier.label) : "";
-    const endingLabel = report.ending ? tr(l, report.ending.label, report.ending.labelEn || report.ending.label) : "";
+    const tierLabel = tier ? TL(l, tier.label, tier.labelEn || tier.label) : "";
+    const endingLabel = report.ending ? TL(l, report.ending.label, report.ending.labelEn || report.ending.label) : "";
     const endingTail = tierLabel ? ` (${tierLabel})` : "";
-    $("#time-travel-report-text").textContent = tr(
+    $("#time-travel-report-text").textContent = TL(
       l,
       `${report.currentYear} · ${record} · 已作出 ${report.choices} 个故事选择 · 时间线偏离 ${report.timelineDivergence} · 管理层信任 ${report.frontOfficeTrust}`,
       `${report.currentYear} · ${record} · ${report.choices} story choices · timeline drift ${report.timelineDivergence} · front-office trust ${report.frontOfficeTrust}`,
     );
     const lifetime = report.legacy;
     $("#time-travel-report-status").textContent = lifetime
-      ? tr(
+      ? TL(
         l,
         `生涯已结束，共执教 ${lifetime.seasons} 个赛季 · 冠军 ${lifetime.titles} 次${endingLabel ? ` · 评级：${endingLabel}` : ""}（下面的逐季记录只是最后一份工作）`,
         `Career over: ${lifetime.seasons} seasons · ${lifetime.titles} titles${endingLabel ? ` · Verdict: ${endingLabel}` : ""} (the season list below is only the last job)`,
       )
       : report.finished
-      ? tr(
+      ? TL(
         l,
         `这一段执教已结束，共 ${report.seasonCount} 个赛季 · 冠军 ${report.championships} 次${endingLabel ? ` · 结局：${endingLabel}${endingTail}` : ""}`,
         `Stint over after ${report.seasonCount} seasons · ${report.championships} titles${endingLabel ? ` · Ending: ${endingLabel}${endingTail}` : ""}`,
       )
-      : tr(
+      : TL(
         l,
         `本份合同进度：第 ${report.seasonsIntoContract}/${report.maxSeasons} 年（这段执教共 ${report.seasonCount} 季）`,
         `Current contract: year ${report.seasonsIntoContract}/${report.maxSeasons} (${report.seasonCount} seasons this stint)`,
@@ -504,9 +504,9 @@ export function createTimeTravelScreen({
     copy.onclick = async () => {
       try {
         await navigator.clipboard.writeText(shareCardText(card, lang()));
-        status.textContent = tr(lang(), "已复制，可以直接粘贴分享。", "Copied — paste it anywhere.");
+        status.textContent = TL(lang(), "已复制，可以直接粘贴分享。", "Copied — paste it anywhere.");
       } catch {
-        status.textContent = tr(lang(), "浏览器不允许复制，请直接截图上方卡片。", "The browser blocked copying — screenshot the card above instead.");
+        status.textContent = TL(lang(), "浏览器不允许复制，请直接截图上方卡片。", "The browser blocked copying — screenshot the card above instead.");
       }
     };
   }

@@ -7,8 +7,8 @@
  */
 import { GAME_GOAL_XP_BONUS, HAND_PLAY_XP_MULTIPLIER } from "../career/balance.js";
 import { goalText } from "../career/gameGoals.js";
-import { skillNameL, teamNameL } from "../i18n.js";
-import { esc, tr } from "./timeTravel/format.js";
+import { TL, skillNameL, teamNameL } from "../i18n.js";
+import { esc } from "./timeTravel/format.js";
 
 const one = (value) => (Math.round(value * 10) / 10).toFixed(1);
 const signed = (value) => (value > 0 ? `+${value}` : String(value));
@@ -47,14 +47,14 @@ function growthHtml(entries, lang) {
     const pct = Math.round(Math.min(1, Math.max(0, entry.progress)) * 100);
     const ups = entry.leveled.map((up) => seg(`${attributeName(up.attribute, lang)} ${up.from}→${up.to}`)).join(" ");
     const status = ups
-      ? `<span class="pg-up">${esc(tr(lang, "升级", "Level up"))}</span> ${ups}`
-      : entry.capped ? seg(tr(lang, "本季不再成长", "No more growth this season")) : seg(`${pct}%`);
+      ? `<span class="pg-up">${esc(TL(lang, "升级", "Level up"))}</span> ${ups}`
+      : entry.capped ? seg(TL(lang, "本季不再成长", "No more growth this season")) : seg(`${pct}%`);
     return `<li class="pg-grow">
       <span class="pg-who"><strong>${esc(entry.name)}</strong><span>${seg(`+${entry.xp} XP`)} · ${status}</span></span>
       <span class="pg-bar" role="img" aria-label="${esc(`XP ${pct}%`)}"><i style="width:${pct}%"></i></span>
     </li>`;
   }).join("");
-  return `<h4 class="pg-section-title">${esc(tr(lang, "球员成长", "Player growth"))}</h4><ul class="pg-stars pg-growth">${rows}</ul>`;
+  return `<h4 class="pg-section-title">${esc(TL(lang, "球员成长", "Player growth"))}</h4><ul class="pg-stars pg-growth">${rows}</ul>`;
 }
 
 /** What each streak rule counts, by language ("9+ assists"). */
@@ -91,18 +91,18 @@ function highlightsHtml(entries, hot, lang, title) {
     if (extra > 0) shown.push(seg(`+${extra}`));
     return `<li class="pg-hl">
       <span class="pg-who"><strong>${esc(entry.name)}</strong><span>${shown.join(" · ")}</span></span>
-      <span class="pg-chip pg-buzz" title="${esc(tr(lang, "交易市场热度", "Trade-market buzz"))}"><span aria-hidden="true">🔥</span> +${entry.gain}</span>
+      <span class="pg-chip pg-buzz" title="${esc(TL(lang, "交易市场热度", "Trade-market buzz"))}"><span aria-hidden="true">🔥</span> +${entry.gain}</span>
     </li>`;
   }).join("");
   const more = (entries || []).length > HIGHLIGHT_ROWS
-    ? `<p class="pg-more">${esc(tr(lang, `还有 ${entries.length - HIGHLIGHT_ROWS} 位也有高光`, `${entries.length - HIGHLIGHT_ROWS} more had highlights`))}</p>` : "";
+    ? `<p class="pg-more">${esc(TL(lang, `还有 ${entries.length - HIGHLIGHT_ROWS} 位也有高光`, `${entries.length - HIGHLIGHT_ROWS} more had highlights`))}</p>` : "";
   const names = (hot || []).slice(0, HOT_NAMES).map((entry) => seg(`${entry.name} ${one(entry.buzz)}`)).join(" · ");
   const note = names
-    ? `<p class="pg-note pg-hotnote"><span aria-hidden="true">🔥</span> ${esc(tr(lang, "交易市场热度：", "Trade-market buzz: "))}${names}。${esc(tr(
+    ? `<p class="pg-note pg-hotnote"><span aria-hidden="true">🔥</span> ${esc(TL(lang, "交易市场热度：", "Trade-market buzz: "))}${names}。${esc(TL(
       lang, "趁热出手报价更高，几场不再高光就会降温。", "Offers run higher while it lasts; a few quiet games and it fades.",
     ))}</p>` : "";
   if (!rows && !note) return "";
-  const head = `<h4 class="pg-section-title">${esc(rows ? title : tr(lang, "市场热度", "Market buzz"))}</h4>`;
+  const head = `<h4 class="pg-section-title">${esc(rows ? title : TL(lang, "市场热度", "Market buzz"))}</h4>`;
   return `${head}${rows ? `<ul class="pg-stars pg-highlights">${rows}</ul>${more}` : ""}${note}`;
 }
 
@@ -117,9 +117,9 @@ function epiphanyHtml(entries, lang) {
       <span class="pg-skill">${esc(skillNameL(entry.skill, lang))}</span>
     </li>`).join("");
   const more = entries.length > LEARNED_ROWS
-    ? `<p class="pg-more">${esc(tr(lang, `还有 ${entries.length - LEARNED_ROWS} 位也领悟了新技能`, `${entries.length - LEARNED_ROWS} more also learned a skill`))}</p>` : "";
+    ? `<p class="pg-more">${esc(TL(lang, `还有 ${entries.length - LEARNED_ROWS} 位也领悟了新技能`, `${entries.length - LEARNED_ROWS} more also learned a skill`))}</p>` : "";
   return `<section class="pg-epiphany" role="status">
-    <h4 class="pg-epiphany-title"><span aria-hidden="true">✦</span> ${esc(tr(lang, "领悟新技能", "New skill learned"))}</h4>
+    <h4 class="pg-epiphany-title"><span aria-hidden="true">✦</span> ${esc(TL(lang, "领悟新技能", "New skill learned"))}</h4>
     <ul class="pg-stars">${rows}</ul>${more}
   </section>`;
 }
@@ -138,8 +138,8 @@ function heatHtml(entries, lang) {
       <span class="pg-dots" role="img" aria-label="${esc(`${lit}/${entry.of}`)}">${dots}</span>
     </li>`;
   }).join("");
-  return `<h4 class="pg-section-title">${esc(tr(lang, "手感正热", "Heating up"))}</h4>
-    <p class="pg-note">${esc(tr(lang, "再来一场达标，就有机会领悟新技能。", "One more qualifying game gives a shot at a new skill."))}</p>
+  return `<h4 class="pg-section-title">${esc(TL(lang, "手感正热", "Heating up"))}</h4>
+    <p class="pg-note">${esc(TL(lang, "再来一场达标，就有机会领悟新技能。", "One more qualifying game gives a shot at a new skill."))}</p>
     <ul class="pg-stars">${rows}</ul>`;
 }
 
@@ -156,18 +156,18 @@ const times = (value) => String(Math.round(value * 100) / 100);
 function goalHtml(goal, lang) {
   if (!goal?.goals?.length) return "";
   const rows = goal.goals.map((entry) => {
-    const label = entry.done ? tr(lang, "达成", "Met") : tr(lang, "未达成", "Missed");
+    const label = entry.done ? TL(lang, "达成", "Met") : TL(lang, "未达成", "Missed");
     return `<li class="pg-goal ${entry.done ? "pg-goal-done" : "pg-goal-miss"}">
       <span class="pg-mark" role="img" aria-label="${esc(label)}">${entry.done ? "✓" : "✗"}</span><span>${esc(goalText(entry, lang))}</span>
     </li>`;
   }).join("");
   const parts = [];
-  if (goal.handPlayed) parts.push(seg(tr(lang, `亲自指挥 ×${HAND_PLAY_XP_MULTIPLIER}`, `You coached ×${HAND_PLAY_XP_MULTIPLIER}`)));
-  if (goal.done) parts.push(seg(tr(lang, `达成 ${goal.done} 个 +${Math.round(goal.done * GAME_GOAL_XP_BONUS * 100)}%`, `${goal.done} met +${Math.round(goal.done * GAME_GOAL_XP_BONUS * 100)}%`)));
+  if (goal.handPlayed) parts.push(seg(TL(lang, `亲自指挥 ×${HAND_PLAY_XP_MULTIPLIER}`, `You coached ×${HAND_PLAY_XP_MULTIPLIER}`)));
+  if (goal.done) parts.push(seg(TL(lang, `达成 ${goal.done} 个 +${Math.round(goal.done * GAME_GOAL_XP_BONUS * 100)}%`, `${goal.done} met +${Math.round(goal.done * GAME_GOAL_XP_BONUS * 100)}%`)));
   // Plain text, not seg(): seg()/.pg-nowrap is for an atomic number+unit pair ("8 分") that must not
   // split mid-figure. This is a full sentence -- forcing it onto one line is what overflows mobile.
-  const nudge = goal.handPlayed ? "" : ` ${esc(tr(lang, `模拟只计第一个目标；亲自指挥多一个目标，XP ×${HAND_PLAY_XP_MULTIPLIER}`, `A sim counts the first goal only; coach it yourself for a second goal and XP ×${HAND_PLAY_XP_MULTIPLIER}`))}`;
-  return `<h4 class="pg-section-title">${esc(tr(lang, "本场目标", "Game goals"))}</h4>
+  const nudge = goal.handPlayed ? "" : ` ${esc(TL(lang, `模拟只计第一个目标；亲自指挥多一个目标，XP ×${HAND_PLAY_XP_MULTIPLIER}`, `A sim counts the first goal only; coach it yourself for a second goal and XP ×${HAND_PLAY_XP_MULTIPLIER}`))}`;
+  return `<h4 class="pg-section-title">${esc(TL(lang, "本场目标", "Game goals"))}</h4>
     <ul class="pg-stars pg-goals">${rows}</ul>
     <p class="pg-note">${seg(`XP ×${times(goal.multiplier)}`)}${parts.length ? ` · ${parts.join(" · ")}` : ""}${nudge}</p>`;
 }
@@ -175,8 +175,8 @@ function goalHtml(goal, lang) {
 /** The same for a stretch of games: how many of the goals were met. */
 function goalBatchHtml(batch, lang) {
   if (!batch?.total) return "";
-  return `<h4 class="pg-section-title">${esc(tr(lang, "本段目标", "Goals of the stretch"))}</h4>
-    <p class="pg-note">${seg(tr(lang, `达成 ${batch.done} / ${batch.total}`, `${batch.done} of ${batch.total} met`))} · ${seg(tr(lang, `${batch.games} 场`, `${batch.games} games`))}</p>`;
+  return `<h4 class="pg-section-title">${esc(TL(lang, "本段目标", "Goals of the stretch"))}</h4>
+    <p class="pg-note">${seg(TL(lang, `达成 ${batch.done} / ${batch.total}`, `${batch.done} of ${batch.total} met`))} · ${seg(TL(lang, `${batch.games} 场`, `${batch.games} games`))}</p>`;
 }
 
 /** The bar, the level, and -- only when there is one -- the level-up or the unspent-points reminder. */
@@ -184,8 +184,8 @@ function coachLevelHtml(entry, lang) {
   const pct = Math.round(Math.min(1, Math.max(0, entry.progress || 0)) * 100);
   const points = entry.perkPoints || 0;
   const news = entry.leveledUp > 0
-    ? `<span class="pg-up">${esc(tr(lang, `升到 Lv.${entry.level}`, `Reached Lv.${entry.level}`))}</span> ${seg(tr(lang, `共 ${points} 点天赋点，去穿越生涯总部分配`, `${points} perk point${points === 1 ? "" : "s"} to spend at career HQ`))}`
-    : points > 0 ? seg(tr(lang, `${points} 点天赋点未分配`, `${points} unspent perk point${points === 1 ? "" : "s"}`)) : "";
+    ? `<span class="pg-up">${esc(TL(lang, `升到 Lv.${entry.level}`, `Reached Lv.${entry.level}`))}</span> ${seg(TL(lang, `共 ${points} 点天赋点，去穿越生涯总部分配`, `${points} perk point${points === 1 ? "" : "s"} to spend at career HQ`))}`
+    : points > 0 ? seg(TL(lang, `${points} 点天赋点未分配`, `${points} unspent perk point${points === 1 ? "" : "s"}`)) : "";
   return `<span class="pg-bar" role="img" aria-label="${esc(`Lv.${entry.level} ${pct}%`)}"><i style="width:${pct}%"></i></span>
     <p class="pg-note">${seg(`Lv.${entry.level}`)} · ${seg(`${pct}%`)}${news ? ` · ${news}` : ""}</p>`;
 }
@@ -194,23 +194,23 @@ function coachLevelHtml(entry, lang) {
 function coachXpHtml(entry, lang) {
   if (!entry) return "";
   const parts = (entry.parts || []).map((part) => seg(`${(COACH_XP_PARTS[part.id] || [part.id, part.id])[lang === "en" ? 1 : 0]} +${part.xp}`));
-  if (entry.playoff) parts.push(seg(tr(lang, "季后赛 ×2", "Playoffs ×2")));
-  if (entry.multiplier > 1) parts.push(seg(tr(lang, `奖励 ×${times(entry.multiplier)}`, `Bonus ×${times(entry.multiplier)}`)));
-  return `<h4 class="pg-section-title">${esc(tr(lang, "教练成长", "Coach growth"))}</h4>
+  if (entry.playoff) parts.push(seg(TL(lang, "季后赛 ×2", "Playoffs ×2")));
+  if (entry.multiplier > 1) parts.push(seg(TL(lang, `奖励 ×${times(entry.multiplier)}`, `Bonus ×${times(entry.multiplier)}`)));
+  return `<h4 class="pg-section-title">${esc(TL(lang, "教练成长", "Coach growth"))}</h4>
     <div class="pg-coach"><p class="pg-coach-xp"><strong>${seg(`+${entry.xp} XP`)}</strong> ${parts.join(" · ")}</p>${coachLevelHtml(entry, lang)}</div>`;
 }
 
 /** The same section for a folded stretch: total XP, how many upsets, level as of the last game. */
 function coachBatchHtml(batch, lang) {
   if (!batch) return "";
-  const upsets = batch.upsets ? ` · ${seg(tr(lang, `爆冷 ${batch.upsets} 场`, `${batch.upsets} upset${batch.upsets === 1 ? "" : "s"}`))}` : "";
-  return `<h4 class="pg-section-title">${esc(tr(lang, "教练成长", "Coach growth"))}</h4>
-    <div class="pg-coach"><p class="pg-coach-xp"><strong>${seg(`+${batch.xp} XP`)}</strong> ${seg(tr(lang, `${batch.games} 场`, `${batch.games} games`))}${upsets}</p>${coachLevelHtml(batch, lang)}</div>`;
+  const upsets = batch.upsets ? ` · ${seg(TL(lang, `爆冷 ${batch.upsets} 场`, `${batch.upsets} upset${batch.upsets === 1 ? "" : "s"}`))}` : "";
+  return `<h4 class="pg-section-title">${esc(TL(lang, "教练成长", "Coach growth"))}</h4>
+    <div class="pg-coach"><p class="pg-coach-xp"><strong>${seg(`+${batch.xp} XP`)}</strong> ${seg(TL(lang, `${batch.games} 场`, `${batch.games} games`))}${upsets}</p>${coachLevelHtml(batch, lang)}</div>`;
 }
 
 function verdict(report, lang) {
   const { you, opp } = report.score;
-  const word = report.tied ? tr(lang, "战平", "Tie") : report.won ? tr(lang, "胜", "Win") : tr(lang, "负", "Loss");
+  const word = report.tied ? TL(lang, "战平", "Tie") : report.won ? TL(lang, "胜", "Win") : TL(lang, "负", "Loss");
   const tone = report.tied ? "even" : report.won ? "win" : "loss";
   return { tone, text: `${word} ${you}-${opp}`, opp: teamNameL(report.opponentName, lang) };
 }
@@ -220,20 +220,20 @@ function starsHtml(stars, lang) {
   const rows = stars.map((player, index) => `<li class="pg-star">
       <span class="pg-rank" aria-hidden="true">${index + 1}</span>
       <span class="pg-who"><strong>${esc(player.name)}</strong><span>${lineHtml(player, lang)}</span></span>
-      <span class="pg-chip" title="${esc(tr(lang, "技术统计综合效率（Game Score）", "Box-score efficiency (Game Score)"))}">${esc(tr(lang, "效率", "Eff"))} ${one(player.score)}</span>
+      <span class="pg-chip" title="${esc(TL(lang, "技术统计综合效率（Game Score）", "Box-score efficiency (Game Score)"))}">${esc(TL(lang, "效率", "Eff"))} ${one(player.score)}</span>
     </li>`).join("");
-  return `<h4>${esc(tr(lang, "本场最佳", "Stars of the game"))}</h4><ol class="pg-stars">${rows}</ol>`;
+  return `<h4>${esc(TL(lang, "本场最佳", "Stars of the game"))}</h4><ol class="pg-stars">${rows}</ol>`;
 }
 
 export function postGameHtml(report, lang = "zh") {
   if (!report) return "";
   const v = verdict(report, lang);
   return `<div class="pg-card pg-${v.tone}">
-    <p class="pg-kicker">${esc(tr(lang, "赛后结算", "Post-game"))}</p>
-    <p class="pg-verdict"><strong>${esc(v.text)}</strong><span>${esc(tr(lang, `对阵 ${v.opp}`, `vs ${v.opp}`))}</span></p>
+    <p class="pg-kicker">${esc(TL(lang, "赛后结算", "Post-game"))}</p>
+    <p class="pg-verdict"><strong>${esc(v.text)}</strong><span>${esc(TL(lang, `对阵 ${v.opp}`, `vs ${v.opp}`))}</span></p>
     ${epiphanyHtml(report.rewards?.epiphanies, lang)}
     ${starsHtml(report.stars, lang)}
-    ${highlightsHtml(report.rewards?.highlights, report.rewards?.hot, lang, tr(lang, "本场高光", "Highlights"))}
+    ${highlightsHtml(report.rewards?.highlights, report.rewards?.hot, lang, TL(lang, "本场高光", "Highlights"))}
     ${goalHtml(report.rewards?.goal, lang)}
     ${growthHtml(report.rewards?.playerXp, lang)}
     ${coachXpHtml(report.rewards?.coachXp, lang)}
@@ -248,22 +248,22 @@ export function batchHtml(batch, lang = "zh") {
       <span class="pg-rank" aria-hidden="true">${index + 1}</span>
       <span class="pg-who"><strong>${esc(player.name)}</strong><span>${lang === "en"
     ? `${segs([`${one(player.ppg)} pts`, `${one(player.rpg)} reb`, `${one(player.apg)} ast`])} per game`
-    : segs([`场均 ${one(player.ppg)} 分`, `${one(player.rpg)} 板`, `${one(player.apg)} 助`])} · ${seg(tr(lang, `出场 ${player.games} 场`, `${player.games} GP`))}</span></span>
+    : segs([`场均 ${one(player.ppg)} 分`, `${one(player.rpg)} 板`, `${one(player.apg)} 助`])} · ${seg(TL(lang, `出场 ${player.games} 场`, `${player.games} GP`))}</span></span>
     </li>`).join("");
   const bestLine = best
-    ? `<p class="pg-best">${esc(tr(
+    ? `<p class="pg-best">${esc(TL(
       lang,
       `单场最佳：${best.name} ${best.pts} 分 ${best.reb} 板 ${best.ast} 助，对阵 ${teamNameL(best.opponentName, lang)}（${best.won ? "胜" : "负"} ${best.game.you}-${best.game.opp}）`,
       `Best night: ${best.name}, ${best.pts} pts ${best.reb} reb ${best.ast} ast vs ${teamNameL(best.opponentName, lang)} (${best.won ? "W" : "L"} ${best.game.you}-${best.game.opp})`,
     ))}</p>`
     : "";
   return `<div class="pg-card pg-${batch.wins >= batch.losses ? "win" : "loss"}">
-    <p class="pg-kicker">${esc(tr(lang, "本段收获", "This stretch"))}</p>
-    <p class="pg-verdict"><strong>${esc(tr(lang, `${batch.games} 场 · ${batch.wins} 胜 ${batch.losses} 负`, `${batch.games} games · ${batch.wins}-${batch.losses}`))}</strong><span>${esc(tr(lang, `净胜分 ${signed(batch.pointDiff)}`, `Point diff ${signed(batch.pointDiff)}`))}</span></p>
+    <p class="pg-kicker">${esc(TL(lang, "本段收获", "This stretch"))}</p>
+    <p class="pg-verdict"><strong>${esc(TL(lang, `${batch.games} 场 · ${batch.wins} 胜 ${batch.losses} 负`, `${batch.games} games · ${batch.wins}-${batch.losses}`))}</strong><span>${esc(TL(lang, `净胜分 ${signed(batch.pointDiff)}`, `Point diff ${signed(batch.pointDiff)}`))}</span></p>
     ${bestLine}
     ${epiphanyHtml(batch.epiphanies, lang)}
-    ${leaders ? `<h4>${esc(tr(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}
-    ${highlightsHtml(batch.highlights, batch.hot, lang, tr(lang, "这段时间的高光", "Highlights of the stretch"))}
+    ${leaders ? `<h4>${esc(TL(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}
+    ${highlightsHtml(batch.highlights, batch.hot, lang, TL(lang, "这段时间的高光", "Highlights of the stretch"))}
     ${goalBatchHtml(batch.goals, lang)}
     ${growthHtml(batch.growth, lang)}
     ${coachBatchHtml(batch.coachXp, lang)}

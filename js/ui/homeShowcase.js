@@ -14,7 +14,7 @@
  * (hometown / owned cards / era) is deliberately not done here — this module has no
  * account access — so the pool is a fixed, era-balanced 40.
  */
-import { getLang, teamNameL } from "../i18n.js";
+import { TL, getLang, teamNameL } from "../i18n.js";
 import { TEAM_NAMES_ZH } from "../data/legends.js";
 import { resolveCardPhoto } from "../data/photo.js";
 import { GALLERY_LEGENDS } from "../data/galleryLegends.js";
@@ -109,7 +109,6 @@ export function advanceOffset(offset, dtMs, pxPerSecond, setWidth) {
   return (offset + (pxPerSecond * dtMs) / 1000) % setWidth;
 }
 
-const tr = (lang, zh, en) => (lang === "en" ? en : zh);
 
 function makeEl(doc, tag, cls, text) {
   const node = doc.createElement(tag);
@@ -123,7 +122,7 @@ function buildLegendCard(doc, legend, lang, interactive, onOpen, onChallenge) {
   card.dataset.legend = legendToken(legend);
   const open = makeEl(doc, "button", "lg-card-open");
   open.type = "button";
-  open.setAttribute("aria-label", `${tr(lang, "查看", "View")} ${legendName(legend, lang)}`);
+  open.setAttribute("aria-label", `${TL(lang, "查看", "View")} ${legendName(legend, lang)}`);
   const photo = makeEl(doc, "span", "lg-photo");
   photo.dataset.photoSlot = "";
   const src = legendPhoto(legend);
@@ -132,9 +131,9 @@ function buildLegendCard(doc, legend, lang, interactive, onOpen, onChallenge) {
   caption.append(makeEl(doc, "span", "lg-name", legendName(legend, lang)), makeEl(doc, "span", "lg-era", eraLabel(legend.season, lang)));
   open.append(photo, caption);
   card.append(open);
-  const challenge = makeEl(doc, "button", "lg-challenge", tr(lang, "挑战传奇", "Challenge"));
+  const challenge = makeEl(doc, "button", "lg-challenge", TL(lang, "挑战传奇", "Challenge"));
   challenge.type = "button";
-  challenge.setAttribute("aria-label", `${tr(lang, "挑战", "Challenge")} ${legendName(legend, lang)}`);
+  challenge.setAttribute("aria-label", `${TL(lang, "挑战", "Challenge")} ${legendName(legend, lang)}`);
   card.append(challenge);
   if (!interactive) {
     // The second (loop) copy is visually identical but must stay out of the tab order
@@ -153,7 +152,7 @@ function buildLegendProfile(doc, legend, lang, onChallenge, onClose) {
   const panel = makeEl(doc, "div", "lg-profile");
   const close = makeEl(doc, "button", "lg-profile-close", "×");
   close.type = "button";
-  close.setAttribute("aria-label", tr(lang, "关闭", "Close"));
+  close.setAttribute("aria-label", TL(lang, "关闭", "Close"));
   close.addEventListener("click", onClose);
   panel.append(close);
   const photo = makeEl(doc, "span", "lg-profile-photo");
@@ -169,10 +168,10 @@ function buildLegendProfile(doc, legend, lang, onChallenge, onClose) {
       doc,
       "p",
       "lg-profile-stats",
-      tr(lang, `${legend.ppg} 分 · ${legend.rpg} 篮板 · ${legend.apg} 助攻`, `${legend.ppg} PTS · ${legend.rpg} REB · ${legend.apg} AST`),
+      TL(lang, `${legend.ppg} 分 · ${legend.rpg} 篮板 · ${legend.apg} 助攻`, `${legend.ppg} PTS · ${legend.rpg} REB · ${legend.apg} AST`),
     ),
   );
-  const challenge = makeEl(doc, "button", "btn primary lg-profile-challenge", tr(lang, "挑战传奇", "Challenge this legend"));
+  const challenge = makeEl(doc, "button", "btn primary lg-profile-challenge", TL(lang, "挑战传奇", "Challenge this legend"));
   challenge.type = "button";
   challenge.addEventListener("click", () => onChallenge(legend));
   body.append(challenge);
@@ -214,13 +213,13 @@ export function renderLegendsGallery(container, legends = GALLERY_LEGENDS, opts 
 
   container.replaceChildren();
   const head = makeEl(doc, "div", "lg-head");
-  head.append(makeEl(doc, "h2", "", tr(lang, "传奇长廊", "Legends Gallery")));
-  head.append(makeEl(doc, "p", "lg-head-sub", tr(lang, "跨越时代，遇见篮球传奇", "Across the eras, meet the legends")));
+  head.append(makeEl(doc, "h2", "", TL(lang, "传奇长廊", "Legends Gallery")));
+  head.append(makeEl(doc, "p", "lg-head-sub", TL(lang, "跨越时代，遇见篮球传奇", "Across the eras, meet the legends")));
   container.append(head);
 
   const viewport = makeEl(doc, "div", `lg-viewport${reduced ? " lg-static" : ""}`);
   viewport.tabIndex = 0;
-  viewport.setAttribute("aria-label", tr(lang, "篮球传奇长廊", "Legends gallery"));
+  viewport.setAttribute("aria-label", TL(lang, "篮球传奇长廊", "Legends gallery"));
   const track = makeEl(doc, "div", "lg-track");
   const profileSlot = makeEl(doc, "div", "lg-profile-slot");
   profileSlot.hidden = true;
@@ -291,10 +290,10 @@ export function renderLegendsGallery(container, legends = GALLERY_LEGENDS, opts 
   viewport.append(track);
   const prev = makeEl(doc, "button", "lg-nav lg-prev", "‹");
   prev.type = "button";
-  prev.setAttribute("aria-label", tr(lang, "上一个", "Previous"));
+  prev.setAttribute("aria-label", TL(lang, "上一个", "Previous"));
   const next = makeEl(doc, "button", "lg-nav lg-next", "›");
   next.type = "button";
-  next.setAttribute("aria-label", tr(lang, "下一个", "Next"));
+  next.setAttribute("aria-label", TL(lang, "下一个", "Next"));
   viewport.append(prev, next);
   container.append(viewport, profileSlot);
 

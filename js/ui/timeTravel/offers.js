@@ -5,8 +5,9 @@ import {
 import { offerText } from "../../career/contractOffers.js";
 import { icon } from "./icons.js";
 import { teamNameL } from "../../i18n.js";
-import { clamp, esc, gaugeTone, tr } from "./format.js";
+import { clamp, esc, gaugeTone } from "./format.js";
 import { crestHtml, teamThemeStyle } from "./hq.js";
+import { TL } from "../../i18n.js";
 
 const ARCHETYPES = {
   rebuild: { zh: "重建队", en: "Rebuilding", blurb: ["耐心、权限大", "Patient, big say"] },
@@ -35,7 +36,7 @@ const OFFER_COPY_EN = {
 };
 const offerCopy = (offer, lang) => (lang === "en" && OFFER_COPY_EN[offer.archetype]) || offer;
 
-export const archetypeLabel = (id, lang) => tr(lang, ARCHETYPES[id]?.zh ?? id, ARCHETYPES[id]?.en ?? id);
+export const archetypeLabel = (id, lang) => TL(lang, ARCHETYPES[id]?.zh ?? id, ARCHETYPES[id]?.en ?? id);
 
 function bar(label, value, tone) {
   const v = clamp(value);
@@ -45,7 +46,7 @@ function bar(label, value, tone) {
 function coreRow(core, lang) {
   if (!core?.length) return "";
   const players = core.map((p) => `<span class="tt-core-p"><b>${esc(p.ovr)}</b><span>${esc(p.name)}</span></span>`).join("");
-  return `<span class="tt-core"><span class="tt-core-label">${esc(tr(lang, "核心球员", "Core players"))}</span>${players}</span>`;
+  return `<span class="tt-core"><span class="tt-core-label">${esc(TL(lang, "核心球员", "Core players"))}</span>${players}</span>`;
 }
 
 /** The inside of a team-offer card (crest, pitch, core players, year-one goal, three gauges). */
@@ -58,11 +59,11 @@ function offerBodyHtml(offer, { colors, core = [], lang = "zh" }) {
     </span>
     <span class="tt-offer-sum">${esc(copy.summary)}</span>
     ${coreRow(core, lang)}
-    <span class="tt-offer-goal">${icon("flag", { size: 14 })}<span>${esc(tr(lang, "首年目标", "Year-one goal"))}：<strong>${esc(copy.firstYearGoal)}</strong></span></span>
+    <span class="tt-offer-goal">${icon("flag", { size: 14 })}<span>${esc(TL(lang, "首年目标", "Year-one goal"))}：<strong>${esc(copy.firstYearGoal)}</strong></span></span>
     <span class="tt-bars">
-      ${bar(tr(lang, "权限", "Authority"), offer.authority, "good")}
-      ${bar(tr(lang, "信任", "Trust"), offer.trust, gaugeTone(offer.trust, true))}
-      ${bar(tr(lang, "压力", "Pressure"), offer.pressure, gaugeTone(offer.pressure, false))}
+      ${bar(TL(lang, "权限", "Authority"), offer.authority, "good")}
+      ${bar(TL(lang, "信任", "Trust"), offer.trust, gaugeTone(offer.trust, true))}
+      ${bar(TL(lang, "压力", "Pressure"), offer.pressure, gaugeTone(offer.pressure, false))}
     </span>`;
 }
 
@@ -70,7 +71,7 @@ const offerAria = (offer, lang) => {
   const label = archetypeLabel(offer.archetype, lang);
   const team = teamNameL(offer.teamName, lang);
   const copy = offerCopy(offer, lang);
-  return tr(
+  return TL(
     lang,
     `${team}，${label}。${copy.summary}。首年目标：${copy.firstYearGoal}。权限 ${offer.authority}，信任 ${offer.trust}，压力 ${offer.pressure}`,
     `${team}, ${label}. ${copy.summary} First-year goal: ${copy.firstYearGoal}. Authority ${offer.authority}, trust ${offer.trust}, pressure ${offer.pressure}`,
@@ -85,9 +86,9 @@ export function interviewOfferCardHtml(offer, ctx = {}) {
   const lang = ctx.lang ?? "zh";
   // D: the interview leaves a mark -- turned down (greyed, can't be picked) or passed (accept straight away).
   const stamp = ctx.rejected
-    ? `<span class="tt-stamp tt-stamp-no">${esc(tr(lang, "面试未通过", "Turned you down"))}</span>`
+    ? `<span class="tt-stamp tt-stamp-no">${esc(TL(lang, "面试未通过", "Turned you down"))}</span>`
     : offer.interview
-      ? `<span class="tt-stamp tt-stamp-ok">${esc(tr(lang, "面试通过", "Interview passed"))}</span>`
+      ? `<span class="tt-stamp tt-stamp-ok">${esc(TL(lang, "面试通过", "Interview passed"))}</span>`
       : "";
   return `<button type="button" class="tt-offer${ctx.rejected ? " tt-offer-rejected" : ""}"${ctx.rejected ? " disabled" : ""} role="radio" aria-checked="false" data-offer-id="${esc(offer.id)}" data-archetype="${esc(offer.archetype)}" data-team="${esc(teamNameL(offer.teamName, lang))}" style="${teamThemeStyle(ctx.colors)}" aria-label="${esc(offerAria(offer, lang))}">
     ${stamp}${offerBodyHtml(offer, ctx)}
@@ -108,9 +109,9 @@ export function lockedOfferHtml(archetype, reputation, lang = "zh") {
   return `<div class="tt-offer tt-offer-locked" data-archetype="${esc(archetype)}" aria-disabled="true">
     <span class="tt-offer-head">
       <span class="tt-crest tt-crest-md tt-crest-locked" aria-hidden="true">${icon("lock", { size: 20 })}</span>
-      <span class="tt-offer-title"><span class="tt-arch" data-arch="${esc(archetype)}">${esc(archetypeLabel(archetype, lang))}</span><strong>${esc(tr(lang, "暂无人邀请", "No interest yet"))}</strong></span>
+      <span class="tt-offer-title"><span class="tt-arch" data-arch="${esc(archetype)}">${esc(archetypeLabel(archetype, lang))}</span><strong>${esc(TL(lang, "暂无人邀请", "No interest yet"))}</strong></span>
     </span>
-    <span class="tt-offer-sum">${esc(tr(lang, `需要教练声望 ≥ ${need}（你现在 ${reputation}）。多打出成绩，下次再来。`, `Needs coach reputation ≥ ${need} (you have ${reputation}). Win more, then come back.`))}</span>
+    <span class="tt-offer-sum">${esc(TL(lang, `需要教练声望 ≥ ${need}（你现在 ${reputation}）。多打出成绩，下次再来。`, `Needs coach reputation ≥ ${need} (you have ${reputation}). Win more, then come back.`))}</span>
   </div>`;
 }
 
@@ -136,15 +137,15 @@ export function contractOfferCardHtml(offer, lang = "zh") {
   const text = offerText(offer, lang);
   const perks = text.privileges?.length
     ? text.privileges.map((perk) => `<span class="tt-perk">${icon("check", { size: 12 })}${esc(perk)}</span>`).join("")
-    : `<span class="tt-perk tt-perk-none">${esc(tr(lang, "无（先证明自己）", "None (prove yourself first)"))}</span>`;
+    : `<span class="tt-perk tt-perk-none">${esc(TL(lang, "无（先证明自己）", "None (prove yourself first)"))}</span>`;
   return `<button type="button" class="tt-contract" role="radio" aria-checked="false" data-offer-id="${esc(offer.id)}" data-tier="${esc(TIER_TONE[offer.id] || "grey")}">
     <span class="tt-contract-title">${icon("scroll", { size: 16 })}<strong>${esc(text.title)}</strong></span>
     <span class="tt-contract-desc">${esc(text.description)}</span>
     <span class="tt-contract-nums">
-      <span><b>${esc(offer.years)}</b><i>${esc(tr(lang, "年", "yrs"))}</i></span>
-      <span><b>¤${esc(offer.salary)}</b><i>${esc(tr(lang, "年薪", "salary"))}</i></span>
-      <span><b>${esc(offer.authority)}</b><i>${esc(tr(lang, "权限", "authority"))}</i></span>
+      <span><b>${esc(offer.years)}</b><i>${esc(TL(lang, "年", "yrs"))}</i></span>
+      <span><b>¤${esc(offer.salary)}</b><i>${esc(TL(lang, "年薪", "salary"))}</i></span>
+      <span><b>${esc(offer.authority)}</b><i>${esc(TL(lang, "权限", "authority"))}</i></span>
     </span>
-    <span class="tt-perks"><span class="tt-perks-label">${esc(tr(lang, "特权", "Perks"))}</span>${perks}</span>
+    <span class="tt-perks"><span class="tt-perks-label">${esc(TL(lang, "特权", "Perks"))}</span>${perks}</span>
   </button>`;
 }

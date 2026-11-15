@@ -14,20 +14,20 @@ import { lookColors } from "../data/avatarLook.js";
 import { avatarDataUri } from "../data/avatarArt.js";
 import { furnitureSvgFor, furnitureViewBox, roomPreviewSvg } from "./shopFurniture.js";
 import { esc } from "../core/html.js";
+import { TL } from "../i18n.js";
 
-const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 export function reasonText(reason, lang = "zh") {
   switch (reason) {
-    case "guest": return T(lang, "请先登录账号购买（访客没有金币收入）", "Sign in to buy — guests earn no gold");
-    case "not-enough-gold": return T(lang, "金币不足", "Not enough gold");
-    case "already-owned": return T(lang, "已拥有这件商品", "You already own this");
-    case "not-owned": return T(lang, "尚未拥有这件商品", "You don't own this yet");
-    case "no-season": return T(lang, "当前没有进行中的常规赛", "No regular season in progress");
-    case "no-tickets": return T(lang, "没有可用的托管卡", "No Auto-Play Tickets left");
-    case "season-done": return T(lang, "本赛季剩余场次已打完", "No games left this season");
-    case "no-games-simmed": return T(lang, "没有可以托管的比赛", "No games to simulate");
-    default: return T(lang, "购买失败", "Purchase failed");
+    case "guest": return TL(lang, "请先登录账号购买（访客没有金币收入）", "Sign in to buy — guests earn no gold");
+    case "not-enough-gold": return TL(lang, "金币不足", "Not enough gold");
+    case "already-owned": return TL(lang, "已拥有这件商品", "You already own this");
+    case "not-owned": return TL(lang, "尚未拥有这件商品", "You don't own this yet");
+    case "no-season": return TL(lang, "当前没有进行中的常规赛", "No regular season in progress");
+    case "no-tickets": return TL(lang, "没有可用的托管卡", "No Auto-Play Tickets left");
+    case "season-done": return TL(lang, "本赛季剩余场次已打完", "No games left this season");
+    case "no-games-simmed": return TL(lang, "没有可以托管的比赛", "No games to simulate");
+    default: return TL(lang, "购买失败", "Purchase failed");
   }
 }
 
@@ -54,7 +54,7 @@ export function shopPreviewHtml(item, lang = "zh") {
     return `<span class="shop-preview-frame mw-frame-${esc(effect.frameId)}"><img src="${avatarDataUri({ name: "You", team: "NBA" })}" alt="" width="64" height="64" /></span>`;
   }
   if (effect.type === "autoTickets") {
-    return `<span class="shop-preview-ticket"><span class="shop-preview-ticket-n">×${effect.games}</span><span class="shop-preview-ticket-sub">${esc(T(lang, "托管场次", "auto games"))}</span></span>`;
+    return `<span class="shop-preview-ticket"><span class="shop-preview-ticket-n">×${effect.games}</span><span class="shop-preview-ticket-sub">${esc(TL(lang, "托管场次", "auto games"))}</span></span>`;
   }
   return "";
 }
@@ -63,7 +63,7 @@ export function shopItemCardHtml(item, state, lang = "zh") {
   const shop = state.shop;
   const owned = item.effect?.type === "autoTickets" ? false : Boolean(shop?.owned?.[item.id]);
   const selected = state.selectedId === item.id;
-  const stateText = owned ? T(lang, "已拥有", "Owned") : T(lang, `¤${item.price}`, `¤${item.price}`);
+  const stateText = owned ? TL(lang, "已拥有", "Owned") : TL(lang, `¤${item.price}`, `¤${item.price}`);
   return `<article class="shop-card${selected ? " is-selected" : ""}${owned ? " is-owned" : ""}" data-shop-action="select-item" data-item-id="${esc(item.id)}" tabindex="0" role="button" aria-pressed="${selected}">
     <div class="shop-card-preview">${shopPreviewHtml(item, lang)}</div>
     <div class="shop-card-name">${esc(itemName(item, lang))}</div>
@@ -76,24 +76,24 @@ function ticketUseHtml(state, lang) {
   const use = state.lastUse;
   const rows = [];
   if (use?.ok) {
-    rows.push(`<p class="shop-status ok">${esc(T(lang, `已托管 ${use.simmed} 场：${use.wins} 胜 ${use.losses} 负。账号经验 +${use.gained}（${use.xpGames} 场计经验），剩余托管卡 ${use.tickets} 张。`, `Simulated ${use.simmed} games: ${use.wins}W ${use.losses}L. Account XP +${use.gained} (${use.xpGames} games paid XP), ${use.tickets} tickets left.`))}</p>`);
+    rows.push(`<p class="shop-status ok">${esc(TL(lang, `已托管 ${use.simmed} 场：${use.wins} 胜 ${use.losses} 负。账号经验 +${use.gained}（${use.xpGames} 场计经验），剩余托管卡 ${use.tickets} 张。`, `Simulated ${use.simmed} games: ${use.wins}W ${use.losses}L. Account XP +${use.gained} (${use.xpGames} games paid XP), ${use.tickets} tickets left.`))}</p>`);
   } else if (use) {
     rows.push(`<p class="shop-status err">${esc(reasonText(use.reason, lang))}</p>`);
   }
   const allGames = Math.min(ctx.credits, ctx.remaining);
   return `<div class="shop-ticket-use">
-    <p class="shop-ticket-line">${esc(T(lang, `托管卡：${ctx.credits} 张 · 本赛季剩余 ${ctx.remaining} 场 · 今天还能计经验的托管场次：${ctx.xpRemaining} 场`, `Tickets: ${ctx.credits} · ${ctx.remaining} games left this season · XP-paying auto games left today: ${ctx.xpRemaining}`))}</p>
+    <p class="shop-ticket-line">${esc(TL(lang, `托管卡：${ctx.credits} 张 · 本赛季剩余 ${ctx.remaining} 场 · 今天还能计经验的托管场次：${ctx.xpRemaining} 场`, `Tickets: ${ctx.credits} · ${ctx.remaining} games left this season · XP-paying auto games left today: ${ctx.xpRemaining}`))}</p>
     <div class="btn-row">
-      <button type="button" class="btn small" data-shop-action="use-tickets" data-games="5" ${!ctx.season || ctx.credits < 5 || ctx.remaining <= 0 ? "disabled" : ""}>${esc(T(lang, "托管 5 场", "Sim 5 games"))}</button>
-      <button type="button" class="btn small" data-shop-action="use-tickets" data-games="20" ${!ctx.season || ctx.credits < 20 || ctx.remaining <= 0 ? "disabled" : ""}>${esc(T(lang, "托管 20 场", "Sim 20 games"))}</button>
-      <button type="button" class="btn small" data-shop-action="use-tickets" data-games="${allGames}" ${!ctx.season || allGames <= 0 ? "disabled" : ""}>${esc(T(lang, `托管全部 ${allGames} 场`, `Sim all ${allGames} games`))}</button>
+      <button type="button" class="btn small" data-shop-action="use-tickets" data-games="5" ${!ctx.season || ctx.credits < 5 || ctx.remaining <= 0 ? "disabled" : ""}>${esc(TL(lang, "托管 5 场", "Sim 5 games"))}</button>
+      <button type="button" class="btn small" data-shop-action="use-tickets" data-games="20" ${!ctx.season || ctx.credits < 20 || ctx.remaining <= 0 ? "disabled" : ""}>${esc(TL(lang, "托管 20 场", "Sim 20 games"))}</button>
+      <button type="button" class="btn small" data-shop-action="use-tickets" data-games="${allGames}" ${!ctx.season || allGames <= 0 ? "disabled" : ""}>${esc(TL(lang, `托管全部 ${allGames} 场`, `Sim all ${allGames} games`))}</button>
     </div>
     ${rows.join("")}
   </div>`;
 }
 
 export function shopDetailHtml(item, state, lang = "zh") {
-  if (!item) return `<div class="shop-detail-empty">${esc(T(lang, "选择一件商品查看详情。", "Pick an item to see its details."))}</div>`;
+  if (!item) return `<div class="shop-detail-empty">${esc(TL(lang, "选择一件商品查看详情。", "Pick an item to see its details."))}</div>`;
   const account = state.account;
   const shop = state.shop;
   const effect = item.effect || {};
@@ -102,23 +102,23 @@ export function shopDetailHtml(item, state, lang = "zh") {
   const armed = state.armedBuyId === item.id;
   const actions = [];
   if (!account) {
-    actions.push(`<button type="button" class="btn" data-shop-action="open-accounts">${esc(T(lang, "登录账号后购买", "Sign in to buy"))}</button>`);
+    actions.push(`<button type="button" class="btn" data-shop-action="open-accounts">${esc(TL(lang, "登录账号后购买", "Sign in to buy"))}</button>`);
   } else if (isTicket) {
-    actions.push(`<button type="button" class="btn" data-shop-action="buy" data-item-id="${esc(item.id)}">${esc(armed ? T(lang, `确认花费 ¤${item.price}？`, `Confirm ¤${item.price}?`) : T(lang, `购买 ¤${item.price}`, `Buy ¤${item.price}`))}</button>`);
+    actions.push(`<button type="button" class="btn" data-shop-action="buy" data-item-id="${esc(item.id)}">${esc(armed ? TL(lang, `确认花费 ¤${item.price}？`, `Confirm ¤${item.price}?`) : TL(lang, `购买 ¤${item.price}`, `Buy ¤${item.price}`))}</button>`);
   } else if (!owned) {
-    actions.push(`<button type="button" class="btn" data-shop-action="buy" data-item-id="${esc(item.id)}">${esc(armed ? T(lang, `确认花费 ¤${item.price}？`, `Confirm ¤${item.price}?`) : T(lang, `购买 ¤${item.price}`, `Buy ¤${item.price}`))}</button>`);
+    actions.push(`<button type="button" class="btn" data-shop-action="buy" data-item-id="${esc(item.id)}">${esc(armed ? TL(lang, `确认花费 ¤${item.price}？`, `Confirm ¤${item.price}?`) : TL(lang, `购买 ¤${item.price}`, `Buy ¤${item.price}`))}</button>`);
   } else if (effect.type === "outfit") {
     const wearing = equippedClothingItemId(account) === item.id;
     actions.push(wearing
-      ? `<button type="button" class="btn ghost" data-shop-action="unequip" data-item-id="${esc(item.id)}">${esc(T(lang, "换下（恢复默认球衣）", "Take off (back to default)"))}</button>`
-      : `<button type="button" class="btn" data-shop-action="equip" data-item-id="${esc(item.id)}">${esc(T(lang, "穿上", "Wear it"))}</button>`);
+      ? `<button type="button" class="btn ghost" data-shop-action="unequip" data-item-id="${esc(item.id)}">${esc(TL(lang, "换下（恢复默认球衣）", "Take off (back to default)"))}</button>`
+      : `<button type="button" class="btn" data-shop-action="equip" data-item-id="${esc(item.id)}">${esc(TL(lang, "穿上", "Wear it"))}</button>`);
   } else if (effect.type === "frame") {
     const on = equippedFrameId(account) === item.id;
     actions.push(on
-      ? `<button type="button" class="btn ghost" data-shop-action="unequip" data-item-id="${esc(item.id)}">${esc(T(lang, "取下头像框", "Remove frame"))}</button>`
-      : `<button type="button" class="btn" data-shop-action="equip" data-item-id="${esc(item.id)}">${esc(T(lang, "戴上头像框", "Apply frame"))}</button>`);
+      ? `<button type="button" class="btn ghost" data-shop-action="unequip" data-item-id="${esc(item.id)}">${esc(TL(lang, "取下头像框", "Remove frame"))}</button>`
+      : `<button type="button" class="btn" data-shop-action="equip" data-item-id="${esc(item.id)}">${esc(TL(lang, "戴上头像框", "Apply frame"))}</button>`);
   } else if (effect.type === "furniture") {
-    actions.push(`<p class="shop-status ok">${esc(T(lang, "已摆进 My Home 房间，去 My World 看看。", "Placed in your My Home room — see it in My World."))}</p>`);
+    actions.push(`<p class="shop-status ok">${esc(TL(lang, "已摆进 My Home 房间，去 My World 看看。", "Placed in your My Home room — see it in My World."))}</p>`);
   }
   const status = state.status ? `<p class="shop-status ${state.status.kind}">${esc(state.status.text)}</p>` : "";
   return `<div class="shop-detail">
@@ -143,34 +143,34 @@ export function shopDetailHtml(item, state, lang = "zh") {
 export function shopInventoryHtml(state, lang = "zh") {
   const account = state.account;
   if (!account) {
-    return `<div class="shop-inventory"><p class="shop-empty">${esc(T(lang, "登录账号后查看已拥有的商品。", "Sign in to see what you own."))}</p></div>`;
+    return `<div class="shop-inventory"><p class="shop-empty">${esc(TL(lang, "登录账号后查看已拥有的商品。", "Sign in to see what you own."))}</p></div>`;
   }
   const owned = state.owned || [];
   const recent = state.recent || [];
   const furniture = state.furniture || [];
   const rows = owned.map(({ item, equipped }) => {
     const effect = item.effect || {};
-    const stateText = effect.type === "furniture" ? T(lang, "已摆进房间", "Placed in your room")
-      : effect.type === "outfit" ? (equipped ? T(lang, "穿着中", "Wearing") : T(lang, "未穿", "Not wearing"))
-      : effect.type === "frame" ? (equipped ? T(lang, "已戴上", "Applied") : T(lang, "未戴上", "Not applied"))
+    const stateText = effect.type === "furniture" ? TL(lang, "已摆进房间", "Placed in your room")
+      : effect.type === "outfit" ? (equipped ? TL(lang, "穿着中", "Wearing") : TL(lang, "未穿", "Not wearing"))
+      : effect.type === "frame" ? (equipped ? TL(lang, "已戴上", "Applied") : TL(lang, "未戴上", "Not applied"))
       : "";
     const action = effect.type === "outfit"
-      ? `<button type="button" class="btn small${equipped ? " ghost" : ""}" data-shop-action="${equipped ? "unequip" : "equip"}" data-item-id="${esc(item.id)}">${esc(equipped ? T(lang, "换下", "Take off") : T(lang, "穿上", "Wear it"))}</button>`
+      ? `<button type="button" class="btn small${equipped ? " ghost" : ""}" data-shop-action="${equipped ? "unequip" : "equip"}" data-item-id="${esc(item.id)}">${esc(equipped ? TL(lang, "换下", "Take off") : TL(lang, "穿上", "Wear it"))}</button>`
       : effect.type === "frame"
-        ? `<button type="button" class="btn small${equipped ? " ghost" : ""}" data-shop-action="${equipped ? "unequip" : "equip"}" data-item-id="${esc(item.id)}">${esc(equipped ? T(lang, "取下", "Remove") : T(lang, "戴上", "Apply"))}</button>`
+        ? `<button type="button" class="btn small${equipped ? " ghost" : ""}" data-shop-action="${equipped ? "unequip" : "equip"}" data-item-id="${esc(item.id)}">${esc(equipped ? TL(lang, "取下", "Remove") : TL(lang, "戴上", "Apply"))}</button>`
         : "";
     return `<div class="shop-owned-row"><span class="shop-owned-name">${esc(itemName(item, lang))}</span><span class="shop-owned-state">${esc(stateText)}</span><span class="btn-row">${action}</span></div>`;
   }).join("");
   const recentRows = recent.map(({ item }) => `<li>${esc(itemName(item, lang))}</li>`).join("");
   return `<div class="shop-inventory">
-    <h3>${esc(T(lang, "我的房间预览", "My room preview"))}</h3>
+    <h3>${esc(TL(lang, "我的房间预览", "My room preview"))}</h3>
     <div class="shop-room-preview">${roomPreviewSvg(furniture, account.homeLayout ?? null, lang)}</div>
-    ${furniture.length ? "" : `<p class="shop-empty">${esc(T(lang, "房间还空着——买件家具，它会立刻摆进来。", "The room is still empty — buy a piece and it is placed at once."))}</p>`}
-    <p class="shop-ticket-line">${esc(T(lang, `托管卡：${state.tickets || 0} 张`, `Auto-Play Tickets: ${state.tickets || 0}`))}</p>
-    <h3>${esc(T(lang, "已拥有", "Owned"))}</h3>
-    ${owned.length ? `<div class="shop-owned-list">${rows}</div>` : `<p class="shop-empty">${esc(T(lang, "还没有买过商品——喜欢的家具、衣服和头像框都在上面几个分类里。", "Nothing bought yet — furniture, clothing and frames are in the tabs above."))}</p>`}
-    <h3>${esc(T(lang, "最近购买", "Recently bought"))}</h3>
-    ${recentRows ? `<ul class="shop-recent-list">${recentRows}</ul>` : `<p class="shop-empty">${esc(T(lang, "还没有购买记录。", "No purchases yet."))}</p>`}
+    ${furniture.length ? "" : `<p class="shop-empty">${esc(TL(lang, "房间还空着——买件家具，它会立刻摆进来。", "The room is still empty — buy a piece and it is placed at once."))}</p>`}
+    <p class="shop-ticket-line">${esc(TL(lang, `托管卡：${state.tickets || 0} 张`, `Auto-Play Tickets: ${state.tickets || 0}`))}</p>
+    <h3>${esc(TL(lang, "已拥有", "Owned"))}</h3>
+    ${owned.length ? `<div class="shop-owned-list">${rows}</div>` : `<p class="shop-empty">${esc(TL(lang, "还没有买过商品——喜欢的家具、衣服和头像框都在上面几个分类里。", "Nothing bought yet — furniture, clothing and frames are in the tabs above."))}</p>`}
+    <h3>${esc(TL(lang, "最近购买", "Recently bought"))}</h3>
+    ${recentRows ? `<ul class="shop-recent-list">${recentRows}</ul>` : `<p class="shop-empty">${esc(TL(lang, "还没有购买记录。", "No purchases yet."))}</p>`}
   </div>`;
 }
 
@@ -181,14 +181,14 @@ export function shopDialogHtml(state, lang = "zh") {
   const selected = itemById(state.selectedId) || items[0] || null;
   const inventory = state.view === "inventory";
   return `<div class="shop-head">
-    <h2>${esc(T(lang, "商城", "Shop"))}</h2>
-    <p class="shop-gold">${esc(T(lang, `我的金币：¤${gold}`, `My gold: ¤${gold}`))}</p>
-    <button type="button" class="btn small ghost shop-close" data-shop-action="close" aria-label="${esc(T(lang, "关闭", "Close"))}">✕</button>
+    <h2>${esc(TL(lang, "商城", "Shop"))}</h2>
+    <p class="shop-gold">${esc(TL(lang, `我的金币：¤${gold}`, `My gold: ¤${gold}`))}</p>
+    <button type="button" class="btn small ghost shop-close" data-shop-action="close" aria-label="${esc(TL(lang, "关闭", "Close"))}">✕</button>
   </div>
-  <p class="shop-note">${esc(T(lang, "金币只买生活与便利：外观、家具、托管。金币不买球员卡、不加比赛属性。", "Gold buys lifestyle and convenience only: looks, furniture, auto-play. Gold never buys player cards or match attributes."))}</p>
+  <p class="shop-note">${esc(TL(lang, "金币只买生活与便利：外观、家具、托管。金币不买球员卡、不加比赛属性。", "Gold buys lifestyle and convenience only: looks, furniture, auto-play. Gold never buys player cards or match attributes."))}</p>
   <div class="shop-tabs" role="tablist">
     ${SHOP_CATEGORIES.map((c) => `<button type="button" role="tab" aria-selected="${state.category === c.id && !inventory}" class="shop-tab${state.category === c.id && !inventory ? " is-active" : ""}" data-shop-action="select-category" data-category="${esc(c.id)}">${esc(lang === "en" ? c.en : c.zh)}</button>`).join("")}
-    <button type="button" role="tab" aria-selected="${inventory}" class="shop-tab${inventory ? " is-active" : ""}" data-shop-action="select-inventory">${esc(T(lang, "已拥有", "Owned"))}</button>
+    <button type="button" role="tab" aria-selected="${inventory}" class="shop-tab${inventory ? " is-active" : ""}" data-shop-action="select-inventory">${esc(TL(lang, "已拥有", "Owned"))}</button>
   </div>
   ${inventory ? shopInventoryHtml(state, lang) : `<div class="shop-body">
     <div class="shop-grid">${items.map((item) => shopItemCardHtml(item, state, lang)).join("")}</div>

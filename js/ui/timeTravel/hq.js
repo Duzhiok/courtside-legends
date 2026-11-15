@@ -1,6 +1,7 @@
 import { icon } from "./icons.js";
 import { teamNameL } from "../../i18n.js";
-import { esc, readableInk, tr } from "./format.js";
+import { esc, readableInk } from "./format.js";
+import { TL } from "../../i18n.js";
 
 const NEUTRAL = { primary: "#1a3a2a", secondary: "#f3efe4" };
 
@@ -30,7 +31,7 @@ export function timelineHtml(vm, lang = "zh") {
     const current = !vm.finished && i === vm.yearsPlayed;
     const season = vm.currentContractSeasons[i];
     const state = done ? "done" : current ? "current" : "future";
-    const stateWord = done ? tr(lang, "已完成", "done") : current ? tr(lang, "进行中", "in progress") : tr(lang, "未开始", "upcoming");
+    const stateWord = done ? TL(lang, "已完成", "done") : current ? TL(lang, "进行中", "in progress") : TL(lang, "未开始", "upcoming");
     const champ = done && season?.champion ? icon("trophy", { size: 12 }) : "";
     nodes.push(
       `<li class="tt-node tt-node-${state}" aria-label="${esc(`${vm.startYear + i} ${stateWord}`)}">
@@ -46,7 +47,7 @@ export function timelineHtml(vm, lang = "zh") {
   nodes.push(
     `<li class="tt-node tt-node-end tt-node-${endState}">
       <span class="tt-node-dot">${icon(vm.finished ? "flag" : "scroll", { size: 12 })}</span>
-      <span class="tt-node-year">${esc(vm.finished ? tr(lang, "结局", "Ending") : tr(lang, "续约", "Renewal"))}</span>
+      <span class="tt-node-year">${esc(vm.finished ? TL(lang, "结局", "Ending") : TL(lang, "续约", "Renewal"))}</span>
       <span class="tt-node-note"></span>
     </li>`,
   );
@@ -61,10 +62,10 @@ export function timelineHtml(vm, lang = "zh") {
 export function careerHeaderHtml(vm, lang = "zh") {
   const seasonsCoached = vm.currentContractSeasons.length;
   const contractPill = vm.finished
-    ? tr(lang, `执教 ${seasonsCoached} 个赛季`, `${seasonsCoached} seasons coached`)
-    : tr(lang, `合同第 ${Math.min(vm.yearsPlayed + 1, vm.contractYears)}/${vm.contractYears} 年`, `Contract yr ${Math.min(vm.yearsPlayed + 1, vm.contractYears)}/${vm.contractYears}`);
+    ? TL(lang, `执教 ${seasonsCoached} 个赛季`, `${seasonsCoached} seasons coached`)
+    : TL(lang, `合同第 ${Math.min(vm.yearsPlayed + 1, vm.contractYears)}/${vm.contractYears} 年`, `Contract yr ${Math.min(vm.yearsPlayed + 1, vm.contractYears)}/${vm.contractYears}`);
   const pills = [`<span class="tt-pill">${icon("clock", { size: 13 })}${esc(contractPill)}</span>`];
-  if (vm.record) pills.push(`<span class="tt-pill">${esc(tr(lang, "上季", "Last"))} ${vm.record.w}-${vm.record.l}</span>`);
+  if (vm.record) pills.push(`<span class="tt-pill">${esc(TL(lang, "上季", "Last"))} ${vm.record.w}-${vm.record.l}</span>`);
   if (vm.titles) pills.push(`<span class="tt-pill tt-pill-gold">${icon("trophy", { size: 13 })}×${vm.titles}</span>`);
   // Retiring is a dignified exit, not a warning: gold, where a firing / a pending decision is red.
   if (vm.label) pills.push(`<span class="tt-pill ${vm.labelTone === "gold" ? "tt-pill-gold" : "tt-pill-alert"}">${esc(vm.label)}</span>`);
@@ -73,22 +74,22 @@ export function careerHeaderHtml(vm, lang = "zh") {
   // player with points in hand finds out. Hidden once the career is over (the card is too).
   // The full wording is for wide screens; the stat tile is ~60px on a phone, so there it shrinks to "2 点".
   const n = c.perkPoints;
-  const full = tr(lang, `${n} 点可用`, `${n} point${n === 1 ? "" : "s"} to spend`);
-  const short = tr(lang, `${n} 点`, `${n} pt${n === 1 ? "" : "s"}`);
-  const hint = tr(lang, "在下方「教练成长」里分配", "Spend them in Coach growth, below");
+  const full = TL(lang, `${n} 点可用`, `${n} point${n === 1 ? "" : "s"} to spend`);
+  const short = TL(lang, `${n} 点`, `${n} pt${n === 1 ? "" : "s"}`);
+  const hint = TL(lang, "在下方「教练成长」里分配", "Spend them in Coach growth, below");
   const points = !vm.finished && n > 0
     ? `<span class="tt-pill tt-pill-gold tt-perk-badge" title="${esc(hint)}" aria-label="${esc(`${full} — ${hint}`)}"><span class="tt-perk-full">${esc(full)}</span><span class="tt-perk-short" aria-hidden="true">${esc(short)}</span></span>`
     : "";
   const stats = [
-    [tr(lang, "等级", "Level"), `Lv.${c.level ?? 1}`, points],
-    [tr(lang, "声望", "Reputation"), c.reputation ?? 0],
-    [tr(lang, "年龄", "Age"), c.age ?? "—"],
-    [tr(lang, "心情", "Mood"), c.mood ?? "—"],
+    [TL(lang, "等级", "Level"), `Lv.${c.level ?? 1}`, points],
+    [TL(lang, "声望", "Reputation"), c.reputation ?? 0],
+    [TL(lang, "年龄", "Age"), c.age ?? "—"],
+    [TL(lang, "心情", "Mood"), c.mood ?? "—"],
   ].map(([label, value, extra = ""]) => `<div class="tt-coach-stat"><dt>${esc(label)}</dt><dd>${esc(value)}${extra}</dd></div>`).join("");
   return `<div class="tt-hq-team" style="${teamThemeStyle(vm.colors)}">
       ${crestHtml(vm.teamId, vm.colors, { size: "lg" })}
       <div class="tt-hq-id">
-        <p class="tt-kicker">${esc(tr(lang, `${vm.year} 赛季 · 主教练`, `${vm.year} season · Head coach`))}</p>
+        <p class="tt-kicker">${esc(TL(lang, `${vm.year} 赛季 · 主教练`, `${vm.year} season · Head coach`))}</p>
         <h3 class="tt-hq-name">${esc(teamNameL(vm.teamName, lang))}</h3>
         <div class="tt-hq-pills">${pills.join("")}</div>
       </div>

@@ -6,7 +6,8 @@
  * Colour never carries the meaning alone: every row says its status in words too (WCAG 1.4.1).
  */
 import { goalText } from "../career/gameGoals.js";
-import { esc, tr } from "./timeTravel/format.js";
+import { esc } from "./timeTravel/format.js";
+import { TL } from "../i18n.js";
 
 const STATUS = {
   done: { icon: "✓", zh: "已达成", en: "Done" },
@@ -20,12 +21,12 @@ function valueText(item, lang) {
   const { id, cur, target } = item;
   if (id === "margin") {
     const lead = cur >= 0
-      ? tr(lang, `领先 ${cur}`, `Up ${cur}`)
-      : tr(lang, `落后 ${-cur}`, `Down ${-cur}`);
+      ? TL(lang, `领先 ${cur}`, `Up ${cur}`)
+      : TL(lang, `落后 ${-cur}`, `Down ${-cur}`);
     return `${lead} / ${target}`;
   }
-  if (id === "careful") return `${cur} / ${target} ${tr(lang, "上限", "max")}`;
-  if (id === "rookie") return `${cur} / ${target} ${tr(lang, "分钟", "min")}`;
+  if (id === "careful") return `${cur} / ${target} ${TL(lang, "上限", "max")}`;
+  if (id === "rookie") return `${cur} / ${target} ${TL(lang, "分钟", "min")}`;
   return `${cur} / ${target}`;
 }
 
@@ -39,7 +40,7 @@ export function liveGoalsHtml({ progress, lang = "zh" } = {}) {
   if (!progress?.length) return "";
   const rows = progress.map((item) => {
     const status = STATUS[item.status] || STATUS.open;
-    const label = tr(lang, status.zh, status.en);
+    const label = TL(lang, status.zh, status.en);
     return `<li class="lg-goal lg-${esc(item.status)}" data-goal="${esc(item.id)}" data-status="${esc(item.status)}">
       <span class="lg-icon" aria-hidden="true">${status.icon}</span>
       <span class="lg-text">${esc(goalText(item.goal, lang))}</span>
@@ -48,5 +49,5 @@ export function liveGoalsHtml({ progress, lang = "zh" } = {}) {
       <span class="lg-bar" aria-hidden="true"><i style="width:${barPercent(item)}%"></i></span>
     </li>`;
   }).join("");
-  return `<p class="lg-title">${esc(tr(lang, "本场目标", "Goals for this game"))}</p><ul class="lg-goals">${rows}</ul>`;
+  return `<p class="lg-title">${esc(TL(lang, "本场目标", "Goals for this game"))}</p><ul class="lg-goals">${rows}</ul>`;
 }

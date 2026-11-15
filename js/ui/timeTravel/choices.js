@@ -1,4 +1,5 @@
-import { effectChipsHtml, esc, tr } from "./format.js";
+import { effectChipsHtml, esc } from "./format.js";
+import { TL } from "../../i18n.js";
 
 const KEYS = "ABCDEF";
 
@@ -19,8 +20,8 @@ export function confirmBarHtml(lang = "zh", { confirmLabel } = {}) {
   return `<div class="tt-confirm" hidden>
     <p class="tt-confirm-text" aria-live="polite"></p>
     <div class="tt-confirm-actions">
-      <button type="button" class="tt-btn tt-btn-ghost" data-act="cancel">${esc(tr(lang, "重新选择", "Pick again"))}</button>
-      <button type="button" class="tt-btn tt-btn-primary" data-act="confirm">${esc(confirmLabel || tr(lang, "确认这个决定", "Lock it in"))}</button>
+      <button type="button" class="tt-btn tt-btn-ghost" data-act="cancel">${esc(TL(lang, "重新选择", "Pick again"))}</button>
+      <button type="button" class="tt-btn tt-btn-primary" data-act="confirm">${esc(confirmLabel || TL(lang, "确认这个决定", "Lock it in"))}</button>
     </div>
   </div>`;
 }

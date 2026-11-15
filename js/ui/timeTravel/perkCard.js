@@ -6,8 +6,9 @@ import { COACH_PERK_LINES, COACH_PERK_MAX_LEVEL } from "../../career/balance.js"
 import { ensureCoachProfile, spendPerkPoint, xpToNextLevel } from "../../career/coachProfile.js";
 import { PERK_LINE_INFO, perkEffectText, perkLevel } from "../../career/coachPerks.js";
 import { $ } from "./dom.js";
-import { esc, tr } from "./format.js";
+import { esc } from "./format.js";
 import { icon } from "./icons.js";
+import { TL } from "../../i18n.js";
 
 const LINE_ICONS = { tactics: "chart", development: "users", negotiation: "briefcase", media: "chat" };
 
@@ -38,8 +39,8 @@ export function perkModel(root, lang = "zh") {
 
 function lineHtml(line, lang) {
   const pips = Array.from({ length: line.max }, (_, i) => `<i${i < line.level ? ' class="on"' : ""}></i>`).join("");
-  const now = line.now || tr(lang, "尚未投入", "No points yet");
-  const next = line.next ? tr(lang, `下一级：${line.next}`, `Next: ${line.next}`) : tr(lang, "已满级", "Maxed");
+  const now = line.now || TL(lang, "尚未投入", "No points yet");
+  const next = line.next ? TL(lang, `下一级：${line.next}`, `Next: ${line.next}`) : TL(lang, "已满级", "Maxed");
   const state = line.level >= line.max ? "owned" : line.canSpend ? "ready" : "locked";
   return `<button type="button" class="tt-asset tt-perk" data-perk="${esc(line.id)}" data-state="${state}"${line.canSpend ? "" : " disabled"}>
     <span class="tt-asset-ico">${icon(LINE_ICONS[line.id] || "star", { size: 20 })}</span>
@@ -55,18 +56,18 @@ function lineHtml(line, lang) {
 export function perkCardHtml(model, lang = "zh") {
   const pct = Math.round(model.progress * 100);
   const points = model.perkPoints
-    ? `<span class="tt-pill tt-pill-gold">${esc(tr(lang, `${model.perkPoints} 点天赋点可分配`, `${model.perkPoints} perk point${model.perkPoints === 1 ? "" : "s"} to spend`))}</span>`
+    ? `<span class="tt-pill tt-pill-gold">${esc(TL(lang, `${model.perkPoints} 点天赋点可分配`, `${model.perkPoints} perk point${model.perkPoints === 1 ? "" : "s"} to spend`))}</span>`
     : "";
   return `<p class="tt-perk-level"><strong>Lv.${model.level}</strong> <span class="tt-faint">${esc(`${model.xp} / ${model.next} XP`)}</span> ${points}</p>
     <span class="tt-fund tt-perk-bar" role="img" aria-label="${esc(`XP ${pct}%`)}"><i style="width:${pct}%"></i></span>
-    <p class="tt-faint">${esc(tr(lang, "每场比赛都给教练经验：赢球更多，爆冷再加，季后赛翻倍。每升一级得 1 点天赋点。", "Every game earns coach XP: more for a win, extra for an upset, double in the playoffs. Each level is one perk point."))}</p>
+    <p class="tt-faint">${esc(TL(lang, "每场比赛都给教练经验：赢球更多，爆冷再加，季后赛翻倍。每升一级得 1 点天赋点。", "Every game earns coach XP: more for a win, extra for an upset, double in the playoffs. Each level is one perk point."))}</p>
     <div class="tt-assets">${model.lines.map((line) => lineHtml(line, lang)).join("")}</div>`;
 }
 
 export function createPerkCard({ lang, commit, currentRootState, onChange = () => {} }) {
   function render(root) {
     const l = lang();
-    $("#tt-perks-title").innerHTML = `${icon("star", { size: 18 })}<h3>${esc(tr(l, "教练天赋", "Coach perks"))}</h3>`;
+    $("#tt-perks-title").innerHTML = `${icon("star", { size: 18 })}<h3>${esc(TL(l, "教练天赋", "Coach perks"))}</h3>`;
     $("#tt-perks-body").innerHTML = perkCardHtml(perkModel(root, l), l);
   }
 
@@ -76,11 +77,11 @@ export function createPerkCard({ lang, commit, currentRootState, onChange = () =
       if (!line) return;
       try {
         const root = currentRootState();
-        commit({ ...root, coach: spendPerkPoint(ensureCoachProfile(root), line) }, tr(lang(), "无法分配天赋点", "Couldn't spend the perk point"), { full: false });
+        commit({ ...root, coach: spendPerkPoint(ensureCoachProfile(root), line) }, TL(lang(), "无法分配天赋点", "Couldn't spend the perk point"), { full: false });
         render(currentRootState());
         onChange();
       } catch (error) {
-        alert(error?.message || tr(lang(), "无法分配天赋点", "Couldn't spend the perk point"));
+        alert(error?.message || TL(lang(), "无法分配天赋点", "Couldn't spend the perk point"));
       }
     });
   }

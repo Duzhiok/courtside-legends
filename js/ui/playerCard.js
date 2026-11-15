@@ -22,7 +22,8 @@
  */
 import { photoImg } from "../data/photo.js";
 import { playerLegacyBadge } from "../data/playerLegacy.js";
-import { esc, T } from "./myTeamViewKit.js";
+import { esc } from "./myTeamViewKit.js";
+import { TL } from "../i18n.js";
 
 /** Rarity tier -> card frame class. "" = no tier (plain base frame). */
 export function rarityFrameClass(badge) {
@@ -63,7 +64,7 @@ export function playerCardFaceHtml(p, { ovr, lang = "zh" } = {}) {
   const label = rarityLabel(badge, lang);
   const tag = label ? ` <span class="rarity-tag ${badge.cls}">${esc(label)}</span>` : "";
   const twilight = p?.twilight
-    ? ` <span class="tag-twilight">${T(lang, "生涯末期", "Late career")}</span>`
+    ? ` <span class="tag-twilight">${TL(lang, "生涯末期", "Late career")}</span>`
     : "";
   const meta = [p?.season, p?.teamLabel || p?.team || "", p?.pos].filter(Boolean).join(" · ");
   return `<div class="card-face">${photoImg(p, "card-portrait")}<div class="card-face-shade" aria-hidden="true"></div><div class="card-ovr"><span>OVR</span><strong>${esc(ovr)}</strong></div><div class="card-info"><div class="name">${esc(p?.name)}${tag}${twilight}</div><div class="meta">${esc(meta)}</div></div></div>`;

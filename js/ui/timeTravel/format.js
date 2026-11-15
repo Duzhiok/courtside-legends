@@ -1,8 +1,8 @@
 /** Small shared helpers for the time-travel views: language pick, escaping, tones, effect chips. */
 import { esc } from "../../core/html.js";
+import { TL } from "../../i18n.js";
 export { esc };
 
-export const tr = (lang, zh, en) => (lang === "en" ? en : zh);
 
 export const clamp = (value, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Number(value) || 0));
 
@@ -49,7 +49,7 @@ export function magnitudeTier(value) {
 
 export function effectChipsHtml(effects, lang = "zh") {
   if (!effects) return "";
-  const words = tr(lang, ["", "小幅", "明显", "大幅"], ["", "slightly", "clearly", "sharply"]);
+  const words = TL(lang, ["", "小幅", "明显", "大幅"], ["", "slightly", "clearly", "sharply"]);
   const chips = [];
   for (const row of EFFECT_ROWS) {
     const raw = effects[row.key] ?? (row.alt ? effects[row.alt] : 0);
@@ -57,8 +57,8 @@ export function effectChipsHtml(effects, lang = "zh") {
     if (!tier) continue;
     const up = raw > 0;
     const arrows = (up ? "▲" : "▼").repeat(tier);
-    const name = tr(lang, row.zh, row.en);
-    const spoken = `${name} ${words[tier]}${tr(lang, up ? "上升" : "下降", up ? " up" : " down")}`;
+    const name = TL(lang, row.zh, row.en);
+    const spoken = `${name} ${words[tier]}${TL(lang, up ? "上升" : "下降", up ? " up" : " down")}`;
     chips.push(
       `<span class="tt-eff tt-eff-${row.tone(raw)}" title="${esc(spoken)}"><span class="tt-eff-name">${esc(name)}</span><span class="tt-eff-arrows" aria-hidden="true">${arrows}</span><span class="tt-sr">${esc(spoken)}</span></span>`,
     );

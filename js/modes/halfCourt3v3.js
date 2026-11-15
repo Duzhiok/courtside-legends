@@ -26,6 +26,7 @@
 import { GameSim } from "../engine/sim.js";
 import { hashSeed, seededStream } from "../core/seededRandom.js";
 import { buildSandboxTeam } from "./sandboxDuel.js";
+import { TL } from "../i18n.js";
 
 export const HALF_COURT_RULES = Object.freeze({
   teamSize: 3,
@@ -116,7 +117,6 @@ export function countedFreeThrows(events) {
   });
 }
 
-const L = (lang, zh, en) => (lang === "en" ? en : zh);
 
 /**
  * Deterministic auto-coach timeout (no dice): the first side whose three average
@@ -155,11 +155,11 @@ export function playLines(events, nameOf, lang) {
       const who = nameOf(m.shot.shooterId);
       lines.push(
         m.shot.made
-          ? { kind: "make", playerId: m.shot.shooterId, zone: arc ? "arc" : "inside", text: arc ? L(lang, `${who} 弧外命中 +2`, `${who} hits from beyond the arc +2`) : L(lang, `${who} 弧内得手 +1`, `${who} scores inside +1`) }
-          : { kind: "miss", playerId: m.shot.shooterId, zone: arc ? "arc" : "inside", text: arc ? L(lang, `${who} 弧外不中`, `${who} misses from deep`) : L(lang, `${who} 弧内不中`, `${who} misses inside`) }
+          ? { kind: "make", playerId: m.shot.shooterId, zone: arc ? "arc" : "inside", text: arc ? TL(lang, `${who} 弧外命中 +2`, `${who} hits from beyond the arc +2`) : TL(lang, `${who} 弧内得手 +1`, `${who} scores inside +1`) }
+          : { kind: "miss", playerId: m.shot.shooterId, zone: arc ? "arc" : "inside", text: arc ? TL(lang, `${who} 弧外不中`, `${who} misses from deep`) : TL(lang, `${who} 弧内不中`, `${who} misses inside`) }
       );
     } else if (m.block) {
-      lines.push({ kind: "block", playerId: m.actorId, zone: "inside", text: L(lang, `${nameOf(m.actorId)} 盖帽 ${m.block.blockedName}`, `${nameOf(m.actorId)} blocks ${m.block.blockedName}`) });
+      lines.push({ kind: "block", playerId: m.actorId, zone: "inside", text: TL(lang, `${nameOf(m.actorId)} 盖帽 ${m.block.blockedName}`, `${nameOf(m.actorId)} blocks ${m.block.blockedName}`) });
     } else if (m.turnover) {
       const t = m.turnover;
       const by = t.forcedById && (t.kind === "steal" || t.kind === "charge") ? nameOf(t.forcedById) : null;
@@ -167,23 +167,23 @@ export function playLines(events, nameOf, lang) {
         kind: "turnover",
         playerId: t.actorId,
         text: t.kind === "steal" && by
-          ? L(lang, `${by} 抢断 ${nameOf(t.actorId)}`, `${by} steals it from ${nameOf(t.actorId)}`)
+          ? TL(lang, `${by} 抢断 ${nameOf(t.actorId)}`, `${by} steals it from ${nameOf(t.actorId)}`)
           : t.kind === "charge" && by
-            ? L(lang, `${by} 造进攻犯规`, `${by} draws the charge`)
-            : L(lang, `${nameOf(t.actorId)} 失误`, `${nameOf(t.actorId)} turnover`),
+            ? TL(lang, `${by} 造进攻犯规`, `${by} draws the charge`)
+            : TL(lang, `${nameOf(t.actorId)} 失误`, `${nameOf(t.actorId)} turnover`),
       });
     } else if (m.reb) {
       const who = nameOf(m.reb.rebounderId);
       lines.push(
         m.reb.offensive
-          ? { kind: "oreb", playerId: m.reb.rebounderId, text: L(lang, `${who} 进攻篮板，直接二次进攻`, `${who} offensive board — straight back up`) }
-          : { kind: "dreb", playerId: m.reb.rebounderId, text: L(lang, `${who} 防守篮板`, `${who} defensive board`) }
+          ? { kind: "oreb", playerId: m.reb.rebounderId, text: TL(lang, `${who} 进攻篮板，直接二次进攻`, `${who} offensive board — straight back up`) }
+          : { kind: "dreb", playerId: m.reb.rebounderId, text: TL(lang, `${who} 防守篮板`, `${who} defensive board`) }
       );
     }
     // A foul can ride along with another outcome (charge: sim.js:950, loose-ball foul after a
     // turnover: :1036) — it is its own line, never swallowed by the outcome branch above.
     if (m.foul) {
-      lines.push({ kind: "foul", playerId: m.foul.foulerId, text: L(lang, `${nameOf(m.foul.foulerId)} 犯规`, `Foul on ${nameOf(m.foul.foulerId)}`) });
+      lines.push({ kind: "foul", playerId: m.foul.foulerId, text: TL(lang, `${nameOf(m.foul.foulerId)} 犯规`, `Foul on ${nameOf(m.foul.foulerId)}`) });
     }
   }
   return lines;
@@ -298,10 +298,10 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
     const lines = playLines(events, nameOf, lang);
     if (timeoutBy) {
       const teamName = timeoutBy === "home" ? home.name : away.name;
-      lines.unshift({ kind: "timeout", side: timeoutBy, text: L(lang, `${teamName} 叫暂停，喘口气`, `${teamName} call timeout to catch their breath`) });
+      lines.unshift({ kind: "timeout", side: timeoutBy, text: TL(lang, `${teamName} 叫暂停，喘口气`, `${teamName} call timeout to catch their breath`) });
     }
     for (const t of fts) {
-      lines.push({ kind: "ft", playerId: t.shooterId, text: L(lang, `${nameOf(t.shooterId)} 罚球 ${t.made}/${t.attempts}`, `${nameOf(t.shooterId)} free throws ${t.made}/${t.attempts}`) });
+      lines.push({ kind: "ft", playerId: t.shooterId, text: TL(lang, `${nameOf(t.shooterId)} 罚球 ${t.made}/${t.attempts}`, `${nameOf(t.shooterId)} free throws ${t.made}/${t.attempts}`) });
     }
     plays.push({
       n: possessions,

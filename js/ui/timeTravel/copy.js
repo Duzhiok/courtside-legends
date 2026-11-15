@@ -3,7 +3,8 @@
  * the opening future-knowledge decision. One place, zh + en side by side, so a translator (or the
  * next agent) sees the whole screen's wording at once. JS-rendered copy lives next to its view.
  */
-import { tr } from "./format.js";
+
+import { TL } from "../../i18n.js";
 
 const TEXT = {
   "w1-title": ["回到哪一年？", "Which year do you land in?"],
@@ -46,7 +47,7 @@ const TEXT = {
 
 export const staticText = (key, lang) => {
   const pair = TEXT[key];
-  return pair ? tr(lang, pair[0], pair[1]) : "";
+  return pair ? TL(lang, pair[0], pair[1]) : "";
 };
 
 /** Fill every `[data-tt]` element under `root` with its text for `lang`. */

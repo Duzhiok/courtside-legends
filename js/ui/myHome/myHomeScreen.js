@@ -10,8 +10,8 @@ import { ownedFurnitureIds } from "../../data/shop.js";
 import { SHOP_ITEMS, itemName } from "../../data/shopCatalog.js";
 import { renderIsoRoom } from "./isoRoom.js";
 import { esc } from "../../core/html.js";
+import { TL } from "../../i18n.js";
 
-const T = (lang, zh, en) => (lang === "en" ? en : zh);
 
 /** The page title, rendered once by the shell in the current language. */
 export const MY_HOME_TITLE = Object.freeze({ zh: "我的家", en: "My Home" });
@@ -70,10 +70,10 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
 
   function trayHtml(placed, l) {
     if (!placed.length) {
-      return `<p class="mh-empty">${T(l, "还没有家具——去商城买一件，它会立刻出现在房间里。", "No furniture yet — buy a piece in the Shop and it shows up here at once.")}</p>`;
+      return `<p class="mh-empty">${TL(l, "还没有家具——去商城买一件，它会立刻出现在房间里。", "No furniture yet — buy a piece in the Shop and it shows up here at once.")}</p>`;
     }
     return `<ul class="mh-tray">${placed
-      .map((p) => `<li><button type="button" class="mh-chip${p.id === selected ? " is-selected" : ""}" data-mh-pick="${esc(p.id)}" aria-pressed="${p.id === selected}">${esc(pieceName(p.id, l))}<small>${p.kind === "wall" ? T(l, "挂墙", "Wall") : T(l, "地面", "Floor")}</small></button></li>`)
+      .map((p) => `<li><button type="button" class="mh-chip${p.id === selected ? " is-selected" : ""}" data-mh-pick="${esc(p.id)}" aria-pressed="${p.id === selected}">${esc(pieceName(p.id, l))}<small>${p.kind === "wall" ? TL(l, "挂墙", "Wall") : TL(l, "地面", "Floor")}</small></button></li>`)
       .join("")}</ul>`;
   }
 
@@ -81,14 +81,14 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
     const sel = placed.find((p) => p.id === selected);
     const floor = sel?.kind === "floor";
     const wall = sel?.kind === "wall";
-    const d = (act, glyph, zh, en) => `<button type="button" class="mh-step" data-mh-act="${act}" aria-label="${T(l, zh, en)}"${floor ? "" : " disabled"}>${glyph}</button>`;
+    const d = (act, glyph, zh, en) => `<button type="button" class="mh-step" data-mh-act="${act}" aria-label="${TL(l, zh, en)}"${floor ? "" : " disabled"}>${glyph}</button>`;
     return `<div class="mh-controls">
-      <div class="mh-dpad" role="group" aria-label="${T(l, "微调位置", "Nudge position")}">${d("nx", "↖", "向左后移", "Back left")}${d("py_", "↗", "向右后移", "Back right")}${d("ny", "↙", "向左前移", "Front left")}${d("px", "↘", "向右前移", "Front right")}</div>
+      <div class="mh-dpad" role="group" aria-label="${TL(l, "微调位置", "Nudge position")}">${d("nx", "↖", "向左后移", "Back left")}${d("py_", "↗", "向右后移", "Back right")}${d("ny", "↙", "向左前移", "Front left")}${d("px", "↘", "向右前移", "Front right")}</div>
       <div class="mh-actions">
-        <button type="button" class="btn small" data-mh-act="rotate"${floor ? "" : " disabled"}>${T(l, "⟳ 旋转", "⟳ Rotate")}</button>
-        <button type="button" class="btn small" data-mh-act="next-slot"${wall ? "" : " disabled"}>${T(l, "换个挂钩", "Next hook")}</button>
-        <button type="button" class="btn small ghost" data-mh-act="reset">${T(l, "恢复默认布局", "Reset layout")}</button>
-        <button type="button" class="btn small mw-gold" data-mh-act="shop">${T(l, "🛍️ 逛商城 · 家具", "🛍️ Shop · Furniture")}</button>
+        <button type="button" class="btn small" data-mh-act="rotate"${floor ? "" : " disabled"}>${TL(l, "⟳ 旋转", "⟳ Rotate")}</button>
+        <button type="button" class="btn small" data-mh-act="next-slot"${wall ? "" : " disabled"}>${TL(l, "换个挂钩", "Next hook")}</button>
+        <button type="button" class="btn small ghost" data-mh-act="reset">${TL(l, "恢复默认布局", "Reset layout")}</button>
+        <button type="button" class="btn small mw-gold" data-mh-act="shop">${TL(l, "🛍️ 逛商城 · 家具", "🛍️ Shop · Furniture")}</button>
       </div>
     </div>`;
   }
@@ -97,27 +97,27 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
     if (!body) return;
     const l = lang();
     const { m, ids, placed } = state();
-    const room = renderIsoRoom({ placed, trophyCount: m.trophyCount, cards: m.cards, portrait: m.portrait?.src || null, name: m.name, lang: l, interactive: true, selectedId: selected, label: T(l, "我的篮球房间（可点选家具并摆放）", "My basketball room (select a piece and place it)") });
-    const hint = selected ? T(l, `已选中「${pieceName(selected, l)}」：点地板格子或墙上的挂钩来移动。`, `“${pieceName(selected, l)}” selected: click a floor tile or a wall hook to move it.`) : T(l, "先在「我的家具」里点选一件，再点房间的地板格子或墙上的挂钩。", "Pick a piece under “My furniture”, then click a floor tile or a wall hook in the room.");
+    const room = renderIsoRoom({ placed, trophyCount: m.trophyCount, cards: m.cards, portrait: m.portrait?.src || null, name: m.name, lang: l, interactive: true, selectedId: selected, label: TL(l, "我的篮球房间（可点选家具并摆放）", "My basketball room (select a piece and place it)") });
+    const hint = selected ? TL(l, `已选中「${pieceName(selected, l)}」：点地板格子或墙上的挂钩来移动。`, `“${pieceName(selected, l)}” selected: click a floor tile or a wall hook to move it.`) : TL(l, "先在「我的家具」里点选一件，再点房间的地板格子或墙上的挂钩。", "Pick a piece under “My furniture”, then click a floor tile or a wall hook in the room.");
     body.innerHTML = `<div class="mh-layout">
       <section class="mh-stage-card"><div class="mh-stage">${room}</div><p class="mh-status" role="status" aria-live="polite">${esc(status || hint)}</p></section>
       <aside class="mh-side">
         <div class="mh-stats">
-          <div><b>${m.trophyCount}</b><span>${T(l, "冠军奖杯", "Trophies")}</span></div>
-          <div><b>${Math.min(m.cards.length, 3)}/3</b><span>${T(l, "展示球员卡", "Framed cards")}</span></div>
-          <div><b>${ids.length}</b><span>${T(l, "家具", "Furniture")}</span></div>
+          <div><b>${m.trophyCount}</b><span>${TL(l, "冠军奖杯", "Trophies")}</span></div>
+          <div><b>${Math.min(m.cards.length, 3)}/3</b><span>${TL(l, "展示球员卡", "Framed cards")}</span></div>
+          <div><b>${ids.length}</b><span>${TL(l, "家具", "Furniture")}</span></div>
         </div>
-        <h3>${T(l, "我的家具", "My furniture")}</h3>
+        <h3>${TL(l, "我的家具", "My furniture")}</h3>
         ${trayHtml(placed, l)}
         ${controlsHtml(placed, l)}
-        <p class="tiny mh-note">${T(l, "金币只买外观与便利：家具只是装饰，不影响球员能力和比赛。", "Gold buys looks and convenience only: furniture is decoration and never changes ratings or matches.")}</p>
+        <p class="tiny mh-note">${TL(l, "金币只买外观与便利：家具只是装饰，不影响球员能力和比赛。", "Gold buys looks and convenience only: furniture is decoration and never changes ratings or matches.")}</p>
       </aside>
     </div>`;
   }
 
   function say(reason) {
     const r = REASONS[reason] || [reason, reason];
-    status = T(lang(), r[0], r[1]);
+    status = TL(lang(), r[0], r[1]);
   }
 
   /** Apply a pure move/rotate result: persist it, or explain why not. */
@@ -148,7 +148,7 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
       const ax = Math.min(x, HOME_GRID - sel.w);
       const ay = Math.min(y, HOME_GRID - sel.d);
       const res = movePiece(ids, getHomeLayout(state().m.account), sel.id, { x: ax, y: ay });
-      if (commit(res, T(l, `已摆好「${pieceName(sel.id, l)}」`, `Placed “${pieceName(sel.id, l)}”`))) return;
+      if (commit(res, TL(l, `已摆好「${pieceName(sel.id, l)}」`, `Placed “${pieceName(sel.id, l)}”`))) return;
     }
     const occupant = solidAt(placed, x, y);
     if (occupant) {
@@ -163,7 +163,7 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
     const sel = placed.find((p) => p.id === selected);
     if (sel?.kind === "wall") {
       const res = movePiece(ids, getHomeLayout(state().m.account), sel.id, { slot: slotId });
-      if (commit(res, T(l, `已挂好「${pieceName(sel.id, l)}」`, `Hung “${pieceName(sel.id, l)}”`))) return;
+      if (commit(res, TL(l, `已挂好「${pieceName(sel.id, l)}」`, `Hung “${pieceName(sel.id, l)}”`))) return;
     }
     const occupant = placed.find((p) => p.slot === slotId);
     if (occupant) {
@@ -201,7 +201,7 @@ export function createMyHome({ getLang, getModel, show, goBack, onOpenShop } = {
     },
     reset: () => {
       const { m } = state();
-      if (resetHomeLayout(m.account)) status = T(lang(), "已恢复默认布局", "Layout reset");
+      if (resetHomeLayout(m.account)) status = TL(lang(), "已恢复默认布局", "Layout reset");
       else say("guest");
     },
     shop: () => onOpenShop?.("home"),
