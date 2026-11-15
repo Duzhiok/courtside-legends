@@ -1,7 +1,7 @@
 /**
  * Layering note (A-P2-4): the imports below are an INTENTIONAL one-way
  * coupling, not an accident. saveRoot validates the career-shaped fields of
- * the root save, so it imports the validators/shapes/constants from seven
+ * the root save, so it imports the validators/shapes/constants from eight
  * career modules (coachProfile, careerIdentity, careerInbox, growthShape,
  * balance, seasonGoals, coachOrigins, gm/businessScenario).
  *
