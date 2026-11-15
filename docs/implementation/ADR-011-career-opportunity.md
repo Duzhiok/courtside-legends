@@ -387,16 +387,22 @@ R1 校验只检查 `role`，其余字段属于 additive，旧版本读到也会�
 
 ## 21. 遗留决定的采纳（2026-11-15，按 §20.2 的建议）
 
-产品方在评审后回复"继续按照推荐来"。§20.2 的建议按下表**采纳为设计决定**。这是设计采纳，**不是实现批准**：实现仍需单独批准，且不改生产代码、存档 schema、解锁条件或 `GameSim`。
+产品方在评审后回复"继续按照推荐来"，并于 2026-11-15 逐条裁决（D1、D3–D7 批准；D2 原则批准、Q 待平衡、Legacy 称号条件不改）。§20.2 的建议按下表**采纳为设计决定**。这是设计采纳，**不是实现批准**：实现仍需单独批准，且不改生产代码、存档 schema、解锁条件或 `GameSim`。
 
 | # | 决定 | 采纳结果 |
 |---|---|---|
-| D1 | 一段生涯能否同时满足教练和 GM 两半 | **不能**。一条完成记录最多满足一半，取 `roleSeasons` 更多的角色，平局取结局角色 |
-| D2 | 机会路径进入的 Architect 生涯能否获得 传奇掌舵者 / 篮坛不朽传奇 | 以 `roleSeasons.GM_COACH ≥ Q` 作为"Architect 生涯"的判据；**是否改这两个称号的条件，仍需单独批准**，本轮不改解锁条件 |
+| D1 | 一段生涯能否同时满足教练和 GM 两半 | **批准为经典解锁规则：不能**。一条完成记录最多满足一半，取 `roleSeasons` 更多的角色，平局取结局角色 |
+| D2 | 机会路径进入的 Architect 生涯能否获得 传奇掌舵者 / 篮坛不朽传奇 | 原则批准：`roleSeasons.GM_COACH ≥ Q` 作为"Architect 职业经历"的判据，Q 待平衡。**产品裁决（2026-11-15）：不修改这两个称号的解锁条件**；职业身份与 Legacy 成就分离，不因新增双职经历改变已有玩家的荣誉判定 |
 | D3 | 老板信任字段 | `story.frontOfficeTrust`；`executive.boardTrust` 只留给 GM 商业场景 |
 | D4 | offer 正文是否持久化 | 是，随 `careerInbox` pending 实例一起持久化 |
 | D5 | 旧三种机会是否迁移 | **不迁移**，只做只读适配器 |
 | D6 | 接受时是否产生新承诺 | **不产生**；老板期望走 `seasonGoals` |
-| D7 | v1 开放的转换边 | COACH→GM_COACH、GM→GM_COACH、GM_COACH→GM、COACH→GM 四条（有 Riley 史实先例）；补上 COACH↔GM_COACH 的缺口边，但 GM_COACH→COACH 先不开放 |
+| D7 | v1 开放的转换边 | **批准 v1 范围**：COACH→GM、COACH→GM_COACH、GM→GM_COACH、GM_COACH→GM 四条。`GM_COACH→COACH` 保留在 schema 中，**不作为普通机会开放**；不代表未来永远禁止 |
 
 仍未定、必须等固定种子平衡实验的数值：N1–N9（含 `Q`）。实现顺序见 §20.4。
+
+### 21.1 已知的数据完整性问题（独立 Bug 候选，不混入本 ADR 的实现）
+
+`setIdentity(root, role)`（`js/career/careerIdentity.js:95`）把 `identity` 重建为 `{ initialRole, currentRole }`，**丢弃其它字段**（如 `prestige: "architect"`）。已用最新 main（`d09610b`）复现：`setIdentity({identity:{initialRole:"GM_COACH",currentRole:"GM_COACH",prestige:"architect"}}, "GM").identity` → `{"initialRole":"GM_COACH","currentRole":"GM"}`。
+
+当前线上影响：**潜伏，未触发**。两个调用点都不会在已有 `prestige` 的存档上调用它：`timeTravelCareer.js:291` 在新建存档时调用（之前没有 identity），`prestige` 由 `app.js:12615` 在之后补写；`rebornView.js#stampRebornIdentity` 只盖 Reborn 存档。一旦出现"对已有存档二次调用"（ADR-011 的转职就是），`prestige` 会丢失并影响完成记录（`app.js:899`）。修复方案（保留未知字段、先写失败测试再修）将作为单独提案提交，等待批准。
