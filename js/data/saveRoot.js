@@ -1,3 +1,21 @@
+/**
+ * Layering note (A-P2-4): the imports below are an INTENTIONAL one-way
+ * coupling, not an accident. saveRoot validates the career-shaped fields of
+ * the root save, so it imports the validators/shapes/constants from seven
+ * career modules (coachProfile, careerIdentity, careerInbox, growthShape,
+ * balance, seasonGoals, coachOrigins, gm/businessScenario).
+ *
+ * Direction is single: no career module imports saveRoot (verified
+ * 2026-11-15 — the saveRoot mentions in coachProfile.js and
+ * businessScenario.js are comments only; modes/timeTravelCareer.js importing
+ * saveRoot is a higher layer importing a lower one, which is fine). Do NOT
+ * add a career -> saveRoot import: it would close a cycle, and a career
+ * constant change can already affect save validation through this file.
+ *
+ * Gradual fix (A-P2-4 (a)): sink the validation shapes/constants down to
+ * data/ or core/ when those modules are next touched; until then this
+ * comment is the contract.
+ */
 import { createCoachProfile } from "../career/coachProfile.js";
 import { CAREER_CAPABILITIES, CAREER_ROLES } from "../career/careerIdentity.js";
 import { validateCareerInbox } from "../career/careerInbox.js";
