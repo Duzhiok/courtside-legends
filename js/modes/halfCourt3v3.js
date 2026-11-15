@@ -239,7 +239,17 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
     sim._lastPossessionSec = 0;
     const before = statsOf(sim);
     events = [];
-    const timeoutBy = maybeTimeout(sim, timeoutsLeft, rules);
+    let timeoutBy = null;
+    try {
+      timeoutBy = maybeTimeout(sim, timeoutsLeft, rules);
+    } catch (err) {
+      // Same class as a failed sim.step() below: the engine state after a mid-possession
+      // throw cannot be trusted, so the game ends here with the leader ahead — never an
+      // exception reaching the view's click handler.
+      console.error("[3v3] callTimeout failed, ending the game early", err);
+      aborted = true;
+      break;
+    }
     try {
       sim.step();
     } catch (err) {

@@ -233,6 +233,26 @@ test("engine failure on the first possession still returns a viewable result", (
   }
 });
 
+test("timeout failure mid-game ends the game early with a valid result, never an exception", () => {
+  const origCallTimeout = GameSim.prototype.callTimeout;
+  const origError = console.error;
+  const errors = [];
+  console.error = (...args) => { errors.push(args); };
+  GameSim.prototype.callTimeout = function () { throw new Error("simulated timeout failure"); };
+  try {
+    // timeoutFatigue 0: the first possession's trio is always gassed enough to spend a timeout.
+    const r = playHalfCourtGame({ ...teams(), seed: "to-boom", rules: { ...HALF_COURT_RULES, timeoutFatigue: 0 } });
+    assert.equal(r.aborted, true);
+    assert.deepEqual(r.plays, []);
+    assert.deepEqual(r.score, { home: 0, away: 0 });
+    assert.ok(r.winner === "home" || r.winner === "away");
+    assert.ok(errors.some(([msg]) => String(msg).includes("[3v3] callTimeout failed")), "the failure is logged, not swallowed silently");
+  } finally {
+    GameSim.prototype.callTimeout = origCallTimeout;
+    console.error = origError;
+  }
+});
+
 test("plays carry no dead points/gained fields (score deltas already tell the story)", () => {
   const r = playHalfCourtGame({ ...teams(), seed: "dead" });
   assert.ok(r.plays.length > 0);

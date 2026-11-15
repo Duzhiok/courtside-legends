@@ -1,10 +1,10 @@
 /* Custom 3v3 Half-Court (MVP). Minimal functional styles; Lychee owns the visual + responsive pass.
    Court lines reuse css/duel.css (.duel-court-*). */
-.hc-stage {
+#screen-halfcourt .hc-stage {
   display: grid;
   gap: 10px;
 }
-.hc-score {
+#screen-halfcourt .hc-score {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -12,34 +12,34 @@
   gap: 6px 14px;
   text-align: center;
 }
-.hc-score strong {
+#screen-halfcourt .hc-score strong {
   font-size: 1.6rem;
   font-variant-numeric: tabular-nums;
 }
-.hc-score small {
+#screen-halfcourt .hc-score small {
   flex-basis: 100%;
   opacity: 0.75;
 }
-.hc-team.hc-home { color: #e8c15a; }
-.hc-team.hc-away { color: #7fb8ff; }
-.hc-court {
+#screen-halfcourt .hc-team.hc-home { color: #e8c15a; }
+#screen-halfcourt .hc-team.hc-away { color: #7fb8ff; }
+#screen-halfcourt .hc-court {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
   display: block;
 }
-.hc-player circle { stroke: #10170f; stroke-width: 0.4; }
-.hc-player text { font-size: 2.2px; font-weight: 700; fill: #10170f; pointer-events: none; }
-.hc-player.hc-home circle { fill: #e8c15a; }
-.hc-player.hc-away circle { fill: #7fb8ff; }
-.hc-player.hc-active circle { stroke: #fff; stroke-width: 0.8; }
-.hc-ball { fill: #e07b2a; stroke: #3a1d06; stroke-width: 0.3; transition: cx 0.25s ease, cy 0.25s ease; }
-.hc-shot { fill: none; stroke-width: 0.35; opacity: 0.8; }
-.hc-shot.hc-home { stroke: #e8c15a; }
-.hc-shot.hc-away { stroke: #7fb8ff; }
-.hc-shot.hc-made.hc-home { fill: #e8c15a; }
-.hc-shot.hc-made.hc-away { fill: #7fb8ff; }
-.hc-log {
+#screen-halfcourt .hc-player circle { stroke: #10170f; stroke-width: 0.4; }
+#screen-halfcourt .hc-player text { font-size: 2.2px; font-weight: 700; fill: #10170f; pointer-events: none; }
+#screen-halfcourt .hc-player.hc-home circle { fill: #e8c15a; }
+#screen-halfcourt .hc-player.hc-away circle { fill: #7fb8ff; }
+#screen-halfcourt .hc-player.hc-active circle { stroke: #fff; stroke-width: 0.8; }
+#screen-halfcourt .hc-ball { fill: #e07b2a; stroke: #3a1d06; stroke-width: 0.3; transition: cx 0.25s ease, cy 0.25s ease; }
+#screen-halfcourt .hc-shot { fill: none; stroke-width: 0.35; opacity: 0.8; }
+#screen-halfcourt .hc-shot.hc-home { stroke: #e8c15a; }
+#screen-halfcourt .hc-shot.hc-away { stroke: #7fb8ff; }
+#screen-halfcourt .hc-shot.hc-made.hc-home { fill: #e8c15a; }
+#screen-halfcourt .hc-shot.hc-made.hc-away { fill: #7fb8ff; }
+#screen-halfcourt .hc-log {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -47,40 +47,40 @@
   overflow-y: auto;
   font-size: 0.9rem;
 }
-.hc-log .hc-poss {
+#screen-halfcourt .hc-log .hc-poss {
   display: flex;
   gap: 10px;
   padding: 4px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.hc-log .hc-poss strong { min-width: 48px; font-variant-numeric: tabular-nums; }
-.hc-log ul { list-style: none; margin: 0; padding: 0; }
-.hc-final { font-size: 1.3rem; text-align: center; }
-.hc-boxes {
+#screen-halfcourt .hc-log .hc-poss strong { min-width: 48px; font-variant-numeric: tabular-nums; }
+#screen-halfcourt .hc-log ul { list-style: none; margin: 0; padding: 0; }
+#screen-halfcourt .hc-final { font-size: 1.3rem; text-align: center; }
+#screen-halfcourt .hc-boxes {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
-.hc-box {
+#screen-halfcourt .hc-box {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 }
-.hc-box caption { text-align: left; font-weight: 700; padding-bottom: 4px; }
-.hc-box th,
-.hc-box td { padding: 3px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-.hc-box th[scope="row"] { text-align: left; }
-.hc-box tbody tr:last-child { font-weight: 700; }
+#screen-halfcourt .hc-box caption { text-align: left; font-weight: 700; padding-bottom: 4px; }
+#screen-halfcourt .hc-box th,
+#screen-halfcourt .hc-box td { padding: 3px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+#screen-halfcourt .hc-box th[scope="row"] { text-align: left; }
+#screen-halfcourt .hc-box tbody tr:last-child { font-weight: 700; }
 @media (max-width: 560px) {
-  .hc-box { font-size: 0.75rem; }
-  .hc-box th small { display: none; }
-  .hc-box [data-col="blk"],
-  .hc-box [data-col="tov"] { display: none; }
+  #screen-halfcourt .hc-box { font-size: 0.75rem; }
+  #screen-halfcourt .hc-box th small { display: none; }
+  #screen-halfcourt .hc-box [data-col="blk"],
+  #screen-halfcourt .hc-box [data-col="tov"] { display: none; }
 }
 
 /* On-court marker: position label under the initials (floor is dark green). */
-.hc-player text.hc-pos { font-size: 1.7px; font-weight: 600; fill: rgba(255, 255, 255, 0.85); }
+#screen-halfcourt .hc-player text.hc-pos { font-size: 1.7px; font-weight: 600; fill: rgba(255, 255, 255, 0.85); }
 
 /* --- 3v3 picker skin (sandbox picker, scoped to this screen — 时空对决 untouched) --- */
 #screen-halfcourt .sandbox-sides { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
@@ -123,7 +123,7 @@
 #screen-halfcourt .sandbox-roster strong { display: none; }
 
 /* --- box score: scroll instead of squeeze; hide low-priority columns on phones --- */
-.hc-box-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#screen-halfcourt .hc-box-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 @media (max-width: 720px) {
-  .hc-box [data-col="fatigue"] { display: none; }
+  #screen-halfcourt .hc-box [data-col="fatigue"] { display: none; }
 }
