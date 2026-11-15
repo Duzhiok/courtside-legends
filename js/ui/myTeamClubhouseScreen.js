@@ -6,8 +6,7 @@
  * collection, accounts). A bench swap is an explicit save through the same saveLineup
  * path the lineup editor uses — it never writes silently.
  */
-import { toggleStarter } from "../myteam/lineup.js";
-import { MY_TEAM_RULES } from "../myteam/lineup.js";
+import { toggleStarter, MY_TEAM_RULES } from "../myteam/lineup.js";
 import { clubhouseHtml, clubhouseSummary } from "./myTeamClubhouseView.js";
 import { seasonReport } from "../myteam/seasonReport.js";
 import { createTeamIntelligence } from "./teamIntelligenceController.js";
