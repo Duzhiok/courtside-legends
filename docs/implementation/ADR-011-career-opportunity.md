@@ -1,6 +1,8 @@
 # ADR-011：Career Opportunity（职业机会系统）
 
 - **状态**：🟡 PROPOSED（提案，未批准，未实现）。本文是一份设计 ADR，不是执行入口。
+- **2026-11-15 产品评审**：7 条设计原则已批准（见 §15）；**实现未批准**。评审要求的对账（§16 事实更正、§17 最小可执行权限契约、§18 角色历史与完成规则、§19 root/account 重放与幂等、§20 遗留问题）已补入本文，等待实现批准。
+- **编号与另一份草稿**：ADR-011 编号已被本文占用（`5e349c1`，在 main 上）。Code 曾在本地写过一份同路径的独立草稿（`3b1eb2e`，**从未推送**），现已作废，保存在本地分支 `local/adr011-draft-superseded`；其中仍有效的内容已并入本文 §16–§20，不另开 ADR。
 - **作者**：Lychee，2026-11-14（用户指派：Riley/Architect 提案 256a08f 的下一步交付）。
 - **范围**：仅文档。**不改生产代码，不改现有解锁行为，不改存档结构，不引入第二个承诺/关系/事件结算引擎。**
 - **前置阅读**：写之前已读 `ADR-006-reborn-career-identity.md`、`career-role-permissions.md`、`2.0-plan.md`、`career-2.0-architect-riley-proposal.md`（PROPOSED），以及实现文件 `js/career/network/careerOpportunities.js`（workstream G）、`js/career/careerInbox.js`（workstream A）、`js/career/careerRelationships.js`、`js/career/careerDecisions.js`、`js/career/careerHistory.js`、`js/career/careerIdentity.js`、`js/reborn/promiseSettle.js`、`js/career/gm/executiveProgression.js`（workstream F）、`js/career/contractOffers.js`。
@@ -130,6 +132,8 @@ offer = {
 
 ### 6.2 老板信任（`boardTrust`）
 
+> ⚠️ **2026-11-15 更正（见 §16 F2、§20 D3）**：`boardTrust` 只存在于 GM 商业场景（`attachToCareerRoot` 写到 `root.story.executive.boardTrust`，只有 `gmBusinessView` 会挂上去）。真实的穿越执教存档里，解雇、赛季目标、财务、挖角读的都是 `root.story.frontOfficeTrust`（0–100）。下文把老板信任写成 `boardTrust` 的地方，在 D3 裁决前不得按字面实现。
+
 - 老板信任的数值字段就是 `boardTrust`（`executiveProgression.js`，0–100，初始 50）。**不新增信任字段。**
 - 批准规则：offer 的 `ownerTrustRequired` 门槛与当前 `boardTrust` 比较；不够 → offer 不生成（或生成为不可接受状态并展示 `missing`，与 `checkRequirements` 的展示规则一致）。
 - 信任按球队计：同一球队内转职沿用现有值；跨球队时新球队的 `boardTrust` 从初始值起算（信任是老板对“你这个人 + 这支球队”的判断，Riley 提案 §5）。
@@ -181,7 +185,7 @@ offer = {
 
 - **只加可选字段**：`identity.history`（additive 可选）、offer 的新增字段（运行时数据，不进存档）、transition 记录的加字段（E 的 legacy store 已接受未知字段）。**不升存档版本，不写迁移。**
 - **旧存档**：无 `identity` → `identityOf` 读作经典 GM+Coach（ADR-006 Q1）；无 `history` → 无历史，不补写。`validateRoot` / `validateManagement` 已接受未知字段；`compactRootForStorage` 透传。
-- **经典解锁路径不变**：Architect 卡的经典解锁（完成完整 Coach + GM 生涯，`careerAchievements` 派生）不受本 ADR 影响；机会路径是新增的并行入口，不是替换。
+- **经典解锁路径不变**（→ 2026-11-15：解锁**条件**仍不变，但“一段生涯算什么角色”的计数口径已批准改为按实际角色历史，见 §18；实现前代码行为不变）：Architect 卡的经典解锁（完成完整 Coach + GM 生涯，`careerAchievements` 派生）不受本 ADR 影响；机会路径是新增的并行入口，不是替换。
 - **网络旧 profile**：`emptyNetworkProfile` 的形状不变；`president` / `gmCoach` 只出现在 `NETWORK_ROLES` 的新增条目里，旧 profile 的 `currentRole` 不受影响。
 
 ## 11. 与 Team Culture 的交互（Proposed，Culture 本身未实现）
@@ -223,3 +227,160 @@ offer = {
 | N6 | 双职代价机制：工作负荷数值、董事会压力事件频率、委托 AI 教练的行为规则 | 待定。建议：先定性（利益冲突、信任双损、老板可收回兼任），数值单独立项。 |
 | N7 | Team Culture 挂钩：组织稳定性是否作为双重身份 offer 的生成输入 | 待定，且依赖 Team Culture 先实现（Riley 提案 §6；增量与衰减待平衡实验）。 |
 | N8 | `identity.history` 的实现方式：直接写 additive 字段，还是从 E 的 legacy transition 记录派生 | 待定。建议：按 ADR-006 §3.2 的形状直接写 additive 字段（简单、可审计）；派生方案作为备选。 |
+
+---
+
+# 2026-11-15 产品评审与对账（Code）
+
+> 对账基线：`origin/main` = `f1548f1`（2026-11-15）。GitHub 访问已经恢复，走的是公司文档规定的系统代理（`sysproxy`），没用隧道。本节**只改文档**，不动生产代码、存档 schema、解锁条件和 `GameSim`。
+
+## 15. 已批准的设计原则（2026-11-15）
+
+| # | 原则 | 落到本文的位置 |
+|---|---|---|
+| A1 | Architect 保留为可玩的双权威身份（`GM_COACH`） | §5、§17 |
+| A2 | 传承称号的显示名改为 **造队宗师 / Master Builder**，稳定 id `architect` 不变 | §18.5 |
+| A3 | 职业完成按**实际角色历史**计，不再只看退休时的角色 | §18.3 |
+| A4 | 一个 `GM_COACH` 赛季不能被算成两段独立完成的生涯 | §18.3 |
+| A5 | 所有数值保持临时，等固定种子平衡实验后再定 | §14、§20 |
+| A6 | 复用现有 Inbox、关系、事件日志、存档机制 | §19 |
+| A7 | 不引入第二个机会引擎或承诺引擎 | §17、§19 |
+
+## 16. 事实更正（写本文之后 main 上的代码变化）
+
+`5e349c1` 是基于 2026-11-14 的代码写的。之后 main 合入了 ADR-006 的 R1/R6/R7，下面几条事实已经变了：
+
+| # | 原文说法 | 现在的代码事实 | 影响 |
+|---|---|---|---|
+| F1 | 合同权限（privileges）只是显示用 | **R6 已实现**（`d33b39a`）：`PRIVILEGE_GRANTS` 和 `grantsForPrivileges()`（`contractOffers.js`）把条款映射成能力 id；`leagueCareer.grants` 存放当前合同的授权；`careerGuards.effectivePermissions()` = 角色矩阵 ∪ grants；`requireCapability` 和 `canDo` 都按它判断；签新合同、开新任期都会**重写** grants（新合同就是新工作）。 | 转职的权限切换必须同时重算 grants（§17 C3），不能只调 `setIdentity`。 |
+| F2 | 老板信任 = `boardTrust` | `boardTrust` 只在 `root.story.executive` 里，并且只有 GM 商业视图会挂上去。执教存档的解雇（`resolveFiringReason`）、赛季目标、财务、挖角，读的都是 `story.frontOfficeTrust`。 | 需要裁决用哪个（§20 D3）。 |
+| F3 | `identity.history` 未实现 | **校验已实现**（R1，`86497e8`）：`validateRoleIdentity` 接受可选的 `history` 数组，每条只要求 `role` 是已知角色（多余字段放行）。**但全仓库没有任何代码写它**。 | §18 的写入规则可以直接落在现有校验之上，不用改 schema。 |
+| F4 | `setIdentity` 只改 `currentRole` | 它把 `identity` **整个重建**成 `{ initialRole, currentRole }`，会**丢掉** `history` 和入口写入的 `prestige: "architect"`。今天没出问题，只是因为它只在生涯创建时调用一次（`timeTravelCareer.js:291`、`rebornView.js:162`）。 | 转职是第二次调用，如果不先修就会抹掉历史和 prestige（§17 C4）。 |
+| F5 | （原文未提）R7 | Player Reborn 已接入身份系统（`feaa0c6`）：没有戳记、有 `root.reborn`、没有 `leagueCareer` 时推导为 `PLAYER`。 | PLAYER 不在本文的转职边里（§17 C8）。 |
+| F6 | transition 写入 legacy store | `recordCareerTransition` 已存在，按 id 去重，但**至今没有任何调用方**；挖角、续约、再就业也都不写账号层传承。 | 本文的结算会是它的第一个调用方（§19）。 |
+| F7 | `generateOpportunities` 是确定性的 | 确定性没错。id 不去重的问题原文 §9 已经写成实现要求（`6b73007`），Muse 已独立复核。 | 不变。 |
+
+## 17. 最小可执行的角色权限契约
+
+只用现有的 15 项能力矩阵和 R6 grants，不新增能力项。每条都要有一个**负向测试**：被禁止的操作必须在引擎入口抛错，光藏按钮不算。
+
+| # | 契约 | 依据 / 检查点 |
+|---|---|---|
+| C1 | **唯一写入点**：`currentRole` 只能在 (a) 生涯创建 和 (b) 机会结算 两个地方改；没有菜单式的自由切换。 | `setIdentity` 的调用方清单（目前只有 2 个） |
+| C2 | **有效能力** = `permissionsFor(role)` ∪ `leagueCareer.grants`，即 `effectivePermissions`。引擎入口一律用 `requireCapability`（目前 11 处：`leagueCareer.js` 7、`seasonMarket.js` 1、`playerDevelopment.js` 1、`reborn/training.js` 1、`reborn/takeover.js` 1）；UI 只用 `canDo`。 | 已实现 |
+| C3 | **转职就是换工作**：接受后 `grants = grantsForPrivileges(offer.contract.privileges)`，旧 grants 一律作废，同队转职也一样。这和 R6 的“新合同 = 新工作”是同一条规则。 | R6 规则 |
+| C4 | **`setIdentity` 必须保留其余字段**：只改 `currentRole`（首次调用时设 `initialRole`），`history`、`prestige` 原样带过去。这是实现前必须先修、并配回归测试的问题（F4）。 | 新增要求 |
+| C5 | **只在休赛窗口转职**：赛季第一场之前（沿用挖角的 `poachWindowOpen` 规则）。这样一场正在进行的比赛（含 takeover）不会中途换权限。 | 挖角已有先例 |
+| C6 | **网络角色到身份的映射**是固定表：`headCoach → COACH`，`gm` 和 `president → GM`（总裁是头衔，能力等同 GM），`gmCoach → GM_COACH`。网络里的入门角色（scout 等）不是 `CAREER_ROLES`，不在本契约内。 | 原文 §2.3 缺了这张表 |
+| C7 | **失去执教权之后的比赛**：进入 GM 或从 `GM_COACH` 退到 GM 后，`commandGame` 和 `setRotation` 消失，比赛走现有的模拟与观战（ADR-006 Q2）。“AI 教练按什么规则委托”不在 v1，属于 N6。 | ADR-006 Q2 |
+| C8 | `PLAYER` 进出都不在本文（ADR-005）。 | R7 |
+
+**边表的缺口（§20 D7）**：原文 §5 有 COACH→GM、GM→GM_COACH、GM_COACH→GM、GM→COACH，但**没有** COACH→GM_COACH 和 GM_COACH→COACH。可 Riley 提案 §2.1(b) 写的就是“执教生涯进行中收到总裁/双重身份 offer”，即 COACH→GM_COACH。这两条边要么补进表，要么明确写“不支持”。
+
+## 18. 角色历史：迁移与完成规则
+
+### 18.1 存储形状（落在 R1 已有校验之上，不改 schema）
+
+```js
+root.identity.history = [   // 只追加；旧存档没有这个字段
+  { role, teamId, startYear, endYear /* null = 当前 */, seasons, via /* "initial" | "opportunity:<instanceId>" */ },
+];
+```
+
+R1 校验只检查 `role`，其余字段属于 additive，旧版本读到也会放行。
+
+### 18.2 写入规则与旧存档
+
+- 生涯创建时写第一段（`via: "initial"`）；转职结算时关闭当前段（填 `endYear`、`seasons`），同时追加新的一段。这些都和 `setIdentity`、grants 重置**在同一个 root 对象里**完成（§19）。
+- 换队但不换角色（挖角、再就业）：同样关闭旧段、开一段新的，这样履历里有球队信息。挖角现有代码不写这个字段，接上它属于实现工作。
+- `seasons` = 这段任期内完成的赛季数，用 `careerPerformance(root).seasons` 在开段和关段时的差值算。
+- **旧存档不迁移**：没有 `history` 时，提供只读派生函数 `roleHistoryOf(root)`：一段，`role = identityOf(root)`，赛季数取现有的 `coach.stints` 加当前任期。**永不回写**，和 `identityOf` 的 Q1 规则一样。
+
+### 18.3 完成规则（A3、A4）
+
+- `completionFromRoot` 保留现有的 `role` 字段（结局时的角色，博物馆用），另外**新增** `roleSeasons: { COACH, GM, GM_COACH }`，由 `history` 汇总；旧生涯用 `roleHistoryOf` 派生。
+- **经典解锁的资格**：
+  - 教练一半：某条完成记录 `roleSeasons.COACH ≥ Q`。旧记录没有 `roleSeasons` 的，按原来的 `role === "COACH"` 判定。
+  - GM 一半：同理，用 `roleSeasons.GM`。
+  - `GM_COACH` 赛季**不计入任何一半**（A4：一个双职赛季不能变成两段生涯）。
+- `Q` 是临时数值（A5，§20 N9），平衡实验前**不写进代码**。
+- **一段生涯能不能同时满足两半**（例如前 6 年 COACH、后 6 年 GM），这是 §20 D1 的待决问题。建议：一条完成记录最多满足一半，取赛季数更多的那个角色，平局时取结局角色。这样保住经典路径“两段生涯”的本意，同时也没有重复计算任何一个赛季。
+- 现有记录**不重算、不回写**；口径变化只影响新写入的记录，加上读旧记录时的兼容分支。
+
+### 18.4 prestige 与 Architect 身份
+
+- `prestige: "architect"` 只代表“从 Architect 入口开局”。通过机会转入 `GM_COACH` 的生涯**不会**带这个标记。
+- “传奇掌舵者 / Dynasty Master”和“篮坛不朽传奇 / Basketball Immortal”两个称号今天只认 `prestige === true` 的完成记录。机会路径进入的 Architect 生涯算不算，是 §20 D2 的待决问题。这一轮不改解锁条件。
+
+### 18.5 称号改名（A2）
+
+- `ARCHITECT_TITLES.architect` 的显示名从“王朝缔造者 / The Architect”改成**“造队宗师 / Master Builder”**；内部 id `architect` 不变。
+- 称号是派生的、不进存档，所以不需要数据迁移。
+- 需要改的地方要区分**称号**和**身份名**两种用法：
+  - 称号用法（要改）：`ARCHITECT_TITLES.architect`（`careerAchievements.js:58`）；`careerEntry.js:111-112` 的三称号列表“The Architect · Dynasty Master · Basketball Immortal”；断言称号显示名的测试 `myWorldArchitectTitles`（4 处）、`legacyMuseum`（6 处）、`gmOwnership`（1 处）。
+  - 身份名用法（不改）：`careerEntry.js` 里“The Architect 尚未解锁 / 已解锁”“以 The Architect 的身份穿越回历史”，以及 `legacyMuseum` 的注释。
+- 顺带消除一处重名：`executiveProgression.js:164` 的 GM 遗产评级也叫“王朝缔造者”（英文是 Dynasty Builder），和旧称号撞名；改名后就不冲突了，那里本身不用动。
+- 身份名继续叫 Architect。
+
+## 19. root / account 的重放与幂等
+
+**原则**：root 是职业状态的唯一真相；账号层的镜像是派生出来、可以重建的。反过来不行，账号数据不能驱动 root 的角色。
+
+| 层 | 幂等键 | 已有机制 |
+|---|---|---|
+| K1 offer 实例 | Inbox `instanceIdFor`；`generateOpportunities` 的 id 去重按原文 §9 实现 | Inbox |
+| K2 决定 | `pendingInstance` / `validateDecision`：同一实例只能结算一次，结算后状态为终态 | `applyDecision` |
+| K3 root 事件日志 | `story.eventLog` 追加 `{ type: "opportunity-settled", instanceId, outcome, year }`；结算前先查有没有 | 与 `reputation-settled`、`finances-settled` 同一模式 |
+| K4 账号传承 | `recordCareerTransition(account, { id: "opportunity:<instanceId>", … })`；`appendLegacyEvent` 按 id 去重 | 已有，尚无调用方（F6） |
+| K5 完成记录 | `careerId` 去重 | 已有 |
+| K6 信任效果 | `markTrustEffectsApplied` | 已有 |
+
+**一次结算的执行步骤（一个纯函数，一次落盘）**：
+
+1. 在内存里依次完成：校验窗口和实例 → `setIdentity`（按 C4 保留其他字段）→ 重置 grants（C3）→ 写合同 → 关闭并追加 history 段 → 追加 K3 事件 →（如有）创建承诺。
+2. 一次 `writeRootSave`。
+3. 再写账号镜像（K4）。
+
+任何一步抛错，整个结算都不提交，不会出现“权限换了但合同没签”的半成品。
+
+**崩溃窗口**：root 和 account 是两个独立的存储，可能出现“root 写了、account 没写”。处理办法：加载时跑一个调和函数 `replayCareerMirror(root, account)`，扫描 K3 事件，补写缺失的 K4 传承；K4 按 id 去重，所以重复补写也安全。**不引入事务或两阶段提交。**
+
+**offer 存在哪里**：用 `root.careerInbox` 的 pending 实例（A6：复用 Inbox；R1 已有 `validateCareerInbox`）。现在 `careerInbox` 只被演示切片驱动，把它接到真实生涯上属于实现工作。原文 §10 说 offer 字段“不进存档”，这和“关闭游戏后 offer 仍要可接受”冲突：offer 正文必须跟着 pending 实例一起持久化（§20 D4）。
+
+## 20. 遗留决定
+
+### 20.1 Code 本地草稿 §17 的 7 个问题，逐条对照
+
+| # | 原问题 | 现状 |
+|---|---|---|
+| 1 | 称号名 | ✅ 已批准（A2） |
+| 2 | 续约 / 挖角 / 再就业要不要迁进新 schema | **待决（D5）**。建议不迁移，保留各自已校验的存档形状，只做只读适配器 |
+| 3 | 完成口径 | 原则已批准（A3/A4）；剩下 D1、N9 |
+| 4 | 谈判会不会产生承诺 | **与原文冲突（D6）**：原文 §4 允许接受时产生承诺（例如“第一年进季后赛”），但 `PROMISE_KINDS` 里没有这类目标。建议 v1 不新增承诺种类，老板期望走 `seasonGoals` |
+| 5 | grants 要不要进 `canDo` | ✅ **已关闭**：R6 已实现（F1），转职直接复用（C3） |
+| 6 | Team Culture 存在哪 | 不阻塞，跟原文 §11 一致：文化实现前机会生成不依赖它。存放位置建议账号层、按 franchise 键（因为换任期时 root 里的生涯会重建），由 Culture ADR 决定 |
+| 7 | v1 开放哪些边 | **待决（D7）**，见 §17 末尾 |
+
+### 20.2 需要裁决的问题（实现前必须定）
+
+| # | 决定 | 建议 |
+|---|---|---|
+| D1 | 一段生涯能否同时满足教练和 GM 两半 | 不能：最多一半，取赛季数多的角色 |
+| D2 | 机会路径进入的 Architect 生涯能否获得 传奇掌舵者 / 篮坛不朽传奇 | 建议以 `roleSeasons.GM_COACH ≥ Q` 作为“Architect 生涯”；是否改称号条件单独批准 |
+| D3 | 老板信任用哪个字段 | `story.frontOfficeTrust`（所有生涯都有，所有消费者都在读）；`executive.boardTrust` 留给 GM 商业场景 |
+| D4 | offer 正文是否持久化 | 是，随 `careerInbox` pending 实例一起持久化 |
+| D5 | 旧三种机会流程要不要迁移 | 不迁移，只做只读适配器 |
+| D6 | 接受时能不能产生新承诺 | v1 不能；老板期望走 `seasonGoals` |
+| D7 | 补不补 COACH↔GM_COACH 两条边；v1 开放哪些 | 补；v1 先开 Riley 有史实先例的 4 条：COACH→GM_COACH、GM→GM_COACH、GM_COACH→GM、COACH→GM |
+
+### 20.3 数值（A5：固定种子平衡实验前不写死）
+
+在原文 N1–N8 之外新增一项：
+
+| # | 数值 | 说明 |
+|---|---|---|
+| N9 | `Q`：一个角色至少多少赛季才计入经典解锁的那一半 | 用固定种子的长生涯模拟定 |
+
+### 20.4 实现批准后的第一步（建议顺序）
+
+先修 F4（`setIdentity` 保留字段）并配回归测试，再写 `roleHistoryOf` 的只读派生，最后才碰机会结算。理由：前两步不改变任何现有行为，但是后面所有步骤的前提。
