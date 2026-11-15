@@ -3,9 +3,7 @@
  * Score 0–100 starts near C+; events bump it in real time.
  */
 
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
-}
+import { clamp } from "../core/seededRandom.js";
 
 export const GRADE_START = 78;
 

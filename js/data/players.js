@@ -15,6 +15,7 @@ import {
   saveCachedPlayers,
 } from "./rosterCache.js";
 import { assignSkillPacks } from "./skills.js";
+import { clamp } from "../core/seededRandom.js";
 
 export const HIDDEN_TIERS = {
   undrafted_gleague: { weight: 22, label: "落选+短期合同+D联盟" },
@@ -1195,10 +1196,6 @@ function buildTags(r, tier) {
     tags.push("板凳深度");
   }
   return tags.slice(0, 3);
-}
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }
 
 /**

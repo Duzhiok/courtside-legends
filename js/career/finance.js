@@ -18,13 +18,9 @@ import {
   INVESTMENT_FORECAST_DIVERGENCE_FALLOFF,
   INVESTMENT_FORECAST_MIN_ACCURACY,
 } from "./balance.js";
-import { hashSeed, seededStream } from "../core/seededRandom.js";
+import { clamp, hashSeed, seededStream } from "../core/seededRandom.js";
 import { ensureCoachProfile } from "./coachProfile.js";
 import { negotiationSalaryBonus } from "./coachPerks.js";
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
 
 function assetClassById(assetId) {
   return Object.values(INVESTMENT_ASSET_CLASSES)

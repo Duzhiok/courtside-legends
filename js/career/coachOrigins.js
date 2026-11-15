@@ -9,9 +9,7 @@
  * Pure module: every function takes plain data and returns new data, never mutates its input.
  */
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+import { clamp } from "../core/seededRandom.js";
 
 export const DEFAULT_COACH_ORIGIN = "generalist";
 

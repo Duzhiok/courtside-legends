@@ -5,7 +5,7 @@
  * Age is estimated from known birth years when available, else first NBA season ≈ 20.
  */
 
-const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+import { clamp } from "../core/seededRandom.js";
 
 /** Known birth years (season-end age ≈ season - birthYear). */
 export const BIRTH_YEAR = {

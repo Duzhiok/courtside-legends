@@ -1,6 +1,7 @@
 import { overall, PLAYERS } from "../data/players.js";
 import { ensurePickLedger, setPickOwner } from "./pickLedger.js";
 import { tradeWindowCheck } from "./seasonMarket.js";
+import { clamp } from "../core/seededRandom.js";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
 const ATTRIBUTES = [
@@ -71,10 +72,6 @@ function randomInt(rng, minimum, maximum) {
 
 function clone(value) {
   return structuredClone(value);
-}
-
-function clamp(value, minimum, maximum) {
-  return Math.max(minimum, Math.min(maximum, value));
 }
 
 function cardRating(player) {

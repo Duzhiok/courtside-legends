@@ -1,6 +1,6 @@
 import { FIRING_TRUST_FLOOR } from "../../career/balance.js";
 import { icon } from "./icons.js";
-import { clamp, esc, gaugeTone } from "./format.js";
+import { clampPct, esc, gaugeTone } from "./format.js";
 import { TL } from "../../i18n.js";
 
 /** One word for each gauge so the number is never the only signal (and never colour-only). */
@@ -24,8 +24,8 @@ export function divergenceWord(value, lang) {
 function gauge(label, value, markAt, markLabel = "") {
   const mark = markAt == null
     ? ""
-    : `<i class="tt-gauge-mark" style="left:${clamp(markAt)}%" title="${esc(markLabel)}"></i>`;
-  return `<span class="tt-gauge" role="meter" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${clamp(value)}"><span class="tt-gauge-fill" style="width:${clamp(value)}%"></span>${mark}</span>`;
+    : `<i class="tt-gauge-mark" style="left:${clampPct(markAt)}%" title="${esc(markLabel)}"></i>`;
+  return `<span class="tt-gauge" role="meter" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${clampPct(value)}"><span class="tt-gauge-fill" style="width:${clampPct(value)}%"></span>${mark}</span>`;
 }
 
 function tile({ kpi, tone, ico, label, value, word, gaugeHtml = "" }) {
@@ -38,7 +38,7 @@ function tile({ kpi, tone, ico, label, value, word, gaugeHtml = "" }) {
 
 /** Foresight is a small stock, not a 0-100 meter: show it as pips (max 5 drawn, number is exact). */
 function pips(count) {
-  const shown = clamp(count, 0, 5);
+  const shown = clampPct(count, 0, 5);
   return `<span class="tt-pips" aria-hidden="true">${Array.from({ length: 5 }, (_, i) => `<i class="${i < shown ? "on" : ""}"></i>`).join("")}</span>`;
 }
 

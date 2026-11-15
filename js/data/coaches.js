@@ -1,4 +1,5 @@
 import { rand } from "../core/rng.js";
+import { clamp } from "../core/seededRandom.js";
 /**
  * 2K-inspired playbooks. Each coach only unlocks a subset (specialTactics).
  * needs[] boost chemistry when roster tags/archetypes match.
@@ -1246,8 +1247,4 @@ export function applyCoachPhilosophy(coach, philosophy = {}) {
   if (philosophy.note) c.note = philosophy.note;
   c.philosophy = { offense: off, defense: def, morale, stamina, tactics: c.specialTactics };
   return c;
-}
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }

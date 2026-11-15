@@ -9,6 +9,7 @@ import {
 } from "../data/intangibles.js";
 import { overall } from "../data/players.js";
 import { activeDuoIds } from "../data/skills.js";
+import { clamp } from "../core/seededRandom.js";
 
 function effPos(p) {
   return p.playPos || p.pos;
@@ -244,7 +245,4 @@ function countBy(arr, fn) {
     o[k] = (o[k] || 0) + 1;
   }
   return o;
-}
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }

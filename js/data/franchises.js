@@ -2,6 +2,9 @@
  * Modern franchise keys → historical team abbreviations in roster.json
  * Used by Legend Mode to pull anyone who ever played for that club.
  */
+
+import { clamp } from "../core/seededRandom.js";
+
 export const FRANCHISES = [
   { id: "LAL", name: "湖人", nameEn: "Lakers", aliases: ["LAL", "MNL"] },
   { id: "BOS", name: "凯尔特人", nameEn: "Celtics", aliases: ["BOS"] },
@@ -123,10 +126,6 @@ export function positionFitScore(naturalPos, assignedPos, player = null) {
   }
 
   return clamp(score, 22, 100);
-}
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }
 
 /** Display name for a franchise in the given language (defaults to zh). */

@@ -32,8 +32,8 @@ import {
   handlerSlotIndex,
   toCourtPct,
   shortName,
-  clamp,
 } from "./court.js";
+import { clamp } from "../core/seededRandom.js";
 import { webglAvailable } from "../core/capabilities.js";
 
 /** Vendored full Three.js 0.187.0 (three.module.js + three.core.js). The R171

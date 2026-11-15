@@ -20,13 +20,10 @@ import {
   COACH_START_REPUTATION,
   COACH_XP_PER_LEVEL,
 } from "./balance.js";
+import { clamp } from "../core/seededRandom.js";
 
 /** Bump only if createCoachProfile()'s shape changes in a way old saves can't read as-is. */
 export const COACH_PROFILE_VERSION = 1;
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);

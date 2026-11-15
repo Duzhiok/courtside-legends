@@ -3,9 +3,7 @@
  * Good scorers get more auto-mode gravity; good passers feed them and create space.
  */
 
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
-}
+import { clamp } from "../core/seededRandom.js";
 
 import { gameNote, NEGATIVE_NOTES, rateGame } from "./formRating.js";
 

@@ -12,6 +12,8 @@
  * wasn't fed (few attempts) — low points alone is not a bad game.
  */
 
+import { clamp } from "../core/seededRandom.js";
+
 export const MIN_RATED_MINUTES = 6;
 
 const W = {
@@ -32,10 +34,6 @@ const DUTY = {
   defend: { pts: 0.75, stl: 1.1, blk: 1.1 },
   hustle: { pts: 0.6, reb: 1.15, blk: 1.1, stl: 1.1 },
 };
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
-}
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 

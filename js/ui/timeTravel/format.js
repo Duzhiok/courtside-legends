@@ -4,11 +4,11 @@ import { TL } from "../../i18n.js";
 export { esc };
 
 
-export const clamp = (value, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Number(value) || 0));
+export const clampPct = (value, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Number(value) || 0));
 
 /** "good" | "mid" | "bad" for a 0-100 gauge. `higherIsBetter=false` flips it (media pressure). */
 export function gaugeTone(value, higherIsBetter = true) {
-  const goodness = higherIsBetter ? clamp(value) : 100 - clamp(value);
+  const goodness = higherIsBetter ? clampPct(value) : 100 - clampPct(value);
   if (goodness >= 65) return "good";
   if (goodness >= 35) return "mid";
   return "bad";

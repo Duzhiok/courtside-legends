@@ -88,6 +88,7 @@ import {
   gradeTone,
   pickScreener,
 } from "./grade.js";
+import { clamp } from "../core/seededRandom.js";
 
 const QUARTER_SEC = 12 * 60;
 
@@ -4697,9 +4698,6 @@ function avg(a) {
 }
 function rand(a, b) {
   return a + rnd() * (b - a);
-}
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }
 function flip(side) {
   return side === "home" ? "away" : "home";

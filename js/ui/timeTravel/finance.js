@@ -1,10 +1,10 @@
 import { icon } from "./icons.js";
-import { clamp, esc } from "./format.js";
+import { clampPct, esc } from "./format.js";
 import { TL } from "../../i18n.js";
 
 /** Progress toward something you can't afford yet: tells the player HOW FAR, not just "greyed out". */
 function fund(cash, cost, lang) {
-  const pct = clamp((cash / Math.max(1, cost)) * 100);
+  const pct = clampPct((cash / Math.max(1, cost)) * 100);
   return `<span class="tt-fund" aria-hidden="true"><i style="width:${pct}%"></i></span><span class="tt-fund-note">${esc(TL(lang, `还差 ¤${Math.max(0, Math.ceil(cost - cash))}`, `¤${Math.max(0, Math.ceil(cost - cash))} short`))}</span>`;
 }
 

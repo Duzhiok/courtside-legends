@@ -1,6 +1,7 @@
 import { overall } from "../data/players.js";
 import { estimateAge } from "../data/careerArc.js";
 import { canDo, requireCapability } from "../career/careerGuards.js";
+import { clamp } from "../core/seededRandom.js";
 
 export const FOCUS_ATTRIBUTES = {
   shooting: ["three", "mid", "scoring"],
@@ -270,10 +271,6 @@ export function recommendDevelopmentPlans(career) {
     manualOverrides,
     recommendations,
   };
-}
-
-function clamp(value, minimum, maximum) {
-  return Math.max(minimum, Math.min(maximum, value));
 }
 
 export function developmentModifier(player, plan, context = {}) {

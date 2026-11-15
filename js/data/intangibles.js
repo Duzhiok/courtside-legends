@@ -4,6 +4,7 @@
  */
 import { careerArcIntangibleBias, estimateAge } from "./careerArc.js";
 import { rand } from "../core/rng.js";
+import { clamp } from "../core/seededRandom.js";
 
 export const INTANGIBLE_DEFS = {
   gravity: { name: "引力", desc: "吸引协防，给队友创造空位" },
@@ -177,10 +178,6 @@ function rnd(seed, i) {
   x ^= x >>> 17;
   x ^= x << 5;
   return (x >>> 0) / 4294967296;
-}
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }
 
 /** Attach intangibles object (0–99) onto a player card. */

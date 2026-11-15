@@ -15,7 +15,7 @@
  * All functions are pure: root in, new root out. The offer roll is deterministic per (story, year) so
  * reloading the save can't re-roll it.
  */
-import { hashSeed, seededStream } from "../core/seededRandom.js";
+import { clamp, hashSeed, seededStream } from "../core/seededRandom.js";
 import { ensureCoachProfile } from "../career/coachProfile.js";
 import { buildStintRecord, burnedBridgeTeamIds } from "../career/stints.js";
 import {
@@ -26,8 +26,6 @@ import {
 import { userGamesPlayed } from "../engine/season.js";
 import { careerPerformance } from "./careerContract.js";
 import { generateInterviewOffers, startNewStint } from "./timeTravelCareer.js";
-
-const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 
 function requireRoot(root) {
   if (!root?.story || !root?.leagueCareer) throw new TypeError("root with a career story is required");

@@ -21,8 +21,8 @@ import {
   GROWTH_XP_PER_LEVEL,
 } from "./balance.js";
 import { FOCUS_ATTRIBUTES, resolvedAge } from "../modes/playerDevelopment.js";
+import { clamp } from "../core/seededRandom.js";
 
-const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 const ATTRIBUTE_MAX = 99;
 
 /** Row of GROWTH_AGE_TABLE for an age: XP speed and the season's level cap. */

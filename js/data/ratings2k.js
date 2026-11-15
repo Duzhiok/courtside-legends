@@ -13,10 +13,7 @@
 
 import { applyCareerArc } from "./careerArc.js";
 import { SCRAPED_ANCHORS_2K } from "./ratings2k.scraped.js";
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
-}
+import { clamp } from "../core/seededRandom.js";
 
 function softCap(x, soft, hard) {
   if (x <= soft) return x;

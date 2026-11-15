@@ -5,7 +5,7 @@ import {
 import { offerText } from "../../career/contractOffers.js";
 import { icon } from "./icons.js";
 import { teamNameL } from "../../i18n.js";
-import { clamp, esc, gaugeTone } from "./format.js";
+import { clampPct, esc, gaugeTone } from "./format.js";
 import { crestHtml, teamThemeStyle } from "./hq.js";
 import { TL } from "../../i18n.js";
 
@@ -39,7 +39,7 @@ const offerCopy = (offer, lang) => (lang === "en" && OFFER_COPY_EN[offer.archety
 export const archetypeLabel = (id, lang) => TL(lang, ARCHETYPES[id]?.zh ?? id, ARCHETYPES[id]?.en ?? id);
 
 function bar(label, value, tone) {
-  const v = clamp(value);
+  const v = clampPct(value);
   return `<span class="tt-bar" data-tone="${tone}"><span class="tt-bar-label">${esc(label)}</span><span class="tt-bar-track"><i style="width:${v}%"></i></span><b>${v}</b></span>`;
 }
 

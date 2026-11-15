@@ -189,7 +189,7 @@ import {
   syncTeamDuoSkills,
 } from "./data/skills.js";
 import { lineupBallNote, lineupFit, teamChemistry } from "./engine/chemistry.js";
-import { shuffle } from "./core/seededRandom.js";
+import { clamp, shuffle } from "./core/seededRandom.js";
 import { fmtClock } from "./core/format.js";
 import { meterText } from "./ui/teamStats.js";
 import {
@@ -12506,10 +12506,6 @@ function applyTournamentResult(snap) {
   cont.onclick = () => {
     show("tournament");
   };
-}
-
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }
 
 async function boot() {

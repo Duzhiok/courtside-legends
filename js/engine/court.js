@@ -14,6 +14,7 @@
 
 import { photoUrl } from "../data/photo.js";
 import { createAnimationQueue } from "./courtAnimationQueue.js";
+import { clamp } from "../core/seededRandom.js";
 
 /**
  * Frontcourt slots: y=0 near rim, y=100 near half-court.
@@ -998,7 +999,4 @@ function lerp(a, b, t) {
 }
 function easeOut(t) {
   return 1 - (1 - t) * (1 - t);
-}
-export function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
 }
