@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { realTeam } from "./helpers/realGame.js";
+import { GameSim } from "../js/engine/sim.js";
 import {
   HALF_COURT_RULES,
   buildHalfCourtTeam,
@@ -179,4 +180,55 @@ test("playLines: an event carrying foul+turnover yields BOTH lines (charge, loos
   // And a plain turnover still yields exactly one line.
   const tov = [{ meta: { actorId: "baller", turnover: { actorId: "baller", kind: "unforced", forcedById: "defender" } } }];
   assert.deepEqual(playLines(tov, nameOf, "zh").map((l) => l.kind), ["turnover"]);
+});
+
+test("engine failure mid-game ends the game early with a valid result, never an exception", () => {
+  const origStep = GameSim.prototype.step;
+  const origError = console.error;
+  const errors = [];
+  console.error = (...args) => { errors.push(args); };
+  let calls = 0;
+  GameSim.prototype.step = function (...args) {
+    calls += 1;
+    if (calls === 5) throw new Error("simulated engine failure");
+    return origStep.apply(this, args);
+  };
+  try {
+    const r = playHalfCourtGame({ ...teams(), seed: "boom" });
+    assert.equal(r.aborted, true);
+    assert.equal(r.plays.length, 4, "only completed possessions are kept");
+    assert.equal(r.capped, false);
+    assert.ok(r.winner === "home" || r.winner === "away");
+    if (r.score.home !== r.score.away) {
+      assert.equal(r.winner, r.score.home > r.score.away ? "home" : "away", "the leader at abort time takes it");
+    }
+    for (const side of ["home", "away"]) {
+      assert.equal(halfCourtTeamTotals(r.box[side]).pts, r.score[side], "the box still adds up");
+    }
+    assert.ok(errors.some(([msg]) => String(msg).includes("[3v3] sim.step failed")), "the failure is logged, not swallowed silently");
+  } finally {
+    GameSim.prototype.step = origStep;
+    console.error = origError;
+  }
+});
+
+test("engine failure on the first possession still returns a viewable result", () => {
+  const origStep = GameSim.prototype.step;
+  const origError = console.error;
+  console.error = () => {};
+  GameSim.prototype.step = function () { throw new Error("simulated engine failure"); };
+  try {
+    const r = playHalfCourtGame({ ...teams(), seed: "boom-first" });
+    assert.equal(r.aborted, true);
+    assert.deepEqual(r.plays, []);
+    assert.deepEqual(r.score, { home: 0, away: 0 });
+    assert.ok(r.winner === "home" || r.winner === "away");
+    for (const side of ["home", "away"]) {
+      assert.equal(r.box[side].length, 3);
+      assert.equal(halfCourtTeamTotals(r.box[side]).pts, 0);
+    }
+  } finally {
+    GameSim.prototype.step = origStep;
+    console.error = origError;
+  }
 });

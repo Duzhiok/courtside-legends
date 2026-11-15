@@ -226,6 +226,7 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
   let possessions = 0;
   let winner = null;
   let capped = false;
+  let aborted = false;
 
   while (!winner) {
     possessions += 1;
@@ -239,7 +240,16 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
     const before = statsOf(sim);
     events = [];
     const timeoutBy = maybeTimeout(sim, timeoutsLeft, rules);
-    sim.step();
+    try {
+      sim.step();
+    } catch (err) {
+      // 5v5's _loop swallows a failed step and plays on; a synchronous whole-game sim cannot
+      // trust the engine state after a mid-possession throw, so the game ends here with the
+      // leader ahead — a valid result, never an exception reaching the view's click handler.
+      console.error("[3v3] sim.step failed, ending the game early", err);
+      aborted = true;
+      break;
+    }
     const after = statsOf(sim);
 
     const gained = { home: 0, away: 0 };
@@ -310,6 +320,14 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
     }
   }
 
+  if (aborted && !winner) {
+    // Ended early by an engine failure: the leader takes it; a level score falls back to the
+    // same possession-based pick as the max-possessions safety valve.
+    winner = score.home !== score.away
+      ? (score.home > score.away ? "home" : "away")
+      : (sim.possession === "home" ? "away" : "home");
+  }
+
   for (const side of ["home", "away"]) {
     for (const p of sim[side].roster) box.get(p.id).fatigue = Math.round(Number(p.fatigue) || 0);
   }
@@ -321,6 +339,7 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
     score,
     winner,
     capped,
+    aborted,
     possessions,
     elapsedSec,
     plays,

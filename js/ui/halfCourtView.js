@@ -178,7 +178,7 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
     const { score, winner, names } = result;
     q("[data-hc-result-body]").innerHTML = `
       <p class="hc-final"><strong>${esc(names[winner])}</strong> ${T("获胜", "win")} · ${score.home} : ${score.away}</p>
-      <p class="tiny">${T(`共 ${result.possessions} 回合 · 比赛用时约 ${Math.round(result.elapsedSec / 60)} 分钟`, `${result.possessions} possessions · about ${Math.round(result.elapsedSec / 60)} min of play`)}${result.capped ? T(" · 回合上限保护触发，领先方获胜", " · possession cap hit, leader wins") : ""}</p>
+      <p class="tiny">${T(`共 ${result.possessions} 回合 · 比赛用时约 ${Math.round(result.elapsedSec / 60)} 分钟`, `${result.possessions} possessions · about ${Math.round(result.elapsedSec / 60)} min of play`)}${result.capped ? T(" · 回合上限保护触发，领先方获胜", " · possession cap hit, leader wins") : ""}${result.aborted ? T(" · 引擎中途异常，比赛提前结束（按当时比分定胜负）", " · engine error mid-game, ended early on the score at the time") : ""}</p>
       <div class="hc-boxes">${boxTable("home")}${boxTable("away")}</div>
       <p class="tiny">${T("弧内 1 分、弧外 2 分；罚球按半场规则计（弧内犯规 1 罚、弧外犯规 2 罚）。结果不影响账号与存档。", "1 inside the arc, 2 beyond it; free throws follow half-court rules (1 for a foul inside, 2 on an arc shot). Nothing here touches your account or saves.")}</p>`;
     showPanel("result");
