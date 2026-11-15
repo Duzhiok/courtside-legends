@@ -30,8 +30,9 @@ test("the re-exported esc helpers are the shared implementation", () => {
 // Guard: one escaper for the whole client. A new view must import js/core/html.js instead of
 // pasting its own copy (22 copies had drifted apart: some skipped ', one printed "null").
 // js/app.js keeps its own esc/escAttr until the app.js split; vendor code is not ours.
+// escText is listed too: feedView.js once hid a &<>-only copy under that name (A-P2-14).
 const ALLOWED = new Set(["js/core/html.js", "js/app.js"]);
-const LOCAL_ESCAPER = /^[ \t]*(?:export\s+)?(?:function|const|let|var)\s+(esc|escapeHtml|escHtml|escapeAttr|htmlEscape)\b/m;
+const LOCAL_ESCAPER = /^[ \t]*(?:export\s+)?(?:function|const|let|var)\s+(esc|escapeHtml|escHtml|escapeAttr|htmlEscape|escText)\b/m;
 
 function jsFiles(dir, out = []) {
   for (const name of readdirSync(dir)) {

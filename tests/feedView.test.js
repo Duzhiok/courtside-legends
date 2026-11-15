@@ -136,6 +136,10 @@ test("team chip renders the code on its own colour, picks a readable text colour
   assert.equal(teamChipHtml({ color: "#000" }), "", "no code -> still no chip (nothing to print)");
   const escaped = teamChipHtml({ color: "#000", code: "<script>" });
   assert.ok(!escaped.includes("<script>"), "a hostile 'code' can never inject a tag");
+  assert.ok(escaped.includes("&lt;script&gt;"), "the tag is escaped, not dropped");
+  // The old local escText only escaped &<>; the shared esc also escapes quotes (A-P2-14).
+  const quoted = teamChipHtml({ color: "#000", code: `A"B'C` });
+  assert.ok(quoted.includes("A&quot;B&#39;C"), "quotes in a code are escaped too");
 });
 
 test("feed actor id: explicit actorId beats shot/dunk/skill meta, in that priority order", () => {

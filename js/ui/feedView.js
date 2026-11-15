@@ -1,5 +1,6 @@
 import { teamColors } from "../data/teamColors.js";
 import { FRANCHISES } from "../data/franchises.js";
+import { esc } from "../core/html.js";
 import { feedEventTier } from "./feedTier.js";
 import { legendCardHtml } from "./feedLegend.js";
 
@@ -199,8 +200,6 @@ export function clockLabel(ev) {
  * header above the court (same resolveMatchColors() call), so the mapping is
  * free to learn by just glancing up once.
  */
-const escText = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
-
 /** Which of near-black/white reads better as TEXT painted on a chip whose background is the
  *  team's own (often saturated) colour — not the feed's dark background, readableTextColor()
  *  already covers that case for body text. */
@@ -209,10 +208,11 @@ export function chipTextOn(hex) {
 }
 
 /** A solid team-code chip, e.g. "LAL" on gold. `side` is one entry of resolveMatchColors()'s
- *  { home, away } (needs .color and .code). Returns "" when there is no side to show. */
+ *  { home, away } (needs .color and .code). Returns "" when there is no side to show.
+ *  The code goes through the shared esc() from js/core/html.js (A-P2-14). */
 export function teamChipHtml(side) {
   if (!side?.color || !side?.code) return "";
-  return `<i class="feed-chip-team" style="background:${side.color};color:${chipTextOn(side.color)}">${escText(side.code)}</i>`;
+  return `<i class="feed-chip-team" style="background:${side.color};color:${chipTextOn(side.color)}">${esc(side.code)}</i>`;
 }
 
 /**
