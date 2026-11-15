@@ -75,4 +75,55 @@
 @media (max-width: 560px) {
   .hc-box { font-size: 0.75rem; }
   .hc-box th small { display: none; }
+  .hc-box [data-col="blk"],
+  .hc-box [data-col="tov"] { display: none; }
+}
+
+/* On-court marker: position label under the initials (floor is dark green). */
+.hc-player text.hc-pos { font-size: 1.7px; font-weight: 600; fill: rgba(255, 255, 255, 0.85); }
+
+/* --- 3v3 picker skin (sandbox picker, scoped to this screen — 时空对决 untouched) --- */
+#screen-halfcourt .sandbox-sides { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+#screen-halfcourt .sandbox-side { border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; padding: 10px 12px; }
+#screen-halfcourt [data-side="A"] { border-top: 3px solid #e8c15a; }
+#screen-halfcourt [data-side="B"] { border-top: 3px solid #7fb8ff; }
+#screen-halfcourt .sandbox-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+#screen-halfcourt .hc-pick-card { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#screen-halfcourt .hc-pick-photo { flex: none; }
+#screen-halfcourt .hc-pick-photo img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; display: block; }
+#screen-halfcourt .hc-pick-photo .team-badge { display: none; }
+#screen-halfcourt .hc-pick-info { display: grid; gap: 2px; min-width: 0; }
+#screen-halfcourt .hc-pick-info b { font-size: 0.92rem; overflow-wrap: anywhere; }
+#screen-halfcourt .hc-pick-ovr { font-style: normal; font-size: 0.72rem; font-weight: 700; color: #8a6a10; background: #fff2cc; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+#screen-halfcourt .hc-pick-meta { font-size: 0.78rem; opacity: 0.75; overflow-wrap: anywhere; }
+#screen-halfcourt .hc-pick-pos { font-style: normal; font-weight: 700; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
+#screen-halfcourt .sandbox-result.is-picked { opacity: 0.55; }
+#screen-halfcourt .sandbox-picked-tag { font-size: 0.75rem; font-weight: 700; color: #7fb8ff; white-space: nowrap; }
+/* Picked roster: slot numbers 1-2-3 in pick order; the ×N count is always 1 in unique mode. */
+#screen-halfcourt .sandbox-roster { counter-reset: hc-slot; }
+#screen-halfcourt .sandbox-roster li { counter-increment: hc-slot; }
+#screen-halfcourt .sandbox-roster li::before {
+  content: counter(hc-slot);
+  flex: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(232, 193, 90, 0.2); color: #e8c15a;
+  font-size: 0.75rem; font-weight: 700;
+}
+#screen-halfcourt .sandbox-roster strong { display: none; }
+
+/* --- box score: scroll instead of squeeze; hide low-priority columns on phones --- */
+.hc-box-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 720px) {
+  .hc-box [data-col="fatigue"] { display: none; }
 }

@@ -38,6 +38,8 @@ function sideTemplate(side, lang = "zh", teamNameOf = defaultTeamName) {
 /**
  * Options beyond the sandbox defaults let other free modes reuse this picker (3v3 half-court:
  * `min: 3, max: 3, unique: true`, its own team names and start label). Defaults are unchanged.
+ * `resultCard(card, { side, picked, lang })` may replace the row's left side (a 3v3 card with
+ * portrait + badges); without it the row stays the plain `name · season · team · pos · OVR` line.
  */
 export function mountSandbox({
   root,
@@ -51,6 +53,7 @@ export function mountSandbox({
   unique = false,
   teamName: teamNameOf = defaultTeamName,
   startLabel = defaultStartLabel,
+  resultCard = null,
 }) {
   if (root.dataset.mounted) return;
   root.dataset.mounted = "1";
@@ -68,13 +71,23 @@ export function mountSandbox({
 
   function renderResults(side) {
     q(`[data-results="${side}"]`).innerHTML = found[side]
-      .map((card, i) => `<div class="sandbox-result">
-          <span>${cardLine(card)}</span>
+      .map((card, i) => {
+        // Unique mode (3v3) only: a card already picked on this side gets a
+        // "picked" marker and a disabled +1, so the duplicate error
+        // ("同一名球员每队只能选一次") is never reachable from the UI.
+        const picked = unique && picks[side].some((c) => c.id === card.id);
+        const left = resultCard
+          ? resultCard(card, { side, picked, lang: currentLang })
+          : `<span>${cardLine(card)}</span>`;
+        return `<div class="sandbox-result${picked ? " is-picked" : ""}">
+          ${left}
           <span class="btn-row">
-            <button type="button" class="btn small" data-add="${side}:${i}">+1</button>
+            ${picked ? `<span class="sandbox-picked-tag">${currentLang === "en" ? "Picked" : "已选"}</span>` : ""}
+            <button type="button" class="btn small" data-add="${side}:${i}" ${picked ? "disabled" : ""}>+1</button>
             ${unique ? "" : `<button type="button" class="btn small ghost" data-fill="${side}:${i}" title="${currentLang === "en" ? `Fill the whole team with ${min} copies of them` : `整队换成 ${min} 个他`}">×${min}</button>`}
           </span>
-        </div>`)
+        </div>`;
+      })
       .join("");
   }
 
@@ -146,6 +159,7 @@ export function mountSandbox({
         const card = picks[side][Number(index)];
         if (card) picks[side] = picks[side].filter((c) => c.id !== card.id);
         renderRoster(side);
+        renderResults(side);
         return;
       }
       const [side, index] = (button.dataset.add || button.dataset.fill || button.dataset.remove || button.dataset.more).split(":");
@@ -155,6 +169,7 @@ export function mountSandbox({
       else if (button.dataset.more) picks[side] = addToSide(picks[side], picks[side][Number(index)], limits);
       else picks[side] = removeFromSide(picks[side], Number(index));
       renderRoster(side);
+      renderResults(side); // refresh the picked marker right away (unique mode)
     } catch (error) {
       setError(error.message);
     }

@@ -12,6 +12,7 @@
 import { mountSandbox } from "./sandboxView.js";
 import { HALF_COURT_RULES, halfCourtTeamTotals, playHalfCourtGame } from "../modes/halfCourt3v3.js";
 import { hashSeed } from "../core/seededRandom.js";
+import { photoImg } from "../data/photo.js";
 
 const RIM = { x: 50, y: 4 };
 /** Three-out spots beyond the 24-unit arc (viewBox 0 0 100 50). */
@@ -51,6 +52,57 @@ const toward = (p, t) => ({ x: p.x + (RIM.x - p.x) * t, y: p.y + (RIM.y - p.y) *
 const initials = (name) => String(name || "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 3).toUpperCase();
 const pct = (m, a) => (a ? `${m}/${a}` : "0/0");
 
+/**
+ * 3v3 picker card (the sandbox picker's `resultCard` hook): portrait thumb,
+ * name, OVR badge, position badge, season · team. Pure — unit-tested.
+ */
+export function halfCourtPickerCardHtml(card, { ovrOf, esc } = {}) {
+  return `<span class="hc-pick-card">
+    <span class="hc-pick-photo">${photoImg(card, "hc-pick-img")}</span>
+    <span class="hc-pick-info">
+      <b>${esc(card.name)} <em class="hc-pick-ovr">OVR ${ovrOf(card)}</em></b>
+      <span class="hc-pick-meta"><i class="hc-pick-pos">${esc(card.pos)}</i>${esc(card.season)} · ${esc(card.team)}</span>
+    </span>
+  </span>`;
+}
+
+/** On-court marker: initials circle + position label under it; `active` marks the shooter. Pure — unit-tested. */
+export function halfCourtMarkerHtml(p, pos, side, active, esc) {
+  return `<g class="hc-player hc-${side}${active ? " hc-active" : ""}" transform="translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})"><circle r="3.1" /><text y="1.1" text-anchor="middle">${esc(initials(p.name))}</text><text class="hc-pos" y="5.4" text-anchor="middle">${esc(p.pos || "")}</text></g>`;
+}
+
+/** Box-score columns in order; `data-col` is what the responsive CSS hides on narrow screens. */
+export const HALF_COURT_BOX_COLUMNS = [
+  { id: "player", zh: "球员", en: "Player" },
+  { id: "pts", zh: "得分", en: "PTS" },
+  { id: "1pt", zh: "1分", en: "1PT" },
+  { id: "2pt", zh: "2分", en: "2PT" },
+  { id: "ft", zh: "罚球", en: "FT" },
+  { id: "reb", zh: "板", en: "REB" },
+  { id: "ast", zh: "助", en: "AST" },
+  { id: "stl", zh: "断", en: "STL" },
+  { id: "blk", zh: "帽", en: "BLK" },
+  { id: "tov", zh: "失", en: "TOV" },
+  { id: "fatigue", zh: "体力消耗", en: "Fatigue" },
+];
+
+/**
+ * One team's box score, wrapped in a horizontal-scroll container so the
+ * 11-column table never squeezes on a phone. Pure — unit-tested.
+ */
+export function halfCourtBoxTableHtml({ name, lines, won, lang = "zh", esc }) {
+  const en = lang === "en";
+  const T = (zh, enText) => (en ? enText : zh);
+  const tot = halfCourtTeamTotals(lines);
+  const cells = (l) => [l.pts, pct(l.fgm1, l.fga1), pct(l.fgm2, l.fga2), pct(l.ftm, l.fta), l.reb, l.ast, l.stl, l.blk, l.tov, l.fatigue ?? ""];
+  const row = (l, label) => `<tr><th scope="row" data-col="player">${label}</th>${cells(l).map((v, i) => `<td data-col="${HALF_COURT_BOX_COLUMNS[i + 1].id}">${v}</td>`).join("")}</tr>`;
+  return `<div class="hc-box-scroll"><table class="hc-box" aria-label="${esc(name)}">
+      <caption>${esc(name)}${won ? ` · ${T("胜", "W")}` : ""}</caption>
+      <thead><tr>${HALF_COURT_BOX_COLUMNS.map((c) => `<th scope="col" data-col="${c.id}">${T(c.zh, c.en)}</th>`).join("")}</tr></thead>
+      <tbody>${lines.map((l) => row(l, `${esc(l.name)} <small>${l.season ?? ""} ${esc(l.pos)}</small>`)).join("")}${row({ ...tot, fatigue: "" }, T("合计", "Total"))}</tbody>
+    </table></div>`;
+}
+
 export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => "zh", onBack = () => {} }) {
   let teams = null;
   let result = null;
@@ -74,11 +126,9 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
     const offense = play ? play.offense : result.plays[0]?.offense || "home";
     const defense = offense === "home" ? "away" : "home";
     const shooterIds = new Set((play?.lines || []).filter((l) => l.kind === "make" || l.kind === "miss").map((l) => l.playerId));
-    const marker = (p, pos, side) =>
-      `<g class="hc-player hc-${side}${shooterIds.has(p.id) ? " hc-active" : ""}" transform="translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})"><circle r="3.1" /><text y="1.1" text-anchor="middle">${esc(initials(p.name))}</text></g>`;
     q("[data-hc-players]").innerHTML =
-      result.box[offense].map((p, i) => marker(p, SPOTS[i], offense)).join("") +
-      result.box[defense].map((p, i) => marker(p, toward(SPOTS[i], 0.28), defense)).join("");
+      result.box[offense].map((p, i) => halfCourtMarkerHtml(p, SPOTS[i], offense, shooterIds.has(p.id), esc)).join("") +
+      result.box[defense].map((p, i) => halfCourtMarkerHtml(p, toward(SPOTS[i], 0.28), defense, shooterIds.has(p.id), esc)).join("");
   }
 
   function renderScore(score, play) {
@@ -120,14 +170,7 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
   }
 
   function boxTable(side) {
-    const lines = result.box[side];
-    const tot = halfCourtTeamTotals(lines);
-    const row = (l, name) => `<tr><th scope="row">${name}</th><td>${l.pts}</td><td>${pct(l.fgm1, l.fga1)}</td><td>${pct(l.fgm2, l.fga2)}</td><td>${pct(l.ftm, l.fta)}</td><td>${l.reb}</td><td>${l.ast}</td><td>${l.stl}</td><td>${l.blk}</td><td>${l.tov}</td><td>${l.fatigue ?? ""}</td></tr>`;
-    return `<table class="hc-box" aria-label="${esc(result.names[side])}">
-      <caption>${esc(result.names[side])}${result.winner === side ? ` · ${T("胜", "W")}` : ""}</caption>
-      <thead><tr><th scope="col">${T("球员", "Player")}</th><th scope="col">${T("得分", "PTS")}</th><th scope="col">${T("1分", "1PT")}</th><th scope="col">${T("2分", "2PT")}</th><th scope="col">${T("罚球", "FT")}</th><th scope="col">${T("板", "REB")}</th><th scope="col">${T("助", "AST")}</th><th scope="col">${T("断", "STL")}</th><th scope="col">${T("帽", "BLK")}</th><th scope="col">${T("失", "TOV")}</th><th scope="col">${T("体力消耗", "Fatigue")}</th></tr></thead>
-      <tbody>${lines.map((l) => row(l, `${esc(l.name)} <small>${l.season ?? ""} ${esc(l.pos)}</small>`)).join("")}${row({ ...tot, fatigue: "" }, T("合计", "Total"))}</tbody>
-    </table>`;
+    return halfCourtBoxTableHtml({ name: result.names[side], lines: result.box[side], won: result.winner === side, lang: getLang(), esc });
   }
 
   function renderResult() {
@@ -171,6 +214,7 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
       unique: true,
       teamName: (side, lang) => (lang === "en" ? `Half-Court ${side}` : `半场 ${side} 队`),
       startLabel: (lang) => (lang === "en" ? "Tip Off · 3v3" : "开打 · 3v3 半场"),
+      resultCard: (card) => halfCourtPickerCardHtml(card, { ovrOf, esc }),
       onStart: (teamA, teamB) => {
         teams = { home: teamA, away: teamB };
         retries = 0;
