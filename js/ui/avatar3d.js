@@ -3,6 +3,7 @@
  * Three.js is loaded with a dynamic import() the first time a viewer mounts, so no other screen pays for it.
  * Any failure (no WebGL, 404, timeout) rejects; the caller keeps showing its static avatar.
  */
+import { webglAvailable } from "../core/capabilities.js";
 import { avatarModelFile, bodyBoneScales, lookColors, portraitFraming, sanitizeLook } from "../data/avatarLook.js";
 import { addAvatarLights } from "./avatarLighting.js";
 import { AVATAR_ACTIONS, findActionClip, findExitClip, holdsPose } from "./avatarActions.js";
@@ -30,16 +31,6 @@ const ZOOM_LERP = 4;                 // 1/s: how fast the camera eases between i
 const defaultLighting = () => {
   try { return new URLSearchParams(globalThis.location?.search || "").get("avatarLight") === "studio" ? "studio" : "classic"; } catch { return "classic"; }
 };
-
-/** True when the browser can create a WebGL context at all (checked on a throwaway canvas). */
-export function webglAvailable(doc = document) {
-  try {
-    const canvas = doc.createElement("canvas");
-    return !!(canvas.getContext("webgl2") || canvas.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
 
 const withTimeout = (promise, ms, what) => Promise.race([
   promise,

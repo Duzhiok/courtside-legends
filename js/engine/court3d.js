@@ -34,7 +34,7 @@ import {
   shortName,
   clamp,
 } from "./court.js";
-import { webglAvailable } from "../ui/avatar3d.js";
+import { webglAvailable } from "../core/capabilities.js";
 
 /** Vendored full Three.js 0.187.0 (three.module.js + three.core.js). The R171
  * avatar bundle is tree-shaken to 13 symbols (no geometry/material classes)
