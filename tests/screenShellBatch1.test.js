@@ -11,7 +11,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createCareerInboxView, CAREER_INBOX_TITLE } from "../js/ui/careerInboxView.js";
 import { createGmBusinessView, GM_BUSINESS_TITLE } from "../js/ui/gmBusinessView.js";
-import { createExecutiveScenario } from "../js/career/gm/businessScenario.js";
 
 globalThis.MutationObserver = class {
   observe() {}

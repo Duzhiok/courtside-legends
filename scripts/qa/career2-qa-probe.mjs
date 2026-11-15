@@ -14,9 +14,7 @@
 // (d) Save compat: a pre-rivalry Reborn save (no `rivalries` field) plays
 //     a game cleanly; the account mirror stays identical on repeat calls.
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { GameSim } from "../../js/engine/sim.js";
-import { seasonToCard } from "../../js/data/players.js";
 import { createRebornState, buildPlayerCard, REBORN_TEAM_IDS } from "../../js/reborn/identity.js";
 import { rosterCards, buildSeason, playSeason, takeoverEligible } from "../../js/reborn/season.js";
 import { rivalryLedger, mirrorRivalriesToAccount, DEFAULT_TAKEOVER_WINDOW, RIVALRY_TAKEOVER_WINDOW } from "../../js/reborn/rivalry.js";

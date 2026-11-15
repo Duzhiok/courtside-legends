@@ -16,13 +16,13 @@ import assert from "node:assert/strict";
 import { setLang, getLang } from "../js/i18n.js";
 import { createMemoryStorage } from "./helpers/memoryStorage.js";
 import {
-  ensureRelationshipsScreen, createRelationshipsView, RELATIONSHIPS_TITLE,
+  createRelationshipsView, RELATIONSHIPS_TITLE,
 } from "../js/ui/relationshipsView.js";
 import {
   ensureRebornScreen, createRebornView, REBORN_TITLE,
 } from "../js/ui/reborn/rebornView.js";
 import {
-  ensureMyHomeScreen, createMyHome, MY_HOME_TITLE,
+  createMyHome, MY_HOME_TITLE,
 } from "../js/ui/myHome/myHomeScreen.js";
 
 globalThis.localStorage = createMemoryStorage();

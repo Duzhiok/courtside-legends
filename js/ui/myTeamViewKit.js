@@ -1,6 +1,5 @@
 /** Small helpers shared by the My Team clubhouse views. Pure, no DOM. */
 import { esc } from "../core/html.js";
-import { TL } from "../i18n.js";
 export { esc };
 
 

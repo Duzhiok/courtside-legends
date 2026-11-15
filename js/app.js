@@ -95,7 +95,6 @@ import {
   coachSpecialtyLabel,
   coachName,
   coachStyle,
-  coachSpecialty,
   coachNote,
   tacticName,
   tacticDesc,
@@ -242,7 +241,6 @@ import {
   progressPodAfterOpeners,
 } from "./engine/careerBracket.js";
 import {
-  SCOUT_PACK_COST_MIN,
   buildAffordableShop,
   careerRefreshCost,
   rollScoutPackOffer,
