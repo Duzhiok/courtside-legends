@@ -35,7 +35,6 @@ export const DRAFT_YEAR = 1996;
 export const GAMBLE_TEAM_ID = "CHH";
 export const GAMBLE_TEAM_NAME = "Charlotte Hornets";
 export const GAMBLE_TEAM_NAME_ZH = "夏洛特黄蜂";
-export const USER_PICK_NUMBERS = [8, 13];
 /** Slot order, pick 1 to 14. CHH holds #8 and #13 (the fiction: Charlotte
  * acquired New Jersey's #8 before the draft); every other slot belongs to
  * the team that held it in 1996. */

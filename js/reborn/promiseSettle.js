@@ -19,7 +19,6 @@ import { collectEvidence, evidenceWindow } from "./promiseEvidence.js";
 import { roleForTrust } from "./trust.js";
 
 /** Promise kinds a Reborn run can settle from its own record. */
-export const OBSERVABLE_KINDS = Object.freeze(["minutes", "role", "start", "contract", "trade"]);
 
 const clampTrust = (v) => Math.max(0, Math.min(100, Math.round(v)));
 

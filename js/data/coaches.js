@@ -433,26 +433,6 @@ export function tacticUnlockHint(tacticId, players = [], lang = "zh") {
   return reasons[tacticId] || "";
 }
 
-/** Slider help shown on setup + in-game philosophy panels. */
-export const PHILOSOPHY_HELP = {
-  offense: {
-    label: "进攻倾向",
-    desc: "抓机会倾向：见空档就攻。过高时弱攻/偏防球员也会强行出手，浪费球权与体力；若阵容多为进攻型，则抓机会极强。",
-  },
-  defense: {
-    label: "防守倾向",
-    desc: "防守压迫强度：抬高盯防与协防，但更吃体力。体力好的球员（如威少）几乎无感；体力差的会快速透支。",
-  },
-  morale: {
-    label: "士气管理",
-    desc: "开场士气与抗压底线；高则关键球更敢出手，低则容易情绪波动。",
-  },
-  stamina: {
-    label: "负荷管理",
-    desc: "正值保护主力体力（轮换更积极）；负值铁血连场，疲劳涨得更快。",
-  },
-};
-
 export const COACHES = [
   {
     id: "phil-1996-chi",

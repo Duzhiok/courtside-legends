@@ -143,9 +143,6 @@ export const NBA_75_EXTRA_BREF = {
   hardaan01: 3, // Anfernee "Penny" Hardaway
 };
 
-/** @deprecated 用历史分层 + OVR；保留空对象以免外部引用报错 */
-export const PEAK_PRICE_BY_BREF = { ...NBA_TOP10_BREF };
-
 let _peakCache = null;
 
 function historicalFloor(bref) {

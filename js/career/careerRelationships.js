@@ -50,7 +50,6 @@ import { PROMISE_EFFECTS } from "./promiseEffects.js";
 
 export const RELATIONSHIP_KINDS = ["rivalry", "mentorship", "coaching-trust", "management", "owner"];
 export const PROMISE_KINDS = ["minutes", "role", "start", "trade", "contract"];
-export const PROMISE_STATUSES = ["open", "fulfilled", "broken"];
 export const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry", "rivalry-game"];
 
 /** Role order for the "role" promise check (same ladder as trust.js). */

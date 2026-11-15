@@ -603,9 +603,6 @@ export function usageForBallAction(action) {
   return null;
 }
 
-/** 可选手的持球打法（不含自由；无球定点留给配合球员）. */
-export const BALL_HANDLER_ACTIONS = ORDER_ACTION.filter((a) => a.id !== "auto");
-
 export function ensurePlayerOrders(players) {
   for (const p of players || []) {
     applyRecommendedDefaults(p, { force: false });

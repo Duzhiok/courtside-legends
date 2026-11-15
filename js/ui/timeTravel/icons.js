@@ -30,5 +30,3 @@ export function icon(name, { size = 18, cls = "" } = {}) {
   if (!body) return "";
   return `<svg class="tt-ico ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${body}</svg>`;
 }
-
-export const ICON_NAMES = Object.keys(PATHS);

@@ -26,14 +26,6 @@
  *   adapter.observeEnd(snap) inside both onEnd handlers
  */
 
-export const DOMAIN_EVENT_TYPES = Object.freeze([
-  "POSSESSION_START",
-  "SUBSTITUTION",
-  "PERIOD_END",
-  "PERIOD_START",
-  "MATCH_END",
-]);
-
 function onCourtIds(team) {
   return (team?.onCourt || []).map((p) => p.id);
 }

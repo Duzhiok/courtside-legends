@@ -52,7 +52,6 @@ import {
 /** The default slice team: weakest 1996 roster by real top-5 scoring (VAN, 11.9 ppg). */
 export const SCENARIO_TEAM_ID = "VAN";
 export const SCENARIO_SEASON = 1996;
-export const SCENARIO_SEASONS = 3;
 
 function teamNameFor(teamId, season) {
   const entry = historicalSeason(season)?.teams?.find((t) => t.id === teamId || t.bref === teamId);

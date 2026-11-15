@@ -26,26 +26,6 @@ export const DEFAULT_CLUTCH_SCENARIO = Object.freeze({
 });
 
 export const CLUTCH_ACTIONS = Object.freeze(["three", "attack"]);
-export const CLUTCH_STATES = Object.freeze([
-  "READY",
-  "AWAITING_DECISION",
-  "RESOLVING",
-  "CONTINUING",
-  "COMPLETED",
-  "FAILED",
-  "CANCELLED",
-]);
-
-/** Every reason the engine can settle a decision with (M2b-1 contract). */
-export const CLUTCH_REASONS = new Set([
-  "doubled",
-  "kicked_out",
-  "turnover",
-  "foul",
-  "not_handed_off",
-  "not_on_court",
-  "no_possession",
-]);
 
 /** What kind of failure a non-shot reason is (for the result page's explanation). */
 export const CLUTCH_FAILURE_KINDS = Object.freeze({

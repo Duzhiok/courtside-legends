@@ -17,8 +17,6 @@ import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { buildPlayerCard, REBORN_SEASON } from "./identity.js";
 import { roleForTrust, TRUST_START } from "./trust.js";
 
-export const CONTRACT_OUTCOMES = ["resign", "minimum", "cut"];
-
 export const CONTRACT_LABEL = {
   resign: { zh: "续约", en: "Re-signed" },
   minimum: { zh: "底薪留队", en: "Minimum deal" },

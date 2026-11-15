@@ -19,8 +19,6 @@
 
 import { FOCUS_PLAYS, TEMPO_OPTIONS, normalizeTempo } from "./gameplan.js";
 
-export const TAKEOVER_REASONS = Object.freeze(["no_sim", "game_over", "invalid"]);
-
 export function createTacticalTakeover({ sim } = {}) {
   const needSim = () =>
     sim && typeof sim.setFocusPlay === "function" && typeof sim.setTempo === "function"

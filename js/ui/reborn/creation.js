@@ -42,8 +42,6 @@ export const ERA_BACKGROUND = {
   },
 };
 
-export const CREATION_DESTINIES = ["random", "historical", "fictional"];
-
 /**
  * A fixed run seed from the URL (`?reborn-seed=...`), for QA scripts that
  * need a reproducible run (scripts/qa/reborn-rivalry.mjs). Null when absent

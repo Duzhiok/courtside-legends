@@ -28,8 +28,6 @@ import { checkPromises } from "./careerDecisions.js";
 import { appendLegacyEvent, resolveDuePromises, relationshipsStore } from "./careerRelationships.js";
 import { effectsForType } from "./promiseEffects.js";
 
-export const PROMISE_STATUS_FLOW = Object.freeze(["pending", "fulfilled", "broken", "expired"]);
-
 const toCanonicalStatus = (status) => (status === "open" ? "pending" : status);
 
 function fromInbox(raw) {

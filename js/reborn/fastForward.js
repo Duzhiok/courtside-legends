@@ -35,18 +35,6 @@ import { overall } from "../data/players.js";
 /** An opponent whose best card is at least this OVR counts as a key game. */
 export const KEY_GAME_STAR_OVR = 85;
 
-export const FAST_FORWARD_EVENTS = [
-  "training",
-  "rivalry",
-  "key-game",
-  "takeover",
-  "reveal",
-  "rivalry-formed",
-  "role",
-  "starter",
-  "season-end",
-];
-
 /** Week number (1-based) for a 0-based game index. Mirrors the view. */
 export function weekForGameIndex(index) {
   return Math.floor(index / GAMES_PER_WEEK) + 1;

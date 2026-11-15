@@ -44,7 +44,6 @@ export function seasonForStartYear(startYear) {
 export const HISTORICAL_SHARE = 0.7;
 /** Trust at which a historical identity's real name is revealed. */
 export const REVEAL_TRUST = 40;
-export const REBORN_IDENTITY_VERSION = 1;
 
 /** 1996-97 alignment, using the roster.json season=1997 team codes. */
 export const REBORN_EAST_IDS = [

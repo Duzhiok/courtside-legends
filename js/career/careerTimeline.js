@@ -37,9 +37,6 @@ import { settleGamePromises } from "./promiseEngine.js";
 
 export const TIMELINE_SPEEDS = ["next-game", "next-event", "next-key-node"];
 
-/** Season key nodes, in game-index order: week boundaries, the trade deadline, season end. */
-export const TIMELINE_KEY_NODES = ["week", "trade-deadline", "season-end"];
-
 /** 0-based index of the first game of the next week boundary at or after `from`. */
 export function nextWeekBoundary(from, gamesPerWeek = GAMES_PER_WEEK) {
   if (!Number.isInteger(from) || from < 0) return 0;

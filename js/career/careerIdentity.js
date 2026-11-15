@@ -31,14 +31,6 @@
 /** The four career identities, in the order the entry screen shows them. */
 export const CAREER_ROLES = ["PLAYER", "COACH", "GM", "GM_COACH"];
 
-/** Entry-screen identity id -> role id. */
-export const CAREER_IDENTITY_ROLES = {
-  player: "PLAYER",
-  coach: "COACH",
-  gm: "GM",
-  gm_coach: "GM_COACH",
-};
-
 /**
  * Every capability the matrix knows about. Keep this list minimal: only
  * capabilities a real consumer reads (ADR-006 §3.3).

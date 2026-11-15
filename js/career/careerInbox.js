@@ -52,14 +52,6 @@ export const TRADE_DEADLINE_CLOSES_AT = 58;
 
 /** News is a rolling feed, not an archive — oldest entries drop past this. */
 export const INBOX_NEWS_CAP = 50;
-/** History is the career record; the cap only stops unbounded save growth. */
-export const INBOX_HISTORY_CAP = 200;
-
-/** Urgency levels. Urgent events pause the timeline when they appear; normal ones wait. */
-export const INBOX_URGENCY = ["urgent", "normal"];
-
-/** Career-state vocabulary shared with js/story/eventEngine.js. */
-export const INBOX_RELATIONSHIPS = ["owner", "players", "gm", "coach", "media"];
 
 /**
  * The three event types of the first slice. Each is a definition, not an

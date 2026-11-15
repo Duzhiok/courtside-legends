@@ -20,7 +20,6 @@ const revoke = () => { if (url) { URL.revokeObjectURL(url); url = null; } };
 
 export const isActive = () => active;
 export const currentItem = () => queue[index] || null;
-export const missingIds = () => new Set(missing);
 export const queueSnapshot = () => queue.map((q) => ({ id: q.id, name: q.name, source: q.source, missing: missing.has(q.id) }));
 
 async function buildQueue() {
