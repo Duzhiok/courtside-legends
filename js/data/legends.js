@@ -130,12 +130,6 @@ export function isTwilightSeason(r) {
   return (r.season || 0) >= meta.twilightFrom;
 }
 
-export function isPeakSeason(r) {
-  const meta = legendMeta(r?.bref);
-  if (!meta?.peakSeasons?.length) return false;
-  return meta.peakSeasons.includes(r.season);
-}
-
 /** Apply twilight skill floors onto attrs + ovrHint. */
 export function applyLegendTwilightFloor(r, attrs, ovrHint) {
   const meta = legendMeta(r?.bref);

@@ -61,7 +61,6 @@ function seasonLabelOf(st, teamId) {
   return leagueTeamLabel(teamId, st?.customNames);
 }
 
-
 function mulberry32(seed) {
   let t = seed >>> 0;
   return () => {
@@ -565,10 +564,6 @@ export function prepareSeasonState(st) {
     };
   }
   return ensureSeasonMarket(st);
-}
-
-export function teamRecord(st, teamId) {
-  return st.standings[teamId] || { w: 0, l: 0 };
 }
 
 export function standingsList(st, conf = null) {

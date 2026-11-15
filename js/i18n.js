@@ -193,10 +193,6 @@ export function skillNameL(zhName, lang = getLang()) {
   return SKILL_EN_BY_NAME.get(zhName) || zhName;
 }
 
-export function skillNameEnById(id, fallback) {
-  return getLang() === "en" ? SKILL_EN[id] || fallback : fallback;
-}
-
 /** Historical-season team names (historicalSeasons.js) in English, keyed by Chinese name. */
 export const TEAM_NAME_EN = {
   "76人": "76ers", "公牛": "Bulls", "凯尔特人": "Celtics", "勇士": "Warriors",

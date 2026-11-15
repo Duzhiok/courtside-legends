@@ -247,10 +247,6 @@ export function applyCardMods(player, mod, fallbackSeed = null) {
   return applyHiddenRoll(p, mod?.roll || fallbackSeed);
 }
 
-export function getCardMod(account, playerId) {
-  return account?.cardMods?.[playerId] || null;
-}
-
 /**
  * Resolve owned ids → upgraded cards. Without an account (onboarding offers)
  * no 成色 is applied: hidden values stay unrevealed until the card is owned.
@@ -280,10 +276,6 @@ export function uniqueByPerson(players, ovrOf = overall) {
 export function resolveCoach(coachId) {
   const c = COACHES.find((x) => x.id === coachId);
   return c ? structuredClone(c) : null;
-}
-
-export function resolveTactic(tacticId) {
-  return TACTICS[tacticId] || TACTICS.balanced;
 }
 
 /** Account → live team blob for ranked / setup. */

@@ -1484,10 +1484,6 @@ export function activeDuoIds(onCourt = []) {
   return out;
 }
 
-export function hasActiveDuo(onCourt, duoId) {
-  return activeDuoIds(onCourt).includes(duoId);
-}
-
 export function teammateHasAura(onCourt, skillId, exceptId = null) {
   return (onCourt || []).some(
     (p) => p && p.id !== exceptId && (p.skills || []).includes(skillId)
@@ -2394,13 +2390,6 @@ export function skillChipsHtml(player, lang = "zh") {
   return chips + scenarios;
 }
 
-export function skillsLabel(player) {
-  return (player?.skills || [])
-    .map((id) => SKILL_PACKS[id]?.name)
-    .filter(Boolean)
-    .join(" · ");
-}
-
 /** Rating keys bumped +1 on each card merge (capped at 100). */
 export const MERGE_ATTR_KEYS = [
   "scoring",
@@ -3284,8 +3273,4 @@ export function skillReboundMult(p, { offensive = false } = {}) {
   // 角色层冲板蓝领：低线篮板权重，低于上述所有篮板技
   if (hasSkill(p, "crash_board") && rand() < 0.2) return 1.2;
   return 1;
-}
-
-export function isStarSkillTier(tier) {
-  return STAR_TIERS.has(tier);
 }

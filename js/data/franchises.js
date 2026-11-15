@@ -48,10 +48,6 @@ export const POS_SLOTS = [
   { id: "C", label: "5号位 C" },
 ];
 
-export function franchiseById(id) {
-  return FRANCHISES.find((f) => f.id === id);
-}
-
 export function playersForFranchise(allPlayers, franchise) {
   const set = new Set(franchise.aliases);
   return allPlayers.filter((p) => set.has(p.team));

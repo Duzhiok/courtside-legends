@@ -99,18 +99,6 @@ export function futurePeakOverall(rows, bref, season, years = 4) {
   return { peak, peakSeason };
 }
 
-/** Peak per-game scoring over the seasons after `season` (up to `years`). */
-export function futurePeakPpg(rows, bref, season, years = 4) {
-  let peak = null;
-  let peakSeason = null;
-  for (const r of rosterIndex(rows).byBref.get(bref) || []) {
-    if (r.season <= season || r.season > season + years) continue;
-    const ppg = Number(r.ppg) || 0;
-    if (peak === null || ppg > peak) { peak = ppg; peakSeason = r.season; }
-  }
-  return { peak, peakSeason };
-}
-
 /**
  * The scout's report on one prospect. The estimate is built from the real
  * future peak and then blurred with seeded noise — a scout can underrate a

@@ -318,15 +318,6 @@ export function serializeSetup(setup) {
   };
 }
 
-export function reviveSetup(raw, youTeam) {
-  if (!raw || !youTeam) return null;
-  return {
-    you: youTeam,
-    selected: new Set(raw.selected || []),
-    packPreview: raw.packPreview ?? null,
-  };
-}
-
 export function serializeAppSlice(state) {
   return {
     mode: state.mode,

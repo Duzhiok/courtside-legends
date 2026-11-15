@@ -1157,12 +1157,9 @@ export const tacticDesc = (t, lang = "zh") => (t ? (lang === "en" ? t.descEn || 
 export const coachName = (c, lang = "zh") => (c ? (lang === "en" ? c.nameEn || c.name : c.name) : "");
 export const coachStyle = (c, lang = "zh") => (c ? (lang === "en" ? c.styleEn || c.style : c.style) : "");
 export const coachSpecialty = (c, lang = "zh") => (c ? (lang === "en" ? c.specialtyEn || c.specialty : c.specialty) : "");
-export const coachRecordNote = (c, lang = "zh") => (c?.record ? (lang === "en" ? c.record.noteEn || c.record.note : c.record.note) : "");
 export const coachNote = (c, lang = "zh") => (c ? (lang === "en" ? c.noteEn || c.note : c.note) : "");
 
 export const asstName = (a, lang = "zh") => (a ? (lang === "en" ? a.nameEn || a.name : a.name) : "");
-export const asstRole = (a, lang = "zh") => (a ? (lang === "en" ? a.roleEn || a.role : a.role) : "");
-export const asstNote = (a, lang = "zh") => (a ? (lang === "en" ? a.noteEn || a.note : a.note) : "");
 
 export function coachSpecialtyLabel(coach, lang = "zh") {
   if (!coach) return "";

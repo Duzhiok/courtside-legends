@@ -71,14 +71,6 @@ export function buildCareerSpanIndex(rows) {
   return map;
 }
 
-export function setCareerSpanIndex(map) {
-  CAREER_SPAN = map || new Map();
-}
-
-export function getCareerSpan(bref) {
-  return CAREER_SPAN.get(bref) || null;
-}
-
 /**
  * Estimate age for a season row.
  * Prefer birth year; else assume debut ≈ age 20.

@@ -83,11 +83,6 @@ export function settlePersonalInvestments(ledger, year, rng = Math.random) {
   return { ledger: { ...ledger, cash, investments: [] }, settled, year };
 }
 
-/** Preview before investing: the advertised return, blurred by timeline divergence. */
-export function personalInvestmentPreview(assetId, divergence, rng = Math.random) {
-  return investmentForecast(assetId, divergence, rng);
-}
-
 export function equityPct(ledger, teamId) {
   return ledger.equity.filter((e) => e.teamId === teamId).reduce((sum, e) => sum + e.pct, 0);
 }

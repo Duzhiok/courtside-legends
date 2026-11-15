@@ -273,22 +273,6 @@ export function gradeAnalyticsAnswer(challenge, optionId) {
   };
 }
 
-/** The report this analysis hands to the coach / GM side. */
-export function analyticsReport(challenge, optionId) {
-  const grade = gradeAnalyticsAnswer(challenge, optionId);
-  const picked = (challenge?.options || []).find((o) => o.id === optionId) || null;
-  return {
-    source: "analytics",
-    challengeId: challenge?.id || null,
-    bref: picked?.bref || null,
-    wasCorrect: grade.correct,
-    confidence: grade.correct ? "high" : "low",
-    claimZh: picked ? `建议重用 ${picked.name}：价值比 ${picked.valueRatio}，产出 ${picked.production}` : "无建议",
-    claimEn: picked ? `Recommend featuring ${picked.name}: value ratio ${picked.valueRatio}, production ${picked.production}` : "No recommendation",
-    reputationDelta: grade.reputationDelta,
-  };
-}
-
 /**
  * Verify a past analytics claim against later real seasons: did the
  * player's production actually rise (breakout) or hold (sustain)?

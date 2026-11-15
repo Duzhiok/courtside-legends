@@ -41,7 +41,6 @@ export function nextStageSize(stageSize) {
   return CAREER_STAGES[i + 1];
 }
 
-
 function mkMatch(a, b, kind, podId) {
   return {
     a,
@@ -267,13 +266,6 @@ export function collectAdvancers(pods) {
     for (const t of pod.advancers || []) list.push(t);
   }
   return list;
-}
-
-/** Quick self-check: 4-team pod yields 2 advancers. */
-export function _selfCheckPodMath() {
-  const T = (id) => ({ bracketId: id, name: id, isCpu: id !== "you" });
-  const { pods } = buildStagePods([T("a"), T("b"), T("c"), T("d"), T("e"), T("f"), T("g"), T("h")]);
-  return pods.length === 2 && pods.every((p) => p.teams.length === 4);
 }
 
 export function noteCareerLoss(c, team) {

@@ -35,10 +35,6 @@ export let PLAYERS = [];
 let _loaded = false;
 let _loading = null;
 
-export function playersReady() {
-  return _loaded;
-}
-
 /**
  * Convert raw per-game season row → game card with attributes + hidden tier.
  * Attributes follow NBA 2K yearly scales (see ratings2k.js); landmark seasons

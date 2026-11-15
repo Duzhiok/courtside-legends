@@ -401,13 +401,3 @@ function drawUniform(pool, size, excludeIds) {
   }
   return cards;
 }
-
-/** @deprecated 用 listPaidPeaks + drawZeroCostPack；保留兼容（旧行为：均匀随机） */
-export function drawCustomPack(size = 5, excludeIds = new Set()) {
-  return drawZeroCostPack(size, excludeIds, { mode: "random" });
-}
-
-export function peakCardByBref(bref) {
-  const pool = getPeakPool();
-  return pool.find((p) => p.bref === bref) || null;
-}

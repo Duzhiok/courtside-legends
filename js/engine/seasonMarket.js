@@ -110,10 +110,6 @@ export function teamPayroll(team) {
   return players + staffSalary(team?.coach) + staffSalary(team?.assistant);
 }
 
-export function salarySpace(team, cap = SEASON_SALARY_CAP) {
-  return cap - teamPayroll(team);
-}
-
 export function rosterCount(team) {
   return team?.players?.length || 0;
 }
