@@ -1,7 +1,9 @@
 /**
- * Hometown Challenge (ADR-009 H4, M4-B): your represented city's legends
- * vs a random historic strong team, played on the EXISTING GameSim — no
- * second simulator, no rule changes, no fabricated players.
+ * Hometown Challenge lineup building (ADR-009 H4, M4-B): your represented
+ * city's legends vs a random historic strong team. This file only builds
+ * teams from the sourced relation table — the game itself is played on the
+ * EXISTING GameSim by js/modes/hometownChallengeGame.js (playChallengeGame),
+ * no second simulator, no rule changes, no fabricated players.
  *
  * The lineup is generated from the sourced relation table only. When the
  * represented city itself has fewer than 5 people, the lineup fills from
@@ -9,8 +11,6 @@
  * Still fewer than 5 distinct people -> the challenge is unavailable
  * (hidden), never padded with invented players.
  */
-import { GameSim } from "../../engine/sim.js";
-import { seededStream } from "../../core/seededRandom.js";
 import { CURATED, locationChain, matchPlace } from "./hometown.js";
 
 export const CHALLENGE_MIN_PLAYERS = 5;
@@ -81,28 +81,4 @@ export function pickOpponentTeam(cards, { rng = Math.random, size = CHALLENGE_TE
   const pick = strong[Math.min(strong.length - 1, Math.floor(rng() * strong.length))];
   const [team, season] = pick.key.split("|");
   return { name: `${team} ${season}`, players: pick.players.slice(0, size) };
-}
-
-/** Play one challenge game on the existing GameSim with a seeded rng. Pure result, nothing is saved here. */
-export function playChallengeGame({ home, away, seed = 1, maxSteps = 4000 } = {}) {
-  let ended = null;
-  const sim = new GameSim({
-    home, away, youSide: "home", injuries: false, speed: 3,
-    rng: seededStream(seed),
-    onEvent: () => {},
-    onTick: () => {},
-    onEnd: (snap) => { ended = snap; },
-  });
-  sim.autoRotation = true;
-  sim.running = true;
-  let steps = 0;
-  while (sim.running && steps < maxSteps) {
-    sim.step();
-    steps += 1;
-    if (sim.paused) sim.setPaused(false);
-  }
-  const snap = ended || sim.snapshot();
-  const homeScore = snap.score?.home ?? 0;
-  const awayScore = snap.score?.away ?? 0;
-  return { homeScore, awayScore, won: homeScore > awayScore, steps };
 }

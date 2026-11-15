@@ -22,7 +22,8 @@ import {
   sanitizeHometownState,
   setIdol,
 } from "../js/data/hometown/hometownState.js";
-import { buildChallengeTeam, pickOpponentTeam, playChallengeGame } from "../js/data/hometown/hometownChallenge.js";
+import { buildChallengeTeam, pickOpponentTeam } from "../js/data/hometown/hometownChallenge.js";
+import { playChallengeGame } from "../js/modes/hometownChallengeGame.js";
 import { hometownHtml } from "../js/ui/hometownView.js";
 
 // ---------- Fixtures (fake data: mechanism only, no real-person claims) ----------
@@ -185,7 +186,7 @@ test("changing account places never reads or writes a career (Reborn) save", () 
     const code = readFileSync(new URL(`../js/data/hometown/${f}`, import.meta.url), "utf8");
     assert.ok(!code.includes("saveRoot"), `${f} must not touch root saves`);
   }
-  const challengeCode = readFileSync(new URL("../js/data/hometown/hometownChallenge.js", import.meta.url), "utf8");
+  const challengeCode = readFileSync(new URL("../js/modes/hometownChallengeGame.js", import.meta.url), "utf8");
   assert.ok(challengeCode.includes("GameSim"), "the challenge runs on the existing GameSim, not a second simulator");
 });
 
