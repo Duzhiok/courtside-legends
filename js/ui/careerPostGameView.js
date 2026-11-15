@@ -72,7 +72,7 @@ const HIGHLIGHT_ROWS = 4;
 const HIGHLIGHT_TAGS = 3;
 const HOT_NAMES = 3;
 
-/** What a highlight is called, by language; `{v}` is the figure. Every id in `career/buzz.js` has one. */
+/** What a highlight is called, by language; `{v}` is the figure. Every id in `data/buzz.js` has one. */
 export const HIGHLIGHT_LABELS = {
   pts40: ["{v} 分", "{v} points"], pts30: ["{v} 分", "{v} points"], tripleDouble: ["三双", "Triple-double"],
   blk5: ["{v} 次盖帽", "{v} blocks"], tpm8: ["{v} 记三分", "{v} threes"],

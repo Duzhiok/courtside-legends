@@ -300,7 +300,7 @@ import { foldBatch, settleGame } from "./career/gameRewards.js";
 import { goalsForNextGame, liveGoalProgress, settleGameGoals } from "./career/gameGoals.js";
 import { awardGrowth } from "./career/playerGrowth.js";
 import { awardEpiphany } from "./career/seasonEpiphany.js";
-import { settleBuzz } from "./career/buzz.js";
+import { settleBuzz } from "./data/buzz.js";
 import { awardCoachXp, developmentXpMultiplier, tacticsShotBonus } from "./career/coachPerks.js";
 import { ensureCoachProfile } from "./career/coachProfile.js";
 import { teamRosterStrength } from "./career/seasonGoals.js";

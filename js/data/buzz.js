@@ -7,11 +7,14 @@
  * buzz cools by a fixed factor. The trade market reads it (`engine/tradeProposals.js`): a hot player
  * draws calls, and the club on the line pays a bit more than his ratings say. Aggregates only, no
  * game log. Pure: nothing here is mutated or saved.
+ *
+ * Lives in js/data/ (A-P2-7): pure trade-market rules read by the engine layer,
+ * not career-specific. Tuning lives in js/core/tuning.js.
  */
 import {
   BUZZ_BONUS_PER_POINT, BUZZ_DECAY, BUZZ_GAME_CAP, BUZZ_HOT, BUZZ_MAX, BUZZ_MAX_BONUS,
   HIGHLIGHT_BLOCKS, HIGHLIGHT_SCORING, HIGHLIGHT_THREES, HIGHLIGHT_TRIPLE_DOUBLE,
-} from "./balance.js";
+} from "../core/tuning.js";
 
 const num = (value) => Number(value) || 0;
 const round2 = (value) => Math.round(value * 100) / 100;

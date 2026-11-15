@@ -257,28 +257,18 @@ export { GROWTH_CARRYOVER } from "../core/tuning.js";
 // ---------------------------------------------------------------- C4: highlights and market buzz
 // "Buzz" is how loudly the trade market is talking about a player right now. (Not C3's "heating up",
 // which is a skill-streak; the two never share a name in code.)
-/** Highlight nights, one line per kind. Scoring is one ladder (a 40-point night is not also a 30). */
-export const HIGHLIGHT_SCORING = [
-  { id: "pts40", min: 40, points: 4 },
-  { id: "pts30", min: 30, points: 2 },
-];
-export const HIGHLIGHT_BLOCKS = { min: 5, points: 2 };
-export const HIGHLIGHT_THREES = { min: 8, points: 2 };
-/** Ten or more in three of points / rebounds / assists / steals / blocks. */
-export const HIGHLIGHT_TRIPLE_DOUBLE = { categories: 3, min: 10, points: 3 };
-/** One night can only add this much, however many boxes it ticks. */
-export const BUZZ_GAME_CAP = 6;
-/** Each team game, old buzz is multiplied by this before the night's points are added: a 40-point
- * night (4) is still "hot" for about three more games, then cools off. */
-export const BUZZ_DECAY = 0.8;
-export const BUZZ_MAX = 10;
-/** At or above this a player counts as hot: the market notices him and prices him up. */
-export const BUZZ_HOT = 2;
-/** What a buyer will add to his value, in OVR, per point of buzz (capped). */
-export const BUZZ_BONUS_PER_POINT = 0.75;
-export const BUZZ_MAX_BONUS = 4;
-/** From this much buzz a club throws in one more pick. */
-export const BUZZ_EXTRA_PICK = 4;
+// The buzz tuning cluster lives in js/core/tuning.js (A-P2-7: the engine
+// layer reads it through tradeProposals.js and data/buzz.js, so it cannot
+// live in career/); imported here so GOAL_STAR_POINTS below can use
+// HIGHLIGHT_SCORING, and re-exported so existing imports keep working.
+import {
+  BUZZ_BONUS_PER_POINT, BUZZ_DECAY, BUZZ_EXTRA_PICK, BUZZ_GAME_CAP, BUZZ_HOT, BUZZ_MAX, BUZZ_MAX_BONUS,
+  HIGHLIGHT_BLOCKS, HIGHLIGHT_SCORING, HIGHLIGHT_THREES, HIGHLIGHT_TRIPLE_DOUBLE,
+} from "../core/tuning.js";
+export {
+  BUZZ_BONUS_PER_POINT, BUZZ_DECAY, BUZZ_EXTRA_PICK, BUZZ_GAME_CAP, BUZZ_HOT, BUZZ_MAX, BUZZ_MAX_BONUS,
+  HIGHLIGHT_BLOCKS, HIGHLIGHT_SCORING, HIGHLIGHT_THREES, HIGHLIGHT_TRIPLE_DOUBLE,
+};
 
 // ---------------------------------------------------------------- C6: game goals and the hand-play bonus
 /** Goals set before every game of a managed career. The first one always counts; the second only when you coach the game yourself. */

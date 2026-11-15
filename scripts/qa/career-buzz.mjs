@@ -6,7 +6,7 @@
 //   * every price-up on a trade offer must carry the ledger's buzz and the documented bonus, and the
 //     cached offers must be re-made the moment the market's mood changes (the stale-cache bug).
 // Real thresholds (30 points, 5 blocks ...) can't be conjured on demand, so the plumbing runs on a RELAXED
-// copy of js/career/balance.js (the same app code, one module intercepted); the real thresholds get their
+// copy of js/core/tuning.js (the same app code, one module intercepted); the real thresholds get their
 // own pass: no false claims, no silent omissions, and a seeded 40-point night that cools off.
 // Usage: [QA_VIEWPORT=desktop|mobile] node scripts/qa/career-buzz.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
@@ -22,15 +22,15 @@ const report = [];
 const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
 const browser = await chromium.launch({ executablePath: EXE });
 
-// ---- the relaxed copy of the balance module (and a loud failure if it stops looking as expected)
-const SRC = readFileSync(new URL("../../js/career/balance.js", import.meta.url), "utf8");
+// ---- the relaxed copy of the tuning module (and a loud failure if it stops looking as expected)
+const SRC = readFileSync(new URL("../../js/core/tuning.js", import.meta.url), "utf8");
 const RELAXED = SRC
   .replace('{ id: "pts40", min: 40, points: 4 }', '{ id: "pts40", min: 14, points: 4 }')
   .replace('{ id: "pts30", min: 30, points: 2 }', '{ id: "pts30", min: 6, points: 2 }')
   .replace("HIGHLIGHT_BLOCKS = { min: 5,", "HIGHLIGHT_BLOCKS = { min: 1,")
   .replace("HIGHLIGHT_THREES = { min: 8,", "HIGHLIGHT_THREES = { min: 2,");
-check("the relaxed balance module was built from the real one", RELAXED !== SRC && /min: 14,/.test(RELAXED) && /min: 6,/.test(RELAXED) && /HIGHLIGHT_BLOCKS = \{ min: 1,/.test(RELAXED) && /HIGHLIGHT_THREES = \{ min: 2,/.test(RELAXED));
-const relax = (page) => page.route(/\/js\/career\/balance\.js/, (route) => route.fulfill({ contentType: "text/javascript", body: RELAXED }));
+check("the relaxed tuning module was built from the real one", RELAXED !== SRC && /min: 14,/.test(RELAXED) && /min: 6,/.test(RELAXED) && /HIGHLIGHT_BLOCKS = \{ min: 1,/.test(RELAXED) && /HIGHLIGHT_THREES = \{ min: 2,/.test(RELAXED));
+const relax = (page) => page.route(/\/js\/core\/tuning\.js/, (route) => route.fulfill({ contentType: "text/javascript", body: RELAXED }));
 
 const r2 = (x) => Math.round(x * 100) / 100;
 const HOT = 2;
@@ -38,7 +38,7 @@ const DECAY = 0.8;
 
 /** What the SAVE says: buzz ledger, cached offers, games played, and every roster player's season totals. */
 const saved = (page) => page.evaluate(async () => {
-  const { buzzKey } = await import("/js/career/buzz.js");
+  const { buzzKey } = await import("/js/data/buzz.js");
   const root = JSON.parse(localStorage.getItem("cls_root_v3"));
   const st = root.leagueCareer.season;
   const rec = st.standings[st.userTeamId] || { w: 0, l: 0 };

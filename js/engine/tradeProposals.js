@@ -1,6 +1,6 @@
 import { overall } from "../data/players.js";
-import { BUZZ_EXTRA_PICK } from "../career/balance.js";
-import { buzzBonus, buzzKey, buzzOf, isHot } from "../career/buzz.js";
+import { BUZZ_EXTRA_PICK } from "../core/tuning.js";
+import { buzzBonus, buzzKey, buzzOf, isHot } from "../data/buzz.js";
 import { SEASON_APRON, SEASON_MAX_ROSTER, SEASON_MIN_ROSTER, cpuCapBlocksTrade, executeTrade, pickValueOf, playerSalary, teamDraftAssets, teamPayroll } from "./seasonMarket.js";
 import { parsePickId } from "./pickLedger.js";
 import {

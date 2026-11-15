@@ -5,7 +5,7 @@ import { SKILL_PACKS } from "../js/data/skills.js";
 import { skillNameL } from "../js/i18n.js";
 import { EPIPHANY_RULES } from "../js/data/epiphany.js";
 import { FOCUS_ATTRIBUTES } from "../js/modes/playerDevelopment.js";
-import { highlightTags } from "../js/career/buzz.js";
+import { highlightTags } from "../js/data/buzz.js";
 import { ATTRIBUTE_LABELS, HIGHLIGHT_LABELS, STREAK_UNITS, batchHtml, postGameHtml } from "../js/ui/careerPostGameView.js";
 
 const CJK = /[\u3400-\u9fff]/;

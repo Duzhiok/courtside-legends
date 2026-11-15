@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BUZZ_DECAY, BUZZ_EXTRA_PICK, BUZZ_GAME_CAP, BUZZ_HOT, BUZZ_MAX, BUZZ_MAX_BONUS } from "../js/career/balance.js";
-import { buzzBonus, buzzKey, buzzOf, highlightTags, isHot, settleBuzz } from "../js/career/buzz.js";
+import { BUZZ_DECAY, BUZZ_EXTRA_PICK, BUZZ_GAME_CAP, BUZZ_HOT, BUZZ_MAX, BUZZ_MAX_BONUS } from "../js/core/tuning.js";
+import { buzzBonus, buzzKey, buzzOf, highlightTags, isHot, settleBuzz } from "../js/data/buzz.js";
 import { foldBatch, settleGame } from "../js/career/gameRewards.js";
 import { declineTradeProposal, ensureTradeProposals, generateTradeProposals, listPlayerForTrade } from "../js/engine/tradeProposals.js";
 import { setListingPref } from "../js/engine/tradeListing.js";

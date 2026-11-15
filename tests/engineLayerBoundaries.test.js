@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import { GROWTH_CARRYOVER as TUNING_CARRYOVER } from "../js/core/tuning.js";
-import { GROWTH_CARRYOVER as BALANCE_CARRYOVER } from "../js/career/balance.js";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { BUZZ_EXTRA_PICK as TUNING_EXTRA_PICK, GROWTH_CARRYOVER as TUNING_CARRYOVER } from "../js/core/tuning.js";
+import { BUZZ_EXTRA_PICK as BALANCE_EXTRA_PICK, GROWTH_CARRYOVER as BALANCE_CARRYOVER } from "../js/career/balance.js";
 import {
   FOCUS_ATTRIBUTES,
   carriedDeltas,
@@ -13,13 +13,14 @@ const src = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
 // Guard: A-P2-6 — js/engine/develop.js no longer imports the career/modes
 // layers above it, and the rules it depends on live in the engine layer.
-test("engine layer does not import career/modes except the documented exceptions (A-P2-6)", () => {
+test("engine layer does not import career/modes except the documented B41 exception (A-P2-6, A-P2-7)", () => {
   assert.doesNotMatch(src("../js/engine/develop.js"), /from\s+["']\.\.\/(career|modes)\//);
   assert.doesNotMatch(src("../js/engine/developmentRules.js"), /from\s+["']\.\.\/(career|modes)\//);
-  // Whole-layer scan: the only remaining upward imports are the two
-  // A-P2-7 exceptions, both deliberate — seasonMarket -> careerGuards is
-  // the B41 permission enforcement, tradeProposals -> balance/buzz is the
-  // shared-tuning coupling A-P2-7 tracks. Any new one fails this test.
+  // Whole-layer scan: the only remaining upward import is the one A-P2-7
+  // exception, deliberate — seasonMarket -> careerGuards is the B41
+  // permission enforcement. A-P2-7's other two edges (tradeProposals ->
+  // balance/buzz) are gone: the buzz tuning cluster lives in core/tuning.js
+  // and the buzz rules in data/buzz.js. Any new one fails this test.
   const upward = [];
   for (const file of readdirSync(new URL("../js/engine/", import.meta.url))) {
     if (!file.endsWith(".js")) continue;
@@ -30,8 +31,6 @@ test("engine layer does not import career/modes except the documented exceptions
   }
   assert.deepEqual(upward.sort(), [
     'seasonMarket.js -> from "../career/careerGuards.js"',
-    'tradeProposals.js -> from "../career/balance.js"',
-    'tradeProposals.js -> from "../career/buzz.js"',
   ]);
 });
 
@@ -86,4 +85,32 @@ test("GROWTH_CARRYOVER is defined once in core/tuning.js and re-exported by bala
   assert.match(src("../js/core/tuning.js"), /export const GROWTH_CARRYOVER = 0\.5;/);
   assert.doesNotMatch(src("../js/career/balance.js"), /export const GROWTH_CARRYOVER/);
   assert.match(src("../js/career/balance.js"), /export \{ GROWTH_CARRYOVER \} from "\.\.\/core\/tuning\.js";/);
+});
+
+// Guard: the buzz tuning cluster has a single source (core/tuning.js, A-P2-7);
+// career/balance.js only re-exports it.
+test("buzz tuning constants are defined once in core/tuning.js and re-exported by balance.js", () => {
+  assert.equal(TUNING_EXTRA_PICK, 4);
+  assert.equal(BALANCE_EXTRA_PICK, TUNING_EXTRA_PICK);
+  for (const name of [
+    "HIGHLIGHT_SCORING", "HIGHLIGHT_BLOCKS", "HIGHLIGHT_THREES", "HIGHLIGHT_TRIPLE_DOUBLE",
+    "BUZZ_GAME_CAP", "BUZZ_DECAY", "BUZZ_MAX", "BUZZ_HOT",
+    "BUZZ_BONUS_PER_POINT", "BUZZ_MAX_BONUS", "BUZZ_EXTRA_PICK",
+  ]) {
+    assert.match(src("../js/core/tuning.js"), new RegExp(`export const ${name} =`));
+    assert.doesNotMatch(src("../js/career/balance.js"), new RegExp(`export const ${name} =`));
+  }
+  assert.match(src("../js/career/balance.js"), /export \{[^}]*BUZZ_EXTRA_PICK[^}]*\};/);
+  assert.match(src("../js/career/balance.js"), /export \{[^}]*HIGHLIGHT_SCORING[^}]*\};/);
+});
+
+// Guard: the buzz rules live in data/buzz.js (A-P2-7) — no stale copy in career/.
+test("buzz rules live in data/buzz.js and the engine reads them from there", () => {
+  assert.equal(existsSync(new URL("../js/career/buzz.js", import.meta.url)), false);
+  assert.match(src("../js/data/buzz.js"), /export function settleBuzz/);
+  assert.match(src("../js/data/buzz.js"), /from\s+["']\.\.\/core\/tuning\.js["']/);
+  assert.match(src("../js/engine/tradeProposals.js"), /from\s+["']\.\.\/data\/buzz\.js["']/);
+  assert.match(src("../js/engine/tradeProposals.js"), /from\s+["']\.\.\/core\/tuning\.js["']/);
+  assert.doesNotMatch(src("../js/engine/tradeProposals.js"), /from\s+["']\.\.\/career\//);
+  assert.match(src("../js/app.js"), /from\s+["']\.\/data\/buzz\.js["']/);
 });
