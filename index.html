@@ -1387,6 +1387,16 @@
   <!-- Gold Lifestyle Shop: content is rendered by js/ui/shopView.js -->
   <dialog id="shop-dialog" class="shop-dialog" aria-label="商城"></dialog>
 
+  <!-- Player Voice: content is rendered by js/ui/playerVoice.js -->
+  <dialog id="player-voice" class="pv-dialog" aria-labelledby="pv-title" data-no-i18n><div class="pv-form" id="pv-body"></div></dialog>
+
+  <!-- Courtside Radio: content is rendered by js/audio/radioPanel.js -->
+  <dialog id="radio-dialog" class="radio-dialog" aria-label="Courtside Radio">
+    <div class="radio-head"><h3>🎧 Courtside Radio</h3><button type="button" class="btn small ghost" data-radio="close" aria-label="关闭">✕</button></div>
+    <div class="radio-sliders"></div>
+    <div class="radio-dyn"></div>
+  </dialog>
+
   <script>
     // Inline watchdog: catches module failures / frozen boots before app.js runs.
     (function () {

@@ -1,6 +1,8 @@
 /**
  * Courtside Radio: the compact player. Mode (dynamic / my playlist / off), transport, volumes, and the player's
  * imported songs. Everything user-controlled (file names) is escaped. Songs never leave this device.
+ * This is the audio layer's only DOM panel: its <dialog> is declared statically in index.html (shop pattern)
+ * and this module only fills and drives its content.
  */
 import * as manager from "./audioManager.js";
 import * as library from "./playlistStore.js";
@@ -15,6 +17,7 @@ const REASON = {
 
 export function createRadio({ setMode, getLang = () => "zh" }) {
   let dialog = null;
+  let opener = null;
   let status = "";
   const T = (zh, en) => (getLang() === "en" ? en : zh);
 
@@ -22,19 +25,28 @@ export function createRadio({ setMode, getLang = () => "zh" }) {
     `<label class="radio-vol"><span>${label}</span><input type="range" min="0" max="100" value="${Math.round(value * 100)}" data-vol="${id}" aria-label="${label}"><output>${Math.round(value * 100)}%</output></label>`;
 
   function build() {
-    dialog = document.createElement("dialog");
-    dialog.id = "radio-dialog";
-    dialog.className = "radio-dialog";
-    dialog.setAttribute("aria-label", "Courtside Radio");
-    dialog.innerHTML = `
-      <div class="radio-head"><h3>🎧 Courtside Radio</h3><button type="button" class="btn small ghost" data-radio="close" aria-label="${T("关闭", "Close")}">✕</button></div>
-      <div class="radio-sliders"></div>
-      <div class="radio-dyn"></div>`;
-    document.body.appendChild(dialog);
+    // Static dialog (index.html, shop pattern): JS only fills the content, never builds the element.
+    dialog = document.getElementById("radio-dialog");
+    if (!dialog) return;
+    dialog.querySelector('[data-radio="close"]')?.setAttribute("aria-label", T("关闭", "Close"));
     dialog.addEventListener("click", onClick);
     dialog.addEventListener("input", onInput);
     dialog.addEventListener("change", onChange);
+    dialog.addEventListener("cancel", onCancel); // Esc: close through our own path so focus returns
     manager.onChange(() => { if (dialog?.open) paint(); });
+  }
+
+  /** Close through the one path that gives focus back to the control that opened the panel. */
+  function close() {
+    if (!dialog) return;
+    if (dialog.open) dialog.close();
+    opener?.focus?.();
+    opener = null;
+  }
+
+  function onCancel(event) {
+    event.preventDefault(); // claim Esc so the app's global Esc -> goBack handler skips it
+    close();
   }
 
   async function paint() {
@@ -76,7 +88,7 @@ export function createRadio({ setMode, getLang = () => "zh" }) {
     if (b.dataset.play) { if (manager.getSettings().mode !== "playlist") await setMode("playlist"); return void playlist.playById(b.dataset.play); }
     if (b.dataset.remove) { await library.removeTrack(manager.getProfile(), b.dataset.remove); await playlist.refreshQueue(); return void paint(); }
     switch (b.dataset.radio) {
-      case "close": return dialog.close();
+      case "close": return close();
       case "prev": return void playlist.go(-1);
       case "next": return void playlist.go(1);
       case "toggle": return void setMode(manager.getSettings().mode === "off" ? manager.getSettings().lastMode : "off");
@@ -106,14 +118,19 @@ export function createRadio({ setMode, getLang = () => "zh" }) {
   }
 
   return {
-    async open() {
+    async open(from = document.activeElement) {
       if (!dialog) build();
+      if (!dialog) return; // static dialog missing (stale page): stay closed rather than building one
+      opener = from;
       status = "";
       paintSliders();
       await paint();
-      if (!dialog.open) dialog.showModal();
+      if (!dialog.open) {
+        if (typeof dialog.showModal === "function") dialog.showModal();
+        else dialog.setAttribute("open", "");
+      }
     },
-    close: () => dialog?.close(),
+    close,
     isOpen: () => !!dialog?.open,
   };
 }

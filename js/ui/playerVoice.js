@@ -226,13 +226,9 @@ export function createPlayerVoice({
 
   function ensureDialog() {
     if (dlg) return;
-    dlg = doc.createElement("dialog");
-    dlg.id = "player-voice";
-    dlg.className = "pv-dialog";
-    dlg.setAttribute("aria-labelledby", "pv-title");
-    dlg.setAttribute("data-no-i18n", ""); // every string here is already built per language
-    dlg.innerHTML = '<div class="pv-form" id="pv-body"></div>';
-    doc.body.appendChild(dlg);
+    // Static dialog (index.html, shop pattern): JS only renders the content, never builds the element.
+    dlg = doc.getElementById("player-voice");
+    if (!dlg) return;
     wire();
   }
 
@@ -318,6 +314,7 @@ export function createPlayerVoice({
   /** Open the one dialog from anywhere. `from` is the control to give focus back to on close. */
   function open(from = doc.activeElement) {
     ensureDialog();
+    if (!dlg) return; // static dialog missing (stale page): stay closed rather than building one
     opener = from;
     render();
     if (!dlg.open) (dlg.showModal ? dlg.showModal() : dlg.setAttribute("open", ""));
