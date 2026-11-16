@@ -40,11 +40,11 @@ import { webglAvailable } from "../core/capabilities.js";
  * avatar bundle is tree-shaken to 13 symbols (no geometry/material classes)
  * and cannot serve a replay view, so the full build is vendored instead.
  * License: js/vendor/THREE_LICENSE.txt (MIT, Three.js Authors 2010–2026). */
-export const THREE_URL = new URL("../vendor/three.module.js", import.meta.url).href;
+const THREE_URL = new URL("../vendor/three.module.js", import.meta.url).href;
 
 /** Full court: 28.65m × 15.24m (plan §3.3). y=6% is the away hoop, y=94% the home hoop. */
 export const COURT_HALF_WIDTH_M = 7.62;
-export const COURT_HALF_LENGTH_M = 14.33;
+const COURT_HALF_LENGTH_M = 14.33;
 export const RIM_HEIGHT_M = 3.05;
 /** Push phase length (mirrors CourtView._paint's ~2.6s). */
 export const PUSH_MS = 2600;
@@ -53,15 +53,15 @@ export const PUSH_MS = 2600;
 export const SHOT_FLIGHT_MS = 750;
 export const SHOT_SETTLE_MS = 180;
 /** Dunk timings (mirror CourtView._dunkFrame: DRIVE 420 + NET 150 + SETTLE 200). */
-export const DUNK_DRIVE_MS = 420;
-export const DUNK_NET_MS = 150;
-export const DUNK_SETTLE_MS = 200;
+const DUNK_DRIVE_MS = 420;
+const DUNK_NET_MS = 150;
+const DUNK_SETTLE_MS = 200;
 export const DUNK_TOTAL_MS = DUNK_DRIVE_MS + DUNK_NET_MS + DUNK_SETTLE_MS; // 770
 export const BALL_RADIUS_M = 0.12;
 /** Miss bounce distance toward midcourt: 2D's 18% of court length, in meters. */
 export const MISS_BOUNCE_M = 5.16;
 /** The clutch scenario is always 2016 GSW (home) vs CLE (away). */
-export const CLUTCH_TEAM_COLORS = Object.freeze({ home: 0x1d428a, away: 0x860038 });
+const CLUTCH_TEAM_COLORS = Object.freeze({ home: 0x1d428a, away: 0x860038 });
 
 const easeOut = (t) => 1 - (1 - t) * (1 - t);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -217,7 +217,7 @@ export function fitCameraDistance(aspect, fovDeg = 50) {
 
 /** Load the vendored full Three.js for the replay. Rejects (no WebGL / bad
  * import) so the caller can stay on the 2D result page with a note. */
-export async function loadThreeForReplay(doc) {
+async function loadThreeForReplay(doc) {
   if (!webglAvailable(doc)) throw new Error("WebGL unavailable");
   return import(THREE_URL);
 }
