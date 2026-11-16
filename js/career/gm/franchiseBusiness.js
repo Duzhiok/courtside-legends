@@ -17,17 +17,17 @@
 import { overall } from "../../data/players.js";
 
 /** Home games in a regular season. */
-export const HOME_GAMES = 41;
+const HOME_GAMES = 41;
 /** 1996-era reference ticket price ($). The demand curve is centred here. */
 export const BASE_TICKET_PRICE = 30;
 /** Franchise value for an average-market team before any performance adjustment ($M). */
 export const BASE_VALUATION = 150;
 /** Default arena capacity when a team has no recorded arena (simulated parameter). */
-export const DEFAULT_CAPACITY = 18000;
+const DEFAULT_CAPACITY = 18000;
 
 /** Market sizes. Small markets fill fewer seats and attract less sponsorship. */
-export const MARKET_SIZE = { small: -0.05, mid: 0, large: 0.05 };
-export const MARKET_MULT = { small: 0.9, mid: 1.0, large: 1.2 };
+const MARKET_SIZE = { small: -0.05, mid: 0, large: 0.05 };
+const MARKET_MULT = { small: 0.9, mid: 1.0, large: 1.2 };
 
 /**
  * Recorded 1996 arena capacities (historical facts, seats). Teams not listed use
@@ -153,11 +153,11 @@ export function merchRevenue(state, { starAppeal, winPct }) {
   return Math.round((2 + starAppeal * 6 + winPct * 3 + state.brand * 4) * marketMult * 100) / 100;
 }
 
-export function brandRevenue(state) {
+function brandRevenue(state) {
   return Math.round(state.brand * 3 * 100) / 100;
 }
 
-export function operatingCosts(state, { payroll }) {
+function operatingCosts(state, { payroll }) {
   const arenaOps = Math.round((state.arena.capacity / 1000) * 0.18 * 100) / 100;
   const staff = 2.5;
   return { payroll, arenaOps, staff, total: Math.round((payroll + arenaOps + staff) * 100) / 100 };
