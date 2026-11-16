@@ -22,11 +22,11 @@ import {
  * target before it asks for a second user player on top.
  * PICKS_ONLY_BASE_COUNT is the pick count of a picks-only offer before the buzz pick.
  */
-export const PICKS_ONLY_MIN_SALARY = 80;
-export const CONSOLIDATION_MIN_UPGRADE = 8;
-export const PICKS_ONLY_BASE_COUNT = 2;
+const PICKS_ONLY_MIN_SALARY = 80;
+const CONSOLIDATION_MIN_UPGRADE = 8;
+const PICKS_ONLY_BASE_COUNT = 2;
 /** Signature stand-in for a picks-only offer, which has no offer player id. */
-export const PICKS_ONLY_SIGNATURE = "PICKS";
+const PICKS_ONLY_SIGNATURE = "PICKS";
 
 function perGame(row, key) {
   const gp = Number(row?.stats?.gp) || 0;
