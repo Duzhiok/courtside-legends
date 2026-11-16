@@ -29,7 +29,7 @@
 
 import { TL } from "../i18n.js";
 
-export const SHELL_HOSTS = Object.freeze(["app", "overlay"]);
+const SHELL_HOSTS = Object.freeze(["app", "overlay"]);
 
 const hostElement = (host, doc) => (host === "overlay" ? doc.body : doc.querySelector("#app") || doc.body);
 
@@ -40,14 +40,14 @@ export function screenHeadHtml({ id, title, lang }) {
 }
 
 /** A selector that finds "the same control" again after a re-render: its id, else tag + data-* attributes. */
-export function openerSignature(node) {
+function openerSignature(node) {
   if (!node?.tagName) return null;
   if (node.id) return `#${CSS.escape(node.id)}`;
   const data = Object.entries(node.dataset || {}).map(([k, v]) => `[data-${k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}="${CSS.escape(v)}"]`);
   return data.length ? `${node.tagName.toLowerCase()}${data.join("")}` : null;
 }
 
-export const SHELL_VARIANTS = Object.freeze(["screen", "modal"]);
+const SHELL_VARIANTS = Object.freeze(["screen", "modal"]);
 
 /**
  * Scroll a screen to the top: overlay-hosted screens scroll their own
