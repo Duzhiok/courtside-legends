@@ -98,7 +98,7 @@ export function ticketRevenue(state, { winPct, starAppeal }) {
 }
 
 /** Sponsorship deal kinds. Value is $M per season; conditions are checked at settlement. */
-export const SPONSORSHIP_KINDS = {
+const SPONSORSHIP_KINDS = {
   jersey: { label: "球衣广告", labelEn: "Jersey patch", base: 1.2 },
   arena: { label: "球馆冠名", labelEn: "Arena naming", base: 2.5 },
   brand: { label: "品牌合作", labelEn: "Brand partner", base: 0.8 },
