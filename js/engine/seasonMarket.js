@@ -41,7 +41,7 @@ export function cpuCapBlocksTrade(payroll, takesOn, sendsOut) {
 export const SEASON_MAX_ROSTER = 15;
 export const SEASON_MIN_ROSTER = 8;
 /** R89: trades close once the regular season is 70% played (fraction of schedule days). */
-export const TRADE_DEADLINE_FRACTION = 0.7;
+const TRADE_DEADLINE_FRACTION = 0.7;
 
 /** Day index after which trades close, or null when the season has no schedule (tests, stubs). */
 export function tradeDeadlineDay(st) {
@@ -72,9 +72,9 @@ export function tradeWindowCheck(st, lang = "zh") {
   }
   return { ok: true };
 }
-export const FA_POOL_SIZE = 40;
-export const STAFF_COACH_POOL = 10;
-export const STAFF_ASST_POOL = 8;
+const FA_POOL_SIZE = 40;
+const STAFF_COACH_POOL = 10;
+const STAFF_ASST_POOL = 8;
 
 export function playerSalary(p) {
   // 开局「跳过」随机赠送：不占薪资帽
@@ -93,13 +93,13 @@ export function staffSalary(staff) {
   return Math.round(Math.max(asst ? 22 : 40, Math.min(asst ? 160 : 300, base)));
 }
 
-export function ensurePlayerSalary(p) {
+function ensurePlayerSalary(p) {
   if (!p) return p;
   if (p.salary == null) p.salary = playerPrice(p);
   return p;
 }
 
-export function ensureStaffSalary(staff) {
+function ensureStaffSalary(staff) {
   if (!staff) return staff;
   if (staff.salary == null) staff.salary = staffSalary(staff);
   return staff;
@@ -110,7 +110,7 @@ export function teamPayroll(team) {
   return players + staffSalary(team?.coach) + staffSalary(team?.assistant);
 }
 
-export function rosterCount(team) {
+function rosterCount(team) {
   return team?.players?.length || 0;
 }
 
@@ -809,5 +809,3 @@ export function salaryLine(p, lang = "zh") {
   const s = playerSalary(p);
   return `${formatSalary(s)} · ${marketMeta(p, lang)}`;
 }
-
-export { teamByPlayer };
