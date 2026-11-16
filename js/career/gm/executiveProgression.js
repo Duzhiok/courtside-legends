@@ -25,7 +25,7 @@ export const STAGES = [
 ];
 
 export const MINORITY_PCT = 5;
-export const CONTROL_PCT = 51;
+const CONTROL_PCT = 51;
 export const CONTROL_MIN_EQUITY = 25;
 /** Control premium on the shares bought to reach 51%. */
 export const CONTROL_PREMIUM = 1.25;

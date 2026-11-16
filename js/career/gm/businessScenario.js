@@ -172,7 +172,7 @@ export function advanceScenarioSeason(state, seasonResult, { players = [], rng =
 }
 
 /** The monthly board report: concise results + the stage + what is now possible. */
-export function scenarioBoardReport(state, record) {
+function scenarioBoardReport(state, record) {
   const stage = stageFor(state.exec);
   const opps = stageOpportunities(state.exec, {
     wealth: state.personal.cash,

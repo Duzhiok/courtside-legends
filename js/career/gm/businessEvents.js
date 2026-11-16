@@ -21,7 +21,7 @@ function log(state, entry) {
 }
 
 /** A fresh sponsor offer for this team/season, of a kind not already signed. */
-export function nextSponsorshipOffer(state) {
+function nextSponsorshipOffer(state) {
   const offers = sponsorshipOffers({
     teamId: state.business.teamId,
     season: state.business.season,

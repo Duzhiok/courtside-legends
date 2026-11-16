@@ -30,7 +30,7 @@ export const PERSONAL_CASH_UNIT_M = 0.2;
 /** Share of team profit paid out as dividends to equity holders. */
 export const DIVIDEND_PAYOUT = 0.4;
 /** Forced-sale discount: distressed equity sells below market. */
-export const FORCED_SALE_DISCOUNT = 0.7;
+const FORCED_SALE_DISCOUNT = 0.7;
 /** Control premium is defined in executiveProgression.js (single source). */
 export { CONTROL_PREMIUM } from "./executiveProgression.js";
 
