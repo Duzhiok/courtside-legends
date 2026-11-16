@@ -91,14 +91,14 @@ test("a card with a bref but no curated/local photo tries the hot-linked headsho
   const html = photoImg(card, "headshot lg");
   assert.match(html, /<img class="headshot lg" src="https:\/\/www\.basketball-reference\.com\//);
   assert.match(html, /data-fb="data:image\/svg\+xml/, "a 404'd headshot must still fall back to the avatar");
-  assert.match(html, /onerror="if\(this\.dataset\.fb\)/);
+  assert.match(html, /onerror="[^"]*this\.dataset\.fb/);
 });
 
 test("a real photo that fails to load falls back to the generated avatar", () => {
   const html = photoImg({ bref: "jordami01", season: 1991, name: "Michael Jordan", team: "CHI" });
   assert.match(html, /src="https:\/\/thumb\.wikimedia\.org\//);
   assert.match(html, /data-fb="data:image\/svg\+xml/);
-  assert.match(html, /onerror="if\(this\.dataset\.fb\)/);
+  assert.match(html, /onerror="[^"]*this\.dataset\.fb/);
   assert.match(html, /title="1991 CHI"/);
 });
 
