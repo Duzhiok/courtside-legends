@@ -50,26 +50,26 @@ import { PROMISE_EFFECTS } from "./promiseEffects.js";
 
 export const RELATIONSHIP_KINDS = ["rivalry", "mentorship", "coaching-trust", "management", "owner"];
 export const PROMISE_KINDS = ["minutes", "role", "start", "trade", "contract"];
-export const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry", "rivalry-game"];
+const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry", "rivalry-game"];
 
 /** Role order for the "role" promise check (same ladder as trust.js). */
-export const ROLE_RANK = { dnp: 0, garbage: 1, bench: 2, rotation: 3, starter: 4 };
+const ROLE_RANK = { dnp: 0, garbage: 1, bench: 2, rotation: 3, starter: 4 };
 
 /** Promise effects. Sized like a single game's trust swing (trust.js
  * bounds one game to -5..+7) so one promise never swings a season. */
 export const PROMISE_TRUST_FULFILLED = PROMISE_EFFECTS.relationship.fulfilled.trust;
 export const PROMISE_TRUST_BROKEN = PROMISE_EFFECTS.relationship.broken.trust;
-export const PROMISE_REL_FULFILLED = PROMISE_EFFECTS.relationship.fulfilled.relationship;
-export const PROMISE_REL_BROKEN = PROMISE_EFFECTS.relationship.broken.relationship;
+const PROMISE_REL_FULFILLED = PROMISE_EFFECTS.relationship.fulfilled.relationship;
+const PROMISE_REL_BROKEN = PROMISE_EFFECTS.relationship.broken.relationship;
 /** Negotiation standing: one step per net kept/broken promise, capped. */
-export const NEGOTIATION_STEP = 1;
-export const NEGOTIATION_CAP = 2;
+const NEGOTIATION_STEP = 1;
+const NEGOTIATION_CAP = 2;
 /** Every real meeting deepens a rivalry, win or lose (losing to him does not cool it). */
-export const RIVALRY_MEETING_DELTA = 4;
+const RIVALRY_MEETING_DELTA = 4;
 /** Coaching trust with no recorded relationship: neutral. */
-export const NEUTRAL_COACHING_TRUST = 50;
+const NEUTRAL_COACHING_TRUST = 50;
 /** A promise implies a working relationship; created at this strength. */
-export const PROMISE_RELATIONSHIP_START = 50;
+const PROMISE_RELATIONSHIP_START = 50;
 
 const clamp100 = (v) => Math.max(0, Math.min(100, Math.round(v)));
 const isNonEmptyString = (v) => typeof v === "string" && v.trim().length > 0;
@@ -102,7 +102,7 @@ function writeStore(account, store) {
   return account;
 }
 
-export function peopleOf(account) {
+function peopleOf(account) {
   return relationshipsStore(account).people;
 }
 export function relationshipsOf(account) {
@@ -173,7 +173,7 @@ export function addRelationship(account, { aId, bId, kind, strength = 50, season
 }
 
 /** The relationship between two people (either direction), or null. */
-export function relationshipBetween(account, aId, bId, kind = null) {
+function relationshipBetween(account, aId, bId, kind = null) {
   if (!isNonEmptyString(aId) || !isNonEmptyString(bId)) return null;
   return (
     relationshipsOf(account).find(
