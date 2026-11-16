@@ -232,7 +232,7 @@ function normPos5(pos) {
  * 按身高/传控/投射/内线等属性给每个位置打分。
  * 本职有加成，但仍可因属性明显偏向而改打（如高助攻后卫→PG）。
  */
-export function playPosFitScores(player) {
+function playPosFitScores(player) {
   if (!player) return { PG: 0, SG: 0, SF: 0, PF: 0, C: 0 };
   const nat = normPos5(player.pos);
   const h = Number(player.heightCm) || 0;
@@ -536,7 +536,7 @@ export function recommendPlayerOrders(player = null) {
 }
 
 /** @deprecated 使用 recommendPlayerOrders；保留别名兼容 */
-export function defaultPlayerOrders(player = null) {
+function defaultPlayerOrders(player = null) {
   return recommendPlayerOrders(player);
 }
 
@@ -704,7 +704,7 @@ export function fitMinuteBudget(players, { starterIds = [], rank = (p) => p.ovr 
 }
 
 /** How many default starters a team can have. */
-export const MAX_STARTERS = 5;
+const MAX_STARTERS = 5;
 
 /**
  * The starters a team really has: its own list (or, if it never had one, the saved rotation's), minus
@@ -801,7 +801,7 @@ export function applyRotationPlan(team, plan) {
 }
 
 /** Build a 5-man pack from roster by style. */
-export function buildLineupPack(players, style = "scoring") {
+function buildLineupPack(players, style = "scoring") {
   const healthy = (players || []).filter((p) => !(p.injuredGames > 0));
   const score = (p) => {
     if (style === "defense") return (p.defense || 50) * 1.2 + (p.steal || 40) * 0.3 + (p.block || 40) * 0.25;
