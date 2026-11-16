@@ -335,7 +335,7 @@ export function isQualityPasser(p) {
 }
 
 /** 能掩护/终结的内线（挡拆搭档）. */
-export function isQualityBig(p) {
+function isQualityBig(p) {
   if (!p) return false;
   const pos = p.playPos || p.pos;
   if (!["C", "PF"].includes(pos)) return false;
@@ -348,7 +348,7 @@ export function isQualityBig(p) {
 }
 
 /** 真正能撑双塔/低位的中锋级大个子. */
-export function isQualityCenter(p) {
+function isQualityCenter(p) {
   if (!p) return false;
   const pos = p.playPos || p.pos;
   const reb = Number(p.rebound) || 50;
@@ -1023,7 +1023,7 @@ export const ASSISTANTS = [
  * 随机抽一位主教练（默认偏向菜鸟/边缘，适合「没请教练就随便 roll」）。
  * @param {{ excludeIds?: string[], preferStarter?: boolean }} [opts]
  */
-export function rollRandomCoach({ excludeIds = [], preferStarter = true } = {}) {
+function rollRandomCoach({ excludeIds = [], preferStarter = true } = {}) {
   const blocked = new Set((excludeIds || []).filter(Boolean));
   let pool = COACHES.filter((c) => c?.id && !blocked.has(c.id));
   if (preferStarter) {
@@ -1039,7 +1039,7 @@ export function rollRandomCoach({ excludeIds = [], preferStarter = true } = {}) 
  * 随机抽一位助教（默认偏向低名气 / 高激发）。
  * @param {{ excludeIds?: string[], preferObscure?: boolean }} [opts]
  */
-export function rollRandomAssistant({ excludeIds = [], preferObscure = true } = {}) {
+function rollRandomAssistant({ excludeIds = [], preferObscure = true } = {}) {
   const blocked = new Set((excludeIds || []).filter(Boolean));
   let pool = ASSISTANTS.filter((a) => a?.id && !blocked.has(a.id));
   if (preferObscure) {
@@ -1052,7 +1052,7 @@ export function rollRandomAssistant({ excludeIds = [], preferObscure = true } = 
 }
 
 /** 球队没有主教练时自动 roll 一位，写回 team.coach。 */
-export function ensureTeamCoach(team, opts = {}) {
+function ensureTeamCoach(team, opts = {}) {
   if (!team) return null;
   if (team.coach?.id) return team.coach;
   const exclude = [...(opts.excludeIds || []), team.assistant?.id].filter(Boolean);
@@ -1061,7 +1061,7 @@ export function ensureTeamCoach(team, opts = {}) {
 }
 
 /** 球队没有助教时自动 roll 一位，写回 team.assistant。 */
-export function ensureTeamAssistant(team, opts = {}) {
+function ensureTeamAssistant(team, opts = {}) {
   if (!team) return null;
   if (team.assistant?.id) return team.assistant;
   const exclude = [...(opts.excludeIds || []), team.coach?.id].filter(Boolean);
