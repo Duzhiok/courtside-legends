@@ -123,7 +123,7 @@ memory must be measured on real hardware** (Mac GPU + at least one phone), not S
 4. OK to add additive meta fields to `sim.js` (golden-hash-guarded)?
 5. Who owns animation creation, and where do clips come from?
 
-## 12. Owner decisions (2026-11-15) — status: PLANNED, not started
+## 12. Owner decisions (2026-11-15) — status: ACTIVE (3D-S1A authorized 2026-11-16; S1B gated)
 
 The audit is accepted as the architectural baseline, subject to reconciliation with the latest main. The technical direction is
 approved; full-game 3D development is **not** approved now.
@@ -153,3 +153,8 @@ Reuse the existing `court3d.js` foundation instead of building a second Three.js
 
 Ordering: 2D Avatar art and Gold Challenge UI 3.0 come first. Do not start S1 until overlapping UI 3.0 file ownership
 (`#screen-game`, `js/app.js` live wiring) is resolved and this audit is reconciled against the then-current main.
+
+**Update 2026-11-16 (owner):** the blanket hold is lifted. **3D-S1A may start now** as an isolated module: Match Presentation
+Adapter, deterministic compressed playback, 10 lightweight players on the existing `court3d.js` foundation, score/clock sync,
+pause-safe scheduler, behind an **independent preview/test entry**. S1A must not touch `#screen-game` or the shared `js/app.js`
+live wiring. **3D-S1B** (wiring into the real Gold Challenge game screen) waits only for the UI 3.0 file-ownership agreement.
