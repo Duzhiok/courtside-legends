@@ -557,7 +557,7 @@ function eraEfgBaseline(season) {
  * Approximate advanced rates from box score (no team-context RAPM dump available).
  * Used to punish empty volume ("弱队刷分") and reward efficient irreplaceability.
  */
-export function advancedFromBox(r) {
+function advancedFromBox(r) {
   const ppg = +r.ppg || 0;
   const rpg = +r.rpg || 0;
   const apg = +r.apg || 0;
@@ -598,7 +598,7 @@ export function advancedFromBox(r) {
  * Efficiency + irreplaceability > empty counting stats.
  * Formula path soft-caps below phenomenon band; 98–100 need curated anchors.
  */
-export function attrsFromBoxScore2K(r) {
+function attrsFromBoxScore2K(r) {
   const ppg = +r.ppg || 0;
   const rpg = +r.rpg || 0;
   const apg = +r.apg || 0;
@@ -799,7 +799,7 @@ export function attrsFromBoxScore2K(r) {
  * Position-weighted OVR. Formula path soft-caps below phenomenon tier;
  * 98–100 reserved for curated anchors (Jordan / peak legends).
  */
-export function overallFrom2KAttrs(attrs, pos = "SF", raw = null, opts = {}) {
+function overallFrom2KAttrs(attrs, pos = "SF", raw = null, opts = {}) {
   const a = attrs;
   const shoot = (a.three + a.mid + a.paint) / 3;
   const offense = a.scoring * 0.5 + shoot * 0.28 + a.pass * 0.12 + a.iq * 0.1;
@@ -868,7 +868,7 @@ const LEAN_RIM_PROTECTOR_STRENGTH_CAP = {
   williro04: 70, // Robert Williams III
 };
 
-export function lookupAnchor2K(r) {
+function lookupAnchor2K(r) {
   const bref = r.bref || "";
   const season = r.season;
   if (!bref || !season) return null;
