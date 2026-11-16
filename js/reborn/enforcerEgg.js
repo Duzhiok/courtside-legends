@@ -41,15 +41,15 @@ import { gradeFoul } from "../engine/grade.js";
  */
 export const ENFORCER_EGG_GAME_CHANCE = 0.2;
 /** Share of incidents that rattle the rival (the rest are fouls on the enforcer). */
-export const ENFORCER_EGG_RATTLE_WEIGHT = 0.5;
+const ENFORCER_EGG_RATTLE_WEIGHT = 0.5;
 /** Rattle edge: breakMomentum's magnitudes (hot/mood only — never temp.offense). */
-export const ENFORCER_EGG_HOT_DIP = 2;
-export const ENFORCER_EGG_MOOD_DIP = 4;
-export const ENFORCER_EGG_MORALE_DIP = 3;
+const ENFORCER_EGG_HOT_DIP = 2;
+const ENFORCER_EGG_MOOD_DIP = 4;
+const ENFORCER_EGG_MORALE_DIP = 3;
 /** At most one incident per game — it is an easter egg, not a system. */
-export const ENFORCER_EGG_MAX_PER_GAME = 1;
+const ENFORCER_EGG_MAX_PER_GAME = 1;
 
-export function hasEnforcerSkill(p) {
+function hasEnforcerSkill(p) {
   return (p?.skills || []).includes("enforcer");
 }
 
