@@ -43,7 +43,7 @@ import { buySkillOffer } from "./engine/skillShopPurchase.js";
 import { createRebornView } from "./ui/reborn/rebornView.js";
 import { createRelationshipsView } from "./ui/relationshipsView.js";
 import { createLegacyMuseumView } from "./ui/legacyMuseumView.js";
-import { relocalizeShellScreens } from "./ui/screenShell.js";
+import { relocalizeShellScreens, scrollScreenToTop, focusScreenHeading } from "./ui/screenShell.js";
 import { createMyHome } from "./ui/myHome/myHomeScreen.js";
 import { createCareerInboxView } from "./ui/careerInboxView.js";
 import { createCoachingMomentView } from "./ui/coachingMomentView.js";
@@ -605,6 +605,16 @@ function show(name) {
   if (!navPopping) navPush(navStack, from, name);
   Object.values(screens).forEach((el) => el && el.classList.remove("active"));
   screens[name].classList.add("active");
+  // Static screens have no Shell observer: reuse the Shell's scroll-to-top
+  // + focus-to-heading on navigation (A-P2-11). Shell screens already do
+  // this via their MutationObserver (el.__shell), so skip them. Same-screen
+  // re-show intentionally does not scroll/focus (re-render flows must not
+  // steal focus mid-interaction).
+  const target = screens[name];
+  if (target && !target.__shell) {
+    scrollScreenToTop(target);
+    focusScreenHeading(target);
+  }
   if (name === "home") {
     refreshAccountHomeBar();
     refreshSaveHomeBar();

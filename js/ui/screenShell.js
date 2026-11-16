@@ -49,6 +49,31 @@ export function openerSignature(node) {
 
 export const SHELL_VARIANTS = Object.freeze(["screen", "modal"]);
 
+/**
+ * Scroll a screen to the top: overlay-hosted screens scroll their own
+ * element, app-hosted screens scroll the window. Shared by the Shell's
+ * activate() and by the app's show() for static screens (A-P2-11).
+ */
+export function scrollScreenToTop(el, doc = globalThis.document) {
+  if (!el) return;
+  if (el.dataset?.shellHost === "overlay") el.scrollTo?.(0, 0);
+  else doc?.defaultView?.scrollTo?.(0, 0);
+}
+
+/**
+ * Focus a screen's first heading (the Shell's h2 title, or a static
+ * screen's h1/h2 — tabindex="-1" in markup so the focus lands).
+ * Returns false when the screen has no heading (e.g. the loading and
+ * game screens) — the caller then simply skips focusing. Shared by the
+ * Shell's activate() and by the app's show() (A-P2-11).
+ */
+export function focusScreenHeading(el) {
+  const heading = el?.querySelector?.("h2") || el?.querySelector?.("h1");
+  if (!heading?.focus) return false;
+  heading.focus({ preventScroll: true });
+  return true;
+}
+
 /** Focusable controls, in tab order: the modal variant focuses the first of these on open. */
 const FOCUSABLE_SELECTOR = "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
 
@@ -103,7 +128,7 @@ export function mountScreen({ id, title, host = "app", variant = "screen", getLa
     const target = scrollTarget ? body.querySelector(scrollTarget) : null;
     scrollTarget = null;
     if (target) target.scrollIntoView?.({ block: "start" });
-    else (host === "overlay" ? el : doc.defaultView)?.scrollTo?.(0, 0);
+    else scrollScreenToTop(el, doc);
     if (variant === "modal") {
       // The dialog carries its own heading: focus its first control (the takeover's first option),
       // falling back to the body itself so keyboard users land inside the modal.
@@ -111,7 +136,7 @@ export function mountScreen({ id, title, host = "app", variant = "screen", getLa
       if (first?.focus) first.focus({ preventScroll: true });
       else body.focus?.({ preventScroll: true });
     } else {
-      heading.focus({ preventScroll: true });
+      focusScreenHeading(el);
     }
   };
   const deactivate = () => {

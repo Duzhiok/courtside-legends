@@ -85,7 +85,7 @@
 
     <main id="screen-loading" class="screen active">
       <section class="hero">
-        <h1>正在加载全历史名册…</h1>
+        <h1 tabindex="-1">正在加载全历史名册…</h1>
         <p id="load-status">启动脚本中…若长时间停在这里，请强制刷新（Cmd+Shift+R）</p>
         <div class="bar" style="max-width:320px;height:10px;margin-top:16px"><i id="load-bar" style="width:3%"></i></div>
         <p class="tiny" id="load-watchdog" hidden style="margin-top:12px"></p>
@@ -97,7 +97,7 @@
         <div class="home-banner">
           <div class="home-banner-copy">
             <div class="home-banner-kicker">1950 — 今 · 全历史赛季卡</div>
-            <h1>组建你的传奇阵容</h1>
+            <h1 tabindex="-1">组建你的传奇阵容</h1>
             <p>按赛季抽卡组队，临场叫暂停、大喊、换人。空位也会打铁——巨星抱团不无敌。</p>
             <!-- M1: the one primary CTA lives INSIDE the hero copy. It used to sit under the banner, and the banner
                  was as tall as the old legends photo wall (~800px with real photos), which pushed it off the first screen.
@@ -267,7 +267,7 @@
     <main id="screen-account" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-account-back"><span>返回</span></button>
-        <h2>账号</h2>
+        <h2 tabindex="-1">账号</h2>
       </div>
       <p class="tiny">本地多账号；球员卡与教练存在本机浏览器，刷新/下线不丢。换设备需自行备份（后续可加云同步）。</p>
       <div class="form-row" style="margin:14px 0">
@@ -280,7 +280,7 @@
     <main id="screen-onboard" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-onboard-cancel" type="button"><span>取消</span></button>
-        <h2>开局建队</h2>
+        <h2 tabindex="-1">开局建队</h2>
         <span class="tiny" id="onboard-step-label">1/3 开局抽卡</span>
       </div>
       <p class="tiny" id="onboard-hint">开局抽 5 张卡，每位置一张，纯随机、无保底；看完后选教练和战术。</p>
@@ -294,7 +294,7 @@
     <main id="screen-my-team-lineup" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-my-lineup-back"><span>返回</span></button>
-        <h2>组建我的阵容</h2>
+        <h2 tabindex="-1">组建我的阵容</h2>
       </div>
       <div id="my-team-lineup-root"></div>
     </main>
@@ -302,7 +302,7 @@
     <main id="screen-collection" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-collection-back"><span>返回</span></button>
-        <h2>我的球员卡</h2>
+        <h2 tabindex="-1">我的球员卡</h2>
       </div>
       <div class="collection-summary" id="collection-summary"></div>
       <div class="collection-staff" id="collection-staff"></div>
@@ -319,7 +319,7 @@
     <main id="screen-credits" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-credits-back"><span>返回</span></button>
-        <h2>图片来源与署名</h2>
+        <h2 tabindex="-1">图片来源与署名</h2>
       </div>
       <div id="credits-body"></div>
     </main>
@@ -327,7 +327,7 @@
     <main id="screen-draw" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-draw-back"><span>返回收藏</span></button>
-        <h2>每日抽卡</h2>
+        <h2 tabindex="-1">每日抽卡</h2>
       </div>
       <div class="draw-banners" id="draw-banners" role="group" aria-label="选择卡池"></div>
       <div id="draw-banner-explain" aria-live="polite"></div>
@@ -354,7 +354,7 @@
     <main id="screen-sandbox" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-sandbox-back"><span>返回</span></button>
-        <h2>时空对决</h2>
+        <h2 tabindex="-1">时空对决</h2>
       </div>
       <p class="tiny">自由度拉满：任意球员、任意年份、可以重复。五个 1991 乔丹 vs 五个 2006 科比？点「×5」就行。这是唯一允许同一球员重复上场的模式；结果不影响账号和存档。</p>
       <div data-sandbox-body></div>
@@ -363,7 +363,7 @@
     <main id="screen-halfcourt" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-halfcourt-back"><span>返回</span></button>
-        <h2>3v3 半场</h2>
+        <h2 tabindex="-1">3v3 半场</h2>
       </div>
       <section data-hc-panel="pick">
         <p class="tiny">双方各选 3 名球员（每队同一球员只能选一次）。先到 21 分且领先 2 分获胜；弧内 1 分、弧外 2 分；12 秒进攻；防守篮板或抢断后要先清球到弧外。比赛由真实比赛引擎模拟，结果不影响账号和存档。</p>
@@ -388,7 +388,7 @@
     <main id="screen-clutch" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-clutch-back"><span>返回</span></button>
-        <h2>绝杀挑战</h2>
+        <h2 tabindex="-1">绝杀挑战</h2>
       </div>
       <p class="tiny">关键时刻 · 单回合：一个真实的 Q4 末段，你来决定谁执行最后一攻。</p>
       <div id="clutch-scenario-card" class="clutch-card"></div>
@@ -401,7 +401,7 @@
     <main id="screen-clutch-play" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-clutch-play-back"><span>返回</span></button>
-        <h2>绝杀挑战</h2>
+        <h2 tabindex="-1">绝杀挑战</h2>
       </div>
       <div id="clutch-play-score" class="clutch-score"></div>
       <p class="tiny">选择关键出手人：球会按他的打法交到他手里——创造型持球攻，接球型跑战术接球，低位要位接球。提交后锁定，不能再改。</p>
@@ -419,7 +419,7 @@
     <main id="screen-clutch-result" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-clutch-result-back"><span>返回挑战入口</span></button>
-        <h2>绝杀挑战</h2>
+        <h2 tabindex="-1">绝杀挑战</h2>
       </div>
       <div id="clutch-result-body"></div>
       <div class="actions">
@@ -434,7 +434,7 @@
     <main id="screen-clutch-3d" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-clutch-3d-back"><span>返回结果</span></button>
-        <h2>绝杀 3D 回放</h2>
+        <h2 tabindex="-1">绝杀 3D 回放</h2>
       </div>
       <p class="tiny" id="clutch-3d-status"></p>
       <div class="clutch-3d-root" id="clutch-3d-root"></div>
@@ -446,7 +446,7 @@
     <main id="screen-custom-hub" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-custom-hub-back"><span>返回</span></button>
-        <h2>自定义对战</h2>
+        <h2 tabindex="-1">自定义对战</h2>
       </div>
       <p class="tiny">预算轮抽：列出全部 <strong>5→1 块</strong>巅峰卡，轮流点选直到双方 <strong>15 块花光</strong>；再补 <strong>0 块</strong>板凳。完成后进入 <strong>32 支历史球队</strong>淘汰赛（NPC 对战）。</p>
       <div class="mode-grid custom-hub-grid">
@@ -481,7 +481,7 @@
     <main id="screen-family-duel" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-family-duel-back"><span>返回自定义</span></button>
-        <h2 id="family-duel-title">父子局</h2>
+        <h2 tabindex="-1" id="family-duel-title">父子局</h2>
       </div>
       <p class="tiny" id="family-duel-hint">花金币从各自的家族档案里选人，两队都满 5 人就能开打。</p>
       <div class="market-grid family-duel-grid">
@@ -514,7 +514,7 @@
     <main id="screen-draft" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-draft-back"><span>返回</span></button>
-        <h2 id="draft-title">选秀</h2>
+        <h2 tabindex="-1" id="draft-title">选秀</h2>
         <button class="btn small" id="btn-save-draft" type="button" title="保存选秀进度">保存进度</button>
       </div>
       <div class="draft-meta">
@@ -554,7 +554,7 @@
     <main id="screen-legend" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-legend-back"><span>返回自定义</span></button>
-        <h2>传奇模式</h2>
+        <h2 tabindex="-1">传奇模式</h2>
         <button class="btn small" id="btn-save-legend" type="button">保存进度</button>
       </div>
       <p class="tiny" id="legend-status">本局八支传奇球队如下。每轮抽出一支尚未抽过的球队（八队各一轮后再洗牌），从该队历史球员中选一人并指定位置。已选球员不会再出现。</p>
@@ -700,7 +700,7 @@
     <main id="screen-market" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-market-back"><span>返回</span></button>
-        <h2>转会市场</h2>
+        <h2 tabindex="-1">转会市场</h2>
         <div class="btn-row">
           <span>金币 <strong id="gold-amt">0</strong> · 名单 <strong id="roster-cap">0</strong>/12</span>
           <button class="btn small" id="btn-save-market" type="button">保存进度</button>
@@ -976,7 +976,7 @@
 
     <main id="screen-result" class="screen">
       <section class="result-card">
-        <h2 id="result-title">比赛结束</h2>
+        <h2 tabindex="-1" id="result-title">比赛结束</h2>
         <p id="result-score" class="big-score">0 - 0</p>
         <p id="result-summary"></p>
         <div id="result-explain" class="result-explain" hidden></div>
@@ -997,7 +997,7 @@
     <main id="screen-tournament" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-tour-back"><span>返回</span></button>
-        <h2>多人淘汰赛</h2>
+        <h2 tabindex="-1">多人淘汰赛</h2>
       </div>
       <p class="tiny">设置 2–8 名本地玩家。每过一轮每人多一次选人机会，直到总决赛。</p>
       <div class="form-row">
@@ -1021,7 +1021,7 @@
           </button>
           <div class="tt-topbar-title">
             <p class="tt-kicker">TIME TRAVEL</p>
-            <h2>穿越生涯</h2>
+            <h2 tabindex="-1">穿越生涯</h2>
           </div>
         </header>
         <p id="time-travel-status" class="tt-status" role="status" aria-live="polite"></p>
@@ -1229,7 +1229,7 @@
     <main id="screen-season" class="screen">
       <div class="panel-head">
         <button class="nav-back" id="btn-season-back"><span>返回</span></button>
-        <h2 id="season-screen-title">常规赛征程</h2>
+        <h2 tabindex="-1" id="season-screen-title">常规赛征程</h2>
       </div>
 
       <section id="season-setup-panel" class="season-setup-panel">
