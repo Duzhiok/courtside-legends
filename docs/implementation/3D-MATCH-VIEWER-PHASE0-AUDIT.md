@@ -122,3 +122,34 @@ memory must be measured on real hardware** (Mac GPU + at least one phone), not S
 3. Which screen first — Gold live, as proposed?
 4. OK to add additive meta fields to `sim.js` (golden-hash-guarded)?
 5. Who owns animation creation, and where do clips come from?
+
+## 12. Owner decisions (2026-11-15) — status: PLANNED, not started
+
+The audit is accepted as the architectural baseline, subject to reconciliation with the latest main. The technical direction is
+approved; full-game 3D development is **not** approved now.
+
+| # | Question (§11) | Decision |
+|---|---|---|
+| 1 | Pacing | **Deterministic compressed playback.** No look-ahead; GameSim never runs ahead of what the player controls |
+| 2 | Placeholder vs real Avatar | Lightweight placeholder players first |
+| 3 | First mode | Gold Challenge |
+| 4 | Additive `sim.js` meta | Allowed — only already-computed facts, **no extra RNG draw**, no change to results, skills, subs, clock or save shape |
+| 5 | Animation | Deterministic procedural choreography; no skeletal animation library yet |
+
+Standing constraints: GameSim stays the only authority (no renderer RNG/scoring); 2D `CourtView` remains the default and the
+permanent fallback; no production Avatar GLBs in S1; do **not** unify the two Three.js builds in S1 (keep the existing
+`court3d.js` build, use models that need no GLTFLoader); `man.glb` is not assumed licensed until its provenance is confirmed;
+no paid assets, no native mobile work. Choreography for things GameSim never computed (dribble routes, screens, cuts) is
+presentation-only and must not be presented as simulated.
+
+Golden-hash acceptance for any meta addition (fixed seeds, before vs after): final score, box score, event types and order,
+RNG consumption sequence, skill triggers, fouls and substitutions, game clock. New meta keys may differ; nothing else may.
+
+Slices (each reviewed separately; stop after S1 for user review):
+- **3D-S1** — Gold Challenge 2D/3D switch, 10 lightweight players, court, score/clock sync, pause and tactical controls intact.
+- **3D-S2** — deterministic pass, shot, rebound, turnover; interruptible scheduler; no unbounded queue.
+- **3D-S3** — dunk, steal, substitution, pause transitions; 1x/2x/3x validation; live tactic changes apply with no delayed sim.
+Reuse the existing `court3d.js` foundation instead of building a second Three.js court.
+
+Ordering: 2D Avatar art and Gold Challenge UI 3.0 come first. Do not start S1 until overlapping UI 3.0 file ownership
+(`#screen-game`, `js/app.js` live wiring) is resolved and this audit is reconciled against the then-current main.
