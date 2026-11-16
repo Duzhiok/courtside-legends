@@ -30,15 +30,15 @@ import {
   skillSlotsFull,
 } from "../../data/skills.js";
 
-export const AWAKENING_VERSION = 1;
+const AWAKENING_VERSION = 1;
 /** A game only counts as evidence if the player actually played. Bench is ~10 min; garbage time is not. */
 export const MIN_EVIDENCE_MINUTES = 8;
 /** The rolling window: the last N played games of the season. */
 export const FORM_KEEP = 5;
 /** Qualifying games needed inside the window. */
-export const QUALIFYING_NEEDED = 3;
+const QUALIFYING_NEEDED = 3;
 /** At most this many skills awaken per player per season — special, not a faucet. */
-export const MAX_AWAKENED_PER_SEASON = 2;
+const MAX_AWAKENED_PER_SEASON = 2;
 
 const per36 = (stat, min) => (min > 0 ? (stat / min) * 36 : 0);
 
@@ -198,7 +198,7 @@ export function awakenedSkillIds(state) {
 }
 
 /** How many skills awakened in the given season (the per-season cap counts these). */
-export function awakenedThisSeason(state, season) {
+function awakenedThisSeason(state, season) {
   return normalizeAwakeningState(state).awakened.filter((a) => a.season === season).length;
 }
 
