@@ -34,8 +34,8 @@ const RS_GAMES = 82;
 const SAVE_KEY = "cls_season_v1";
 const SEASON_VERSION = 2;
 
-/** Active team ids for this save (historical leagues vary). */
-function seasonTeamIds(st) {
+/** Active team ids for this save (historical leagues vary). The season hub imports this. */
+export function seasonTeamIds(st) {
   if (Array.isArray(st?.league?.teamIds) && st.league.teamIds.length) return st.league.teamIds;
   return allLeagueTeamIds();
 }
