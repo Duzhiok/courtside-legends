@@ -63,7 +63,7 @@ export const DRAFT_GAMBLE_TITLE = Object.freeze({ zh: "1996 选秀赌局", en: "
  * The old per-view back branch in wire() is gone: the shell wires the back
  * button to onBack exactly once, so a click can no longer call goBack twice.
  */
-export function ensureDraftGambleScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+function ensureDraftGambleScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
   return mountScreen({ id: "draft-gamble", title: DRAFT_GAMBLE_TITLE, getLang, onBack, onRelocalize }).el;
 }
 

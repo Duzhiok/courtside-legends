@@ -32,7 +32,7 @@ import { clearSaveOwner, keyHasData, recordMirrorWrite, recordSaveWrite, seasonS
 
 const RS_GAMES = 82;
 const SAVE_KEY = "cls_season_v1";
-export const SEASON_VERSION = 2;
+const SEASON_VERSION = 2;
 
 /** Active team ids for this save (historical leagues vary). */
 export function seasonTeamIds(st) {
@@ -1654,5 +1654,3 @@ export function advanceLeagueOffseason(st, options = {}) {
   st.offseasonLog = developLog;
   return { ok: true, log: developLog, year: st.year };
 }
-
-export { RS_GAMES, EAST_IDS, WEST_IDS };

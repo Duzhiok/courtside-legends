@@ -35,7 +35,7 @@ const L = (zh, en, lang) => (lang === "en" ? en : zh);
  * The factory's mount() is the wiring point (getLang/goBack/render);
  * this stays exported for direct mounts.
  */
-export function ensureGmBusinessScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+function ensureGmBusinessScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
   return mountScreen({ id: "gm-business", title: GM_BUSINESS_TITLE, getLang, onBack, onRelocalize }).el;
 }
 

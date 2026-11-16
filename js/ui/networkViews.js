@@ -63,7 +63,7 @@ export const NETWORK_TITLE = Object.freeze({ zh: "篮球职业网络", en: "Care
  * that branch is gone — the shell wires it to onBack, so a click can no
  * longer fire goBack twice.
  */
-export function ensureNetworkScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+function ensureNetworkScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
   return mountScreen({ id: "network", title: NETWORK_TITLE, getLang, onBack, onRelocalize }).el;
 }
 

@@ -79,7 +79,7 @@ async function loadRows() {
  * The factory's mount() is the wiring point (getLang/goBack/render);
  * this stays exported for direct mounts.
  */
-export function ensureInboxScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+function ensureInboxScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
   return mountScreen({ id: "career-inbox", title: CAREER_INBOX_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
