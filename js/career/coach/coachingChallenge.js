@@ -64,11 +64,11 @@ export const COACH_COMEBACK_SCENARIO = Object.freeze({
   possession: "away",
 });
 
-export const OPPONENT_KEY = "CLE:2016";
-export const RUN_SWING_TRIGGER = 8;
-export const STAR_Q4_TRIGGER = 8;
-export const LATE_CLOCK = 150;
-export const LATE_DEFICIT_MAX = 6;
+const OPPONENT_KEY = "CLE:2016";
+const RUN_SWING_TRIGGER = 8;
+const STAR_Q4_TRIGGER = 8;
+const LATE_CLOCK = 150;
+const LATE_DEFICIT_MAX = 6;
 
 const COACH = Object.freeze({
   id: "you-coach",
