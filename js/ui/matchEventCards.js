@@ -34,7 +34,7 @@ import { esc } from "../core/html.js";
 import { TL } from "../i18n.js";
 
 export const MATCH_EVENT_FAMILIES = ["takeover", "weakness", "foulTrouble"];
-export const MATCH_EVENT_SEVERITIES = ["info", "decision"];
+const MATCH_EVENT_SEVERITIES = ["info", "decision"];
 
 const FAMILY_LABEL = {
   takeover: ["球星接管", "Star takeover"],
@@ -161,7 +161,7 @@ export function matchEventHistoryHtml(events, lang = "zh") {
 // Idempotent containers. The engine integration calls ensureMatchEventMounts()
 // once; the controller below renders into whichever container fits the event.
 
-export function ensureMatchEventMounts(doc = globalThis.document) {
+function ensureMatchEventMounts(doc = globalThis.document) {
   if (!doc || typeof doc.querySelector !== "function") return null;
   const mount = (id, parent, before = null) => {
     let el = doc.getElementById(id);

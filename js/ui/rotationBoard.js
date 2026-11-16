@@ -5,12 +5,12 @@ import { learnedBadgeHtml, learnedLineHtml } from "./learnedBadge.js";
 import { deriveSubAttributes } from "../data/players.js";
 import { TL } from "../i18n.js";
 
-export const TOTAL_MINUTES = 240; // 5 on the floor x 48
-export const STARTER_SLOTS = 5;
+const TOTAL_MINUTES = 240; // 5 on the floor x 48
+const STARTER_SLOTS = 5;
 const TIRED_CAP = 36; // below this a player really can't carry a starter's load: worth a warning
 
 /** The eight attributes shown on every row: [short zh, short en, key]. */
-export const ATTRS = [
+const ATTRS = [
   ["攻", "Off", "scoring"], ["三分", "3PT", "three"], ["防", "Def", "defense"], ["板", "Reb", "rebound"],
   ["传", "Pass", "pass"], ["断", "Stl", "steal"], ["帽", "Blk", "block"], ["速", "Spd", "speed"], ["力", "Str", "strength"],
 ];
@@ -35,7 +35,7 @@ export function attributeChipsHtml(player, lang) {
 }
 
 /** The seven derived sub-attributes, same labels as the setup card's second block. */
-export const SUB_ATTRS = [
+const SUB_ATTRS = [
   ["控球", "HDL", "handle"], ["外防", "PD", "perimDef"], ["内防", "ID", "interiorDef"],
   ["接球投", "CS", "catchShoot"], ["持球投", "OD", "offDribble"], ["前板", "ORB", "offReb"], ["后板", "DRB", "defReb"],
 ];

@@ -4,18 +4,18 @@ import { clampPct, esc, gaugeTone } from "./format.js";
 import { TL } from "../../i18n.js";
 
 /** One word for each gauge so the number is never the only signal (and never colour-only). */
-export function trustWord(value, lang) {
+function trustWord(value, lang) {
   if (value <= FIRING_TRUST_FLOOR) return TL(lang, "解雇边缘", "On the brink");
   if (value >= 65) return TL(lang, "稳固", "Secure");
   if (value >= 35) return TL(lang, "摇摆", "Wavering");
   return TL(lang, "危险", "Danger");
 }
-export function pressureWord(value, lang) {
+function pressureWord(value, lang) {
   if (value >= 65) return TL(lang, "高压", "Intense");
   if (value >= 35) return TL(lang, "适中", "Steady");
   return TL(lang, "平静", "Calm");
 }
-export function divergenceWord(value, lang) {
+function divergenceWord(value, lang) {
   if (value >= 40) return TL(lang, "蝴蝶效应", "Butterfly effect");
   if (value >= 15) return TL(lang, "分叉", "Forking");
   return TL(lang, "微扰", "Ripples");
