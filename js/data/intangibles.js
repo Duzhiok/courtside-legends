@@ -6,7 +6,7 @@ import { careerArcIntangibleBias, estimateAge } from "./careerArc.js";
 import { rand } from "../core/rng.js";
 import { clamp } from "../core/seededRandom.js";
 
-export const INTANGIBLE_DEFS = {
+const INTANGIBLE_DEFS = {
   gravity: { name: "引力", desc: "吸引协防，给队友创造空位" },
   shotCreation: { name: "自主造投", desc: "强干扰下仍能挤出出手" },
   toughness: { name: "硬气", desc: "高疲劳时仍能维持效率" },
@@ -79,7 +79,7 @@ export const OFF_BALL_BREF = {
  * Approximate league-average salary by season (USD, nominal).
  * Used only as a relative scale for market pricing — not real payroll data.
  */
-export const LEAGUE_AVG_SALARY = [
+const LEAGUE_AVG_SALARY = [
   [1955, 8000],
   [1965, 18000],
   [1975, 90000],
@@ -379,7 +379,7 @@ export function attachIntangibles(player) {
   return player;
 }
 
-export function leagueAvgSalary(season) {
+function leagueAvgSalary(season) {
   const y = Number(season) || 2000;
   const table = LEAGUE_AVG_SALARY;
   if (y <= table[0][0]) return table[0][1];
@@ -399,7 +399,7 @@ export function leagueAvgSalary(season) {
  * Estimate that season's contract as a multiple of league-average salary.
  * Stars / high-usage → higher mult; role bargains stay near or below 1.0.
  */
-export function estimateMarketContract(player, intangibles = player.intangibles || {}) {
+function estimateMarketContract(player, intangibles = player.intangibles || {}) {
   const season = player.season || 2000;
   const avg = leagueAvgSalary(season);
   const ppg = player.raw?.ppg ?? 0;
@@ -559,7 +559,7 @@ function offBallBumpFor(player) {
 }
 
 /** True primary ball-handler (not a post scorer with inflated usage). */
-export function isBallHandlerCore(p) {
+function isBallHandlerCore(p) {
   const need = p.intangibles?.ballNeed ?? 50;
   if (need < 68) return false;
   const guard = p.pos === "PG" || p.pos === "SG";
@@ -574,7 +574,7 @@ export function isBallHandlerCore(p) {
 }
 
 /** Coach ordered this player into an off-ball / low-usage role. */
-export function isOrderedOffBall(p) {
+function isOrderedOffBall(p) {
   const o = p?.orders || {};
   return (
     o.action === "spot" ||
@@ -588,7 +588,7 @@ export function isOrderedOffBall(p) {
 }
 
 /** Coach still pushing this player as an on-ball creator. */
-export function isOrderedOnBall(p) {
+function isOrderedOnBall(p) {
   const o = p?.orders || {};
   return (
     o.action === "iso" ||
@@ -607,7 +607,7 @@ export function isOrderedOnBall(p) {
  * 设成无球定点 / 有足够无球能力 → 不坚持抢球，不算持球冲突。
  * primaryId：教练指定的持球发起人——其他人默认让球（除非也被明确设成持球打法）。
  */
-export function isInsistingOnBall(p, { primaryId = null } = {}) {
+function isInsistingOnBall(p, { primaryId = null } = {}) {
   if (!isBallHandlerCore(p)) return false;
   if (isOrderedOffBall(p)) return false;
   if (primaryId) {
@@ -807,7 +807,7 @@ function systemAdaptBiasFor(player, bargainBump, overpaidBump) {
  * Example: Kyrie drafted as PG, moved to SG beside a floor general → off-ball / adapt / ceiling up.
  * Returns deltas (can be negative). Does not mutate player.
  */
-export function positionContextBoosts(player, lineup = []) {
+function positionContextBoosts(player, lineup = []) {
   if (!player) return {};
   const slot = player.playPos || player.pos;
   const natural = player.pos;
@@ -1169,7 +1169,7 @@ export function valueLabel(p, lang = "zh") {
  * 板凳匪徒：身价不高、出场不多，但致胜成色/效率够狠——默认隐藏，球探可挖出。
  * 门槛刻意偏严，避免球探一刷一片标。
  */
-export function isBenchBandit(p) {
+function isBenchBandit(p) {
   if (!p || p.valueArchetype === "bargain") return false;
   const impact = p.intangibles?.winningImpact ?? 50;
   const adapt = p.intangibles?.systemAdapt ?? 50;
