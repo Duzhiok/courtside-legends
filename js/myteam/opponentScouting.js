@@ -6,17 +6,17 @@
  */
 import { coachTactics } from "../data/coaches.js";
 import { ovr } from "./playerRoleFit.js";
+import { clamp99 } from "../core/seededRandom.js";
 
 const a = (p, k, d = 50) => (Number.isFinite(p?.[k]) ? p[k] : d);
 const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
-const clamp = (x) => Math.max(0, Math.min(99, Math.round(x)));
 
 /** 0-99 scores for what ONE player is dangerous at. */
 export function playerThreat(p) {
   const big = ["C", "PF"].includes(p.playPos || p.pos);
-  const interior = clamp(0.55 * a(p, "paint") + 0.25 * a(p, "strength") + 0.2 * a(p, "scoring") + (big ? 0 : -8));
-  const perimeter = clamp(0.4 * Math.max(a(p, "three"), a(p, "mid")) + 0.25 * a(p, "handle") + 0.2 * a(p, "scoring") + 0.15 * a(p, "offDribble", a(p, "handle")));
-  const boards = clamp(a(p, "rebound"));
+  const interior = clamp99(0.55 * a(p, "paint") + 0.25 * a(p, "strength") + 0.2 * a(p, "scoring") + (big ? 0 : -8));
+  const perimeter = clamp99(0.4 * Math.max(a(p, "three"), a(p, "mid")) + 0.25 * a(p, "handle") + 0.2 * a(p, "scoring") + 0.15 * a(p, "offDribble", a(p, "handle")));
+  const boards = clamp99(a(p, "rebound"));
   return { interior, perimeter, boards, offense: Math.max(interior, perimeter) };
 }
 
@@ -43,20 +43,20 @@ export function scoutOpponent(team) {
       const kind = t.interior >= t.perimeter ? "interior" : "perimeter";
       return {
         id: p.id, name: p.name, pos: p.playPos || p.pos, ovr: ovr(p), kind, level: threatTier(t[kind]), scores: t,
-        athleticism: clamp((a(p, "speed") + a(p, "stamina")) / 2), perimDef: a(p, "perimDef", a(p, "defense")),
+        athleticism: clamp99((a(p, "speed") + a(p, "stamina")) / 2), perimDef: a(p, "perimDef", a(p, "defense")),
         from: kind === "interior" ? `paint ${a(p, "paint")} · strength ${a(p, "strength")} · scoring ${a(p, "scoring")}` : `three ${a(p, "three")} · handle ${a(p, "handle")} · scoring ${a(p, "scoring")}`,
       };
     });
 
   const top = (f, n = 1) => mean([...core.map(f)].sort((x, y) => y - x).slice(0, n));
   const profile = {
-    interiorThreat: clamp(top((p) => playerThreat(p).interior)),
-    perimeterThreat: clamp(top((p) => playerThreat(p).perimeter)),
-    reboundThreat: clamp(top((p) => a(p, "rebound"), 2)),
-    rimProtection: clamp(top((p) => a(p, "interiorDef", a(p, "defense")))),
-    perimeterDefense: clamp(mean(starters.map((p) => a(p, "perimDef", a(p, "defense"))))),
+    interiorThreat: clamp99(top((p) => playerThreat(p).interior)),
+    perimeterThreat: clamp99(top((p) => playerThreat(p).perimeter)),
+    reboundThreat: clamp99(top((p) => a(p, "rebound"), 2)),
+    rimProtection: clamp99(top((p) => a(p, "interiorDef", a(p, "defense")))),
+    perimeterDefense: clamp99(mean(starters.map((p) => a(p, "perimDef", a(p, "defense"))))),
     shooters: starters.filter((p) => a(p, "catchShoot", a(p, "three")) >= 68).length,
-    stamina: clamp(mean(starters.map((p) => a(p, "stamina")))),
+    stamina: clamp99(mean(starters.map((p) => a(p, "stamina")))),
   };
   const weakDefenders = [...starters]
     .map((p) => ({ id: p.id, name: p.name, pos: p.playPos || p.pos, perimDef: a(p, "perimDef", a(p, "defense")), interiorDef: a(p, "interiorDef", a(p, "defense")) }))
@@ -68,7 +68,7 @@ export function scoutOpponent(team) {
     threats,
     profile,
     weakDefenders,
-    bench: { depth: clamp(mean(bench.slice(0, 4).map(ovr))), leaderId: [...bench].sort((x, y) => playerThreat(y).offense - playerThreat(x).offense)[0]?.id || null },
+    bench: { depth: clamp99(mean(bench.slice(0, 4).map(ovr))), leaderId: [...bench].sort((x, y) => playerThreat(y).offense - playerThreat(x).offense)[0]?.id || null },
     identity: { tacticId: tac?.id || "balanced", fiveOut: profile.shooters >= 4 },
     limits: "card tendencies, not tonight's rotation",
   };

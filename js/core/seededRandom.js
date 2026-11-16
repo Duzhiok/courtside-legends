@@ -31,6 +31,14 @@ export function clamp(n, lo, hi) {
 }
 
 /**
+ * 0–99 integer clamp (rounds first): the shared version of the one-liner that used to be
+ * copy-pasted into js/myteam/coachDrivenAnalysis.js, counterStrategy.js and opponentScouting.js
+ * (A-P2-15). Distinct from clamp() above (arbitrary bounds, no rounding) and from
+ * js/ui/timeTravel/format.js's clampPct (arbitrary bounds, Number() coercion, default 0).
+ */
+export const clamp99 = (x) => Math.max(0, Math.min(99, Math.round(x)));
+
+/**
  * Fisher-Yates shuffle, returning a new array (never mutates `arr`). Defaults to Math.random for
  * call sites that don't care about determinism, but accepts an injected rng (e.g. a seededStream)
  * for reproducible tests -- this used to be copy-pasted identically into five different files

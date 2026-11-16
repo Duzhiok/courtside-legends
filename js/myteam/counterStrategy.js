@@ -15,11 +15,11 @@ import { TACTICS } from "../data/coaches.js";
 import { selectableSystems, systemProficiency } from "../coaching/coachTacticalProfile.js";
 import { lineupUtility, tradeoffs } from "./lineupRecommendations.js";
 import { ovr, roleScore } from "./playerRoleFit.js";
+import { clamp99 } from "../core/seededRandom.js";
 
 const a = (p, k, d = 50) => (Number.isFinite(p?.[k]) ? p[k] : d);
 const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
 const topMean = (xs, n) => mean([...xs].sort((x, y) => y - x).slice(0, n));
-const clamp = (x) => Math.max(0, Math.min(99, Math.round(x)));
 
 export const PLAN_IDS = ["contain", "exhaust", "spacing", "outscore"];
 const SWAP_BAR = 3; // a plan only changes the saved five when it wins this much on utility over the current five
@@ -42,14 +42,14 @@ function effectOf(planId, five, opp) {
       ? topMean(five.map((p) => a(p, "perimDef", a(p, "defense"))), 2)
       : 0.6 * topMean(five.map((p) => a(p, "interiorDef", a(p, "defense"))), 1) + 0.4 * topMean(five.map((p) => a(p, "rebound")), 2);
     const his = perimeter ? opp.profile.perimeterThreat : 0.7 * opp.profile.interiorThreat + 0.3 * opp.profile.reboundThreat;
-    return clamp(50 + (mine - his) * 1.2);
+    return clamp99(50 + (mine - his) * 1.2);
   }
   if (planId === "exhaust") {
     const ath = mean(five.map((p) => (a(p, "speed") + a(p, "stamina")) / 2));
-    return clamp(50 + (ath - (star?.athleticism ?? opp.profile.stamina)) + 0.3 * (create - (star?.perimDef ?? 60)));
+    return clamp99(50 + (ath - (star?.athleticism ?? opp.profile.stamina)) + 0.3 * (create - (star?.perimDef ?? 60)));
   }
-  if (planId === "spacing") return clamp(50 + 0.7 * (shoot - opp.profile.perimeterDefense) + 0.15 * (opp.profile.rimProtection - 60));
-  return clamp(50 + ((shoot + create) / 2 - (opp.profile.perimeterDefense + opp.profile.rimProtection) / 2)); // outscore
+  if (planId === "spacing") return clamp99(50 + 0.7 * (shoot - opp.profile.perimeterDefense) + 0.15 * (opp.profile.rimProtection - 60));
+  return clamp99(50 + ((shoot + create) / 2 - (opp.profile.perimeterDefense + opp.profile.rimProtection) / 2)); // outscore
 }
 
 function* fives(items) {
@@ -136,7 +136,7 @@ export function counterStrategies({ coach, roster, opponent, currentIds = [], cu
       changesFive: hasCur ? five !== cur : true,
       changesTactic: currentTacticId ? best.tid !== currentTacticId : true,
       counterEffect: best.effect,
-      execution: clamp(u.analysis.roleFitAverage),
+      execution: clamp99(u.analysis.roleFitAverage),
       proficiency: Math.round(best.prof * 100),
       internal: Math.round(best.internal * 10) / 10,
       tradeoffs: t,

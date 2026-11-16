@@ -11,22 +11,22 @@ import { coachSystemFit, playerSystemFit } from "../coaching/coachSystemFit.js";
 import { assignRoles, averageRoleFit, roleScore, ovr } from "./playerRoleFit.js";
 import { TACTICS } from "../data/coaches.js";
 import { coachProfile } from "../coaching/coachTacticalProfile.js";
+import { clamp99 } from "../core/seededRandom.js";
 
 const a = (p, k, d = 50) => (Number.isFinite(p?.[k]) ? p[k] : d);
 const meanTop = (xs, n) => { const s = [...xs].sort((x, y) => y - x).slice(0, n); return s.length ? s.reduce((t, x) => t + x, 0) / s.length : 0; };
-const clamp = (x) => Math.max(0, Math.min(99, Math.round(x)));
 
 export function intrinsicStrengths(starters, bench = []) {
   const s = (starters || []).filter(Boolean);
   const b = (bench || []).filter(Boolean);
   return {
-    interiorDefense: { score: clamp(meanTop(s.map((p) => a(p, "interiorDef", a(p, "defense"))), 2)), from: "interiorDef · block" },
-    perimeterDefense: { score: clamp(meanTop(s.map((p) => a(p, "perimDef", a(p, "defense"))), 2)), from: "perimDef · steal" },
-    rebounding: { score: clamp(meanTop(s.map((p) => a(p, "rebound")), 3)), from: "rebound" },
-    shooting: { score: clamp(meanTop(s.map((p) => a(p, "catchShoot", a(p, "three"))), 3)), from: "catchShoot · three" },
-    creation: { score: clamp(meanTop(s.map((p) => roleScore("creator", p)), 2)), from: "handle · pass · scoring" },
-    athleticism: { score: clamp(s.reduce((t, p) => t + (a(p, "speed") + a(p, "stamina")) / 2, 0) / (s.length || 1)), from: "speed · stamina" },
-    benchDepth: { score: b.length ? clamp(meanTop(b.map(ovr), 4)) : null, from: "bench overall" },
+    interiorDefense: { score: clamp99(meanTop(s.map((p) => a(p, "interiorDef", a(p, "defense"))), 2)), from: "interiorDef · block" },
+    perimeterDefense: { score: clamp99(meanTop(s.map((p) => a(p, "perimDef", a(p, "defense"))), 2)), from: "perimDef · steal" },
+    rebounding: { score: clamp99(meanTop(s.map((p) => a(p, "rebound")), 3)), from: "rebound" },
+    shooting: { score: clamp99(meanTop(s.map((p) => a(p, "catchShoot", a(p, "three"))), 3)), from: "catchShoot · three" },
+    creation: { score: clamp99(meanTop(s.map((p) => roleScore("creator", p)), 2)), from: "handle · pass · scoring" },
+    athleticism: { score: clamp99(s.reduce((t, p) => t + (a(p, "speed") + a(p, "stamina")) / 2, 0) / (s.length || 1)), from: "speed · stamina" },
+    benchDepth: { score: b.length ? clamp99(meanTop(b.map(ovr), 4)) : null, from: "bench overall" },
   };
 }
 

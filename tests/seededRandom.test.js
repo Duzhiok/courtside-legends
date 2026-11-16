@@ -5,7 +5,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { shuffle, seededStream, hashSeed } from "../js/core/seededRandom.js";
+import { shuffle, seededStream, hashSeed, clamp99 } from "../js/core/seededRandom.js";
 
 test("shuffle returns a new array, never mutates the input", () => {
   const input = [1, 2, 3, 4, 5];
@@ -45,4 +45,19 @@ test("shuffle defaults to Math.random when no rng is passed (existing call sites
 test("shuffle on an empty or single-element array is a safe no-op", () => {
   assert.deepEqual(shuffle([], seededStream(1)), []);
   assert.deepEqual(shuffle([7], seededStream(1)), [7]);
+});
+
+test("clamp99 rounds to an integer inside 0-99 (A-P2-15 shared myteam clamp)", () => {
+  assert.equal(clamp99(50.4), 50);
+  assert.equal(clamp99(50.5), 51);
+  assert.equal(clamp99(0), 0);
+  assert.equal(clamp99(99), 99);
+  assert.equal(clamp99(-3), 0);
+  assert.equal(clamp99(120), 99);
+  assert.equal(clamp99(99.6), 99, "rounds to 100 first, then clamps to 99");
+});
+
+test("clamp99 matches the old myteam one-liner on a sweep (no behavior change)", () => {
+  const old = (x) => Math.max(0, Math.min(99, Math.round(x)));
+  for (let x = -50; x <= 150; x += 0.25) assert.equal(clamp99(x), old(x), `x=${x}`);
 });
