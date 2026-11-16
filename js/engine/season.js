@@ -35,22 +35,22 @@ const SAVE_KEY = "cls_season_v1";
 const SEASON_VERSION = 2;
 
 /** Active team ids for this save (historical leagues vary). */
-export function seasonTeamIds(st) {
+function seasonTeamIds(st) {
   if (Array.isArray(st?.league?.teamIds) && st.league.teamIds.length) return st.league.teamIds;
   return allLeagueTeamIds();
 }
 
-export function seasonEastIds(st) {
+function seasonEastIds(st) {
   if (Array.isArray(st?.league?.eastIds) && st.league.eastIds.length) return st.league.eastIds;
   return EAST_IDS;
 }
 
-export function seasonWestIds(st) {
+function seasonWestIds(st) {
   if (Array.isArray(st?.league?.westIds) && st.league.westIds.length) return st.league.westIds;
   return WEST_IDS;
 }
 
-export function seasonConferenceOf(st, teamId) {
+function seasonConferenceOf(st, teamId) {
   if (st?.league?.confById?.[teamId]) return st.league.confById[teamId];
   return conferenceOf(teamId);
 }
@@ -310,7 +310,7 @@ function teamFromRoster(name, players, coach, { isCpu = false, teamId = null } =
 }
 
 /** Prefer franchise players across eras when building modern CPU clubs. */
-export function buildCpuTeam(teamId, displayName, usedIds, power = 1) {
+function buildCpuTeam(teamId, displayName, usedIds, power = 1) {
   const fr = leagueFranchiseRecord(teamId);
   let pool = fr ? playersForFranchise(PLAYERS, fr) : [];
   pool = pool.filter((p) => !usedIds.has(p.id)).sort((a, b) => overall(b) - overall(a));
@@ -730,7 +730,7 @@ function applyGameResult(st, game, snap, { recordStandings = true, recordLog = t
 }
 
 /** Compact box-score payload for UI / persistence (not full sim snapshot). */
-export function compactGameBox(snap) {
+function compactGameBox(snap) {
   if (!snap) return null;
   const side = (t) => ({
     name: t?.name || "—",
@@ -1198,7 +1198,7 @@ function recordSeriesGame(st, series, { homeId, awayId, homeScore, awayScore }) 
  * every non-live playoff game, so "sim the series", "one playoff day" and a CPU Finals stepped game by game
  * all score, log and finish a series the same way. Resumes from the games already on the board.
  */
-export function simSeriesOneGame(st, series, { onUserGame } = {}) {
+function simSeriesOneGame(st, series, { onUserGame } = {}) {
   if (!series || series.done) return null;
   if (series.high?.bye || series.low?.bye) {
     simPlayoffSeries(st, series);
@@ -1244,7 +1244,7 @@ export function simPlayoffDay(st, { skip = null, onUserGame } = {}) {
 }
 
 /** When the champion is known: crown them, end the season, and judge the Finals awards from the Finals alone. */
-export function finalizeFinals(st) {
+function finalizeFinals(st) {
   const finals = st?.playoffs?.finals;
   if (!finals?.done) return;
   st.playoffs.championId = finals.winnerId;
@@ -1485,7 +1485,7 @@ export function simAllPlayoffs(st, opts = {}) {
 
 export const hasSeasonSave = () => keyHasData(SAVE_KEY);
 /** opts.release: the player explicitly confirmed deleting an unassociated quick season. */
-export const seasonSlotLocked = (opts) => slotLocked("season", hasSeasonSave(), undefined, opts);
+const seasonSlotLocked = (opts) => slotLocked("season", hasSeasonSave(), undefined, opts);
 
 /**
  * `mirror`: the long-career compat copy (the root save is the real one). It still never overwrites another
