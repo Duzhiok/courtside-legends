@@ -4,10 +4,9 @@ import {
 } from "../../career/balance.js";
 import { offerText } from "../../career/contractOffers.js";
 import { icon } from "./icons.js";
-import { teamNameL } from "../../i18n.js";
+import { teamNameL, TL } from "../../i18n.js";
 import { clampPct, esc, gaugeTone } from "./format.js";
 import { crestHtml, teamThemeStyle } from "./hq.js";
-import { TL } from "../../i18n.js";
 
 const ARCHETYPES = {
   rebuild: { zh: "重建队", en: "Rebuilding", blurb: ["耐心、权限大", "Patient, big say"] },

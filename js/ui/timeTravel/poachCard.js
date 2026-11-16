@@ -3,7 +3,7 @@
  * the card's render + its two actions live together; the controller only injects what it owns.
  */
 import { PLAYERS, overall } from "../../data/players.js";
-import { teamNameL } from "../../i18n.js";
+import { teamNameL, TL } from "../../i18n.js";
 import { ensureCoachProfile } from "../../career/coachProfile.js";
 import {
   POACH_ACCEPT_REPUTATION_DELTA, POACH_DECLINE_TRUST_BONUS, POACH_SIGNING_SALARY, POACH_SIGNING_TRUST_BONUS,
@@ -17,7 +17,6 @@ import { icon } from "./icons.js";
 import { poachCardHtml } from "./offers.js";
 import { teamColorsFor, teamCore } from "./viewModel.js";
 import { teamNameFor } from "../../data/historicalTeams.js";
-import { TL } from "../../i18n.js";
 
 export function createPoachCard({ state, lang, setStatus, commit, currentRootState, renderScreen }) {
   /** B6: a rival club's offer. Only shown while it can still be acted on (before the season's first game). */

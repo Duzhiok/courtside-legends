@@ -6,7 +6,7 @@
  * Extracted from app.js (which had grown this screen inline); app.js injects the few pieces of
  * global state/behaviour it owns, everything else is imported directly.
  */
-import { getLang, L, teamNameL } from "../../i18n.js";
+import { getLang, L, teamNameL, TL } from "../../i18n.js";
 import { PLAYERS, overall } from "../../data/players.js";
 import { listHistoricalYears } from "../../data/historicalSeasons.js";
 import { readRootSave } from "../../data/saveRoot.js";
@@ -40,7 +40,6 @@ import {
   hideHq, paintEpilogue, paintGoal, paintHq, paintKpis, paintReport, paintWizard,
 } from "./paint.js";
 import { hqModel, kpiModel, teamColorsFor, teamCore } from "./viewModel.js";
-import { TL } from "../../i18n.js";
 
 /** Employment states that end a stint: no season left to coach on this career until you re-hire
  * (or, for "retired", ever: there is no job board after the last whistle). */

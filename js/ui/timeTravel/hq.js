@@ -1,7 +1,6 @@
 import { icon } from "./icons.js";
-import { teamNameL } from "../../i18n.js";
+import { teamNameL, TL } from "../../i18n.js";
 import { esc, readableInk } from "./format.js";
-import { TL } from "../../i18n.js";
 
 const NEUTRAL = { primary: "#1a3a2a", secondary: "#f3efe4" };
 

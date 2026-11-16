@@ -1,8 +1,7 @@
 import { icon } from "./icons.js";
-import { teamNameL } from "../../i18n.js";
+import { teamNameL, TL } from "../../i18n.js";
 import { crestHtml } from "./hq.js";
 import { esc } from "./format.js";
-import { TL } from "../../i18n.js";
 import { stintSpan } from "../../career/stints.js";
 
 /** Every value careerContract.js can write as an employment/stint reason (plus the status names). */

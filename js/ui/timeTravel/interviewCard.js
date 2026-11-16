@@ -4,10 +4,9 @@
  * career/interview.js, so what the panel says happened is exactly what the save records.
  */
 import { conductInterview, interviewQuestions } from "../../career/interview.js";
-import { teamNameL } from "../../i18n.js";
+import { teamNameL, TL } from "../../i18n.js";
 import { esc } from "./format.js";
 import { archetypeLabel } from "./offers.js";
-import { TL } from "../../i18n.js";
 
 const KEYS = "ABC";
 
