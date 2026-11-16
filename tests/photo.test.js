@@ -148,3 +148,22 @@ test("an uncredited wiki-discovered photo does NOT show -- it must clear build-c
   const url = eraPhoto({ bref: uncreditedWikiBref, season: 1955 });
   assert.notEqual(url, PHOTO_BY_BREF_WIKI[uncreditedWikiBref]);
 });
+
+test("photoImg retries a failed remote photo once, then falls back to the generated avatar", async () => {
+  const vm = await import("node:vm");
+  const { photoImg, PHOTO_ONERROR } = await import("../js/data/photo.js");
+  const html = photoImg({ bref: "doncilu01", name: "Luka", season: 2025, team: "LAL", id: "x" });
+  assert.match(html, /onerror="[^"]*dataset\.rt/);
+  const timers = [];
+  const img = { src: "https://thumb.wikimedia.org/a.jpg", dataset: { fb: "data:image/svg+xml,AVATAR" } };
+  const run = () => vm.runInNewContext(`(function(){${PHOTO_ONERROR}}).call(img)`, { img, setTimeout: (f) => timers.push(f) });
+  run(); // 1st failure: schedule a retry, keep the photo
+  assert.equal(timers.length, 1);
+  assert.equal(img.src, "https://thumb.wikimedia.org/a.jpg");
+  timers[0](); // the retry fires with a cache-busting query
+  assert.match(img.src, /\?r=1$/);
+  run(); // 2nd failure: now the generated avatar
+  assert.equal(img.src, "data:image/svg+xml,AVATAR");
+  run(); // a failing data URI must not loop
+  assert.equal(timers.length, 1);
+});

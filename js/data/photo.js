@@ -120,6 +120,11 @@ export function resolveCardPhoto(playerLike) {
 
 const TIP_SUFFIX = { local: " · 插画", era: "", hotlinked: "", generated: "" };
 
+/** Inline handler: retry the remote photo once, then fall back to the generated avatar (a data URI, cannot fail). */
+export const PHOTO_ONERROR =
+  "if(!this.dataset.rt&&/^https?:/.test(this.src)){this.dataset.rt='1';var i=this,s=i.src;setTimeout(function(){i.src=s+(s.indexOf('?')<0?'?':'&')+'r=1'},1200);}" +
+  "else if(this.dataset.fb){this.src=this.dataset.fb;this.dataset.fb='';}";
+
 /**
  * Safe <img> markup. A real photo that fails to load (offline, blocked) falls back to the
  * generated avatar, which is a data URI and cannot fail.
@@ -127,7 +132,9 @@ const TIP_SUFFIX = { local: " · 插画", era: "", hotlinked: "", generated: "" 
 export function photoImg(player, cls = "headshot") {
   const src = photoUrl(player);
   const avatar = avatarDataUri(player);
-  const fallback = src === avatar ? "" : ` data-fb="${avatar}" onerror="if(this.dataset.fb){this.src=this.dataset.fb;this.dataset.fb='';}"`;
+  // A remote photo that fails once (rate limit, flaky network) is retried once with a cache-busting query before the
+  // generated avatar takes over, so a one-off failure does not leave initials on screen for the whole session.
+  const fallback = src === avatar ? "" : ` data-fb="${avatar}" onerror="${PHOTO_ONERROR}"`;
   const img = `<img class="${escapeAttr(cls)}" src="${src}" alt="${escapeAttr(player?.name)}" loading="lazy" referrerpolicy="no-referrer"${fallback}>`;
   const team = player?.team || "";
   if (!team) return img;
