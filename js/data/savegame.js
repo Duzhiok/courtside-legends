@@ -6,7 +6,7 @@
 import { clearSaveOwner, keyHasData, recordSaveWrite, sessionSig, slotLocked } from "./saveOwnership.js";
 
 const SAVE_KEY = "cls_savegame_v1";
-export const SAVE_VERSION = 1;
+const SAVE_VERSION = 1;
 
 function reviveSets(value, setKeys = []) {
   if (!value || typeof value !== "object") return value;
@@ -44,7 +44,7 @@ export function peekSave() {
 
 /** The autosave slot holds another account's unfinished game: neither save over it nor delete it. */
 /** opts.release: the player explicitly confirmed discarding an unassociated unfinished game. */
-export const sessionSlotLocked = (opts) => slotLocked("session", keyHasData(SAVE_KEY), undefined, opts);
+const sessionSlotLocked = (opts) => slotLocked("session", keyHasData(SAVE_KEY), undefined, opts);
 
 export function clearSave({ release = false } = {}) {
   try {
@@ -133,7 +133,7 @@ export function readSave() {
 }
 
 /** Draft: timers stripped, used → array for JSON. */
-export function serializeDraft(draft) {
+function serializeDraft(draft) {
   if (!draft) return null;
   const d = { ...draft };
   delete d._cpuTimer;
@@ -294,7 +294,7 @@ export function reviveCareer(raw) {
   return c;
 }
 
-export function serializeLegend(legend) {
+function serializeLegend(legend) {
   if (!legend) return null;
   const L = jsonClone(legend);
   if (legend.usedIds instanceof Set) L.usedIds = [...legend.usedIds];
@@ -310,7 +310,7 @@ export function reviveLegend(raw) {
   return L;
 }
 
-export function serializeSetup(setup) {
+function serializeSetup(setup) {
   if (!setup) return null;
   return {
     selected: setup.selected instanceof Set ? [...setup.selected] : [...(setup.selected || [])],
