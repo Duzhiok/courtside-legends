@@ -1149,7 +1149,7 @@ export const SEASON_SIGNATURE_SKILLS = {
  * 依赖弹跳/机动/护框的技能：年龄或身体素质不达标则失去。
  * 球商/手感类（后仰、天勾、传球、关键球）不受此限。
  */
-export const SKILL_ATHLETE_GATES = {
+const SKILL_ATHLETE_GATES = {
   // 比奥尼尔（216cm）还高才有高塔
   high_tower: { minHeightCm: 217 },
   giant_stride: { maxAge: 36, minSpeed: 66, minAth: 64 },
@@ -1181,7 +1181,7 @@ export const SKILL_ATHLETE_GATES = {
  * 球员专属：从该年龄起硬性失去（含该岁）。覆盖通用门槛更严的情况。
  * 例：41 岁詹姆斯失去追身定板；老年鲨鱼失去护框。
  */
-export const SKILL_AGE_DROPS = {
+const SKILL_AGE_DROPS = {
   jamesle01: {
     chase_down_block: 38,
     coast_to_coast: 39,
@@ -1229,7 +1229,7 @@ export const SKILL_AGE_DROPS = {
 };
 
 /** 只在特定球队的赛季卡上生效的技能（卡面 team 缩写） */
-export const SKILL_TEAM_GATES = {
+const SKILL_TEAM_GATES = {
   wolf_king: ["MIN"],
 };
 
@@ -1444,7 +1444,7 @@ export const AURA_HOLDERS = {
 };
 
 /** bref → 其参与的组合技 id 列表 */
-export function comboIdsForBref(bref) {
+function comboIdsForBref(bref) {
   const b = String(bref || "").toLowerCase();
   if (!b) return [];
   const ids = [];
@@ -1484,7 +1484,7 @@ export function activeDuoIds(onCourt = []) {
   return out;
 }
 
-export function teammateHasAura(onCourt, skillId, exceptId = null) {
+function teammateHasAura(onCourt, skillId, exceptId = null) {
   return (onCourt || []).some(
     (p) => p && p.id !== exceptId && (p.skills || []).includes(skillId)
   );
@@ -1504,7 +1504,7 @@ function defensiveAuraOnCourt(onCourt, exceptId = null) {
 /**
  * 角色 / 性格特质：跟 OVR 无关。低能力也能有，高能力也不强制有。
  */
-export const TRAIT_SKILLS = {
+const TRAIT_SKILLS = {
   // Serge Ibaka — also in SIGNATURE; keep trait empty (sig covers)
   // Tony Allen — 缠绕防守
   allento01: ["sticky_wrap", "thief", "lockdown"],
@@ -1652,7 +1652,7 @@ function namedIdentitySkills(player) {
 }
 
 /** 某组合技在当前名单是否已凑齐搭档（阵容级，不要求同时上场） */
-export function duoActiveOnRoster(duo, rosterBrefs) {
+function duoActiveOnRoster(duo, rosterBrefs) {
   if (!duo || !rosterBrefs?.size) return false;
   if (duo.trio?.length >= 3 && duo.trio.every((id) => rosterBrefs.has(id))) return true;
   for (const [a, b] of duo.pairs || []) {
@@ -1900,7 +1900,7 @@ export const ROLE_SCENARIOS = {
 };
 
 /** Short role label per role skill (zh / en), for pool cards and roster lines. */
-export const ROLE_SKILL_LABELS = {
+const ROLE_SKILL_LABELS = {
   sticky_wrap: { zh: "外线锁", en: "Perimeter Lock" },
   stopper_3d: { zh: "3&D", en: "3&D" },
   charge_taker: { zh: "造犯规", en: "Charge Taker" },
@@ -1912,7 +1912,7 @@ export const ROLE_SKILL_LABELS = {
 };
 
 /** Role family per role skill — the five families a filler pack covers. */
-export const ROLE_SKILL_FAMILIES = {
+const ROLE_SKILL_FAMILIES = {
   corner_camp: "shooter",
   stopper_3d: "shooter",
   crash_board: "rebounder",
@@ -1935,7 +1935,7 @@ export const ROLE_FAMILY_LABELS = {
 };
 
 /** Display label per player archetype key (inferArchetype in players.js). */
-export const PLAYER_ARCHETYPE_LABELS = {
+const PLAYER_ARCHETYPE_LABELS = {
   versatile_scorer: { zh: "全能得分手", en: "Versatile Scorer" },
   iso_creator: { zh: "持球核心", en: "Ball-Dominant Creator" },
   floor_general: { zh: "球场指挥官", en: "Floor General" },
@@ -2428,7 +2428,7 @@ export function grantSkillToPlayer(player, skillId) {
 }
 
 /** 非组合技技能位占用数 */
-export function nonDuoSkillCount(player) {
+function nonDuoSkillCount(player) {
   return (player?.skills || []).filter((id) => !SKILL_PACKS[id]?.duo).length;
 }
 
@@ -2487,7 +2487,7 @@ export function listBuyableSkillPacks() {
  * 技能稀有度 → 标价（对齐球员金币身价）：
  * mythic ≈ 超级球星（¤500+）；legendary ≈ 全明星；epic ≈ 优质首发；rare/common 更便宜。
  */
-export const SKILL_RARITY_PRICE = {
+const SKILL_RARITY_PRICE = {
   mythic: 520,
   legendary: 360,
   epic: 220,
@@ -2495,7 +2495,7 @@ export const SKILL_RARITY_PRICE = {
   common: 70,
 };
 
-export const SKILL_RARITY_LABEL = {
+const SKILL_RARITY_LABEL = {
   mythic: "神话",
   legendary: "传奇",
   epic: "史诗",
@@ -2504,7 +2504,7 @@ export const SKILL_RARITY_LABEL = {
 };
 
 /** 显式稀有度（未列出的按 signature/tone 推断） */
-export const SKILL_RARITY = {
+const SKILL_RARITY = {
   // 神话：最好的技能，定价≈超巨
   iron_lungs: "mythic",
   motor_engine: "mythic",
