@@ -53,6 +53,7 @@ Work in **one document of 1024 × 1536 px**, layers named exactly as the spec's 
 7. **Edges.** Straight RGB with clean alpha, no white/black fringe, no baked shadow or background.
 8. **Registration check.** Stack all layers: no transparent hole inside the silhouette; toggle each layer off and on: nothing may shift or leave a gap.
 9. **Export** every layer from the same document as 1024 × 1536 PNG RGBA (spec §9); keep the layered source (KRA/PSD) and the original generated images.
+10. **Validate before handing back:** run `node scripts/avatar/validate-avatar2d.mjs <your folder>`; fix every FAIL (it reports file, rule and measured value).
 
 ## 4. Review package to hand back (for user approval before any code)
 - The accepted master (A1) and the stacked composite for two looks: *warm skin + black short hair + forest jersey* and *deep skin + shaved + royal jersey*, plus the five skin tones with Shaved, zoomed on the forehead and temples (spec V7).

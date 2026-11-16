@@ -122,7 +122,9 @@ Crop a **square 720 × 720 at x = 152, y = 36** (covers the hair top at y 72, th
 - stored portraits must stay under the existing **40,000-character** data-URL limit: the renderer will step JPEG quality down until it fits (earlier 3D captures were ~8–12 K chars; detailed illustration may be larger, so this is checked, not assumed);
 - the portrait must stay recognisable at the account chip (~40 px) and the Duel card (120 px).
 
-## 11. Validation criteria (script comes with the real art, not with placeholders)
+## 11. Validation criteria
+
+Run `node scripts/avatar/validate-avatar2d.mjs [assets/avatar2d]` (pure Node): it checks V1, V2, V3, V4, V6 and V10 below, exits 1 on any FAIL. V5, V7, V8, V9 and V11 stay with human review (V9 is a renderer property).
 | # | Check | Pass |
 |---|---|---|
 | V1 | file set equals §3 list for the supported cuts/styles, no extras | exact |
