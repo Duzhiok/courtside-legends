@@ -380,12 +380,12 @@ export function gambleDraftDecision(gamble, { pickNumber = null, bref = null } =
 
 /** League mean top-8 OVR in 1996-97 (measured from roster.json), the
  * anchor for the expected-wins formula. */
-export const LEAGUE_MEAN_TOP8 = 61.8;
-export const WINS_PER_OVR = 4;
-export const PLAYOFF_WINS = 42;
-export const PROJECTION_YEARS = [1997, 1998, 1999];
+const LEAGUE_MEAN_TOP8 = 61.8;
+const WINS_PER_OVR = 4;
+const PLAYOFF_WINS = 42;
+const PROJECTION_YEARS = [1997, 1998, 1999];
 
-export function roleForOvr(ovr) {
+function roleForOvr(ovr) {
   if (ovr >= 75) return "star";
   if (ovr >= 65) return "starter";
   if (ovr >= 55) return "rotation";
