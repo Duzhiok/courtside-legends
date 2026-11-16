@@ -154,7 +154,7 @@ function historicalFloor(bref) {
 }
 
 /** 能力值档：纯 OVR → 0–5 */
-export function ovrPriceBand(ovr) {
+function ovrPriceBand(ovr) {
   const o = Number(ovr) || 0;
   if (o >= 96) return 5;
   if (o >= 92) return 4;
@@ -197,7 +197,7 @@ export function clearPeakPoolCache() {
  * 最终身价：max(历史定位底价, 能力值档)，封顶 5。
  * 十大保底 5；五十大保底 4；七十五大增补保底 3；其余纯看巅峰 OVR。
  */
-export function priceForPeak(bref, ovr) {
+function priceForPeak(bref, ovr) {
   const hist = historicalFloor(bref);
   const byOvr = ovrPriceBand(ovr);
   return Math.min(5, Math.max(hist, byOvr));
@@ -352,7 +352,7 @@ function whyRecommendedReason(rosterPlayers, missing, pick, fam, en) {
 }
 
 /** Custom Duel filler dealing: "balanced" (default, recommended) or "random" (original). Persisted. */
-export const DUEL_FILLER_KEY = "cls_duel_filler";
+const DUEL_FILLER_KEY = "cls_duel_filler";
 export function readDuelFillerMode(storage) {
   try {
     const v = storage?.getItem?.(DUEL_FILLER_KEY);

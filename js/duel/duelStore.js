@@ -15,8 +15,8 @@ import { awardAccountXp } from "../data/accountLevel.js";
 import { GALLERY_LEGENDS } from "../data/galleryLegends.js";
 
 export const DUEL_WIN_XP = 25;
-export const DUEL_RECORD_KEY = "cls_duel_record_v1";
-export const DUEL_GAMES_CAP = 20;
+const DUEL_RECORD_KEY = "cls_duel_record_v1";
+const DUEL_GAMES_CAP = 20;
 
 /** Find a gallery legend by bref ("jordami01") or "bref:season" token. */
 export function legendById(legendId) {

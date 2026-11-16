@@ -28,10 +28,10 @@ import { awardAccountXp, XP_TABLE } from "./accountLevel.js";
 import { readLook, saveLook } from "./avatarLook.js";
 import { SHOP_ITEMS, itemById } from "./shopCatalog.js";
 
-export const SHOP_AUTO_XP_PER_GAME = XP_TABLE.autoGame; // 5
-export const SHOP_AUTO_DAILY_CAP = XP_TABLE.autoDailyCap; // 20
+const SHOP_AUTO_XP_PER_GAME = XP_TABLE.autoGame; // 5
+const SHOP_AUTO_DAILY_CAP = XP_TABLE.autoDailyCap; // 20
 /** How many purchase records the "recently bought" list keeps (newest first). */
-export const SHOP_PURCHASES_KEEP = 20;
+const SHOP_PURCHASES_KEEP = 20;
 
 /** Normalize (or create) the shop record. Pure shape, no save. */
 export function getShop(account) {
