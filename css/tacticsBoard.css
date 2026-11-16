@@ -1,0 +1,52 @@
+/* UI 3.0 slice 1 — Gold pre-game tactics board (js/ui/tactics/tacticsBoardView.js). Scoped to .tb. */
+.tb { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr); gap: 16px; }
+.tb-main, .tb-side { min-width: 0; }
+.tb-court {
+  position: relative; aspect-ratio: 4 / 3; border-radius: 12px;
+  background: linear-gradient(#c8925a, #b9824c); border: 2px solid #8a5a2b;
+}
+.tb-court::before { /* paint + rim, basket at the top like courtSlots.js */
+  content: ""; position: absolute; left: 34%; right: 34%; top: 0; height: 38%;
+  border: 2px solid rgba(255, 255, 255, .7); border-top: 0; background: rgba(15, 28, 20, .12);
+}
+.tb-spot {
+  position: absolute; transform: translate(-50%, -50%); min-width: 112px; min-height: 44px; padding: 4px 8px;
+  display: grid; justify-items: center; gap: 1px; border-radius: 10px; cursor: pointer;
+  background: #fff; color: var(--ink); border: 2px solid var(--line); font: inherit; line-height: 1.15;
+}
+.tb-spot.is-empty { background: rgba(255, 255, 255, .35); border-style: dashed; cursor: default; }
+.tb-spot.is-handler { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232, 93, 4, .3); }
+.tb-spot:focus-visible, .tb-system:focus-visible, .tb-action:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.tb-spot-pos { font-size: .7rem; font-weight: 700; color: #4a5a50; }
+.tb-spot-name { font-size: .85rem; font-weight: 700; max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-spot-ovr { font-size: .75rem; }
+.tb-ball { position: absolute; top: -8px; right: -6px; color: var(--accent); font-size: 1rem; }
+.tb-actions, .tb-systems { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tb-action, .tb-system {
+  min-height: 44px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: #fff; color: var(--ink); font: inherit; cursor: pointer; text-align: left;
+}
+.tb-action.is-active, .tb-system.is-active { border-color: var(--ink); background: var(--ink); color: #fff; }
+.tb-systems { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.tb-system { display: grid; }
+.tb-h { margin: 16px 0 0; font-size: .95rem; }
+.tb-system-meta { font-size: .78rem; opacity: .85; }
+.tb-coach, .tb-hint { margin: 0; }
+.tb-hint { margin-top: 12px; color: #4a5a50; }
+.tb-rows { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.tb-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb-row-label { color: #4a5a50; min-width: 8em; }
+.tb-tag { margin-left: auto; font-size: .72rem; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+.tb-tag-sim { background: #1d5c3a; color: #fff; }
+.tb-tag-advice { background: #ece6d8; color: #4a3b12; }
+.tb-bar {
+  grid-column: 1 / -1; position: sticky; bottom: 0; display: flex; gap: 8px; align-items: center; justify-content: flex-end;
+  padding: 10px 0; background: #fffdf8; border-top: 1px solid var(--line);
+}
+.tb-status { margin: 0 auto 0 0; }
+.tb-status.is-error { color: #a4161a; font-weight: 700; }
+@media (max-width: 720px) {
+  .tb { grid-template-columns: 1fr; }
+  .tb-spot { min-width: 72px; }
+  .tb-spot-name { max-width: 9ch; }
+}
