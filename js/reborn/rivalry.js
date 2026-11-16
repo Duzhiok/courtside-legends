@@ -32,21 +32,21 @@ import {
   recordRivalryGame,
 } from "../career/careerRelationships.js";
 
-export const RIVALRY_ORIGINS = Object.freeze(["auto", "story", "challenge"]);
+const RIVALRY_ORIGINS = Object.freeze(["auto", "story", "challenge"]);
 /** A meeting only counts when both of you really played. */
-export const MEETING_MIN_MINUTES = 12;
+const MEETING_MIN_MINUTES = 12;
 /** "Comparable level": the direct matchup's OVR is within this gap of yours. */
-export const RIVAL_OVR_GAP = 12;
+const RIVAL_OVR_GAP = 12;
 /** Auto rivalries: at least this many meetings, and this much heat. */
 export const AUTO_MIN_MEETINGS = 3;
-export const AUTO_HEAT_TO_FORM = 6;
+const AUTO_HEAT_TO_FORM = 6;
 /** Story beats need at least this many meetings (the current one included). */
-export const STORY_MIN_MEETINGS = 2;
-export const CLOSE_GAME_MARGIN = 6;
-export const DUEL_GAME_SCORE = 10;
+const STORY_MIN_MEETINGS = 2;
+const CLOSE_GAME_MARGIN = 6;
+const DUEL_GAME_SCORE = 10;
 /** Taunt: he out-produced you by this much game score, with 20+ points, in your loss. */
-export const TAUNT_GS_GAP = 10;
-export const TAUNT_MIN_PTS = 20;
+const TAUNT_GS_GAP = 10;
+const TAUNT_MIN_PTS = 20;
 export const MAX_ACTIVE_RIVALS = 3;
 /** The Reborn driver's normal clutch window, and the wider one vs a rival. */
 export const DEFAULT_TAKEOVER_WINDOW = Object.freeze({ clock: 120, margin: 5 });
@@ -66,7 +66,7 @@ export function rivalryLedger(reborn) {
 }
 
 /** G / F / C — enough to say "he guards you". */
-export function posGroup(pos) {
+function posGroup(pos) {
   const p = String(pos || "").toUpperCase();
   if (p.startsWith("C")) return "C";
   if (p.includes("G")) return "G";
@@ -97,7 +97,7 @@ export function headToHead(rival) {
  * Your direct matchup in this game: same position group, real minutes,
  * comparable level; the one who played the most. Null when nobody fits.
  */
-export function directMatchup(report) {
+function directMatchup(report) {
   const you = report?.you;
   if (!you || (report.line?.min || 0) < MEETING_MIN_MINUTES) return null;
   const group = posGroup(you.pos);
@@ -213,7 +213,7 @@ export function rivalryTimelineEvent(rival) {
 }
 
 /** The run's own person id in the account store (fictional runs have no bref). */
-export const selfPersonId = (reborn) => reborn?.identity?.bref || `reborn:${reborn?.seed}`;
+const selfPersonId = (reborn) => reborn?.identity?.bref || `reborn:${reborn?.seed}`;
 
 /**
  * Project the run's rivals into the account relationship store + legacy.
