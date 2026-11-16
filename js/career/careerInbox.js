@@ -40,7 +40,7 @@
 import { eventMatches } from "./eventPool.js";
 import { GAMES_PER_WEEK } from "./calendar.js";
 
-export const CAREER_INBOX_VERSION = 1;
+const CAREER_INBOX_VERSION = 1;
 
 /** Games per week — the inbox's week boundaries match the career calendar. */
 export const INBOX_GAMES_PER_WEEK = GAMES_PER_WEEK;
@@ -48,10 +48,10 @@ export const INBOX_GAMES_PER_WEEK = GAMES_PER_WEEK;
 /** The trade deadline opens at this 0-based game index (82-game season). */
 export const TRADE_DEADLINE_OPENS_AT = 50;
 /** The trade deadline closes after this 0-based game index. */
-export const TRADE_DEADLINE_CLOSES_AT = 58;
+const TRADE_DEADLINE_CLOSES_AT = 58;
 
 /** News is a rolling feed, not an archive — oldest entries drop past this. */
-export const INBOX_NEWS_CAP = 50;
+const INBOX_NEWS_CAP = 50;
 
 /**
  * The three event types of the first slice. Each is a definition, not an

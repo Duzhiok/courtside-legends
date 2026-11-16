@@ -35,14 +35,14 @@ import { playerPrice } from "../../data/intangibles.js";
 import { clamp, hashSeed, seededStream } from "../../core/seededRandom.js";
 
 /** Value above replacement: what one OVR-equivalent point is worth. */
-export const REPLACEMENT_OVR = 60;
+const REPLACEMENT_OVR = 60;
 export const MAX_ROUNDS = 3;
 
 /** E's standing shifts demand 5% per point, capped at ±10% — the same
  * 5%-per-point shape as goodwillModifier, so the two relationship
  * effects compose instead of one swamping the other. */
-export const NEGOTIATION_STANDING_STEP = 0.05;
-export const NEGOTIATION_STANDING_CAP = 2;
+const NEGOTIATION_STANDING_STEP = 0.05;
+const NEGOTIATION_STANDING_CAP = 2;
 
 export function clampStanding(standing) {
   const s = Number(standing);

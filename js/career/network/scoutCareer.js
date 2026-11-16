@@ -63,7 +63,7 @@ export function gradeForOverall(ovr) {
 const gradeIndex = (g) => Math.max(0, GRADES.indexOf(g));
 
 /** The first recorded season for a player (their rookie season in the data). */
-export function firstSeasonFor(rows, bref) {
+function firstSeasonFor(rows, bref) {
   return rosterIndex(rows).firstSeason.get(bref) ?? null;
 }
 
@@ -88,7 +88,7 @@ export function prospectPool(rows, season, { minGp = 5 } = {}) {
 }
 
 /** Peak overall of a player over the seasons after `season` (up to `years`). */
-export function futurePeakOverall(rows, bref, season, years = 4) {
+function futurePeakOverall(rows, bref, season, years = 4) {
   let peak = null;
   let peakSeason = null;
   for (const r of rosterIndex(rows).byBref.get(bref) || []) {
@@ -139,7 +139,7 @@ export function scoutReportFor(prospect, rows, { seed = 1, years = 4 } = {}) {
 }
 
 /** Development tiers from REAL later rows. `peakMpg` is the peak minutes of the later seasons. */
-export function developmentTier(report) {
+function developmentTier(report) {
   const { peakOvr, peakPpg, peakMpg, seasonsPlayed } = report;
   if (!seasonsPlayed) return "bust";
   if ((peakOvr ?? 0) >= 85 || (peakPpg ?? 0) >= 20) return "star";
