@@ -11,9 +11,9 @@ import { rollAdvancementInjuries } from "../data/intangibles.js";
 import { shuffle } from "../core/seededRandom.js";
 import { rand } from "../core/rng.js";
 
-export const CAREER_STAGES = [32, 16, 8, 4, 2];
+const CAREER_STAGES = [32, 16, 8, 4, 2];
 
-export const CAREER_STAGE_LABELS = {
+const CAREER_STAGE_LABELS = {
   32: "三十二强 · 32进16",
   16: "十六强 · 16进8",
   8: "八强 · 8进4",
@@ -21,7 +21,7 @@ export const CAREER_STAGE_LABELS = {
   2: "总决赛 · 2进1",
 };
 
-export const CAREER_STAGE_LABELS_EN = {
+const CAREER_STAGE_LABELS_EN = {
   32: "Round of 32 · 32→16",
   16: "Round of 16 · 16→8",
   8: "Quarterfinals · 8→4",

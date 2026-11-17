@@ -18,11 +18,11 @@
 import { legacyOf } from "../career/careerRelationships.js";
 
 /** Contract outcomes that mean the player holds a contract for next season. */
-export const SIGNED_OUTCOMES = Object.freeze(["resign", "minimum"]);
+const SIGNED_OUTCOMES = Object.freeze(["resign", "minimum"]);
 
 export const gameEvidenceId = (seed, year, game) => `game:${seed ?? "run"}:${year}:${game}`;
-export const contractEvidenceId = (seed, year) => `contract:${seed ?? "run"}:${year}`;
-export const tradeEvidenceId = (seed, year, key) => `trade:${seed ?? "run"}:${year}:${key}`;
+const contractEvidenceId = (seed, year) => `contract:${seed ?? "run"}:${year}`;
+const tradeEvidenceId = (seed, year, key) => `trade:${seed ?? "run"}:${year}:${key}`;
 
 const yearOf = (e) => (Number.isInteger(e?.year) ? e.year : Number.isInteger(e?.season) ? e.season : null);
 

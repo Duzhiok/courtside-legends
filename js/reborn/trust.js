@@ -6,12 +6,12 @@
  * the reason is on the card. No Math.random anywhere.
  */
 
-export const TRUST_MIN = 0;
-export const TRUST_MAX = 100;
+const TRUST_MIN = 0;
+const TRUST_MAX = 100;
 /** A camp player starts at the end of the bench, fighting for minutes. */
 export const TRUST_START = 25;
 
-export const ROTATION_ROLES = ["dnp", "garbage", "bench", "rotation", "starter"];
+const ROTATION_ROLES = ["dnp", "garbage", "bench", "rotation", "starter"];
 
 /** Target minutes per game for each role (aligns with data/playerMinutes.js PLAYER_ROLES). */
 export const ROLE_MINUTES = { dnp: 0, garbage: 4, bench: 10, rotation: 18, starter: 30 };
@@ -24,7 +24,7 @@ export const ROLE_LABEL = {
   starter: { zh: "首发", en: "Starter" },
 };
 
-export const clampTrust = (value) => Math.max(TRUST_MIN, Math.min(TRUST_MAX, Math.round(value)));
+const clampTrust = (value) => Math.max(TRUST_MIN, Math.min(TRUST_MAX, Math.round(value)));
 
 /** Trust tier -> role. A vacancy (injury / trade opening) bumps one tier. */
 export function roleForTrust(trust, { vacancy = false } = {}) {
