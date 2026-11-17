@@ -23,7 +23,7 @@ import { saveAccount, todayKey } from "./account.js";
 import { grantPackDraws } from "./accountGacha.js";
 import { GUEST_AXP_KEY } from "./accountKeys.js";
 
-export const MAX_LEVEL = 100;
+const MAX_LEVEL = 100;
 
 /** Configurable prototype values (design doc §2). Losses grant the same amounts. */
 export const XP_TABLE = Object.freeze({
@@ -66,7 +66,7 @@ export function levelForTotalXp(total) {
 }
 
 /** Titles change at these levels (design doc examples: Lv.12 Rising Star, Lv.35 All-Star Collector). */
-export const TITLE_TABLE = Object.freeze([
+const TITLE_TABLE = Object.freeze([
   { level: 1, zh: "新秀", en: "Rookie" },
   { level: 5, zh: "轮换球员", en: "Rotation Player" },
   { level: 10, zh: "先发球员", en: "Starter" },
