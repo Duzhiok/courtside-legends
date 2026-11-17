@@ -17,7 +17,7 @@ function noiseBuf(ctx) {
   }
   return b;
 }
-export const mtof = (m) => 440 * 2 ** ((m - 69) / 12);
+const mtof = (m) => 440 * 2 ** ((m - 69) / 12);
 
 function envelope(g, t, attack, peak, decay) {
   g.gain.setValueAtTime(0.0001, t);
@@ -83,7 +83,7 @@ export function tone(ctx, out, t, midi, dur, { type = "sawtooth", cut = 1200, v 
 const on = (pat, s) => pat?.[s] === "x" || pat?.[s] === "X";
 
 /** Schedule everything that happens on sixteenth `step`, at audio time `t`. Pure of timers: also used offline. */
-export function scheduleStep(ctx, out, def, step, t) {
+function scheduleStep(ctx, out, def, step, t) {
   const stepDur = 60 / def.bpm / 4;
   const s = step % 16;
   const bar = Math.floor(step / 16);
