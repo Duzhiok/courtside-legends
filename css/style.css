@@ -844,6 +844,9 @@ html, body {
 }
 .play-feed .event.tm.scored { background: rgba(255,255,255,.07); }
 .play-feed .event.tm .feed-text { color: #eef3ec; font-weight: 500; flex: 1 1 160px; min-width: 0; }
+/* B11: CJK may break between any two characters, which split a short call ("命中！") into "命 / 中！" on a narrow phone.
+   keep-all keeps a run together; break-word (unlike anywhere, it leaves min-content alone) still breaks a run that cannot fit. */
+.play-feed .event.tm .feed-text { word-break: keep-all; overflow-wrap: break-word; }
 /* B1 tiers: normal rows stay quiet; only game-changing plays get a tint (important) or a card (legend) */
 .play-feed .event.tm.tier-important { background: var(--tint, rgba(255,255,255,.1)); }
 .play-feed .event.tm.tier-important .feed-text { font-weight: 700; }
