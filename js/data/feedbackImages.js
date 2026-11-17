@@ -8,8 +8,8 @@
 export const FEEDBACK_IMAGE_MAX = 3;
 export const FEEDBACK_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 export const FEEDBACK_IMAGE_BYTES = 2 * 1024 * 1024;
-export const FEEDBACK_RAW_LIMIT = 30 * 1024 * 1024; // refuse to even decode something this large (phone panoramas, RAW dumps)
-export const FEEDBACK_MAX_EDGE = 1920;
+const FEEDBACK_RAW_LIMIT = 30 * 1024 * 1024; // refuse to even decode something this large (phone panoramas, RAW dumps)
+const FEEDBACK_MAX_EDGE = 1920;
 
 /** Fewer pixels and lower quality each step; the last step is the smallest we are willing to keep. */
 export const COMPRESS_LADDER = [
