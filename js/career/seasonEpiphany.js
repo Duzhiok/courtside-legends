@@ -26,16 +26,24 @@ const ruleOf = (rule) => ({ id: rule.id, stat: rule.stat, min: rule.min });
 const nameOf = (player, line) => line?.name || player.cardName || player.name;
 
 const toMod = (entry) => ({ form: entry?.form || [], epiphany: entry?.learned || [], skills: [] });
-const fromMod = (mod) => ({ form: mod.form, learned: mod.epiphany || [] });
+const fromMod = (mod, last) => ({ form: mod.form, learned: mod.epiphany || [], ...(last ? { last } : {}) });
+
+/**
+ * Fingerprint of one game's box score, for the optional `gameKey` of settleEpiphany. The game report carries no id; a caller that
+ * wants a replayed game to be a no-op passes this. Kept per entry as `last` (the save validator ignores unknown entry fields, so
+ * old saves and old readers are unaffected). Opt-in: callers that feed identical lines as separate games (tests) are unchanged.
+ */
+export const gameFingerprint = (lines) => JSON.stringify(lines.map((l) => [l.id, l.min, l.pts, l.reb, l.ast, l.stl, l.blk, l.tpm, l.fgm]).sort());
 
 /**
  * @param ledger   `{ [bref]: { form, learned } }` (undefined for a career that has none yet)
  * @param players  the user's live roster cards (id, bref, name, skills, height, team ...)
  * @param lines    this game's box-score lines for the user's side (`gameRewards.settleGame().lines`)
+ * @param gameKey  optional id of this game (`gameFingerprint(lines)`): settling the same key again adds nothing
  * @param plans    `management.developmentPlans` ({ [bref]: { focus } }): training history that weights the candidates
  * @returns { ledger, learned: [{ id, name, skillId, skill, rule, games }], heat: [{ id, name, rule, games, of }] }
  */
-export function settleEpiphany({ ledger = {}, players = [], lines = [], plans = {}, rng = Math.random } = {}) {
+export function settleEpiphany({ ledger = {}, players = [], lines = [], plans = {}, rng = Math.random, gameKey = null } = {}) {
   const lineById = new Map(lines.map((line) => [line.id, line]));
   const onRoster = new Set(players.map((player) => player.bref));
   const next = {};
@@ -54,10 +62,12 @@ export function settleEpiphany({ ledger = {}, players = [], lines = [], plans = 
     // Never created for someone who hasn't played; but a tracked player who sat THIS game gets an
     // empty line, because a streak is consecutive games.
     if (!line && !entry) continue;
+    // This exact game is already in this player's window (a second settle of the same box score): nothing to add.
+    if (gameKey && entry?.last === gameKey) continue;
     // Full card (7 skills): nothing to learn and no promise to make.
     if (skillSlotsFull(player)) continue;
     const result = recordGameAndCheck(toMod(entry), player, formLine(line || {}), rng, { focus: plans?.[player.bref]?.focus || null });
-    next[player.bref] = fromMod(result.mod);
+    next[player.bref] = fromMod(result.mod, gameKey || undefined);
     if (result.learned) {
       learned.push({
         id: player.id,

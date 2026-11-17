@@ -20,7 +20,7 @@
  */
 import { expectedGameScore } from "./trust.js";
 
-export const STANDOUT_MARGIN = 6; // Game Score above what the role is expected to produce
+export const STANDOUT_MARGIN = 3; // Game Score above what the role is expected to produce
 export const MAX_PER_GAME = 2;
 export const INTENSIVE_COST = 3;
 export const INTENSIVE_XP_MULTIPLIER = 1.5;

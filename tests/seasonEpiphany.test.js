@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { foldBatch, settleGame } from "../js/career/gameRewards.js";
 import { validEpiphany } from "../js/career/growthShape.js";
-import { awardEpiphany, retractLearned, rolloverEpiphany, settleEpiphany } from "../js/career/seasonEpiphany.js";
+import { awardEpiphany, gameFingerprint, retractLearned, rolloverEpiphany, settleEpiphany } from "../js/career/seasonEpiphany.js";
 import { clonePlayer } from "../js/data/players.js";
 import {
   MAX_SKILL_SLOTS, SKILL_PACKS, canRetainSkill, grantSkillToPlayer, isLearnableSkill, skillSlotsFull,
@@ -301,4 +301,19 @@ test("retractLearned takes exactly one skill out and leaves everything else alon
   assert.equal(retractLearned(ledger, "a", "block_artist"), ledger, "nothing to retract");
   assert.equal(retractLearned(ledger, "nobody", "thief"), ledger);
   assert.equal(retractLearned(undefined, "a", "thief"), undefined);
+});
+
+test("settling the same box score twice counts as one game (no double streak)", () => {
+  const player = { id: "p1", bref: "x01", name: "X", skills: [], height: 78 };
+  const lines = [{ id: "p1", min: 34, pts: 30, reb: 4, ast: 2, stl: 0, blk: 0, tpm: 6, fgm: 11 }];
+  const key = gameFingerprint(lines);
+  const once = settleEpiphany({ ledger: {}, players: [player], lines, rng: () => 0.99, gameKey: key });
+  const again = settleEpiphany({ ledger: once.ledger, players: [player], lines, rng: () => 0.99, gameKey: key });
+  const unkeyed = settleEpiphany({ ledger: once.ledger, players: [player], lines, rng: () => 0.99 });
+  assert.equal(unkeyed.ledger.x01.form.length, 2, "without a gameKey nothing changes (callers opt in)");
+  assert.equal(again.ledger.x01.form.length, 1, "replayed game adds nothing");
+  const other = settleEpiphany({ ledger: once.ledger, players: [player], lines: [{ ...lines[0], pts: 12 }], rng: () => 0.99, gameKey: gameFingerprint([{ ...lines[0], pts: 12 }]) });
+  assert.equal(other.ledger.x01.form.length, 2, "a different game still counts");
+  const legacy = settleEpiphany({ ledger: { x01: { form: [{ min: 30, pts: 20 }], learned: [] } }, players: [player], lines, rng: () => 0.99, gameKey: key });
+  assert.equal(legacy.ledger.x01.form.length, 2, "an old-save entry without `last` behaves as before");
 });

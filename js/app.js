@@ -299,7 +299,7 @@ import { summarizeMatchResult } from "./engine/matchExplain.js";
 import { foldBatch, settleGame } from "./career/gameRewards.js";
 import { goalsForNextGame, liveGoalProgress, settleGameGoals } from "./career/gameGoals.js";
 import { awardGrowth } from "./career/playerGrowth.js";
-import { awardEpiphany } from "./career/seasonEpiphany.js";
+import { awardEpiphany, gameFingerprint } from "./career/seasonEpiphany.js";
 import { settleBuzz } from "./data/buzz.js";
 import { awardCoachXp, developmentXpMultiplier, tacticsShotBonus } from "./career/coachPerks.js";
 import { ensureCoachProfile } from "./career/coachProfile.js";
@@ -11216,7 +11216,7 @@ function awardGameEpiphany(report) {
   const st = state.season;
   if (!report || !st || !isManagedCareer(career)) return;
   const players = st.teams[st.userTeamId]?.players || [];
-  const result = awardEpiphany({ ledger: career.management?.epiphany, players, lines: report.lines, plans: career.management?.developmentPlans });
+  const result = awardEpiphany({ ledger: career.management?.epiphany, players, lines: report.lines, plans: career.management?.developmentPlans, gameKey: gameFingerprint(report.lines) });
   state.leagueCareer = { ...career, management: { ...career.management, epiphany: result.ledger } };
   report.rewards.epiphanies = result.learned;
   report.rewards.heat = result.heat;
