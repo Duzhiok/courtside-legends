@@ -29,7 +29,7 @@ export const MILESTONE_GOLD = 50;
 /** How many of the 3 daily tasks must be done to unlock today's card. */
 export const DAILY_DRAW_TASKS_NEEDED = 2;
 /** Claimed marker for the daily draw, stored in the day's `claimed` list. */
-export const DAILY_DRAW_ID = "dailyDraw";
+const DAILY_DRAW_ID = "dailyDraw";
 
 /** `key` is the day counter the task reads; `target` drives both the label and the check. */
 const dailyTask = (id, key, target, zh, en) => ({
@@ -81,7 +81,7 @@ export function dailyState(account, today = todayKey(), rng = Math.random) {
   return account.daily;
 }
 
-export function winMilestone(account) {
+function winMilestone(account) {
   const wins = account.rankedWins || 0;
   const earned = Math.floor(wins / MILESTONE_WINS);
   return { wins, earned, claimed: account.milestoneClaimed || 0, next: (earned + 1) * MILESTONE_WINS };
