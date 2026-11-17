@@ -14,7 +14,7 @@
 
 import { clamp } from "../core/seededRandom.js";
 
-export const MIN_RATED_MINUTES = 6;
+const MIN_RATED_MINUTES = 6;
 
 const W = {
   ast: 1.7,
@@ -71,7 +71,7 @@ function rawPer36(raw) {
 }
 
 /** What this player should produce in `min` minutes under his coach duty. */
-export function expectedLine(player, min) {
+function expectedLine(player, min) {
   const base = (player?.raw && rawPer36(player.raw)) || attrPer36(player || {});
   const duty = DUTY[player?.orders?.usage] || {};
   const s = min / 36;
