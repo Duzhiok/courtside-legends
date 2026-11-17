@@ -469,9 +469,16 @@ export function recommendPlayerOrders(player = null) {
     aggression = "high";
     hunt = "hunt";
   } else if ((style === "spot" || style === "stretch" || threeTend >= 55) && apg < 7) {
-    usage = scoring >= 82 ? "score" : "defend";
+    // B35: a shooter who can really score is NOT a "defend" role. "defend" cuts his touches to ~60% (scoring weight
+    // 0.2, x0.62) and "low" aggression to ~55%, which starved Rice / Mashburn / Rider (0-4 ppg vs 20+). Only a
+    // genuinely low-scoring spot-up piece stays defend/low.
+    const scorer = scoring >= 66;
+    usage = scoring >= 82 ? "score" : scorer ? "balanced" : "defend";
     action = "spot";
-    aggression = scoring >= 84 ? "normal" : "low";
+    // A real scorer sits between "low" (shot threshold 0.70: only wide-open looks) and "normal" (0.44): auto aggression
+    // + patient hunt is the engine'"'"'s own middle level (0.28 -> threshold 0.58, touches x0.72).
+    aggression = scoring >= 84 ? "normal" : scorer ? "auto" : "low";
+    if (scorer && scoring < 82) hunt = "patient";
   } else if ((pass >= 70 || apg >= 6) && scoring >= 78) {
     usage = "balanced";
     action = isBig ? (style === "post" ? "post" : "pnr") : "pnr";
@@ -487,10 +494,13 @@ export function recommendPlayerOrders(player = null) {
     action = "post";
     aggression = "normal";
   } else if (style === "slash" || (speed >= 78 && paintTend >= 55)) {
-    usage = "score";
-    action = "iso";
-    aggression = "high";
-    hunt = "hunt";
+    // B35: speed/drive style alone does not make a first option. Kidd (55) and Coles (54) were set to score/iso/high and
+    // piled up 20-33 ppg. A slasher who cannot score is a secondary creator.
+    const first = scoring >= 76;
+    usage = first ? "score" : "balanced";
+    action = first ? "iso" : "pnr";
+    aggression = first ? "high" : "normal";
+    hunt = first ? "hunt" : "auto";
   }
 
   // 出手区域：跟三分/油漆区/中投倾向对齐

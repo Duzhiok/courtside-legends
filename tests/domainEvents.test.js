@@ -176,12 +176,11 @@ test("domain events: real seeded game — meta shapes hold on every typed event"
 });
 
 /**
- * B52: the technical-foul broadcast carries structured meta.foul, like every
- * other foul. Seed 7 GSW/CLE is the pinned game: Draymond Green (hothead)
- * draws exactly one technical in Q2, and the victim side's best FT shooter
- * takes the single free throw right after.
+ * B52: the technical-foul broadcast carries structured meta.foul, like every other foul, and the free throw that
+ * follows is taken by the victim. The first fixed seed (from 7 up) whose GSW/CLE game has a technical is used, so
+ * the check does not depend on one particular game's dice (a balance change reshuffles every seeded game).
  */
-test("B52: technical foul broadcast carries meta.foul with the FT shooter as victim", () => {
+function playGswCle(seed) {
   const events = [];
   const sim = new GameSim({
     home: realTeam("GSW", 2016),
@@ -189,7 +188,7 @@ test("B52: technical foul broadcast carries meta.foul with the FT shooter as vic
     youSide: "home",
     injuries: false,
     speed: 3,
-    rng: seededStream(7),
+    rng: seededStream(seed),
     onEvent: (e) => events.push(e),
     onTick: () => {},
     onEnd: () => {},
@@ -202,15 +201,22 @@ test("B52: technical foul broadcast carries meta.foul with the FT shooter as vic
     if (sim.paused) sim.setPaused(false);
   }
   assert.equal(sim.running, false, "the seeded game finished");
-  const techs = events.filter((e) => /技术犯规|technical foul/i.test(e.text || ""));
-  assert.equal(techs.length, 1, `expected exactly one technical foul, got ${techs.length}`);
-  const tech = techs[0];
+  return events;
+}
+
+test("B52: technical foul broadcast carries meta.foul with the FT shooter as victim", () => {
+  let events = null;
+  for (let seed = 7; seed < 60 && !events; seed++) {
+    const e = playGswCle(seed);
+    if (e.some((x) => /技术犯规|technical foul/i.test(x.text || ""))) events = e;
+  }
+  assert.ok(events, "some fixed seed in 7..59 produces a technical foul");
+  const tech = events.find((e) => /技术犯规|technical foul/i.test(e.text || ""));
   assert.equal(tech.meta?.foul?.kind, "technical");
   assert.equal(typeof tech.meta.foul.foulerId, "string");
   assert.equal(typeof tech.meta.foul.victimId, "string");
   // The free throw that follows is taken by the victimId shooter.
-  const techIdx = events.indexOf(tech);
-  const ftAfter = events.slice(techIdx + 1).find((e) => e.meta?.ft);
+  const ftAfter = events.slice(events.indexOf(tech) + 1).find((e) => e.meta?.ft);
   assert.ok(ftAfter, "a free throw follows the technical");
   assert.equal(ftAfter.meta.ft.shooterId, tech.meta.foul.victimId);
 });
