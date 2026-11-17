@@ -20,7 +20,7 @@ export const STREAK = 3;
 export const MIN_MINUTES = 18;
 export const EPIPHANY_BASE_CHANCE = 0.4;
 export const EPIPHANY_MAX_CHANCE = 0.75;
-export const TRAINING_WEIGHT = 1.5;
+const TRAINING_WEIGHT = 1.5;
 export const MAX_EPIPHANY = 2;
 const FORM_KEEP = 5;
 
@@ -35,7 +35,7 @@ export const EPIPHANY_RULES = [
 ];
 
 /** Which development-plan focus (playerDevelopment FOCUS_ATTRIBUTES) trains each family. */
-export const RULE_FOCUS = Object.freeze({
+const RULE_FOCUS = Object.freeze({
   playmaker: "playmaking",
   shooter: "shooting",
   scorer: "shooting",
