@@ -25,10 +25,10 @@ export const DEFAULT_CLUTCH_SCENARIO = Object.freeze({
   possession: "home",
 });
 
-export const CLUTCH_ACTIONS = Object.freeze(["three", "attack"]);
+const CLUTCH_ACTIONS = Object.freeze(["three", "attack"]);
 
 /** What kind of failure a non-shot reason is (for the result page's explanation). */
-export const CLUTCH_FAILURE_KINDS = Object.freeze({
+const CLUTCH_FAILURE_KINDS = Object.freeze({
   turnover: "turnover",
   foul: "foul",
   doubled: "defense",
