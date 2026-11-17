@@ -14,7 +14,7 @@ export const SEASON_DRAFT_TARGET = 12;
 const MIN_SIGN_SALARY = 25;
 
 /** Franchises with real history (skip expansion LAS). */
-export function draftableFranchises() {
+function draftableFranchises() {
   return FRANCHISES.filter((f) => f.id !== "LAS" && (f.aliases || []).length);
 }
 
@@ -296,5 +296,3 @@ export function seasonDraftOutOfMoney(roster, offerPack = [], cap = SEASON_SALAR
   }
   return false;
 }
-
-export { OFFER_COUNT, roleBucket };
