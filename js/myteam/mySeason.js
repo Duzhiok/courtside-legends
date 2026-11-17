@@ -13,8 +13,8 @@ import { overall } from "../data/players.js";
 import { createSeason } from "../engine/season.js";
 import { resolveSavedLineup, validateMyTeamLineup } from "./lineup.js";
 
-export const QUICK_GAMES = 20;
-export const FULL_GAMES = 82;
+const QUICK_GAMES = 20;
+const FULL_GAMES = 82;
 
 const newSeasonId = () => `mts_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
