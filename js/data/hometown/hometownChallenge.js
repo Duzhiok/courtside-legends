@@ -13,8 +13,8 @@
  */
 import { CURATED, locationChain, matchPlace } from "./hometown.js";
 
-export const CHALLENGE_MIN_PLAYERS = 5;
-export const CHALLENGE_TEAM_SIZE = 10;
+const CHALLENGE_MIN_PLAYERS = 5;
+const CHALLENGE_TEAM_SIZE = 10;
 const RELATION_ORDER = { BIRTHPLACE: 0, RAISED_IN: 1, TEAM_LEGACY: 2 };
 
 /**
