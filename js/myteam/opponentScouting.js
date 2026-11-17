@@ -12,7 +12,7 @@ const a = (p, k, d = 50) => (Number.isFinite(p?.[k]) ? p[k] : d);
 const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
 
 /** 0-99 scores for what ONE player is dangerous at. */
-export function playerThreat(p) {
+function playerThreat(p) {
   const big = ["C", "PF"].includes(p.playPos || p.pos);
   const interior = clamp99(0.55 * a(p, "paint") + 0.25 * a(p, "strength") + 0.2 * a(p, "scoring") + (big ? 0 : -8));
   const perimeter = clamp99(0.4 * Math.max(a(p, "three"), a(p, "mid")) + 0.25 * a(p, "handle") + 0.2 * a(p, "scoring") + 0.15 * a(p, "offDribble", a(p, "handle")));
@@ -20,7 +20,7 @@ export function playerThreat(p) {
   return { interior, perimeter, boards, offense: Math.max(interior, perimeter) };
 }
 
-export const threatTier = (s) => (s >= 88 ? "extreme" : s >= 78 ? "high" : s >= 65 ? "medium" : "low");
+const threatTier = (s) => (s >= 88 ? "extreme" : s >= 78 ? "high" : s >= 65 ? "medium" : "low");
 
 /**
  * @param {{players: object[], starterIds?: string[], coach?: object, name?: string}} team
