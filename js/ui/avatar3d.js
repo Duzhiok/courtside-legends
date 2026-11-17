@@ -17,12 +17,12 @@ export const avatarModelUrl = (look) => new URL(`../../assets/avatar3d/${avatarM
  * spaces into _). The GLB says "UpperArm.L", the loaded scene says "UpperArmL": look bones up through this on both sides.
  */
 export const boneKey = (name) => String(name).replace(/\s/g, "_").replace(/[[\].:/]/g, "");
-export const LOAD_TIMEOUT_MS = 6000;
-export const PORTRAIT_PX = 256;
+const LOAD_TIMEOUT_MS = 6000;
+const PORTRAIT_PX = 256;
 
 export { AVATAR_ACTIONS, findActionClip } from "./avatarActions.js";
 const DRAG_RADIANS_PER_PX = 0.012;
-export const DEFAULT_YAW = -0.5;     // three-quarter turn toward the ball hand; drag still spins freely
+const DEFAULT_YAW = -0.5;     // three-quarter turn toward the ball hand; drag still spins freely
 const STAGE_PAD = 1.3;                // wider margin when the showcase platform is on, so its rim is not cropped
 const FRAME_PAD = 1.16;               // camera distance as a multiple of "model height fills the view"
 const ZOOM_LERP = 4;                 // 1/s: how fast the camera eases between idle framing and an action's framing
