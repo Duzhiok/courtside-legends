@@ -5,7 +5,7 @@
 
 import { clamp } from "../core/seededRandom.js";
 
-export const GRADE_START = 78;
+const GRADE_START = 78;
 
 /** Map numeric score → letter like 2K MyCareer. */
 export function gradeLetter(score) {
@@ -42,7 +42,7 @@ export function ensureGrade(p) {
   p.grade = gradeLetter(p.gradeScore);
 }
 
-export function bumpGrade(p, delta, reason = "") {
+function bumpGrade(p, delta, reason = "") {
   if (!p || !Number.isFinite(delta) || delta === 0) return;
   ensureGrade(p);
   p.gradeScore = clamp(p.gradeScore + delta, 0, 100);
