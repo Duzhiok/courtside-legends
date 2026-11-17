@@ -83,8 +83,8 @@ test("every layer the resolver can ask for is a file the art set must contain (n
   }
 });
 
-test("portrait crop is the spec's 720px square at (152, 36) and stays inside the canvas", () => {
-  assert.deepEqual({ ...PORTRAIT_CROP }, { x: 152, y: 36, size: 720 });
+test("portrait crop is the Style A head-and-shoulders square (340px at 340, 46) and stays inside the canvas", () => {
+  assert.deepEqual({ ...PORTRAIT_CROP }, { x: 340, y: 46, size: 340 });
   assert.ok(PORTRAIT_CROP.x >= 0 && PORTRAIT_CROP.y >= 0);
   assert.ok(PORTRAIT_CROP.x + PORTRAIT_CROP.size <= CANVAS.width);
   assert.ok(PORTRAIT_CROP.y + PORTRAIT_CROP.size <= CANVAS.height);

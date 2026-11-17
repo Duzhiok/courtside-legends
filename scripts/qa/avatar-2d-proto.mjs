@@ -1,7 +1,7 @@
-// 2D avatar renderer smoke in a real browser. PLACEHOLDER art: an engineering check of the renderer and its My World wiring,
-// NOT a visual acceptance run. Usage: node scripts/qa/avatar-2d-proto.mjs [http://127.0.0.1:5173/] [/tmp/cls-qa/avatar2d]
+// 2D avatar smoke in a real browser: the renderer on PLACEHOLDER art (?avatar=2d-proto, engineering checks) and the real Style A
+// art (?avatar=2d, section 4; screenshots for the user's visual review, not a self-declared acceptance). Usage: node scripts/qa/avatar-2d-proto.mjs [http://127.0.0.1:5173/] [/tmp/cls-qa/avatar2d]
 import { chromium } from "playwright-core";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const BASE = process.argv[2] || "http://127.0.0.1:5173/";
@@ -111,13 +111,39 @@ for (const [viewport, vt] of [[{ width: 1440, height: 900 }, "desktop"], [{ widt
   await page.close();
 }
 
-// 4. real-art preview with no art yet: falls back to the static portrait, quietly
-{
-  const { page, errors } = await open("?avatar=2d", FORMS.A, { width: 1440, height: 900 }, "2d-noart-fallback", { waitFor: null });
-  await page.waitForTimeout(2500);
-  const s = await page.evaluate(() => ({ canvas: !!document.querySelector("canvas.avatar2d-canvas"), staticShown: document.querySelector(".mw-showcase-static")?.hidden === false }));
-  check("?avatar=2d without art: no canvas, static portrait stays, no page errors", !s.canvas && s.staticShown && errors.length === 0, errors.join(" | "));
-  await page.close();
+// 4. the real Style A art through ?avatar=2d: every layer file loads (HTTP 200), every layer draws, portrait fits, no errors
+const REAL = { short: { skin: "tan", hair: "black", outfit: "forest", style: "short" }, shaved: { skin: "deep", hair: "black", outfit: "royal", style: "shaved" } };
+for (const [viewport, vt] of [[{ width: 1440, height: 900 }, "desktop"], [{ width: 390, height: 844 }, "mobile"]]) {
+  for (const [name, look] of Object.entries(REAL)) {
+    const page = await browser.newPage({ viewport });
+    const errors = []; const art = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("response", (r) => { if (r.url().includes("/assets/avatar2d/")) art.push(r.status()); });
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(async (l) => { const acc = await import("/js/data/account.js"); acc.createAccount("John"); (await import("/js/data/avatarLook.js")).saveLook(acc.getAccount(), l); }, look);
+    await page.goto(BASE + "?avatar=2d", { waitUntil: "domcontentloaded" });
+    await page.click('.home-tab[data-category="world"]');
+    await page.waitForSelector("#mw-showcase-stage canvas.avatar2d-canvas", { timeout: 25000 });
+    await page.waitForTimeout(900);
+    const st = await state(page);
+    const want = name === "shaved" ? 8 : 10;
+    const tag = `[real art ${vt}/${name}]`;
+    check(`${tag} all ${want} layers drawn from real files, all HTTP 200`, st.layers.split(",").length === want && art.length === want && art.every((c) => c === 200), `${st.layers} | http ${art.join(",")}`);
+    check(`${tag} draws the saved look; 3D-only controls hidden`, st.look?.skin === look.skin && st.look?.outfit === look.outfit && st.look?.style === look.style && st.barVisible === false);
+    await page.locator("#mw-showcase-stage").screenshot({ path: `${OUT}/real-${vt}-${name}-stage.png` });
+    await page.screenshot({ path: `${OUT}/real-${vt}-${name}-page.png` });
+    if (vt === "desktop") {
+      await page.click('[data-mw-action="toggle-look"]'); await page.waitForTimeout(300);
+      await page.click('[data-mw-action="use-3d-portrait"]'); await page.waitForTimeout(700);
+      const p = await page.evaluate(async () => (await import("/js/data/account.js")).getAccount().avatarPortrait);
+      const w = await page.$eval(".mw-hero .mw-avatar", (img) => img.naturalWidth);
+      check(`${tag} portrait: 256px JPEG under 40,000 chars`, p?.image?.startsWith("data:image/jpeg") && w === 256 && p.image.length < 40000, `${p?.image?.length} chars`);
+      if (p?.image) writeFileSync(`${OUT}/real-portrait-${name}-256.jpg`, Buffer.from(p.image.split(",")[1], "base64"));
+    }
+    check(`${tag} no page errors`, errors.length === 0, errors.join(" | "));
+    await page.close();
+  }
 }
 
 // 5. default stays 3D with its controls

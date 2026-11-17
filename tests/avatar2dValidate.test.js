@@ -143,3 +143,15 @@ test("checkLayerPixels and findHoles are usable on their own", () => {
   assert.ok(checkLayerPixels(fully, { tinted: false }).some((f) => f.msg === "layer is fully transparent"));
   assert.deepEqual(findHoles(new Map([["a", png]]), ["a"]), []);
 });
+
+test("the shipped art in assets/avatar2d passes the validator with no failure", async () => {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const { join, relative } = await import("node:path");
+  const root = new URL("../assets/avatar2d/", import.meta.url).pathname;
+  const files = new Map();
+  const walk = (dir) => { for (const name of readdirSync(dir)) { const full = join(dir, name); if (statSync(full).isDirectory()) walk(full); else if (name.endsWith(".png")) files.set(relative(root, full).split("\\").join("/"), readFileSync(full)); } };
+  walk(root);
+  const out = validateSet(files);
+  assert.deepEqual(levels(out, "FAIL"), [], JSON.stringify(levels(out, "FAIL")));
+  assert.equal(levels(out, "PASS").filter((f) => f.id === "V6").length, 2, "short and shaved stacks are hole-free");
+});

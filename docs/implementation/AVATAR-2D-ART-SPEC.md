@@ -38,6 +38,8 @@ Scale from the reference: s = 1392 / 949 = **1.467**. Anchors (indicative = land
 | Brows / eyes / mouth *(indicative)* | y ≈ 368 / 458 / 555; eyes at x ≈ 512 ± 105 |
 | Shoulder line *(indicative)* | y ≈ 691 |
 | Jersey hem / shorts hem / sock top *(indicative)* | y ≈ 936 / 1138 / 1256 |
+
+> **v1.1 (Style A master, supersedes the indicative anchors above).** The approved Style A character has realistic proportions (head ≈ 1/7.5 of the height), not the Bobblehead reference these anchors were read from. Measured on the shipped art (`scripts/avatar/art2d/`): figure y 72–1462, centre axis x 512, hair top y 74, chin y 261, shoulders widen from y ≈ 300, jersey neckline y 273, figure x ≈ 259–780. Canvas, safe margins, layer list, folders and tint rules are unchanged.
 | Safe margin | ≥ 72 px transparent on every side, including hair tips and shoes |
 
 Head rule: the **bald skull must fit inside the head+hair envelope** y 72–648 with the hair adding at most ~20 % of head height on top. Hair silhouettes must stay inside the safe margin.
@@ -117,7 +119,7 @@ A single picture has **no pixels** under clothes or hair. Every layer must there
 - Naming: exactly the table in §3; lowercase, underscores, no spaces.
 
 ## 10. Portrait at 256 px
-Crop a **square 720 × 720 at x = 152, y = 36** (covers the hair top at y 72, the full head and the shoulder line at ~691; ~110 px of side margin around the ~500 px-wide head) and downscale to **256 × 256**, JPEG. Constraints:
+Crop a **square 340 × 340 at x = 340, y = 46** (v1.1, Style A: hair top y 74 to chin y 261 is ~55 % of the square, plus the neckline and shoulder tops; was 720 at 152, 36 for the Bobblehead proportions) and downscale to **256 × 256**, JPEG. Constraints:
 - the whole face and hair stay inside the square with margin; eyes in the upper-middle third;
 - stored portraits must stay under the existing **40,000-character** data-URL limit: the renderer will step JPEG quality down until it fits (earlier 3D captures were ~8–12 K chars; detailed illustration may be larger, so this is checked, not assumed);
 - the portrait must stay recognisable at the account chip (~40 px) and the Duel card (120 px).

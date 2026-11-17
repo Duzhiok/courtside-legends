@@ -12,8 +12,11 @@ import { HAIR_COLORS, lookColors, sanitizeLook } from "../../data/avatarLook.js"
 
 export const CANVAS = Object.freeze({ width: 1024, height: 1536 });
 
-/** Head-and-shoulders square cut out of the art canvas for the profile portrait (spec section 10). */
-export const PORTRAIT_CROP = Object.freeze({ x: 152, y: 36, size: 720 });
+/**
+ * Head-and-shoulders square cut out of the art canvas for the profile portrait (spec section 10). Measured on the Style A master
+ * (realistic proportions): hair top y 74, chin y 261, head centred on x 510; the square adds the neckline and shoulder tops.
+ */
+export const PORTRAIT_CROP = Object.freeze({ x: 340, y: 46, size: 340 });
 
 /**
  * What art exists. A cut or hairstyle outside this list draws its fallback instead (reported, never saved back), so adding art
