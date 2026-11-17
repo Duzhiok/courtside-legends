@@ -4,8 +4,8 @@
  * 就能得出是谁得了几分——罚球、灌篮、加罚都不用单独处理，也不依赖文字或随机。
  */
 
-export const RUN_MILESTONE_STEP = 5; // 每 5 分一个里程碑……
-export const RUN_MILESTONE_MIN = 10; // ……但从 10-0 才开始算
+const RUN_MILESTONE_STEP = 5; // 每 5 分一个里程碑……
+const RUN_MILESTONE_MIN = 10; // ……但从 10-0 才开始算
 const MAX_SINGLE_EVENT_POINTS = 4; // 一次事件不可能超过这个分差；超过就是读档/换局，需要重新对齐
 
 /**
