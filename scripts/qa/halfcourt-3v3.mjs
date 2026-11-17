@@ -17,6 +17,8 @@ const out = [];
 const check = (l, ok, d = "") => { const line = `${ok ? "PASS" : "FAIL"} ${l}${d ? " — " + d : ""}`; out.push(line); console.log(line); };
 
 const PICKS = { A: ["Michael Jordan 1996", "Scottie Pippen 1996", "Dennis Rodman 1996"], B: ["Shaquille 2000", "Kobe 2001", "Derek Fisher 2001"] };
+// B64: the optional 4th player (substitute) per side.
+const BENCH = { A: "Ron Harper 1996", B: "Rick Fox 2001" };
 // The roster cache key is written asynchronously once the boot roster load finishes: not game state.
 const storageDump = (page) => page.evaluate(() => JSON.stringify(Object.keys(localStorage).filter((k) => !/roster-cache/.test(k)).sort().map((k) => [k, localStorage.getItem(k)])));
 
@@ -48,12 +50,19 @@ async function run(label, viewport) {
   await page.waitForSelector("#screen-halfcourt.active");
   check(`${label}: entry opens the 3v3 screen from the 自定义 tab`, true);
   for (const side of ["A", "B"]) for (const q of PICKS[side]) await pick(page, side, q);
-  check(`${label}: 3 + 3 picked`, (await text(page, '[data-count="A"]')).includes("3/3") && (await text(page, '[data-count="B"]')).includes("3/3"));
-  // One copy per side: adding the first search hit again must be refused.
+  check(`${label}: 3 + 3 picked (cap is 3 + 1 substitute)`, (await text(page, '[data-count="A"]')).includes("3/4") && (await text(page, '[data-count="B"]')).includes("3/4"));
+  check(`${label}: three a side is enough to tip off`, !(await page.$eval("[data-hc-picker] [data-start]", (b) => b.disabled)));
+  // One copy per side: the card already picked cannot be added again.
   await page.fill('[data-search="A"]', PICKS.A[0]);
   await page.waitForSelector('[data-add="A:0"]');
+  check(`${label}: the same card cannot be picked twice`, await page.$eval('[data-add="A:0"]', (b) => b.disabled));
+  // B64: a 4th player is the optional substitute; a 5th is refused.
+  for (const side of ["A", "B"]) await pick(page, side, BENCH[side]);
+  check(`${label}: 4th pick (substitute) accepted: 4/4 each`, (await text(page, '[data-count="A"]')).includes("4/4") && (await text(page, '[data-count="B"]')).includes("4/4"));
+  await page.fill('[data-search="A"]', "Toni Kukoc 1996");
+  await page.waitForSelector('[data-add="A:0"]');
   await page.click('[data-add="A:0"]');
-  check(`${label}: a 4th pick is refused`, (await text(page, "[data-hc-picker] [data-error]")).length > 0, await text(page, "[data-hc-picker] [data-error]"));
+  check(`${label}: a 5th pick is refused`, (await text(page, "[data-hc-picker] [data-error]")).length > 0, await text(page, "[data-hc-picker] [data-error]"));
   check(`${label}: no ×N fill button in 3v3`, (await page.$$("[data-hc-picker] [data-fill]")).length === 0);
   await shoot(page, `${OUT}/${label}-1-pick.png`);
 
@@ -61,13 +70,15 @@ async function run(label, viewport) {
   await page.waitForSelector('[data-hc-panel="play"]:not([hidden])');
   await page.waitForFunction(() => document.querySelectorAll("[data-hc-log] li.hc-poss").length >= 3, null, { timeout: 10000 });
   check(`${label}: 2D playback runs (court, 6 players, log)`, (await page.$$(".hc-court .hc-player")).length === 6);
+  await page.waitForFunction(() => document.querySelectorAll("[data-hc-log] li.hc-poss").length >= 5, null, { timeout: 30000 });
+  check(`${label}: still exactly 3 + 3 on the floor with a bench (the 4th never draws as a 7th marker)`, (await page.$$(".hc-court .hc-player")).length === 6);
   await shoot(page, `${OUT}/${label}-2-play.png`);
   await page.click('[data-hc-action="skip"]');
   await page.waitForSelector('[data-hc-panel="result"]:not([hidden])');
   const first = await scoreOnPage(page);
   const ok21 = first && Math.max(...first) >= 21 && Math.abs(first[0] - first[1]) >= 2;
   check(`${label}: result 21+ with a 2-point lead`, !!ok21, JSON.stringify(first));
-  check(`${label}: two box scores, 3 players + total each`, (await page.$$eval(".hc-box", (t) => t.map((x) => x.querySelectorAll("tbody tr").length))).join() === "4,4");
+  check(`${label}: two box scores, 4 players + total each`, (await page.$$eval(".hc-box", (t) => t.map((x) => x.querySelectorAll("tbody tr").length))).join() === "5,5");
   const engineScore = await page.evaluate(async () => {
     const mod = await import("/js/modes/halfCourt3v3.js");
     return mod.HALF_COURT_RULES.target;

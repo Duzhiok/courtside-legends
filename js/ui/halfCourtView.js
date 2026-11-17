@@ -126,9 +126,15 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
     const offense = play ? play.offense : result.plays[0]?.offense || "home";
     const defense = offense === "home" ? "away" : "home";
     const shooterIds = new Set((play?.lines || []).filter((l) => l.kind === "make" || l.kind === "miss").map((l) => l.playerId));
+    // The players on the floor for THIS possession (a 4th player may be resting); older results fall back to the first three.
+    const onFloor = (side) => {
+      const ids = play?.onCourt?.[side];
+      const lines = ids ? ids.map((id) => result.box[side].find((l) => l.id === id)).filter(Boolean) : result.box[side].slice(0, HALF_COURT_RULES.teamSize);
+      return lines.slice(0, SPOTS.length);
+    };
     q("[data-hc-players]").innerHTML =
-      result.box[offense].map((p, i) => halfCourtMarkerHtml(p, SPOTS[i], offense, shooterIds.has(p.id), esc)).join("") +
-      result.box[defense].map((p, i) => halfCourtMarkerHtml(p, toward(SPOTS[i], 0.28), defense, shooterIds.has(p.id), esc)).join("");
+      onFloor(offense).map((p, i) => halfCourtMarkerHtml(p, SPOTS[i], offense, shooterIds.has(p.id), esc)).join("") +
+      onFloor(defense).map((p, i) => halfCourtMarkerHtml(p, toward(SPOTS[i], 0.28), defense, shooterIds.has(p.id), esc)).join("");
   }
 
   function renderScore(score, play) {
@@ -210,7 +216,7 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
       esc,
       lang: getLang(),
       min: HALF_COURT_RULES.teamSize,
-      max: HALF_COURT_RULES.teamSize,
+      max: HALF_COURT_RULES.teamSize + HALF_COURT_RULES.benchMax,
       unique: true,
       teamName: (side, lang) => (lang === "en" ? `Half-Court ${side}` : `半场 ${side} 队`),
       startLabel: (lang) => (lang === "en" ? "Tip Off · 3v3" : "开打 · 3v3 半场"),

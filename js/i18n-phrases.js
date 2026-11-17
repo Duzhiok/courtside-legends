@@ -246,6 +246,7 @@ export const PHRASES = [
   ["选首发", "Pick Starters"],
   ["返回市场", "Back to Market"],
   ["3D 视图", "3D view"],
+  ["可再选第 4 名球员作替补（可选）：前 3 位首发，体力下降时自动轮换，休息的球员会慢慢恢复。只选 3 人也能照常开打。", "You may add a 4th player as an optional substitute: the first three start, tired players are rotated out automatically and the resting player slowly recovers. Three players still plays as before."],
   ["怎么排：把球员", "How it works: drag players"],
   ["拖到", "into"],
   ["上面的 PG–C 格子里上场，拖回", "the PG–C slots above to start them, drag back to"],

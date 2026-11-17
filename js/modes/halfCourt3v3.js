@@ -11,6 +11,9 @@
  *   free throws follow the half-court allowance (1 for a foul inside the arc / and-one /
  *   technical / loose ball, 2 for a foul on an arc shot) — the extra free-throw dice GameSim rolls
  *   for its 2/3-shot trips are ignored, they add nothing to the score;
+ * - bench (B64): a team may carry ONE optional 4th player (FIBA 3x3 rosters are four). Three start; between
+ *   possessions each side's auto-coach spends GameSim's own `cpuAutoSub` (its fatigue thresholds, its
+ *   `substitute`, its bench rest) — no new stamina system. A plain three-man team is untouched;
  * - ends the game at 21 with a 2-point lead (safety valve: after `maxPossessions` the leader wins);
  * - maps GameSim's 24-second possession time onto the 12-second shot clock (tempo still matters,
  *   a possession can never run past 12) — there is no separate violation roll, that would be a
@@ -24,6 +27,7 @@
  * never touched). No save, no account rewards, no shared state: the result is a plain object.
  */
 import { GameSim } from "../engine/sim.js";
+import { teamChemistry, lineupFit } from "../engine/chemistry.js";
 import { hashSeed, seededStream } from "../core/seededRandom.js";
 import { buildSandboxTeam } from "./sandboxDuel.js";
 import { TL } from "../i18n.js";
@@ -42,6 +46,10 @@ export const HALF_COURT_RULES = Object.freeze({
   /** One timeout per team (FIBA 3x3); the auto-coach calls it once its three average this fatigue. */
   timeoutsPerTeam: 1,
   timeoutFatigue: 70,
+  /** Optional 4th player (B64). Three play, the 4th waits on the bench; a three-man team is still legal. */
+  benchMax: 1,
+  /** Possessions a side must wait between two auto-substitutions (no flip-flopping). */
+  subCooldown: 3,
 });
 
 /** GameSim's regulation quarter length — pinned before every possession (sim.js QUARTER_SEC). */
@@ -59,8 +67,45 @@ export function buildHalfCourtTeam(name, cards, { side = "home", eraParity = fal
     pool,
     slotOffset: HALF_COURT_SLOT_OFFSET[side] ?? 0,
     min: size,
-    max: size,
+    max: size + (rules.benchMax || 0),
   });
+}
+
+/**
+ * GameSim seats the best five of whoever it is given, so a 4-card team would put all four on court. Move the
+ * players past the first `teamSize` (the picks' order is the starting order) to the bench, with the same chemistry /
+ * fit refresh GameSim's own `substitute` does.
+ */
+function seatBench(sim, side, benchIds) {
+  const t = sim[side];
+  const sitting = t.onCourt.filter((p) => benchIds.includes(p.id));
+  if (!sitting.length) return;
+  t.onCourt = t.onCourt.filter((p) => !benchIds.includes(p.id));
+  t.bench = [...t.bench, ...sitting];
+  for (const p of sitting) p.benchSinceElapsed = sim.elapsedSec || 0;
+  t.chem = teamChemistry(t.onCourt, sim.ballOpts(t));
+  t.fit = lineupFit(t.onCourt, t.coach, t.tactic, sim.ballOpts(t));
+}
+
+/**
+ * Between possessions (a dead ball): each side's auto-coach asks GameSim's `cpuAutoSub` whether to rest its most
+ * tired player. Same call for both sides, so neither is favoured. Returns the swaps for the play log.
+ */
+function autoSubstitutions(sim, lastSubAt, possessionNo, rules) {
+  const swaps = [];
+  for (const side of [sim.possession, sim.possession === "home" ? "away" : "home"]) {
+    const t = sim[side];
+    if (!t.bench.length || possessionNo - (lastSubAt[side] ?? -Infinity) < rules.subCooldown) continue;
+    const before = new Set(t.onCourt.map((p) => p.id));
+    sim.cpuAutoSub(t, { aggressive: true });
+    const out = [...before].find((id) => !t.onCourt.some((p) => p.id === id));
+    const inn = t.onCourt.find((p) => !before.has(p.id));
+    if (out && inn) {
+      lastSubAt[side] = possessionNo;
+      swaps.push({ side, outId: out, inId: inn.id });
+    }
+  }
+  return swaps;
 }
 
 function statsOf(sim) {
@@ -195,8 +240,9 @@ export function playLines(events, nameOf, lang) {
  */
 export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules = HALF_COURT_RULES } = {}) {
   for (const [label, team] of [["home", home], ["away", away]]) {
-    if (!team || !Array.isArray(team.players) || team.players.length !== rules.teamSize) {
-      throw new Error(`3v3: ${label} team needs exactly ${rules.teamSize} players`);
+    const n = team?.players?.length;
+    if (!Array.isArray(team?.players) || n < rules.teamSize || n > rules.teamSize + (rules.benchMax || 0)) {
+      throw new Error(`3v3: ${label} team needs ${rules.teamSize} players (plus up to ${rules.benchMax || 0} substitute)`);
     }
   }
   const rng = seededStream(hashSeed(`3v3|${seed}`));
@@ -214,6 +260,13 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
   // GameSim's own CPU coach never gets a timeout (it would pause between possessions); the
   // half-court allowance is held here and spent through GameSim's callTimeout (its recovery).
   sim.timeouts = { home: 0, away: 0 };
+  const benchIds = { home: home.players.slice(rules.teamSize).map((p) => p.id), away: away.players.slice(rules.teamSize).map((p) => p.id) };
+  const hasBench = benchIds.home.length > 0 || benchIds.away.length > 0;
+  for (const side of ["home", "away"]) seatBench(sim, side, benchIds[side]);
+  // GameSim's own CPU rotation would sub only the away side (and draw from the shared rng); with a bench in play
+  // the half-court auto-coach below handles BOTH sides alike. Three-man games keep the untouched engine path.
+  if (hasBench) sim.maybeCpuManage = () => {};
+  const lastSubAt = {};
   const timeoutsLeft = { home: rules.timeoutsPerTeam, away: rules.timeoutsPerTeam };
 
   const box = new Map();
@@ -240,6 +293,7 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
     const before = statsOf(sim);
     events = [];
     let timeoutBy = null;
+    const swaps = hasBench ? autoSubstitutions(sim, lastSubAt, possessions, rules) : [];
     try {
       timeoutBy = maybeTimeout(sim, timeoutsLeft, rules);
     } catch (err) {
@@ -250,6 +304,8 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
       aborted = true;
       break;
     }
+    // Who is on the floor for this possession (after any substitution; a sub takes the leaver's slot index).
+    const onCourt = { home: sim.home.onCourt.map((p) => p.id), away: sim.away.onCourt.map((p) => p.id) };
     try {
       sim.step();
     } catch (err) {
@@ -296,6 +352,9 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
     const changed = sim.possession !== offense;
     if (changed) elapsedSec += rules.clearSec;
     const lines = playLines(events, nameOf, lang);
+    for (const s of swaps) {
+      lines.unshift({ kind: "sub", side: s.side, playerId: s.inId, outId: s.outId, text: TL(lang, `${nameOf(s.inId)} 换下 ${nameOf(s.outId)}`, `${nameOf(s.inId)} subs in for ${nameOf(s.outId)}`) });
+    }
     if (timeoutBy) {
       const teamName = timeoutBy === "home" ? home.name : away.name;
       lines.unshift({ kind: "timeout", side: timeoutBy, text: TL(lang, `${teamName} 叫暂停，喘口气`, `${teamName} call timeout to catch their breath`) });
@@ -307,6 +366,7 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
       n: possessions,
       offense,
       shotClockUsed: sec,
+      onCourt,
       elapsedSec,
       lines,
       clear: changed,

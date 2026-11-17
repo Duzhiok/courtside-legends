@@ -45,15 +45,16 @@ test("3v3 rules: 21, win by 2, 1 inside / 2 beyond the arc, 12s clock, 3 a side"
   assert.ok(Object.isFrozen(HALF_COURT_RULES));
 });
 
-test("3v3 teams: exactly three; the same card on both sides gets distinct match ids", () => {
+test("3v3 teams: three, plus at most one optional substitute; the same card on both sides gets distinct match ids", () => {
   const cards = top3("CHI", 1996);
   assert.throws(() => buildHalfCourtTeam("A", cards.slice(0, 2)), /至少 3/);
-  assert.throws(() => buildHalfCourtTeam("A", [...cards, cards[0]]), /最多 3/);
+  assert.equal(buildHalfCourtTeam("A", [...cards, cards[0]]).players.length, 4, "a 4th player (substitute) is legal");
+  assert.throws(() => buildHalfCourtTeam("A", [...cards, cards[0], cards[1]]), /最多 4/);
   const home = buildHalfCourtTeam("A", cards, { side: "home" });
   const away = buildHalfCourtTeam("B", cards, { side: "away" });
   const ids = [...home.players, ...away.players].map((p) => p.id);
   assert.equal(new Set(ids).size, 6);
-  assert.throws(() => playHalfCourtGame({ home, away: { name: "B", players: away.players.slice(0, 2) } }), /exactly 3/);
+  assert.throws(() => playHalfCourtGame({ home, away: { name: "B", players: away.players.slice(0, 2) } }), /needs 3 players/);
 });
 
 test("sandbox picker rules stay the sandbox's by default; 3v3 options are opt-in", () => {
@@ -258,6 +259,78 @@ test("plays carry no dead points/gained fields (score deltas already tell the st
   assert.ok(r.plays.length > 0);
   for (const p of r.plays) {
     assert.ok(!("points" in p) && !("gained" in p), "no dead per-possession point fields");
-    assert.deepEqual(Object.keys(p).sort(), ["clear", "elapsedSec", "lines", "n", "offense", "score", "shotClockUsed"]);
+    assert.deepEqual(Object.keys(p).sort(), ["clear", "elapsedSec", "lines", "n", "offense", "onCourt", "score", "shotClockUsed"]);
   }
+});
+
+// ── B64: one optional substitute so stamina becomes a rotation decision ──────────────────────────────────────────
+const top4 = (code, season) => realTeam(code, season).players.slice(0, 4);
+const benchTeams = (a = ["GSW", 2016], b = ["CLE", 2016]) => ({
+  home: buildHalfCourtTeam(a[0], top4(...a), { side: "home" }),
+  away: buildHalfCourtTeam(b[0], top4(...b), { side: "away" }),
+});
+const seeds = Array.from({ length: 12 }, (_, i) => `b64-${i}`);
+const subLines = (r) => r.plays.flatMap((p) => p.lines).filter((l) => l.kind === "sub");
+
+test("B64 rules: one optional bench player, still fully frozen", () => {
+  assert.equal(HALF_COURT_RULES.benchMax, 1);
+  assert.ok(Object.isFrozen(HALF_COURT_RULES));
+});
+
+test("B64: three start, the 4th waits; every possession has exactly three a side on the floor", () => {
+  const { home, away } = benchTeams();
+  const r = playHalfCourtGame({ home, away, seed: "b64-0" });
+  assert.equal(r.box.home.length, 4);
+  for (const p of r.plays) {
+    for (const side of ["home", "away"]) {
+      assert.equal(new Set(p.onCourt[side]).size, 3, `three distinct players on ${side}`);
+      for (const id of p.onCourt[side]) assert.ok(r.box[side].some((l) => l.id === id));
+    }
+  }
+  const first = r.plays[0].onCourt;
+  assert.deepEqual(first.home, home.players.slice(0, 3).map((x) => x.id), "the picks' order is the starting order");
+  assert.ok(!first.home.includes(home.players[3].id), "the 4th player starts on the bench");
+});
+
+test("B64: the auto-coach really rotates; swaps reference real players and are deterministic under the seed", () => {
+  const { home, away } = benchTeams();
+  const runs = seeds.map((seed) => playHalfCourtGame({ home, away, seed }));
+  assert.ok(runs.some((r) => subLines(r).length > 0), "tired starters get rested in at least some games");
+  for (const r of runs) {
+    for (const l of subLines(r)) {
+      assert.ok(r.box[l.side].some((x) => x.id === l.playerId) && r.box[l.side].some((x) => x.id === l.outId));
+      assert.notEqual(l.playerId, l.outId);
+    }
+  }
+  const again = playHalfCourtGame({ home, away, seed: seeds[3] });
+  assert.deepEqual(again.plays.map((p) => p.onCourt), runs[3].plays.map((p) => p.onCourt));
+  assert.deepEqual(again.score, runs[3].score);
+  withMathRandomBanned(() => playHalfCourtGame({ home, away, seed: seeds[0] }));
+});
+
+test("B64 goal: with a bench far fewer starters finish the game gassed (same seeds, same starters)", () => {
+  const gassed = (build) => {
+    let n = 0;
+    for (const seed of seeds) {
+      const { home, away } = build();
+      const r = playHalfCourtGame({ home, away, seed });
+      for (const side of ["home", "away"]) n += r.box[side].slice(0, 3).filter((l) => l.fatigue >= 80).length;
+    }
+    return n;
+  };
+  const without = gassed(() => teams());
+  const withBench = gassed(() => benchTeams());
+  assert.ok(without > 0, "the baseline problem exists (starters do finish gassed)");
+  assert.ok(withBench < without / 2, `bench should at least halve it: ${withBench} vs ${without}`);
+});
+
+test("B64: three-man teams are untouched (no bench, no swaps, 3 on the floor); a 4-man team can face a 3-man team", () => {
+  const { home, away } = teams();
+  const r = playHalfCourtGame({ home, away, seed: "compat" });
+  assert.equal(subLines(r).length, 0);
+  assert.ok(r.plays.every((p) => p.onCourt.home.length === 3 && p.onCourt.away.length === 3));
+  const mixed = playHalfCourtGame({ home: benchTeams().home, away: teams().away, seed: "compat" });
+  assert.ok(mixed.winner === "home" || mixed.winner === "away");
+  assert.equal(mixed.box.home.length, 4);
+  assert.equal(mixed.box.away.length, 3);
 });
