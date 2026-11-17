@@ -21,7 +21,7 @@
 import { expectedGameScore } from "./trust.js";
 
 export const STANDOUT_MARGIN = 3; // Game Score above what the role is expected to produce
-export const MAX_PER_GAME = 2;
+const MAX_PER_GAME = 2;
 export const INTENSIVE_COST = 3;
 export const INTENSIVE_XP_MULTIPLIER = 1.5;
 const HISTORY = 12; // recent paid games kept: idempotency window + what the card shows
@@ -39,7 +39,7 @@ export function fragmentLedger(reborn) {
 }
 
 /** Why this game pays, from its evidence only. */
-export function fragmentReasons({ min = 0, gameScore = 0, role = "bench", rivalryWon = false } = {}) {
+function fragmentReasons({ min = 0, gameScore = 0, role = "bench", rivalryWon = false } = {}) {
   const reasons = [];
   if (min > 0 && gameScore >= expectedGameScore(role) + STANDOUT_MARGIN) reasons.push("standout");
   if (rivalryWon) reasons.push("rivalry-win");

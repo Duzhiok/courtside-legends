@@ -22,7 +22,7 @@ import { seasonToCard } from "../data/players.js";
 import { isLearnableSkill, canRetainSkill, skillSlotsFull } from "../data/skills.js";
 import { snapshotIdentityPlaces } from "../career/careerIdentitySnapshot.js";
 
-export const REBORN_START_YEAR = 1996;
+const REBORN_START_YEAR = 1996;
 /** roster.json season = end year, so the 1996-97 season is season 1997. */
 export const REBORN_SEASON = 1997;
 /**
@@ -41,7 +41,7 @@ export function seasonForStartYear(startYear) {
   }
   return year + 1;
 }
-export const HISTORICAL_SHARE = 0.7;
+const HISTORICAL_SHARE = 0.7;
 /** Trust at which a historical identity's real name is revealed. */
 export const REVEAL_TRUST = 40;
 
