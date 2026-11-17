@@ -3738,3 +3738,15 @@ select, input[type="number"] {
   .mtr-name { max-width: 7.5em; }
   .mtr-table th, .mtr-table td { padding: 4px 4px; }
 }
+
+/* 3D-S1B: optional 3D court on the Gold game screen (js/ui/match3dController.js). Same grid cell as the 2D court. */
+.court-3d { overflow: hidden; background: #0d1f16; padding: 0; }
+.court-3d canvas { display: block; width: 100%; height: 100%; }
+.btn.court-view-toggle { /* .btn.ghost sets a transparent background; match its specificity */
+  position: absolute; top: 8px; right: 8px; z-index: 5; min-height: 44px; padding: 6px 14px;
+  /* solid light pill: the ghost style is dark text, unreadable on the dark 3D canvas */
+  background: rgba(255, 253, 248, .96); color: #14241a; border: 1px solid rgba(20, 36, 26, .35); font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+}
+.btn.court-view-toggle:focus-visible { outline: 3px solid var(--accent, #e85d04); outline-offset: 2px; }
+.court-3d-note { position: absolute; left: 10px; bottom: 10px; z-index: 5; margin: 0; padding: 4px 8px; border-radius: 8px; background: rgba(0, 0, 0, .65); color: #f0b429; }

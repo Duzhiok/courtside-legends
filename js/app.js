@@ -393,6 +393,7 @@ import { speedLocked } from "./ui/playbackSpeed.js";
 import { normalizePos } from "./data/positions.js";
 import { composeGameplan } from "./ui/tactics/tacticalDraft.js";
 import { mountTacticsBoard } from "./ui/tactics/tacticsBoardView.js";
+import { createMatch3dController } from "./ui/match3dController.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
   SEASON_APRON,
@@ -1457,8 +1458,20 @@ function wireDomainEvents() {
   state.domainEvents = createDomainEventAdapter({ onDomainEvent: (evt) => handleDomainEvent(evt) });
 }
 
+// 3D-S1B: optional 3D court on the Gold game screen. 2D keeps rendering underneath and is the permanent fallback.
+const match3d = createMatch3dController({
+  host: $("#court-3d-root"),
+  twoD: $("#court-root"),
+  button: $("#btn-court-3d"),
+  note: $("#court-3d-note"),
+  getSim: () => state.sim,
+  getSpeed: () => state.speed,
+  L,
+});
+
 function handleDomainEvent(evt) {
   if (!evt) return;
+  match3d.feedDerived(evt);
   try {
     if (evt.type === "POSSESSION_START" || evt.type === "PERIOD_END") {
       state.court?.clearTrails();
@@ -1487,6 +1500,7 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   if (state.sim) state.sim.stop();
   state.sim = sim;
   wireDomainEvents();
+  match3d.startMatch({ offer: state.career?.kind === "career" });
   state.lineupSig = "";
   state.subOutId = null;
   state.subInId = null;
@@ -7721,6 +7735,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
   });
   state.sim = sim;
   wireDomainEvents();
+  match3d.startMatch({ offer: state.career?.kind === "career" });
 
   const you = youSide === "home" ? sim.home : sim.away;
   // 开场下拉框显示本场实际开场战术（默认优先），不沿用上一场页面里剩的值。
@@ -7749,6 +7764,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
 }
 
 function handleSimEvent(e) {
+  match3d.feedRaw(e);
   // Dunk drive: the token runs to the rim on the court. The score event
   // that follows still feeds and paints; only its shot arc is suppressed
   // (the court swallows it for the dunker). A dunk with no token to drive
@@ -8940,6 +8956,7 @@ $("#btn-save-game")?.addEventListener("click", () => saveProgress());
  */
 function exitGameToHome() {
   if (!state.sim) return;
+  match3d.stop();
   saveProgress({ andGoHome: true });
 }
 $("#btn-pause-leave")?.addEventListener("click", () => exitGameToHome());
@@ -9148,6 +9165,7 @@ function renderResultExplain(snap) {
 }
 
 function showResult(snap, { formNotes = [] } = {}) {
+  match3d.stop();
   show("result");
   const hs = snap.score.home;
   const as = snap.score.away;

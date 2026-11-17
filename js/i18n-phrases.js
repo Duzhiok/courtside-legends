@@ -245,6 +245,7 @@ export const PHRASES = [
   ["选够人了，去赛前设置", "Roster set — to pre-game setup"],
   ["选首发", "Pick Starters"],
   ["返回市场", "Back to Market"],
+  ["3D 视图", "3D view"],
   ["怎么排：把球员", "How it works: drag players"],
   ["拖到", "into"],
   ["上面的 PG–C 格子里上场，拖回", "the PG–C slots above to start them, drag back to"],
