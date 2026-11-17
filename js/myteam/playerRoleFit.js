@@ -59,12 +59,12 @@ const JOB_WEIGHT = [1.5, 1.2, 1, 1, 1];
 const LEAN = { offense: ["creator", "spacer", "postScorer", "runner"], defense: ["stopper", "rimProtector", "rebounder"] };
 const leanBonus = (roleId, lean) => (LEAN[lean]?.includes(roleId) ? 1.06 : 1); // a coach's philosophy tilts, never overrules
 
-export const roleTemplate = (tacticId) => TEMPLATES[tacticId] || TEMPLATES.balanced;
+const roleTemplate = (tacticId) => TEMPLATES[tacticId] || TEMPLATES.balanced;
 export const roleScore = (roleId, player) => Math.max(0, Math.min(99, Math.round(ROLES[roleId].score(player))));
 export const roleName = (roleId, lang = "zh") => (lang === "en" ? ROLES[roleId].en : ROLES[roleId].zh);
 
 /** What the card naturally is: its best role regardless of any system. */
-export function naturalRole(player) {
+function naturalRole(player) {
   return Object.keys(ROLES).map((id) => ({ id, score: roleScore(id, player) })).sort((x, y) => y.score - x.score)[0];
 }
 
