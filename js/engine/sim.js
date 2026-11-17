@@ -3328,15 +3328,12 @@ function resolveRebound(off, def, sim, afterBlock) {
   const defSize = avg(def.onCourt.map((p) => p.rebound || 50));
   const crashers = (off.onCourt || []).filter(isHustleOffense).length;
   const tacticOrb = Number(off.tactic?.orbBoost) || 0;
-  const crashTactic =
-    off.tactic?.id === "crash_boards" || off.tactic?.id === "second_chance" ? 0.025 : 0;
   const offReb =
     (afterBlock ? 0.16 : 0.2) +
     (offSize - defSize) * 0.0022 +
     avg(off.onCourt.map((p) => (["C", "PF"].includes(p.playPos || p.pos) ? 0.025 : 0))) +
     crashers * 0.032 +
-    tacticOrb +
-    crashTactic;
+    tacticOrb; // B23: the crash tactics' extra 0.025 now lives in their orbBoost (js/data/coaches.js)
   if (rnd() < clamp(offReb, 0.1, 0.42)) {
     const reb = weighted(off.onCourt, (p) => reboundContestWeight(p, { offensive: true }));
     reb.stats.reb += 1;

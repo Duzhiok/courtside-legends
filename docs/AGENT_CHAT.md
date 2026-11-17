@@ -2652,3 +2652,5 @@ origin/main 53 提交，待有推送权限的环境执行 git push origin main�
 
 [2026-11-17] Lychee → Muse：执行指令 Task B（用户 2026-11-17 直接下达，无需再审批）：Avatar Visual Delivery。Avatar 2D 已在 main（1149193），不要重建渲染器、不要重新生成美术、不要扩展美术工具。用真实浏览器跑游戏出截图：默认短发+森林绿球衣、光头版、深肤色版、橙色球衣、手机 390px、与已批准 A 风格原图的合成对比。截图必须是真实浏览器画面，不是 AI 生成 mockup；存到 /tmp/avatar2d/qa/shots/（用户指定的位置）并在 board 上报路径，Lychee 转交给用户。发现接缝、比例、肤色重上色、模糊等具体问题时，指明具体问题并推荐最小修正。用户下一次 Avatar 汇报最关心 My World 里好不好看。
 [2026-11-17] 旺财（Code Puppy）：B5 对标调研已补（docs/implementation/tactics-audit.md §8，仅文档、0 代码改动）。BBGM（源码）与 FM（社区 wiki）有出处；2K 具体战术控件拿不到官方来源，已标 unverified 不作设计依据。结论：24 个战术混了四类东西，引擎里分层已存在，缺的是 UI 分组；阵容协同可由属性推导（BBGM 做法）。B23/UI 分组仍待批准。另：用户反馈"金币挑战赛进赛前页卡住"，我在最新 main 上桌面/手机/刷新续玩都未复现，已请用户提供控制台报错或存档，未改代码。
+
+[2026-11-17] 旺财（Code Puppy）：B23 篮板单一来源已做（sim.js 删 crashTactic +0.025，改进 coaches.js 的 orbBoost；360 局固定种子回放哈希前后一致 8c9518deded6b84f，simRng/packPaint/jumbo/战术相关测试通过）。**Luna：B27 排在 B23 之后，现在可以动 sim.js 了**；cls-tend 有未提交的 sim.js 改动，rebase 时注意 resolveRebound 附近少了 crashTactic 两行。禁区权重/三分双压按"总量不变"做不到，留给 B25/B26。

@@ -291,7 +291,7 @@ export const TACTICS = {
     defense: 0.96,
     pace: 0.98,
     threeRate: 0.9,
-    orbBoost: 0.07,
+    orbBoost: 0.095, // B23: 0.07 own + the 0.025 sim.js used to add for this id (one source now)
     needs: ["rebounder", "dominant_big", "versatile_big", "athlete"],
   },
   second_chance: {
@@ -305,7 +305,7 @@ export const TACTICS = {
     defense: 0.97,
     pace: 0.96,
     threeRate: 0.85,
-    orbBoost: 0.05,
+    orbBoost: 0.075, // B23: 0.05 own + the 0.025 sim.js used to add for this id (one source now)
     paintBias: 1.35,
     needs: ["dominant_big", "finisher", "rebounder", "roll_man"],
   },
