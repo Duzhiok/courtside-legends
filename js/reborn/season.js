@@ -27,6 +27,7 @@ import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { applyGameGrowth } from "./training.js";
+import { earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
 import { gameEvidenceId } from "./promiseEvidence.js";
 import {
   DEFAULT_TAKEOVER_WINDOW,
@@ -283,6 +284,7 @@ export async function playGame(
     ? sim.score.home > sim.score.away
     : sim.score.away > sim.score.home;
   const gameId = gameEvidenceId(reborn.seed, year, season.index + 1);
+  const gameWeek = Math.floor(season.index / REBORN_GAMES_PER_WEEK) + 1;
   // Real opponent box lines (the only evidence a rivalry is built from).
   const oppSide = sim.youSide === "home" ? sim.away : sim.home;
   const opponents = oppSide.roster
@@ -329,6 +331,7 @@ export async function playGame(
     cards: myCards,
     rows: players,
     lines: [{ id: playerCard.id, min: line.min, score: gs }],
+    xpMultiplier: intensiveMultiplier(reborn, gameWeek),
   });
   next.player.growth = growthOut.growth;
   season.index += 1;
@@ -352,6 +355,9 @@ export async function playGame(
   const missed = rivalsOnRoster(rivalryLedger(reborn), oppCards)
     .filter((r) => !metBrefs.has(r.bref))
     .map((r) => ({ bref: r.bref, name: r.name, nameEn: r.nameEn, why: line.min <= 0 ? "you-dnp" : "he-dnp" }));
+  // Career fragments (decision 4): paid by this game's evidence only, once per gameId.
+  const fragments = earnFromGame(fragmentLedger(reborn), { gameId, min: line.min, gameScore: gs, role, rivalryWon: won && rivalry.met.length > 0 });
+  next.player.fragments = fragments.ledger;
   if (rivalry.formed.length) {
     next.timeline = { ...(next.timeline || {}), events: [...(next.timeline?.events || []), ...rivalry.formed.map(rivalryTimelineEvent)] };
   }
@@ -372,6 +378,8 @@ export async function playGame(
       roleAfter,
       revealedNow,
       growth: growthOut.entries,
+      intensive: intensiveMultiplier(reborn, gameWeek) > 1,
+      fragments: { earned: fragments.earned, reasons: fragments.reasons, balance: fragments.ledger.balance },
       takeover: takeoverOutcome
         ? {
             option: takeover.actionHint,

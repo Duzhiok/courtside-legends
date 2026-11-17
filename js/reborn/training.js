@@ -67,11 +67,12 @@ export function trainingPlan(reborn) {
  * (each leveled attribute with its from → to, so the source is visible).
  * `cards` are the sim-ready roster cards (awardGrowth reads their
  * attributes); `rows` are the raw roster rows (the real card ladder, for
- * ceilings). A custom `ladderOf` overrides the ladder lookup.
+ * ceilings). A custom `ladderOf` overrides the ladder lookup. `xpMultiplier` is awardGrowth's own boost
+ * (intensive training, js/reborn/fragments.js); the ceilings still bound every gain.
  */
 export function applyGameGrowth(
   reborn,
-  { year, cards = [], rows = [], lines = [], ladderOf = null } = {},
+  { year, cards = [], rows = [], lines = [], ladderOf = null, xpMultiplier = 1 } = {},
 ) {
   const ladder =
     ladderOf ||
@@ -93,6 +94,7 @@ export function applyGameGrowth(
     players: cards,
     lines,
     ladderOf: ladder,
+    xpMultiplier,
   });
   const next = structuredClone(reborn);
   next.player.growth = out.growth;

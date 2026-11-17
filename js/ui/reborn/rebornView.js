@@ -28,6 +28,7 @@ import { challengeRival, mirrorRivalriesToAccount, rivalryLedger, rivalryTimelin
 import { rivalryPregameHtml, rivalryReportHtml, rivalryTimelineLine, rivalsPanelHtml } from "./rivalryView.js";
 import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
+import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick } from "./fragmentsView.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision } from "../../reborn/contract.js";
 import { overall } from "../../data/players.js";
@@ -141,7 +142,7 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
     `<p>${L("第", "Game ", lang)}${report.game} ${L("场", "", lang)}· ${report.home ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${report.opp} · ${report.score.home}–${report.score.away} ${report.won ? L("胜", "W", lang) : L("负", "L", lang)}</p>`,
     `<p>${L("你的数据", "Your line", lang)}：${report.line.min} ${L("分钟", "min", lang)} · ${report.line.pts} ${L("分", "pts", lang)} · ${report.line.reb} ${L("板", "reb", lang)} · ${report.line.ast} ${L("助", "ast", lang)}</p>`,
     `<p>${parts}</p>`,
-    ...growth.map((g) => `<p>${g}</p>`),
+    ...[...growth, ...fragmentsReportLines(report, lang)].map((g) => `<p>${g}</p>`),
     ...(takeover ? [`<p>${takeover}</p>`] : []),
   ];
   return `<section class="reborn-report">${lines.join("")}</section>`;
@@ -330,6 +331,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       training && !done
         ? `<p>${L("本周训练：", "This week's training: ", lang)}${TRAINING_FOCUS_LABEL[training.focus][lang() === "en" ? "en" : "zh"]}</p>`
         : "",
+      done ? "" : fragmentsPanelHtml({ reborn, week, lang: lang() }),
       !done
         ? rivalryPregameHtml({ reborn, rows, nextGame, year: season.year, lang: lang() })
         : "",
@@ -477,6 +479,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         render();
         return;
       }
+      const bought = intensiveClick(event, reborn, currentWeek());
+      if (bought) { reborn = bought; persist(); render(); return; }
       const train = event.target.closest("[data-train]");
       if (train) {
         try {
