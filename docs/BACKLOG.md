@@ -6,7 +6,7 @@
 | B2 | 每名球员赛前个人战术/定位默认值；比赛中模拟器可改，下一场恢复为玩家偏好 | L2–L3 | M2a 前后 | ✅ 已完成（R136）：赛季模式本来就在开赛时写回；本次补了排位账号（只存手改字段）。赛季/排位之外的模式未接 |
 | B3 | 自动托管叫暂停过多，后半场玩家无暂停可用——限制 AI 叫暂停次数/保留玩家暂停 | L3 | 小修 | ✅ 已完成（R135）：直播时助手只能用 3 个，留 4 个给玩家 |
 | B4 | 大比分落后时 AI 换策略拼翻盘：提速、提高三分出手、抓机会欲望更强；节奏按阵容有利弊，不是一律有害 | L3（动 GameSim 决策） | 与 ADR-002/M2b 同一块，需契约 | 待批准 |
-| B5 | 战术面板合理性审查：对标成熟产品（2K MyGM/NBA2K 战术板、Basketball GM、FM 战术板）+ 找可借鉴开源代码 | 调研 | M3 前 | 🟡 部分完成（R142）内部代码审计已出：`docs/implementation/tactics-audit.md`；**对标 2K/FM/BBGM 与开源调研未做**，仍待批准 |
+| B5 | 战术面板合理性审查：对标成熟产品（2K MyGM/NBA2K 战术板、Basketball GM、FM 战术板）+ 找可借鉴开源代码 | 调研 | M3 前 | 🟡 部分完成（R142）内部代码审计已出：`docs/implementation/tactics-audit.md`；**对标调研已补（2026-11-17，`tactics-audit.md` §8）：BBGM/FM 有官方可查来源，2K 具体控件 unverified**；UI 重新分组与 B23 仍待批准 |
 | B6 | 39 张风格参考图分析并映射到里程碑（docs/references/style-2026-11） | 调研 | M1/M3 | ✅ 已完成（见该目录 README） |
 | B7 | Feed 测试改成确定性 fixture：`feedActorCoverage.test.js` 依赖随机比赛（"至少一次抢断"），换成固定事件 fixture，只留 1 个轻量引擎契约测试 | L2 | Feed 收尾 | ✅ 已完成：R134 已把 `feedActorCoverage.test.js` 改成只测契约（不断言某事件一定发生），固定事件夹具在 `feedView.test.js`；2026-11-14 Wibey 补上种子：它和 `bigHandlerTov`/`blockRate`/`jumboLineupSpacing`/`managedOffenseKeepsTactic` 这 5 个对引擎结果做区间或计数断言的测试，每场都传 `seededStream(SEED + i)`（同 B14 做法）；在 `Math.random` 一调用就抛错的环境下全部通过，失败可复现 |
 | B8 | 抽卡展示视觉升级：高稀有度卡的金边/编号/等级字（参考图 35、37），仅视觉，不改评分（D5） | L1–L2 | 抽卡页 | 待批准 |
