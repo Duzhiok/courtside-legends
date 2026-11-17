@@ -20,10 +20,10 @@
  */
 import { sleeperCandidates } from "../draftProphecy.js";
 
-export const CLUE_TYPES = ["potential", "injury", "draft", "trend"];
+const CLUE_TYPES = ["potential", "injury", "draft", "trend"];
 
 /** Reliability lost per matched causal link. 0.85 -> 0.60 -> 0.42 across three linked changes. */
-export const LINK_DECAY = 0.7;
+const LINK_DECAY = 0.7;
 /** Cost in future-knowledge points to reveal one clue. */
 export const CLUE_COST = 1;
 
