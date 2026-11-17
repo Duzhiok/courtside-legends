@@ -54,8 +54,8 @@ import { mountScreen } from "./screenShell.js";
 /** The page title, rendered once by the shell in the current language. */
 export const CAREER_INBOX_TITLE = Object.freeze({ zh: "职业收件箱", en: "Career Inbox" });
 
-export const INBOX_SEASON_YEAR = 1997;
-export const INBOX_SEASON_GAMES = 82;
+const INBOX_SEASON_YEAR = 1997;
+const INBOX_SEASON_GAMES = 82;
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
