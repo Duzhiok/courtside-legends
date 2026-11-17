@@ -101,7 +101,9 @@ export function setIdentity(root, role) {
     prev && CAREER_ROLES.includes(prev.initialRole) ? prev.initialRole : role;
   const next = {
     ...(root || {}),
-    identity: { initialRole, currentRole: role },
+    // Keep every other identity field (prestige, history, ...): only the
+    // two role fields are this function's to write.
+    identity: { ...(prev && typeof prev === "object" ? prev : {}), initialRole, currentRole: role },
   };
   if (next.leagueCareer && typeof next.leagueCareer === "object") {
     next.leagueCareer = { ...next.leagueCareer, role };
