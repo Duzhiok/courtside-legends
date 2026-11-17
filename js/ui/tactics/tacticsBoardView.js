@@ -58,6 +58,12 @@ export function mountTacticsBoard(root, { team, opponent = null, lang = "zh", sa
     root.innerHTML = renderTacticsBoardHtml(model, lang);
   };
   const dispatch = (action) => { state = tacticalDraftReducer(state, action); paint(); };
+  const apply = () => {
+    const res = commitDraft(team, state.draft, { save, opponent });
+    if (res.ok) { state = tacticalDraftReducer(state, { type: "MARK_SAVED" }); paint(); onApplied?.(team); }
+    else paint(); // show the error row for a plan the engine cannot run
+    return res;
+  };
   const onClick = (ev) => {
     const el = ev.target.closest("[data-tb]");
     if (!el || !root.contains(el) || el.disabled) return;
@@ -69,15 +75,18 @@ export function mountTacticsBoard(root, { team, opponent = null, lang = "zh", sa
       case "handler": return dispatch({ type: "SET_BALL_HANDLER", playerId: id === state.draft.ballHandlerId ? null : id });
       case "action": return dispatch({ type: "SET_BALL_ACTION", actionId: id });
       case "reset": return dispatch({ type: "RESET" });
-      case "apply": {
-        const res = commitDraft(team, state.draft, { save, opponent });
-        if (res.ok) { state = tacticalDraftReducer(state, { type: "MARK_SAVED" }); paint(); onApplied?.(team); }
-        return res;
-      }
+      case "apply": return apply();
       default: return undefined;
     }
   };
   root.addEventListener("click", onClick);
   paint();
-  return { getState: () => state, destroy: () => root.removeEventListener("click", onClick) };
+  return {
+    getState: () => state,
+    /** The roster list changed who starts. */
+    syncStarters: (starterIds) => dispatch({ type: "SYNC_STARTERS", starterIds }),
+    /** Pressing "start the game" must not silently drop board edits: apply them first (no-op when nothing is pending). */
+    applyPending: () => (isDirty(state) ? apply() : { ok: true, applied: false }),
+    destroy: () => root.removeEventListener("click", onClick),
+  };
 }

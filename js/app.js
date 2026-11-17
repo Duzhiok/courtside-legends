@@ -390,7 +390,9 @@ import { seasonObjectives, seasonReport } from "./myteam/seasonReport.js";
 import { objectivesHtml, reportHtml } from "./ui/myTeamReportView.js";
 import { clearMyTeamSeason, hasMyTeamSeason, loadMyTeamSeason, readMyTeamSeason, saveMyTeamSeason } from "./myteam/seasonStore.js";
 import { speedLocked } from "./ui/playbackSpeed.js";
+import { normalizePos } from "./data/positions.js";
 import { composeGameplan } from "./ui/tactics/tacticalDraft.js";
+import { mountTacticsBoard } from "./ui/tactics/tacticsBoardView.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
   SEASON_APRON,
@@ -3903,17 +3905,6 @@ function refreshDraftUI() {
   updateRefreshBtn();
 }
 
-/** Map any roster pos string into PG/SG/SF/PF/C. */
-function normalizePos(pos) {
-  const p = String(pos || "SF").toUpperCase();
-  if (POS_SLOTS.some((s) => s.id === p)) return p;
-  if (p.includes("G") && p.startsWith("P")) return "PG";
-  if (p.includes("G")) return "SG";
-  if (p.includes("C")) return "C";
-  if (p.includes("F") && p.startsWith("P")) return "PF";
-  return "SF";
-}
-
 function renderPosBoard(players, { usePlayPosLabel = false, editable = false } = {}) {
   const buckets = groupByPosition(players);
   const missing = POS_SLOTS.filter((s) => !buckets[s.id].length).map((s) => s.id);
@@ -6389,6 +6380,10 @@ function openSetup(home, away, youSide) {
   renderSetupRoles();
   renderSetupOrders();
   renderSetupGameplan();
+  // The role/orders renders above can re-seat starters (playPos); redraw the roster once so it, and the tactics board
+  // mounted next, both show the final positions.
+  renderSetupRoster();
+  mountSetupTacticsBoard();
   // 生涯：选首发页也能买/装技能；返回键回市场
   const setupSkillPanel = $("#setup-skill-panel");
   const backBtn = $("#btn-setup-back");
@@ -6561,6 +6556,38 @@ function syncSetupBallHandlerUi() {
   } else if (actionSel) {
     fillBallActionSelect(actionSel, "pnr");
   }
+}
+
+// UI 3.0 Gold pre-game tactics board (js/ui/tactics/). The roster list below owns who starts and the board follows it;
+// the old advanced controls stay, and are re-rendered after every Apply, so "start the game" reads one consistent plan.
+let tacticsBoard = null;
+function refreshSetupFromTeam() {
+  const you = state.setup?.you;
+  if (!you) return;
+  state.setup.selected = new Set(you.starterIds);
+  renderPhilTactics(you);
+  renderSetupOrders();
+  renderSetupRoster();
+}
+function mountSetupTacticsBoard() {
+  tacticsBoard?.destroy();
+  tacticsBoard = null;
+  const root = $("#setup-tactics-board");
+  const you = state.setup?.you;
+  if (!root) return;
+  const gold = state.career?.kind === "career" && !!you && !!state.pendingMatch;
+  root.hidden = !gold;
+  root.innerHTML = "";
+  if (!gold) return;
+  const { home, away, youSide } = state.pendingMatch;
+  tacticsBoard = mountTacticsBoard(root, {
+    team: you,
+    opponent: youSide === "home" ? away : home,
+    lang: getLang(),
+    save: () => autosaveCareer(),
+    onApplied: refreshSetupFromTeam,
+  });
+  tacticsBoard.syncStarters([...state.setup.selected]);
 }
 
 function renderSetupOrders() {
@@ -7432,6 +7459,7 @@ function renderSetupRoster() {
   </div>`;
 
   $("#starter-count").textContent = String(state.setup.selected.size);
+  tacticsBoard?.syncStarters([...state.setup.selected]);
   const confirmBtn = $("#btn-setup-confirm");
   if (confirmBtn) {
     confirmBtn.disabled = state.setup.selected.size !== 5;
@@ -7537,6 +7565,11 @@ function renderSetupRoster() {
 
 $("#btn-setup-confirm").onclick = () => {
   if (state.setup.selected.size !== 5) return;
+  // Edits made on the tactics board count even if the player never pressed Apply; a plan the engine cannot run stops here.
+  const pending = tacticsBoard?.applyPending();
+  if (pending && !pending.ok) return $("#setup-tactics-board")?.scrollIntoView?.({ block: "center" });
+  tacticsBoard?.destroy();
+  tacticsBoard = null;
   const { home, away, youSide } = state.pendingMatch;
   const you = youSide === "home" ? home : away;
   const checked = [...$("#phil-tactics").querySelectorAll("input:checked")].map((x) => x.value);

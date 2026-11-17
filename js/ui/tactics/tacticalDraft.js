@@ -84,6 +84,13 @@ export function tacticalDraftReducer(state, action) {
     case "SET_DEFENSE": return edit(state, { defense: { ...state.draft.defense, ...action.patch } });
     // lifecycle
     case "RESET": return { ...state, draft: structuredClone(state.savedSnapshot), revision: state.revision + 1 };
+    // The roster list owns who starts; the board follows it. Not an edit: both the draft and the saved snapshot move,
+    // so changing a starter never marks the tactics unsaved. A ball handler who left the five is cleared.
+    case "SYNC_STARTERS": {
+      const starterIds = [...action.starterIds];
+      const follow = (d) => ({ ...d, starterIds, ...(d.ballHandlerId && !starterIds.includes(d.ballHandlerId) ? { ballHandlerId: null, ballAction: null } : {}) });
+      return { ...state, draft: follow(state.draft), savedSnapshot: follow(state.savedSnapshot) };
+    }
     case "MARK_SAVED": return { ...state, savedSnapshot: structuredClone(state.draft) };
     default: return state;
   }

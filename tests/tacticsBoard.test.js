@@ -9,7 +9,7 @@ import { lineupFit } from "../js/engine/chemistry.js";
 import { TACTICS } from "../js/data/coaches.js";
 import { createEditorState, isDirty, tacticalDraftReducer as reduce } from "../js/ui/tactics/tacticalDraft.js";
 import { buildTacticsBoardModel } from "../js/ui/tactics/tacticsBoardModel.js";
-import { renderTacticsBoardHtml } from "../js/ui/tactics/tacticsBoardView.js";
+import { renderTacticsBoardHtml, mountTacticsBoard } from "../js/ui/tactics/tacticsBoardView.js";
 
 const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 buildCareerSpanIndex(rows);
@@ -57,4 +57,68 @@ test("html: escapes user text and exposes the controls", () => {
   assert.ok(!html.includes("<b>X</b>") && html.includes("&lt;b&gt;X&lt;/b&gt;"));
   for (const hook of ['data-tb="scheme"', 'data-tb="handler"', 'data-tb="apply"', 'data-tb="reset"']) assert.ok(html.includes(hook), hook);
   assert.ok(html.includes("Sim effect"));
+});
+
+// Minimal DOM: just enough for mountTacticsBoard to paint and to receive one click at a time.
+const fakeRoot = () => {
+  const root = { innerHTML: "", handler: null, contains: () => true, removeEventListener() {} };
+  root.addEventListener = (type, fn) => { if (type === "click") root.handler = fn; };
+  root.click = (tb, id = "") => root.handler({ target: { closest: () => ({ dataset: { tb, id }, getAttribute: () => "false", disabled: false }) } });
+  return root;
+};
+
+test("SYNC_STARTERS follows the roster list without marking the tactics unsaved; a handler who left is cleared", () => {
+  const team = makeTeam();
+  const pg = team.starterIds[0];
+  let s = reduce(createEditorState(team), { type: "SET_BALL_HANDLER", playerId: pg });
+  s = reduce(s, { type: "MARK_SAVED" });
+  assert.equal(isDirty(s), false);
+  const swapped = [...team.starterIds.slice(1), team.players[7].id]; // the handler leaves the five
+  s = reduce(s, { type: "SYNC_STARTERS", starterIds: swapped });
+  assert.deepEqual(s.draft.starterIds, swapped);
+  assert.equal(s.draft.ballHandlerId, null);
+  assert.equal(isDirty(s), false, "a roster change is not a tactics edit");
+  const m = model(team, s);
+  assert.ok(m.slots.some((x) => x.player?.id === team.players[7].id), "the new starter is on the court");
+});
+
+test("applyPending: board edits are committed (and saved) when the game starts; a clean board does nothing", () => {
+  const team = makeTeam();
+  let saves = 0;
+  const root = fakeRoot();
+  const board = mountTacticsBoard(root, { team, lang: "en", save: () => { saves += 1; return true; } });
+  assert.deepEqual(board.applyPending(), { ok: true, applied: false });
+  assert.equal(saves, 0, "nothing pending: no write, no save");
+  root.click("scheme", "balanced");
+  assert.equal(team.coach.specialTactics[0], "triangle", "a preview never touches the team");
+  const res = board.applyPending();
+  assert.equal(res.ok, true);
+  assert.equal(team.coach.specialTactics[0], "balanced");
+  assert.equal(saves, 1);
+  assert.equal(board.applyPending().applied, false, "applying twice is a no-op");
+});
+
+test("applyPending: a plan the engine cannot run is refused, the team is untouched, the board shows the error", () => {
+  const team = makeTeam();
+  const root = fakeRoot();
+  const board = mountTacticsBoard(root, { team, lang: "en", save: () => true });
+  root.click("scheme", "balanced");
+  board.syncStarters(team.starterIds.slice(0, 3)); // only 3 starters: not a legal five
+  const before = JSON.stringify(team.coach);
+  const res = board.applyPending();
+  assert.equal(res.ok, false);
+  assert.equal(JSON.stringify(team.coach), before);
+  assert.ok(root.innerHTML.includes("is-error"));
+});
+
+test("court places starters with the same position rule as the setup roster (wide positions like G / F-C)", () => {
+  const team = makeTeam();
+  const five = team.starterIds.map((id) => team.players.find((p) => p.id === id));
+  const wide = ["G", "G-F", "F", "F-C", "C"]; // raw strings that only normalizePos can resolve
+  five.forEach((p, i) => { p.pos = wide[i]; delete p.playPos; });
+  const m = model(team, createEditorState(team));
+  const slotOf = Object.fromEntries(m.slots.filter((s) => s.player).map((s) => [s.player.id, s.slot]));
+  assert.equal(Object.keys(slotOf).length, 5, "all five are placed");
+  assert.equal(slotOf[five[0].id], "SG", "G reads as SG, exactly as the roster list does");
+  assert.equal(slotOf[five[4].id], "C");
 });

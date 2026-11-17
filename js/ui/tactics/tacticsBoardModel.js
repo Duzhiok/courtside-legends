@@ -11,6 +11,7 @@ import { COURT_SLOTS, SLOT_ORDER, assignCourtSlots } from "../../myteam/courtSlo
 import { scoutOpponent } from "../../myteam/opponentScouting.js";
 import { ovr } from "../../myteam/playerRoleFit.js";
 import { ORDER_ACTION, suggestedBallHandlerAction } from "../../engine/gameplan.js";
+import { normalizePos } from "../../data/positions.js";
 import { validateDraft } from "./tacticalDraft.js";
 
 const pick = (lang, zh, en) => (lang === "en" ? en || zh : zh);
@@ -18,7 +19,7 @@ const tacticLabel = (id, lang) => pick(lang, TACTICS[id]?.name || id, TACTICS[id
 // ORDER_ACTION (engine/gameplan.js, shared file) only carries Chinese names; English labels live here, UI-side.
 const ACTION_EN = { pnr: "Pick & roll", drive_kick: "Drive & kick", iso: "Isolation", spot: "Spot-up", post: "Post-up", crash: "Crash the glass" };
 const actionLabel = (a, lang) => (lang === "en" ? ACTION_EN[a.id] || a.name : a.name);
-const posOf = (p) => p?.playPos || p?.pos || "SF";
+const posOf = (p) => normalizePos(p?.playPos || p?.pos);
 
 function playerChip(p, handlerId) {
   const parts = String(p.name || "").trim().split(/\s+/);
