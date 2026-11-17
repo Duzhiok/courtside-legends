@@ -12,11 +12,15 @@ import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { esc } from "../core/html.js";
 import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
+import { avatarRenderer, mountAvatar2d, mountAvatar2dProto } from "./avatar2d/avatar2dRenderer.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { deleteChallengeArchive, readChallengeArchive } from "../data/challengeArchive.js";
 import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary, trophyCountOf } from "./myWorldView.js";
 import { hometownHtml } from "./hometownView.js";
 import { readHometownState, setIdol } from "../data/hometown/hometownState.js";
+
+/** The renderer for this page load: 3D unless `?avatar=2d-proto` (QA on placeholder art) or, once approved, the 2D default. */
+const defaultMount = (search) => ({ "2d": mountAvatar2d, "2d-proto": mountAvatar2dProto }[avatarRenderer(search)] || mountAvatar3d);
 
 export function createMyWorld({
   el,
@@ -51,7 +55,7 @@ export function createMyWorld({
   onPlayHometownChallenge = () => {},
   onIdentitySaved = () => {},
   onPortraitChanged = () => {}, // the home bar shows the same picture; it is updated without re-rendering this screen
-  mountAvatar = mountAvatar3d, // (container, { look }) => Promise<handle>; injectable so tests need no WebGL
+  mountAvatar = defaultMount(globalThis.location?.search), // (container, { look }) => Promise<handle>; injectable so tests need no WebGL
 }) {
   if (!el) return { refresh() {} };
 
@@ -64,6 +68,7 @@ export function createMyWorld({
     viewerToken += 1; // a mount still in flight must not attach itself to a stale panel
     viewer?.dispose();
     viewer = null;
+    delete el.dataset.avatarRenderer;   // CSS hides the 3D-only controls while a 2D figure is mounted
   }
 
   /** Preview-action buttons work only while a viewer is live; otherwise they stay disabled with the panel's note. */
@@ -112,7 +117,9 @@ export function createMyWorld({
       const handle = await mountAvatar(stage, { look: readLook(getAccount()), stage: true });
       if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
       viewer = handle;
+      el.dataset.avatarRenderer = handle.renderer || "3d";
       stage.querySelector(".mw-showcase-static")?.setAttribute("hidden", "");
+      paintPortrait();                                   // button wording follows the renderer
       if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
       setActionButtons(true);
     } catch {
@@ -207,8 +214,10 @@ export function createMyWorld({
     const btn = el.querySelector('[data-mw-action="use-3d-portrait"]');
     if (btn) {
       const en = getLang() === "en";
+      // The stored source stays "3d" (a picture of the live avatar, tied to its look); only the wording follows the renderer.
+      const what = el.dataset.avatarRenderer === "2d" ? (en ? "look" : "形象") : (en ? "3D look" : " 3D 形象");
       btn.setAttribute("aria-pressed", String(p.kind === "3d"));
-      btn.textContent = p.kind === "3d" ? (en ? "✓ Using my 3D look" : "✓ 正在使用我的 3D 形象") : (en ? "Use my 3D look" : "用我的 3D 形象作头像");
+      btn.textContent = p.kind === "3d" ? (en ? `✓ Using my ${what}` : `✓ 正在使用我的${what}`) : (en ? `Use my ${what}` : `用我的${what}作头像`);
     }
     const art = el.querySelector('[data-mw-action="use-preset-portrait"]');
     if (art) art.hidden = p.kind !== "3d";

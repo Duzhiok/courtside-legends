@@ -193,6 +193,9 @@
 .mw-showcase-static { position: relative; z-index: 1; width: 140px; height: 140px; border-radius: 50%; }
 .mw-showcase-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
 .mw-showcase-hint { font-size: 0.78rem; color: #cfdcd3; }
+/* A 2D figure has no rotation, animation clips or Stylized/Bobblehead switch: hide those 3D-only controls (JS sets the attribute) */
+[data-avatar-renderer="2d"] .mw-showcase-bar,
+[data-avatar-renderer="2d"] [data-mw-avatar-actions] { display: none; }
 
 @media (max-width: 760px) {
   .mw-identity { padding: 14px; }
