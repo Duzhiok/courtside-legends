@@ -27,7 +27,7 @@ export const WALL_SLOTS = Object.freeze({
 const SLOT_ORDER = ["L1", "R1", "R2"];
 
 /** The avatar podium owns this floor cell (front-left corner). */
-export const RESERVED_CELLS = Object.freeze([[0, 5]]);
+const RESERVED_CELLS = Object.freeze([[0, 5]]);
 
 /** Footprint (unrotated) of every placeable furniture id. `flat` pieces never block anything. */
 const PIECES = Object.freeze({
@@ -144,7 +144,7 @@ export function resolveHome(ownedIds, layout) {
 }
 
 /** Layout object that pins exactly where `placed` stands (so later purchases cannot reshuffle it). */
-export function layoutOf(placed) {
+function layoutOf(placed) {
   const items = {};
   for (const p of placed) items[p.id] = p.kind === "wall" ? { slot: p.slot } : { x: p.x, y: p.y, rot: p.rot };
   return { v: 1, items };
