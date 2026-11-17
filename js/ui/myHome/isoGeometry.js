@@ -6,8 +6,8 @@
 export const TILE = 40; // half-width of one floor tile on screen
 export const WALL_H = 170;
 export const GRID = 6;
-export const OX = GRID * TILE + 10;
-export const OY = WALL_H + 14;
+const OX = GRID * TILE + 10;
+const OY = WALL_H + 14;
 export const VIEW_W = GRID * TILE * 2 + 20;
 export const VIEW_H = OY + GRID * TILE + 16;
 
