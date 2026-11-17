@@ -1317,7 +1317,7 @@ export function deriveSubAttributes({ pos, three, mid, paint, defense, rebound, 
   return { handle, perimDef, interiorDef, catchShoot, offDribble, offReb, defReb };
 }
 
-export const OFFENSE_STYLE_LABELS = {
+const OFFENSE_STYLE_LABELS = {
   post: "低位强打",
   stretch: "空间射手",
   spot: "定点接投",
@@ -1469,7 +1469,7 @@ function bodyMassIndex(heightCm, weightKg) {
 /**
  * @returns {{ speed: number, strength: number, build: string|null }}
  */
-export function applyPhysiqueToAthleticism(attrs, { heightCm, weightKg, bref = "" } = {}) {
+function applyPhysiqueToAthleticism(attrs, { heightCm, weightKg, bref = "" } = {}) {
   const speed0 = Number(attrs?.speed) || 50;
   const strength0 = Number(attrs?.strength) || 50;
   const out = { speed: speed0, strength: strength0, build: null };
