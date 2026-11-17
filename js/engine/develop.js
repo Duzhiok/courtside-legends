@@ -61,7 +61,7 @@ export function historicalLadder(bref) {
  * Upside vs this card's place on the real career curve.
  * @returns {{ peak:number, peakSeason:number, delta:number, nextSeason:number|null, nextOvr:number|null }|null}
  */
-export function historicalUpside(player) {
+function historicalUpside(player) {
   if (!player?.bref) return null;
   const ladder = historicalLadder(player.bref);
   if (ladder.length < 2) return null;
@@ -117,7 +117,7 @@ function seasonProduction(stats) {
  * 休赛期续约报价：打出来 / 能力涨了就会更贵；表现差可略降。
  * @returns {{ salary:number, mult:number, reason:string, paidFromFree:boolean }}
  */
-export function computeRenewalSalary(player, { beforeOvr, beforeSalary = 0, stats = null } = {}) {
+function computeRenewalSalary(player, { beforeOvr, beforeSalary = 0, stats = null } = {}) {
   const afterOvr = overall(player);
   const base = playerPrice(player);
   const ovrGain = afterOvr - (beforeOvr ?? afterOvr);
