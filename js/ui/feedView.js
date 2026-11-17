@@ -27,14 +27,14 @@ const toHex = (r, g, b) =>
   `#${[r, g, b].map((n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, "0")).join("")}`;
 
 /** Mix two hex colours: t=0 → a, t=1 → b. */
-export function mixHex(a, b, t) {
+function mixHex(a, b, t) {
   const [r1, g1, b1] = rgbOf(a);
   const [r2, g2, b2] = rgbOf(b);
   return toHex(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t);
 }
 
 /** rgba() string for tinting a feed row with the raw team colour. */
-export function withAlpha(hex, alpha) {
+function withAlpha(hex, alpha) {
   const [r, g, b] = rgbOf(hex);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
