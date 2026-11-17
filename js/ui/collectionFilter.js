@@ -5,7 +5,7 @@
 import { bandOf } from "../data/gacha.js";
 import { matchesQuery } from "../data/cardSearch.js";
 
-export const SORTS = [
+const SORTS = [
   { id: "ovr", label: "OVR 高→低", labelEn: "OVR high → low" },
   { id: "hidden", label: "隐藏能力 高→低", labelEn: "Hidden trait high → low" },
   { id: "recent", label: "最近获得", labelEn: "Recently acquired" },
@@ -13,7 +13,7 @@ export const SORTS = [
   { id: "stars", label: "星级 高→低", labelEn: "Stars high → low" },
 ];
 
-export const BANDS = [
+const BANDS = [
   { id: "all", label: "全部稀有度", labelEn: "All rarities" },
   { id: "star", label: "全明星以上", labelEn: "All-Star+" },
   { id: "mid", label: "先发 / 轮换", labelEn: "Starter / Rotation" },
