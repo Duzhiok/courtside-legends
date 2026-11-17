@@ -46,7 +46,7 @@ export function efficiencyMetrics(row) {
 }
 
 /** One production number (per-36) used to compare players across roles. */
-export function productionScore(metrics) {
+function productionScore(metrics) {
   return (
     metrics.ptsPer36 * 1
     + metrics.astPer36 * 1.5
@@ -60,7 +60,7 @@ export function productionScore(metrics) {
  * `price` comes from playerPrice(seasonToCard(row)); pass null to skip
  * price-based signals.
  */
-export function valueSignals(row, { price = null } = {}) {
+function valueSignals(row, { price = null } = {}) {
   const m = efficiencyMetrics(row);
   const card = seasonToCard(row);
   const ovr = overall(card);
