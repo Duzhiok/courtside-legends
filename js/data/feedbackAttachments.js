@@ -17,7 +17,7 @@ export function memoryBackend() {
 }
 
 /** IndexedDB backend, or null when the browser has none / blocks it (private mode, disabled storage). */
-export function idbBackend(factory = globalThis.indexedDB) {
+function idbBackend(factory = globalThis.indexedDB) {
   if (!factory) return null;
   const open = () => new Promise((resolve, reject) => {
     const req = factory.open(DB, 1);

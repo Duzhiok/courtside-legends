@@ -23,7 +23,7 @@ export const RATE_TABLE = [
 ];
 
 /** Chance that a pull landing in a band holding a wishlist card becomes it. */
-export const WISHLIST_REDIRECT = 0.3;
+const WISHLIST_REDIRECT = 0.3;
 
 export const MAX_STARS = 5;
 export const SOULS_PER_STAR = 3;

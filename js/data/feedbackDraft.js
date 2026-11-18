@@ -4,7 +4,7 @@
  * anything was sent; the screen enables "Submit" only when a real submit function is injected.
  * A draft written before the module field existed simply reads as "game".
  */
-export const FEEDBACK_CATEGORIES = ["suggestion", "bug", "rating"];
+const FEEDBACK_CATEGORIES = ["suggestion", "bug", "rating"];
 /** Which part of the game the feedback is about; "game" = the whole game. */
 export const FEEDBACK_MODULES = ["game", "world", "myteam", "career", "gameplay", "custom", "account", "other"];
 export const FEEDBACK_NOTE_MAX = 600;
