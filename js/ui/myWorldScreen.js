@@ -5,7 +5,8 @@
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
-import { equipJersey, equippedJerseyKey, listOwnedJerseys, unequipJersey } from "../collectibles/jerseyCollection.js";
+import { equipJersey, equippedJerseyKey, equippedJerseyTemplate, listOwnedJerseys, unequipJersey } from "../collectibles/jerseyCollection.js";
+import { jerseyKit } from "./avatar2d/avatar2dJersey.js";
 import { ownedFurnitureIds, ownedOutfitIds, equippedFrameClassKey, equipShopItem, unequipShopItem } from "../data/shop.js";
 import { defaultPresetId, lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
@@ -122,13 +123,15 @@ export function createMyWorld({
     if (!stage || viewer) return;
     const token = ++viewerToken;
     try {
-      const handle = await (mountAvatar || chooseAvatarMount())(stage, { look: readLook(getAccount()), stage: true });
+      const kit = jerseyKit(equippedJerseyTemplate(getAccount()));   // the worn jersey; only the 2D figure can wear it
+      const handle = await (mountAvatar || chooseAvatarMount())(stage, { look: readLook(getAccount()), jersey: kit, stage: true });
       if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
       viewer = handle;
       el.dataset.avatarRenderer = handle.renderer || "3d";
       stage.querySelector(".mw-showcase-static")?.setAttribute("hidden", "");
       paintPortrait();                                   // button wording follows the renderer
       paintRendererToggle();
+      if (kit && el.dataset.avatarRenderer === "3d") say(el.querySelector("#mw-showcase-status"), "3D 形象还没有球衣模型，球衣只会穿在 2D 形象上。", "The 3D figure has no jersey model yet; jerseys show on the 2D figure only.");
       if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
       setActionButtons(true);
     } catch {

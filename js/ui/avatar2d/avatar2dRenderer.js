@@ -8,6 +8,7 @@
  * `placeholders: true` fills missing files with engineering placeholders; that mode is for QA of the renderer, not for players.
  */
 import { CANVAS, PORTRAIT_CROP, resolveLayers } from "./avatar2dLayers.js";
+import { paintJerseyNumber } from "./avatar2dJersey.js";
 import { placeholderImage } from "./avatar2dPlaceholder.js";
 import { MAX_PORTRAIT_CHARS } from "../../data/avatarPortrait.js";
 
@@ -71,6 +72,7 @@ export function paintLayers(ctx, layers, imageFor, createCanvas) {
 
 export async function mountAvatar2d(container, {
   look,
+  jersey = null,   // a worn jersey (avatar2dJersey.jerseyKit): colours + number on the same cut, never part of the look
   placeholders = false,
   createCanvas = defaultCreateCanvas,
   loadImage = loadArtImage,
@@ -80,7 +82,8 @@ export async function mountAvatar2d(container, {
   canvas.className = "avatar2d-canvas";
   canvas.style.cssText = "width:100%;height:100%;object-fit:contain;display:block";
   canvas.dataset.renderer = "2d";
-  const state = { disposed: false, token: 0, look: null, report: { drawn: [], missing: [] }, cut: null, fellBack: false, painted: false };
+  const state = { disposed: false, token: 0, look: null, jersey: null, report: { drawn: [], missing: [] }, cut: null, fellBack: false, painted: false };
+  const want = { look, jersey };                                  // the latest requested look + jersey; a render always reads these, so a quick look-then-jersey change cannot paint a stale mix
   const cache = new Map();                                       // file -> Promise<image|null>
 
   const imageFor = (layer) => {
@@ -91,32 +94,36 @@ export async function mountAvatar2d(container, {
   };
 
   /** Resolves true when the look is on screen, false when it was superseded or nothing could be drawn (previous paint stays). */
-  async function render(next) {
-    const resolved = resolveLayers(next);
+  async function render() {
+    const resolved = resolveLayers(want.look, want.jersey);
     const token = ++state.token;
     const images = new Map(await Promise.all(resolved.layers.map(async (layer) => [layer.file, await imageFor(layer)])));
     if (state.disposed || token !== state.token) return false;   // a newer look won the race
     const report = paintLayers(art.getContext("2d"), resolved.layers, (layer) => images.get(layer.file), createCanvas);
     if (!report.drawn.length) return false;                      // no art at all: keep whatever was there
+    if (resolved.jersey) paintJerseyNumber(art.getContext("2d"), resolved.jersey);   // after every layer: the chest is clear of hair and arms
     const inUse = new Set(resolved.layers.map((layer) => layer.file));
     for (const file of [...cache.keys()]) if (!inUse.has(file)) cache.delete(file);   // release decoded layers the look no longer needs
     const g = canvas.getContext("2d");
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.drawImage(art, 0, 0, canvas.width, canvas.height);
-    Object.assign(state, { look: resolved.look, report, cut: resolved.cut, fellBack: resolved.fellBack, styleFellBack: resolved.styleFellBack, painted: true });
+    Object.assign(state, { look: resolved.look, jersey: resolved.jersey, report, cut: resolved.cut, fellBack: resolved.fellBack, styleFellBack: resolved.styleFellBack, painted: true });
     canvas.dataset.look = JSON.stringify(resolved.look);
     canvas.dataset.layers = report.drawn.join(",");
+    if (resolved.jersey) canvas.dataset.jersey = JSON.stringify({ number: resolved.jersey.number, simplified: resolved.jersey.simplified }); else delete canvas.dataset.jersey;
     return true;
   }
 
-  if (!(await render(look))) throw new Error("avatar2d: no art could be drawn");
+  if (!(await render())) throw new Error("avatar2d: no art could be drawn");
   container.appendChild(canvas);
 
   return {
     canvas,
     renderer: "2d",
     rotationY: () => 0,
-    setLook: (next) => render(next),
+    setLook: (next) => { want.look = next; return render(); },
+    /** Wear (a jerseyKit) or take off (null) a jersey without touching the look. */
+    setJersey: (kit) => { want.jersey = kit || null; return render(); },
     /**
      * @returns {string|null} a 256px JPEG data URL of the head and shoulders that fits the stored-portrait limit (quality steps
      * down until it does), or null if it could not be drawn
@@ -145,7 +152,7 @@ export async function mountAvatar2d(container, {
     playIdle: () => false,
     action: () => "idle",
     setYaw: () => {},
-    inspect: () => ({ renderer: "2d", cut: state.cut, fellBack: state.fellBack, styleFellBack: state.styleFellBack, layers: [...state.report.drawn], missing: [...state.report.missing], placeholders, cached: cache.size }),
+    inspect: () => ({ renderer: "2d", jersey: state.jersey ? { number: state.jersey.number, simplified: state.jersey.simplified } : null, cut: state.cut, fellBack: state.fellBack, styleFellBack: state.styleFellBack, layers: [...state.report.drawn], missing: [...state.report.missing], placeholders, cached: cache.size }),
     dispose: () => {
       if (state.disposed) return;
       state.disposed = true;

@@ -46,21 +46,24 @@ const FOLDER = { base: () => "base/", hair: ({ style }) => `hair/${style}/`, out
 export const layerFile = (spec, ids) => `${FOLDER[spec.group](ids)}${spec.file}`;
 
 /**
- * @returns {{ layers: {role:string, file:string, tint:string|null}[], cut:string, style:string|null, fellBack:boolean, styleFellBack:boolean, look:object }}
+ * `jersey` (avatar2dJersey.jerseyKit, optional) swaps the shirt / shorts / trim tints for the worn jersey's colours. The look, its
+ * skin, hair and cut, is untouched and nothing is saved: a jersey is a render input, not part of the appearance schema.
+ * @returns {{ layers: {role:string, file:string, tint:string|null}[], cut:string, style:string|null, fellBack:boolean, styleFellBack:boolean, look:object, jersey:object|null }}
  * Never mutates its input; an unknown look falls back field by field exactly like the 3D path.
  */
-export function resolveLayers(rawLook) {
+export function resolveLayers(rawLook, jersey = null) {
   const look = sanitizeLook(rawLook);
   const shaved = look.style === "shaved";
   const colors = lookColors(look);
   // lookColors paints Hair in the skin colour when shaved (that is what hides the 3D skull cap). Eyebrows must not vanish with it.
   colors.Brows = HAIR_COLORS.find((h) => h.id === look.hair).hex;
+  if (jersey) Object.assign(colors, { Shirt: jersey.shirt, Pants: jersey.pants, Trim: jersey.trim });
   const cut = ART.cuts.includes(look.cut) ? look.cut : ART.fallbackCut;
   const style = shaved ? null : (ART.styles.includes(look.style) ? look.style : ART.fallbackStyle);
   const layers = LAYER_SPEC
     .filter((spec) => !(shaved && spec.hideWhenShaved))
     .map((spec) => ({ role: spec.role, file: layerFile(spec, { cut, style }), tint: spec.tint ? colors[spec.tint] : null }));
-  return { layers, cut, style, fellBack: cut !== look.cut, styleFellBack: !shaved && style !== look.style, look };
+  return { layers, cut, style, fellBack: cut !== look.cut, styleFellBack: !shaved && style !== look.style, look, jersey: jersey || null };
 }
 
 /** Every file the art set must contain, for validation and preloading. */
