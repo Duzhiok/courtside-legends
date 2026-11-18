@@ -205,11 +205,17 @@ export function buildAffordableShop(c, size = 12) {
       arr.filter((x) => !deficit.has(primaryPos(x.p))),
     ];
     const out = [];
+    // 一人一卡：一次 pick 内同一人只取一张，否则补货段（de-dupe 之后、无
+    // 后续按人去重）会把同人两个赛季一起上架（R45 回归）。
+    const pickedPeople = new Set();
     for (const group of groups) {
       const copy = [...group];
       while (copy.length && out.length < n) {
         const i = Math.floor(rand() * copy.length);
-        out.push(copy.splice(i, 1)[0].p);
+        const [x] = copy.splice(i, 1);
+        if (x.p.bref && pickedPeople.has(x.p.bref)) continue;
+        if (x.p.bref) pickedPeople.add(x.p.bref);
+        out.push(x.p);
       }
       if (out.length >= n) break;
     }
@@ -254,6 +260,9 @@ export function buildAffordableShop(c, size = 12) {
     shop.sort((a, b) => playerPrice(b) - playerPrice(a));
     for (const x of cheapBench) {
       if (shop.filter((p) => playerPrice(p) <= gold).length >= needAffordable) break;
+      // 一人一卡：cheapBench 只按替换前的货架过滤过，本循环刚上架的同人
+      // 另一赛季卡若不排除，会与刚插入的卡同人重复（R45 回归）。
+      if (x.p.bref && shop.some((p) => p.bref === x.p.bref)) continue;
       const idx = shop.findIndex((p) => playerPrice(p) > gold);
       if (idx < 0) break;
       shop[idx] = x.p;
