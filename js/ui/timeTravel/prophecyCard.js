@@ -18,7 +18,7 @@ function lineText(line, lang) {
 }
 
 /** The rules in one place: what you are betting on and what it pays. */
-export function prophecyRulesText(lang) {
+function prophecyRulesText(lang) {
   return TL(
     lang,
     `他们都是接下来三届真实的新秀。你只记得个大概：区间是你记忆中他前三个赛季的巅峰能力（OVR），记忆可能偏几分。他的第三个赛季结束后，按真实生涯对账：前三季巅峰 ≥ ${PROPHECY_HIT_OVR} 算预言成真（信任 ${signed(PROPHECY_HIT.trust)}、声望 ${signed(PROPHECY_HIT.reputation)}），否则落空（信任 ${signed(PROPHECY_MISS.trust)}）。`,

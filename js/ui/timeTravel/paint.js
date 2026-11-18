@@ -23,7 +23,7 @@ import { TL } from "../../i18n.js";
 
 
 /** Re-theme the whole screen to one team (or back to neutral when there is no career). */
-export function paintTheme(colors) {
+function paintTheme(colors) {
   const shell = $(".tt-shell");
   if (!shell) return;
   const style = teamThemeStyle(colors);

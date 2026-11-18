@@ -45,7 +45,7 @@ const TEXT = {
   ],
 };
 
-export const staticText = (key, lang) => {
+const staticText = (key, lang) => {
   const pair = TEXT[key];
   return pair ? TL(lang, pair[0], pair[1]) : "";
 };

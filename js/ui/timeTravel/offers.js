@@ -103,7 +103,7 @@ export function poachCardHtml(offer, ctx = {}) {
 }
 
 /** The slot of an offer your reputation can't reach yet: explains WHY it isn't there. */
-export function lockedOfferHtml(archetype, reputation, lang = "zh") {
+function lockedOfferHtml(archetype, reputation, lang = "zh") {
   const need = archetype === "contender" ? REEMPLOYMENT_FULL_BOARD_REPUTATION : REEMPLOYMENT_LIMITED_BOARD_REPUTATION;
   return `<div class="tt-offer tt-offer-locked" data-archetype="${esc(archetype)}" aria-disabled="true">
     <span class="tt-offer-head">
