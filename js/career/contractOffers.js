@@ -63,7 +63,7 @@ export const OFFER_TEMPLATES = [
  * module does not change their wording; deleting the copy or building
  * the budget fields is a separate user decision.
  */
-export const PRIVILEGE_GRANTS = {
+const PRIVILEGE_GRANTS = {
   "完全人事决定权": ["trade", "signFreeAgent", "release", "draft"],
   "季中补强额度": ["trade", "signFreeAgent"],
   "自定义训练计划": ["setTrainingFocus"],

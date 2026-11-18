@@ -15,7 +15,7 @@
  * Pure functions over the executive record. Money in $M.
  */
 
-export const STAGES = [
+const STAGES = [
   { id: "gm", zh: "球队雇员 · 总经理", en: "General Manager" },
   { id: "president", zh: "篮球商业操盘手 · 篮球运营总裁", en: "President of Basketball Operations" },
   { id: "minority", zh: "球队合伙人 · 小股东", en: "Minority Owner" },
