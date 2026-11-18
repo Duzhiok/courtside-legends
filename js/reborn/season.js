@@ -40,6 +40,7 @@ import {
 } from "./rivalry.js";
 import { jerseyState, offersForGame } from "../collectibles/jerseyExchange.js";
 import { createEggWatcher } from "./enforcerEgg.js";
+import { rosterCode } from "./franchises.js";
 import {
   buildPlayerCard,
   applyIdentityToRoster,
@@ -51,10 +52,14 @@ import {
 
 export const REBORN_GAMES_PER_WEEK = GAMES_PER_WEEK;
 
-/** All cards of one team in one season, best first. */
+/**
+ * All cards of one team in one season, best first. `team` is a stable Reborn team id; the roster data may call that franchise
+ * something else that year (WSB is WAS from 1998), see franchises.js: without it the later seasons play against empty teams.
+ */
 export function rosterCards(players, team, season) {
+  const code = rosterCode(team, season);
   return (players || [])
-    .filter((r) => r && r.team === team && Number(r.season) === season)
+    .filter((r) => r && r.team === code && Number(r.season) === season)
     .map(seasonToCard)
     .sort((a, b) => overall(b) - overall(a));
 }
