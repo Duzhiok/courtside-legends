@@ -8,7 +8,7 @@ import { MAX_PORTRAIT_CHARS } from "../data/avatarPortrait.js";
 
 export const PHOTO_PX = 192;
 export const PHOTO_MAX_BYTES = 15 * 1048576;
-export const PHOTO_TYPES = Object.freeze(["image/png", "image/jpeg", "image/webp"]);
+const PHOTO_TYPES = Object.freeze(["image/png", "image/jpeg", "image/webp"]);
 const QUALITIES = [0.82, 0.68, 0.52, 0.4]; // try the best first; a busy photo may need to give up some quality
 
 /** Largest centred square inside w x h. @returns {{sx:number, sy:number, side:number}|null} */
@@ -19,7 +19,7 @@ export function squareCrop(w, h) {
 }
 
 /** Browser implementation of the two things we cannot do in Node. */
-export function browserPhotoDeps() {
+function browserPhotoDeps() {
   return {
     async decode(file) {
       const bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); // honours the phone's EXIF rotation
