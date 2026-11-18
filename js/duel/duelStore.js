@@ -91,7 +91,7 @@ export function legendDuelists() {
   }).filter(Boolean);
 }
 
-export function emptyDuelRecord() {
+function emptyDuelRecord() {
   return { wins: 0, losses: 0, defeated: [], games: [] };
 }
 

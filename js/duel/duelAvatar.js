@@ -52,7 +52,7 @@ export const DUEL_AVATAR_BASE = Object.freeze({
  * Per-preset lean: rating deltas, the one skill the build earns (a real skill
  * id the DuelSim already understands), and the position the build plays.
  */
-export const DUEL_AVATAR_BODY_LEAN = Object.freeze({
+const DUEL_AVATAR_BODY_LEAN = Object.freeze({
   broad: {
     deltas: { strength: 10, finishing: 6, speed: -6, shooting: -2 },
     skills: ["paint_bully"],

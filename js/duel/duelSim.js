@@ -86,7 +86,7 @@ export const OFFENSE = Object.freeze({
 });
 
 /** Defense skills that help the defender contest a shot. */
-export const DEFENSE_SKILLS = Object.freeze([
+const DEFENSE_SKILLS = Object.freeze([
   "lockdown", "death_wrap", "sticky_wrap", "rim_protector", "thief", "charge_taker",
 ]);
 
