@@ -46,7 +46,7 @@ export const RELATIONSHIPS_TITLE = Object.freeze({ zh: "职业关系（开发）
  * that branch is gone — the shell wires it to onBack, so a click can no
  * longer fire goBack twice.
  */
-export function ensureRelationshipsScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+function ensureRelationshipsScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
   return mountScreen({ id: "relationships", title: RELATIONSHIPS_TITLE, getLang, onBack, onRelocalize }).el;
 }
 

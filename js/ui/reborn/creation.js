@@ -31,7 +31,7 @@ import { hashSeed, seededStream } from "../../core/seededRandom.js";
 import { TL } from "../../i18n.js";
 
 /** One line of era background per offered start year. */
-export const ERA_BACKGROUND = {
+const ERA_BACKGROUND = {
   1995: {
     zh: "1995–96 赛季：公牛 72 胜 10 负，乔丹归来后的第一个完整赛季，联盟的替补席上藏着下一个故事。",
     en: "1995–96: the Bulls go 72–10 in Jordan's first full season back — and the next story is hiding on a bench somewhere.",

@@ -25,7 +25,7 @@ export const REGIONS = Object.freeze({
   waist: [800, 860, 1040, 1110],
   legs: [1040, 1110, 1330, 1400],
 });
-export const SHAPE_KEYS = Object.freeze([...Object.keys(REGIONS), "height"]);
+const SHAPE_KEYS = Object.freeze([...Object.keys(REGIONS), "height"]);
 export const NEUTRAL_SHAPE = Object.freeze({ shoulders: 0, arms: 0, waist: 0, legs: 0, height: 0 });
 
 const smooth = (t) => t * t * (3 - 2 * t);
