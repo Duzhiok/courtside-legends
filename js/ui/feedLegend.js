@@ -13,7 +13,7 @@ const SIDE_LABEL = { home: { zh: "主队", en: "HOME" }, away: { zh: "客队", e
 export const sideLabel = (side, lang) => SIDE_LABEL[side]?.[lang === "en" ? "en" : "zh"] ?? "";
 
 /** The one-sentence description under the title. Names are plain text here; the caller's escFn runs on the result. */
-export function legendSubline(kind, { actorName, ev, run, side, lang }) {
+function legendSubline(kind, { actorName, ev, run, side, lang }) {
   const en = lang === "en";
   if (kind === "run") {
     const who = sideLabel(side, lang);

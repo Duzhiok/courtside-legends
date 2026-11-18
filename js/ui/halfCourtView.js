@@ -41,7 +41,7 @@ function courtSvg(label) {
 }
 
 /** Deterministic display spot for a shot (zone only comes from the sim; the exact spot is cosmetic). */
-export function shotSpot(zone, key) {
+function shotSpot(zone, key) {
   const h = hashSeed(key);
   const angle = Math.PI * (0.08 + ((h % 1000) / 1000) * 0.84);
   const r = zone === "arc" ? 26 + ((h >>> 10) % 5) : 4 + ((h >>> 10) % 15);

@@ -8,7 +8,7 @@
 
 export const CLUTCH_SECONDS = 24; // 第四节/加时最后 24 秒
 export const BUZZER_SECONDS = 3;
-export const CLUTCH_BLOCK_MARGIN = 3; // 关键封盖：此时分差不超过 3 分
+const CLUTCH_BLOCK_MARGIN = 3; // 关键封盖：此时分差不超过 3 分
 
 const BLOCK_RE = /盖帽|\bblocks?\b/i;
 
