@@ -733,6 +733,7 @@ export class GameSim {
     }
     // 终场：落后方抢攻 / 需要三分；领先方持球时落后方战术犯规抢时间
     if (applyLateGameScripts(this, off, def)) return;
+    updateComeback(this, off, def);
     this._clutchTouched = true;
 
     // Read-point precedence (M2b-1): player decision > late-game script > default gameplan. The script keeps
@@ -884,6 +885,7 @@ export class GameSim {
     }
 
     let pace = off.tactic.pace * (1 + (off.temp.pace || 0));
+    if (off.temp.comeback?.paceMult) pace *= off.temp.comeback.paceMult; // B4: a team chasing a big deficit (if its lineup can run)
     // 你方持久节奏拨档（领先降速 / 落后提速）
     const tempo = off === this.you() ? getTempoDef(off.gameplan?.tempo) : null;
     if (tempo?.paceMult && tempo.paceMult !== 1) pace *= tempo.paceMult;
@@ -912,7 +914,7 @@ export class GameSim {
     tickBenchRecovery(this.away, used);
     if (this.injuriesEnabled) this.maybeInGameInjury(off, baller);
 
-    const hunt = offenseHuntLevel(off.coach, baller);
+    const hunt = offenseHuntLevel(off.coach, baller, off);
     const defPress = defensePressLevel(def.coach);
     const offShare = lineupOffenseShare(off.onCourt);
     const fatOpts = (extra = {}) => ({
@@ -3121,6 +3123,43 @@ function lateGameInfo(sim, side) {
   return { deficit, clock, late, chasing, needThree, wantIntentionalFoul };
 }
 
+// B4 — a team that trails big in the second half changes its approach (the final minutes are the late-game script's).
+const COMEBACK_MIN_DEFICIT = 10; // no change below this
+const COMEBACK_FULL_DEFICIT = 22; // full effect at/after this
+const COMEBACK_PACE = 0.12; // max pace gain, and only for a lineup that can run
+const COMEBACK_THREE = 0.3; // max extra weight on threes (shooters only)
+const COMEBACK_THREE_MIN_SKILL = 55;
+const COMEBACK_HUNT = 0.2; // max extra willingness to attack
+
+/**
+ * Second half, down 10+: pace up, more threes, more hunting -- graded by the deficit, from the score alone (no dice).
+ * Pace is a trade-off, not a free lunch: it only helps a lineup that is fast and fresh (a tired or slow one gains
+ * nothing). Applies to the CPU side and to a quick-simmed side; a coach playing live keeps their own tactics.
+ */
+function updateComeback(sim, off, def) {
+  const t = off.temp || (off.temp = {});
+  const managed = off !== sim.you() || sim._quiet;
+  const deficit = (sim.score[def.side] || 0) - (sim.score[off.side] || 0);
+  const level = managed && !t.lateChase && sim.quarter >= 3
+    ? clamp((deficit - COMEBACK_MIN_DEFICIT) / (COMEBACK_FULL_DEFICIT - COMEBACK_MIN_DEFICIT), 0, 1)
+    : 0;
+  if (level <= 0) {
+    delete t.comeback;
+    sim._comebackSaid = sim._comebackSaid || {};
+    sim._comebackSaid[off.side] = false;
+    return;
+  }
+  const court = off.onCourt || [];
+  const avg = (key, fallback) => court.reduce((n, p) => n + (Number(p[key]) || fallback), 0) / Math.max(1, court.length);
+  const runs = clamp((avg("speed", 50) - 35) / 35, 0, 1) * clamp((78 - avg("fatigue", 0)) / 40, 0, 1);
+  t.comeback = { level, paceMult: 1 + COMEBACK_PACE * level * runs };
+  sim._comebackSaid = sim._comebackSaid || {};
+  if (!sim._comebackSaid[off.side] && off !== sim.you()) {
+    sim._comebackSaid[off.side] = true;
+    sim.emit("coach", sim.S(`${off.name} 落后 ${deficit} 分，开始抢三分、加快节奏`, `${off.name} trail by ${deficit} and start pushing: more threes, faster pace`));
+  }
+}
+
 /**
  * 落后方终场脚本：进攻抢攻 + 指定射手；防守侧战术犯规。
  * @returns {boolean} true = 本回合已被战术犯规吃掉，勿继续 resolvePossession
@@ -3359,11 +3398,13 @@ function resolveRebound(off, def, sim, afterBlock) {
 }
 
 /** Coach offense slider 0–18 → hunt-opportunity intensity 0–1. */
-function offenseHuntLevel(coach, baller = null) {
+function offenseHuntLevel(coach, baller = null, team = null) {
   let h = clamp((Number(coach?.buffs?.offense) || 8) / 18, 0, 1);
   const oh = baller?.orders?.hunt;
   if (oh === "hunt") h = clamp(h + 0.28, 0, 1);
   if (oh === "patient") h = clamp(h * 0.45, 0, 1);
+  // B4: a team chasing a big deficit goes looking for shots (graded by how far behind it is)
+  if (team?.temp?.comeback?.level) h = clamp(h + COMEBACK_HUNT * team.temp.comeback.level, 0, 1);
   return h;
 }
 
@@ -3625,12 +3666,12 @@ function applyPossessionFatigue(
 function pickBallHandler(off, focusPlay = null, offenseFocusId = null) {
   const autonomy = off.coach?.playerAutonomy ?? 40;
   const spark = off.coach?.sparkPotential ?? 40;
-  const teamHunt = offenseHuntLevel(off.coach);
+  const teamHunt = offenseHuntLevel(off.coach, null, off);
   const offShare = lineupOffenseShare(off.onCourt);
   const focus = focusPlay;
   const tacticHold = clamp(off.temp?.tacticHold || 0, 0, 1);
   return weighted(off.onCourt, (p) => {
-    const hunt = offenseHuntLevel(off.coach, p);
+    const hunt = offenseHuntLevel(off.coach, p, off);
     // High-autonomy / obscure staff: stars & high-growth get freer usage (奇效)
     const growth = p.intangibles?.growthPotential ?? p.growth ?? 50;
     // Soft star gravity — avoid 50+ FGA vacuums
@@ -4046,6 +4087,10 @@ function chooseShot(p, off, focusPlay = null, sideCtx = null) {
     w3 *= 0.8;
   }
 
+  // B4: a team chasing a big deficit looks for threes -- but only players who can shoot one (the gates below still apply)
+  const chasing = off.temp?.comeback?.level || 0;
+  if (chasing > 0 && threeSkill >= COMEBACK_THREE_MIN_SKILL) w3 *= 1 + COMEBACK_THREE * chasing;
+
   // Hard gates — Dwight-type: almost never jack a three
   if (threeTend <= 12 || threeSkill < 40) w3 *= 0.05;
   else if (threeTend < 22 || threeSkill < 48) w3 *= 0.2;
@@ -4174,7 +4219,7 @@ function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   }
 
   // Hunt green light still can't invent threeTend for bricklayers
-  const hunt = offenseHuntLevel(off.coach, p);
+  const hunt = offenseHuntLevel(off.coach, p, off);
   if (hunt > 0.5 && threeTend < 25) w3 *= 0.35;
 
   const sum = w3 + wPaint + wMid;
@@ -4215,7 +4260,7 @@ function perimeterDefenseRating(defender, zone) {
 
 function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = null) {
   const defPress = defensePressLevel(def.coach);
-  const hunt = offenseHuntLevel(off.coach, baller);
+  const hunt = offenseHuntLevel(off.coach, baller, off);
   const perimDef = perimeterDefenseRating(defender, shot?.zone);
   let open =
     0.45 +
@@ -4443,7 +4488,7 @@ function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = n
   base *= 1 + (baller.hot || 0) * 0.008 * skillHotEffectMult(baller); // 神经刀：热时更热，冷时更冷
   base *= 1 + ((baller.mood ?? 50) - 50) * 0.001;
   // Philosophy: hunt opportunities (not flat make buff)
-  const hunt = offenseHuntLevel(off.coach, baller);
+  const hunt = offenseHuntLevel(off.coach, baller, off);
   const defPress = defensePressLevel(def.coach);
   const offSkill = playerOffenseSkill(baller);
   const share = lineupOffenseShare(off.onCourt);
