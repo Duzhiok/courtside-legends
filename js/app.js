@@ -110,6 +110,8 @@ import {
 } from "./data/coaches.js";
 import { FRANCHISES, POS_SLOTS, franchiseName, playersForFranchise } from "./data/franchises.js";
 import { makeFranchiseCareerTeam, makeRandomCareerTeam, makeYearChallengeTeam } from "./career/careerTeams.js";
+import { careerCoachPrice, rollCareerCoachShop } from "./career/coachMarket.js";
+import { coachMarketCardHtml, skillOfferCardHtml } from "./ui/careerMarketCards.js";
 import {
   applyLineupPositionEffects,
   isPlayerAvailable,
@@ -4331,7 +4333,6 @@ const SKILL_REFRESH_COST = 25;
 // 金币晋级赛合并列表固定 10 行：1 教练 + 1 技能包 + 8 球员（教练/技能包固定在第 1、2 行，
 // 球员在后按排序下拉框排好），不再随机穿插。
 const CAREER_SHOP_SIZE = 8;
-const CAREER_COACH_SHOP_SIZE = 1;
 const SKILL_SHOP_SIZE = 1;
 
 /** 刷新教练货架 + 技能包货架（可只刷其一） */
@@ -4352,51 +4353,6 @@ function rollCareerStaffShops(c, { coaches = true, skills = true } = {}) {
     c.skillShopRecent = [...new Set([...recent, ...c.skillShop.map((x) => x.id)])].slice(-24);
   }
 }
-/** Gold cost to hire a coach in 晋级赛 (one-time buyout). */
-function careerCoachPrice(coach) {
-  if (!coach) return 80;
-  const tier = coach.hiddenTier || "bench";
-  const table = {
-    nba50: 520,
-    hof: 420,
-    superstar: 360,
-    allstar: 280,
-    star: 200,
-    starter: 130,
-    bench: 70,
-    water_cooler: 45,
-    undrafted_gleague: 35,
-  };
-  let price = table[tier] ?? 90;
-  if (isLegendCoach(coach)) price = Math.max(price, 380);
-  const fame = Number(coach.fame) || 0;
-  if (fame >= 90) price += 40;
-  else if (fame >= 75) price += 20;
-  return price;
-}
-
-function rollCareerCoachShop(c, size = CAREER_COACH_SHOP_SIZE) {
-  if (!c) return [];
-  // Coach pool is small — only hide current staff + coaches already bought this run
-  const blocked = new Set([...(c.hiredCoachIds || [])]);
-  if (c.team?.coach?.id) blocked.add(c.team.coach.id);
-  if (c.team?.assistant?.id) blocked.add(c.team.assistant.id);
-  let pool = shuffle(COACHES.filter((x) => x?.id && !blocked.has(x.id)));
-  if (pool.length < size) {
-    // Allow previously fired staff back onto the board if pool is thin
-    pool = shuffle(COACHES.filter((x) => x?.id && x.id !== c.team?.coach?.id));
-  }
-  const picks = [];
-  for (const coach of pool) {
-    if (picks.length >= size) break;
-    const card = structuredClone(coach);
-    card.hireCost = careerCoachPrice(coach);
-    picks.push(card);
-  }
-  c.coachShop = picks;
-  return picks;
-}
-
 function hireCareerCoach(coachId) {
   const c = state.career;
   if (!c || c.kind !== "career") return;
@@ -4472,28 +4428,6 @@ function renderCareerCoachPanel(c) {
   renderCareerSkillShop(c);
 }
 
-/** 单个教练招聘卡的 HTML——被金币晋级赛合并列表和被隐藏的旧面板共用，不重复模板。 */
-function coachMarketCardHtml(offer, gold, coach) {
-  const cost = offer.hireCost ?? careerCoachPrice(offer);
-  const book = coachTactics(offer)
-    .slice(0, 3)
-    .map((t) => t.name)
-    .join(" / ");
-  const can = gold >= cost;
-  const isCur = coach?.id === offer.id;
-  return `<div class="career-coach-card ${isCur ? "current" : ""}">
-    <strong>${esc(offer.name)}${isLegendCoach(offer) ? ' <span class="rarity-tag myth">名帅</span>' : ""}</strong>
-    <div class="tiny">${esc(coachRecordLabel(offer))}</div>
-    <div class="tiny">擅长 ${esc(coachSpecialtyLabel(offer))}</div>
-    <div class="tiny">${esc(offer.style || "")}</div>
-    <div class="tiny">战术板：${esc(book || "—")}</div>
-    <div class="tiny">${esc(offer.note || "")}</div>
-    <button type="button" class="btn small primary" data-hire-career-coach="${offer.id}" ${
-      can && !isCur ? "" : "disabled"
-    }>${isCur ? "已是主帅" : can ? `聘请 ¤${cost}` : shortfallLabel(cost, gold)}</button>
-  </div>`;
-}
-
 function ensureSkillInventory(c) {
   if (!c) return [];
   if (!Array.isArray(c.skillInventory)) c.skillInventory = [];
@@ -4519,23 +4453,6 @@ function skillPanelRoots() {
       hint: $("#live-skill-hint"),
     },
   ];
-}
-
-/** 单个技能包购买卡的 HTML——被金币晋级赛合并列表和 setup/live 两处技能货架共用。 */
-function skillOfferCardHtml(offer, gold) {
-  const cost = offer.cost || 99;
-  const canAfford = gold >= cost;
-  const rarity = offer.rarityLabel || offer.rarity || "";
-  return `<div class="career-skill-card rarity-${escAttr(offer.rarity || "common")}">
-    <strong>${esc(offer.name)}${
-      rarity ? ` <span class="rarity-tag ${escAttr(offer.rarity || "")}">${esc(rarity)}</span>` : ""
-    }</strong>
-    <div class="tiny">${esc(offer.desc || "")}</div>
-    <div class="tiny">标价 ¤${cost}${offer.rarity === "mythic" ? " · 对齐超巨身价" : ""}</div>
-    <button type="button" class="btn small primary" data-buy-skill="${offer.id}" ${
-      canAfford ? "" : "disabled"
-    }>${canAfford ? `买入入库 ¤${cost}` : shortfallLabel(cost, gold)}</button>
-  </div>`;
 }
 
 function paintSkillShopRoot({ shop: skillBox, inv: invBox, hint }, c) {
