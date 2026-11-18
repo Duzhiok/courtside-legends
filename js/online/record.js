@@ -7,7 +7,7 @@
  * view, or a missing winner leaves the record unchanged.
  */
 
-export const RECORD_KEY = "courtside-online-record";
+const RECORD_KEY = "courtside-online-record";
 
 export function loadRecord(storage) {
   try {

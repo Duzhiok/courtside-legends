@@ -32,7 +32,7 @@ export const COACHING_MOMENT_TITLE = Object.freeze({ zh: "教练战术逆转挑�
  * The back button was never wired before (no listener anywhere); the shell
  * wires it to onBack, so it works now.
  */
-export function ensureCoachingScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+function ensureCoachingScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
   return mountScreen({ id: "coach-tactics", title: COACHING_MOMENT_TITLE, getLang, onBack, onRelocalize }).el;
 }
 
