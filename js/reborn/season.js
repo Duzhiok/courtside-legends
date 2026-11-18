@@ -38,6 +38,7 @@ import {
   rivalsOnRoster,
   takeoverWindowFor,
 } from "./rivalry.js";
+import { jerseyState, offersForGame } from "../collectibles/jerseyExchange.js";
 import { createEggWatcher } from "./enforcerEgg.js";
 import {
   buildPlayerCard,
@@ -350,6 +351,10 @@ export async function playGame(
   };
   const rivalry = recordRivalryMeetings(rivalryLedger(reborn), reportCore);
   next.rivalries = rivalry.ledger;
+  // Jersey exchange (J3): a rival who really played tonight and has earned enough respect may offer a jersey. Evidence is the
+  // same report + rivalry ledger; deterministic ids make a replayed game add nothing. No gameplay effect.
+  const jerseys = offersForGame(jerseyState(reborn), { report: reportCore, ledger: rivalry.ledger, rivalry });
+  if (jerseys.state.offers.length || jerseys.state.collection.length) next.jerseys = jerseys.state;
   // Rivals on tonight's roster who did not make it a meeting, and why (never silent).
   const metBrefs = new Set(rivalry.met.map((m) => m.rival.bref));
   const missed = rivalsOnRoster(rivalryLedger(reborn), oppCards)
@@ -393,6 +398,7 @@ export async function playGame(
         : null,
       weekBoundary: isWeekBoundary(season.index, REBORN_GAMES_PER_WEEK),
       enforcerEgg: eggIncident || null,
+      jersey: { offers: jerseys.created.map((o) => ({ id: o.id, fromBref: o.fromBref, fromName: o.fromName, fromNameEn: o.fromNameEn, reasons: o.reasons, respect: o.respect })) },
       rivalry: {
         formed: rivalry.formed.map((r) => ({ bref: r.bref, name: r.name, nameEn: r.nameEn, origin: r.origin, reason: r.reason })),
         met: rivalry.met.map(({ rival, meeting }) => ({ bref: rival.bref, name: rival.name, nameEn: rival.nameEn, ...meeting, ...headToHead(rival) })),

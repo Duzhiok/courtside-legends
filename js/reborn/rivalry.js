@@ -97,7 +97,7 @@ export function headToHead(rival) {
  * Your direct matchup in this game: same position group, real minutes,
  * comparable level; the one who played the most. Null when nobody fits.
  */
-function directMatchup(report) {
+export function directMatchup(report) {
   const you = report?.you;
   if (!you || (report.line?.min || 0) < MEETING_MIN_MINUTES) return null;
   const group = posGroup(you.pos);

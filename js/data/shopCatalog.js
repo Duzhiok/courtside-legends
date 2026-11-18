@@ -15,10 +15,13 @@
  * furniture 100–500, Auto-Play Tickets 5 for 100 / 20 for 350 / 50 for 800
  * (bulk: 50-pack at ¤16/game vs ¤20/¤17.50 for the smaller packs).
  */
+import { jerseyShopItems } from "../collectibles/jerseyCatalog.js";
+
 export const SHOP_CATEGORIES = Object.freeze([
   { id: "home", zh: "我的家", en: "My Home" },
   { id: "style", zh: "我的形象", en: "My Style" },
   { id: "collection", zh: "我的收藏", en: "My Collection" },
+  { id: "jersey", zh: "球衣", en: "Jerseys" },
   { id: "convenience", zh: "便利", en: "Convenience" },
 ]);
 
@@ -32,6 +35,8 @@ const SHOP_KINDS = Object.freeze({
  * - furniture { furnitureId } — rendered into the My Home room (myWorldView homeSceneHtml).
  * - outfit { outfitId } — an avatarLook OUTFITS id; equipping writes the look via saveLook.
  * - frame { frameId } — a CSS frame class on the My World profile portrait.
+ * - jersey { templateId } — a collectible jersey (js/collectibles/): owning it adds it to My Collection; wearing it records
+ *   the choice only (the avatar renderer shows a simplified preview). Looks only, never an attribute.
  * - autoTickets { games } — consumable credits; using one simulates one regular-season
  *   game through the existing engine (simUserNextGame + settleUserGame), no bonuses.
  */
@@ -263,6 +268,8 @@ export const SHOP_ITEMS = Object.freeze([
     descEn: "Simulate 50 regular-season games with the normal engine (results count). +5 account XP per auto game, max 20 XP-paying auto games per day; no win-rate bonus, no OVR boost. A whole season in one pack.",
     effect: { type: "autoTickets", games: 50 },
   },
+  // ---- Jerseys: original throwback jerseys (js/collectibles/jerseyCatalog.js; only cleared release levels are sold). ----
+  ...jerseyShopItems(),
 ]);
 
 export function itemById(id) {
@@ -301,7 +308,7 @@ export function validateCatalog() {
     if (!SHOP_CATEGORIES.some((c) => c.id === item.category)) return { ok: false, reason: `${item.id}: unknown category ${item.category}` };
     if (!Object.values(SHOP_KINDS).includes(item.kind)) return { ok: false, reason: `${item.id}: unknown kind ${item.kind}` };
     if (!(item.price > 0)) return { ok: false, reason: `${item.id}: bad price ${item.price}` };
-    if (item.kind === SHOP_KINDS.COSMETIC && !["furniture", "outfit", "frame"].includes(item.effect?.type)) return { ok: false, reason: `${item.id}: cosmetic without a real effect` };
+    if (item.kind === SHOP_KINDS.COSMETIC && !["furniture", "outfit", "frame", "jersey"].includes(item.effect?.type)) return { ok: false, reason: `${item.id}: cosmetic without a real effect` };
     if (item.kind === SHOP_KINDS.CONVENIENCE && item.effect?.type !== "autoTickets") return { ok: false, reason: `${item.id}: convenience without a ticket effect` };
     if (String(item.zh || "").includes("抽") || String(item.en || "").toLowerCase().includes("draw")) return { ok: false, reason: `${item.id}: must not sell draws` };
   }

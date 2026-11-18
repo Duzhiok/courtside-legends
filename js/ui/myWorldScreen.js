@@ -5,6 +5,7 @@
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook } from "../data/avatarLook.js";
+import { equipJersey, equippedJerseyKey, listOwnedJerseys, unequipJersey } from "../collectibles/jerseyCollection.js";
 import { ownedFurnitureIds, ownedOutfitIds, equippedFrameClassKey, equipShopItem, unequipShopItem } from "../data/shop.js";
 import { defaultPresetId, lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
@@ -104,7 +105,7 @@ export function createMyWorld({
     }
     const identity = readIdentity(account);
     const hometown = hometownHtml({ identity, state: readHometownState(account), lang, names: hometownNames(account), challengeAvailable: hometownChallengeAvailable(account) });
-    el.innerHTML = myWorldHtml({ identity, games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account), hometown }, lang);
+    el.innerHTML = myWorldHtml({ jerseys: account ? { list: listOwnedJerseys(account), equipped: equippedJerseyKey(account) } : null, identity, games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account), hometown }, lang);
     mountShowcaseViewer();
   }
 
@@ -372,6 +373,19 @@ export function createMyWorld({
       if (!res.ok) return say(status(), res.reason === "not-owned" ? "这件商品还没买，先去商城看看。" : "穿戴失败。", res.reason === "not-owned" ? "You don't own that item yet — take a look in the Shop." : "Couldn't equip it.");
       render();
       say(status(), getLang() === "en" ? `Equipped ${res.item.en}.` : `已穿戴「${res.item.zh}」。`);
+    },
+    /** Wear / take off a collectible jersey (records the choice; the avatar does not draw it yet). */
+    "equip-jersey": (btn) => {
+      const key = btn?.closest?.("[data-jersey-key]")?.dataset?.jerseyKey;
+      if (!key) return;
+      const res = equipJersey(getAccount(), key);
+      render();
+      say(el.querySelector("#mw-owned-status"), res.ok ? "已设为当前球衣。" : "这件球衣不在你的收藏里。", res.ok ? "Set as your current jersey." : "That jersey is not in your collection.");
+    },
+    "unequip-jersey": () => {
+      unequipJersey(getAccount());
+      render();
+      say(el.querySelector("#mw-owned-status"), "已取下球衣。", "Jersey taken off.");
     },
     "unequip-owned": (btn) => {
       const itemId = btn?.closest?.("[data-item]")?.dataset?.item;

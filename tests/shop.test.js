@@ -32,9 +32,11 @@ function richAccount(gold = 1000) {
   return acc.getAccount(a.id);
 }
 
-test("catalog: twenty items, unique ids, real effects, no draws, no power", () => {
+test("catalog: twenty core items + the jersey collection, unique ids, real effects, no draws, no power", () => {
   const v = catalog.validateCatalog();
-  assert.deepEqual(v, { ok: true, items: 20 });
+  const jerseys = catalog.SHOP_ITEMS.filter((i) => i.effect?.type === "jersey");
+  assert.ok(jerseys.length >= 1 && jerseys.every((i) => i.category === "jersey"), "jerseys live in their own category");
+  assert.deepEqual(v, { ok: true, items: 20 + jerseys.length });
   const ids = catalog.SHOP_ITEMS.map((i) => i.id);
   assert.equal(new Set(ids).size, ids.length);
   for (const item of catalog.SHOP_ITEMS) {

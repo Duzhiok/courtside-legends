@@ -26,6 +26,9 @@ import { roleForTrust, describeTrustChange, TRUST_START } from "../../reborn/tru
 import { settleRebornPromises } from "../../reborn/promiseSettle.js";
 import { challengeRival, mirrorRivalriesToAccount, rivalryLedger, rivalryTimelineEvent } from "../../reborn/rivalry.js";
 import { rivalryPregameHtml, rivalryReportHtml, rivalryTimelineLine, rivalsPanelHtml } from "./rivalryView.js";
+import { acceptJerseyExchange, declineJerseyExchange, jerseyState } from "../../collectibles/jerseyExchange.js";
+import { mirrorJerseysToAccount } from "../../collectibles/jerseyCollection.js";
+import { jerseyOffersHtml } from "./jerseyOfferView.js";
 import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
 import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick } from "./fragmentsView.js";
@@ -230,9 +233,11 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     // Rivalries: the run's ledger is the truth; the account gets an idempotent copy.
     const hasRivals = rivalryLedger(rebornState).rivals.length > 0;
     if (hasRivals) mirrorRivalriesToAccount(account, rebornState);
+    // Kept jerseys: the run is the truth, the account gets an idempotent copy (deduped by instance id).
+    const jerseysAdded = mirrorJerseysToAccount(account, jerseyState(rebornState));
     const out = settleRebornPromises(account, rebornState);
     if (!out.settled.length) {
-      if (hasRivals) { try { saveAccount(account); } catch { /* guest */ } }
+      if (hasRivals || jerseysAdded) { try { saveAccount(account); } catch { /* guest */ } }
       return [];
     }
     if (out.reborn !== rebornState) {
@@ -350,6 +355,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       ffSummary,
       rebornReportHtml({ report: lastReport, lang: lang() }),
       rivalryReportHtml({ report: lastReport, reborn, lang: lang() }),
+      jerseyOffersHtml({ reborn, lang: lang() }),
       rivalsPanelHtml({ reborn, lang: lang() }),
       careerTimelineHtml({ reborn, lang: lang() }),
       `<button type="button" data-reset="1">${L("换一个身份（重新开始）", "New identity (restart)", lang)}</button>`,
@@ -473,6 +479,18 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         if (out.rival) {
           reborn.rivalries = out.ledger;
           reborn.timeline = { ...(reborn.timeline || {}), events: [...(reborn.timeline?.events || []), rivalryTimelineEvent(out.rival)] };
+          syncAccount(reborn);
+          persist();
+        }
+        render();
+        return;
+      }
+      const jersey = event.target.closest("[data-jersey-accept], [data-jersey-decline]");
+      if (jersey) {
+        const accept = jersey.dataset.jerseyAccept;
+        const out = accept ? acceptJerseyExchange(jerseyState(reborn), accept) : declineJerseyExchange(jerseyState(reborn), jersey.dataset.jerseyDecline);
+        if (out.ok) {
+          reborn.jerseys = out.state;
           syncAccount(reborn);
           persist();
         }

@@ -5,6 +5,7 @@
  *   account.shop = {
  *     owned: { [itemId]: true },        // cosmetics, permanent unlocks
  *     equippedFrame: string | null,     // frame item id currently on the profile portrait
+ *     equippedJersey: string | null,    // owned jersey key being worn (shop item id or exchange instance id)
  *     tickets: number,                   // Auto-Play credits (one credit = one simulated game)
  *     autoUsed: { [dateKey]: number },  // auto games already paid XP today (cap: XP_TABLE.autoDailyCap)
  *     purchases: [{ itemId, at }],      // newest first, capped — the "recently bought" list
@@ -39,6 +40,9 @@ export function getShop(account) {
   return {
     owned: { ...(raw.owned || {}) },
     equippedFrame: typeof raw.equippedFrame === "string" ? raw.equippedFrame : null,
+    // A collectible jersey being worn (an owned key, see js/collectibles/jerseyCollection.js). Kept here so every
+    // purchase that rewrites the shop record carries it along instead of silently dropping it.
+    equippedJersey: typeof raw.equippedJersey === "string" ? raw.equippedJersey : null,
     tickets: Math.max(0, Math.floor(raw.tickets) || 0),
     autoUsed: { ...(raw.autoUsed || {}) },
     purchases: Array.isArray(raw.purchases)
@@ -116,6 +120,7 @@ export function ownedItems(account) {
     equipped:
       item.effect?.type === "outfit" ? wearing === item.id
       : item.effect?.type === "frame" ? framed === item.id
+      : item.effect?.type === "jersey" ? shop.equippedJersey === item.id
       : item.effect?.type === "furniture",
   }));
 }
@@ -181,6 +186,12 @@ export function equipShopItem(account, itemId) {
     saveAccount(account);
     return { ok: true, item };
   }
+  if (item.effect?.type === "jersey") {
+    shop.equippedJersey = item.id;
+    writeShop(account, shop);
+    saveAccount(account);
+    return { ok: true, item };
+  }
   return { ok: false, reason: "no-equip", item };
 }
 
@@ -200,6 +211,14 @@ export function unequipShopItem(account, itemId) {
   if (item.effect?.type === "outfit") {
     const look = saveLook(account, { outfit: "forest" });
     return { ok: true, item, look };
+  }
+  if (item.effect?.type === "jersey") {
+    const shop = getShop(account);
+    if (shop.equippedJersey !== item.id) return { ok: false, reason: "not-equipped", item };
+    shop.equippedJersey = null;
+    writeShop(account, shop);
+    saveAccount(account);
+    return { ok: true, item };
   }
   return { ok: false, reason: "no-equip", item };
 }

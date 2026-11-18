@@ -8,6 +8,8 @@
  * (selected category/item, armed two-step buy, last ticket-use result).
  * All money / ownership / ticket state lives in js/data/shop.js.
  */
+import { jerseySvg } from "./collectibles/jerseySvg.js";
+import { getJerseyTemplate } from "../collectibles/jerseyCatalog.js";
 import { SHOP_CATEGORIES, itemsByCategory, itemById, itemName, itemDesc, kindLabel, categoryLabel } from "../data/shopCatalog.js";
 import { getShop, purchaseShopItem, equipShopItem, unequipShopItem, equippedClothingItemId, equippedFrameId, ticketBalance, ownedItems, recentPurchases, ownedFurnitureIds } from "../data/shop.js";
 import { lookColors } from "../data/avatarLook.js";
@@ -52,6 +54,10 @@ export function shopPreviewHtml(item, lang = "zh") {
   if (effect.type === "frame") {
     // The item's own frame class (mw-frame-<frameId>) — same class the portrait wears.
     return `<span class="shop-preview-frame mw-frame-${esc(effect.frameId)}"><img src="${avatarDataUri({ name: "You", team: "NBA" })}" alt="" width="64" height="64" /></span>`;
+  }
+  if (effect.type === "jersey") {
+    // Original jersey art: silhouette family + colours + number (js/ui/collectibles/jerseySvg.js).
+    return jerseySvg(getJerseyTemplate(effect.templateId), { size: 96, label: itemName(item, lang) });
   }
   if (effect.type === "autoTickets") {
     return `<span class="shop-preview-ticket"><span class="shop-preview-ticket-n">×${effect.games}</span><span class="shop-preview-ticket-sub">${esc(TL(lang, "托管场次", "auto games"))}</span></span>`;

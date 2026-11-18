@@ -8,6 +8,7 @@
  * Visual redesign (R167): one page title, compact identity hero, compact cards, an illustrated room, and a small
  * corner feedback entry. Presentation only -- same data, same actions.
  */
+import { jerseyCollectionHtml } from "./collectibles/jerseyCollectionView.js";
 import { avatarDataUri } from "../data/avatarArt.js";
 import { challengeTierName } from "../data/careerChallenges.js";
 import { photoImg } from "../data/photo.js";
@@ -422,7 +423,7 @@ export function levelHtml(snapshot, lang) {
   </div>`;
 }
 
-export function myWorldHtml({ identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], homeLayout = null, frame = null, ownedOutfits = null, owned = null, hometown = "" }, lang) {
+export function myWorldHtml({ jerseys = null, identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], homeLayout = null, frame = null, ownedOutfits = null, owned = null, hometown = "" }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const ownedCareer = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
@@ -434,7 +435,8 @@ export function myWorldHtml({ identity, games, journey, legacy, frames, look, po
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
     ${hometown}
     ${homeSceneHtml({ identity, frames, trophyCount: titles, furniture, layout: homeLayout, portrait }, lang)}
-    ${ownedShopHtml(owned, lang)}`;
+    ${ownedShopHtml(owned, lang)}
+    ${jerseyCollectionHtml(jerseys, lang)}`;
 }
 
 /**
@@ -471,7 +473,8 @@ export function showcaseHtml({ identity, look }, lang) {
 export function ownedShopSummary(account) {
   if (!account) return null;
   const shop = getShop(account);
-  const items = Object.keys(shop.owned).map((id) => itemById(id)).filter(Boolean);
+  // Jerseys are managed in the Jersey Collection section (it knows which one is worn), so they are not listed here too.
+  const items = Object.keys(shop.owned).map((id) => itemById(id)).filter((i) => i && i.effect?.type !== "jersey");
   const equippedOutfit = equippedClothingItemId(account);
   return {
     recent: items.slice(-3).reverse(),

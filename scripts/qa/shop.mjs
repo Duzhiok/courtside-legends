@@ -92,7 +92,7 @@ for (const [tag, viewport] of [["desktop", { width: 1280, height: 800 }], ["mobi
   // Top-bar gold chip.
   check(`[${tag}] gold chip shows ¤2000`, (await text(page, "#gold-chip-amt")) === "2000");
   await openShop(page);
-  check(`[${tag}] shop dialog opens with 5 tabs (4 categories + owned)`, (await page.$$("#shop-dialog .shop-tab")).length === 5);
+  check(`[${tag}] shop dialog opens with 6 tabs (5 categories + owned)`, (await page.$$("#shop-dialog .shop-tab")).length === 6);
   check(`[${tag}] home tab lists 8 furniture items`, (await page.$$("#shop-dialog .shop-card")).length === 8);
   check(`[${tag}] dialog states the no-power rule`, (await text(page, "#shop-dialog")).includes("金币不买球员卡"));
   check(`[${tag}] dialog: no overflow`, await noOverflow(page));
