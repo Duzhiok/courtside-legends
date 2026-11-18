@@ -2649,8 +2649,8 @@ function renderAccountList() {
         <button type="button" class="btn small ghost" id="btn-corrupt-accounts-discard">${L("删除损坏的账号库", "Discard damaged store")}</button>
       </div>`;
     box.querySelector("#btn-corrupt-accounts-download").onclick = downloadCorruptAccountsBackup;
-    box.querySelector("#btn-corrupt-accounts-discard").onclick = () => {
-      if (!confirm(L("删除损坏的账号库并重新开始？备份仍保留在浏览器中，不会被删除。", "Discard the damaged account store and start fresh? The backup stays in the browser and is not deleted."))) return;
+    box.querySelector("#btn-corrupt-accounts-discard").onclick = async () => {
+      if (!(await confirmAction(L("删除损坏的账号库并重新开始？备份仍保留在浏览器中，不会被删除。", "Discard the damaged account store and start fresh? The backup stays in the browser and is not deleted.")))) return;
       if (discardCorruptAccountStore()) {
         renderAccountList();
         refreshAccountHomeBar();
@@ -8730,9 +8730,9 @@ function exitGameToHome() {
   saveProgress({ andGoHome: true });
 }
 $("#btn-pause-leave")?.addEventListener("click", () => exitGameToHome());
-$("#btn-save-leave")?.addEventListener("click", () => {
+$("#btn-save-leave")?.addEventListener("click", async () => {
   if (!state.sim) return;
-  if (confirm("保存当前比赛并返回首页？回来可在「继续进度」接着打。")) {
+  if (await confirmAction(L("保存当前比赛并返回首页？回来可在「继续进度」接着打。", "Save the current match and return home? You can resume it from “Continue progress”. "))) {
     exitGameToHome();
   }
 });
@@ -8744,7 +8744,7 @@ $("#btn-continue-save")?.addEventListener("click", () => continueFromSave());
 $("#btn-clear-save")?.addEventListener("click", async () => {
   if (!hasSave()) return;
   if (await blockedByForeignSave("session", { release: true })) return; // never another player's unfinished game
-  if (confirm(L("确定丢弃已保存的进度？此操作无法撤销。", "Discard the saved progress? This can't be undone."))) {
+  if (await confirmAction(L("确定丢弃已保存的进度？此操作无法撤销。", "Discard the saved progress? This can't be undone."))) {
     clearSave({ release: true }); // confirmed: an unlinked unfinished game may go
     refreshSaveHomeBar();
   }
