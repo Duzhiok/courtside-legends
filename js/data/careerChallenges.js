@@ -34,7 +34,7 @@ export const HISTORICAL_CHAMPION_CHALLENGERS = [
   { year: 2017, teamId: "GSW", bref: "GSW", name: "勇士", label: "17勇士·杜兰特元年" },
 ];
 
-export const CAREER_CHALLENGE_TIERS = {
+const CAREER_CHALLENGE_TIERS = {
   gold: {
     id: "gold",
     name: "金币联赛", nameEn: "Gold League",

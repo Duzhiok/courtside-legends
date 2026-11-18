@@ -10,7 +10,7 @@ import { NICKNAMES } from "./nicknames.js";
 const SEASON_MIN = 1946;
 const SEASON_MAX = 2035;
 
-export function normalizeText(value) {
+function normalizeText(value) {
   return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

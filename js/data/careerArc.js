@@ -145,7 +145,7 @@ export const PHASE_LABEL = {
  * Deltas applied on top of box-score formula attrs.
  * Young: speed / motor. Vet: IQ / strength / pass / shooting touch / clutch.
  */
-export function careerArcDeltas(age, pos = "SF") {
+function careerArcDeltas(age, pos = "SF") {
   const phase = careerPhase(age);
   const isBig = pos === "C" || pos === "PF";
   const d = {
