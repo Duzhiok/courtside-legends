@@ -52,6 +52,8 @@ export const BIRTH_YEAR = {
 
 /** bref → { first, last } built once per roster load. */
 let CAREER_SPAN = new Map();
+/** The earliest season in the data: a career "starting" there may have started before the data does. */
+let DATA_FIRST_SEASON = 0;
 
 export function buildCareerSpanIndex(rows) {
   const map = new Map();
@@ -68,7 +70,19 @@ export function buildCareerSpanIndex(rows) {
     }
   }
   CAREER_SPAN = map;
+  DATA_FIRST_SEASON = Math.min(...[...map.values()].map((span) => span.first), Infinity);
   return map;
+}
+
+/**
+ * Is this season card the player's first NBA season? true / false from the real career data; null when that is unknown
+ * (no bref, a player outside the data, or a career that begins at the data's first season and may have begun earlier).
+ */
+export function isRookieSeason(r) {
+  const span = CAREER_SPAN.get(r?.bref || "");
+  const season = +r?.season || 0;
+  if (!span || !season || span.first === DATA_FIRST_SEASON) return null;
+  return season === span.first;
 }
 
 /**

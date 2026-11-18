@@ -47,12 +47,31 @@ test("S-P1-1: the coach and assistant cards escape name, team, style and notes",
   assert.ok(!appSrc.includes("助教 · ${a.name}"), "no unescaped assistant name remains");
 });
 
-test("S-P1-1: the awards page escapes player, team and coach names", () => {
-  assert.ok(appSrc.includes("${esc(a.name)}（${esc(a.teamName)}）"), "awardLine escapes name and team");
-  assert.ok(appSrc.includes("${esc(p.name)} <em class=\"tiny\">${esc(p.teamName)}</em>"), "All-NBA rows escape name and team");
-  assert.ok(appSrc.includes("${esc(a.coty.name)}（${esc(a.coty.teamName)}"), "Coach of the Year escapes name and team");
-  assert.ok(!appSrc.includes("${a.name}（${a.teamName}）"), "no unescaped awardLine remains");
-  assert.ok(!appSrc.includes("${p.name} <em class=\"tiny\">${p.teamName}</em>"), "no unescaped All-NBA row remains");
+test("S-P1-1: the awards page escapes player, team and coach names", async () => {
+  // Rendered, not grepped: the awards tab lives in js/ui/seasonAwardsView.js now.
+  const { seasonAwardsHtml } = await import("../js/ui/seasonAwardsView.js");
+  const evil = (tag) => `${tag}<img src=x onerror=alert(1)>`;
+  const award = (id, name) => ({ playerId: id, teamId: "EVL", name: evil(name), teamName: evil("Team"), pos: "SF", gp: 10, ppg: 20, rpg: 5, apg: 5 });
+  const st = {
+    userTeamId: "EVL",
+    teams: { EVL: { name: evil("Squad") } },
+    standings: { EVL: { w: 6, l: 4, pf: 1000, pa: 950 } },
+    playerSeason: {},
+    awards: {
+      mvp: award("p1", "Mvp"), dpoy: award("p2", "Dpoy"), sixthMan: null, mip: null, roy: null,
+      coty: { name: evil("Coach"), teamId: "EVL", teamName: evil("Team"), w: 6, l: 4 },
+      allNba: { first: [award("p3", "AllNba")] }, allDefense: { first: [award("p4", "AllD")] },
+      scoringChamp: award("p5", "Scorer"),
+    },
+  };
+  for (const lang of ["zh", "en"]) {
+    const html = seasonAwardsHtml(st, lang);
+    assert.ok(html.includes("Mvp&lt;img"), `${lang}: the name is shown, escaped`);
+    assert.ok(!/<img src=x/i.test(html), `${lang}: no injected element survives`);
+    const handlers = html.match(/onerror=alert/g) || [];
+    const escaped = html.match(/&lt;img src=x onerror=alert/g) || [];
+    assert.equal(handlers.length, escaped.length, `${lang}: every injected handler is inert escaped text`);
+  }
 });
 
 test("S-P1-1: a custom team name with markup is stripped before it becomes a team name", () => {

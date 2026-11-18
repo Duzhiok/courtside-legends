@@ -2,6 +2,7 @@
  * NBA-style season: 32 teams (modern) or historical year rosters, 82-game RS, playoffs, awards.
  */
 import { normalizePos } from "../data/positions.js";
+import { isRookieSeason } from "../data/careerArc.js";
 import { resolveEffectiveGameplan } from "./effectiveGameplan.js";
 import { applyRotationPlan } from "./gameplan.js";
 import {
@@ -642,7 +643,8 @@ function ensurePlayerSeason(st, teamId, p) {
       season: p.season,
       age,
       ovr,
-      bref: p.bref,
+      // Snapshot players are slim() and carry no bref: take it from the live card (ROY needs it for the debut season).
+      bref: p.bref ?? live?.bref,
       stats: emptySeasonStats(),
     };
   } else {
@@ -650,6 +652,7 @@ function ensurePlayerSeason(st, teamId, p) {
     // what is missing, never rewrite stored values. ovr stays as first written.
     const row = st.playerSeason[key];
     if (row.age == null && age != null) row.age = age;
+    if (!row.bref && live?.bref) row.bref = live.bref;
     // Saves from before the position fix hold a frozen lineup slot here; the live card knows the real one.
     if (live?.pos && row.pos !== live.pos) row.pos = live.pos;
   }
@@ -1024,14 +1027,20 @@ export function computeAwards(st) {
       const expect = ((x.row.ovr || 70) - 60) * 0.55;
       const over = perGame(x.row.stats, "pts") + perGame(x.row.stats, "ast") * 0.5 - expect;
       const ageBonus = (x.row.age || 26) <= 24 ? 2 : (x.row.age || 26) <= 27 ? 1 : 0;
-      return { ...x, mipScore: over + ageBonus };
+      return { ...x, mipScore: over + ageBonus, mipBasis: { expected: round1(expect), over: round1(over), ageBonus } };
     })
     .sort((a, b) => b.mipScore - a.mipScore)[0];
 
-  // ROY: 真正新秀窗口——年龄≤22，且不能已是联盟顶级老将卡
+  // ROY: the card must be the player's first NBA season (real career data). The old age gate alone (<= 22) let 2nd- and
+  // 3rd-year players in, because a player without a birth year is aged 20 + seasons since his debut. Players the data
+  // does not know (custom, drafted, fictional, old-save rows without bref) keep that age window.
+  // Rows written before bref was stored (snapshots are slim) still find it on the live card.
+  const rookieOf = (row) => isRookieSeason({ season: row.season, bref: row.bref || liveCardFor(st, row.teamId, row.playerId)?.bref });
   const roy = [...scored]
     .filter((x) => {
       if (x.row.stats.gp < gpScale(40)) return false;
+      const rookie = rookieOf(x.row);
+      if (rookie !== null) return rookie;
       const age = x.row.age;
       if (age != null && age <= 22) return true;
       // 无年龄时：卡面赛季偏早且 OVR 未到超巨
@@ -1060,12 +1069,14 @@ export function computeAwards(st) {
     (a, b) => perGame(b.row.stats, "ast") - perGame(a.row.stats, "ast")
   )[0];
 
+  // `basis`: the numbers the selection actually used, so the awards screen can explain a pick without re-deriving the
+  // formula. Display only: older saves simply lack it.
   const awards = {
-    mvp: mvp ? formatAwardPlayer(mvp) : null,
-    dpoy: dpoy ? formatAwardPlayer(dpoy) : null,
-    sixthMan: sixth ? formatAwardPlayer(sixth) : null,
-    mip: mip ? formatAwardPlayer(mip) : null,
-    roy: roy ? formatAwardPlayer(roy) : null,
+    mvp: mvp ? { ...formatAwardPlayer(mvp), basis: { score: round1(mvp.mvp), minGames: gpScale(20) } } : null,
+    dpoy: dpoy ? { ...formatAwardPlayer(dpoy), basis: { score: round1(dpoy.dpoy), minGames: gpScale(20) } } : null,
+    sixthMan: sixth ? { ...formatAwardPlayer(sixth), basis: { gs: sixth.row.stats.gs, gp: sixth.row.stats.gp, minGames: gpScale(20) } } : null,
+    mip: mip ? { ...formatAwardPlayer(mip), basis: { ...mip.mipBasis, minGames: gpScale(25) } } : null,
+    roy: roy ? { ...formatAwardPlayer(roy), basis: { rule: rookieOf(roy.row) ? "debut" : "age", minGames: gpScale(40) } } : null,
     coty: cotyCoach
       ? { name: cotyCoach.name, teamId: cotyTeam.id, teamName: cotyTeam.name, w: cotyTeam.w, l: cotyTeam.l }
       : null,
@@ -1085,6 +1096,8 @@ export function computeAwards(st) {
   return awards;
 }
 
+const round1 = (n) => Math.round((Number(n) || 0) * 10) / 10;
+
 function formatAwardPlayer(x) {
   const s = x.row.stats;
   return {
@@ -1093,6 +1106,8 @@ function formatAwardPlayer(x) {
     teamId: x.row.teamId,
     teamName: x.teamName || x.row.teamId,
     pos: x.row.pos,
+    season: x.row.season,
+    bref: x.row.bref,
     gp: s.gp,
     ppg: +perGame(s, "pts").toFixed(1),
     rpg: +perGame(s, "reb").toFixed(1),

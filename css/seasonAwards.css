@@ -1,0 +1,79 @@
+/* Season Awards 2.0 (js/ui/seasonAwardsView.js): award cards with a stat strip, expandable detail, all-league tables. */
+/* minmax(0, 1fr) + min-width: 0: without them the tables' min-width props the whole column open and the page scrolls sideways. */
+.aw-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+.aw-board > * { min-width: 0; }
+.aw-intro, .aw-defs { margin: 0; font-size: .78rem; color: #cfe0d4; line-height: 1.5; }
+.aw-defs { margin-top: 4px; }
+
+.aw-card { background: #fff; color: #17201a; border-radius: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); overflow: hidden; }
+.aw-card > summary {
+  display: grid; align-items: center; gap: 8px 16px; padding: 10px 14px; cursor: pointer; list-style: none;
+  grid-template-columns: minmax(190px, 230px) auto minmax(0, 1fr) 150px auto;
+  grid-template-areas: "head badge stats team more";
+}
+.aw-card > summary::-webkit-details-marker { display: none; }
+.aw-card > summary:focus-visible { outline: 3px solid #0f766e; outline-offset: -3px; }
+.aw-head { grid-area: head; min-width: 0; }
+.aw-title { margin: 0 0 6px; font-size: .95rem; font-weight: 800; }
+.aw-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.aw-who img, .aw-initial { width: 52px; height: 52px; flex: none; border-radius: 50%; object-fit: cover; background: #e7ece8; }
+.aw-initial { display: grid; place-items: center; font-weight: 800; font-size: 1.3rem; color: #14532d; }
+.aw-who strong { display: block; font-size: .95rem; }
+.aw-who div > span { display: block; font-size: .75rem; color: #5b665f; }
+
+.aw-badge { grid-area: badge; display: grid; justify-items: center; padding: 6px 10px; border-radius: 10px; background: #ecfdf3; border: 1px solid #bbf7d0; }
+.aw-badge span { font-size: .7rem; color: #166534; }
+.aw-badge strong { font-size: 1.1rem; color: #15803d; }
+
+.aw-stats { grid-area: stats; display: grid; grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); gap: 4px; margin: 0; padding: 6px 8px; border-radius: 10px; background: #f5f7f5; }
+.aw-stats > div { text-align: center; min-width: 0; }
+.aw-stats dt { font-size: .7rem; color: #6b756e; white-space: nowrap; }
+.aw-stats dd { margin: 2px 0 0; font-size: .95rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.aw-stats dd.na { color: #9aa39d; font-weight: 400; }
+
+.aw-team { grid-area: team; display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: #eef7f0; }
+.aw-team span { font-size: .7rem; color: #5b665f; }
+.aw-team strong { font-size: .85rem; }
+.aw-team em { font-style: normal; font-weight: 700; color: #15803d; font-size: .85rem; }
+.aw-more { grid-area: more; font-size: .75rem; color: #0f766e; white-space: nowrap; }
+.aw-more::after { content: " ▾"; }
+.aw-card[open] .aw-more::after { content: " ▴"; }
+
+.aw-body { padding: 4px 14px 12px; border-top: 1px solid #e5ebe6; }
+.aw-stats-full { margin-top: 8px; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+.aw-why { margin: 10px 0 0; padding-left: 18px; font-size: .8rem; color: #374151; line-height: 1.55; }
+.aw-empty { padding: 10px 14px; }
+.aw-empty p { margin: 0; font-size: .85rem; color: #5b665f; }
+
+.aw-team-card { background: #fff; color: #17201a; border-radius: 12px; padding: 10px 14px; box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.aw-team-card h4 { margin: 0 0 6px; font-size: .95rem; font-weight: 800; }
+.aw-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.aw-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: .8rem; }
+.aw-table th { background: #f1f5f2; color: #4b5563; font-weight: 600; text-align: left; padding: 6px 8px; white-space: nowrap; }
+.aw-table td { padding: 5px 8px; border-top: 1px solid #edf1ee; white-space: nowrap; }
+.aw-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.aw-table .line { text-align: center; }
+.aw-table .pos { font-weight: 700; color: #4b5563; }
+.aw-table .who { display: flex; align-items: center; gap: 8px; }
+.aw-table .who img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.aw-table .who strong { display: block; }
+.aw-table em { font-style: normal; color: #6b7280; font-size: .75rem; }
+.aw-table .rec em { color: #15803d; font-weight: 600; }
+
+.aw-leaders { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.aw-leader { background: #fff; color: #17201a; border-radius: 12px; padding: 8px 12px; display: grid; gap: 2px; }
+.aw-leader span { font-size: .72rem; color: #5b665f; }
+.aw-leader em { font-style: normal; font-size: .78rem; color: #374151; }
+
+@media (max-width: 760px) {
+  /* Phone: the team panel goes under the name as one line, so long names and teams keep the full width. */
+  .aw-card > summary {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "team" "badge" "stats" "more";
+    padding: 10px;
+  }
+  .aw-team { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 6px 10px; }
+  .aw-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .aw-badge { justify-self: start; grid-auto-flow: column; gap: 8px; align-items: baseline; }
+  .aw-more { justify-self: end; min-height: 24px; }
+}

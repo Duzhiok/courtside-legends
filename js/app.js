@@ -131,6 +131,7 @@ import {
   writeDuelFillerMode,
 } from "./data/customPool.js";
 import { photoImg } from "./data/photo.js";
+import { seasonAwardsHtml } from "./ui/seasonAwardsView.js";
 import { teamColors } from "./data/teamColors.js";
 import { attributeChipsHtml, benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinuteConflicts, startersSectionHtml, subAttrChipsHtml } from "./ui/rotationBoard.js";
 import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "./ui/learnedBadge.js";
@@ -10537,11 +10538,6 @@ function renderSeasonStandings() {
   box.innerHTML = table("East", L("东部", "East")) + table("West", L("西部", "West"));
 }
 
-function awardLine(a) {
-  if (!a) return "—";
-  return L(`${esc(a.name)}（${esc(a.teamName)}）· ${a.ppg}分 ${a.rpg}板 ${a.apg}助 · ${a.gp}场`, `${esc(a.name)} (${esc(a.teamName)}) · ${a.ppg} pts ${a.rpg} reb ${a.apg} ast · ${a.gp} G`);
-}
-
 function renderSeasonAwards() {
   const st = state.season;
   const box = $("#season-awards");
@@ -10551,27 +10547,8 @@ function renderSeasonAwards() {
     box.innerHTML = `<p class="tiny">${L(`打完 ${seasonGames(st)} 场后自动评奖（MVP、DPOY、一阵二阵三阵、最佳第六人、最快进步、最佳新秀、最佳教练、得分王等）。奖项只是荣誉，不送技能。`, `Awards come automatically after ${seasonGames(st)} games (MVP, DPOY, All-NBA 1st/2nd/3rd, Sixth Man, MIP, ROY, Coach of the Year, scoring champ and more). Awards are honors only — no skills attached.`)}</p>`;
     return;
   }
-  const teamList = (list, label) =>
-    `<div class="season-award-card"><h4>${label}</h4><div class="all-nba-row">${(list || [])
-      .map((p) => `<span>${esc(p.pos || "")} ${esc(p.name)} <em class="tiny">${esc(p.teamName)}</em></span>`)
-      .join("") || "—"}</div></div>`;
   box.innerHTML = `
-    <div class="season-award-card"><h4>${L("常规赛 MVP", "Regular-season MVP")}</h4><p>${awardLine(a.mvp)}</p></div>
-    <div class="season-award-card"><h4>${L("最佳防守球员 DPOY", "Defensive Player of the Year")}</h4><p>${awardLine(a.dpoy)}</p></div>
-    <div class="season-award-card"><h4>${L("最佳第六人", "Sixth Man")}</h4><p>${awardLine(a.sixthMan)}</p></div>
-    <div class="season-award-card"><h4>${L("最快进步 MIP", "Most Improved Player")}</h4><p>${awardLine(a.mip)}</p></div>
-    <div class="season-award-card"><h4>${L("最佳新秀 ROY", "Rookie of the Year")}</h4><p>${awardLine(a.roy)}</p></div>
-    <div class="season-award-card"><h4>${L("最佳教练", "Coach of the Year")}</h4><p>${
-      a.coty ? L(`${esc(a.coty.name)}（${esc(a.coty.teamName)} ${a.coty.w}胜${a.coty.l}负）`, `${esc(a.coty.name)} (${esc(a.coty.teamName)} ${a.coty.w}-${a.coty.l})`) : "—"
-    }</p></div>
-    ${teamList(a.allNba?.first, L("一阵 All-NBA 1st", "All-NBA 1st"))}
-    ${teamList(a.allNba?.second, L("二阵 All-NBA 2nd", "All-NBA 2nd"))}
-    ${teamList(a.allNba?.third, L("三阵 All-NBA 3rd", "All-NBA 3rd"))}
-    ${teamList(a.allDefense?.first, L("最佳防守一阵", "All-Defense 1st"))}
-    ${teamList(a.allDefense?.second, L("最佳防守二阵", "All-Defense 2nd"))}
-    <div class="season-award-card"><h4>${L("得分王", "Scoring champ")}</h4><p>${awardLine(a.scoringChamp)}</p></div>
-    <div class="season-award-card"><h4>${L("篮板王", "Rebounding champ")}</h4><p>${awardLine(a.rebChamp)}</p></div>
-    <div class="season-award-card"><h4>${L("助攻王", "Assists champ")}</h4><p>${awardLine(a.astChamp)}</p></div>
+    ${seasonAwardsHtml(st, getLang())}
     <div class="btn-row" style="margin-top:8px">
       <button type="button" class="btn primary" id="btn-season-to-playoffs">${
         st.phase === "playoffs" || st.phase === "done" ? L("查看季后赛", "View playoffs") : L("进入季后赛", "Enter playoffs")

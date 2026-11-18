@@ -168,3 +168,28 @@ test("a simulated 1991 season crowns a ROY and 2016 does not crown Draymond Gree
     assert.notEqual(roy16.name, "Draymond Green", "2016 ROY is not the 2012 draftee");
   });
 });
+
+// ROY eligibility from real career data: the card must be the player's debut season. The age gate alone let 2nd/3rd-year
+// players in (no birth year => aged 20 + seasons since debut, so a 3rd-year card reads 22).
+test("ROY: a 3rd-year card is not a rookie even at 22, the debut card is", () => {
+  const st = fabricatedSt(2021, [
+    { playerId: "doncilu01", bref: "doncilu01", name: "Luka Doncic", teamId: "DAL", pos: "PG", season: 2021, age: 22, ovr: 90, stats: stats(28, 8, 9) },
+    { playerId: "edwaran01", bref: "edwaran01", name: "Anthony Edwards", teamId: "MIN", pos: "SG", season: 2021, age: 19, ovr: 78, stats: stats(19, 5, 3) },
+  ]);
+  assert.equal(computeAwards(st).roy?.playerId, "edwaran01", "Luka's 2021 is his third season");
+  const debut = fabricatedSt(2019, [
+    { playerId: "doncilu01", bref: "doncilu01", name: "Luka Doncic", teamId: "DAL", pos: "PG", season: 2019, age: 20, ovr: 82, stats: stats(21, 8, 6) },
+  ]);
+  assert.equal(computeAwards(debut).roy?.playerId, "doncilu01", "2019 is Luka's debut season");
+});
+
+test("ROY: a debut season counts even past the old age window (an older rookie)", () => {
+  const st = fabricatedSt(2024, [
+    { playerId: "holmgch01", bref: "holmgch01", name: "Chet Holmgren", teamId: "OKC", pos: "C", season: 2024, age: 23, ovr: 80, stats: stats(17, 8, 2) },
+  ]);
+  assert.equal(computeAwards(st).roy?.playerId, "holmgch01");
+  const second = fabricatedSt(2025, [
+    { playerId: "holmgch01", bref: "holmgch01", name: "Chet Holmgren", teamId: "OKC", pos: "C", season: 2025, age: 22, ovr: 82, stats: stats(16, 8, 2) },
+  ]);
+  assert.equal(computeAwards(second).roy, null, "his 2025 card is a second season: no ROY rather than a wrong one");
+});
