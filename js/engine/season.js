@@ -1,6 +1,7 @@
 /**
  * NBA-style season: 32 teams (modern) or historical year rosters, 82-game RS, playoffs, awards.
  */
+import { normalizePos } from "../data/positions.js";
 import { resolveEffectiveGameplan } from "./effectiveGameplan.js";
 import { applyRotationPlan } from "./gameplan.js";
 import {
@@ -963,6 +964,27 @@ function dpoyScore(row, scale = (n) => n) {
   );
 }
 
+/**
+ * Fill `teams` all-league teams of five from a ranked pool (best first): each team gets one PG, SG, SF, PF and C, the
+ * best-ranked still free at that position. A position nobody is left for falls back to the best remaining player, so a
+ * thin pool still yields a full team. Positions go through the shared `normalizePos`, so "G", "F-C", "pg" all land in a
+ * slot instead of silently failing an exact-string match.
+ */
+export function positionalTeams(pool, teams = 1) {
+  const used = new Set();
+  const out = Array.from({ length: teams }, () => []);
+  const free = (x) => !used.has(x.row.playerId);
+  for (const team of out) {
+    for (const slot of ["PG", "SG", "SF", "PF", "C"]) {
+      const pick = pool.find((x) => free(x) && normalizePos(x.row.pos) === slot) || pool.find(free);
+      if (!pick) continue;
+      used.add(pick.row.playerId);
+      team.push(formatAwardPlayer(pick));
+    }
+  }
+  return out;
+}
+
 /** 2K-like season awards. */
 export function computeAwards(st) {
   const gpScale = (n) => scaleGames(n, st);
@@ -987,24 +1009,8 @@ export function computeAwards(st) {
   const mvp = byMvp[0] || null;
   const dpoy = byDpoy[0] || null;
 
-  // All-NBA: take top by mvp score into 3 teams of 5 (prefer position diversity lightly)
-  const allNbaPool = byMvp.slice(0, 40);
-  const allNba = [[], [], []];
-  const used = new Set();
-  for (let team = 0; team < 3; team++) {
-    for (const slot of ["PG", "SG", "SF", "PF", "C"]) {
-      const pick =
-        allNbaPool.find((x) => {
-          if (used.has(x.row.playerId)) return false;
-          const pos = String(x.row.pos || "SF").toUpperCase();
-          return pos === slot;
-        }) || allNbaPool.find((x) => !used.has(x.row.playerId));
-      if (pick) {
-        used.add(pick.row.playerId);
-        allNba[team].push(formatAwardPlayer(pick));
-      }
-    }
-  }
+  // All-NBA: top by mvp score into 3 teams of 5, one per position (see positionalTeams)
+  const allNba = positionalTeams(byMvp.slice(0, 40), 3);
 
   // Sixth Man: high production, started < 50% of games played
   const sixth = [...scored]
@@ -1038,8 +1044,10 @@ export function computeAwards(st) {
   const cotyTeam = standingsList(st)[0];
   const cotyCoach = cotyTeam ? st.teams[cotyTeam.id]?.coach : null;
 
-  // All-Defense: top DPOY scores
-  const allDef = byDpoy.slice(0, 10).map(formatAwardPlayer);
+  // All-Defense: also one per position. The DPOY score leans on blocks and rebounds, so a plain top 10 was ~8 centres and
+  // no guard at all, and even the top 40 holds hardly any guard. The pool is everyone with enough games (dpoy >= 0), so each
+  // position gets its own best defender.
+  const allDef = positionalTeams(byDpoy.filter((x) => x.dpoy >= 0), 2);
 
   // Scoring / reb / ast titles
   const scoringChamp = [...scored].sort(
@@ -1066,7 +1074,7 @@ export function computeAwards(st) {
       second: allNba[1],
       third: allNba[2],
     },
-    allDefense: { first: allDef.slice(0, 5), second: allDef.slice(5, 10) },
+    allDefense: { first: allDef[0], second: allDef[1] },
     scoringChamp: scoringChamp ? formatAwardPlayer(scoringChamp) : null,
     rebChamp: rebChamp ? formatAwardPlayer(rebChamp) : null,
     astChamp: astChamp ? formatAwardPlayer(astChamp) : null,
