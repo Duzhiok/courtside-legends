@@ -72,8 +72,15 @@
     grid-template-areas: "head" "team" "badge" "stats" "more";
     padding: 10px;
   }
+  .aw-card > summary:has(.aw-prev) { grid-template-areas: "head" "team" "badge" "prev" "stats" "more"; }
   .aw-team { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 6px 10px; }
   .aw-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .aw-badge { justify-self: start; grid-auto-flow: column; gap: 8px; align-items: baseline; }
   .aw-more { justify-self: end; min-height: 24px; }
+}
+
+/* MIP: the two real seasons the gain is measured between, on its own row under the card (full width). */
+.aw-prev { grid-area: prev; margin: 0; font-size: .8rem; color: #4b5563; }
+@media (min-width: 761px) {
+  .aw-card > summary:has(.aw-prev) { grid-template-areas: "head badge stats team more" "prev prev prev prev prev"; }
 }

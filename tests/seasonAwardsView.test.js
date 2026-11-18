@@ -8,7 +8,7 @@ import { createMemoryStorage } from "./helpers/memoryStorage.js";
 globalThis.localStorage = createMemoryStorage();
 
 const { PLAYERS, overall, seasonToCard } = await import("../js/data/players.js");
-const { buildCareerSpanIndex, isRookieSeason } = await import("../js/data/careerArc.js");
+const { buildCareerSpanIndex, isRookieSeason, previousSeasonLine, seasonLine } = await import("../js/data/careerArc.js");
 const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 buildCareerSpanIndex(ROWS);
 PLAYERS.push(...ROWS.map(seasonToCard));
@@ -112,4 +112,58 @@ test("real season path: rows carry bref, and ROY is never a known non-debut card
     const row = st.playerSeason[`${roy.teamId}:${roy.playerId}`];
     assert.notEqual(isRookieSeason(row), false, `${roy.name} ${row.season} is not his debut season`);
   }
+});
+
+// ── MIP: real season against the same player's previous real season ──────────────────────────────────────────────────
+
+test("previousSeasonLine: the same player's real row one year earlier, else null", () => {
+  const prev = previousSeasonLine({ bref: "curryst01", season: 2016 });
+  assert.equal(prev?.season, 2015);
+  assert.equal(prev?.bref, "curryst01");
+  assert.equal(seasonLine({ bref: "curryst01", season: 2016 })?.season, 2016);
+  assert.equal(previousSeasonLine({ bref: "curryst01", season: 2010 }), null, "his rookie year has no year before it");
+  assert.equal(previousSeasonLine({ season: 2016 }), null, "a card without bref (custom player) has no baseline");
+  assert.equal(previousSeasonLine({ bref: "nobody99", season: 2016 }), null);
+});
+
+test("real season: the MIP is the biggest REAL year-over-year gain among eligible players, and says what it compared", { timeout: 120000 }, () => {
+  const st = realSeason();
+  const mip = st.awards.mip;
+  assert.ok(mip, "a 20-game season of stars has a MIP");
+  assert.equal(mip.basis.rule, "yoy");
+  assert.ok(mip.basis.gain > 0);
+  assert.equal(mip.basis.prev.season, mip.basis.card.season - 1, "last real season to this card's season");
+  assert.equal(mip.basis.card.season, mip.season);
+  // Independent check: nobody eligible has a bigger gain than the winner.
+  const prod = (l) => l.ppg + 0.85 * l.rpg + 1.15 * l.apg;
+  const min = Math.round((25 * 20) / 82);
+  let best = -Infinity;
+  for (const row of Object.values(st.playerSeason)) {
+    if (row.stats.gp < Math.max(1, min) || !row.bref) continue;
+    const prev = previousSeasonLine(row);
+    const card = seasonLine(row);
+    if (!prev || !card || prev.gp < 20 || prev.mpg < 12) continue;
+    const s = row.stats;
+    if (prod({ ppg: s.pts / s.gp, rpg: s.reb / s.gp, apg: s.ast / s.gp }) < 0.6 * prod(card)) continue; // must have delivered it in the sim
+    best = Math.max(best, prod(card) - prod(prev));
+  }
+  const w = Object.values(st.playerSeason).find((r) => r.playerId === mip.playerId);
+  const cardOfWinner = seasonLine({ bref: w.bref, season: w.season });
+  assert.ok(prod({ ppg: w.stats.pts / w.stats.gp, rpg: w.stats.reb / w.stats.gp, apg: w.stats.ast / w.stats.gp }) >= 0.6 * prod(cardOfWinner), "the MIP actually produced in the sim, not just on his card");
+  assert.ok(Math.abs(mip.basis.gain - best) < 0.06, `winner gain ${mip.basis.gain} vs best eligible ${best}`);
+});
+
+test("the MIP card shows the two real seasons and the gain; the old rating rule still reads honestly", { timeout: 120000 }, () => {
+  const st = realSeason();
+  const yoy = visible(seasonAwardsHtml(st, "zh"));
+  assert.match(yoy, /真实数据：\d{4} .*→ \d{4} /);
+  assert.match(yoy, /产出提升/);
+  assert.match(yoy, /不是模拟成绩/);
+  const legacy = { ...st, awards: { ...st.awards, mip: { ...st.awards.mip, basis: { rule: "rating", expected: 20, over: 5, ageBonus: 1, minGames: 5 } } } };
+  const text = visible(seasonAwardsHtml(legacy, "zh"));
+  assert.match(text, /超出能力预期/);
+  assert.doesNotMatch(text, /真实数据：/);
+  const en = visible(seasonAwardsHtml(st, "en"));
+  assert.match(en, /Real seasons: \d{4} /);
+  assert.doesNotMatch(en.slice(en.indexOf("Most Improved"), en.indexOf("Most Improved") + 400), /[\u3400-\u9fff]/);
 });

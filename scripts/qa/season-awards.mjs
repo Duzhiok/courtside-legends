@@ -83,6 +83,14 @@ for (const [w, h, tag] of [[1280, 900, "desktop"], [390, 844, "mobile"]]) {
   check(`[${tag}] nothing called PER`, !/\(PER\)/.test(board));
   check(`[${tag}] team panel shows a record and a rank`, /\d+-\d+/.test(await text(page, '.aw-card[data-award="mvp"] .aw-team')) && /第 \d+/.test(await text(page, '.aw-card[data-award="mvp"] .aw-team')));
   check(`[${tag}] portraits are real images`, await page.$$eval("#season-awards .aw-who img", (imgs) => imgs.length >= 5 && imgs.every((i) => i.getAttribute("src"))));
+  const mipPrev = await text(page, '.aw-card[data-award="mip"] .aw-prev').catch(() => "");
+  check(`[${tag}] the MIP card shows the two real seasons it compared`, /真实数据：\d{4} .*→ \d{4} /.test(mipPrev), mipPrev);
+  const mipBox = await page.$eval('.aw-card[data-award="mip"] > summary', (el) => {
+    const r = el.getBoundingClientRect();
+    const kids = [...el.children].map((c) => c.getBoundingClientRect());
+    return { w: r.width, overlap: kids.some((a, i) => kids.some((b, j) => j > i && a.width && b.width && a.height && b.height && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1)) };
+  });
+  check(`[${tag}] the MIP summary row has no overlapping pieces`, !mipBox.overlap, JSON.stringify(mipBox));
   check(`[${tag}] page does not overflow sideways (tables scroll inside their box)`, await noOverflow(page));
   await shoot(page, `${OUT}/${tag}-awards.png`);
 

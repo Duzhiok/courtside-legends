@@ -168,8 +168,10 @@ const AWARDS = [
   {
     key: "mip", zh: "最快进步 MIP", en: "Most Improved Player",
     stats: ["gp", "ppg", "rpg", "apg", "fg", "tp", "ts", "eff"],
-    why: (b, lang) => TL(lang,
-      `依据：场均得分 + 0.5×助攻，与按能力值（OVR）推算的预期之差${b?.over != null ? `（预期 ${b.expected}，高出 ${b.over}）` : ""}，年轻球员有少量加成。游戏没有保存上赛季数据，所以这不是逐年对比。`,
+    why: (b, lang) => b?.rule === "yoy" ? TL(lang,
+      `依据：与同一球员上一个真实赛季相比，场均综合产出（得分 + 0.85×篮板 + 1.15×助攻）提升最多（${b.prev.season}→${b.card.season}，+${b.gain}）。比较的是两个真实赛季的数据，不是模拟成绩；上赛季至少 20 场、场均 12 分钟以上才有资格。`,
+      `Basis: biggest gain in per-game production (points + 0.85 x rebounds + 1.15 x assists) over the same player's previous real season (${b.prev.season} to ${b.card.season}, +${b.gain}). It compares two real seasons, not simulated results; last season needs at least 20 games and 12 minutes a game.`) : TL(lang,
+      `依据：没有任何人选有可比较的上一个真实赛季，改按场均得分 + 0.5×助攻，与按能力值（OVR）推算的预期之差${b?.over != null ? `（预期 ${b.expected}，高出 ${b.over}）` : ""}，年轻球员有少量加成。游戏没有保存上赛季数据，所以这不是逐年对比。`,
       `Basis: points + 0.5 x assists per game against what his rating (OVR) predicts${b?.over != null ? ` (expected ${b.expected}, ${b.over} above)` : ""}, with a small youth bonus. Last season's numbers are not kept, so this is not a year-over-year comparison.`),
   },
   {
@@ -195,8 +197,16 @@ function playerCard(def, award, st, ctx, lang) {
   const team = teamContext(st, award.teamId);
   const photo = photoImg({ name: award.name, bref: award.bref, season: award.season }, "headshot aw-photo");
   const meta = [award.pos, teamNameL(award.teamName, lang), award.season ? TL(lang, `${award.season} 卡`, `${award.season} card`) : ""].filter(Boolean).join(" · ");
-  const badge = def.key === "mip" && award.basis?.over != null
-    ? `<div class="aw-badge"><span>${esc(TL(lang, "超出能力预期", "Above rating"))}</span><strong>${signed(award.basis.over)}</strong></div>`
+  const yoy = def.key === "mip" && award.basis?.rule === "yoy" ? award.basis : null;
+  const badge = yoy
+    ? `<div class="aw-badge"><span>${esc(TL(lang, "产出提升", "Gain"))}</span><strong>${signed(yoy.gain)}</strong></div>`
+    : def.key === "mip" && award.basis?.over != null
+      ? `<div class="aw-badge"><span>${esc(TL(lang, "超出能力预期", "Above rating"))}</span><strong>${signed(award.basis.over)}</strong></div>`
+      : "";
+  const yoyLine = yoy
+    ? `<p class="aw-prev">${esc(TL(lang,
+      `真实数据：${yoy.prev.season} ${yoy.prev.ppg}分 ${yoy.prev.rpg}板 ${yoy.prev.apg}助 → ${yoy.card.season} ${yoy.card.ppg}分 ${yoy.card.rpg}板 ${yoy.card.apg}助`,
+      `Real seasons: ${yoy.prev.season} ${yoy.prev.ppg}/${yoy.prev.rpg}/${yoy.prev.apg} to ${yoy.card.season} ${yoy.card.ppg}/${yoy.card.rpg}/${yoy.card.apg}`))}</p>`
     : "";
   return `<details class="aw-card" data-award="${def.key}">
     <summary>
@@ -205,6 +215,7 @@ function playerCard(def, award, st, ctx, lang) {
         <div class="aw-who">${photo}<div><strong>${esc(award.name)}</strong><span>${esc(meta)}</span></div></div>
       </div>
       ${badge}
+      ${yoyLine}
       ${statGrid(def.stats, metrics, ctx, lang)}
       ${teamPanel(team, lang)}
       <span class="aw-more">${esc(TL(lang, "详情", "Details"))}</span>

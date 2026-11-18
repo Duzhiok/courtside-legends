@@ -52,16 +52,20 @@ export const BIRTH_YEAR = {
 
 /** bref → { first, last } built once per roster load. */
 let CAREER_SPAN = new Map();
+/** `${bref}:${season}` -> that season's real stat row (the roster row itself, not a copy). */
+let SEASON_ROW = new Map();
 /** The earliest season in the data: a career "starting" there may have started before the data does. */
 let DATA_FIRST_SEASON = 0;
 
 export function buildCareerSpanIndex(rows) {
   const map = new Map();
+  const byKey = new Map();
   for (const r of rows || []) {
     const bref = r.bref;
     if (!bref) continue;
     const s = +r.season || 0;
     if (!s) continue;
+    byKey.set(`${bref}:${s}`, r);
     const prev = map.get(bref);
     if (!prev) map.set(bref, { first: s, last: s });
     else {
@@ -70,8 +74,26 @@ export function buildCareerSpanIndex(rows) {
     }
   }
   CAREER_SPAN = map;
+  SEASON_ROW = byKey;
   DATA_FIRST_SEASON = Math.min(...[...map.values()].map((span) => span.first), Infinity);
   return map;
+}
+
+/**
+ * The same player's real stat line from the season before `r.season` (ppg, rpg, apg, gp, mpg ...), or null when the data
+ * has none: a rookie, a player who sat out that year, a custom player, a row without bref. Only the immediately preceding
+ * season counts -- a comeback after a gap has no honest "last year".
+ */
+export function previousSeasonLine(r) {
+  const season = +r?.season || 0;
+  return season ? seasonLine({ bref: r?.bref, season: season - 1 }) : null;
+}
+
+/** That player's real stat row for exactly `r.season`, or null (no bref, or the data has no such season). */
+export function seasonLine(r) {
+  const season = +r?.season || 0;
+  if (!r?.bref || !season) return null;
+  return SEASON_ROW.get(`${r.bref}:${season}`) || null;
 }
 
 /**

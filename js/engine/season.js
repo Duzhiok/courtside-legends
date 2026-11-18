@@ -2,7 +2,7 @@
  * NBA-style season: 32 teams (modern) or historical year rosters, 82-game RS, playoffs, awards.
  */
 import { normalizePos } from "../data/positions.js";
-import { isRookieSeason } from "../data/careerArc.js";
+import { isRookieSeason, previousSeasonLine, seasonLine } from "../data/careerArc.js";
 import { resolveEffectiveGameplan } from "./effectiveGameplan.js";
 import { applyRotationPlan } from "./gameplan.js";
 import {
@@ -967,6 +967,13 @@ function dpoyScore(row, scale = (n) => n) {
   );
 }
 
+/** Per-game production used to compare one season with the last (same weights as the MVP's rebound/assist terms). */
+const mipProduction = (ppg, rpg, apg) => (ppg || 0) + 0.85 * (rpg || 0) + 1.15 * (apg || 0);
+const MIP_PREV_MIN_GP = 20; // last season must be a real sample, not a cameo...
+const MIP_DELIVERY = 0.6; // share of his card's own production he must reach in the simulated season
+const MIP_PREV_MIN_MPG = 12; // ...and a rotation role, or "improvement" is just being given minutes
+const prevLine = (r) => ({ season: r.season, gp: r.gp, mpg: r.mpg, ppg: r.ppg, rpg: r.rpg, apg: r.apg, spg: r.spg, bpg: r.bpg, fg: r.fg, tp: r.tp });
+
 /**
  * Fill `teams` all-league teams of five from a ranked pool (best first): each team gets one PG, SG, SF, PF and C, the
  * best-ranked still free at that position. A position nobody is left for falls back to the best remaining player, so a
@@ -976,12 +983,15 @@ function dpoyScore(row, scale = (n) => n) {
 export function positionalTeams(pool, teams = 1) {
   const used = new Set();
   const out = Array.from({ length: teams }, () => []);
-  const free = (x) => !used.has(x.row.playerId);
+  // One person once: different season cards of the same player (bref) are not different players, so a man cannot be on
+  // the 1st and 3rd team. Rows without bref (custom players) are told apart by id.
+  const who = (x) => x.row.bref || x.row.playerId;
+  const free = (x) => !used.has(who(x));
   for (const team of out) {
     for (const slot of ["PG", "SG", "SF", "PF", "C"]) {
       const pick = pool.find((x) => free(x) && normalizePos(x.row.pos) === slot) || pool.find(free);
       if (!pick) continue;
-      used.add(pick.row.playerId);
+      used.add(who(pick));
       team.push(formatAwardPlayer(pick));
     }
   }
@@ -1020,16 +1030,33 @@ export function computeAwards(st) {
     .filter((x) => x.row.stats.gp >= gpScale(20) && x.row.stats.gs / x.row.stats.gp < 0.5)
     .sort((a, b) => perGame(b.row.stats, "pts") - perGame(a.row.stats, "pts") || b.mvp - a.mvp)[0];
 
-  // MIP: young-ish / mid OVR who produced above expectation
-  const mip = [...scored]
-    .filter((x) => x.row.stats.gp >= gpScale(25))
+  // MIP: genuine year-over-year gain, REAL against REAL: the real season this card is (roster data) against the same
+  // player's previous real season. Not simulated against real: the sim concentrates shots (a 6.8 ppg role player can
+  // average 30 here), which would crown whoever got the usage, not whoever improved. The sim only supplies the games gate.
+  // Players the data has no previous season for (rookies, custom, fictional) cannot be compared; only when nobody can does
+  // the old "above what his rating predicts" rule decide, and the basis says so.
+  const mipPool = [...scored].filter((x) => x.row.stats.gp >= gpScale(25));
+  const brefOf = (row) => row.bref || liveCardFor(st, row.teamId, row.playerId)?.bref;
+  const yoy = mipPool
     .map((x) => {
-      const expect = ((x.row.ovr || 70) - 60) * 0.55;
-      const over = perGame(x.row.stats, "pts") + perGame(x.row.stats, "ast") * 0.5 - expect;
-      const ageBonus = (x.row.age || 26) <= 24 ? 2 : (x.row.age || 26) <= 27 ? 1 : 0;
-      return { ...x, mipScore: over + ageBonus, mipBasis: { expected: round1(expect), over: round1(over), ageBonus } };
+      const at = { bref: brefOf(x.row), season: x.row.season };
+      const prev = previousSeasonLine(at);
+      const card = seasonLine(at);
+      if (!prev || !card || !(prev.gp >= MIP_PREV_MIN_GP) || !(prev.mpg >= MIP_PREV_MIN_MPG)) return null;
+      const cardProd = mipProduction(card.ppg, card.rpg, card.apg);
+      // He must actually have produced it here: a card-real 20 ppg man who averaged 3 in the sim did not "improve".
+      const simProd = mipProduction(perGame(x.row.stats, "pts"), perGame(x.row.stats, "reb"), perGame(x.row.stats, "ast"));
+      if (simProd < MIP_DELIVERY * cardProd) return null;
+      const gain = cardProd - mipProduction(prev.ppg, prev.rpg, prev.apg);
+      return gain > 0 ? { ...x, mipScore: gain, mipBasis: { rule: "yoy", gain: round1(gain), prev: prevLine(prev), card: prevLine(card) } } : null;
     })
-    .sort((a, b) => b.mipScore - a.mipScore)[0];
+    .filter(Boolean);
+  const mip = (yoy.length ? yoy : mipPool.map((x) => {
+    const expect = ((x.row.ovr || 70) - 60) * 0.55;
+    const over = perGame(x.row.stats, "pts") + perGame(x.row.stats, "ast") * 0.5 - expect;
+    const ageBonus = (x.row.age || 26) <= 24 ? 2 : (x.row.age || 26) <= 27 ? 1 : 0;
+    return { ...x, mipScore: over + ageBonus, mipBasis: { rule: "rating", expected: round1(expect), over: round1(over), ageBonus } };
+  })).sort((a, b) => b.mipScore - a.mipScore)[0];
 
   // ROY: the card must be the player's first NBA season (real career data). The old age gate alone (<= 22) let 2nd- and
   // 3rd-year players in, because a player without a birth year is aged 20 + seasons since his debut. Players the data
