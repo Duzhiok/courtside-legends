@@ -11020,9 +11020,11 @@ function handleSeasonPlayoffResult(snap) {
 }
 
 /** Paint score + both-team box scores (instant sim or re-open from schedule). */
-function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, reports = null } = {}) {
+function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, reports = null, games = null, selected = null } = {}) {
   if (!snap?.home || !snap?.away) return;
   const st = state.season;
+  // A simulated stretch keeps every game's box score so the player can open any of them; anything else clears it.
+  state.resultBatch = games?.length > 1 ? { games, reports, selected } : null;
   show("result");
   const hs = snap.score?.home ?? 0;
   const as = snap.score?.away ?? 0;
@@ -11039,7 +11041,9 @@ function showSeasonSimResult(snap, { summaryExtra = "", viewingHistory = false, 
         ? L(`${winner} 获胜`, `${winner} wins`)
         : L(`${winner} 获胜 · ${youWin ? "我方胜" : "我方负"}`, `${winner} wins · ${youWin ? "You win" : "You lose"}`);
   $("#box-score").innerHTML = `${boxTable(snap.home)}${boxTable(snap.away)}`;
-  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory, playoffSeries, reports });
+  // The analysis panel belongs to THIS game: without this it kept the last live game's numbers (a different opponent).
+  renderResultExplain(snap);
+  wireSeasonResultContinue(st, snap, { summaryExtra, viewingHistory, playoffSeries, reports, selected });
 }
 
 /** "东部 · R2"/"总决赛" 样式标签，跟 renderSeasonPlayoffs() 的 confBlock 标题保持一致。 */
@@ -11073,12 +11077,12 @@ function playoffResultSummaryText(st, series) {
  * an old game from the schedule) the card is only re-derived from the box score -- viewing a game must
  * never pay its XP a second time.
  */
-function renderPostGame(snap, reports = null) {
+function renderPostGame(snap, reports = null, selected = null) {
   const box = $("#result-rewards");
   if (!box) return;
   const lang = getLang();
   const html = reports?.length > 1
-    ? batchHtml(foldBatch(reports), lang)
+    ? batchHtml(foldBatch(reports), lang, { selected })
     : postGameHtml(reports?.[0] || settleGame(snap, snap?.youSide), lang);
   box.innerHTML = html;
   box.hidden = !html;
@@ -11229,8 +11233,8 @@ function finishBulkPlayoffSim(st, batch) {
   showSeasonSimResult({ ...snap, youSide: userSideOf(st, game) }, { summaryExtra: extra, playoffSeries: series, reports });
 }
 
-function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, reports = null } = {}) {
-  renderPostGame(snap, reports);
+function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory = false, playoffSeries = null, reports = null, selected = null } = {}) {
+  renderPostGame(snap, reports, selected);
   const cont = $("#btn-result-continue");
   const base = playoffSeries
     ? playoffResultSummaryText(st, playoffSeries)
@@ -11331,6 +11335,7 @@ async function simRestOfSeason() {
   let last = null;
   let n = 0;
   const reports = [];
+  const games = [];
   const maxGames = seasonGames(st); // B60: quick My Team seasons are 20 games, not 82 (the loop already stops when simUserNextGame returns null)
   for (let i = 0; i < maxGames; i++) {
     const r = simUserNextGame(st);
@@ -11338,6 +11343,7 @@ async function simRestOfSeason() {
     last = r;
     n += 1;
     reports.push(settleUserGame(r.snap, userSideOf(st, r.game)));
+    games.push({ ...r.snap, youSide: userSideOf(st, r.game) });
     if (summaryEl) summaryEl.textContent = `正在模拟整个赛季…已完成 ${n} 个比赛日，请稍候`;
     // Intentionally awaited inside the loop: yield one frame so the progress text above
     // actually paints instead of the tab looking frozen for ~15-20s straight.
@@ -11346,13 +11352,34 @@ async function simRestOfSeason() {
   for (const b of buttons) b.disabled = false;
   if (!saveSeasonAndCareer(st)) return;
   if (last?.snap) {
-    const extra = `已连续模拟 ${n} 场；下方为最近一场（${last.snap.home?.name} ${last.snap.score.home}-${last.snap.score.away} ${last.snap.away?.name}）的完整数据。`;
-    showSeasonSimResult({ ...last.snap, youSide: userSideOf(st, last.game) }, { summaryExtra: extra, reports });
+    showSeasonSimResult(games.at(-1), { summaryExtra: batchResultExtra(games, games.length - 1), reports, games, selected: games.length - 1 });
   } else {
     renderSeasonHub();
     if (st.phase === "awards") showSeasonTab("awards");
   }
 }
+
+/** The line above a simulated stretch's box score: which of its games is on screen. */
+function batchResultExtra(games, index) {
+  const g = games[index];
+  const where = `${g.home?.name} ${g.score.home}-${g.score.away} ${g.away?.name}`;
+  return index === games.length - 1
+    ? L(`已连续模拟 ${games.length} 场；下方为最近一场（${where}）的完整数据，点上面的「每场战绩」可看其他场。`, `Simulated ${games.length} games; below is the latest (${where}) — tap a game in the list above for the others.`)
+    : L(`已连续模拟 ${games.length} 场；下方为第 ${index + 1} 场（${where}）的完整数据。`, `Simulated ${games.length} games; below is game ${index + 1} (${where}).`);
+}
+
+/** Open one game of the stretch just simulated (same result page, that game's score and box score). */
+function viewBatchGame(index) {
+  const batch = state.resultBatch;
+  const snap = batch?.games?.[index];
+  if (!snap) return;
+  showSeasonSimResult(snap, { summaryExtra: batchResultExtra(batch.games, index), reports: batch.reports, games: batch.games, selected: index });
+  $("#result-title")?.scrollIntoView?.({ block: "start" });
+}
+$("#result-rewards")?.addEventListener("click", (event) => {
+  const row = event.target.closest?.("[data-pg-game]");
+  if (row) viewBatchGame(Number(row.dataset.pgGame));
+});
 
 function simSeasonGames(count = 1) {
   const st = state.season;
@@ -11362,20 +11389,19 @@ function simSeasonGames(count = 1) {
   let last = null;
   let n = 0;
   const reports = [];
+  const games = [];
   for (let i = 0; i < count; i++) {
     const r = simUserNextGame(st);
     if (!r) break;
     last = r;
     n += 1;
     reports.push(settleUserGame(r.snap, userSideOf(st, r.game)));
+    games.push({ ...r.snap, youSide: userSideOf(st, r.game) });
   }
   if (!saveSeasonAndCareer(st)) return { simmed: 0, last: null, reports: [] };
   if (last?.snap) {
-    const extra =
-      n > 1
-        ? `已连续模拟 ${n} 场；下方为最近一场（${last.snap.home?.name} ${last.snap.score.home}-${last.snap.score.away} ${last.snap.away?.name}）的完整数据。`
-        : "快速模拟完成。下方为双方球员数据。";
-    showSeasonSimResult({ ...last.snap, youSide: userSideOf(st, last.game) }, { summaryExtra: extra, reports });
+    const extra = n > 1 ? batchResultExtra(games, n - 1) : "快速模拟完成。下方为双方球员数据。";
+    showSeasonSimResult(games.at(-1), { summaryExtra: extra, reports, games, selected: n - 1 });
     return { simmed: n, last, reports };
   }
   renderSeasonHub();

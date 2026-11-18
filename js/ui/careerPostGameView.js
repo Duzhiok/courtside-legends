@@ -241,7 +241,29 @@ export function postGameHtml(report, lang = "zh") {
   </div>`;
 }
 
-export function batchHtml(batch, lang = "zh") {
+/**
+ * Every game of a stretch, in order. With `selected` the rows are buttons (data-pg-game) that switch the result page
+ * to that game's box score; without it they are a plain list.
+ */
+function gameLogHtml(log, lang, selected) {
+  if (!log?.length) return "";
+  const rows = log.map((g, i) => {
+    const mark = g.tied ? TL(lang, "平", "T") : g.won ? TL(lang, "胜", "W") : TL(lang, "负", "L");
+    const star = g.star
+      ? TL(lang, `最佳 ${g.star.name} ${g.star.pts}分${g.star.reb}板${g.star.ast}助`, `Best ${g.star.name} ${g.star.pts}/${g.star.reb}/${g.star.ast}`)
+      : "";
+    const text = `<span class="pg-gnum">${esc(TL(lang, `第${g.n}场`, `G${g.n}`))}</span>`
+      + `<span class="pg-gres pg-g-${g.tied ? "tie" : g.won ? "win" : "loss"}">${esc(mark)}</span>`
+      + `<span class="pg-gscore">${g.you}-${g.opp} <small>${esc(TL(lang, "对阵", "vs"))} ${esc(teamNameL(g.opponentName, lang))}</small></span>`
+      + `<span class="pg-gstar">${esc(star)}</span>`;
+    if (selected == null) return `<li class="pg-game">${text}</li>`;
+    return `<li><button type="button" class="pg-game pg-gbtn${i === selected ? " on" : ""}" data-pg-game="${i}" aria-pressed="${i === selected}">${text}</button></li>`;
+  }).join("");
+  const hint = selected == null ? "" : `<small class="pg-ghint">${esc(TL(lang, "点一场，查看那场的完整球员数据", "Tap a game to see its full box score"))}</small>`;
+  return `<h4>${esc(TL(lang, "每场战绩", "Game by game"))} ${hint}</h4><ol class="pg-games">${rows}</ol>`;
+}
+
+export function batchHtml(batch, lang = "zh", { selected = null } = {}) {
   if (!batch?.games) return "";
   const best = batch.best;
   const leaders = batch.leaders.map((player, index) => `<li class="pg-star">
@@ -260,6 +282,7 @@ export function batchHtml(batch, lang = "zh") {
   return `<div class="pg-card pg-${batch.wins >= batch.losses ? "win" : "loss"}">
     <p class="pg-kicker">${esc(TL(lang, "本段收获", "This stretch"))}</p>
     <p class="pg-verdict"><strong>${esc(TL(lang, `${batch.games} 场 · ${batch.wins} 胜 ${batch.losses} 负`, `${batch.games} games · ${batch.wins}-${batch.losses}`))}</strong><span>${esc(TL(lang, `净胜分 ${signed(batch.pointDiff)}`, `Point diff ${signed(batch.pointDiff)}`))}</span></p>
+    ${gameLogHtml(batch.log, lang, selected)}
     ${bestLine}
     ${epiphanyHtml(batch.epiphanies, lang)}
     ${leaders ? `<h4>${esc(TL(lang, "这段时间的主力", "Who carried you"))}</h4><ol class="pg-stars">${leaders}</ol>` : ""}

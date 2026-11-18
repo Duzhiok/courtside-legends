@@ -491,3 +491,43 @@ test("goal: a stretch with nobody's goals judged (every game from before C6, or 
   const games = [settleGame(snap(), "home"), settleGame(snap(), "home")];
   assert.doesNotMatch(visible(batchHtml(foldBatch(games), "zh")), /本段目标/);
 });
+
+// ── "Sim 5": every game of the stretch is listed, not just the last box score ─────────────────────────────────────
+const fiveGames = () => [
+  settleGame(snap({ home: 104, away: 99 }), "home"),
+  settleGame(snap({ home: 90, away: 101 }), "home"),
+  settleGame(snap({ home: 120, away: 80 }), "home"),
+  settleGame(snap({ home: 99, away: 99 }), "home"),
+  settleGame(snap({ home: 110, away: 108 }), "home"),
+];
+
+test("foldBatch keeps one log line per game, in order, with result, score, opponent and the night's star", () => {
+  const batch = foldBatch(fiveGames());
+  assert.equal(batch.log.length, 5);
+  assert.deepEqual(batch.log.map((g) => g.n), [1, 2, 3, 4, 5]);
+  assert.deepEqual(batch.log.map((g) => [g.you, g.opp]), [[104, 99], [90, 101], [120, 80], [99, 99], [110, 108]]);
+  assert.deepEqual(batch.log.map((g) => (g.tied ? "T" : g.won ? "W" : "L")), ["W", "L", "W", "T", "W"]);
+  assert.equal(batch.log[0].opponentName, "Boston");
+  assert.equal(batch.log[0].star.name, "Nikola Jokic");
+});
+
+test("batchHtml lists every game; rows are buttons only when a game can be opened", () => {
+  const batch = foldBatch(fiveGames());
+  const plain = batchHtml(batch, "zh");
+  assert.equal((plain.match(/class="pg-game"/g) || []).length, 5, "five rows, all visible");
+  assert.doesNotMatch(plain, /data-pg-game/, "no buttons without a selected game");
+  const live = batchHtml(batch, "zh", { selected: 4 });
+  assert.equal((live.match(/data-pg-game="/g) || []).length, 5);
+  assert.match(live, /data-pg-game="4"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-pg-game="4"|pg-gbtn on" data-pg-game="4" aria-pressed="true"/);
+  assert.match(visible(live), /第1场/);
+  assert.match(visible(live), /104-99/);
+  assert.match(visible(live), /对阵 Boston/);
+});
+
+test("the game-by-game list reads in English with no stray Chinese", () => {
+  const html = batchHtml(foldBatch(fiveGames()), "en", { selected: 0 });
+  const text = visible(html.slice(html.indexOf("Game by game"), html.indexOf("</ol>")));
+  assert.match(text, /G1/);
+  assert.match(text, /Tap a game/);
+  assert.doesNotMatch(text, CJK);
+});

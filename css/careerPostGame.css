@@ -82,3 +82,19 @@
 #season-hub-panel .pg-pre-goal::before { content: "◎ "; color: #5ec9ba; }
 #season-hub-panel .pg-pre-tag { display: inline-block; margin-left: 4px; padding: 0 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; background: rgba(94, 201, 186, .18); color: #bfeee7; }
 #season-hub-panel .pg-pre-note { margin: 8px 0 0; font-size: .78rem; color: #b8c9c1; }
+
+/* Game-by-game list of a simulated stretch (batchHtml): ten rows show in full, a whole season scrolls; each row a 44px tap target. */
+.pg-games { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; max-height: 29rem; overflow-y: auto; }
+.pg-game { display: grid; grid-template-columns: 3.2em 2em 1fr; gap: 2px 8px; align-items: center; width: 100%; box-sizing: border-box; min-height: 44px; padding: 6px 10px; text-align: left; font: inherit; color: inherit; background: #f3ede1; border: 1px solid transparent; border-radius: 8px; }
+.pg-gbtn { cursor: pointer; }
+.pg-gbtn:hover { background: #ebe3d2; }
+.pg-gbtn.on { border-color: #c2410c; background: #fdf1e3; }
+.pg-gnum { font-weight: 700; font-size: .8rem; color: #6b7280; }
+.pg-gres { font-weight: 800; text-align: center; border-radius: 6px; padding: 1px 0; }
+.pg-g-win { color: #166534; background: #dcfce7; }
+.pg-g-loss { color: #991b1b; background: #fee2e2; }
+.pg-g-tie { color: #374151; background: #e5e7eb; }
+.pg-gscore { font-weight: 700; }
+.pg-gscore small { font-weight: 400; color: #4b5563; }
+.pg-gstar { grid-column: 3; font-size: .78rem; color: #4b5563; }
+.pg-ghint { font-weight: 400; color: #6b7280; margin-left: 6px; }

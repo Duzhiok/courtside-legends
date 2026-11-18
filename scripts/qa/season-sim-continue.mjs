@@ -1,4 +1,4 @@
-import { openSingleSeason } from "./lib/page.mjs";
+import { openSingleSeason, shoot } from "./lib/page.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
@@ -100,6 +100,35 @@ async function run(width, height, tag, { stopAfterPlay = false } = {}) {
   const playedAfter = Number(/已打 (\d+)\/82/.exec(sim5Summary)?.[1]);
   check(`[${tag}] "模拟五场" advances exactly 5 games`, playedAfter - playedBefore === 5, `${playedBefore} -> ${playedAfter}`);
   check(`[${tag}] "模拟五场" summary says it ran 5 games`, /已连续模拟 5 场/.test(sim5Summary), sim5Summary);
+
+  // Every game of the stretch is listed, and any of them opens with its own score + box score.
+  const rows = await page.$$("#result-rewards [data-pg-game]");
+  check(`[${tag}] game-by-game list shows all 5 games`, rows.length === 5, String(rows.length));
+  const scoreOf = () => page.textContent("#result-score");
+  const boxOf = () => page.$eval("#box-score", (e) => e.innerText.replace(/\s+/g, " ").slice(0, 400));
+  const lastScore = await scoreOf();
+  const lastBox = await boxOf();
+  const listScores = await page.$$eval("#result-rewards [data-pg-game] .pg-gscore", (els) => els.map((e) => e.textContent.trim().split(/\s/)[0]));
+  await page.click('#result-rewards [data-pg-game="0"]');
+  const firstScore = await scoreOf();
+  const firstBox = await boxOf();
+  const firstLabel = firstScore.replace(/\s/g, "").split("-");
+  check(`[${tag}] opening game 1 shows game 1 (header score equals that row's score, either side)`, listScores[0] === firstLabel.join("-") || listScores[0] === [...firstLabel].reverse().join("-"), `${listScores[0]} vs ${firstScore}`);
+  const explained1 = await page.$$eval("#result-explain .result-explain-team strong", (els) => els.map((e) => e.textContent.trim()));
+  const summary1 = await page.textContent("#result-summary");
+  check(`[${tag}] ...and after opening game 1 the analysis follows it`, explained1.length === 2 && explained1.every((t) => summary1.includes(t)), `${explained1.join(" / ")}`);
+  check(`[${tag}] opening game 1 swaps the box score too`, firstBox !== lastBox || firstScore === lastScore);
+  check(`[${tag}] the opened game is marked and the summary names it`, (await page.$eval('#result-rewards [data-pg-game="0"]', (b) => b.getAttribute("aria-pressed"))) === "true" && /第 1 场/.test(await page.textContent("#result-summary")));
+  // The analysis panel must be about the game on screen: BOTH its teams are the ones the summary line names
+  // ("(爵士 116-63 拉斯维加斯 ***)"). It used to show the previous live game's analysis (a different opponent).
+  const explained = await page.$$eval("#result-explain .result-explain-team strong", (els) => els.map((e) => e.textContent.trim()));
+  const summaryNow = await page.textContent("#result-summary");
+  check(`[${tag}] the post-game analysis is about the game on screen (both teams match the summary)`, explained.length === 2 && explained.every((t) => summaryNow.includes(t)), `${explained.join(" / ")} vs "${summaryNow.slice(0, 90)}"`);
+  check(`[${tag}] the list is still all 5 rows after switching`, (await page.$$("#result-rewards [data-pg-game]")).length === 5);
+  await page.click('#result-rewards [data-pg-game="4"]');
+  check(`[${tag}] opening game 5 brings back the last game`, (await scoreOf()) === lastScore && (await boxOf()) === lastBox);
+  check(`[${tag}] simming again from here still works (buttons intact)`, await page.$eval("#btn-result-sim5", (b) => !b.hidden && !b.disabled));
+  await shoot(page, `${OUT}/${tag}-sim5-list.png`);
 
   // These three labels used to be a raw Chinese literal set on every render; in en mode the result
   // screen would show e.g. "模拟五场" verbatim. Flip to en, force a fresh render by clicking "模拟五场"

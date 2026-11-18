@@ -115,13 +115,24 @@ function foldGoals(games) {
  */
 export function foldBatch(reports) {
   const games = (reports || []).filter(Boolean);
-  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, leaders: [], best: null, growth: [], epiphanies: [], heat: [], highlights: [], hot: [] };
+  const out = { games: games.length, wins: 0, losses: 0, pointDiff: 0, log: [], leaders: [], best: null, growth: [], epiphanies: [], heat: [], highlights: [], hot: [] };
   const byPlayer = new Map();
   const growthBy = new Map();
   const highlightsBy = new Map();
   for (const report of games) {
     if (!report.tied) out[report.won ? "wins" : "losses"] += 1;
     out.pointDiff += report.margin;
+    // One line per game, in order: the stretch card shows every result, not just the last box score.
+    const star = report.stars?.[0];
+    out.log.push({
+      n: out.log.length + 1,
+      won: report.won,
+      tied: report.tied,
+      you: report.score.you,
+      opp: report.score.opp,
+      opponentName: report.opponentName,
+      star: star ? { name: star.name, pts: star.pts, reb: star.reb, ast: star.ast } : null,
+    });
     // Every epiphany of the stretch counts; "heating up" is only meaningful as of the LAST game.
     out.epiphanies.push(...(report.rewards?.epiphanies || []));
     out.heat = report.rewards?.heat || [];
