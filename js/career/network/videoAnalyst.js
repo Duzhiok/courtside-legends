@@ -497,7 +497,7 @@ export function readFiledFilmRecommendation() {
 }
 
 /** Inbox event shape for workstream A: a film report filed to the head coach. */
-export function filmReportInboxEvent(recommendation, { teamName = "" } = {}) {
+function filmReportInboxEvent(recommendation, { teamName = "" } = {}) {
   return {
     type: "film-report",
     source: "film-room",

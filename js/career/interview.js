@@ -68,7 +68,7 @@ export function scoreInterview(offer, answers) {
 }
 
 /** What the answers would do to this offer: the numbers the UI shows are the numbers applied. */
-export function interviewEffects(score) {
+function interviewEffects(score) {
   return { trust: score * INTERVIEW_TRUST_PER_POINT, pressure: -score * INTERVIEW_PRESSURE_PER_POINT };
 }
 

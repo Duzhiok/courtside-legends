@@ -67,7 +67,7 @@ export function emptyNetworkProfile({ role = "scout", team = null } = {}) {
 }
 
 /** One requirement check: returns null when met, else a short reason. */
-export function checkRequirements(profile, requirements = {}) {
+function checkRequirements(profile, requirements = {}) {
   const missing = [];
   if ((requirements.minReputation ?? 0) > (profile?.reputation ?? 0)) {
     missing.push(`reputation:${requirements.minReputation}`);
