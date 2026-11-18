@@ -35,7 +35,7 @@ import {
 } from "./careerInbox.js";
 import { settleGamePromises } from "./promiseEngine.js";
 
-export const TIMELINE_SPEEDS = ["next-game", "next-event", "next-key-node"];
+const TIMELINE_SPEEDS = ["next-game", "next-event", "next-key-node"];
 
 /** 0-based index of the first game of the next week boundary at or after `from`. */
 export function nextWeekBoundary(from, gamesPerWeek = GAMES_PER_WEEK) {

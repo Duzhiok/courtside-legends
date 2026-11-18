@@ -54,7 +54,7 @@ export function applyInboxEffects(state, effects = {}) {
 }
 
 /** The pending instance for an event id, or null. */
-export function pendingInstance(inbox, eventId) {
+function pendingInstance(inbox, eventId) {
   return inbox.pending.find((entry) => entry.eventId === eventId) || null;
 }
 

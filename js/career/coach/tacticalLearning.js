@@ -131,7 +131,7 @@ export function executionRisk({ familiarity = 0, fit = 50, buyIn = 50 } = {}) {
  * TACTICS-table marketing copy (switch_all's desc admits "换防本身没有单独
  * 逻辑"; zone_drop's desc admits the corner weakness "目前没有对应实现").
  */
-export const TACTIC_TRADEOFFS = Object.freeze({
+const TACTIC_TRADEOFFS = Object.freeze({
   switch_all: Object.freeze({
     lever: "setTactic('switch_all')",
     effect: "defense ×1.10, offense ×0.99 (sim.js:4427–4428); execution from roster fit (lineupFit)",
