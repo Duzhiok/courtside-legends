@@ -135,8 +135,8 @@ test("2D has no animation clips: previews report 'not played'; the handle matche
   assert.equal(handle.action(), "idle");
 });
 
-test("3D stays the default; 2D is chosen only by ?avatar=2d (real art) or ?avatar=2d-proto (placeholder QA)", () => {
-  for (const q of [undefined, "", "?avatarLight=studio", "?avatar=bogus", "?avatar=2dx"]) assert.equal(avatarRenderer(q), "3d", String(q));
+test("2D is the default; 3D is chosen only by ?avatar=3d or a saved device choice; ?avatar=2d-proto is placeholder QA", () => {
+  for (const q of [undefined, "", "?avatarLight=studio", "?avatar=bogus", "?avatar=2dx"]) assert.equal(avatarRenderer(q), "2d", String(q));
   assert.equal(avatarRenderer("?avatar=3d"), "3d");
   assert.equal(avatarRenderer("?avatar=2d"), "2d");
   assert.equal(avatarRenderer("?avatar=2d-proto"), "2d-proto");

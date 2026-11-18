@@ -455,6 +455,7 @@ export function showcaseHtml({ identity, look }, lang) {
       ${lockerRoomSvg()}
       <img class="mw-showcase-static" src="${esc(avatarDataUri({ name, team: "NBA" }))}" alt="" width="140" height="140" />
     </div>
+    <div class="mw-showcase-renderer"><button type="button" class="btn small ghost mw-on-dark" id="mw-renderer-toggle" data-mw-action="toggle-avatar-renderer" hidden>${TL(lang, "预览 3D 形象（实验）", "Preview 3D figure (experimental)")}</button></div>
     <div class="mw-showcase-bar">
       <div class="btn-row" role="group" aria-label="${TL(lang, "形象风格", "Character style")}">${switchBtns}</div>
       <span class="mw-showcase-hint">${TL(lang, "拖动形象可以旋转", "Drag the figure to turn it")}</span>

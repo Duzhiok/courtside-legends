@@ -88,7 +88,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   const game = await browser.newPage({ viewport: { width: w, height: h } });
   const gameReq = [];
   game.on("request", (r) => gameReq.push(r.url()));
-  await game.goto(BASE, { waitUntil: "domcontentloaded" });
+  await game.goto(`${BASE}?avatar=3d`, { waitUntil: "domcontentloaded" });
   await homeActive(game);
   for (const id of ["world", "players", "career", "custom"]) await game.click(`.home-tab[data-category="${id}"]`);
   check(`[${tag}] game home (all tabs) loads no Three.js / model`, !gameReq.some((u) => /three|\.glb/.test(u)), gameReq.filter((u) => /three|\.glb/.test(u)).join(","));

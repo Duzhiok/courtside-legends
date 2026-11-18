@@ -39,7 +39,7 @@ const fresh = async (viewport, { noWebgl = false } = {}) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   if (noWebgl) await page.addInitScript(() => { const real = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/i.test(t) ? null : real.call(this, t, ...a); }; });
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE}?avatar=3d`, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);

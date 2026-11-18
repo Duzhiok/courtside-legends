@@ -156,16 +156,18 @@ export async function mountAvatar2d(container, {
 }
 
 /**
- * Which renderer My World mounts. 3D stays the default until the user visually approves real 2D art (then `DEFAULT_RENDERER`
- * flips to "2d" and `?avatar=3d` remains the way to see the 3D preview). `?avatar=2d` previews the real 2D art before that flip
- * (no art = the mount rejects = static portrait); `?avatar=2d-proto` is QA of the renderer on placeholder art. Neither is a player option.
+ * Which renderer a screen mounts. 2D is the default (user-approved); 3D stays available as an optional preview, via
+ * `?avatar=3d` or the My World toggle (which saves `pref`, see js/ui/avatarMount.js). `?avatar=2d-proto` is QA of the renderer
+ * on placeholder art and never a player option. The URL wins over `pref`, `pref` wins over the default; junk in either is ignored.
+ * @param {string} search location.search
+ * @param {"2d"|"3d"|null} [pref] the device's saved choice
  * @returns {"3d"|"2d"|"2d-proto"}
  */
-const DEFAULT_RENDERER = "3d";
-export function avatarRenderer(search) {
+const DEFAULT_RENDERER = "2d";
+export function avatarRenderer(search, pref = null) {
   const choice = /[?&]avatar=([a-z0-9-]+)/.exec(String(search || ""))?.[1];
   if (choice === "3d" || choice === "2d") return choice;
   if (choice === DEV_FLAG) return "2d-proto";
-  return DEFAULT_RENDERER;
+  return pref === "3d" || pref === "2d" ? pref : DEFAULT_RENDERER;
 }
 export const mountAvatar2dProto = (container, opts) => mountAvatar2d(container, { ...opts, placeholders: true });

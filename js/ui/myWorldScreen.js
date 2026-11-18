@@ -12,16 +12,13 @@ import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { esc } from "../core/html.js";
-import { mountAvatar3d, AVATAR_ACTIONS } from "./avatar3d.js";
-import { avatarRenderer, mountAvatar2d, mountAvatar2dProto } from "./avatar2d/avatar2dRenderer.js";
+import { AVATAR_ACTIONS } from "./avatar3d.js";
+import { chooseAvatarMount, hasRendererOverride, writeRendererPref } from "./avatarMount.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { deleteChallengeArchive, readChallengeArchive } from "../data/challengeArchive.js";
 import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary, trophyCountOf } from "./myWorldView.js";
 import { hometownHtml } from "./hometownView.js";
 import { readHometownState, setIdol } from "../data/hometown/hometownState.js";
-
-/** The renderer for this page load: 3D unless `?avatar=2d-proto` (QA on placeholder art) or, once approved, the 2D default. */
-const defaultMount = (search) => ({ "2d": mountAvatar2d, "2d-proto": mountAvatar2dProto }[avatarRenderer(search)] || mountAvatar3d);
 
 export function createMyWorld({
   el,
@@ -56,7 +53,7 @@ export function createMyWorld({
   onPlayHometownChallenge = () => {},
   onIdentitySaved = () => {},
   onPortraitChanged = () => {}, // the home bar shows the same picture; it is updated without re-rendering this screen
-  mountAvatar = defaultMount(globalThis.location?.search), // (container, { look }) => Promise<handle>; injectable so tests need no WebGL
+  mountAvatar = null, // (container, { look }) => Promise<handle>; injectable so tests need no WebGL. null = the renderer js/ui/avatarMount.js picks (2D by default), read at each mount so the toggle takes effect on re-render
 }) {
   if (!el) return { refresh() {} };
 
@@ -70,6 +67,16 @@ export function createMyWorld({
     viewer?.dispose();
     viewer = null;
     delete el.dataset.avatarRenderer;   // CSS hides the 3D-only controls while a 2D figure is mounted
+  }
+
+  /** The 2D <-> 3D switch: shown once a figure is up, worded for the OTHER renderer, hidden when the URL forces one. */
+  function paintRendererToggle() {
+    const btn = el.querySelector("#mw-renderer-toggle");
+    if (!btn) return;
+    const en = getLang() === "en";
+    const is2d = el.dataset.avatarRenderer === "2d";
+    btn.hidden = !viewer || hasRendererOverride(globalThis.location?.search);
+    btn.textContent = is2d ? (en ? "Preview 3D figure (experimental)" : "预览 3D 形象（实验）") : (en ? "Back to the 2D figure" : "回到 2D 形象");
   }
 
   /** Preview-action buttons work only while a viewer is live; otherwise they stay disabled with the panel's note. */
@@ -115,12 +122,13 @@ export function createMyWorld({
     if (!stage || viewer) return;
     const token = ++viewerToken;
     try {
-      const handle = await mountAvatar(stage, { look: readLook(getAccount()), stage: true });
+      const handle = await (mountAvatar || chooseAvatarMount())(stage, { look: readLook(getAccount()), stage: true });
       if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
       viewer = handle;
       el.dataset.avatarRenderer = handle.renderer || "3d";
       stage.querySelector(".mw-showcase-static")?.setAttribute("hidden", "");
       paintPortrait();                                   // button wording follows the renderer
+      paintRendererToggle();
       if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
       setActionButtons(true);
     } catch {
@@ -386,6 +394,12 @@ export function createMyWorld({
       unequipJersey(getAccount());
       render();
       say(el.querySelector("#mw-owned-status"), "已取下球衣。", "Jersey taken off.");
+    },
+    /** Switch the figure between 2D and 3D. A device preference only (localStorage), never part of the account save. */
+    "toggle-avatar-renderer": () => {
+      const next = el.dataset.avatarRenderer === "2d" ? "3d" : "2d";
+      if (!writeRendererPref(next)) return say(el.querySelector("#mw-showcase-status"), "这台设备不能保存这个选择。", "This device can't save that choice.");
+      render();
     },
     "unequip-owned": (btn) => {
       const itemId = btn?.closest?.("[data-item]")?.dataset?.item;

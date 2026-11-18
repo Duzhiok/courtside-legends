@@ -20,7 +20,7 @@ import { getAccount } from "../data/account.js";
 import { readIdentity } from "../data/profile.js";
 import { BODY_PRESETS, readLook } from "../data/avatarLook.js";
 import { mountScreen } from "./screenShell.js";
-import { mountAvatar3d } from "./avatar3d.js";
+import { chooseAvatarMount } from "./avatarMount.js";
 import { portraitFor } from "./portraitFor.js";
 import { createDuel, playPossession, DUEL_DIFFICULTIES } from "../duel/duelSim.js";
 import { createTakeover, applyPossession, spacingByOffense } from "../duel/duelTakeover.js";
@@ -54,7 +54,7 @@ let goBackFn = null;
 let current = null; // { state, challenger, legend, difficulty, takeover }
 let courtController = null; // mountDuelCourt handle for the live match screen
 let selection = { challengerKind: "owned", challengerId: null, legendId: null, difficulty: "pro" };
-let avatarViewer = null; // mountAvatar3d handle for the select screen's preview
+let avatarViewer = null; // avatar handle (2D by default, see avatarMount.js) for the select screen's preview
 let avatarViewerToken = 0;
 
 /** Drop the live court (keyboard + pointer listeners) when leaving the match. */
@@ -282,12 +282,12 @@ function renderSelect() {
   body.querySelector("#btn-duel-goto-draw")?.addEventListener("click", () => showFn("draw"));
   body.querySelector("#btn-duel-goto-avatar")?.addEventListener("click", () => showFn("home"));
   body.querySelector("#btn-duel-start")?.addEventListener("click", () => startDuel());
-  // D2: 3D preview of the avatar on its own tab. WebGL/model failure is not
+  // D2: preview of the avatar on its own tab (the same renderer My World uses). A renderer/model failure is not
   // fatal — the static portrait rendered inside the stage stays visible.
   const stage = body.querySelector("#duel-avatar-stage");
   if (stage) {
     const token = ++avatarViewerToken;
-    mountAvatar3d(stage, { look: readLook(getAccount()) }).then((handle) => {
+    chooseAvatarMount()(stage, { look: readLook(getAccount()) }).then((handle) => {
       if (token !== avatarViewerToken || !stage.isConnected) return handle.dispose();
       avatarViewer = handle;
       stage.querySelector(".duel-avatar-static")?.setAttribute("hidden", "");

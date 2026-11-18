@@ -39,7 +39,7 @@ for (const [w, h, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]]) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE}?avatar=3d`, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.clear());
   await page.evaluate(async () => {
     const acc = await import("/js/data/account.js");
