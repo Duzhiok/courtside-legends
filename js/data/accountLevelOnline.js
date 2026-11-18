@@ -12,7 +12,7 @@
  */
 import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY, GUEST_AXP_KEY } from "./accountKeys.js";
 
-export const FRIEND_MATCH_XP = 20;
+const FRIEND_MATCH_XP = 20;
 
 function storageOf(storage) {
   if (storage) return storage;

@@ -346,7 +346,7 @@ export function ownedCoaches(account) {
   return COACHES.filter((c) => ids.has(c.id)).map((c) => structuredClone(c));
 }
 
-export function canEquipCoach(account, coachId) {
+function canEquipCoach(account, coachId) {
   if (!account || !coachId) return false;
   if ((account.coachIds || []).includes(coachId)) return true;
   if (account.coachId === coachId) return true;

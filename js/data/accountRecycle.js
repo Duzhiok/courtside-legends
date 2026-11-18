@@ -64,7 +64,7 @@ export function lineupIds(account, pool = PLAYERS) {
 }
 
 /** Reasons to think twice. Hard blocks are enforced in recycleCards; these only warn. */
-export function recycleWarnings(card, account, lineup = lineupIds(account)) {
+function recycleWarnings(card, account, lineup = lineupIds(account)) {
   const warnings = [];
   if (overall(card) >= JUNK_REDUNDANT_BELOW) warnings.push("全明星以上");
   if (lineup.has(card.id)) warnings.push("主力阵容");

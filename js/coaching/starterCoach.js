@@ -14,7 +14,7 @@ function hash(str) {
   return h >>> 0;
 }
 
-export const hasAnyCoach = (account) => !!(account?.coachId || account?.coachIds?.length);
+const hasAnyCoach = (account) => !!(account?.coachId || account?.coachIds?.length);
 
 /** @returns {{account, granted: string|null}} granted = coach id when this call handed one out. Mutates + returns `account`. */
 export function ensureStarterCoach(account, save = () => {}) {
