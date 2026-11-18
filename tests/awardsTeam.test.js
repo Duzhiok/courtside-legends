@@ -93,8 +93,11 @@ test("computeAwards COTY carries its basis, and the card explains it (and still 
   const a = computeAwards(st);
   assert.ok(a.coty?.basis && Number.isFinite(a.coty.basis.aboveW));
   const zh = seasonAwardsHtml(st, "zh");
-  assert.match(zh, /较预期胜场/);
+  assert.match(zh, /较阵容估计胜场/);
   assert.match(zh, /阵容实力第/);
+  assert.match(zh, /不是赛季开始前保存的预测/, "it says what the estimate is, and that it is not a preseason forecast");
+  assert.doesNotMatch(zh, /较预期胜场|战绩超出阵容预期/, "no wording that reads as a preseason expectation");
+  assert.match(seasonAwardsHtml(st, "en"), /not a forecast saved before the season/);
   assert.doesNotMatch(zh, /不考虑赛前预期/, "the old rule's text is gone");
   assert.doesNotMatch(zh, /不含球队防守成绩/);
 });

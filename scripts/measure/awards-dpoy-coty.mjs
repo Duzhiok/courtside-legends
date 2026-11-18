@@ -47,7 +47,7 @@ for (const year of [1996, 2004, 2012, 2016, 2023]) {
       const best = stronger[0];
       const resid = (t) => t.winPct - (0.5 + (t.strength - table.reduce((n, x) => n + x.strength, 0) / table.length) * 0.04);
       const over = [...table].sort((a, b) => resid(b) - resid(a))[0];
-      console.log(`COTY ${c.name} (${c.teamName} ${c.w}-${c.l}) · preseason strength rank ${rankOf(table, ct.id, "strength", 1)}/${table.length}`);
+      console.log(`COTY ${c.name} (${c.teamName} ${c.w}-${c.l}) · roster-strength rank (this season's top-8 average, not a preseason forecast) ${rankOf(table, ct.id, "strength", 1)}/${table.length}`);
       console.log(`     strongest roster: ${best.name} ${best.w}-${best.l} · biggest overachiever (record vs strength): ${over.name} ${over.w}-${over.l} (strength rank ${rankOf(table, over.id, "strength", 1)})`);
     }
   } finally { Math.random = real; }

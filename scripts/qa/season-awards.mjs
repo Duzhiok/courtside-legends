@@ -106,7 +106,7 @@ for (const [w, h, tag] of [[1280, 900, "desktop"], [390, 844, "mobile"]]) {
   await page.click('.aw-card[data-award="coty"] > summary');
   const cotyWhy = await text(page, '.aw-card[data-award="coty"] .aw-body');
   const cotyCard = await text(page, '.aw-card[data-award="coty"]');
-  check(`[${tag}] the coach card shows wins vs expectation and its basis (roster strength rank)`, /较预期胜场/.test(cotyCard) && /阵容实力第 \d+\/\d+/.test(cotyWhy) && !/不考虑赛前预期/.test(cotyWhy), cotyWhy.slice(0, 110));
+  check(`[${tag}] the coach card shows wins vs expectation and its basis (roster strength rank)`, /较阵容估计胜场/.test(cotyCard) && /阵容实力第 \d+\/\d+/.test(cotyWhy) && /不是赛季开始前保存的预测/.test(cotyWhy) && !/不考虑赛前预期/.test(cotyWhy), cotyWhy.slice(0, 110));
   await page.click('.aw-card[data-award="mip"] > summary').catch(() => {});
   await page.$eval('.aw-card[data-award="mvp"]', (d) => d.scrollIntoView({ block: "start" }));
   await page.screenshot({ path: `${OUT}/${tag}-awards-open.png` });

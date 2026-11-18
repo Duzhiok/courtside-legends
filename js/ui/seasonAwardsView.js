@@ -254,7 +254,7 @@ function coachCard(coty, st, lang) {
         ${cell("场均得分", "PPG", one(team?.ppg ?? null))}
         ${cell("场均失分", "Opp PPG", one(team?.oppg ?? null))}
         ${cell("场均净胜", "Net", signed(net))}
-        ${cell("较预期胜场", "Wins vs expected", basis ? signed(basis.aboveW) : DASH)}
+        ${cell("较阵容估计胜场", "Wins vs roster estimate", basis ? signed(basis.aboveW) : DASH)}
       </dl>
       ${teamPanel(team, lang)}
       <span class="aw-more">${esc(TL(lang, "详情", "Details"))}</span>
@@ -262,8 +262,8 @@ function coachCard(coty, st, lang) {
     <div class="aw-body"><ul class="aw-why">
       <li>${esc(basis
         ? TL(lang,
-          `依据：胜率过半的球队里，战绩超出阵容预期最多的主教练。预期来自本赛季全联盟“阵容实力→胜率”的趋势：该队预期约 ${basis.expectedW} 胜，实际 ${coty.w} 胜（${signed(basis.aboveW)}），阵容实力第 ${basis.strengthRank}/${basis.teams}。`,
-          `Basis: among winning teams, the coach who beat the roster's expectation by the most. Expectation follows this season's league-wide roster-strength-to-win-% trend: about ${basis.expectedW} wins expected, ${coty.w} won (${signed(basis.aboveW)}), roster strength ${basis.strengthRank}/${basis.teams}.`)
+          `依据：胜率过半的球队里，实际胜场比“按阵容实力估计的胜场”高出最多的主教练。这个估计是赛季打完后，按本赛季全联盟“阵容实力→胜率”的趋势线算出来的，不是赛季开始前保存的预测：该队按阵容估计约 ${basis.expectedW} 胜，实际 ${coty.w} 胜（${signed(basis.aboveW)}），阵容实力第 ${basis.strengthRank}/${basis.teams}。`,
+          `Basis: among winning teams, the coach whose actual wins beat the wins estimated from roster strength by the most. The estimate is worked out after the season from this season's league-wide roster-strength-to-win-% trend; it is not a forecast saved before the season: about ${basis.expectedW} wins estimated from the roster, ${coty.w} won (${signed(basis.aboveW)}), roster strength ${basis.strengthRank}/${basis.teams}.`)
         : TL(lang, "依据：常规赛战绩最好的球队的主教练。", "Basis: head coach of the team with the best regular-season record."))}</li>
       <li>${esc(TL(lang, "得失分是每场实际比分；进攻/防守效率需要回合数，本作不记录，所以不显示。上赛季战绩未保存，所以不做逐年对比。", "Points are actual scores per game. Offensive/defensive ratings need possession counts, which are not recorded; last season's record is not kept, so there is no year-over-year comparison."))}</li>
     </ul></div>
