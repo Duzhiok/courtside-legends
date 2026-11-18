@@ -97,7 +97,7 @@ export function scoutProspectHtml({ report, lang = "zh" } = {}) {
   </div>`;
 }
 
-export function scoutRevealHtml({ graded, total, lang = "zh" } = {}) {
+function scoutRevealHtml({ graded, total, lang = "zh" } = {}) {
   const rows = (graded || []).map((g) => {
     const tier = DEVELOPMENT_TIER_LABEL[g.report.tier] || {};
     return `<div class="nw-line">${g.report.name} — ${L("实际发展", "Actually became", lang)}: ${tier[lang === "en" ? "en" : "zh"] || g.report.tier} · ${L("三年后最高", "Peak in 3 yrs", lang)}: ${g.report.peakPpg ?? "—"}${L("分", " pts", lang)} · ${L("判定", "Verdict", lang)}: ${g.verdict} (${g.points > 0 ? "+" : ""}${g.points})</div>`;
@@ -107,7 +107,7 @@ export function scoutRevealHtml({ graded, total, lang = "zh" } = {}) {
   <p class="tiny">${L("这是原始时间线的真实发展——在你自己的时间线里，结局可能不同。", "This is the original timeline's real development — in your own timeline it could differ.", lang)}</p></div>`;
 }
 
-export function filmStripHtml({ strip, lang = "zh" } = {}) {
+function filmStripHtml({ strip, lang = "zh" } = {}) {
   const rows = (strip || []).map((p) => {
     const pts = (p.points?.home || 0) + (p.points?.away || 0);
     const shots = (p.shots || []).map((s) => `${s.made ? "✓" : "✗"}${s.pts}`).join(" ");
