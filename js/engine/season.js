@@ -15,6 +15,7 @@ import {
   LEAGUE_TEAM_META,
 } from "../data/league.js";
 import { historicalSeason } from "../data/historicalSeasons.js";
+import { coachOfTheYear, teamDefenseFactors } from "./awardsTeam.js";
 import { playersForFranchise } from "../data/franchises.js";
 import { PLAYERS, clonePlayer, overall } from "../data/players.js";
 import { ensureTeamStaff } from "../data/coaches.js";
@@ -955,15 +956,17 @@ function mvpScore(row, teamWins, teamGp, scale = (n) => n) {
   return usage * (0.55 + winPct * 0.45) * Math.min(1, s.gp / scale(65));
 }
 
-function dpoyScore(row, scale = (n) => n) {
+/** teamFactor (awardsTeam.teamDefenseFactors): the same stocks count for less on a bad defence. */
+function dpoyScore(row, scale = (n) => n, teamFactor = 1) {
   const s = row.stats;
   if (s.gp < scale(20)) return -1;
   return (
-    perGame(s, "stl") * 3.2 +
-    perGame(s, "blk") * 3.5 +
-    perGame(s, "dreb") * 0.35 +
-    perGame(s, "reb") * 0.15 +
-    (row.ovr || 70) * 0.02
+    (perGame(s, "stl") * 3.2 +
+      perGame(s, "blk") * 3.5 +
+      perGame(s, "dreb") * 0.35 +
+      perGame(s, "reb") * 0.15 +
+      (row.ovr || 70) * 0.02) *
+    teamFactor
   );
 }
 
@@ -1002,6 +1005,8 @@ export function positionalTeams(pool, teams = 1) {
 export function computeAwards(st) {
   const gpScale = (n) => scaleGames(n, st);
   const rows = Object.values(st.playerSeason);
+  const standings = standingsList(st);
+  const defenseFactor = teamDefenseFactors(standings);
   const scored = rows
     .map((row) => {
       const rec = st.standings[row.teamId] || { w: 0, l: 0 };
@@ -1009,7 +1014,8 @@ export function computeAwards(st) {
       return {
         row,
         mvp: mvpScore(row, rec.w, gp, gpScale),
-        dpoy: dpoyScore(row, gpScale),
+        dpoy: dpoyScore(row, gpScale, defenseFactor.get(row.teamId) ?? 1),
+        defFactor: defenseFactor.get(row.teamId) ?? 1,
         teamW: rec.w,
         teamName: st.teams[row.teamId]?.name || row.teamId,
       };
@@ -1076,8 +1082,9 @@ export function computeAwards(st) {
     })
     .sort((a, b) => b.mvp - a.mvp)[0];
 
-  // COTY: coach of best record (simplified — team wins)
-  const cotyTeam = standingsList(st)[0];
+  // COTY: the coach whose team most beat the expectation for its roster while still winning (awardsTeam.coachOfTheYear).
+  const cotyPick = coachOfTheYear(st, standings);
+  const cotyTeam = cotyPick?.team || null;
   const cotyCoach = cotyTeam ? st.teams[cotyTeam.id]?.coach : null;
 
   // All-Defense: also one per position. The DPOY score leans on blocks and rebounds, so a plain top 10 was ~8 centres and
@@ -1100,12 +1107,12 @@ export function computeAwards(st) {
   // formula. Display only: older saves simply lack it.
   const awards = {
     mvp: mvp ? { ...formatAwardPlayer(mvp), basis: { score: round1(mvp.mvp), minGames: gpScale(20) } } : null,
-    dpoy: dpoy ? { ...formatAwardPlayer(dpoy), basis: { score: round1(dpoy.dpoy), minGames: gpScale(20) } } : null,
+    dpoy: dpoy ? { ...formatAwardPlayer(dpoy), basis: { score: round1(dpoy.dpoy), minGames: gpScale(20), teamFactor: Math.round(dpoy.defFactor * 100) / 100 } } : null,
     sixthMan: sixth ? { ...formatAwardPlayer(sixth), basis: { gs: sixth.row.stats.gs, gp: sixth.row.stats.gp, minGames: gpScale(20) } } : null,
     mip: mip ? { ...formatAwardPlayer(mip), basis: { ...mip.mipBasis, minGames: gpScale(25) } } : null,
     roy: roy ? { ...formatAwardPlayer(roy), basis: { rule: rookieOf(roy.row) ? "debut" : "age", minGames: gpScale(40) } } : null,
     coty: cotyCoach
-      ? { name: cotyCoach.name, teamId: cotyTeam.id, teamName: cotyTeam.name, w: cotyTeam.w, l: cotyTeam.l }
+      ? { name: cotyCoach.name, teamId: cotyTeam.id, teamName: cotyTeam.name, w: cotyTeam.w, l: cotyTeam.l, basis: cotyPick.basis }
       : null,
     allNba: {
       first: allNba[0],

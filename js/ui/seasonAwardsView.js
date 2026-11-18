@@ -155,8 +155,8 @@ const AWARDS = [
     key: "dpoy", zh: "最佳防守球员 DPOY", en: "Defensive Player of the Year",
     stats: ["gp", "spg", "bpg", "drpg", "rpg", "pm", "mpg", "eff"],
     why: (b, lang) => TL(lang,
-      `依据：场均抢断、盖帽、后场篮板、篮板，外加少量能力值加成${b?.score != null ? `；防守分 ${b.score}` : ""}。不含球队防守成绩。`,
-      `Basis: steals, blocks, defensive rebounds and rebounds per game, plus a small rating term${b?.score != null ? `; defense score ${b.score}` : ""}. Team defense is not counted.`),
+      `依据：场均抢断、盖帽、后场篮板、篮板，外加少量能力值加成${b?.score != null ? `；防守分 ${b.score}` : ""}。再按球队场均失分排名乘以防守系数（最好 ×1.15，最差 ×0.85）${b?.teamFactor != null ? `，本队 ×${b.teamFactor}` : ""}。`,
+      `Basis: steals, blocks, defensive rebounds and rebounds per game, plus a small rating term${b?.score != null ? `; defense score ${b.score}` : ""}. Scaled by team defense, ranked by points allowed per game (best x1.15, worst x0.85)${b?.teamFactor != null ? `; this team x${b.teamFactor}` : ""}.`),
   },
   {
     key: "sixthMan", zh: "最佳第六人", en: "Sixth Man of the Year",
@@ -240,6 +240,7 @@ function coachCard(coty, st, lang) {
   const initials = esc(String(coty.name || "?").slice(0, 1));
   const cell = (zh, en, value) => `<div><dt>${esc(TL(lang, zh, en))}</dt><dd${value === DASH ? ' class="na"' : ""}>${value}</dd></div>`;
   const net = team?.ppg != null && team?.oppg != null ? team.ppg - team.oppg : null;
+  const basis = coty.basis && Number.isFinite(coty.basis.aboveW) ? coty.basis : null; // an awards object from an older save has none
   return `<details class="aw-card" data-award="coty">
     <summary>
       <div class="aw-head">
@@ -253,14 +254,18 @@ function coachCard(coty, st, lang) {
         ${cell("场均得分", "PPG", one(team?.ppg ?? null))}
         ${cell("场均失分", "Opp PPG", one(team?.oppg ?? null))}
         ${cell("场均净胜", "Net", signed(net))}
-        ${cell("较上季胜场", "vs last season", DASH)}
+        ${cell("较预期胜场", "Wins vs expected", basis ? signed(basis.aboveW) : DASH)}
       </dl>
       ${teamPanel(team, lang)}
       <span class="aw-more">${esc(TL(lang, "详情", "Details"))}</span>
     </summary>
     <div class="aw-body"><ul class="aw-why">
-      <li>${esc(TL(lang, "依据：常规赛战绩最好的球队的主教练，不考虑赛前预期。", "Basis: head coach of the team with the best regular-season record; preseason expectations are not considered."))}</li>
-      <li>${esc(TL(lang, "得失分是每场实际比分；进攻/防守效率需要回合数，本作不记录，所以不显示。上赛季战绩未保存。", "Points are actual scores per game. Offensive/defensive ratings need possession counts, which are not recorded, and last season's record is not kept."))}</li>
+      <li>${esc(basis
+        ? TL(lang,
+          `依据：胜率过半的球队里，战绩超出阵容预期最多的主教练。预期来自本赛季全联盟“阵容实力→胜率”的趋势：该队预期约 ${basis.expectedW} 胜，实际 ${coty.w} 胜（${signed(basis.aboveW)}），阵容实力第 ${basis.strengthRank}/${basis.teams}。`,
+          `Basis: among winning teams, the coach who beat the roster's expectation by the most. Expectation follows this season's league-wide roster-strength-to-win-% trend: about ${basis.expectedW} wins expected, ${coty.w} won (${signed(basis.aboveW)}), roster strength ${basis.strengthRank}/${basis.teams}.`)
+        : TL(lang, "依据：常规赛战绩最好的球队的主教练。", "Basis: head coach of the team with the best regular-season record."))}</li>
+      <li>${esc(TL(lang, "得失分是每场实际比分；进攻/防守效率需要回合数，本作不记录，所以不显示。上赛季战绩未保存，所以不做逐年对比。", "Points are actual scores per game. Offensive/defensive ratings need possession counts, which are not recorded; last season's record is not kept, so there is no year-over-year comparison."))}</li>
     </ul></div>
   </details>`;
 }
