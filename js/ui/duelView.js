@@ -68,7 +68,7 @@ export function initDuelView({ show, goBack }) {
   goBackFn = goBack;
 }
 
-export function duelReady() {
+function duelReady() {
   return !!showFn && !!document.querySelector("#screen-duel");
 }
 

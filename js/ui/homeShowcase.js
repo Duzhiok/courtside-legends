@@ -457,7 +457,7 @@ function wireInfoDialogs(doc) {
   about?.querySelector("#btn-open-credits")?.addEventListener("click", () => about.close?.());
 }
 
-export function decorateModeCards(root) {
+function decorateModeCards(root) {
   if (!root) return 0;
   let count = 0;
   for (const card of root.querySelectorAll(".mode-card[data-legend]")) {

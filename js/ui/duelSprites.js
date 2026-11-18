@@ -62,7 +62,7 @@ const SHOE = "#f2f2f2";
 const INK = "#26221f";
 
 /** The D3.1 contest threshold: a defender this close is contesting. */
-export const CONTEST_DISTANCE = 6;
+const CONTEST_DISTANCE = 6;
 
 const isHexColor = (value) => typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
 
