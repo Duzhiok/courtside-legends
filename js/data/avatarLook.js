@@ -63,9 +63,9 @@ export const HAIR_STYLES = Object.freeze([
  * the animations expect them.
  */
 export const BODY_PRESETS = Object.freeze([
-  { id: "standard", zh: "标准", en: "Standard", height: 1.0, scales: { shoulders: 1.0, spine: 1.0, arms: 1.0, legs: 1.0 } },
-  { id: "broad", zh: "壮实", en: "Broad", height: 1.03, scales: { shoulders: 1.16, spine: 1.07, arms: 1.05, legs: 1.04 } },
-  { id: "slim", zh: "精瘦", en: "Slim", height: 0.97, scales: { shoulders: 0.88, spine: 0.93, arms: 0.96, legs: 0.97 } },
+  { id: "standard", zh: "标准", en: "Standard", height: 1.0, scales: { shoulders: 1.0, spine: 1.0, arms: 1.0, legs: 1.0 }, shape: { shoulders: 0, arms: 0, waist: 0, legs: 0, height: 0 } },
+  { id: "broad", zh: "壮实", en: "Broad", height: 1.03, scales: { shoulders: 1.16, spine: 1.07, arms: 1.05, legs: 1.04 }, shape: { shoulders: 0.17, arms: 0.15, waist: 0.1, legs: 0.09, height: 0.02 } },
+  { id: "slim", zh: "精瘦", en: "Slim", height: 0.97, scales: { shoulders: 0.88, spine: 0.93, arms: 0.96, legs: 0.97 }, shape: { shoulders: -0.13, arms: -0.15, waist: -0.12, legs: -0.08, height: -0.02 } },
 ]);
 
 /** Bone names as they appear in the GLB, grouped by what a preset scales. Pure data, no Three.js needed. */
