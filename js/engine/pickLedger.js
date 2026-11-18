@@ -64,7 +64,7 @@ export function setPickOwner(season, { sourceTeamId, year, round }, ownerTeamId)
 // ---------- the calendar: which picks exist, and who holds them ----------
 
 /** Every club in the league: the declared list when there is one, otherwise whoever has a team. */
-export function teamIdsOf(season) {
+function teamIdsOf(season) {
   const declared = season?.league?.teamIds;
   return Array.isArray(declared) && declared.length ? declared : Object.keys(season?.teams || {});
 }

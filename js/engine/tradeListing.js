@@ -89,7 +89,7 @@ export const LISTING_PREFERENCES = {
   },
 };
 
-export const isListingPref = (pref) => Object.hasOwn(LISTING_PREFERENCES, pref);
+const isListingPref = (pref) => Object.hasOwn(LISTING_PREFERENCES, pref);
 
 export function listingPref(st, playerId) {
   const pref = st?.listingPrefs?.[playerId];

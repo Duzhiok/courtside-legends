@@ -11,7 +11,7 @@
  */
 import { overall } from "../data/players.js";
 
-export const ALL_TEAM_POS = ["PG", "SG", "SF", "PF", "C"];
+const ALL_TEAM_POS = ["PG", "SG", "SF", "PF", "C"];
 
 export function normAllTeamPos(pos) {
   const p = String(pos || "SF").toUpperCase();
