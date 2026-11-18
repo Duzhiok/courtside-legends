@@ -110,6 +110,7 @@ import {
 } from "./data/coaches.js";
 import { FRANCHISES, POS_SLOTS, franchiseName, playersForFranchise } from "./data/franchises.js";
 import { makeFranchiseCareerTeam, makeRandomCareerTeam, makeYearChallengeTeam } from "./career/careerTeams.js";
+import { esc } from "./core/html.js";
 import { careerCoachPrice, rollCareerCoachShop } from "./career/coachMarket.js";
 import { coachMarketCardHtml, skillOfferCardHtml } from "./ui/careerMarketCards.js";
 import {
@@ -6870,14 +6871,9 @@ $("#phil-tactics")?.addEventListener("change", () => {
   if (state.setup) renderSetupRoster();
 });
 
+// One escaper for the whole app (js/core/html.js). `escAttr` stays only as a name so its call sites do not churn.
 function escAttr(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;");
-}
-function esc(s) {
-  return escAttr(s).replace(/'/g, "&#39;");
+  return esc(s);
 }
 
 function posSelectHtml(player, { selectedPos = null, disabled = false } = {}) {
