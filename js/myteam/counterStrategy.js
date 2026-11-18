@@ -58,7 +58,7 @@ function* fives(items) {
 }
 
 /** Who guards whom, and who leads the second unit -- as data. The engine cannot yet sub on "star on court", so this is advisory. */
-export function rotationAdvice(five, roster, opp) {
+function rotationAdvice(five, roster, opp) {
   const used = new Set();
   const defenders = opp.threats.map((t) => {
     const key = t.kind === "interior" ? "interiorDef" : "perimDef";

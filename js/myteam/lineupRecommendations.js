@@ -20,7 +20,7 @@ import { ovr } from "./playerRoleFit.js";
 
 const W = { Q: 0.4, F: 0.3, S: 0.2, R: 0.1 };
 export const SWAP_MARGIN = 4; // utility points a different five must win by before we suggest churn
-export const STAR_MARGIN = 2.5; // ...plus this much for every OVR-90+ starter it would bench
+const STAR_MARGIN = 2.5; // ...plus this much for every OVR-90+ starter it would bench
 const STAR_OVR = 90;
 const TRADEOFF_DELTA = 4;
 const SEV = { high: 12, medium: 6, low: 2 };

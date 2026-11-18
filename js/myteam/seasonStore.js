@@ -14,7 +14,7 @@ const store = (storage) => storage ?? globalThis.localStorage;
 export const hasMyTeamSeason = (storage) => keyHasData(MYTEAM_SEASON_KEY, storage);
 
 /** Shape gate: a damaged or foreign blob is "no save", never a crash. */
-export function validMyTeamSeason(st) {
+function validMyTeamSeason(st) {
   const m = st?.myTeam;
   return !!(
     m && m.schema === 1 && typeof m.seasonId === "string" && m.seasonId
