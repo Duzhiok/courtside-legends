@@ -144,10 +144,12 @@ test("training pays trust once a week, on the week's last game", async () => {
     }
     return { deltas, trust: cur.player.coachTrust };
   }
-  assert.deepEqual((await fourGames(false)).deltas, [0, 0, 0, 0]);
+  // Same four seeded games with and without the week's training: only the training bonus may differ. (Not pinned to
+  // "he never plays": which games a benched player gets minutes in depends on the substitution rules, not on this contract.)
+  const base = await fourGames(false);
   const trained = await fourGames(true);
-  assert.deepEqual(trained.deltas, [0, 0, 0, 4], "the DNP weekly bonus lands once, not four times");
-  assert.equal(trained.trust, 14);
+  assert.deepEqual(trained.deltas.map((d, i) => d - base.deltas[i]), [0, 0, 0, 4], "the weekly bonus lands once, on the last game, not four times");
+  assert.equal(trained.trust - base.trust, 4);
 });
 
 test("the contract reads on the card, zh + en", () => {

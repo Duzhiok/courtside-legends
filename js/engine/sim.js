@@ -89,6 +89,7 @@ import {
   pickScreener,
 } from "./grade.js";
 import { clamp } from "../core/seededRandom.js";
+import { compatibleFirst, nearestToSlot, positionGap, reseatLineup } from "./lineupSlots.js";
 
 const QUARTER_SEC = 12 * 60;
 
@@ -1670,7 +1671,7 @@ export class GameSim {
     for (const starter of [...team.onCourt].filter((p) => starterIds.has(p.id))) {
       const fresh = [...team.bench]
         .filter((p) => !(p.injuredGames > 0) && !starterIds.has(p.id))
-        .sort((a, b) => (a.stats.min || 0) - (b.stats.min || 0))[0];
+        .sort((a, b) => compatibleFirst(starter)(a, b) || (a.stats.min || 0) - (b.stats.min || 0))[0];
       if (!fresh) continue;
       if (this.substitute(starter.id, fresh.id, team.side)) swapped++;
     }
@@ -1714,10 +1715,10 @@ export class GameSim {
         .filter((p) => !(p.injuredGames > 0))
         .filter((p) => (p.stats.min || 0) < (p.targetMinutes ?? 22) + 1)
         .sort((a, b) => {
-          // Prefer whoever still has the most minutes left on their budget
+          // A man who fits the slot first; then whoever still has the most minutes left on their budget
           const leftA = (a.targetMinutes ?? 22) - (a.stats.min || 0);
           const leftB = (b.targetMinutes ?? 22) - (b.stats.min || 0);
-          return leftB - leftA || overall(b) - overall(a);
+          return compatibleFirst(tired)(a, b) || leftB - leftA || overall(b) - overall(a);
         })[0];
       if (!fresh) break;
       if (
@@ -1929,7 +1930,9 @@ export class GameSim {
           .filter((p) => starterIds.has(p.id) && (p.fatigue || 0) <= ROTATION_FATIGUE_IN)
           .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
     if (rested) {
-      const outgoing = [...you.onCourt].sort((a, b) => (b.fatigue || 0) - (a.fatigue || 0))[0];
+      const outgoing = [...you.onCourt].sort(
+        (a, b) => compatibleFirst(rested)(a, b) || (b.fatigue || 0) - (a.fatigue || 0)
+      )[0];
       if (outgoing && this.substitute(outgoing.id, rested.id, you.side)) {
         this.emit("coach", this.S(`${rested.name} 体力已完全恢复，立即换回场上`, `${rested.name} is fully rested — straight back in`));
         return;
@@ -1940,11 +1943,7 @@ export class GameSim {
       .filter((p) => (p.fatigue || 0) >= ROTATION_FATIGUE_OUT)
       .sort((a, b) => (b.fatigue || 0) - (a.fatigue || 0))[0];
     if (!tired) return;
-    const fresh =
-      healthyBench
-        .filter((p) => p.pos === tired.pos || p.playPos === tired.pos || p.playPos === tired.playPos)
-        .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0] ||
-      [...healthyBench].sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0))[0];
+    const fresh = [...healthyBench].sort((a, b) => nearestToSlot(tired)(a, b) || (a.fatigue || 0) - (b.fatigue || 0))[0];
     if (!fresh || (fresh.fatigue || 0) >= (tired.fatigue || 0)) return;
     if (this.substitute(tired.id, fresh.id, you.side)) {
       this.emit("coach", this.S(`${tired.name} 体力透支，${fresh.name} 换上保存体力`, `${tired.name} is spent — ${fresh.name} in to save his legs`));
@@ -2159,10 +2158,11 @@ export class GameSim {
       return;
     }
     // Prefer same-ish position
+    // Closest position to the slot he gives up first (a same-position man is gap 0), then the most rested, then the better.
     const samePos =
-      pool
-        .filter((p) => p.pos === tired.pos || p.playPos === tired.pos || p.playPos === tired.playPos)
-        .sort((a, b) => (a.fatigue || 0) - (b.fatigue || 0) || overall(b) - overall(a))[0] || fresh;
+      [...pool].sort(
+        (a, b) => nearestToSlot(tired)(a, b) || (a.fatigue || 0) - (b.fatigue || 0) || overall(b) - overall(a)
+      )[0] || fresh;
     // 领先时：替补明显更弱就别换
     if (protectLead && overall(samePos) < overall(tired) - 5) return;
     this.substitute(tired.id, samePos.id, team.side);
@@ -2414,6 +2414,9 @@ export class GameSim {
     // 上场者继承下场者的场上位置，避免空位/叠位
     inbound.playPos = out.playPos || out.pos;
     t.onCourt[outIdx] = inbound;
+    // The rotations pick a replacement by rest, not position; if he is two or more steps from the slot he just
+    // inherited, re-seat the five so nobody ends up a PG at centre (js/engine/lineupSlots.js).
+    if (positionGap(inbound.pos, inbound.playPos) >= 2) reseatLineup(t.onCourt);
     t.bench = t.bench.filter((p) => p.id !== inId).concat(out);
     // No instant fatigue dump on sub — rest only accrues with real bench time
     out.benchSinceElapsed = this.elapsedSec || 0;
