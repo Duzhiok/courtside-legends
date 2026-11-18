@@ -53,7 +53,7 @@ function writeAll(all, storage) {
   }
 }
 
-export function currentOwner(storage) {
+function currentOwner(storage) {
   try {
     return store(storage)?.getItem(ACTIVE_ACCOUNT_KEY) || GUEST;
   } catch {

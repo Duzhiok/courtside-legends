@@ -22,7 +22,7 @@ export const SHOP_CATEGORIES = Object.freeze([
   { id: "convenience", zh: "便利", en: "Convenience" },
 ]);
 
-export const SHOP_KINDS = Object.freeze({
+const SHOP_KINDS = Object.freeze({
   COSMETIC: "cosmetic",
   CONVENIENCE: "convenience",
 });

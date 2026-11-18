@@ -766,7 +766,7 @@ export function writeRootSave(root, storage, { release = false } = {}) {
  * commit, but the direct-write fallback is banned, and the backup is NOT
  * deleted here — it is retained until a later, separate verified save (Q3).
  */
-export function writeRootSaveStrict(root, storage, { release = false } = {}) {
+function writeRootSaveStrict(root, storage, { release = false } = {}) {
   const target = getStorage(storage);
   assertSlotWritable("career", rootPresent(target), target, { sig: careerSig(root), release });
   const { persisted, serialized, savedAt } = prepareRootForWrite(root);
