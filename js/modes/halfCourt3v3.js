@@ -55,7 +55,7 @@ export const HALF_COURT_RULES = Object.freeze({
 /** GameSim's regulation quarter length — pinned before every possession (sim.js QUARTER_SEC). */
 const PINNED_CLOCK = 12 * 60;
 /** Both sides' picks may share a card (Jordan vs Jordan): their match copies need distinct ids. */
-export const HALF_COURT_SLOT_OFFSET = Object.freeze({ home: 0, away: 100 });
+const HALF_COURT_SLOT_OFFSET = Object.freeze({ home: 0, away: 100 });
 
 const STAT_KEYS = ["fga", "fgm", "tpa", "tpm", "reb", "oreb", "ast", "stl", "blk", "tov", "pf"];
 

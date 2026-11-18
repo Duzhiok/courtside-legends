@@ -21,7 +21,7 @@ function parityModelFor(pool) {
 }
 
 /** Sim and box score key by id, so every duplicate needs its own. */
-export function sandboxCopy(card, slot) {
+function sandboxCopy(card, slot) {
   const copy = clonePlayer(card);
   copy.id = `${card.id}~sbx${slot}`;
   copy.sandboxSourceId = card.id;
