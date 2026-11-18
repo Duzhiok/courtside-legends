@@ -83,7 +83,7 @@ function personaLabel(personaId, lang) {
 }
 
 /** One prospect's public line + scout reports + tryout (scout phase). */
-export function prospectCardHtml({ prospect, reports, tryout, tryoutsLeft, lang = "zh" } = {}) {
+function prospectCardHtml({ prospect, reports, tryout, tryoutsLeft, lang = "zh" } = {}) {
   const card = prospect?.player || prospect;
   const info = publicInfo(card);
   if (!info) return "";

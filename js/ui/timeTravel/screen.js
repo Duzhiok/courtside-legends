@@ -45,7 +45,7 @@ import { hqModel, kpiModel, teamColorsFor, teamCore } from "./viewModel.js";
  * (or, for "retired", ever: there is no job board after the last whistle). */
 const CAREER_OVER_STATUSES = new Set(["fired", "departed", "retired"]);
 export const careerIsOver = (story) => CAREER_OVER_STATUSES.has(story?.employment?.status);
-export const careerIsRetired = (story) => story?.employment?.status === "retired";
+const careerIsRetired = (story) => story?.employment?.status === "retired";
 
 /** What the player should read when they come back to a career in a given employment state. */
 /**

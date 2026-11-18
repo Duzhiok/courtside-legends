@@ -626,5 +626,3 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
     },
   };
 }
-
-export { pickLang };
