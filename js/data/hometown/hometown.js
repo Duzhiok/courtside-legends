@@ -72,7 +72,7 @@ export function validateLegends(records, { knownBrefs = null, locations = LOCATI
 /** The curated tables, validated once (bref existence is asserted by tests against the real roster). */
 export const CURATED = validateLegends(LEGEND_LOCATIONS, { locations: LOCATIONS });
 
-export const locationById = (id, locations = LOCATIONS) => locations.find((l) => l.id === id) || null;
+const locationById = (id, locations = LOCATIONS) => locations.find((l) => l.id === id) || null;
 
 /** [self, parent, grandparent...] — the fallback chain for a location. */
 export function locationChain(location, locations = LOCATIONS) {

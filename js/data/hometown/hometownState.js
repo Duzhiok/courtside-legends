@@ -17,7 +17,7 @@
  */
 import { saveAccount } from "../account.js";
 
-export const GUEST_HOMETOWN_KEY = "cls_guest_hometown_v1";
+const GUEST_HOMETOWN_KEY = "cls_guest_hometown_v1";
 
 const cleanBref = (v) => (typeof v === "string" && /^[a-z0-9_]+$/i.test(v.trim()) ? v.trim() : null);
 const cleanCount = (v) => Math.max(0, Math.floor(Number(v) || 0));

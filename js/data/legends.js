@@ -45,7 +45,7 @@ export const TEAM_NAMES_ZH = {
 };
 
 /** Known legends — twilight seasons keep skill floors; peak seasons use anchors. */
-export const LEGEND_META = {
+const LEGEND_META = {
   mcgratr01: {
     nbaId: 1503,
     name: "Tracy McGrady",
