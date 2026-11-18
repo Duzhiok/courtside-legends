@@ -9,7 +9,7 @@ const { DEFAULT_LOOK, sanitizeLook } = await import("../js/data/avatarLook.js");
 const { ART_FAMILY, NUMBER_ANCHOR, jerseyKit, paintJerseyNumber } = await import("../js/ui/avatar2d/avatar2dJersey.js");
 const { CANVAS, resolveLayers } = await import("../js/ui/avatar2d/avatar2dLayers.js");
 const { mountAvatar2d } = await import("../js/ui/avatar2d/avatar2dRenderer.js");
-const { listJerseyCatalog, getJerseyTemplate } = await import("../js/collectibles/jerseyCatalog.js");
+const { exchangeTemplate, listJerseyCatalog, getJerseyTemplate } = await import("../js/collectibles/jerseyCatalog.js");
 const { equipJersey, equippedJerseyTemplate, listOwnedJerseys, unequipJersey } = await import("../js/collectibles/jerseyCollection.js");
 const { SHOP_ITEMS } = await import("../js/data/shopCatalog.js");
 const shop = await import("../js/data/shop.js");
@@ -180,6 +180,29 @@ test("the collection says which jerseys are simplified 2D previews, and that 3D 
   for (const i of items) shop.purchaseShopItem(a, i.id);
   const html = jerseyCollectionHtml({ list: listOwnedJerseys(a), equipped: null }, "zh");
   assert.match(html, /简化预览/);
+  const simplified = items.filter((i) => jerseyKit(getJerseyTemplate(i.effect.templateId)).simplified).length;
+  assert.ok(simplified > 0 && simplified < items.length, "some of the eight match the art cut and need no tag");
+  assert.equal((html.match(/mw-jersey-simple/g) || []).length, simplified, "one small tag per simplified card, none on the others");
+  assert.equal((html.match(/沿用同一件/g) || []).length, 1, "the explanation is said once, at the top, not on every card");
   assert.match(html, /3D 形象还没有球衣模型/);
-  assert.match(jerseyCollectionHtml({ list: listOwnedJerseys(a), equipped: null }, "en"), /simplified preview/);
+  assert.match(jerseyCollectionHtml({ list: listOwnedJerseys(a), equipped: null }, "en"), /simplified preview/i);
+});
+
+test("collection cards state team, season, number and how it was acquired; nothing is invented (no purchase date, no guessed number)", () => {
+  const shopEntry = { key: "jersey-orig_neon_1986_23", source: "shop", template: getJerseyTemplate("orig_neon_1986_23"), instance: null };
+  const html = jerseyCollectionHtml({ list: [shopEntry], equipped: null }, "zh");
+  assert.match(html, /霓虹海岸 1985-86 #23/, "the title already carries team, season and number");
+  assert.match(html, /商城购买/, "and the tag the source");
+  assert.doesNotMatch(html, /mw-jersey-facts|mw-jersey-acq/, "so a bought jersey does not repeat them in extra lines");
+  assert.doesNotMatch(html, /\d{4}-\d{2}-\d{2}|购买于/, "the Shop stores no purchase date, so none is shown");
+
+  const template = exchangeTemplate({ bref: "robinda01", name: "大卫·罗宾逊", nameEn: "David Robinson", team: "SAS", year: 1997 });
+  const instance = { id: "exchange:o1", template, signed: false, provenance: { fromName: "大卫·罗宾逊", fromNameEn: "David Robinson", year: 1997, game: 36, won: true, margin: 7, meetings: 4, respect: 68, you: { pts: 20 }, rival: { pts: 18 } } };
+  const ex = { key: "exchange:o1", source: "exchange", template, instance };
+  const zh = jerseyCollectionHtml({ list: [ex], equipped: null }, "zh");
+  assert.match(zh, /1997/);
+  assert.match(zh, /号码未记载/, "a story jersey states no number, and the card says so");
+  assert.match(zh, /获得：1997 赛季第 36 场 · 与 大卫·罗宾逊 交换 · 赢 7 分/);
+  assert.match(jerseyCollectionHtml({ list: [ex], equipped: null }, "en"), /Acquired: 1997, game 36 · swapped with David Robinson · won by 7/);
+  assert.doesNotMatch(zh, /已签名/, "exchange jerseys are not signed by default");
 });

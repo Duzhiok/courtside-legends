@@ -72,7 +72,10 @@ function conferenceById() {
  * schedule (test hook — a short schedule keeps tests fast).
  */
 export function buildSeason(reborn, _players, { games = null } = {}) {
-  const year = reborn.startYear + 1;
+  // The season being played: rolloverSeason moves player.seasonYear on, and a new run starts at startYear + 1 (the same value). Reading
+  // startYear alone replayed the first year forever: identical game ids (every gameId-idempotent settlement skipped them) and a resume
+  // count that read the finished season's log as the new season's, so the second season opened already "complete".
+  const year = reborn.player?.seasonYear ?? reborn.startYear + 1;
   const teamId = reborn.player.teamId;
   if (games) return { year, teamId, games: [...games], index: 0 };
   const schedule = generateSchedule(REBORN_TEAM_IDS, hashSeed(`${reborn.seed}|${year}`), {

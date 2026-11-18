@@ -15,7 +15,11 @@
 import { directMatchup } from "../reborn/rivalry.js";
 
 export const EXCHANGE_RULES = Object.freeze({
-  MIN_RESPECT: 65, // respect needed on its own (no title)
+  // Respect needed on its own (no title). 60 = three meetings with one close game, or four meetings. Measured on 16 fixed-seed careers x 3
+  // seasons (scripts/measure/jersey-exchange-thresholds.mjs): 65 gave 0.31 offers/season (21% of seasons any), 55 and 60 give an identical
+  // 0.60 (31%; respect has almost no values in 55..59, so the two are the same rule), 50 gives 0.65, 45 and below 0.73 (40%). 60 is the
+  // highest bar that keeps that result, so a keepsake still needs a real rivalry behind it.
+  MIN_RESPECT: 60,
   RESPECT_FLOOR: 40, // even after a title, a stranger offers nothing
   CHAMPIONSHIP_BONUS: 20,
   RIVALRY_BONUS: 10,
@@ -89,11 +93,11 @@ export function gameEvidenceFromReport(report, ledger) {
  * Is `opponent` willing to swap a jersey after this game? Returns { eligible, reason } or { eligible, score, reasons }.
  * `respect` is respectFromRival(...); `player` is only used to match the direct-matchup evidence ("you").
  */
-export function evaluateExchangeCandidate({ opponent, game, respect, meetings = 0 }) {
+export function evaluateExchangeCandidate({ opponent, game, respect, meetings = 0, rules = EXCHANGE_RULES }) {
   if (!game?.id || !game.settled) return { eligible: false, reason: "GAME_NOT_SETTLED" };
   if (!opponent?.bref || !game.participants?.includes(opponent.bref)) return { eligible: false, reason: "NOT_A_PARTICIPANT" };
   if (!Number.isFinite(respect)) return { eligible: false, reason: "MISSING_RELATIONSHIP" };
-  if (meetings < EXCHANGE_RULES.MIN_MEETINGS) return { eligible: false, reason: "TOO_FEW_MEETINGS" };
+  if (meetings < rules.MIN_MEETINGS) return { eligible: false, reason: "TOO_FEW_MEETINGS" };
 
   const championship = game.isChampionship === true;
   const rivalry = game.rivalIds?.includes(opponent.bref) ?? false;
@@ -101,15 +105,15 @@ export function evaluateExchangeCandidate({ opponent, game, respect, meetings = 
   const reasons = [...(championship ? ["CHAMPIONSHIP"] : []), ...(rivalry ? ["RIVALRY"] : []), ...(matchup ? ["DIRECT_MATCHUP"] : [])];
   const score =
     respect +
-    (championship ? EXCHANGE_RULES.CHAMPIONSHIP_BONUS : 0) +
-    (rivalry ? EXCHANGE_RULES.RIVALRY_BONUS : 0) +
-    (matchup ? EXCHANGE_RULES.MATCHUP_BONUS : 0);
+    (championship ? rules.CHAMPIONSHIP_BONUS : 0) +
+    (rivalry ? rules.RIVALRY_BONUS : 0) +
+    (matchup ? rules.MATCHUP_BONUS : 0);
 
   if (championship) {
-    if (respect < EXCHANGE_RULES.RESPECT_FLOOR) return { eligible: false, reason: "LOW_RESPECT", score };
-    return { eligible: score >= EXCHANGE_RULES.MIN_RESPECT, score, reasons: reasons.length ? reasons : ["CHAMPIONSHIP"], ...(score < EXCHANGE_RULES.MIN_RESPECT ? { reason: "LOW_SCORE" } : {}) };
+    if (respect < rules.RESPECT_FLOOR) return { eligible: false, reason: "LOW_RESPECT", score };
+    return { eligible: score >= rules.MIN_RESPECT, score, reasons: reasons.length ? reasons : ["CHAMPIONSHIP"], ...(score < rules.MIN_RESPECT ? { reason: "LOW_SCORE" } : {}) };
   }
-  if (respect < EXCHANGE_RULES.MIN_RESPECT) return { eligible: false, reason: "LOW_RESPECT", score };
+  if (respect < rules.MIN_RESPECT) return { eligible: false, reason: "LOW_RESPECT", score };
   // Mutual respect needs real evidence that the two of you actually faced off tonight.
   if (!matchup) return { eligible: false, reason: "NO_DIRECT_MATCHUP", score };
   return { eligible: true, score, reasons: ["MUTUAL_RESPECT", ...reasons] };

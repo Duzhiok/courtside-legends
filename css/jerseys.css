@@ -4,9 +4,12 @@
 .mw-jersey-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .mw-jersey-card { display: flex; gap: 12px; padding: 10px; border: 1px solid rgba(0, 0, 0, 0.16); border-radius: 12px; background: rgba(0, 0, 0, 0.03); min-width: 0; } /* My World cards are light */
 .mw-jersey-card.is-equipped { border-color: #d9b24c; box-shadow: 0 0 0 1px rgba(217, 178, 76, 0.45); }
-.mw-jersey-art { display: grid; place-items: start center; width: 64px; flex: none; align-self: flex-start; }
+.mw-jersey-art { display: grid; place-items: start center; width: 80px; flex: none; align-self: flex-start; }
 .mw-jersey-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-items: flex-start; overflow-wrap: anywhere; }
 .mw-jersey-tag { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: rgba(217, 178, 76, 0.28); color: #6b4e0a; }
+.mw-jersey-simple { background: rgba(0, 0, 0, 0.08); color: #444; }
+.mw-jersey-facts { font-weight: 600; font-size: 13px; }
+.mw-jersey-acq { font-size: 12px; opacity: 0.85; }
 .mw-jersey-story summary { cursor: pointer; font-size: 12px; opacity: 0.85; }
 .mw-jersey-story p { margin: 4px 0 0; }
 

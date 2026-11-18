@@ -25,6 +25,24 @@ function titleOf(entry, lang) {
   return lang === "en" ? t.label?.en || t.playerName : t.label?.zh || t.playerName;
 }
 
+/** Team . season . number, from the template only; a story jersey states no number, and that is said rather than guessed. */
+function factsLine(entry, lang) {
+  const t = entry.template;
+  const team = t.teamName ? L(t.teamName.zh, t.teamName.en, lang) : t.teamCode || null;
+  const season = t.season != null ? String(t.season) : null;
+  const number = t.number != null && t.number !== "" ? `#${t.number}` : L("号码未记载", "number not recorded", lang);
+  return [team, season, number].filter(Boolean).join(" · ");
+}
+
+/** How and when it was acquired, from the evidence the collection actually holds (the Shop stores no purchase date, so none is shown). */
+function acquiredLine(entry, lang) {
+  const p = entry.instance?.provenance;
+  if (entry.source !== "exchange" || !p) return L("商城购买", "Bought in the Shop", lang);
+  const who = lang === "en" ? p.fromNameEn || p.fromName : p.fromName;
+  const result = p.margin != null ? L(`${p.won ? "赢" : "输"} ${p.margin} 分`, `${p.won ? "won" : "lost"} by ${p.margin}`, lang) : "";
+  return [L(`${p.year} 赛季第 ${p.game ?? "?"} 场`, `${p.year}, game ${p.game ?? "?"}`, lang), L(`与 ${who} 交换`, `swapped with ${who}`, lang), result].filter(Boolean).join(" · ");
+}
+
 function provenanceHtml(entry, lang) {
   const p = entry.instance?.provenance;
   if (entry.source === "shop") return `<p class="tiny">${esc(L("来源：商城购买 · 原创复古球衣，不属于任何真实球队的官方商品。", "Source: bought in the Shop · an original throwback, not an official team product.", lang))}</p>`;
@@ -46,13 +64,15 @@ function cardHtml(entry, equipped, lang) {
     ? `<button type="button" class="btn small ghost" data-mw-action="unequip-jersey">${esc(L("取下", "Take off", lang))}</button>`
     : `<button type="button" class="btn small mw-gold" data-mw-action="equip-jersey">${esc(L("设为当前球衣", "Wear it", lang))}</button>`;
   return `<li class="mw-jersey-card${equipped ? " is-equipped" : ""}" data-jersey-key="${esc(entry.key)}">
-    <div class="mw-jersey-art">${jerseySvg(t, { size: 84, label: titleOf(entry, lang) })}</div>
+    <div class="mw-jersey-art">${jerseySvg(t, { size: 96, label: titleOf(entry, lang) })}</div>
     <div class="mw-jersey-info">
       <strong>${esc(titleOf(entry, lang))}</strong>
       <span class="mw-jersey-tag">${esc(entry.source === "exchange" ? L("交换所得", "Earned", lang) : L("商城购买", "Bought", lang))}</span>
-      <span class="tiny">${esc(eraLabel(t, lang))}${fam ? ` · ${esc(L(fam.zh, fam.en, lang))}` : ""}${t.number != null ? ` · #${esc(t.number)}` : ""}</span>
+      ${entry.source === "exchange" ? `<span class="mw-jersey-facts">${esc(factsLine(entry, lang))}</span>` : ""}
+      <span class="tiny muted">${esc(eraLabel(t, lang))}${fam ? ` · ${esc(L(fam.zh, fam.en, lang))}` : ""}</span>
+      ${entry.source === "exchange" ? `<span class="mw-jersey-acq">${esc(L("获得：", "Acquired: ", lang))}${esc(acquiredLine(entry, lang))}</span>` : ""}
       ${equipped ? `<span class="mw-owned-state">${esc(L("✓ 当前球衣", "✓ Current", lang))}</span>` : ""}
-      ${jerseyKit(t)?.simplified ? `<span class="tiny muted">${esc(L("2D 为简化预览：颜色和号码来自这件球衣，版型沿用同一件。", "2D is a simplified preview: this jersey's colours and number on the same cut.", lang))}</span>` : ""}
+      ${jerseyKit(t)?.simplified ? `<span class="mw-jersey-tag mw-jersey-simple">${esc(L("简化预览", "Simplified preview", lang))}</span>` : ""}
       <details class="mw-jersey-story"><summary>${esc(L("来源与故事", "Story", lang))}</summary>${provenanceHtml(entry, lang)}</details>
       ${btn}
     </div>
@@ -67,6 +87,6 @@ export function jerseyCollectionHtml(jerseys, lang = "zh") {
     return `<section class="mw-card mw-jerseys">${head}<p class="mw-empty">${esc(L("还没有球衣。商城里能买到原创复古球衣；在穿越生涯里和宿敌打出真正的尊重，对手可能提出和你交换球衣。", "No jerseys yet. The Shop sells original throwbacks, and in a Reborn run a rival who really respects you may offer to swap.", lang))}</p></section>`;
   }
   return `<section class="mw-card mw-jerseys">${head}
-    <p class="tiny muted">${esc(L("穿上后，2D 形象会换上这件球衣的颜色和号码；3D 形象还没有球衣模型。", "Wear one and the 2D figure puts on its colours and number; the 3D figure has no jersey model yet.", lang))}</p>
+    <p class="tiny muted">${esc(L("穿上后，2D 形象会换上这件球衣的颜色和号码。标有「简化预览」的，版型沿用同一件，只有颜色和号码是这件球衣的。3D 形象还没有球衣模型。", "Wear one and the 2D figure puts on its colours and number. \"Simplified preview\" means the cut is the same one for every jersey; only the colours and number are this jersey's. The 3D figure has no jersey model yet.", lang))}</p>
     <ul class="mw-jersey-list">${jerseys.list.map((e) => cardHtml(e, e.key === jerseys.equipped, lang)).join("")}</ul></section>`;
 }

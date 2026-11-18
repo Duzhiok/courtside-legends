@@ -55,13 +55,13 @@ export function listOwnedJerseys(account) {
   return [...bought, ...exchanged.reverse()];
 }
 
-/** The owned key currently worn, or null (and null again if the item is no longer owned). */
 /** The template of the worn jersey, or null (nothing worn, or the worn key is no longer in the collection). */
 export function equippedJerseyTemplate(account) {
   const key = equippedJerseyKey(account);
   return key ? listOwnedJerseys(account).find((j) => j.key === key)?.template || null : null;
 }
 
+/** The owned key currently worn, or null (and null again if the item is no longer owned). */
 export function equippedJerseyKey(account) {
   const key = account ? getShop(account).equippedJersey : null;
   return key && listOwnedJerseys(account).some((j) => j.key === key) ? key : null;

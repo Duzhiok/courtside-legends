@@ -43,7 +43,7 @@ export function expireOffers(stateIn, currentYear) {
  * nothing. At most MAX_OFFERS per game, at most one jersey per person per season (offers and kept jerseys both count).
  * Returns { state, created: [Offer] }.
  */
-export function offersForGame(stateIn, { report, ledger, rivalry }) {
+export function offersForGame(stateIn, { report, ledger, rivalry, rules = EXCHANGE_RULES }) {
   const state = expireOffers(stateIn, report?.year);
   const out = { state, created: [] };
   const game = gameEvidenceFromReport(report, ledger);
@@ -55,7 +55,7 @@ export function offersForGame(stateIn, { report, ledger, rivalry }) {
   for (const m of game.directMatchups) brefs.add(m.opponentId);
   // A keepsake stays rare: offers still open or already kept this season count against the season's cap (declined / lapsed do not).
   const heldThisSeason = state.offers.filter((o) => o.evidence?.year === game.year && (o.status === "pending" || o.status === "accepted")).length;
-  const room = Math.max(0, EXCHANGE_RULES.MAX_PER_SEASON - heldThisSeason);
+  const room = Math.max(0, rules.MAX_PER_SEASON - heldThisSeason);
   const candidates = [];
   for (const bref of brefs) {
     const person = (ledger?.rivals || []).find((r) => r.bref === bref) || ledger?.watch?.[bref];
@@ -66,12 +66,12 @@ export function offersForGame(stateIn, { report, ledger, rivalry }) {
     // One jersey per man per season, whether it is still pending or already kept (declined / lapsed ones free the slot).
     if (state.offers.some((o) => o.fromBref === bref && o.evidence?.year === game.year && o.status !== "expired" && o.status !== "declined")) continue;
     if (state.collection.some((j) => j.provenance?.fromBref === bref && j.provenance?.year === game.year)) continue;
-    const verdict = evaluateExchangeCandidate({ opponent: person, game, respect: rel.respect, meetings: rel.meetings });
+    const verdict = evaluateExchangeCandidate({ opponent: person, game, respect: rel.respect, meetings: rel.meetings, rules });
     if (verdict.eligible) candidates.push({ rival: person, respect: rel.respect, meetings: rel.meetings, verdict, id });
   }
 
   candidates.sort((a, b) => b.verdict.score - a.verdict.score || a.rival.bref.localeCompare(b.rival.bref));
-  for (const c of candidates.slice(0, Math.min(EXCHANGE_RULES.MAX_OFFERS, room))) {
+  for (const c of candidates.slice(0, Math.min(rules.MAX_OFFERS, room))) {
     const template = exchangeTemplate({ bref: c.rival.bref, name: c.rival.name, nameEn: c.rival.nameEn, team: c.rival.team, year: game.year });
     if (!template) continue;
     // That night's real lines, straight from the settled game: a rival's ledger has them, a man you merely keep facing does not, the report always does.

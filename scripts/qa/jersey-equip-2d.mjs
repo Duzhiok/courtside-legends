@@ -84,6 +84,9 @@ for (const [viewport, vt] of [[{ width: 1280, height: 900 }, "desktop"], [{ widt
   }
   check(`${tag} three jerseys gave three different shirts`, new Set(seen.map((s) => s.shirt.join(","))).size === 3);
   check(`${tag} the simplified-preview note is shown for silhouettes the single cut cannot show`, (await page.textContent(".mw-jerseys")).includes("简化预览"));
+  const cardText = await page.textContent('.mw-jersey-card[data-jersey-key="jersey-orig_neon_1986_23"]');
+  check(`${tag} the card states team, season, number and source once (title + tag), with no invented purchase date`, /霓虹海岸 1985-86 #23/.test(cardText) && (cardText.match(/商城购买/g) || []).length >= 1 && !/获得：/.test(cardText) && !/购买于|\d{4}-\d{2}-\d{2}/.test(cardText), cardText.replace(/\s+/g, " ").slice(0, 120));
+  await (await page.$(".mw-jerseys")).screenshot({ path: `${OUT}/${vt}-collection.png` });
 
   // reload keeps what is worn
   await page.reload({ waitUntil: "domcontentloaded" });
