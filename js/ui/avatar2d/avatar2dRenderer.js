@@ -12,9 +12,9 @@ import { placeholderImage } from "./avatar2dPlaceholder.js";
 import { MAX_PORTRAIT_CHARS } from "../../data/avatarPortrait.js";
 
 export const PORTRAIT_PX = 256;
-export const PORTRAIT_QUALITIES = Object.freeze([0.82, 0.7, 0.6, 0.5]);   // first one that fits the stored-portrait limit wins
+const PORTRAIT_QUALITIES = Object.freeze([0.82, 0.7, 0.6, 0.5]);   // first one that fits the stored-portrait limit wins
 export const LOAD_TIMEOUT_MS = 6000;
-export const DEV_FLAG = "2d-proto";
+const DEV_FLAG = "2d-proto";
 const ART_BASE = new URL("../../../assets/avatar2d/", import.meta.url);
 
 const defaultCreateCanvas = (width, height) => {
@@ -25,7 +25,7 @@ const defaultCreateCanvas = (width, height) => {
 };
 
 /** Load one art file. Rejects on error or timeout (a hung request must not hang the editor). */
-export function loadArtImage(file, timeoutMs = LOAD_TIMEOUT_MS) {
+function loadArtImage(file, timeoutMs = LOAD_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const timer = setTimeout(() => reject(new Error(`avatar2d: ${file} timed out`)), timeoutMs);
@@ -161,7 +161,7 @@ export async function mountAvatar2d(container, {
  * (no art = the mount rejects = static portrait); `?avatar=2d-proto` is QA of the renderer on placeholder art. Neither is a player option.
  * @returns {"3d"|"2d"|"2d-proto"}
  */
-export const DEFAULT_RENDERER = "3d";
+const DEFAULT_RENDERER = "3d";
 export function avatarRenderer(search) {
   const choice = /[?&]avatar=([a-z0-9-]+)/.exec(String(search || ""))?.[1];
   if (choice === "3d" || choice === "2d") return choice;
