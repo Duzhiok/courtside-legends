@@ -30,7 +30,7 @@ export const MY_HOME_TITLE = Object.freeze({ zh: "我的家", en: "My Home" });
  * The back button used to be wired once by wire() behind a `wired` guard;
  * that wiring is gone — the shell wires it to onBack.
  */
-export function ensureMyHomeScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
+function ensureMyHomeScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
   return mountScreen({ id: "my-home", title: MY_HOME_TITLE, getLang, onBack, onRelocalize }).el;
 }
 

@@ -66,7 +66,7 @@ export function legacyFromAccount(account) {
 }
 
 /** M4-D: null until played; otherwise the sanitized record, safe to render. */
-export function hometownChallengeSummary(account) {
+function hometownChallengeSummary(account) {
   if (!account) return null;
   const ch = readHometownState(account).challenge;
   if (!ch.played) return null;
