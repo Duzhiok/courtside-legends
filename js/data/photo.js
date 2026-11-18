@@ -58,7 +58,7 @@ export function isCreditedPhoto(url) {
 
 const usable = (url) => (isCreditedPhoto(url) ? url : null);
 
-export function localIllustration(bref) {
+function localIllustration(bref) {
   return (bref && LOCAL_AVATARS[bref]) || null;
 }
 

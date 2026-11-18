@@ -129,7 +129,7 @@ function manifestKey(base) {
 }
 
 /** Tiny metadata fetch (~100 bytes). */
-export async function fetchRosterMeta() {
+async function fetchRosterMeta() {
   const res = await fetch(META_URL, { cache: "no-cache" });
   if (!res.ok) throw new Error(`roster.meta.json HTTP ${res.status}`);
   return res.json();

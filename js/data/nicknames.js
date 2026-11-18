@@ -52,7 +52,7 @@ export const NICKNAMES = {
 };
 
 /** 赛季限定外号：key 为 "bref:season"，用于同一人不同时期称号不同的情况 */
-export const SEASON_NICKNAMES = {};
+const SEASON_NICKNAMES = {};
 
 function nicknameBref(player) {
   const bref = String(player?.bref || "").toLowerCase();
