@@ -19,7 +19,7 @@ const clearTimer = () => { clearTimeout(timer); timer = null; };
 const revoke = () => { if (url) { URL.revokeObjectURL(url); url = null; } };
 
 export const isActive = () => active;
-export const currentItem = () => queue[index] || null;
+const currentItem = () => queue[index] || null;
 export const queueSnapshot = () => queue.map((q) => ({ id: q.id, name: q.name, source: q.source, missing: missing.has(q.id) }));
 
 async function buildQueue() {

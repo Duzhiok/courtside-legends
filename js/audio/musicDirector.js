@@ -29,7 +29,7 @@ export function sceneForScreen(name, { homeTab = "career" } = {}) {
   return SCREEN_SCENE[name];
 }
 
-export const INTENSITY_RANK = { arena: 0, tension: 1, clutch: 2 };
+const INTENSITY_RANK = { arena: 0, tension: 1, clutch: 2 };
 
 /** Arena by default; tension in a close 4th quarter/OT; clutch in the final 30s of a one-possession game. */
 export function gameIntensity(snap) {

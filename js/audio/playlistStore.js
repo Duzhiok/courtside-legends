@@ -51,7 +51,7 @@ async function viaIdb(op, ...args) {
 export const isPersistent = () => persistent;
 export const _resetForTests = () => { memory = []; persistent = false; };
 
-export const isAudioFile = (f) => !!f && (String(f.type || "").startsWith("audio/") || AUDIO_EXT.test(f.name || ""));
+const isAudioFile = (f) => !!f && (String(f.type || "").startsWith("audio/") || AUDIO_EXT.test(f.name || ""));
 const titleOf = (name) => String(name || "Untitled").replace(/\.[a-z0-9]+$/i, "").slice(0, 80) || "Untitled";
 
 /** Tracks of one profile, oldest first. Blobs are not loaded into the list (they stay in storage until played). */
