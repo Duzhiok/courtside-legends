@@ -27,7 +27,7 @@ function evidenceLine(offer, lang) {
 }
 
 /** One offer card. */
-export function jerseyOfferCardHtml(offer, lang = "zh") {
+function jerseyOfferCardHtml(offer, lang = "zh") {
   const name = lang === "en" ? offer.fromNameEn || offer.fromName : offer.fromName;
   return `<article class="reborn-jersey-offer" data-jersey-offer="${esc(offer.id)}">
     <div class="reborn-jersey-art">${jerseySvg(offer.template, { size: 88, label: name })}</div>

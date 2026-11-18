@@ -10,7 +10,7 @@ import { overall } from "../data/players.js";
 
 export const DEFENSE_FACTOR_BEST = 1.15; // fewest points allowed
 export const DEFENSE_FACTOR_WORST = 0.85; // most points allowed
-export const COTY_MIN_WIN_PCT = 0.5; // a coach of the year has a winning team
+const COTY_MIN_WIN_PCT = 0.5; // a coach of the year has a winning team
 
 const gamesOf = (t) => (t.w || 0) + (t.l || 0);
 const mean = (xs) => (xs.length ? xs.reduce((n, x) => n + x, 0) / xs.length : 0);

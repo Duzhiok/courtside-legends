@@ -17,7 +17,7 @@ import { getJerseyTemplate } from "./jerseyCatalog.js";
 const jerseyItems = () => SHOP_ITEMS.filter((i) => i.effect?.type === "jersey");
 
 /** Merge incoming instances into an existing list by id; the first one seen wins (idempotent). */
-export function mergeJerseyInstances(existing, incoming) {
+function mergeJerseyInstances(existing, incoming) {
   const out = Array.isArray(existing) ? existing.filter((j) => j && j.id) : [];
   const seen = new Set(out.map((j) => j.id));
   let added = 0;
