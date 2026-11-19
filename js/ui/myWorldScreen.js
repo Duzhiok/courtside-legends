@@ -5,6 +5,7 @@
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
 import { readLook, saveLook, sanitizeLook } from "../data/avatarLook.js";
+import { withFacePart } from "../data/avatarFace.js";
 import { nextTabId, patchFromSlider, selectTab, showValue, syncControls } from "./avatarLookControls.js";
 import { equipJersey, equippedJerseyKey, equippedJerseyTemplate, listOwnedJerseys, unequipJersey } from "../collectibles/jerseyCollection.js";
 import { jerseyKit } from "./avatar2d/avatar2dJersey.js";
@@ -311,6 +312,7 @@ export function createMyWorld({
   /** A preset button, or a finished slider drag, or Reset: save the patch and bring the figure and the controls to it. */
   function pickLook(input) {
     const group = input.name.replace("mw-look-", "");
+    if (group.startsWith("face-")) return commitLook({ face: withFacePart(readLook(getAccount()).face, group.slice(5), input.value) });   // one part at a time; "default" clears it
     commitLook({ [group]: input.value, ...(group === "body" ? { build: null } : {}) });   // choosing a preset drops the custom build, so the two never disagree
   }
 

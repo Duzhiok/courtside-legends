@@ -39,7 +39,7 @@ export function lookSignature(look) {
   const l = sanitizeLook(look);
   const base = [l.skin, l.hair, l.outfit, l.style, l.body, l.figure].join(".");
   // The Creator 2.0 fields join the signature only when set, so a picture taken before they existed is not called stale for a look that has not changed.
-  const extra = [l.build ? `b${Object.values(l.build).join("-")}` : "", l.appearanceAge ? `a${l.appearanceAge}` : "", l.presentation ? `p${l.presentation}` : ""].filter(Boolean);
+  const extra = [l.build ? `b${Object.values(l.build).join("-")}` : "", l.appearanceAge ? `a${l.appearanceAge}` : "", l.presentation ? `p${l.presentation}` : "", l.face ? `f${Object.entries(l.face).map(([part, id]) => `${part}-${id}`).join("-")}` : ""].filter(Boolean);
   return extra.length ? `${base}.${extra.join(".")}` : base;
 }
 

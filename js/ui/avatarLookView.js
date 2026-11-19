@@ -7,6 +7,8 @@ import { PORTRAIT_PRESETS } from "../data/avatarPortrait.js";
 import { presetPortraitUri } from "./avatarPortraitArt.js";
 import { BODY_PRESETS, FIGURE_STYLES, HAIR_COLORS, HAIR_STYLES, OUTFIT_CUTS, OUTFITS, PRESENTATIONS, SKIN_TONES, sanitizeLook } from "../data/avatarLook.js";
 import { AGE } from "../data/avatarAge.js";
+import { FACE_PARTS } from "../data/avatarFace.js";
+import { ART, faceChoices, faceControls, resolveLayers } from "./avatar2d/avatar2dLayers.js";
 import { HEIGHT_CM, SLIDER, buildFromShape } from "../data/avatarBuild.js";
 import { AVATAR_ACTIONS } from "./avatar3d.js";
 import { esc } from "../core/html.js";
@@ -60,6 +62,7 @@ function actionsHtml(lang) {
 
 /** Which radio is checked. For the character the radio shows what is DRAWN: a saved presentation with no art yet is drawn as male, so Male is checked (the save is untouched). */
 const chosenId = (group, look) => {
+  if (group.key.startsWith("face-")) return look.face?.[group.key.slice(5)] ?? "default";   // one group per face part; no saved variant = the original
   if (group.key !== "presentation") return look[group.key] ?? null;
   const saved = PRESENTATIONS.find((p) => p.id === look.presentation);
   return saved?.art ? saved.id : "male";
@@ -125,8 +128,21 @@ function identityPane(look, lang, ownedOutfits) {
     </fieldset>`;
 }
 
-/** Face: there is nothing to adjust yet, and the page says so rather than offering sliders that do nothing. */
-function facePane(lang) {
+/**
+ * Face: a part is offered only when finished variants of its own art layer ship (avatar2dLayers `faceControls`); each choice is "the original" or one of those
+ * layers, never a slider. With none shipped the page says so rather than offering controls that do nothing.
+ */
+export function facePane(look, lang, art = ART) {
+  const presentation = resolveLayers(look, null, art).presentation;   // what is DRAWN: a presentation with no art is drawn as the male art, so its face parts are the male ones
+  const parts = faceControls(presentation, art);
+  if (parts.length) {
+    const groups = parts.map((id) => {
+      const def = FACE_PARTS.find((p) => p.id === id);
+      return { key: `face-${id}`, zh: def.zh, en: def.en, items: faceChoices(presentation, id, art).map((variant, i) => ({ id: variant, zh: i ? `款式 ${i}` : "原版", en: i ? `Style ${i}` : "Original" })) };
+    });
+    return `${groups.map((g) => groupHtml(g, look, lang)).join("")}
+    <p class="mw-note">${TL(lang, "每个选项都是单独画好的五官图层，不是把原图拉伸变形；“原版”就是当前这张脸。", "Each choice is a separately drawn feature layer, not a stretched copy of the picture; \"Original\" is the face as it is now.")}</p>`;
+  }
   return `<fieldset class="mw-swatches mw-face">
       <legend>${TL(lang, "面部", "Face")}</legend>
       <p class="mw-note">${TL(lang, "五官定制要把眼睛、眉毛、鼻子、嘴和下颌拆成各自的美术层；现在整张脸是一张图，所以还没有可调的选项，也不放没有效果的滑杆。", "Face editing needs the eyes, brows, nose, mouth and jaw as separate art layers. Today the face is one picture, so there is nothing to adjust yet, and no sliders that do nothing.")}</p>
@@ -152,7 +168,7 @@ function bodyPane(look, lang, ownedOutfits) {
 function tabsHtml(look, lang, ownedOutfits) {
   const panes = {
     identity: identityPane(look, lang, ownedOutfits),
-    face: facePane(lang),
+    face: facePane(look, lang),
     body: bodyPane(look, lang, ownedOutfits),
     hair: groupsOf("hair", look, lang, ownedOutfits),
     outfit: groupsOf("outfit", look, lang, ownedOutfits),

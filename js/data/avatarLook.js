@@ -17,6 +17,7 @@ import { defaultStore } from "./profile.js";
 import { saveAccount } from "./account.js";
 import { agedHex, sanitizeAge } from "./avatarAge.js";
 import { sanitizeBuild } from "./avatarBuild.js";
+import { sanitizeFace } from "./avatarFace.js";
 
 export const GUEST_LOOK_KEY = "cls_guest_avatar_v1";
 
@@ -152,7 +153,7 @@ export function avatarModelFile(look) {
 const pick = (list, id, fallback) => (list.some((item) => item.id === id) ? id : fallback);
 
 /**
- * Whitelist every field; anything unknown becomes the default for that field. The Creator 2.0 fields (`build`, `appearanceAge`, `presentation`) are SPARSE:
+ * Whitelist every field; anything unknown becomes the default for that field. The Creator 2.0 fields (`build`, `appearanceAge`, `presentation`, `face`) are SPARSE:
  * they are present only when set to something other than the default, so every look saved before they existed comes out exactly as it always did.
  */
 export function sanitizeLook(raw) {
@@ -160,6 +161,7 @@ export function sanitizeLook(raw) {
   const build = sanitizeBuild(r.build);
   const appearanceAge = sanitizeAge(r.appearanceAge);
   const presentation = pick(PRESENTATIONS, r.presentation, "male");
+  const face = sanitizeFace(r.face);
   return {
     skin: pick(SKIN_TONES, r.skin, DEFAULT_LOOK.skin),
     hair: pick(HAIR_COLORS, r.hair, DEFAULT_LOOK.hair),
@@ -171,6 +173,7 @@ export function sanitizeLook(raw) {
     ...(build ? { build } : {}),
     ...(appearanceAge ? { appearanceAge } : {}),
     ...(presentation !== "male" ? { presentation } : {}),
+    ...(face ? { face } : {}),
   };
 }
 
