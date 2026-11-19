@@ -482,14 +482,21 @@ function validateCoachProfile(coach) {
   ) {
     throw new Error("invalid root save");
   }
-  // Every key must be one of the known perk lines (not more, not fewer) -- a save
-  // from a future build with an extra perk line this build has no UI for must be
-  // rejected rather than silently dropping that line's progress on the next write.
-  const perkKeys = Object.keys(coach.perks).sort();
-  if (perkKeys.join(",") !== [...COACH_PERK_LINES].sort().join(",")) {
-    throw new Error("invalid root save");
+  // D-P1-6: only the KNOWN lines are required to be valid — a save that
+  // predates a perk line added by a newer build must keep loading, with
+  // the missing line backfilled to 0 by validateRoot() below (same
+  // "known-line subset + fill 0" semantics as clampCoachProfile() in
+  // js/career/coachProfile.js). An UNKNOWN line is still rejected: a
+  // save from a future build carrying a line this build has no UI for
+  // must not be silently downgraded by dropping that line's progress
+  // on the next write.
+  for (const key of Object.keys(coach.perks)) {
+    if (!COACH_PERK_LINES.includes(key)) {
+      throw new Error("invalid root save");
+    }
   }
   for (const line of COACH_PERK_LINES) {
+    if (coach.perks[line] === undefined) continue;
     const value = coach.perks[line];
     if (!Number.isInteger(value) || value < 0 || value > COACH_PERK_MAX_LEVEL) {
       throw new Error("invalid root save");
@@ -549,6 +556,13 @@ export function validateRoot(root) {
   }
   if (root.coach !== undefined && root.coach !== null) {
     validateCoachProfile(root.coach);
+    // D-P1-6: backfill perk lines this save predates (see validateCoachProfile).
+    // validateRoot() is the choke point every load / import / migrate / write
+    // path passes through, so the in-memory root is always complete and the
+    // next write persists the full set — a save never re-saves short a line.
+    for (const line of COACH_PERK_LINES) {
+      if (root.coach.perks[line] === undefined) root.coach.perks[line] = 0;
+    }
   }
   // ADR-006 R1: optional role identity; absent on old saves is fine.
   if (root.identity !== undefined && root.identity !== null) {

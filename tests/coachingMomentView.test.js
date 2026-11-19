@@ -8,6 +8,7 @@
 // meters-only refresh keeps the same objects; a full render replaces them.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { CLUTCH_POOL } from "./helpers/clutchSim.js";
 import { createCoachingMomentView } from "../js/ui/coachingMomentView.js";
 import { FOCUS_PLAYS } from "../js/engine/gameplan.js";
@@ -321,4 +322,27 @@ test("Substitute still rebuilds the panel with the new rosters", () => {
   assert.ok(!outOptions.includes(outId), "subbed-out player must leave the court list");
   assert.ok(inOptions.includes(outId), "subbed-out player must join the bench list");
   assert.ok(outOptions.includes(inId), "subbed-in player must join the court list");
+});
+
+test("coachingMoment.css is linked and styles every class the view renders (U-P1-3)", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /css\/coachingMoment\.css/, "index.html must load the coaching moment stylesheet");
+  const css = readFileSync(new URL("../css/coachingMoment.css", import.meta.url), "utf8");
+  // Every class the view emits must have a rule — a missing rule is the
+  // bare-browser-defaults regression this file exists to prevent.
+  for (const cls of [
+    "ct-score", "ct-team", "ct-clock", "ct-meters", "ct-meter", "ct-bar", "ct-pill",
+    "ct-moment", "ct-analysis", "ct-rec", "ct-choices", "ct-choice", "ct-recommended",
+    "ct-preview", "ct-downside", "ct-risk", "ct-disabled", "ct-actions", "ct-panel",
+    "ct-feed", "ct-report", "ct-table",
+  ]) {
+    assert.ok(css.includes(`.${cls}`), `coachingMoment.css must style .${cls}`);
+  }
+  // Choice buttons are the screen's primary controls: 44px touch target.
+  const choiceBlock = css.match(/\.ct-choice \{([^}]*)\}/)?.[1] || "";
+  assert.match(choiceBlock, /min-height:\s*44px/, ".ct-choice must be at least 44px tall");
+  // The analyst pick must be visibly distinct from the other choices.
+  const recBlock = css.match(/\.ct-choice\.ct-recommended \{([^}]*)\}/)?.[1] || "";
+  assert.match(recBlock, /border-color:\s*#c9a227/, ".ct-recommended must carry the gold border");
+  assert.match(recBlock, /background:\s*#173d29/, ".ct-recommended must carry the tinted background");
 });

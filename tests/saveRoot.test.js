@@ -153,7 +153,6 @@ test("root saves reject a malformed coach profile", () => {
     { ...base(), perkPoints: 1.5 },
     { ...base(), perks: { tactics: 4, development: 0, negotiation: 0, media: 0 } }, // over max level
     { ...base(), perks: { tactics: -1, development: 0, negotiation: 0, media: 0 } },
-    { ...base(), perks: { tactics: 0, development: 0, negotiation: 0 } }, // missing a line
     { ...base(), perks: { tactics: 0, development: 0, negotiation: 0, media: 0, extra: 0 } }, // unknown line
     { ...base(), perks: "not-an-object" },
     { ...base(), version: "1" },
@@ -171,6 +170,49 @@ test("root saves reject a malformed coach profile", () => {
     );
     assert.equal(storage.getItem(ROOT_SAVE_KEY), null, "a rejected save must not touch storage");
   }
+});
+
+test("root saves backfill a coach perk line the save predates (D-P1-6)", () => {
+  // A future build adds a perk line; every older save is missing it. The
+  // save must load (not vanish as "invalid root save") and the missing line
+  // is backfilled to 0, so the next write persists the full set.
+  const storage = createMemoryStorage();
+  const coach = {
+    version: 1,
+    age: 40,
+    reputation: 55,
+    cash: 1000,
+    mood: 60,
+    energy: 2,
+    level: 3,
+    xp: 10,
+    perkPoints: 1,
+    perks: { tactics: 2, development: 0, negotiation: 0 }, // predates "media"
+  };
+  const root = createRootState({ activeMode: "timeTravel", coach });
+  writeRootSave(root, storage);
+  const resumed = readRootSave(storage);
+  assert.deepEqual(resumed.coach.perks, {
+    tactics: 2,
+    development: 0,
+    negotiation: 0,
+    media: 0,
+  });
+  // The backfill sticks: a second round-trip keeps the full set.
+  writeRootSave(resumed, storage);
+  assert.deepEqual(readRootSave(storage).coach.perks, {
+    tactics: 2,
+    development: 0,
+    negotiation: 0,
+    media: 0,
+  });
+  // Read-path check: stored bytes that lack the line are backfilled on
+  // read too, not only when the same object is written back.
+  const raw = JSON.parse(storage.getItem(ROOT_SAVE_KEY));
+  delete raw.coach.perks.media;
+  const probe = createMemoryStorage();
+  probe.setItem(ROOT_SAVE_KEY, JSON.stringify(raw));
+  assert.equal(readRootSave(probe).coach.perks.media, 0, "read path backfills, not just write");
 });
 
 test("root saves accept a well-formed season goal and reject malformed ones", () => {
