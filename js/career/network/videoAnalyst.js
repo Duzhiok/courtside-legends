@@ -254,10 +254,13 @@ export function analyzeGameLog(log, { focusSide = "away" } = {}) {
       if (!s.made) {
         if (!coldRun || coldRun.shooterId !== s.shooterId) {
           flushCold();
-          coldRun = { shooterId: s.shooterId, misses: 0, end: p };
+          coldRun = { shooterId: s.shooterId, misses: 0, end: p, indices: [] };
         }
         coldRun.misses += 1;
         coldRun.end = p;
+        // One entry per possession: a shooter can miss twice in one
+        // possession (miss + putback), the strip shows it once.
+        if (coldRun.indices[coldRun.indices.length - 1] !== p.index) coldRun.indices.push(p.index);
       } else if (coldRun && coldRun.shooterId === s.shooterId) {
         flushCold();
         coldRun = null;
@@ -271,7 +274,7 @@ export function analyzeGameLog(log, { focusSide = "away" } = {}) {
       evidence: { shooterId: bestCold.shooterId, misses: bestCold.misses },
       summaryZh: `球员 ${bestCold.shooterId} 连续 ${bestCold.misses} 次投篮不中`,
       summaryEn: `Player ${bestCold.shooterId} missed ${bestCold.misses} shots in a row`,
-      possessionIndices: [],
+      possessionIndices: (bestCold.indices || []).slice(0, 12),
     });
   }
 
@@ -292,21 +295,26 @@ export function analyzeGameLog(log, { focusSide = "away" } = {}) {
     }
   }
 
-  // 5. Turnover-prone actor — most turnovers by one player.
+  // 5. Turnover-prone actor — most turnovers by one player. The indices
+  // are the possessions where that actor turned it over, so the film
+  // strip can show the actual giveaways.
   const tovByActor = new Map();
   for (const p of poss) {
     for (const t of p.turnovers || []) {
-      tovByActor.set(t.actorId, (tovByActor.get(t.actorId) || 0) + 1);
+      const row = tovByActor.get(t.actorId) || { count: 0, indices: [] };
+      row.count += 1;
+      if (row.indices[row.indices.length - 1] !== p.index) row.indices.push(p.index);
+      tovByActor.set(t.actorId, row);
     }
   }
-  const tovRows = [...tovByActor.entries()].sort((a, b) => b[1] - a[1]);
-  if (tovRows.length && tovRows[0][1] >= 4) {
+  const tovRows = [...tovByActor.entries()].sort((a, b) => b[1].count - a[1].count);
+  if (tovRows.length && tovRows[0][1].count >= 4) {
     findings.push({
-      kind: "turnover-prone", side: null, severity: tovRows[0][1],
-      evidence: { actorId: tovRows[0][0], turnovers: tovRows[0][1] },
-      summaryZh: `球员 ${tovRows[0][0]} 全场失误 ${tovRows[0][1]} 次，是对方最容易丢球的点`,
-      summaryEn: `Player ${tovRows[0][0]} turned it over ${tovRows[0][1]} times — the opponent's loosest handle`,
-      possessionIndices: [],
+      kind: "turnover-prone", side: null, severity: tovRows[0][1].count,
+      evidence: { actorId: tovRows[0][0], turnovers: tovRows[0][1].count },
+      summaryZh: `球员 ${tovRows[0][0]} 全场失误 ${tovRows[0][1].count} 次，是对方最容易丢球的点`,
+      summaryEn: `Player ${tovRows[0][0]} turned it over ${tovRows[0][1].count} times — the opponent's loosest handle`,
+      possessionIndices: (tovRows[0][1].indices || []).slice(0, 12),
     });
   }
 

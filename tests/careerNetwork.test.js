@@ -127,10 +127,11 @@ test("G film: analysis finds only kinds the data actually supports — no zones,
   }
 });
 
-// This test needs a game whose biggest weakness has possessions to show. A few finding kinds (turnover-prone, sub-effect, cold-shooter) carry no
-// possession indices, so when one of them is the biggest weakness the challenge's film strip is empty: a latent edge of the film room, not of this
-// test (noted on the board). Seed 11 used to avoid it by luck; any change to GameSim probabilities reshuffles which kind wins, so the game is pinned
-// to a seed whose biggest weakness is a scoring run.
+// This test needs a game whose biggest weakness has possessions to show. The cold-shooter and turnover-prone findings used to carry no
+// possession indices, so when one of them was the biggest weakness the challenge's film strip was empty (fixed 2026-11-18: both now record
+// the possessions behind them; sub-effect always had indices). Seed 11 used to avoid it by luck; any change to GameSim probabilities
+// reshuffles which kind wins, so the game is pinned to a seed whose biggest weakness is a scoring run, and seeds 11/14 are covered by the
+// strip regression test below.
 const FILM_LOG_WITH_STRIP = collectPossessionLog({
   home: buildTeamFromRows(ROWS, "CHI", 1997),
   away: buildTeamFromRows(ROWS, "UTA", 1997),
@@ -167,6 +168,65 @@ test("G film: the same seed reproduces the same game and the same findings", () 
     analyzeGameLog(again, { focusSide: "away" }).map((f) => [f.kind, f.severity]),
     analyzeGameLog(FILM_LOG, { focusSide: "away" }).map((f) => [f.kind, f.severity]),
   );
+});
+
+// Regression: the cold-shooter and turnover-prone findings used to carry
+// possessionIndices: [], so a challenge whose biggest weakness was one of
+// them showed an empty film strip ("暂无回合记录"). Both now record the
+// possessions behind them. Synthetic logs pin the indices exactly.
+const synthPoss = (index, { shots = [], turnovers = [] } = {}) => ({
+  index, quarter: 1, clock: 600 - index * 24, side: "away",
+  points: { home: 0, away: 0 }, shots, turnovers, fouls: [], rebounds: [], subs: [],
+  onCourtHome: ["h1", "h2", "h3", "h4", "h5"], onCourtAway: ["a1", "a2", "a3", "a4", "a5"],
+});
+
+test("G film: a cold shooter carries the possessions where he missed", () => {
+  const log = {
+    possessions: [
+      synthPoss(0, { shots: [{ shooterId: "cold1", made: false, pts: 0 }, { shooterId: "cold1", made: false, pts: 0 }] }),
+      synthPoss(1, { shots: [{ shooterId: "cold1", made: false, pts: 0 }] }),
+      synthPoss(2, { shots: [{ shooterId: "cold1", made: false, pts: 0 }] }),
+    ],
+    finalScore: { home: 0, away: 0 }, homeName: "CHI", awayName: "UTA", seed: 1, finished: true,
+  };
+  const findings = analyzeGameLog(log, { focusSide: "away" });
+  const cold = findings.find((f) => f.kind === "cold-shooter");
+  assert.ok(cold, "cold-shooter finding exists");
+  assert.equal(cold.severity, 4, "four misses counted");
+  // Two misses in possession 0 show once in the strip.
+  assert.deepEqual(cold.possessionIndices, [0, 1, 2]);
+});
+
+test("G film: a turnover-prone actor carries the possessions where he gave it away", () => {
+  const log = {
+    possessions: [
+      synthPoss(0, { turnovers: [{ actorId: "loose1", kind: "bad-pass" }, { actorId: "loose1", kind: "bad-pass" }] }),
+      synthPoss(1, { turnovers: [{ actorId: "loose1", kind: "bad-pass" }] }),
+      synthPoss(2, { turnovers: [{ actorId: "loose1", kind: "bad-pass" }] }),
+      synthPoss(3, { turnovers: [{ actorId: "loose1", kind: "bad-pass" }] }),
+    ],
+    finalScore: { home: 0, away: 0 }, homeName: "CHI", awayName: "UTA", seed: 1, finished: true,
+  };
+  const findings = analyzeGameLog(log, { focusSide: "away" });
+  const tov = findings.find((f) => f.kind === "turnover-prone");
+  assert.ok(tov, "turnover-prone finding exists");
+  assert.equal(tov.severity, 5, "five turnovers counted");
+  // Two turnovers in possession 0 show once in the strip.
+  assert.deepEqual(tov.possessionIndices, [0, 1, 2, 3]);
+});
+
+test("G film: seeds 11 and 14 (the reported empty-strip games) now show a film strip", () => {
+  for (const seed of [11, 14]) {
+    const log = collectPossessionLog({
+      home: buildTeamFromRows(ROWS, "CHI", 1997),
+      away: buildTeamFromRows(ROWS, "UTA", 1997),
+      seed,
+    });
+    const challenge = buildFilmChallenge(log, { seed, focusSide: "away" });
+    assert.ok(challenge, `seed ${seed} yields a challenge`);
+    assert.ok(challenge.strip.length > 0, `seed ${seed} biggest weakness (${challenge.correctKind}) has a non-empty strip`);
+    assert.ok(challenge.strip.length <= 12);
+  }
 });
 
 /* ------------------------------------------------------------------ */
