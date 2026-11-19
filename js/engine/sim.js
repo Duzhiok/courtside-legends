@@ -2658,6 +2658,8 @@ export function foulDrawHabit(p) {
   return Math.min(2.6, Math.max(0.4, ftm / raw.ft / raw.fga / LEAGUE_FTA_PER_FGA));
 }
 
+const THREE_SHARE_SLOPE = 0.5;
+const THREE_SHARE_SHIFT = -0.38;
 const ZONE_STACK_OFFSET = { three: 0.168, mid: 0.100, paint: 0.100 };
 
 const STEAL_BASE = 0.023;           // 0.04 originally; 0.034 after Phase A; re-fitted per possession once pace and the fga accounting changed (7.8 per team-game, real 8.1)
@@ -4107,7 +4109,7 @@ function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null) {
  * 2K-style shot selection: tendency gates the attempt; rating gates the make.
  * sideCtx.weakSide → more spot-up threes for shooters, not for post bigs.
  */
-function chooseShot(p, off, focusPlay = null, sideCtx = null) {
+export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   const weakSide = !!sideCtx?.weakSide;
   let autonomy = (off.coach?.playerAutonomy ?? 40) / 100;
   const hold = clamp(off.temp?.tacticHold || 0, 0, 1);
@@ -4296,6 +4298,19 @@ function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   // Hunt green light still can't invent threeTend for bricklayers
   const hunt = offenseHuntLevel(off.coach, p, off);
   if (hunt > 0.5 && threeTend < 25) w3 *= 0.35;
+
+  // Shape the final three-point share toward the real one. The weights above are a long stack of multipliers (style, weak side, orders, tactic, form...),
+  // so a shooter's share saturates: per player the ranking was right (correlation 0.85) but the spread was not. Real three-point share of shots vs the
+  // simulated one (scripts/measure/three-rate-pairing.mjs, same players, paired seeds): top third of real shooters 44% real vs 66% simulated, middle third
+  // 18% vs 14%, and by era 2008 x1.51, 2022 x1.41, 1996 x1.31 but 2001 x0.64 and 1986 x0.16. The deviation is linear in logit space, so the share is
+  // mapped p' = sigmoid(THREE_SHARE_SLOPE * logit(p) + THREE_SHARE_SHIFT): high shares are pulled down, low and middle ones up. Not applied to the deliberate
+  // end-of-game chase for a three. Result: top third x1.15, middle x0.84, eras 0.5-1.2 of real, per-player correlation 0.85 -> 0.90, and the
+  // per-player three-point percentage correlation 0.30 -> 0.42.
+  if (!sideCtx?.lateChaseNeedThree && w3 > 0) {
+    const p3 = w3 / (w3 + wPaint + wMid);
+    const shaped = 1 / (1 + Math.exp(-(THREE_SHARE_SLOPE * Math.log(p3 / (1 - p3)) + THREE_SHARE_SHIFT)));
+    w3 = (shaped / (1 - shaped)) * (wPaint + wMid);
+  }
 
   const sum = w3 + wPaint + wMid;
   let r = rnd() * Math.max(sum, 0.01);
