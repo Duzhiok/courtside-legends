@@ -1,3 +1,4 @@
+import { clamp } from "../core/seededRandom.js";
 import { buildLegacy } from "../career/legacy.js";
 import { historicalSeason } from "../data/historicalSeasons.js";
 import { eventOnCooldown, pickNextEvent } from "../career/eventPool.js";
@@ -251,7 +252,7 @@ function applyEffects(story, choice, year) {
   const flags = { ...(story.flags || {}), ...(choice.flags || {}) };
   return {
     ...story,
-    frontOfficeTrust: (story.frontOfficeTrust || 0) + (effects.trust || 0),
+    frontOfficeTrust: clamp((story.frontOfficeTrust || 0) + (effects.trust || 0), 0, 100),
     mediaPressure: Math.max(0, (story.mediaPressure || 0) + (effects.mediaPressure || 0)),
     timelineDivergence: Math.max(0, (story.timelineDivergence || 0) + (effects.divergence || 0)),
     relationships,

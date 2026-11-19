@@ -1,3 +1,4 @@
+import { clamp } from "../core/seededRandom.js";
 import { deriveEnding } from "../story/eventEngine.js";
 import {
   FIRING_TRUST_FLOOR,
@@ -129,7 +130,7 @@ export function advanceSeasonGoal(root) {
     ...root,
     story: {
       ...root.story,
-      frontOfficeTrust: Math.max(0, trust),
+      frontOfficeTrust: clamp(trust, 0, 100),
       seasonGoal: nextGoal,
       eventLog,
     },
@@ -273,7 +274,7 @@ export function acceptCareerContract(root, offerId) {
         offer: clone(offer),
       },
       currentChapter: "active-tenure",
-      frontOfficeTrust: (root.story.frontOfficeTrust || 0) + offer.effects.trust,
+      frontOfficeTrust: clamp((root.story.frontOfficeTrust || 0) + offer.effects.trust, 0, 100),
       mediaPressure: Math.max(0, (root.story.mediaPressure || 0) + offer.effects.pressure),
       timelineDivergence: (root.story.timelineDivergence || 0) + offer.effects.divergence,
       pendingDecision: null,

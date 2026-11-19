@@ -1,3 +1,4 @@
+import { clamp } from "../core/seededRandom.js";
 import { historicalSeason } from "../data/historicalSeasons.js";
 import { PLAYERS, overall } from "../data/players.js";
 import { buildCpuTeamForYear, createSeason } from "../engine/season.js";
@@ -308,7 +309,7 @@ export function acceptInterviewOffer(prologue, offerId, { identityPlaces } = {})
       // its own years); tenureStartSeasonCount is 0 because no season has been coached yet.
       employment: { status: "active", contractYears: INITIAL_CONTRACT_YEARS, tenureStartSeasonCount: 0 },
       futureKnowledge: 3,
-      frontOfficeTrust: offer.trust,
+      frontOfficeTrust: clamp(offer.trust, 0, 100),
       mediaPressure: offer.pressure,
       timelineDivergence: 0,
       relationships: { owner: 0, gm: 0, coach: 0, players: 0, media: 0 },
@@ -361,7 +362,7 @@ export function resolveFutureKnowledgeChoice(root, choiceId) {
     story: {
       ...root.story,
       futureKnowledge: root.story.futureKnowledge + effects.knowledge,
-      frontOfficeTrust: root.story.frontOfficeTrust + effects.trust,
+      frontOfficeTrust: clamp((root.story.frontOfficeTrust || 0) + effects.trust, 0, 100),
       mediaPressure: root.story.mediaPressure + effects.mediaPressure,
       timelineDivergence:
         root.story.timelineDivergence + effects.divergence,
@@ -517,7 +518,7 @@ export function startNewStint(root, offer, eventType = "re-employed") {
       currentChapter: "active-tenure",
       employer: offer.teamId,
       employment: { status: "active", contractYears: INITIAL_CONTRACT_YEARS, tenureStartSeasonCount: 0 },
-      frontOfficeTrust: offer.trust,
+      frontOfficeTrust: clamp(offer.trust, 0, 100),
       mediaPressure: offer.pressure,
       relationships: { owner: 0, gm: 0, coach: 0, players: 0, media: 0 },
       promises: [{ id: "first-year-goal", text: seasonGoal.label, status: "active" }],

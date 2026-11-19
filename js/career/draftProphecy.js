@@ -153,7 +153,7 @@ export function settleProphecy(root, { year, players = PLAYERS } = {}) {
     ...withCoachProfile(root, { ...coach, reputation }),
     story: {
       ...root.story,
-      frontOfficeTrust: root.story.frontOfficeTrust + effects.trust,
+      frontOfficeTrust: clamp((root.story.frontOfficeTrust || 0) + effects.trust, 0, 100),
       prophecy: { ...prophecy, status: hit ? "hit" : "miss", best },
       eventLog: [
         ...root.story.eventLog,
