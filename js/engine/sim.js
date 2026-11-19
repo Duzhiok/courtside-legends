@@ -967,7 +967,7 @@ export class GameSim {
     const ballerGas = 1 - fatiguePerfMult(baller);
     const defGas = 1 - fatiguePerfMult(defender);
     const stlChance =
-      0.04 +
+      STEAL_BASE +
       (defender.steal || 50) * 0.00055 +
       (100 - baller.pass) * 0.0005 +
       ballerGas * 0.05 -
@@ -1016,9 +1016,10 @@ export class GameSim {
     // `pass` for old save snapshots that predate `handle`.
     const bigHandlerTov = bigHandler ? (100 - (baller.handle ?? baller.pass)) * 0.0004 : 0;
     const tempoTov = off === this.you() ? getTempoDef(off.gameplan?.tempo)?.tovMult ?? 1 : 1;
+    const habitTov = turnoverHabit(baller);
     const tovChance = Math.max(
       0.012,
-      (0.06 +
+      (UNFORCED_TOV_BASE +
         (100 - baller.pass) * 0.0009 +
         (1 - fatiguePerfMult(baller)) * 0.06 -
         off.chem * 0.0003 -
@@ -1028,7 +1029,8 @@ export class GameSim {
         skillPassCareTov(baller) +
         bigHandlerTov +
         wrapTov) *
-        tempoTov
+        tempoTov *
+        habitTov
     );
     if (rnd() < tovChance) {
       baller.stats.tov += 1;
@@ -2603,6 +2605,31 @@ export function suggestDefenseScheme(oppOnCourt, deficit) {
     return { scheme: "double", threat };
   if (isLanky(threat) && (threat.scoring || 0) >= 78) return { scheme: "bump", threat };
   return { scheme: "focus", threat };
+}
+
+/**
+ * Turnover calibration (scripts/measure/gamesim-calibration.mjs, 6 eras x paired fixed seeds). Measured per team-game, before -> after:
+ * turnovers 18.3 -> 16.6 (real league 14.4), steals 10.1 -> 9.2 (real 7.7), unforced 6.4 -> 5.7. Each source has its OWN base, because the two paths were
+ * both about 25-30% above the real league per possession; a single multiplier would have hidden which path was wrong. The scoring side effect is
+ * +1.5 points per team-game (more possessions end in a shot), reported rather than hidden.
+ * What this does NOT fix: bigs are handed the ball ~26% more often than real (FGA/36 14.8 vs 11.7) and guards ~13% less, so big men still turn the ball
+ * over more than they should. That is who-gets-the-possession (shot distribution), not the per-touch rate calibrated here.
+ */
+const STEAL_BASE = 0.034;           // was 0.04: the steal path alone was 10.1 per team-game against 7.7 real
+const UNFORCED_TOV_BASE = 0.052;    // was 0.06: non-steal turnovers were about 24% above real
+const TOV_HABIT_EXPONENT = 0.5;     // softened: a high-usage player already has the ball more, which is counted by possessions, not by this
+const REAL_TOV_PER_36 = 2.2;        // the real league's average (roster.json, six eras): 2.18 turnovers per 36 minutes
+
+/**
+ * A player's own real turnover habit as a multiplier on his unforced-turnover chance: (his real turnovers per 36 / the league's)^0.5, kept in 0.75-1.35.
+ * Before this the engine ignored `raw.tpg` entirely: simulated and real turnovers per 36 correlated at 0.14 (assists: 0.77), and the simulated league
+ * could not follow the real one down from 17.4 per team-game in 1986 to 13.1 in 2008. Players made without real stats (custom, created) get 1.
+ */
+export function turnoverHabit(p) {
+  const raw = p?.raw;
+  if (!(raw?.mpg >= 12) || !(raw.tpg >= 0)) return 1;
+  const per36 = Math.max(0.3, (raw.tpg / raw.mpg) * 36);
+  return Math.min(1.35, Math.max(0.75, (per36 / REAL_TOV_PER_36) ** TOV_HABIT_EXPONENT));
 }
 
 function emptyStats() {
