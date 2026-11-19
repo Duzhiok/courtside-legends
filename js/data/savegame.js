@@ -329,6 +329,7 @@ export function serializeAppSlice(state) {
     autoOffense: !!state.autoOffense,
     autoDefense: !!state.autoDefense,
     autoRotation: !!state.autoRotation,
+    timeoutTier: state.timeoutTier || "balanced",
     career: serializeCareer(state.career),
     draft: serializeDraft(state.draft),
     legend: serializeLegend(state.legend),

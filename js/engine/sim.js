@@ -6,6 +6,7 @@ import { overall } from "../data/players.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
 import { buildSamePosMatchups } from "./matchups.js";
 import { classifyClutchRole, deliveryOf } from "./clutchRole.js";
+import { normalizeTimeoutTier, timeoutTierLabel, timeoutTierParams } from "./timeoutTiers.js";
 import { applyLineupPositionEffects, inGameInjuryChance, systemFitScore } from "../data/intangibles.js";
 import {
   activeDuoIds,
@@ -194,6 +195,7 @@ export class GameSim {
     this.autoOffense = false; // auto-adjust offensive playbook/focus
     this.autoDefense = false; // auto-adjust defensive scheme/matchup
     this.autoRotation = false; // "自动轮换": leaves tactics alone, only manages fatigue subs
+    this.timeoutTier = "balanced"; // B27: auto-timeout strategy tier (conservative / balanced / aggressive)
     this._manageCd = 0;
     this._manageLastTo = -999;
     // Apply your side's pre-game matchup gameplan only
@@ -255,6 +257,7 @@ export class GameSim {
       autoOffense: !!this.autoOffense,
       autoDefense: !!this.autoDefense,
       autoRotation: !!this.autoRotation,
+      timeoutTier: this.timeoutTier || "balanced",
       _manageCd: this._manageCd || 0,
       _manageLastTo: this._manageLastTo ?? -999,
     };
@@ -315,6 +318,8 @@ export class GameSim {
       sim.autoDefense = !!data.managed;
       sim.autoRotation = !!data.managed;
     }
+    // B27: old saves carry no tier — normalizeTimeoutTier falls back to balanced.
+    sim.timeoutTier = normalizeTimeoutTier(data.timeoutTier);
     sim._manageCd = data._manageCd || 0;
     sim._manageLastTo = data._manageLastTo ?? -999;
     sim.injuriesEnabled = !!data.injuriesEnabled;
@@ -540,6 +545,19 @@ export class GameSim {
   /** Toggle "自动轮换": fatigue-only auto subs, tactics untouched. */
   setAutoRotation(on) {
     return this._setAutopilot("autoRotation", on);
+  }
+
+  /**
+   * B27: pick the auto-timeout strategy tier. Unknown values fall back to
+   * balanced. Silent when the tier doesn't change (game start re-applies the
+   * saved tier); a real switch announces itself on the coach feed.
+   */
+  setTimeoutTier(tier) {
+    const next = normalizeTimeoutTier(tier);
+    if (this.timeoutTier === next) return this.timeoutTier;
+    this.timeoutTier = next;
+    this.emit("coach", this.S(`暂停策略：${timeoutTierLabel(next, "zh")}`, `Timeout strategy: ${timeoutTierLabel(next, "en")}`));
+    return this.timeoutTier;
   }
 
   setSpeed(n) {
@@ -1843,31 +1861,33 @@ export class GameSim {
     }
 
     if (!assistantMayCallTimeout(this.timeouts[you.side], this._quiet)) return;
+    // B27: trigger sensitivity comes from the tier table — no hardcoded numbers here.
+    const p = timeoutTierParams(this.timeoutTier);
     const opp = this.opp();
     const deficit = this.score[opp.side] - this.score[you.side];
     const avgFat = avg(you.onCourt.map((p) => p.fatigue || 0));
-    const runAgainst = this.momentum.side === opp.side && this.momentum.points >= 8;
+    const runAgainst = this.momentum.side === opp.side && this.momentum.points >= p.momentum;
     const cold = avg(you.onCourt.map((p) => p.hot || 0)) <= -1.1;
     const late = this.quarter >= 4 || (this.quarter === 3 && this.clock < 200);
     const elapsed = this.elapsedSec || 0;
-    if (elapsed - (this._manageLastTo || -999) < 85) return;
+    if (elapsed - (this._manageLastTo || -999) < p.cooldownSec) return;
 
     let why = "";
     let wantTo = false;
     if (runAgainst) {
-      wantTo = rnd() < 0.72;
+      wantTo = rnd() < p.momentumProb;
       why = this.S("打断对方高潮", "break their run");
-    } else if (deficit >= 12 && this.quarter >= 2) {
-      wantTo = rnd() < 0.48;
+    } else if (deficit >= p.deficit && this.quarter >= 2) {
+      wantTo = rnd() < p.deficitProb;
       why = this.S("分差拉开，重整阵脚", "gap widening — reset");
     } else if (cold && deficit >= 3) {
-      wantTo = rnd() < 0.42;
+      wantTo = rnd() < p.coldProb;
       why = this.S("手感冰凉，叫停调整", "ice cold — stop and adjust");
-    } else if (avgFat >= 72 && this.timeouts[you.side] >= 2) {
-      wantTo = rnd() < 0.3;
+    } else if (avgFat >= p.fatigue && this.timeouts[you.side] >= 2) {
+      wantTo = rnd() < p.fatigueProb;
       why = this.S("全员过劳，喘口气", "everyone gassed — catch a breath");
-    } else if (late && deficit >= 4 && deficit <= 14) {
-      wantTo = rnd() < 0.4;
+    } else if (p.lateEnabled && late && deficit >= 4 && deficit <= 14) {
+      wantTo = rnd() < p.lateProb;
       why = this.S("关键分追分布置", "key-possession chase setup");
     }
     if (!wantTo) return;
@@ -2572,6 +2592,7 @@ export class GameSim {
       autoOffense: !!this.autoOffense,
       autoDefense: !!this.autoDefense,
       autoRotation: !!this.autoRotation,
+      timeoutTier: this.timeoutTier || "balanced",
     };
   }
 }

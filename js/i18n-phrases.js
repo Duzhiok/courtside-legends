@@ -381,6 +381,17 @@ export const PHRASES = [
   ["进攻托管：关", "Auto-Offense: Off"],
   ["防守托管：关", "Auto-Defense: Off"],
   ["自动轮换：关", "Auto Rotation: Off"],
+  // B27: timeout-tier picker next to the autopilot switches (label + three
+  // tier buttons + tooltips). Button text is re-rendered by JS via L(), but
+  // the static HTML defaults still need PHRASES coverage for applyStaticLang.
+  ["暂停策略：", "Timeout strategy:"],
+  ["保守", "Conservative"],
+  ["均衡", "Balanced"],
+  ["积极", "Aggressive"],
+  ["托管助手叫暂停的积极程度：只改灵敏度，不改留 4 个暂停给你的底线", "How proactive the assistant is about calling timeouts: sensitivity only — the 4-timeout reserve for you stays."],
+  ["保守：很少叫暂停，对方高潮 10 分、分差 14 分才考虑，末节关键分不叫停", "Conservative: rarely calls a timeout — only considers one at a 10-point opponent run or a 14-point deficit, never on a late key possession."],
+  ["均衡：现在的叫停灵敏度", "Balanced: the current timeout sensitivity."],
+  ["积极：更勤叫暂停，对方高潮 6 分、分差 8 分就考虑，冷却 60 秒", "Aggressive: calls timeouts more often — considers one at a 6-point opponent run or an 8-point deficit, 60-second cooldown."],
   ["快速模拟整场", "Quick-Sim Whole Game"],
   ["保存并离开", "Save & Leave"],
   ["三个托管均关：进攻、防守、换人均由你亲自指挥。", "All autopilots off: offense, defense and subs are all yours to command."],

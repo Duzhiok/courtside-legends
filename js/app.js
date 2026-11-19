@@ -1,4 +1,5 @@
 import { matchupPlanFor, resolveEffectiveGameplan } from "./engine/effectiveGameplan.js";
+import { TIMEOUT_TIER_LABELS, TIMEOUT_TIERS, normalizeTimeoutTier } from "./engine/timeoutTiers.js";
 import {
   accountToTeam,
   coachRecordLabel,
@@ -577,6 +578,7 @@ let state = {
   autoOffense: false,
   autoDefense: false,
   autoRotation: false,
+  timeoutTier: "balanced",
 };
 
 /**
@@ -1564,7 +1566,9 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   state.autoOffense = !!sim.autoOffense;
   state.autoDefense = !!sim.autoDefense;
   state.autoRotation = !!sim.autoRotation;
+  state.timeoutTier = sim.timeoutTier || "balanced";
   syncManagedUI();
+  syncTimeoutTierUI();
 
   const you = youSide === "home" ? sim.home : sim.away;
   // 开场下拉框显示本场实际开场战术（默认优先），不沿用上一场页面里剩的值。
@@ -1635,6 +1639,7 @@ function continueFromSave() {
     state.autoOffense = app.autoOffense != null ? !!app.autoOffense : legacyManaged;
     state.autoDefense = app.autoDefense != null ? !!app.autoDefense : legacyManaged;
     state.autoRotation = app.autoRotation != null ? !!app.autoRotation : legacyManaged;
+    state.timeoutTier = normalizeTimeoutTier(app.timeoutTier);
     state.career = reviveCareer(app.career);
     state.tournament = app.tournament || null;
     state.legend = reviveLegend(app.legend);
@@ -7585,6 +7590,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
   if (state.autoOffense == null) state.autoOffense = false;
   if (state.autoDefense == null) state.autoDefense = false;
   if (state.autoRotation == null) state.autoRotation = false;
+  if (state.timeoutTier == null) state.timeoutTier = "balanced";
 
   const sim = new GameSim({
     home: homeTeam,
@@ -7630,7 +7636,9 @@ function beginGame(homeTeam, awayTeam, youSide) {
   if (state.autoOffense) sim.setAutoOffense(true);
   if (state.autoDefense) sim.setAutoDefense(true);
   if (state.autoRotation) sim.setAutoRotation(true);
+  sim.setTimeoutTier(state.timeoutTier || "balanced");
   syncManagedUI();
+  syncTimeoutTierUI();
   syncPauseUI(sim.snapshot());
   sim.start();
 
@@ -8927,6 +8935,40 @@ for (const { btn: sel, stateKey, setter } of AUTOPILOT_BUTTONS) {
       syncPauseUI(state.sim.snapshot());
       pushFeed("coach", "托管已关——可继续调整，或点「继续比赛」");
     }
+  };
+}
+
+/** B27: three-tier auto-timeout picker, next to the autopilot switches. */
+const TIMEOUT_TIER_BUTTONS = TIMEOUT_TIERS.map((tier) => ({
+  btn: `#btn-tier-${tier}`,
+  tier,
+}));
+
+function syncTimeoutTierUI() {
+  const current = state.sim ? state.sim.timeoutTier || "balanced" : state.timeoutTier || "balanced";
+  state.timeoutTier = current;
+  for (const { btn: sel, tier } of TIMEOUT_TIER_BUTTONS) {
+    const el = $(sel);
+    if (!el) continue;
+    const active = tier === current;
+    el.disabled = !state.sim;
+    el.textContent = L(TIMEOUT_TIER_LABELS[tier].zh, TIMEOUT_TIER_LABELS[tier].en);
+    el.classList.toggle("primary", active);
+    el.classList.toggle("ghost", !active);
+  }
+}
+
+for (const { btn: sel, tier } of TIMEOUT_TIER_BUTTONS) {
+  const el = $(sel);
+  if (!el) continue;
+  el.onclick = () => {
+    if (!state.sim) {
+      pushFeed("coach", L("比赛开始后才能切换暂停策略", "Timeout strategy can only change once the game starts"));
+      return;
+    }
+    state.sim.setTimeoutTier(tier);
+    state.timeoutTier = state.sim.timeoutTier;
+    syncTimeoutTierUI();
   };
 }
 
