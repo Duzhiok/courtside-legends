@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_LOOK } from "../js/data/avatarLook.js";
+import { STAGE_FIT, portraitCropFor, shapeFromLook } from "../js/ui/avatar2d/avatar2dShape.js";
 import { CANVAS, PORTRAIT_CROP } from "../js/ui/avatar2d/avatar2dLayers.js";
 import { PORTRAIT_PX, avatarRenderer, mountAvatar2d, mountAvatar2dProto, paintLayers } from "../js/ui/avatar2d/avatar2dRenderer.js";
 
@@ -78,7 +79,9 @@ test("capturePortrait cuts the head-and-shoulders square at 256px as a JPEG; nul
   assert.equal(url, "data:image/jpeg;q=0.82");
   const out = all[before];
   assert.equal(out.width, PORTRAIT_PX);
-  assert.deepEqual(out.ops.find((o) => o[0] === "draw").slice(2), [PORTRAIT_CROP.x, PORTRAIT_CROP.y, PORTRAIT_CROP.size, PORTRAIT_CROP.size, 0, 0, PORTRAIT_PX, PORTRAIT_PX]);
+  const crop = portraitCropFor(shapeFromLook(DEFAULT_LOOK));   // the square follows the figure's drawing scale, so every height frames the head the same way
+  assert.deepEqual(out.ops.find((o) => o[0] === "draw").slice(2), [crop.x, crop.y, crop.size, crop.size, 0, 0, PORTRAIT_PX, PORTRAIT_PX]);
+  assert.ok(Math.abs(crop.size / PORTRAIT_CROP.size - STAGE_FIT) < 1e-9, "a standard figure is drawn at the stage fit, and the crop with it");
   assert.ok(out.ops.some((o) => o[0] === "fillStyle" && o[1] === "#123456"));
   handle.dispose();
   assert.equal(handle.capturePortrait(), null);

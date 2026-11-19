@@ -15,6 +15,8 @@
  */
 import { defaultStore } from "./profile.js";
 import { saveAccount } from "./account.js";
+import { agedHex, sanitizeAge } from "./avatarAge.js";
+import { sanitizeBuild } from "./avatarBuild.js";
 
 export const GUEST_LOOK_KEY = "cls_guest_avatar_v1";
 
@@ -50,13 +52,24 @@ export const OUTFITS = Object.freeze([
   { id: "vintage", shirt: "#0f766e", pants: "#f1e6cf", zh: "复古青绿", en: "Vintage Teal", shop: "outfit-vintage" },
 ]);
 
+/**
+ * Character presentation: which body the 2D art draws. `art` says whether the layered art for it exists. Female is declared so the choice, the saved field
+ * and the asset path are ready, but there is NO female art yet: it cannot be picked, and a saved `presentation: "female"` draws the male art and reports the
+ * fallback (never a recoloured male figure passed off as a finished female one). Requirements: docs/implementation/AVATAR-2D-FEMALE-ART-REQUIREMENTS.md.
+ */
+export const PRESENTATIONS = Object.freeze([
+  { id: "male", zh: "男性", en: "Male", art: true },
+  { id: "female", zh: "女性", en: "Female", art: false },
+]);
+
 export const HAIR_STYLES = Object.freeze([
   { id: "short", zh: "短发", en: "Short" },
   { id: "shaved", zh: "光头", en: "Shaved" },
 ]);
 
 /**
- * Body presets (W3 Creator slice, no art): bone scaling only, kept deliberately modest (0.88–1.16) so the
+ * Body presets (W3 Creator slice, no art). `shape` is what the 2D figure draws (avatar2dShape.js: shoulders / waist = row width, arms / legs = limb thickness);
+ * `scales` is the 3D bone scaling only, kept deliberately modest (0.88–1.16) so the
  * skinned mesh never stretches visibly. `height` is the overall visual scale, chosen per preset — there is no
  * free slider. `scales` are per bone group: shoulders = shoulder-line width (x), spine = torso girth (x/z),
  * arms/legs = limb thickness (x/z); limb and spine length (y) are never changed, so hands and feet stay where
@@ -64,8 +77,8 @@ export const HAIR_STYLES = Object.freeze([
  */
 export const BODY_PRESETS = Object.freeze([
   { id: "standard", zh: "标准", en: "Standard", height: 1.0, scales: { shoulders: 1.0, spine: 1.0, arms: 1.0, legs: 1.0 }, shape: { shoulders: 0, arms: 0, waist: 0, legs: 0, height: 0 } },
-  { id: "broad", zh: "壮实", en: "Broad", height: 1.03, scales: { shoulders: 1.16, spine: 1.07, arms: 1.05, legs: 1.04 }, shape: { shoulders: 0.17, arms: 0.15, waist: 0.1, legs: 0.09, height: 0.02 } },
-  { id: "slim", zh: "精瘦", en: "Slim", height: 0.97, scales: { shoulders: 0.88, spine: 0.93, arms: 0.96, legs: 0.97 }, shape: { shoulders: -0.13, arms: -0.15, waist: -0.12, legs: -0.08, height: -0.02 } },
+  { id: "broad", zh: "壮实", en: "Broad", height: 1.03, scales: { shoulders: 1.16, spine: 1.07, arms: 1.05, legs: 1.04 }, shape: { shoulders: 0.17, arms: 0.3, waist: 0.1, legs: 0.12, height: 0.02 } },
+  { id: "slim", zh: "精瘦", en: "Slim", height: 0.97, scales: { shoulders: 0.88, spine: 0.93, arms: 0.96, legs: 0.97 }, shape: { shoulders: -0.13, arms: -0.28, waist: -0.12, legs: -0.15, height: -0.02 } },
 ]);
 
 /** Bone names as they appear in the GLB, grouped by what a preset scales. Pure data, no Three.js needed. */
@@ -138,9 +151,15 @@ export function avatarModelFile(look) {
 
 const pick = (list, id, fallback) => (list.some((item) => item.id === id) ? id : fallback);
 
-/** Whitelist every field; anything unknown becomes the default for that field. */
+/**
+ * Whitelist every field; anything unknown becomes the default for that field. The Creator 2.0 fields (`build`, `appearanceAge`, `presentation`) are SPARSE:
+ * they are present only when set to something other than the default, so every look saved before they existed comes out exactly as it always did.
+ */
 export function sanitizeLook(raw) {
   const r = raw && typeof raw === "object" ? raw : {};
+  const build = sanitizeBuild(r.build);
+  const appearanceAge = sanitizeAge(r.appearanceAge);
+  const presentation = pick(PRESENTATIONS, r.presentation, "male");
   return {
     skin: pick(SKIN_TONES, r.skin, DEFAULT_LOOK.skin),
     hair: pick(HAIR_COLORS, r.hair, DEFAULT_LOOK.hair),
@@ -149,6 +168,9 @@ export function sanitizeLook(raw) {
     body: pick(BODY_PRESETS, r.body, DEFAULT_LOOK.body),
     figure: pick(FIGURE_STYLES, r.figure, DEFAULT_LOOK.figure),
     cut: pick(OUTFIT_CUTS, r.cut, DEFAULT_LOOK.cut),
+    ...(build ? { build } : {}),
+    ...(appearanceAge ? { appearanceAge } : {}),
+    ...(presentation !== "male" ? { presentation } : {}),
   };
 }
 
@@ -174,7 +196,7 @@ export function lookColors(look) {
     Skin: SKIN_TONES.find((s) => s.id === l.skin).hex,
     // Shaved = the scalp tinted like the skin, NOT a hidden mesh: the model's skull cap lives in the Hair mesh, so hiding
     // it left the back of the head open and the eyeballs visible from behind.
-    Hair: l.style === "shaved" ? SKIN_TONES.find((s) => s.id === l.skin).hex : HAIR_COLORS.find((h) => h.id === l.hair).hex,
+    Hair: l.style === "shaved" ? SKIN_TONES.find((s) => s.id === l.skin).hex : agedHex(HAIR_COLORS.find((h) => h.id === l.hair).hex, l.appearanceAge),
     Shirt: outfit.shirt,
     Pants: outfit.pants,
     Trim: trimInk(outfit.shirt), // jersey number, hems, socks bands; models without a Trim material just ignore it

@@ -19,14 +19,14 @@ const check = (label, ok, detail = "") => {
 
 // Rows of the 1024x1536 art canvas; the figure canvas is half resolution, so y / 2.
 // Steep silhouette rows (the hands ending, the hem) are avoided on purpose: a 2% height change would move the measurement onto another shape.
-const ROWS = { head: 190, shoulders: 440, arms: 700, waist: 1000, legs: 1200, feet: 1430 };
+const ROWS = { head: 190, shoulders: 440, arms: 700, waist: 900, legs: 1200, feet: 1430 };   // waist 900 = the shorts (the thighs start below it)
 const FEET_Y = 1463;
 const widths = (page) => page.evaluate(({ rows, FEET }) => {
   const c = document.querySelector("#mw-showcase-stage canvas.avatar2d-canvas");
   if (!c) return null;
   const g = c.getContext("2d");
   const out = { look: JSON.parse(c.dataset.look || "null"), shape: JSON.parse(c.dataset.shape || "null") };
-  const h = 1 + (out.shape?.height || 0);   // the figure is also scaled uniformly about the feet: look at the same ROW of the art, and take the uniform scale out of the width
+  const h = out.shape?.scale ?? (1 + (out.shape?.height || 0));   // the figure is also scaled uniformly about the feet: look at the same ROW of the art, and take the uniform scale out of the width
   for (const [name, y] of Object.entries(rows)) {
     const shown = FEET - (FEET - y) * h;
     const d = g.getImageData(0, Math.round(shown / 2), c.width, 1).data;
@@ -70,6 +70,7 @@ for (const [vt, viewport] of [["desktop", { width: 1280, height: 900 }], ["mobil
   await openWorld(page);
   await page.click('[data-mw-action="toggle-look"]');
   await page.waitForSelector("#mw-look:not([hidden])");
+  await page.click("#mw-tab-body");   // the presets live on the Body page since Creator 2.0
   const m = {}; const shots = {};
   for (const id of ["standard", "broad", "slim"]) {
     await pickBody(page, id);
@@ -80,8 +81,9 @@ for (const [vt, viewport] of [["desktop", { width: 1280, height: 900 }], ["mobil
   const pct = (a, b) => ((a / b - 1) * 100).toFixed(0);
   const line = (k) => `${k}: slim ${m.slim[k]} · standard ${m.standard[k]} · broad ${m.broad[k]} (${pct(m.slim[k], m.standard[k])}% / +${pct(m.broad[k], m.standard[k])}%)`;
   check(`[${vt}] the editor's body choice reaches the 2D figure (look.body and shape follow the click)`, m.broad.look?.body === "broad" && m.slim.look?.body === "slim" && m.broad.shape?.shoulders > 0 && m.slim.shape?.shoulders < 0);
-  for (const k of ["shoulders", "arms", "waist"]) {
-    check(`[${vt}] ${k}: broad is wider than standard is wider than slim, each step at least 8%`, m.broad[k] >= m.standard[k] * 1.08 && m.slim[k] <= m.standard[k] * 0.92, line(k));
+  // Arms and legs are LIMB THICKNESS now (not the width of a whole row), so the step is smaller in the row total: shoulders / waist 8%, arms 4%.
+  for (const [k, step] of [["shoulders", 0.08], ["arms", 0.04], ["waist", 0.08]]) {
+    check(`[${vt}] ${k}: broad is wider than standard is wider than slim, each step at least ${step * 100}%`, m.broad[k] >= m.standard[k] * (1 + step) && m.slim[k] <= m.standard[k] * (1 - step), line(k));
   }
   check(`[${vt}] legs differ in the right direction`, m.broad.legs > m.standard.legs && m.slim.legs < m.standard.legs, line("legs"));
   check(`[${vt}] the head is the same size in all three builds (a broad man's head is not wider)`, Math.abs(m.broad.head - m.standard.head) <= 4 && Math.abs(m.slim.head - m.standard.head) <= 4, `${m.slim.head}/${m.standard.head}/${m.broad.head}`);

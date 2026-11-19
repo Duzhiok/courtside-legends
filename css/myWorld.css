@@ -227,3 +227,18 @@
 .mw-hometown .mw-ht-idol-form input { flex: 1; min-width: 0; }
 .mw-hometown .mw-ht-idol-results { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 .mw-hometown .mw-ht-honours { margin-top: 12px; }
+
+/* Avatar Creator 2.0: the editor's pages and sliders. Every touch target is at least 44px; nothing may push the panel wider than the screen. */
+.mw-tabs { display: flex; gap: 2px; margin: 0 0 10px; overflow-x: auto; border-bottom: 1px solid #d9e0d8; scrollbar-width: none; }
+.mw-tab { flex: 0 0 auto; min-height: 44px; min-width: 44px; padding: 0 14px; background: none; border: 0; border-bottom: 3px solid transparent; color: #3c4a41; font: inherit; font-size: 0.9rem; cursor: pointer; white-space: nowrap; }
+.mw-tab[aria-selected="true"] { border-bottom-color: var(--mw-gold); color: var(--mw-green); font-weight: 800; }
+.mw-tab:focus-visible, .mw-slider input:focus-visible { outline: 3px solid #2c6a4a; outline-offset: 2px; }
+.mw-pane[hidden] { display: none; }
+.mw-slider { display: grid; grid-template-columns: 6em minmax(0, 1fr) 4.2em; align-items: center; gap: 10px; width: 100%; min-height: 44px; }
+.mw-slider-name { font-size: 0.85rem; color: #3c4a41; }
+.mw-slider input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: var(--mw-green-2); }
+.mw-slider-value { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--mw-green); }
+.mw-build-foot { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; }
+.mw-build-state { font-size: 0.82rem; color: #8a5a00; }
+.mw-face .mw-note, .mw-age .mw-note, .mw-build .mw-note { width: 100%; }
+@media (max-width: 480px) { .mw-slider { grid-template-columns: 5em minmax(0, 1fr) 3.6em; gap: 8px; } }

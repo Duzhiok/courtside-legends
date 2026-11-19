@@ -9,6 +9,7 @@
  * in the art canvas, not on-screen pixels.
  */
 import { HAIR_COLORS, lookColors, sanitizeLook } from "../../data/avatarLook.js";
+import { agedHex } from "../../data/avatarAge.js";
 
 export const CANVAS = Object.freeze({ width: 1024, height: 1536 });
 
@@ -22,7 +23,7 @@ export const PORTRAIT_CROP = Object.freeze({ x: 340, y: 46, size: 340 });
  * What art exists. A cut or hairstyle outside this list draws its fallback instead (reported, never saved back), so adding art
  * is: drop the files in assets/avatar2d/ and add the id here. `shaved` needs no files: it is "no hair layers".
  */
-export const ART = Object.freeze({ cuts: ["jersey"], styles: ["short"], fallbackCut: "jersey", fallbackStyle: "short" });
+export const ART = Object.freeze({ cuts: ["jersey"], styles: ["short"], presentations: ["male"], fallbackCut: "jersey", fallbackStyle: "short", fallbackPresentation: "male" });
 
 /**
  * Layers, bottom to top. `group` picks the folder (`base/`, `hair/<style>/`, `outfits/<cut>/`); `tint` names the colour that
@@ -43,32 +44,36 @@ export const LAYER_SPEC = Object.freeze([
 ]);
 
 const FOLDER = { base: () => "base/", hair: ({ style }) => `hair/${style}/`, outfit: ({ cut }) => `outfits/${cut}/` };
-export const layerFile = (spec, ids) => `${FOLDER[spec.group](ids)}${spec.file}`;
+/** The male art is the original set at the root of assets/avatar2d/; any other presentation has its own complete set in a folder of that name. */
+const presentationRoot = (presentation) => (!presentation || presentation === ART.fallbackPresentation ? "" : `${presentation}/`);
+export const layerFile = (spec, ids) => `${presentationRoot(ids.presentation)}${FOLDER[spec.group](ids)}${spec.file}`;
 
 /**
  * `jersey` (avatar2dJersey.jerseyKit, optional) swaps the shirt / shorts / trim tints for the worn jersey's colours. The look, its
  * skin, hair and cut, is untouched and nothing is saved: a jersey is a render input, not part of the appearance schema.
- * @returns {{ layers: {role:string, file:string, tint:string|null}[], cut:string, style:string|null, fellBack:boolean, styleFellBack:boolean, look:object, jersey:object|null }}
+ * @returns {{ layers: {role:string, file:string, tint:string|null}[], cut:string, style:string|null, presentation:string, presentationFellBack:boolean, fellBack:boolean, styleFellBack:boolean, look:object, jersey:object|null }}
  * Never mutates its input; an unknown look falls back field by field exactly like the 3D path.
  */
 export function resolveLayers(rawLook, jersey = null) {
   const look = sanitizeLook(rawLook);
   const shaved = look.style === "shaved";
   const colors = lookColors(look);
-  // lookColors paints Hair in the skin colour when shaved (that is what hides the 3D skull cap). Eyebrows must not vanish with it.
-  colors.Brows = HAIR_COLORS.find((h) => h.id === look.hair).hex;
+  // lookColors paints Hair in the skin colour when shaved (that is what hides the 3D skull cap). Eyebrows must not vanish with it, and they grey with age.
+  colors.Brows = agedHex(HAIR_COLORS.find((h) => h.id === look.hair).hex, look.appearanceAge);
   if (jersey) Object.assign(colors, { Shirt: jersey.shirt, Pants: jersey.pants, Trim: jersey.trim });
+  const wanted = look.presentation || ART.fallbackPresentation;
+  const presentation = ART.presentations.includes(wanted) ? wanted : ART.fallbackPresentation;   // a presentation with no art draws the male art; never a recolour
   const cut = ART.cuts.includes(look.cut) ? look.cut : ART.fallbackCut;
   const style = shaved ? null : (ART.styles.includes(look.style) ? look.style : ART.fallbackStyle);
   const layers = LAYER_SPEC
     .filter((spec) => !(shaved && spec.hideWhenShaved))
-    .map((spec) => ({ role: spec.role, file: layerFile(spec, { cut, style }), tint: spec.tint ? colors[spec.tint] : null }));
-  return { layers, cut, style, fellBack: cut !== look.cut, styleFellBack: !shaved && style !== look.style, look, jersey: jersey || null };
+    .map((spec) => ({ role: spec.role, file: layerFile(spec, { cut, style, presentation }), tint: spec.tint ? colors[spec.tint] : null }));
+  return { layers, cut, style, presentation, presentationFellBack: presentation !== wanted, fellBack: cut !== look.cut, styleFellBack: !shaved && style !== look.style, look, jersey: jersey || null };
 }
 
 /** Every file the art set must contain, for validation and preloading. */
 export const requiredFiles = () => {
   const out = new Set();
-  for (const cut of ART.cuts) for (const style of ART.styles) for (const spec of LAYER_SPEC) out.add(layerFile(spec, { cut, style }));
+  for (const presentation of ART.presentations) for (const cut of ART.cuts) for (const style of ART.styles) for (const spec of LAYER_SPEC) out.add(layerFile(spec, { cut, style, presentation }));
   return [...out];
 };

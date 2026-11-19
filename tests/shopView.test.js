@@ -154,26 +154,29 @@ test("My World: the equipped frame adds the gold class to the portrait", () => {
   assert.ok(framed.includes('class="mw-portrait mw-frame-gold"'));
 });
 
+/** Only the outfit colours group: other groups may have locked choices of their own (a presentation whose art is not made yet). */
+const outfitGroup = (html) => { const at = html.indexOf('data-mw-look-group="outfit"'); return html.slice(at, html.indexOf("</fieldset>", at)); };
+
 test("avatar editor: the shop outfit is locked until owned, free when owned, untouched when unknown", () => {
-  const locked = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, []);
+  const locked = outfitGroup(lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, []));
   assert.ok(locked.includes('value="champion"'));
   assert.ok(locked.includes("is-locked"));
   assert.ok(locked.includes("商城"));
-  const owned = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, ["champion", "midnight", "crimson", "street", "vintage"]);
+  const owned = outfitGroup(lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, ["champion", "midnight", "crimson", "street", "vintage"]));
   assert.ok(owned.includes('value="champion"'));
   assert.ok(!owned.includes("is-locked"));
-  const legacy = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh");
+  const legacy = outfitGroup(lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh"));
   assert.ok(legacy.includes('value="champion"'));
   assert.ok(!legacy.includes("is-locked"));
 });
 
 test("avatar editor: new shop outfits lock the same way, without an editor change", () => {
-  const locked = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, []);
+  const locked = outfitGroup(lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, []));
   for (const id of ["midnight", "crimson", "street", "vintage"]) {
     assert.ok(locked.includes(`value="${id}"`), `missing outfit ${id}`);
   }
   assert.equal((locked.match(/is-locked/g) || []).length, 5, "all five shop outfits lock when unowned");
-  const owned = lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, ["midnight"]);
+  const owned = outfitGroup(lookView.lookPanelHtml({ outfit: "forest" }, "Shop QA", "zh", null, ["midnight"]));
   assert.equal((owned.match(/is-locked/g) || []).length, 4, "owning midnight unlocks only midnight");
 });
 

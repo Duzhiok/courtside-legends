@@ -37,7 +37,10 @@ export const PORTRAIT_PRESETS = Object.freeze([
 /** One short string that changes whenever anything visible about the avatar changes. */
 export function lookSignature(look) {
   const l = sanitizeLook(look);
-  return [l.skin, l.hair, l.outfit, l.style, l.body, l.figure].join(".");
+  const base = [l.skin, l.hair, l.outfit, l.style, l.body, l.figure].join(".");
+  // The Creator 2.0 fields join the signature only when set, so a picture taken before they existed is not called stale for a look that has not changed.
+  const extra = [l.build ? `b${Object.values(l.build).join("-")}` : "", l.appearanceAge ? `a${l.appearanceAge}` : "", l.presentation ? `p${l.presentation}` : ""].filter(Boolean);
+  return extra.length ? `${base}.${extra.join(".")}` : base;
 }
 
 /** Whitelist a stored/raw value. @returns {object|null} null = nothing (valid) chosen */

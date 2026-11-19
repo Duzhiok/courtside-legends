@@ -7,10 +7,10 @@
  * which My World already treats as "keep the static portrait". Art files live in assets/avatar2d/ (see the art spec).
  * `placeholders: true` fills missing files with engineering placeholders; that mode is for QA of the renderer, not for players.
  */
-import { CANVAS, PORTRAIT_CROP, resolveLayers } from "./avatar2dLayers.js";
+import { CANVAS, resolveLayers } from "./avatar2dLayers.js";
 import { paintJerseyNumber } from "./avatar2dJersey.js";
 import { placeholderImage } from "./avatar2dPlaceholder.js";
-import { applyBodyShape, isNeutralShape, shapeFromLook } from "./avatar2dShape.js";
+import { applyBodyShape, figureScale, portraitCropFor, shapeFromLook } from "./avatar2dShape.js";
 import { MAX_PORTRAIT_CHARS } from "../../data/avatarPortrait.js";
 
 export const PORTRAIT_PX = 256;
@@ -83,7 +83,7 @@ export async function mountAvatar2d(container, {
   canvas.className = "avatar2d-canvas";
   canvas.style.cssText = "width:100%;height:100%;object-fit:contain;display:block";
   canvas.dataset.renderer = "2d";
-  let shaped = null;                                              // the re-shaped copy of `art`, made only for a non-standard build
+  const shaped = createCanvas(CANVAS.width, CANVAS.height);     // `art` re-drawn with the build (every figure goes through it: the stage fit and the height scale all of them)
   const state = { disposed: false, token: 0, look: null, jersey: null, source: art, shape: null, report: { drawn: [], missing: [] }, cut: null, fellBack: false, painted: false };
   const want = { look, jersey };                                  // the latest requested look + jersey; a render always reads these, so a quick look-then-jersey change cannot paint a stale mix
   const cache = new Map();                                       // file -> Promise<image|null>
@@ -107,19 +107,15 @@ export async function mountAvatar2d(container, {
     const inUse = new Set(resolved.layers.map((layer) => layer.file));
     for (const file of [...cache.keys()]) if (!inUse.has(file)) cache.delete(file);   // release decoded layers the look no longer needs
     const shape = shapeFromLook(resolved.look);
-    let source = art;                                            // what is on screen and what the portrait is cut from
-    if (!isNeutralShape(shape)) {
-      shaped ||= createCanvas(CANVAS.width, CANVAS.height);
-      applyBodyShape(art, shaped, shape);                        // after the jersey number: it belongs to the chest and scales with it
-      source = shaped;
-    }
+    applyBodyShape(art, shaped, shape);                          // after the jersey number: it belongs to the chest and scales with it
+    const source = shaped;                                       // what is on screen and what the portrait is cut from
     const g = canvas.getContext("2d");
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.drawImage(source, 0, 0, canvas.width, canvas.height);
     Object.assign(state, { source, shape, look: resolved.look, jersey: resolved.jersey, report, cut: resolved.cut, fellBack: resolved.fellBack, styleFellBack: resolved.styleFellBack, painted: true });
     canvas.dataset.look = JSON.stringify(resolved.look);
     canvas.dataset.layers = report.drawn.join(",");
-    canvas.dataset.shape = JSON.stringify(shape);
+    canvas.dataset.shape = JSON.stringify({ ...shape, scale: figureScale(shape) });   // `scale` = the figure's drawing scale about its feet (QA reads it)
     if (resolved.jersey) canvas.dataset.jersey = JSON.stringify({ number: resolved.jersey.number, simplified: resolved.jersey.simplified }); else delete canvas.dataset.jersey;
     return true;
   }
@@ -145,7 +141,7 @@ export async function mountAvatar2d(container, {
         const g = out.getContext("2d");
         g.fillStyle = bg;
         g.fillRect(0, 0, PORTRAIT_PX, PORTRAIT_PX);
-        const { x, y, size } = PORTRAIT_CROP;
+        const { x, y, size } = portraitCropFor(state.shape);   // follows the height, so a tall or short figure gets the same head-and-shoulders framing
         g.drawImage(state.source, x, y, size, size, 0, 0, PORTRAIT_PX, PORTRAIT_PX);
         for (const quality of PORTRAIT_QUALITIES) {
           const url = out.toDataURL("image/jpeg", quality);

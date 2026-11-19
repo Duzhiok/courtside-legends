@@ -4,7 +4,8 @@
  * and every action is delegated to the app's existing flows (resume career, open collection, accounts).
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
-import { readLook, saveLook } from "../data/avatarLook.js";
+import { readLook, saveLook, sanitizeLook } from "../data/avatarLook.js";
+import { nextTabId, patchFromSlider, selectTab, showValue, syncControls } from "./avatarLookControls.js";
 import { equipJersey, equippedJerseyKey, equippedJerseyTemplate, listOwnedJerseys, unequipJersey } from "../collectibles/jerseyCollection.js";
 import { jerseyKit } from "./avatar2d/avatar2dJersey.js";
 import { ownedFurnitureIds, ownedOutfitIds, equippedFrameClassKey, equipShopItem, unequipShopItem } from "../data/shop.js";
@@ -307,9 +308,21 @@ export function createMyWorld({
     say(status, `正在${def ? def.zh : "预览"}。`, `Playing ${def ? def.en : "preview"}…`);
   }
 
+  /** A preset button, or a finished slider drag, or Reset: save the patch and bring the figure and the controls to it. */
   function pickLook(input) {
     const group = input.name.replace("mw-look-", "");
-    const saved = saveLook(getAccount(), { [group]: input.value });
+    commitLook({ [group]: input.value, ...(group === "body" ? { build: null } : {}) });   // choosing a preset drops the custom build, so the two never disagree
+  }
+
+  /** Live preview while a slider is being dragged: the figure follows, nothing is saved until the drag ends. */
+  function previewSlider(input) {
+    showValue(el, input);
+    viewer?.setLook(sanitizeLook({ ...readLook(getAccount()), ...patchFromSlider(el, input) }));
+  }
+
+  function commitLook(patch) {
+    const saved = saveLook(getAccount(), patch);
+    syncControls(el, saved, getLang());
     const status = el.querySelector("#mw-look-status");
     if (!saved.saved) return say(status, "这台设备不允许保存（浏览器存储被关闭），外观只在这次打开期间有效。", "This device can't save (browser storage is disabled); the look only lasts while this page is open.");
     // A 3D portrait follows the look: retake it once the figure shows it (a cut / style change loads another model, so
@@ -364,6 +377,8 @@ export function createMyWorld({
     },
     "toggle-look": toggleLook,
     "close-look": () => { if (!el.querySelector("#mw-look")?.hidden) toggleLook(); },
+    "look-tab": (btn) => selectTab(el, btn.dataset.tab),
+    "reset-build": () => commitLook({ build: null }),
     "showcase-figure": (btn) => {
       const figure = btn?.dataset?.figure;
       if (!figure) return;
@@ -500,6 +515,20 @@ export function createMyWorld({
       if (file) usePhoto(file);
     }
     else if (event.target?.matches?.('#mw-look input[type="radio"]')) pickLook(event.target);
+    else if (event.target?.matches?.('#mw-look input[type="range"]')) commitLook(patchFromSlider(el, event.target));
+  });
+
+  el.addEventListener("input", (event) => {
+    if (event.target?.matches?.('#mw-look input[type="range"]')) previewSlider(event.target);
+  });
+
+  el.addEventListener("keydown", (event) => {
+    const tab = event.target?.closest?.(".mw-tab");
+    const next = tab && nextTabId(tab.dataset.tab, event.key);
+    if (!next) return;
+    event.preventDefault();
+    selectTab(el, next);
+    el.querySelector(`#mw-tab-${next}`)?.focus();
   });
 
   el.addEventListener("submit", (event) => {
