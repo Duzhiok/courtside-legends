@@ -1237,11 +1237,13 @@ export class GameSim {
     // Shooting foul (non-and-one path when miss, and-one when make)
     const foulHunt = baller.orders?.attack === "foul_hunt" || baller.orders?.action === "pnr";
     const foulChance =
-      0.08 +
-      (shot.zone === "paint" ? 0.06 : 0) -
-      open * 0.04 +
-      (foulHunt ? 0.07 : 0) +
-      (baller.orders?.attack === "foul_hunt" ? 0.05 : 0) +
+      (0.08 +
+        (shot.zone === "paint" ? 0.06 : 0) -
+        open * 0.04 +
+        (foulHunt ? 0.07 : 0) +
+        (baller.orders?.attack === "foul_hunt" ? 0.05 : 0)) *
+        FOUL_RATE_SCALE *
+        foulDrawHabit(baller) +
       skillFoulRisk(defender);
     const fouled = rnd() < foulChance;
 
@@ -2629,6 +2631,23 @@ export function realPaceFactor(players) {
   const games = Math.max(...rows.map((p) => p.raw.gp));
   const perGame = rows.reduce((sum, p) => sum + p.raw.fga * p.raw.gp, 0) / games;
   return Math.min(1.1, Math.max(0.85, perGame / SHOTS_PER_GAME_AT_PACE_1));
+}
+
+/**
+ * Free throws follow the shooter's own real free-throw rate. Every shooter had the same foul chance, so the simulated rate sat at 0.19 FTA per shot for
+ * everyone (guards, centres, the best foul-drawers alike; correlation with the players' real rates -0.03) while the real rate is 0.33 on average and runs
+ * from 0.18 to 0.45+ (centres 0.40). The card has ppg, fg%, fga, 3p%, 3pa and ft%, so FTA/FGA = (ppg - 2 FGM - 3PM) / ft% / fga. The habit is that rate over
+ * the 0.33 league rate (shot-weighted, so its mean is 1), kept in 0.4-2.6; FOUL_RATE_SCALE lifts the shared base so the league rate lands on the real one.
+ * Players without real stats get 1.
+ */
+const FOUL_RATE_SCALE = 1.95;
+const LEAGUE_FTA_PER_FGA = 0.33;
+export function foulDrawHabit(p) {
+  const raw = p?.raw;
+  if (!(raw?.fga >= 3) || !(raw.ft > 0.3) || !(raw.gp >= 10)) return 1;
+  const ftm = raw.ppg - 2 * raw.fg * raw.fga - (raw.tp || 0) * (raw.tpa || 0);
+  if (!Number.isFinite(ftm) || ftm <= 0) return 1;
+  return Math.min(2.6, Math.max(0.4, ftm / raw.ft / raw.fga / LEAGUE_FTA_PER_FGA));
 }
 
 const STEAL_BASE = 0.034;           // was 0.04: the steal path alone was 10.1 per team-game against 7.7 real
