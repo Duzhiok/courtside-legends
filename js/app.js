@@ -10166,12 +10166,12 @@ function renderSeasonMarket() {
     };
   });
   box.querySelectorAll(".sm-cut").forEach((btn) => {
-    btn.onclick = () => {
+    btn.onclick = async () => {
       // Cutting a player is the GM's job (ADR-006 R4) — refuse before
       // the confirm dialog, not after it.
       if (!careerOperationAllowed("release")) return;
       const p = you.players.find((x) => x.id === btn.dataset.cut);
-      if (!p || !confirm(L(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`, `Cut ${p.name} (${formatSalary(playerSalary(p))})? He'll enter free agency.`))) return;
+      if (!p || !(await confirmAction(L(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`, `Cut ${p.name} (${formatSalary(playerSalary(p))})? He'll enter free agency.`)))) return;
       const res = cutPlayer(st, p.id, getLang());
       if (!res.ok) {
         alert(res.reason);
@@ -10212,8 +10212,8 @@ function renderSeasonMarket() {
     renderSeasonMarket();
     showSeasonTab("market");
   });
-  $("#btn-sm-fire-coach")?.addEventListener("click", () => {
-    if (!confirm(L(`解聘主教练 ${hc?.name || ""}？他将回到应聘池。`, `Fire head coach ${hc?.name || ""}? He'll return to the applicant pool.`))) return;
+  $("#btn-sm-fire-coach")?.addEventListener("click", async () => {
+    if (!(await confirmAction(L(`解聘主教练 ${hc?.name || ""}？他将回到应聘池。`, `Fire head coach ${hc?.name || ""}? He'll return to the applicant pool.`)))) return;
     const res = fireCoach(st, getLang());
     if (!res.ok) {
       alert(res.reason);
@@ -10223,8 +10223,8 @@ function renderSeasonMarket() {
     renderSeasonHub();
     showSeasonTab("market");
   });
-  $("#btn-sm-fire-asst")?.addEventListener("click", () => {
-    if (!confirm(L(`解聘助教 ${asst?.name || ""}？`, `Fire assistant ${asst?.name || ""}?`))) return;
+  $("#btn-sm-fire-asst")?.addEventListener("click", async () => {
+    if (!(await confirmAction(L(`解聘助教 ${asst?.name || ""}？`, `Fire assistant ${asst?.name || ""}?`)))) return;
     const res = fireAssistant(st, getLang());
     if (!res.ok) {
       alert(res.reason);
@@ -10656,13 +10656,13 @@ function renderSeasonPlayoffs() {
     simAllPlayoffs(st, { onUserGame: batch.settle });
     finishBulkPlayoffSim(st, batch);
   });
-  $("#btn-season-offseason")?.addEventListener("click", () => {
+  $("#btn-season-offseason")?.addEventListener("click", async () => {
     if (currentCareerDraft) {
       showSeasonTab("draftBoard");
       return;
     }
     if (
-      !confirm(
+      !(await confirmAction(
         isManagedCareer(state.leagueCareer)
           ? L("确认结束本赛季并进入休赛期选秀？", "End this season and enter the offseason draft?")
           : L(`确认进入休赛期？\n全联盟球员按史实生涯成长/衰退，并按本季表现续约（打出来会更贵）。然后开启 ${
@@ -10670,7 +10670,7 @@ function renderSeasonPlayoffs() {
             } 赛季。`, `Enter the offseason?\nEvery player grows or declines on their real career curve and re-signs on this season's performance (breakouts cost more). Then the ${
               Number(st.year) + 1
             } season starts.`)
-      )
+      ))
     ) {
       return;
     }
@@ -11793,12 +11793,12 @@ function skipSeasonOfferPack() {
   rollSeasonFranchisePack();
 }
 
-$("#btn-season-roster-franchise")?.addEventListener("click", (ev) => {
+$("#btn-season-roster-franchise")?.addEventListener("click", async (ev) => {
   const panel = $("#season-pick-panel");
   if (!panel) return;
   // 若已在选人，再次点「随机球队选人」会整批重开；避免回车误触已聚焦的该按钮
   if (!panel.hidden && seasonPickList.length > 0) {
-    if (!confirm(L("将清空已选球员并重新随机一支球队，确定？", "Clear your picks and roll a new random team?"))) return;
+    if (!(await confirmAction(L("将清空已选球员并重新随机一支球队，确定？", "Clear your picks and roll a new random team?")))) return;
   }
   panel.hidden = false;
   seasonPickList = [];
