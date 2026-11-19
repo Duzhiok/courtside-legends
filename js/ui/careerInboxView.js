@@ -503,14 +503,14 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
       ? `<section><h3>${L("选一支球队，开始 1996–97 赛季", "Pick a team to start the 1996–97 season", l)}</h3>`
         + `<p>${L("演示赛季：真实赛程、真实比赛（GameSim），收件箱事件由真实状态驱动。", "Demo season: real schedule, real games (GameSim); inbox events are driven by real state.", l)}</p>`
         + `<select id="inbox-team-pick">${teamOptions(l).map((team) => `<option value="${team.id}">${team.name} · ${team.id}</option>`).join("")}</select> `
-        + `<button type="button" data-start-demo="1">${L("开始赛季", "Start season", l)}</button></section>`
+        + `<button type="button" class="btn" data-start-demo="1">${L("开始赛季", "Start season", l)}</button></section>`
       : "";
 
     const timeline = d && !done
       ? `<section><h3>${L("推进时间", "Advance time", l)}</h3>`
-        + `<button type="button" data-run="next-game" ${busy ? "disabled" : ""}>${L("下一场比赛", "Next game", l)}</button> `
-        + `<button type="button" data-run="next-event" ${busy ? "disabled" : ""}>${L("下一重要事件", "Next important event", l)}</button> `
-        + `<button type="button" data-run="next-key-node" ${busy ? "disabled" : ""}>${targetLabel || L("下一赛季关键节点", "Next season key node", l)}</button>`
+        + `<button type="button" class="btn" data-run="next-game" ${busy ? "disabled" : ""}>${L("下一场比赛", "Next game", l)}</button> `
+        + `<button type="button" class="btn" data-run="next-event" ${busy ? "disabled" : ""}>${L("下一重要事件", "Next important event", l)}</button> `
+        + `<button type="button" class="btn" data-run="next-key-node" ${busy ? "disabled" : ""}>${targetLabel || L("下一赛季关键节点", "Next season key node", l)}</button>`
         + (lastStop ? `<p>${describeTimelineStop(lastStop, l)}</p>` : "")
         + (lastRun
           ? `<p>${L("模拟了", "Simmed ", l)}${lastRun.reports.length}${L(" 场", " games", l)} · ${lastRun.wins}${L("胜", "W", l)}${lastRun.reports.length - lastRun.wins}${L("负", "L", l)} · ${L("信任", "Trust", l)} ${lastRun.trustBefore} → ${lastRun.trustAfter}</p>`
@@ -544,7 +544,7 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
           + (factsLine ? `<p>${factsLine}</p>` : "")
           + `<div>${(def.choices || []).map((choice) => {
             const c = localizeInboxChoice(choice, l);
-            return `<button type="button" data-decide="${instance.eventId}:${choice.id}">${c.label}</button>`;
+            return `<button type="button" class="btn" data-decide="${instance.eventId}:${choice.id}">${c.label}</button>`;
           }).join(" ")}</div>`
           + `<div>${(def.choices || []).map((choice) => {
             const c = localizeInboxChoice(choice, l);

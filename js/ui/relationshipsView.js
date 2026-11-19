@@ -152,12 +152,12 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
       <section data-testid="rel-people"><h3>${L("人物", "People", lang())}</h3><ul>${peopleHtml}</ul>
         <p><input id="rel-person-id" placeholder="id (e.g. bryanko01)" size="14" /> <input id="rel-person-name" placeholder="${L("名字", "Name", lang())}" size="12" /> <input id="rel-person-bref" placeholder="bref (optional)" size="12" />
         <select id="rel-person-kind"><option value="player">${L("球员", "Player", lang())}</option><option value="coach">${L("教练", "Coach", lang())}</option><option value="gm">${L("经理", "GM", lang())}</option><option value="owner">${L("老板", "Owner", lang())}</option><option value="media">${L("媒体", "Media", lang())}</option></select>
-        <button type="button" data-action="add-person">${L("添加人物", "Add person", lang())}</button></p></section>
+        <button type="button" class="btn" data-action="add-person">${L("添加人物", "Add person", lang())}</button></p></section>
       <section data-testid="rel-relationships"><h3>${L("关系", "Relationships", lang())}</h3><ul>${relsHtml}</ul>
         <p><select id="rel-a">${personOptions(store)}</select> ↔ <select id="rel-b">${personOptions(store)}</select>
         <select id="rel-kind">${RELATIONSHIP_KINDS.map((k) => `<option value="${k}">${L(...(KIND_LABEL[k] || [k, k]), lang())}</option>`).join("")}</select>
         <input id="rel-strength" type="number" min="0" max="100" value="50" style="width:4em" />
-        <button type="button" data-action="add-relationship">${L("建立关系", "Add relationship", lang())}</button></p></section>
+        <button type="button" class="btn" data-action="add-relationship">${L("建立关系", "Add relationship", lang())}</button></p></section>
       <section data-testid="rel-promises"><h3>${L("承诺", "Promises", lang())}</h3><ul>${promisesHtml}</ul>
         <p><select id="rel-maker">${personOptions(store)}</select> → <select id="rel-target">${personOptions(store)}</select>
         <select id="rel-promise-kind">${Object.keys(PROMISE_KIND_LABEL).map((k) => `<option value="${k}">${L(...PROMISE_KIND_LABEL[k], lang())}</option>`).join("")}</select>
@@ -168,7 +168,7 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
         <label>${L("期限（场）", "Due in (games)", lang())} <input id="rel-due-games" type="number" value="5" style="width:3em" /></label>
         <label>${L("角色", "Role", lang())} <select id="rel-role">${ROLE_OPTIONS.map((r) => `<option value="${r}">${L(...(ROLE_LABEL[r] || [r, r]), lang())}</option>`).join("")}</select></label>
         <label>${L("期限（赛季）", "Due season", lang())} <input id="rel-due-season" type="number" value="1997" style="width:4em" /></label>
-        <button type="button" data-action="make-promise">${L("立下承诺", "Make promise", lang())}</button></p>
+        <button type="button" class="btn" data-action="make-promise">${L("立下承诺", "Make promise", lang())}</button></p>
         <h4>${L("当前赛季状态（结算用）", "Current season state (for settlement)", lang())}</h4>
         <p><label>${L("赛季", "Season", lang())} <input id="rel-state-season" type="number" value="1996" style="width:4em" /></label>
         <label>${L("场次", "Game", lang())} <input id="rel-state-game" type="number" value="0" style="width:3em" /></label>
@@ -178,10 +178,10 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
         <label><input id="rel-state-started" type="checkbox" /> ${L("首发过", "Started", lang())}</label>
         <label><input id="rel-state-traded" type="checkbox" /> ${L("已交易", "Traded", lang())}</label>
         <label><input id="rel-state-signed" type="checkbox" /> ${L("已续约", "Signed", lang())}</label>
-        <button type="button" data-action="resolve" data-testid="rel-resolve">${L("检查并结算到期承诺", "Check & settle due promises", lang())}</button></p></section>
+        <button type="button" class="btn" data-action="resolve" data-testid="rel-resolve">${L("检查并结算到期承诺", "Check & settle due promises", lang())}</button></p></section>
       <section data-testid="rel-legacy"><h3>${L("Legacy 记录", "Legacy record", lang())}</h3><ul>${headlinesHtml}</ul>
         <p><input id="rel-dv-subject" placeholder="${L("偏离主题", "Divergence subject", lang())}" size="16" /> <input id="rel-dv-real" placeholder="${L("真实历史", "Real history", lang())}" size="16" /> <input id="rel-dv-new" placeholder="${L("这条时间线", "This timeline", lang())}" size="16" /> <input id="rel-dv-cause" placeholder="${L("原因", "Cause", lang())}" size="12" />
-        <button type="button" data-action="record-divergence">${L("记录历史偏离", "Record divergence", lang())}</button></p></section>`;
+        <button type="button" class="btn" data-action="record-divergence">${L("记录历史偏离", "Record divergence", lang())}</button></p></section>`;
   }
 
   function readState() {

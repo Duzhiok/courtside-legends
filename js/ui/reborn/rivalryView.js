@@ -88,7 +88,7 @@ export function rivalryReportHtml({ report, reborn, lang = "zh" } = {}) {
   }
   const candidates = challengeCandidates(rivalryLedger(reborn), report);
   if (candidates.length) {
-    const buttons = candidates.map((o) => `<button type="button" data-rival-challenge="${o.bref}">${L(`向 ${o.name} 下战书`, `Challenge ${o.nameEn || o.name}`, lang)}（${o.pts} ${L("分", "pts", lang)}）</button>`);
+    const buttons = candidates.map((o) => `<button type="button" class="btn" data-rival-challenge="${o.bref}">${L(`向 ${o.name} 下战书`, `Challenge ${o.nameEn || o.name}`, lang)}（${o.pts} ${L("分", "pts", lang)}）</button>`);
     lines.push(`<div class="reborn-rival-challenge"><p class="tiny">${L("今晚谁让你不服？", "Who got under your skin tonight?", lang)}</p>${buttons.join("")}</div>`);
   }
   return lines.length ? `<section class="reborn-rivalry" data-testid="rivalry-report">${lines.join("")}</section>` : "";

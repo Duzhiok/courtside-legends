@@ -345,7 +345,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       canTrain
         ? `<section class="reborn-training"><h3>${L(`第 ${week} 周训练`, `Week ${week} training`, lang)}</h3><p>${L("每周选一个训练方向。", "Pick one training focus per week.", lang)}</p><div class="reborn-training-options">${TRAINING_FOCI.map((f) => {
           const label = TRAINING_FOCUS_LABEL[f][lang() === "en" ? "en" : "zh"];
-          return `<button type="button" data-train="${f}">${label}</button>`;
+          return `<button type="button" class="btn" data-train="${f}">${label}</button>`;
         }).join("")}</div></section>`
         : "",
       training && !done
@@ -356,17 +356,17 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         ? rivalryPregameHtml({ reborn, rows, nextGame, year: season.year, lang: lang() })
         : "",
       !done
-        ? `<button type="button" data-play="1" ${busy ? "disabled" : ""}>${L("打下一场", "Play next game", lang)}${nextGame ? ` (${nextGame.homeId === reborn.player.teamId ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${nextGame.homeId === reborn.player.teamId ? nextGame.awayId : nextGame.homeId})` : ""}</button>`
+        ? `<button type="button" class="btn" data-play="1" ${busy ? "disabled" : ""}>${L("打下一场", "Play next game", lang)}${nextGame ? ` (${nextGame.homeId === reborn.player.teamId ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${nextGame.homeId === reborn.player.teamId ? nextGame.awayId : nextGame.homeId})` : ""}</button>`
         : "",
       !done && ffLabel
-        ? `<button type="button" data-ff="1" ${busy ? "disabled" : ""}>${ffLabel}</button>`
+        ? `<button type="button" class="btn" data-ff="1" ${busy ? "disabled" : ""}>${ffLabel}</button>`
         : "",
       done ? playoffsPanelHtml({ reborn, year: season.year, lang: lang(), busy, progress: poProgress }) : "",
       done && poOver && !contractOutcome
-        ? `<button type="button" data-settle="1">${L("赛季结束，结算合同", "Season over — settle contract", lang)}</button>`
+        ? `<button type="button" class="btn" data-settle="1">${L("赛季结束，结算合同", "Season over — settle contract", lang)}</button>`
         : "",
       contractOutcome
-        ? `<section class="reborn-contract"><p>${describeContract(contractOutcome, lang())}</p><button type="button" data-rollover="1">${L("开始下赛季", "Start next season", lang)}</button></section>`
+        ? `<section class="reborn-contract"><p>${describeContract(contractOutcome, lang())}</p><button type="button" class="btn" data-rollover="1">${L("开始下赛季", "Start next season", lang)}</button></section>`
         : "",
       ffSummary,
       standingsHtml({ reborn, year: season.year, lang: lang() }),
@@ -375,7 +375,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       jerseyOffersHtml({ reborn, lang: lang() }),
       rivalsPanelHtml({ reborn, lang: lang() }),
       careerTimelineHtml({ reborn, lang: lang() }),
-      `<button type="button" data-reset="1">${L("换一个身份（重新开始）", "New identity (restart)", lang)}</button>`,
+      `<button type="button" class="btn" data-reset="1">${L("换一个身份（重新开始）", "New identity (restart)", lang)}</button>`,
     ].join("");
     body.innerHTML = html;
   }

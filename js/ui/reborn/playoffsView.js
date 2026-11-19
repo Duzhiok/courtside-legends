@@ -46,7 +46,7 @@ export function playoffsPanelHtml({ reborn, year, lang = "zh", busy = false, pro
   const po = reborn?.playoffs?.year === year ? reborn.playoffs : null;
   if (!po) {
     const note = progress ? `<p class="reborn-ff-progress">${L("正在补算联盟赛程……", "Catching up the league schedule…", lang)}</p>` : "";
-    return `<section class="reborn-playoffs"><h3>${L("常规赛结束", "Regular season over", lang)}</h3><p>${L("82 场打完，联盟战绩已定。进入季后赛。", "All 82 games are in and the league table is set. On to the playoffs.", lang)}</p>${note}<button type="button" data-po-enter="1" ${busy ? "disabled" : ""}>${L("进入季后赛", "Enter the playoffs", lang)}</button></section>`;
+    return `<section class="reborn-playoffs"><h3>${L("常规赛结束", "Regular season over", lang)}</h3><p>${L("82 场打完，联盟战绩已定。进入季后赛。", "All 82 games are in and the league table is set. On to the playoffs.", lang)}</p>${note}<button type="button" class="btn" data-po-enter="1" ${busy ? "disabled" : ""}>${L("进入季后赛", "Enter the playoffs", lang)}</button></section>`;
   }
   if (po.status === "unavailable") {
     return `<section class="reborn-playoffs"><h3>${L("季后赛", "Playoffs", lang)}</h3><p>${L("这个赛季没有完整的联盟数据，无法进行季后赛。", "This season has no complete league data, so there are no playoffs.", lang)}</p></section>`;
@@ -77,7 +77,7 @@ export function playoffsPanelHtml({ reborn, year, lang = "zh", busy = false, pro
   const head = g
     ? `<p>${roundName(g.round, lang)} · ${seedLabel(po, po.userId)} ${g.userWins}–${g.oppWins} ${seedLabel(po, g.oppId)}${g.titleGame ? ` · <strong>${L("夺冠战！", "Title game!", lang)}</strong>` : ""}</p>`
     : `<p>${cur ? roundName(cur.round, lang) : ""}</p>`;
-  const btn = g ? `<button type="button" data-po-play="1" ${busy ? "disabled" : ""}>${L(`打季后赛第 ${g.n} 场`, `Play playoff game ${g.n}`, lang)} (${where})</button>` : "";
+  const btn = g ? `<button type="button" class="btn" data-po-play="1" ${busy ? "disabled" : ""}>${L(`打季后赛第 ${g.n} 场`, `Play playoff game ${g.n}`, lang)} (${where})</button>` : "";
   return `<section class="reborn-playoffs"><h3>${L("季后赛", "Playoffs", lang)}</h3>${head}${btn}<details><summary>${L("季后赛对阵", "Bracket", lang)}</summary>${bracket}</details></section>`;
 }
 

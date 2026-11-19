@@ -24,7 +24,7 @@ export function fragmentsPanelHtml({ reborn, week, lang = "zh" } = {}) {
   const on = ledger.intensiveWeek === week && reborn?.player?.training?.week === week;
   const status = on
     ? `<p class="reborn-fragments-on">${L(`本周强化训练已开启：训练经验 ×${INTENSIVE_XP_MULTIPLIER}（能力上限不变）`, `Intensive training on this week: training XP ×${INTENSIVE_XP_MULTIPLIER} (ceilings unchanged)`, lang)}</p>`
-    : `<button type="button" data-buy-intensive ${blocker ? "disabled" : ""} title="${blocker ? BLOCKER[blocker][lang === "en" ? "en" : "zh"] : ""}">${L(`强化训练（−${INTENSIVE_COST} 碎片，本周训练经验 ×${INTENSIVE_XP_MULTIPLIER}）`, `Intensive training (−${INTENSIVE_COST} fragments, this week's training XP ×${INTENSIVE_XP_MULTIPLIER})`, lang)}</button>${blocker ? `<small> ${BLOCKER[blocker][lang === "en" ? "en" : "zh"]}</small>` : ""}`;
+    : `<button type="button" class="btn" data-buy-intensive ${blocker ? "disabled" : ""} title="${blocker ? BLOCKER[blocker][lang === "en" ? "en" : "zh"] : ""}">${L(`强化训练（−${INTENSIVE_COST} 碎片，本周训练经验 ×${INTENSIVE_XP_MULTIPLIER}）`, `Intensive training (−${INTENSIVE_COST} fragments, this week's training XP ×${INTENSIVE_XP_MULTIPLIER})`, lang)}</button>${blocker ? `<small> ${BLOCKER[blocker][lang === "en" ? "en" : "zh"]}</small>` : ""}`;
   return `<section class="reborn-fragments"><h3>${L("职业碎片", "Career fragments", lang)} <strong data-fragment-balance>${ledger.balance}</strong></h3><p>${L("只能靠比赛表现获得：高光表现、宿敌对决获胜。", "Earned only by play: standout games and rivalry wins.", lang)}</p>${status}</section>`;
 }
 
