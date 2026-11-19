@@ -861,7 +861,7 @@ function downloadCorruptAccountsBackup() {
  * just dead-end on an alert: offer an immediate export of the attempt that didn't make it in,
  * so the player doesn't lose progress while they sort out storage.
  */
-function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
+async function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
   if (lastLongCareerSaveError instanceof ForeignSaveError) {
     // not a storage problem: the slot is protected (another player's, or an unlinked save) -- no export prompt
     void foreignSaveNotice("career", lockReasonFor("career", { sig: careerSig(unsavedAttempt) }) || lastLongCareerSaveError.reason);
@@ -877,10 +877,18 @@ function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
   const reason = schemaBug
     ? "这是游戏本身的存档格式 bug，不是你的设备或浏览器问题——清缓存、换设备都没用，请把这条报错告诉开发者。"
     : "常见原因：隐私/无痕浏览模式、设备存储空间快满了、或浏览器这个网站的存储配额被其他数据占满。";
-  const wantsExport = confirm(
-    "长期生涯保存失败，刚才的改动已撤销。\n\n" +
-      `${reason}\n\n` +
-      "要现在将这次未能保存的进度导出为文件吗？之后可用“导入长期生涯”恢复。",
+  const reasonEn = schemaBug
+    ? "This is a save-format bug in the game itself, not a problem with your device or browser — clearing cache or switching devices won't help. Please report this error to the developer."
+    : "Common causes: private/incognito mode, nearly full device storage, or this site's storage quota being used up by other data.";
+  const wantsExport = await confirmAction(
+    L(
+      "长期生涯保存失败，刚才的改动已撤销。\n\n" +
+        `${reason}\n\n` +
+        "要现在将这次未能保存的进度导出为文件吗？之后可用“导入长期生涯”恢复。",
+      "Long career save failed; the recent changes were rolled back.\n\n" +
+        `${reasonEn}\n\n` +
+        "Export this unsaved progress to a file now? You can restore it later with “Import long career”.",
+    ),
   );
   if (!wantsExport) return;
   try {
@@ -2466,7 +2474,7 @@ $("#btn-setup-back").onclick = () => {
   show("home");
 };
 $("#btn-home").onclick = () => show("home");
-$("#btn-again").onclick = () => {
+$("#btn-again").onclick = async () => {
   // Rematch / new run — warn if abandoning an active career roster
   const abandoning =
     state.career?.kind === "career" ||
@@ -2474,7 +2482,12 @@ $("#btn-again").onclick = () => {
     state.tournament;
   if (
     abandoning &&
-    !confirm("再来一局会清空当前阵容与进度，重新开局。若要保留阵容请点「备战下一轮」。确定重开？")
+    !(await confirmAction(
+      L(
+        "再来一局会清空当前阵容与进度，重新开局。若要保留阵容请点「备战下一轮」。确定重开？",
+        "Starting a new game clears the current roster and progress. To keep your roster, choose “Prepare for next round”. Start over?",
+      ),
+    ))
   ) {
     return;
   }
@@ -2690,8 +2703,13 @@ function renderAccountList() {
     };
   });
   box.querySelectorAll("[data-acc-del]").forEach((btn) => {
-    btn.onclick = () => {
-      if (!confirm("删除该账号及其全部球员卡？不可恢复。")) return;
+    btn.onclick = async () => {
+      if (
+        !(await confirmAction(
+          L("删除该账号及其全部球员卡？不可恢复。", "Delete this account and all its player cards? This can't be undone."),
+        ))
+      )
+        return;
       deleteAccount(btn.dataset.accDel);
       renderAccountList();
       forgetOtherAccountsProgress();
