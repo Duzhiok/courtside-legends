@@ -76,6 +76,19 @@ function duelReady() {
 export const DUEL_TITLE = Object.freeze({ zh: "传奇单挑", en: "Legend Duel" });
 
 /**
+ * Back out of the duel screen: drop the live court controller first (its
+ * document keydown + pointer listeners and timers), then navigate — the
+ * same sequence the screen's own back button runs. Exported so the global
+ * Esc path (app.js handleBack) reuses it instead of going straight to
+ * goBack() and leaking the controller onto the next screen (U-P1-2).
+ */
+export function handleDuelBack() {
+  destroyCourtController();
+  if (goBackFn) goBackFn();
+  else if (showFn) showFn("home");
+}
+
+/**
  * Mount the Legend Duel screen on the shared Screen Shell (screenShell.js) —
  * the shell owns the panel head (one back button, one single-language title),
  * the focus/scroll lifecycle and the language switch; this view keeps its own
@@ -86,7 +99,7 @@ export const DUEL_TITLE = Object.freeze({ zh: "传奇单挑", en: "Legend Duel" 
  * behaviour. Mounting moves the screen from document.body into the #app
  * column, like the museum / inbox / coaching / gamble screens before it.
  * The back button used to destroy the live court controller and then goBack
- * (or fall back to home); that exact sequence moves into onBack, read at
+ * (or fall back to home); that exact sequence is handleDuelBack, read at
  * click time so boot order — ensure before initDuelView — does not matter.
  */
 export function ensureDuelScreen({ getLang: langFn = getLang, onBack, onRelocalize } = {}) {
@@ -94,11 +107,7 @@ export function ensureDuelScreen({ getLang: langFn = getLang, onBack, onRelocali
     id: "duel",
     title: DUEL_TITLE,
     getLang: langFn,
-    onBack: onBack || (() => {
-      destroyCourtController();
-      if (goBackFn) goBackFn();
-      else if (showFn) showFn("home");
-    }),
+    onBack: onBack || handleDuelBack,
     // Only the select screen is cheap to re-render: a live match owns a
     // mounted court controller, and a result screen is one render away from
     // fresh copy — so relocalize leaves those alone (same as before the

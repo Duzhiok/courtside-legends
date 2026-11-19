@@ -38,7 +38,7 @@ import { careerPhaseLabelL, playerCardHtml } from "./ui/playerCard.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import { createHalfCourtScreen } from "./ui/halfCourtView.js";
-import { ensureDuelScreen, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
+import { ensureDuelScreen, handleDuelBack, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { buySkillOffer } from "./engine/skillShopPurchase.js";
 import { createRebornView } from "./ui/reborn/rebornView.js";
 import { createRelationshipsView } from "./ui/relationshipsView.js";
@@ -678,6 +678,15 @@ function handleBack() {
   if (current === "clutch3d") {
     // Back from the 3D replay = the 2D result page (dispose the view).
     closeClutch3dReplay();
+    return;
+  }
+  if (current === "duel") {
+    // Back from a duel (select / live match / result) = the screen's own
+    // back action: destroy the live court controller first (its document
+    // keydown + pointer listeners and timers), then go back. Esc used to
+    // fall through to goBack() and leak the controller onto the next
+    // screen, where arrow/number keys still drove the hidden duel (U-P1-2).
+    handleDuelBack();
     return;
   }
   if (current === "clutchResult") {
