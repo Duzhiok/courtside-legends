@@ -16,16 +16,36 @@
  * Pure functions; the inbox history array is the only input.
  */
 
+import { inboxEventById } from "./careerInbox.js";
+
+/** Resolve a story-choice entry to its event title + choice label. Unknown ids fall back to the raw ids. */
+function eventChoiceLabels(entry, lang = "zh") {
+  const en = lang === "en";
+  try {
+    const event = inboxEventById(entry.eventId);
+    const choice = (event.choices || []).find((c) => c.id === entry.choiceId);
+    return {
+      title: en ? (event.titleEn || event.title) : event.title,
+      choiceLabel: choice ? (en ? (choice.labelEn || choice.label) : choice.label) : entry.choiceId,
+    };
+  } catch {
+    return { title: entry.eventId, choiceLabel: entry.choiceId };
+  }
+}
+
 /** One-line rendering of a history entry (zh by default, en on request). */
 export function describeHistoryEntry(entry, lang = "zh") {
   const zh = lang !== "en";
   if (!entry) return "";
   const game = Number.isInteger(entry.gameIndex) ? (zh ? `第 ${entry.gameIndex + 1} 场` : `game ${entry.gameIndex + 1}`) : "";
   if (entry.type === "story-choice") {
-    const trust = entry.effects?.trust ? `（${zh ? "信任" : "trust"} ${entry.effects.trust >= 0 ? "+" : ""}${entry.effects.trust}）` : "";
+    const trust = entry.effects?.trust
+      ? (zh ? `（信任 ${entry.effects.trust >= 0 ? "+" : ""}${entry.effects.trust}）` : ` (trust ${entry.effects.trust >= 0 ? "+" : ""}${entry.effects.trust})`)
+      : "";
+    const { title, choiceLabel } = eventChoiceLabels(entry, lang);
     return zh
-      ? `${entry.year} 赛季${game ? ` ${game}` : ""}：决定「${entry.eventId} → ${entry.choiceId}」${trust}`
-      : `${entry.year} season${game ? ` ${game}` : ""}: chose ${entry.eventId} → ${entry.choiceId}${trust}`;
+      ? `${entry.year} 赛季${game ? ` ${game}` : ""}：决定「${title} → ${choiceLabel}」${trust}`
+      : `${entry.year} season${game ? ` ${game}` : ""}: chose ${title} → ${choiceLabel}${trust}`;
   }
   if (entry.type === "promise-settled") {
     return zh

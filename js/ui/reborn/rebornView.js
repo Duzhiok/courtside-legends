@@ -36,7 +36,7 @@ import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
 import { mirrorHonorsToAccount } from "../../reborn/honors.js";
 import { enterPlayoffs, playPlayoffGame, regularGames } from "../../reborn/playoffFlow.js";
-import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision } from "../../reborn/contract.js";
+import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision, contractStatusLabel } from "../../reborn/contract.js";
 import { overall } from "../../data/players.js";
 import { readIdentity } from "../../data/profile.js";
 import { createRootState } from "../../data/saveRoot.js";
@@ -100,7 +100,7 @@ export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
   const hintLine = hint ? `<p class="reborn-hint">${hint[lang === "en" ? "en" : "zh"]}</p>` : "";
   return `<section class="reborn-identity"><h3>${name}</h3>`
     + `<p>${reborn.player.teamId} · ${card?.pos || ""} · OVR ${card ? overall(card) : "—"}</p>`
-    + `<p>${L("教练信任", "Coach trust", lang)} ${trust} / 100 · ${roleLabel} · ${status}</p>`
+    + `<p>${L("教练信任", "Coach trust", lang)} ${trust} / 100 · ${roleLabel} · ${contractStatusLabel(status, lang)}</p>`
     + `<div class="reborn-trust-bar" role="progressbar" aria-valuenow="${trust}" aria-valuemin="0" aria-valuemax="100"><span style="width:${trust}%"></span></div>`
     + hintLine
     + `</section>`;
@@ -112,11 +112,15 @@ export function careerTimelineHtml({ reborn, lang = "zh" } = {}) {
   if (!events.length) return "";
   const lines = events.map((event) => {
     if (event.event === "contract") {
-      const label = { resign: L("续约", "Re-signed", lang), minimum: L("底薪留队", "Minimum deal", lang), cut: L("被裁", "Cut", lang) }[event.outcome] || event.outcome;
-      return `<p>${event.year} ${L("赛季", "season", lang)}：${label}（${L("信任", "trust", lang)} ${event.trust}，${L("出战", "", lang)} ${event.games} ${L("场，场均", "games, ", lang)} ${event.avgMin} ${L("分钟", "min", lang)}）</p>`;
+      const label = contractStatusLabel(event.outcome, lang);
+      return lang === "en"
+        ? `<p>${event.year} season: ${label} (trust ${event.trust}, ${event.games} games, ${event.avgMin} min/game)</p>`
+        : `<p>${event.year} 赛季：${label}（信任 ${event.trust}，出战 ${event.games} 场，场均 ${event.avgMin} 分钟）</p>`;
     }
     if (event.event === "season_start") {
-      return `<p>${event.year} ${L("赛季开始", "season starts", lang)}（${L("信任", "trust", lang)} ${event.trust}）</p>`;
+      return lang === "en"
+        ? `<p>${event.year} season starts (trust ${event.trust})</p>`
+        : `<p>${event.year} 赛季开始（信任 ${event.trust}）</p>`;
     }
     if (event.event === "awakening") {
       return awakeningTimelineLine({ event, lang });

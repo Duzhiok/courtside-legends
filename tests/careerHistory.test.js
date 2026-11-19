@@ -44,9 +44,10 @@ function inboxWithSettledPromise() {
 test("describe: a choice line names the event, the choice and the trust delta", () => {
   const { inbox } = inboxWithSettledPromise();
   const choice = historyFor(inbox, { kind: "story-choice" })[0];
-  assert.match(describeHistoryEntry(choice, "zh"), /core-demands-touches → promise-touches/);
+  assert.match(describeHistoryEntry(choice, "zh"), /核心要求更多出手权 → 承诺未来 5 场给他更多出手/);
   assert.match(describeHistoryEntry(choice, "zh"), /信任 \+2/);
-  assert.match(describeHistoryEntry(choice, "en"), /chose core-demands-touches → promise-touches/);
+  assert.match(describeHistoryEntry(choice, "en"), /chose The Core Wants More Touches → Promise him more touches for 5 games/);
+  assert.match(describeHistoryEntry(choice, "en"), /\(trust \+2\)/);
   const settled = historyFor(inbox, { kind: "promise-settled" })[0];
   assert.match(describeHistoryEntry(settled, "zh"), /承诺兑现/);
   assert.match(describeHistoryEntry(settled, "zh"), /场均 18 分/);

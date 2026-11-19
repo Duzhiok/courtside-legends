@@ -134,6 +134,26 @@ export function generateOpportunities(profile, board, { seed = 1 } = {}) {
 }
 
 /**
+ * One localized line for a single `missing` reason string produced by
+ * checkRequirements (`reputation:60`, `experience:2`, `achievement:<id>`,
+ * `fromRole:<role>`). Unknown shapes fall back to the raw string so a new
+ * requirement kind never renders blank.
+ */
+export function missingLabel(missing, lang = "zh") {
+  const en = lang === "en";
+  if (typeof missing !== "string") return String(missing ?? "");
+  const [kind, value] = missing.split(":");
+  if (kind === "reputation") return en ? `Reputation ${value}` : `声望 ${value}`;
+  if (kind === "experience") return en ? `Experience ${value} seasons` : `经验 ${value} 季`;
+  if (kind === "achievement") return en ? `Achievement ${value}` : `成就 ${value}`;
+  if (kind === "fromRole") {
+    const role = NETWORK_ROLES[value];
+    return role ? (en ? (role.labelEn || role.labelZh) : role.labelZh) : value;
+  }
+  return missing;
+}
+
+/**
  * Accept an offer. Returns the new profile plus a transition record in
  * the shape workstream E consumes (from / to / team / year / reason).
  * The old job is appended to `jobs` (history), never overwritten.

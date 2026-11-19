@@ -22,6 +22,13 @@ import { mountScreen } from "./screenShell.js";
 /** The page title, rendered once by the shell in the current language. */
 export const GM_BUSINESS_TITLE = Object.freeze({ zh: "总经理 · 从雇员到帝国", en: "GM · From Employee to Empire" });
 
+/** Sponsorship kinds, shown in both languages (never the raw kind id). */
+const SPONSOR_KIND_LABEL = {
+  jersey: ["球衣广告", "Jersey ads"],
+  arena: ["球馆冠名", "Arena naming"],
+  brand: ["品牌合作", "Brand deal"],
+};
+
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
 /**
@@ -74,13 +81,15 @@ export function gmBusinessHtml(state, { lang = "zh", players = [] } = {}) {
       <div class="gm-panel">
         <h3>${L("个人财富", "Personal wealth", lang)}</h3>
         <p>${L("现金", "Cash", lang)} ${money(p.cash)} · ${L("年薪", "Salary", lang)} ${money(p.salary)}${L("/年", "/yr", lang)} · ${L("股权", "Equity", lang)} ${state.exec.equityPct}%</p>
-        <p>${L("分红累计", "Dividends earned", lang)} ${money(p.dividendsEarned)}${p.debt ? ` · ${L("负债", "Debt", lang)} ${money(p.debt.principal)}（${L("到期", "due", lang)} ${p.debt.dueSeason}）` : ""}</p>
+        <p>${L("分红累计", "Dividends earned", lang)} ${money(p.dividendsEarned)}${p.debt ? ` · ${L("负债", "Debt", lang)} ${money(p.debt.principal)}${lang === "en" ? ` (due ${p.debt.dueSeason})` : `（到期 ${p.debt.dueSeason}）`}` : ""}</p>
         <p class="tiny">${L("个人财富与球队经营预算是分开的：球队收入不会直接变成你的钱，只有工资和分红会。", "Personal wealth and the franchise budget are separate: team revenue never becomes your money directly — only salary and dividends do.", lang)}</p>
       </div>
     </div>
     <div class="gm-panel">
       <h3>${L("董事会报告", "Board report", lang)}</h3>
-      ${last ? `<p>${L("上赛季", "Last season", lang)} ${last.season}：${last.wins} ${L("胜", "W", lang)} ${last.losses} ${L("负", "L", lang)}，${L("经营", "operating", lang)}${last.profit >= 0 ? L("盈利", "profit", lang) : L("亏损", "loss", lang)} ${money(last.profit)}，${L("估值", "valuation", lang)} ${money(last.valuation)}。</p>` : `<p>${L("还没有打完的赛季。先做一次球探决策、签一份赞助、调一次票价，再模拟赛季。", "No season played yet. Make a scouting decision, sign a sponsor, set ticket prices, then simulate a season.", lang)}</p>`}
+      ${last ? (lang === "en"
+        ? `<p>Last season ${last.season}: ${last.wins} W ${last.losses} L, operating ${last.profit >= 0 ? "profit" : "loss"} ${money(last.profit)}, valuation ${money(last.valuation)}.</p>`
+        : `<p>上赛季 ${last.season}：${last.wins} 胜 ${last.losses} 负，经营${last.profit >= 0 ? "盈利" : "亏损"} ${money(last.profit)}，估值 ${money(last.valuation)}。</p>`) : `<p>${L("还没有打完的赛季。先做一次球探决策、签一份赞助、调一次票价，再模拟赛季。", "No season played yet. Make a scouting decision, sign a sponsor, set ticket prices, then simulate a season.", lang)}</p>`}
       ${minority ? `<p>${L("收购机会", "Acquisition opportunity", lang)}：${minority.available ? L("可以买下 5% 股份，成为球队合伙人。", "You can buy a 5% stake and become a minority owner.") : L("还不满足条件：", "Not yet available: ") + missingText(minority.missing, lang)}</p>` : ""}
     </div>
     <div class="gm-panel">
@@ -89,7 +98,7 @@ export function gmBusinessHtml(state, { lang = "zh", players = [] } = {}) {
         ${[20, 30, 45, 60, 80].map((price) => `<button type="button" class="btn small" data-gm-action="ticket" data-price="${price}" ${price === b.ticketPrice ? "disabled" : ""}>$${price}</button>`).join(" ")}
       </p>
       <p>${L("赞助报价", "Sponsorship offers", lang)}：
-        ${offers.length ? offers.map((o) => `<button type="button" class="btn small" data-gm-action="sponsor" data-offer="${o.id}">$${o.value}M · ${lang === "en" ? o.kind : { jersey: "球衣广告", arena: "球馆冠名", brand: "品牌合作" }[o.kind]}</button>`).join(" ") : L("暂无新的报价", "No new offers", lang)}
+        ${offers.length ? offers.map((o) => `<button type="button" class="btn small" data-gm-action="sponsor" data-offer="${o.id}">$${o.value}M · ${L(...(SPONSOR_KIND_LABEL[o.kind] || [o.kind, o.kind]), lang)}</button>`).join(" ") : L("暂无新的报价", "No new offers", lang)}
       </p>
       <div class="gm-events">
         ${events.length ? events.map((e) => { const v = businessEventForInbox(e, lang); return `<div class="gm-event"><strong>${v.title}</strong><p>${v.body}</p><p>${v.choices.map((c) => `<button type="button" class="btn small" data-gm-action="event-choice" data-event="${v.id}" data-choice="${c.id}">${c.label}</button>`).join(" ")}</p></div>`; }).join("") : `<p>${L("暂无待处理事件", "No pending events", lang)}</p>`}
@@ -101,8 +110,8 @@ export function gmBusinessHtml(state, { lang = "zh", players = [] } = {}) {
     <details class="gm-panel">
       <summary>${L("深度经营", "Deep management", lang)}</summary>
       ${last ? `<p>${L("收入明细", "Revenue breakdown", lang)}：${L("票房", "Tickets", lang)} ${money(last.ticket)} · ${L("赞助", "Sponsors", lang)} ${money(last.sponsorship)} · ${L("周边", "Merch", lang)} ${money(last.merch)} · ${L("品牌", "Brand", lang)} ${money(last.brand)} · ${L("成本", "Costs", lang)} ${money(last.costs)}</p>` : ""}
-      <p>${L("已签赞助", "Signed sponsors", lang)}：${b.sponsorships.length ? b.sponsorships.map((s) => `${s.kind} $${s.value}M`).join("、") : L("无", "None", lang)}</p>
-      <p>${L("持有股权", "Equity held", lang)}：${p.equity.length ? p.equity.map((e) => `${e.teamId} ${e.pct}%`).join("、") : L("无", "None", lang)}</p>
+      <p>${L("已签赞助", "Signed sponsors", lang)}：${b.sponsorships.length ? b.sponsorships.map((s) => `${L(...(SPONSOR_KIND_LABEL[s.kind] || [s.kind, s.kind]), lang)} $${s.value}M`).join(lang === "en" ? ", " : "、") : L("无", "None", lang)}</p>
+      <p>${L("持有股权", "Equity held", lang)}：${p.equity.length ? p.equity.map((e) => `${e.teamId} ${e.pct}%`).join(lang === "en" ? ", " : "、") : L("无", "None", lang)}</p>
       <p>${L("未来知识", "Future knowledge", lang)}：${state.knowledge.knowledge} ${L("点", "points", lang)} ·
         ${clues.map((c) => c.revealed ? `<span>${lang === "en" ? (c.summaryEn || c.summary) : c.summary}${lang === "en" ? `(${c.band.en})` : `（${c.band.zh}）`}</span>` : `<button type="button" class="btn small" data-gm-action="reveal-clue" data-clue="${c.id}">${L("揭示线索（1 点）", "Reveal clue (1 pt)", lang)}</button>`).join(" ") || L("暂无线索", "No clues", lang)}
       </p>

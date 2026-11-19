@@ -65,6 +65,25 @@ const PROMISE_KIND_LABEL = {
   trade: ["交易", "Trade"],
   contract: ["合同", "Contract"],
 };
+const PERSON_KIND_LABEL = {
+  player: ["球员", "Player"],
+  coach: ["教练", "Coach"],
+  gm: ["经理", "GM"],
+  owner: ["老板", "Owner"],
+  media: ["媒体", "Media"],
+};
+const PROMISE_STATUS_LABEL = {
+  open: ["待处理", "Open"],
+  fulfilled: ["已兑现", "Kept"],
+  broken: ["已落空", "Broken"],
+};
+const ROLE_LABEL = {
+  dnp: ["坐冷板凳", "DNP"],
+  garbage: ["垃圾时间", "Garbage time"],
+  bench: ["板凳末端", "Bench"],
+  rotation: ["轮换", "Rotation"],
+  starter: ["首发", "Starter"],
+};
 const ROLE_OPTIONS = ["dnp", "garbage", "bench", "rotation", "starter"];
 
 export function createRelationshipsView({ getLang, getAccount, saveAccount, readRootSave, writeRootSave, show, goBack } = {}) {
@@ -97,7 +116,7 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
       ? store.people
           .map((p) => {
             const standing = p.kind === "coach" || p.kind === "gm" || p.kind === "owner" ? negotiationStanding(account, p.id) : null;
-            return `<li>${esc(p.name)} <span class="tiny">${esc(p.kind)} · ${esc(p.id)}${p.bref ? ` · ${esc(p.bref)}` : ""}${standing ? ` · ${L("谈判", "Negotiation", lang())} ${standing.modifier >= 0 ? "+" : ""}${standing.modifier}` : ""}</span></li>`;
+            return `<li>${esc(p.name)} <span class="tiny">${L(...(PERSON_KIND_LABEL[p.kind] || [p.kind, p.kind]), lang())} · ${esc(p.id)}${p.bref ? ` · ${esc(p.bref)}` : ""}${standing ? ` · ${L("谈判", "Negotiation", lang())} ${standing.modifier >= 0 ? "+" : ""}${standing.modifier}` : ""}</span></li>`;
           })
           .join("")
       : `<li class="tiny">${L("还没有人物。先加两个人，再建立关系或承诺。", "No people yet. Add two people, then a relationship or a promise.", lang())}</li>`;
@@ -114,7 +133,7 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
 
     const promisesHtml = store.promises.length
       ? store.promises
-          .map((p) => `<li>${esc(p.text)} <span class="tiny">· ${L(...(PROMISE_KIND_LABEL[p.kind] || [p.kind, p.kind]), lang())} · ${p.status}${p.effect ? ` · ${L("信任", "Trust", lang())} ${p.effect.trustDelta >= 0 ? "+" : ""}${p.effect.trustDelta}${p.effect.applied ? L("（已应用）", " (applied)", lang()) : L("（待应用）", " (pending)", lang())}` : ""}</span></li>`)
+          .map((p) => `<li>${esc(p.text)} <span class="tiny">· ${L(...(PROMISE_KIND_LABEL[p.kind] || [p.kind, p.kind]), lang())} · ${L(...(PROMISE_STATUS_LABEL[p.status] || [p.status, p.status]), lang())}${p.effect ? ` · ${L("信任", "Trust", lang())} ${p.effect.trustDelta >= 0 ? "+" : ""}${p.effect.trustDelta}${p.effect.applied ? L("（已应用）", " (applied)", lang()) : L("（待应用）", " (pending)", lang())}` : ""}</span></li>`)
           .join("")
       : `<li class="tiny">${L("还没有承诺。", "No promises yet.", lang())}</li>`;
 
@@ -147,7 +166,7 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
         <label>${L("场次", "Games", lang())} <input id="rel-min-games" type="number" value="5" style="width:3em" /></label>
         <label>MPG <input id="rel-min-mpg" type="number" value="20" style="width:3em" /></label>
         <label>${L("期限（场）", "Due in (games)", lang())} <input id="rel-due-games" type="number" value="5" style="width:3em" /></label>
-        <label>${L("角色", "Role", lang())} <select id="rel-role">${ROLE_OPTIONS.map((r) => `<option value="${r}">${r}</option>`).join("")}</select></label>
+        <label>${L("角色", "Role", lang())} <select id="rel-role">${ROLE_OPTIONS.map((r) => `<option value="${r}">${L(...(ROLE_LABEL[r] || [r, r]), lang())}</option>`).join("")}</select></label>
         <label>${L("期限（赛季）", "Due season", lang())} <input id="rel-due-season" type="number" value="1997" style="width:4em" /></label>
         <button type="button" data-action="make-promise">${L("立下承诺", "Make promise", lang())}</button></p>
         <h4>${L("当前赛季状态（结算用）", "Current season state (for settlement)", lang())}</h4>
@@ -155,7 +174,7 @@ export function createRelationshipsView({ getLang, getAccount, saveAccount, read
         <label>${L("场次", "Game", lang())} <input id="rel-state-game" type="number" value="0" style="width:3em" /></label>
         <label>${L("已打场次", "Games played", lang())} <input id="rel-state-played" type="number" value="0" style="width:3em" /></label>
         <label>MPG <input id="rel-state-mpg" type="number" value="0" style="width:3em" /></label>
-        <label>${L("角色", "Role", lang())} <select id="rel-state-role">${ROLE_OPTIONS.map((r) => `<option value="${r}">${r}</option>`).join("")}</select></label>
+        <label>${L("角色", "Role", lang())} <select id="rel-state-role">${ROLE_OPTIONS.map((r) => `<option value="${r}">${L(...(ROLE_LABEL[r] || [r, r]), lang())}</option>`).join("")}</select></label>
         <label><input id="rel-state-started" type="checkbox" /> ${L("首发过", "Started", lang())}</label>
         <label><input id="rel-state-traded" type="checkbox" /> ${L("已交易", "Traded", lang())}</label>
         <label><input id="rel-state-signed" type="checkbox" /> ${L("已续约", "Signed", lang())}</label>

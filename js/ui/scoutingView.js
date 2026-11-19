@@ -94,7 +94,7 @@ function prospectCardHtml({ prospect, reports, tryout, tryoutsLeft, lang = "zh" 
     const confidence = report.confidence === "low"
       ? L("信心低", "Low confidence", lang)
       : L("信心中", "Medium confidence", lang);
-    return `<li><strong>${esc(scoutName(scout, lang))}</strong>：${report.range.min}–${report.range.max} · ${esc(bandLabel(report.band, lang))}（${confidence}）<br><span class="dg-note">${esc(report.note[lang === "en" ? "en" : "zh"])}</span></li>`;
+    return `<li><strong>${esc(scoutName(scout, lang))}</strong>：${report.range.min}–${report.range.max} · ${esc(bandLabel(report.band, lang))}${lang === "en" ? ` (${confidence})` : `（${confidence}）`}<br><span class="dg-note">${esc(report.note[lang === "en" ? "en" : "zh"])}</span></li>`;
   }).join("");
   const tryoutBlock = tryout
     ? `<p class="dg-tryout">🔬 ${L("试训", "Tryout", lang)}：${tryout.range.min}–${tryout.range.max} · ${esc(bandLabel(tryout.band, lang))}<br>`
@@ -102,7 +102,7 @@ function prospectCardHtml({ prospect, reports, tryout, tryoutsLeft, lang = "zh" 
       + `· ${esc(tryout.clues.injury[lang === "en" ? "en" : "zh"])}<br>`
       + `· ${esc(tryout.clues.character[lang === "en" ? "en" : "zh"])}</p>`
     : (tryoutsLeft > 0
-      ? `<button type="button" class="btn small" data-action="tryout" data-bref="${esc(info.bref)}">🔬 ${L("试训（剩余", "Tryout (", lang)}${tryoutsLeft}）</button>`
+      ? `<button type="button" class="btn small" data-action="tryout" data-bref="${esc(info.bref)}">🔬 ${L("试训（剩余", "Tryout (", lang)}${tryoutsLeft}${L("）", ")", lang)}</button>`
       : "");
   return `<article class="dg-prospect" data-bref="${esc(info.bref)}">`
     + `<h4>${esc(info.name)} <span class="dg-pos">${esc(info.pos)}</span> <span class="dg-ovr">OVR ${info.ovr}</span></h4>`
@@ -140,7 +140,7 @@ export function negotiationHtml({ state, neg, lang = "zh" } = {}) {
     .sort((a, b) => a.slot - b.slot);
   const targetOptions = targets.map(({ slot, owner }) => {
     const persona = state?.personas?.[owner];
-    return `<button type="button" class="btn small${neg?.targetSlot === slot ? " active" : ""}" data-action="neg-target" data-slot="${slot}">#${slot} · ${esc(owner)}（${esc(personaLabel(persona, lang))}）</button>`;
+    return `<button type="button" class="btn small${neg?.targetSlot === slot ? " active" : ""}" data-action="neg-target" data-slot="${slot}">#${slot} · ${esc(owner)}${lang === "en" ? ` (${esc(personaLabel(persona, lang))})` : `（${esc(personaLabel(persona, lang))}）`}</button>`;
   }).join(" ");
   const giveOptions = mySlots.map((slot) => {
     const selected = (neg?.giveSlots || []).includes(slot);
@@ -155,10 +155,10 @@ export function negotiationHtml({ state, neg, lang = "zh" } = {}) {
       // not exist in this draft. The only extra chip here is your other
       // 1996 pick — say so explicitly.
       const sliceNote = L("接受条件需要再加你的另一个签位。", "Accepting means adding your other pick.", lang);
-      result = `<p class="dg-neg-result">${L("对方还价：你送出价值", "They counter: you offer ", lang)} ${r.valueIn}，${L("对方要", "they want ", lang)} ${r.demand}。${sliceNote}</p>`;
+      result = `<p class="dg-neg-result">${L("对方还价：你送出价值", "They counter: you offer ", lang)} ${r.valueIn}${lang === "en" ? ", " : "，"}${L("对方要", "they want ", lang)}${r.demand}${lang === "en" ? ". " : "。"}${sliceNote}</p>`;
       const otherPick = mySlots.find((s) => !(neg.giveSlots || []).includes(s));
       result += otherPick
-        ? `<p><button type="button" class="btn small" data-action="neg-accept-counter">${L("接受条件（再加 #", "Accept (add #", lang)}${otherPick}）</button> <button type="button" class="btn small" data-action="neg-walk">${L("放弃谈判", "Walk away", lang)}</button></p>`
+        ? `<p><button type="button" class="btn small" data-action="neg-accept-counter">${L("接受条件（再加 #", "Accept (add #", lang)}${otherPick}${L("）", ")", lang)}</button> <button type="button" class="btn small" data-action="neg-walk">${L("放弃谈判", "Walk away", lang)}</button></p>`
         : `<p>${L("你已经没有更多签位可加了。", "You have no more picks to add.", lang)} <button type="button" class="btn small" data-action="neg-walk">${L("放弃谈判", "Walk away", lang)}</button></p>`;
     } else {
       result = `<p class="dg-neg-result">${esc(r.reason)}</p>`;
@@ -171,7 +171,7 @@ export function negotiationHtml({ state, neg, lang = "zh" } = {}) {
     }
   }
   return `<section class="dg-neg"><h3>${L("交易谈判 · 选秀权互换", "Trade talks · pick swaps", lang)}</h3>`
-    + `<p>${L("你手里的签位：", "Your picks: ", lang)}${mySlots.map((s) => `#${s}`).join("、") || L("无", "none", lang)}。${L("想往上换一个签位？先选目标，再选你要送出的签。", "Want to move up? Pick a target, then the picks you'll send.", lang)}</p>`
+    + `<p>${L("你手里的签位：", "Your picks: ", lang)}${mySlots.map((s) => `#${s}`).join(lang === "en" ? ", " : "、") || L("无", "none", lang)}${lang === "en" ? ". " : "。"}${L("想往上换一个签位？先选目标，再选你要送出的签。", "Want to move up? Pick a target, then the picks you'll send.", lang)}</p>`
     + `<p>${targetOptions}</p>`
     + (neg?.targetSlot ? `<p>${L("送出：", "Send: ", lang)}${giveOptions}</p><p><button type="button" class="btn" data-action="neg-offer" ${!(neg.giveSlots || []).length ? "disabled" : ""}>${L("提出报价", "Make the offer", lang)}</button> <button type="button" class="btn small" data-action="neg-walk">${L("取消", "Cancel", lang)}</button></p>` : "")
     + result
@@ -189,7 +189,7 @@ export function draftBoardHtml({ state, lang = "zh" } = {}) {
     const pickText = selection
       ? selection.forfeited
         ? L("跳过", "Passed", lang)
-        : `${esc(selection.name)}${selection.bref ? `（${esc(selection.bref)}）` : ""}`
+        : `${esc(selection.name)}${selection.bref ? `${lang === "en" ? ` (${esc(selection.bref)})` : `（${esc(selection.bref)}）`}` : ""}`
       : (draft.currentPick === index && draft.status === "in_progress"
         ? L("正在选……", "On the clock…", lang)
         : L("待选", "Pending", lang));
@@ -233,7 +233,7 @@ export function reviewHtml({ review, lang = "zh" } = {}) {
   return `<section class="dg-review"><h3>${L("三年推演 · 1997–1999", "Three-year projection · 1997–1999", lang)}</h3>`
     + `<p class="dg-projection-note">⚠️ ${L("以下全部是赛季级推演，不是真实比赛结果。成长按角色分钟、年龄曲线和试训伤病标记推算；球队战绩按前八人实力推算。", "Everything below is a season-level projection, not real game results. Growth follows role minutes, the age curve and tryout injury flags; team record follows top-8 strength.", lang)}</p>`
     + `<p><strong>${L("评级", "Grade", lang)} ${review.verdict.grade}</strong> — ${esc(gradeLine)}</p>`
-    + `<p>${L("你的选秀三年后总 OVR", "Your picks after three years", lang)} ${review.verdict.yourSum} · ${L("你错过的最高潜力者", "Best you passed on", lang)} ${review.verdict.missedSum}（${L("差值", "diff", lang)} ${review.verdict.diff >= 0 ? "+" : ""}${review.verdict.diff}）</p>`
+    + `<p>${L("你的选秀三年后总 OVR", "Your picks after three years", lang)} ${review.verdict.yourSum} · ${L("你错过的最高潜力者", "Best you passed on", lang)} ${review.verdict.missedSum}${lang === "en" ? ` (${L("差值", "diff", lang)} ${review.verdict.diff >= 0 ? "+" : ""}${review.verdict.diff})` : `（${L("差值", "diff", lang)} ${review.verdict.diff >= 0 ? "+" : ""}${review.verdict.diff}）`}</p>`
     + `<h4>${L("球队战绩（推演）", "Team record (projected)", lang)}</h4><table class="dg-table"><tr><th>${L("赛季", "Season", lang)}</th><th>${L("战绩", "Record", lang)}</th><th>${L("季后赛", "Playoffs", lang)}</th></tr>${teamRows}</table>`
     + `<h4>${L("你选中的球员", "Your picks", lang)}</h4><table class="dg-table"><tr><th>${L("球员", "Player", lang)}</th><th>1997</th><th>1998</th><th>1999</th></tr>${playerRows(review.drafted)}</table>`
     + (review.passed.length ? `<h4>${L("你错过的球员", "The ones that got away", lang)}</h4><table class="dg-table"><tr><th>${L("球员", "Player", lang)}</th><th>1997</th><th>1998</th><th>1999</th></tr>${playerRows(review.passed)}</table>` : "")
@@ -323,7 +323,7 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
       return;
     }
     const l = lang();
-    let html = `<section class="dg-intro"><h3>${esc(GAMBLE_TEAM_NAME_ZH)} · ${esc(GAMBLE_TEAM_NAME)} — 1996</h3>`
+    let html = `<section class="dg-intro"><h3>${esc(L(GAMBLE_TEAM_NAME_ZH, GAMBLE_TEAM_NAME, l))} — 1996</h3>`
       + `<p>${L("你是夏洛特黄蜂的总经理，手握 8 号签和 13 号签。1996 届新秀里有未来的传奇，也有水货——球探们的判断并不一致。选好人，三年后见分晓。", "You are the Charlotte Hornets GM, holding picks #8 and #13. The 1996 class hides future legends and busts alike — and your scouts disagree. Draft well; three years will tell.", l)}</p></section>`;
     if (state.phase === "scout") {
       html += scoutBoardHtml({ gamble, state, lang: l });

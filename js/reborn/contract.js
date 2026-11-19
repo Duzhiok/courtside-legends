@@ -22,7 +22,14 @@ const CONTRACT_LABEL = {
   resign: { zh: "续约", en: "Re-signed" },
   minimum: { zh: "底薪留队", en: "Minimum deal" },
   cut: { zh: "被裁", en: "Cut" },
+  // The starting state: on a camp tryout, no contract decision yet.
+  camp: { zh: "试训期", en: "Camp" },
 };
+
+/** Localized label for a contract status; unknown values fall back to the raw id. */
+export function contractStatusLabel(status, lang = "zh") {
+  return CONTRACT_LABEL[status]?.[lang === "en" ? "en" : "zh"] || status;
+}
 
 /** Trust thresholds for the contract decision. */
 export const CONTRACT_TRUST = { resign: 50, minimum: 30 };
