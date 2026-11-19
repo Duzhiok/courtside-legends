@@ -152,9 +152,9 @@ async function waitFor(messages, pred, timeoutMs = 5000) {
 
 async function loginClient(url, name) {
   const c = await connect(url);
-  c.ws.send(JSON.stringify({ type: "register", name, password: "secret" }));
+  c.ws.send(JSON.stringify({ type: "register", name, password: "secret99" }));
   await waitFor(c.messages, (m) => m.type === "registered");
-  c.ws.send(JSON.stringify({ type: "login", name, password: "secret" }));
+  c.ws.send(JSON.stringify({ type: "login", name, password: "secret99" }));
   const logged = await waitFor(c.messages, (m) => m.type === "logged_in");
   return { ...c, token: logged.token };
 }

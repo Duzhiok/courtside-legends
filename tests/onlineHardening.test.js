@@ -53,16 +53,16 @@ test("accounts: repeated wrong passwords lock the account, and the lock expires"
   try {
     let clock = 1_000_000;
     const store = createAccountStore({ file, now: () => clock });
-    store.register("Alice", "secret");
+    store.register("Alice", "secret99");
     for (let i = 0; i < MAX_LOGIN_FAILURES; i++) {
       assert.equal(store.isLocked("Alice"), false, `attempt ${i + 1} is still allowed`);
       assert.equal(store.verify("Alice", "wrong"), false);
     }
     assert.equal(store.isLocked("Alice"), true);
-    assert.equal(store.verify("Alice", "secret"), false, "even the right password is refused while locked");
+    assert.equal(store.verify("Alice", "secret99"), false, "even the right password is refused while locked");
     clock += LOGIN_LOCK_MS + 1;
     assert.equal(store.isLocked("Alice"), false);
-    assert.equal(store.verify("Alice", "secret"), true, "the lock expires");
+    assert.equal(store.verify("Alice", "secret99"), true, "the lock expires");
   } finally {
     rmSync(file, { force: true });
   }
@@ -72,9 +72,9 @@ test("accounts: a success resets the failure count, and unknown names are not tr
   const file = tmp("reset");
   try {
     const store = createAccountStore({ file, now: () => 5 });
-    store.register("Bob", "secret");
+    store.register("Bob", "secret99");
     for (let i = 0; i < MAX_LOGIN_FAILURES - 1; i++) store.verify("Bob", "wrong");
-    assert.equal(store.verify("Bob", "secret"), true);
+    assert.equal(store.verify("Bob", "secret99"), true);
     for (let i = 0; i < MAX_LOGIN_FAILURES - 1; i++) store.verify("Bob", "wrong");
     assert.equal(store.isLocked("Bob"), false, "count restarted after the success");
     for (let i = 0; i < 50; i++) store.verify(`ghost${i}`, "x");
@@ -120,9 +120,9 @@ async function withServer(fn) {
 test("server: a malformed market message is rejected and the server keeps serving", async () => {
   await withServer(async (url) => {
     const { ws, inbox } = await connect(url);
-    ws.send(JSON.stringify({ type: "register", name: "Eve", password: "secret" }));
+    ws.send(JSON.stringify({ type: "register", name: "Eve", password: "secret99" }));
     assert.ok(await waitFor(inbox, (m) => m.type === "registered"));
-    ws.send(JSON.stringify({ type: "login", name: "Eve", password: "secret" }));
+    ws.send(JSON.stringify({ type: "login", name: "Eve", password: "secret99" }));
     const login = await waitFor(inbox, (m) => m.type === "logged_in");
     assert.ok(login, "logged in");
 
@@ -145,7 +145,7 @@ test("server: a handler bug cannot take the process down (errors become a reject
       ws.send(JSON.stringify(junk));
     }
     inbox.length = 0;
-    ws.send(JSON.stringify({ type: "register", name: "Zed", password: "secret" }));
+    ws.send(JSON.stringify({ type: "register", name: "Zed", password: "secret99" }));
     assert.ok(await waitFor(inbox, (m) => m.type === "registered"), "still alive after junk");
     ws.close();
   });
@@ -163,7 +163,7 @@ test("server: a message over the size cap closes the connection", async () => {
 test("server: login is refused with a clear reason once the account is locked", async () => {
   await withServer(async (url) => {
     const { ws, inbox } = await connect(url);
-    ws.send(JSON.stringify({ type: "register", name: "Kim", password: "secret" }));
+    ws.send(JSON.stringify({ type: "register", name: "Kim", password: "secret99" }));
     assert.ok(await waitFor(inbox, (m) => m.type === "registered"));
     for (let i = 0; i < MAX_LOGIN_FAILURES; i++) ws.send(JSON.stringify({ type: "login", name: "Kim", password: "bad" }));
     // Wait for every wrong-password reply, so none of them can arrive after the inbox is cleared.
@@ -171,7 +171,7 @@ test("server: login is refused with a clear reason once the account is locked", 
     for (let waited = 0; rejections() < MAX_LOGIN_FAILURES && waited < 3000; waited += 10) await new Promise((r) => setTimeout(r, 10));
     assert.equal(rejections(), MAX_LOGIN_FAILURES);
     inbox.length = 0;
-    ws.send(JSON.stringify({ type: "login", name: "Kim", password: "secret" }));
+    ws.send(JSON.stringify({ type: "login", name: "Kim", password: "secret99" }));
     const refused = await waitFor(inbox, (m) => m.type === "decision_rejected");
     assert.ok(refused);
     assert.match(refused.reason, /尝试过多/);
@@ -192,7 +192,7 @@ test("server: a malformed websocket frame closes that socket but does not kill t
     await new Promise((resolve) => raw.once("close", resolve));
 
     const { ws, inbox } = await connect(url);
-    ws.send(JSON.stringify({ type: "register", name: "Pat", password: "secret" }));
+    ws.send(JSON.stringify({ type: "register", name: "Pat", password: "secret99" }));
     assert.ok(await waitFor(inbox, (m) => m.type === "registered"), "a fresh client still gets served");
     ws.close();
   });

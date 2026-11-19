@@ -52,10 +52,10 @@ export const sendJson = (client, payload) => client.ws.send(JSON.stringify(paylo
 export async function loginClient(url, name, { register = true, options } = {}) {
   const c = await connect(url, options);
   if (register) {
-    sendJson(c, { type: "register", name, password: "secret" });
+    sendJson(c, { type: "register", name, password: "secret99" });
     await waitFor(c.messages, (m) => m.type === "registered");
   }
-  sendJson(c, { type: "login", name, password: "secret" });
+  sendJson(c, { type: "login", name, password: "secret99" });
   const logged = await waitFor(c.messages, (m) => m.type === "logged_in");
   return { ...c, token: logged.token };
 }

@@ -39,7 +39,7 @@ import { TACTICS } from "../js/data/coaches.js";
 import { buildOnlineFrame } from "./online-frame.mjs";
 import { diffFrame } from "../js/online/delta.js";
 import { validateDecision, describeDecision } from "./online-decisions.mjs";
-import { createAccountStore } from "./online-accounts.mjs";
+import { createAccountStore, passwordNeedsUpgrade } from "./online-accounts.mjs";
 import { createEconomyStore, MIN_DUEL_ROSTER } from "./online-economy.mjs";
 
 export const ONLINE_SPEED = 2; // 300ms per possession, ~60s per game
@@ -654,7 +654,7 @@ export function createOnlineServer({
           return send(ws, { type: "decision_rejected", reason: "名字或密码不对" });
         }
         const token = accounts.createSession(name);
-        return send(ws, { type: "logged_in", name, token, ...accounts.get(name) });
+        return send(ws, { type: "logged_in", name, token, passwordUpgrade: passwordNeedsUpgrade(msg.password), ...accounts.get(name) });
       }
 
       if (msg.type === "decision") {

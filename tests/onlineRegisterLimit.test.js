@@ -136,7 +136,7 @@ async function withServer(opts, fn) {
   }
 }
 
-async function tryRegister(client, name, password = "secret") {
+async function tryRegister(client, name, password = "secret99") {
   const before = client.messages.length;
   sendJson(client, { type: "register", name, password });
   return waitFor(client.messages, (m) => (m.type === "registered" || m.type === "decision_rejected") && client.messages.indexOf(m) >= before);
@@ -153,7 +153,7 @@ test("wire: after the per-address limit, further registrations are refused and c
     const other = await dial(); // a fresh connection from the same address is limited too
     assert.match((await tryRegister(other, "user4")).reason, /注册太频繁/);
     const probe = await dial();
-    sendJson(probe, { type: "login", name: "user3", password: "secret" });
+    sendJson(probe, { type: "login", name: "user3", password: "secret99" });
     assert.match((await waitFor(probe.messages, (m) => m.type === "decision_rejected")).reason, /名字或密码不对/, "the refused account really does not exist");
     const existing = await loginClient(url, "user0", { register: false });
     existing.ws.close();

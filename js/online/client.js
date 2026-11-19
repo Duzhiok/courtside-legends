@@ -288,7 +288,10 @@ function handleMessage(msg) {
       renderAccount();
       $("market-card").hidden = false;
       send({ type: "market_board", token: state.token });
-      setStatus(`已登录：${msg.name}（排位分 ${msg.rating}）。联机生涯已开通，去市场补人吧。`);
+      setStatus(
+        `已登录：${msg.name}（排位分 ${msg.rating}）。联机生涯已开通，去市场补人吧。` +
+          (msg.passwordUpgrade ? "提示：你的密码不足 8 位（老账号仍可登录），建议使用更长的密码。" : "")
+      );
       break;
     case "market":
       state.market = msg;

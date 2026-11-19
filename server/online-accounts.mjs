@@ -23,6 +23,13 @@ export const START_RATING = 1000;
  *  blocks the event loop, so unthrottled guessing is both a brute-force and a denial-of-service hole. */
 export const MAX_LOGIN_FAILURES = 5;
 export const LOGIN_LOCK_MS = 60_000;
+/** New accounts need at least 8 characters; a 4-character password has too small a guessing space. */
+export const MIN_PASSWORD_LENGTH = 8;
+/** True when a password the user just typed is shorter than the current minimum: the account still
+ *  logs in (there is no password-change flow yet), but the client shows a one-time upgrade hint. */
+export function passwordNeedsUpgrade(password) {
+  return typeof password === "string" && password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+}
 
 function hashPassword(password, salt) {
   return scryptSync(password, salt, 64).toString("hex");
@@ -66,8 +73,8 @@ export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE, now = Date.no
     register: (name, password) => {
       const clean = String(name || "").trim();
       if (!clean || clean.length > 20) return { ok: false, reason: "名字需为 1–20 字" };
-      if (typeof password !== "string" || password.length < 4) {
-        return { ok: false, reason: "密码至少 4 位" };
+      if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+        return { ok: false, reason: `密码至少 ${MIN_PASSWORD_LENGTH} 位` };
       }
       if (accounts.has(clean)) return { ok: false, reason: "名字已被注册" };
       const salt = randomBytes(16).toString("hex");
