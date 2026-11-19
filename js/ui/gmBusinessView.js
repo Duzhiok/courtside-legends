@@ -104,7 +104,7 @@ export function gmBusinessHtml(state, { lang = "zh", players = [] } = {}) {
       <p>${L("已签赞助", "Signed sponsors", lang)}：${b.sponsorships.length ? b.sponsorships.map((s) => `${s.kind} $${s.value}M`).join("、") : L("无", "None", lang)}</p>
       <p>${L("持有股权", "Equity held", lang)}：${p.equity.length ? p.equity.map((e) => `${e.teamId} ${e.pct}%`).join("、") : L("无", "None", lang)}</p>
       <p>${L("未来知识", "Future knowledge", lang)}：${state.knowledge.knowledge} ${L("点", "points", lang)} ·
-        ${clues.map((c) => c.revealed ? `<span>${c.summary}（${c.band[lang === "en" ? "en" : "zh"]}）</span>` : `<button type="button" class="btn small" data-gm-action="reveal-clue" data-clue="${c.id}">${L("揭示线索（1 点）", "Reveal clue (1 pt)", lang)}</button>`).join(" ") || L("暂无线索", "No clues", lang)}
+        ${clues.map((c) => c.revealed ? `<span>${lang === "en" ? (c.summaryEn || c.summary) : c.summary}${lang === "en" ? `(${c.band.en})` : `（${c.band.zh}）`}</span>` : `<button type="button" class="btn small" data-gm-action="reveal-clue" data-clue="${c.id}">${L("揭示线索（1 点）", "Reveal clue (1 pt)", lang)}</button>`).join(" ") || L("暂无线索", "No clues", lang)}
       </p>
       <p>${L("医疗团队", "Medical staff", lang)}：
         ${Object.entries(MEDICAL_LEVELS).map(([level, def]) => `<button type="button" class="btn small" data-gm-action="medical" data-level="${level}" ${Number(level) === state.knowledge.medicalLevel ? "disabled" : ""}>${lang === "en" ? def.labelEn : def.label} $${def.cost}M</button>`).join(" ")}

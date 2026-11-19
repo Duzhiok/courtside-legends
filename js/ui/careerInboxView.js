@@ -49,6 +49,7 @@ import {
   nextTimelineTarget,
 } from "../career/careerTimeline.js";
 import { careerSummary, describeHistoryEntry } from "../career/careerHistory.js";
+import { teamNameL } from "../i18n.js";
 import { mountScreen } from "./screenShell.js";
 
 /** The page title, rendered once by the shell in the current language. */
@@ -462,10 +463,10 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
     render();
   }
 
-  function teamOptions() {
+  function teamOptions(lang = "zh") {
     const season = historicalSeason(INBOX_SEASON_YEAR);
-    const teams = (season?.teams || []).map((team) => ({ id: team.id, name: team.name }));
-    return teams.length ? teams : [{ id: "CHI", name: "公牛" }];
+    const teams = (season?.teams || []).map((team) => ({ id: team.id, name: teamNameL(team.name, lang) }));
+    return teams.length ? teams : [{ id: "CHI", name: teamNameL("公牛", lang) }];
   }
 
   function render() {
@@ -501,7 +502,7 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
     const picker = !d
       ? `<section><h3>${L("选一支球队，开始 1996–97 赛季", "Pick a team to start the 1996–97 season", l)}</h3>`
         + `<p>${L("演示赛季：真实赛程、真实比赛（GameSim），收件箱事件由真实状态驱动。", "Demo season: real schedule, real games (GameSim); inbox events are driven by real state.", l)}</p>`
-        + `<select id="inbox-team-pick">${teamOptions().map((team) => `<option value="${team.id}">${team.name} · ${team.id}</option>`).join("")}</select> `
+        + `<select id="inbox-team-pick">${teamOptions(l).map((team) => `<option value="${team.id}">${team.name} · ${team.id}</option>`).join("")}</select> `
         + `<button type="button" data-start-demo="1">${L("开始赛季", "Start season", l)}</button></section>`
       : "";
 

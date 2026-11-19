@@ -137,13 +137,13 @@ export function analyticsChallengeHtml({ challenge, lang = "zh" } = {}) {
 export function networkBoardHtml({ profile, offers, unemployedNote, lang = "zh" } = {}) {
   const standing = reputationStanding(profile.reputation);
   const role = NETWORK_ROLES[profile.currentRole];
-  const rows = (offers || []).map((o) => `<div class="nw-line">${o.team ? `${o.team} · ` : ""}${o.titleZh} (${o.level})
+  const rows = (offers || []).map((o) => `<div class="nw-line">${o.team ? `${o.team} · ` : ""}${lang === "en" ? (o.titleEn || o.titleZh) : o.titleZh} (${o.level})
     ${o.eligible
       ? `<button type="button" class="btn small primary" data-network-accept="${o.id}">${L("接受", "Accept", lang)}</button>`
       : `<span class="tiny">${L("未达标", "Not eligible", lang)}: ${(o.missing || []).join(", ")}</span>`}</div>`).join("");
   return `<div class="nw-profile"><h3>${L("我的职业", "My career", lang)}</h3>
-  <div class="nw-line">${L("当前职位", "Current role", lang)}: ${role ? role.labelZh : profile.currentRole}${profile.team ? ` · ${profile.team}` : ""}</div>
-  <div class="nw-line">${L("声望", "Reputation", lang)}: ${profile.reputation}（${standing.labelZh}）· ${L("经验", "Experience", lang)}: ${profile.experienceSeasons}${L("季", " seasons", lang)}</div>
+  <div class="nw-line">${L("当前职位", "Current role", lang)}: ${role ? (lang === "en" ? (role.labelEn || role.labelZh) : role.labelZh) : profile.currentRole}${profile.team ? ` · ${profile.team}` : ""}</div>
+  <div class="nw-line">${L("声望", "Reputation", lang)}: ${profile.reputation}（${lang === "en" ? (standing.labelEn || standing.labelZh) : standing.labelZh}）· ${L("经验", "Experience", lang)}: ${profile.experienceSeasons}${L("季", " seasons", lang)}</div>
   <div class="nw-line">${L("判断记录", "Judgment record", lang)}: ${L("录像", "Film", lang)} ${profile.decisions?.filmCorrect || 0}/${profile.decisions?.filmTotal || 0} · ${L("球探", "Scout", lang)} ${profile.decisions?.scoutHits || 0}/${profile.decisions?.scoutTotal || 0} · ${L("分析验证", "Analytics verified", lang)} ${profile.decisions?.analyticsVerified || 0}</div>
   ${profile.unemployed ? `<div class="nw-line">${L("状态：失业中", "Status: unemployed", lang)}</div>` : ""}
   ${unemployedNote ? `<p class="tiny">${unemployedNote}</p>` : ""}</div>
@@ -280,8 +280,12 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
         // actually read it this session — the "filed to the head coach"
         // line below is now backed by the handoff, not just words.
         fileFilmRecommendation(rec);
-        body.querySelector("#film-result").innerHTML = `<div class="nw-reveal"><p>${grade.explanationZh}</p>
-          <p class="tiny">${L("已提交给主教练的建议", "Recommendation filed to the head coach", lang())}: ${rec.suggestionZh}（${L("可信度", "confidence", lang)}: ${rec.confidence}）</p>
+        const filmLang = lang();
+        const filmExplanation = filmLang === "en" ? (grade.explanationEn || grade.explanationZh) : grade.explanationZh;
+        const filmSuggestion = filmLang === "en" ? (rec.suggestionEn || rec.suggestionZh) : rec.suggestionZh;
+        const filmParens = filmLang === "en" ? ["(", ")"] : ["（", "）"];
+        body.querySelector("#film-result").innerHTML = `<div class="nw-reveal"><p>${filmExplanation}</p>
+          <p class="tiny">${L("已提交给主教练的建议", "Recommendation filed to the head coach", lang())}: ${filmSuggestion}${filmParens[0]}${L("可信度", "confidence", lang())}: ${rec.confidence}${filmParens[1]}</p>
           <p class="tiny">${L("声望变化", "Reputation", lang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;
         let p = profile();
         p = recordSliceResult(p, { kind: "film", correct: grade.correct });
