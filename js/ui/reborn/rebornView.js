@@ -33,7 +33,8 @@ import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
 import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick } from "./fragmentsView.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
-import { playoffReportLine, playoffsPanelHtml, standingsHtml } from "./playoffsView.js";
+import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
+import { mirrorHonorsToAccount } from "../../reborn/honors.js";
 import { enterPlayoffs, playPlayoffGame, regularGames } from "../../reborn/playoffFlow.js";
 import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision } from "../../reborn/contract.js";
 import { overall } from "../../data/players.js";
@@ -122,6 +123,9 @@ export function careerTimelineHtml({ reborn, lang = "zh" } = {}) {
     }
     if (event.event === "rivalry") {
       return rivalryTimelineLine({ event, lang });
+    }
+    if (event.event === "playoffs") {
+      return playoffsTimelineLine({ event, lang });
     }
     return "";
   }).filter(Boolean);
@@ -238,9 +242,11 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     if (hasRivals) mirrorRivalriesToAccount(account, rebornState);
     // Kept jerseys: the run is the truth, the account gets an idempotent copy (deduped by instance id).
     const jerseysAdded = mirrorJerseysToAccount(account, jerseyState(rebornState));
+    // Titles and Finals losses: the run is the truth, the account's legacy gets an idempotent copy (deduped by id).
+    const honorsAdded = mirrorHonorsToAccount(account, rebornState);
     const out = settleRebornPromises(account, rebornState);
     if (!out.settled.length) {
-      if (hasRivals || jerseysAdded) { try { saveAccount(account); } catch { /* guest */ } }
+      if (hasRivals || jerseysAdded || honorsAdded) { try { saveAccount(account); } catch { /* guest */ } }
       return [];
     }
     if (out.reborn !== rebornState) {

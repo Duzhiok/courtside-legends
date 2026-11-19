@@ -16,6 +16,7 @@ import { carriedDeltas } from "../engine/developmentRules.js";
 import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { buildPlayerCard, REBORN_SEASON } from "./identity.js";
 import { roleForTrust, TRUST_START } from "./trust.js";
+import { archivePlayoffSeason } from "./honors.js";
 
 const CONTRACT_LABEL = {
   resign: { zh: "续约", en: "Re-signed" },
@@ -116,7 +117,7 @@ export function rolloverSeason(reborn, { year, players } = {}) {
   // overwrites it with the carried deltas, and carriedDeltas only reads
   // the old year's entry.
   const card = players ? nextSeasonCard(reborn, { year: nextYear, players }) : null;
-  const next = structuredClone(reborn);
+  const next = archivePlayoffSeason(reborn, seasonYear);   // a clone: the year's bracket and league results become a one-line history
   const carried = carriedDeltas(next.player.growth?.[next.identity.bref], seasonYear);
   next.player.growth = {
     [next.identity.bref]: { year: nextYear, xp: 0, levels: 0, deltas: carried },

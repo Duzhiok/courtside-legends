@@ -2,6 +2,8 @@
 import { readFileSync } from "node:fs";
 import { leagueSchedule } from "../../js/reborn/league.js";
 import { createRebornState } from "../../js/reborn/identity.js";
+import { hashSeed } from "../../js/core/seededRandom.js";
+import { nextUserGame, recordGame, settleOtherSeries } from "../../js/reborn/playoffs.js";
 
 export const ROWS = JSON.parse(readFileSync(new URL("../../js/data/roster.json", import.meta.url), "utf8")).players;
 
@@ -37,3 +39,25 @@ export const userAlways = (state, wins) => ({ game }) => {
   const userHome = game.homeId === state.player.teamId;
   return wins === userHome ? { home: 100, away: 90 } : { home: 90, away: 100 };
 };
+
+/** The CPU series stand-in for fast tests: the home side wins 60% of the time, decided by the game's key only. */
+export const poSim = ({ key }) => (hashSeed(key) % 5 < 3 ? { home: 100, away: 90 } : { home: 90, away: 100 });
+
+/**
+ * Play out the player's playoff run on a bracket: he wins every series of round <= winRounds, then loses one. Returns the titleGame flags he met.
+ * With `reborn`, every game he plays is also written to his season log (as playGame would: po, minutes, points, gameId).
+ */
+export function playRun(po, winRounds, { reborn = null, minutes = 20 } = {}) {
+  const flags = [];
+  settleOtherSeries(po, poSim);
+  for (let g = nextUserGame(po); g; g = nextUserGame(po)) {
+    flags.push(g.titleGame);
+    const userHome = g.homeId === po.userId;
+    const win = g.round <= winRounds;
+    const gameId = `po:${g.seriesId}:${g.n}`;
+    recordGame(po, g.seriesId, { n: g.n, homeId: g.homeId, awayId: g.awayId, homeScore: userHome === win ? 100 : 90, awayScore: userHome === win ? 90 : 100, gameId, user: true });
+    reborn?.player.seasonLog.push({ year: po.year, game: reborn.player.seasonLog.length + 1, gameId, started: minutes > 0, opp: g.oppId, home: userHome, min: minutes, pts: minutes ? 12 : 0, reb: minutes ? 4 : 0, ast: minutes ? 3 : 0, won: win, po: { round: g.round, series: g.seriesId, n: g.n } });
+    settleOtherSeries(po, poSim);
+  }
+  return flags;
+}

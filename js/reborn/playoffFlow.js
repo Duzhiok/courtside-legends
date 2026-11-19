@@ -12,6 +12,7 @@
 import { completeLeague, leagueStandings, simLeagueGame } from "./league.js";
 import { rosterCards } from "./rosters.js";
 import { playGame } from "./season.js";
+import { settlePlayoffSeason } from "./honors.js";
 import { nextUserGame, recordGame, seriesWins, settleOtherSeries, startPlayoffs } from "./playoffs.js";
 
 /** The regular-season games of a year in the log (the ones that count toward 82); playoff entries carry `po`. */
@@ -44,7 +45,7 @@ export async function enterPlayoffs(reborn, players, { year = reborn.player.seas
   const state = startPlayoffs(standings, { year, userId: next.player.teamId });
   settleOtherSeries(state, otherGameSim(next, players, year));
   next.playoffs = state;
-  return next;
+  return settlePlayoffSeason(next);   // a club that missed the field has nothing more to play: its season is already over
 }
 
 /**
@@ -69,8 +70,9 @@ export async function playPlayoffGame(reborn, players, opts = {}) {
   const next = out.reborn;
   recordGame(next.playoffs, game.seriesId, { n: game.n, homeId: home, awayId: away, homeScore: out.report.score.home, awayScore: out.report.score.away, gameId: out.report.gameId, user: true });
   settleOtherSeries(next.playoffs, otherGameSim(next, players, year));
-  const s = next.playoffs.series.find((x) => x.id === game.seriesId);
+  const settled = settlePlayoffSeason(next);   // the run just ended (title or out): honours and the timeline, once
+  const s = settled.playoffs.series.find((x) => x.id === game.seriesId);
   const userWins = seriesWins(s, reborn.player.teamId);
   const playoffs = { status: next.playoffs.status, seriesId: s.id, userWins, oppWins: s.games.length - userWins, seriesOver: !!s.winner, ...(s.winner ? { seriesWon: s.winner === reborn.player.teamId } : {}) };
-  return { reborn: next, report: { ...out.report, playoffs } };
+  return { reborn: settled, report: { ...out.report, playoffs } };
 }

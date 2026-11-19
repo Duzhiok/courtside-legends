@@ -81,6 +81,9 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   await page.goto(URL, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: "domcontentloaded" });
+  // A guest has no account store (nothing to copy honours into), so the run belongs to a real account.
+  await page.evaluate(async () => { const { createAccount } = await import("/js/data/account.js"); createAccount("Playoffs QA"); });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
   await page.click('.home-tab[data-category="career"]');
   await page.click('[data-career-identity="player"]');
@@ -133,6 +136,17 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   check(`[${tag}] the run ends (eliminated or champion) within a legal number of games`, over && games >= 3 && games <= 28, `${games} games: ${end.slice(0, 110)}`);
   check(`[${tag}] the end screen names where it ended, and who won it all`, /被淘汰|总冠军/.test(end), end.slice(0, 140));
   check(`[${tag}] only now is the contract offered`, !!(await page.$("[data-settle]")));
+  const timeline = await textOf(page, ".reborn-timeline");
+  check(`[${tag}] the career timeline has this season's playoff line`, /1997 赛季：(夺得总冠军|打进总决赛，惜败|季后赛出局)/.test(timeline), (timeline.match(/1997 赛季：[^。]{0,60}/) || [""])[0]);
+  if (/总冠军！/.test(end)) {
+    check(`[${tag}] the champion panel states what he did in the Finals (his real minutes)`, /总决赛 \d–\d \w+ · (你出场 \d+ 场，共 \d+ 分钟|你一分钟都没打上)/.test(end), (end.match(/总决赛 \d–\d[^季]{0,70}/) || [""])[0]);
+    const legacy = await page.evaluate(async () => {
+      const { getAccount } = await import("/js/data/account.js");
+      const { legacyOf } = await import("/js/career/careerRelationships.js");
+      return legacyOf(getAccount()).filter((e) => e.type === "championship").map((e) => e.summary);
+    });
+    check(`[${tag}] the account's legacy log has the title, once`, legacy.length === 1, JSON.stringify(legacy));
+  }
   await shoot(page, `${OUT}/${tag}-4-run-over.png`);
 
   await page.click("[data-settle]");

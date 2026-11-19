@@ -5,33 +5,15 @@ import { advanceLeague, leagueStandings } from "../js/reborn/league.js";
 import { ROUND_NAMES, bracketFingerprint, involves, nextGameOf, nextUserGame, playoffFormat, recordGame, resolveFeeds, settleOtherSeries, startPlayoffs, userRun, winsNeeded } from "../js/reborn/playoffs.js";
 import { enterPlayoffs, playPlayoffGame, regularGames } from "../js/reborn/playoffFlow.js";
 import { seasonSummary } from "../js/reborn/contract.js";
-import { hashSeed } from "../js/core/seededRandom.js";
-import { ROWS, coin, fakeUserLog, run, userAlways } from "./helpers/rebornLeagueFixtures.js";
+import { ROWS, coin, fakeUserLog, playRun, poSim, run, userAlways } from "./helpers/rebornLeagueFixtures.js";
 
 const takeover = ({ playerId }) => ({ shooterId: playerId, actionHint: "attack" });
-/** The CPU series stand-in for fast tests: the home side wins 60% of the time, decided by the game's key only. */
-const poSim = ({ key }) => (hashSeed(key) % 5 < 3 ? { home: 100, away: 90 } : { home: 90, away: 100 });
-
 /** A finished regular season for the run (the player's club always wins or always loses), and its table. */
 function season(seed, year, userWins) {
   const state = run(seed, year);
   fakeUserLog(state, year, userAlways(state, userWins));
   advanceLeague(state, ROWS, { year, simulate: coin });
   return { state, standings: leagueStandings(state, year) };
-}
-
-/** Play out the player's run: he wins every series of round <= winRounds, then loses one. Returns the titleGame flags he met, in order. */
-function playRun(po, winRounds) {
-  const flags = [];
-  settleOtherSeries(po, poSim);
-  for (let g = nextUserGame(po); g; g = nextUserGame(po)) {
-    flags.push(g.titleGame);
-    const userHome = g.homeId === po.userId;
-    const win = g.round <= winRounds;
-    recordGame(po, g.seriesId, { n: g.n, homeId: g.homeId, awayId: g.awayId, homeScore: userHome === win ? 100 : 90, awayScore: userHome === win ? 90 : 100, user: true });
-    settleOtherSeries(po, poSim);
-  }
-  return flags;
 }
 
 /** Everything a finished bracket must satisfy, whoever played it. */

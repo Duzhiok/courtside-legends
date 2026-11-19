@@ -62,7 +62,14 @@ export function playoffsPanelHtml({ reborn, year, lang = "zh", busy = false, pro
     return `<section class="reborn-playoffs"><h3>${L("季后赛", "Playoffs", lang)}</h3><p>${L(`你的球队在${out}被淘汰。`, `Your team was eliminated in the ${out}.`, lang)}</p>${champ}<details><summary>${L("季后赛对阵", "Bracket", lang)}</summary>${bracket}</details></section>`;
   }
   if (po.status === "champion") {
-    return `<section class="reborn-playoffs reborn-champion"><h3>${L("总冠军！", "NBA champions!", lang)}</h3><p>${L("你的球队拿下了总冠军。", "Your team won the title.", lang)}</p><details open><summary>${L("季后赛对阵", "Bracket", lang)}</summary>${bracket}</details></section>`;
+    const h = (reborn.honors || []).find((x) => x.id === `champion:${year}`);
+    const f = h?.contribution.finals;
+    const you = f
+      ? (f.min > 0
+        ? L(`总决赛 ${h.finals.wins}–${h.finals.losses} ${esc(h.finals.oppId)} · 你出场 ${f.played} 场，共 ${f.min} 分钟，${f.pts} 分`, `Finals ${h.finals.wins}–${h.finals.losses} vs ${esc(h.finals.oppId)} · you played ${f.played} games, ${f.min} minutes, ${f.pts} points`, lang)
+        : L(`总决赛 ${h.finals.wins}–${h.finals.losses} ${esc(h.finals.oppId)} · 你一分钟都没打上：球队的冠军，不是你打出来的。`, `Finals ${h.finals.wins}–${h.finals.losses} vs ${esc(h.finals.oppId)} · you did not play a minute: the team's title, not one you played for.`, lang))
+      : "";
+    return `<section class="reborn-playoffs reborn-champion"><h3>${L("总冠军！", "NBA champions!", lang)}</h3><p>${L("你的球队拿下了总冠军。", "Your team won the title.", lang)}</p>${you ? `<p>${you}</p>` : ""}<details open><summary>${L("季后赛对阵", "Bracket", lang)}</summary>${bracket}</details></section>`;
   }
   const g = nextUserGame(po);
   const cur = mine.at(-1);
@@ -80,4 +87,20 @@ export function playoffReportLine(report, lang = "zh") {
   if (!po) return "";
   const score = s ? ` · ${L("系列赛", "series", lang)} ${s.userWins}–${s.oppWins}${s.seriesOver ? (s.seriesWon ? L("，晋级", ", advance", lang) : L("，出局", ", out", lang)) : ""}` : "";
   return `${L("季后赛", "Playoffs", lang)} · ${roundName(po.round, lang)} · ${L(`第 ${po.n} 场`, `game ${po.n}`, lang)}${score}`;
+}
+
+const OUTCOME_LABEL = {
+  champion: ["夺得总冠军", "won the title"],
+  finalist: ["打进总决赛，惜败", "reached the Finals and lost"],
+  eliminated: ["季后赛出局", "out in the playoffs"],
+  missed: ["未进季后赛", "missed the playoffs"],
+};
+
+/** The career-timeline line of a settled playoff season. */
+export function playoffsTimelineLine({ event, lang = "zh" } = {}) {
+  const label = OUTCOME_LABEL[event?.outcome]?.[lang === "en" ? 1 : 0];
+  if (!label) return "";
+  const round = event.outcome === "eliminated" || event.outcome === "finalist" ? ` (${roundName(event.round, lang)})` : "";
+  const played = event.gp ? L(`，季后赛出战 ${event.gp} 场 ${event.min} 分钟`, `, ${event.gp} playoff games, ${event.min} min`, lang) : "";
+  return `<p>${event.year} ${L("赛季", "season", lang)}：${label}${round}${played}</p>`;
 }

@@ -45,6 +45,8 @@ const HEADLINE_TYPE = {
   "promise-resolved": ["承诺结算", "Promise settled"],
   rivalry: ["宿敌诞生", "Rivalry born"],
   "rivalry-game": ["宿敌对决", "Rivalry game"],
+  championship: ["总冠军", "Champion"],
+  finals: ["总决赛", "Finals"],
 };
 
 /** What each title required — the rules from careerAchievements.js, not data. */

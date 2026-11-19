@@ -50,7 +50,7 @@ import { PROMISE_EFFECTS } from "./promiseEffects.js";
 
 export const RELATIONSHIP_KINDS = ["rivalry", "mentorship", "coaching-trust", "management", "owner"];
 export const PROMISE_KINDS = ["minutes", "role", "start", "trade", "contract"];
-const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry", "rivalry-game"];
+const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry", "rivalry-game", "championship", "finals"];
 
 /** Role order for the "role" promise check (same ladder as trust.js). */
 const ROLE_RANK = { dnp: 0, garbage: 1, bench: 2, rotation: 3, starter: 4 };
