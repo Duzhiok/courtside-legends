@@ -39,7 +39,7 @@ export function leagueSchedule(seed, year) {
 }
 
 /** Does the roster data hold a playable roster for every club of that season? */
-export function leagueDataComplete(players, year, layout = leagueLayout(year)) {
+function leagueDataComplete(players, year, layout = leagueLayout(year)) {
   return layout.teamIds.every((id) => rosterCards(players, id, year).length >= 5);
 }
 
