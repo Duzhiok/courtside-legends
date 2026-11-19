@@ -18,10 +18,9 @@
  * takeover hook can fire mid-game. One game costs a few hundred ms; the
  * view plays game by game with a button, it never bulk-sims silently.
  */
-import { generateSchedule } from "../engine/season.js";
 import { GameSim } from "../engine/sim.js";
 import { gameScore } from "../engine/matchExplain.js";
-import { seasonToCard, overall } from "../data/players.js";
+import { overall } from "../data/players.js";
 import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
@@ -40,7 +39,8 @@ import {
 } from "./rivalry.js";
 import { jerseyState, offersForGame } from "../collectibles/jerseyExchange.js";
 import { createEggWatcher } from "./enforcerEgg.js";
-import { leagueLayout, rosterCode } from "./franchises.js";
+import { advanceLeague, leagueSchedule } from "./league.js";
+import { bestFive, rosterCards } from "./rosters.js";
 import {
   buildPlayerCard,
   applyIdentityToRoster,
@@ -49,17 +49,7 @@ import {
 
 export const REBORN_GAMES_PER_WEEK = GAMES_PER_WEEK;
 
-/**
- * All cards of one team in one season, best first. `team` is a stable Reborn team id; the roster data may call that franchise
- * something else that year (WSB is WAS from 1998), see franchises.js: without it the later seasons play against empty teams.
- */
-export function rosterCards(players, team, season) {
-  const code = rosterCode(team, season);
-  return (players || [])
-    .filter((r) => r && r.team === code && Number(r.season) === season)
-    .map(seasonToCard)
-    .sort((a, b) => overall(b) - overall(a));
-}
+export { rosterCards };
 
 /**
  * Build a season for a reborn run: the 82-game schedule filtered to the
@@ -73,24 +63,20 @@ export function buildSeason(reborn, _players, { games = null } = {}) {
   const year = reborn.player?.seasonYear ?? reborn.startYear + 1;
   const teamId = reborn.player.teamId;
   if (games) return { year, teamId, games: [...games], index: 0 };
-  const league = leagueLayout(year);      // the clubs that existed that season (an expansion team only from its first year)
-  const schedule = generateSchedule(league.teamIds, hashSeed(`${reborn.seed}|${year}`), {
-    eastIds: league.eastIds,
-    westIds: league.westIds,
-    confById: league.confById,
-  });
+  const schedule = leagueSchedule(reborn.seed, year).nights;      // the clubs that existed that season (an expansion team only from its first year)
   const myGames = [];
   schedule.forEach((night, day) => {
     for (const g of night) {
       if (g.homeId === teamId || g.awayId === teamId) myGames.push({ ...g, day: day + 1 });
     }
   });
-  return { year, teamId, games: myGames, index: 0 };
+  // league: this is the real schedule, so the rest of the league plays along (league.js); a test's short `games` override does not.
+  return { year, teamId, games: myGames, index: 0, league: true };
 }
 
 /** Starters: best five by overall; a starter-role player is swapped in. */
 function startersFor(cards, playerCard, isMyTeam, role) {
-  const five = [...cards].sort((a, b) => overall(b) - overall(a)).slice(0, 5).map((p) => p.id);
+  const five = bestFive(cards);
   if (isMyTeam && role === "starter" && !five.includes(playerCard.id)) five[4] = playerCard.id;
   return five;
 }
@@ -323,6 +309,9 @@ export async function playGame(
     takeovers: takeoverOutcome ? 1 : 0,
     role: roleAfter,
     won,
+    // The final score (league standings and tie-breaks read it); a log from before this was kept still counts W-L.
+    ptsFor: isHome ? sim.score.home : sim.score.away,
+    ptsAgainst: isHome ? sim.score.away : sim.score.home,
   });
   // PR3: the game's XP converts into attribute gains under the current
   // training focus (awardGrowth + ceilings; the ledger is the only store).
@@ -335,6 +324,8 @@ export async function playGame(
   });
   next.player.growth = growthOut.growth;
   season.index += 1;
+  // The rest of the league plays this day's games (and, after the player's last game, whatever is left of the schedule).
+  if (season.league) advanceLeague(next, players, { year, throughDay: season.index >= season.games.length ? Infinity : game.day });
 
   const reportCore = {
     gameId,
