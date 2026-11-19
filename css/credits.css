@@ -23,6 +23,8 @@
 
 .credit-players { color: var(--ink); }
 .credit-meta { color: #374151; }
+/* S-P2-2: the "load more" button under the paged list. */
+.credits-more { margin: 16px 0 0; }
 .credits-list a { color: #0b5cad; text-decoration: underline; text-underline-offset: 2px; }
 .credits-list a:focus-visible { outline: 3px solid #0b5cad; outline-offset: 2px; border-radius: 2px; }
 

@@ -3093,15 +3093,42 @@ $("#collection-filter")?.addEventListener("change", (event) => {
   paintCollectionGrid(collectionCache.acc, collectionCache.players);
 });
 
-/** Who took each photo we show, and under which licence (photoCredits.js). */
+/** Who took each photo we show, and under which licence (photoCredits.js).
+ * S-P2-2: the credits list is paged (100/page + "load more") instead of one
+ * 2640-row innerHTML, and the sorted rows are cached — the bref→name map and
+ * the nameOf closure are built once so repeat opens hit creditRows' cache. */
+const CREDITS_PAGE_SIZE = 100;
+let creditsRows = null;
+let creditsShown = CREDITS_PAGE_SIZE;
+let creditsNames = null;
+const creditNameOf = (bref) => creditsNames?.get(bref) || bref;
+
+function paintCredits() {
+  const body = $("#credits-body");
+  if (!body || !creditsRows) return;
+  body.innerHTML = creditsHtml(
+    { rows: creditsRows, localCount: Object.keys(LOCAL_AVATARS).length, shown: creditsShown },
+    esc,
+  );
+}
+
 function openCredits() {
-  const names = new Map();
-  for (const player of PLAYERS) if (!names.has(player.bref)) names.set(player.bref, player.name);
-  const rows = creditRows(undefined, (bref) => names.get(bref) || bref);
-  $("#credits-body").innerHTML = creditsHtml({ rows, localCount: Object.keys(LOCAL_AVATARS).length }, esc);
+  if (!creditsNames) {
+    creditsNames = new Map();
+    for (const player of PLAYERS) if (!creditsNames.has(player.bref)) creditsNames.set(player.bref, player.name);
+  }
+  creditsRows = creditRows(undefined, creditNameOf);
+  creditsShown = CREDITS_PAGE_SIZE;
+  paintCredits();
   show("credits");
   window.scrollTo(0, 0);
 }
+
+$("#credits-body")?.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-credits-more]") || !creditsRows) return;
+  creditsShown += CREDITS_PAGE_SIZE;
+  paintCredits();
+});
 
 function openCollection() {
   const acc = requireAccountReady();
