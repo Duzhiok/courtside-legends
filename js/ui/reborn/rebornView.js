@@ -31,7 +31,8 @@ import { mirrorJerseysToAccount } from "../../collectibles/jerseyCollection.js";
 import { jerseyOffersHtml } from "./jerseyOfferView.js";
 import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
-import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, specializeClick } from "./fragmentsView.js";
+import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, specializeClick, unlockClick } from "./fragmentsView.js";
+import { mirrorUnlocksToAccount, runUnlockIds } from "../../collectibles/legacyCosmetics.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
 import { mirrorHonorsToAccount } from "../../reborn/honors.js";
@@ -248,9 +249,11 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     const jerseysAdded = mirrorJerseysToAccount(account, jerseyState(rebornState));
     // Titles and Finals losses: the run is the truth, the account's legacy gets an idempotent copy (deduped by id).
     const honorsAdded = mirrorHonorsToAccount(account, rebornState);
+    // Career honours redeemed with fragments: same rule, the run is the truth (deduped by id).
+    const unlocksAdded = mirrorUnlocksToAccount(account, runUnlockIds(rebornState));
     const out = settleRebornPromises(account, rebornState);
     if (!out.settled.length) {
-      if (hasRivals || jerseysAdded || honorsAdded) { try { saveAccount(account); } catch { /* guest */ } }
+      if (hasRivals || jerseysAdded || honorsAdded || unlocksAdded) { try { saveAccount(account); } catch { /* guest */ } }
       return [];
     }
     if (out.reborn !== rebornState) {
@@ -560,7 +563,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       const bought = intensiveClick(event, reborn, currentWeek())
         || specializeClick(event, reborn, currentWeek(), playerCardFor(reborn, season.year));
       if (bought) { reborn = bought; persist(); render(); return; }
-      const legacy = legacyClick(event, reborn, season.year, currentWeek());
+      const legacy = legacyClick(event, reborn, season.year, currentWeek()) || unlockClick(event, reborn, season.year);
       if (legacy) { reborn = legacy; syncAccount(reborn); persist(); render(); return; }   // the jersey reaches the account collection now
       const train = event.target.closest("[data-train]");
       if (train) {

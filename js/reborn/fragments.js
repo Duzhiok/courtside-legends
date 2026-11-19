@@ -18,7 +18,9 @@
  *     has (its awakening family, SPECIALTY_ATTRIBUTES) instead of the focus's. It only steers where the growth
  *     lands: the season's level cap and every attribute ceiling are unchanged, so it can't add power;
  *   - the legacy jersey: the player's own season jersey for the collection (cosmetic, a story jersey that the
- *     gold shop never sells), one per season, once his identity is known (the name is printed on it).
+ *     gold shop never sells), one per season, once his identity is known (the name is printed on it);
+ *   - career honours (js/collectibles/legacyCosmetics.js): titles that need the real evidence first (an awakened
+ *     skill, a rivalry, a title) and a portrait frame; cosmetic, never sold for gold, once per run each.
  * - the per-week fields are cleared at season rollover (seasonResetFragments), the balance carries over.
  *
  * Numbers are provisional (balance them with fixed-seed seasons, as the epiphany ones). Pure functions: inputs
@@ -30,6 +32,10 @@ import { EPIPHANY_RULES } from "../data/epiphany.js";
 import { SKILL_PACKS } from "../data/skills.js";
 import { legacyTemplate } from "../collectibles/jerseyCatalog.js";
 import { jerseyState } from "../collectibles/jerseyExchange.js";
+import { runUnlockIds, unlockById } from "../collectibles/legacyCosmetics.js";
+import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
+import { rivalryLedger } from "./rivalry.js";
+import { championships } from "./honors.js";
 
 export const STANDOUT_MARGIN = 3; // Game Score above what the role is expected to produce
 const MAX_PER_GAME = 2;
@@ -198,4 +204,35 @@ export function buyLegacyJersey(reborn, year, { week = null } = {}) {
   next.jerseys = { ...jerseys, collection: [...jerseys.collection, jersey] };
   next.player.fragments = { ...ledger, balance: ledger.balance - LEGACY_COST };
   return { reborn: next, jersey };
+}
+
+// ---- career honours: titles and the frame (catalog in legacyCosmetics.js) ----------------------------------------
+/** What a run must really have done before an honour can be redeemed: the fragments never stand in for the evidence. */
+const UNLOCK_EARNED = Object.freeze({
+  "title:reborn": () => true,
+  "title:awakened": (reborn) => awakenedSkillIds(reborn?.player?.awakening).length > 0,
+  "title:rival": (reborn) => rivalryLedger(reborn).rivals.length > 0,
+  "title:champion": (reborn) => championships(reborn).length > 0,
+  "frame:reborn": () => true,
+});
+
+/** Why honour `id` can't be redeemed in this run (null when it can). */
+export function unlockBlocker(reborn, id) {
+  const unlock = unlockById(id);
+  if (!unlock || !UNLOCK_EARNED[id]) return "unknown";
+  if (runUnlockIds(reborn).includes(id)) return "already";
+  if (!UNLOCK_EARNED[id](reborn)) return "not-earned";
+  if (fragmentLedger(reborn).balance < unlock.cost) return "short";
+  return null;
+}
+
+/** Spend the honour's cost: it joins reborn.player.unlocks (the account copy is made by mirrorUnlocksToAccount). Throws when blocked. */
+export function buyUnlock(reborn, id, year = null) {
+  const blocker = unlockBlocker(reborn, id);
+  if (blocker) throw new Error(`honour unavailable: ${blocker}`);
+  const ledger = fragmentLedger(reborn);
+  const next = structuredClone(reborn);
+  next.player.unlocks = [...(Array.isArray(next.player.unlocks) ? next.player.unlocks : []), { id, year: Number.isInteger(year) ? year : null }];
+  next.player.fragments = { ...ledger, balance: ledger.balance - unlockById(id).cost };
+  return next;
 }

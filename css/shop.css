@@ -120,6 +120,9 @@
 .mw-portrait.mw-frame-bronze { border: 3px solid #b07840; box-shadow: 0 0 12px rgba(176, 120, 64, 0.55); border-radius: 50%; }
 .mw-portrait.mw-frame-bronze .mw-avatar { border-radius: 50%; display: block; }
 .mw-portrait.mw-frame-allstar { border: 3px solid #d6b25a; outline: 2px solid #3b82c4; outline-offset: 2px; box-shadow: 0 0 16px rgba(59, 130, 196, 0.55); border-radius: 50%; }
+.mw-portrait.mw-frame-reborn { border: 3px solid #2f8f6a; outline: 2px dashed #e8c66a; outline-offset: 2px; box-shadow: 0 0 14px rgba(47, 143, 106, 0.55); border-radius: 50%; }
+.mw-portrait.mw-frame-reborn .mw-avatar { border-radius: 50%; display: block; }
+.mw-title-badge { margin: 2px 0 0; font-size: 0.85rem; font-weight: 700; color: #e8c66a; letter-spacing: 0.04em; }
 .mw-portrait.mw-frame-allstar .mw-avatar { border-radius: 50%; display: block; }
 
 /* Shop-exclusive outfits locked in the avatar editor until owned. */

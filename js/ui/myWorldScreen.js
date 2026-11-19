@@ -4,12 +4,14 @@
  * and every action is delegated to the app's existing flows (resume career, open collection, accounts).
  */
 import { claimLevelReward, levelSnapshot } from "../data/accountLevel.js";
+import { saveAccount } from "../data/account.js";
 import { readLook, saveLook, sanitizeLook } from "../data/avatarLook.js";
 import { withFacePart } from "../data/avatarFace.js";
 import { nextTabId, patchFromSlider, selectTab, showValue, syncControls } from "./avatarLookControls.js";
 import { equipJersey, equippedJerseyKey, equippedJerseyTemplate, listOwnedJerseys, unequipJersey } from "../collectibles/jerseyCollection.js";
 import { jerseyKit } from "./avatar2d/avatar2dJersey.js";
-import { ownedFurnitureIds, ownedOutfitIds, equippedFrameClassKey, equipShopItem, unequipShopItem } from "../data/shop.js";
+import { ownedFurnitureIds, ownedOutfitIds, equippedFrameClassKey, equippedFrameId, equipShopItem, unequipShopItem } from "../data/shop.js";
+import { equipTitle, equippedTitle, ownedUnlocks, unlockLabel } from "../collectibles/legacyCosmetics.js";
 import { defaultPresetId, lookSignature, readPortrait, savePortrait } from "../data/avatarPortrait.js";
 import { photoReasonText, photoToPortrait } from "./portraitPhoto.js";
 import { portraitFor } from "./portraitFor.js";
@@ -115,7 +117,9 @@ export function createMyWorld({
     }
     const identity = readIdentity(account);
     const hometown = hometownHtml({ identity, state: readHometownState(account), lang, names: hometownNames(account), challengeAvailable: hometownChallengeAvailable(account) });
-    el.innerHTML = myWorldHtml({ jerseys: account ? { list: listOwnedJerseys(account), equipped: equippedJerseyKey(account) } : null, identity, games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account), hometown }, lang);
+    const frameKey = account ? equippedFrameId(account) : null;
+    const honours = account ? { title: unlockLabel(equippedTitle(account), lang) || null, list: ownedUnlocks(account, frameKey) } : null;
+    el.innerHTML = myWorldHtml({ title: honours?.title || null, honours: honours?.list || null, jerseys: account ? { list: listOwnedJerseys(account), equipped: equippedJerseyKey(account) } : null, identity, games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account), hometown }, lang);
     mountShowcaseViewer();
   }
 
@@ -401,6 +405,24 @@ export function createMyWorld({
       if (!res.ok) return say(status(), res.reason === "not-owned" ? "这件商品还没买，先去商城看看。" : "穿戴失败。", res.reason === "not-owned" ? "You don't own that item yet — take a look in the Shop." : "Couldn't equip it.");
       render();
       say(status(), getLang() === "en" ? `Equipped ${res.item.en}.` : `已穿戴「${res.item.zh}」。`);
+    },
+    /** Wear / take off a career-honour title (redeemed in a Reborn run; legacyCosmetics.js). */
+    "equip-title": (btn) => {
+      const id = btn?.closest?.("[data-unlock]")?.dataset?.unlock;
+      const account = getAccount();
+      if (!id || !account) return;
+      const res = equipTitle(account, id);
+      if (res.ok) saveAccount(account);
+      render();
+      say(el.querySelector("#mw-honours-status"), res.ok ? "已设为称号。" : "这个称号还没有兑换。", res.ok ? "Title set." : "You haven't redeemed that title.");
+    },
+    "unequip-title": () => {
+      const account = getAccount();
+      if (!account) return;
+      equipTitle(account, null);
+      saveAccount(account);
+      render();
+      say(el.querySelector("#mw-honours-status"), "已取下称号。", "Title taken off.");
     },
     /** Wear / take off a collectible jersey (records the choice; the avatar does not draw it yet). */
     "equip-jersey": (btn) => {

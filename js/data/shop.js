@@ -28,6 +28,7 @@ import { saveAccount, todayKey } from "./account.js";
 import { awardAccountXp, XP_TABLE } from "./accountLevel.js";
 import { readLook, saveLook } from "./avatarLook.js";
 import { SHOP_ITEMS, itemById } from "./shopCatalog.js";
+import { unlockById, unlockFrameId } from "../collectibles/legacyCosmetics.js";
 
 const SHOP_AUTO_XP_PER_GAME = XP_TABLE.autoGame; // 5
 const SHOP_AUTO_DAILY_CAP = XP_TABLE.autoDailyCap; // 20
@@ -80,7 +81,8 @@ export function equippedFrameId(account) {
  */
 export function equippedFrameClassKey(account) {
   const id = equippedFrameId(account);
-  return (id && itemById(id)?.effect?.frameId) || null;
+  // a Shop frame item, or a career-honour frame redeemed with Reborn fragments (never sold here)
+  return (id && (itemById(id)?.effect?.frameId || unlockFrameId(account, id))) || null;
 }
 
 /** Auto-Play credits held. */
@@ -172,6 +174,7 @@ export function purchaseShopItem(account, itemId) {
 /** Equip an owned cosmetic: clothing writes the look, a frame is recorded on the shop record. */
 export function equipShopItem(account, itemId) {
   if (!account) return { ok: false, reason: "guest" };
+  if (unlockById(itemId)?.kind === "frame") return wearUnlockFrame(account, itemId);
   const item = itemById(itemId);
   if (!item) return { ok: false, reason: "unknown-item" };
   const shop = getShop(account);
@@ -195,9 +198,22 @@ export function equipShopItem(account, itemId) {
   return { ok: false, reason: "no-equip", item };
 }
 
+/** A career-honour frame (legacyCosmetics.js) goes on / comes off the same portrait slot as a Shop frame. */
+function wearUnlockFrame(account, unlockId, on = true) {
+  const item = unlockById(unlockId);
+  const shop = getShop(account);
+  if (on && !unlockFrameId(account, unlockId)) return { ok: false, reason: "not-owned", item };
+  if (!on && shop.equippedFrame !== unlockId) return { ok: false, reason: "not-equipped", item };
+  shop.equippedFrame = on ? unlockId : null;
+  writeShop(account, shop);
+  saveAccount(account);
+  return { ok: true, item };
+}
+
 /** Take a cosmetic off: a frame clears, clothing falls back to the default outfit. */
 export function unequipShopItem(account, itemId) {
   if (!account) return { ok: false, reason: "guest" };
+  if (unlockById(itemId)?.kind === "frame") return wearUnlockFrame(account, itemId, false);
   const item = itemById(itemId);
   if (!item) return { ok: false, reason: "unknown-item" };
   if (item.effect?.type === "frame") {

@@ -18,6 +18,12 @@ export const PROMISE_EFFECTS = Object.freeze({
     fulfilled: Object.freeze({ trust: 3, relationship: 8 }),
     broken: Object.freeze({ trust: -5, relationship: -12 }),
   }),
+  // In-game coaching-challenge promises ("the star gets touches", "we hold them"): their consequence is the
+  // challenge's own result (kept / broken counted in its summary), not career trust; kept that way on purpose.
+  coaching: Object.freeze({
+    fulfilled: Object.freeze({ trust: 0, relationship: 0 }),
+    broken: Object.freeze({ trust: 0, relationship: 0 }),
+  }),
 });
 
 /** The effect pair for one promise type; unknown types fall back to "inbox". */

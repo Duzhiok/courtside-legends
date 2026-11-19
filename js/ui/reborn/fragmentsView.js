@@ -5,8 +5,9 @@
  */
 import {
   INTENSIVE_COST, INTENSIVE_XP_MULTIPLIER, LEGACY_COST, SPECIALIZE_COST, activeSpecialty, buyIntensive, buyLegacyJersey, buySpecialization,
-  fragmentLedger, intensiveBlocker, legacyBlocker, specializableSkills, specializeBlocker,
+  buyUnlock, fragmentLedger, intensiveBlocker, legacyBlocker, specializableSkills, specializeBlocker, unlockBlocker,
 } from "../../reborn/fragments.js";
+import { LEGACY_UNLOCKS, unlockLabel } from "../../collectibles/legacyCosmetics.js";
 import { SKILL_PACKS } from "../../data/skills.js";
 import { skillNameL } from "../../i18n.js";
 import { esc } from "../../core/html.js";
@@ -66,6 +67,18 @@ function legacyHtml(reborn, year, lang) {
   return `${head}<button type="button" class="btn small" data-buy-legacy ${blocker ? "disabled" : ""}>${L(`兑换本赛季球衣（−${LEGACY_COST} 碎片，外观收藏，商城不卖）`, `Redeem this season's jersey (−${LEGACY_COST} fragments, cosmetic, never sold in the Shop)`, lang)}</button>${blocker ? `<small> ${pick(LEGACY_BLOCKER, blocker, lang)}</small>` : ""}`;
 }
 
+/** Career honours: a button per title / frame; one the run hasn't earned yet says what it needs instead. */
+function honoursHtml(reborn, lang) {
+  const rows = LEGACY_UNLOCKS.map((u) => {
+    const blocker = unlockBlocker(reborn, u.id);
+    const name = `${u.kind === "title" ? L("称号", "Title", lang) : L("头像框", "Frame", lang)}「${unlockLabel(u, lang)}」`;
+    if (blocker === "already") return `<li data-unlock-owned="${esc(u.id)}">${esc(name)} · ${L("已兑换，可在「我的世界」使用", "redeemed: use it in My World", lang)}</li>`;
+    const why = blocker === "not-earned" ? L(`需要先${u.needs.zh}`, `Needs: ${u.needs.en}`, lang) : blocker === "short" ? L(`需要 ${u.cost} 个碎片`, `Needs ${u.cost} fragments`, lang) : "";
+    return `<li><button type="button" class="btn small" data-buy-unlock="${esc(u.id)}" ${blocker ? "disabled" : ""}>${esc(name)}（−${u.cost}）</button>${why ? `<small> ${esc(why)}</small>` : ""}</li>`;
+  }).join("");
+  return `<h4>${L("职业荣誉", "Career honours", lang)}</h4><p class="tiny">${L("称号要先在比赛里真的做到，碎片只负责兑换。纯外观，商城不卖。", "A title needs the real thing first; fragments only redeem it. Cosmetic, never sold in the Shop.", lang)}</p><ul class="reborn-honours">${rows}</ul>`;
+}
+
 /** Balance + what fragments buy. `week` is the current season week, `card` the player's current card, `year` the season. */
 export function fragmentsPanelHtml({ reborn, week, card = null, year = null, lang = "zh" } = {}) {
   const ledger = fragmentLedger(reborn);
@@ -74,7 +87,7 @@ export function fragmentsPanelHtml({ reborn, week, card = null, year = null, lan
   const status = on
     ? `<p class="reborn-fragments-on">${L(`本周强化训练已开启：训练经验 ×${INTENSIVE_XP_MULTIPLIER}（能力上限不变）`, `Intensive training on this week: training XP ×${INTENSIVE_XP_MULTIPLIER} (ceilings unchanged)`, lang)}</p>`
     : `<button type="button" class="btn" data-buy-intensive ${blocker ? "disabled" : ""} title="${blocker ? BLOCKER[blocker][lang === "en" ? "en" : "zh"] : ""}">${L(`强化训练（−${INTENSIVE_COST} 碎片，本周训练经验 ×${INTENSIVE_XP_MULTIPLIER}）`, `Intensive training (−${INTENSIVE_COST} fragments, this week's training XP ×${INTENSIVE_XP_MULTIPLIER})`, lang)}</button>${blocker ? `<small> ${BLOCKER[blocker][lang === "en" ? "en" : "zh"]}</small>` : ""}`;
-  return `<section class="reborn-fragments"><h3>${L("职业碎片", "Career fragments", lang)} <strong data-fragment-balance>${ledger.balance}</strong></h3><p>${L("只能靠比赛表现获得：高光表现、宿敌对决获胜。", "Earned only by play: standout games and rivalry wins.", lang)}</p>${status}${specializeHtml(reborn, week, card, lang)}${legacyHtml(reborn, year, lang)}</section>`;
+  return `<section class="reborn-fragments"><h3>${L("职业碎片", "Career fragments", lang)} <strong data-fragment-balance>${ledger.balance}</strong></h3><p>${L("只能靠比赛表现获得：高光表现、宿敌对决获胜。", "Earned only by play: standout games and rivalry wins.", lang)}</p>${status}${specializeHtml(reborn, week, card, lang)}${legacyHtml(reborn, year, lang)}${honoursHtml(reborn, lang)}</section>`;
 }
 
 /** Post-game lines: what this game paid and whether it trained intensively. */
@@ -119,6 +132,18 @@ export function legacyClick(event, reborn, year, week) {
   if (!event?.target?.closest?.("[data-buy-legacy]")) return null;
   try {
     return buyLegacyJersey(reborn, year, { week }).reborn;
+  } catch (e) {
+    console.warn(e);
+    return null;
+  }
+}
+
+/** Click on a career-honour button: the new reborn state, or null. */
+export function unlockClick(event, reborn, year) {
+  const button = event?.target?.closest?.("[data-buy-unlock]");
+  if (!button) return null;
+  try {
+    return buyUnlock(reborn, button.dataset.buyUnlock, year);
   } catch (e) {
     console.warn(e);
     return null;

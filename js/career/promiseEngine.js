@@ -2,11 +2,14 @@
  * Unified promise engine (Career 2.0 E, product ruling "one fact, one
  * settlement, one outcome").
  *
- * A promise the player makes lives in one of two existing stores, kept as-is
+ * A promise the player makes lives in one of three existing stores, kept as-is
  * so no old save is rewritten:
  *   - inbox:        root.inbox.promises   (Career Inbox decisions; evidence is
  *                   the per-game core scoring line)
  *   - relationship: account.careerRelationships.promises (between two people)
+ *   - coaching:     the coaching challenge's tactical state .promises (in-game
+ *                   "star gets touches / defense holds / comeback"; evidence is
+ *                   the live game log over the promise's window)
  * This module is the single layer over both:
  *   canonicalPromise()      one contract for either shape (read adapter)
  *   listCanonicalPromises() every promise, each promiseId exactly once
@@ -74,11 +77,27 @@ function fromRelationship(raw) {
   };
 }
 
-/** One promise record -> the canonical contract. `source` is "inbox" | "relationship". */
+function fromCoaching(raw) {
+  return {
+    promiseId: raw.id,
+    source: "coaching",
+    promiseType: "coaching",
+    kind: raw.kind || null,
+    targetId: raw.targetId ?? null,
+    createdAt: Number.isInteger(raw.madeAt) ? raw.madeAt : null,
+    dueAt: Number.isInteger(raw.madeAt) && Number.isInteger(raw.duePossessions) ? raw.madeAt + raw.duePossessions : null,
+    status: raw.status === "kept" ? "fulfilled" : toCanonicalStatus(raw.status),
+    evidence: { gameIds: [], requiredCondition: { type: raw.kind, threshold: raw.threshold ?? 0 } },
+    effects: effectsForType("coaching"),
+  };
+}
+
+/** One promise record -> the canonical contract. `source` is "inbox" | "relationship" | "coaching". */
 export function canonicalPromise(raw, source) {
   if (!raw || typeof raw !== "object" || typeof raw.id !== "string") return null;
   if (source === "inbox") return fromInbox(raw);
   if (source === "relationship") return fromRelationship(raw);
+  if (source === "coaching") return fromCoaching(raw);
   return null;
 }
 
@@ -87,7 +106,7 @@ export function canonicalPromise(raw, source) {
  * both stores is reported once (first store wins) and counted in `duplicates`,
  * so a collision can never be settled twice.
  */
-export function listCanonicalPromises({ inbox = null, account = null } = {}) {
+export function listCanonicalPromises({ inbox = null, account = null, coaching = null } = {}) {
   const seen = new Set();
   const promises = [];
   let duplicates = 0;
@@ -103,6 +122,7 @@ export function listCanonicalPromises({ inbox = null, account = null } = {}) {
   };
   for (const raw of inbox?.promises || []) add(raw, "inbox");
   for (const raw of account ? relationshipsStore(account).promises : []) add(raw, "relationship");
+  for (const raw of coaching?.promises || []) add(raw, "coaching");
   return { promises, duplicates };
 }
 
@@ -172,4 +192,38 @@ export function settleGamePromises({ inbox, state, gameIndex = 0, account = null
     }
   }
   return { inbox: inboxOut.inbox, state: inboxOut.state, account, settled };
+}
+
+// ---- coaching-challenge promises -------------------------------------------------------------------------------
+/** What each in-game promise kind measures over its window (the live game log; never asserted). */
+const COACHING_CHECKS = Object.freeze({
+  "star-touches": (p, e) => (e.starAttempts ?? 0) >= p.threshold,
+  "defense-holds": (p, e) => (e.opponentPoints ?? 99) <= p.threshold,
+  comeback: (p, e) => (e.deficitChange ?? 0) <= -p.threshold,
+});
+
+/**
+ * The settlement entry for the coaching challenge's in-game promises, through the same lifecycle as the other
+ * sources: only `open` promises are judged, each exactly once (open -> kept | broken, never re-evaluated), and the
+ * settle mark is the caller's deterministic clock (`at`, the possession count), not wall time, so a replay settles
+ * the same way. Store statuses stay "kept"/"broken" (old saves, promiseCounts); `unified` is the shared shape.
+ *
+ * Returns { state, settled: [store records], unified: [{ promiseId, source, promiseType, status, effects, reason, reasonEn }] }.
+ */
+export function settleCoachingPromises(state, evidence = {}, { at = null } = {}) {
+  const settled = [];
+  const promises = (state?.promises || []).map((p) => {
+    if (p.status !== "open" || !COACHING_CHECKS[p.kind]) return p;
+    const done = { ...p, status: COACHING_CHECKS[p.kind](p, evidence) ? "kept" : "broken", settledAt: Number.isInteger(at) ? at : null };
+    settled.push(done);
+    return done;
+  });
+  const unified = settled.map((p) => {
+    const status = p.status === "kept" ? "fulfilled" : "broken";
+    return {
+      promiseId: p.id, source: "coaching", promiseType: "coaching", status,
+      effects: { ...effectsForType("coaching")[status] }, reason: p.text || "", reasonEn: p.textEn || p.text || "",
+    };
+  });
+  return { state: { ...state, promises }, settled, unified };
 }

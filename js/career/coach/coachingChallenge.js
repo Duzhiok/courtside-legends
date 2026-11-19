@@ -176,7 +176,7 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
       opponentPoints: (sim?.score?.away ?? 0) - promisesWindow.awayScore,
       deficitChange: margin(sim?.score) - promisesWindow.margin,
     };
-    const { state: next, settled } = settlePromises(tactical, evidence);
+    const { state: next, settled } = settlePromises(tactical, evidence, { at: possessionCount });
     tactical = next;
     if (settled.length) promisesWindow = null;
     return settled;
@@ -516,6 +516,7 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
           targetId: choice.promise.targetId || null,
           threshold: choice.promise.threshold,
           duePossessions: choice.promise.duePossessions,
+          madeAt: possessionCount,
         });
         const star = choice.promise.targetId ? sim?.you?.()?.onCourt?.find((p) => p.id === choice.promise.targetId) : null;
         promisesWindow = {

@@ -17,7 +17,7 @@ import {
   resolveFutureKnowledgeChoice,
   startNewStint,
 } from "../js/modes/timeTravelCareer.js";
-import { PLAYERS, overall, seasonToCard } from "../js/data/players.js";
+import { overall, seasonToCard } from "../js/data/players.js";
 import {
   pledgeProphecy,
   prophecyBoard,

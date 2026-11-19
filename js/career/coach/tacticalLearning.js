@@ -22,6 +22,7 @@
  */
 
 import { TACTICS } from "../../data/coaches.js";
+import { settleCoachingPromises } from "../promiseEngine.js";
 import { REPUTATION_GOAL_HIT, REPUTATION_GOAL_MISS } from "../balance.js";
 
 const clamp100 = (v) => Math.max(0, Math.min(100, Math.round(v)));
@@ -213,32 +214,24 @@ export const PROMISE_KINDS = Object.freeze(["star-touches", "defense-holds", "co
  * touches over the next stretch"). Data only — the check runs later against
  * the real game log, so a promise can never be settled by assertion.
  */
-export function recordPromise(state, { id, text, kind, targetId = null, threshold = 0, duePossessions = 6 } = {}) {
+export function recordPromise(state, { id, text, kind, targetId = null, threshold = 0, duePossessions = 6, madeAt = null } = {}) {
   if (!PROMISE_KINDS.includes(kind)) throw new Error(`unknown promise kind: ${kind}`);
   const next = { ...state, systems: state.systems || {}, promises: [...(state.promises || [])] };
-  next.promises.push({ id, text, kind, targetId, threshold, duePossessions, status: "open", settledAt: null });
+  if (next.promises.some((p) => p.id === id)) return state;   // the same promise recorded twice is one promise
+  next.promises.push({ id, text, kind, targetId, threshold, duePossessions, madeAt: Number.isInteger(madeAt) ? madeAt : null, status: "open", settledAt: null });
   return next;
 }
 
 /**
  * Settle open promises against measured evidence from the game log.
  * evidence: { starAttempts, opponentPoints, deficitChange } over the window
- * since the promise was made. Returns { state, settled: [...] }.
+ * since the promise was made; `at` = the possession count (deterministic settle
+ * mark). Returns { state, settled: [...] }. Delegates to promiseEngine.js.
  */
-export function settlePromises(state, evidence = {}) {
-  const settled = [];
-  const promises = (state.promises || []).map((p) => {
-    if (p.status !== "open") return p;
-    let kept = null;
-    if (p.kind === "star-touches") kept = (evidence.starAttempts ?? 0) >= p.threshold;
-    else if (p.kind === "defense-holds") kept = (evidence.opponentPoints ?? 99) <= p.threshold;
-    else if (p.kind === "comeback") kept = (evidence.deficitChange ?? 0) <= -p.threshold;
-    if (kept === null) return p;
-    const done = { ...p, status: kept ? "kept" : "broken", settledAt: Date.now() };
-    settled.push(done);
-    return done;
-  });
-  return { state: { ...state, promises }, settled };
+export function settlePromises(state, evidence = {}, { at = null } = {}) {
+  // One settlement path for every promise source (Career 2.0 decision 1): the unified engine judges it.
+  const { state: next, settled } = settleCoachingPromises(state, evidence, { at });
+  return { state: next, settled };
 }
 
 export function promiseCounts(state) {

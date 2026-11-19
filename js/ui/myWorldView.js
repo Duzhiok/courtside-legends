@@ -8,6 +8,7 @@
  * Visual redesign (R167): one page title, compact identity hero, compact cards, an illustrated room, and a small
  * corner feedback entry. Presentation only -- same data, same actions.
  */
+import { legacyUnlocksHtml } from "./collectibles/legacyUnlocksView.js";
 import { jerseyCollectionHtml } from "./collectibles/jerseyCollectionView.js";
 import { avatarDataUri } from "../data/avatarArt.js";
 import { challengeTierName } from "../data/careerChallenges.js";
@@ -170,6 +171,7 @@ export function identityCardHtml(identity, lang, portrait = null, frame = null, 
           <div class="mw-portrait${frame ? ` mw-frame-${frame}` : ""}"><img class="mw-avatar" src="${esc(portrait?.src || avatarDataUri({ name, team: "NBA" }))}" alt="" width="56" height="56" /></div>
           <div class="mw-namebar-text">
             <h3 id="mw-identity-title">${esc(name)}</h3>
+            ${extras.title ? `<p class="mw-title-badge">「${esc(extras.title)}」</p>` : ""}
             <p class="mw-facts">${facts}</p>
             ${placesHtml}
           </div>
@@ -423,7 +425,7 @@ export function levelHtml(snapshot, lang) {
   </div>`;
 }
 
-export function myWorldHtml({ jerseys = null, identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], homeLayout = null, frame = null, ownedOutfits = null, owned = null, hometown = "" }, lang) {
+export function myWorldHtml({ jerseys = null, title = null, honours = null, identity, games, journey, legacy, frames, look, portrait = null, level = null, furniture = [], homeLayout = null, frame = null, ownedOutfits = null, owned = null, hometown = "" }, lang) {
   // `journey` alone = the player's own career (kept so callers/tests that predate ownership read the same).
   const g = games ?? { career: journey ? { journey, state: "mine" } : null, session: null, canClaim: !identity?.guest };
   const ownedCareer = g.career?.state === "mine" ? g.career.journey : null; // trophies only from a career that is yours
@@ -431,12 +433,13 @@ export function myWorldHtml({ jerseys = null, identity, games, journey, legacy, 
   const stats = legacy ? { titles, cards: legacy.cards, rankedWins: legacy.rankedWins } : null; // a guest has no collection or ranked record
   const champion = championCelebration(legacy, ownedCareer?.trophies?.length || 0, lang);
   return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
-    ${identityCardHtml(identity, lang, portrait, frame, { level, stats, champion, look, editorHtml: lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits) })}
+    ${identityCardHtml(identity, lang, portrait, frame, { level, stats, champion, look, title, editorHtml: lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits) })}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
     ${hometown}
     ${homeSceneHtml({ identity, frames, trophyCount: titles, furniture, layout: homeLayout, portrait }, lang)}
     ${ownedShopHtml(owned, lang)}
-    ${jerseyCollectionHtml(jerseys, lang)}`;
+    ${jerseyCollectionHtml(jerseys, lang)}
+    ${legacyUnlocksHtml(honours, lang)}`;
 }
 
 /**
@@ -486,7 +489,7 @@ export function ownedShopSummary(account) {
   };
 }
 
-function ownedRow(entry, lang) {
+export function ownedRow(entry, lang) {
   const { item } = entry;
   const name = esc(itemName(item, lang));
   if (entry.kind === "furniture") {
