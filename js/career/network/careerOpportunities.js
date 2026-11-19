@@ -125,10 +125,11 @@ export function generateOpportunities(profile, board, { seed = 1 } = {}) {
     });
   }
   offers.sort((a, b) => (a.eligible === b.eligible ? a.order - b.order : (a.eligible ? -1 : 1)));
+  // A { zh, en } pair (U-P2-1): the board renders it in the current language.
   const unemployedNote = p.unemployed
     ? (offers.some((o) => o.eligible)
-      ? "失业中：以下职位愿意给你机会，先站稳脚跟再谈下一步。"
-      : "失业中：暂时没有符合条件的职位，先接受低级别工作或等待下一批空缺。")
+      ? { zh: "失业中：以下职位愿意给你机会，先站稳脚跟再谈下一步。", en: "Unemployed: these openings will take you — get a footing first, then think about the next step." }
+      : { zh: "失业中：暂时没有符合条件的职位，先接受低级别工作或等待下一批空缺。", en: "Unemployed: no matching openings right now — take a lower-tier job or wait for the next batch." })
     : null;
   return { offers, unemployedNote };
 }

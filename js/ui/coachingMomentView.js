@@ -69,7 +69,7 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
     if (m) {
       html += `<section class="ct-moment"><h3>${esc(pick(m.title))}</h3><p class="ct-analysis">${esc(pick(m.analysis))}</p>`;
       if (m.recommendation) {
-        html += `<p class="ct-rec">📹 ${esc(L("分析师建议", "Analyst suggestion"))}：${esc(m.recommendation.reason || "")} — ${esc(L("建议选择", "suggests"))} <b>${esc(pick(m.choices.find((c) => c.id === m.recommendation.choiceId)?.label || { zh: m.recommendation.choiceId }))}</b></p>`;
+        html += `<p class="ct-rec">📹 ${esc(L("分析师建议", "Analyst suggestion"))}：${esc(pick(m.recommendation.reason))} — ${esc(L("建议选择", "suggests"))} <b>${esc(pick(m.choices.find((c) => c.id === m.recommendation.choiceId)?.label || { zh: m.recommendation.choiceId }))}</b></p>`;
       }
       html += `<div class="ct-choices">`;
       for (const choice of m.choices) {
@@ -123,7 +123,7 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
       <h3>${r.won ? esc(L("逆转成功！", "Comeback complete!")) : esc(L("没能逆转。", "The comeback fell short."))} ${r.final.home}–${r.final.away}</h3>
       <p>${esc(L("开局落后 10 分，终场分差", "Opened down 10; final margin"))} ${r.deficitEnd > 0 ? esc(L("仍落后", "still down")) + " " + r.deficitEnd : esc(L("反超", "ahead by")) + " " + Math.abs(r.deficitEnd)} ${esc(L("分。每个决策的效果都来自引擎的真实比分变化：", "points. Every decision's effect is the engine's real score swing:"))}</p>
       <table class="ct-table"><thead><tr><th>${esc(L("决策", "Decision"))}</th><th>${esc(L("时间", "Clock"))}</th><th>${esc(L("比分变化", "Score"))}</th><th>${esc(L("净胜分", "Swing"))}</th><th>${esc(L("适配", "Fit"))}</th><th>${esc(L("士气", "Morale"))}</th></tr></thead><tbody>${rows}</tbody></table>
-      <p>${esc(L("承诺", "Promises"))}: ${esc(L("兑现", "kept"))} ${r.promises.kept} · ${esc(L("违约", "broken"))} ${r.promises.broken} · ${esc(L("声望变化", "Reputation"))} ${r.careerEffect.reputationDelta > 0 ? "+" : ""}${r.careerEffect.reputationDelta}（${esc(r.careerEffect.summary)}）</p>
+      <p>${esc(L("承诺", "Promises"))}: ${esc(L("兑现", "kept"))} ${r.promises.kept} · ${esc(L("违约", "broken"))} ${r.promises.broken} · ${esc(L("声望变化", "Reputation"))} ${r.careerEffect.reputationDelta > 0 ? "+" : ""}${r.careerEffect.reputationDelta}（${esc(pick(r.careerEffect.summary))}）</p>
       <p>${esc(L("战术熟悉度", "Familiarity"))}: ${Object.entries(r.tactical.familiarity).map(([k, v]) => `${esc(tacticName(k, getLang()))} ${v}`).join(" · ") || "—"} · ${esc(L("球员认同", "Buy-in"))} ${Math.round(r.tactical.buyIn)} · ${esc(L("对手熟悉度", "Opponent readiness"))}: ${Object.entries(r.tactical.opponentReadiness).map(([k, v]) => `${esc(tacticName(k, getLang()))} ${v}`).join(" · ") || "—"}</p>
       <div class="ct-actions"><button type="button" class="btn primary" data-act="retry">${esc(L("再来一次", "Run it back"))}</button><button type="button" class="btn" data-act="exit">${esc(L("返回", "Back"))}</button></div>
     </section>`;
@@ -224,7 +224,7 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
     const filed = readFiledFilmRecommendation();
     challenge = createCoachingChallenge({
       pool,
-      recommend: filed ? (moment) => filmRecommendForMoment(filed, moment, { lang: getLang() }) : null,
+      recommend: filed ? (moment) => filmRecommendForMoment(filed, moment) : null,
     });
     const started = challenge.start();
     if (!started.ok) {

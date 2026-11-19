@@ -135,4 +135,9 @@ test("challenge career effect uses the reputation system's goal component only",
   // A win without the goal met still counts the win in the record, but the
   // reputation move comes from the goal, not the one-game win rate.
   assert.equal(challengeCareerEffect({ won: true, goalAchieved: false }).reputationDelta, REPUTATION_GOAL_MISS);
+  // The report summary is a { zh, en } pair (U-P2-1): it used to be an
+  // English-only string shown in both languages.
+  assert.deepEqual(challengeCareerEffect({ won: true, goalAchieved: true }).summary, { zh: "挑战目标达成——管理层注意到了", en: "challenge goal met — the front office notices" });
+  assert.deepEqual(challengeCareerEffect({ won: false, goalAchieved: false }).summary, { zh: "挑战目标落空——信任受损", en: "challenge goal missed — trust takes a hit" });
+  assert.deepEqual(challengeCareerEffect({ won: true, goalAchieved: null }).summary, { zh: "没有设定挑战目标——一场平静的比赛", en: "no challenge goal set — a quiet result" });
 });

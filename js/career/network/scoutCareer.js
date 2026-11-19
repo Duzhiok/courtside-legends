@@ -155,6 +155,18 @@ export const DEVELOPMENT_TIER_LABEL = {
   bust: { zh: "未能立足", en: "Did not stick" },
 };
 
+/** Bilingual labels for the verdict ids gradeScoutRecommendation returns (U-P2-1: the raw ids leaked into the reveal). */
+export const SCOUT_VERDICT_LABEL = {
+  "hit-star": { zh: "命中·未来巨星", en: "Hit — future star" },
+  "hit-starter": { zh: "命中·首发球员", en: "Hit — starter" },
+  "hit-rotation": { zh: "命中·轮换球员", en: "Hit — rotation player" },
+  "miss-bust": { zh: "错失·未能立足", en: "Miss — bust" },
+  "missed-star": { zh: "错过·未来巨星", en: "Missed — future star" },
+  "missed-starter": { zh: "错过·首发球员", en: "Missed — starter" },
+  "passed-rotation": { zh: "放弃·轮换球员", en: "Passed — rotation player" },
+  "correct-pass": { zh: "正确放弃", en: "Correct pass" },
+};
+
 /**
  * Delayed feedback: what the prospect actually became, from real rows in
  * the `years` seasons after their draft season. This is the original

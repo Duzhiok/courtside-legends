@@ -108,14 +108,19 @@ export function ensureDuelScreen({ getLang: langFn = getLang, onBack, onRelocali
     title: DUEL_TITLE,
     getLang: langFn,
     onBack: onBack || handleDuelBack,
-    // Only the select screen is cheap to re-render: a live match owns a
-    // mounted court controller, and a result screen is one render away from
-    // fresh copy — so relocalize leaves those alone (same as before the
-    // migration, when a language toggle never re-rendered the body).
+    // The select screen is cheap to re-render; a live match re-mounts its
+    // court from the same state (the same destroy + remount a resolved
+    // possession already does), and a result screen re-renders from the
+    // stored outcome — never by re-recording the duel (U-P2-1).
     onRelocalize: onRelocalize || (() => {
-      if (current) return;
       const body = bodyEl();
-      if (body?.hasChildNodes()) renderSelect();
+      if (!body?.hasChildNodes()) return;
+      if (!current) { renderSelect(); return; }
+      if (current.state.over) {
+        if (current.result) renderDuelResult();
+        return;
+      }
+      renderDuel();
     }),
   }).el;
 }
@@ -405,6 +410,19 @@ function finishDuel() {
   });
   const nextLegend = nextUndefeatedLegend(record);
   const allBeaten = !nextLegend && GALLERY_LEGENDS.length > 0;
+  // The outcome is stored on the duel (not re-derived) so a language switch
+  // can re-render this screen without recording the duel a second time.
+  current.result = { record, xp, won, nextLegend, allBeaten };
+  renderDuelResult();
+}
+
+/** Render the result screen from the stored outcome — pure render, no recording, so relocalize can call it safely. */
+function renderDuelResult() {
+  const body = bodyEl();
+  if (!body || !current || !current.result) return;
+  const { state, challenger, legend, difficulty, result } = current;
+  const { record, xp, won, nextLegend, allBeaten } = result;
+  const account = getAccount();
   body.innerHTML = `
     <div style="text-align:center;margin:16px 0;">
       <div class="duel-result-sprite">${duelSpriteHtml(won ? challenger : legend, { action: "celebrate", appearance: won && challenger?.kind === "avatar" ? appearanceFromLook(readLook(account)) : null })}</div>

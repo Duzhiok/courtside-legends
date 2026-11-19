@@ -446,7 +446,7 @@ export function filmRecommendation(challenge, optionId, { lang = "zh" } = {}) {
 /**
  * Map a film recommendation onto one of the coach challenge's moment
  * choices (workstream B's `recommend` hook contract: { choiceId, reason,
- * source } | null). Only the mappings where the film evidence directly
+ * source } | null — reason is a { zh, en } pair, see filmRecommendForMoment).
  * supports the choice are wired — everything else returns null, so the
  * coach simply gets no suggestion for that moment instead of a
  * dressed-up guess:
@@ -468,19 +468,25 @@ const FILM_TO_COACH_CHOICE = {
   late: { "late-collapse": "grind", "turnover-prone": "push" },
 };
 
-export function filmRecommendForMoment(recommendation, moment, { lang = "zh" } = {}) {
+export function filmRecommendForMoment(recommendation, moment) {
   const kind = recommendation?.kind || null;
   const choiceId = FILM_TO_COACH_CHOICE[moment?.kind || ""]?.[kind] || null;
   if (!choiceId) return null;
   const choice = (moment?.choices || []).find((c) => c.id === choiceId);
   if (!choice || choice.disabled) return null;
-  const suggestion = lang === "en" ? recommendation.suggestionEn : recommendation.suggestionZh;
+  // The reason is a { zh, en } pair, never a string in the caller's current
+  // language: the moment stores it once, and a string rendered in the
+  // language of the moment's creation stayed frozen after a language switch
+  // (U-P2-1). The view picks by language at render time.
   const uncertain = recommendation?.wasCorrect === false;
-  const reason = uncertain
-    ? lang === "en"
-      ? `${suggestion || ""} (film read is uncertain — the biggest weakness may be elsewhere)`
-      : `${suggestion || ""}（录像判断存疑，最大弱点可能在别处，仅供参考）`
-    : suggestion || "";
+  const reason = {
+    zh: uncertain
+      ? `${recommendation?.suggestionZh || ""}（录像判断存疑，最大弱点可能在别处，仅供参考）`
+      : recommendation?.suggestionZh || "",
+    en: uncertain
+      ? `${recommendation?.suggestionEn || ""} (film read is uncertain — the biggest weakness may be elsewhere)`
+      : recommendation?.suggestionEn || "",
+  };
   return { choiceId, reason, source: recommendation?.source || "film-room" };
 }
 

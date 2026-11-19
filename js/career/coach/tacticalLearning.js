@@ -267,9 +267,9 @@ export function challengeCareerEffect({ won = false, goalAchieved = null } = {})
     won,
     summary:
       goalAchieved === true
-        ? "challenge goal met — the front office notices"
+        ? { zh: "挑战目标达成——管理层注意到了", en: "challenge goal met — the front office notices" }
         : goalAchieved === false
-          ? "challenge goal missed — trust takes a hit"
-          : "no challenge goal set — a quiet result",
+          ? { zh: "挑战目标落空——信任受损", en: "challenge goal missed — trust takes a hit" }
+          : { zh: "没有设定挑战目标——一场平静的比赛", en: "no challenge goal set — a quiet result" },
   };
 }

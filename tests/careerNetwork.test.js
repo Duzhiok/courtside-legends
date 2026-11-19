@@ -8,7 +8,14 @@ import { readFileSync } from "node:fs";
 import {
   prospectPool, scoutReportFor, developmentReport, gradeScoutRecommendation,
   scoreScoutClass, pickProspects, toScoutingIntelInput, gradeForOverall,
+  SCOUT_VERDICT_LABEL,
 } from "../js/career/network/scoutCareer.js";
+import {
+  generateOpportunities, emptyNetworkProfile,
+} from "../js/career/network/careerOpportunities.js";
+import {
+  filmChallengeHtml, scoutRevealHtml, networkBoardHtml, DEMO_JOB_BOARD,
+} from "../js/ui/networkViews.js";
 import {
   collectPossessionLog, analyzeGameLog, buildFilmChallenge, buildTeamFromRows,
   gradeFilmAnswer, filmRecommendation,
@@ -75,6 +82,26 @@ test("G scout: grading rewards the call against its cost, and passing on a star 
   ]);
   assert.equal(total.total, 3);
   assert.equal(total.hits, 1);
+});
+
+test("G scout: every verdict has a bilingual label, and the reveal shows labels not raw ids (U-P2-1)", () => {
+  const verdicts = ["hit-star", "hit-starter", "hit-rotation", "miss-bust", "missed-star", "missed-starter", "passed-rotation", "correct-pass"];
+  for (const v of verdicts) {
+    const label = SCOUT_VERDICT_LABEL[v];
+    assert.ok(label?.zh && label?.en, `${v} has both languages`);
+  }
+  const graded = [
+    { verdict: "hit-star", points: 2, report: { name: "A", tier: "star", peakPpg: 22.5 } },
+    { verdict: "missed-star", points: -2, report: { name: "B", tier: "star", peakPpg: 21.0 } },
+  ];
+  const total = { total: 0, hits: 1, misses: 1 };
+  const zh = scoutRevealHtml({ graded, total, lang: "zh" });
+  assert.ok(zh.includes("命中·未来巨星"), "zh reveal shows the hit-star label");
+  assert.ok(zh.includes("错过·未来巨星"), "zh reveal shows the missed-star label");
+  assert.ok(!zh.includes("hit-star") && !zh.includes("missed-star"), "no raw verdict ids in zh");
+  const en = scoutRevealHtml({ graded, total, lang: "en" });
+  assert.ok(en.includes("Hit — future star") && en.includes("Missed — future star"), "en reveal shows the labels");
+  assert.ok(!en.includes("hit-star") && !en.includes("missed-star"), "no raw verdict ids in en");
 });
 
 test("G scout: prospect picks are deterministic per seed, and the C seam carries the recommendation", () => {
@@ -155,6 +182,19 @@ test("G film: the challenge has three real options and grades on the biggest wea
   assert.equal(rec.source, "film-room");
   assert.equal(rec.confidence, "high");
   assert.equal(rec.wasCorrect, true);
+});
+
+test("G film: the challenge options render in both languages (U-P2-1)", () => {
+  const challenge = buildFilmChallenge(FILM_LOG_WITH_STRIP, { seed: 12, focusSide: "away" });
+  assert.ok(challenge, "a real game yields a challenge");
+  const zh = filmChallengeHtml({ challenge, lang: "zh" });
+  const en = filmChallengeHtml({ challenge, lang: "en" });
+  for (const o of challenge.options) {
+    assert.ok(zh.includes(o.titleZh), "zh shows the zh title");
+    assert.ok(en.includes(o.titleEn || o.titleZh), "en shows the en title");
+    assert.ok(!en.includes(o.summaryZh) || en.includes(o.summaryEn || ""), "en prefers the en summary");
+  }
+  assert.notEqual(zh, en, "the two languages render differently");
 });
 
 test("G film: the same seed reproduces the same game and the same findings", () => {
@@ -295,4 +335,25 @@ test("G analytics: the challenge's correct answer is the top value ratio, and ve
   const verified = verifyAnalyticsReport({ bref: "bryanko01", season: 1997, production: 31.2 }, ROWS, { years: 2 });
   assert.equal(verified.verified, true, "Kobe's production really did rise after 1997");
   assert.ok(verified.laterPeakProduction > 31.2);
+});
+
+test("G analytics: the graded answer carries an English explanation (U-P2-1)", () => {
+  const challenge = buildAnalyticsChallenge(ROWS, { season: 1997, seed: 3 });
+  assert.ok(challenge, "a real season yields a challenge");
+  const right = gradeAnalyticsAnswer(challenge, challenge.correctOptionId);
+  assert.ok(right.explanationZh && right.explanationEn, "both explanations exist");
+  assert.notEqual(right.explanationZh, right.explanationEn, "the two languages differ");
+  assert.match(right.explanationEn, /Correct|value/i);
+});
+
+test("G board: the unemployment note is a bilingual pair and renders in the current language (U-P2-1)", () => {
+  const profile = { ...emptyNetworkProfile({}), unemployed: true, reputation: 40, experienceSeasons: 0, currentRole: "scout" };
+  const { offers, unemployedNote } = generateOpportunities(profile, DEMO_JOB_BOARD, { seed: 5 });
+  assert.ok(unemployedNote?.zh && unemployedNote?.en, "the note is a { zh, en } pair");
+  assert.notEqual(unemployedNote.zh, unemployedNote.en, "the two languages differ");
+  const zh = networkBoardHtml({ profile, offers, unemployedNote, lang: "zh" });
+  const en = networkBoardHtml({ profile, offers, unemployedNote, lang: "en" });
+  assert.ok(zh.includes(unemployedNote.zh), "zh board shows the zh note");
+  assert.ok(en.includes(unemployedNote.en), "en board shows the en note");
+  assert.ok(!en.includes(unemployedNote.zh), "en board shows no zh note");
 });

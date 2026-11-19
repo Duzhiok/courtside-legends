@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { CLUTCH_POOL } from "./helpers/clutchSim.js";
 import { setLang } from "../js/i18n.js";
 import { createCoachingMomentView, COACHING_MOMENT_TITLE } from "../js/ui/coachingMomentView.js";
+import { fileFilmRecommendation } from "../js/career/network/videoAnalyst.js";
 import { createDraftGambleView, DRAFT_GAMBLE_TITLE } from "../js/ui/scoutingView.js";
 
 globalThis.MutationObserver = class {
@@ -219,6 +220,37 @@ test("coaching: relocalize after open re-renders the body in the new language", 
   assert.equal(el.querySelector("#coach-tactics-title").textContent, "Coach Comeback Challenge");
   assert.ok(body.innerHTML.includes("Down"), "body re-renders in en after relocalize");
   assert.notEqual(body.innerHTML, zhHtml, "body html changes with the language");
+  setLang("zh");
+});
+
+test("coaching: a filed analyst suggestion follows the language switch (U-P2-1)", () => {
+  installDoc();
+  setLang("zh");
+  // A cold-shooter film report filed this session maps onto the opening
+  // moment's pack_paint choice. The reason used to be a string rendered in
+  // the language of the moment's creation, so a later switch left it frozen.
+  fileFilmRecommendation({
+    kind: "cold-shooter",
+    wasCorrect: true,
+    source: "film-room",
+    suggestionZh: "建议针对：对方冷手射手",
+    suggestionEn: "Recommend exploiting: the cold shooter",
+  });
+  const view = createCoachingMomentView({
+    getPool: () => CLUTCH_POOL,
+    show: () => {},
+    goBack: () => {},
+  });
+  const el = view.mount();
+  const opened = view.open();
+  assert.ok(opened.ok, "view must open with the full pool");
+  const body = el.querySelector("#coach-tactics-body");
+  assert.ok(body.innerHTML.includes("建议针对：对方冷手射手"), "suggestion renders in zh after open");
+  assert.ok(body.innerHTML.includes("分析师推荐"), "the recommended choice is marked");
+  setLang("en");
+  el.__shellRelocalize();
+  assert.ok(body.innerHTML.includes("Recommend exploiting: the cold shooter"), "suggestion re-renders in en after relocalize");
+  assert.ok(!body.innerHTML.includes("建议针对：对方冷手射手"), "no zh suggestion left after the switch");
   setLang("zh");
 });
 

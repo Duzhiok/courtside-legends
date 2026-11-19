@@ -235,7 +235,8 @@ test("recommendation seam (workstream G): a valid recommendation is attached, a 
     recommend: () => ({ choiceId: "zone_drop", reason: "they hunt the paint", source: "video-analyst" }),
   });
   withRec.start();
-  assert.deepEqual(withRec.moment.recommendation, { choiceId: "zone_drop", reason: "they hunt the paint", source: "video-analyst" });
+  // A plain-string reason from an older hook is wrapped in both languages.
+  assert.deepEqual(withRec.moment.recommendation, { choiceId: "zone_drop", reason: { zh: "they hunt the paint", en: "they hunt the paint" }, source: "video-analyst" });
 
   const badRec = challenge(1, { recommend: () => ({ choiceId: "nope", reason: "x" }) });
   badRec.start();

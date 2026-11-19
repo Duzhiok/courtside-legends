@@ -6,10 +6,12 @@
 // shows ONE language at a time, the back button calls goBack exactly once
 // (the duel's destroy-court-then-goBack sequence and the network's old
 // backWired branch are both gone from the views — the shell owns the
-// button now), a language switch re-renders the body where it is cheap
-// (duel select screen, network home / opportunity board) and leaves the
-// stateful bodies alone (live duel court, scout / film / analytics
-// challenges, which rebuild from a fresh seed on re-render).
+// button now), and a language switch re-renders the body in the new
+// language: the duel select screen, a live duel court (re-mounted from the
+// same state) and the result screen (re-rendered from the stored outcome,
+// never re-recorded), network home / opportunity board, and the scout /
+// film / analytics challenges (re-rendered from their stored challenge
+// state — decisions and answers survive the switch, U-P2-1).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { setLang, getLang } from "../js/i18n.js";

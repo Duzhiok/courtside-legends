@@ -19,7 +19,7 @@
  */
 import {
   prospectPool, scoutReportFor, developmentReport, gradeScoutRecommendation,
-  scoreScoutClass, pickProspects, DEVELOPMENT_TIER_LABEL,
+  scoreScoutClass, pickProspects, DEVELOPMENT_TIER_LABEL, SCOUT_VERDICT_LABEL,
 } from "../career/network/scoutCareer.js";
 import {
   collectPossessionLog, buildTeamFromRows, buildFilmChallenge,
@@ -98,10 +98,11 @@ export function scoutProspectHtml({ report, lang = "zh" } = {}) {
   </div>`;
 }
 
-function scoutRevealHtml({ graded, total, lang = "zh" } = {}) {
+export function scoutRevealHtml({ graded, total, lang = "zh" } = {}) {
   const rows = (graded || []).map((g) => {
     const tier = DEVELOPMENT_TIER_LABEL[g.report.tier] || {};
-    return `<div class="nw-line">${g.report.name} — ${L("实际发展", "Actually became", lang)}: ${tier[lang === "en" ? "en" : "zh"] || g.report.tier} · ${L("三年后最高", "Peak in 3 yrs", lang)}: ${g.report.peakPpg ?? "—"}${L("分", " pts", lang)} · ${L("判定", "Verdict", lang)}: ${g.verdict} (${g.points > 0 ? "+" : ""}${g.points})</div>`;
+    const verdict = SCOUT_VERDICT_LABEL[g.verdict] || {};
+    return `<div class="nw-line">${g.report.name} — ${L("实际发展", "Actually became", lang)}: ${tier[lang === "en" ? "en" : "zh"] || g.report.tier} · ${L("三年后最高", "Peak in 3 yrs", lang)}: ${g.report.peakPpg ?? "—"}${L("分", " pts", lang)} · ${L("判定", "Verdict", lang)}: ${verdict[lang === "en" ? "en" : "zh"] || g.verdict} (${g.points > 0 ? "+" : ""}${g.points})</div>`;
   }).join("");
   return `<div class="nw-reveal"><h3>${L("三年后：你的判断得到了验证", "Three years later: your calls, verified", lang)}</h3>${rows}
   <div class="nw-total">${L("本届球探评分", "Scout class score", lang)}: ${total.total} (${L("命中", "hits", lang)} ${total.hits} · ${L("错失", "misses", lang)} ${total.misses})</div>
@@ -119,7 +120,7 @@ function filmStripHtml({ strip, lang = "zh" } = {}) {
 
 export function filmChallengeHtml({ challenge, lang = "zh" } = {}) {
   const opts = (challenge?.options || []).map((o) => `<button type="button" class="btn nw-opt" data-film-opt="${o.id}">
-    <b>${o.titleZh}</b><span>${o.summaryZh}</span></button>`).join("");
+    <b>${lang === "en" ? (o.titleEn || o.titleZh) : o.titleZh}</b><span>${lang === "en" ? (o.summaryEn || o.summaryZh) : o.summaryZh}</span></button>`).join("");
   return `<div class="nw-challenge"><h3>${L("找出对手最大的弱点", "Find the opponent's biggest weakness", lang)}</h3>
   <p class="tiny">${challenge.gameLabel} · ${L("最终比分", "Final", lang)} ${challenge.finalScore?.home ?? "?"}–${challenge.finalScore?.away ?? "?"}</p>
   ${filmStripHtml({ strip: challenge.strip, lang })}
@@ -147,7 +148,7 @@ export function networkBoardHtml({ profile, offers, unemployedNote, lang = "zh" 
   <div class="nw-line">${L("声望", "Reputation", lang)}: ${profile.reputation}${lang === "en" ? ` (${standing.labelEn || standing.labelZh})` : `（${standing.labelZh}）`}· ${L("经验", "Experience", lang)}: ${profile.experienceSeasons}${L("季", " seasons", lang)}</div>
   <div class="nw-line">${L("判断记录", "Judgment record", lang)}: ${L("录像", "Film", lang)} ${profile.decisions?.filmCorrect || 0}/${profile.decisions?.filmTotal || 0} · ${L("球探", "Scout", lang)} ${profile.decisions?.scoutHits || 0}/${profile.decisions?.scoutTotal || 0} · ${L("分析验证", "Analytics verified", lang)} ${profile.decisions?.analyticsVerified || 0}</div>
   ${profile.unemployed ? `<div class="nw-line">${L("状态：失业中", "Status: unemployed", lang)}</div>` : ""}
-  ${unemployedNote ? `<p class="tiny">${unemployedNote}</p>` : ""}</div>
+  ${unemployedNote ? `<p class="tiny">${typeof unemployedNote === "string" ? unemployedNote : (lang === "en" ? (unemployedNote.en || unemployedNote.zh || "") : (unemployedNote.zh || unemployedNote.en || ""))}</p>` : ""}</div>
   <div class="nw-board"><h3>${L("职业机会", "Career opportunities", lang)}</h3>${rows || `<p class="tiny">${L("暂无职位空缺", "No openings right now", lang)}</p>`}</div>`;
 }
 
@@ -171,6 +172,13 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   let screen = null;
   let body = null;
   let currentView = null; // "home" | "scout" | "film" | "analytics" | "board"
+  // Challenge state, kept across a language switch (U-P2-1): the challenge is
+  // built once from a fixed seed, and the player's answers are stored here,
+  // so relocalize re-renders from the same challenge instead of rebuilding
+  // it or wiping a decision.
+  let scoutState = null; // { season, seed, rows, reports, picked, decisions: Map<bref, boolean>, revealed: { graded, total } | null }
+  let filmState = null; // { seed, challenge, answered: { optionId, grade, rec } | null }
+  let analyticsState = null; // { season, seed, challenge, board, answered: { optionId, grade } | null }
 
   const profile = () => readStore("profile", accountId(), emptyNetworkProfile({}));
   const saveProfile = (p) => writeStore("profile", accountId(), p);
@@ -184,15 +192,17 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
           if (typeof goBack === "function") goBack();
           else if (typeof show === "function") show("home");
         },
-        // Home and the opportunity board are cheap deterministic re-renders.
-        // Scout / film / analytics rebuild their challenge from a fresh
-        // seed on re-render, so a language toggle leaves those bodies alone
-        // (same as before the migration, when a toggle never re-rendered
-        // the body) — the next navigation renders in the new language.
+        // Every view re-renders in the new language from its stored state
+        // (U-P2-1). Scout / film / analytics keep their challenge (built
+        // once from a fixed seed) plus the player's answers, so a toggle
+        // never rebuilds the challenge or wipes a decision.
         onRelocalize: () => {
           if (!body?.hasChildNodes()) return;
           if (currentView === "home") renderHome();
           else if (currentView === "board") openBoard();
+          else if (currentView === "scout") renderScout();
+          else if (currentView === "film") renderFilm();
+          else if (currentView === "analytics") renderAnalytics();
         },
       });
       body = screen.querySelector("#network-body");
@@ -226,29 +236,37 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     const pool = prospectPool(rows, season);
     const picked = pickProspects(pool, 5, seed);
     const reports = picked.map((p) => scoutReportFor(p, rows, { seed: seed + 1 }));
-    const decisions = new Map();
-    body.innerHTML = `<h3>${L("球探考察", "Scout evaluation", lang())} · ${season - 1}–${String(season).slice(2)}${L("选秀", " draft", lang())}</h3>
+    scoutState = { season, seed, rows, reports, picked, decisions: new Map(), revealed: null };
+    renderScout();
+  }
+
+  /** Render the scout challenge from stored state; decisions + reveal survive a language switch. */
+  function renderScout() {
+    const s = scoutState;
+    if (!s || !body) return;
+    const decided = s.decisions.size >= s.reports.length;
+    body.innerHTML = `<h3>${L("球探考察", "Scout evaluation", lang())} · ${s.season - 1}–${String(s.season).slice(2)}${L("选秀", " draft", lang())}</h3>
       <p class="tiny">${L("考察 5 名新人：根据球探报告决定推荐或放弃。三年后看真实发展。", "Evaluate 5 prospects: recommend or pass from the scout report. See the real development three years later.", lang())}</p>
-      ${reports.map((r) => scoutProspectHtml({ report: r, lang: lang() })).join("")}
-      <button type="button" class="btn primary" id="btn-scout-reveal" disabled>${L("三年后揭晓", "Reveal in three years", lang())}</button>
-      <div id="scout-result"></div>`;
-    const revealBtn = body.querySelector("#btn-scout-reveal");
+      ${s.reports.map((r) => scoutProspectHtml({ report: r, lang: lang() })).join("")}
+      <button type="button" class="btn primary" id="btn-scout-reveal" ${decided ? "" : "disabled"}>${L("三年后揭晓", "Reveal in three years", lang())}</button>
+      <div id="scout-result">${s.revealed ? scoutRevealHtml({ graded: s.revealed.graded, total: s.revealed.total, lang: lang() }) : ""}</div>`;
     body.querySelectorAll("[data-scout-rec]").forEach((btn) => {
+      btn.disabled = s.decisions.has(btn.dataset.bref);
       btn.addEventListener("click", () => {
-        decisions.set(btn.dataset.bref, btn.dataset.scoutRec === "1");
-        btn.closest(".nw-card").querySelectorAll("[data-scout-rec]").forEach((b) => { b.disabled = true; });
-        if (decisions.size >= reports.length) revealBtn.disabled = false;
+        s.decisions.set(btn.dataset.bref, btn.dataset.scoutRec === "1");
+        renderScout();
       });
     });
-    revealBtn.addEventListener("click", () => {
-      const graded = reports.map((report) => {
-        const prospect = picked.find((p) => p.row.bref === report.bref);
-        const dev = developmentReport(prospect, rows, { years: 3 });
-        const g = gradeScoutRecommendation({ recommended: decisions.get(report.bref) === true, pickCost: "mid", report: dev });
+    body.querySelector("#btn-scout-reveal")?.addEventListener("click", () => {
+      if (s.revealed) return; // reveal once: re-rendering must not re-apply reputation or re-store
+      const graded = s.reports.map((report) => {
+        const prospect = s.picked.find((p) => p.row.bref === report.bref);
+        const dev = developmentReport(prospect, s.rows, { years: 3 });
+        const g = gradeScoutRecommendation({ recommended: s.decisions.get(report.bref) === true, pickCost: "mid", report: dev });
         return { ...g, report: dev };
       });
       const total = scoreScoutClass(graded);
-      body.querySelector("#scout-result").innerHTML = scoutRevealHtml({ graded, total, lang: lang() });
+      s.revealed = { graded, total };
       // Fold the outcome into the network profile (scout hits build reputation).
       let p = profile();
       for (const g of graded) {
@@ -256,7 +274,8 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
         p = recordSliceResult(p, { kind: "scout", correct });
       }
       saveProfile(p);
-      writeStore("scout-last", accountId(), { season, graded, total, at: Date.now() });
+      writeStore("scout-last", accountId(), { season: s.season, graded, total, at: Date.now() });
+      renderScout();
     });
   }
 
@@ -270,27 +289,44 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     const challenge = buildFilmChallenge(log, { seed, focusSide: "away" });
     if (!challenge) {
       body.innerHTML = `<p>${L("这场比赛没有产生足够的录像发现，换个种子再试一次。", "This game produced too few film findings — try another seed.", lang())}</p>`;
+      filmState = null;
       return;
     }
-    body.innerHTML = filmChallengeHtml({ challenge, lang: lang() }) + `<div id="film-result"></div>`;
+    filmState = { seed, challenge, answered: null };
+    renderFilm();
+  }
+
+  /** The graded film answer, rendered from stored state in the current language. */
+  function filmResultHtml({ grade, rec }) {
+    const filmLang = lang();
+    const filmExplanation = filmLang === "en" ? (grade.explanationEn || grade.explanationZh) : grade.explanationZh;
+    const filmSuggestion = filmLang === "en" ? (rec.suggestionEn || rec.suggestionZh) : rec.suggestionZh;
+    const filmParens = filmLang === "en" ? ["(", ")"] : ["（", "）"];
+    return `<div class="nw-reveal"><p>${filmExplanation}</p>
+      <p class="tiny">${L("已提交给主教练的建议", "Recommendation filed to the head coach", filmLang)}: ${filmSuggestion}${filmParens[0]}${L("可信度", "confidence", filmLang)}: ${rec.confidence}${filmParens[1]}</p>
+      <p class="tiny">${L("声望变化", "Reputation", filmLang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;
+  }
+
+  /** Render the film challenge from stored state; the answer survives a language switch. */
+  function renderFilm() {
+    const f = filmState;
+    if (!f || !body) return;
+    body.innerHTML = filmChallengeHtml({ challenge: f.challenge, lang: lang() }) + `<div id="film-result">${f.answered ? filmResultHtml(f.answered) : ""}</div>`;
     body.querySelectorAll("[data-film-opt]").forEach((btn) => {
+      btn.disabled = !!f.answered;
       btn.addEventListener("click", () => {
-        const grade = gradeFilmAnswer(challenge, btn.dataset.filmOpt);
-        const rec = filmRecommendation(challenge, btn.dataset.filmOpt);
+        if (f.answered) return; // answer once: a second click used to re-grade and double-count reputation
+        const grade = gradeFilmAnswer(f.challenge, btn.dataset.filmOpt);
+        const rec = filmRecommendation(f.challenge, btn.dataset.filmOpt);
         // [Career 2.0 integration] File it so the coach challenge can
         // actually read it this session — the "filed to the head coach"
         // line below is now backed by the handoff, not just words.
         fileFilmRecommendation(rec);
-        const filmLang = lang();
-        const filmExplanation = filmLang === "en" ? (grade.explanationEn || grade.explanationZh) : grade.explanationZh;
-        const filmSuggestion = filmLang === "en" ? (rec.suggestionEn || rec.suggestionZh) : rec.suggestionZh;
-        const filmParens = filmLang === "en" ? ["(", ")"] : ["（", "）"];
-        body.querySelector("#film-result").innerHTML = `<div class="nw-reveal"><p>${filmExplanation}</p>
-          <p class="tiny">${L("已提交给主教练的建议", "Recommendation filed to the head coach", lang())}: ${filmSuggestion}${filmParens[0]}${L("可信度", "confidence", lang())}: ${rec.confidence}${filmParens[1]}</p>
-          <p class="tiny">${L("声望变化", "Reputation", lang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;
+        f.answered = { optionId: btn.dataset.filmOpt, grade, rec };
         let p = profile();
         p = recordSliceResult(p, { kind: "film", correct: grade.correct });
         saveProfile(p);
+        renderFilm();
       });
     });
   }
@@ -300,21 +336,40 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     const rows = await getRows();
     const challenge = buildAnalyticsChallenge(rows, { season, seed });
     const board = findUndervalued(rows, { season, minGp: 20, limit: 5 });
-    const boardHtml = board.map((b) => `<div class="nw-line">${b.row.name} · ${b.row.pos} · ${b.row.team} — ${L("价值比", "Value ratio", lang())} ${b.valueRatio} · OVR ${b.ovr} · ¤${b.price}</div>`).join("");
     if (!challenge) {
       body.innerHTML = `<p>${L("该赛季数据不足，无法生成挑战。", "Not enough data in this season to build the challenge.", lang())}</p>`;
+      analyticsState = null;
       return;
     }
-    body.innerHTML = analyticsChallengeHtml({ challenge, lang: lang() })
-      + `<div id="analytics-result"></div><h3>${L("价值榜", "Value board", lang())}</h3>${boardHtml}`;
+    analyticsState = { season, seed, challenge, board, answered: null };
+    renderAnalytics();
+  }
+
+  /** The graded analytics answer in the current language (was hardcoded explanationZh). */
+  function analyticsResultHtml({ grade }) {
+    const aLang = lang();
+    const explanation = aLang === "en" ? (grade.explanationEn || grade.explanationZh) : grade.explanationZh;
+    return `<div class="nw-reveal"><p>${explanation}</p>
+      <p class="tiny">${L("声望变化", "Reputation", aLang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;
+  }
+
+  /** Render the analytics challenge from stored state; the answer survives a language switch. */
+  function renderAnalytics() {
+    const a = analyticsState;
+    if (!a || !body) return;
+    const boardHtml = a.board.map((b) => `<div class="nw-line">${b.row.name} · ${b.row.pos} · ${b.row.team} — ${L("价值比", "Value ratio", lang())} ${b.valueRatio} · OVR ${b.ovr} · ¤${b.price}</div>`).join("");
+    body.innerHTML = analyticsChallengeHtml({ challenge: a.challenge, lang: lang() })
+      + `<div id="analytics-result">${a.answered ? analyticsResultHtml(a.answered) : ""}</div><h3>${L("价值榜", "Value board", lang())}</h3>${boardHtml}`;
     body.querySelectorAll("[data-analytics-opt]").forEach((btn) => {
+      btn.disabled = !!a.answered;
       btn.addEventListener("click", () => {
-        const grade = gradeAnalyticsAnswer(challenge, btn.dataset.analyticsOpt);
-        body.querySelector("#analytics-result").innerHTML = `<div class="nw-reveal"><p>${grade.explanationZh}</p>
-          <p class="tiny">${L("声望变化", "Reputation", lang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;
+        if (a.answered) return; // answer once: a second click used to re-grade and double-count reputation
+        const grade = gradeAnalyticsAnswer(a.challenge, btn.dataset.analyticsOpt);
+        a.answered = { optionId: btn.dataset.analyticsOpt, grade };
         let p = profile();
         p = recordSliceResult(p, { kind: "analytics", correct: grade.correct });
         saveProfile(p);
+        renderAnalytics();
       });
     });
   }
@@ -331,15 +386,17 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
         if (!offer) return;
         const { profile: next, transition } = acceptOpportunity(p, offer, { year: 1997 });
         saveProfile(next);
-        body.querySelector("#network-result").innerHTML = `<p>${L("已接受", "Accepted", lang())}: ${(() => { const role = NETWORK_ROLES[transition.to]; return role ? (lang() === "en" ? (role.labelEn || role.labelZh) : role.labelZh) : transition.to; })()} · ${transition.toTeam || ""}</p>`;
+        // Re-render first, then write the result into the fresh #network-result:
+        // writing before openBoard() wiped the line (the board replaces the body).
         openBoard();
+        body.querySelector("#network-result").innerHTML = `<p>${L("已接受", "Accepted", lang())}: ${(() => { const role = NETWORK_ROLES[transition.to]; return role ? (lang() === "en" ? (role.labelEn || role.labelZh) : role.labelZh) : transition.to; })()} · ${transition.toTeam || ""}</p>`;
       });
     });
     body.querySelector("#btn-network-fired")?.addEventListener("click", () => {
-      const { profile: next, noteZh } = dismissalOutcome(p, { reason: "fired", year: 1997 });
+      const { profile: next, noteZh, noteEn } = dismissalOutcome(p, { reason: "fired", year: 1997 });
       saveProfile(next);
-      body.querySelector("#network-result").innerHTML = `<p>${noteZh}</p>`;
       openBoard();
+      body.querySelector("#network-result").innerHTML = `<p>${lang() === "en" ? (noteEn || noteZh) : noteZh}</p>`;
     });
   }
 

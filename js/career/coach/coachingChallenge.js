@@ -25,7 +25,9 @@
  *    data, no functions, so any producer (UI, analyst, test) can build one.
  *  - `createCoachingChallenge({ recommend })` accepts an optional
  *    `recommend(moment, ctx) => ({ choiceId, reason, source } | null)`.
- *    When a moment is built, the hook is called and its result is attached
+ *    `reason` is a { zh, en } pair (a plain string is wrapped in both
+ *    languages, so an older hook still renders). When a moment is built,
+ *    the hook is called and its result is attached
  *    as `moment.recommendation` — rendered as a suggestion, never
  *    auto-applied. The controller never imports the analyst; the hook is the
  *    whole contract. Without a hook there is no recommendation.
@@ -181,12 +183,22 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
     return settled;
   }
 
+  /** The recommendation reason is a { zh, en } pair (U-P2-1): a plain string
+   * from an older hook is wrapped in both languages so it still renders. */
+  function toReasonPair(reason) {
+    if (reason && typeof reason === "object" && typeof reason.zh === "string" && typeof reason.en === "string") {
+      return { zh: reason.zh, en: reason.en };
+    }
+    if (typeof reason === "string") return { zh: reason, en: reason };
+    return { zh: "", en: "" };
+  }
+
   function attachRecommendation(m) {
     if (typeof recommend !== "function") return m;
     try {
       const rec = recommend(m, { readouts: readouts(), tactical });
       if (rec && typeof rec.choiceId === "string" && m.choices.some((c) => c.id === rec.choiceId)) {
-        return { ...m, recommendation: { choiceId: rec.choiceId, reason: rec.reason || "", source: rec.source || "video-analyst" } };
+        return { ...m, recommendation: { choiceId: rec.choiceId, reason: toReasonPair(rec.reason), source: rec.source || "video-analyst" } };
       }
     } catch {
       /* a broken analyst hook must never break the challenge */

@@ -65,7 +65,7 @@ test("film adapter: cold shooter at the opening suggests packing the paint", () 
   const rec = filmRecommendForMoment(filmRec("cold-shooter"), moment("opening", ["switch_all", "zone_drop", "pack_paint"]));
   assert.deepEqual(rec, {
     choiceId: "pack_paint",
-    reason: "建议针对：cold-shooter",
+    reason: { zh: "建议针对：cold-shooter", en: "Recommend exploiting: cold-shooter" },
     source: "film-room",
   });
 });
@@ -98,20 +98,15 @@ test("film adapter: no mapping for the moment kind, unknown finding, or a disabl
   assert.equal(filmRecommendForMoment(filmRec("scoring-run"), noTimeout), null);
 });
 
-test("film adapter: a misread report still maps but says so in the reason", () => {
-  const zh = filmRecommendForMoment(
+test("film adapter: a misread report still maps but says so in the reason (both languages at once)", () => {
+  const rec = filmRecommendForMoment(
     filmRec("cold-shooter", false),
     moment("opening", ["switch_all", "zone_drop", "pack_paint"]),
   );
-  assert.equal(zh?.choiceId, "pack_paint");
-  assert.match(zh?.reason || "", /存疑/);
-  const en = filmRecommendForMoment(
-    filmRec("cold-shooter", false),
-    moment("opening", ["switch_all", "zone_drop", "pack_paint"]),
-    { lang: "en" },
-  );
-  assert.match(en?.reason || "", /uncertain/);
-  assert.match(en?.reason || "", /Recommend exploiting/);
+  assert.equal(rec?.choiceId, "pack_paint");
+  assert.match(rec?.reason.zh || "", /存疑/);
+  assert.match(rec?.reason.en || "", /uncertain/);
+  assert.match(rec?.reason.en || "", /Recommend exploiting/);
 });
 
 test("film handoff holder: file then read, invalid input does not clobber", () => {
