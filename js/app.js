@@ -595,6 +595,14 @@ const navStack = [];
 let navPopping = false;
 
 function show(name) {
+  if (!screens[name]) {
+    // U-P2-8: an unknown name used to clear every screen's .active and then
+    // throw on screens[name].classList — a blank page only a refresh could
+    // fix. Log and stay on the current screen instead (no stack push, no
+    // .active changes).
+    console.error(`show(): unknown screen "${name}"`);
+    return;
+  }
   const from = activeScreenName();
   refreshGoldChip(); // the top-bar gold balance is visible on every screen
   audio.screen(name, { year: state.season?.year });

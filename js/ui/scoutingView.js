@@ -520,7 +520,7 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
     }
     if (!PLAYERS.length) {
       render();
-      if (typeof show === "function") show("draft-gamble");
+      if (typeof show === "function") show("draftGamble");
       return;
     }
     const root = readRootSave() || {};
@@ -544,7 +544,7 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
       neg = null;
     }
     render();
-    if (typeof show === "function") show("draft-gamble");
+    if (typeof show === "function") show("draftGamble");
   }
 
   return { open, mount, render };
