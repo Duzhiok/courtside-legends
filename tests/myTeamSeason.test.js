@@ -115,7 +115,7 @@ test("a 20-game season can be played to the end and still hands out awards (thre
   assert.equal(user.w + user.l, 20, "the user's team played exactly 20");
   const awards = computeAwards(st);
   assert.ok(awards.mvp, "MVP is awarded at 20 games");
-  assert.ok(awards.roy || awards.mip || awards.sixth, "scaled gates let at least one secondary award through");
+  assert.ok(awards.roy || awards.mip || awards.sixthMan, "scaled gates let at least one secondary award through");
 });
 
 test("saving after play stays small: played games don't drag their live snapshots into storage (quota regression)", () => {

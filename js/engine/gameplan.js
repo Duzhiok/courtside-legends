@@ -3,6 +3,7 @@
  * lineup packs, role expectations, minute targets, possession focus.
  */
 import { overall } from "../data/players.js";
+import { hasRealShotVolume, shotAppetiteRatio } from "./shotAppetite.js";
 import { POS_SLOTS } from "../data/franchises.js";
 import { PLAYER_ROLES, inferPlayerRole, staminaMinuteCap, suggestTargetMinutes } from "../data/playerMinutes.js";
 
@@ -427,7 +428,12 @@ export function recommendPlayerOrders(player = null) {
     skills.includes("spring_board") ||
     /lob_finisher|spring_board/.test(arch);
 
+  // B35: "low scoring rating" is not "does not shoot". Webber 1995 (rating 72, 16 shots per 36) read as a blue collar
+  // and took ~3 per 36. Someone who really took at least a league-average share of shots is never a hustle /
+  // lock-down / defend role. Same yardstick as the engine's touch weight (shotAppetite.js).
+  const volumeScorer = hasRealShotVolume(player) && shotAppetiteRatio(player) >= 1; // real numbers only: the shotTend fallback is not evidence
   const blueCollar =
+    !volumeScorer &&
     scoring < 74 &&
     defense >= 76 &&
     (rebound >= 68 || defense >= 82) &&
@@ -472,7 +478,7 @@ export function recommendPlayerOrders(player = null) {
     // B35: a shooter who can really score is NOT a "defend" role. "defend" cuts his touches to ~60% (scoring weight
     // 0.2, x0.62) and "low" aggression to ~55%, which starved Rice / Mashburn / Rider (0-4 ppg vs 20+). Only a
     // genuinely low-scoring spot-up piece stays defend/low.
-    const scorer = scoring >= 66;
+    const scorer = scoring >= 66 || volumeScorer;
     usage = scoring >= 82 ? "score" : scorer ? "balanced" : "defend";
     action = "spot";
     // A real scorer sits between "low" (shot threshold 0.70: only wide-open looks) and "normal" (0.44): auto aggression
@@ -483,7 +489,7 @@ export function recommendPlayerOrders(player = null) {
     usage = "balanced";
     action = isBig ? (style === "post" ? "post" : "pnr") : "pnr";
     aggression = "normal";
-  } else if (defense >= 82 && scoring < 80 && (steal >= 70 || /3andD|stopper/.test(arch))) {
+  } else if (defense >= 82 && scoring < 80 && !volumeScorer && (steal >= 70 || /3andD|stopper/.test(arch))) {
     usage = "defend";
     action = style === "spot" || threeTend >= 48 ? "spot" : "auto";
     defFocus = "onball";

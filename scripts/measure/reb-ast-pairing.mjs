@@ -1,5 +1,5 @@
 /**
- * Does the simulator give rebounds and assists to the right players? Measurement only.
+ * Does the simulator give rebounds, assists and shots (B35: who takes them) to the right players? Measurement only.
  * Pairs every player's simulated rebounds / assists per 36 minutes with his own real rpg / apg per 36 (same season), six eras, paired fixed seeds.
  * Reports sim/real by position group, by thirds of the real rate, the per-player correlation, and the team offensive-rebound share.
  * Usage: node scripts/measure/reb-ast-pairing.mjs [gamesPerPair=40]
@@ -21,8 +21,8 @@ for (const [a, b, year] of PAIRS) {
     for (const p of [...sim.home.onCourt, ...sim.away.onCourt, ...sim.home.bench, ...sim.away.bench]) {
       orb += p.stats.oreb || 0; drb += p.stats.dreb || 0; miss += p.stats.fga - p.stats.fgm; ftMiss += p.stats.fta - p.stats.ftm;
       if (!(p.stats.min > 0)) continue;
-      const r = rows.get(`${year}|${p.id}`) || { p, min: 0, reb: 0, ast: 0 };
-      r.min += p.stats.min; r.reb += p.stats.reb; r.ast += p.stats.ast;
+      const r = rows.get(`${year}|${p.id}`) || { p, min: 0, reb: 0, ast: 0, fga: 0, pts: 0 };
+      r.min += p.stats.min; r.reb += p.stats.reb; r.ast += p.stats.ast; r.fga += p.stats.fga; r.pts += p.stats.pts;
       rows.set(`${year}|${p.id}`, r);
     }
   }
@@ -34,7 +34,7 @@ const pearson = (xs, ys) => {
   for (let i = 0; i < n; i += 1) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; syy += (ys[i] - my) ** 2; }
   return sxy / Math.sqrt(sxx * syy);
 };
-for (const [name, simKey, rate] of [["REBOUNDS", "reb", (r) => (r.p.raw.rpg / r.p.raw.mpg) * 36], ["ASSISTS", "ast", (r) => (r.p.raw.apg / r.p.raw.mpg) * 36]]) {
+for (const [name, simKey, rate] of [["REBOUNDS", "reb", (r) => (r.p.raw.rpg / r.p.raw.mpg) * 36], ["ASSISTS", "ast", (r) => (r.p.raw.apg / r.p.raw.mpg) * 36], ["SHOTS (FGA)", "fga", (r) => (r.p.raw.fga / r.p.raw.mpg) * 36], ["POINTS", "pts", (r) => (r.p.raw.ppg / r.p.raw.mpg) * 36]]) {
   const line = (label, list) => {
     const m = list.reduce((s, r) => s + r.min, 0);
     const sim = list.reduce((s, r) => s + r[simKey], 0) / m * 36, real = list.reduce((s, r) => s + rate(r) * r.min, 0) / m;

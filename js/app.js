@@ -489,6 +489,7 @@ import {
 } from "./engine/clutchController.js";
 import { classifyClutchRole } from "./engine/clutchRole.js";
 import { createDomainEventAdapter } from "./engine/domainEvents.js";
+import { createMatchEventsSession } from "./ui/matchEventsController.js";
 import { createTacticalTakeover } from "./engine/tacticalTakeover.js";
 import {
   confidenceLabel,
@@ -815,6 +816,7 @@ function currentRootState({ liveGame = "preserve" } = {}) {
         sim: state.sim.exportState(),
         feed: collectFeedLines(),
         manualOverrides: state.leagueCareer?.manualOverrides || {},
+        matchEvents: state.matchEvents?.exportState() || null,
       }
     : null;
   return createRootState({
@@ -1051,6 +1053,7 @@ function resumeLongCareer(root = readRootSave()) {
         simSave: active.liveGame.sim,
         context,
         feed: active.liveGame.feed,
+        matchEvents: active.liveGame.matchEvents,
         homeTeam,
         awayTeam,
       });
@@ -1381,6 +1384,7 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
       app: serializeAppSlice(state),
       sim: state.sim ? state.sim.exportState() : null,
       feed: collectFeedLines(),
+      matchEvents: state.sim ? state.matchEvents?.exportState() || null : null,
     };
     // Prefer game screen if sim exists
     if (forceScreen) payload.screen = forceScreen;
@@ -1485,6 +1489,14 @@ function newCourtView() {
 /** M3 domain-event adapter for the live game: derived events drive court visuals (trails reset on a new possession, sub flash on a substitution). Raw events keep flowing through handleSimEvent unchanged. */
 function wireDomainEvents() {
   state.domainEvents = createDomainEventAdapter({ onDomainEvent: (evt) => handleDomainEvent(evt) });
+  // In-Match Events MVP: one session per live game; a restored game continues its saved one. Off when two humans share the game.
+  state.matchEvents?.dispose();
+  const savedEvents = state.restoredMatchEvents || null;
+  state.restoredMatchEvents = null;
+  state.matchEvents = state.sim && !speedLocked(state.mode, currentTournamentMatch())
+    ? createMatchEventsSession({ sim: state.sim, saved: savedEvents, getLang })
+    : null;
+  state.matchEvents?.reshowPending();
 }
 
 // 3D-S1B: optional 3D court on the Gold game screen. 2D keeps rendering underneath and is the permanent fallback.
@@ -1507,6 +1519,7 @@ function handleDomainEvent(evt) {
     } else if (evt.type === "SUBSTITUTION" && evt.meta?.sub?.inId) {
       state.court?.flashToken(evt.meta.sub.inId);
     }
+    state.matchEvents?.onDomainEvent(evt);
   } catch (err) {
     console.error(err);
   }
@@ -1570,7 +1583,7 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   pushFeed("coach", "已读取存档——点「继续比赛」接着打");
 }
 
-function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam, onFinished }) {
+function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam, onFinished, matchEvents = null }) {
   const youSide = simSave.youSide || context.youSide || "home";
   const sim = GameSim.fromSave(simSave, {
     onEvent: (event) => handleSimEvent(event),
@@ -1597,6 +1610,7 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
   });
   const feedElement = $("#play-feed");
   if (feedElement) feedElement.innerHTML = "";
+  state.restoredMatchEvents = matchEvents;
   wireRestoredSim(sim, homeTeam, awayTeam, youSide);
   restoreFeed(feed);
   return sim;
@@ -1643,6 +1657,7 @@ function continueFromSave() {
         simSave: data.sim,
         context: state.pendingMatch || {},
         feed: data.feed,
+        matchEvents: data.matchEvents,
         homeTeam,
         awayTeam,
         onFinished: () => {
@@ -8525,6 +8540,7 @@ function syncPauseUI(snap) {
         half: "中场休息——恢复 35 点疲劳。可调整战术与阵容。",
         manual: "模拟已暂停——可调整后点「继续比赛」。",
         injury: "有人受伤——请立刻把伤员换下，再点「继续比赛」。",
+        event: "比赛事件——在事件卡里做个决定；直接点「继续比赛」就按默认处理。",
       };
       hint.textContent = labels[reason] || "死球窗口——可调整后点「继续比赛」。";
     }
@@ -8947,6 +8963,7 @@ $("#btn-quick-sim").onclick = async () => {
   }
   pushFeed("coach", "快速模拟整场——托管助手接管剩余比赛…");
   try {
+    state.matchEvents?.autoResolvePending();
     const snap = sim.runFast();
     // finish() already fires onEnd → showResult; refresh once if still on live
     if (sim.running === false && snap) {

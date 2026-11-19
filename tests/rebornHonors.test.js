@@ -179,7 +179,9 @@ test("real GameSim run, a title: the clinching game (and only it) carries isCham
 });
 
 test("real GameSim run, a Finals loss: finalist honour, no title flag anywhere", { timeout: 120000 }, async () => {
-  let reborn = run("honors-real-3", 1997);
+  // Fixed seed on the real engine that happens to reach the Finals and lose them. Re-pick it (a Finals loss is ~1 seed in
+  // 12) whenever GameSim's shot distribution is recalibrated; the assertions below are the design, the seed is not.
+  let reborn = run("honors-real-11", 1997);
   reborn.player.coachTrust = 80;
   fakeUserLog(reborn, 1997, userAlways(reborn, true));
   advanceLeague(reborn, ROWS, { year: 1997, simulate: coin });

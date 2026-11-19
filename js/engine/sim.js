@@ -1,4 +1,5 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
+import { shotAppetite } from "./shotAppetite.js";
 import { rand as rnd, withRng } from "../core/rng.js";
 import { getLang, skillNameL } from "../i18n.js";
 import { overall } from "../data/players.js";
@@ -3796,6 +3797,7 @@ function pickBallHandler(off, focusPlay = null, offenseFocusId = null) {
       (0.55 + 0.45 * fatM); // gassed stars still get touches, but scheme leans fresher legs
     // Last-game confidence / tactical status — auto offense feeds the hot hand
     w *= Math.min(1.22, formUsageMult(p));
+    w *= shotAppetite(p); // B35: how often he really looked for his own shot (real FGA per 36)
     if (usage === "auto" || usage === "score") w *= 0.92 + formConfidence(p) * 0.0012;
     if (usage === "defend") w *= 0.62; // lead-defender role: fewer touches
     if (usage === "hustle" || action === "crash") w *= 0.55; // 蓝领：少持球，靠冲板吃饭
@@ -4086,6 +4088,7 @@ function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null) {
       // 低三分倾向的弹跳大个子：不当射手，当顺下点
       if (threeTend < 28) w *= 2.4;
     }
+    w *= shotAppetite(p); // same appetite on the catch: a kick-out goes to someone who takes the shot
     if (offenseFocusId && p.id === offenseFocusId) w *= 1.5;
     // 终场需要三分：分球几乎锁定最稳射手
     const clutchPick = off.temp?.clutchPick;

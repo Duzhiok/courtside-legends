@@ -130,7 +130,7 @@ test("the next season's card is the new year's real card — or the last real on
 test("training pays trust once a week, on the week's last game", async () => {
   const teamOf = (reborn) => REBORN_TEAM_IDS.filter((t) => t !== reborn.player.teamId).slice(0, 4);
   async function fourGames(trainingDone) {
-    const reborn = createRebornState("reborn-contract-train", ROWS);
+    const reborn = createRebornState("reborn-contract-train-2", ROWS); // fixed seed: the 4th game must not hit the per-game trust cap; re-pick it if GameSim is recalibrated
     reborn.player.coachTrust = 10; // DNP: zero minutes, zero performance delta
     const season = buildSeason(reborn, ROWS, {
       games: teamOf(reborn).map((o, i) => ({ homeId: reborn.player.teamId, awayId: o, day: i + 1, played: false })),

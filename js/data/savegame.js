@@ -112,6 +112,9 @@ export function writeSave(payload) {
     app: payload.app || null,
     sim: payload.sim || null,
     feed: payload.feed || [],
+    // In-Match Events state of the live game (optional, additive: older saves simply lack it and
+    // restore a fresh one; SAVE_VERSION unchanged). Without it a reload re-fired seen events.
+    ...(payload.matchEvents ? { matchEvents: payload.matchEvents } : {}),
   };
   const text = JSON.stringify(data);
   try {
