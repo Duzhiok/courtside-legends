@@ -6,8 +6,8 @@
  * (the men you keep guarding) counts too, which is what makes this reachable in a real season.
  *
  * The three triggers of the design:
- *   - CHAMPIONSHIP  a title won against him. Reborn has no playoffs yet, so `isChampionship` is never true today; the
- *                   rule is implemented and tested so it only needs the game evidence to start flowing.
+ *   - CHAMPIONSHIP  a title won against him. Playoffs landed in P2/P3, so a real Finals-clinching report now
+ *                   carries `isChampionship`; the rule consumes that game evidence (proven in P4).
  *   - MUTUAL RESPECT / RIVALRY RESOLUTION  enough real meetings that the respect score alone reaches MIN_RESPECT.
  *
  * All numbers are initial values to tune with fixed-seed seasons, not final balance.
