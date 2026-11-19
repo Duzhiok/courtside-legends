@@ -255,18 +255,23 @@ test("G film: a turnover-prone actor carries the possessions where he gave it aw
   assert.deepEqual(tov.possessionIndices, [0, 1, 2, 3]);
 });
 
-test("G film: seeds 11 and 14 (the reported empty-strip games) now show a film strip", () => {
-  for (const seed of [11, 14]) {
+test("G film: whenever a game yields a film challenge its strip is never empty (seeds 11 and 14 were the reported empty-strip games)", () => {
+  // Whether a given seed's game has an obvious weakness at all moves with every GameSim recalibration (seed 14 once did, no longer does), so the
+  // invariant is checked over a spread of seeds, 11 and 14 included, and the sweep must really produce challenges or it would pass vacuously.
+  let challenges = 0;
+  for (const seed of [11, 14, ...Array.from({ length: 24 }, (_, i) => i + 1)]) {
     const log = collectPossessionLog({
       home: buildTeamFromRows(ROWS, "CHI", 1997),
       away: buildTeamFromRows(ROWS, "UTA", 1997),
       seed,
     });
     const challenge = buildFilmChallenge(log, { seed, focusSide: "away" });
-    assert.ok(challenge, `seed ${seed} yields a challenge`);
+    if (!challenge) continue;
+    challenges += 1;
     assert.ok(challenge.strip.length > 0, `seed ${seed} biggest weakness (${challenge.correctKind}) has a non-empty strip`);
     assert.ok(challenge.strip.length <= 12);
   }
+  assert.ok(challenges >= 10, `the sweep produced ${challenges} challenges`);
 });
 
 /* ------------------------------------------------------------------ */

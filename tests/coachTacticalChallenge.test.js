@@ -143,12 +143,17 @@ test("determinism: same seed + same choices => identical final score and swings"
 });
 
 test("different opening choices diverge on the same seed (the engine consumes the choice)", () => {
-  const results = {};
-  for (const choice of ["switch_all", "zone_drop", "pack_paint"]) {
-    results[choice] = playThrough(11, choice);
+  // One seed can end in the same score whatever the opening (seed 11 does since the shot distribution was recalibrated), so the claim is
+  // statistical over a spread of seeds: on most of them the three choices must not all end alike (measured: 10 of 12 diverge, most in 3 ways).
+  let diverged = 0;
+  for (let seed = 1; seed <= 12; seed += 1) {
+    const finals = ["switch_all", "zone_drop", "pack_paint"].map((choice) => {
+      const r = playThrough(seed, choice);
+      return `${r.final.home}-${r.final.away}`;
+    });
+    if (new Set(finals).size > 1) diverged += 1;
   }
-  const finals = Object.values(results).map((r) => `${r.final.home}-${r.final.away}`);
-  assert.ok(new Set(finals).size > 1, `choices must diverge on seed 11, got ${finals.join(" / ")}`);
+  assert.ok(diverged >= 8, `choices diverged on only ${diverged} of 12 seeds`);
   // Baseline (no decisions at all) for the same seed, for the A/B script's sanity.
   const base = challenge(11);
   base.start();

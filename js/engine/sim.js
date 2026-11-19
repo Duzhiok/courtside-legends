@@ -3739,6 +3739,15 @@ function applyPossessionFatigue(
   }
 }
 
+/**
+ * B74: the sim's "ball handler" is whoever shoots unless the ball is kicked, so a big man who is the handler takes the shot
+ * himself. Measured (reb-ast-pairing.mjs, 6 eras, paired seeds): bigs took 29.6 of a team's ~85 shots that way and ended at
+ * 1.21x their real FGA/36 (guards 0.84x), and neither shot appetite nor the kick-out weights moved it. At 0.65 bigs are 1.03x,
+ * guards 0.93x, wings 1.02x, per-player correlation 0.66 -> 0.70, team points unchanged.
+ */
+const BIG_MEN = new Set(["C", "PF"]);
+const BIG_INITIATION = 0.65;
+
 function pickBallHandler(off, focusPlay = null, offenseFocusId = null) {
   const autonomy = off.coach?.playerAutonomy ?? 40;
   const spark = off.coach?.sparkPotential ?? 40;
@@ -3798,6 +3807,7 @@ function pickBallHandler(off, focusPlay = null, offenseFocusId = null) {
     // Last-game confidence / tactical status — auto offense feeds the hot hand
     w *= Math.min(1.22, formUsageMult(p));
     w *= shotAppetite(p); // B35: how often he really looked for his own shot (real FGA per 36)
+    if (BIG_MEN.has(p.playPos || p.pos)) w *= BIG_INITIATION; // B74: bigs finish plays far more than they start them
     if (usage === "auto" || usage === "score") w *= 0.92 + formConfidence(p) * 0.0012;
     if (usage === "defend") w *= 0.62; // lead-defender role: fewer touches
     if (usage === "hustle" || action === "crash") w *= 0.55; // 蓝领：少持球，靠冲板吃饭
