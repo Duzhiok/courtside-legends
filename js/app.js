@@ -64,7 +64,7 @@ import {
   recycleValue,
 } from "./data/accountRecycle.js";
 import { manageBarHtml, recycleButtonHtml } from "./ui/collectionManageView.js";
-import { applyCollectionView, decadesOf, filterBarHtml, freshFilter, redundantIds } from "./ui/collectionFilter.js";
+import { applyCollectionView, cachedOvrOf, decadesOf, filterBarHtml, freshFilter, redundantIds } from "./ui/collectionFilter.js";
 import {
   bannerExplainHtml,
   bannerPickerHtml,
@@ -2987,14 +2987,22 @@ $("#btn-onboard-next")?.addEventListener("click", () => {
 
 let collectionFilter = freshFilter();
 let collectionCache = null;
+/** Collection grid paging (S-P1-2): one page per render, "load more" adds a page. */
+const COLLECTION_PAGE_SIZE = 50;
+let collectionShown = COLLECTION_PAGE_SIZE;
+let collectionQueryTimer = null;
+/** Last (acc, players) pair and the context built for it — rebuilt only when
+ * the binder changes; openCollection() rebuilds the pair on every state
+ * change, so a stale redundant/order scan cannot survive a mutation. */
+let collectionContextMemo = null;
 
 /** Cards the filter bar / grid work on, with the lookups the filter needs. */
-function collectionContext(acc, players) {
+function collectionContext(acc, players, ovrOf = overall) {
   const junk = new Set(junkIds(acc));
   return {
-    ovrOf: overall,
+    ovrOf,
     hiddenOf: (card) => card.hiddenRoll?.rating,
-    redundant: redundantIds(players, overall),
+    redundant: redundantIds(players, ovrOf),
     junk,
     order: new Map((acc.playerIds || []).map((id, index) => [id, index])),
   };
@@ -3003,13 +3011,20 @@ function collectionContext(acc, players) {
 function paintCollectionGrid(acc, players) {
   const grid = $("#collection-grid");
   if (!grid) return;
-  const view = applyCollectionView(players, collectionFilter, collectionContext(acc, players));
+  // S-P2-4: overall() once per card per binder session — the same cached
+  // function feeds the filter/sort, the redundant scan and the card footers.
+  const ovrOf = cachedOvrOf(overall);
+  if (!collectionContextMemo || collectionContextMemo.acc !== acc || collectionContextMemo.players !== players) {
+    collectionContextMemo = { acc, players, ctx: collectionContext(acc, players, ovrOf), ovrOf };
+  }
+  const view = applyCollectionView(players, collectionFilter, collectionContextMemo.ctx);
   const souls = acc.gacha?.souls || {};
   const lang = getLang();
-  grid.innerHTML = view.length
-    ? view
+  const page = view.slice(0, collectionShown);
+  grid.innerHTML = page.length
+    ? page
         .map((p) => {
-          const ovr = overall(p);
+          const ovr = collectionContextMemo.ovrOf(p);
           const footMeta = [
             p.age ? L(`${p.age}岁`, `${p.age} yrs`) : "",
             p.careerPhaseLabel ? esc(careerPhaseLabelL(p.careerPhaseLabel, lang)) : "",
@@ -3028,6 +3043,13 @@ function paintCollectionGrid(acc, players) {
     : `<p class="tiny">${L("没有符合条件的卡——放宽筛选试试。", "No matching cards — try widening the filter.")}</p>`;
   const count = $("[data-cf-count]");
   if (count) count.textContent = L(`显示 ${view.length}/${players.length} 张`, `Showing ${view.length}/${players.length}`);
+  const more = $("#collection-more");
+  if (more) {
+    const rest = view.length - collectionShown;
+    more.innerHTML = rest > 0
+      ? `<button type="button" class="btn" data-cf-more>${L(`加载更多（还剩 ${rest} 张）`, `Load more (${rest} remaining)`)}</button>`
+      : "";
+  }
 }
 
 function paintCollectionFilter(players) {
@@ -3040,6 +3062,15 @@ $("#collection-filter")?.addEventListener("input", (event) => {
   collectionFilter = { ...collectionFilter, query: event.target.value };
   const clearBtn = event.target.closest(".search-wrap")?.querySelector("[data-cf-clear]");
   if (clearBtn) clearBtn.hidden = !event.target.value;
+  collectionShown = COLLECTION_PAGE_SIZE;
+  // S-P1-2: debounce the search repaint — one keystroke used to rebuild the
+  // whole grid (filter + redundant scan + every card's HTML).
+  clearTimeout(collectionQueryTimer);
+  collectionQueryTimer = setTimeout(() => paintCollectionGrid(collectionCache.acc, collectionCache.players), 150);
+});
+$("#collection-more")?.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-cf-more]") || !collectionCache) return;
+  collectionShown += COLLECTION_PAGE_SIZE;
   paintCollectionGrid(collectionCache.acc, collectionCache.players);
 });
 $("#collection-filter")?.addEventListener("click", (event) => {
@@ -3049,6 +3080,7 @@ $("#collection-filter")?.addEventListener("click", (event) => {
   const input = $("#collection-filter")?.querySelector('[data-cf="query"]');
   if (input) input.value = "";
   clearBtn.hidden = true;
+  collectionShown = COLLECTION_PAGE_SIZE;
   paintCollectionGrid(collectionCache.acc, collectionCache.players);
   input?.focus();
 });
@@ -3057,6 +3089,7 @@ $("#collection-filter")?.addEventListener("change", (event) => {
   if (!key || key === "query" || !collectionCache) return;
   const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
   collectionFilter = { ...collectionFilter, [key]: value };
+  collectionShown = COLLECTION_PAGE_SIZE;
   paintCollectionGrid(collectionCache.acc, collectionCache.players);
 });
 
@@ -3073,7 +3106,9 @@ function openCredits() {
 function openCollection() {
   const acc = requireAccountReady();
   if (!acc) return;
-  const players = resolvePlayers(acc.playerIds, acc).sort((a, b) => overall(b) - overall(a));
+  // S-P2-4: sort on one cached overall() per card, not two calls per comparison.
+  const ovrOf = cachedOvrOf(overall);
+  const players = resolvePlayers(acc.playerIds, acc).sort((a, b) => ovrOf(b) - ovrOf(a));
   const coach = resolveCoach(acc.coachId);
   const tactic = TACTICS[acc.tacticId] || TACTICS.balanced;
   const sum = $("#collection-summary");
@@ -3138,6 +3173,7 @@ function openCollection() {
   const grid = $("#collection-grid");
   if (grid) {
     collectionCache = { acc, players };
+    collectionShown = COLLECTION_PAGE_SIZE;
     paintCollectionFilter(players);
     paintCollectionGrid(acc, players);
     grid.onchange = (event) => {

@@ -57,6 +57,25 @@ export function applyCollectionView(cards, filter, ctx) {
   return [...kept].sort((a, b) => by(a, b) || ctx.ovrOf(b) - ctx.ovrOf(a) || String(a.id).localeCompare(String(b.id)));
 }
 
+/**
+ * Cache overall() per card id for one render/session: overall() is pure on
+ * the card, but the collection render path used to call it twice per
+ * comparison, twice per card in the redundant scan, and once more per card
+ * footer (S-P2-4). Cards are rebuilt by openCollection() on every state
+ * change, so a cache that lives with one binder session cannot go stale.
+ */
+export function cachedOvrOf(ovrOf) {
+  const cache = new Map();
+  return (card) => {
+    let ovr = cache.get(card.id);
+    if (ovr === undefined) {
+      ovr = ovrOf(card);
+      cache.set(card.id, ovr);
+    }
+    return ovr;
+  };
+}
+
 /** Second version of a person who is not the best copy — the cards that never play. */
 export function redundantIds(cards, ovrOf) {
   const best = new Map();
