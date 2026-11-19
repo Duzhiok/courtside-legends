@@ -4702,7 +4702,7 @@ function skillInstallTargets(playerId) {
 }
 
 /** 卸下球员技能；已购的退回技能库 */
-function forgetPlayerSkill(playerId, skillId) {
+async function forgetPlayerSkill(playerId, skillId) {
   const c = state.career;
   if (!c || c.kind !== "career") return;
   const targets = skillInstallTargets(playerId);
@@ -4721,7 +4721,7 @@ function forgetPlayerSkill(playerId, skillId) {
     alert(`「${pack.name}」是 ${player.name} 自带的技能（非购买获得），不能卸下`);
     return;
   }
-  if (!confirm(`卸下 ${player.name} 的「${pack.name}」？（已购技能退回技能库）`)) {
+  if (!(await confirmAction(L(`卸下 ${player.name} 的「${pack.name}」？（已购技能退回技能库）`, `Remove ${pack.name} from ${player.name}? (Purchased skills return to the skill library)`)))) {
     return;
   }
   let returned = null;
@@ -9411,8 +9411,8 @@ function renderLeagueManagement() {
     $("#season-draft-board"),
     { career, teamNames },
     {
-      prepareDraft() {
-        if (!isManagedCareer(state.leagueCareer) || !confirm(L("确认结束本赛季并进入休赛期选秀？", "End this season and enter the offseason draft?"))) return;
+      async prepareDraft() {
+        if (!isManagedCareer(state.leagueCareer) || !(await confirmAction(L("确认结束本赛季并进入休赛期选秀？", "End this season and enter the offseason draft?")))) return;
         try {
           const next = runCareerTransition(
             state.leagueCareer,
@@ -9697,13 +9697,13 @@ function renderSeasonRotation() {
     you.starterIds = top.map((p) => p.id);
     renderSeasonRotation();
   });
-  $("#btn-rot-save")?.addEventListener("click", () => {
+  $("#btn-rot-save")?.addEventListener("click", async () => {
     // Setting the rotation is the coach's job (ADR-006 R4).
     if (!careerOperationAllowed("setRotation")) return;
     const marked = liveStarterIds(you);
     you.starterIds = marked; // only people still on the roster get saved
     if (marked.length && marked.length !== 5) {
-      if (!confirm(L(`当前标记了 ${marked.length} 名首发（建议 5 人）。仍保存？`, `${marked.length} starters marked (5 recommended). Save anyway?`))) return;
+      if (!(await confirmAction(L(`当前标记了 ${marked.length} 名首发（建议 5 人）。仍保存？`, `${marked.length} starters marked (5 recommended). Save anyway?`)))) return;
     }
     you.rotation = captureRotationPlan(you, you.starterIds);
     if (!saveSeasonAndCareer(st)) return;
