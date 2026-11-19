@@ -3881,18 +3881,19 @@ function estHeightCm(p) {
  * Block odds with severe size/position mismatch penalties.
  * A PG rejecting Howard at the rim should be extremely rare.
  */
-function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonus = 0, sigBoost = 0, packPaint = false } = {}) {
+export function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonus = 0, sigBoost = 0, packPaint = false } = {}) {
   const blk = defender.block || 40;
-  // Base rates tuned up from the original ~2% league-wide realized block rate (measured via
-  // full-game sims) toward the real NBA's ~5.5% of all FGA -- the zone multipliers below
-  // (height/strength mismatch, elite-finisher resistance, etc) already do a lot of discounting
-  // on top of this, so the base needs real headroom before those kick in.
+  // Calibrated on paired fixed seeds against the same players' real blocks per 36 (scripts/measure/steal-block-pairing.mjs). The old floor (paint 0.055
+  // even at block rating 0, so only 3x between a 0 and an 80) gave low-rated men 1.8x their real blocks (a rating-20 guard averaged 0.97 per 36 against 0.00
+  // real) while the real league separates them 9x. The floor is now small and the rating does the work: low bands 1.82x -> 1.26x, 65-79 0.94x, elite rim
+  // protectors unchanged (Shaq 2.4 vs 2.6 real), league blocks 6.6 -> 5.4 per team-game (real 4.9). Side effect, reported: fewer blocked shots means
+  // about +1.2 points and +0.6 FG% per team-game. The zone multipliers below (height / strength mismatch, finisher resistance) are untouched.
   let chance =
     shot.zone === "three"
-      ? 0.005 + blk * 0.00017
+      ? 0.003 + blk * 0.00015
       : shot.zone === "mid"
-        ? 0.036 + blk * 0.0015 + (100 - open * 100) * 0.0002
-        : 0.055 + blk * 0.002 + (100 - open * 100) * 0.00022;
+        ? 0.012 + blk * 0.0014 + (100 - open * 100) * 0.0002
+        : 0.012 + blk * 0.0019 + (100 - open * 100) * 0.00022;
   chance += defPress * 0.008;
   chance += skillBonus;
   chance += sigBoost;
