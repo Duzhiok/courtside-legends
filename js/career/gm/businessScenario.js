@@ -184,12 +184,12 @@ function scenarioBoardReport(state, record) {
     lines: [
       `${record.season} 赛季：${record.wins} 胜 ${record.losses} 负，经营${profitWord} $${record.profit}M，球队估值 $${record.valuation}M。`,
       `当前身份：${stageLabel(stage)}；个人财富 $${state.personal.cash}M，持有股权 ${state.exec.equityPct}%。`,
-      opps.length ? `新的机会：${opps.map((o) => o.id).join("、")}。` : "暂无新的晋升或收购机会。",
+      opps.length ? `新的机会：${opps.map((o) => stageLabel(o.to)).join("、")}。` : "暂无新的晋升或收购机会。",
     ],
     linesEn: [
       `Season ${record.season}: ${record.wins}-${record.losses}, ${record.profit >= 0 ? "profit" : "loss"} $${record.profit}M, valuation $${record.valuation}M.`,
       `Current stage: ${stageLabel(stage, "en")}; personal wealth $${state.personal.cash}M, equity ${state.exec.equityPct}%.`,
-      opps.length ? `New opportunities: ${opps.map((o) => o.id).join(", ")}.` : "No new advancement or acquisition opportunities.",
+      opps.length ? `New opportunities: ${opps.map((o) => stageLabel(o.to, "en")).join(", ")}.` : "No new advancement or acquisition opportunities.",
     ],
     stage,
     opportunities: opps.map((o) => o.id),

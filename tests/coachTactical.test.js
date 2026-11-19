@@ -14,6 +14,7 @@ import {
   opponentReadinessOf,
   opponentReadinessLabel,
   executionRisk,
+  riskLevelLabel,
   tradeoffFor,
   tacticName,
   recordPromise,
@@ -78,14 +79,26 @@ test("opponent readiness: 4 exposures = fully read, per opponent", () => {
 test("execution risk names its reasons; a familiar, fitting, bought-in system is solid", () => {
   assert.deepEqual(executionRisk({ familiarity: 80, fit: 80, buyIn: 80 }), {
     level: "solid",
-    reasons: ["familiar system, good fit, players bought in"],
+    reasons: [{ zh: "体系熟悉、适配好、球员认同", en: "familiar system, good fit, players bought in" }],
   });
   const shaky = executionRisk({ familiarity: 10, fit: 80, buyIn: 80 });
   assert.equal(shaky.level, "shaky");
-  assert.ok(shaky.reasons.some((r) => r.includes("low familiarity")));
+  assert.ok(shaky.reasons.some((r) => r.en.includes("low familiarity")));
+  assert.ok(shaky.reasons.some((r) => r.zh.includes("熟悉度低")));
   const risky = executionRisk({ familiarity: 10, fit: 40, buyIn: 30 });
   assert.equal(risky.level, "risky");
   assert.equal(risky.reasons.length, 3);
+  assert.ok(risky.reasons.every((r) => typeof r.zh === "string" && typeof r.en === "string"));
+});
+
+test("execution-risk level labels are bilingual and fall back to the id", () => {
+  assert.equal(riskLevelLabel("solid", "zh"), "稳妥");
+  assert.equal(riskLevelLabel("solid", "en"), "Solid");
+  assert.equal(riskLevelLabel("shaky", "zh"), "不太稳");
+  assert.equal(riskLevelLabel("shaky", "en"), "Shaky");
+  assert.equal(riskLevelLabel("risky", "zh"), "高风险");
+  assert.equal(riskLevelLabel("risky", "en"), "Risky");
+  assert.equal(riskLevelLabel("unknown-level", "en"), "unknown-level");
 });
 
 test("trade-off table quotes the real engine effects, not the marketing copy", () => {

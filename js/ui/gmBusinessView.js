@@ -16,7 +16,7 @@ import { attachToCareerRoot, createExecutiveScenario, advanceScenarioSeason, min
 import { availableBusinessEvents, applyBusinessEvent, businessEventForInbox } from "../career/gm/businessEvents.js";
 import { setTicketPrice, signSponsorship, sponsorshipOffers } from "../career/gm/franchiseBusiness.js";
 import { clueView, revealClue, setMedicalLevel, investInTrend, MEDICAL_LEVELS, TRENDS } from "../career/gm/futureKnowledge.js";
-import { stageFor, stageLabel, stageOpportunities } from "../career/gm/executiveProgression.js";
+import { missingText, stageFor, stageLabel, stageOpportunities } from "../career/gm/executiveProgression.js";
 import { mountScreen } from "./screenShell.js";
 
 /** The page title, rendered once by the shell in the current language. */
@@ -81,7 +81,7 @@ export function gmBusinessHtml(state, { lang = "zh", players = [] } = {}) {
     <div class="gm-panel">
       <h3>${L("董事会报告", "Board report", lang)}</h3>
       ${last ? `<p>${L("上赛季", "Last season", lang)} ${last.season}：${last.wins} ${L("胜", "W", lang)} ${last.losses} ${L("负", "L", lang)}，${L("经营", "operating", lang)}${last.profit >= 0 ? L("盈利", "profit", lang) : L("亏损", "loss", lang)} ${money(last.profit)}，${L("估值", "valuation", lang)} ${money(last.valuation)}。</p>` : `<p>${L("还没有打完的赛季。先做一次球探决策、签一份赞助、调一次票价，再模拟赛季。", "No season played yet. Make a scouting decision, sign a sponsor, set ticket prices, then simulate a season.", lang)}</p>`}
-      ${minority ? `<p>${L("收购机会", "Acquisition opportunity", lang)}：${minority.available ? L("可以买下 5% 股份，成为球队合伙人。", "You can buy a 5% stake and become a minority owner.") : L("还不满足条件：", "Not yet available: ") + minority.missing.join("；")}</p>` : ""}
+      ${minority ? `<p>${L("收购机会", "Acquisition opportunity", lang)}：${minority.available ? L("可以买下 5% 股份，成为球队合伙人。", "You can buy a 5% stake and become a minority owner.") : L("还不满足条件：", "Not yet available: ") + missingText(minority.missing, lang)}</p>` : ""}
     </div>
     <div class="gm-panel">
       <h3>${L("重大决策", "Major decisions", lang)}</h3>
@@ -95,7 +95,7 @@ export function gmBusinessHtml(state, { lang = "zh", players = [] } = {}) {
         ${events.length ? events.map((e) => { const v = businessEventForInbox(e, lang); return `<div class="gm-event"><strong>${v.title}</strong><p>${v.body}</p><p>${v.choices.map((c) => `<button type="button" class="btn small" data-gm-action="event-choice" data-event="${v.id}" data-choice="${c.id}">${c.label}</button>`).join(" ")}</p></div>`; }).join("") : `<p>${L("暂无待处理事件", "No pending events", lang)}</p>`}
       </div>
       <p>${L("晋升与收购", "Advancement", lang)}：
-        ${opps.map((o) => `<span class="gm-opp" title="${o.missing.join("；") || ""}">${o.id}: ${o.available ? L("可接受", "available", lang) : L("未满足", "not ready", lang)}</span>`).join(" ")}
+        ${opps.map((o) => `<span class="gm-opp" title="${missingText(o.missing, lang)}">${stageLabel(o.to, lang)}: ${o.available ? L("可接受", "available", lang) : L("未满足", "not ready", lang)}</span>`).join(" ")}
       </p>
     </div>
     <details class="gm-panel">

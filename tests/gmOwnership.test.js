@@ -162,7 +162,8 @@ test("opportunities are offered, never automatic, and list what is missing", () 
   assert.equal(minority.cost, MINORITY_PCT * 1.5);
   const control = opps.find((o) => o.id === "control-offer");
   assert.equal(control.available, false);
-  assert.ok(control.missing.some((m) => m.includes(`${CONTROL_MIN_EQUITY}%`)));
+  assert.ok(control.missing.some((m) => m.en.includes(`${CONTROL_MIN_EQUITY}%`)));
+  assert.ok(control.missing.some((m) => m.zh.includes(`${CONTROL_MIN_EQUITY}%`)));
   const broke = stageOpportunities(createExecutiveRecord({ reputation: 30, boardTrust: 30 }), { wealth: 1, valuation: 150 });
   assert.equal(broke.find((o) => o.id === "minority-offer").available, false);
   assert.ok(broke.find((o) => o.id === "minority-offer").missing.length >= 2);

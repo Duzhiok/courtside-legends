@@ -10,7 +10,7 @@
 import { L, getLang } from "../i18n.js";
 import { FOCUS_PLAYS, TEMPO_OPTIONS, planLabel } from "../engine/gameplan.js";
 import { createCoachingChallenge } from "../career/coach/coachingChallenge.js";
-import { tacticName } from "../career/coach/tacticalLearning.js";
+import { riskLevelLabel, tacticName } from "../career/coach/tacticalLearning.js";
 import { filmRecommendForMoment, readFiledFilmRecommendation } from "../career/network/videoAnalyst.js";
 import { esc } from "../core/html.js";
 import { fmtClock } from "../core/format.js";
@@ -78,7 +78,7 @@ export function createCoachingMomentView({ getPool, show, goBack } = {}) {
           <b>${esc(pick(choice.label))}${rec ? ` ${esc(L("（分析师推荐）", "(analyst pick)"))}` : ""}</b>
           <span class="ct-preview">${esc(pick(choice.preview))}</span>
           <span class="ct-downside">⚠ ${esc(pick(choice.downside))}</span>
-          ${choice.risk ? `<span class="ct-risk">${esc(L("执行风险", "Execution risk"))}: ${esc(choice.risk.level)} — ${esc(choice.risk.reasons.join("；"))}</span>` : ""}
+          ${choice.risk ? `<span class="ct-risk">${esc(L("执行风险", "Execution risk"))}: ${esc(riskLevelLabel(choice.risk.level, getLang()))} — ${esc(choice.risk.reasons.map((r) => pick(r)).join(getLang() === "en" ? "; " : "；"))}</span>` : ""}
           ${choice.disabled && choice.disabledReason ? `<span class="ct-disabled">${esc(pick(choice.disabledReason))}</span>` : ""}
         </button>`;
       }

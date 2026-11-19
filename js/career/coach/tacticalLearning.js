@@ -108,21 +108,37 @@ export function opponentReadinessLabel(readiness) {
 }
 
 /**
+ * Execution-risk level labels, shown in the decision preview (U-P1-6: the
+ * raw ids leaked into both languages, and the reasons were English-only).
+ */
+const RISK_LEVEL_LABELS = Object.freeze({
+  solid: Object.freeze({ zh: "稳妥", en: "Solid" }),
+  shaky: Object.freeze({ zh: "不太稳", en: "Shaky" }),
+  risky: Object.freeze({ zh: "高风险", en: "Risky" }),
+});
+
+export function riskLevelLabel(level, lang = "zh") {
+  const label = RISK_LEVEL_LABELS[level];
+  return label ? (lang === "en" ? label.en : label.zh) : level;
+}
+
+/**
  * Execution risk for running a system right now, from familiarity + the
  * engine's live fit + buy-in. Shown in the decision preview so the player
  * can tell a shaky call from a solid one before committing.
+ * Reasons are { zh, en } pairs; the view picks by language (U-P1-6).
  */
 export function executionRisk({ familiarity = 0, fit = 50, buyIn = 50 } = {}) {
   const reasons = [];
-  if (familiarity < 30) reasons.push("low familiarity — the team has barely run this system");
-  if (fit < 55) reasons.push("poor roster fit for this system");
-  if (buyIn < 45) reasons.push("players are tuned out — buy-in is low");
+  if (familiarity < 30) reasons.push({ zh: "熟悉度低——球队几乎没跑过这套体系", en: "low familiarity — the team has barely run this system" });
+  if (fit < 55) reasons.push({ zh: "阵容与这套体系不适配", en: "poor roster fit for this system" });
+  if (buyIn < 45) reasons.push({ zh: "球员心不在焉——认同度低", en: "players are tuned out — buy-in is low" });
   if (familiarity >= 60 && fit >= 65 && buyIn >= 70) {
-    return { level: "solid", reasons: ["familiar system, good fit, players bought in"] };
+    return { level: "solid", reasons: [{ zh: "体系熟悉、适配好、球员认同", en: "familiar system, good fit, players bought in" }] };
   }
   if (reasons.length >= 2) return { level: "risky", reasons };
   if (reasons.length === 1) return { level: "shaky", reasons };
-  return { level: "solid", reasons: ["no red flags"] };
+  return { level: "solid", reasons: [{ zh: "没有隐患", en: "no red flags" }] };
 }
 
 /**

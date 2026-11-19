@@ -60,6 +60,16 @@ export function stageLabel(stageId, lang = "zh") {
 }
 
 /**
+ * Render a missing-requirements list in the requested language (U-P1-7).
+ * Entries are { zh, en } pairs; a plain string falls through unchanged.
+ */
+export function missingText(missing, lang = "zh") {
+  return (missing || [])
+    .map((m) => (typeof m === "string" ? m : lang === "en" ? m.en : m.zh))
+    .join(lang === "en" ? "; " : "；");
+}
+
+/**
  * Advancement opportunities available RIGHT NOW. Each carries its requirements and what is
  * still missing, so the UI can show a credible path instead of a greyed-out button.
  * `ctx`: { wealth ($M personal cash), valuation ($M team value), loanCapacity ($M) }.
@@ -77,8 +87,8 @@ export function stageOpportunities(exec, ctx = {}) {
     to: "president",
     available: (a.playoffRuns >= 1 || a.winningSeasons >= 2) && exec.boardTrust >= 60,
     missing: [
-      ...(a.playoffRuns < 1 && a.winningSeasons < 2 ? ["need a playoff run or two winning seasons"] : []),
-      ...(exec.boardTrust < 60 ? ["need board trust 60+"] : []),
+      ...(a.playoffRuns < 1 && a.winningSeasons < 2 ? [{ zh: "需要一次季后赛或两个胜季", en: "need a playoff run or two winning seasons" }] : []),
+      ...(exec.boardTrust < 60 ? [{ zh: "需要董事会信任 60+", en: "need board trust 60+" }] : []),
     ],
   });
   opps.push({
@@ -87,9 +97,9 @@ export function stageOpportunities(exec, ctx = {}) {
     cost: Math.round(minorityCost * 100) / 100,
     available: wealth >= minorityCost && exec.reputation >= 60 && exec.boardTrust >= 60,
     missing: [
-      ...(wealth < minorityCost ? [`need $${minorityCost.toFixed(1)}M personal cash`] : []),
-      ...(exec.reputation < 60 ? ["need reputation 60+"] : []),
-      ...(exec.boardTrust < 60 ? ["need board trust 60+"] : []),
+      ...(wealth < minorityCost ? [{ zh: `需要 $${minorityCost.toFixed(1)}M 个人现金`, en: `need $${minorityCost.toFixed(1)}M personal cash` }] : []),
+      ...(exec.reputation < 60 ? [{ zh: "需要声望 60+", en: "need reputation 60+" }] : []),
+      ...(exec.boardTrust < 60 ? [{ zh: "需要董事会信任 60+", en: "need board trust 60+" }] : []),
     ],
   });
   opps.push({
@@ -98,8 +108,8 @@ export function stageOpportunities(exec, ctx = {}) {
     cost: Math.round(controlCost * 100) / 100,
     available: exec.equityPct >= CONTROL_MIN_EQUITY && wealth + loanCapacity >= controlCost,
     missing: [
-      ...(exec.equityPct < CONTROL_MIN_EQUITY ? [`need ${CONTROL_MIN_EQUITY}% equity first`] : []),
-      ...(wealth + loanCapacity < controlCost ? ["need more cash or financing"] : []),
+      ...(exec.equityPct < CONTROL_MIN_EQUITY ? [{ zh: `需要先持有 ${CONTROL_MIN_EQUITY}% 股权`, en: `need ${CONTROL_MIN_EQUITY}% equity first` }] : []),
+      ...(wealth + loanCapacity < controlCost ? [{ zh: "需要更多现金或融资", en: "need more cash or financing" }] : []),
     ],
   });
   opps.push({
@@ -107,8 +117,8 @@ export function stageOpportunities(exec, ctx = {}) {
     to: "mogul",
     available: exec.control && (exec.equityPct >= 50 || exec.secondAsset),
     missing: [
-      ...(!exec.control ? ["need controlling ownership first"] : []),
-      ...(exec.control && exec.equityPct < 50 && !exec.secondAsset ? ["need 50% equity or a second sports asset"] : []),
+      ...(!exec.control ? [{ zh: "需要先获得控股权", en: "need controlling ownership first" }] : []),
+      ...(exec.control && exec.equityPct < 50 && !exec.secondAsset ? [{ zh: "需要 50% 股权或第二项体育资产", en: "need 50% equity or a second sports asset" }] : []),
     ],
   });
   return opps;

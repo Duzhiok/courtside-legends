@@ -1,6 +1,16 @@
 // U-P1-4 / U-P1-5 / U-P1-8 — English mode must not leak Chinese residue where
 // the English copy already exists; the views only had to wire it up.
 //
+// U-P1-6 / U-P1-7 — the bilingual data did not exist yet: executionRisk
+// returned English-only reasons and a raw level id, and stageOpportunities
+// returned English-only missing strings while the views showed raw opp ids
+// as titles. Pins: (5) executionRisk reasons are { zh, en } pairs and
+// riskLevelLabel localizes all three levels, and the coaching-moment risk
+// line renders the label + picked reasons instead of the raw id;
+// (6) stageOpportunities missing is bilingual (with interpolated numbers),
+// missingText joins per language, and gmBusinessHtml shows the localized
+// stage name — never a raw opp id — in either language.
+//
 // Pins: (1) networkBoardHtml picks labelEn/titleEn/standing labelEn in en
 // mode and the Zh originals in zh mode; (2) gradeFilmAnswer /
 // filmRecommendation already return explanationEn/suggestionEn, and the
@@ -29,12 +39,20 @@ import {
 } from "../js/career/network/videoAnalyst.js";
 import { gmBusinessHtml } from "../js/ui/gmBusinessView.js";
 import { createExecutiveScenario } from "../js/career/gm/businessScenario.js";
+import { executionRisk, riskLevelLabel } from "../js/career/coach/tacticalLearning.js";
+import {
+  createExecutiveRecord,
+  missingText,
+  stageOpportunities,
+} from "../js/career/gm/executiveProgression.js";
 import { revealClue } from "../js/career/gm/futureKnowledge.js";
 import { historicalSeason } from "../js/data/historicalSeasons.js";
 import { teamNameL } from "../js/i18n.js";
 
 const NETWORK_SRC = readFileSync(new URL("../js/ui/networkViews.js", import.meta.url), "utf8");
 const INBOX_SRC = readFileSync(new URL("../js/ui/careerInboxView.js", import.meta.url), "utf8");
+const COACHING_SRC = readFileSync(new URL("../js/ui/coachingMomentView.js", import.meta.url), "utf8");
+const GM_SRC = readFileSync(new URL("../js/ui/gmBusinessView.js", import.meta.url), "utf8");
 
 const CJK = /[\u4e00-\u9fff]/;
 
@@ -129,4 +147,74 @@ test("U-P1-8: inbox team picker localizes through teamNameL", () => {
     const en = teamNameL(team.name, "en");
     assert.ok(!CJK.test(en), `${team.id} localizes to ${en}`);
   }
+});
+
+test("U-P1-6: execution-risk reasons are bilingual pairs and levels localize", () => {
+  for (const level of ["solid", "shaky", "risky"]) {
+    assert.notEqual(riskLevelLabel(level, "zh"), level, `${level} has a zh label`);
+    assert.notEqual(riskLevelLabel(level, "en"), level, `${level} has an en label`);
+    assert.ok(!CJK.test(riskLevelLabel(level, "en")), `${level} en label has no Chinese characters`);
+  }
+  assert.equal(riskLevelLabel("solid", "zh"), "稳妥");
+  assert.equal(riskLevelLabel("risky", "en"), "Risky");
+  const risky = executionRisk({ familiarity: 10, fit: 40, buyIn: 30 });
+  assert.equal(risky.level, "risky");
+  assert.equal(risky.reasons.length, 3);
+  for (const r of risky.reasons) {
+    assert.ok(CJK.test(r.zh), `zh reason is Chinese: ${r.zh}`);
+    assert.ok(!CJK.test(r.en), `en reason has no Chinese characters: ${r.en}`);
+  }
+  assert.ok(risky.reasons.some((r) => r.en.includes("low familiarity")));
+  assert.ok(risky.reasons.some((r) => r.zh.includes("熟悉度低")));
+  const solid = executionRisk({ familiarity: 80, fit: 80, buyIn: 80 });
+  assert.equal(solid.reasons[0].zh, "体系熟悉、适配好、球员认同");
+  assert.equal(solid.reasons[0].en, "familiar system, good fit, players bought in");
+});
+
+test("U-P1-6: coaching-moment risk line renders the label, not the raw id", () => {
+  assert.ok(COACHING_SRC.includes("riskLevelLabel(choice.risk.level, getLang())"), "risk level goes through the label table");
+  assert.ok(COACHING_SRC.includes("choice.risk.reasons.map((r) => pick(r))"), "reasons are picked per language");
+  assert.ok(!COACHING_SRC.includes("esc(choice.risk.level)"), "raw level id is no longer rendered");
+  assert.ok(!COACHING_SRC.includes('choice.risk.reasons.join("；")'), "reasons are no longer joined as raw strings");
+});
+
+test("U-P1-7: stageOpportunities missing is bilingual, with interpolated numbers", () => {
+  const exec = createExecutiveRecord({ reputation: 30, boardTrust: 30 });
+  const opps = stageOpportunities(exec, { wealth: 1, valuation: 150, loanCapacity: 20 });
+  const minority = opps.find((o) => o.id === "minority-offer");
+  assert.equal(minority.available, false);
+  assert.ok(minority.missing.length >= 2, "cash + reputation + trust are all missing");
+  for (const m of minority.missing) {
+    assert.ok(CJK.test(m.zh), `zh missing is Chinese: ${m.zh}`);
+    assert.ok(!CJK.test(m.en), `en missing has no Chinese characters: ${m.en}`);
+  }
+  assert.ok(minority.missing.some((m) => m.en === "need $7.5M personal cash"), "cash amount interpolates into the en text");
+  assert.ok(minority.missing.some((m) => m.zh === "需要 $7.5M 个人现金"), "cash amount interpolates into the zh text");
+  assert.equal(missingText(minority.missing, "en"), minority.missing.map((m) => m.en).join("; "));
+  assert.equal(missingText(minority.missing, "zh"), minority.missing.map((m) => m.zh).join("；"));
+  const president = opps.find((o) => o.id === "president-offer");
+  assert.ok(president.missing.some((m) => m.zh === "需要董事会信任 60+"));
+  assert.ok(president.missing.some((m) => m.en === "need board trust 60+"));
+});
+
+test("U-P1-7: GM dashboard shows localized opportunity names, never raw ids", () => {
+  const s = createExecutiveScenario({ players: draftPlayers });
+  for (const id of ["president-offer", "minority-offer", "control-offer", "mogul-path"]) {
+    assert.ok(!gmBusinessHtml(s, { lang: "zh" }).includes(id), `no raw ${id} in zh mode`);
+    assert.ok(!gmBusinessHtml(s, { lang: "en" }).includes(id), `no raw ${id} in en mode`);
+  }
+  const zh = gmBusinessHtml(s, { lang: "zh" });
+  assert.ok(zh.includes("篮球运营总裁"), "president opportunity shows the localized stage name in zh mode");
+  assert.ok(zh.includes("需要董事会信任 60+"), "president missing renders in Chinese");
+  assert.ok(zh.includes("需要 $6.8M 个人现金"), "minority cash requirement renders in Chinese");
+  assert.ok(zh.includes("球队合伙人"), "minority opportunity shows the localized stage name in zh mode");
+  const en = gmBusinessHtml(s, { lang: "en" });
+  assert.ok(en.includes("President of Basketball Operations"), "president opportunity shows the localized stage name in en mode");
+  assert.ok(en.includes("need board trust 60+"), "president missing renders in English");
+  assert.ok(en.includes("need $6.8M personal cash"), "minority cash requirement renders in English");
+  assert.ok(en.includes("Minority Owner"), "minority opportunity shows the localized stage name in en mode");
+  assert.ok(!CJK.test(en.match(/gm-opp[^<]*<[^>]*>[^<]*/g)?.join("") ?? ""), "opportunity row has no Chinese text in en mode");
+  assert.ok(GM_SRC.includes("stageLabel(o.to, lang)"), "opportunity title goes through stageLabel");
+  assert.ok(GM_SRC.includes("missingText(minority.missing, lang)"), "minority paragraph renders missing per language");
+  assert.ok(GM_SRC.includes("missingText(o.missing, lang)"), "opportunity tooltip renders missing per language");
 });
