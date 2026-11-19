@@ -18,9 +18,12 @@
  */
 import { BODY_PRESETS } from "../../data/avatarLook.js";
 import { sanitizeBuild, shapeFromBuild } from "../../data/avatarBuild.js";
-import { CANVAS, PORTRAIT_CROP } from "./avatar2dLayers.js";
+import { CANVAS } from "./avatar2dLayers.js";
+import { ANCHORS } from "./avatar2dAnchors.js";
 
-export const AXIS_X = 510;
+/** The male set of measured numbers (avatar2dAnchors.js). Every function below takes another presentation's set as its last argument and defaults to this one. */
+const MALE = ANCHORS.male;
+export const AXIS_X = MALE.axisX;
 export const FEET_Y = 1463;
 /** Rows that may be re-shaped. Above it is the head and neck, below it the feet: both are copied untouched. */
 export const RESHAPE_FROM = 285;
@@ -36,33 +39,13 @@ const EDGE_PAD = 8;   // transparent pixels kept around an arm segment so its an
  */
 export const ARM_INNER_PAD = 4;
 
-/** Each region: [zero below, full from, full until, zero above] in art rows. */
-export const REGIONS = Object.freeze({
-  shoulders: [285, 340, 500, 760],   // fades slowly down the arms, so a narrow shoulder does not leave the arms bowed outward
-  arms: [540, 620, 800, 880],       // starts below the shoulder cap: thickening the cap itself bows the arm like a sausage
-  waist: [790, 850, 930, 1000],   // belt and shorts only: it ends where the thighs begin, so the waist never thickens a leg
-  legs: [940, 1010, 1330, 1400],
-});
-/** Rows that contain an arm or a hand (the skin outside the clothes): the arm anchors are measured down to the finger tips (880), a little margin below. */
-export const ARM_ROWS = Object.freeze([520, 900]);
+export const REGIONS = MALE.regions;
+/** Rows that contain an arm or a hand (the skin outside the clothes). */
+export const ARM_ROWS = MALE.armRows;
 export const NEUTRAL_SHAPE = Object.freeze({ shoulders: 0, arms: 0, waist: 0, legs: 0, height: 0 });
 
-/** [y, leftOuter, leftInner, rightInner, rightOuter]: the skin of each arm, outside the clothes; "inner" is the edge nearest the torso. */
-export const ARM_ANCHORS = Object.freeze([
-  [520, 299, 378, 647, 724], [540, 293, 369, 655, 731], [560, 285, 365, 657, 738], [580, 280, 363, 657, 745], [600, 271, 361, 663, 745],
-  [620, 271, 356, 667, 744], [640, 271, 348, 672, 744], [660, 271, 340, 681, 744], [680, 269, 333, 689, 744], [700, 269, 325, 698, 744],
-  [720, 267, 317, 705, 743], [740, 261, 313, 707, 738], [760, 264, 323, 703, 742], [780, 265, 330, 692, 742], [800, 262, 333, 689, 743],
-  [820, 260, 337, 683, 755], [840, 266, 340, 683, 755], [860, 277, 325, 696, 745], [880, 301, 332, 687, 715],
-]);
-/** [y, leftLegL, leftLegR, rightLegL, rightLegR]: the two legs. */
-export const LEG_ANCHORS = Object.freeze([
-  [900, 347, 500, 524, 679], [920, 343, 498, 526, 682], [940, 339, 496, 528, 685], [960, 369, 495, 528, 656], [980, 365, 466, 556, 657],
-  [1000, 362, 462, 561, 659], [1020, 359, 455, 565, 659], [1040, 353, 447, 572, 664], [1060, 345, 439, 578, 671], [1080, 338, 439, 576, 677],
-  [1100, 332, 441, 574, 684], [1120, 326, 443, 572, 687], [1140, 328, 440, 573, 688], [1160, 328, 434, 577, 687], [1180, 330, 425, 586, 683],
-  [1200, 332, 418, 594, 679], [1220, 334, 413, 598, 679], [1240, 340, 405, 607, 673], [1260, 343, 400, 611, 670], [1280, 344, 398, 613, 668],
-  [1300, 343, 396, 618, 670], [1320, 339, 396, 617, 675], [1340, 323, 404, 609, 691], [1360, 326, 404, 609, 689], [1380, 319, 406, 607, 695],
-  [1400, 309, 409, 604, 706], [1420, 297, 411, 602, 720], [1440, 293, 387, 628, 726],
-]);
+export const ARM_ANCHORS = MALE.armAnchors;
+export const LEG_ANCHORS = MALE.legAnchors;
 
 const smooth = (t) => t * t * (3 - 2 * t);
 /** 0 outside [a, d], 1 inside [b, c], smooth ramps between. */
@@ -87,25 +70,26 @@ export function anchorsAt(table, y) {
 }
 
 /** Sideways scale of the torso row about the body axis (shoulders and waist). 1 = unchanged. */
-export function rowScale(y, shape = NEUTRAL_SHAPE) {
-  return 1 + (shape.shoulders || 0) * window4(y, REGIONS.shoulders) + (shape.waist || 0) * window4(y, REGIONS.waist);
+export function rowScale(y, shape = NEUTRAL_SHAPE, A = MALE) {
+  return 1 + (shape.shoulders || 0) * window4(y, A.regions.shoulders) + (shape.waist || 0) * window4(y, A.regions.waist);
 }
 
 /** The same for an arm: the shoulders carry it, the waist does not. */
-export const armRowScale = (y, shape = NEUTRAL_SHAPE) => 1 + (shape.shoulders || 0) * window4(y, REGIONS.shoulders);
+export const armRowScale = (y, shape = NEUTRAL_SHAPE, A = MALE) => 1 + (shape.shoulders || 0) * window4(y, A.regions.shoulders);
 
 /**
  * How one art row is drawn: a list of { sx, sw, dx, dw } (cut `sw` pixels of the source row from `sx`, put them at `dx`, `dw` wide). Pure.
  * Without an arm or leg change this is one segment (the whole row scaled about the axis); with one it is the parts that move independently.
  */
-export function rowOps(y, shape = NEUTRAL_SHAPE) {
+export function rowOps(y, shape = NEUTRAL_SHAPE, A = MALE) {
   const W = CANVAS.width;
-  const S = rowScale(y, shape);
-  const f0 = (x) => AXIS_X + (x - AXIS_X) * S;
-  const armK = 1 + (shape.arms || 0) * window4(y, REGIONS.arms);
-  const legK = 1 + (shape.legs || 0) * window4(y, REGIONS.legs);
+  const AXIS = A.axisX;
+  const S = rowScale(y, shape, A);
+  const f0 = (x) => AXIS + (x - AXIS) * S;
+  const armK = 1 + (shape.arms || 0) * window4(y, A.regions.arms);
+  const legK = 1 + (shape.legs || 0) * window4(y, A.regions.legs);
   if (legK !== 1) {
-    const [a1, b1, a2, b2] = anchorsAt(LEG_ANCHORS, y);
+    const [a1, b1, a2, b2] = anchorsAt(A.legAnchors, y);
     const c1 = (a1 + b1) / 2;
     const c2 = (a2 + b2) / 2;
     const mid = (b1 + a2) / 2;
@@ -115,12 +99,12 @@ export function rowOps(y, shape = NEUTRAL_SHAPE) {
       { sx: mid, sw: W - mid, dx: f0(c2) + (mid - c2) * k, dw: (W - mid) * k },
     ];
   }
-  const Sa = armRowScale(y, shape);
-  if (y >= ARM_ROWS[0] && y <= ARM_ROWS[1] && (armK !== 1 || S !== Sa)) {
-    const [oL, iL, iR, oR] = anchorsAt(ARM_ANCHORS, y);
+  const Sa = armRowScale(y, shape, A);
+  if (y >= A.armRows[0] && y <= A.armRows[1] && (armK !== 1 || S !== Sa)) {
+    const [oL, iL, iR, oR] = anchorsAt(A.armAnchors, y);
     const sx0 = Math.max(0, oL - EDGE_PAD);
     const sx1 = Math.min(W, oR + EDGE_PAD);
-    const fa = (x) => AXIS_X + (x - AXIS_X) * Sa;   // an arm's inner edge: where the shoulders put it, whatever the waist does
+    const fa = (x) => AXIS + (x - AXIS) * Sa;   // an arm's inner edge: where the shoulders put it, whatever the waist does
     const kk = Sa * armK;
     const P = ARM_INNER_PAD;
     return [   // the torso first, the arms over it (as in the art, where the hands hang in front of the shorts)
@@ -129,7 +113,7 @@ export function rowOps(y, shape = NEUTRAL_SHAPE) {
       { sx: iR - P, sw: sx1 - iR + P, dx: fa(iR) - P * kk, dw: (sx1 - iR + P) * kk },
     ];
   }
-  return [{ sx: 0, sw: W, dx: AXIS_X - AXIS_X * S, dw: W * S }];
+  return [{ sx: 0, sw: W, dx: AXIS - AXIS * S, dw: W * S }];
 }
 
 /** The shape of a saved look: its own sliders (`build`) if it has them, else its preset's, else the neutral one. Never throws on a junk look. */
@@ -144,14 +128,14 @@ export function shapeFromLook(look) {
 export const figureScale = (shape) => STAGE_FIT * (1 + (shape?.height || 0));
 
 /** The portrait square, moved and sized with the figure so the head fills the same part of the picture whatever the height. */
-export function portraitCropFor(shape) {
+export function portraitCropFor(shape, A = MALE) {
   const h = figureScale(shape);
-  const { x, y, size } = PORTRAIT_CROP;
-  return { x: AXIS_X + (x - AXIS_X) * h, y: FEET_Y + (y - FEET_Y) * h, size: size * h };
+  const { x, y, size } = A.portraitCrop;
+  return { x: A.axisX + (x - A.axisX) * h, y: FEET_Y + (y - FEET_Y) * h, size: size * h };
 }
 
 /** Draw `src` (a CANVAS-sized canvas) onto `dst` with the shape applied. The head and the feet are copied whole; only the body between is cut into parts. */
-export function applyBodyShape(src, dst, shape) {
+export function applyBodyShape(src, dst, shape, A = MALE) {
   const { width, height } = CANVAS;
   const g = dst.getContext("2d");
   g.clearRect(0, 0, width, height);
@@ -159,11 +143,11 @@ export function applyBodyShape(src, dst, shape) {
   if ("imageSmoothingQuality" in g) g.imageSmoothingQuality = "high";
   const h = figureScale(shape);
   g.save();
-  g.translate(AXIS_X * (1 - h), FEET_Y * (1 - h));
+  g.translate(A.axisX * (1 - h), FEET_Y * (1 - h));
   g.scale(h, h);
   g.drawImage(src, 0, 0, width, RESHAPE_FROM, 0, 0, width, RESHAPE_FROM);                       // head and neck: untouched
   for (let y = RESHAPE_FROM; y < RESHAPE_TO; y += STRIP) {
-    for (const op of rowOps(y + STRIP / 2, shape)) g.drawImage(src, op.sx, y, op.sw, STRIP, op.dx, y, op.dw, STRIP);
+    for (const op of rowOps(y + STRIP / 2, shape, A)) g.drawImage(src, op.sx, y, op.sw, STRIP, op.dx, y, op.dw, STRIP);
   }
   g.drawImage(src, 0, RESHAPE_TO, width, height - RESHAPE_TO, 0, RESHAPE_TO, width, height - RESHAPE_TO);   // feet: untouched
   g.restore();

@@ -132,9 +132,9 @@ def fill_from_core(values, core, region, sigma=1.6):
 class Placer:
     """Source -> canvas: one similarity transform for every layer, so nothing is ever offset at runtime."""
 
-    def __init__(self, top_src, bot_src):
+    def __init__(self, top_src, bot_src, axis_src_x=AXIS_SRC_X):
         self.scale = (BOTTOM_Y - TOP_Y) / (bot_src - top_src)
-        self.M = np.float32([[self.scale, 0, 512 - AXIS_SRC_X * self.scale], [0, self.scale, TOP_Y - top_src * self.scale]])
+        self.M = np.float32([[self.scale, 0, 512 - axis_src_x * self.scale], [0, self.scale, TOP_Y - top_src * self.scale]])
 
     def warp(self, a):
         return cv2.warpAffine(a.astype(np.float32), self.M, (CANVAS_W, CANVAS_H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=0)

@@ -32,9 +32,9 @@ export function jerseyKit(template) {
 }
 
 /** Paint the chest number on a CANVAS-sized context. @returns {boolean} whether anything was drawn */
-export function paintJerseyNumber(ctx, kit) {
+export function paintJerseyNumber(ctx, kit, anchor = NUMBER_ANCHOR) {
   if (!kit?.number || typeof ctx?.fillText !== "function") return false;
-  const { x, y, size, maxWidth } = NUMBER_ANCHOR;
+  const { x, y, size, maxWidth } = anchor;
   ctx.save();
   ctx.font = `bold ${size}px Impact, "Arial Black", sans-serif`;
   ctx.textAlign = "center";

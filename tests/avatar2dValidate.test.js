@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { deflateSync } from "node:zlib";
 import { CANVAS, ART, requiredFiles } from "../js/ui/avatar2d/avatar2dLayers.js";
+import { PRESENTATIONS } from "../js/data/avatarLook.js";
 import { RULES, SIGNATURE, checkLayerPixels, chunk, decodePng, encodePng, findHoles, validateSet } from "../scripts/avatar/avatar2dValidate.mjs";
 
 const { width: W, height: H } = CANVAS;
@@ -149,7 +150,10 @@ test("the shipped art in assets/avatar2d passes the validator with no failure", 
   const { join, relative } = await import("node:path");
   const root = new URL("../assets/avatar2d/", import.meta.url).pathname;
   const files = new Map();
-  const walk = (dir) => { for (const name of readdirSync(dir)) { const full = join(dir, name); if (statSync(full).isDirectory()) walk(full); else if (name.endsWith(".png")) files.set(relative(root, full).split("\\").join("/"), readFileSync(full)); } };
+  // a presentation that is not switched on yet keeps its art in its own folder, validated by its own test (avatarFemaleArt.test.js); once it is
+  // in ART.presentations its folder is part of the shipped set and is walked here too
+  const dormant = new Set(PRESENTATIONS.map((p) => p.id).filter((id) => !ART.presentations.includes(id)));
+  const walk = (dir) => { for (const name of readdirSync(dir)) { const full = join(dir, name); if (statSync(full).isDirectory()) { if (!(dir === root && dormant.has(name))) walk(full); } else if (name.endsWith(".png")) files.set(relative(root, full).split("\\").join("/"), readFileSync(full)); } };
   walk(root);
   const out = validateSet(files);
   assert.deepEqual(levels(out, "FAIL"), [], JSON.stringify(levels(out, "FAIL")));

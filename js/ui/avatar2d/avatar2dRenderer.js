@@ -11,6 +11,7 @@ import { CANVAS, resolveLayers } from "./avatar2dLayers.js";
 import { paintJerseyNumber } from "./avatar2dJersey.js";
 import { placeholderImage } from "./avatar2dPlaceholder.js";
 import { applyBodyShape, figureScale, portraitCropFor, shapeFromLook } from "./avatar2dShape.js";
+import { anchorsFor } from "./avatar2dAnchors.js";
 import { MAX_PORTRAIT_CHARS } from "../../data/avatarPortrait.js";
 
 export const PORTRAIT_PX = 256;
@@ -103,16 +104,17 @@ export async function mountAvatar2d(container, {
     if (state.disposed || token !== state.token) return false;   // a newer look won the race
     const report = paintLayers(art.getContext("2d"), resolved.layers, (layer) => images.get(layer.file), createCanvas);
     if (!report.drawn.length) return false;                      // no art at all: keep whatever was there
-    if (resolved.jersey) paintJerseyNumber(art.getContext("2d"), resolved.jersey);   // after every layer: the chest is clear of hair and arms
+    const anchors = anchorsFor(resolved.presentation);           // where the body parts are on the art that was actually drawn (male and female art differ)
+    if (resolved.jersey) paintJerseyNumber(art.getContext("2d"), resolved.jersey, anchors.number);   // after every layer: the chest is clear of hair and arms
     const inUse = new Set(resolved.layers.map((layer) => layer.file));
     for (const file of [...cache.keys()]) if (!inUse.has(file)) cache.delete(file);   // release decoded layers the look no longer needs
     const shape = shapeFromLook(resolved.look);
-    applyBodyShape(art, shaped, shape);                          // after the jersey number: it belongs to the chest and scales with it
+    applyBodyShape(art, shaped, shape, anchors);                 // after the jersey number: it belongs to the chest and scales with it
     const source = shaped;                                       // what is on screen and what the portrait is cut from
     const g = canvas.getContext("2d");
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.drawImage(source, 0, 0, canvas.width, canvas.height);
-    Object.assign(state, { source, shape, look: resolved.look, jersey: resolved.jersey, report, cut: resolved.cut, fellBack: resolved.fellBack, styleFellBack: resolved.styleFellBack, painted: true });
+    Object.assign(state, { source, shape, anchors, look: resolved.look, jersey: resolved.jersey, report, cut: resolved.cut, fellBack: resolved.fellBack, styleFellBack: resolved.styleFellBack, painted: true });
     canvas.dataset.look = JSON.stringify(resolved.look);
     canvas.dataset.layers = report.drawn.join(",");
     canvas.dataset.shape = JSON.stringify({ ...shape, scale: figureScale(shape) });   // `scale` = the figure's drawing scale about its feet (QA reads it)
@@ -141,7 +143,7 @@ export async function mountAvatar2d(container, {
         const g = out.getContext("2d");
         g.fillStyle = bg;
         g.fillRect(0, 0, PORTRAIT_PX, PORTRAIT_PX);
-        const { x, y, size } = portraitCropFor(state.shape);   // follows the height, so a tall or short figure gets the same head-and-shoulders framing
+        const { x, y, size } = portraitCropFor(state.shape, state.anchors);   // follows the height, so a tall or short figure gets the same head-and-shoulders framing
         g.drawImage(state.source, x, y, size, size, 0, 0, PORTRAIT_PX, PORTRAIT_PX);
         for (const quality of PORTRAIT_QUALITIES) {
           const url = out.toDataURL("image/jpeg", quality);
