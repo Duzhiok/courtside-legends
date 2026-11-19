@@ -40,8 +40,12 @@ export function gameXp(line, age) {
   return Math.round(minutes * perf * ageRow(age).xp);
 }
 
-/** The attributes a player trains: his development plan's focus, else the balanced trio. */
-export const trainedAttributes = (plan) => FOCUS_ATTRIBUTES[plan?.focus] || FOCUS_ATTRIBUTES.balanced;
+/**
+ * The attributes a player trains: the plan's own list when it names one (a Reborn specialisation week), else his
+ * focus's, else the balanced trio. Either way the level cap and the ceilings below decide how far they go.
+ */
+export const trainedAttributes = (plan) =>
+  Array.isArray(plan?.attributes) && plan.attributes.length ? plan.attributes : FOCUS_ATTRIBUTES[plan?.focus] || FOCUS_ATTRIBUTES.balanced;
 
 /**
  * Highest value `attribute` may reach this season. `base` is the value at the start of the season

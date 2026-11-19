@@ -4,7 +4,8 @@
  *
  *   account.shop.owned[`jersey-<templateId>`]  bought replicas (permanent, via purchaseShopItem)
  *   account.shop.equippedJersey                the owned key being worn, or null
- *   account.jerseyCollection                   exchange jerseys earned in a Reborn run, deduped by instance id
+ *   account.jerseyCollection                   story jerseys earned in a Reborn run (swapped, or the legacy one redeemed
+ *                                              with career fragments), deduped by instance id
  *
  * An "owned key" is the shop item id for a bought jersey and the instance id for an exchange jersey, so the two never
  * collide. Equipping records the choice only: the avatar renderer does not draw jersey templates yet (see the doc).
@@ -51,7 +52,7 @@ export function listOwnedJerseys(account) {
     .filter((j) => j.template);
   const exchanged = (Array.isArray(account.jerseyCollection) ? account.jerseyCollection : [])
     .filter((j) => j && j.id && j.template)
-    .map((j) => ({ key: j.id, source: "exchange", template: j.template, instance: j }));
+    .map((j) => ({ key: j.id, source: j.source === "legacy" ? "legacy" : "exchange", template: j.template, instance: j }));
   return [...bought, ...exchanged.reverse()];
 }
 
@@ -89,7 +90,7 @@ export function unequipJersey(account) {
 export function getJerseyProvenance(account, key) {
   const j = listOwnedJerseys(account).find((x) => x.key === key);
   if (!j) return null;
-  if (j.source === "exchange") return { source: "exchange", signed: j.instance.signed === true, ...j.instance.provenance, template: j.template };
+  if (j.instance) return { source: j.source, signed: j.instance.signed === true, ...j.instance.provenance, template: j.template };
   const bought = (getShop(account).purchases || []).find((p) => p.itemId === key);
   return { source: "shop", signed: false, boughtAt: bought?.at ?? null, template: j.template };
 }

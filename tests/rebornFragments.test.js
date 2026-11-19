@@ -61,7 +61,7 @@ test("intensive training: needs this week's focus and enough fragments, once per
 
 test("an old Reborn save without a ledger reads as empty and can still play", () => {
   const ledger = fragmentLedger(createRebornState("frag-old-1", ROWS));
-  assert.deepEqual(ledger, { balance: 0, intensiveWeek: null, history: [] });
+  assert.deepEqual(ledger, { balance: 0, intensiveWeek: null, specialWeek: null, specialSkill: null, history: [] });
 });
 
 test("real game: the report carries its fragments, the ledger persists, and intensive training multiplies this game's training XP", async () => {

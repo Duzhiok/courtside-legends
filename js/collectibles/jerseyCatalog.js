@@ -96,19 +96,25 @@ const SELLABLE_LEVELS = new Set(["original", "licensed"]);
 export const isForSale = (t) => !!t && SELLABLE_LEVELS.has(t.releaseLevel) && Number.isInteger(t.price) && t.price >= 0;
 
 /**
- * Mint the template for a jersey earned from a real game (an exchange). Colours come from the real team code via
+ * Mint a story template (never sold): `kind` is how it was earned. Colours come from the real team code via
  * teamColors() (colours only); the number stays null because nothing in the data states it.
  */
-export function exchangeTemplate({ bref, name, nameEn, team, year }) {
+function storyTemplate(kind, { bref, name, nameEn, team, year }) {
   if (!bref || !year) return null;
   return {
-    id: `exchange:${bref}:${year}`, releaseLevel: "story", category: "exchange", bref,
+    id: `${kind}:${bref}:${year}`, releaseLevel: "story", category: kind, bref,
     playerName: name || nameEn || bref, playerNameEn: nameEn || name || bref, teamCode: team || null,
-    season: Number(year), number: null, numberVerified: false, licensed: false, variants: ["exchange"], price: null,
+    season: Number(year), number: null, numberVerified: false, licensed: false, variants: [kind], price: null,
     colors: { ...teamColors(team), trim: "#FFFFFF" },
     era: eraForSeason(Number(year))?.id || null, family: familyForSeason(Number(year)),
   };
 }
+
+/** A jersey earned from a real game: an opponent's, swapped after the final whistle (jerseyExchange.js). */
+export const exchangeTemplate = (args) => storyTemplate("exchange", args);
+
+/** The Reborn player's OWN season jersey, redeemed with career fragments (js/reborn/fragments.js): one per season. */
+export const legacyTemplate = (args) => storyTemplate("legacy", args);
 
 /** One template by id (catalog entries only; story templates travel inside their own offer / instance). */
 export const getJerseyTemplate = (id) => BY_ID.get(id) || null;

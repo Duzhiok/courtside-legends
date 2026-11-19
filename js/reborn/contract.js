@@ -13,6 +13,7 @@
  * camp for a cut player, and timeline events store aggregate values only.
  */
 import { carriedDeltas } from "../engine/developmentRules.js";
+import { seasonResetFragments } from "./fragments.js";
 import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { buildPlayerCard, REBORN_SEASON } from "./identity.js";
 import { roleForTrust, TRUST_START } from "./trust.js";
@@ -131,6 +132,7 @@ export function rolloverSeason(reborn, { year, players } = {}) {
   };
   next.player.seasonYear = nextYear;
   delete next.player.training;
+  if (next.player.fragments) next.player.fragments = seasonResetFragments(next);   // balance carries, last season's weekly buys don't
   if (next.player.contractStatus === "cut") {
     next.player.coachTrust = TRUST_START;
     next.player.contractStatus = "camp";

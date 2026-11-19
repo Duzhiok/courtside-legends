@@ -26,7 +26,7 @@ import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { applyGameGrowth } from "./training.js";
-import { earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
+import { activeSpecialty, earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
 import { gameEvidenceId } from "./promiseEvidence.js";
 import {
   DEFAULT_TAKEOVER_WINDOW,
@@ -324,6 +324,7 @@ export async function playGame(
     rows: players,
     lines: [{ id: playerCard.id, min: line.min, score: gs }],
     xpMultiplier: intensiveMultiplier(reborn, gameWeek),
+    week: gameWeek,
   });
   next.player.growth = growthOut.growth;
   season.index += 1;
@@ -380,6 +381,7 @@ export async function playGame(
       revealedNow,
       growth: growthOut.entries,
       intensive: intensiveMultiplier(reborn, gameWeek) > 1,
+      specialty: activeSpecialty(reborn, gameWeek),
       fragments: { earned: fragments.earned, reasons: fragments.reasons, balance: fragments.ledger.balance },
       takeover: takeoverOutcome
         ? {

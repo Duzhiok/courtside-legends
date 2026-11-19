@@ -31,7 +31,7 @@ import { mirrorJerseysToAccount } from "../../collectibles/jerseyCollection.js";
 import { jerseyOffersHtml } from "./jerseyOfferView.js";
 import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
-import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick } from "./fragmentsView.js";
+import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, specializeClick } from "./fragmentsView.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
 import { mirrorHonorsToAccount } from "../../reborn/honors.js";
@@ -262,13 +262,19 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     return out.settled;
   }
 
-  function applyAwakening(rebornState, report) {
-    if (!rebornState || !report) return [];
-    const card = buildPlayerCard(rebornState.identity, rows, {
+  /** The player's card as the game sees it in `year`: growth deltas + awakened skills (one recipe for every reader). */
+  function playerCardFor(rebornState, year) {
+    return buildPlayerCard(rebornState.identity, rows, {
       growth: rebornState.player.growth,
-      season: report.year,
+      season: year,
+      // Signature Awakening (workstream D): awakened skills ride on the card.
       extraSkills: awakenedSkillIds(rebornState.player.awakening),
     });
+  }
+
+  function applyAwakening(rebornState, report) {
+    if (!rebornState || !report) return [];
+    const card = playerCardFor(rebornState, report.year);
     const out = recordAwakeningGame(rebornState.player.awakening, {
       evidence: evidenceFromReport(report),
       card,
@@ -311,12 +317,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       });
       return;
     }
-    const card = buildPlayerCard(reborn.identity, rows, {
-      growth: reborn.player.growth,
-      season: season.year,
-      // Signature Awakening (workstream D): awakened skills ride on the card.
-      extraSkills: awakenedSkillIds(reborn.player.awakening),
-    });
+    const card = playerCardFor(reborn, season.year);
     const summary = seasonSummary(reborn, season.year);
     const done = season.index >= season.games.length;
     const poState = reborn.playoffs?.year === season.year ? reborn.playoffs : null;
@@ -351,7 +352,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       training && !done
         ? `<p>${L("本周训练：", "This week's training: ", lang)}${TRAINING_FOCUS_LABEL[training.focus][lang() === "en" ? "en" : "zh"]}</p>`
         : "",
-      done ? "" : fragmentsPanelHtml({ reborn, week, lang: lang() }),
+      done ? "" : fragmentsPanelHtml({ reborn, week, card, year: season.year, lang: lang() }),
       !done
         ? rivalryPregameHtml({ reborn, rows, nextGame, year: season.year, lang: lang() })
         : "",
@@ -556,8 +557,11 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         render();
         return;
       }
-      const bought = intensiveClick(event, reborn, currentWeek());
+      const bought = intensiveClick(event, reborn, currentWeek())
+        || specializeClick(event, reborn, currentWeek(), playerCardFor(reborn, season.year));
       if (bought) { reborn = bought; persist(); render(); return; }
+      const legacy = legacyClick(event, reborn, season.year, currentWeek());
+      if (legacy) { reborn = legacy; syncAccount(reborn); persist(); render(); return; }   // the jersey reaches the account collection now
       const train = event.target.closest("[data-train]");
       if (train) {
         try {

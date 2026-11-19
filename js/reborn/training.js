@@ -12,6 +12,7 @@ import { awardGrowth, trainedAttributes } from "../career/playerGrowth.js";
 import { seasonToCard } from "../data/players.js";
 import { identityOf } from "../career/careerIdentity.js";
 import { requireCapability } from "../career/careerGuards.js";
+import { specialtyAttributes } from "./fragments.js";
 
 export const TRAINING_FOCI = ["shooting", "defense", "playmaking"];
 
@@ -54,11 +55,15 @@ export function chooseFocus(reborn, focus, week, root) {
   return next;
 }
 
-/** The development-plan map awardGrowth consumes ({ bref: { focus } }). */
-export function trainingPlan(reborn) {
+/**
+ * The development-plan map awardGrowth consumes ({ bref: { focus } }). In a week a skill is being specialised
+ * (fragments.js) the plan also names that skill's attributes, which awardGrowth levels instead of the focus's.
+ */
+export function trainingPlan(reborn, week = null) {
   const focus = reborn?.player?.training?.focus;
   if (!TRAINING_FOCI.includes(focus)) return {};
-  return { [reborn.identity.bref]: { focus } };
+  const attributes = specialtyAttributes(reborn, week);
+  return { [reborn.identity.bref]: attributes ? { focus, attributes } : { focus } };
 }
 
 /**
@@ -68,11 +73,12 @@ export function trainingPlan(reborn) {
  * `cards` are the sim-ready roster cards (awardGrowth reads their
  * attributes); `rows` are the raw roster rows (the real card ladder, for
  * ceilings). A custom `ladderOf` overrides the ladder lookup. `xpMultiplier` is awardGrowth's own boost
- * (intensive training, js/reborn/fragments.js); the ceilings still bound every gain.
+ * (intensive training, js/reborn/fragments.js); the ceilings still bound every gain. `week` is the game's week: a
+ * specialisation bought for it steers the levels (no week = no specialisation).
  */
 export function applyGameGrowth(
   reborn,
-  { year, cards = [], rows = [], lines = [], ladderOf = null, xpMultiplier = 1 } = {},
+  { year, cards = [], rows = [], lines = [], ladderOf = null, xpMultiplier = 1, week = null } = {},
 ) {
   const ladder =
     ladderOf ||
@@ -89,7 +95,7 @@ export function applyGameGrowth(
         .filter(Boolean));
   const out = awardGrowth({
     growth: reborn?.player?.growth || {},
-    plans: trainingPlan(reborn),
+    plans: trainingPlan(reborn, week),
     year,
     players: cards,
     lines,
