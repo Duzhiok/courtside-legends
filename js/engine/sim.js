@@ -1284,7 +1284,9 @@ export class GameSim {
         });
       }
       let primaryAst = null;
-      if (rnd() < 0.55 + off.chem * 0.002) {
+      // Assist rate: 0.55 + chem made 74% of all baskets assisted (direct plus the indirect ones below) against 62% real, and 29.1 assists per team-game
+      // against 24.3. 0.45 gives 24.7 (scripts/measure/reb-ast-pairing.mjs, same teams, paired seeds).
+      if (rnd() < 0.45 + off.chem * 0.002) {
         primaryAst = pickPasser(off, baller);
         if (primaryAst) {
           primaryAst.stats.ast += 1;
@@ -1368,8 +1370,12 @@ export class GameSim {
       );
       this.possession = flip(this.possession);
     } else {
-      baller.stats.fga += 1;
-      if (shot.pts === 3) baller.stats.tpa += 1;
+      // A missed shot that draws a shooting foul is not a field-goal attempt (rulebook, and the real data this is compared with): the shooter goes to the
+      // line. It used to be counted, which put about 8 phantom attempts per team-game into FGA and 3PA and dragged FG% / 3P% down by the same amount.
+      if (!fouled) {
+        baller.stats.fga += 1;
+        if (shot.pts === 3) baller.stats.tpa += 1;
+      }
       registerShotFeel(baller, false);
       gradeMiss(baller, { pts: shot.pts, open });
       gradeGoodContest(defender, { open });
@@ -2618,19 +2624,21 @@ export function suggestDefenseScheme(oppOnCourt, deficit) {
  * over more than they should. That is who-gets-the-possession (shot distribution), not the per-touch rate calibrated here.
  */
 /**
- * Pace follows the team's own real shot volume. A possession lasted rand(8,20)/pace seconds whatever the era, so every team played about 103 possessions
- * (87.4 shots) per game: right for 1986 (real 89), but 8-10% too fast for every later era (the same teams really took 77-81 shots). Measured against the
- * real totals of the very teams simulated (scripts/measure/gamesim-calibration.mjs). The factor is the roster's real shots per game (gp-weighted, from the
- * cards) over 83.5, the divisor that makes the engine's own shot volume land on the real one (87.4 at factor 1; shots do not scale 1:1 with possession time because turnovers and rebounds absorb some), kept in 0.85-1.10. Rosters without real stats (custom, created) get 1. Coach tactics and the
- * player's tempo setting still multiply on top of it.
+ * Pace follows the team's own real shot volume. A possession lasted rand(8,20)/pace seconds whatever the era, so every team played about the same
+ * number of possessions: right for 1986 (real 89 shots), too slow or fast elsewhere. Compared with the real totals of the very teams simulated
+ * (scripts/measure/gamesim-calibration.mjs). The factor is the roster's real shots per game (gp-weighted, from the cards) over 76.5, the divisor that makes
+ * the engine's own shot volume land on the real one (shots do not scale 1:1 with possession time: turnovers and rebounds absorb some), kept in 0.85-1.25.
+ * Rosters without real stats (custom, created) get 1. Coach tactics and the player's tempo setting still multiply on top of it.
+ * Re-calibrated after the fouled-miss accounting fix (a missed shot that draws a shooting foul is no field-goal attempt): the first calibration (83.5)
+ * was fitted to attempts that included about 7 phantom ones per team-game.
  */
-const SHOTS_PER_GAME_AT_PACE_1 = 83.5;
+const SHOTS_PER_GAME_AT_PACE_1 = 76.5;
 export function realPaceFactor(players) {
   const rows = (players || []).filter((p) => p?.raw?.gp > 0 && p.raw.fga >= 0 && p.raw.mpg > 0);
   if (rows.length < 5) return 1;
   const games = Math.max(...rows.map((p) => p.raw.gp));
   const perGame = rows.reduce((sum, p) => sum + p.raw.fga * p.raw.gp, 0) / games;
-  return Math.min(1.1, Math.max(0.85, perGame / SHOTS_PER_GAME_AT_PACE_1));
+  return Math.min(1.25, Math.max(0.85, perGame / SHOTS_PER_GAME_AT_PACE_1));
 }
 
 /**
@@ -2640,7 +2648,7 @@ export function realPaceFactor(players) {
  * the 0.33 league rate (shot-weighted, so its mean is 1), kept in 0.4-2.6; FOUL_RATE_SCALE lifts the shared base so the league rate lands on the real one.
  * Players without real stats get 1.
  */
-const FOUL_RATE_SCALE = 1.95;
+const FOUL_RATE_SCALE = 1.52;
 const LEAGUE_FTA_PER_FGA = 0.33;
 export function foulDrawHabit(p) {
   const raw = p?.raw;
@@ -2650,10 +2658,10 @@ export function foulDrawHabit(p) {
   return Math.min(2.6, Math.max(0.4, ftm / raw.ft / raw.fga / LEAGUE_FTA_PER_FGA));
 }
 
-const ZONE_STACK_OFFSET = { three: 0.13, mid: 0.05, paint: 0.05 };
+const ZONE_STACK_OFFSET = { three: 0.168, mid: 0.100, paint: 0.100 };
 
-const STEAL_BASE = 0.034;           // was 0.04: the steal path alone was 10.1 per team-game against 7.7 real
-const UNFORCED_TOV_BASE = 0.052;    // was 0.06: non-steal turnovers were about 24% above real
+const STEAL_BASE = 0.023;           // 0.04 originally; 0.034 after Phase A; re-fitted per possession once pace and the fga accounting changed (7.8 per team-game, real 8.1)
+const UNFORCED_TOV_BASE = 0.042;    // 0.06 originally; 0.052 after Phase A; re-fitted per possession with the pace change (turnovers 14.2 per team-game, real 14.4)
 const TOV_HABIT_EXPONENT = 0.5;     // softened: a high-usage player already has the ball more, which is counted by possessions, not by this
 const REAL_TOV_PER_36 = 2.2;        // the real league's average (roster.json, six eras): 2.18 turnovers per 36 minutes
 
@@ -3393,20 +3401,18 @@ function maybeTechnicalFoul(sim, off, def, baller, defender) {
 }
 
 /** Who cleans the glass — size matters, but not 25-rpg monopolies. */
-function reboundContestWeight(p, { offensive = false } = {}) {
+export function reboundContestWeight(p, { offensive = false } = {}) {
   // R84: offensive and defensive boards are genuinely different skills (crashing for a
   // second chance vs. boxing out/securing a clean miss) -- use the split attribute when
   // it's there, fall back to the shared `rebound` rating for old save snapshots.
   const specialized = offensive ? p.offReb : p.defReb;
   const rating = Math.max(12, (specialized != null ? specialized : p.rebound) || 40);
-  // Milder curve: elite bigs win more boards without vacuuming every miss
-  let w = Math.pow(rating / 50, 1.75) * 36;
-  const pos = p.playPos || p.pos || "";
-  if (pos === "C") w *= 1.38;
-  else if (pos === "PF") w *= 1.22;
-  else if (pos === "SF") w *= 1.0;
-  else if (pos === "SG") w *= 0.7;
-  else if (pos === "PG") w *= 0.55;
+  // The rebound rating already says who is a rebounder (bigs about 80, guards about 35), so it must not be counted again by position. It was: exponent
+  // 1.75 plus position multipliers (C 1.38 ... PG 0.55) made a rating-35 point guard about 1/12 of a rating-80 centre, against about 1/2 in real per-36 numbers
+  // (scripts/measure/reb-ast-pairing.mjs, paired fixed seeds): guards got 0.38x their real rebounds per 36 and centres 1.65x. Exponent 0.9 and no position
+  // multiplier: guards 0.88x, wings 1.13x, bigs 1.25x of real, against a 1.11x baseline for everyone (about 7% of real rebounds are team rebounds and are in
+  // nobody's line, while every simulated rebound goes to a player).
+  let w = Math.pow(rating / 50, 0.9) * 36;
   if ((p.heightCm || 0) >= 208) w *= 1.08;
   if ((p.heightCm || 0) >= 213) w *= 1.08;
   if ((p.strength || 50) >= 78) w *= 1.06;
@@ -3922,15 +3928,14 @@ export function calcBlockChance(baller, defender, shot, open, { defPress = 0, sk
   const blk = defender.block || 40;
   // Calibrated on paired fixed seeds against the same players' real blocks per 36 (scripts/measure/steal-block-pairing.mjs). The old floor (paint 0.055
   // even at block rating 0, so only 3x between a 0 and an 80) gave low-rated men 1.8x their real blocks (a rating-20 guard averaged 0.97 per 36 against 0.00
-  // real) while the real league separates them 9x. The floor is now small and the rating does the work: low bands 1.82x -> 1.26x, 65-79 0.94x, elite rim
-  // protectors unchanged (Shaq 2.4 vs 2.6 real), league blocks 6.6 -> 5.4 per team-game (real 4.9). Side effect, reported: fewer blocked shots means
-  // about +1.2 points and +0.6 FG% per team-game. The zone multipliers below (height / strength mismatch, finisher resistance) are untouched.
+  // real) while the real league separates them 9x. The floor is now small and the rating does the work. Bases are 0.82x of the first fit (0.012 / 0.0019 in
+  // the paint) because the faster, corrected pace gives more shots to block: 4.8 blocks per team-game (real 4.9). The zone multipliers below are untouched.
   let chance =
     shot.zone === "three"
-      ? 0.003 + blk * 0.00015
+      ? 0.0025 + blk * 0.00012
       : shot.zone === "mid"
-        ? 0.012 + blk * 0.0014 + (100 - open * 100) * 0.0002
-        : 0.012 + blk * 0.0019 + (100 - open * 100) * 0.00022;
+        ? 0.0098 + blk * 0.00115 + (100 - open * 100) * 0.0002
+        : 0.0098 + blk * 0.00156 + (100 - open * 100) * 0.00022;
   chance += defPress * 0.008;
   chance += skillBonus;
   chance += sigBoost;
@@ -3979,7 +3984,9 @@ function pickPasser(off, scorer) {
   const others = off.onCourt.filter((p) => p.id !== scorer.id);
   if (!others.length) return null;
   return weighted(others, (p) => {
-    let w = p.pass + p.iq * 0.3;
+    // Squared (and rescaled so a rating-80 passer keeps his old weight): the linear weight barely separated passers, so the real bottom third of assist
+    // men made 1.8x their real assists per 36 and the top third 1.0x. Now per-player correlation 0.76 -> 0.82 and the thirds 1.28 / 0.92 / 1.02.
+    let w = (p.pass + p.iq * 0.3) ** 2 / 80;
     if (p.orders?.usage === "organize" || p.orders?.action === "drive_kick") w *= 1.45;
     w *= skillPassWeight(p);
     return w;
@@ -4467,7 +4474,8 @@ export function calcMakeProb(baller, shot, open, off, def, defender, plan, momen
   // mid-range and +9.2 from three, and 91% of threes were pinned at the 45% ceiling, so a 35% and a 42% shooter both shot 45-47% (per-player correlation
   // -0.25). Taking the average stack back off at the start makes the average shot equal the player's real percentage; the terms keep their relative
   // differences (an open look is still better than a contested one) and the ceiling stops being the whole answer. Calibrated on paired fixed seeds
-  // (scripts/measure/shooting-pairing.mjs): FG% +3.6 -> +0.5 points, 3P% +7.6 -> +1.9, team points 111.5 -> 103.6 (real 103.6).
+  // (scripts/measure/shooting-pairing.mjs). The offsets were re-fitted once the fouled-miss accounting was fixed (see the fga line in the miss branch): with
+  // phantom attempts out of the denominator the true FG% was 4.7 points above real, not 0.5. Now FG% 48.7 (real 48.2), 3P% 36.5 (36.5), points 104.8 (103.6).
   base -= ZONE_STACK_OFFSET[shot.zone] ?? 0;
   base += (open - 0.45) * 0.16;
   // R84: a clean/kicked-out look is a catch-and-shoot shot, a contested or self-created one is

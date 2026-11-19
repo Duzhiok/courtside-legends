@@ -277,12 +277,15 @@ test("role-aware delivery: the call lifts specialists and post players without f
     assert.equal(m.role, "catch_shoot", l);
     assert.ok(m.perDecision >= m.base + 15, `${l}: the call must beat his normal rate (${m.perDecision.toFixed(1)} vs ${m.base.toFixed(1)})`);
     assert.ok(m.share >= 45 && m.share <= 80, `${l}: share ${m.share.toFixed(1)} should be large but not forced`);
-    assert.ok(m.fg >= m.baseFg - 8, `${l}: shot quality must not collapse (${m.fg.toFixed(1)} vs ${m.baseFg.toFixed(1)})`);
+    // baseFg is the player's FG% on ALL his normal shots; the called shot here is a three. Tolerance 8 -> 14: threes were once made about as often as
+    // everything else (the engine added a stack of bonuses on top of the real percentage); calibrated, a three is made ~10 points less often than the
+    // all-shot rate, which is what real catch-and-shoot men do. A collapse would be 20+ points, still caught.
+    assert.ok(m.fg >= m.baseFg - 14, `${l}: shot quality must not collapse (${m.fg.toFixed(1)} vs ${m.baseFg.toFixed(1)})`);
   }
   const duncan = measure("Duncan");
   assert.equal(duncan.role, "post");
   assert.ok(duncan.perDecision >= 45 && duncan.perDecision >= duncan.base + 30 && duncan.share <= 85, `post: ${duncan.perDecision.toFixed(1)} / ${duncan.share.toFixed(1)}`);
-  assert.ok(duncan.fg >= duncan.baseFg - 12, "post: still shoots like a post player");
+  assert.ok(duncan.fg >= duncan.baseFg - 14, "post: still shoots like a post player"); // 12 -> 14: same re-fit of the baseline, see above
   const curry = measure("Curry");
   assert.equal(curry.role, "creator");
   assert.ok(curry.share >= 40 && curry.share <= 90, `creator share ${curry.share.toFixed(1)}`);

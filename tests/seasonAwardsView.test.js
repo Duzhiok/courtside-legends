@@ -19,7 +19,10 @@ const { seasonAwardsHtml, seasonMetrics, teamContext } = await import("../js/ui/
 
 const STARS = ["curryst01", "jordami01", "jamesle01", "duncati01", "onealsh01", "bryanko01", "johnsma02", "birdla01", "olajuha01", "garneke01"];
 const peak = (b) => PLAYERS.filter((p) => p.bref === b).sort((x, y) => overall(y) - overall(x))[0];
-const visible = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+// The view escapes text (an apostrophe becomes &#39;), so decode it back before comparing with plain player names: without this the test failed
+// whenever Shaquille O'Neal happened to make an All-NBA / All-Defense first team (a random event of the season).
+const ENTITIES = { "&#39;": "'", "&quot;": '"', "&amp;": "&", "&lt;": "<", "&gt;": ">" };
+const visible = (html) => html.replace(/<[^>]+>/g, " ").replace(/&#39;|&quot;|&amp;|&lt;|&gt;/g, (e) => ENTITIES[e]).replace(/\s+/g, " ");
 
 let played = null;
 /** One real 20-game My Team season, played to the end, awards computed (built once, it takes a few seconds). */
