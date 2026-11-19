@@ -1,6 +1,7 @@
 /**
  * NBA-style season: 32 teams (modern) or historical year rosters, 82-game RS, playoffs, awards.
  */
+import { completeSchedule } from "./scheduleRepair.js";
 import { normalizePos } from "../data/positions.js";
 import { isRookieSeason, previousSeasonLine, seasonLine } from "../data/careerArc.js";
 import { resolveEffectiveGameplan } from "./effectiveGameplan.js";
@@ -187,11 +188,23 @@ export function generateShortSchedule(teamIds, seed, games) {
  * @param {{ eastIds?: string[], westIds?: string[], confById?: Record<string,string> }} [layout]
  */
 export function generateSchedule(teamIds = allLeagueTeamIds(), seed = Date.now(), layout = {}) {
+  const days = generateBaseSchedule(teamIds, seed, layout);
+  const { east, west } = conferencesOf(teamIds, layout);
+  // The base pass can leave a team short (see scheduleRepair.js); completing it only appends, so nothing already scheduled moves.
+  return completeSchedule(days, [...east, ...west], RS_GAMES);
+}
+
+function conferencesOf(teamIds, layout) {
+  return {
+    east: (layout.eastIds || EAST_IDS).filter((id) => teamIds.includes(id)),
+    west: (layout.westIds || WEST_IDS).filter((id) => teamIds.includes(id)),
+  };
+}
+
+/** The schedule before completion. Exported only so tests can prove completion leaves a complete schedule untouched. */
+export function generateBaseSchedule(teamIds, seed, layout = {}) {
   const rng = mulberry32(seed >>> 0);
-  const eastSrc = layout.eastIds || EAST_IDS;
-  const westSrc = layout.westIds || WEST_IDS;
-  const east = eastSrc.filter((id) => teamIds.includes(id));
-  const west = westSrc.filter((id) => teamIds.includes(id));
+  const { east, west } = conferencesOf(teamIds, layout);
   const confOf = (id) => layout.confById?.[id] || conferenceOf(id);
   let pairs = shuffle(buildMatchupPairs(east, west, rng, confOf), rng);
 

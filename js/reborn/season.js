@@ -40,14 +40,11 @@ import {
 } from "./rivalry.js";
 import { jerseyState, offersForGame } from "../collectibles/jerseyExchange.js";
 import { createEggWatcher } from "./enforcerEgg.js";
-import { rosterCode } from "./franchises.js";
+import { leagueLayout, rosterCode } from "./franchises.js";
 import {
   buildPlayerCard,
   applyIdentityToRoster,
   maybeReveal,
-  REBORN_EAST_IDS,
-  REBORN_WEST_IDS,
-  REBORN_TEAM_IDS,
 } from "./identity.js";
 
 export const REBORN_GAMES_PER_WEEK = GAMES_PER_WEEK;
@@ -64,13 +61,6 @@ export function rosterCards(players, team, season) {
     .sort((a, b) => overall(b) - overall(a));
 }
 
-function conferenceById() {
-  return Object.fromEntries([
-    ...REBORN_EAST_IDS.map((id) => [id, "east"]),
-    ...REBORN_WEST_IDS.map((id) => [id, "west"]),
-  ]);
-}
-
 /**
  * Build a season for a reborn run: the 82-game schedule filtered to the
  * player's team's games, in day order. `games` overrides the generated
@@ -83,10 +73,11 @@ export function buildSeason(reborn, _players, { games = null } = {}) {
   const year = reborn.player?.seasonYear ?? reborn.startYear + 1;
   const teamId = reborn.player.teamId;
   if (games) return { year, teamId, games: [...games], index: 0 };
-  const schedule = generateSchedule(REBORN_TEAM_IDS, hashSeed(`${reborn.seed}|${year}`), {
-    eastIds: REBORN_EAST_IDS,
-    westIds: REBORN_WEST_IDS,
-    confById: conferenceById(),
+  const league = leagueLayout(year);      // the clubs that existed that season (an expansion team only from its first year)
+  const schedule = generateSchedule(league.teamIds, hashSeed(`${reborn.seed}|${year}`), {
+    eastIds: league.eastIds,
+    westIds: league.westIds,
+    confById: league.confById,
   });
   const myGames = [];
   schedule.forEach((night, day) => {
