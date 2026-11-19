@@ -75,8 +75,6 @@ export const SKIPPABLE_BEAT_KINDS = Object.freeze(["pass", "possession_start", "
 /** `coach` feed lines have no visual beat — they are text, not movement. */
 const SKIPPED_KINDS = new Set(["coach"]);
 
-const lerp = (a, b, t) => a + (b - a) * t;
-
 function posMap(snap, phase = 1) {
   const map = new Map();
   for (const p of snapshotTo3DPositions(snap, phase, 0)) {

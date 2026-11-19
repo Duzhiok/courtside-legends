@@ -3,7 +3,7 @@
  * Cards survive refresh/offline; ranked uses this roster as the core squad.
  */
 import { applyPlayerPrefs, mergePlayerPrefs } from "./playerPrefs.js";
-import { COACHES, TACTICS, isStarterCoach } from "./coaches.js";
+import { COACHES, isStarterCoach } from "./coaches.js";
 import { clonePlayer, overall, PLAYERS } from "./players.js";
 import { MERGE_ATTR_KEYS, SKILL_PACKS } from "./skills.js";
 import { applyHiddenRoll, legacyRollSeed } from "./cardRoll.js";

@@ -501,14 +501,6 @@ export function signFreeAgent(st, playerId, lang = "zh", { career, root } = {}) 
   return { ok: true, player, payroll: payrollSummary(team) };
 }
 
-function teamByPlayer(st, playerId) {
-  for (const id of seasonTeamIds(st)) {
-    const t = st.teams[id];
-    if (t?.players?.some((p) => p.id === playerId)) return { teamId: id, team: t };
-  }
-  return null;
-}
-
 /**
  * The picks a club holds right now. They are not stored: the draft calendar (every club holds a
  * first and a second for each of the next few drafts) plus the ownership ledger determine them, so

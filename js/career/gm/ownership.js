@@ -22,7 +22,7 @@
  * and with nothing left to sell the career restarts at a small-market team (the caller
  * turns the `dismissal` flag into the new chapter).
  */
-import { availableAssetClasses, investmentForecast, rollInvestmentReturn } from "../finance.js";
+import { availableAssetClasses, rollInvestmentReturn } from "../finance.js";
 import { ensureCoachProfile } from "../coachProfile.js";
 
 /** 1 abstract coach-profile cash unit = $0.2M (simulated parameter, see header). */

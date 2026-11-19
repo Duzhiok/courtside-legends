@@ -63,7 +63,6 @@ const NETWORK_SRC = readFileSync(new URL("../js/ui/networkViews.js", import.meta
 const REL_SRC = readFileSync(new URL("../js/ui/relationshipsView.js", import.meta.url), "utf8");
 const SCOUTING_SRC = readFileSync(new URL("../js/ui/scoutingView.js", import.meta.url), "utf8");
 
-const CJK = /[\u4e00-\u9fff]/;
 const FULLWIDTH = /[（）、，。；：]/;
 // Full-width punctuation except the label colon `：`, which is the codebase-wide
 // label separator and outside this batch's scope (U-P2-2 lists parens/commas/periods/joins).

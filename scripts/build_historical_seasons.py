@@ -172,8 +172,6 @@ def main():
             " * Past ~50 NBA seasons: active teams + Finals champion notes.",
             " * Rosters at runtime come from PLAYERS filtered by season+team.",
             " */",
-            f"const HISTORICAL_YEAR_START = {years[0]};",
-            f"const HISTORICAL_YEAR_END = {years[-1]};",
             f"export const HISTORICAL_YEARS = {years_json};",
             "",
             "/** @type {Record<string, object>} */",

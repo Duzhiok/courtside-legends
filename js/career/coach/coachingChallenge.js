@@ -88,7 +88,6 @@ function fail(code, message) {
 }
 
 const t = (zh, en) => ({ zh, en });
-const pickLang = (pair, lang) => (lang === "en" ? pair.en || pair.zh : pair.zh);
 
 function margin(score) {
   return (score?.away ?? 0) - (score?.home ?? 0);

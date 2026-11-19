@@ -4,7 +4,7 @@
  */
 import { overall } from "../data/players.js";
 import { POS_SLOTS } from "../data/franchises.js";
-import { PLAYER_ROLES, inferPlayerRole, staminaMinuteCap, staminaMinuteHint, suggestTargetMinutes } from "../data/playerMinutes.js";
+import { PLAYER_ROLES, inferPlayerRole, staminaMinuteCap, suggestTargetMinutes } from "../data/playerMinutes.js";
 
 export const LINEUP_PACK_DEFS = [
   { id: "scoring", name: "得分阵", hint: "优先得分与造投" },

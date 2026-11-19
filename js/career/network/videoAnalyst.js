@@ -495,7 +495,7 @@ export function filmRecommendForMoment(recommendation, moment) {
  * graded recommendation here when it tells the player it was "filed to
  * the head coach"; the coach challenge view reads it when opening. Same
  * page session only — the durable transport is the inbox event
- * (filmReportInboxEvent), not this holder. No save format is touched.
+ * (_filmReportInboxEvent), not this holder. No save format is touched.
  */
 let filedFilmRecommendation = null;
 
@@ -511,7 +511,7 @@ export function readFiledFilmRecommendation() {
 }
 
 /** Inbox event shape for workstream A: a film report filed to the head coach. */
-function filmReportInboxEvent(recommendation, { teamName = "" } = {}) {
+function _filmReportInboxEvent(recommendation, { teamName = "" } = {}) {
   return {
     type: "film-report",
     source: "film-room",

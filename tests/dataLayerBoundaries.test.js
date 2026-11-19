@@ -29,7 +29,7 @@ test("epiphany lives in data/, minute rules live in data/playerMinutes.js", () =
   assert.equal(existsSync(new URL("../js/engine/epiphany.js", import.meta.url)), false);
   assert.doesNotMatch(src("../js/engine/gameplan.js"), /export (const PLAYER_ROLES|function (inferPlayerRole|staminaMinuteCap|staminaMinuteHint|suggestTargetMinutes))/);
   assert.match(src("../js/engine/gameplan.js"), /from\s+["']\.\.\/data\/playerMinutes\.js["']/);
-  assert.match(src("../js/engine/gameplan.js"), /PLAYER_ROLES,\s*inferPlayerRole,\s*staminaMinuteCap,\s*staminaMinuteHint,\s*suggestTargetMinutes/);
+  assert.match(src("../js/engine/gameplan.js"), /PLAYER_ROLES,\s*inferPlayerRole,\s*staminaMinuteCap,\s*suggestTargetMinutes/);
 });
 
 // Spot checks: the moved minute rules behave exactly as before the move.

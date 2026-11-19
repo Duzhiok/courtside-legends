@@ -32,7 +32,6 @@ import {
   recordRivalryGame,
 } from "../career/careerRelationships.js";
 
-const RIVALRY_ORIGINS = Object.freeze(["auto", "story", "challenge"]);
 /** A meeting only counts when both of you really played. */
 const MEETING_MIN_MINUTES = 12;
 /** "Comparable level": the direct matchup's OVR is within this gap of yours. */

@@ -186,7 +186,7 @@ function ensureMatchEventMounts(doc = globalThis.document) {
  * the coach panel otherwise; info events are always a toast. No DOM in node:
  * without a document it returns a no-op controller so imports never crash.
  */
-function createMatchEventController({ onDecide, onDismiss, getLang = () => "zh" } = {}) {
+function _createMatchEventController({ onDecide, onDismiss, getLang = () => "zh" } = {}) {
   const doc = typeof globalThis.document !== "undefined" ? globalThis.document : null;
   if (!doc) return { show: () => false, clear: () => {}, mounts: null };
   const mounts = ensureMatchEventMounts(doc);
