@@ -120,6 +120,27 @@ const avgReal = (key) => Object.values(report.eras).reduce((s, e) => s + e.real[
 report.overall = Object.fromEntries(["pts", "poss", "ortg", "fgp", "tpp", "ftp", "reb", "ast", "stl", "blk", "tov", "tovSteal", "tovForced", "tovUnforced", "tovOther"].map((k) => [k, avg(k)]));
 report.overallReal = Object.fromEntries(REAL_KEYS.map((k) => [k, avgReal(k)]));
 console.log("\nALL ERAS (sim | real):  " + REAL_KEYS.map((k) => `${k} ${f(report.overall[k] * (k.endsWith("p") ? 100 : 1), 1)}|${f(report.overallReal[k] * (k.endsWith("p") ? 100 : 1), 1)}`).join("  "));
+// The fair reference: the real totals of the very teams that were simulated (not the league average, which includes weak teams the matchups never use).
+const realTeamTotals = (code, year) => {
+  const rs = ROWS.filter((r) => r.team === code && r.season === year && r.gp > 0);
+  const g = Math.max(...rs.map((r) => r.gp));
+  const t = (f) => rs.reduce((sum, r) => sum + f(r) * r.gp, 0) / g;
+  const pts = t((r) => r.ppg), fgm = t((r) => r.fg * r.fga), tpm = t((r) => (r.tp || 0) * (r.tpa || 0));
+  return { pts, fga: t((r) => r.fga), fgm, tpm, ftm: pts - 2 * fgm - tpm, reb: t((r) => r.rpg), ast: t((r) => r.apg), tov: t((r) => r.tpg), stl: t((r) => r.spg), blk: t((r) => r.bpg) };
+};
+const SAME = ["pts", "fga", "fgm", "tpm", "ftm", "reb", "ast", "tov", "stl", "blk"];
+const simSame = Object.fromEntries(SAME.map((k) => [k, 0])), realSame = { ...simSame };
+let sameN = 0;
+for (const [a, b, year] of PAIRS) {
+  const e = eras[year];
+  if (!e) continue;
+  const ra = realTeamTotals(a, year), rb = realTeamTotals(b, year);
+  for (const k of SAME) { simSame[k] += e.tot[k] / e.games / 2; realSame[k] += (ra[k] + rb[k]) / 2; }
+  sameN += 1;
+}
+report.sameTeams = { sim: Object.fromEntries(SAME.map((k) => [k, simSame[k] / sameN])), real: Object.fromEntries(SAME.map((k) => [k, realSame[k] / sameN])) };
+console.log("\nvs the REAL totals of the very teams simulated (per team-game; free throws made = points - 2 x FGM - 3PM):");
+console.log("  " + SAME.map((k) => `${k} ${f(report.sameTeams.sim[k], 1)}|${f(report.sameTeams.real[k], 1)}`).join("  "));
 if (BEFORE) {
   console.log("\nCHANGE vs the saved run (overall, per team-game): ");
   for (const k of Object.keys(report.overall)) console.log(`  ${k.padEnd(10)} ${f(BEFORE.overall[k] * (k.endsWith("p") ? 100 : 1), 2)} -> ${f(report.overall[k] * (k.endsWith("p") ? 100 : 1), 2)}   (${report.overall[k] - BEFORE.overall[k] >= 0 ? "+" : ""}${f((report.overall[k] - BEFORE.overall[k]) * (k.endsWith("p") ? 100 : 1), 2)})`);

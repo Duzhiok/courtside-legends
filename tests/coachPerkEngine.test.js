@@ -42,7 +42,9 @@ test("a team's staffBonus reaches its wrapped coach; the opponent's coach gets n
 test("the shot bonus really moves made shots (exaggerated here so noise can't hide the wiring)", () => {
   const plain = homeMakes(null);
   const boosted = homeMakes({ shot: 0.25 });
-  assert.ok(boosted > plain * 1.08, `boosted ${boosted} vs plain ${plain}`);
+  // 1.04, not 1.08: the 1.08 was set when every team played 103 possessions. Teams now play at their real pace (fewer shots), so the same +0.25 bonus
+  // shows as about +6% of made shots in this sample. The assertion is only that the bonus is wired, far above noise (a bonus of 0 gives ~1.00).
+  assert.ok(boosted > plain * 1.04, `boosted ${boosted} vs plain ${plain}`);
 });
 
 test("the season hands its coachPerkShot to the user's team only", () => {

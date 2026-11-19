@@ -885,7 +885,7 @@ export class GameSim {
       this.emit("coach", this.S(`${baller.name} 二次进攻补篮机会`, `${baller.name} has a putback chance on the second effort`));
     }
 
-    let pace = off.tactic.pace * (1 + (off.temp.pace || 0));
+    let pace = off.tactic.pace * (1 + (off.temp.pace || 0)) * (off._realPace ??= realPaceFactor(off.roster));
     if (off.temp.comeback?.paceMult) pace *= off.temp.comeback.paceMult; // B4: a team chasing a big deficit (if its lineup can run)
     // 你方持久节奏拨档（领先降速 / 落后提速）
     const tempo = off === this.you() ? getTempoDef(off.gameplan?.tempo) : null;
@@ -2615,6 +2615,22 @@ export function suggestDefenseScheme(oppOnCourt, deficit) {
  * What this does NOT fix: bigs are handed the ball ~26% more often than real (FGA/36 14.8 vs 11.7) and guards ~13% less, so big men still turn the ball
  * over more than they should. That is who-gets-the-possession (shot distribution), not the per-touch rate calibrated here.
  */
+/**
+ * Pace follows the team's own real shot volume. A possession lasted rand(8,20)/pace seconds whatever the era, so every team played about 103 possessions
+ * (87.4 shots) per game: right for 1986 (real 89), but 8-10% too fast for every later era (the same teams really took 77-81 shots). Measured against the
+ * real totals of the very teams simulated (scripts/measure/gamesim-calibration.mjs). The factor is the roster's real shots per game (gp-weighted, from the
+ * cards) over 83.5, the divisor that makes the engine's own shot volume land on the real one (87.4 at factor 1; shots do not scale 1:1 with possession time because turnovers and rebounds absorb some), kept in 0.85-1.10. Rosters without real stats (custom, created) get 1. Coach tactics and the
+ * player's tempo setting still multiply on top of it.
+ */
+const SHOTS_PER_GAME_AT_PACE_1 = 83.5;
+export function realPaceFactor(players) {
+  const rows = (players || []).filter((p) => p?.raw?.gp > 0 && p.raw.fga >= 0 && p.raw.mpg > 0);
+  if (rows.length < 5) return 1;
+  const games = Math.max(...rows.map((p) => p.raw.gp));
+  const perGame = rows.reduce((sum, p) => sum + p.raw.fga * p.raw.gp, 0) / games;
+  return Math.min(1.1, Math.max(0.85, perGame / SHOTS_PER_GAME_AT_PACE_1));
+}
+
 const STEAL_BASE = 0.034;           // was 0.04: the steal path alone was 10.1 per team-game against 7.7 real
 const UNFORCED_TOV_BASE = 0.052;    // was 0.06: non-steal turnovers were about 24% above real
 const TOV_HABIT_EXPONENT = 0.5;     // softened: a high-usage player already has the ball more, which is counted by possessions, not by this
