@@ -19,7 +19,7 @@ const check = (label, ok, detail = "") => {
 
 // Rows of the 1024x1536 art canvas; the figure canvas is half resolution, so y / 2.
 // Steep silhouette rows (the hands ending, the hem) are avoided on purpose: a 2% height change would move the measurement onto another shape.
-const ROWS = { head: 190, shoulders: 440, arms: 700, waist: 900, legs: 1200, feet: 1430 };   // waist 900 = the shorts (the thighs start below it)
+const ROWS = { head: 190, shoulders: 440, arms: 700, waist: 920, legs: 1200, feet: 1430 };   // waist 920 = the shorts BELOW the hands (the hands hang beside the shorts to ~885 and are rigid, a row through them cannot see the waist)
 const FEET_Y = 1463;
 const widths = (page) => page.evaluate(({ rows, FEET }) => {
   const c = document.querySelector("#mw-showcase-stage canvas.avatar2d-canvas");

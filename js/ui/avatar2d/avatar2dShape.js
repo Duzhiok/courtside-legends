@@ -4,7 +4,10 @@
  * model: it does not pretend to sculpt anatomy, and it is appearance only (nothing here reaches GameSim or any ability).
  *
  * What each control moves, row by row on the shipped art (measured by scripts/measure/avatar-body-anchors.mjs, 1024x1536, body axis x = 510):
- *   shoulders, waist  the whole row scales sideways about the body axis (the torso, and the arms with it, get wider or narrower)
+ *   shoulders         the whole row scales sideways about the body axis (the torso, and the arms with it, get wider or narrower)
+ *   waist             the torso and shorts only. The arms and hands are NOT part of it: from the belt down they hang where the shoulders put them, and are
+ *                     drawn over the shorts. (Scaling the whole row took the hands with it, and because the waist fades in over the very rows of the hand
+ *                     the top of the hand moved less than the bottom: the hand was sheared into a claw and the wrist looked broken.)
  *   arms              each arm grows or shrinks in THICKNESS, away from the torso: its inner edge stays, the torso does not move
  *   legs              each leg scales about ITS OWN centre line, so the legs thicken without spreading apart
  *   height            a uniform scale about the feet: the feet stay on the floor and the head keeps its proportions (the head and neck are copied, never
@@ -26,6 +29,12 @@ export const STRIP = 2;
 /** The figure is drawn at this fraction of the art size, so a 220 cm figure (x1.19) still has its head under the top edge of the canvas. */
 export const STAGE_FIT = 0.87;
 const EDGE_PAD = 8;   // transparent pixels kept around an arm segment so its anti-aliased edge is not cut
+/**
+ * The arm anchors were measured on alpha > 40, so the faint anti-aliased fringe of a finger lies a few pixels PAST the measured inner edge. Left in the torso
+ * segment, a narrower waist carried that fringe away from the hand as thin skin-coloured streaks. The arm segment therefore reaches this far past its inner
+ * edge (into the gap or the very edge of the shorts), and the torso segment starts where it ends.
+ */
+export const ARM_INNER_PAD = 4;
 
 /** Each region: [zero below, full from, full until, zero above] in art rows. */
 export const REGIONS = Object.freeze({
@@ -34,6 +43,8 @@ export const REGIONS = Object.freeze({
   waist: [790, 850, 930, 1000],   // belt and shorts only: it ends where the thighs begin, so the waist never thickens a leg
   legs: [940, 1010, 1330, 1400],
 });
+/** Rows that contain an arm or a hand (the skin outside the clothes): the arm anchors are measured down to the finger tips (880), a little margin below. */
+export const ARM_ROWS = Object.freeze([520, 900]);
 export const NEUTRAL_SHAPE = Object.freeze({ shoulders: 0, arms: 0, waist: 0, legs: 0, height: 0 });
 
 /** [y, leftOuter, leftInner, rightInner, rightOuter]: the skin of each arm, outside the clothes; "inner" is the edge nearest the torso. */
@@ -75,10 +86,13 @@ export function anchorsAt(table, y) {
   return a.map((v, k) => v + (b[k] - v) * t);
 }
 
-/** Sideways scale of the whole row about the body axis (shoulders and waist only). 1 = unchanged. */
+/** Sideways scale of the torso row about the body axis (shoulders and waist). 1 = unchanged. */
 export function rowScale(y, shape = NEUTRAL_SHAPE) {
   return 1 + (shape.shoulders || 0) * window4(y, REGIONS.shoulders) + (shape.waist || 0) * window4(y, REGIONS.waist);
 }
+
+/** The same for an arm: the shoulders carry it, the waist does not. */
+export const armRowScale = (y, shape = NEUTRAL_SHAPE) => 1 + (shape.shoulders || 0) * window4(y, REGIONS.shoulders);
 
 /**
  * How one art row is drawn: a list of { sx, sw, dx, dw } (cut `sw` pixels of the source row from `sx`, put them at `dx`, `dw` wide). Pure.
@@ -101,15 +115,18 @@ export function rowOps(y, shape = NEUTRAL_SHAPE) {
       { sx: mid, sw: W - mid, dx: f0(c2) + (mid - c2) * k, dw: (W - mid) * k },
     ];
   }
-  if (armK !== 1) {
+  const Sa = armRowScale(y, shape);
+  if (y >= ARM_ROWS[0] && y <= ARM_ROWS[1] && (armK !== 1 || S !== Sa)) {
     const [oL, iL, iR, oR] = anchorsAt(ARM_ANCHORS, y);
     const sx0 = Math.max(0, oL - EDGE_PAD);
     const sx1 = Math.min(W, oR + EDGE_PAD);
-    const kk = S * armK;
-    return [
-      { sx: sx0, sw: iL - sx0, dx: f0(iL) - (iL - sx0) * kk, dw: (iL - sx0) * kk },
-      { sx: iL, sw: iR - iL, dx: f0(iL), dw: (iR - iL) * S },
-      { sx: iR, sw: sx1 - iR, dx: f0(iR), dw: (sx1 - iR) * kk },
+    const fa = (x) => AXIS_X + (x - AXIS_X) * Sa;   // an arm's inner edge: where the shoulders put it, whatever the waist does
+    const kk = Sa * armK;
+    const P = ARM_INNER_PAD;
+    return [   // the torso first, the arms over it (as in the art, where the hands hang in front of the shorts)
+      { sx: iL + P, sw: iR - iL - 2 * P, dx: f0(iL + P), dw: (iR - iL - 2 * P) * S },
+      { sx: sx0, sw: iL + P - sx0, dx: fa(iL) - (iL - sx0) * kk, dw: (iL + P - sx0) * kk },
+      { sx: iR - P, sw: sx1 - iR + P, dx: fa(iR) - P * kk, dw: (sx1 - iR + P) * kk },
     ];
   }
   return [{ sx: 0, sw: W, dx: AXIS_X - AXIS_X * S, dw: W * S }];

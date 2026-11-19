@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  ARM_ANCHORS, AXIS_X, FEET_Y, LEG_ANCHORS, NEUTRAL_SHAPE, REGIONS, RESHAPE_FROM, RESHAPE_TO, STAGE_FIT, STRIP,
+  ARM_ANCHORS, ARM_INNER_PAD, ARM_ROWS, AXIS_X, FEET_Y, LEG_ANCHORS, NEUTRAL_SHAPE, REGIONS, RESHAPE_FROM, RESHAPE_TO, STAGE_FIT, STRIP,
   anchorsAt, applyBodyShape, figureScale, portraitCropFor, rowOps, rowScale, shapeFromLook, window4,
 } from "../js/ui/avatar2d/avatar2dShape.js";
 import { BODY_PRESETS, DEFAULT_LOOK } from "../js/data/avatarLook.js";
@@ -48,15 +48,15 @@ test("arms: only the arms change, they thicken away from the torso (the inner ed
   const y = mid(REGIONS.arms);
   const [oL, iL, iR, oR] = anchorsAt(ARM_ANCHORS, y);
   const thick = rowOps(y, only("arms", 0.4));
-  assert.equal(thick.length, 3, "left arm | torso | right arm");
-  const [left, torso, right] = thick;
-  assert.equal(left.dx + left.dw, iL, "the left arm's inner edge does not move");
-  assert.equal(right.dx, iR, "the right arm's inner edge does not move");
-  assert.deepEqual([torso.sx, torso.sw, torso.dx, torso.dw], [iL, iR - iL, iL, iR - iL], "the torso is copied as it is");
+  assert.equal(thick.length, 3, "torso first, then the left and right arm over it");
+  const [torso, left, right] = thick;
+  assert.equal(left.dx + left.dw - ARM_INNER_PAD * left.dw / left.sw, iL, "the left arm's inner edge does not move");
+  assert.equal(right.dx + ARM_INNER_PAD * right.dw / right.sw, iR, "the right arm's inner edge does not move");
+  assert.deepEqual([torso.sx, torso.sw, torso.dx, torso.dw], [iL + ARM_INNER_PAD, iR - iL - 2 * ARM_INNER_PAD, iL + ARM_INNER_PAD, iR - iL - 2 * ARM_INNER_PAD], "the torso is copied as it is");
   assert.ok(left.dw > left.sw * 1.35 && right.dw > right.sw * 1.35, "each arm is about 40% thicker");
   assert.ok(left.dx < left.sx && right.dx + right.dw > right.sx + right.sw, "the outer edges move outward");
   const thin = rowOps(y, only("arms", -0.4));
-  assert.ok(thin[0].dw < thin[0].sw * 0.65 && thin[2].dw < thin[2].sw * 0.65);
+  assert.ok(thin[1].dw < thin[1].sw * 0.65 && thin[2].dw < thin[2].sw * 0.65);
   assert.ok(oL < iL && iR < oR);
   // other regions: untouched
   for (const row of [mid(REGIONS.shoulders) - 100, mid(REGIONS.waist) + 120, mid(REGIONS.legs)]) assert.equal(rowOps(row, only("arms", 0.4)).length, 1, `row ${row}`);
@@ -167,4 +167,43 @@ test("renderer: every figure is drawn through the shape pass; the portrait is cu
   assert.deepEqual(portrait.ops.at(-1).slice(2, 6), [crop.x, crop.y, crop.size, crop.size]);
   await handle.setLook({ ...DEFAULT_LOOK, body: "slim" });
   assert.ok(handle.inspect().shape.shoulders < 0, "a preset look replaces the custom build");
+});
+
+test("waist: the arms and hands are rigid. Whatever the waist does, from the shoulders down to the finger tips every arm segment is drawn exactly as it is without the waist: no shear, no hook", () => {
+  for (const waist of [-0.14, -0.07, 0.07, 0.14]) {
+    for (let y = ARM_ROWS[0]; y <= ARM_ROWS[1]; y += 2) {
+      const ref = rowOps(y, NEUTRAL_SHAPE);
+      const ops = rowOps(y, only("waist", waist));
+      const arms = ops.length === 3 ? ops.slice(1) : ops;   // outside the waist's rows nothing is split: the row is the whole figure, untouched
+      if (y <= REGIONS.waist[0]) { assert.deepEqual(ops, ref, `row ${y} is above the waist: unchanged`); continue; }
+      assert.equal(ops.length, 3, `row ${y}`);
+      const [oL, iL, iR, oR] = anchorsAt(ARM_ANCHORS, y);
+      const sx0 = Math.max(0, oL - 8);
+      assert.deepEqual([arms[0].sx, arms[0].sw, arms[0].dx, arms[0].dw], [sx0, iL + ARM_INNER_PAD - sx0, sx0, iL + ARM_INNER_PAD - sx0], `left arm row ${y} waist ${waist}`);
+      assert.deepEqual([arms[1].sx, arms[1].dx, arms[1].dw], [iR - ARM_INNER_PAD, iR - ARM_INNER_PAD, Math.min(1024, oR + 8) - iR + ARM_INNER_PAD], `right arm row ${y} waist ${waist}`);
+    }
+  }
+});
+
+test("waist: the torso and shorts do scale (a wider waist is a wider belt), drawn first so the hands stay in front of them", () => {
+  const y = mid(REGIONS.waist) - 20;   // a belt row that still has hands
+  const [oL, iL, iR] = anchorsAt(ARM_ANCHORS, y);
+  const [wide] = rowOps(y, only("waist", 0.14));
+  const [slim] = rowOps(y, only("waist", -0.14));
+  const torsoW = iR - iL - 2 * ARM_INNER_PAD;
+  assert.ok(wide.dw > torsoW && slim.dw < torsoW, "wider and narrower than the art");
+  assert.ok(wide.dx < iL + ARM_INNER_PAD && slim.dx > iL + ARM_INNER_PAD, "the belt edge moves out / in around the axis");
+  assert.ok(oL < iL);
+  // the hand is not displaced by the waist, whatever the arm thickness
+  const withArms = rowOps(y, { ...NEUTRAL_SHAPE, arms: 0.3, waist: 0.14 });
+  const armsOnly = rowOps(y, only("arms", 0.3));
+  assert.deepEqual(withArms.slice(1), armsOnly.slice(1), "arm segments are the same with and without the waist");
+});
+
+test("shoulders still carry the arms (the arms are rigid against the waist, not against the shoulders)", () => {
+  const y = 640;   // an arm row the shoulders still reach
+  const ops = rowOps(y, { ...NEUTRAL_SHAPE, shoulders: 0.2, arms: 0.1 });
+  const [, left, right] = ops;
+  assert.ok(left.dx + left.dw < anchorsAt(ARM_ANCHORS, y)[1], "the left arm's inner edge moved out with the shoulder");
+  assert.ok(right.dx > anchorsAt(ARM_ANCHORS, y)[2]);
 });

@@ -93,6 +93,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
   await page.locator(".mw-identity").screenshot({ path: `${OUT}/${tag}-identity-3d.png` });
   const rot0 = await page.evaluate(() => document.querySelector("#mw-showcase-stage canvas").dataset.look);
   // 3D picture follows a look change
+  await page.click("#mw-tab-hair");   // hair colour lives on the Hair page since Creator 2.0
   await page.click('.mw-swatch:has(input[name="mw-look-hair"][value="red"])');
   await page.waitForTimeout(200);
   const after = await avatarSrc(page);

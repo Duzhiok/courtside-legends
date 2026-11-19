@@ -16,7 +16,9 @@ export const DEFAULT_BUILD = Object.freeze({ height: HEIGHT_CM.default, shoulder
  * How far one slider end moves its part, as a fraction of that part's own width: shoulders / waist = the width of those rows, arms = the thickness of each
  * arm (the arm grows away from the torso), legs = the thickness of each leg (each leg grows about its own centre line, so the legs do not spread apart).
  */
-export const BUILD_RANGE = Object.freeze({ shoulders: 0.24, waist: 0.22, arms: 0.36, legs: 0.30 });
+export const BUILD_RANGE = Object.freeze({ shoulders: 0.24, waist: 0.14, arms: 0.30, legs: 0.30 });
+// Waist and arms were 0.22 and 0.36 until the extremes were seen on the real art: at the ends the arm was a sausage and the hands stood out from the shorts.
+// 0.30 for the arms is the Broad preset's own arm size, 0.14 covers the Slim / Broad waist (-0.12 / +0.10): the ends of the slider are now the largest looks the art carries well.
 
 const clampInt = (value, min, max, fallback) => {
   const n = Number(value);
