@@ -2650,6 +2650,8 @@ export function foulDrawHabit(p) {
   return Math.min(2.6, Math.max(0.4, ftm / raw.ft / raw.fga / LEAGUE_FTA_PER_FGA));
 }
 
+const ZONE_STACK_OFFSET = { three: 0.13, mid: 0.05, paint: 0.05 };
+
 const STEAL_BASE = 0.034;           // was 0.04: the steal path alone was 10.1 per team-game against 7.7 real
 const UNFORCED_TOV_BASE = 0.052;    // was 0.06: non-steal turnovers were about 24% above real
 const TOV_HABIT_EXPONENT = 0.5;     // softened: a high-usage player already has the ball more, which is counted by possessions, not by this
@@ -4455,11 +4457,18 @@ export function paintCrowdPenalty(onCourt, zone) {
   return extra * PAINT_CROWD_PER_BIG * (zone === "paint" ? 1 : 0.5);
 }
 
-function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = null, gameCtx = {}) {
+export function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = null, gameCtx = {}) {
   // Start from zone FG% with a slight haircut — raw season % already assumes real contests
   let base =
     (shot.zone === "three" ? baller.threeFg : shot.zone === "paint" ? baller.paintFg : baller.midFg) *
     0.9;
+  // The player's real zone % already includes the real game's looks, fatigue, tactics and team context, and the terms below add all of that again (open
+  // look, kick-outs, pick and roll, skills, form, morale, chemistry, fit). Measured over six eras the stack added +5.8 points in the paint, +6.2 from the
+  // mid-range and +9.2 from three, and 91% of threes were pinned at the 45% ceiling, so a 35% and a 42% shooter both shot 45-47% (per-player correlation
+  // -0.25). Taking the average stack back off at the start makes the average shot equal the player's real percentage; the terms keep their relative
+  // differences (an open look is still better than a contested one) and the ceiling stops being the whole answer. Calibrated on paired fixed seeds
+  // (scripts/measure/shooting-pairing.mjs): FG% +3.6 -> +0.5 points, 3P% +7.6 -> +1.9, team points 111.5 -> 103.6 (real 103.6).
+  base -= ZONE_STACK_OFFSET[shot.zone] ?? 0;
   base += (open - 0.45) * 0.16;
   // R84: a clean/kicked-out look is a catch-and-shoot shot, a contested or self-created one is
   // off-the-dribble -- same raw three%/mid% doesn't mean the same guy is equally good at both
