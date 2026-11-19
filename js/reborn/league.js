@@ -52,7 +52,7 @@ export function simLeagueGame({ cards, game, seed, year }) {
     youSide: "home",
     injuries: false,
     speed: 3,
-    rng: seededStream(hashSeed(`${seed}|${year}|lg|${game.ordinal}`)),
+    rng: seededStream(hashSeed(`${seed}|${year}|${game.key ?? `lg|${game.ordinal}`}`)),   // a playoff game names its own key (playoffs.js)
     onEvent: () => {},
     onTick: () => {},
     onEnd: () => {},

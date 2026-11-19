@@ -33,6 +33,8 @@ import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
 import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick } from "./fragmentsView.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
+import { playoffReportLine, playoffsPanelHtml, standingsHtml } from "./playoffsView.js";
+import { enterPlayoffs, playPlayoffGame, regularGames } from "../../reborn/playoffFlow.js";
 import { settleContract, rolloverSeason, describeContract, seasonSummary, contractDecision } from "../../reborn/contract.js";
 import { overall } from "../../data/players.js";
 import { readIdentity } from "../../data/profile.js";
@@ -142,7 +144,7 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
       )
     : null;
   const lines = [
-    `<p>${L("第", "Game ", lang)}${report.game} ${L("场", "", lang)}· ${report.home ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${report.opp} · ${report.score.home}–${report.score.away} ${report.won ? L("胜", "W", lang) : L("负", "L", lang)}</p>`,
+    report.po ? `<p>${playoffReportLine(report, lang)} · ${report.home ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${report.opp} · ${report.score.home}–${report.score.away} ${report.won ? "W" : "L"}</p>` : `<p>${L("第", "Game ", lang)}${report.game} ${L("场", "", lang)}· ${report.home ? L("主场", "Home", lang) : L("客场", "Away", lang)} vs ${report.opp} · ${report.score.home}–${report.score.away} ${report.won ? L("胜", "W", lang) : L("负", "L", lang)}</p>`,
     `<p>${L("你的数据", "Your line", lang)}：${report.line.min} ${L("分钟", "min", lang)} · ${report.line.pts} ${L("分", "pts", lang)} · ${report.line.reb} ${L("板", "reb", lang)} · ${report.line.ast} ${L("助", "ast", lang)}</p>`,
     `<p>${parts}</p>`,
     ...[...growth, ...fragmentsReportLines(report, lang)].map((g) => `<p>${g}</p>`),
@@ -190,6 +192,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   let ffState = null;
   // True while a fast-forward run is in flight (progress line in render).
   let ffRunning = false;
+  let poProgress = false;   // the league schedule is being caught up before the playoffs
 
   const currentWeek = () => Math.floor((season?.index || 0) / 4) + 1;
 
@@ -282,7 +285,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
   function rebuildSeason() {
     season = buildSeason(reborn, rows);
     // Resume: the log already records the played games of this year.
-    season.index = (reborn.player.seasonLog || []).filter((g) => g.year === season.year).length;
+    season.index = regularGames(reborn, season.year).length;   // playoff games are logged too, but they are not one of the 82
   }
 
   function render() {
@@ -306,6 +309,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     });
     const summary = seasonSummary(reborn, season.year);
     const done = season.index >= season.games.length;
+    const poState = reborn.playoffs?.year === season.year ? reborn.playoffs : null;
+    const poOver = !!poState && poState.status !== "active";   // eliminated, champion, missed or unavailable: the season is over
     const week = currentWeek();
     const training = reborn.player.training;
     const canTrain = !done && (!training || training.week < week);
@@ -346,13 +351,15 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       !done && ffLabel
         ? `<button type="button" data-ff="1" ${busy ? "disabled" : ""}>${ffLabel}</button>`
         : "",
-      done && !contractOutcome
+      done ? playoffsPanelHtml({ reborn, year: season.year, lang: lang(), busy, progress: poProgress }) : "",
+      done && poOver && !contractOutcome
         ? `<button type="button" data-settle="1">${L("赛季结束，结算合同", "Season over — settle contract", lang)}</button>`
         : "",
       contractOutcome
         ? `<section class="reborn-contract"><p>${describeContract(contractOutcome, lang())}</p><button type="button" data-rollover="1">${L("开始下赛季", "Start next season", lang)}</button></section>`
         : "",
       ffSummary,
+      standingsHtml({ reborn, year: season.year, lang: lang() }),
       rebornReportHtml({ report: lastReport, lang: lang() }),
       rivalryReportHtml({ report: lastReport, reborn, lang: lang() }),
       jerseyOffersHtml({ reborn, lang: lang() }),
@@ -373,6 +380,48 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     try {
       const week = currentWeek();
       const out = await playGame(reborn, season, rows, {
+        onTakeover: createTakeoverHook({ root: readRootSave() }),
+        trainingDone: reborn.player.training?.week === week,
+      });
+      if (!out) return;
+      reborn = out.reborn;
+      lastReport = out.report;
+      applyAwakening(reborn, out.report);
+      syncAccount(reborn);
+      persist();
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+
+  /** Start the playoffs once the 82 games are in (a save that never advanced the league is caught up first, a slice at a time). */
+  async function enterPlayoffsNow() {
+    if (busy || !season || season.index < season.games.length) return;
+    busy = true;
+    poProgress = true;
+    render();
+    try {
+      reborn = await enterPlayoffs(reborn, rows, { year: season.year, onProgress: () => render() });
+      persist();
+    } finally {
+      busy = false;
+      poProgress = false;
+      render();
+    }
+  }
+
+  /** The player's next playoff game: the same real GameSim game and takeover as the regular season, recorded on its series. */
+  async function playPlayoffNext() {
+    if (busy || !reborn.playoffs) return;
+    busy = true;
+    lastAwakened = [];
+    lastPromises = [];
+    ffState = null;
+    render();
+    try {
+      const week = currentWeek();
+      const out = await playPlayoffGame(reborn, rows, {
         onTakeover: createTakeoverHook({ root: readRootSave() }),
         trainingDone: reborn.player.training?.week === week,
       });
@@ -514,6 +563,14 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       }
       if (event.target.closest("[data-play]")) {
         await playNext();
+        return;
+      }
+      if (event.target.closest("[data-po-enter]")) {
+        await enterPlayoffsNow();
+        return;
+      }
+      if (event.target.closest("[data-po-play]")) {
+        await playPlayoffNext();
         return;
       }
       if (event.target.closest("[data-ff]")) {

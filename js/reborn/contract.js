@@ -28,7 +28,8 @@ export const CONTRACT_TRUST = { resign: 50, minimum: 30 };
 
 /** Season aggregates from the log (aggregates only — no per-play data). */
 export function seasonSummary(reborn, year) {
-  const log = (reborn?.player?.seasonLog || []).filter((g) => g.year === year);
+  // The regular season only: a playoff game (`po`) is not one of the 82 and must not move the contract decision's games / wins / minutes.
+  const log = (reborn?.player?.seasonLog || []).filter((g) => g.year === year && !g.po);
   const games = log.length;
   const wins = log.filter((g) => g.won).length;
   const minutes = log.reduce((n, g) => n + (g.min || 0), 0);

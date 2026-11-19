@@ -160,9 +160,11 @@ export async function playGame(
   reborn,
   season,
   players,
-  { rng = null, onTakeover = null, trainingDone = false } = {},
+  { rng = null, onTakeover = null, trainingDone = false, game: gameOverride = null } = {},
 ) {
-  const game = season.games[season.index];
+  // gameOverride: a playoff game (playoffs.js decides who plays whom next, so it is not in the season's list). It may carry `po`:
+  // { round, series, n, titleGame } and is logged as a playoff game; `titleGame` = this game wins the championship if the player wins it.
+  const game = gameOverride || season.games[season.index];
   if (!game) return null;
   const year = season.year;
   const teamId = reborn.player.teamId;
@@ -309,6 +311,7 @@ export async function playGame(
     takeovers: takeoverOutcome ? 1 : 0,
     role: roleAfter,
     won,
+    ...(game.po ? { po: { round: game.po.round, series: game.po.series, n: game.po.n } } : {}),
     // The final score (league standings and tie-breaks read it); a log from before this was kept still counts W-L.
     ptsFor: isHome ? sim.score.home : sim.score.away,
     ptsAgainst: isHome ? sim.score.away : sim.score.home,
@@ -338,6 +341,8 @@ export async function playGame(
     you: { pos: playerCard.pos, ovr: overall(myClone) },
     opponents,
     takeover: takeoverOutcome ? { attempted: takeoverOutcome.attempted, made: takeoverOutcome.made } : null,
+    // The real evidence a championship keepsake needs: this game clinched the title (jerseyEligibility reads it, nothing else sets it).
+    ...(game.po?.titleGame && won ? { isChampionship: true } : {}),
   };
   const rivalry = recordRivalryMeetings(rivalryLedger(reborn), reportCore);
   next.rivalries = rivalry.ledger;
@@ -362,6 +367,7 @@ export async function playGame(
     report: {
       ...reportCore,
       day: game.day,
+      ...(game.po ? { po: { ...game.po } } : {}),
       opp: oppId,
       home: isHome,
       score: { ...sim.score },

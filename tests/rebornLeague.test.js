@@ -1,38 +1,14 @@
 // Player Reborn Playoffs v1, P1: the whole league's regular season. Full-league W-L, every game counted once, deterministic order, reload safe, no invented table.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { advanceLeague, completeLeague, leagueSchedule, leagueStandings, rankConference, simLeagueGame } from "../js/reborn/league.js";
 import { buildSeason, playGame } from "../js/reborn/season.js";
-import { createRebornState } from "../js/reborn/identity.js";
 import { rosterCards } from "../js/reborn/rosters.js";
 import { leagueLayout } from "../js/reborn/franchises.js";
 import { overall } from "../js/data/players.js";
-
-const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
+import { createRebornState } from "../js/reborn/identity.js";
+import { ROWS, coin, fakeUserLog, run } from "./helpers/rebornLeagueFixtures.js";
 const takeover = ({ playerId }) => ({ shooterId: playerId, actionHint: "attack" });
-
-/** A run whose season is `year` (the run's own player team, the real schedule). */
-const run = (seed, year) => {
-  const r = createRebornState(seed, ROWS);
-  r.player.seasonYear = year;
-  return r;
-};
-/** A cheap, controlled stand-in for the engine: the home side wins when the sum of the slot and the team ids is odd, 100-90. */
-const coin = ({ game }) => (((game.ordinal + game.homeId.charCodeAt(0)) % 2) ? { home: 100, away: 90 } : { home: 90, away: 100 });
-/** The user's games as the player's season log would have them (a test double for the GameSim result, built from the same slots). */
-const fakeUserLog = (state, year, result = coin) => {
-  const userId = state.player.teamId;
-  const log = [];
-  for (const g of leagueSchedule(state.seed, year).games) {
-    if (g.homeId !== userId && g.awayId !== userId) continue;
-    const r = result({ game: g });
-    const home = g.homeId === userId;
-    log.push({ year, game: log.length + 1, opp: home ? g.awayId : g.homeId, home, won: home ? r.home > r.away : r.away > r.home, ptsFor: home ? r.home : r.away, ptsAgainst: home ? r.away : r.home });
-  }
-  state.player.seasonLog = log;
-  return log;
-};
 
 test("a real GameSim league season (1997, 29 clubs): every club 82 games, wins = losses, every game counted once, scores balance", { timeout: 180000 }, () => {
   const state = run("lg-full-1", 1997);
