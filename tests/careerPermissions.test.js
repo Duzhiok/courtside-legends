@@ -705,6 +705,59 @@ test("validateRoot rejects an illegal stamped career role", () => {
   assert.throws(() => validateRoot(tampered), /invalid root save/);
 });
 
+// D-P1-3: the two role sources must agree. Before this fix a save
+// stamped PLAYER with a GM career passed validation, and the UI
+// (identityOf, reads the stamp) and the guards (careerRole, prefers
+// the career) then enforced two different identities — flipping
+// career.role alone was a self-elevation past the ADR-006 limits.
+test("validateRoot rejects a split identity — stamped role must match the career role", () => {
+  // The report's repro: identity says PLAYER, the career says GM.
+  const split = rootWithCareer("GM");
+  split.identity = { initialRole: "PLAYER", currentRole: "PLAYER" };
+  assert.equal(identityOf(split), "PLAYER");
+  assert.equal(split.leagueCareer.role, "GM");
+  assert.throws(() => validateRoot(split), /invalid root save/);
+  // Every mismatched pair is rejected, in both directions.
+  for (const identityRole of CAREER_ROLES) {
+    for (const careerRoleValue of CAREER_ROLES) {
+      if (identityRole === careerRoleValue) continue;
+      const root = rootWithCareer(careerRoleValue);
+      root.identity = { initialRole: identityRole, currentRole: identityRole };
+      assert.throws(
+        () => validateRoot(root),
+        /invalid root save/,
+        `identity ${identityRole} + career ${careerRoleValue} must be rejected`,
+      );
+    }
+  }
+});
+
+test("validateRoot accepts matching stamped + career roles, and either source alone", () => {
+  // All four roles, stamped together (what setIdentity writes).
+  for (const role of CAREER_ROLES) {
+    assert.doesNotThrow(
+      () => validateRoot(setIdentity(rootWithCareer(role), role)),
+      `matching ${role} must be accepted`,
+    );
+  }
+  // Career role only, no identity — the franchise route (app.js)
+  // creates a GM career without stamping an identity.
+  assert.doesNotThrow(() => validateRoot(rootWithCareer("GM")));
+  // Identity only, no career — a stamped save before the career exists.
+  assert.doesNotThrow(() => validateRoot(setIdentity(createRootState(), "COACH")));
+  // A null currentRole reads as absent, same as the R1 rule.
+  const nullStamp = rootWithCareer("GM");
+  nullStamp.identity = { currentRole: null };
+  assert.doesNotThrow(() => validateRoot(nullStamp));
+});
+
+test("a stored root with a split identity does not load", () => {
+  const split = rootWithCareer("GM");
+  split.identity = { initialRole: "PLAYER", currentRole: "PLAYER" };
+  const storage = createMemoryStorage({ [ROOT_SAVE_KEY]: JSON.stringify(split) });
+  assert.equal(readRootSave(storage), null);
+});
+
 test("a stored root with an illegal identity does not load", () => {
   const raw = setIdentity(createRootState(), "COACH");
   raw.identity.currentRole = "ADMIN";

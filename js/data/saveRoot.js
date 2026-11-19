@@ -560,6 +560,26 @@ export function validateRoot(root) {
       validateTimeTravelStory(root);
     }
   }
+  // D-P1-3: the two role sources must agree. identityOf() reads
+  // root.identity.currentRole while the operation guards read
+  // leagueCareer.role (careerRole() prefers it) — a hand-edited save
+  // stamped PLAYER with a GM career would show one identity in the
+  // UI and enforce another, and flipping career.role alone is a
+  // self-elevation past the ADR-006 role limits. Either source may be
+  // absent (old saves have no identity; a franchise career stamps
+  // only leagueCareer.role), but when both are present they must
+  // match — setIdentity() always stamps them together, so a mismatch
+  // is always a tampered save. Both values are already known-good
+  // roles here (validateRoleIdentity / validateLeagueCareer above).
+  const stampedRole = root.identity?.currentRole;
+  const careerRoleValue = root.leagueCareer?.role;
+  if (
+    stampedRole !== undefined && stampedRole !== null
+    && careerRoleValue !== undefined && careerRoleValue !== null
+    && stampedRole !== careerRoleValue
+  ) {
+    throw new Error("invalid root save");
+  }
   if (root.liveGame) {
     validateLiveGame(root.liveGame);
   }
