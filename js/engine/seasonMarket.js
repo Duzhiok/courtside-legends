@@ -4,7 +4,7 @@
  * Coaches & assistants also hire from a staff free-agent pool (count vs cap).
  */
 import { ASSISTANTS, COACHES, coachDrawWeight, coachSpecialtyLabel, coachTactics } from "../data/coaches.js";
-import { CareerPermissionError, denyMessage, requireCapability } from "../career/careerGuards.js";
+import { capabilityRefusal } from "../career/careerGuards.js";
 import { estimateDraftPickValue } from "./draftPickValue.js";
 import { ensurePickLedger, parsePickId, picksHeldBy, setPickOwner } from "./pickLedger.js";
 import { playerPrice, marketMeta } from "../data/intangibles.js";
@@ -420,10 +420,16 @@ export function staffMarketLabel(staff, lang = "zh") {
     : `${staff.style || "主帅"} · ${coachSpecialtyLabel(staff, lang)}${book ? ` · ${book}` : ""}`;
 }
 
-/** Cut / waive — salary off books, player joins FA. */
-export function cutPlayer(st, playerId, lang = "zh") {
+/** Cut / waive — salary off books, player joins FA. Cutting a player is
+ * the GM's job (ADR-006 R4; G-P1-4): the operation itself refuses here,
+ * before any validation or mutation. A missing career/root reads as the
+ * Classic GM + Coach (the careerGuards fallback), so plain seasons and
+ * callers without a career keep working. */
+export function cutPlayer(st, playerId, lang = "zh", { career, root } = {}) {
   ensureSeasonMarket(st);
   const en = lang === "en";
+  const refused = capabilityRefusal(career, "release", root, lang);
+  if (refused) return refused;
   if (st.phase !== "regular") return { ok: false, reason: en ? "Roster moves are only available during the regular season" : "仅常规赛期间可操作阵容" };
   const team = st.teams[st.userTeamId];
   if (!team) return { ok: false, reason: en ? "Team not found" : "找不到球队" };
@@ -447,12 +453,19 @@ export function cutPlayer(st, playerId, lang = "zh") {
   return { ok: true, player: cut, payroll: payrollSummary(team) };
 }
 
-/** Sign FA if under apron and roster room. Soft-cap OK if space covers salary; hard block over apron. */
-export function signFreeAgent(st, playerId, lang = "zh") {
+/** Sign FA if under apron and roster room. Soft-cap OK if space covers salary; hard block over apron.
+ * Signing is the GM's job (ADR-006 R4; G-P1-4): the operation itself
+ * refuses here, before any validation or mutation. A missing
+ * career/root reads as the Classic GM + Coach (the careerGuards
+ * fallback), so plain seasons and callers without a career keep working. */
+export function signFreeAgent(st, playerId, lang = "zh", { career, root } = {}) {
   ensureSeasonMarket(st);
   const en = lang === "en";
+  const refused = capabilityRefusal(career, "signFreeAgent", root, lang);
+  if (refused) return refused;
   if (st.phase !== "regular") return { ok: false, reason: en ? "Signings are only available during the regular season" : "仅常规赛期间可签约" };
   const team = st.teams[st.userTeamId];
+  if (!team) return { ok: false, reason: en ? "Team not found" : "找不到球队" };
   const faIdx = (st.freeAgents || []).findIndex((p) => p.id === playerId);
   if (faIdx < 0) return { ok: false, reason: en ? "That player isn't in free agency" : "自由球员名单中没有此人" };
   if (rosterCount(team) >= SEASON_MAX_ROSTER) {
@@ -522,16 +535,8 @@ export function pickValueOf(st, pick) {
  * working. The refusal is returned in this module's { ok, reason } contract,
  * in the player's language, so both UI call sites can alert it as-is.
  */
-function tradeCapabilityCheck(career, root, lang = "zh") {
-  try {
-    requireCapability(career, "trade", root);
-    return null;
-  } catch (error) {
-    if (error instanceof CareerPermissionError) {
-      return { ok: false, reason: denyMessage(error.role, "trade", lang) };
-    }
-    throw error;
-  }
+export function tradeCapabilityCheck(career, root, lang = "zh") {
+  return capabilityRefusal(career, "trade", root, lang);
 }
 
 /** G-P1-1: the same id twice in one list maps to the same player twice — the executor

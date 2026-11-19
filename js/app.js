@@ -10172,7 +10172,7 @@ function renderSeasonMarket() {
       if (!careerOperationAllowed("release")) return;
       const p = you.players.find((x) => x.id === btn.dataset.cut);
       if (!p || !(await confirmAction(L(`确定裁掉 ${p.name}（${formatSalary(playerSalary(p))}）？他将进入自由市场。`, `Cut ${p.name} (${formatSalary(playerSalary(p))})? He'll enter free agency.`)))) return;
-      const res = cutPlayer(st, p.id, getLang());
+      const res = cutPlayer(st, p.id, getLang(), { career: state.leagueCareer, root: state.longCareerRoot });
       if (!res.ok) {
         alert(res.reason);
         return;
@@ -10190,7 +10190,7 @@ function renderSeasonMarket() {
     btn.onclick = () => {
       // Signing a free agent is the GM's job (ADR-006 R4).
       if (!careerOperationAllowed("signFreeAgent")) return;
-      const res = signFreeAgent(st, btn.dataset.sign, getLang());
+      const res = signFreeAgent(st, btn.dataset.sign, getLang(), { career: state.leagueCareer, root: state.longCareerRoot });
       if (!res.ok) {
         alert(res.reason);
         return;
@@ -10283,8 +10283,10 @@ function renderSeasonMarket() {
     });
   });
   $("#btn-sm-pick-swap")?.addEventListener("click", () => {
+    // A pick swap is a trade (ADR-006 R4) — refuse before touching the ledger.
+    if (!careerOperationAllowed("trade")) return;
     const cpuId = $("#sm-pick-cpu")?.value;
-    const res = swapDraftPicks(st, { year: st.year, cpuTeamId: cpuId, lang: getLang() });
+    const res = swapDraftPicks(st, { year: st.year, cpuTeamId: cpuId, lang: getLang(), career: state.leagueCareer, root: state.longCareerRoot });
     const hint = $("#sm-pick-hint");
     if (!res.ok) {
       if (hint) hint.textContent = res.reason;

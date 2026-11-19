@@ -1,6 +1,6 @@
 import { overall, PLAYERS } from "../data/players.js";
 import { ensurePickLedger, setPickOwner } from "./pickLedger.js";
-import { tradeWindowCheck } from "./seasonMarket.js";
+import { tradeCapabilityCheck, tradeWindowCheck } from "./seasonMarket.js";
 import { clamp } from "../core/seededRandom.js";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
@@ -310,8 +310,16 @@ export function picksOwnedBy(season, year, teamId) {
  * own second-rounder (writing pickOwnership directly would drag round 2 along
  * with round 1, since round 2 defaults to the round-1 owner).
  */
-export function swapDraftPicks(season, { year, cpuTeamId, lang = "zh" } = {}) {
+export function swapDraftPicks(season, { year, cpuTeamId, lang = "zh", career, root } = {}) {
   requireYear(year, "year");
+  // A pick swap is a trade (G-P1-3): the operation itself refuses here,
+  // before any validation or mutation. A missing career/root reads as the
+  // Classic GM + Coach (the careerGuards fallback), so plain seasons and
+  // callers without a career keep working. Routed through seasonMarket so
+  // the engine layer keeps its single B41 upward edge (seasonMarket ->
+  // careerGuards; see tests/engineLayerBoundaries.test.js).
+  const refused = tradeCapabilityCheck(career, root, lang);
+  if (refused) return refused;
   ensurePickLedger(season); // an older save may have traded this pick as a token
   const ids = seasonTeamIds(season);
   const userTeamId = season.userTeamId;

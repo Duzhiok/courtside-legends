@@ -102,6 +102,26 @@ export function requireCapability(career, capability, root) {
 }
 
 /**
+ * The `{ ok, reason }` form of requireCapability, for operations that
+ * return a refusal instead of throwing (seasonMarket, leagueDraft).
+ * Returns null when the role holds the capability, otherwise
+ * `{ ok: false, reason }` in the player's language. A missing
+ * career/root reads as the Classic GM + Coach (the careerGuards
+ * fallback), so plain seasons and callers without a career keep working.
+ */
+export function capabilityRefusal(career, capability, root, lang = "zh") {
+  try {
+    requireCapability(career, capability, root);
+    return null;
+  } catch (error) {
+    if (error instanceof CareerPermissionError) {
+      return { ok: false, reason: denyMessage(error.role, capability, lang) };
+    }
+    throw error;
+  }
+}
+
+/**
  * The manual-override category each coaching operation lives under.
  * `setManualOverride` / `clearManualOverride` / `applyRecommendation`
  * refuse categories on this map for roles that lack the capability;
