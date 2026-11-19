@@ -9,7 +9,7 @@
  * in the art canvas, not on-screen pixels.
  */
 import { HAIR_COLORS, lookColors, sanitizeLook } from "../../data/avatarLook.js";
-import { agedHex } from "../../data/avatarAge.js";
+import { BROWS_GRAY_HEX, agedHex } from "../../data/avatarAge.js";
 
 export const CANVAS = Object.freeze({ width: 1024, height: 1536 });
 
@@ -59,7 +59,7 @@ export function resolveLayers(rawLook, jersey = null) {
   const shaved = look.style === "shaved";
   const colors = lookColors(look);
   // lookColors paints Hair in the skin colour when shaved (that is what hides the 3D skull cap). Eyebrows must not vanish with it, and they grey with age.
-  colors.Brows = agedHex(HAIR_COLORS.find((h) => h.id === look.hair).hex, look.appearanceAge);
+  colors.Brows = agedHex(HAIR_COLORS.find((h) => h.id === look.hair).hex, look.appearanceAge, BROWS_GRAY_HEX);   // greys to the SAME grey as the hair, not to a lighter one (see avatarAge.js)
   if (jersey) Object.assign(colors, { Shirt: jersey.shirt, Pants: jersey.pants, Trim: jersey.trim });
   const wanted = look.presentation || ART.fallbackPresentation;
   const presentation = ART.presentations.includes(wanted) ? wanted : ART.fallbackPresentation;   // a presentation with no art draws the male art; never a recolour

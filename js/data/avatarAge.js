@@ -9,6 +9,15 @@
 export const AGE = Object.freeze({ min: 18, max: 65, default: 28 });
 export const GRAY_FROM = 34;          // no grey up to and including this age
 const GRAY_HEX = "#cfd2d6";
+/**
+ * The eyebrows (and the goatee, which is drawn on the same layer) are tinted like the hair, but their greyscale art is much brighter: measured on the shipped
+ * art, the median luminance of `base/brows.png` is 204 and that of the hair layers 104 / 111. The same light grey on both therefore drew a near-white brow and a
+ * white chin patch on a mid-grey head of hair at 60. The grey that brows and facial hair turn towards is the hair's grey scaled by that ratio (about 0.525), so
+ * at any age they come out the same grey as the hair. Their natural colour (age <= 34) is untouched.
+ */
+export const BROWS_ART_MEDIAN = 204;
+export const HAIR_ART_MEDIAN = 107;
+export const BROWS_GRAY_HEX = toHexLiteral(GRAY_HEX, HAIR_ART_MEDIAN / BROWS_ART_MEDIAN);
 const GRAY_MAX = 0.94;         // never a pure flat grey: a little of the natural colour stays
 
 /** Whitelist a stored age. Junk, missing and the default age are all "no age set" (null), so an untouched look stays byte-identical. */
@@ -31,11 +40,17 @@ export function grayFraction(age) {
 const channels = (hex) => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const toHex = (rgb) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
 
-/** `hex` mixed toward grey by the age's fraction. Age null / <= 34 returns the very same string. */
-export function agedHex(hex, age) {
+/** `hex` mixed toward grey by the age's fraction. Age null / <= 34 returns the very same string. `target` is the grey it turns towards (the brows use BROWS_GRAY_HEX). */
+export function agedHex(hex, age, target = GRAY_HEX) {
   const t = grayFraction(age);
   if (!t) return hex;
   const from = channels(hex);
-  const to = channels(GRAY_HEX);
+  const to = channels(target);
   return toHex(from.map((c, i) => c + (to[i] - c) * t));
+}
+
+/** `hex` with every channel multiplied by `k` (a hoisted helper: BROWS_GRAY_HEX needs it at load time). */
+function toHexLiteral(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => Math.round(c * k).toString(16).padStart(2, "0")).join("")}`;
 }

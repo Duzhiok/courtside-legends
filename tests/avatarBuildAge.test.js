@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_LOOK, PRESENTATIONS, BODY_PRESETS, lookColors, sanitizeLook, saveLook, readLook } from "../js/data/avatarLook.js";
+import { DEFAULT_LOOK, HAIR_COLORS, PRESENTATIONS, BODY_PRESETS, lookColors, sanitizeLook, saveLook, readLook } from "../js/data/avatarLook.js";
 import { BUILD_KEYS, BUILD_RANGE, DEFAULT_BUILD, HEIGHT_CM, buildFromShape, sanitizeBuild, shapeFromBuild } from "../js/data/avatarBuild.js";
-import { AGE, GRAY_FROM, agedHex, grayFraction, sanitizeAge } from "../js/data/avatarAge.js";
+import { AGE, BROWS_ART_MEDIAN, BROWS_GRAY_HEX, GRAY_FROM, HAIR_ART_MEDIAN, agedHex, grayFraction, sanitizeAge } from "../js/data/avatarAge.js";
 import { lookSignature } from "../js/data/avatarPortrait.js";
 import { ART, requiredFiles, resolveLayers } from "../js/ui/avatar2d/avatar2dLayers.js";
 import { effectiveBuild } from "../js/ui/avatarLookView.js";
@@ -92,8 +92,19 @@ test("appearance age: no grey up to 34, steadily more after, never a flat grey; 
   assert.notEqual(lookColors({ hair: "black", appearanceAge: 62 }).Hair, "#1b1b1b");
   assert.equal(lookColors({ style: "shaved", skin: "tan", appearanceAge: 62 }).Hair, lookColors({ style: "shaved", skin: "tan" }).Hair, "a shaved head is still skin-coloured");
   const tint = (look, role) => resolveLayers(look).layers.find((l) => l.role === role)?.tint;
-  assert.equal(tint({ hair: "black", appearanceAge: 62 }, "hair_front"), tint({ hair: "black", appearanceAge: 62 }, "brows"), "the eyebrows grey together with the hair");
   assert.notEqual(tint({ hair: "black", appearanceAge: 62 }, "brows"), tint({ hair: "black" }, "brows"));
+  // The brows layer's art is about twice as bright as the hair's (measured medians 204 vs 107), so they grey TOWARDS a darker grey: what is SEEN is the same grey.
+  const seen = (hex, artMedian) => { const n = parseInt(hex.slice(1), 16); return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) * artMedian / 255; };
+  for (const hair of ["black", "brown", "blond", "red"]) {
+    for (const age of [60, 65]) {
+      const look = { hair, appearanceAge: age };
+      const ratio = seen(tint(look, "brows"), BROWS_ART_MEDIAN) / seen(tint(look, "hair_front"), HAIR_ART_MEDIAN);
+      assert.ok(ratio > 0.9 && ratio < 1.1, `${hair} at ${age}: the brows are seen ${ratio.toFixed(2)}x as bright as the hair (not a white patch on a grey head)`);
+    }
+  }
+  assert.equal(tint({ hair: "black", appearanceAge: 30 }, "brows"), tint({ hair: "black" }, "brows"), "no grey up to 34: the brows keep their natural colour");
+  assert.equal(tint({ hair: "blond" }, "brows"), HAIR_COLORS.find((h) => h.id === "blond").hex, "and the natural colour is the hair colour, exactly as before");
+  assert.ok(parseInt(BROWS_GRAY_HEX.slice(1), 16) < parseInt("cfd2d6", 16) && lum(BROWS_GRAY_HEX) < lum(agedHex("#ffffff", 65)), "the brows' grey is darker than the hair's");
   assert.ok(sanitizeAge(AGE.default) === null);
 });
 
