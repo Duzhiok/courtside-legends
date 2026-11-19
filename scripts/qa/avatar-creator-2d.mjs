@@ -5,7 +5,7 @@
 // Screenshots (every slider's extremes, age 20 vs 60, every tab) are for the user's visual review, not a self-declared acceptance.
 // Usage: node scripts/qa/avatar-creator-2d.mjs [http://127.0.0.1:5197/] [/tmp/cls-qa/avatar-creator-2d]
 import { chromium } from "playwright-core";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const BASE = process.argv[2] || "http://127.0.0.1:5197/";
@@ -74,8 +74,9 @@ const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 
 async function fresh(viewport, avatar = { skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard" }) {
   const page = await browser.newPage({ viewport });
-  const errors = [];
+  const errors = [], requests = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  page.on("request", (r) => requests.push(r.url()));
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.clear());
   await page.evaluate(async (look) => {
@@ -89,7 +90,7 @@ async function fresh(viewport, avatar = { skin: "warm", hair: "black", outfit: "
     accMod.saveAccount(a);
   }, avatar);
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  return { page, errors };
+  return { page, errors, requests };
 }
 const openEditor = async (page) => {
   await page.click('.home-tab[data-category="world"]');
@@ -183,10 +184,12 @@ for (const [vt, viewport] of [["desktop", { width: 1280, height: 900 }], ["mobil
   // preset buttons: choosing one resets the sliders to it and drops the custom build
   await setRange(page, "mw-build-arms", 90);
   await waitLook(page, (l) => !!l.build);
+  check(`[${vt}] dragging a slider marks the build as custom (the preset note says so)`, /Custom build|自定义身材/.test(await page.$eval("#mw-build-state", (el) => el.textContent)));
   await page.locator('label.mw-swatch:has(input[name="mw-look-body"][value="slim"])').click();
   await waitLook(page, (l) => l.body === "slim" && !l.build);
   const slimVals = await page.$$eval('[data-mw-build] input[type="range"]', (els) => Object.fromEntries(els.map((x) => [x.dataset.key, Number(x.value)])));
   check(`[${vt}] choosing a preset drops the custom build and the sliders show that preset`, slimVals.shoulders < 50 && slimVals.arms < 50 && slimVals.height < 185, JSON.stringify(slimVals));
+  check(`[${vt}] after choosing a preset the custom-build note is gone`, (await page.$eval("#mw-build-state", (el) => el.textContent.trim())) === "");
   await page.locator('label.mw-swatch:has(input[name="mw-look-body"][value="standard"])').click();
   await waitLook(page, (l) => l.body === "standard");
 
@@ -254,6 +257,84 @@ for (const [vt, viewport] of [["desktop", { width: 1280, height: 900 }], ["mobil
   const age = await page.$eval('input[name="mw-age"]', (x) => Number(x.value));
   check("[old save] the age control starts at the default age", age === 28, String(age));
   check("[old save] no page errors", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
+// ---- the 256px portrait of the 2D figure, at both height extremes with every slider at its extreme, and aged
+{
+  const { page, errors } = await fresh({ width: 1280, height: 900 });
+  const res = await page.evaluate(async () => {
+    const { mountAvatar2d, PORTRAIT_PX } = await import("/js/ui/avatar2d/avatar2dRenderer.js");
+    const base = { skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard" };
+    const cases = {
+      tallest: { build: { height: 220, shoulders: 100, waist: 100, arms: 100, legs: 100 } },
+      shortest: { build: { height: 150, shoulders: 0, waist: 0, arms: 0, legs: 0 } },
+      default: {}, aged: { appearanceAge: 65 },
+    };
+    const out = { px: PORTRAIT_PX };
+    for (const [name, extra] of Object.entries(cases)) {
+      const host = document.createElement("div");
+      host.style.cssText = "position:fixed;left:-9999px;top:0;width:300px;height:450px";
+      document.body.append(host);
+      const handle = await mountAvatar2d(host, { look: { ...base, ...extra } });
+      const url = handle.capturePortrait();
+      const img = new Image(); img.src = url; await img.decode();
+      const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+      const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+      const px = (x0, y0, w, h) => { const d = g.getImageData(x0, y0, w, h).data; let off = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 20) + Math.abs(d[i + 1] - 40) + Math.abs(d[i + 2] - 29) > 60) off++; return off / (d.length / 4); };
+      out[name] = { url: url.slice(0, 23), chars: url.length, w: img.width, h: img.height, topRows: px(0, 0, img.width, 4), centre: px(Math.round(img.width * 0.3), Math.round(img.height * 0.25), Math.round(img.width * 0.4), Math.round(img.height * 0.4)), hash: url.length + ":" + url.slice(-60), url64: url.split(",")[1] };
+      handle.dispose(); host.remove();
+    }
+    return out;
+  });
+  for (const name of ["tallest", "shortest", "default", "aged"]) {
+    const r = res[name];
+    if (r?.url64) writeFileSync(`${OUT}/portrait-256-${name}.jpg`, Buffer.from(r.url64, "base64"));
+    check(`[portrait] ${name}: a ${res.px}px JPEG under the 40K storage limit`, r && r.url === "data:image/jpeg;base64," && r.w === res.px && r.h === res.px && r.chars < 40000, r ? `${r.w}x${r.h}, ${r.chars} chars` : "no portrait");
+    check(`[portrait] ${name}: the head is inside the frame (nothing at the top edge) and the face fills the middle`, r && r.topRows < 0.05 && r.centre > 0.4, r ? `top edge ${(r.topRows * 100).toFixed(0)}% figure, centre ${(r.centre * 100).toFixed(0)}% figure` : "");
+  }
+  check("[portrait] a 65-year-old's portrait differs from the default one (the grey hair is in the stored picture)", res.aged.hash !== res.default.hash);
+  check("[portrait] no page errors", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
+// ---- the optional 3D figure still works with the new fields in the saved look (build, age, a presentation with no art)
+{
+  const newLook = { skin: "warm", hair: "black", outfit: "forest", style: "short", body: "standard", build: { height: 172, shoulders: 80, waist: 50, arms: 70, legs: 50 }, appearanceAge: 58, presentation: "female" };
+  const { page, errors } = await fresh({ width: 1280, height: 900 }, newLook);
+  await page.goto(`${BASE}?avatar=3d`, { waitUntil: "domcontentloaded" });
+  await page.click('.home-tab[data-category="world"]');
+  await page.waitForTimeout(6000);
+  const stage = await page.$eval("#mw-showcase-stage", (el) => ({ canvases: [...el.querySelectorAll("canvas")].map((c) => c.className || "canvas"), img: !!el.querySelector("img"), has2d: !!el.querySelector("canvas.avatar2d-canvas") }));
+  check("[3d] ?avatar=3d does not draw the 2D figure", !stage.has2d, JSON.stringify(stage));
+  check("[3d] the 3D figure is mounted, or the static portrait is shown if WebGL is unavailable (reported: " + (stage.canvases.length ? "3D canvas" : "static portrait") + ")", stage.canvases.length > 0 || stage.img, JSON.stringify(stage));
+  await shoot(page, `${OUT}/desktop-3d-fallback.png`);
+  await page.click('[data-mw-action="toggle-look"]');
+  await page.waitForSelector("#mw-look:not([hidden])");
+  const saved = await page.evaluate(async () => (await import("/js/data/account.js")).getAccount().avatar);
+  check("[3d] opening the editor in 3D leaves the saved look alone (build, age and presentation kept)", saved.build?.height === 172 && saved.appearanceAge === 58 && saved.presentation === "female", JSON.stringify(saved));
+  check("[3d] no page errors", errors.length === 0, errors.join(" | "));
+  await page.close();
+}
+
+// ---- a save that says "female" (no art exists): drawn with the male art, nothing requested from female/, Male shown as the figure, the save untouched
+for (const [vt, viewport] of [["desktop", { width: 1280, height: 900 }], ["mobile", { width: 390, height: 844 }]]) {
+  const look = { skin: "tan", hair: "brown", outfit: "orange", style: "short", body: "standard", presentation: "female", build: { height: 170, shoulders: 30, waist: 50, arms: 50, legs: 50 } };
+  const { page, errors, requests } = await fresh(viewport, look);
+  await openEditor(page);
+  const m = await measure(page);
+  check(`[female save, ${vt}] the figure is drawn (male art) and the saved presentation is kept`, !!m && m.look.presentation === "female" && m.figureHeight > 800, m ? `figure ${Math.round(m.figureHeight)}px` : "no figure");
+  check(`[female save, ${vt}] nothing is requested from a female/ art folder`, !requests.some((u) => /\/avatar2d\/female\//.test(u)), requests.filter((u) => /female/.test(u)).join(", "));
+  const checkedId = await page.$eval('input[name="mw-look-presentation"]:checked', (el) => el.value);
+  const femaleDisabled = await page.$eval('input[name="mw-look-presentation"][value="female"]', (el) => el.disabled);
+  check(`[female save, ${vt}] the editor shows Male as the figure drawn and Female as disabled`, checkedId === "male" && femaleDisabled, `checked ${checkedId}, female disabled ${femaleDisabled}`);
+  await tab(page, "hair");
+  await page.locator('label.mw-swatch:has(input[name="mw-look-hair"][value="blond"])').first().click();   // no catch: if this cannot be clicked the test must fail, not pass empty
+  await waitLook(page, (l) => l.hair === "blond");
+  const saved = await page.evaluate(async () => (await import("/js/data/account.js")).getAccount().avatar);
+  check(`[female save, ${vt}] editing something else (hair colour) is saved, and the presentation is not rewritten`, saved.hair === "blond" && saved.presentation === "female" && saved.build?.height === 170, JSON.stringify(saved));
+  if (vt === "desktop") await shoot(page, `${OUT}/desktop-female-save-fallback.png`);
+  check(`[female save, ${vt}] no page errors`, errors.length === 0, errors.join(" | "));
   await page.close();
 }
 

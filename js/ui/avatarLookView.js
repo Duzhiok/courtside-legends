@@ -58,6 +58,13 @@ function actionsHtml(lang) {
   </fieldset>`;
 }
 
+/** Which radio is checked. For the character the radio shows what is DRAWN: a saved presentation with no art yet is drawn as male, so Male is checked (the save is untouched). */
+const chosenId = (group, look) => {
+  if (group.key !== "presentation") return look[group.key] ?? null;
+  const saved = PRESENTATIONS.find((p) => p.id === look.presentation);
+  return saved?.art ? saved.id : "male";
+};
+
 const groupHtml = (group, look, lang, ownedOutfits = null) => `<fieldset class="mw-swatches" data-mw-look-group="${group.key}">
     <legend>${TL(lang, group.zh, group.en)}</legend>
     ${group.items.map((item) => {
@@ -67,7 +74,7 @@ const groupHtml = (group, look, lang, ownedOutfits = null) => `<fieldset class="
       const artLocked = group.key === "presentation" && !item.art;   // declared, but there is no art for it yet: shown, honest, not selectable
       const locked = shopLocked || artLocked;
       return `<label class="mw-swatch${group.swatch ? "" : " is-text"}${locked ? " is-locked" : ""}" title="${esc(artLocked ? TL(lang, "美术制作中，暂时不能选", "Art in production, not selectable yet") : shopLocked ? TL(lang, "商城有售", "Available in the Shop") : TL(lang, item.zh, item.en))}">
-      <input type="radio" name="mw-look-${group.key}" value="${item.id}" ${(look[group.key] ?? (group.key === "presentation" ? "male" : null)) === item.id ? "checked" : ""}${locked ? " disabled" : ""} />
+      <input type="radio" name="mw-look-${group.key}" value="${item.id}" ${chosenId(group, look) === item.id ? "checked" : ""}${locked ? " disabled" : ""} />
       ${group.swatch ? `<span class="mw-swatch-dot" style="background:${group.swatch(item)}"></span>` : ""}
       <span class="mw-swatch-name">${esc(TL(lang, item.zh, item.en))}${locked ? ` <span class="mw-swatch-lock">${esc(artLocked ? TL(lang, "制作中", "Soon") : TL(lang, "商城", "Shop"))}</span>` : ""}</span>
     </label>`;

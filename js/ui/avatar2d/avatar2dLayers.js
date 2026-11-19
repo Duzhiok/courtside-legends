@@ -71,9 +71,12 @@ export function resolveLayers(rawLook, jersey = null) {
   return { layers, cut, style, presentation, presentationFellBack: presentation !== wanted, fellBack: cut !== look.cut, styleFellBack: !shaved && style !== look.style, look, jersey: jersey || null };
 }
 
-/** Every file the art set must contain, for validation and preloading. */
-export const requiredFiles = () => {
+/** Every file ONE presentation's art set must contain (also for a presentation that has no art yet: this is the list the artist is asked for). */
+export const requiredFilesFor = (presentation) => {
   const out = new Set();
-  for (const presentation of ART.presentations) for (const cut of ART.cuts) for (const style of ART.styles) for (const spec of LAYER_SPEC) out.add(layerFile(spec, { cut, style, presentation }));
+  for (const cut of ART.cuts) for (const style of ART.styles) for (const spec of LAYER_SPEC) out.add(layerFile(spec, { cut, style, presentation }));
   return [...out];
 };
+
+/** Every file the shipped art set must contain, for validation and preloading. */
+export const requiredFiles = () => [...new Set(ART.presentations.flatMap(requiredFilesFor))];

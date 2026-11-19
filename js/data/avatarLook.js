@@ -55,7 +55,7 @@ export const OUTFITS = Object.freeze([
 /**
  * Character presentation: which body the 2D art draws. `art` says whether the layered art for it exists. Female is declared so the choice, the saved field
  * and the asset path are ready, but there is NO female art yet: it cannot be picked, and a saved `presentation: "female"` draws the male art and reports the
- * fallback (never a recoloured male figure passed off as a finished female one). Requirements: docs/implementation/AVATAR-2D-FEMALE-ART-REQUIREMENTS.md.
+ * fallback (never a recoloured male figure passed off as a finished female one). Requirements: docs/implementation/AVATAR-2D-FEMALE-FACE-ART-SPEC.md.
  */
 export const PRESENTATIONS = Object.freeze([
   { id: "male", zh: "男性", en: "Male", art: true },
