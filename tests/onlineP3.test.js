@@ -234,7 +234,7 @@ test("P3 wire: bad logins and duplicate registrations are rejected", async () =>
     assert.match(bad.reason, /名字或密码不对/);
     c.ws.send(JSON.stringify({ type: "register", name: "Alice", password: "secret99" }));
     await waitFor(c.messages, (m) => m.type === "registered");
-    c.ws.send(JSON.stringify({ type: "register", name: "Alice", password: "other" }));
+    c.ws.send(JSON.stringify({ type: "register", name: "Alice", password: "otherpass" }));
     const dup = await waitFor(c.messages, (m) => m.type === "decision_rejected" && /已被注册/.test(m.reason));
     assert.ok(dup);
   } finally {
