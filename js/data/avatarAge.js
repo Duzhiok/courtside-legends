@@ -8,8 +8,8 @@
  */
 export const AGE = Object.freeze({ min: 18, max: 65, default: 28 });
 export const GRAY_FROM = 34;          // no grey up to and including this age
-export const GRAY_HEX = "#cfd2d6";
-export const GRAY_MAX = 0.94;         // never a pure flat grey: a little of the natural colour stays
+const GRAY_HEX = "#cfd2d6";
+const GRAY_MAX = 0.94;         // never a pure flat grey: a little of the natural colour stays
 
 /** Whitelist a stored age. Junk, missing and the default age are all "no age set" (null), so an untouched look stays byte-identical. */
 export function sanitizeAge(raw) {

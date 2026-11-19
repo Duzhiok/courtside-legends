@@ -23,7 +23,7 @@ const clampInt = (value, min, max, fallback) => {
   return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
 };
 
-export const sameBuild = (a, b) => BUILD_KEYS.every((key) => a?.[key] === b?.[key]);
+const sameBuild = (a, b) => BUILD_KEYS.every((key) => a?.[key] === b?.[key]);
 
 /** Whitelist a stored build. Any slider that is missing or junk becomes its default; a build equal to the default is no build at all (null). */
 export function sanitizeBuild(raw) {

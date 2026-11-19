@@ -34,7 +34,7 @@ const GROUPS = [
 ];
 
 /** The five build sliders: what each one moves, in the editor's words. `unit` is shown after the number. */
-export const BUILD_SLIDERS = Object.freeze([
+const BUILD_SLIDERS = Object.freeze([
   { key: "height", zh: "身高", en: "Height", min: HEIGHT_CM.min, max: HEIGHT_CM.max, unit: "cm" },
   { key: "shoulders", zh: "肩宽", en: "Shoulders", min: SLIDER.min, max: SLIDER.max, unit: "" },
   { key: "waist", zh: "腰围", en: "Waist", min: SLIDER.min, max: SLIDER.max, unit: "" },
