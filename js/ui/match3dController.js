@@ -11,6 +11,7 @@
  * with a note, never a blank court.
  */
 import { CourtView3D } from "../engine/court3d.js";
+import { ARENA_IDS, ARENA_PRESETS, arenaOptionsFromPage, normalizeArenaId, writeArenaPref } from "../engine/arena/arenaPresets.js";
 import { createPresentationEventNormalizer } from "../match/presentation/normalizer.js";
 import { choreograph } from "../match/presentation/choreographer.js";
 import { createMatchPresentationView } from "../match/presentation/matchView.js";
@@ -30,12 +31,13 @@ export function createMatch3dController({
   host,
   twoD,
   button,
+  arenaSelect = null, // optional <select>: which venue the 3D court is drawn in (a device preference; never touches the match)
   note = null,
   getSim,
   getSpeed = () => 1,
   L = (zh) => zh,
   seed = 0,
-  createView3d = (el) => CourtView3D.create(el),
+  createView3d = (el) => CourtView3D.create(el, arenaOptionsFromPage()),
   clock, // optional: the presentation clock (tests inject a fake one); default performance.now()
   raf = (fn) => globalThis.requestAnimationFrame(fn),
   caf = (id) => globalThis.cancelAnimationFrame(id),
@@ -53,7 +55,13 @@ export function createMatch3dController({
     button.hidden = !available;
     button.setAttribute("aria-pressed", String(!!view));
     button.textContent = view ? L("2D 视图", "2D view") : L("3D 视图", "3D view");
+    if (arenaSelect) arenaSelect.hidden = !view;
   };
+  if (arenaSelect) {
+    arenaSelect.innerHTML = ARENA_IDS.map((id) => `<option value="${id}">${L(ARENA_PRESETS[id].label.zh, ARENA_PRESETS[id].label.en)}</option>`).join("");
+    arenaSelect.value = arenaOptionsFromPage().arena;
+    arenaSelect.setAttribute("aria-label", L("球馆", "Arena"));
+  }
   const say = (zh, en) => {
     if (!note) return;
     note.hidden = !zh;
@@ -132,6 +140,15 @@ export function createMatch3dController({
   }
 
   button?.addEventListener("click", () => (view ? disable() : enable()));
+  arenaSelect?.addEventListener("change", async () => {
+    let storage = null;
+    try { storage = typeof localStorage !== "undefined" ? localStorage : null; } catch { storage = null; }
+    writeArenaPref(storage, normalizeArenaId(arenaSelect.value));
+    if (view) { // same match, new venue: reopen the view, the presentation restarts from the next possession
+      disable({ keepWanted: true });
+      await enable();
+    }
+  });
 
   return {
     /** Raw GameSim emit payload (call for every event). Ignored while 3D is off. */

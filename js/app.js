@@ -1528,6 +1528,7 @@ const match3d = createMatch3dController({
   host: $("#court-3d-root"),
   twoD: $("#court-root"),
   button: $("#btn-court-3d"),
+  arenaSelect: $("#sel-arena"),
   note: $("#court-3d-note"),
   getSim: () => state.sim,
   getSpeed: () => state.speed,

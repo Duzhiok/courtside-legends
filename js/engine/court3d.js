@@ -35,6 +35,10 @@ import {
 } from "./court.js";
 import { clamp } from "../core/seededRandom.js";
 import { webglAvailable } from "../core/capabilities.js";
+import { arenaPreset, qualityProfile } from "./arena/arenaPresets.js";
+import { makeFloorTexture } from "./arena/floorTexture.js";
+import { addHoopDetails } from "./arena/arenaHoop.js";
+import { addArenaLights } from "./arena/arenaLights.js";
 
 /** Vendored full Three.js 0.187.0 (three.module.js + three.core.js). The R171
  * avatar bundle is tree-shaken to 13 symbols (no geometry/material classes)
@@ -267,6 +271,11 @@ export class CourtView3D {
         : null);
     this._cancelRaf = cancelFn ? cancelFn.bind(globalThis) : () => {};
     this._colors = { ...CLUTCH_TEAM_COLORS, ...(opts.colors || {}) };
+    // Venue look (pure presentation: nothing here reads or changes GameSim state). opts.arena = preset id, opts.quality = low|medium|high.
+    this._arena = arenaPreset(opts.arena);
+    this._quality = qualityProfile(opts.quality);
+    this._doc = opts.doc || (typeof document !== "undefined" ? document : null);
+    this._floorTex = null;
     this._fov = opts.fov || 50;
     this._disposed = false;
     this._snap = null;
@@ -307,16 +316,13 @@ export class CourtView3D {
     this.root.appendChild(renderer.domElement);
 
     const scene = new T.Scene();
-    scene.background = new T.Color(0x0d1f16); // deep green, matches the app
+    scene.background = new T.Color(this._arena.background);
     this._scene = scene;
 
     const camera = new T.PerspectiveCamera(this._fov, 16 / 9, 0.1, 200);
     this._camera = camera;
 
-    const dir = new T.DirectionalLight(0xffffff, 1.6);
-    dir.position.set(8, 14, 6);
-    scene.add(dir);
-    scene.add(new T.AmbientLight(0xffffff, 0.9));
+    addArenaLights(T, scene, this._arena.lighting);
 
     this._buildFloor(scene);
     this._rims = {
@@ -348,14 +354,22 @@ export class CourtView3D {
 
   _buildFloor(scene) {
     const T = this.T;
+    const planeW = COURT_HALF_WIDTH_M * 2 + 1.4;
+    const planeH = COURT_HALF_LENGTH_M * 2 + 1.5;
+    const tex = makeFloorTexture(
+      T, this._doc, this._arena,
+      { halfW: COURT_HALF_WIDTH_M, halfL: COURT_HALF_LENGTH_M, planeW, planeH },
+      this._quality.floorPx,
+    );
+    this._floorTex = tex;
     const floor = new T.Mesh(
-      new T.PlaneGeometry(COURT_HALF_WIDTH_M * 2 + 1.4, COURT_HALF_LENGTH_M * 2 + 1.5),
-      new T.MeshStandardMaterial({ color: 0xc89b6a, roughness: 0.85 }),
+      new T.PlaneGeometry(planeW, planeH),
+      new T.MeshStandardMaterial(tex ? { map: tex, roughness: 0.55 } : { color: this._arena.floor.wood, roughness: 0.85 }),
     );
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    const lineMat = new T.MeshBasicMaterial({ color: 0xffffff });
+    const lineMat = new T.MeshBasicMaterial({ color: this._arena.floor.lines });
     const group = new T.Group();
     const W = COURT_HALF_WIDTH_M;
     const L = COURT_HALF_LENGTH_M;
@@ -441,6 +455,7 @@ export class CourtView3D {
     );
     post.position.set(0, 1.95, rimZ + s * 1.0);
     group.add(post);
+    addHoopDetails(T, group, { rimZ, s, rimY: RIM_HEIGHT_M, padColor: this._arena.floor.paint });
     const arm = new T.Mesh(
       new T.BoxGeometry(0.08, 0.08, 0.6),
       new T.MeshStandardMaterial({ color: 0x2a2f2b, roughness: 0.7 }),
@@ -772,10 +787,28 @@ export class CourtView3D {
     } catch {
       /* already gone */
     }
+    try {
+      this._floorTex?.dispose?.();
+    } catch {
+      /* texture already gone */
+    }
     this._figures.clear();
   }
 
   // ------------------------------------------------------------ frame loop
+
+  /** Expose the venue + the live renderer cost on the host element (QA / perf measurement; refreshed every 30 frames). */
+  _publishStats() {
+    const ds = this.root?.dataset;
+    const info = this._renderer?.info?.render;
+    if (!ds) return;
+    ds.arena = this._arena.id;
+    this._statFrames = (this._statFrames || 0) + 1;
+    if (info && this._statFrames % 30 === 1) {
+      ds.drawCalls = String(info.calls);
+      ds.triangles = String(info.triangles);
+    }
+  }
 
   _startLoop() {
     if (this._loopStarted || this._disposed) return;
@@ -840,6 +873,7 @@ export class CourtView3D {
     this._updateBall(now, attackingUp, handlerPos);
     this._updateEffects(now);
     this._renderer.render(this._scene, this._camera);
+    this._publishStats();
   }
 
   _updateBall(now, attackingUp, handlerPos) {

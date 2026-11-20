@@ -3760,4 +3760,9 @@ select, input[type="number"] {
   box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
 }
 .btn.court-view-toggle:focus-visible { outline: 3px solid var(--accent, #e85d04); outline-offset: 2px; }
+/* venue picker: same light pill, left of the 2D/3D toggle (44px touch target) */
+.court-arena-select { position: absolute; top: 8px; right: 104px; z-index: 5; min-height: 44px; padding: 6px 10px; border-radius: 10px;
+  background: rgba(255, 253, 248, .96); color: #14241a; border: 1px solid rgba(20, 36, 26, .35); font-weight: 700; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+.court-arena-select[hidden] { display: none; }
+.court-arena-select:focus-visible { outline: 3px solid var(--accent, #e85d04); outline-offset: 2px; }
 .court-3d-note { position: absolute; left: 10px; bottom: 10px; z-index: 5; margin: 0; padding: 4px 8px; border-radius: 8px; background: rgba(0, 0, 0, .65); color: #f0b429; }
