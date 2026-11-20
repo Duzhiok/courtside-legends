@@ -15,7 +15,7 @@
  */
 import { hashSeed, seededStream, shuffle } from "../core/seededRandom.js";
 import { settleGame } from "./gameRewards.js";
-import { resolvedAge } from "../modes/playerDevelopment.js";
+import { resolvedAge } from "../data/playerAge.js";
 import {
   GAME_GOALS_PER_GAME,
   GAME_GOAL_XP_BONUS,

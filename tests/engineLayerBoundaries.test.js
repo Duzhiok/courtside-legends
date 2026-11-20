@@ -8,6 +8,7 @@ import {
   carriedDeltas,
   developmentModifier,
 } from "../js/engine/developmentRules.js";
+import { resolvedAge } from "../js/data/playerAge.js";
 
 const src = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
@@ -39,7 +40,7 @@ test("development rules live in engine/developmentRules.js", () => {
   assert.doesNotMatch(src("../js/modes/playerDevelopment.js"), /export (const FOCUS_ATTRIBUTES|function developmentModifier|function validatePlan)/);
   assert.doesNotMatch(src("../js/career/playerGrowth.js"), /export function carriedDeltas/);
   assert.match(src("../js/modes/playerDevelopment.js"), /from\s+["']\.\.\/engine\/developmentRules\.js["']/);
-  assert.match(src("../js/modes/playerDevelopment.js"), /export \{ FOCUS_ATTRIBUTES, developmentModifier \}/);
+  assert.match(src("../js/modes/playerDevelopment.js"), /export \{ FOCUS_ATTRIBUTES, developmentModifier, resolvedAge \}/);
   assert.match(src("../js/engine/develop.js"), /from\s+["']\.\/developmentRules\.js["']/);
   assert.match(src("../js/reborn/contract.js"), /from\s+["']\.\.\/engine\/developmentRules\.js["']/);
 });
@@ -113,4 +114,47 @@ test("buzz rules live in data/buzz.js and the engine reads them from there", () 
   assert.match(src("../js/engine/tradeProposals.js"), /from\s+["']\.\.\/core\/tuning\.js["']/);
   assert.doesNotMatch(src("../js/engine/tradeProposals.js"), /from\s+["']\.\.\/career\//);
   assert.match(src("../js/app.js"), /from\s+["']\.\/data\/buzz\.js["']/);
+});
+
+// Guard: A-P2-6 residue — the career layer used to import `resolvedAge` from
+// modes/playerDevelopment.js (gameGoals, playerGrowth). The helper is a pure
+// data rule now in js/data/playerAge.js, so career/ must not import modes/
+// at all. (js/app.js is the top-level shell and legitimately imports modes;
+// tests and QA scripts may still read the modes re-export.)
+test("career layer does not import modes/ (A-P2-6 residue)", () => {
+  const modesEdges = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(new URL(dir, import.meta.url), { withFileTypes: true })) {
+      const rel = `${dir}${entry.name}`;
+      if (entry.isDirectory()) walk(`${rel}/`);
+      else if (entry.name.endsWith(".js")) {
+        for (const match of src(rel).matchAll(/from\s+["'](?:\.\.\/)+modes\/[^"']+["']/g)) {
+          modesEdges.push(`${rel} -> ${match[0]}`);
+        }
+      }
+    }
+  };
+  walk("../js/career/");
+  assert.deepEqual(modesEdges, []);
+});
+
+// Guard: the move actually happened — no stale copy left behind.
+test("resolvedAge lives in data/playerAge.js and modes/ only re-exports it", () => {
+  assert.match(src("../js/career/gameGoals.js"), /from\s+["']\.\.\/data\/playerAge\.js["']/);
+  assert.match(src("../js/career/playerGrowth.js"), /from\s+["']\.\.\/data\/playerAge\.js["']/);
+  assert.match(src("../js/modes/playerDevelopment.js"), /from\s+["']\.\.\/data\/playerAge\.js["']/);
+  assert.match(src("../js/modes/playerDevelopment.js"), /export \{[^}]*resolvedAge[^}]*\}/);
+  assert.doesNotMatch(src("../js/modes/playerDevelopment.js"), /export function resolvedAge/);
+  assert.doesNotMatch(src("../js/career/gameGoals.js"), /from\s+["']\.\.\/modes\//);
+  assert.doesNotMatch(src("../js/career/playerGrowth.js"), /from\s+["']\.\.\/modes\//);
+});
+
+// Spot check: resolvedAge behaves exactly as before the move.
+test("resolvedAge: card age wins, otherwise the career-span estimate", () => {
+  assert.equal(resolvedAge({ age: 24 }), 24);
+  assert.equal(resolvedAge({ age: "31" }), 31);
+  // No age and no season: estimateAge falls back to 26.
+  assert.equal(resolvedAge({}), 26);
+  assert.equal(resolvedAge({ age: null }), 26);
+  assert.equal(resolvedAge(null), 26);
 });

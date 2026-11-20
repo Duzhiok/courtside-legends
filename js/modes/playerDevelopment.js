@@ -1,17 +1,18 @@
 import { overall } from "../data/players.js";
-import { estimateAge } from "../data/careerArc.js";
+import { resolvedAge } from "../data/playerAge.js";
 import { canDo, requireCapability } from "../career/careerGuards.js";
 // Development rules live in the engine layer (js/engine/developmentRules.js,
 // A-P2-6): the pure plan rules are shared by engine/modes/career/reborn.
 // FOCUS_ATTRIBUTES and developmentModifier are re-exported below so this
-// module's public API is unchanged.
+// module's public API is unchanged. resolvedAge likewise lives in the data
+// layer (js/data/playerAge.js, A-P2-6 residue) and is re-exported below.
 import {
   FOCUS_ATTRIBUTES,
   developmentModifier,
   validatePlan,
 } from "../engine/developmentRules.js";
 
-export { FOCUS_ATTRIBUTES, developmentModifier };
+export { FOCUS_ATTRIBUTES, developmentModifier, resolvedAge };
 
 function requireCareerRoster(career) {
   if (
@@ -41,11 +42,6 @@ function requireCareerRoster(career) {
     seen.add(player.bref);
   }
   return roster;
-}
-
-export function resolvedAge(player) {
-  const age = Number(player?.age);
-  return Number.isFinite(age) && player?.age !== null ? age : estimateAge(player);
 }
 
 function validatePlanForRoster(plan, bref, roster, { source = null } = {}) {

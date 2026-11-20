@@ -20,7 +20,7 @@ import {
   GROWTH_XP_PER_LEVEL,
 } from "./balance.js";
 import { FOCUS_ATTRIBUTES } from "../engine/developmentRules.js";
-import { resolvedAge } from "../modes/playerDevelopment.js";
+import { resolvedAge } from "../data/playerAge.js";
 import { clamp } from "../core/seededRandom.js";
 
 const ATTRIBUTE_MAX = 99;
