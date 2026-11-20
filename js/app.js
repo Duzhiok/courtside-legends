@@ -361,6 +361,7 @@ import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
 import { chooseAvatarMount } from "./ui/avatarMount.js";
 import { createGate, deferUntil } from "./ui/bootGate.js";
+import { createCoachDrawer } from "./ui/coachDrawer.js";
 import { archiveSummaryLine } from "./ui/myWorldView.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
 import { createShop } from "./ui/shopView.js";
@@ -8495,6 +8496,7 @@ function syncPauseUI(snap) {
   }
   syncCoachActionLocks(paused);
   syncTakeoverPanel();
+  coachDrawer.setPaused(paused);
   const pauseSim = $("#btn-pause-sim");
   if (pauseSim) pauseSim.textContent = paused ? "继续模拟" : "暂停模拟";
 }
@@ -8753,6 +8755,8 @@ $("#btn-sub").onclick = () => {
   paintLineups(snap);
   paintMeters(snap);
 };
+// Broadcast layout: the full coach panel opens by itself in dead-ball windows (syncPauseUI) and by hand during live play.
+const coachDrawer = createCoachDrawer({ panel: document.querySelector("#screen-game .coach-panel"), button: $("#btn-coach-drawer"), getLang });
 $("#btn-pause-sim").onclick = () => {
   if (!state.sim) return;
   if (state.sim.paused) resumeGame();

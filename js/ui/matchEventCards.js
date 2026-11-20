@@ -168,7 +168,8 @@ function ensureMatchEventMounts(doc = globalThis.document) {
     if (el) return el;
     el = doc.createElement("div");
     el.id = id;
-    if (before) parent.insertBefore(el, before);
+    // The anchor may live elsewhere (the broadcast layout moved #play-feed out of the court column); only use it if it is really a child.
+    if (before && before.parentNode === parent) parent.insertBefore(el, before);
     else parent.appendChild(el);
     return el;
   };

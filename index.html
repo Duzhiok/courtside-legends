@@ -43,6 +43,7 @@
   <link rel="stylesheet" href="css/draftGamble.css?v=1" />
   <link rel="stylesheet" href="css/coachingMoment.css?v=1" />
   <link rel="stylesheet" href="css/network.css?v=1" />
+  <link rel="stylesheet" href="css/matchBroadcast.css?v=1" />
 </head>
 <body>
   <div id="app">
@@ -825,7 +826,6 @@
           <div class="court court-3d" id="court-3d-root" hidden></div>
           <button type="button" class="btn ghost court-view-toggle" id="btn-court-3d" aria-pressed="false" hidden>3D 视图</button>
           <p class="tiny court-3d-note" id="court-3d-note" hidden></p>
-          <div class="play-feed" id="play-feed"></div>
         </div>
         <aside class="coach-panel">
           <h3>教练席</h3>
@@ -840,7 +840,11 @@
             <button class="btn" id="btn-shout" title="活球手段：勒令执行当前战术约 6 回合；球星自负时可能反噬">大喊</button>
             <button class="btn primary" id="btn-resume" hidden>继续比赛</button>
             <button class="btn" id="btn-pause-leave" hidden title="先存档再回主页，回来可在「继续进度」接着打">保存并离开</button>
+            <button class="btn ghost" id="btn-speed">速度 x1</button>
+            <button class="btn ghost" id="btn-pause-sim">暂停模拟</button>
+            <button class="btn ghost coach-drawer-toggle" id="btn-coach-drawer" type="button" aria-expanded="false" aria-controls="coach-body">教练席 ▾</button>
           </div>
+          <div class="coach-body" id="coach-body">
           <p class="tiny" id="live-action-hint">活球中：只能「大喊」或「叫暂停」，回合重点与节奏可在战术接管里改。战术 / 沟通 / 换人请在暂停或节间进行。</p>
           <p class="tiny" id="pause-hint" hidden>死球窗口——可改战术、沟通、换人、站位与方针，然后点「继续比赛」。</p>
           <!-- M3 tactical takeover: live-ball setFocusPlay / setTempo as a UI wrapper over the existing APIs (same calls the dead-ball panel makes). Hiding it calls nothing, so the sim is unaffected. -->
@@ -974,8 +978,6 @@
             <div class="bar opp"><i id="opp-morale-bar"></i></div>
           </div>
           <div class="btn-row">
-            <button class="btn ghost" id="btn-speed">速度 x1</button>
-            <button class="btn ghost" id="btn-pause-sim">暂停模拟</button>
             <button class="btn ghost" id="btn-auto-offense" type="button" title="按比赛情况自动微调进攻战术/焦点。你仍可随时叫暂停接手">进攻托管：关</button>
             <button class="btn ghost" id="btn-auto-defense" type="button" title="按对方核心自动调整盯防/包夹。你仍可随时叫暂停接手">防守托管：关</button>
             <button class="btn ghost" id="btn-auto-rotation" type="button" title="不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回">自动轮换：关</button>
@@ -988,7 +990,10 @@
             <button class="btn ghost" id="btn-save-leave" type="button" title="保存后返回首页">保存并离开</button>
           </div>
           <p class="tiny" id="managed-hint">三个托管均关：进攻、防守、换人均由你亲自指挥。</p>
+          </div>
         </aside>
+        <!-- Broadcast layout: the live feed is its own column beside the court (css/matchBroadcast.css) -->
+        <div class="play-feed" id="play-feed"></div>
       </div>
 
       <div class="lineups">

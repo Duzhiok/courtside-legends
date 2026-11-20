@@ -8,6 +8,7 @@ import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/court-panel-height";
+const BASE = process.argv[3] || "http://127.0.0.1:5173/";
 mkdirSync(OUT, { recursive: true });
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const report = [];
@@ -15,7 +16,7 @@ const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} $
 const browser = await chromium.launch({ executablePath: EXE });
 
 async function seedAndEnterLiveGame(page) {
-  await page.goto("http://127.0.0.1:5173/", { waitUntil: "domcontentloaded" });
+  await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
@@ -76,7 +77,9 @@ async function run(width, height, tag) {
   const rects1 = await page.evaluate(() => {
     const col = document.querySelector(".court-column")?.getBoundingClientRect();
     const panel = document.querySelector(".coach-panel")?.getBoundingClientRect();
-    return { col: col && { top: col.top, height: col.height }, panel: panel && { top: panel.top, height: panel.height } };
+    const feed = document.querySelector("#play-feed")?.getBoundingClientRect();
+    const wrap = document.querySelector(".court-wrap")?.getBoundingClientRect();
+    return { col: col && { top: col.top, height: col.height }, panel: panel && { top: panel.top, height: panel.height }, feed: feed && { top: feed.top, height: feed.height }, wrap: wrap && { height: wrap.height } };
   });
 
   await page.waitForTimeout(3000); // more feed lines land, coach-panel content re-renders (tactics/rotation)
@@ -84,24 +87,24 @@ async function run(width, height, tag) {
   const rects2 = await page.evaluate(() => {
     const col = document.querySelector(".court-column")?.getBoundingClientRect();
     const panel = document.querySelector(".coach-panel")?.getBoundingClientRect();
-    return { col: col && { top: col.top, height: col.height }, panel: panel && { top: panel.top, height: panel.height } };
+    const feed = document.querySelector("#play-feed")?.getBoundingClientRect();
+    const wrap = document.querySelector(".court-wrap")?.getBoundingClientRect();
+    return { col: col && { top: col.top, height: col.height }, panel: panel && { top: panel.top, height: panel.height }, feed: feed && { top: feed.top, height: feed.height }, wrap: wrap && { height: wrap.height } };
   });
 
   await page.screenshot({ path: `${OUT}/${tag}-live-court.png` });
 
   if (tag === "desktop") {
-    // The LEFT column (court + legend + play-feed stacked) vs the RIGHT coach panel are the two
-    // grid siblings the user is actually comparing side by side -- the feed alone is shorter
-    // than the panel by design (it shares its column with the 300px court above it).
-    check(`[${tag}] left column (court+feed) and right coach-panel are the same total height`,
-      Math.abs(rects1.col.height - rects1.panel.height) <= 2,
-      `col=${rects1.col.height.toFixed(1)} panel=${rects1.panel.height.toFixed(1)}`);
-    check(`[${tag}] both start at the same top (true side-by-side alignment, not offset)`,
-      Math.abs(rects1.col.top - rects1.panel.top) <= 2,
-      `col.top=${rects1.col.top.toFixed(1)} panel.top=${rects1.panel.top.toFixed(1)}`);
+    // Broadcast layout: the court column and the live feed sit side by side from the same top, and the feed is as tall as the row.
+    check(`[${tag}] court column and live feed start at the same top (true side-by-side)`,
+      Math.abs(rects1.col.top - rects1.feed.top) <= 2,
+      `col.top=${rects1.col.top.toFixed(1)} feed.top=${rects1.feed.top.toFixed(1)}`);
+    check(`[${tag}] the feed is as tall as the whole row`,
+      Math.abs(rects1.feed.height - rects1.wrap.height) <= 2,
+      `feed=${rects1.feed.height.toFixed(1)} wrap=${rects1.wrap.height.toFixed(1)}`);
     check(`[${tag}] heights DON'T drift as the feed/panel content changes over time (the actual bug)`,
-      Math.abs(rects1.col.height - rects2.col.height) <= 1 && Math.abs(rects1.panel.height - rects2.panel.height) <= 1,
-      `t1 col=${rects1.col.height.toFixed(1)} panel=${rects1.panel.height.toFixed(1)} | t2 col=${rects2.col.height.toFixed(1)} panel=${rects2.panel.height.toFixed(1)}`);
+      ["col", "panel", "feed", "wrap"].every((k) => Math.abs(rects1[k].height - rects2[k].height) <= 1),
+      ["col", "panel", "feed", "wrap"].map((k) => `${k} ${rects1[k].height.toFixed(1)}->${rects2[k].height.toFixed(1)}`).join(" | "));
   } else {
     // Mobile stacks single-column and lets the page scroll naturally -- a tall coach-panel full
     // of content is expected there, not a bug. Just confirm the stacking order makes sense.
@@ -109,8 +112,8 @@ async function run(width, height, tag) {
       const wrap = document.querySelector(".court-wrap");
       return [...wrap.children].map((c) => c.className);
     });
-    check(`[${tag}] mobile still stacks court-column above coach-panel (single column, correct order)`,
-      order[0]?.includes("court-column") && order[1]?.includes("coach-panel"), order.join(" | "));
+    check(`[${tag}] mobile stacks court, then the action bar (coach panel), then the feed`,
+      order[0]?.includes("court-column") && order[1]?.includes("coach-panel") && order[2]?.includes("play-feed"), order.join(" | "));
   }
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);

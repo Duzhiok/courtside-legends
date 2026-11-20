@@ -1,0 +1,75 @@
+/* Broadcast-first match layout (Gold / ranked / season / playoff share #screen-game).
+ *
+ * Priority order is court > live feed > coach: the court is ~72% wide and 16:9, the feed is its own column beside it, and the coach
+ * panel collapses to one action bar while the ball is live. It opens by itself in every dead-ball window (js/ui/coachDrawer.js),
+ * shrinking the court (never hiding it) so the player still sees the floor while setting tactics.
+ *
+ * Loaded after style.css; the selectors are one class deeper than the legacy `.court` / `.coach-panel` rules on purpose, so they win
+ * without !important. Nothing here touches an id, and no control inside the panel changes behaviour.
+ */
+
+.court-wrap {
+  /* Header + scoreboard take ~240px; leave ~130px under the court for the action bar so the whole row fits one screen. */
+  --court-max: max(300px, calc(100vh - 380px));
+  grid-template-columns: minmax(0, 72fr) minmax(260px, 28fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "court feed" "coach feed";
+  gap: 12px;
+  /* Still a fixed height, not min-height: see the "frame keeps jumping" note in style.css. */
+  height: clamp(520px, calc(100vh - 240px), 1000px);
+}
+/* A dead-ball window, or the player opening the drawer: the court shrinks but stays on screen. */
+.court-wrap:has(.coach-panel.coach-open) { --court-max: max(220px, 40vh); }
+
+.court-wrap .court-column {
+  grid-area: court;
+  grid-template-rows: auto;
+  height: auto;
+  min-height: 0;
+}
+.court-wrap .court-column .court {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: var(--court-max);
+  aspect-ratio: 16 / 9;
+}
+
+.court-wrap .coach-panel {
+  grid-area: coach;
+  height: auto;
+  min-height: 0;
+  padding: 10px 14px;
+}
+/* Collapsed: hug the action bar instead of stretching to fill the row. Open: fill it and scroll inside. */
+.court-wrap .coach-panel:not(.coach-open) { align-self: start; }
+.court-wrap .play-feed {
+  grid-area: feed;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Live ball: one slim action bar. Heading, who-you-command line and the whole control body wait behind the drawer. */
+.coach-panel .live-only-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0; }
+.coach-panel .live-only-row .btn { min-height: 44px; }
+.coach-panel:not(.coach-open) > h3,
+.coach-panel:not(.coach-open) > p.tiny,
+.coach-panel:not(.coach-open) .coach-body { display: none; }
+.coach-panel.coach-paused .coach-drawer-toggle { display: none; } /* a dead-ball window keeps the panel open */
+.coach-panel .momentum-meter { margin: 0; }
+
+@media (max-width: 800px) {
+  .court-wrap {
+    --court-max: 44vh;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "court" "coach" "feed";
+    height: auto;
+  }
+  .court-wrap:has(.coach-panel.coach-open) { --court-max: 34vh; }
+  /* Portrait phone: 16:9 would be only ~190px tall and the players tiny, so keep the old 4:3 height. */
+  .court-wrap .court-column .court { aspect-ratio: 4 / 3; }
+  /* A fixed box, not height:auto: a feed that grows with every event would make the page jump (see the note in style.css). */
+  .court-wrap .play-feed { height: 30vh; min-height: 180px; }
+  .court-wrap .coach-panel { overflow-y: visible; }
+}
