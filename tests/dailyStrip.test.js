@@ -21,6 +21,24 @@ test("daily strip: both buttons live on the home screen above the category tabs"
   );
 });
 
+test("daily strip: no second primary CTA on home (B16)", () => {
+  // B46 follow-up: the draw button shipped with `primary`, so
+  // scripts/qa/home-first-screen.mjs failed B16 ("the only visible primary
+  // button on the first screen") 6/69. Home keeps exactly one primary CTA
+  // (#btn-play-now); the strip stays prominent by position + the gold dot,
+  // not by a second primary style.
+  const home = INDEX.slice(INDEX.indexOf('id="screen-home"'));
+  const strip = home.slice(
+    home.indexOf('id="daily-strip"'),
+    home.indexOf('class="home-category-tabs"'),
+  );
+  assert.ok(!strip.includes("primary"), "neither strip button is a primary button");
+  assert.ok(
+    home.includes('class="btn primary hero-cta" id="btn-play-now"'),
+    "Play Now is still the one primary CTA on home",
+  );
+});
+
 test("daily strip: the new static labels are in PHRASES", () => {
   const dict = new Map(PHRASES);
   assert.equal(dict.get("每日任务"), "Daily Tasks");
