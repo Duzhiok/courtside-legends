@@ -1,9 +1,12 @@
-// S-P2-5 step 1 (CSP readiness, 2026-11-13 global review): the app must have no
-// inline <script> and no inline event-handler attributes left, so a
+// S-P2-5 (CSP, 2026-11-13 global review): the app must have no inline
+// <script> and no inline event-handler attributes left, so a
 // Content-Security-Policy without 'unsafe-inline' can switch on later. Source
-// assertions: without a browser on this VM the markup is the contract. The
-// enforcing CSP meta tag itself is NOT added here -- it needs Mac browser QA
-// first, because a wrong policy would blank the whole game on Pages.
+// assertions: without a browser on this VM the markup is the contract.
+// Step 1 (handlers + watchdog externalised) landed 2026-11-19 (df18515);
+// steps 2+3 (remaining inline modules externalised, Report-Only meta on the
+// three entry pages) land here. The ENFORCING CSP meta is still NOT added --
+// it needs Mac browser QA of the Report-Only trial first, because a wrong
+// policy would blank the whole game on Pages.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -12,6 +15,42 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
+
+// The Report-Only policy, exactly as drafted in csp-prep-2026-11-19.md §D.
+// Single source of truth for the meta tags: the tests below parse each page's
+// meta and compare directive by directive, so a hand-edit that drops a host
+// (e.g. a photo CDN) turns red here instead of breaking photos on Pages.
+const CSP_POLICY = {
+  "default-src": ["'self'"],
+  "script-src": ["'self'"],
+  "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  "font-src": ["'self'", "https://fonts.gstatic.com"],
+  "img-src": [
+    "'self'", "data:", "blob:",
+    "https://thumb.wikimedia.org", "https://upload.wikimedia.org",
+    "https://cdn.nba.com", "https://www.basketball-reference.com",
+  ],
+  "media-src": ["'self'", "blob:"],
+  "connect-src": ["'self'", "ws:", "wss:"],
+  "object-src": ["'none'"],
+  "base-uri": ["'self'"],
+  "form-action": ["'self'"],
+};
+
+function parsePolicy(content) {
+  const out = {};
+  for (const part of content.split(";")) {
+    const tokens = part.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length) out[tokens[0]] = tokens.slice(1);
+  }
+  return out;
+}
+
+function reportOnlyMeta(html, page) {
+  const m = html.match(/<meta http-equiv="Content-Security-Policy-Report-Only" content="([^"]+)" \/>/);
+  assert.ok(m, `${page} is missing the Report-Only CSP meta`);
+  return m[1];
+}
 
 function walkJs(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -34,15 +73,45 @@ const HANDLER_ATTRS =
 const INLINE_HANDLER = new RegExp(`(?<![A-Za-z.])on(?:${HANDLER_ATTRS})\\s*=\\s*["']`, "g");
 
 test("S-P2-5: no inline <script> in the entry pages", () => {
-  for (const page of ["index.html", "online.html"]) {
+  for (const page of ["index.html", "online.html", "preview-3d-match.html", "scripts/spike/avatar3d.html"]) {
     const html = read(page);
     const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>/g)];
     assert.deepEqual(inline, [], `${page} still has an inline <script> (CSP would block it)`);
   }
 });
 
+test("S-P2-5: preview page and spike page load their logic from external modules", () => {
+  const preview = read("preview-3d-match.html");
+  assert.match(preview, /<script type="module" src="js\/preview3dMatch\.js"><\/script>/);
+  assert.ok(existsSync(join(root, "js/preview3dMatch.js")), "js/preview3dMatch.js missing");
+  const previewJs = read("js/preview3dMatch.js");
+  assert.match(previewJs, /from "\.\/engine\/court3d\.js"/);
+  assert.match(previewJs, /from "\.\/match\/presentation\/matchView\.js"/);
+  assert.match(previewJs, /playFromStart\(\);/);
+  const spike = read("scripts/spike/avatar3d.html");
+  assert.match(spike, /<script type="module" src="avatar3d\.js"><\/script>/);
+  assert.ok(existsSync(join(root, "scripts/spike/avatar3d.js")), "scripts/spike/avatar3d.js missing");
+  assert.match(read("scripts/spike/avatar3d.js"), /mountAvatar3d/);
+});
+
+test("S-P2-5: Report-Only CSP meta on the three entry pages, matching the §D draft", () => {
+  for (const page of ["index.html", "online.html", "preview-3d-match.html"]) {
+    const html = read(page);
+    // No enforcing meta yet: Report-Only only. Enforce waits for Mac QA.
+    assert.doesNotMatch(html, /http-equiv="Content-Security-Policy"(?!-Report-Only)/,
+      `${page} already has an enforcing CSP meta (must wait for Mac QA)`);
+    const parsed = parsePolicy(reportOnlyMeta(html, page));
+    assert.deepEqual(Object.keys(parsed).sort(), Object.keys(CSP_POLICY).sort(),
+      `${page} policy directives differ from the §D draft`);
+    for (const [directive, sources] of Object.entries(CSP_POLICY)) {
+      assert.deepEqual(parsed[directive], sources, `${page} ${directive} differs from the §D draft`);
+    }
+  }
+});
+
 test("S-P2-5: no inline event-handler attributes in production js or html", () => {
-  const files = [...walkJs(join(root, "js")), join(root, "index.html"), join(root, "online.html")];
+  const files = [...walkJs(join(root, "js")), join(root, "index.html"), join(root, "online.html"),
+    join(root, "preview-3d-match.html"), join(root, "scripts/spike/avatar3d.html")];
   const hits = [];
   for (const file of files) {
     const src = readFileSync(file, "utf8");
@@ -56,7 +125,8 @@ test("S-P2-5: no inline event-handler attributes in production js or html", () =
 });
 
 test("S-P2-5: no javascript: hrefs are ever rendered", () => {
-  const files = [...walkJs(join(root, "js")), join(root, "index.html"), join(root, "online.html")];
+  const files = [...walkJs(join(root, "js")), join(root, "index.html"), join(root, "online.html"),
+    join(root, "preview-3d-match.html"), join(root, "scripts/spike/avatar3d.html")];
   const hits = [];
   for (const file of files) {
     const src = readFileSync(file, "utf8");

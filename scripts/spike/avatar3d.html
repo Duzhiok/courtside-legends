@@ -13,20 +13,6 @@
 <body>
   <div id="stage"></div>
   <p id="status">loading…</p>
-  <script type="module">
-    import { mountAvatar3d } from "../../js/ui/avatar3d.js";
-    const status = document.getElementById("status");
-    const t0 = performance.now();
-    const params = new URLSearchParams(location.search);
-    try {
-      const handle = await mountAvatar3d(document.getElementById("stage"), params.get("src") ? { src: params.get("src") } : {});
-      window.__avatar = handle;
-      window.__firstFrameMs = Math.round(performance.now() - t0);
-      status.textContent = `ready in ${window.__firstFrameMs} ms`;
-    } catch (err) {
-      window.__avatarError = err.message;
-      status.textContent = `fallback: ${err.message}`;
-    }
-  </script>
+  <script type="module" src="avatar3d.js"></script>
 </body>
 </html>
