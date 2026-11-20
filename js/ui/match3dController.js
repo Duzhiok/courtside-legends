@@ -16,6 +16,7 @@ import { createPresentationEventNormalizer } from "../match/presentation/normali
 import { choreograph } from "../match/presentation/choreographer.js";
 import { createMatchPresentationView } from "../match/presentation/matchView.js";
 import { VALID_TIME_SCALES } from "../match/presentation/scheduler.js";
+import { createUiGate } from "../match/presentation/uiGate.js";
 
 /**
  * Derived events arrive in causal order: a possession's raw events first, then (from onTick) the POSSESSION_START that announces the
@@ -24,6 +25,9 @@ import { VALID_TIME_SCALES } from "../match/presentation/scheduler.js";
  */
 const HEADS_A_GROUP = new Set(["POSSESSION_START"]);
 const CLOSES_A_GROUP = new Set(["PERIOD_END", "MATCH_END"]);
+
+/** A shot's own text and score wait for the ball to land (the end of its beat); everything earlier is already true. */
+const LANDING_KINDS = new Set(["score", "miss", "dunk"]);
 
 const scaleOf = (speed) => (VALID_TIME_SCALES.includes(speed) ? speed : 1);
 
@@ -49,6 +53,29 @@ export function createMatch3dController({
   let available = false;
   let wanted = false; // the player's choice, kept across matches
   let opening = false;
+  const gate = createUiGate(); // feed + scoreboard follow the presentation cursor while the 3D court is up
+  let lastSeq = null; // GameSim's newest event number: what a tick snapshot belongs after
+  let heldSeq = null; // the live shot on screen: its own text/score are released when its beat ends
+  let cursorSeq = null; // the newest GameSim event the presentation cursor has reached (QA / measurement)
+
+  const releaseHeld = () => {
+    if (heldSeq === null) return;
+    gate.release(heldSeq);
+    heldSeq = null;
+  };
+  /** The cursor passed `beat`: everything GameSim said up to it may now be shown. A live shot holds back only its own line. */
+  const onBeatApplied = (beat, { skipped }) => {
+    releaseHeld();
+    const seq = beat?.simSeq;
+    if (!Number.isInteger(seq)) return;
+    if (cursorSeq === null || seq > cursorSeq) cursorSeq = seq;
+    if (!skipped && LANDING_KINDS.has(beat.kind)) {
+      gate.release(seq - 1);
+      heldSeq = seq;
+    } else {
+      gate.release(seq);
+    }
+  };
 
   const paintButton = () => {
     if (!button) return;
@@ -114,7 +141,8 @@ export function createMatch3dController({
     }
     say("", "");
     normalizer.reset();
-    view = createMatchPresentationView({ view3d, clock });
+    view = createMatchPresentationView({ view3d, clock, onBeatApplied, onPlayEnded: releaseHeld });
+    gate.setEnabled(true);
     host.hidden = false;
     if (twoD) twoD.hidden = true;
     view3d.resize?.();
@@ -131,6 +159,8 @@ export function createMatch3dController({
     rafId = 0;
     const v = view;
     view = null;
+    heldSeq = null;
+    gate.setEnabled(false); // 2D shows everything that was waiting, at once
     try { v?.dispose(); } catch { /* already gone */ }
     normalizer.reset();
     host.hidden = true;
@@ -152,7 +182,23 @@ export function createMatch3dController({
 
   return {
     /** Raw GameSim emit payload (call for every event). Ignored while 3D is off. */
-    feedRaw(evt) { if (view) normalizer.feedRaw(evt); },
+    feedRaw(evt) {
+      if (Number.isInteger(evt?.seq)) lastSeq = evt.seq;
+      if (view) normalizer.feedRaw(evt);
+    },
+    /**
+     * Show `fn` (a feed line, the scoreboard) when the 3D cursor reaches the event it belongs to, or now when 3D is off. `seq`
+     * defaults to the newest event (a tick snapshot is "after" the events before it). Never use it for gameplay controls.
+     */
+    defer(fn, seq = lastSeq) { return gate.defer(seq, fn); },
+    /** Fast simulation / skip: drop the animation backlog and show the latest authoritative state now. */
+    syncNow() {
+      heldSeq = null;
+      try { view?.interrupt(); } catch { /* nothing playing */ }
+      gate.flush();
+    },
+    get gatePending() { return gate.pending; },
+    get cursorSeq() { return cursorSeq; },
     /** Derived domain event ({ type, meta, snapshot }). A possession start heads the next group, a period/match end closes the last. */
     feedDerived(evt) {
       if (!view || !evt) return;

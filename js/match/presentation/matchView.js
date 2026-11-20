@@ -35,7 +35,11 @@ export function formatClock(clockSeconds) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function createMatchPresentationView({ view3d, hud = {}, scheduler = null, clock } = {}) {
+/**
+ * `onBeatApplied(beat, { skipped })` fires for EVERY beat the cursor passes (played or skipped); `onPlayEnded(play)` when a play
+ * finishes. They are how the rest of the screen (feed, scoreboard) follows the same cursor as the 3D court.
+ */
+export function createMatchPresentationView({ view3d, hud = {}, scheduler = null, clock, onBeatApplied = null, onPlayEnded = null } = {}) {
   if (!view3d || typeof view3d.render !== "function") {
     throw new Error("createMatchPresentationView needs a view3d with render()");
   }
@@ -50,7 +54,12 @@ export function createMatchPresentationView({ view3d, hud = {}, scheduler = null
     createPlaybackScheduler({
       onBeat: (beat, play) => applyBeat(beat, play),
       onSkip: (beat, play) => applyBeat(beat, play, { skipped: true }),
-      onPlayEnd: () => {
+      onPlayEnd: (play) => {
+        try {
+          onPlayEnded?.(play);
+        } catch {
+          /* the screen following the cursor must never stop the cursor */
+        }
         if (playQueue.length > 0) sched.load(playQueue.shift());
       },
       ...(clock ? { clock } : {}),
@@ -100,6 +109,11 @@ export function createMatchPresentationView({ view3d, hud = {}, scheduler = null
     } catch {
       // A view failure must never take down playback; the HUD above is
       // already showing the authoritative snapshot values.
+    }
+    try {
+      onBeatApplied?.(beat, { skipped });
+    } catch {
+      /* same rule: followers never break playback */
     }
   }
 

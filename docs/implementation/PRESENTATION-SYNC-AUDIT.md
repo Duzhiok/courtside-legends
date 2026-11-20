@@ -37,9 +37,32 @@ several possessions ahead: that is slice S3.
   possession start (it heads the next group). With the `seq` stripped, all 20 golden games hash identically to the old fixture, so
   results and the RNG sequence are unchanged; the fixture was re-recorded only because the event payload gained a field.
 - **S2 (done): the ball follows the real holder.** `js/match/presentation/ballOwner.js` derives who has the ball from GameSim's own ids (pass: passer to receiver; shot/dunk: the shooter, nobody while it is in the air; rebound: the rebounder; steal: the thief; other turnovers: loose ball; a `coach` line carrying `meta.pass` is a repass and counts as a pass). The choreographer attaches the holder to each beat, `matchView` calls `setBallOwner` / `onPass` on the 3D court (a pass is an arc from passer to receiver, `PASS_FLIGHT_MS`), and the scheduler now reports skipped beats (`onSkip`) so a compressed pass still hands the ball over. Measured on the same rig: the ball was already with the shooter when his shot began for 30/32 shots at 1x (was 14/33), every drawn pass starts at an offensive player and ends at one, every possession opens with an offensive holder (38/38). The remaining misses are GameSim's own gap: after an offensive rebound the next action can belong to a different player with no pass event in between (the shot beat then snaps the ball to him; no pass is invented), and the very first possession of a broadcast has no opening beat. Browser trace: `node scripts/qa/match-3d-sync.mjs` (ball with a named player 74-95% of the time, changes hands 15-17 times in 30 s, pause freezes it).
-- **S3: one cursor.** In 3D mode the feed and scoreboard are released in `seq` order by the presentation cursor, never ahead of the
-  action; plays dropped by compression release their text at once; at 2x/3x the court jumps to the latest authoritative state instead
-  of backlogging; pause freezes both; 2D/3D switching never touches GameSim. 2D mode keeps today's immediate painting.
+- **S3 (done): one cursor.** `js/match/presentation/uiGate.js` + the controller: while the 3D court is up, the feed line, the scoreboard
+  (score, clock, quarter, possession, the sounds keyed off them) are `defer`red under GameSim's own `seq` and released in order as the
+  presentation cursor passes each beat (`onBeatApplied` fires for every played AND skipped beat). A live shot holds back only its own
+  line and points until its beat ends (the ball has landed); everything earlier is already true. Plays dropped by compression release
+  their text with the next beat that is shown; pause = no beats = frozen; leaving 3D, the match ending and fast simulation
+  (`match3d.syncNow()`) show everything at once. Lineups, meters and the sub menus are controls and stay live; coach/system lines show
+  their TEXT at once but never the score they carry. 2D mode is unchanged (`defer` runs now). The queue is bounded (120).
+  Measured with `node scripts/measure/presentation-sync.mjs 60 sync-1` (real GameSim, real controller, fake clock):
+
+  | | feed vs the shot's start (median) | feed before its shot | scoreboard ahead of the cursor | gate backlog peak / left over |
+  |---|---|---|---|---|
+  | 1x before | -3168 ms | 31/32 | 84,032 ms | - |
+  | 1x with S3 | +1008 ms (= the ball landing) | 0/32 | 0 ms | 12 / 0 |
+  | 2x before | -832 ms | 10/11 | 17,584 ms | - |
+  | 2x with S3 | +512 ms | 0/11 | 0 ms | 29 / 0 |
+  | 3x before | -576 ms | 5/6 | 6,832 ms | - |
+  | 3x with S3 | +336 ms | 0/6 | 0 ms | 57 / 0 |
+
+  In a real browser (`node scripts/qa/match-3d-sync.mjs <out> <url> 60 <speed> [desktop|mobile]`, GameSim.emit wrapped to log the
+  authoritative total): every made shot the court drew had NOT yet been counted by the scoreboard when it started, and the board caught
+  up ~1.0 s later (1x desktop 7/7 at 1047 ms, mobile 7/7 at 1031 ms; 3x desktop 4/4), each with a feed line in the same window; pause
+  froze ball holder, score, clock and feed; switching to 2D kept every line. The 3D court still trails GameSim by a few seconds at 1x
+  (median 3.3 s, never growing): the presentation plays a possession slower than GameSim resolves one, so the scheduler compresses
+  or drops (10/42 shots at 1x never shown). That is the existing "compress, never queue" rule, not a sync error: whatever is shown,
+  the text, score and ball agree. Open (S2 remainder): 2/32 shots follow an offensive rebound with no pass event; the court
+  gives the shooter the ball, it does not invent a pass.
 - **S4: camera and labels.** After S2/S3.
 
 ## Not changed

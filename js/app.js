@@ -1616,7 +1616,7 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
     onEvent: (event) => handleSimEvent(event),
     onTick: (snap) => {
       try {
-        paintScore(snap);
+        paintScoreWithCursor(snap);
         paintLineups(snap);
         paintMeters(snap);
         fillSubSelects(snap);
@@ -7502,7 +7502,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
     onEvent: (e) => handleSimEvent(e),
     onTick: (snap) => {
       try {
-        paintScore(snap);
+        paintScoreWithCursor(snap);
         paintLineups(snap);
         paintMeters(snap);
         fillSubSelects(snap);
@@ -7597,12 +7597,31 @@ function handleSimEvent(e) {
       console.error(err);
     }
   }
-  pushFeed(e.type, e.text, e);
+  // With the 3D court up, the feed line and the scoreboard wait for the presentation cursor to reach this event (they never run
+  // ahead of the action). Coach/system lines are not plays: the TEXT shows at once, but never the score they carry (that snapshot
+  // can already include plays the court has not shown yet); the scoreboard stays with the cursor. 2D mode is unchanged.
+  if (e?.type === "coach" && !e.meta?.pass) {
+    pushFeed(e.type, e.text, e);
+    if (!match3d.active) paintScoreSafe(e);
+    return;
+  }
+  match3d.defer(() => {
+    pushFeed(e.type, e.text, e);
+    paintScoreSafe(e);
+  }, e?.seq);
+}
+
+function paintScoreSafe(snap) {
   try {
-    paintScore(e);
+    paintScore(snap);
   } catch (err) {
     console.error(err);
   }
+}
+
+/** The per-possession scoreboard paint: follows the 3D cursor (lineups, meters and the sub menus are controls and stay live). */
+function paintScoreWithCursor(snap) {
+  match3d.defer(() => paintScoreSafe(snap));
 }
 
 /**
@@ -8915,6 +8934,7 @@ $("#btn-quick-sim").onclick = async () => {
   pushFeed("coach", "快速模拟整场——托管助手接管剩余比赛…");
   try {
     state.matchEvents?.autoResolvePending();
+    match3d.syncNow(); // fast simulation: drop the animation backlog, the screen jumps to the latest authoritative state
     const snap = sim.runFast();
     // finish() already fires onEnd → showResult; refresh once if still on live
     if (sim.running === false && snap) {

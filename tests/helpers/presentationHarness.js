@@ -16,10 +16,16 @@ import { realTeam } from "./realGame.js";
 const FRAME_MS = 16;
 const el = () => ({ hidden: false, innerHTML: "", textContent: "", setAttribute() {}, addEventListener() {} });
 
-export async function playThroughController({ speed = 1, possessions = 60, seed = "sync-1", home = realTeam("CHI", 1996), away = realTeam("SEA", 1996), view3dHooks = {} } = {}) {
+export async function playThroughController({ gated = true, hold = null, skipDrain = false, speed = 1, possessions = 60, seed = "sync-1", home = realTeam("CHI", 1996), away = realTeam("SEA", 1996), view3dHooks = {} } = {}) {
   let now = 0;
   let possessionNo = 0;
   let domScore = { home: 0, away: 0 };
+  const feedShownAt = new Map(); // seq -> when its feed line appeared on screen
+  const scoreAtSeq = new Map(); // seq -> the score GameSim reported with that event
+  let pendingPeak = 0;
+  let spoilerMs = 0; // the scoreboard showed an event the presentation cursor had not reached yet
+  let behindRun = 0;
+  let behindMaxMs = 0; // longest stretch the scoreboard trailed the cursor (a live shot's points wait for the ball to land)
   let lastRendered = null; // the snapshot the 3D court is built from (court3d._snap)
   const shotsSim = []; // every shot GameSim emitted
   const shotsShown = []; // every shot the 3D court drew
@@ -70,9 +76,23 @@ export async function playThroughController({ speed = 1, possessions = 60, seed 
     onEvent: (e) => {
       ctl.feedRaw(e);
       if (e.meta?.shot && (e.type === "score" || e.type === "miss")) shotsSim.push({ t: now, seq: e.seq, shooterId: e.meta.shot.shooterId, made: e.type === "score", score: { ...e.score }, possessionNo });
-      if (e.score) domScore = { ...e.score }; // paintScore(e): the scoreboard follows the raw event at once
+      if (e.score) scoreAtSeq.set(e.seq, e.score.home + e.score.away);
+      // app.js handleSimEvent: the feed line + paintScore(e) wait for the cursor (coach/system lines show at once); gated=false is the old behaviour
+      const show = () => {
+        feedShownAt.set(e.seq, now);
+        if (e.score) domScore = { ...e.score };
+      };
+      if (e.type === "coach" && !e.meta?.pass) { // text at once; never the score it carries while 3D has the cursor
+        feedShownAt.set(e.seq, now);
+        if (!gated && e.score) domScore = { ...e.score };
+      } else if (!gated) show();
+      else ctl.defer(show, e.seq);
     },
-    onTick: (snap) => adapter.observeTick(snap),
+    onTick: (snap) => {
+      adapter.observeTick(snap);
+      const paint = () => { domScore = { ...snap.score }; };
+      if (gated) ctl.defer(paint); else paint(); // app.js paintScoreWithCursor
+    },
     onEnd: () => {},
   });
   const adapter = createDomainEventAdapter({ onDomainEvent: (evt) => ctl.feedDerived(evt) });
@@ -86,19 +106,34 @@ export async function playThroughController({ speed = 1, possessions = 60, seed 
   await ctl.enable();
 
   let nextStep = 0;
-  const frame = () => { const fn = frames.shift(); if (fn) fn(); };
+  const holdSample = { start: null, end: null }; // what the screen shows when a pause begins and just before it ends
+  const sample = () => ({ cursorSeq: ctl.cursorSeq, shown: { ...domScore }, feedLines: feedShownAt.size, pending: ctl.gatePending, beat: ctl.idle ? null : "playing" });
+  const frame = () => {
+    const fn = frames.shift();
+    if (fn) fn();
+    pendingPeak = Math.max(pendingPeak, ctl.gatePending);
+    const implied = ctl.cursorSeq === null ? 0 : scoreAtSeq.get(ctl.cursorSeq); // the score of the event the presentation cursor has reached
+    const shown = domScore.home + domScore.away;
+    if (implied !== undefined && shown > implied) spoilerMs += FRAME_MS;
+    if (implied !== undefined && shown < implied) { behindRun += FRAME_MS; behindMaxMs = Math.max(behindMaxMs, behindRun); } else behindRun = 0;
+  };
   while (possessionNo < possessions && sim.quarter <= 4) {
-    if (now >= nextStep) {
+    const holding = !!hold && now >= hold.from && now < hold.to; // the player pauses the game: GameSim waits, the screen must freeze
+    if (hold && now >= hold.from && holdSample.start === null) holdSample.start = sample();
+    if (hold && now >= hold.to - FRAME_MS && holdSample.end === null) holdSample.end = sample();
+    if (holding) sim.paused = true;
+    else if (hold && now >= hold.to && sim.paused) sim.paused = false;
+    if (!holding && now >= nextStep) {
       sim.step();
       possessionNo++;
       nextStep = now + sim.possessionDelay();
-      if (sim.paused) sim.paused = false; // a quarter break pauses GameSim; the player would press Continue
+      if (sim.paused && !holding) sim.paused = false; // a quarter break pauses GameSim; the player would press Continue
     }
     frame();
     now += FRAME_MS;
   }
   const drainEnd = now + 60000; // let 3D finish what it is still playing, so "never shown" means dropped, not "still running"
-  while (!ctl.idle && now < drainEnd) { frame(); now += FRAME_MS; }
+  while (!skipDrain && !ctl.idle && now < drainEnd) { frame(); now += FRAME_MS; }
 
   const pct = (xs, q) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(q * xs.length))] : NaN);
   const bySeq = new Map(shotsSim.map((s) => [s.seq, s]));
@@ -107,11 +142,17 @@ export async function playThroughController({ speed = 1, possessions = 60, seed 
   const lead = paired.map(({ shown, sim: s }) => shown.domScore.home + shown.domScore.away - (s.score.home + s.score.away));
   const ahead = paired.map(({ shown, sim: s }) => shown.possessionNo - s.possessionNo);
   const n = shotsShown.length;
+  // Commentary-to-animation delay: when the shot's feed line appeared minus when the 3D court started that shot.
+  const feedDelay = paired.map(({ shown }) => feedShownAt.get(Number(String(shown.eventId).replace("sim:", ""))) - shown.t).filter(Number.isFinite);
   return {
-    shotsSim, shotsShown, paired, sim, ctl, passes, openings,
+    shotsSim, shotsShown, paired, sim, ctl, passes, openings, holdSample, shownScore: () => ({ ...domScore }), feedLinesShown: () => feedShownAt.size,
     summary: {
       speed, wallSec: Math.round(now / 1000), shotsSim: shotsSim.length, shotsShown: n, neverShown: shotsSim.length - n,
       shownWithEventId: paired.length,
+      feedAfterShotStartMedianMs: pct(feedDelay, 0.5), feedAfterShotStartP90Ms: pct(feedDelay, 0.9), feedAfterShotStartMaxMs: Math.max(0, ...feedDelay),
+      feedBeforeShotStart: feedDelay.filter((d) => d < 0).length,
+      scoreboardSpoilerMs: spoilerMs, scoreboardBehindMaxMs: behindMaxMs, gatePendingPeak: pendingPeak, gateStuck: ctl.gatePending,
+      ballOwnerMismatches: shotsShown.filter((x) => x.ownerPrior !== x.shooterId).length,
       lagMedianMs: pct(lags, 0.5), lagP90Ms: pct(lags, 0.9), lagMaxMs: Math.max(0, ...lags),
       possessionsAheadMedian: pct(ahead, 0.5), possessionsAheadMax: Math.max(0, ...ahead),
       scoreboardAheadMedianPts: pct(lead, 0.5), scoreboardAheadMaxPts: Math.max(0, ...lead),
