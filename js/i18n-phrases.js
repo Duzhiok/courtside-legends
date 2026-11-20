@@ -50,6 +50,7 @@ export const PHRASES = [
   ["有未完成的进度", "Unfinished progress found"],
   ["继续进度", "Resume"],
   ["丢弃存档", "Discard Save"],
+  ["查看记录", "View Records"],
   ["长期生涯存档", "Long-term Career Save"],
   ["继续生涯", "Continue Career"],
   ["导出", "Export"],
