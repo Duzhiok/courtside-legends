@@ -33,6 +33,7 @@ import { GameSim } from "./sim.js";
 import { shuffle } from "../core/seededRandom.js";
 import { prunePickLedger } from "./pickLedger.js";
 import { clearSaveOwner, keyHasData, recordMirrorWrite, recordSaveWrite, seasonSig, slotLocked } from "../data/saveOwnership.js";
+import { validateSeasonNames } from "../data/saveNames.js";
 
 const RS_GAMES = 82;
 const SAVE_KEY = "cls_season_v1";
@@ -1604,6 +1605,9 @@ export function loadSeason() {
     if (!raw) return null;
     const st = JSON.parse(raw);
     if (!st || (st.v !== 1 && st.v !== SEASON_VERSION)) return null;
+    // esc audit batch 1: names reach innerHTML in season views, so a crafted slot
+    // is "no save" here, same as a damaged blob. Throws inside this try/catch.
+    validateSeasonNames(st);
     return prepareSeasonState(st);
   } catch {
     return null;

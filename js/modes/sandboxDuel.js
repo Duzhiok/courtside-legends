@@ -54,10 +54,13 @@ export function fillWithCopies(card, count = SANDBOX_MIN) {
 export function buildSandboxTeam(name, cards, { eraParity = false, pool = [], slotOffset = 0, min = SANDBOX_MIN, max = SANDBOX_MAX } = {}) {
   if (cards.length < min) throw new Error(`每队至少 ${min} 人`);
   if (cards.length > max) throw new Error(`每队最多 ${max} 人`);
+  // esc audit batch 1: the hand-typed side name flows into live team names, so strip
+  // markup brackets at entry (a filter, not a reject — this is typed live, not a save).
+  const safeName = String(name ?? "").replace(/[<>]/g, "");
   const model = eraParity && pool.length ? parityModelFor(pool) : null;
   const players = cards.map((card, i) => {
     const copy = sandboxCopy(card, slotOffset + i);
     return model ? applyEraParity(copy, model) : copy;
   });
-  return { name, players, tacticId: "balanced", gold: 0, isCpu: false };
+  return { name: safeName, players, tacticId: "balanced", gold: 0, isCpu: false };
 }

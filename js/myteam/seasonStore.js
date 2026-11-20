@@ -5,6 +5,7 @@
  * refuses to overwrite another player's / the guest's / an unlinked save, and continuing the same season is fine.
  */
 import { compactSeasonForSave, prepareSeasonState } from "../engine/season.js";
+import { validateSeasonNames } from "../data/saveNames.js";
 import { ForeignSaveError, assertSlotWritable, clearSaveOwner, keyHasData, myTeamSig, recordSaveWrite } from "../data/saveOwnership.js";
 
 export const MYTEAM_SEASON_KEY = "cls_myteam_season_v1";
@@ -16,12 +17,20 @@ export const hasMyTeamSeason = (storage) => keyHasData(MYTEAM_SEASON_KEY, storag
 /** Shape gate: a damaged or foreign blob is "no save", never a crash. */
 function validMyTeamSeason(st) {
   const m = st?.myTeam;
-  return !!(
+  if (!(
     m && m.schema === 1 && typeof m.seasonId === "string" && m.seasonId
     && ["full", "quick"].includes(m.rules?.variant)
     && [20, 82].includes(st.rsGames ?? 82)
     && st.teams && st.teams[st.userTeamId] && Array.isArray(st.schedule)
-  );
+  )) return false;
+  // esc audit batch 1: names reach innerHTML in season views; a crafted slot is
+  // "no save" on load and refused on save, same as a damaged blob.
+  try {
+    validateSeasonNames(st);
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 /** The parsed slot (no state preparation: enough to sign and label it), or null. */
