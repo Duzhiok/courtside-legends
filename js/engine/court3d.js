@@ -41,6 +41,8 @@ import { addHoopDetails } from "./arena/arenaHoop.js";
 import { addArenaLights } from "./arena/arenaLights.js";
 import { buildArenaEnvironment } from "./arena/arenaEnvironment.js";
 import { canInstance, instancedBoxes } from "./arena/arenaInstances.js";
+import { createBallAids } from "./broadcast/ballAids.js";
+import { PLATE_LEGIBLE_PX, PLATE_MIN_PX, PLATE_WORLD, compactName, placeLabels, plateScreenSize, platePriority, readableBoost } from "./broadcast/labelLayout.js";
 
 /** Vendored full Three.js 0.187.0 (three.module.js + three.core.js). The R171
  * avatar bundle is tree-shaken to 13 symbols (no geometry/material classes)
@@ -66,6 +68,14 @@ const DUNK_NET_MS = 150;
 const DUNK_SETTLE_MS = 200;
 export const DUNK_TOTAL_MS = DUNK_DRIVE_MS + DUNK_NET_MS + DUNK_SETTLE_MS; // 770
 export const BALL_RADIUS_M = 0.12;
+/** The ball is drawn bigger than life (a regulation ball is a speck from the broadcast angle). Its centre offset keeps it resting on the floor. */
+export const BALL_VISUAL_SCALE = 1.7;
+/** Broadcast framing: closer than "the whole court fits", panning along the court with the ball. */
+export const FRAMING_ZOOM = 0.8;
+const PAN_FOLLOW = 0.5;
+const PAN_LIMIT_M = 6;
+export const BALL_GLIDE_MS = 220;
+const PLATE_BASE_Y = { full: 2.75, compact: 2.5 };
 /** Miss bounce distance toward midcourt: 2D's 18% of court length, in meters. */
 export const MISS_BOUNCE_M = 5.16;
 /** The clutch scenario is always 2016 GSW (home) vs CLE (away). */
@@ -278,6 +288,12 @@ export class CourtView3D {
     this._quality = qualityProfile(opts.quality);
     this._doc = opts.doc || (typeof document !== "undefined" ? document : null);
     this._floorTex = null;
+    this._plateFocusId = null;
+    this._aids = null; // focus ring, ball shadow, shot path (null where the THREE-like lacks the classes)
+    this._panZ = 0;
+    this._lastNow = null;
+    this._dt = 0.016;
+    this._glide = null; // { from, start }: the ball easing to a new holder
     this._env = null; // the stands/crowd/courtside group (null where InstancedMesh is missing or the build failed)
     this._fov = opts.fov || 50;
     this._disposed = false;
@@ -340,13 +356,18 @@ export class CourtView3D {
       this._env = null;
     }
 
-    const ball = new T.Mesh(
-      new T.SphereGeometry(BALL_RADIUS_M, 20, 14),
-      new T.MeshStandardMaterial({ color: 0xed7a1a, roughness: 0.6 }),
-    );
+    const ballGeo = new T.SphereGeometry(BALL_RADIUS_M * BALL_VISUAL_SCALE, 20, 14);
+    ballGeo.translate?.(0, BALL_RADIUS_M * (BALL_VISUAL_SCALE - 1), 0); // grow upward: a resting ball still touches the floor
+    const ball = new T.Mesh(ballGeo, new T.MeshStandardMaterial({ color: 0xff8a1f, emissive: 0x4a1d00, roughness: 0.55 }));
     ball.visible = false;
     scene.add(ball);
     this._ball = ball;
+    try {
+      this._aids = createBallAids(T, scene);
+    } catch (err) {
+      console.warn("[court3d] ball aids skipped:", err);
+      this._aids = null;
+    }
 
     // Dunk flash (the plan's showDunkFlash no longer exists; the replay
     // keeps the emphasis as a gold flash over the replay container).
@@ -516,7 +537,7 @@ export class CourtView3D {
     const h = this.root?.clientHeight || 0;
     const aspect = w > 0 && h > 0 ? w / h : 16 / 9;
     const dist = fitCameraDistance(aspect, this._fov);
-    this._camera.position.set(dist * 0.94, dist * 0.5, panZ);
+    this._camera.position.set(dist * 0.94 * FRAMING_ZOOM, dist * 0.5 * FRAMING_ZOOM, panZ);
     this._camera.lookAt(0, 0.6, panZ);
   }
 
@@ -539,7 +560,7 @@ export class CourtView3D {
         const fig = this._figures.get(pos.playerId);
         if (fig && fig.pts !== pos.pts) {
           fig.pts = pos.pts;
-          this._drawPlate(fig.plate, pos.short, pos.pts);
+          this._drawPlate(fig.plate, pos.short, pos.pts); // keeps whatever look (full / compact) it has now
         }
       }
       return;
@@ -589,7 +610,7 @@ export class CourtView3D {
     const plate = this._makePlate(pos.short, pos.pts);
     if (plate) group.add(plate.sprite);
     group.position.set(pos.x, 0, pos.z);
-    return { group, body, head, armL, armR, plate, playerId: pos.playerId, pts: pos.pts, pinned: null };
+    return { group, body, head, armL, armR, plate, playerId: pos.playerId, short: pos.short, isOffense: pos.isOffense, pts: pos.pts, pinned: null };
   }
 
   _makePlate(name, pts) {
@@ -603,28 +624,100 @@ export class CourtView3D {
       const sprite = new this.T.Sprite(
         new this.T.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }),
       );
-      sprite.scale.set(2.4, 0.6, 1);
-      sprite.position.y = 2.5;
-      const plate = { sprite, canvas, ctx, texture };
-      this._drawPlate(plate, name, pts);
+      sprite.scale.set(PLATE_WORLD.compact.w, PLATE_WORLD.compact.h, 1);
+      sprite.position.y = PLATE_BASE_Y.compact;
+      const plate = { sprite, canvas, ctx, texture, mode: null };
+      this._drawPlate(plate, name, pts, "compact");
       return plate;
     } catch {
       return null;
     }
   }
 
-  _drawPlate(plate, name, pts) {
+  /** Two looks: `full` (the ball handler / shooter: name + points, bright, big) and `compact` (a short surname, quiet). */
+  _drawPlate(plate, name, pts, mode = plate?.mode || "compact") {
     if (!plate) return;
     const { canvas, ctx, texture } = plate;
+    plate.mode = mode;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(6, 20, 14, 0.72)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 30px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(`${name} · ${pts}`, canvas.width / 2, canvas.height / 2 + 1);
+    if (mode === "full") {
+      ctx.fillStyle = "rgba(255, 211, 77, 0.96)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#14181b";
+      ctx.font = "bold 38px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${name} · ${pts}`, canvas.width / 2, canvas.height / 2 + 1);
+    } else {
+      ctx.fillStyle = "rgba(6, 20, 14, 0.6)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.font = "bold 42px sans-serif"; // big in the canvas: a compact plate is small on screen
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(compactName(name), canvas.width / 2, canvas.height / 2 + 1);
+    }
     if (texture) texture.needsUpdate = true;
+  }
+
+  /** Who the eye should follow: the real ball holder, or the shooter / dunker while the ball is in the air. */
+  _focusId() {
+    return this._shot?.shooterId || this._dunk?.playerId || this._ballOwner || null; // the shot in the air outranks the book-keeping owner
+  }
+
+  /**
+   * Every plate: the focus gets the full look and is never hidden; the rest are compact, and where two would overlap on screen the
+   * less important one steps up above the other or is hidden. Presentation only; skipped where Vector3.project is missing (the test fake).
+   */
+  _updatePlates() {
+    const T = this.T;
+    const W = this.root?.clientWidth || 0;
+    const H = this.root?.clientHeight || 0;
+    if (typeof T.Vector3?.prototype?.project !== "function" || !W || !H || !this._figures.size) return;
+    this._v3 = this._v3 || new T.Vector3();
+    this._camera.updateMatrixWorld?.();
+    const focus = this._focusId();
+    this._plateFocusId = focus; // the focus these plates were drawn for this frame
+    const focusFig = focus ? this._figures.get(focus) : null;
+    const items = [];
+    for (const fig of this._figures.values()) {
+      if (!fig.plate) continue;
+      const isFocus = fig === focusFig;
+      const mode = isFocus ? "full" : "compact";
+      if (fig.plate.mode !== mode) {
+        this._drawPlate(fig.plate, fig.short, fig.pts, mode);
+        const w = PLATE_WORLD[mode];
+        fig.plate.sprite.scale.set(w.w, w.h, 1);
+        fig.plate.sprite.material.depthTest = !isFocus; // the active player's name is never behind a scoreboard or a body
+        fig.plate.sprite.renderOrder = isFocus ? 20 : 5;
+        fig.body.material.emissive?.setHex(isFocus ? 0x3d3d3d : 0x000000);
+      }
+      const p = fig.group.position;
+      const baseY = p.y + PLATE_BASE_Y[mode]; // the plate rides on the figure: a dunker in the air carries his plate up with him
+      this._v3.set(p.x, baseY, p.z).project(this._camera);
+      const sy = (-this._v3.y * 0.5 + 0.5) * H;
+      // How many screen pixels one metre of height is worth HERE: the camera looks down, so it is less than the face-on scale.
+      this._v3.set(p.x, baseY + 1, p.z).project(this._camera);
+      const pxPerMetreUp = Math.max(1e-3, sy - (-this._v3.y * 0.5 + 0.5) * H);
+      this._v3.set(p.x, baseY, p.z).project(this._camera); // back to the plate's own spot
+      const dist = this._camera.position.distanceTo(p);
+      let size = plateScreenSize(PLATE_WORLD[mode].w, PLATE_WORLD[mode].h, dist, this._fov, H);
+      const boost = readableBoost(size.h, PLATE_MIN_PX[mode]); // a plate too small to read is enlarged (a phone shows the whole court in 390 px)
+      if (boost !== 1) size = { ...size, w: size.w * boost, h: size.h * boost };
+      fig.plate.sprite.scale.set(PLATE_WORLD[mode].w * boost, PLATE_WORLD[mode].h * boost, 1);
+      items.push({
+        id: fig.playerId, fig, mode, pxPerMetreUp,
+        x: (this._v3.x * 0.5 + 0.5) * W, y: (-this._v3.y * 0.5 + 0.5) * H, w: size.w, h: size.h,
+        behind: this._v3.z > 1,
+        priority: platePriority({ isFocus, isOffense: !!fig.isOffense, distToFocus: focusFig ? Math.hypot(p.x - focusFig.group.position.x, p.z - focusFig.group.position.z) : Infinity }),
+      });
+    }
+    const placed = placeLabels(items.filter((it) => !it.behind && (it.priority >= 100 || it.h >= PLATE_LEGIBLE_PX)), { gap: 7 }); // a speck is not a name; the gap also absorbs the perspective error of the px->metre nudge
+    for (const it of items) {
+      const res = placed.get(it.id) || { visible: false, dy: 0 };
+      it.fig.plate.sprite.visible = res.visible && !it.behind;
+      it.fig.plate.sprite.position.y = PLATE_BASE_Y[it.mode] + (-res.dy) / it.pxPerMetreUp;
+    }
   }
 
   // ------------------------------------------------------------ interface
@@ -675,7 +768,15 @@ export class CourtView3D {
   }
 
   _setBallOwner(playerId) {
-    this._ballOwner = playerId || null;
+    const next = playerId || null;
+    // Hands changed with no pass drawn (GameSim reported none: an offensive rebound, a loose ball): the ball glides to the new
+    // holder instead of teleporting. Presentation only; it is never written up as a pass.
+    if (next && next !== this._ballOwner && this._ball?.visible) {
+      this._glide = { from: { x: this._ball.position.x, z: this._ball.position.z }, start: this._clock() };
+    } else if (!next) {
+      this._glide = null;
+    }
+    this._ballOwner = next;
     if (this.root && this.root.dataset) this.root.dataset.ballOwner = this._ballOwner || "";
   }
 
@@ -719,7 +820,9 @@ export class CourtView3D {
       out: attackingUp ? 1 : -1,
       settling: false,
       settleStart: 0,
+      shooterId: shot.shooterId,
     };
+    this._aids?.setShot((u) => this._shotPoint(this._shot, u), to);
     this._ballRest = null;
     this._setReplayState("shot");
     return true;
@@ -810,6 +913,11 @@ export class CourtView3D {
       /* already gone */
     }
     try {
+      this._aids?.dispose();
+    } catch {
+      /* aids already gone */
+    }
+    try {
       this._env?.dispose();
     } catch {
       /* arena already gone */
@@ -878,6 +986,7 @@ export class CourtView3D {
       const x = fig.pinned ? fig.pinned.x : pos.x;
       const z = fig.pinned ? fig.pinned.z : pos.z;
       fig.group.position.set(x, 0, z);
+      fig.isOffense = pos.isOffense;
       // Offense faces the attacking rim; defense faces the ball.
       fig.group.rotation.y = pos.isOffense ? (attackingUp ? Math.PI : 0) : attackingUp ? 0 : Math.PI;
       // Push = running swing; set = breathing sway.
@@ -896,9 +1005,15 @@ export class CourtView3D {
     // Camera: fixed sideline TV angle + a very slight lateral drift toward
     // the handler's half (camera and look-target move together, so the
     // framing never rotates).
-    const panZ = handlerPos ? clamp(handlerPos.z * 0.06, -0.9, 0.9) : 0;
-    this._layoutCamera(panZ);
-    this._updateBall(now, attackingUp, handlerPos);
+    // Closer than the whole-court fit, so the camera pans along the court with the ball (eased: a new holder never snaps the view).
+    this._dt = this._lastNow === null ? 0.016 : clamp((now - this._lastNow) / 1000, 0.001, 0.25);
+    this._lastNow = now;
+    const panTarget = handlerPos ? clamp(handlerPos.z * PAN_FOLLOW, -PAN_LIMIT_M, PAN_LIMIT_M) : 0;
+    this._panZ += (panTarget - this._panZ) * (1 - Math.exp(-this._dt * 4));
+    this._layoutCamera(this._panZ);
+    this._updateBall(now, attackingUp, handlerPos); // a dunk moves its dunker here, so plates are laid out after it
+    this._updateAids(now);
+    this._updatePlates();
     this._updateEffects(now);
     this._renderer.render(this._scene, this._camera);
     this._publishStats();
@@ -907,15 +1022,14 @@ export class CourtView3D {
   _updateBall(now, attackingUp, handlerPos) {
     const ball = this._ball;
     if (!ball) return;
+    if (this._shot || this._dunk || this._ballRest || this._pass) this._glide = null;
     if (this._shot) {
       const s = this._shot;
       if (!s.settling) {
         const u = (now - s.start) / SHOT_FLIGHT_MS;
         if (u < 1) {
-          // Quadratic Bézier in the floor plane + a real height arc.
-          const p = this._arcXZ(s.from, s.to, u);
-          const y = lerp(s.from.y, RIM_HEIGHT_M, u) + Math.sin(Math.PI * u) * 1.3;
-          ball.position.set(p.x, y, p.z);
+          const p = this._shotPoint(s, u);
+          ball.position.set(p.x, p.y, p.z);
           ball.visible = true;
           return;
         }
@@ -997,15 +1111,41 @@ export class CourtView3D {
     }
     // Idle: the ball dribbles with the handler.
     if (handlerPos) {
-      ball.position.set(
-        handlerPos.x + 0.35,
-        BALL_RADIUS_M + Math.abs(Math.sin(now * 0.006)) * 0.35,
-        handlerPos.z + 0.3,
-      );
+      let bx = handlerPos.x + 0.35;
+      let bz = handlerPos.z + 0.3;
+      if (this._glide) {
+        const u = clamp((this._clock() - this._glide.start) / BALL_GLIDE_MS, 0, 1);
+        const e = easeOut(u);
+        bx = lerp(this._glide.from.x, bx, e);
+        bz = lerp(this._glide.from.z, bz, e);
+        if (u >= 1) this._glide = null;
+      }
+      ball.position.set(bx, BALL_RADIUS_M + Math.abs(Math.sin(now * 0.006)) * 0.35, bz);
       ball.visible = true;
     } else {
       ball.visible = false;
     }
+  }
+
+  /** One flight formula for the ball AND the path line: a Bézier in the floor plane + a real height arc. */
+  _shotPoint(s, u) {
+    const p = this._arcXZ(s.from, s.to, u);
+    return { x: p.x, y: lerp(s.from.y, RIM_HEIGHT_M, u) + Math.sin(Math.PI * u) * 1.3, z: p.z };
+  }
+
+  /** Focus ring under the holder / shooter, the ball's shadow, the shot path. */
+  _updateAids(now) {
+    if (!this._aids) return;
+    const fig = this._focusId() ? this._figures.get(this._focusId()) : null;
+    const s = this._shot;
+    const shot = s ? (s.settling ? 1 : clamp((now - s.start) / SHOT_FLIGHT_MS, 0, 1)) : null;
+    if (!s) this._aids.clearShot();
+    this._aids.update({
+      now,
+      focus: fig ? { x: fig.group.position.x, z: fig.group.position.z } : null,
+      ball: this._ball ? { x: this._ball.position.x, y: this._ball.position.y, z: this._ball.position.z, visible: this._ball.visible } : null,
+      shot,
+    });
   }
 
   /** Meter-scale quadratic Bézier in the floor plane (arcPoint's shape, with

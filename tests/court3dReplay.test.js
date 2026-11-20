@@ -11,89 +11,20 @@ import {
   rimVec3,
   PUSH_MS,
   PASS_FLIGHT_MS,
+  BALL_GLIDE_MS,
   SHOT_FLIGHT_MS,
   SHOT_SETTLE_MS,
   DUNK_TOTAL_MS,
   RIM_HEIGHT_M,
   MISS_BOUNCE_M,
 } from "../js/engine/court3d.js";
+import { makeContainer, makeEl, clutchSnap } from "./helpers/court3dFixtures.js";
 
 // The 3D view's rAF loop never runs in Node; tests drive tick(now) manually.
 globalThis.requestAnimationFrame = () => 0;
 globalThis.cancelAnimationFrame = () => {};
 
 // ---- element stubs (same shape as tests/courtSimple.test.js) --------------
-
-function makeClassList() {
-  const set = new Set();
-  return {
-    add: (c) => set.add(c),
-    remove: (c) => set.delete(c),
-    toggle: (c, force) => {
-      if (force === undefined) set.has(c) ? set.delete(c) : set.add(c);
-      else if (force) set.add(c);
-      else set.delete(c);
-    },
-    contains: (c) => set.has(c),
-  };
-}
-
-function makeEl() {
-  const children = [];
-  const bySelector = new Map();
-  let html = "";
-  return {
-    tagName: "DIV",
-    className: "",
-    get innerHTML() {
-      return html;
-    },
-    set innerHTML(v) {
-      html = v;
-      if (v === "") children.length = 0;
-    },
-    textContent: "",
-    style: {},
-    children,
-    dataset: {},
-    classList: makeClassList(),
-    appendChild: (child) => {
-      children.push(child);
-      return child;
-    },
-    removeChild: (child) => {
-      const i = children.indexOf(child);
-      if (i >= 0) children.splice(i, 1);
-      return child;
-    },
-    remove: () => {},
-    querySelector: (sel) => {
-      if (!bySelector.has(sel)) {
-        bySelector.set(sel, { textContent: "", classList: makeClassList(), style: {} });
-      }
-      return bySelector.get(sel);
-    },
-    addEventListener: () => {},
-  };
-}
-
-function makeCanvas() {
-  return {
-    width: 0,
-    height: 0,
-    getContext: () => ({
-      clearRect: () => {},
-      fillRect: () => {},
-      fillText: () => {},
-      fillStyle: "",
-      font: "",
-      textAlign: "",
-      textBaseline: "",
-    }),
-  };
-}
-
-globalThis.document = { createElement: (tag) => (tag === "canvas" ? makeCanvas() : makeEl()) };
 
 function makeRoot() {
   const parts = {
@@ -108,13 +39,6 @@ function makeRoot() {
     innerHTML: "",
     _parts: parts,
   };
-}
-
-function makeContainer() {
-  const el = makeEl();
-  el.clientWidth = 800;
-  el.clientHeight = 450;
-  return el;
 }
 
 // ---- fake THREE (records what the view does; renders nothing) -------------
@@ -227,43 +151,6 @@ const FakeThree = {
 };
 
 // ---- fixtures ---------------------------------------------------------------
-
-function player(id, name, pos, pts = 0) {
-  return { id, name, cardName: name, pos, playPos: pos, stats: { pts } };
-}
-
-/** The clutch scenario: 2016 GSW (home, you) vs CLE (away), Q4, 12s, 97–100. */
-function clutchSnap() {
-  return {
-    quarter: 4,
-    clock: 12,
-    score: { home: 97, away: 100 },
-    possession: "home",
-    youSide: "home",
-    home: {
-      name: "勇士",
-      tactic: { id: "balanced", name: "均衡" },
-      onCourt: [
-        player("gsw-curry", "Stephen Curry", "PG", 24),
-        player("gsw-klay", "Klay Thompson", "SG", 18),
-        player("gsw-barnes", "Harrison Barnes", "SF", 9),
-        player("gsw-green", "Draymond Green", "PF", 11),
-        player("gsw-bogut", "Andrew Bogut", "C", 4),
-      ],
-    },
-    away: {
-      name: "骑士",
-      tactic: { id: "balanced", name: "均衡" },
-      onCourt: [
-        player("cle-irving", "Kyrie Irving", "PG", 27),
-        player("cle-smith", "J.R. Smith", "SG", 12),
-        player("cle-james", "LeBron James", "SF", 31),
-        player("cle-love", "Kevin Love", "PF", 15),
-        player("cle-thompson", "Tristan Thompson", "C", 8),
-      ],
-    },
-  };
-}
 
 function deepFreeze(o) {
   if (o && typeof o === "object") {
@@ -548,11 +435,12 @@ test("default rAF/cancelRaf are bound to globalThis (detached Window methods thr
 // ---- S2: the ball follows the real holder ----------------------------------
 
 test("setBallOwner: the ball dribbles beside that player, not the PG slot; null goes back to the PG slot", async () => {
-  const { view, container } = makeView();
+  const { view, container, setNow } = makeView();
   await settle(view, clutchSnap());
   assert.equal(view.setBallOwner("gsw-klay"), true);
   assert.equal(container.dataset.ballOwner, "gsw-klay");
-  view.tick(PUSH_MS + 10);
+  setNow(PUSH_MS + BALL_GLIDE_MS + 10); // the hand-over glide has finished
+  view.tick(PUSH_MS + BALL_GLIDE_MS + 10);
   const klay = view._figures.get("gsw-klay").group.position;
   assert.ok(Math.abs(view._ball.position.x - (klay.x + 0.35)) < 1e-9, "with Klay, not with Curry");
   view.setBallOwner(null);
@@ -560,6 +448,32 @@ test("setBallOwner: the ball dribbles beside that player, not the PG slot; null 
   view.tick(PUSH_MS + 20);
   const curry = view._figures.get("gsw-curry").group.position;
   assert.ok(Math.abs(view._ball.position.x - (curry.x + 0.35)) < 1e-9, "back to the PG slot");
+});
+
+test("a hand-over with no pass drawn glides the ball to the new holder; it never teleports and never lags a holder who is already holding it", async () => {
+  const { view, setNow } = makeView();
+  await settle(view, clutchSnap());
+  setNow(PUSH_MS);
+  view.tick(PUSH_MS);
+  const before = { x: view._ball.position.x, z: view._ball.position.z };
+  view.setBallOwner("gsw-klay"); // e.g. an offensive rebound: GameSim names the rebounder, no pass event
+  const klay = view._figures.get("gsw-klay").group.position;
+  const dist = (p) => Math.hypot(p.x - (klay.x + 0.35), p.z - (klay.z + 0.3)); // he keeps moving: always measure to where he is NOW
+  view.tick(PUSH_MS);
+  assert.ok(Math.abs(view._ball.position.x - before.x) < 1e-6, "right at the hand-over the ball has not jumped");
+  setNow(PUSH_MS + BALL_GLIDE_MS / 2);
+  view.tick(PUSH_MS + BALL_GLIDE_MS / 2);
+  const mid = { x: view._ball.position.x, z: view._ball.position.z };
+  assert.ok(dist(mid) > 1e-3 && dist(mid) < dist(before), "half way: nearer the new holder, not there yet");
+  setNow(PUSH_MS + BALL_GLIDE_MS + 5);
+  view.tick(PUSH_MS + BALL_GLIDE_MS + 5);
+  assert.ok(dist(view._ball.position) < 1e-9, "arrived beside the new holder");
+  // Already holding him: setting the same owner again must not restart a glide.
+  view.setBallOwner("gsw-klay");
+  assert.equal(view._glide, null);
+  // Nobody holds it: no glide.
+  view.setBallOwner(null);
+  assert.equal(view._glide, null);
 });
 
 test("onPass: the ball travels from the passer to the receiver, who then holds it", async () => {

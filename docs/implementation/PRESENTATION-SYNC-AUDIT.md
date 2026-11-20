@@ -68,3 +68,11 @@ several possessions ahead: that is slice S3.
 ## Not changed
 
 GameSim outcomes, its random-number consumption and the 2D court. The feed and scoreboard still paint immediately until S3.
+
+## S4 — broadcast readability (presentation only)
+
+- `js/engine/broadcast/labelLayout.js`: full plate for the ball handler/shooter (never hidden/moved), compact plates for the rest, screen-space overlap placement (nudge up, else hide), min-pixel boost.
+- `js/engine/broadcast/ballAids.js` + `court3d.js`: enlarged ball resting on the floor, focus ring, floor shadow, shot path from the same `_shotPoint()` as the ball, glide on an unobserved handover (no invented pass).
+- Camera framing closer than whole-court fit, eased toward the ball, bounded by `PAN_LIMIT_M`.
+- Evidence: `node scripts/qa/match-3d-readability.mjs` — desktop 207 frames, mobile 305 frames: 0 overlapping plates, exactly one full plate whenever someone has the ball, camera 15.3 m vs fit 19.1 m (desktop), shot path + rim ring visible. A first mobile run found 6/304 one-pixel overlaps (perspective error of the px->metre nudge); fixed with a 7 px gap.
+- Not measured: real-phone FPS.
