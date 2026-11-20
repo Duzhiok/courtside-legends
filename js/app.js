@@ -359,6 +359,8 @@ import {
 } from "./career/careerAchievements.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
+import { chooseAvatarMount } from "./ui/avatarMount.js";
+import { createGate, deferUntil } from "./ui/bootGate.js";
 import { archiveSummaryLine } from "./ui/myWorldView.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
 import { createShop } from "./ui/shopView.js";
@@ -372,6 +374,8 @@ import { createMyTeamClubhouse } from "./ui/myTeamClubhouseScreen.js";
 import { clearMyTeamLineup, saveMyTeamLineup } from "./myteam/lineupStore.js";
 /** My World controller (ADR-008 N-1); created in boot(). `?.` everywhere so early callers are safe. */
 let myWorld = null;
+// Opens when boot finishes (roster loaded). The 2D avatar layers (~700 KB) wait for it so they do not compete with the roster download.
+const bootGate = createGate();
 let myTeamLineup = null;
 let myTeamClubhouse = null;
 let activateHomeTab = null; // set once the home tabs are wired (wireHomeTabs returns it)
@@ -12554,6 +12558,7 @@ async function boot() {
     myWorld = createMyWorld({
       el: $("#my-world-root"),
       getLang,
+      mountAvatar: deferUntil(bootGate, (stage, opts) => chooseAvatarMount()(stage, opts)), // the portrait stays until the figure is allowed to load
       getAccount: activeAccount,
       onPortraitChanged: refreshAccountAvatar,
       readRootSave: () => state.longCareerRoot || readRootSave(),
@@ -12749,6 +12754,7 @@ async function boot() {
     });
     clearPeakPoolCache();
     window.__rosterBootOk = true;
+    bootGate.open();
     $("#load-bar").style.width = "100%";
     $("#load-status").textContent =
       sawCache && !sawBuild

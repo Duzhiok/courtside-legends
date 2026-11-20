@@ -27,6 +27,7 @@ const MBPS = Number(flag("--mbps") || 1.6);
 const RUNS = Number(args.find((a) => /^\d+$/.test(a)) || 3);
 const OUT = flag("--out");
 const H1 = args.includes("--h1");
+const DUMP = args.includes("--dump"); // list every non-script request (what else competes with the app for the link)
 const BEFORE = flag("--compare") ? JSON.parse(readFileSync(flag("--compare"), "utf8")) : null;
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".glb": "model/gltf-binary", ".webp": "image/webp", ".mp3": "audio/mpeg" };
@@ -93,6 +94,7 @@ async function once(browser) {
   }
   const big = [...reqs.values()].filter((r) => r.bytes != null).sort((a, b) => b.bytes - a.bytes).slice(0, 6).map((r) => ({ url: r.url.replace(BASE, ""), kb: Math.round(r.bytes / 1024), endMs: Math.round((r.end - [...reqs.values()][0].start) * 1000) }));
   const t00 = [...reqs.values()][0].start;
+  if (DUMP) for (const r of [...reqs.values()].filter((x) => x.type !== "Script" && x.bytes != null).sort((a, b) => b.bytes - a.bytes).slice(0, 40)) console.log(`  [dump] ${r.type.padEnd(10)} ${String(Math.round(r.bytes / 1024)).padStart(4)}KB  start ${String(Math.round((r.start - t00) * 1000)).padStart(6)}  end ${String(Math.round((r.end - t00) * 1000)).padStart(6)}  ${r.url.replace(BASE, "").slice(0, 90)}`);
   const ms = (x) => Math.round((x - t00) * 1000);
   const scripts = [...reqs.values()].filter((r) => r.type === "Script" && r.end);
   const roster = [...reqs.values()].find((r) => /roster\.json/.test(r.url));
