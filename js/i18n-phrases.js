@@ -294,6 +294,7 @@ export const PHRASES = [
   ["选满 5 人后开打", "Pick 5 to tip off"],
   ["转会市场", "Transfer Market"],
   ["金币", "Gold"],
+  ["挑战预算", "Challenge Budget"],
   ["· 名单", "· roster"],
   ["买卖调整阵容，备战下一轮。左侧球员会列出近几场表现与状态，方便决定卖谁。最多 12 人。", "Buy and sell to reshape the squad for the next round. Your players list recent form and condition to help you decide who goes. Max 12."],
   ["刷新自由市场（¤50）", "Refresh Free Market (¤50)"],
