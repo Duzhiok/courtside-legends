@@ -76,7 +76,7 @@ export function createMatchPresentationView({ view3d, hud = {}, scheduler = null
       } else if ((beat.kind === "score" || beat.kind === "miss") && typeof view3d.onShot === "function") {
         const shot = beat.meta?.shot || {};
         if (shot.shooterId) {
-          view3d.onShot({ shooterId: shot.shooterId, made: beat.kind === "score" || shot.made === true, pts: shot.pts || 0 });
+          view3d.onShot({ shooterId: shot.shooterId, made: beat.kind === "score" || shot.made === true, pts: shot.pts || 0, eventId: beat.eventId });
         }
       } else if (beat.kind === "dunk" && typeof view3d.onDunk === "function") {
         const id = beat.meta?.player?.id;

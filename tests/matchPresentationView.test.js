@@ -52,7 +52,8 @@ test("view: HUD score/clock always equal the beat's GameSim snapshot values", ()
   assert.equal(hud.clock.textContent, "11:46");
   assert.equal(hud.quarter.textContent, "Q1");
   assert.equal(hud.beatLabel.textContent, "Home SG scores");
-  assert.deepEqual(view3d.shots, [{ shooterId: "home-sg", made: true, pts: 2 }]);
+  // the canned feed has no GameSim event numbers, so the event id is null; a live match passes "sim:<seq>"
+  assert.deepEqual(view3d.shots, [{ shooterId: "home-sg", made: true, pts: 2, eventId: null }]);
   const dunkBeat = plays[2].beats.find((b) => b.kind === "dunk");
   view.applyBeat(dunkBeat);
   assert.equal(hud.scoreHome.textContent, "4");

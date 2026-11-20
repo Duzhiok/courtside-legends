@@ -16,8 +16,13 @@ import { choreograph } from "../match/presentation/choreographer.js";
 import { createMatchPresentationView } from "../match/presentation/matchView.js";
 import { VALID_TIME_SCALES } from "../match/presentation/scheduler.js";
 
-/** A derived event of these types closes the previous possession: flush what was buffered. */
-const FLUSH_ON = new Set(["POSSESSION_START", "PERIOD_END", "MATCH_END"]);
+/**
+ * Derived events arrive in causal order: a possession's raw events first, then (from onTick) the POSSESSION_START that announces the
+ * NEXT possession with the snapshot taken after this one. So a start HEADS the group that follows it: drain what was buffered before
+ * it is added. A period/match end closes the group it follows: drain after it is added.
+ */
+const HEADS_A_GROUP = new Set(["POSSESSION_START"]);
+const CLOSES_A_GROUP = new Set(["PERIOD_END", "MATCH_END"]);
 
 const scaleOf = (speed) => (VALID_TIME_SCALES.includes(speed) ? speed : 1);
 
@@ -31,6 +36,7 @@ export function createMatch3dController({
   L = (zh) => zh,
   seed = 0,
   createView3d = (el) => CourtView3D.create(el),
+  clock, // optional: the presentation clock (tests inject a fake one); default performance.now()
   raf = (fn) => globalThis.requestAnimationFrame(fn),
   caf = (id) => globalThis.cancelAnimationFrame(id),
 } = {}) {
@@ -100,7 +106,7 @@ export function createMatch3dController({
     }
     say("", "");
     normalizer.reset();
-    view = createMatchPresentationView({ view3d });
+    view = createMatchPresentationView({ view3d, clock });
     host.hidden = false;
     if (twoD) twoD.hidden = true;
     view3d.resize?.();
@@ -130,11 +136,12 @@ export function createMatch3dController({
   return {
     /** Raw GameSim emit payload (call for every event). Ignored while 3D is off. */
     feedRaw(evt) { if (view) normalizer.feedRaw(evt); },
-    /** Derived domain event ({ type, meta, snapshot }). A possession/period boundary flushes the buffered plays. */
+    /** Derived domain event ({ type, meta, snapshot }). A possession start heads the next group, a period/match end closes the last. */
     feedDerived(evt) {
       if (!view || !evt) return;
+      if (HEADS_A_GROUP.has(evt.type)) flush();
       normalizer.feedDerived(evt);
-      if (FLUSH_ON.has(evt.type)) flush();
+      if (CLOSES_A_GROUP.has(evt.type)) flush();
     },
     /** A new match began: only Gold offers 3D; the player's 2D/3D choice carries over. */
     startMatch({ offer }) {
@@ -146,6 +153,8 @@ export function createMatch3dController({
     /** The match is over / the screen is left: release WebGL and show 2D again. */
     stop() { available = false; disable({ keepWanted: true }); },
     get active() { return !!view; },
+    /** True when 3D has nothing left to play (the scheduler is idle and no play is waiting). For tests and QA to drain. */
+    get idle() { return !view || view.scheduler.isIdle(); },
     enable,
     disable,
   };

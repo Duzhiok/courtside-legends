@@ -192,6 +192,9 @@ export function choreograph(events = [], { seed = 0 } = {}) {
 
     const beat = {
       seq: evt.seq ?? -1,
+      // The GameSim event this beat shows (see normalizer.js): what the feed, the scoreboard and the 3D court all agree on.
+      eventId: evt.eventId ?? null,
+      simSeq: evt.simSeq ?? null,
       kind: evt.kind,
       possessionIndex: play.possessionIndex,
       startMs,

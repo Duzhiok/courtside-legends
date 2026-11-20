@@ -260,6 +260,7 @@ export class GameSim {
       timeoutTier: this.timeoutTier || "balanced",
       _manageCd: this._manageCd || 0,
       _manageLastTo: this._manageLastTo ?? -999,
+      eventSeq: this._eventSeq || 0,
     };
   }
 
@@ -322,6 +323,7 @@ export class GameSim {
     sim.timeoutTier = normalizeTimeoutTier(data.timeoutTier);
     sim._manageCd = data._manageCd || 0;
     sim._manageLastTo = data._manageLastTo ?? -999;
+    sim._eventSeq = data.eventSeq || 0; // older saves have none: event ids restart at 0, which is all they ever had
     sim.injuriesEnabled = !!data.injuriesEnabled;
     sim._timer = null;
     sim._quiet = false;
@@ -2563,9 +2565,16 @@ export class GameSim {
     return skillNameL(name, this.lang);
   }
 
+  /**
+   * Every emitted event carries a monotonic `seq` (0, 1, 2 ... for the whole game, continued across a save/reload). It is the
+   * authoritative identity of an event: the feed, the scoreboard and the 3D presentation all refer to the same `seq`. A counter only:
+   * it consumes no random numbers, and a quiet (fast-sim) game emits nothing, so nothing else about a game changes.
+   */
   emit(type, text, meta = null) {
     if (this._quiet) return;
-    const payload = { type, text, ...this.snapshot() };
+    const seq = this._eventSeq || 0;
+    this._eventSeq = seq + 1;
+    const payload = { type, text, seq, ...this.snapshot() };
     if (meta) payload.meta = meta;
     this.onEvent(payload);
   }
