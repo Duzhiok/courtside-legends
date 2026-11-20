@@ -106,12 +106,14 @@ async function topSpeed() {
   await page.click("#btn-speed");
   await page.click("#btn-speed"); // x3
   const label = await page.$eval("#btn-speed", (b) => b.textContent);
+  check("top speed: speed is actually x3", /x3|最快/.test(label), label);
   const toast = await page.waitForSelector("#match-event-toast [data-event-id]", { timeout: 60000 }).catch(() => null);
   check("top speed: events auto-resolve as an info toast", !!toast, label);
   check("top speed: never shows a decision card", !(await page.$(`#match-event-card ${decisionSel}`)));
-  const s1 = await score(page);
+  // The clock moves every possession; the score can stall in a dry spell, so it is not a running signal.
+  const c1 = await clock(page);
   await page.waitForTimeout(2500);
-  check("top speed: the game keeps running", (await score(page)) !== s1);
+  check("top speed: the game keeps running", (await clock(page)) !== c1, `${c1} -> ${await clock(page)}`);
   await shoot(page, `${OUT}/topspeed-toast.png`);
   check("top speed: no console / page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
   await page.close();
@@ -127,9 +129,10 @@ async function mobile() {
   await shoot(page, `${OUT}/mobile-sheet.png`);
   await page.click('#match-event-sheet [data-act="mev-dismiss"]').catch(async () => page.click('#match-event-sheet [data-choice="ignore"]'));
   await page.waitForFunction(() => !document.querySelector("#match-event-sheet [data-choice]"), null, { timeout: 5000 });
-  const s1 = await score(page);
-  await page.waitForFunction((s) => `${document.querySelector("#score-a")?.textContent}-${document.querySelector("#score-b")?.textContent}` !== s, s1, { timeout: 30000 }).catch(() => {});
-  check("mobile: dismiss = default, game resumes", (await score(page)) !== s1);
+  // The clock moves every possession; the score can stall in a dry spell, so it is not a running signal.
+  const c1 = await clock(page);
+  await page.waitForFunction((c) => `${document.querySelector("#quarter")?.textContent} ${document.querySelector("#game-clock")?.textContent}` !== c, c1, { timeout: 30000 }).catch(() => {});
+  check("mobile: dismiss = default, game resumes", (await clock(page)) !== c1, `${c1} -> ${await clock(page)}`);
   check("mobile: no console / page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
   await page.close();
 }
