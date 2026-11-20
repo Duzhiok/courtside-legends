@@ -46,7 +46,7 @@ export const LEGACY_COST = 10;
 const HISTORY = 12; // recent paid games kept: idempotency window + what the card shows
 
 /** The attributes a specialisation trains, per awakening family (js/data/epiphany.js EPIPHANY_RULES). */
-export const SPECIALTY_ATTRIBUTES = Object.freeze({
+const SPECIALTY_ATTRIBUTES = Object.freeze({
   playmaker: Object.freeze(["pass", "iq"]),
   shooter: Object.freeze(["three"]),
   scorer: Object.freeze(["mid", "scoring"]),

@@ -39,7 +39,7 @@ export function cosmetics(account) {
   return { unlocks, title };
 }
 
-export const ownsUnlock = (account, id) => cosmetics(account).unlocks.includes(id);
+const ownsUnlock = (account, id) => cosmetics(account).unlocks.includes(id);
 
 /** Copy the run's unlocks onto the account (deduped by id). Returns how many were new. Mutates `account`. */
 export function mirrorUnlocksToAccount(account, ids) {

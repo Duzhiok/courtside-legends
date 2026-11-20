@@ -9,7 +9,7 @@
 // paths via seasonLabelOf, st.customNames and st.league.labels, which a crafted save
 // could otherwise poison without touching a team name. Dependency-free on purpose:
 // the engine and the data layer both import it, so it must not pull in career code.
-export const MAX_SAVE_NAME_LENGTH = 60;
+const MAX_SAVE_NAME_LENGTH = 60;
 
 export function isSafeDisplayName(value) {
   return typeof value === "string" && value.length <= MAX_SAVE_NAME_LENGTH && !/[<>]/.test(value);

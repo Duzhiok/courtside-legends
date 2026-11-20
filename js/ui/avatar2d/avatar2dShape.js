@@ -75,7 +75,7 @@ export function rowScale(y, shape = NEUTRAL_SHAPE, A = MALE) {
 }
 
 /** The same for an arm: the shoulders carry it, the waist does not. */
-export const armRowScale = (y, shape = NEUTRAL_SHAPE, A = MALE) => 1 + (shape.shoulders || 0) * window4(y, A.regions.shoulders);
+const armRowScale = (y, shape = NEUTRAL_SHAPE, A = MALE) => 1 + (shape.shoulders || 0) * window4(y, A.regions.shoulders);
 
 /**
  * How one art row is drawn: a list of { sx, sw, dx, dw } (cut `sw` pixels of the source row from `sx`, put them at `dx`, `dw` wide). Pure.
