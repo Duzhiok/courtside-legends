@@ -91,6 +91,25 @@ export function navPop(stack) {
 }
 
 /**
+ * Draw's back target is the collection (STATIC_BACK_TARGETS), but the
+ * collection must re-render after a draw (a pulled card joins it), so the
+ * draw's back control is explicit in js/app.js instead of a plain
+ * goBack(). That explicit jump must still behave like a pop: a plain
+ * show("collection") records a forward navigation and pushes "draw" onto
+ * the trail, so the collection's goBack() returns straight to the draw
+ * and the two screens ping-pong forever when the draw was entered from
+ * home (home -> draw -> collection -> draw -> ...). Consume the return
+ * entry when the trail top is "collection" (entered from the collection:
+ * the return trip is spent); otherwise leave the trail alone, so showing
+ * the collection afterwards (without pushing) still backs to the entry
+ * screen. Mutated in place, also returned.
+ */
+export function resolveDrawBack(stack) {
+  if (stack[stack.length - 1] === "collection") stack.pop();
+  return stack;
+}
+
+/**
  * Result screen's origin-aware back target.
  * - season games -> the season center (wireSeasonResultContinue's home)
  * - career / duel career games -> the market (the hub between rounds)

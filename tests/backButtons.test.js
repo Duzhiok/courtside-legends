@@ -11,6 +11,7 @@ import {
   TRANSIENT_SCREENS,
   navPush,
   navPop,
+  resolveDrawBack,
   resolveResultBack,
 } from "../js/ui/navBack.js";
 import { PHRASES } from "../js/i18n-phrases.js";
@@ -134,6 +135,82 @@ test("navPush: no duplicate consecutive push", () => {
   navPush(stack, "home", "collection");
   navPush(stack, "collection", "draw");
   assert.deepEqual(stack, ["home", "collection"]);
+});
+
+test("resolveDrawBack: drops the collection entry when entered from the collection", () => {
+  assert.deepEqual(resolveDrawBack(["home", "collection"]), ["home"]);
+});
+
+test("resolveDrawBack: leaves the trail alone when entered from elsewhere", () => {
+  assert.deepEqual(resolveDrawBack(["home"]), ["home"]);
+  assert.deepEqual(resolveDrawBack(["home", "account"]), ["home", "account"]);
+  assert.deepEqual(resolveDrawBack([]), []);
+});
+
+test("draw-back deadlock: home -> draw -> collection backs home, never ping-pongs", () => {
+  // Regression (user report 2026-11-20 17:27): the draw's back control
+  // used to be a plain show("collection") — a forward navigation that
+  // pushed "draw" onto the trail, so the collection's goBack() returned
+  // straight to the draw and the two screens ping-ponged forever.
+  // The fixed draw-back consumes the return entry (resolveDrawBack) and
+  // shows the collection without pushing (navPopping in js/app.js).
+  const stack = [];
+  let cur = "home";
+  const fwd = (to) => { navPush(stack, cur, to); cur = to; };
+  const drawBack = () => { resolveDrawBack(stack); cur = "collection"; };
+  const back = () => { cur = navPop(stack) || "home"; };
+  fwd("draw");
+  drawBack();
+  assert.equal(cur, "collection");
+  back();
+  assert.equal(cur, "home");
+  assert.deepEqual(stack, []);
+});
+
+test("draw-back deadlock: collection -> draw -> collection backs home", () => {
+  const stack = [];
+  let cur = "home";
+  const fwd = (to) => { navPush(stack, cur, to); cur = to; };
+  const drawBack = () => { resolveDrawBack(stack); cur = "collection"; };
+  const back = () => { cur = navPop(stack) || "home"; };
+  fwd("collection");
+  fwd("draw");
+  drawBack();
+  assert.equal(cur, "collection");
+  assert.deepEqual(stack, ["home"]);
+  back();
+  assert.equal(cur, "home");
+  assert.deepEqual(stack, []);
+});
+
+test("draw-back (old behavior): plain show() forward-jump ping-pongs draw <-> collection", () => {
+  // Pins the bug the fix removes: with a forward show("collection") as
+  // the draw-back, back presses never reach home.
+  const stack = [];
+  let cur = "home";
+  const fwd = (to) => { navPush(stack, cur, to); cur = to; };
+  const back = () => { cur = navPop(stack) || "home"; };
+  fwd("draw");
+  for (let i = 0; i < 4; i++) {
+    fwd("collection"); // old draw-back: forward show, pushes "draw"
+    back(); // collection-back: goBack pops back to the draw
+    assert.equal(cur, "draw", `press ${i + 1} must still be on the draw (the loop)`);
+  }
+  assert.notEqual(cur, "home");
+});
+
+test("draw-back handler wires resolveDrawBack + navPopping (no forward push)", () => {
+  // The walk tests above pin the algorithm; this pins the actual wiring
+  // in js/app.js, so a revert to the old plain show("collection")
+  // handler fails the suite.
+  const app = readFileSync(join(HERE, "../js/app.js"), "utf8");
+  const at = app.indexOf('$("#btn-draw-back")');
+  assert.notEqual(at, -1, "missing #btn-draw-back wiring in js/app.js");
+  const chunk = app.slice(at, at + 1200);
+  assert.ok(chunk.includes("resolveDrawBack(navStack)"), "draw-back must consume the return entry via resolveDrawBack");
+  assert.ok(chunk.includes("navPopping = true"), "draw-back must show the collection without pushing (navPopping)");
+  assert.ok(chunk.includes('show("collection")'), "draw-back must still land on the collection");
+  assert.ok(chunk.includes("openCollection()"), "draw-back must still re-render the collection");
 });
 
 // ------------------------------------------------------------ result origin

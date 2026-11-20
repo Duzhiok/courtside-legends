@@ -52,7 +52,7 @@ import { createDraftGambleView } from "./ui/scoutingView.js";
 import { createGmBusinessView } from "./ui/gmBusinessView.js";
 import { createNetworkView } from "./ui/networkViews.js";
 import { TL, getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
-import { navPush, navPop, resolveResultBack } from "./ui/navBack.js";
+import { navPush, navPop, resolveDrawBack, resolveResultBack } from "./ui/navBack.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
 import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
@@ -2861,9 +2861,21 @@ $("#btn-open-credits")?.addEventListener("click", openCredits);
 $("#btn-credits-back")?.addEventListener("click", () => goBack());
 $("#btn-draw-back")?.addEventListener("click", () => {
   // Explicit, not goBack(): the collection must re-render after a draw
-  // (a pulled card joins it). Target is the same as the stack would give.
+  // (a pulled card joins it). But it must still behave like a pop: a
+  // plain show("collection") records a forward navigation and pushes
+  // "draw" onto the trail, so the collection's goBack() returns straight
+  // to the draw — a draw <-> collection ping-pong when the draw was
+  // entered from home (or anywhere but the collection). resolveDrawBack
+  // consumes the return entry when there is one; navPopping keeps the
+  // jump itself from pushing a new one.
   refreshAccountHomeBar();
-  show("collection");
+  resolveDrawBack(navStack);
+  navPopping = true;
+  try {
+    show("collection");
+  } finally {
+    navPopping = false;
+  }
   openCollection();
 });
 $("#btn-collection-draw")?.addEventListener("click", () => openDailyDraw());
