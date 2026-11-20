@@ -5574,6 +5574,9 @@ function openMarket({ career = false, duel = false, afterWin = false, refillShop
   const c = state.career;
   const isDuel = duel || c?.kind === "duel";
   $("#bid-panel").hidden = !isDuel;
+  // 双人市场左栏放 A/B 双方阵容：窄屏下左栏恢复桌面占比（css 480px 断点 .market-grid.duel-market）。
+  const marketGrid = $("#screen-market .market-grid");
+  if (marketGrid) marketGrid.classList.toggle("duel-market", isDuel);
   const mScoutPre = $("#market-scout");
   if (mScoutPre && isDuel) mScoutPre.hidden = true;
   // 组合技按整队名单显隐（詹韦须两人同队）

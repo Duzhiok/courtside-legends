@@ -3502,6 +3502,9 @@ select, input[type="number"] {
    改成竖向堆叠，避免头像+文字+按钮挤在一行里挤爆。 —— */
 @media (max-width: 480px) {
   .market-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  /* 双人市场左栏放 A/B 双方阵容（两套名单 + 两条位置条），等分后比生涯单名单更挤——
+     恢复桌面 1.2fr/1fr 的左栏占比；仍是左右两栏，不折单列。 */
+  .market-grid.duel-market { grid-template-columns: 1.2fr 1fr; }
   .roster-box { padding: 6px; min-height: 0; }
   .roster-box h3 { font-size: 0.82rem; }
   .market-right-head { flex-wrap: wrap; gap: 4px; }
