@@ -54,8 +54,11 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   const enabled = await page.$eval("[data-buy-intensive]", (el) => !el.disabled).catch(() => false);
   check(`[${tag}] with 6 fragments and a focus the button is enabled`, enabled);
   await shoot(page, `${OUT}/${tag}-before-buy.png`);
-  await page.click("[data-buy-intensive]");
+  // A double click in the same tick (same stale button handle): the second must not spend again.
+  await page.evaluate(() => { const b = document.querySelector("[data-buy-intensive]"); b.click(); b.click(); });
   await page.waitForTimeout(400);
+  const ledger = await page.evaluate(async () => (await import("/js/data/saveRoot.js")).readRootSave(localStorage).reborn.player.fragments);
+  check(`[${tag}] a double click spends ONCE in the ledger (6 -> 3, never 0)`, ledger.balance === 3 && ledger.intensiveWeek === 1, JSON.stringify(ledger).slice(0, 160));
   check(`[${tag}] buying spends exactly 3`, (await text(page, "[data-fragment-balance]")) === "3", String(await text(page, "[data-fragment-balance]")));
   check(`[${tag}] panel says intensive training is on, no second buy offered`, (await page.$("[data-buy-intensive]")) === null && /×1\.5|x1\.5/.test((await text(page, ".reborn-fragments")) || ""), (await text(page, ".reborn-fragments"))?.slice(0, 100));
   await shoot(page, `${OUT}/${tag}-after-buy.png`);
