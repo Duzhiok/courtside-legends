@@ -12486,12 +12486,17 @@ async function boot() {
     // saveLongCareer). rebornView is a `let` declared before this call
     // because initCareerEntry runs before the view is created.
     let rebornView = null;
+    // Another account's (or the guest's) Reborn run is never shown, played or mirrored into this account.
+    const openRebornGuarded = async () => {
+      if (careerHidden()) return foreignSaveNotice("career", lockReasonFor("career") || "other");
+      return rebornView?.open();
+    };
     let careerInboxView = null;
     let networkView = null;
     initCareerEntry({
       onPlay: (identityId, era, opts) => {
         if (identityId === "player") {
-          rebornView?.open();
+          openRebornGuarded();
           return;
         }
         if (identityId === "coach") {
@@ -12783,7 +12788,7 @@ async function boot() {
     setTimeout(() => show("home"), 200);
     // Player Reborn dev entry: ?reborn=1 opens the slice after boot.
     if (new URLSearchParams(location.search).get("reborn") === "1") {
-      setTimeout(() => { rebornView.open(); }, 250);
+      setTimeout(() => { openRebornGuarded(); }, 250);
     }
     // Career Relationships dev entry (workstream E): ?relationships=1
     // opens the relationships / promises / legacy panel after boot.
@@ -12799,7 +12804,7 @@ async function boot() {
     // Reborn slice — the awakening progress panel lives on its season
     // screen, and a skill fired there lands on the card from the next game.
     if (new URLSearchParams(location.search).get("awakening") === "1") {
-      setTimeout(() => { rebornView.open(); }, 250);
+      setTimeout(() => { openRebornGuarded(); }, 250);
     }
     // GM Executive Dynasty dev entry: ?gm-business=1 opens the business scenario after boot.
     if (new URLSearchParams(location.search).get("gm-business") === "1") {

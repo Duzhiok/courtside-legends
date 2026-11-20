@@ -176,3 +176,17 @@ test("D-P1-1: a stale entry whose slot holds no data is still cleaned up", () =>
   stampLegacySaves({ career: null }, storage);
   assert.equal(owners(storage).career, undefined, "no bytes left: the stale entry goes");
 });
+
+test("a Reborn-only root is owned by whoever started it and hidden from everyone else (QA: account isolation)", () => {
+  const { storage, as } = device("acc-a");
+  const root = { reborn: { seed: "run-1" } }; // no leagueCareer: the Reborn slice's own root
+  assert.equal(careerSig(root), "reborn:run-1");
+  assert.equal(careerSig({}), null);
+  stampLegacySaves({}, storage);
+  recordSaveWrite("career", careerSig(root), storage);
+  assert.equal(saveVisibility("career", careerSig(root), storage), "mine");
+  as("acc-b");
+  assert.equal(saveVisibility("career", careerSig(root), storage), "other");
+  as(null);
+  assert.equal(saveVisibility("career", careerSig(root), storage), "other");
+});

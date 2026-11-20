@@ -147,7 +147,11 @@ const SLOT_KEYS = {
   myteam: "cls_myteam_season_v1",
 };
 
-export const careerSig = (root) => (root?.leagueCareer ? root.story?.storyId || root.leagueCareer.careerId || "career" : null);
+/** A Reborn-only root (no leagueCareer) is still a career save: its run seed is its instance id. */
+export const careerSig = (root) => {
+  if (root?.leagueCareer) return root.story?.storyId || root.leagueCareer.careerId || "career";
+  return root?.reborn ? `reborn:${root.reborn.seed ?? "run"}` : null;
+};
 export const sessionSig = (data) => (data ? "session" : null);
 export const seasonSig = (st) => (st ? "season" : null);
 /** A My Team season is its own instance (ADR-010 T2): its id, not the slot, is what "the same save" means. */
