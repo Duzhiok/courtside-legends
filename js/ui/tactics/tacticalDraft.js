@@ -111,9 +111,11 @@ export function validateDraft(draft, { team, opponent = null } = {}) {
   if (draft.ballAction && !ORDER_ACTION.some((a) => a.id === draft.ballAction)) errors.push("BALL_ACTION_INVALID");
   const d = draft.defense || {};
   if (d.scheme && !DEFENSE_SCHEMES.includes(d.scheme)) errors.push("DEFENSE_SCHEME_INVALID");
-  if (d.scheme && !d.targetId) errors.push("DEFENSE_TARGET_MISSING");
+  // The engine ignores a defensive scheme with no target, or a target who is not on this opponent (a plan kept from last game's opponent):
+  // it plays without it. That is worth telling the player, but it is not a plan the engine "cannot run", and it must never block tip-off.
+  if (d.scheme && !d.targetId) warnings.push("DEFENSE_TARGET_MISSING");
   if (d.defenderId && !ids.has(d.defenderId)) errors.push("DEFENDER_NOT_ON_TEAM");
-  if (opponent?.players && d.targetId && !opponent.players.some((p) => p.id === d.targetId)) errors.push("DEFENSE_TARGET_NOT_ON_OPPONENT");
+  if (opponent?.players && d.targetId && !opponent.players.some((p) => p.id === d.targetId)) warnings.push("DEFENSE_TARGET_NOT_ON_OPPONENT");
   return { errors, warnings };
 }
 

@@ -34,11 +34,23 @@ function actionsHtml(m, lang) {
   return `<div class="tb-actions" role="group" aria-label="${esc(TL(lang, "持球打法", "Ball-handler play"))}">${m.ballActions.map((a) => `<button type="button" class="tb-action${a.selected ? " is-active" : ""}" data-tb="action" data-id="${esc(a.id)}" aria-pressed="${a.selected}">${esc(a.name)}${a.suggested ? ` <small>${esc(TL(lang, "推荐", "Suggested"))}</small>` : ""}</button>`).join("")}</div>`;
 }
 
+/** What each blocking error means to the player. (A missing/stale defense target is only a warning: the engine ignores it.) */
+export const ERROR_TEXT = {
+  STARTERS_INVALID: ["首发必须是 5 名不同的球员", "Pick 5 different starters"],
+  SCHEME_UNKNOWN: ["进攻体系无效", "Unknown offensive system"],
+  TEMPO_INVALID: ["节奏设置无效", "Invalid tempo"],
+  HANDLER_NOT_ON_TEAM: ["持球核心不在本队", "The ball handler is not on your team"],
+  BALL_ACTION_INVALID: ["持球打法无效", "Invalid ball-handler play"],
+  DEFENSE_SCHEME_INVALID: ["防守方案无效", "Invalid defensive scheme"],
+  DEFENDER_NOT_ON_TEAM: ["指定的防守人不在本队", "The chosen defender is not on your team"],
+};
+const reasonsText = (errors, lang) => errors.map((c) => (ERROR_TEXT[c] ? TL(lang, ...ERROR_TEXT[c]) : c)).join(TL(lang, "；", "; "));
+
 export function renderTacticsBoardHtml(m, lang = "zh") {
   const rows = m.rows.map((r) => `<li class="tb-row"><span class="tb-row-label">${esc(r.label)}</span><strong>${esc(r.value)}</strong>${tagHtml(r.tag, lang)}</li>`).join("");
   const coach = m.coach ? `<p class="tb-coach">${esc(TL(lang, "主教练", "Head coach"))}: <strong>${esc(m.coach.name)}</strong></p>` : "";
   const status = m.errors.length
-    ? `<p class="tb-status is-error" role="alert">${esc(TL(lang, "当前方案无法执行，请检查首发与设置。", "This plan cannot run — check the starters and settings."))}</p>`
+    ? `<p class="tb-status is-error" role="alert">${esc(TL(lang, "当前方案无法执行：", "This plan cannot run: "))}${esc(reasonsText(m.errors, lang))}</p>`
     : m.dirty ? `<p class="tb-status" role="status">${esc(TL(lang, "有未应用的修改", "Unapplied changes"))}</p>` : "";
   return `<section class="tb" aria-label="${esc(TL(lang, "赛前战术", "Game plan"))}">
     <div class="tb-main">${courtHtml(m, lang)}${actionsHtml(m, lang)}</div>

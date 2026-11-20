@@ -91,7 +91,10 @@ test("validation: engine-impossible plans are errors, poor-but-legal plans are o
   assert.deepEqual(bad({ ballHandlerId: "ghost" }), ["HANDLER_NOT_ON_TEAM"]);
   assert.deepEqual(bad({ ballAction: "dunk" }), ["BALL_ACTION_INVALID"]);
   assert.deepEqual(bad({ defense: { ...ok.defense, scheme: "zone", targetId: "x" } }), ["DEFENSE_SCHEME_INVALID"]);
-  assert.deepEqual(bad({ defense: { ...ok.defense, scheme: "focus", targetId: null } }), ["DEFENSE_TARGET_MISSING"]);
+  // a defensive scheme with no target is something the engine simply ignores: a warning, never an error
+  const noTarget = validateDraft({ ...ok, defense: { ...ok.defense, scheme: "focus", targetId: null } }, { team });
+  assert.deepEqual(noTarget.errors, []);
+  assert.deepEqual(noTarget.warnings, ["DEFENSE_TARGET_MISSING"]);
   const bench = team.players[8].id;
   const warn = validateDraft({ ...ok, ballHandlerId: bench }, { team });
   assert.deepEqual(warn.errors, []);
@@ -104,7 +107,9 @@ test("a defense target must exist on the opponent when the opponent is known", (
   const d = { ...createDraft(team), defense: { scheme: "double", targetId: opp.players[0].id, defenderId: null, assignments: {} } };
   assert.deepEqual(validateDraft(d, { team, opponent: opp }).errors, []);
   const lost = { ...d, defense: { ...d.defense, targetId: team.players[0].id } };
-  assert.deepEqual(validateDraft(lost, { team, opponent: opp }).errors, ["DEFENSE_TARGET_NOT_ON_OPPONENT"]);
+  const stale = validateDraft(lost, { team, opponent: opp });
+  assert.deepEqual(stale.errors, [], "a target kept from last game's opponent must not block this game");
+  assert.deepEqual(stale.warnings, ["DEFENSE_TARGET_NOT_ON_OPPONENT"]);
   assert.deepEqual(DEFENSE_SCHEMES, ["focus", "double", "bump"]);
 });
 
@@ -167,6 +172,18 @@ test("GameSim actually runs the applied plan (tempo + ball handler reach the mat
   assert.equal(sim.you().gameplan.tempo, "push");
   assert.equal(sim.you().gameplan.offenseFocusId, handler);
   assert.deepEqual(sim.you().starterIds ?? team.starterIds, team.starterIds);
+});
+
+test("the engine really does tolerate a missing or stale defense target: the game runs and the plan simply never fires", () => {
+  for (const stale of [null, "nobody-with-this-id"]) {
+    const team = makeTeam();
+    team.gameplan = { ...(team.gameplan || {}), matchup: { defenderId: null, targetId: stale, scheme: "double", assignments: {} } };
+    const away = makeTeam(12);
+    const sim = new GameSim({ home: team, away, youSide: "home", onEvent() {}, onTick() {}, onEnd() {} });
+    assert.doesNotThrow(() => { for (let i = 0; i < 12; i++) sim.step(); });
+    // The engine keeps the plan as given, but every use of it is `targetId === the ball handler's id`: a stale target matches nobody.
+    assert.equal(away.players.some((p) => p.id === sim.defensePlan?.targetId), false, "the target is nobody on this opponent, so the scheme never fires");
+  }
 });
 
 test("previews never write: running the reducer and validation leaves the team byte-identical", () => {

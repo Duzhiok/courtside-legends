@@ -9,7 +9,7 @@ import { lineupFit } from "../js/engine/chemistry.js";
 import { TACTICS } from "../js/data/coaches.js";
 import { createEditorState, isDirty, tacticalDraftReducer as reduce } from "../js/ui/tactics/tacticalDraft.js";
 import { buildTacticsBoardModel } from "../js/ui/tactics/tacticsBoardModel.js";
-import { renderTacticsBoardHtml, mountTacticsBoard } from "../js/ui/tactics/tacticsBoardView.js";
+import { renderTacticsBoardHtml, mountTacticsBoard, ERROR_TEXT } from "../js/ui/tactics/tacticsBoardView.js";
 
 const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 buildCareerSpanIndex(rows);
@@ -121,4 +121,23 @@ test("court places starters with the same position rule as the setup roster (wid
   assert.equal(Object.keys(slotOf).length, 5, "all five are placed");
   assert.equal(slotOf[five[0].id], "SG", "G reads as SG, exactly as the roster list does");
   assert.equal(slotOf[five[4].id], "C");
+});
+
+test("a blocked plan says WHY, in plain words, in both languages; a stale defense target is only a warning and shows no error", () => {
+  const team = makeTeam();
+  const opp = makeTeam(12);
+  const modelFor = (patch, lang) => {
+    const state = createEditorState(team);
+    return buildTacticsBoardModel({ team, draft: { ...state.draft, ...patch }, opponent: opp, lang, dirty: true });
+  };
+  const fourStarters = { starterIds: team.starterIds.slice(0, 4) };
+  assert.match(renderTacticsBoardHtml(modelFor(fourStarters, "zh"), "zh"), /当前方案无法执行：首发必须是 5 名不同的球员/);
+  assert.match(renderTacticsBoardHtml(modelFor({ ...fourStarters, tempo: "warp" }, "en"), "en"), /This plan cannot run: Pick 5 different starters; Invalid tempo/);
+  // last game's defense target is not on this opponent: engine ignores it, so the player is NOT told the plan cannot run
+  const stale = modelFor({ defense: { scheme: "double", targetId: team.players[0].id, defenderId: null, assignments: {} } }, "zh");
+  assert.deepEqual(stale.errors, []);
+  assert.doesNotMatch(renderTacticsBoardHtml(stale, "zh"), /无法执行/);
+  for (const code of ["STARTERS_INVALID", "SCHEME_UNKNOWN", "TEMPO_INVALID", "HANDLER_NOT_ON_TEAM", "BALL_ACTION_INVALID", "DEFENSE_SCHEME_INVALID", "DEFENDER_NOT_ON_TEAM"]) {
+    assert.ok(ERROR_TEXT[code]?.[0] && ERROR_TEXT[code]?.[1], `${code} has zh and en text`);
+  }
 });
