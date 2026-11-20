@@ -36,6 +36,7 @@ test("isSafeDisplayName: plain and 60-char names pass; markup, overlong and non-
   assert.equal(isSafeDisplayName("a".repeat(61)), false);
   assert.equal(isSafeDisplayName(EVIL), false);
   assert.equal(isSafeDisplayName("a>b"), false);
+  assert.equal(isSafeDisplayName("a<b"), false); // "<" single side (02:55 verification note: EVIL pins both together only)
   assert.equal(isSafeDisplayName(42), false);
   assert.equal(isSafeDisplayName(null), false);
 });
