@@ -16,6 +16,7 @@
  *   once coach trust reaches REVEAL_TRUST. A fictional identity is yours
  *   from the start, so it is revealed immediately.
  */
+import { completeProspectCard } from "../data/prospectCard.js";
 import { hashSeed, seededStream } from "../core/seededRandom.js";
 import { rookieClassForYear } from "../engine/leagueDraft.js";
 import { seasonToCard } from "../data/players.js";
@@ -232,7 +233,8 @@ export function buildPlayerCard(identity, players, { growth = {}, season = REBOR
   } else {
     const generated = identity.generated;
     if (!generated) throw new Error("buildPlayerCard: fictional identity has no generated prospect");
-    card = { ...generated, team: identity.team };
+    // A generated prospect is rating-only; the engine needs shooting percentages (see prospectCard.js).
+    card = completeProspectCard({ ...generated, team: identity.team });
   }
   const deltas = growth?.[identity.bref]?.deltas || {};
   for (const [attribute, delta] of Object.entries(deltas)) {
