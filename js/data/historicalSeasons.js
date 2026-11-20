@@ -8247,7 +8247,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 15,
         "stars": [
-          "Pau Gasol Saez(17.6)",
+          "Pau Gasol(17.6)",
           "Jason Williams(14.8)",
           "Shane Battier(14.4)"
         ]
@@ -8510,7 +8510,7 @@ const HISTORICAL_SEASONS = {
         "n": 17,
         "stars": [
           "Juwan Howard(18.4)",
-          "Nene Nene(10.5)",
+          "Nenê(10.5)",
           "Chris Whitney(9.6)"
         ]
       },
@@ -8593,7 +8593,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 14,
         "stars": [
-          "Pau Gasol Saez(19.0)",
+          "Pau Gasol(19.0)",
           "Jason Williams(12.1)",
           "Drew Gooden(12.1)"
         ]
@@ -8703,7 +8703,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Stephon Marbury(22.3)",
           "Shawn Marion(21.2)",
-          "Amare Stoudemire(13.5)"
+          "Amar'e Stoudemire(13.5)"
         ]
       },
       {
@@ -8951,7 +8951,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 14,
         "stars": [
-          "Pau Gasol Saez(17.7)",
+          "Pau Gasol(17.7)",
           "James Posey(13.7)",
           "Bonzi Wells(12.3)"
         ]
@@ -9059,7 +9059,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 12,
         "stars": [
-          "Amare Stoudemire(20.6)",
+          "Amar'e Stoudemire(20.6)",
           "Shawn Marion(19.0)",
           "Joe Johnson(16.7)"
         ]
@@ -9097,7 +9097,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Tim Duncan(22.3)",
           "Tony Parker(14.7)",
-          "Manu Ginobili(12.8)"
+          "Manu Ginóbili(12.8)"
         ]
       },
       {
@@ -9321,7 +9321,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 15,
         "stars": [
-          "Pau Gasol Saez(17.8)",
+          "Pau Gasol(17.8)",
           "Mike Miller(13.4)",
           "Bonzi Wells(10.4)"
         ]
@@ -9407,7 +9407,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Steve Francis(21.3)",
           "Grant Hill(19.7)",
-          "Hedo Turkoglu(14.0)"
+          "Hedo Türkoğlu(14.0)"
         ]
       },
       {
@@ -9429,7 +9429,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 11,
         "stars": [
-          "Amare Stoudemire(26.0)",
+          "Amar'e Stoudemire(26.0)",
           "Shawn Marion(19.4)",
           "Joe Johnson(17.1)"
         ]
@@ -9467,7 +9467,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Tim Duncan(20.3)",
           "Tony Parker(16.6)",
-          "Manu Ginobili(16.0)"
+          "Manu Ginóbili(16.0)"
         ]
       },
       {
@@ -9479,7 +9479,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Ray Allen(23.9)",
           "Rashard Lewis(20.5)",
-          "Vladimir Radmanovic(11.8)"
+          "Vladimir Radmanović(11.8)"
         ]
       },
       {
@@ -9691,7 +9691,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 15,
         "stars": [
-          "Pau Gasol Saez(20.4)",
+          "Pau Gasol(20.4)",
           "Mike Miller(13.7)",
           "Eddie Jones(11.8)"
         ]
@@ -9837,7 +9837,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Tony Parker(18.9)",
           "Tim Duncan(18.6)",
-          "Manu Ginobili(15.1)"
+          "Manu Ginóbili(15.1)"
         ]
       },
       {
@@ -10061,7 +10061,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 15,
         "stars": [
-          "Pau Gasol Saez(20.8)",
+          "Pau Gasol(20.8)",
           "Mike Miller(18.5)",
           "Chucky Atkins(13.2)"
         ]
@@ -10086,7 +10086,7 @@ const HISTORICAL_SEASONS = {
         "n": 16,
         "stars": [
           "Michael Redd(26.7)",
-          "Maurice Williams(17.3)",
+          "Mo Williams(17.3)",
           "Ruben Patterson(14.7)"
         ]
       },
@@ -10147,7 +10147,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Dwight Howard(17.6)",
           "Grant Hill(14.4)",
-          "Hedo Turkoglu(13.3)"
+          "Hedo Türkoğlu(13.3)"
         ]
       },
       {
@@ -10169,7 +10169,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 13,
         "stars": [
-          "Amare Stoudemire(20.4)",
+          "Amar'e Stoudemire(20.4)",
           "Steve Nash(18.6)",
           "Leandro Barbosa(18.1)"
         ]
@@ -10207,7 +10207,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Tim Duncan(20.0)",
           "Tony Parker(18.6)",
-          "Manu Ginobili(16.5)"
+          "Manu Ginóbili(16.5)"
         ]
       },
       {
@@ -10301,7 +10301,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Ben Gordon(18.6)",
           "Luol Deng(17.0)",
-          "Andres Nocioni(13.2)"
+          "Andrés Nocioni(13.2)"
         ]
       },
       {
@@ -10432,7 +10432,7 @@ const HISTORICAL_SEASONS = {
         "n": 14,
         "stars": [
           "Rudy Gay(20.1)",
-          "Pau Gasol Saez(18.9)",
+          "Pau Gasol(18.9)",
           "Mike Miller(16.4)"
         ]
       },
@@ -10456,7 +10456,7 @@ const HISTORICAL_SEASONS = {
         "n": 14,
         "stars": [
           "Michael Redd(22.7)",
-          "Maurice Williams(17.2)",
+          "Mo Williams(17.2)",
           "Andrew Bogut(14.3)"
         ]
       },
@@ -10516,7 +10516,7 @@ const HISTORICAL_SEASONS = {
         "n": 14,
         "stars": [
           "Dwight Howard(20.7)",
-          "Hedo Turkoglu(19.5)",
+          "Hedo Türkoğlu(19.5)",
           "Rashard Lewis(18.2)"
         ]
       },
@@ -10539,7 +10539,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 15,
         "stars": [
-          "Amare Stoudemire(25.2)",
+          "Amar'e Stoudemire(25.2)",
           "Steve Nash(16.9)",
           "Shawn Marion(15.8)"
         ]
@@ -10575,7 +10575,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 15,
         "stars": [
-          "Manu Ginobili(19.5)",
+          "Manu Ginóbili(19.5)",
           "Tim Duncan(19.3)",
           "Tony Parker(18.8)"
         ]
@@ -10682,7 +10682,7 @@ const HISTORICAL_SEASONS = {
         "n": 18,
         "stars": [
           "Gerald Wallace(16.6)",
-          "Boris Diaw-Riffiod(15.1)",
+          "Boris Diaw(15.1)",
           "Raymond Felton(14.2)"
         ]
       },
@@ -10694,7 +10694,7 @@ const HISTORICAL_SEASONS = {
         "n": 14,
         "stars": [
           "LeBron James(28.4)",
-          "Maurice Williams(17.8)",
+          "Mo Williams(17.8)",
           "Zydrunas Ilgauskas(12.9)"
         ]
       },
@@ -10790,7 +10790,7 @@ const HISTORICAL_SEASONS = {
         "n": 14,
         "stars": [
           "Kobe Bryant(26.8)",
-          "Pau Gasol Saez(18.9)",
+          "Pau Gasol(18.9)",
           "Andrew Bynum(14.3)"
         ]
       },
@@ -10803,7 +10803,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Rudy Gay(18.9)",
           "O.J. Mayo(18.5)",
-          "Marc Gasol Saez(11.9)"
+          "Marc Gasol(11.9)"
         ]
       },
       {
@@ -10899,7 +10899,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Dwight Howard(20.6)",
           "Rashard Lewis(17.7)",
-          "Hedo Turkoglu(16.8)"
+          "Hedo Türkoğlu(16.8)"
         ]
       },
       {
@@ -10921,7 +10921,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 13,
         "stars": [
-          "Amare Stoudemire(21.4)",
+          "Amar'e Stoudemire(21.4)",
           "Shaquille O'Neal(17.8)",
           "Jason Richardson(16.4)"
         ]
@@ -10947,7 +10947,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Kevin Martin(24.6)",
           "John Salmons(18.3)",
-          "Francisco Garcia(12.7)"
+          "Francisco García(12.7)"
         ]
       },
       {
@@ -10959,7 +10959,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Tony Parker(22.0)",
           "Tim Duncan(19.3)",
-          "Manu Ginobili(15.5)"
+          "Manu Ginóbili(15.5)"
         ]
       },
       {
@@ -11064,7 +11064,7 @@ const HISTORICAL_SEASONS = {
         "n": 15,
         "stars": [
           "LeBron James(29.7)",
-          "Maurice Williams(15.8)",
+          "Mo Williams(15.8)",
           "Shaquille O'Neal(12.0)"
         ]
       },
@@ -11125,7 +11125,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Kevin Martin(21.2)",
           "Aaron Brooks(19.6)",
-          "Luis Scola Balvoa(16.2)"
+          "Luis Scola(16.2)"
         ]
       },
       {
@@ -11160,7 +11160,7 @@ const HISTORICAL_SEASONS = {
         "n": 13,
         "stars": [
           "Kobe Bryant(27.0)",
-          "Pau Gasol Saez(18.3)",
+          "Pau Gasol(18.3)",
           "Andrew Bynum(15.0)"
         ]
       },
@@ -11280,7 +11280,7 @@ const HISTORICAL_SEASONS = {
         "n": 13,
         "stars": [
           "Andre Iguodala(17.1)",
-          "Louis Williams(14.0)",
+          "Lou Williams(14.0)",
           "Allen Iverson(13.9)"
         ]
       },
@@ -11291,7 +11291,7 @@ const HISTORICAL_SEASONS = {
         "conf": "West",
         "n": 14,
         "stars": [
-          "Amare Stoudemire(23.1)",
+          "Amar'e Stoudemire(23.1)",
           "Steve Nash(16.5)",
           "Jason Richardson(15.7)"
         ]
@@ -11328,7 +11328,7 @@ const HISTORICAL_SEASONS = {
         "n": 15,
         "stars": [
           "Tim Duncan(17.9)",
-          "Manu Ginobili(16.5)",
+          "Manu Ginóbili(16.5)",
           "Tony Parker(16.0)"
         ]
       },
@@ -11387,7 +11387,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Joe Johnson(18.2)",
           "Josh Smith(16.5)",
-          "Al Horford Reynoso(15.3)"
+          "Al Horford(15.3)"
         ]
       },
       {
@@ -11459,7 +11459,7 @@ const HISTORICAL_SEASONS = {
         "stars": [
           "Carmelo Anthony(25.2)",
           "Chauncey Billups(16.5)",
-          "Nene Nene(14.5)"
+          "Nenê(14.5)"
         ]
       },
       {
@@ -11494,7 +11494,7 @@ const HISTORICAL_SEASONS = {
         "n": 13,
         "stars": [
           "Kevin Martin(23.4)",
-          "Luis Scola Balvoa(18.3)",
+          "Luis Scola(18.3)",
           "Kyle Lowry(13.5)"
         ]
       },
@@ -11530,7 +11530,7 @@ const HISTORICAL_SEASONS = {
         "n": 14,
         "stars": [
           "Kobe Bryant(25.3)",
-          "Pau Gasol Saez(18.8)",
+          "Pau Gasol(18.8)",
           "Lamar Odom(14.4)"
         ]
       },
@@ -11613,7 +11613,7 @@ const HISTORICAL_SEASONS = {
         "conf": "East",
         "n": 15,
         "stars": [
-          "Amare Stoudemire(25.3)",
+          "Amar'e Stoudemire(25.3)",
           "Raymond Felton(17.1)",
           "Wilson Chandler(16.4)"
         ]
@@ -11698,7 +11698,7 @@ const HISTORICAL_SEASONS = {
         "n": 15,
         "stars": [
           "Tony Parker(17.5)",
-          "Manu Ginobili(17.4)",
+          "Manu Ginóbili(17.4)",
           "Tim Duncan(13.4)"
         ]
       },
@@ -11765,7 +11765,7 @@ const HISTORICAL_SEASONS = {
         "bref": "BOS",
         "name": "凯尔特人",
         "conf": "East",
-        "n": 16,
+        "n": 15,
         "stars": [
           "Paul Pierce(19.4)",
           "Kevin Garnett(15.8)",
@@ -11933,7 +11933,7 @@ const HISTORICAL_SEASONS = {
         "bref": "MIL",
         "name": "雄鹿",
         "conf": "East",
-        "n": 15,
+        "n": 14,
         "stars": [
           "Brandon Jennings(19.1)",
           "Drew Gooden(13.7)",
@@ -12065,11 +12065,11 @@ const HISTORICAL_SEASONS = {
         "bref": "SAS",
         "name": "马刺",
         "conf": "West",
-        "n": 14,
+        "n": 13,
         "stars": [
           "Tony Parker(18.3)",
           "Tim Duncan(15.4)",
-          "Manu Ginobili(12.9)"
+          "Manu Ginóbili(12.9)"
         ]
       },
       {
@@ -12077,7 +12077,7 @@ const HISTORICAL_SEASONS = {
         "bref": "TOR",
         "name": "猛龙",
         "conf": "East",
-        "n": 16,
+        "n": 15,
         "stars": [
           "Andrea Bargnani(19.5)",
           "DeMar DeRozan(16.7)",
