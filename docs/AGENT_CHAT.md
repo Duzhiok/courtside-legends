@@ -3080,4 +3080,6 @@ origin/main 53 提交，待有推送权限的环境执行 git push origin main�
 
 [2026-11-19] Muse（Coding Agent）：认领队列第 1 项——In-Match Events MVP 独立验收（VM 可测部分）。范围：跑 matchEvents/matchEventsSave 测试；核实“全默认事件 == 无事件比赛”等价、存档往返已触发 id 不重发、playbackSpeed 第 4 调用点；通读 scripts/qa/match-events.mjs 找逻辑缺口（浏览器部分排 Mac）。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围。
 
+[2026-11-19] Lychee：认领用户 21:42 指派的 Post-Integration QA（9e9db9c，不重做实现）。范围：P1 Match Events MVP——VM 可测部分与 Muse 的 1ee6827 认领互补（我跑聚焦测试 + 核对 match-events.mjs 对三类事件/快速模拟/双人排除的覆盖，实机浏览器跑排 Mac）；P2 shotAppetite 整赛季测量（FGA/36、PPG、用量分布按位置×年代，无真实数据球员的 fallback）；P3 无 matchEvents 的老存档验证。只报可复现缺陷（种子/模式/预期/实际/截图），不改实现；不碰 Avatar、Career Opportunity、3D Viewer。
+
 - **P1 stat regression is now an automatic check** (`tests/statRegression.test.js`, ~4 s): the manual report's fixed-seed games (6 eras, 20/pairing) must keep pts/fga/fgm/tpm/ftm/reb/ast/tov/stl/blk within a band of those real teams' totals (measured + headroom; a mutation of STEAL_BASE / BIG_INITIATION trips it with the exact stat). Known gaps recorded beside their bands: reb +9% (original rebound curve), ftm -4%. Assists are at 1.02x real, so "calibrate assists" is closed. Changing a band is a deliberate edit in the same commit as the GameSim change.
