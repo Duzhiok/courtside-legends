@@ -36,7 +36,7 @@
         btn.onclick = function () {
           try {
             localStorage.removeItem("courtside-roster-cache-key");
-          } catch (err) {}
+          } catch {}
           location.reload(true);
         };
     }

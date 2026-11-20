@@ -1,0 +1,35 @@
+// B61 step 4: the market card builders moved out of app.js. The data-* hooks are the contract app.js's click delegation relies on.
+import test from "node:test";
+import assert from "node:assert/strict";
+import { marketFormBlock, marketOwnedCard, playerMarketCardHtml, posSelectHtml } from "../js/ui/marketCards.js";
+import { realTeam } from "./helpers/realGame.js";
+
+const p = realTeam("CHI", 1996).players[0];
+
+test("shop card: affordable -> buy button, over budget -> disabled with the shortfall; duel -> bid button", () => {
+  const ctx = { team: { players: [], coach: null } };
+  const rich = playerMarketCardHtml(p, ctx, { budget: 1e9 });
+  assert.ok(rich.includes(`data-buy="${p.id}"`) && !rich.includes("disabled") && !rich.includes("unaffordable"));
+  const poor = playerMarketCardHtml(p, ctx, { budget: 0 });
+  assert.ok(poor.includes("unaffordable") && /data-buy="[^"]+"\s+disabled/.test(poor) && poor.includes("超出预算"));
+  const duel = playerMarketCardHtml(p, ctx, { duel: true, budget: 1e9 });
+  assert.ok(duel.includes(`data-bid="${p.id}"`) && !duel.includes("data-buy="));
+});
+
+test("owned card: draggable, side kept, sell button only when selling is allowed, sale price shown", () => {
+  const sellable = marketOwnedCard(p, true, "A");
+  assert.ok(sellable.includes(`data-drag-id="${p.id}"`) && sellable.includes('data-side="A"'));
+  assert.ok(sellable.includes(`data-sell="${p.id}"`) && sellable.includes("market-pos-select"));
+  assert.ok(!marketOwnedCard(p, false).includes("data-sell="));
+});
+
+test("form block: no games and no card line -> the honest empty line; a card season is shown", () => {
+  assert.ok(marketFormBlock({}).includes("暂无近况"));
+  assert.ok(marketFormBlock({ raw: { ppg: 25.1, rpg: 5, apg: 3.2 } }).includes("卡面赛季 25.1分"));
+});
+
+test("position select marks the natural position and the chosen one, and escapes nothing it should not", () => {
+  const html = posSelectHtml({ id: "x1", pos: "SF", playPos: "PF" });
+  assert.ok(html.includes('data-id="x1"') && /<option value="PF" selected>/.test(html) && html.includes("SF·本职"));
+  assert.ok(posSelectHtml({ id: "x1", pos: "SF" }, { disabled: true }).includes("disabled"));
+});
