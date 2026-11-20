@@ -130,3 +130,12 @@ test("R7: personal training is the Player career's own play — a coach or GM ro
   // no root: the Classic GM+Coach holds everything, as before
   assert.doesNotThrow(() => chooseFocus(reborn, "shooting", 1));
 });
+
+test("describeGrowth: an entry with no name never prints the word undefined (the game report passes none)", () => {
+  for (const lang of ["zh", "en"]) {
+    const [line] = describeGrowth([{ xp: 19, leveled: [] }], lang);
+    assert.ok(line.includes("19"));
+    assert.ok(!line.includes("undefined"), line);
+  }
+  assert.ok(describeGrowth([{ xp: 5, name: "Rival", leveled: [] }], "en")[0].includes("(Rival)"));
+});

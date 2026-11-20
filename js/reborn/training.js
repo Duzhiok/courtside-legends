@@ -122,8 +122,8 @@ export function describeGrowth(entries, lang = "zh") {
     if (!entry.leveled?.length && entry.xp > 0) {
       lines.push(
         zh
-          ? `训练经验 +${entry.xp}（${entry.name}）`
-          : `Training XP +${entry.xp} (${entry.name})`,
+          ? `训练经验 +${entry.xp}${entry.name ? `（${entry.name}）` : ""}`
+          : `Training XP +${entry.xp}${entry.name ? ` (${entry.name})` : ""}`,
       );
     }
   }
