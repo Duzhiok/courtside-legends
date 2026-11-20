@@ -16,7 +16,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  INTENSIVE_COST,
   LEGACY_COST,
   buyIntensive,
   buyLegacyJersey,

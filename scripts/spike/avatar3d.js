@@ -1,3 +1,4 @@
+/* global document, location, window -- this file runs in the browser page (external module for avatar3d.html), not Node */
 // Avatar 3D spike page logic (moved verbatim out of scripts/spike/avatar3d.html
 // as S-P2-5 step 2, so the page carries no inline <script>). The import path
 // is unchanged: this file lives in the same directory as the page.
