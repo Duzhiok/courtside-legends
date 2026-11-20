@@ -27,7 +27,7 @@ const rebornActive = (page) =>
 async function waitForGameSettled(page, timeoutMs = 60000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    if (await visible(page, ".reborn-takeover-overlay")) {
+    if (await visible(page, ".reborn-takeover-dialog")) {
       await page.click('.reborn-takeover-option[data-option="pass"]');
     }
     if (await visible(page, ".reborn-report")) return true;
@@ -40,7 +40,7 @@ async function waitForGameSettled(page, timeoutMs = 60000) {
 async function waitForFastForward(page, timeoutMs = 120000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    if (await visible(page, ".reborn-takeover-overlay")) {
+    if (await visible(page, ".reborn-takeover-dialog")) {
       await page.click('.reborn-takeover-option[data-option="pass"]');
     }
     if (await visible(page, ".reborn-ff")) return true;

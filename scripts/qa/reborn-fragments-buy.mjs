@@ -71,7 +71,7 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   const started = Date.now();
   let settled = false;
   while (Date.now() - started < 60000 && !settled) {
-    if (await visible(page, ".reborn-takeover-overlay")) await page.click('.reborn-takeover-option[data-option="pass"]');
+    if (await visible(page, ".reborn-takeover-dialog")) await page.click('.reborn-takeover-option[data-option="pass"]');
     settled = (await page.$(".reborn-report")) !== null && !(await page.$eval("[data-play]", (el) => el.disabled).catch(() => true));
     if (!settled) await page.waitForTimeout(300);
   }

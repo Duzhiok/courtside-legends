@@ -23,7 +23,7 @@ async function playOneGame(page) {
   await page.click("[data-play]");
   const started = Date.now();
   while (Date.now() - started < 60000) {
-    if (await visible(page, ".reborn-takeover-overlay")) await page.click('.reborn-takeover-option[data-option="pass"]');
+    if (await visible(page, ".reborn-takeover-dialog")) await page.click('.reborn-takeover-option[data-option="pass"]');
     if (await visible(page, ".reborn-report")) return true;
     await page.waitForTimeout(400);
   }

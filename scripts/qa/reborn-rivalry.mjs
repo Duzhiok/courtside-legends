@@ -31,7 +31,7 @@ async function playOne(page) {
   await page.click("[data-play]");
   const started = Date.now();
   while (Date.now() - started < 60000) {
-    if (await visible(page, ".reborn-takeover-overlay")) await page.click('.reborn-takeover-option[data-option="pass"]');
+    if (await visible(page, ".reborn-takeover-dialog")) await page.click('.reborn-takeover-option[data-option="pass"]');
     const now = await page.$eval(".reborn-report", (el) => el.textContent).catch(() => "");
     if (now && now !== before && !(await page.$eval("[data-play]", (el) => el.disabled).catch(() => false))) return true;
     await page.waitForTimeout(300);
