@@ -8,7 +8,7 @@
  * average scorer. Few games are pulled toward the league middle (Manute Bol 1995 played 5). Without real numbers
  * (custom / Reborn players) the card's shotTend stands in; with neither, neutral.
  */
-export const LEAGUE_FGA_PER_36 = 13;
+const LEAGUE_FGA_PER_36 = 13;
 const PRIOR_GAMES = 10;
 const SHOT_TEND_NEUTRAL = 60;
 
