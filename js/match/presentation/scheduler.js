@@ -30,6 +30,9 @@ export const VALID_TIME_SCALES = Object.freeze([1, 2, 3]);
 
 export function createPlaybackScheduler({
   onBeat = () => {},
+  // A skipped beat takes no time but its outcome is still true (the ball changed hands, the other team is on offense): the view
+  // applies that outcome at once instead of losing it.
+  onSkip = () => {},
   onPlayEnd = () => {},
   onInterrupt = () => {},
   onDrop = () => {},
@@ -55,6 +58,7 @@ export function createPlaybackScheduler({
       if ((compressed && skippable) || (skippable && effectiveDuration(beat) < minBeatMs)) {
         skipped++;
         current.beatIndex++;
+        onSkip(beat, current.play);
         continue;
       }
       break;

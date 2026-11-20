@@ -149,3 +149,18 @@ test("scheduler compresses, never queues: at most one play waits, newer replaces
   h.advance(600);
   assert.equal(h.ended.length, 2);
 });
+
+test("scheduler reports every skipped beat to onSkip, in order, so its outcome is not lost", () => {
+  let now = 0;
+  const played = [];
+  const skipped = [];
+  const sched = createPlaybackScheduler({ clock: () => now, onBeat: (b) => played.push(b.kind), onSkip: (b) => skipped.push(b.kind) });
+  sched.setTimeScale(3); // pass: 500 ms / 3 = 167 ms, above the 120 ms floor, so only compression can skip it
+  sched.load(playWithBeats([["possession_start", 1400], ["pass", 500], ["pass", 500], ["score", 1000]]));
+  sched.load(playWithBeats([["score", 1000]])); // a newer play arrives: the current one is compressed
+  now += 5000;
+  sched.tick(now);
+  assert.deepEqual(played.slice(0, 2), ["possession_start", "score"], "the scoring beat is never skipped");
+  assert.deepEqual(skipped, ["pass", "pass"]);
+});
+

@@ -51,6 +51,7 @@ import {
   MISS_BOUNCE_M,
 } from "../../engine/court3d.js";
 import { hashSeed, seededStream, clamp } from "../../core/seededRandom.js";
+import { ballHolders, openingHolder } from "./ballOwner.js";
 
 /** Compressed-playback beat durations at 1x (ms). */
 export const BEAT_DURATIONS = Object.freeze({
@@ -149,7 +150,7 @@ export function choreograph(events = [], { seed = 0 } = {}) {
     return current;
   };
 
-  for (const evt of events || []) {
+  for (const [eventIndex, evt] of (events || []).entries()) {
     if (!evt || SKIPPED_KINDS.has(evt.kind)) continue;
     const snap = evt.snapshot;
     if (!snap || typeof snap !== "object") continue;
@@ -195,6 +196,9 @@ export function choreograph(events = [], { seed = 0 } = {}) {
       // The GameSim event this beat shows (see normalizer.js): what the feed, the scoreboard and the 3D court all agree on.
       eventId: evt.eventId ?? null,
       simSeq: evt.simSeq ?? null,
+      // Who holds the ball before / after this event, from GameSim's own actor ids (ballOwner.js). A possession start has no actor of its
+      // own: it opens with the first player the same possession names.
+      holder: evt.kind === "possession_start" ? { after: openingHolder(events, eventIndex) } : ballHolders(evt.kind, evt.meta),
       kind: evt.kind,
       possessionIndex: play.possessionIndex,
       startMs,

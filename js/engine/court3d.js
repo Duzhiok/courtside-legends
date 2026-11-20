@@ -52,6 +52,8 @@ export const PUSH_MS = 2600;
  * settles to the floor over SHOT_SETTLE_MS (not part of the flight). */
 export const SHOT_FLIGHT_MS = 750;
 export const SHOT_SETTLE_MS = 180;
+/** A pass flies from the passer's figure to the receiver's in this long (staging, like every duration here). */
+export const PASS_FLIGHT_MS = 380;
 /** Dunk timings (mirror CourtView._dunkFrame: DRIVE 420 + NET 150 + SETTLE 200). */
 const DUNK_DRIVE_MS = 420;
 const DUNK_NET_MS = 150;
@@ -276,6 +278,8 @@ export class CourtView3D {
     this._shot = null;
     this._dunk = null;
     this._ballRest = null;
+    this._ballOwner = null; // player id the ball is with (set by the presentation from GameSim's actor ids); null = fall back to the PG slot
+    this._pass = null; // { fromId, toId, start } while a pass is in the air
     this._pushResolve = null;
     this._loopStarted = false;
     this._rafId = 0;
@@ -602,6 +606,8 @@ export class CourtView3D {
       this._shot = null;
       this._dunk = null;
       this._ballRest = null;
+      this._pass = null;
+      this._setBallOwner(null); // the other team has the ball now; the presentation names the holder right after
     }
     this._rebuildFiguresIfNeeded(snap);
     this._setReplayState(this._reducedMotion ? "ready" : "pushing");
@@ -620,6 +626,35 @@ export class CourtView3D {
     return new Promise((resolve) => {
       this._pushResolve = resolve;
     });
+  }
+
+  /** The ball is with this player (an id from GameSim's events), or with nobody (null: back to the PG-slot staging). */
+  setBallOwner(playerId) {
+    if (this._disposed) return false;
+    this._pass = null;
+    if (playerId) this._ballRest = null;
+    this._setBallOwner(playerId);
+    return true;
+  }
+
+  _setBallOwner(playerId) {
+    this._ballOwner = playerId || null;
+    if (this.root && this.root.dataset) this.root.dataset.ballOwner = this._ballOwner || "";
+  }
+
+  /** CourtView interface: the ball flies from the passer's figure to the receiver's, who then holds it. */
+  onPass({ passerId, receiverId } = {}) {
+    if (this._disposed || !this._ball || !receiverId) return false;
+    const fromFig = this._figures.get(passerId);
+    const toFig = this._figures.get(receiverId);
+    this._ballRest = null;
+    if (!fromFig || !toFig || this._reducedMotion) {
+      this._pass = null;
+      this._setBallOwner(receiverId);
+      return !!toFig;
+    }
+    this._pass = { fromId: passerId, toId: receiverId, start: this._clock() };
+    return true;
   }
 
   /** CourtView interface: play the shot arc from the shooter's current spot.
@@ -794,6 +829,9 @@ export class CourtView3D {
       fig.body.rotation.z = Math.sin(now * 0.0011 + pos.slotIndex * 2.3) * 0.02;
       if (pos.isHandler) handlerPos = { x, z };
     }
+    // Follow the real ball holder when the presentation has named one; the PG slot is only the fallback.
+    const ownerFig = this._ballOwner ? this._figures.get(this._ballOwner) : null;
+    if (ownerFig) handlerPos = { x: ownerFig.group.position.x, z: ownerFig.group.position.z };
     // Camera: fixed sideline TV angle + a very slight lateral drift toward
     // the handler's half (camera and look-target move together, so the
     // framing never rotates).
@@ -880,6 +918,20 @@ export class CourtView3D {
       ball.position.set(this._ballRest.x, BALL_RADIUS_M, this._ballRest.z);
       ball.visible = true;
       return;
+    }
+    if (this._pass) {
+      const p = this._pass;
+      const a = this._figures.get(p.fromId)?.group.position;
+      const b = this._figures.get(p.toId)?.group.position;
+      const u = (now - p.start) / PASS_FLIGHT_MS;
+      if (a && b && u < 1) {
+        // Chest-high arc between the two figures' LIVE spots, so it still lands in the receiver's hands if he is moving.
+        ball.position.set(lerp(a.x, b.x, u), 1.3 + Math.sin(Math.PI * u) * 0.5, lerp(a.z, b.z, u));
+        ball.visible = true;
+        return;
+      }
+      this._pass = null;
+      this._setBallOwner(p.toId);
     }
     // Idle: the ball dribbles with the handler.
     if (handlerPos) {

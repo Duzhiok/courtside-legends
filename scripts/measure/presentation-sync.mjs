@@ -17,5 +17,6 @@ for (const speed of [1, 2, 3]) {
   console.log(`  shots GameSim made ${s.shotsSim} | 3D showed ${s.shotsShown} | never shown ${s.neverShown}`);
   console.log(`  3D behind the commentary: median ${s.lagMedianMs} ms, p90 ${s.lagP90Ms} ms, max ${s.lagMaxMs} ms`);
   console.log(`  commentary was already ${s.possessionsAheadMedian} possessions ahead (max ${s.possessionsAheadMax}); scoreboard ${s.scoreboardAheadMedianPts} pts ahead (max ${s.scoreboardAheadMaxPts})`);
-  console.log(`  shooter is on offense in the 3D court: ${s.shooterOnOffense} | the ball is with the shooter: ${s.ballWithShooter}`);
+  console.log(`  shooter is on offense in the 3D court: ${s.shooterOnOffense} | the ball was already with the shooter when his shot began: ${s.ballWithShooter}`);
+  console.log(`  passes drawn ${s.passesShown} | from the player holding the ball ${s.passesFromTheHolder} | both ends on offense ${s.passesOnOffense} | possession opened with an offensive holder ${s.openingHolderOnOffense}`);
 }

@@ -107,3 +107,13 @@ test("normalizer passes unknown kinds through lowercased, meta intact", () => {
   assert.equal(merged[0].kind, "buzz");
   assert.deepEqual(merged[0].meta, { custom: 1 });
 });
+
+test("a repass reported as a coach line is a pass; a plain coach line stays a coach line", () => {
+  const n = createPresentationEventNormalizer();
+  n.feedRaw({ type: "coach", text: "swings it to Payton", seq: 1, ...snap({}), meta: { pass: { passerId: "a", receiverId: "b", kind: "repass" } } });
+  n.feedRaw({ type: "coach", text: "locks him down", seq: 2, ...snap({}), meta: {} });
+  const out = n.flush();
+  assert.deepEqual(out.map((e) => e.kind), ["pass", "coach"]);
+  assert.equal(out[0].text, "swings it to Payton", "the commentary text is untouched");
+});
+

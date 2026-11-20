@@ -73,7 +73,11 @@ function toNormalized(evt, source, arrivalIndex) {
   if (!s || typeof s !== "object" || typeof s.quarter !== "number" || typeof s.clock !== "number") {
     return null;
   }
-  const kind = normalizeKind(evt?.type, source);
+  // GameSim reports a "swing it to the open man" repass as a `coach` text line that carries meta.pass. The ball really changes hands,
+  // so it is a pass here (the text still reaches the feed untouched); left as `coach` the 3D court would skip it and the ball
+  // would jump back to the shooter.
+  const rawKind = normalizeKind(evt?.type, source);
+  const kind = rawKind === "coach" && evt?.meta?.pass ? "pass" : rawKind;
   return {
     seq: -1, // assigned after the merge sort
     simSeq: source === "raw" && Number.isInteger(evt?.seq) ? evt.seq : null,

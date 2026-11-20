@@ -24,17 +24,42 @@ export async function playThroughController({ speed = 1, possessions = 60, seed 
   const shotsSim = []; // every shot GameSim emitted
   const shotsShown = []; // every shot the 3D court drew
   const frames = [];
+  let owner = null; // who the 3D court has the ball with (mirrors court3d._ballOwner)
+  let justRendered = false;
+  const passes = []; // every pass the 3D court drew
+  const openings = []; // every holder named right after a possession was drawn
 
   const spot = () => {
     const all = lastRendered ? snapshotTo3DPositions(lastRendered, 1, now / 1000) : [];
     return { all, handler: all.find((p) => p.isHandler)?.playerId ?? null };
   };
   const stub = {
-    render(snap) { lastRendered = snap; view3dHooks.render?.(snap, now); },
+    render(snap) {
+      if (lastRendered && lastRendered.possession !== snap.possession) owner = null; // court3d: the other team has the ball now
+      lastRendered = snap;
+      justRendered = true;
+      view3dHooks.render?.(snap, now);
+    },
+    setBallOwner(id) {
+      const onOffense = !!spot().all.find((p) => p.playerId === id)?.isOffense;
+      if (justRendered && id) openings.push({ id, onOffense });
+      justRendered = false;
+      stub.ownerPrior = owner;
+      owner = id || null;
+    },
+    onPass({ passerId, receiverId, eventId }) {
+      const { all } = spot();
+      const on = (id) => !!all.find((p) => p.playerId === id)?.isOffense;
+      passes.push({ passerId, receiverId, eventId, passerOnOffense: on(passerId), receiverOnOffense: on(receiverId), passerHadIt: owner === passerId });
+      justRendered = false;
+      owner = receiverId;
+    },
+    ownerPrior: null,
     onShot({ shooterId, made, eventId }) {
+      justRendered = false;
       const { all, handler } = spot();
       const shooter = all.find((p) => p.playerId === shooterId);
-      shotsShown.push({ t: now, shooterId, made, eventId, handler, shooterOnOffense: !!shooter?.isOffense, domScore: { ...domScore }, possessionNo, ...(view3dHooks.onShotExtra?.() || {}) });
+      shotsShown.push({ t: now, shooterId, made, eventId, handler, ownerPrior: stub.ownerPrior, shooterOnOffense: !!shooter?.isOffense, domScore: { ...domScore }, possessionNo, ...(view3dHooks.onShotExtra?.() || {}) });
     },
     onDunk() {}, resize() {}, dispose() {},
     ...Object.fromEntries(Object.entries(view3dHooks).filter(([k]) => !["render", "onShotExtra"].includes(k)).map(([k, fn]) => [k, (...a) => fn(...a, now, spot())])),
@@ -83,7 +108,7 @@ export async function playThroughController({ speed = 1, possessions = 60, seed 
   const ahead = paired.map(({ shown, sim: s }) => shown.possessionNo - s.possessionNo);
   const n = shotsShown.length;
   return {
-    shotsSim, shotsShown, paired, sim, ctl,
+    shotsSim, shotsShown, paired, sim, ctl, passes, openings,
     summary: {
       speed, wallSec: Math.round(now / 1000), shotsSim: shotsSim.length, shotsShown: n, neverShown: shotsSim.length - n,
       shownWithEventId: paired.length,
@@ -91,7 +116,11 @@ export async function playThroughController({ speed = 1, possessions = 60, seed 
       possessionsAheadMedian: pct(ahead, 0.5), possessionsAheadMax: Math.max(0, ...ahead),
       scoreboardAheadMedianPts: pct(lead, 0.5), scoreboardAheadMaxPts: Math.max(0, ...lead),
       shooterOnOffense: `${shotsShown.filter((s) => s.shooterOnOffense).length}/${n}`,
-      ballWithShooter: `${shotsShown.filter((s) => s.handler === s.shooterId).length}/${n}`,
+      ballWithShooter: `${shotsShown.filter((s) => s.ownerPrior === s.shooterId).length}/${n}`,
+      passesShown: passes.length,
+      passesFromTheHolder: `${passes.filter((p) => p.passerHadIt).length}/${passes.length}`,
+      passesOnOffense: `${passes.filter((p) => p.passerOnOffense && p.receiverOnOffense).length}/${passes.length}`,
+      openingHolderOnOffense: `${openings.filter((o) => o.onOffense).length}/${openings.length}`,
     },
   };
 }

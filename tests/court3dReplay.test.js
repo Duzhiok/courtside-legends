@@ -10,6 +10,7 @@ import {
   courtPercentToVec3,
   rimVec3,
   PUSH_MS,
+  PASS_FLIGHT_MS,
   SHOT_FLIGHT_MS,
   SHOT_SETTLE_MS,
   DUNK_TOTAL_MS,
@@ -542,4 +543,65 @@ test("default rAF/cancelRaf are bound to globalThis (detached Window methods thr
     globalThis.requestAnimationFrame = prevRaf;
     globalThis.cancelAnimationFrame = prevCancel;
   }
+});
+
+// ---- S2: the ball follows the real holder ----------------------------------
+
+test("setBallOwner: the ball dribbles beside that player, not the PG slot; null goes back to the PG slot", async () => {
+  const { view, container } = makeView();
+  await settle(view, clutchSnap());
+  assert.equal(view.setBallOwner("gsw-klay"), true);
+  assert.equal(container.dataset.ballOwner, "gsw-klay");
+  view.tick(PUSH_MS + 10);
+  const klay = view._figures.get("gsw-klay").group.position;
+  assert.ok(Math.abs(view._ball.position.x - (klay.x + 0.35)) < 1e-9, "with Klay, not with Curry");
+  view.setBallOwner(null);
+  assert.equal(container.dataset.ballOwner, "");
+  view.tick(PUSH_MS + 20);
+  const curry = view._figures.get("gsw-curry").group.position;
+  assert.ok(Math.abs(view._ball.position.x - (curry.x + 0.35)) < 1e-9, "back to the PG slot");
+});
+
+test("onPass: the ball travels from the passer to the receiver, who then holds it", async () => {
+  const { view, setNow } = makeView();
+  await settle(view, clutchSnap());
+  view.setBallOwner("gsw-curry");
+  setNow(PUSH_MS);
+  assert.equal(view.onPass({ passerId: "gsw-curry", receiverId: "gsw-klay" }), true);
+  view.tick(PUSH_MS + PASS_FLIGHT_MS / 2);
+  const a = view._figures.get("gsw-curry").group.position;
+  const b = view._figures.get("gsw-klay").group.position;
+  const ball = view._ball.position;
+  assert.ok(ball.x >= Math.min(a.x, b.x) - 1e-9 && ball.x <= Math.max(a.x, b.x) + 1e-9, "x is between the two players");
+  assert.ok(ball.z >= Math.min(a.z, b.z) - 1e-9 && ball.z <= Math.max(a.z, b.z) + 1e-9, "z is between the two players");
+  assert.ok(ball.y > 1.3, `chest-high arc, y=${ball.y}`);
+  view.tick(PUSH_MS + PASS_FLIGHT_MS + 5);
+  assert.equal(view._ballOwner, "gsw-klay");
+  assert.equal(view._pass, null);
+});
+
+test("onPass without a passer figure (or with reduced motion) hands the ball over at once; a shot cancels a pass in the air", async () => {
+  const { view, setNow } = makeView();
+  await settle(view, clutchSnap());
+  assert.equal(view.onPass({ passerId: "nobody", receiverId: "gsw-klay" }), true);
+  assert.equal(view._ballOwner, "gsw-klay");
+  assert.equal(view.onPass({ passerId: "gsw-klay", receiverId: "nobody" }), false, "an unknown receiver is not a pass");
+  setNow(PUSH_MS);
+  view.onPass({ passerId: "gsw-klay", receiverId: "gsw-curry" });
+  view.setBallOwner("gsw-klay"); // the next beat names the shooter: the pass in the air is over
+  assert.equal(view._pass, null);
+  const reduced = makeView({ reducedMotion: true });
+  await settle(reduced.view, clutchSnap());
+  reduced.view.onPass({ passerId: "gsw-curry", receiverId: "gsw-klay" });
+  assert.equal(reduced.view._ballOwner, "gsw-klay");
+  assert.equal(reduced.view._pass, null);
+});
+
+test("a change of possession clears the holder: the ball is never left with the team that just lost it", async () => {
+  const { view, container } = makeView();
+  await settle(view, clutchSnap());
+  view.setBallOwner("gsw-curry");
+  await settle(view, { ...clutchSnap(), possession: "away" });
+  assert.equal(container.dataset.ballOwner, "");
+  assert.equal(view._ballOwner, null);
 });

@@ -49,6 +49,7 @@ export function createMatchPresentationView({ view3d, hud = {}, scheduler = null
     scheduler ||
     createPlaybackScheduler({
       onBeat: (beat, play) => applyBeat(beat, play),
+      onSkip: (beat, play) => applyBeat(beat, play, { skipped: true }),
       onPlayEnd: () => {
         if (playQueue.length > 0) sched.load(playQueue.shift());
       },
@@ -62,8 +63,11 @@ export function createMatchPresentationView({ view3d, hud = {}, scheduler = null
     if (hud.quarter) hud.quarter.textContent = quarter == null ? "" : `Q${quarter}`;
   }
 
-  /** Apply one choreographed beat: HUD from the snapshot, view via its public API. */
-  function applyBeat(beat, _play) {
+  /**
+   * Apply one choreographed beat: HUD from the snapshot, view via its public API. A `skipped` beat (compression) gets no animation,
+   * only its outcome: the ball is simply with the receiver.
+   */
+  function applyBeat(beat, _play, { skipped = false } = {}) {
     if (!beat) return;
     setHud(beat.score, beat.clock, beat.quarter);
     if (hud.beatLabel) hud.beatLabel.textContent = beat.label || beat.kind;
@@ -73,9 +77,20 @@ export function createMatchPresentationView({ view3d, hud = {}, scheduler = null
           const p = view3d.render(beat.snapshot);
           if (p && typeof p.catch === "function") p.catch(() => {});
         }
+        // render() starts the possession with nobody holding the ball; hand it to whoever GameSim says has it.
+        if (beat.kind === "possession_start") view3d.setBallOwner?.(beat.holder?.after ?? null);
+      } else if (beat.kind === "pass") {
+        const pass = beat.meta?.pass || {};
+        if (pass.passerId && pass.receiverId) {
+          if (skipped) view3d.setBallOwner?.(pass.receiverId);
+          else view3d.onPass?.({ passerId: pass.passerId, receiverId: pass.receiverId, eventId: beat.eventId });
+        }
+      } else if (beat.kind === "reb" || (beat.holder?.after && beat.meta?.turnover)) {
+        view3d.setBallOwner?.(beat.holder?.after ?? null);
       } else if ((beat.kind === "score" || beat.kind === "miss") && typeof view3d.onShot === "function") {
         const shot = beat.meta?.shot || {};
         if (shot.shooterId) {
+          view3d.setBallOwner?.(shot.shooterId); // the ball is in the shooter's hands when the shot starts, whatever beats were skipped before
           view3d.onShot({ shooterId: shot.shooterId, made: beat.kind === "score" || shot.made === true, pts: shot.pts || 0, eventId: beat.eventId });
         }
       } else if (beat.kind === "dunk" && typeof view3d.onDunk === "function") {

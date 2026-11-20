@@ -79,3 +79,26 @@ test("3D plays events in GameSim order", async () => {
   const order = r.shotsShown.map((s) => Number(s.eventId.replace("sim:", "")));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
 });
+
+// ---- S2: ball and player truth -------------------------------------------------
+
+for (const speed of [1, 2]) {
+  test(`${speed}x: the 3D ball only moves between players on the team with the ball, and starts each shot in the shooter's hands`, async () => {
+    const r = await playThroughController({ speed, possessions: 60, seed: "sync-1" });
+    assert.ok(r.openings.length >= 5, `${r.openings.length} possessions opened`);
+    assert.equal(r.openings.filter((o) => !o.onOffense).length, 0, "a possession opens with a holder on offense");
+    for (const p of r.passes) assert.ok(p.passerOnOffense && p.receiverOnOffense, "both ends of a pass are on offense");
+    const shots = r.shotsShown;
+    const ready = shots.filter((s) => s.ownerPrior === s.shooterId).length;
+    // The rest is GameSim's own gap: an offensive rebound or an inbound followed by a different player's action has no pass event.
+    assert.ok(ready / shots.length >= 0.8, `the ball was already with the shooter for ${ready}/${shots.length} shots`);
+  });
+}
+
+test("1x: passes are drawn from the player who really has the ball, and repasses are drawn too", async () => {
+  const r = await playThroughController({ speed: 1, possessions: 60, seed: "sync-1" });
+  assert.ok(r.passes.length >= 8, `${r.passes.length} passes drawn`);
+  const fromHolder = r.passes.filter((p) => p.passerHadIt).length;
+  assert.ok(fromHolder / r.passes.length >= 0.85, `${fromHolder}/${r.passes.length} passes started with the passer holding the ball`);
+});
+

@@ -118,3 +118,60 @@ test("integration: canned feed plays end to end on fake time, HUD ends 4–0", a
   assert.deepEqual(view3d.dunks, ["home-sg"]);
   assert.ok(totalDurationMs > 0);
 });
+
+// ---- S2: who has the ball -----------------------------------------------------
+
+function ballRecorder() {
+  const calls = [];
+  return {
+    calls,
+    render: (snap) => calls.push(["render", snap.possession]),
+    setBallOwner: (id) => calls.push(["owner", id]),
+    onPass: ({ passerId, receiverId }) => calls.push(["pass", passerId, receiverId]),
+    onShot: ({ shooterId }) => calls.push(["shot", shooterId]),
+    onDunk: (id) => calls.push(["dunk", id]),
+    resize() {}, dispose() {},
+  };
+}
+const snapAway = { quarter: 1, clock: 700, score: { home: 0, away: 0 }, possession: "away" };
+const beatOf = (kind, meta = {}, holder = {}) => ({ kind, meta, holder, score: { home: 0, away: 0 }, clock: 700, quarter: 1, label: kind, snapshot: snapAway, eventId: "sim:1" });
+
+test("view: a possession is drawn first, then the ball goes to the holder GameSim names", () => {
+  const v = ballRecorder();
+  createMatchPresentationView({ view3d: v }).applyBeat(beatOf("possession_start", {}, { after: "pg" }));
+  assert.deepEqual(v.calls, [["render", "away"], ["owner", "pg"]]);
+});
+
+test("view: a pass flies passer to receiver; if the beat was skipped the ball is simply with the receiver", () => {
+  const meta = { pass: { passerId: "a", receiverId: "b" } };
+  const played = ballRecorder();
+  createMatchPresentationView({ view3d: played }).applyBeat(beatOf("pass", meta));
+  assert.deepEqual(played.calls, [["pass", "a", "b"]]);
+  const skipped = ballRecorder();
+  createMatchPresentationView({ view3d: skipped }).applyBeat(beatOf("pass", meta), null, { skipped: true });
+  assert.deepEqual(skipped.calls, [["owner", "b"]], "no arc, but the ball changed hands");
+});
+
+test("view: the shot starts in the shooter's hands; a rebound or a steal gives the ball to who GameSim says", () => {
+  const shot = ballRecorder();
+  createMatchPresentationView({ view3d: shot }).applyBeat(beatOf("score", { shot: { shooterId: "s", pts: 2 } }, { before: "s", after: null }));
+  assert.deepEqual(shot.calls, [["owner", "s"], ["shot", "s"]]);
+  const reb = ballRecorder();
+  createMatchPresentationView({ view3d: reb }).applyBeat(beatOf("reb", { reb: { rebounderId: "r" } }, { after: "r" }));
+  assert.deepEqual(reb.calls, [["owner", "r"]]);
+  const steal = ballRecorder();
+  createMatchPresentationView({ view3d: steal }).applyBeat(beatOf("miss", { turnover: { actorId: "h", kind: "steal", forcedById: "t" } }, { before: "h", after: "t" }));
+  assert.deepEqual(steal.calls, [["owner", "t"]], "a turnover is not a shot");
+  const loose = ballRecorder();
+  createMatchPresentationView({ view3d: loose }).applyBeat(beatOf("miss", { turnover: { actorId: "h", kind: "unforced" } }, { before: "h", after: null }));
+  assert.deepEqual(loose.calls, [], "an unforced turnover names nobody, so nothing is invented");
+});
+
+test("view: a 3D court without ball methods keeps working (older views, previews)", () => {
+  const bare = { render() {}, onShot() {}, resize() {}, dispose() {} };
+  const view = createMatchPresentationView({ view3d: bare });
+  view.applyBeat(beatOf("possession_start", {}, { after: "pg" }));
+  view.applyBeat(beatOf("pass", { pass: { passerId: "a", receiverId: "b" } }));
+  view.applyBeat(beatOf("reb", { reb: { rebounderId: "r" } }, { after: "r" }));
+});
+
