@@ -17,7 +17,7 @@
 import { avatarDataUri } from "./avatarArt.js";
 import { LOCAL_AVATARS } from "./avatars.local.js";
 import { isPortrait } from "./photoBlocklist.js";
-import { PHOTO_CREDITS } from "./photoCredits.js";
+import { CREDITED_FILES } from "./photoCreditedFiles.js";
 import { wikimediaFile } from "./photoSource.js";
 import { CURATED_PHOTOS } from "./photos.curated.js";
 import { PHOTO_BY_BREF as SCRAPED_BY_BREF, PHOTO_BY_BREF_DECADE as SCRAPED_BY_DECADE } from "./photos.scraped.js";
@@ -53,7 +53,7 @@ function decadeOf(season) {
 export function isCreditedPhoto(url) {
   if (!url || !isPortrait(url)) return false;
   const file = wikimediaFile(url);
-  return Boolean(file && PHOTO_CREDITS[file]);
+  return Boolean(file && CREDITED_FILES.has(file));
 }
 
 const usable = (url) => (isCreditedPhoto(url) ? url : null);

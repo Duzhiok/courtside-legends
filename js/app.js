@@ -3163,12 +3163,14 @@ function paintCredits() {
   );
 }
 
-function openCredits() {
+async function openCredits() {
+  // ~900 KB of credit text, only for this page: loaded on first open, never at boot (see scripts/measure/mobile-first-load.mjs).
+  const { PHOTO_CREDITS } = await import("./data/photoCredits.js");
   if (!creditsNames) {
     creditsNames = new Map();
     for (const player of PLAYERS) if (!creditsNames.has(player.bref)) creditsNames.set(player.bref, player.name);
   }
-  creditsRows = creditRows(undefined, creditNameOf);
+  creditsRows = creditRows(PHOTO_CREDITS, creditNameOf);
   creditsShown = CREDITS_PAGE_SIZE;
   paintCredits();
   show("credits");

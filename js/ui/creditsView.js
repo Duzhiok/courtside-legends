@@ -1,8 +1,8 @@
 /**
  * The credits page: who took each photo we show, and under which licence. Pure HTML builders —
- * app.js owns the DOM. The data is photoCredits.js (generated from the Wikimedia Commons API).
+ * app.js owns the DOM. The data is photoCredits.js (generated from the Wikimedia Commons API), ~900 KB: it is NOT imported here,
+ * so nobody pays for it until the credits page is opened (app.js loads it with import() on click).
  */
-import { PHOTO_CREDITS } from "../data/photoCredits.js";
 
 /** Only http(s) links are ever rendered as links; anything else (javascript:, data:) becomes plain text. */
 const link = (href, text, esc) =>
@@ -19,7 +19,8 @@ const identityNameOf = (bref) => bref;
 const rowsCache = new WeakMap();
 
 /** One row per photo, sorted by the first player it shows. */
-export function creditRows(credits = PHOTO_CREDITS, nameOf = identityNameOf) {
+export function creditRows(credits, nameOf = identityNameOf) {
+  if (!credits || typeof credits !== "object") throw new TypeError("creditRows needs the PHOTO_CREDITS object");
   const cached = rowsCache.get(credits);
   if (cached && cached.nameOf === nameOf) return cached.rows;
   const rows = Object.entries(credits)

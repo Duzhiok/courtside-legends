@@ -372,6 +372,7 @@ test("reload mid-game with a decision open: the restored session reshows it, kee
   const openId = first.session.state.pending.id;
 
   const restored = GameSim.fromSave(JSON.parse(JSON.stringify(sim.exportState())), {});
+  restored.rng = seededStream(11); // fromSave() restores without an rng (a real reload uses Math.random); seed it so this test is deterministic
   const second = wire(restored, JSON.parse(JSON.stringify(first.session.exportState())));
   second.session.reshowPending();
   assert.deepEqual(second.queue, ["ignore"], "the same open decision is asked again after the reload");
@@ -379,6 +380,7 @@ test("reload mid-game with a decision open: the restored session reshows it, kee
 
   const ids = second.session.state.history.map((h) => h.id);
   assert.equal(ids[1], openId, "the open decision is the one that got settled");
-  assert.ok(ids.length > 2 && ids.slice(2).every((id) => id.endsWith(":h2")), `kept firing after the reload: ${ids}`);
+  // After the reload the game is in the 2nd half or overtime ("h2" / "hot"): never the 1st-half ids it had already used.
+  assert.ok(ids.length > 2 && ids.slice(2).every((id) => /:h(2|ot)$/.test(id)), `kept firing after the reload: ${ids}`);
   assert.equal(new Set(ids).size, ids.length, "no id fires twice across the reload");
 });
