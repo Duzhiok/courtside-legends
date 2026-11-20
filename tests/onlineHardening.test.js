@@ -108,8 +108,19 @@ async function withServer(fn) {
   const economyFile = tmp("srv-e");
   const server = createOnlineServer({ port: 0, accountsFile, economyFile });
   await new Promise((r) => (server.wss.address() ? r() : server.wss.once("listening", r)));
+  const startedAt = Date.now();
   try {
     await fn(`ws://127.0.0.1:${server.port()}`);
+  } catch (err) {
+    // A connection reset / refused here has failed this suite once in a while under full-suite load and could not be reproduced on demand
+    // (see BACKLOG B75). The assertion is untouched: the error still fails the test, but it now says which server it was talking to, so the
+    // next occurrence is evidence instead of a bare "read ECONNRESET".
+    if (typeof err?.code === "string" && err.code.startsWith("ECONN")) {
+      const where = `server ${JSON.stringify(server.wss.address())} up ${Date.now() - startedAt}ms, pid ${process.pid}, node ${process.version}, ${process.platform}`;
+      console.error(`[onlineHardening] ${err.code} while talking to ${where}`);
+      err.message += ` [${where}]`;
+    }
+    throw err;
   } finally {
     await server.close();
     rmSync(accountsFile, { force: true });
