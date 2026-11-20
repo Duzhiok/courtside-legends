@@ -63,7 +63,7 @@ several possessions ahead: that is slice S3.
   or drops (10/42 shots at 1x never shown). That is the existing "compress, never queue" rule, not a sync error: whatever is shown,
   the text, score and ball agree. Open (S2 remainder): 2/32 shots follow an offensive rebound with no pass event; the court
   gives the shooter the ball, it does not invent a pass.
-- **S4: camera and labels.** After S2/S3.
+- **S4: camera and labels (done, 8536490; see the S4 section below).**
 
 ## Not changed
 
