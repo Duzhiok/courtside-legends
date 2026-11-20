@@ -2626,6 +2626,35 @@ function refreshGoldChip() {
   if (chip) chip.title = L("商城", "Shop");
 }
 
+// Daily strip on the home screen: tasks progress + draw state, kept in sync
+// with the account bar (same sources: taskBoard + canClaimDailyDraw).
+function refreshDailyStrip(acc) {
+  const tasksBtn = $("#btn-home-daily-tasks");
+  const drawBtn = $("#btn-home-daily-draw");
+  const tasksMeta = $("#home-daily-tasks-meta");
+  const drawMeta = $("#home-daily-draw-meta");
+  if (!tasksBtn || !drawBtn) return;
+  if (!acc) {
+    if (tasksMeta) tasksMeta.textContent = L("需账号", "Needs an account");
+    if (drawMeta) drawMeta.textContent = L("需账号", "Needs an account");
+    drawBtn.classList.remove("has-daily");
+    return;
+  }
+  const board = taskBoard(acc, undefined, getLang());
+  const done = board.tasks.filter((t) => t.claimed).length;
+  const total = board.tasks.length;
+  if (tasksMeta) tasksMeta.textContent = L(`已完成 ${done}/${total}`, `Done ${done}/${total}`);
+  const state = dailyDrawState(acc);
+  if (drawMeta) {
+    drawMeta.textContent = state.claimed
+      ? L("今日已领取", "Claimed today")
+      : state.canClaim
+        ? L("今日卡可领取", "Today's card ready")
+        : L(`还差 ${Math.max(0, state.needed - state.tasksDone)} 项任务`, `${Math.max(0, state.needed - state.tasksDone)} more task(s) to go`);
+  }
+  drawBtn.classList.toggle("has-daily", !!acc.onboardingDone && canClaimDailyDraw(acc));
+}
+
 function refreshAccountHomeBar() {
   // Daily first login (+10, once per account per day; guests level up locally too).
   recordDailyLogin(activeAccount());
@@ -2660,6 +2689,7 @@ function refreshAccountHomeBar() {
     // Enabled on purpose: tapping it explains what an account is for instead of doing nothing.
     if (drawBtn) drawBtn.disabled = false;
     if (switchBtn) switchBtn.textContent = L("创建 / 切换账号", "Create / Switch Account");
+    refreshDailyStrip(null);
     return;
   }
   hideAccountGate();
@@ -2673,6 +2703,7 @@ function refreshAccountHomeBar() {
     drawBtn.disabled = !acc.onboardingDone;
     drawBtn.textContent = dailyOk ? L("领取今日球员卡", "Claim today's card") : L("抽卡 · 心愿单", "Draw · Wishlist");
   }
+  refreshDailyStrip(acc);
 }
 
 function renderAccountList() {
@@ -2807,6 +2838,12 @@ $("#btn-draw-back")?.addEventListener("click", () => {
   openCollection();
 });
 $("#btn-collection-draw")?.addEventListener("click", () => openDailyDraw());
+$("#btn-home-daily-draw")?.addEventListener("click", () => openDailyDraw());
+$("#btn-home-daily-tasks")?.addEventListener("click", () => {
+  openDailyDraw();
+  // The task list sits at the bottom of the draw screen: jump straight to it.
+  if (activeScreenName() === "draw") $("#draw-tasks")?.scrollIntoView({ block: "start" });
+});
 $("#btn-collection-ranked")?.addEventListener("click", () => startRankedMatch());
 
 $("#btn-account-create")?.addEventListener("click", () => {

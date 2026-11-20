@@ -181,6 +181,28 @@ html[lang="en"] .topbar .brand-name { display: none; }
 }
 #screen-home .save-home-bar::before { background: linear-gradient(#34d399, #166534); }
 
+/* —— Daily strip: tasks + draw on the home screen, not only in the account menu —— */
+.daily-strip {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.daily-strip-btn {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 10px 12px;
+}
+.daily-strip-meta { opacity: .75; }
+.daily-strip-btn.has-daily::after {
+  content: ""; position: absolute; top: 6px; right: 8px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 0 2px #1a2b22;
+}
+
 /* —— Mode cards with legend photos —— */
 #screen-home .mode-group-label {
   display: flex;
