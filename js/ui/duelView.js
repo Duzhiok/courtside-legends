@@ -138,7 +138,7 @@ function photoHtml(duelist, size = 72) {
   if (!src) {
     return `<span class="duel-photo-fallback" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;background:#123f2a;color:#e8c15a;font-weight:700;font-size:20px;">${esc((duelist?.name || "?").slice(0, 1))}</span>`;
   }
-  return `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;" onerror="this.remove()">`;
+  return `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;" data-remove-on-error>`;
 }
 
 function bodyEl() {

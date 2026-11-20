@@ -938,7 +938,7 @@ export class CourtView {
         : `
         <div class="tok-avatar">
           <img src="${photoUrl(p)}" alt="" loading="lazy" referrerpolicy="no-referrer"
-            onerror="this.style.opacity=0.2" />
+            data-dim-on-error />
           <span class="tok-pts">${p.stats?.pts ?? 0}</span>
         </div>
         <span class="tok-name" title="${p.name}">${shortName(p.name)}</span>

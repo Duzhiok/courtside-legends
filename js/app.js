@@ -112,6 +112,7 @@ import {
 import { FRANCHISES, POS_SLOTS, franchiseName, playersForFranchise } from "./data/franchises.js";
 import { makeFranchiseCareerTeam, makeRandomCareerTeam, makeYearChallengeTeam } from "./career/careerTeams.js";
 import { esc } from "./core/html.js";
+import { installImgErrorFallback } from "./core/imgErrorFallback.js";
 import { careerCoachPrice, rollCareerCoachShop } from "./career/coachMarket.js";
 import { coachMarketCardHtml, skillOfferCardHtml } from "./ui/careerMarketCards.js";
 import {
@@ -7071,7 +7072,7 @@ function setupPosSelectHtml(p) {
   const cur = normalizePos(p.playPos || p.pos);
   const nat = normalizePos(p.pos);
   const rec = recommendPlayPos(p);
-  return `<select class="setup-pos-select" data-pos-for="${p.id}" title="改打哪个位置（未手动改过则用属性推荐）" onclick="event.stopPropagation()">
+  return `<select class="setup-pos-select" data-pos-for="${p.id}" title="改打哪个位置（未手动改过则用属性推荐）">
     ${POS_SLOTS.map(
       (s) =>
         `<option value="${s.id}" ${s.id === cur ? "selected" : ""}>${s.id}${
@@ -12502,6 +12503,9 @@ function applyTournamentResult(snap) {
 
 async function boot() {
   try {
+    // S-P2-5 step 1: <img> error fallbacks run through one capture-phase listener
+    // (no inline onerror attributes), so a CSP without 'unsafe-inline' can switch on.
+    installImgErrorFallback();
     applyStaticLang();
     const langBtn = $("#btn-lang");
     const paintLangBtn = () => {

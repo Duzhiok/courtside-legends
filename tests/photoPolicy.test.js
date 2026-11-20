@@ -84,21 +84,21 @@ test("a card with no bref at all (so nothing to hot-link against) stores nothing
   assert.doesNotMatch(html, /data-fb|onerror/, "an avatar cannot fail to load, so it needs no fallback");
 });
 
-test("a card with a bref but no curated/local photo tries the hot-linked headshot first, with an onerror fallback to the avatar if it 404s", () => {
+test("a card with a bref but no curated/local photo tries the hot-linked headshot first, with a data-fb fallback to the avatar if it 404s", () => {
   const card = { bref: "nobodyxx01", season: 2001, name: "No Photo", team: "DEN" };
   // Still not stored on the card -- it is recomputed live every render, same as the avatar was.
   assert.deepEqual(resolveCardPhoto(card), { photo: null, photoCareerDefault: false, photoSource: "generated" });
   const html = photoImg(card, "headshot lg");
   assert.match(html, /<img class="headshot lg" src="https:\/\/www\.basketball-reference\.com\//);
   assert.match(html, /data-fb="data:image\/svg\+xml/, "a 404'd headshot must still fall back to the avatar");
-  assert.match(html, /onerror="[^"]*this\.dataset\.fb/);
+  assert.doesNotMatch(html, /onerror=/, "S-P2-5: the fallback is a data-fb marker for the capture-phase listener, not an inline handler");
 });
 
 test("a real photo that fails to load falls back to the generated avatar", () => {
   const html = photoImg({ bref: "jordami01", season: 1991, name: "Michael Jordan", team: "CHI" });
   assert.match(html, /src="https:\/\/thumb\.wikimedia\.org\//);
   assert.match(html, /data-fb="data:image\/svg\+xml/);
-  assert.match(html, /onerror="[^"]*this\.dataset\.fb/);
+  assert.doesNotMatch(html, /onerror=/, "S-P2-5: the fallback is a data-fb marker for the capture-phase listener, not an inline handler");
   assert.match(html, /title="1991 CHI"/);
 });
 

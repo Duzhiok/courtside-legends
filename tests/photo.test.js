@@ -150,14 +150,16 @@ test("an uncredited wiki-discovered photo does NOT show -- it must clear build-c
 });
 
 test("photoImg retries a failed remote photo once, then falls back to the generated avatar", async () => {
-  const vm = await import("node:vm");
-  const { photoImg, PHOTO_ONERROR } = await import("../js/data/photo.js");
+  const { photoImg } = await import("../js/data/photo.js");
+  const { handleImgError } = await import("../js/core/imgErrorFallback.js");
   const html = photoImg({ bref: "doncilu01", name: "Luka", season: 2025, team: "LAL", id: "x" });
-  assert.match(html, /onerror="[^"]*dataset\.rt/);
+  assert.match(html, /data-fb="data:image\/svg\+xml/);
+  assert.doesNotMatch(html, /onerror=/);
   const timers = [];
+  const schedule = (fn) => timers.push(fn);
   const img = { src: "https://thumb.wikimedia.org/a.jpg", dataset: { fb: "data:image/svg+xml,AVATAR" } };
-  const run = () => vm.runInNewContext(`(function(){${PHOTO_ONERROR}}).call(img)`, { img, setTimeout: (f) => timers.push(f) });
-  run(); // 1st failure: schedule a retry, keep the photo
+  const run = () => handleImgError(img, { schedule });
+  assert.equal(run(), true); // 1st failure: schedule a retry, keep the photo
   assert.equal(timers.length, 1);
   assert.equal(img.src, "https://thumb.wikimedia.org/a.jpg");
   timers[0](); // the retry fires with a cache-busting query
