@@ -474,6 +474,7 @@ import {
   toggleStarter,
   usageForBallAction,
 } from "./engine/gameplan.js";
+import { seatPlayers } from "./engine/lineupSlots.js";
 import {
   PLAYER_ROLES,
   inferPlayerRole,
@@ -6953,47 +6954,16 @@ function byOverallDesc(a, b) {
   return overall(b) - overall(a) || String(a.name || "").localeCompare(String(b.name || ""));
 }
 
-/** Prefer unique PG–C coverage when auto-filling playPos for starters. */
+/**
+ * Auto-fill playPos for a starting five: every position once, each player where his natural position and his inside/outside
+ * game fit best (js/engine/lineupSlots.js). Hand-placed players (playPosManual) keep their slot. Whoever has to play out of
+ * position is the one best suited to it, never simply the last one picked.
+ */
 function autoAssignUniquePositions(players) {
-  const order = ["PG", "SG", "SF", "PF", "C"];
-  const used = new Set();
-  // 已手动指定位置的先占坑
-  for (const p of players || []) {
-    if (p.playPosManual && p.playPos) used.add(normalizePos(p.playPos));
-  }
-  const sorted = [...players].sort((a, b) => {
-    const pa = a.playPosManual ? normalizePos(a.playPos || a.pos) : recommendPlayPos(a);
-    const pb = b.playPosManual ? normalizePos(b.playPos || b.pos) : recommendPlayPos(b);
-    const da = order.indexOf(pa);
-    const db = order.indexOf(pb);
-    return da - db || overall(b) - overall(a);
+  const five = (players || []).slice(0, 5);
+  seatPlayers(five).forEach((slot, i) => {
+    five[i].playPos = slot;
   });
-  for (const p of sorted) {
-    if (p.playPosManual && p.playPos) {
-      p.playPos = normalizePos(p.playPos);
-      continue;
-    }
-    const preferred = recommendPlayPos(p);
-    if (!used.has(preferred)) {
-      p.playPos = preferred;
-      used.add(preferred);
-      continue;
-    }
-    // nearest free slot around recommendation
-    const idx = order.indexOf(preferred);
-    let best = null;
-    let bestDist = 99;
-    for (let i = 0; i < order.length; i++) {
-      if (used.has(order[i])) continue;
-      const d = Math.abs(i - idx);
-      if (d < bestDist) {
-        bestDist = d;
-        best = order[i];
-      }
-    }
-    p.playPos = best || preferred;
-    if (best) used.add(best);
-  }
 }
 
 /** First empty PG–C slot, preferring natural position. */

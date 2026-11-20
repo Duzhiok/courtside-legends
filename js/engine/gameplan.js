@@ -5,6 +5,7 @@
 import { overall } from "../data/players.js";
 import { hasRealShotVolume, shotAppetiteRatio } from "./shotAppetite.js";
 import { POS_SLOTS } from "../data/franchises.js";
+import { seatPlayers } from "./lineupSlots.js";
 import { PLAYER_ROLES, inferPlayerRole, staminaMinuteCap, suggestTargetMinutes } from "../data/playerMinutes.js";
 
 export const LINEUP_PACK_DEFS = [
@@ -378,16 +379,14 @@ export function resolveStarterPositionCollisions(picked) {
     const pos = normPos5(p.playPos || p.pos);
     (byPos[pos] || byPos.SF).push(p);
   }
-  const empty = POS_SLOTS.map((s) => s.id).filter((id) => !byPos[id].length);
-  for (const s of POS_SLOTS) {
-    const list = byPos[s.id];
-    while (list.length > 1 && empty.length) {
-      const mover = list.pop();
-      const dest = empty.shift();
-      mover.playPos = dest;
-      byPos[dest].push(mover);
-    }
-  }
+  // Everyone who shares a slot is re-seated together over the slots nobody else holds (lineupSlots.js picks the cheapest way,
+  // and a hand-placed player keeps his). Players alone in their slot are not touched. The old loop moved whoever was last in the
+  // list into the first hole, which is how a guard ended up at centre.
+  const stacked = picked.filter((p) => byPos[normPos5(p.playPos || p.pos)]?.length > 1);
+  if (!stacked.length) return;
+  const reserved = picked.filter((p) => !stacked.includes(p)).map((p) => normPos5(p.playPos || p.pos));
+  if (reserved.length + stacked.length > POS_SLOTS.length) return; // more than five: nothing sensible to do
+  seatPlayers(stacked, { reserved }).forEach((slot, i) => { stacked[i].playPos = slot; });
 }
 
 /**

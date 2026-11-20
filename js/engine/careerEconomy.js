@@ -11,7 +11,7 @@ import { isHiddenGem, isPlayerAvailable, playerPrice } from "../data/intangibles
 import { overall, clonePlayer, PLAYERS } from "../data/players.js";
 import { teamChemistry, lineupFit } from "./chemistry.js";
 import { teamPowerLabel } from "./draft.js";
-import { nextEmptyPlayPos } from "./gameplan.js";
+import { seatPlayers } from "./lineupSlots.js";
 import { GameSim } from "./sim.js";
 import { rand } from "../core/rng.js";
 
@@ -42,17 +42,14 @@ export function teamStarters(team) {
  * player's stale/leftover playPos -- which then poisons anything downstream that trusts playPos
  * over natural pos, like the all-tournament team (allTeam.js picks "this tournament's best PG"
  * by playPos, so a big who was never actually a guard could get recorded as one). Clone + seat
- * everyone by best-fit here, best OVR first, so every starting five this hands back is
+ * everyone by best total fit here, so every starting five this hands back is
  * positionally sane -- without mutating the real roster objects underneath it.
  */
 function seatByPosition(picked) {
-  const seated = [];
-  for (const p of [...picked].sort((a, b) => overall(b) - overall(a))) {
-    const clone = { ...p };
-    const preferred = p.playPosManual ? p.playPos || p.pos : null;
-    clone.playPos = nextEmptyPlayPos(seated, clone, preferred);
-    seated.push(clone);
-  }
+  const seated = [...picked].sort((a, b) => overall(b) - overall(a)).map((p) => ({ ...p }));
+  // One seating for the whole five (lineupSlots.js): a hand-placed player keeps his slot, the rest take the cheapest arrangement.
+  // The old loop let the best OVR pick first and the last man take the leftover hole, which parked guards at centre.
+  seatPlayers(seated).forEach((slot, i) => { seated[i].playPos = slot; });
   return seated;
 }
 

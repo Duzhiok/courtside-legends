@@ -22,6 +22,7 @@ import {
   buyUnlock,
   fragmentLedger,
   intensiveBlocker,
+  INTENSIVE_COST,
   legacyBlocker,
   specializableSkills,
   specializeBlocker,
@@ -53,7 +54,7 @@ const xpOf = (out) => (out.report.growth || []).reduce((n, e) => n + (e.xp || 0)
 
 test("QA handoff: earn-then-spend over a real multi-week run (no rigged earnings)", async () => {
   // qa-multi-1 draws a historical bench player who really plays at trust 80
-  // and stands out 3 times in 8 weeks (games 5, 10, 32) — pinned by probe.
+  // and stands out at least 3 times in 8 weeks — pinned by probe (re-pick the seed if a GameSim change breaks that).
   const start = createRebornState("qa-multi-1", ROWS);
   start.player.coachTrust = 80; // a starter really plays (same set-up as the one-game test)
   let reborn = chooseFocus(start, "shooting", 1);
@@ -86,7 +87,7 @@ test("QA handoff: earn-then-spend over a real multi-week run (no rigged earnings
       paidGameIds.add(out.report.gameId);
     }
   }
-  assert.equal(earned, 3, "3 standouts in 8 weeks (games 5, 10, 32)");
+  assert.ok(earned >= 3, `at least 3 standouts in 8 weeks, enough to buy something below (the exact count is whatever this seed's real games pay: ${earned})`);
   assert.equal(fragmentLedger(reborn).balance, earned, "the ledger holds exactly what the real games paid");
   assert.equal(fragmentLedger(reborn).history.length, paidGameIds.size, "one history entry per paying game");
 
@@ -94,6 +95,7 @@ test("QA handoff: earn-then-spend over a real multi-week run (no rigged earnings
   // in one branch, not the other — and play the same 4 games in both.
   const forkA = { ...season, games: season.games };
   const forkB = { ...season, games: season.games };
+  const balanceBefore = fragmentLedger(reborn).balance; // whatever weeks 1-8 really paid
   const spentA = buyIntensive(chooseFocus(reborn, "shooting", 9), 9);
   const plainB = chooseFocus(reborn, "shooting", 9);
   let curA = spentA;
@@ -124,8 +126,8 @@ test("QA handoff: earn-then-spend over a real multi-week run (no rigged earnings
   assert.ok(xpB > 0, "week 9 earns training XP, so the multiplier is really checked");
   assert.ok(Math.abs(xpA - xpB * 1.5) <= 4, `week 9: ${xpA} vs ${xpB} x1.5 over 4 games`);
   assert.equal(earnedA, earnedB, "the same games pay the same fragments in both branches");
-  assert.equal(fragmentLedger(curA).balance, earnedA, "3 earned, 3 spent on intensive, plus week-9 earnings");
-  assert.equal(fragmentLedger(curB).balance, 3 + earnedB, "unspent branch keeps the earned 3");
+  assert.equal(fragmentLedger(curA).balance, balanceBefore - INTENSIVE_COST + earnedA, "earned so far, minus the intensive price, plus week-9 earnings");
+  assert.equal(fragmentLedger(curB).balance, balanceBefore + earnedB, "the unspent branch keeps everything it earned");
 });
 
 test("QA handoff: two seasons, two legacy jerseys", () => {

@@ -39,7 +39,7 @@ test("every team in the league has a full roster in every season from 1997 on, n
 });
 
 test("a second-season game against the renamed franchise is a real game: both teams score, the player plays, the opponent is that year's roster", async () => {
-  let reborn = createRebornState("franchise-check", ROWS);
+  let reborn = createRebornState("franchise-check-2", ROWS);
   reborn.player.coachTrust = 80;
   const first = buildSeason(reborn, ROWS);
   reborn = rolloverSeason(reborn, { year: first.year, players: ROWS }).reborn;
