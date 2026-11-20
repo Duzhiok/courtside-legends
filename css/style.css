@@ -649,6 +649,13 @@ html, body {
   margin-bottom: 8px;
 }
 .headshot {
+  /* A headshot that fails to load (a hotlink that 404s, an offline moment) must stay the same small round chip: Chrome renders a
+     broken <img alt> as an INLINE box and ignores width/height unless it is inline-block, so it became a stretched oval printing
+     the player's name. font-size:0 hides that alt text inside the chip; a loaded photo is unaffected. */
+  display: inline-block;
+  overflow: hidden;
+  font-size: 0;
+  color: transparent;
   width: 36px;
   height: 36px;
   border-radius: 50%;

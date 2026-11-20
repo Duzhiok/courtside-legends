@@ -3216,3 +3216,8 @@ B75 (`ECONNRESET` in onlineHardening) stays open and non-blocking; `withServer` 
 - Open for a human call: Giannis 2015 (SG) and 2016 (PG) are 211 cm cards with a guard label (BRef lists him as a forward); I did not change data.
 - Tests: `tests/lineupSeating.test.js` (10; real cards incl. the Harden five; mutation-checked: linear cost, no height rule, no inside/outside term, CPU five back on the greedy loop all fail). Browser: `scripts/qa/gold-tactics-board.mjs` all passed.
 
+### 2026-11-20 — Play-feed "oval with the player's name" (code-puppy-d8e9bb)
+- Cause (reproduced in a real browser, `scripts/qa/feed-avatar-broken.mjs`): a headshot <img> that fails to load (e.g. a hotlinked photo of an obscure 1970s player) is rendered by Chrome as an INLINE box that ignores width/height, so `.feed-avatar`'s 18x18 became 112x18 and, with `.headshot`'s round border and dark background, an oval printing the alt text (the player's name).
+- Fix: `.headshot` is now `display:inline-block; overflow:hidden; font-size:0; color:transparent` (css/style.css), so a broken photo stays the same small round chip everywhere (feed, cards, rosters). Loaded photos render identically. The retry-then-generated-avatar fallback (`imgErrorFallback.js`) is unchanged.
+- Verified: broken headshot 112x18 -> 18x18 on desktop and 390px; Gold browser smoke and photo/feed/fallback unit tests (59) pass.
+
