@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import { realTeam } from "./helpers/realGame.js";
 import { GameSim } from "../js/engine/sim.js";
 import {
+  HALF_COURT_ARC_TEND_BIAS,
   HALF_COURT_RULES,
   buildHalfCourtTeam,
   countedFreeThrows,
   halfCourtTeamTotals,
   playHalfCourtGame,
   playLines,
+  withHalfCourtArcBias,
 } from "../js/modes/halfCourt3v3.js";
 import { SANDBOX_MAX, addToSide, buildSandboxTeam } from "../js/modes/sandboxDuel.js";
 
@@ -158,6 +160,34 @@ test("teams passed in are not mutated into match state (Retry replays the same p
   const before = JSON.stringify(t.home.players.map((p) => ({ id: p.id, ovr: p.ovr, fatigue: p.fatigue, stats: p.stats })));
   playHalfCourtGame({ ...t, seed: "m1" });
   assert.equal(JSON.stringify(t.home.players.map((p) => ({ id: p.id, ovr: p.ovr, fatigue: p.fatigue, stats: p.stats }))), before);
+  assert.deepEqual(playHalfCourtGame({ ...t, seed: "m2" }), playHalfCourtGame({ ...teams(), seed: "m2" }));
+});
+
+test("B65: arc bias lifts threeTend on the match copy only — selection, not make", () => {
+  const card = { id: "x", name: "X", pos: "SF", threeTend: 20, three: 70, mid: 70, paint: 70 };
+  const biased = withHalfCourtArcBias(card);
+  assert.equal(biased.threeTend, 20 + HALF_COURT_ARC_TEND_BIAS);
+  assert.equal(biased.three, 70, "make skill untouched");
+  assert.equal(card.threeTend, 20, "input card untouched");
+  assert.equal(withHalfCourtArcBias({ ...card, threeTend: 95 }).threeTend, 100, "capped at 100");
+  // No threeTend on the card: chooseShot's own fallback, then the same bias.
+  assert.equal(withHalfCourtArcBias({ id: "y", three: 70 }).threeTend, Math.round(70 * 0.55) + HALF_COURT_ARC_TEND_BIAS);
+});
+
+test("B65: the bias is 3v3-only — a sandbox team keeps the card's threeTend", () => {
+  const cards = top3("CHI", 1996);
+  const sandbox = buildSandboxTeam("A", cards, { slotOffset: 0, min: 3, max: 4 });
+  sandbox.players.forEach((p, i) => assert.equal(p.threeTend, cards[i].threeTend));
+  const hc = buildHalfCourtTeam("A", cards, { side: "home" });
+  hc.players.forEach((p, i) => assert.equal(p.threeTend, cards[i].threeTend, "team building itself stays unbiased; playHalfCourtGame applies the bias"));
+});
+
+test("B65: playHalfCourtGame never mutates the caller's threeTend (Retry gets one bias, not two)", () => {
+  const t = teams();
+  const before = t.home.players.map((p) => p.threeTend);
+  playHalfCourtGame({ ...t, seed: "m1" });
+  assert.deepEqual(t.home.players.map((p) => p.threeTend), before);
+  // Same picks + same seed replay the identical game: the bias is deterministic, not accumulating.
   assert.deepEqual(playHalfCourtGame({ ...t, seed: "m2" }), playHalfCourtGame({ ...teams(), seed: "m2" }));
 });
 

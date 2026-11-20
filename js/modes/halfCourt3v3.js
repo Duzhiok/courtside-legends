@@ -29,6 +29,7 @@
 import { GameSim } from "../engine/sim.js";
 import { teamChemistry, lineupFit } from "../engine/chemistry.js";
 import { hashSeed, seededStream } from "../core/seededRandom.js";
+import { clonePlayer } from "../data/players.js";
 import { buildSandboxTeam } from "./sandboxDuel.js";
 import { TL } from "../i18n.js";
 
@@ -58,6 +59,37 @@ const PINNED_CLOCK = 12 * 60;
 const HALF_COURT_SLOT_OFFSET = Object.freeze({ home: 0, away: 100 });
 
 const STAT_KEYS = ["fga", "fgm", "tpa", "tpm", "reb", "oreb", "ast", "stl", "blk", "tov", "pf"];
+
+/**
+ * B65: 3v3 arc-tendency bias. Real 3x3 takes ~35–40% of its shots from beyond
+ * the arc; the 5v5 chooseShot underneath sits near 25% on real rosters because
+ * it prices the arc by 5v5 spacing. The bias lifts threeTend on the MATCH
+ * copies only — selection, not make (`three` is untouched), so the same card
+ * keeps its 5v5 behaviour everywhere else and its roster card is never
+ * mutated. It is applied in exactly one place, playHalfCourtGame, so the
+ * picker, the measurement script and the view all play the same biased game;
+ * buildHalfCourtTeam stays a plain team builder. Calibrated with
+ * scripts/measure/b65-3v3.mjs (see BACKLOG B65): flat +30 → pooled 30.3%,
+ * +50 → 31.9%, +70 → 32.6% — the tendency-only curve saturates near ~33%
+ * because chooseShot's threeSkill < 40 gate (×0.05) and the post style
+ * (×0.04) cap the big-heavy matchup no matter the tendency. +50 takes
+ * nearly all of that headroom while keeping cards distinct (a tend-30 card
+ * lands at 80, not 100); reaching the ~35% pooled target would need a
+ * design decision on those gates, not a bigger increment.
+ */
+export const HALF_COURT_ARC_TEND_BIAS = 50;
+
+/** One match copy with the 3v3 arc bias applied (the input is untouched). */
+export function withHalfCourtArcBias(player) {
+  const copy = clonePlayer(player);
+  // chooseShot's own fallback when threeTend is missing, so a hand-built card
+  // without one gets the same bias as a real card with the same `three`.
+  const base = Number.isFinite(copy.threeTend)
+    ? copy.threeTend
+    : Math.max(1, Math.min(80, Math.round((copy.three || 40) * 0.55)));
+  copy.threeTend = Math.min(100, base + HALF_COURT_ARC_TEND_BIAS);
+  return copy;
+}
 
 /** Match-ready 3-man team from picked cards (reuses the sandbox copy + era-parity path). */
 export function buildHalfCourtTeam(name, cards, { side = "home", eraParity = false, pool = [], rules = HALF_COURT_RULES } = {}) {
@@ -245,11 +277,16 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
       throw new Error(`3v3: ${label} team needs ${rules.teamSize} players (plus up to ${rules.benchMax || 0} substitute)`);
     }
   }
+  // B65: the arc bias lives here, on fresh match copies — the caller's teams
+  // (the view's `teams`, replayed on Retry) are never mutated, and a second
+  // game from the same picks gets the same single bias, not a doubled one.
+  const matchHome = { ...home, players: home.players.map(withHalfCourtArcBias) };
+  const matchAway = { ...away, players: away.players.map(withHalfCourtArcBias) };
   const rng = seededStream(hashSeed(`3v3|${seed}`));
   let events = [];
   const sim = new GameSim({
-    home,
-    away,
+    home: matchHome,
+    away: matchAway,
     youSide: "home",
     injuries: false,
     speed: 3,
@@ -260,7 +297,7 @@ export function playHalfCourtGame({ home, away, seed = "3v3", lang = "zh", rules
   // GameSim's own CPU coach never gets a timeout (it would pause between possessions); the
   // half-court allowance is held here and spent through GameSim's callTimeout (its recovery).
   sim.timeouts = { home: 0, away: 0 };
-  const benchIds = { home: home.players.slice(rules.teamSize).map((p) => p.id), away: away.players.slice(rules.teamSize).map((p) => p.id) };
+  const benchIds = { home: matchHome.players.slice(rules.teamSize).map((p) => p.id), away: matchAway.players.slice(rules.teamSize).map((p) => p.id) };
   const hasBench = benchIds.home.length > 0 || benchIds.away.length > 0;
   for (const side of ["home", "away"]) seatBench(sim, side, benchIds[side]);
   // GameSim's own CPU rotation would sub only the away side (and draw from the shared rng); with a bench in play
