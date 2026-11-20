@@ -129,6 +129,16 @@
             <button type="button" class="btn ghost" id="btn-clear-save">丢弃存档</button>
           </div>
         </div>
+        <!-- B50 leftovers: one "latest finished" line (the bar above is a single-slot Continue strip and cannot
+             hold a list). Shown whenever any finished record exists, even with no save in progress. -->
+        <div class="account-home-bar save-home-bar" id="save-home-latest" hidden>
+          <div class="account-home-text">
+            <span class="tiny" id="save-home-latest-meta">—</span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn ghost" id="btn-view-latest-archive">查看记录</button>
+          </div>
+        </div>
         <div class="account-home-bar save-home-bar" id="long-career-home-bar" hidden>
           <div class="account-home-text">
             <strong>长期生涯存档</strong>

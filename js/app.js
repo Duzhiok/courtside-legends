@@ -290,7 +290,7 @@ import {
   challengeTierMeta,
   challengeTierName,
 } from "./data/careerChallenges.js";
-import { challengeArchiveEntry, makeRunId, recordChallengeArchive } from "./data/challengeArchive.js";
+import { challengeArchiveEntry, duelArchiveEntry, makeRunId, readChallengeArchive, recordChallengeArchive } from "./data/challengeArchive.js";
 import { historicalLadder, historicalUpsideHint } from "./engine/develop.js";
 import {
   HISTORICAL_YEARS,
@@ -359,6 +359,7 @@ import {
 } from "./career/careerAchievements.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
+import { archiveSummaryLine } from "./ui/myWorldView.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
 import { createShop } from "./ui/shopView.js";
 import { ticketBalance, autoXpRemaining, consumeAutoTickets, awardAutoGameXp } from "./data/shop.js";
@@ -1423,7 +1424,28 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
   }
 }
 
+/**
+ * B50 leftovers: the home save bar is a single-slot Continue strip and cannot hold a list, so the newest
+ * finished record gets one line under it. Independent of the bar itself -- it shows whenever any record
+ * exists, even with no save in progress (which is exactly when a finished duel/gold run has just cleared
+ * its slot). The line is plain text (textContent, never innerHTML). The button jumps to My World, where
+ * the full History list lives with View result + Delete.
+ */
+function refreshLatestArchiveLine() {
+  const line = $("#save-home-latest");
+  const meta = $("#save-home-latest-meta");
+  if (!line || !meta) return;
+  const latest = readChallengeArchive(activeAccount()?.id ?? null)[0];
+  if (!latest) {
+    line.hidden = true;
+    return;
+  }
+  line.hidden = false;
+  meta.textContent = archiveSummaryLine(latest, getLang());
+}
+
 function refreshSaveHomeBar() {
+  refreshLatestArchiveLine();
   const bar = $("#save-home-bar");
   const meta = $("#save-home-meta");
   const btnCont = $("#btn-continue-save");
@@ -5145,6 +5167,23 @@ function archiveFinishedChallenge(c, outcome) {
   if (entry) recordChallengeArchive(activeAccount()?.id ?? null, entry);
 }
 
+/**
+ * B50 leftovers: a finished Duel game leaves a read-only record in the same store (My World > My Games >
+ * History). A duel has no terminal state -- market -> game -> rematch loops until the player walks away -- so
+ * each finished game is the archivable unit. The save slot is still cleared right after the result screen
+ * (onEnd / onFinished), exactly as before; this only runs before that, in showResult. Never throws: a storage
+ * failure must not block the result screen. `c.gameId` is left in place so a second showResult for the same
+ * game dedups on the runId instead of writing twice; the next game mints a fresh one at market-done.
+ */
+function archiveFinishedDuel(c, snap) {
+  try {
+    const entry = duelArchiveEntry(c, snap);
+    if (entry) recordChallengeArchive(activeAccount()?.id ?? null, entry);
+  } catch (err) {
+    console.error("[duel] archive record failed (the game result is unaffected)", err);
+  }
+}
+
 function careerRoundLabel(roundOrStage, finals = false) {
   const c = state.career;
   const lang = getLang();
@@ -6099,6 +6138,9 @@ $("#btn-market-done").onclick = () => {
   // duel → setup for A vs B
   ensurePlayerDefaults(c.teamA?.players || []);
   ensurePlayerDefaults(c.teamB?.players || []);
+  // B50 leftovers: one game = one archive record; mint its id here so a restored game archives under the
+  // same id and a double fire of the result screen dedups (see archiveFinishedDuel).
+  c.gameId = makeRunId();
   openSetup(c.teamA, c.teamB, "home");
 };
 
@@ -8751,6 +8793,11 @@ $("#btn-clear-save")?.addEventListener("click", async () => {
     refreshSaveHomeBar();
   }
 });
+/** B50 leftovers: the "latest finished" line jumps to My World, where the full History list lives. */
+$("#btn-view-latest-archive")?.addEventListener("click", () => {
+  activateHomeTab?.("world");
+  $("#my-world-root")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 window.addEventListener("beforeunload", (e) => {
   try {
     if (state.career?.kind === "career") autosaveCareer();
@@ -9048,6 +9095,7 @@ function showResult(snap, { formNotes = [] } = {}) {
     return;
   }
   if (state.career?.kind === "duel") {
+    archiveFinishedDuel(state.career, snap);
     setResultActionMode("duel", { showContinue: true, continuePrimary: true });
     cont.hidden = false;
     cont.textContent = "备战再战";

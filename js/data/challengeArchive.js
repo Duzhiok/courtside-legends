@@ -6,12 +6,18 @@
  * capped, newest first. Field set follows docs/implementation/b50-gold-archive-design.md: a summary only -- wins,
  * gold, finals score and the team that eliminated you; never a lineup (the first-five names/OVR the first version
  * stored are gone by design).
+ *
+ * B50 leftovers (2026-11-20): the same store also keeps one record per finished Duel game (kind "duel"). A duel
+ * has no terminal state by design -- market -> game -> rematch loops until the player walks away -- so each
+ * finished game is the archivable unit, keyed by the per-game id minted at market-done (`c.gameId`). The
+ * budget-draft bracket (fromCustom) was already covered: it is a kind "career" run, so its ends already flow
+ * through archiveFinishedChallenge with tier "custom".
  */
 import { getAccount, saveAccount } from "./account.js";
 
 export const MAX_ARCHIVE = 20;
 const GUEST_KEY = "cls_challenge_archive_v1";
-const OUTCOMES = ["champion", "eliminated"];
+const OUTCOMES = ["champion", "eliminated", "duel"];
 
 /** One run's stable key, minted when the bracket starts (bootCareerBracket) and stamped on legacy runs at archive time. */
 export function makeRunId(now = Date.now()) {
@@ -68,7 +74,7 @@ function eliminatedByName(c, outcome) {
 
 /** What a finished run keeps: no cards, no lineup, nothing that could resume it. Null when it was not a real finish. */
 export function challengeArchiveEntry(c, outcome, now = Date.now()) {
-  if (!c || !OUTCOMES.includes(outcome)) return null;
+  if (!c || !OUTCOMES.includes(outcome) || outcome === "duel") return null;
   const finals = !!(c.finals || c.stageSize === 2);
   const { wins, losses } = countYourResults(c);
   return {
@@ -90,28 +96,76 @@ export function challengeArchiveEntry(c, outcome, now = Date.now()) {
   };
 }
 
+/** One finished Duel game (kind "duel", incl. the Custom hub entry -- same code path). The duel object carries the
+ * per-game id minted at market-done (`c.gameId`), so a restored game archives under the same id and a double
+ * fire of the result screen dedups instead of writing twice. A tie has no winner. Null when it was not a real
+ * finish (wrong kind, no score). `teamName` is the winner for compat with career-shaped readers. */
+export function duelArchiveEntry(c, snap, now = Date.now()) {
+  if (!c || c.kind !== "duel" || !snap?.score) return null;
+  const homeScore = Number(snap.score.home);
+  const awayScore = Number(snap.score.away);
+  if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) return null;
+  const homeName = String(snap.home?.name || c.teamA?.name || "");
+  const awayName = String(snap.away?.name || c.teamB?.name || "");
+  const winnerName = homeScore === awayScore ? null : homeScore > awayScore ? homeName : awayName;
+  return {
+    id: `du_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    runId: typeof c.gameId === "string" && c.gameId ? c.gameId : makeRunId(now),
+    kind: "duel",
+    fieldSource: "random",
+    tier: "duel",
+    outcome: "duel",
+    finals: false,
+    round: Number(c.round) || 1,
+    wins: 0,
+    losses: 0,
+    gold: 0,
+    finalsScore: null,
+    eliminatedBy: null,
+    teamName: winnerName || homeName,
+    homeName,
+    awayName,
+    homeScore,
+    awayScore,
+    winnerName,
+    finishedAt: now,
+  };
+}
+
 /** Whatever is stored, only well-formed records come back (storage is user-editable). Old records without a runId, or with the retired roster, still read fine. */
 export function normalizeArchive(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((e) => e && typeof e.id === "string" && OUTCOMES.includes(e.outcome) && Number.isFinite(e.finishedAt))
-    .map((e) => ({
-      id: e.id,
-      runId: typeof e.runId === "string" && e.runId ? e.runId : null,
-      kind: "career",
-      fieldSource: typeof e.fieldSource === "string" ? e.fieldSource : "random",
-      tier: typeof e.tier === "string" ? e.tier : "gold",
-      outcome: e.outcome,
-      finals: !!e.finals,
-      round: Number(e.round) || 1,
-      wins: Math.max(0, Math.round(Number(e.wins) || 0)),
-      losses: Math.max(0, Math.round(Number(e.losses) || 0)),
-      gold: Math.max(0, Math.round(Number(e.gold) || 0)),
-      finalsScore: typeof e.finalsScore === "string" && e.finalsScore ? e.finalsScore : null,
-      eliminatedBy: typeof e.eliminatedBy === "string" && e.eliminatedBy ? e.eliminatedBy : null,
-      teamName: typeof e.teamName === "string" ? e.teamName : "",
-      finishedAt: e.finishedAt,
-    }))
+    .map((e) => {
+      const kind = e.kind === "duel" || e.outcome === "duel" ? "duel" : "career";
+      const base = {
+        id: e.id,
+        runId: typeof e.runId === "string" && e.runId ? e.runId : null,
+        kind,
+        fieldSource: typeof e.fieldSource === "string" ? e.fieldSource : "random",
+        tier: typeof e.tier === "string" ? e.tier : "gold",
+        outcome: e.outcome,
+        finals: !!e.finals,
+        round: Number(e.round) || 1,
+        wins: Math.max(0, Math.round(Number(e.wins) || 0)),
+        losses: Math.max(0, Math.round(Number(e.losses) || 0)),
+        gold: Math.max(0, Math.round(Number(e.gold) || 0)),
+        finalsScore: typeof e.finalsScore === "string" && e.finalsScore ? e.finalsScore : null,
+        eliminatedBy: typeof e.eliminatedBy === "string" && e.eliminatedBy ? e.eliminatedBy : null,
+        teamName: typeof e.teamName === "string" ? e.teamName : "",
+        finishedAt: e.finishedAt,
+      };
+      if (kind !== "duel") return base;
+      return {
+        ...base,
+        homeName: typeof e.homeName === "string" ? e.homeName : "",
+        awayName: typeof e.awayName === "string" ? e.awayName : "",
+        homeScore: Math.max(0, Math.round(Number(e.homeScore) || 0)),
+        awayScore: Math.max(0, Math.round(Number(e.awayScore) || 0)),
+        winnerName: typeof e.winnerName === "string" && e.winnerName ? e.winnerName : null,
+      };
+    })
     .slice(0, MAX_ARCHIVE);
 }
 

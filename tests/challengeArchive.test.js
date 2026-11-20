@@ -8,7 +8,7 @@ import { createMemoryStorage } from "./helpers/memoryStorage.js";
 
 globalThis.localStorage = createMemoryStorage();
 const { createAccount, getAccount } = await import("../js/data/account.js");
-const { MAX_ARCHIVE, challengeArchiveEntry, deleteChallengeArchive, makeRunId, normalizeArchive, readChallengeArchive, recordChallengeArchive } = await import("../js/data/challengeArchive.js");
+const { MAX_ARCHIVE, challengeArchiveEntry, deleteChallengeArchive, duelArchiveEntry, makeRunId, normalizeArchive, readChallengeArchive, recordChallengeArchive } = await import("../js/data/challengeArchive.js");
 const view = await import("../js/ui/myWorldView.js");
 
 const CJK = /[\u4e00-\u9fff]/;
@@ -133,4 +133,109 @@ test("wiring: both ends of a finished run archive BEFORE clearing the slot; movi
   assert.equal((app.match(/(?<!function )archiveFinishedChallenge\(c,/g) || []).length, 2, "exactly two call sites (no duplicate records)");
   assert.match(app, /runId: makeRunId\(\)/, "a new bracket mints its runId at boot");
   assert.match(app, /if \(c && !c\.runId\) c\.runId = makeRunId\(\);/, "a legacy run without one gets stamped at archive time");
+});
+
+// B50 leftovers: Duel (incl. the Custom hub entry -- same code path) archives one record per finished game;
+// the budget-draft bracket is a kind "career" run, so its ends already flow through archiveFinishedChallenge
+// with tier "custom" (pinned by the first test above).
+const duel = (extra = {}) => ({
+  kind: "duel", round: 1, gameId: "game-duel-1",
+  teamA: { name: "玩家 A" }, teamB: { name: "玩家 B" }, ...extra,
+});
+const duelSnap = (home = 102, away = 98) => ({
+  score: { home, away }, home: { name: "玩家 A" }, away: { name: "玩家 B" }, youSide: "home",
+});
+
+test("a duel game leaves a read-only record: scoreline, winner, per-game id -- no lineup, no gold", () => {
+  const e = duelArchiveEntry(duel(), duelSnap(), 1000);
+  assert.equal(e.kind, "duel");
+  assert.equal(e.tier, "duel");
+  assert.equal(e.outcome, "duel");
+  assert.equal(e.runId, "game-duel-1", "the per-game id is the dedup key, not a fresh mint");
+  assert.equal(e.homeName, "玩家 A");
+  assert.equal(e.awayName, "玩家 B");
+  assert.equal(e.homeScore, 102);
+  assert.equal(e.awayScore, 98);
+  assert.equal(e.winnerName, "玩家 A");
+  assert.equal(e.teamName, "玩家 A", "compat: winner, for career-shaped readers");
+  assert.equal(e.gold, 0, "market budgets are not winnings");
+  assert.equal(e.finishedAt, 1000);
+  assert.deepEqual(Object.keys(e).sort(), ["awayName", "awayScore", "eliminatedBy", "fieldSource", "finals", "finalsScore", "finishedAt", "gold", "homeName", "homeScore", "id", "kind", "losses", "outcome", "round", "runId", "teamName", "tier", "winnerName", "wins"]);
+  const tie = duelArchiveEntry(duel(), duelSnap(100, 100), 1001);
+  assert.equal(tie.winnerName, null, "a tie has no winner");
+  assert.equal(tie.teamName, "玩家 A", "a tie falls back to the home name");
+  assert.equal(duelArchiveEntry(duel({ gameId: undefined }), duelSnap(), 1002).runId.slice(0, 4), "run-", "a game without an id gets one minted at archive time");
+  assert.equal(duelArchiveEntry(duel(), duelSnap(90, 110)).winnerName, "玩家 B", "the away side can win");
+  assert.equal(duelArchiveEntry({ kind: "career" }, duelSnap()), null, "only duel states archive here");
+  assert.equal(duelArchiveEntry(duel(), null), null, "no snapshot, no record");
+  assert.equal(duelArchiveEntry(duel(), { score: { home: "x", away: 98 } }), null, "a non-numeric score is not a finish");
+  assert.equal(duelArchiveEntry(duel(), { score: {} }), null);
+  assert.equal(challengeArchiveEntry(duel(), "duel"), null, "the career builder never takes the duel outcome");
+});
+
+test("duel records share the store: newest first, once per gameId, capped, deletable, guests separate", () => {
+  const acc = createAccount("DuelArch");
+  const a = duelArchiveEntry(duel(), duelSnap(), 1);
+  assert.equal(recordChallengeArchive(acc.id, a).changed, true);
+  assert.equal(recordChallengeArchive(acc.id, duelArchiveEntry(duel(), duelSnap(), 9999)).changed, false, "same gameId twice is a no-op (double fire of the result screen)");
+  const b = duelArchiveEntry(duel({ gameId: "game-duel-2" }), duelSnap(88, 95), 2);
+  const c = challengeArchiveEntry(run({ runId: "run-mix-1" }), "champion", 3);
+  recordChallengeArchive(acc.id, b);
+  recordChallengeArchive(acc.id, c);
+  assert.deepEqual(readChallengeArchive(acc.id).map((e) => e.id), [c.id, b.id, a.id], "career and duel records interleave newest first");
+  assert.equal(readChallengeArchive(acc.id)[1].kind, "duel");
+  assert.equal(deleteChallengeArchive(acc.id, "game-duel-2").changed, true);
+  assert.deepEqual(readChallengeArchive(acc.id).map((e) => e.runId), ["run-mix-1", "game-duel-1"]);
+  const kept = normalizeArchive([duelArchiveEntry(duel({ gameId: "game-n-1" }), duelSnap(1, 2), 5)]);
+  assert.equal(kept[0].homeScore, 1);
+  assert.equal(kept[0].winnerName, "玩家 B");
+  assert.deepEqual(normalizeArchive([{ id: "x", outcome: "duel", finishedAt: 1 }])[0].kind, "duel", "the outcome alone identifies a duel record (kind missing)");
+});
+
+test("My World renders duel records under History: scoreline, no Continue, escaped, bilingual", () => {
+  const enDuel = (extra = {}) => ({ kind: "duel", round: 1, gameId: "game-en-1", teamA: { name: "Player A" }, teamB: { name: "Player B" }, ...extra });
+  const enSnap = (home, away) => ({ score: { home, away }, home: { name: "Player A" }, away: { name: "Player B" }, youSide: "home" });
+  const list = normalizeArchive([
+    duelArchiveEntry(enDuel(), enSnap(102, 98), 1000),
+    duelArchiveEntry(enDuel({ gameId: "game-tie" }), enSnap(100, 100), 1001),
+  ]);
+  for (const lang of ["zh", "en"]) {
+    const html = view.gamesHtml({ archive: list, canClaim: true }, lang);
+    assert.equal((html.match(/mw-game mw-archive/g) || []).length, 2);
+    assert.match(html, lang === "en" ? /Duel/ : /双人对抗/, "the duel kind is labelled, not shown as a gold tier");
+    assert.match(html, /102–98/, "the scoreline is shown");
+    assert.match(html, lang === "en" ? /View result/ : /查看结果/);
+    assert.match(html, lang === "en" ? /Delete/ : /删除/);
+    assert.doesNotMatch(html, /data-mw-action="resume-career"/, "a record has no Continue");
+    if (lang === "en") assert.doesNotMatch(html, CJK, "English has no Chinese");
+    const line = view.archiveSummaryLine(list[0], lang);
+    assert.match(line, /102–98/);
+    assert.match(line, lang === "en" ? /Duel/ : /双人对抗/);
+    if (lang === "en") assert.doesNotMatch(line, CJK);
+  }
+  assert.match(view.gamesHtml({ archive: list }, "zh"), /平局/, "the tie row says so");
+  const evil = duelArchiveEntry(duel({ teamA: { name: "<b>玩家 A</b>" }, teamB: { name: "玩家 B" } }), { score: { home: 102, away: 98 }, home: { name: "<b>玩家 A</b>" }, away: { name: "玩家 B" } }, 1000);
+  const evilHtml = view.gamesHtml({ archive: normalizeArchive([evil]) }, "zh");
+  assert.ok(!evilHtml.includes("<b>玩家 A"), "team names escaped");
+  assert.match(evilHtml, /&lt;b&gt;玩家 A&lt;\/b&gt;/, "the evil name is shown escaped, not rendered");
+  const career = normalizeArchive([challengeArchiveEntry(run({ runId: "run-line-1" }), "eliminated", 2000)])[0];
+  assert.match(view.archiveSummaryLine(career, "zh"), /金币联赛/);
+  assert.match(view.archiveSummaryLine(career, "zh"), /淘汰出局/);
+  assert.match(view.archiveSummaryLine(career, "en"), /Gold League/);
+  assert.match(view.archiveSummaryLine(career, "en"), /Eliminated/);
+  assert.equal(view.archiveSummaryLine(null, "zh"), "");
+});
+
+test("wiring: a duel game archives at its result screen, keyed by the id minted at market-done; the home bar shows the latest record", () => {
+  const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
+  assert.match(app, /if \(state\.career\?\.kind === "duel"\) \{\s*archiveFinishedDuel\(state\.career, snap\);/, "the duel branch archives before wiring rematch");
+  assert.match(app, /c\.gameId = makeRunId\(\);\s*openSetup\(c\.teamA, c\.teamB, "home"\);/, "market-done mints the per-game id before setup");
+  assert.match(app, /const entry = duelArchiveEntry\(c, snap\);/, "the duel archiver builds the entry from the game snapshot");
+  assert.match(app, /refreshLatestArchiveLine\(\);\s*const bar = \$\("#save-home-bar"\);/, "the latest line paints even with no save in progress");
+  assert.match(app, /readChallengeArchive\(activeAccount\(\)\?\.id \?\? null\)\[0\]/, "the line reads the newest record for this account (guest: device list)");
+  assert.match(app, /meta\.textContent = archiveSummaryLine\(latest, getLang\(\)\);/, "the line is plain text, set via textContent");
+  assert.match(app, /\$\("#btn-view-latest-archive"\)\?\.addEventListener\("click", \(\) => \{\s*activateHomeTab\?\.\("world"\);/, "the line's button jumps to My World");
+  const index = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(index, /id="save-home-latest"/, "the latest line has its own bar under the save bar");
+  assert.match(index, /id="btn-view-latest-archive"/, "the jump button exists");
 });

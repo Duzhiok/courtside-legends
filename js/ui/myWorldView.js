@@ -230,6 +230,7 @@ function gameRow({ title, sub, state, resume, claim, remove }, canClaim, lang) {
 
 /** A finished gold-challenge run: a record, not a save -- no Continue, but View result and Delete. */
 function archiveRow(e, lang) {
+  if (e.kind === "duel") return duelArchiveRow(e, lang);
   const tier = challengeTierName(e.tier === "custom" ? "gold" : e.tier, lang);
   const result = e.outcome === "champion"
     ? TL(lang, "通关夺冠", "Champions")
@@ -260,6 +261,57 @@ function archiveRow(e, lang) {
     <button type="button" class="btn small ghost" data-mw-action="view-archive" data-archive-id="${key}" aria-expanded="false">${TL(lang, "查看结果", "View result")}</button>
     <button type="button" class="btn small ghost" data-mw-action="delete-archive" data-archive-id="${key}">${TL(lang, "删除", "Delete")}</button>
   </div></li>`;
+}
+
+/** A finished Duel game (B50 leftovers): same History row shape, but the summary is a scoreline, not a bracket. */
+function duelArchiveRow(e, lang) {
+  const date = new Date(e.finishedAt).toLocaleDateString(lang === "en" ? "en-US" : "zh-CN");
+  const home = e.homeName ? teamNameL(e.homeName, lang) : TL(lang, "未命名球队", "Unnamed team");
+  const away = e.awayName ? teamNameL(e.awayName, lang) : TL(lang, "未命名球队", "Unnamed team");
+  const score = `${e.homeScore}–${e.awayScore}`;
+  const result = e.winnerName
+    ? TL(lang, `${teamNameL(e.winnerName, lang)} 获胜`, `${teamNameL(e.winnerName, lang)} wins`)
+    : TL(lang, "平局", "Tie");
+  const key = esc(e.runId || e.id);
+  return `<li class="mw-game mw-archive"><div class="mw-game-text">
+    <p class="mw-line"><strong>${esc(TL(lang, "双人对抗", "Duel"))}</strong> · ${esc(result)}</p>
+    <p class="mw-line tiny">${esc(home)} ${esc(score)} ${esc(away)} · ${esc(date)}</p>
+    <p class="mw-local">${TL(lang, "已结束 · 只读记录，不能继续", "Finished · read-only record, cannot be continued")}</p>
+    <div class="mw-archive-detail" hidden><dl>
+      <dt>${TL(lang, "结果", "Result")}</dt><dd>${esc(result)}</dd>
+      <dt>${TL(lang, "比分", "Score")}</dt><dd>${esc(home)} ${esc(score)} ${esc(away)}</dd>
+      <dt>${TL(lang, "结束日期", "Finished")}</dt><dd>${esc(date)}</dd>
+    </dl></div>
+  </div><div class="mw-game-actions">
+    <button type="button" class="btn small ghost" data-mw-action="view-archive" data-archive-id="${key}" aria-expanded="false">${TL(lang, "查看结果", "View result")}</button>
+    <button type="button" class="btn small ghost" data-mw-action="delete-archive" data-archive-id="${key}">${TL(lang, "删除", "Delete")}</button>
+  </div></li>`;
+}
+
+/**
+ * B50 leftovers: one-line summary of a finished record for the home bar's "latest finished" line (the bar
+ * itself is a single-slot Continue strip and cannot hold a list -- design doc §存哪). Plain text, not HTML:
+ * the caller sets it via textContent, so names need no escaping here.
+ */
+export function archiveSummaryLine(e, lang) {
+  if (!e) return "";
+  const date = new Date(e.finishedAt).toLocaleDateString(lang === "en" ? "en-US" : "zh-CN", { month: "numeric", day: "numeric" });
+  if (e.kind === "duel") {
+    const home = e.homeName ? teamNameL(e.homeName, lang) : TL(lang, "未命名球队", "Unnamed team");
+    const away = e.awayName ? teamNameL(e.awayName, lang) : TL(lang, "未命名球队", "Unnamed team");
+    const score = `${e.homeScore}–${e.awayScore}`;
+    const result = e.winnerName
+      ? TL(lang, `${teamNameL(e.winnerName, lang)} 获胜`, `${teamNameL(e.winnerName, lang)} wins`)
+      : TL(lang, "平局", "Tie");
+    return TL(lang, `最近结束 · 双人对抗：${home} ${score} ${away}（${result}）· ${date}`, `Latest finished · Duel: ${home} ${score} ${away} (${result}) · ${date}`);
+  }
+  const tier = challengeTierName(e.tier === "custom" ? "gold" : e.tier, lang);
+  const result = e.outcome === "champion"
+    ? TL(lang, "通关夺冠", "Champions")
+    : e.finals ? TL(lang, "总决赛出局", "Lost in the Finals") : TL(lang, "淘汰出局", "Eliminated");
+  const team = e.teamName ? teamNameL(e.teamName, lang) : TL(lang, "未命名球队", "Unnamed team");
+  const score = TL(lang, `${e.wins}胜${e.losses}负`, `${e.wins}W–${e.losses}L`);
+  return TL(lang, `最近结束 · ${tier}：${result} · ${team} · ${score} · ${date}`, `Latest finished · ${tier}: ${result} · ${team} · ${score} · ${date}`);
 }
 
 /**
