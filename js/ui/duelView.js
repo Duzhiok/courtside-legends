@@ -233,8 +233,8 @@ function renderSelect() {
       <button type="button" class="btn small${selection.challengerKind === "legend" ? " active" : ""}" data-challenger-kind="legend">${esc(L("传奇对传奇", "Legend vs Legend"))}</button>
     </div>
     ${selection.challengerKind === "avatar" && !avatar ? `
-      <p class="tiny">${esc(L("还没有创建头像——先去我的世界捏一个头像，再回来挑战传奇。", "No avatar yet — create one in My World first, then come back to challenge a legend."))}</p>
-      <p><button type="button" class="btn small" id="btn-duel-goto-avatar">${esc(L("去我的世界创建头像", "Create my avatar in My World"))}</button></p>
+      <p class="tiny">${esc(L("还没有创建头像——先去我的篮球人生捏一个头像，再回来挑战传奇。", "No avatar yet — create one in My World first, then come back to challenge a legend."))}</p>
+      <p><button type="button" class="btn small" id="btn-duel-goto-avatar">${esc(L("去我的篮球人生创建头像", "Create my avatar in My World"))}</button></p>
     ` : ""}
     ${selection.challengerKind === "avatar" && avatar ? `
       <div id="duel-avatar-stage" style="height:200px;max-width:220px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;">

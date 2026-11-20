@@ -1,4 +1,4 @@
-// My Team Clubhouse as the landing of the "My Players" tab, measured in a real browser at four widths:
+// My Team Clubhouse as the landing of the "My Team" tab, measured in a real browser at four widths:
 // no extra click to reach it, every starter stands on his OWN position's spot (C top, PG/SG bottom), the five
 // cards never overlap or clip, long names are never cut, the champion season opens to its saved starting five, an
 // older champion shows only its real result, the hero offers the next step, and English has no Chinese.

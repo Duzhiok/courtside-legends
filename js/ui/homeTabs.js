@@ -1,11 +1,11 @@
 /**
- * Home screen's 3-category reorg (T1), derived from the mode catalog (M1 / ADR-001).
+ * Home screen's four spaces (ADR-008 N-1; names approved in its Q2), derived from the mode catalog (M1 / ADR-001).
  *
  * NBA 2K / FIFA Ultimate Team pattern: a persistent-collection home base (MyTeam), a long-season
  * management mode (MyLeague/Career Mode), and a low-stakes anything-goes bucket (Kick Off/Squad
  * Battles). Which mode sits in which tab is NOT declared here: js/data/modeCatalog.js is the
  * single source of truth, and each mode's `homeTab` field decides its panel. This file only owns
- * tab chrome (labels, hints, the default tab) and the DOM glue. Modes without a `homeTab`
+ * tab chrome (labels, the default tab) and the DOM glue; the visible hint under each tab lives in index.html. Modes without a `homeTab`
  * (legend / duel / familyDuel) are entered from the custom hub, never from a home panel, so
  * categoryForMode() correctly returns null for them — the old hardcoded table used to claim a
  * different set than the catalog (it listed `sandbox` before the catalog knew it).
@@ -14,27 +14,13 @@
 import { allModes } from "../data/modeCatalog.js";
 
 const TAB_META = [
-  {
-    // ADR-008 N-1: the player's own space. Holds no modes (no catalog homeTab points here).
-    id: "world",
-    label: "我的世界",
-    hint: "你的身份、旅程、荣誉和小家",
-  },
-  {
-    id: "players",
-    label: "我的球员",
-    hint: "你的永久班底：抽卡、养成、排位",
-  },
-  {
-    id: "career",
-    label: "职业经理",
-    hint: "长线经营：选秀、发展、完整赛季与联盟历史",
-  },
-  {
-    id: "custom",
-    label: "自定义",
-    hint: "天马行空：挑战之路 + 任意球员任意年份的自由对战",
-  },
+  // ADR-008 N-1: the player's own space (avatar, collection, honours, home). Holds no modes (no catalog homeTab points here).
+  // Not "我的世界": that is Minecraft's Chinese name, which is why Q2 picked 我的篮球人生.
+  { id: "world", label: "我的篮球人生" },
+  // The ids stay players / career / custom: QA scripts and the lastMode restore path key on them. Only the names changed.
+  { id: "players", label: "我的球队" },
+  { id: "career", label: "传奇生涯" },
+  { id: "custom", label: "自由球场" },
 ];
 
 export const HOME_CATEGORIES = TAB_META.map((tab) => ({

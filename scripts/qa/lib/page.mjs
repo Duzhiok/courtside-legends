@@ -92,7 +92,7 @@ export const clickProfile = async (page, selector) => {
 };
 // Single Season is now a career-length choice inside the Franchise setup page (no home card of its own).
 export const openSingleSeason = async (page) => {
-  await page.click('.home-tab[data-category="career"]'); // the home opens on My World; Franchise lives under 职业经理
+  await page.click('.home-tab[data-category="career"]'); // the home opens on My World; Franchise lives under 传奇生涯
   await page.click('.mode-card[data-mode="franchise"]');
   await page.waitForSelector("#screen-season.active"); // wait for the setup page before picking the length (R153 review)
   await page.click("#btn-career-length-season");

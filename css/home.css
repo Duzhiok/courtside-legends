@@ -218,7 +218,7 @@ html[lang="en"] .topbar .brand-name { display: none; }
   background: linear-gradient(90deg, rgba(29, 74, 49, .35), transparent);
 }
 
-/* —— T1: home category tabs (我的球员 / 职业经理 / 自定义) —— */
+/* —— home tabs, ADR-008 four spaces (我的篮球人生 / 我的球队 / 传奇生涯 / 自由球场) —— */
 .home-category-tabs {
   display: flex;
   gap: 6px;

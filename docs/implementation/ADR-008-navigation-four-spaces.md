@@ -143,3 +143,4 @@
 
 ## 执行记录
 - R162（2026-11-06）：My World MVP（N-1a/b/c）完成，见 WORKNOTE R162。原三个 tab **暂不改名**（已批准的新名称留到单独的小步骤做），只新增 `world` 分类；`modeCatalog` 不动。英文 tab 用 "My World"（避免手机折行），页面标题为 "My Basketball Life"。
+- 2026-11-20（B46 收尾，产品负责人重申批准四空间方向）：采用本 ADR 已批准的 Q1/Q2/Q5，无新决定。4 个 tab 改为 Q2 名字：**我的篮球人生 / 我的球队 / 传奇生涯 / 自由球场**（英文 My World / My Team / Career / Playground）。"我的世界"是 Minecraft 的中文名，Q2 当初就是要避开它，所以 R162 的临时名一起换掉。`players`/`career`/`custom`/`world` 四个 id 和 `modeCatalog` 都不变，`lastMode` 恢复路径和 `?reborn=1` 等深链接不受影响；不改存档。提示文案按各空间里真实存在的模式重写（金币晋级赛在"自由球场"，穿越生涯与联盟经理在"传奇生涯"）。手机底栏没有做：390px 下 4 个 tab 一行放得下（中文最右 368/390），首屏 CTA 也没被挡，按 §8 不需要。验证：`tests/homeTabs.test.js`，`scripts/qa/home-four-spaces.mjs` 38/38（中英文 × 1280/390、单行、面板切换、深链接），`home-first-screen.mjs` 69/69。

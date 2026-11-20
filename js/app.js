@@ -11486,7 +11486,7 @@ $("#myteam-done-bar")?.addEventListener("click", (e) => {
   if (e.target.closest("[data-myteam-lineup]")) openMyTeamHome();
 });
 
-/** The My Team clubhouse lives inside the home "My Players" tab: go there and show fresh data. */
+/** The My Team clubhouse lives inside the home "My Team" tab (id players): go there and show fresh data. */
 function openMyTeamHome() {
   show("home");
   activateHomeTab?.("players");

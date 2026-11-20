@@ -186,3 +186,26 @@ test("B15: the hero CTA and the quick card have different names in both language
     setLang(before);
   }
 });
+
+// ADR-008 Q2 (approved 2026-11-06): the four spaces' names. The ids stay as they were (lastMode restore + QA key on them).
+test("the four home tabs carry the ADR-008 Q2 names in both languages, with unchanged ids, in markup and in TAB metadata", async () => {
+  const { translateStatic, getLang, setLang } = await import("../js/i18n.js");
+  const approved = [
+    ["world", "我的篮球人生", "My World"],
+    ["players", "我的球队", "My Team"],
+    ["career", "传奇生涯", "Career"],
+    ["custom", "自由球场", "Playground"],
+  ];
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const tabs = [...html.matchAll(/class="home-tab" data-category="([^"]+)" role="tab">([^<]+)</g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(tabs, approved.map(([id, zh]) => [id, zh]), "index.html tab bar, in order");
+  assert.deepEqual(HOME_CATEGORIES.map((c) => [c.id, c.label]), approved.map(([id, zh]) => [id, zh]), "homeTabs metadata");
+  const was = getLang();
+  setLang("en");
+  try {
+    for (const [, zh, en] of approved) assert.equal(translateStatic(zh), en, `${zh} -> ${en}`);
+  } finally {
+    setLang(was);
+  }
+  assert.ok(!html.includes("我的世界"), "never Minecraft's Chinese name");
+});

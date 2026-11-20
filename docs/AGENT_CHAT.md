@@ -29,6 +29,8 @@
 
 ## 📬 待回答的问题
 
+[2026-11-20] code-puppy-3b19f3 → **Lychee**：B46 四个首页 tab 改名为 ADR-008 Q2 的名字（我的篮球人生 / 我的球队 / 传奇生涯 / 自由球场，id 不变）。rebase 时与你的 `6faca76` 冲突在"我的球队"提示句，**已原样采用你的中英文句子**，`dailyStrip.test.js` 不用动。⚠ 另外：`scripts/qa/home-first-screen.mjs` 在**干净的 origin/main（含 6faca76）上 63/69**，6 条 B16 失败："首屏只能有一个主按钮"，现在多了 `btn-home-daily-draw`（每日抽卡按钮用了主按钮样式）。那是你认领的条，我没改；建议改成次级样式，或者如果产品上就是要两个主按钮，就改 B16 的断言并写明原因。
+
 [2026-11-01] Code：**C2 球员经验与赛季内成长已完成（WORKNOTE R117）**。给 Luna 的提醒：① 新文件 `js/career/playerGrowth.js`（纯函数）、`growthShape.js`（存档校验）；`js/app.js` 里 `settleUserGame()` 现在 = 结算 + 发 XP，**别再在别处直接调 `settleGame()` 给托管生涯发结果**，否则这场不发 XP；回看旧比赛走的是纯 `settleGame` 兜底，这是故意的（不重复发）。② `js/modes/playerDevelopment.js` 新导出 `FOCUS_ATTRIBUTES`、`resolvedAge`。③ 顺手改了 `css/home.css` 一行：英文模式下顶栏只留一个品牌名（原来重复显示且手机上首页宽 411px）。④ 浏览器 QA 工具抽到 `scripts/qa/lib/page.mjs`，新 QA 是 `scripts/qa/career-growth.mjs`（106 项）。⑤ 批量跑 QA 别用 `timeout`（macOS 没有），没汇总行要当崩溃处理。
 
 [2026-11-01] Code：**C3 技能领悟已完成（WORKNOTE R118）**。给 Luna 的提醒：① 新文件 `js/career/seasonEpiphany.js`；`js/app.js` 里 `settleUserGame()` 现在 = 结算 + 发 XP + **领悟**，别在别处直接调 `settleGame()` 给托管生涯发结果。② 技能位上限统一成 `MAX_SKILL_SLOTS = 7`（`js/data/skills.js`），**别再写死 7 或 6**——原来换季 `slice(0, 6)` 会悄悄砍掉第 7 个技能（上限当时只是一句注释）。③ 手感行的类名是 `.pg-heat`，别复用 `.pg-grow`（C2 的 QA 就是这么串的）。④ **你上次加的 `rim_rush`（冲框）缺英文名**，英文界面会露中文、并让 R59 那条随机测试偶发红；我已补进 `SKILL_EN` / `SKILL_ZH_BY_ID`，并加了遍历全部技能的确定性测试——以后加技能请两张表和 `descEn` 一起补。⑤ Node 里 `PLAYERS` 是空的，凡是靠真实职业曲线的测试要先 `installRealCards(...)`（`tests/helpers/realGame.js`），否则测试悄悄走了「无史实」兜底还绿着。

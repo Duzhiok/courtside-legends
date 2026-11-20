@@ -71,7 +71,7 @@ for (const [w, h, tag, lang] of [[1280, 800, "desktop", "zh"], [390, 844, "mobil
 
     // 1. the box
     check(`[${tag}] attach box present: choose button, 0/3, accept list`, await page.$eval("#mw-attach", (el) => !!el.querySelector("#mw-attach-pick") && el.querySelector("#mw-attach-count").textContent === "0/3" && el.querySelector("#mw-attach-input").accept === "image/png,image/jpeg,image/webp"));
-    check(`[${tag}] UI language is really ${lang}`, (await text(page, '.home-tab[data-category="world"]')) === (zh ? "我的世界" : "My World"));
+    check(`[${tag}] UI language is really ${lang}`, (await text(page, '.home-tab[data-category="world"]')) === (zh ? "我的篮球人生" : "My World"));
     if (!zh) check(`[${tag}] English attach box has no Chinese`, !CJK.test(await text(page, "#mw-attach")));
 
     // 2. real files in: small kept, jpeg kept, huge PNG shrunk

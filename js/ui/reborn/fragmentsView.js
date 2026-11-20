@@ -63,7 +63,7 @@ function specializeHtml(reborn, week, card, lang) {
 function legacyHtml(reborn, year, lang) {
   const blocker = legacyBlocker(reborn, year);
   const head = `<h4>${L("传承球衣", "Legacy jersey", lang)}</h4>`;
-  if (blocker === "already") return `${head}<p class="reborn-fragments-on" data-legacy-owned>${L(`${year} 赛季的传承球衣已进入你的球衣收藏，可以在「我的世界」穿上。`, `Your ${year} legacy jersey is in your collection; wear it in My World.`, lang)}</p>`;
+  if (blocker === "already") return `${head}<p class="reborn-fragments-on" data-legacy-owned>${L(`${year} 赛季的传承球衣已进入你的球衣收藏，可以在「我的篮球人生」穿上。`, `Your ${year} legacy jersey is in your collection; wear it in My World.`, lang)}</p>`;
   return `${head}<button type="button" class="btn small" data-buy-legacy ${blocker ? "disabled" : ""}>${L(`兑换本赛季球衣（−${LEGACY_COST} 碎片，外观收藏，商城不卖）`, `Redeem this season's jersey (−${LEGACY_COST} fragments, cosmetic, never sold in the Shop)`, lang)}</button>${blocker ? `<small> ${pick(LEGACY_BLOCKER, blocker, lang)}</small>` : ""}`;
 }
 
@@ -72,7 +72,7 @@ function honoursHtml(reborn, lang) {
   const rows = LEGACY_UNLOCKS.map((u) => {
     const blocker = unlockBlocker(reborn, u.id);
     const name = `${u.kind === "title" ? L("称号", "Title", lang) : L("头像框", "Frame", lang)}「${unlockLabel(u, lang)}」`;
-    if (blocker === "already") return `<li data-unlock-owned="${esc(u.id)}">${esc(name)} · ${L("已兑换，可在「我的世界」使用", "redeemed: use it in My World", lang)}</li>`;
+    if (blocker === "already") return `<li data-unlock-owned="${esc(u.id)}">${esc(name)} · ${L("已兑换，可在「我的篮球人生」使用", "redeemed: use it in My World", lang)}</li>`;
     const why = blocker === "not-earned" ? L(`需要先${u.needs.zh}`, `Needs: ${u.needs.en}`, lang) : blocker === "short" ? L(`需要 ${u.cost} 个碎片`, `Needs ${u.cost} fragments`, lang) : "";
     return `<li><button type="button" class="btn small" data-buy-unlock="${esc(u.id)}" ${blocker ? "disabled" : ""}>${esc(name)}（−${u.cost}）</button>${why ? `<small> ${esc(why)}</small>` : ""}</li>`;
   }).join("");
