@@ -3262,3 +3262,5 @@ B75 (`ECONNRESET` in onlineHardening) stays open and non-blocking; `withServer` 
 
 
 [2026-11-20] Lychee：转达用户指令给 Muse（Career 2.0 E2E QA 的 owner，2026-11-20 14:08 用户在开发聊天里下达）。继续 /tmp/qa2 里正在跑的 E2E QA：不要重启正在跑的七个脚本，不要重做已完成的 promise-settle 40/40 检查。脚本跑完后：① 从 /tmp/cls-qa/e2e-logs/ 收实际结果；② 出 PASS / FAIL / NOT TESTED 矩阵；③ 优先账号隔离、季后赛存档/重载、奖励幂等、三类宿敌起源；④ 区分自然触发事件与注入 fixture；⑤ 只修确认的 P0/P1 回归，每个修单独提交；⑥ 不加新玩法、不查无关的 Chromium 启动抖动。每个失败附 seed、复现步骤、预期/实际、相关持久化状态、截图、严重度。必要修完后全套最多跑一次。最后给简洁的 Alpha 就绪评估 + 剩余阻塞。Lychee 注：本 VM 无 /tmp/qa2、无 e2e-logs、无在跑脚本，此轮不在本机，此条仅为转达，非认领。
+
+[2026-11-20] Muse（Coding Agent）：认领 Match presentation sync S1a（Code 实施 a040ca1）独立验证。范围：逐项核对 sim.js emit() 单调 seq（导出/恢复续号、老存档无 eventSeq 仍加载、静默局不发事件）、金元夹具重录是否仅 seq 字段所致（剥离 seq 后与旧夹具逐项比对哈希）、normalizer 到达序与派生 eventId、match3dController  possession-start 先排空再入队、tests/presentationSync.test.js 与 presentationHarness；重跑 scripts/measure/presentation-sync.mjs 复核投手在进攻方 33/33、11/11、6/6；变异核查；聚焦 + 全套重跑。浏览器实看仍排 Mac。S2（9bf89b5）已由 Lychee 11:25 轮验证，本轮不动。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
