@@ -39,6 +39,8 @@ import { arenaPreset, qualityProfile } from "./arena/arenaPresets.js";
 import { makeFloorTexture } from "./arena/floorTexture.js";
 import { addHoopDetails } from "./arena/arenaHoop.js";
 import { addArenaLights } from "./arena/arenaLights.js";
+import { buildArenaEnvironment } from "./arena/arenaEnvironment.js";
+import { canInstance, instancedBoxes } from "./arena/arenaInstances.js";
 
 /** Vendored full Three.js 0.187.0 (three.module.js + three.core.js). The R171
  * avatar bundle is tree-shaken to 13 symbols (no geometry/material classes)
@@ -276,6 +278,7 @@ export class CourtView3D {
     this._quality = qualityProfile(opts.quality);
     this._doc = opts.doc || (typeof document !== "undefined" ? document : null);
     this._floorTex = null;
+    this._env = null; // the stands/crowd/courtside group (null where InstancedMesh is missing or the build failed)
     this._fov = opts.fov || 50;
     this._disposed = false;
     this._snap = null;
@@ -330,6 +333,13 @@ export class CourtView3D {
       home: this._buildHoop(scene, COURT_HALF_LENGTH_M - 1.72).rim,
     };
 
+    try {
+      this._env = buildArenaEnvironment(T, scene, this._arena, this._quality, { doc: this._doc, colors: this._colors });
+    } catch (err) {
+      console.warn("[court3d] arena environment skipped:", err); // decoration only: the match view must never depend on it
+      this._env = null;
+    }
+
     const ball = new T.Mesh(
       new T.SphereGeometry(BALL_RADIUS_M, 20, 14),
       new T.MeshStandardMaterial({ color: 0xed7a1a, roughness: 0.6 }),
@@ -373,12 +383,12 @@ export class CourtView3D {
     const group = new T.Group();
     const W = COURT_HALF_WIDTH_M;
     const L = COURT_HALF_LENGTH_M;
+    const strips = [];
     const strip = (x1, z1, x2, z2, w = 0.06) => {
-      const len = Math.hypot(x2 - x1, z2 - z1);
-      const m = new T.Mesh(new T.BoxGeometry(len, 0.012, w), lineMat);
-      m.position.set((x1 + x2) / 2, 0.006, (z1 + z2) / 2);
-      m.rotation.y = -Math.atan2(z2 - z1, x2 - x1);
-      group.add(m);
+      strips.push({
+        x: (x1 + x2) / 2, y: 0.006, z: (z1 + z2) / 2,
+        sx: Math.hypot(x2 - x1, z2 - z1), sy: 0.012, sz: w, ry: -Math.atan2(z2 - z1, x2 - x1),
+      });
     };
     // Boundary + half-court.
     strip(-W, -L, W, -L);
@@ -421,6 +431,17 @@ export class CourtView3D {
         const p = { x: 6.75 * Math.cos(a), z: rimZ + 6.75 * Math.sin(a) };
         if (prev) strip(prev.x, prev.z, p.x, p.z, 0.05);
         prev = p;
+      }
+    }
+    // ~60 line segments: one draw call where instancing exists (mobile budget), one mesh each otherwise.
+    if (canInstance(T)) {
+      group.add(instancedBoxes(T, strips, lineMat));
+    } else {
+      for (const it of strips) {
+        const m = new T.Mesh(new T.BoxGeometry(it.sx, it.sy, it.sz), lineMat);
+        m.position.set(it.x, it.y, it.z);
+        m.rotation.y = it.ry;
+        group.add(m);
       }
     }
     scene.add(group);
@@ -614,6 +635,7 @@ export class CourtView3D {
   render(snap) {
     if (this._disposed) return Promise.resolve();
     this._snap = snap;
+    this._env?.setSnapshot(snap);
     const offSide = snap.possession === "away" ? "away" : "home";
     if (this._possession !== offSide) {
       this._possession = offSide;
@@ -788,6 +810,11 @@ export class CourtView3D {
       /* already gone */
     }
     try {
+      this._env?.dispose();
+    } catch {
+      /* arena already gone */
+    }
+    try {
       this._floorTex?.dispose?.();
     } catch {
       /* texture already gone */
@@ -826,6 +853,7 @@ export class CourtView3D {
 
   tick(now) {
     if (this._disposed || !this._snap) return;
+    this._env?.update(now);
     const snap = this._snap;
     const offSide = snap.possession === "away" ? "away" : "home";
     const attackingUp = offSide === "home";
