@@ -17,6 +17,7 @@ import {
   GROWTH_PERF_MAX,
   GROWTH_PERF_MIN,
   GROWTH_PERF_PER_SCORE,
+  GROWTH_PRACTICE_XP,
   GROWTH_XP_PER_LEVEL,
 } from "./balance.js";
 import { FOCUS_ATTRIBUTES } from "../engine/developmentRules.js";
@@ -39,6 +40,9 @@ export function gameXp(line, age) {
   );
   return Math.round(minutes * perf * ageRow(age).xp);
 }
+
+/** Practice-day XP: only a line marked `practice` (a completed training week) earns it; youth speeds it like game XP. */
+export const practiceXp = (line, age) => (line?.practice ? Math.round(GROWTH_PRACTICE_XP * ageRow(age).xp) : 0);
 
 /**
  * The attributes a player trains: the plan's own list when it names one (a Reborn specialisation week), else his
@@ -90,7 +94,8 @@ export function awardGrowth({ growth = {}, plans = {}, year, players = [], lines
     if (!player?.bref) continue;
     const age = resolvedAge(player);
     const row = ageRow(age);
-    const gain = Math.round(gameXp(line, age) * boost);
+    const practice = Math.round(practiceXp(line, age) * boost);
+    const gain = Math.round(gameXp(line, age) * boost) + practice;
     if (gain <= 0) continue;
 
     const entry = next[player.bref] || { year, xp: 0, levels: 0, deltas: {} };
@@ -125,6 +130,7 @@ export function awardGrowth({ growth = {}, plans = {}, year, players = [], lines
       id: line.id,
       name: line.name,
       xp: gain,
+      practice,
       total: entry.xp,
       progress: Math.min(1, entry.xp / GROWTH_XP_PER_LEVEL),
       levels: entry.levels,

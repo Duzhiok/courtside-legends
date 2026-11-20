@@ -230,6 +230,11 @@ export const LEGACY_TIER_MIN = { hallOfFame: 80, great: 55, solid: 35, journeyma
 /** XP a player needs for one level. A starter earns ~35-45 XP a game, so a young starter levels about
  * every 27 games and a bench rookie (10 min, quiet nights) barely once a season: minutes matter. */
 export const GROWTH_XP_PER_LEVEL = 1200;
+/** XP is minutes-based, so a player who rides the bench would never grow and "training" would be an empty choice.
+ * A completed training WEEK therefore pays a fixed practice-day XP (x the same youth factor, x any coach/fragment
+ * multiplier) on top of game XP. Same level cap per season and same ceilings: a diligent 25-28 bench player banks
+ * about one +1 a season (a starter's game XP reaches the 2-level cap anyway); veterans past 32 still earn nothing. */
+export const GROWTH_PRACTICE_XP = 60;
 /** XP = minutes x performance x youth. Performance maps a Game Score (the same yardstick as the card's
  * "本场最佳") onto a multiplier: a 0-score night counts 0.6, a 10 counts 1.1, a 30+ night caps at 2. */
 export const GROWTH_PERF_BASE = 0.6;

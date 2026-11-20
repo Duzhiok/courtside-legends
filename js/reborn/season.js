@@ -264,6 +264,7 @@ export async function playGame(
     gameScore: gs,
     role,
     trainingDone: trainingThisWeek,
+    minutes: line.min,
     takeover: takeoverOutcome ? { attempted: takeoverOutcome.attempted, made: takeoverOutcome.made } : null,
   });
   const trustAfter = trustChange.trust;
@@ -322,7 +323,7 @@ export async function playGame(
     year,
     cards: myCards,
     rows: players,
-    lines: [{ id: playerCard.id, min: line.min, score: gs }],
+    lines: [{ id: playerCard.id, name: playerCard.name, min: line.min, score: gs, practice: trainingThisWeek }],
     xpMultiplier: intensiveMultiplier(reborn, gameWeek),
     week: gameWeek,
   });

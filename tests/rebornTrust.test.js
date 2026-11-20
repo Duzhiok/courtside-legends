@@ -8,6 +8,8 @@ import {
   expectedGameScore,
   updateTrust,
   describeTrustChange,
+  describeNextTier,
+  nextTier,
   ROLE_MINUTES,
   TRUST_START,
 } from "../js/reborn/trust.js";
@@ -90,4 +92,43 @@ test("the trust change explains itself on the card, zh + en", () => {
   assert.match(zh, /关键回合打成/);
   assert.match(en, /Trust \+11/);
   assert.match(en, /Takeover made/);
+});
+
+test("a game he barely played is not a bad performance: no trust is lost for sitting", () => {
+  const sat = updateTrust(25, { gameScore: 0, role: "garbage", minutes: 0 });
+  assert.equal(sat.delta, 0);
+  assert.deepEqual(sat.parts[0], { kind: "unplayed", delta: 0, minutes: 0 });
+  assert.equal(updateTrust(25, { gameScore: 0, role: "garbage", minutes: 2.9 }).delta, 0);
+  // Real minutes are judged exactly as before, and omitting minutes keeps the old rule.
+  assert.equal(updateTrust(25, { gameScore: 0, role: "garbage", minutes: 3 }).delta, -2);
+  assert.equal(updateTrust(25, { gameScore: 0, role: "garbage" }).delta, -2);
+  assert.equal(updateTrust(40, { gameScore: -2, role: "starter", minutes: 20 }).delta, -5);
+});
+
+test("sitting still lets training move him up the ladder (the death spiral is gone)", () => {
+  let trust = 25;
+  for (let game = 1; game <= 60; game += 1) {
+    trust = updateTrust(trust, { gameScore: 0, role: roleForTrust(trust), minutes: 0, trainingDone: game % 4 === 0 }).trust;
+  }
+  assert.ok(trust >= 30, `a diligent unused player reaches the bench band, got ${trust}`);
+  // ...and without training nothing moves: no free ride either.
+  let idle = 25;
+  for (let game = 1; game <= 60; game += 1) idle = updateTrust(idle, { gameScore: 0, role: roleForTrust(idle), minutes: 0 }).trust;
+  assert.equal(idle, 25);
+});
+
+test("the ladder names the next role, the gap, and what moves it (zh + en)", () => {
+  assert.deepEqual(nextTier(25), { role: "bench", at: 30, missing: 5 });
+  assert.deepEqual(nextTier(10), { role: "garbage", at: 15, missing: 5 });
+  assert.deepEqual(nextTier(74), { role: "starter", at: 75, missing: 1 });
+  assert.equal(nextTier(75), null);
+  assert.match(describeNextTier(25, "zh"), /轮换末端.*30.*还差 5.*训练 \+2/);
+  assert.match(describeNextTier(10, "en"), /Garbage time at trust 15 \(5 to go\).*\+4 a week/);
+  assert.equal(describeNextTier(90, "zh"), "");
+});
+
+test("the unplayed trust line explains itself, zh + en", () => {
+  const change = updateTrust(25, { gameScore: 0, role: "garbage", minutes: 0 });
+  assert.match(describeTrustChange(change, "zh"), /没有上场.*信任不扣/);
+  assert.match(describeTrustChange(change, "en"), /Didn't play.*no trust lost/);
 });

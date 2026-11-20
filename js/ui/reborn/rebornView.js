@@ -22,7 +22,7 @@ import {
   describeFastForwardEvent,
 } from "../../reborn/fastForward.js";
 import { latestRevealHint, revealLine } from "../../reborn/reveal.js";
-import { roleForTrust, describeTrustChange, TRUST_START } from "../../reborn/trust.js";
+import { roleForTrust, describeTrustChange, describeNextTier, TRUST_START } from "../../reborn/trust.js";
 import { settleRebornPromises } from "../../reborn/promiseSettle.js";
 import { challengeRival, mirrorRivalriesToAccount, rivalryLedger, rivalryTimelineEvent } from "../../reborn/rivalry.js";
 import { rivalryPregameHtml, rivalryReportHtml, rivalryTimelineLine, rivalsPanelHtml } from "./rivalryView.js";
@@ -99,10 +99,13 @@ export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
   // It never names the player — the reveal module pins that.
   const hint = latestRevealHint(reborn.identity, trust);
   const hintLine = hint ? `<p class="reborn-hint">${hint[lang === "en" ? "en" : "zh"]}</p>` : "";
+  const ladder = describeNextTier(trust, lang);
+  const ladderLine = ladder ? `<p class="reborn-ladder" data-testid="trust-ladder">${ladder}</p>` : "";
   return `<section class="reborn-identity"><h3>${name}</h3>`
     + `<p>${reborn.player.teamId} · ${card?.pos || ""} · OVR ${card ? overall(card) : "—"}</p>`
     + `<p>${L("教练信任", "Coach trust", lang)} ${trust} / 100 · ${roleLabel} · ${contractStatusLabel(status, lang)}</p>`
     + `<div class="reborn-trust-bar" role="progressbar" aria-valuenow="${trust}" aria-valuemin="0" aria-valuemax="100"><span style="width:${trust}%"></span></div>`
+    + ladderLine
     + hintLine
     + `</section>`;
 }

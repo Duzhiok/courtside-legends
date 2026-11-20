@@ -119,11 +119,20 @@ export function describeGrowth(entries, lang = "zh") {
           : `Training: ${step.attribute} ${step.from} → ${step.to}`,
       );
     }
-    if (!entry.leveled?.length && entry.xp > 0) {
+    if (entry.practice > 0) {
       lines.push(
         zh
-          ? `训练经验 +${entry.xp}${entry.name ? `（${entry.name}）` : ""}`
-          : `Training XP +${entry.xp}${entry.name ? ` (${entry.name})` : ""}`,
+          ? `训练日：不上场也在进步，本周训练 +${entry.practice} 经验（升级进度 ${Math.round((entry.progress || 0) * 100)}%）`
+          : `Practice day: you grow off the court too, +${entry.practice} XP this week (level progress ${Math.round((entry.progress || 0) * 100)}%)`,
+      );
+    }
+    // Practice-day XP has its own line above; this one is the game's own XP (minutes played).
+    const gameXp = entry.xp - (entry.practice || 0);
+    if (!entry.leveled?.length && gameXp > 0) {
+      lines.push(
+        zh
+          ? `训练经验 +${gameXp}${entry.name ? `（${entry.name}）` : ""}`
+          : `Training XP +${gameXp}${entry.name ? ` (${entry.name})` : ""}`,
       );
     }
   }
