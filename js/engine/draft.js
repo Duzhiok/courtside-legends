@@ -31,42 +31,116 @@ export function takenPeople(ids) {
   return people;
 }
 
+const tierWeight = (x) => HIDDEN_TIERS[x.hiddenTier]?.weight ?? 10;
+
+/**
+ * The cards a draw can still pick, in PLAYERS order, with their tier weights. Built ONCE per draw sequence: the old code re-filtered the
+ * whole player library (tens of thousands of cards) for every single pick, which made building one CPU team ~0.2 s and a whole gold
+ * bracket 2.5 s (CPU profile, BACKLOG B77). Picking from it is arithmetically identical to the old filter + weightedPick (same order,
+ * same integer weights, same `rand()` calls), so seeded results do not change: tests/draftPool.test.js checks that against the old code.
+ *
+ * A card that is taken is not spliced out (that is O(library) per pick again): its weight becomes 0 ("gone": real weights are >= 1), the
+ * running total drops by it (integers, so exactly what re-summing would give), and the picker skips zeros.
+ */
+export function createDrawPool(excludeIds = new Set()) {
+  const lib = drawLibrary();
+  const pool = { arr: lib.arr, weights: lib.weights.slice(), sum: lib.sum, live: lib.arr.length, byId: lib.byId, byPerson: lib.byPerson };
+  for (const id of excludeIds) {
+    for (const i of lib.byId.get(id) || []) take(pool, i);
+    const bref = brefOf(id); // a taken card also takes every other season of that person
+    if (bref) for (const i of lib.byPerson.get(bref) || []) take(pool, i);
+  }
+  return pool;
+}
+
+/** Everything about the player library that does not depend on who is taken: cards, weights, and the id / person indexes. Built once per roster load. */
+let library = null;
+function drawLibrary() {
+  const n = PLAYERS.length;
+  if (library && library.n === n && library.first === PLAYERS[0] && library.last === PLAYERS[n - 1]) return library;
+  const arr = PLAYERS.slice();
+  const weights = [];
+  const byId = new Map(); // id -> positions (ids are unique in practice; a list keeps the old "same id is taken" rule exact)
+  const byPerson = new Map(); // bref -> positions: one real person once per league
+  let sum = 0;
+  arr.forEach((p, i) => {
+    const w = tierWeight(p);
+    weights.push(w);
+    sum += w;
+    (byId.get(p.id) || byId.set(p.id, []).get(p.id)).push(i);
+    if (p.bref) (byPerson.get(p.bref) || byPerson.set(p.bref, []).get(p.bref)).push(i);
+  });
+  library = { n, first: PLAYERS[0], last: PLAYERS[n - 1], arr, weights, sum, byId, byPerson };
+  return library;
+}
+
+/** A pool whose takings do not touch the original (cards and indexes are shared, read-only; only the weights are copied). */
+const copyPool = (pool) => ({ ...pool, weights: pool.weights.slice() });
+
+/** One card picked by tier weight (null when empty). Same arithmetic as weightedPick: r = rand() * total, subtract until <= 0. */
+function pickFromPool(pool) {
+  const { arr, weights } = pool;
+  if (!pool.live) return null;
+  let r = rand() * pool.sum;
+  let last = -1;
+  for (let i = 0; i < arr.length; i++) {
+    const w = weights[i];
+    if (w === 0) continue; // taken
+    last = i;
+    r -= w;
+    if (r <= 0) return arr[i];
+  }
+  return arr[last]; // the old code fell back to the last candidate
+}
+
+function take(pool, i) {
+  const w = pool.weights[i];
+  if (w === 0) return;
+  pool.weights[i] = 0;
+  pool.sum -= w;
+  pool.live -= 1;
+}
+
+/** Take `card` out of the pool, and every other season of the same real person (one person per league). */
+function removeFromPool(pool, card) {
+  for (const i of pool.byId.get(card.id) || []) take(pool, i);
+  if (card.bref) for (const i of pool.byPerson.get(card.bref) || []) take(pool, i);
+}
+
+/** The cards still in the pool, in order (only the role-diverse deal wants a plain list). */
+const liveCards = (pool) => pool.arr.filter((_, i) => pool.weights[i] !== 0);
+
 /** Weighted pack — hidden tiers affect odds, never revealed in UI.
  * roleDiverse: deal the player cards one per role family (shooter /
  * rebounder / defender / playmaker / energy) instead of uniform weighted
  * random — same pool, same tier weights, different deal. Staff extras
  * (coach / assistant) are untouched. Default false: existing callers keep
- * the original behavior. */
+ * the original behavior.
+ * pool: a createDrawPool() the caller keeps across several packs (autoFillTeam); it is not changed here. */
 export function drawPack(
   size = 5,
-  { includeCoach = false, includeAssistant = false, excludeIds = new Set(), roleDiverse = false } = {}
+  { includeCoach = false, includeAssistant = false, excludeIds = new Set(), roleDiverse = false, pool: shared = null } = {}
 ) {
-  const people = takenPeople(excludeIds);
-  const pool = PLAYERS.filter((p) => !excludeIds.has(p.id) && !people.has(p.bref));
+  const own = !shared;
+  const base = shared || createDrawPool(excludeIds);
   const cards = [];
   const used = new Set(excludeIds);
 
   const staffSlots = (includeCoach ? 1 : 0) + (includeAssistant ? 1 : 0);
   const count = Math.max(1, size - staffSlots);
   if (roleDiverse) {
-    const picked = dealRoleDiverse(pool, count, {
-      weightFn: (x) => HIDDEN_TIERS[x.hiddenTier]?.weight ?? 10,
-      keyOf: (x) => x.bref,
-    });
+    const picked = dealRoleDiverse(liveCards(base), count, { weightFn: tierWeight, keyOf: (x) => x.bref });
     for (const p of picked) {
       used.add(p.id);
-      if (p.bref) people.add(p.bref);
       cards.push({ kind: "player", data: clonePlayer(p) });
     }
   } else {
+    const work = own ? base : copyPool(base); // picks leave the working pool; a pool the caller shares stays whole
     for (let i = 0; i < count; i++) {
-      const p = weightedPick(
-        pool.filter((x) => !used.has(x.id) && !people.has(x.bref)),
-        (x) => HIDDEN_TIERS[x.hiddenTier]?.weight ?? 10
-      );
+      const p = pickFromPool(work);
       if (!p) break;
+      removeFromPool(work, p);
       used.add(p.id);
-      if (p.bref) people.add(p.bref);
       cards.push({ kind: "player", data: clonePlayer(p) });
     }
   }
@@ -100,15 +174,17 @@ export function drawPack(
 export function autoFillTeam(name, nPlayers = 8, { excludeIds = null, power = 0 } = {}) {
   const pack = [];
   const used = new Set(excludeIds || []);
+  const pool = createDrawPool(used); // built once; a card drawn but not kept (the batch overshoots) simply stays in it
   // Higher power → skew toward better hidden tiers / more players
   const n = clamp(nPlayers + Math.floor(power / 2), 8, 12);
   while (pack.length < n) {
-    const batch = drawPack(5, { excludeIds: used });
+    const batch = drawPack(5, { excludeIds: used, pool });
     const before = pack.length;
     for (const c of batch) {
       if (c.kind === "player" && pack.length < n) {
         pack.push(c.data);
         used.add(c.data.id);
+        removeFromPool(pool, c.data);
       }
     }
     // An exhausted pool (no players left to draw, e.g. a test building a
@@ -120,11 +196,12 @@ export function autoFillTeam(name, nPlayers = 8, { excludeIds = null, power = 0 
   if (power > 0) {
     const extras = [];
     while (extras.length < power * 2) {
-      const batch = drawPack(5, { excludeIds: used });
+      const batch = drawPack(5, { excludeIds: used, pool });
       for (const c of batch) {
         if (c.kind === "player") {
           extras.push(c.data);
           used.add(c.data.id);
+          removeFromPool(pool, c.data);
         }
       }
       if (!batch.length) break;
