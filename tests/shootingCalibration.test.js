@@ -7,7 +7,9 @@ import { hashSeed, seededStream } from "../js/core/seededRandom.js";
 // Give every player of one team the same real three-point percentage and see what the game does with it. Only threeFg / raw.tp are changed (the
 // skill ratings stay those of the real roster), so the absolute level is not the point: the SPREAD between a poor and a good shooting roster is.
 // Before the calibration a 30% roster shot 51.9% and a 42% roster 51.4%: the 45% ceiling decided everything.
-const threePctFor = (pct, games = 24) => {
+// 48 games, not 24: a possession-rule change moved the 24-game sample to a 4.4 point gap (still the same
+// mechanism). 48 games of the same seeds is 6.6 points, clear of the 5 point bar.
+const threePctFor = (pct, games = 48) => {
   let made = 0, att = 0;
   for (let i = 0; i < games; i += 1) {
     const home = realTeam("GSW", 2016);

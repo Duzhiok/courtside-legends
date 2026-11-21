@@ -3377,7 +3377,7 @@ function tryIntentionalFoul(sim, off, def, info) {
   return true;
 }
 
-function shootFts(baller, off, sim, n) {
+function shootFts(baller, off, sim, n, { dead = false } = {}) {
   const def = off.side === "home" ? sim.away : sim.home;
   for (let i = 0; i < n; i++) {
     baller.stats.fta += 1;
@@ -3392,17 +3392,21 @@ function shootFts(baller, off, sim, n) {
       gradeFtMiss(baller);
       sim.emit("miss", sim.S(`${baller.name} 罚球不中`, `${baller.name} misses the free throw`), { actorId: baller.id, ft: { shooterId: baller.id, made: false, pts: 1 } });
       if (i === n - 1) {
+        if (dead) {
+          sim.possession = off.side;
+          return;
+        }
         resolveRebound(off, def, sim, false);
         return;
       }
     }
   }
-  sim.possession = flip(off.side);
+  sim.possession = dead ? off.side : flip(off.side);
 }
 
 /**
  * Hothead / low-composure technical. Returns true if possession was consumed.
- * Tech → 对方罚 1 球，球权给对方（简化）。
+ * The other team shoots one. The ball is dead (no rebound), and that team keeps it.
  */
 function maybeTechnicalFoul(sim, off, def, baller, defender) {
   const candidates = [];
@@ -3436,8 +3440,8 @@ function maybeTechnicalFoul(sim, off, def, baller, defender) {
       }`),
       { foul: { foulerId: offender.id, victimId: shooter ? shooter.id : null, kind: "technical" } }
     );
-    if (shooter) shootFts(shooter, victimSide, sim, 1);
-    else sim.possession = flip(offenderSide.side);
+    if (shooter) shootFts(shooter, victimSide, sim, 1, { dead: true });
+    else sim.possession = victimSide.side;
     return true;
   }
   return false;

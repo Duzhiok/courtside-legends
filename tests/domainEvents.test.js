@@ -219,4 +219,17 @@ test("B52: technical foul broadcast carries meta.foul with the FT shooter as vic
   const ftAfter = events.slice(events.indexOf(tech) + 1).find((e) => e.meta?.ft);
   assert.ok(ftAfter, "a free throw follows the technical");
   assert.equal(ftAfter.meta.ft.shooterId, tech.meta.foul.victimId);
+  const sideOf = (one) => ["home", "away"].find((s) => [...(one[s]?.onCourt || []), ...(one[s]?.bench || [])].some((p) => p.id === one.meta.foul.victimId));
+  const checked = events.filter((e) => /技术犯规|technical foul/i.test(e.text || "")).filter((one) => {
+    const ft = events.slice(events.indexOf(one) + 1).find((e) => e.meta?.ft);
+    const after = ft && events[events.indexOf(ft) + 1];
+    return after && !/节开始|begins/.test(after.text || "");
+  });
+  assert.ok(checked.length > 0, "at least one technical is not swallowed by a period break");
+  for (const one of checked) {
+    const ft = events.slice(events.indexOf(one) + 1).find((e) => e.meta?.ft);
+    const after = events[events.indexOf(ft) + 1];
+    assert.equal(after.meta?.reb, undefined, "a technical free throw is dead");
+    assert.equal(after.possession, sideOf(one), "the team that shot the technical keeps the ball");
+  }
 });
