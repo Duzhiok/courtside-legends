@@ -41,8 +41,8 @@ const STORE_PREFIX = "cl-network-v1";
 let ROWS_CACHE = null;
 async function loadRows() {
   if (ROWS_CACHE) return ROWS_CACHE;
-  const res = await fetch("./js/data/roster.json");
-  const data = await res.json();
+  const { fetchRosterJson } = await import("../data/rosterCache.js");
+  const { data } = await fetchRosterJson("./js/data/roster.json");
   ROWS_CACHE = data.players || [];
   return ROWS_CACHE;
 }

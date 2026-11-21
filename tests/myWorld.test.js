@@ -110,7 +110,8 @@ test("every rendered action button has a handler; user text is escaped; English 
 test("redesign: one page title, My Games naming, no feedback panel on this page, nothing fake is clickable", () => {
   const html = view.myWorldHtml({ identity: { name: "Z", hometown: "", bio: "", guest: true }, journey: null, legacy: null, frames: [] }, "zh");
   assert.doesNotMatch(html, /我的篮球人生|COURTSIDE LEGENDS · MY WORLD/, "no redundant headings (the tab already carries the name)");
-  assert.equal((html.match(/MY WORLD/g) || []).length, 1, "exactly one page title");
+  assert.equal((html.match(/我的世界/g) || []).length, 1, "exactly one page title");
+  assert.doesNotMatch(html, /MY WORLD/);
   assert.match(html, /我的游戏记录/);
   assert.doesNotMatch(html, /我的旅程/);
   assert.doesNotMatch(html, /mw-feedback|mw-voice|toggle-feedback|Player Voice/, "feedback lives in the global top-bar dialog now, not on this page");
@@ -154,7 +155,7 @@ test("owned area: every bought item has a findable equip/place entry; furniture 
   const html = view.ownedShopHtml(s, "zh");
   assert.match(html, /最近购买/);
   assert.ok(html.indexOf("冠军奖杯柜") < html.indexOf("冠军金边球衣"), "newest purchase listed first");
-  assert.match(html, /已摆放在 My Home/, "furniture shows where it lives");
+  assert.match(html, /已摆放在我的家/, "furniture shows where it lives");
   assert.match(html, /data-mw-action="equip-owned"/, "an owned outfit has a wear button");
   assert.match(html, /data-mw-action="unequip-owned"/, "the equipped frame has a take-off button");
   assert.match(html, /托管卡 5 张/);

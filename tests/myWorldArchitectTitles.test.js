@@ -53,6 +53,8 @@ test("architectTitlesHtml: locked account shows progress, no title; halfway mark
   assert.match(locked, /建筑师称号/);
   assert.match(locked, /教练生涯 ○/);
   assert.match(locked, /经理生涯 ○/);
+  assert.match(locked, /隐藏职业「建筑师」/);
+  assert.doesNotMatch(locked, /The Architect/);
   assert.doesNotMatch(locked, /👑/);
   const halfway = architectTitlesHtml({ earned: [], progress: { coach: true, gm: false, completed: 1 } }, "en");
   assert.match(halfway, /Coach career ✓/);

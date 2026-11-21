@@ -413,7 +413,7 @@ export function architectTitlesHtml(architect, lang) {
   }
   const p = architect.progress || {};
   const mark = (done) => (done ? "✓" : "○");
-  return `${head}<p class="mw-line tiny">${TL(lang, `教练生涯 ${mark(p.coach)} · 经理生涯 ${mark(p.gm)}`, `Coach career ${mark(p.coach)} · GM career ${mark(p.gm)}`)}<br />${TL(lang, "完成一次完整教练生涯与一次完整经理生涯，即可解锁隐藏职业 The Architect。", "Complete one full Coach career and one full GM career to unlock the hidden Architect career.")}</p>`;
+  return `${head}<p class="mw-line tiny">${TL(lang, `教练生涯 ${mark(p.coach)} · 经理生涯 ${mark(p.gm)}`, `Coach career ${mark(p.coach)} · GM career ${mark(p.gm)}`)}<br />${TL(lang, "完成一次完整教练生涯与一次完整经理生涯，即可解锁隐藏职业「建筑师」。", "Complete one full Coach career and one full GM career to unlock the hidden Architect career.")}</p>`;
 }
 
 /**
@@ -433,7 +433,7 @@ export function homeSceneHtml({ identity, frames = [], trophyCount = 0, furnitur
   });
   const names = placed.map((p) => SHOP_ITEMS.find((i) => i.effect?.type === "furniture" && i.effect.furnitureId === p.id)).filter(Boolean).map((i) => itemName(i, lang));
   const placedNote = names.length ? `${TL(lang, `已摆放${names.join("、")}。`, `Placed: ${names.join(", ")}. `)}` : "";
-  return `<section class="mw-card mw-home"><h3>${TL(lang, "我的家 · My Home", "My Home")}</h3>
+  return `<section class="mw-card mw-home"><h3>${TL(lang, "我的家", "My Home")}</h3>
     <div class="mw-room" role="img" aria-label="${TL(lang, "我的篮球房间", "My basketball room")}">${room}</div>
     <p class="tiny mw-note">${placedNote}${TL(lang, "相框挂着你账号里最强的三张球员卡；奖杯来自你的生涯存档；家具来自商城。", "Frames hold the three best cards on your account; trophies come from your career save; furniture comes from the Shop.")}</p>
     <div class="btn-row"><button type="button" class="btn small mw-gold" data-mw-action="open-home">${TL(lang, "🏠 进入我的家", "🏠 Enter My Home")}</button><button type="button" class="btn small ghost" data-mw-action="open-shop" data-shop-category="home">${TL(lang, "🛍️ 逛商城 · 家具", "🛍️ Shop · Furniture")}</button></div>
@@ -466,7 +466,7 @@ export function levelHtml(snapshot, lang) {
   }).join("");
   const left = snapshot.xpForNext - snapshot.xpIntoLevel;
   const next = snapshot.isMax
-    ? TL(lang, "已满级 · 传奇荣誉（Legacy Rank）即将到来", "Max level · Legacy Rank is coming")
+    ? TL(lang, "已满级 · 传奇荣誉即将到来", "Max level · Legacy Rank is coming")
     : TL(lang, `距 Lv.${snapshot.level + 1} 还差 ${left} XP`, `${left} XP to Lv.${snapshot.level + 1}`);
   return `<div class="mw-hero-level">
     <p class="mw-level-hero"><span class="mw-level-num">Lv.${snapshot.level}</span><span class="mw-level-title">${esc(lang === "en" ? snapshot.titleEn : snapshot.title)}</span></p>
@@ -484,7 +484,7 @@ export function myWorldHtml({ jerseys = null, title = null, honours = null, iden
   const titles = trophyCountOf(g, legacy);
   const stats = legacy ? { titles, cards: legacy.cards, rankedWins: legacy.rankedWins } : null; // a guest has no collection or ranked record
   const champion = championCelebration(legacy, ownedCareer?.trophies?.length || 0, lang);
-  return `<div class="mw-top"><span class="mw-kicker">MY WORLD</span></div>
+  return `<div class="mw-top"><span class="mw-kicker">${TL(lang, "我的世界", "MY WORLD")}</span></div>
     ${identityCardHtml(identity, lang, portrait, frame, { level, stats, champion, look, title, editorHtml: lookPanelHtml(look, identity?.name, lang, portrait, ownedOutfits) })}
     <div class="mw-grid">${gamesHtml(g, lang)}${legacyHtml(legacy, ownedCareer, lang)}</div>
     ${hometown}
@@ -545,7 +545,7 @@ export function ownedRow(entry, lang) {
   const { item } = entry;
   const name = esc(itemName(item, lang));
   if (entry.kind === "furniture") {
-    return `<li class="mw-owned-row"><span class="mw-owned-name">${name}</span><span class="mw-owned-state">${TL(lang, "✓ 已摆放在 My Home", "✓ Placed in My Home")}</span></li>`;
+    return `<li class="mw-owned-row"><span class="mw-owned-name">${name}</span><span class="mw-owned-state">${TL(lang, "✓ 已摆放在我的家", "✓ Placed in My Home")}</span></li>`;
   }
   const equipped = entry.equipped;
   const btn = equipped
