@@ -10,7 +10,10 @@
   <title>场边传奇 · Courtside Legends</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <!-- Web fonts must not block first paint (B77): fetched at low priority as media=print, switched on by js/fontCss.js, text swaps in
+       when they arrive (display=swap). Weight 500 is not requested: the 8 places that ask for it get 400, which saves a third of the bytes. -->
+  <link id="font-css" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet" media="print" />
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet" /></noscript>
   <link rel="stylesheet" href="css/tokens.css?v=2" />
   <link rel="stylesheet" href="css/style.css?v=20261105m4" />
   <link rel="stylesheet" href="css/home.css?v=20261107c1" />
@@ -1436,6 +1439,7 @@
 
   <!-- S-P2-5 step 1: the boot watchdog is an external file now (no inline script). -->
   <script src="js/rosterPreload.js?v=1"></script>
+  <script src="js/fontCss.js?v=1"></script>
   <script src="js/bootWatchdog.js?v=20261119t1"></script>
   <script type="module" src="js/app.js?v=20261111t1"></script>
 </body>
