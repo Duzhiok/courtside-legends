@@ -233,3 +233,32 @@ test("B52: technical foul broadcast carries meta.foul with the FT shooter as vic
     assert.equal(after.possession, sideOf(one), "the team that shot the technical keeps the ball");
   }
 });
+
+/**
+ * B80: the B52 test only ever saw made technical free throws (seed 7's five
+ * technicals all went in), so shootFts' dead-miss branch — a missed last FT
+ * with dead:true returns without resolveRebound — had no coverage at all
+ * (deleting that branch left the whole suite green). Scan the same seed
+ * range for the first game with a missed technical FT and pin the dead
+ * properties there too: no rebound event follows, and the shooting side
+ * keeps the ball.
+ */
+test("B80: a missed technical free throw is still dead — no rebound, shooter keeps the ball", () => {
+  const sideOf = (one) => ["home", "away"].find((s) => [...(one[s]?.onCourt || []), ...(one[s]?.bench || [])].some((p) => p.id === one.meta.foul.victimId));
+  let checked = null;
+  for (let seed = 7; seed < 60 && !checked; seed++) {
+    const events = playGswCle(seed);
+    for (const one of events.filter((e) => /技术犯规|technical foul/i.test(e.text || ""))) {
+      const ft = events.slice(events.indexOf(one) + 1).find((e) => e.meta?.ft);
+      if (!ft || ft.meta.ft.made) continue;
+      const after = events[events.indexOf(ft) + 1];
+      if (!after || /节开始|begins/.test(after.text || "")) continue;
+      checked = { seed, ft, after, side: sideOf(one) };
+      break;
+    }
+  }
+  assert.ok(checked, "some fixed seed in 7..59 has a missed technical free throw");
+  assert.equal(checked.ft.meta.ft.made, false, "the technical free throw was missed");
+  assert.equal(checked.after.meta?.reb, undefined, "a missed technical free throw is dead — no rebound");
+  assert.equal(checked.after.possession, checked.side, "the team that shot the technical keeps the ball after the miss");
+});
