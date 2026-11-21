@@ -166,6 +166,9 @@ export class GameSim {
     this.elapsedSec = 0;
     this.score = { home: 0, away: 0 };
     this.possession = rnd() < 0.5 ? "home" : "away";
+    // Odd periods open with the tip winner, even periods with the other team.
+    // A save from before this field existed keeps the old rule (odd periods = home).
+    this.tipWinner = this.possession;
     this.running = false;
     this.paused = false;
     /** null | 'timeout' | 'quarter' | 'half' | 'manual' — why the clock is stopped */
@@ -240,6 +243,7 @@ export class GameSim {
       elapsedSec: this.elapsedSec || 0,
       score: { ...this.score },
       possession: this.possession,
+      tipWinner: this.tipWinner === "away" ? "away" : "home",
       paused: true,
       breakReason: this.breakReason || "manual",
       _pendingQuarterStart: !!this._pendingQuarterStart,
@@ -298,6 +302,7 @@ export class GameSim {
     sim.elapsedSec = data.elapsedSec || 0;
     sim.score = data.score || { home: 0, away: 0 };
     sim.possession = data.possession || "home";
+    sim.tipWinner = data.tipWinner === "away" ? "away" : "home";
     sim.running = false;
     sim.paused = true;
     sim.breakReason = data.breakReason || "manual";
@@ -638,7 +643,8 @@ export class GameSim {
     const leaving = this.quarter;
     this.quarter += 1;
     this.clock = this.quarter > 4 ? 5 * 60 : QUARTER_SEC;
-    this.possession = this.quarter % 2 === 1 ? "home" : "away";
+    const opener = this.tipWinner === "away" ? "away" : "home";
+    this.possession = this.quarter % 2 === 1 ? opener : flip(opener);
     const isHalf = leaving === 2; // Q2 → Q3 中场休息
     for (const side of [this.home, this.away]) {
       recoverFatigue(side, isHalf ? "half" : "quarter");

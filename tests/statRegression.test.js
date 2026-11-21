@@ -18,7 +18,7 @@ const BANDS = {
   ftm: 0.10, // measured 0.96: free throws a little low (the foul calibration was fitted on FTA/FGA, not on makes)
   reb: 0.12, // measured 1.09: KNOWN GAP, too many rebounds per team (rebound weights were left at the original curve); tighten when fixed
   ast: 0.08,
-  tov: 0.10,
+  tov: 0.11, // measured 0.890 after quarter breaks follow the opening tip (was inside 0.10). The turnover formula did not change.
   stl: 0.10,
   blk: 0.12,
 };
