@@ -10,7 +10,8 @@
  *    plus a small team-morale dip. It never touches temp.offense, so no
  *    make probability changes; the rival just stops being the hot hand
  *    (hot feeds shot selection / threat weighting, not the dice).
- *  - the foul edge only adds a personal foul + grade hit.
+ *  - the foul edge only adds a personal foul + grade hit. At six personals
+ *    he sits like anyone else, and the game from there follows the new lineup.
  * No attribute, no rating, no dice is touched. The rivalry is the stage
  * (trigger condition); the enforcer is the actor.
  *

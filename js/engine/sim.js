@@ -643,6 +643,7 @@ export class GameSim {
     for (const side of [this.home, this.away]) {
       recoverFatigue(side, isHalf ? "half" : "quarter");
       this.forceOutInjured(side);
+      this.forceOutFouled(side);
       if (side.coach?.style?.includes("防守") || side.coach?.id?.includes("thibs")) {
         for (const p of side.onCourt) p.fatigue = Math.min(100, p.fatigue + 2);
       }
@@ -738,6 +739,8 @@ export class GameSim {
     // Injured bodies cannot stay on the floor if a healthy bench exists
     this.forceOutInjured(this.home);
     this.forceOutInjured(this.away);
+    this.forceOutFouled(this.home);
+    this.forceOutFouled(this.away);
     // Opponent coach AI (timeouts pause the game so you can also adjust)
     this.maybeCpuManage();
     // Your smart manager (FIFA-style) — may sub / timeout / tweak schemes
@@ -1711,7 +1714,7 @@ export class GameSim {
     let swapped = 0;
     for (const starter of [...team.onCourt].filter((p) => starterIds.has(p.id))) {
       const fresh = [...team.bench]
-        .filter((p) => !(p.injuredGames > 0) && !starterIds.has(p.id))
+        .filter((p) => availableBody(p) && !starterIds.has(p.id))
         .sort((a, b) => compatibleFirst(starter)(a, b) || (a.stats.min || 0) - (b.stats.min || 0))[0];
       if (!fresh) continue;
       if (this.substitute(starter.id, fresh.id, team.side)) swapped++;
@@ -1753,7 +1756,7 @@ export class GameSim {
       const mustSit = overHard >= 0;
       if (!mustSit && overPace < need && (tired.fatigue || 0) < (aggressive ? 58 : 72)) break;
       const fresh = [...team.bench]
-        .filter((p) => !(p.injuredGames > 0))
+        .filter((p) => availableBody(p))
         .filter((p) => (p.stats.min || 0) < (p.targetMinutes ?? 22) + 1)
         .sort((a, b) => {
           // A man who fits the slot first; then whoever still has the most minutes left on their budget
@@ -1775,7 +1778,7 @@ export class GameSim {
     // (never during garbage time — the starters just sat down for a reason)
     if (!this.isGarbageTime(team) && (this.quarter >= 3 || aggressive)) {
       const needy = [...team.bench]
-        .filter((p) => !(p.injuredGames > 0))
+        .filter((p) => availableBody(p))
         .filter((p) => (p.stats.min || 0) + 3 < (p.targetMinutes ?? 22))
         .sort(
           (a, b) =>
@@ -1962,7 +1965,7 @@ export class GameSim {
   autoSubsByFatigue() {
     const you = this.you();
     if (!you?.onCourt?.length || !you.bench?.length) return;
-    const healthyBench = you.bench.filter((p) => !(p.injuredGames > 0));
+    const healthyBench = you.bench.filter((p) => availableBody(p));
     if (!healthyBench.length) return;
 
     const starterIds = new Set(you.starterIds || []);
@@ -2173,7 +2176,7 @@ export class GameSim {
   /** Swap gassed starters for fresher / better bench pieces. */
   cpuAutoSub(team, { aggressive = false, protectLead = false } = {}) {
     if (!team?.onCourt?.length || !team.bench?.length) return;
-    const bench = team.bench.filter((p) => !(p.injuredGames > 0));
+    const bench = team.bench.filter((p) => availableBody(p));
     if (!bench.length) return;
     // 垃圾时间：候选只能是替补，休息好的主力也不能被换回来
     const pool = this.isGarbageTime(team)
@@ -2222,7 +2225,7 @@ export class GameSim {
     for (let guard = 0; guard < 5; guard++) {
       const hurt = team.onCourt.find((p) => p.injuredGames > 0);
       if (!hurt) break;
-      const sub = team.bench.find((b) => !(b.injuredGames > 0));
+      const sub = team.bench.find((b) => availableBody(b));
       if (!sub) {
         // Throttle nag — once per player until a healthy body appears
         const key = `_injStuck_${team.side}_${hurt.id}`;
@@ -2241,6 +2244,41 @@ export class GameSim {
         this.emit(
           "coach",
           this.S(`${hurt.name} ${hurt.injuryStatus || "伤停"}不能继续比赛，${sub.name}强制顶上`, `${hurt.name} (${hurt.injuryStatus || "injured"}) cannot continue — ${sub.name} forced in`)
+        );
+      } else break;
+    }
+    return n;
+  }
+
+  /**
+   * Six personals and he is done. Sits him for a body who can still play.
+   * With nobody eligible he stays — the floor is never emptied from here.
+   * Returns how many were forced out.
+   */
+  forceOutFouled(team) {
+    if (!team?.onCourt?.length) return 0;
+    let n = 0;
+    for (let guard = 0; guard < 5; guard++) {
+      const out = team.onCourt.find((p) => fouledOut(p));
+      if (!out) break;
+      const pool = (team.bench || []).filter((b) => availableBody(b));
+      if (!pool.length) {
+        const key = `_foulStuck_${team.side}_${out.id}`;
+        if (team === this.you() && !this[key]) {
+          this[key] = true;
+          this.emit(
+            "coach",
+            this.S(`${out.name} 已犯满 6 次，板凳没有还能上场的人`, `${out.name} has fouled out (6) — nobody on the bench can check in`)
+          );
+        }
+        break;
+      }
+      const sub = [...pool].sort((a, b) => nearestToSlot(out)(a, b) || overall(b) - overall(a))[0];
+      if (this.substitute(out.id, sub.id, team.side)) {
+        n += 1;
+        this.emit(
+          "coach",
+          this.S(`${out.name} 6 次犯规罚下，${sub.name} 上场`, `${out.name} fouls out (6), ${sub.name} checks in`)
         );
       } else break;
     }
@@ -2270,7 +2308,7 @@ export class GameSim {
         src.injuredGames = gamesOut;
         src.injuryStatus = p.injuryStatus;
       }
-      const sub = team.bench.find((b) => !(b.injuredGames > 0));
+      const sub = team.bench.find((b) => availableBody(b));
       if (sub && this.substitute(p.id, sub.id, team.side)) {
         this.emit(
           "coach",
@@ -2448,6 +2486,12 @@ export class GameSim {
     if (inbound.injuredGames > 0) {
       if (t === this.you()) {
         this.emit("coach", this.S(`${inbound.name} ${inbound.injuryStatus || "伤停"}，不能上场`, `${inbound.name} (${inbound.injuryStatus || "injured"}) cannot check in`));
+      }
+      return false;
+    }
+    if (fouledOut(inbound)) {
+      if (t === this.you()) {
+        this.emit("coach", this.S(`${inbound.name} 已犯满 6 次，不能再上场`, `${inbound.name} has fouled out (6) and cannot return`));
       }
       return false;
     }
@@ -3159,6 +3203,16 @@ function isSturdy(p) {
 }
 function isLanky(p) {
   return (p.strength || 50) <= 58 && ((p.block || 40) >= 55 || (p.speed || 50) >= 72 || ["SF", "PF", "C"].includes(p.playPos || p.pos));
+}
+
+/** Six personal fouls ends the night. Technicals already count, because they increment pf. */
+function fouledOut(p) {
+  return (p?.stats?.pf || 0) >= 6;
+}
+
+/** Healthy and still allowed to check in. */
+function availableBody(p) {
+  return !!p && !(p.injuredGames > 0) && !fouledOut(p);
 }
 
 function addMinutes(off, def, used) {

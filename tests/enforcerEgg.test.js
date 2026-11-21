@@ -257,7 +257,7 @@ function eggSim({ homeTeam = "CHI", awayTeam = "NYK", enforcer = "rodmade01", ri
   return sim;
 }
 
-test("driveGame: foul edge costs exactly one foul and a grade hit — and nothing else", async () => {
+test("driveGame: foul edge is one foul on the egg's own dice; at six he sits and the rest of the game can diverge", async () => {
   const eggCtx = { rivalBrefs: ["ewingpa01"], rng: scriptedRng([0.001, 0.9]) }; // fires, foul
   const simA = eggSim();
   const a = await driveGame(simA, "nobody", { egg: eggCtx });
@@ -267,16 +267,30 @@ test("driveGame: foul edge costs exactly one foul and a grade hit — and nothin
   assert.equal(a.egg.enforcer.bref, "rodmade01");
   assert.equal(a.egg.rival.bref, "ewingpa01");
   assert.equal(b.egg, null);
-  // The foul edge is dice-neutral (pf and grade are never read by the sim),
-  // so the two games must be identical everywhere except the foul itself.
-  assert.deepEqual(simA.score, simB.score, "identical scores: the foul edge never touches the dice");
+  // The foul edge still rolls on its own stream and only writes pf + grade.
+  // Six fouls now sit him, so once either game disqualifies someone the rest
+  // of the night can diverge. Under six, the two games still match.
   const rodA = simA.home.roster.find((p) => p.bref === "rodmade01");
   const rodB = simB.home.roster.find((p) => p.bref === "rodmade01");
-  assert.equal(rodA.stats.pf, rodB.stats.pf + 1, "exactly one extra foul");
-  // Grade: both runs saturate at 100 here (Rodman boards everything), so
-  // the -0.75 is absorbed at the ceiling; the unit test pins the drop
-  // itself. The egg must never raise the grade.
-  assert.ok(rodA.gradeScore <= rodB.gradeScore, "grade never rises");
+  const disqualified = [simA, simB].some((sim) =>
+    sim.home.roster.concat(sim.away.roster).some((p) => (p.stats.pf || 0) >= 6)
+  );
+  if (!disqualified) {
+    assert.deepEqual(simA.score, simB.score, "under six fouls the extra foul never touches the dice");
+    assert.equal(rodA.stats.pf, rodB.stats.pf + 1, "exactly one extra foul");
+    // Both runs saturate at 100 here when the games stay aligned, so the
+    // -0.75 is absorbed at the ceiling; the unit test pins the drop itself.
+    assert.ok(rodA.gradeScore <= rodB.gradeScore, "grade never rises");
+  } else {
+    for (const sim of [simA, simB]) {
+      for (const side of [sim.home, sim.away]) {
+        for (const p of side.onCourt) {
+          const stuck = (p.stats.pf || 0) >= 6 && side.bench.some((body) => (body.stats.pf || 0) < 6 && !(body.injuredGames > 0));
+          assert.equal(stuck, false, `${p.name} is on the floor at 6 fouls with a body on the bench`);
+        }
+      }
+    }
+  }
 });
 
 test("rattle edge on a real GameSim: rival cools, ratings and shooting levers untouched", () => {
