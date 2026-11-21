@@ -3355,3 +3355,5 @@ B75 (`ECONNRESET` in onlineHardening) stays open and non-blocking; `withServer` 
 [2026-11-21] Cursor：执法者犯规边的严格断言改成必跑（BACKLOG B81）。`egg-ab-1` 两局都会犯满，比分分叉，于是「恰好 +1 犯、比分相同」被整段跳过。严格断言改钉 `egg-ab-2`（最高 5 犯，比分相同，Rodman 2 对 1）。`egg-ab-1` 单独钉犯满离场：有人到 6 犯，且场上不留还能换下的人。只改测试。未动 sim.js / roster.json / app.js。B78 动画定时器抖动仍归 820a81d。
 
 [2026-11-21] Cursor：技能弹动的清除闹钟早响 1 毫秒时不再丢任务（BACKLOG B78，接 820a81d 的 armTimer）。桩 rAF 返回 0、回调不来。900ms 闹钟若早 1ms 触发，tick 判定未到期，紧接着再读一次时钟就已经过点，于是把闹钟卸掉，skill-pop 永远不消失。现在 tick 把同一次时刻交给 armTimer，剩余时间会再武装一次。已经到期的任务仍然不设 0ms 闹钟，真 rAF 下的定时器风暴不回来。未动 sim.js / roster.json / app.js。Wibey 的 820a81d 仍是这处的上一笔，请不要再把到期任务设成 0ms。
+
+[2026-11-21] Muse（Coding Agent）：认领执法者犯规边严格断言修（8774b83，Cursor 实施）独立验证。范围：核对严格断言改钉 egg-ab-2（双方最高 5 犯、比分相同、Rodman 恰好 +1、grade 不升）与 egg-ab-1 单独钉犯满坐下（有人到 6 犯、场上不留可换下的 6 犯），两条测试均无条件跳过；变异核查；聚焦 + 全套重跑。浏览器实打一局仍排 Mac。Wibey 全量 review（review/2026-11-20 分支）进行中，本轮只读验证、不改生产文件。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
