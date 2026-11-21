@@ -59,11 +59,22 @@ export function drawLedStrip(ctx, preset, w, h) {
   ctx.fillStyle = preset.shell.led;
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = preset.shell.ledText;
-  ctx.font = `bold ${Math.round(h * 0.5)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const slot = w / LED_SPONSORS.length;
-  LED_SPONSORS.forEach((name, i) => ctx.fillText(name, slot * (i + 0.5), h / 2));
+  // Equal slots (w / 6) were narrower than the long names, so "SKYLINE AIR" ran into "COURTSIDE LEGENDS" and "LEGENDS" into "BRIGHTBOLT".
+  // Lay the names out one after another by their real width, with a gap, and shrink them all together if they do not fit.
+  const base = Math.round(h * 0.5);
+  const gap = w * 0.03;
+  ctx.font = `bold ${base}px sans-serif`;
+  const widths = LED_SPONSORS.map((name) => ctx.measureText?.(name)?.width ?? name.length * base * 0.66);
+  const natural = widths.reduce((sum, x) => sum + x, 0) + gap * LED_SPONSORS.length;
+  const scale = Math.min(1, w / natural);
+  ctx.font = `bold ${Math.max(8, Math.round(base * scale))}px sans-serif`;
+  let x = (w - natural * scale) / 2 + (gap * scale) / 2;
+  LED_SPONSORS.forEach((name, i) => {
+    ctx.fillText(name, x + (widths[i] * scale) / 2, h / 2);
+    x += (widths[i] + gap) * scale;
+  });
 }
 
 /** A CanvasTexture drawn by `paint(ctx, w, h)`, or null without a DOM / 2D context / working paint (decoration only). */
