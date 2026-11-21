@@ -6,7 +6,7 @@
  *
  * A role score is 0..99 from REAL card attributes. A weak fit means "this isn't his job", never "he got worse".
  */
-import { permutations } from "./rolePermutations.js";
+import { permutationList } from "./rolePermutations.js";
 import { overall } from "../data/players.js";
 
 const a = (p, k, d = 50) => (Number.isFinite(p?.[k]) ? p[k] : d);
@@ -59,8 +59,25 @@ const JOB_WEIGHT = [1.5, 1.2, 1, 1, 1];
 const LEAN = { offense: ["creator", "spacer", "postScorer", "runner"], defense: ["stopper", "rimProtector", "rebounder"] };
 const leanBonus = (roleId, lean) => (LEAN[lean]?.includes(roleId) ? 1.06 : 1); // a coach's philosophy tilts, never overrules
 
-const roleTemplate = (tacticId) => TEMPLATES[tacticId] || TEMPLATES.balanced;
-export const roleScore = (roleId, player) => Math.max(0, Math.min(99, Math.round(ROLES[roleId].score(player))));
+export const roleTemplate = (tacticId) => TEMPLATES[tacticId] || TEMPLATES.balanced;
+const scoreOf = (roleId, player) => Math.max(0, Math.min(99, Math.round(ROLES[roleId].score(player))));
+let scoreMemo = null;
+/**
+ * Run a pure analysis with (player, job) scores remembered: scoring 792 lineups asks the same dozen players for the same ten jobs
+ * hundreds of thousands of times. The memory lives only inside `fn` (keyed by the card object), so it can never serve a score from
+ * before a card's attributes changed; `fn` must not edit the cards it reads.
+ */
+export function withRoleScoreMemo(fn) {
+  if (scoreMemo) return fn(); // nested: share the outer one
+  scoreMemo = new Map();
+  try { return fn(); } finally { scoreMemo = null; }
+}
+export const roleScore = (roleId, player) => {
+  if (!scoreMemo || !player || typeof player !== "object") return scoreOf(roleId, player);
+  let per = scoreMemo.get(player);
+  if (!per) scoreMemo.set(player, (per = {}));
+  return per[roleId] ?? (per[roleId] = scoreOf(roleId, player));
+};
 export const roleName = (roleId, lang = "zh") => (lang === "en" ? ROLES[roleId].en : ROLES[roleId].zh);
 
 /** What the card naturally is: its best role regardless of any system. */
@@ -93,9 +110,16 @@ export function assignRoles(starters, tacticId, overrides = {}, lean = "balanced
     rest = free.filter((p) => p !== engine);
     restJobs = pool.slice(1);
   }
+  // Each (player, job) score and each job's weight is the same in all of the (up to 120) permutations: work them out once, not 600 times
+  // (this loop was ~0.4 s of the season hub opening, because the opponent panel scores 792 lineups). The sums keep their old order, so
+  // ties and the chosen jobs are exactly what they were.
+  const scoreRow = rest.map((p) => Object.fromEntries([...new Set(restJobs)].map((job) => [job, roleScore(job, p)])));
+  const jobWeight = Object.fromEntries([...new Set(restJobs)].map((job) => [job, JOB_WEIGHT[jobs.indexOf(job)] || 1]));
+  const jobLean = Object.fromEntries([...new Set(restJobs)].map((job) => [job, leanBonus(job, lean)]));
   let best = null;
-  for (const perm of permutations(restJobs, rest.length)) {
-    const total = perm.reduce((t, job, i) => t + roleScore(job, rest[i]) * (JOB_WEIGHT[jobs.indexOf(job)] || 1) * leanBonus(job, lean), 0);
+  for (const perm of permutationList(restJobs, rest.length)) {
+    let total = 0;
+    for (let i = 0; i < perm.length; i++) total += scoreRow[i][perm[i]] * jobWeight[perm[i]] * jobLean[perm[i]];
     if (!best || total > best.total) best = { total, perm };
   }
   rest.forEach((p, i) => { out[p.id] = { roleId: best?.perm[i] || "secondary", overridden: false }; });

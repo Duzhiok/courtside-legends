@@ -14,7 +14,7 @@
 import { TACTICS } from "../data/coaches.js";
 import { selectableSystems, systemProficiency } from "../coaching/coachTacticalProfile.js";
 import { lineupUtility, tradeoffs } from "./lineupRecommendations.js";
-import { ovr, roleScore } from "./playerRoleFit.js";
+import { ovr, roleScore, withRoleScoreMemo } from "./playerRoleFit.js";
 import { clamp99 } from "../core/seededRandom.js";
 
 const a = (p, k, d = 50) => (Number.isFinite(p?.[k]) ? p[k] : d);
@@ -84,7 +84,11 @@ function rotationAdvice(five, roster, opp) {
  * @param {{coach: object, roster: object[], opponent: object, currentIds?: string[], currentTacticId?: string}} p `opponent` = scoutOpponent() output
  * @returns {null|{plans: object[], recommended: string, containViable: boolean}}
  */
-export function counterStrategies({ coach, roster, opponent, currentIds = [], currentTacticId = null }) {
+export function counterStrategies(input) {
+  return withRoleScoreMemo(() => counterStrategiesOf(input)); // ~800 lineups x the same dozen cards: score each (card, job) once
+}
+
+function counterStrategiesOf({ coach, roster, opponent, currentIds = [], currentTacticId = null }) {
   const pool = (roster || []).filter(Boolean);
   if (pool.length < 5 || !opponent) return null;
   const sys = selectableSystems(coach, pool);

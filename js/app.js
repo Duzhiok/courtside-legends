@@ -9499,7 +9499,7 @@ function renderSeasonHub({ persist = true } = {}) {
   }
 
   paintNextGoals(st);
-  matchupScout.paint(st);
+  matchupScout.paintLater(st); // the 800-lineup analysis waits for an idle moment so the hub paints first
   renderSeasonStandings();
   renderSeasonRotation();
   renderSeasonMarket();

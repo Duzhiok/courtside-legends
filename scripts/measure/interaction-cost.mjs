@@ -79,6 +79,10 @@ async function season() {
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
   await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 60000 });
   rows.push({ group: "season", label: "resume league career -> hub visible", ms: Date.now() - t0, longest: Math.max(0, ...(await page.evaluate(() => window.__lt.map((e) => Math.round(e.dur))))), tasks: 0 });
+  // the opponent panel is worked out when the browser is idle after the hub paints: how long until it is really there?
+  const tPanel = Date.now();
+  await page.waitForFunction(() => { const b = document.querySelector("#season-next-scout"); return !!b && !b.hidden && b.innerHTML.length > 50; }, null, { timeout: 30000 }).catch(() => {});
+  rows.push({ group: "season", label: "  opponent panel filled in (after the hub was already visible)", ms: Date.now() - tPanel, longest: 0, tasks: 0 });
   const tabs = await page.$$eval("[data-season-tab]", (els) => els.filter((e) => !e.disabled && e.offsetParent).map((e) => e.dataset.seasonTab));
   for (const t of tabs) await act("season", `season tab "${t}"`, `[data-season-tab="${t}"]`);
 }

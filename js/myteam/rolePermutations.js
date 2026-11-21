@@ -18,3 +18,17 @@ export function* permutations(pool, k) {
   }
   yield* go();
 }
+
+const listCache = new Map();
+/**
+ * The same picks as `permutations`, as a list that is built once per (pool, k) and shared: a system's job list is the same for every
+ * lineup that is scored (792 per opponent panel), and re-running the generator for each was a third of the role-assignment time.
+ * Callers must not edit the returned arrays.
+ */
+export function permutationList(pool, k) {
+  const key = `${pool.join("|")}#${k}`;
+  let list = listCache.get(key);
+  if (!list) listCache.set(key, (list = [...permutations(pool, k)]));
+  return list;
+}
+

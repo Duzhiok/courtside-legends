@@ -178,3 +178,35 @@ test("playoffs: no active series, no panel", () => {
   assert.equal(box.hidden, true);
   assert.equal(box.innerHTML, "");
 });
+
+test("paintLater: the first analysis of an opponent waits (box hidden, nothing computed yet), then fills in; a repeat paints at once", async () => {
+  const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
+  const { box, ctl } = playoffController(st);
+  box.hidden = false;
+  box.innerHTML = "stale panel of the last opponent";
+  ctl.paintLater(st);
+  assert.equal(box.hidden, true, "the old panel is taken down at once");
+  assert.equal(box.innerHTML, "stale panel of the last opponent", "and no analysis ran inside the call");
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(box.hidden, false);
+  assert.match(box.innerHTML, /Shaquille O/, "the panel is there once the browser had a moment");
+  const filled = box.innerHTML;
+  box.hidden = true;
+  ctl.paintLater(st);
+  assert.equal(box.hidden, false, "the same opponent and five again: painted synchronously from the cache");
+  assert.equal(box.innerHTML, filled);
+});
+
+test("paintLater: several calls in a row analyse only the last one (a quick series of hub renders must not queue the 800-lineup search)", async () => {
+  const st = playoffState({ high: { id: "YOU" }, low: { id: "LAL" }, winsHigh: 1, winsLow: 1, round: 1, done: false });
+  const { box, ctl } = playoffController(st);
+  let paints = 0;
+  Object.defineProperty(box, "innerHTML", { get() { return this._h || ""; }, set(v) { paints++; this._h = v; } });
+  ctl.paintLater(st);
+  ctl.paintLater(st);
+  ctl.paintLater(st);
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(paints, 1);
+  ctl.paintLater(null);
+  assert.equal(box.hidden, true, "no season: the box is empty and hidden");
+});
