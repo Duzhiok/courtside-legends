@@ -70,3 +70,45 @@ test("real auto-rotated games: few substitutions leave the newcomer 3+ positions
   assert.ok(subs > 100, "the games really did substitute");
   assert.ok(far / subs < 0.1, `PG/C style mismatches should be rare: ${far}/${subs}`);
 });
+
+test("bestStarters: five centres are not started with the guards on the bench, but an all-big roster just gets its best five", async () => {
+  const { bestStarters } = await import("../js/engine/lineupSlots.js");
+  const big = (id, ovr, pos = "C") => P(id, pos, pos, { ovr, height: 214, strength: 85, rebound: 85, block: 70, pass: 35, three: 25, speed: 45 });
+  const guard = (id, ovr, pos = "PG") => P(id, pos, pos, { ovr, height: 188, strength: 45, rebound: 35, block: 20, pass: 80, three: 78, speed: 82 });
+  const rate = (p) => p.ovr;
+  const roster = [big("c1", 87), big("c2", 77), big("c3", 76), big("c4", 74, "PF"), big("c5", 76, "PF"), guard("g1", 70), guard("g2", 68, "SG"), guard("g3", 66, "SG")];
+  const five = bestStarters(roster, rate).map((p) => p.id);
+  assert.ok(five.filter((id) => id.startsWith("g")).length >= 2, `a lineup with guards, got ${five}`);
+  assert.ok(five.includes("c1"), "the best player still starts");
+  const bigs = roster.filter((p) => p.id.startsWith("c")).concat([big("c6", 60), big("c7", 58)]);
+  assert.deepEqual(bestStarters(bigs, rate).map((p) => p.id).sort(), ["c1", "c2", "c3", "c4", "c5"], "no guards to pick: the best five by rating");
+});
+
+test("bestStarters: with `keep`, the coach's own picks stay and only the empty place is filled", async () => {
+  const { bestStarters } = await import("../js/engine/lineupSlots.js");
+  const mk = (id, ovr, pos, h) => P(id, pos, pos, { ovr, height: h, strength: pos === "C" ? 85 : 45, rebound: pos === "C" ? 85 : 35, pass: pos === "C" ? 35 : 80, three: pos === "C" ? 25 : 78 });
+  const four = [mk("a", 60, "PG", 188), mk("b", 62, "SG", 192), mk("c", 61, "SF", 200), mk("d", 63, "PF", 206)];
+  const rest = [mk("star", 90, "C", 214), mk("bench1", 50, "PG", 185)];
+  const five = bestStarters([...four, ...rest], (p) => p.ovr, { keep: four });
+  assert.deepEqual(five.slice(0, 4).map((p) => p.id), ["a", "b", "c", "d"], "his four are untouched");
+  assert.equal(five[4].id, "star");
+});
+
+test("setupStarters: the coach's last five come back as they were; a hurt one is replaced and the other four stay", async () => {
+  const { setupStarters } = await import("../js/engine/lineupSlots.js");
+  const mk = (id, ovr, pos, extra = {}) => P(id, pos, extra.playPos || pos, { ovr, height: pos === "C" ? 214 : 190, strength: pos === "C" ? 85 : 45, rebound: pos === "C" ? 85 : 35, pass: pos === "C" ? 35 : 80, three: pos === "C" ? 25 : 78, ...extra });
+  // a lineup the coach built by hand that "best by rating" would never pick: a 50-rated guard starts over a 90 centre
+  const mine = [mk("g1", 50, "PG", { playPos: "PG", playPosManual: true }), mk("g2", 55, "SG"), mk("w", 58, "SF"), mk("f", 60, "PF"), mk("c", 62, "C")];
+  const bench = [mk("star1", 90, "C"), mk("star2", 88, "C"), mk("star3", 86, "PF")];
+  const roster = [...mine, ...bench];
+  const ids = mine.map((p) => p.id);
+  const back = setupStarters(ids, roster, (p) => p.ovr);
+  assert.deepEqual(back.five.map((p) => p.id).sort(), [...ids].sort(), "same five, not the best ratings");
+  assert.equal(back.fresh, false, "his seating is kept, nothing is re-seated");
+  const hurt = roster.filter((p) => p.id !== "c"); // his centre is out
+  const filled = setupStarters(ids, hurt, (p) => p.ovr);
+  assert.deepEqual(filled.five.slice(0, 4).map((p) => p.id), ["g1", "g2", "w", "f"], "the other four stay");
+  assert.equal(filled.five.length, 5);
+  assert.equal(filled.fresh, true);
+  assert.equal(setupStarters(undefined, roster, (p) => p.ovr).fresh, true, "no history: a first pick");
+});

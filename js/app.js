@@ -474,7 +474,7 @@ import {
   toggleStarter,
   usageForBallAction,
 } from "./engine/gameplan.js";
-import { seatPlayers } from "./engine/lineupSlots.js";
+import { seatPlayers, setupStarters } from "./engine/lineupSlots.js";
 import {
   PLAYER_ROLES,
   inferPlayerRole,
@@ -6200,11 +6200,12 @@ function openSetup(home, away, youSide) {
   state.pendingMatch = { home, away, youSide };
   const you = youSide === "home" ? home : away;
   const healthy = you.players.filter(isPlayerAvailable);
-  const sorted = [...(healthy.length ? healthy : you.players)].sort((a, b) => overall(b) - overall(a));
-  state.setup = {
-    you,
-    selected: new Set(sorted.slice(0, 5).map((p) => p.id)),
-  };
+  const available = healthy.length ? healthy : you.players;
+  // The five the coach started with last time stay the five (and keep the slots he set by hand) while all of them can still play.
+  // Only a side with no history gets a first pick, and that is a balanced five, not "the five best ratings" (five centres).
+  const { five: fiveNow, fresh } = setupStarters(you.starterIds, available, overall);
+  state.setup = { you, selected: new Set(fiveNow.map((p) => p.id)) };
+  if (fresh) autoAssignUniquePositions(fiveNow);
   const asstBit = you.assistant
     ? ` ｜ 助教 ${you.assistant.name}（激发 ${you.assistant.sparkPotential ?? "-"}）`
     : "";

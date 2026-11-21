@@ -149,3 +149,46 @@ export function reseatLineup(onCourt) {
   });
   return moved;
 }
+
+/**
+ * Which five to START when nobody has chosen yet. "Top five by rating" put five centres in one lineup (two of them seated at PG and
+ * SG) with guards sitting on the bench. Every five among the best `pool` is scored as its total rating minus what seating it costs
+ * (the same `slotCost` the seating uses), so a lineup only plays men far out of position when no better-balanced five is close in
+ * rating. With no guards to choose from, it is simply the best five. `keep` are players already chosen (the coach's own picks when
+ * one of his five is hurt): they stay and only the empty places are filled. Pure; ties keep the higher-rated players.
+ */
+export function bestStarters(players, rate, { pool = 9, keep = [] } = {}) {
+  const kept = keep.slice(0, SLOT_ORDER.length);
+  const need = SLOT_ORDER.length - kept.length;
+  const top = (players || []).filter((p) => !kept.includes(p)).sort((a, b) => rate(b) - rate(a)).slice(0, Math.max(pool - kept.length, need));
+  if (top.length <= need) return [...kept, ...top];
+  let best = null;
+  let bestScore = -Infinity;
+  const pick = [];
+  (function choose(from) {
+    if (pick.length === need) {
+      const five = [...kept, ...pick.map((i) => top[i])];
+      const seats = seatPlayers(five);
+      const score = five.reduce((n, p, k) => n + rate(p) - slotCost(p, seats[k]), 0);
+      if (score > bestScore) { bestScore = score; best = five; }
+      return;
+    }
+    for (let i = from; i <= top.length - (need - pick.length); i++) {
+      pick.push(i);
+      choose(i + 1);
+      pick.pop();
+    }
+  })(0);
+  return best;
+}
+
+/**
+ * The five on the pre-game screen. The coach's last five (`starterIds`) stay the five, with the slots he gave them, while all of them
+ * can still play. If some are hurt or gone the others stay and only the empty places are filled; with no history it is the balanced
+ * first pick. `fresh` says the seating was not his, so the caller should seat them. Pure.
+ */
+export function setupStarters(starterIds, available, rate) {
+  const kept = (available || []).filter((p) => (starterIds || []).includes(p.id)).slice(0, SLOT_ORDER.length);
+  if (kept.length === SLOT_ORDER.length) return { five: kept, fresh: false };
+  return { five: bestStarters(available, rate, { keep: kept }), fresh: true };
+}
