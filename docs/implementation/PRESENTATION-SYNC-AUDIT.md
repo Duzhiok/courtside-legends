@@ -84,3 +84,22 @@ GameSim outcomes, its random-number consumption and the 2D court. The feed and s
 - **Names on the rim:** while a shot is in the air no non-focus name sits on the basket it flies to; the focus plate goes see-through (35%) so it cannot hide the ball (on a phone it was as wide as the court and did hide it).
 - **Shot evidence:** `match-3d-readability.mjs` now grabs the canvas in the same task as the render when the ball is 35-65% along its flight (`*-shot-canvas.png`), instead of a screenshot taken after the sampling batch (which could be after the ball landed).
 - Not done / limits: the focus plate is faint for the ~0.8 s flight; the ball is small on a phone (the trail carries it); the left LED text looks garbled at oblique angles but reads right in the frames checked, nothing changed there; real-phone FPS not measured.
+
+## A3 — arena reactions (crowd, bench, sound), on the presentation timeline
+
+What it does: when a shot or dunk **reaches the rim** (`CourtView3D._landed`, on the presentation clock, so never at release) the court
+reports `{ made, pts, side, shooterId, dunk }`. A make makes the stands and the **scoring side's bench** hop (whole body, deterministic
+phase per person, ~1.1 s, bigger for a three/dunk, benches higher than the stands); the match controller hands the same fact to
+`createArenaCues`, which plays a swish and, at most once per 1.4 s, a roar. A **played** foul beat gets a whistle (a foul the cursor skipped
+past does not). Misses are silent. Visual and audio only: nothing reads or writes GameSim.
+
+Evidence: `tests/arenaA3.test.js` (5), `tests/court3dLanding.test.js` (4, real THREE matrices on a fake clock: nothing before flight time,
+one landing per shot, miss/dunk/throwing listener), `tests/match3dController.test.js` (+2: landed facts reach the cues; a played foul is
+whistled once, mutation-checked). Real page, `scripts/qa/match-3d-reactions.mjs` at 3x desktop: every made basket cheered and swished,
+misses silent, roars 1.4 s+ apart, no landing at release, 1879 of 2539 spectators left their seats at the peak (28.7 cm), all seated again
+after the last cheer, 0 page errors.
+
+Not done / not measured: **no on-court referees** (the five table officials are static; a roaming referee would need new figures and
+choreography, and GameSim has no referee positions), **no whistle seen in the browser sample** (fouls are rare in 3x runs; the path is
+covered by the controller test), **no mobile run and no real-device FPS** for the cheer (about 2.5k bodies + heads are rewritten every
+50 ms for 1.1 s; headless numbers are not FPS), crowd and bench are not team-coloured fans (the stands cheer for either side).

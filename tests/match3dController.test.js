@@ -15,7 +15,7 @@ const el = () => {
   };
 };
 
-function rig({ failCreate = false, sim = { paused: false, snapshot: () => ({ quarter: 1, clock: 720, score: { home: 0, away: 0 } }) }, speed = 1 } = {}) {
+function rig({ failCreate = false, sim = { paused: false, snapshot: () => ({ quarter: 1, clock: 720, score: { home: 0, away: 0 } }) }, speed = 1, cues = null, clock = null } = {}) {
   const dom = { host: el(), twoD: el(), button: el(), note: el() };
   const stub = { rendered: [], shots: [], disposed: 0, render(s) { this.rendered.push(s); }, onShot(s) { this.shots.push(s); }, resize() {}, dispose() { this.disposed++; } };
   const frames = [];
@@ -24,7 +24,7 @@ function rig({ failCreate = false, sim = { paused: false, snapshot: () => ({ qua
     runFrame() { const fn = frames.shift(); if (fn) fn(); return !!fn; },
   };
   ctx.ctl = createMatch3dController({
-    ...dom, getSim: () => ctx.sim, getSpeed: () => ctx.speed, seed: 7,
+    ...dom, getSim: () => ctx.sim, getSpeed: () => ctx.speed, seed: 7, cues, ...(clock ? { clock } : {}),
     createView3d: async () => { if (failCreate) throw new Error("WebGL unavailable"); return stub; },
     raf: (fn) => frames.push(fn), caf: () => { frames.length = 0; },
   });
@@ -134,4 +134,35 @@ test("leaving the game while WebGL is still loading does not leak a view", async
   assert.equal(await opening, false);
   assert.equal(r.stub.disposed, 1);
   assert.equal(r.ctl.active, false);
+});
+
+test("A3: the court's landed-shot facts reach the arena cues (and with no cues the hook is a harmless no-op)", async () => {
+  const heard = [];
+  const r = rig({ cues: { shotLanded: (e) => heard.push(e), foul() {} } });
+  r.ctl.startMatch({ offer: true });
+  await r.ctl.enable();
+  assert.equal(typeof r.stub.onShotLanded, "function", "the controller listens on the view it created");
+  r.stub.onShotLanded({ made: true, pts: 3, side: "home" });
+  assert.deepEqual(heard, [{ made: true, pts: 3, side: "home" }]);
+  const quiet = rig();
+  quiet.ctl.startMatch({ offer: true });
+  await quiet.ctl.enable();
+  assert.doesNotThrow(() => quiet.stub.onShotLanded({ made: true, pts: 2 }));
+});
+
+test("A3: a foul beat that is actually played is whistled, once (the feed is the canned one plus one foul)", async () => {
+  let whistles = 0;
+  let nowMs = 0;
+  const r = rig({ cues: { shotLanded() {}, foul: () => { whistles += 1; } }, clock: () => nowMs });
+  r.ctl.startMatch({ offer: true });
+  await r.ctl.enable();
+  const { rawEvents, domainEvents } = buildCannedFeed();
+  const first = rawEvents[0];
+  const foul = { ...first, type: "foul", meta: { foul: { foulerId: "away-pg", victimId: "home-pg", kind: "defensive" } } };
+  const all = [...rawEvents.map((e) => ({ raw: true, e })), { raw: true, e: foul }, ...domainEvents.map((e) => ({ raw: false, e }))]
+    .sort((a, b) => (b.e.snapshot?.clock ?? b.e.clock) - (a.e.snapshot?.clock ?? a.e.clock));
+  for (const { raw, e } of all.filter((x) => (x.e.snapshot?.clock ?? x.e.clock) >= 690)) (raw ? r.ctl.feedRaw(e) : r.ctl.feedDerived(e));
+  for (let i = 0; i < 80; i++) { nowMs += 100; r.runFrame(); } // 8 s of presentation time, so every beat of the play comes due
+  assert.ok(whistles >= 1, "the played foul was whistled");
+  assert.ok(whistles <= 1, "once");
 });

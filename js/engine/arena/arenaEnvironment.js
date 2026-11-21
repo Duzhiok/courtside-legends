@@ -26,8 +26,8 @@ export function buildArenaEnvironment(T, scene, preset, profile, { doc = null, c
 
   const crowd = instancedPeople(T, crowdPeople(seats, preset, profile.crowd));
   group.add(crowd.group);
-  const side = instancedPeople(T, courtsidePeople(preset, { ...DEFAULT_TEAM_COLORS, ...colors }));
-  group.add(side.group);
+  const bench = instancedPeople(T, courtsidePeople(preset, { ...DEFAULT_TEAM_COLORS, ...colors }));
+  group.add(bench.group);
 
   group.add(furnitureBoxes(T, preset));
   if (profile.detail) group.add(glowBoxes(T, doc, preset));
@@ -40,6 +40,12 @@ export function buildArenaEnvironment(T, scene, preset, profile, { doc = null, c
     spectators: crowd.count,
     update(now) {
       crowd.update(now);
+      bench.update(now);
+    },
+    /** A basket went in for `side` ("home"/"away"): the stands hop, and so does that side's bench. */
+    cheer(level, side, now) {
+      crowd.cheer(level, side, now);
+      bench.cheer(level, side, now);
     },
     setSnapshot(snap) {
       board.set(snap);

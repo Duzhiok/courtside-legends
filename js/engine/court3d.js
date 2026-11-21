@@ -64,7 +64,7 @@ export const SHOT_SETTLE_MS = 180;
 /** A pass flies from the passer's figure to the receiver's in this long (staging, like every duration here). */
 export const PASS_FLIGHT_MS = 380;
 /** Dunk timings (mirror CourtView._dunkFrame: DRIVE 420 + NET 150 + SETTLE 200). */
-const DUNK_DRIVE_MS = 420;
+export const DUNK_DRIVE_MS = 420;
 const DUNK_NET_MS = 150;
 const DUNK_SETTLE_MS = 200;
 export const DUNK_TOTAL_MS = DUNK_DRIVE_MS + DUNK_NET_MS + DUNK_SETTLE_MS; // 770
@@ -302,6 +302,7 @@ export class CourtView3D {
     this._lastNow = null;
     this._dt = 0.016;
     this._glide = null; // { from, start }: the ball easing to a new holder
+    this.onShotLanded = null; // set by the match controller: ({ made, pts, side, shooterId, dunk }) when a shot/dunk reaches the rim
     this._env = null; // the stands/crowd/courtside group (null where InstancedMesh is missing or the build failed)
     this._fov = opts.fov || 50;
     this._disposed = false;
@@ -855,6 +856,7 @@ export class CourtView3D {
         : { x: to.x, z: to.z + (attackingUp ? 1 : -1) * MISS_BOUNCE_M };
       this._ball.position.set(this._ballRest.x, BALL_RADIUS_M, this._ballRest.z);
       this._ball.visible = true;
+      this._landed({ made: !!shot.made, pts: shot.pts || 0, side: attackingUp ? "home" : "away", shooterId: shot.shooterId });
       this._setReplayState("done");
       return true;
     }
@@ -863,6 +865,8 @@ export class CourtView3D {
       to,
       start: this._clock(),
       made: !!shot.made,
+      pts: shot.pts || 0,
+      side: attackingUp ? "home" : "away",
       out: attackingUp ? 1 : -1,
       settling: false,
       settleStart: 0,
@@ -886,6 +890,8 @@ export class CourtView3D {
       from: { x: fig.group.position.x, z: fig.group.position.z },
       to: { x: to.x, z: to.z },
       start: this._clock(),
+      side: attackingUp ? "home" : "away",
+      landed: false,
     };
     this._ballRest = null;
     this._shakeRim = attackingUp ? this._rims.away : this._rims.home;
@@ -1081,6 +1087,7 @@ export class CourtView3D {
         }
         s.settling = true;
         s.settleStart = now;
+        this._landed(s);
       }
       const v = clamp((now - s.settleStart) / SHOT_SETTLE_MS, 0, 1);
       if (s.made) {
@@ -1120,6 +1127,10 @@ export class CourtView3D {
         ball.position.set(d.to.x, 1.6 + jumpY + v * 1.2, d.to.z);
         this._rimShakeUntil = now + 150;
         this._flash(0.5);
+        if (!d.landed) {
+          d.landed = true;
+          this._landed({ made: true, pts: 2, side: d.side, shooterId: d.playerId, dunk: true });
+        }
       } else if (el < DUNK_TOTAL_MS) {
         const v = (el - DUNK_DRIVE_MS - DUNK_NET_MS) / DUNK_SETTLE_MS;
         if (fig) fig.group.position.set(d.to.x, Math.max(0, 0.9 * (1 - v)), d.to.z);
@@ -1208,6 +1219,20 @@ export class CourtView3D {
       x: v * v * from.x + 2 * v * u * cx + u * u * to.x,
       z: v * v * from.z + 2 * v * u * cz + u * u * to.z,
     };
+  }
+
+  /**
+   * A shot or dunk reached the rim, on the presentation clock (so never before the picture). A basket makes the stands, and the
+   * scoring side's bench, hop; the controller's `onShotLanded` hook gets the same fact for sound. Visual and audio only: nothing
+   * here reads or changes the game.
+   */
+  _landed({ made, pts = 0, side = "home", shooterId = null, dunk = false }) {
+    if (made && !this._reducedMotion) this._env?.cheer?.(dunk || pts >= 3 ? 1.3 : 1, side, this._clock());
+    try {
+      this.onShotLanded?.({ made, pts, side, shooterId, dunk });
+    } catch {
+      /* a listener must never break the render loop */
+    }
   }
 
   _updateEffects(now) {

@@ -23,7 +23,7 @@ export function courtsidePeople(preset, colors) {
   COURTSIDE.benches.forEach((b, bi) => {
     const jersey = colors[b.side];
     for (let i = 0; i < 10; i++) {
-      people.push({ x: COURTSIDE.benchX, y: 0, z: b.z - b.halfLen + 0.35 + (i * (b.halfLen * 2 - 0.7)) / 9, body: jersey, skin: skin(i + bi) });
+      people.push({ x: COURTSIDE.benchX, y: 0, z: b.z - b.halfLen + 0.35 + (i * (b.halfLen * 2 - 0.7)) / 9, body: jersey, skin: skin(i + bi), cheer: true, side: b.side });
     }
     // Head coach stands at the front of his bench; two assistants sit at the end nearest the table.
     people.push({ x: COURTSIDE.benchX + 1.5, y: 0, z: b.z, body: SUIT, skin: skin(bi + 1), bodyH: 1.4, standing: true });

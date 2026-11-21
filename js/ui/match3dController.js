@@ -41,6 +41,7 @@ export function createMatch3dController({
   getSpeed = () => 1,
   L = (zh) => zh,
   seed = 0,
+  cues = null, // arena sound (createArenaCues): reacts to landed shots and foul beats; null = silent
   createView3d = (el) => CourtView3D.create(el, arenaOptionsFromPage()),
   clock, // optional: the presentation clock (tests inject a fake one); default performance.now()
   raf = (fn) => globalThis.requestAnimationFrame(fn),
@@ -66,6 +67,7 @@ export function createMatch3dController({
   /** The cursor passed `beat`: everything GameSim said up to it may now be shown. A live shot holds back only its own line. */
   const onBeatApplied = (beat, { skipped }) => {
     releaseHeld();
+    if (!skipped && beat?.kind === "foul") cues?.foul(); // a foul that is actually being played, not one the cursor skipped past
     const seq = beat?.simSeq;
     if (!Number.isInteger(seq)) return;
     if (cursorSeq === null || seq > cursorSeq) cursorSeq = seq;
@@ -141,6 +143,7 @@ export function createMatch3dController({
     }
     say("", "");
     normalizer.reset();
+    view3d.onShotLanded = (landing) => cues?.shotLanded(landing); // fired by the court when the ball reaches the rim
     view = createMatchPresentationView({ view3d, clock, onBeatApplied, onPlayEnded: releaseHeld });
     gate.setEnabled(true);
     host.hidden = false;

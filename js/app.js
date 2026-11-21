@@ -402,6 +402,7 @@ import { normalizePos } from "./data/positions.js";
 import { composeGameplan } from "./ui/tactics/tacticalDraft.js";
 import { mountTacticsBoard } from "./ui/tactics/tacticsBoardView.js";
 import { createMatch3dController } from "./ui/match3dController.js";
+import { createArenaCues } from "./match/presentation/arenaCues.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
 import {
   SEASON_APRON,
@@ -1542,6 +1543,7 @@ const match3d = createMatch3dController({
   note: $("#court-3d-note"),
   getSim: () => state.sim,
   getSpeed: () => state.speed,
+  cues: createArenaCues({ sfx: audio.sfx }),
   L,
 });
 

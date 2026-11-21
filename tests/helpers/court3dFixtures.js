@@ -115,3 +115,30 @@ export function clutchSnap() {
     },
   };
 }
+
+// Real THREE maths (projection, vectors, sprites) with the WebGL renderer swapped for a shell: nothing is drawn, everything is computed.
+globalThis.requestAnimationFrame = () => 0;
+globalThis.cancelAnimationFrame = () => {};
+class ShellRenderer {
+  constructor() { this.domElement = { style: {} }; }
+  setPixelRatio() {}
+  setSize() {}
+  render() {}
+  dispose() {}
+}
+
+/** A CourtView3D on a fake clock: `at(t)` ticks it to t ms. Returns { view, at, setNow, width, height }. */
+export async function makeShellView({ width = 800, height = 450 } = {}) {
+  const [{ CourtView3D, PUSH_MS }, THREE] = await Promise.all([import("../../js/engine/court3d.js"), import("../../js/vendor/three.module.js")]);
+  let nowMs = 0;
+  const container = makeContainer();
+  container.clientWidth = width;
+  container.clientHeight = height;
+  const view = new CourtView3D(container, { three: { ...THREE, WebGLRenderer: ShellRenderer }, clock: () => nowMs, reducedMotion: false });
+  const p = view.render(clutchSnap());
+  view.tick(0);
+  view.tick(PUSH_MS);
+  await p;
+  const at = (t) => { nowMs = t; view.tick(t); };
+  return { view, at, setNow: (t) => { nowMs = t; }, width, height };
+}

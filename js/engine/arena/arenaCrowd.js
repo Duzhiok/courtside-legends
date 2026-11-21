@@ -11,10 +11,15 @@ const HEAD_R = 0.13;
 const BOB_AMPLITUDE = 0.035;
 const BOB_PERIOD_MS = 620;
 const BOB_STEP_MS = 100;
+const CHEER_MS = 1100; // a made basket: the stand hops up and down three times, then settles
+const CHEER_HOPS = 3;
+const CHEER_LIFT_M = 0.3;
+const CHEER_STEP_MS = 50;
 
 /**
- * @param people [{ x, y, z, body, skin, bodyH?, standing?, bob? }]  y is the tread/floor the person stands or sits on
- * @returns { group, count, update(now) }
+ * @param people [{ x, y, z, body, skin, bodyH?, standing?, bob?, cheer?, side? }]  y is the tread/floor the person stands or sits on.
+ *   `cheer` people hop when `cheer(level, side, now)` is called; one with a `side` only does for that side's baskets (a bench).
+ * @returns { group, count, update(now), cheer(level, side, now) }
  */
 export function instancedPeople(T, people) {
   const group = new T.Group();
@@ -49,23 +54,62 @@ export function instancedPeople(T, people) {
     group.add(m);
   }
   const movers = people.map((p, i) => (p.bob ? i : -1)).filter((i) => i >= 0);
+  const hoppers = people.map((p, i) => (p.cheer ? i : -1)).filter((i) => i >= 0);
+  const restY = people.map((p) => p.y + (p.standing ? 0 : SEATED_LIFT));
+  const phase = (i) => (i * 2.399) % (Math.PI * 2); // golden-angle spread: neighbours never move together
   let last = -Infinity;
+  let cheering = null; // { start, level, side }
+  let hopped = false; // somebody is currently off their seat: one more pass puts everyone back
+
+  /** Everything about person i at `now`: idle bob on the head, plus the hop (whole body) while a cheer is on. */
+  const place = (i, now, lift, withBody) => {
+    const p = people[i];
+    const h = p.bodyH ?? 0.62;
+    dummy.rotation.set(0, 0, 0);
+    if (withBody) { // only while hopping: an idle bob moves heads alone
+      dummy.position.set(p.x, restY[i] + lift + h / 2, p.z);
+      dummy.scale.set(1, h, 1);
+      dummy.updateMatrix();
+      bodies.setMatrixAt(i, dummy.matrix);
+    }
+    const bob = p.bob ? (0.5 + 0.5 * Math.sin(now / BOB_PERIOD_MS + phase(i))) * BOB_AMPLITUDE : 0;
+    dummy.position.set(p.x, headY[i] + lift + bob, p.z);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+    heads.setMatrixAt(i, dummy.matrix);
+  };
+  const hopFor = (i, now) => {
+    const p = people[i];
+    if (!cheering || (p.side && p.side !== cheering.side)) return 0;
+    const t = (now - cheering.start) / CHEER_MS;
+    const up = Math.max(0, Math.sin((t * CHEER_HOPS + phase(i) / (Math.PI * 2) * 0.5) * Math.PI * 2)); // each person is a little out of step
+    return up * Math.sin(Math.PI * t) * CHEER_LIFT_M * cheering.level * (p.side ? 1.6 : 1); // a bench jumps higher than the stands
+  };
+  const flush = (withBody) => {
+    heads.instanceMatrix.needsUpdate = true;
+    if (withBody) bodies.instanceMatrix.needsUpdate = true;
+  };
+
   return {
     group,
     count: n,
+    cheer(level, side, now) {
+      if (hoppers.length) cheering = { start: now, level, side };
+    },
     update(now) {
-      if (!movers.length || now - last < BOB_STEP_MS) return;
-      last = now;
-      for (const i of movers) {
-        const p = people[i];
-        const phase = (i * 2.399) % (Math.PI * 2); // golden-angle spread: neighbours never bob together
-        dummy.position.set(p.x, headY[i] + (0.5 + 0.5 * Math.sin(now / BOB_PERIOD_MS + phase)) * BOB_AMPLITUDE, p.z);
-        dummy.rotation.set(0, 0, 0);
-        dummy.scale.set(1, 1, 1);
-        dummy.updateMatrix();
-        heads.setMatrixAt(i, dummy.matrix);
+      if (cheering && now - cheering.start >= CHEER_MS) {
+        cheering = null;
+        hopped = true; // fall through: one pass with no lift sets everybody back on their seat
       }
-      heads.instanceMatrix.needsUpdate = true;
+      const active = !!cheering || hopped;
+      if (!active && !movers.length) return;
+      if (now - last < (active ? CHEER_STEP_MS : BOB_STEP_MS)) return;
+      last = now;
+      const touched = new Set(movers);
+      if (active) hoppers.forEach((i) => touched.add(i));
+      for (const i of touched) place(i, now, active ? hopFor(i, now) : 0, active);
+      flush(active);
+      hopped = !!cheering;
     },
   };
 }
@@ -86,6 +130,7 @@ export function crowdPeople(seats, preset, density) {
       skin: skin[Math.floor(tone * skin.length) % skin.length],
       bodyH: 0.56 + tone * 0.12,
       bob: true,
+      cheer: true,
     });
   }
   return people;
