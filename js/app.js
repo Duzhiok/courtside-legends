@@ -476,7 +476,7 @@ import {
   toggleStarter,
   usageForBallAction,
 } from "./engine/gameplan.js";
-import { seatPlayers, setupStarters } from "./engine/lineupSlots.js";
+import { screenFiveFromPlan, seatPlayers, setupStarters } from "./engine/lineupSlots.js";
 import {
   PLAYER_ROLES,
   inferPlayerRole,
@@ -6240,7 +6240,9 @@ function openSetup(home, away, youSide) {
       const plan = resolveEffectiveGameplan(live, { opponentId: oppSide?.teamId }).plan || captureRotationPlan(live, live.starterIds);
       applyRotationPlan(you, structuredClone(plan));
       if (plan.starterIds?.length === 5) {
-        state.setup.selected = new Set(plan.starterIds.filter((id) => you.players.some((p) => p.id === id)));
+        const screen = screenFiveFromPlan(plan.starterIds, available, overall);
+        state.setup.selected = new Set(screen.five.map((p) => p.id));
+        if (screen.fresh) autoAssignUniquePositions(screen.five);
       }
       if (plan.phil) {
         $("#phil-off").value = plan.phil.offense ?? $("#phil-off").value;

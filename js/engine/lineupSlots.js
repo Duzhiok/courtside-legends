@@ -192,3 +192,13 @@ export function setupStarters(starterIds, available, rate) {
   if (kept.length === SLOT_ORDER.length) return { five: kept, fresh: false };
   return { five: bestStarters(available, rate, { keep: kept }), fresh: true };
 }
+
+/**
+ * The five checked on the pre-game screen for a saved rotation. A starter who is not in `available`
+ * (hurt, or gone) is left unchecked; the others stay and only the empty places are filled. The saved
+ * plan is not rewritten here — confirming the screen is what stores the five the coach actually sees.
+ */
+export function screenFiveFromPlan(starterIds, available, rate) {
+  const { five, fresh } = setupStarters(starterIds, available, rate);
+  return { five: five || [], fresh: !!fresh };
+}

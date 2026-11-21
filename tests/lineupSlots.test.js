@@ -112,3 +112,26 @@ test("setupStarters: the coach's last five come back as they were; a hurt one is
   assert.equal(filled.fresh, true);
   assert.equal(setupStarters(undefined, roster, (p) => p.ovr).fresh, true, "no history: a first pick");
 });
+
+test("screenFiveFromPlan: a hurt starter is not checked; the other four stay and one healthy player fills in", async () => {
+  const { screenFiveFromPlan } = await import("../js/engine/lineupSlots.js");
+  const { readFileSync } = await import("node:fs");
+  const mk = (id, ovr, pos) => P(id, pos, pos, { ovr, height: pos === "C" ? 214 : 190, strength: pos === "C" ? 85 : 45, rebound: pos === "C" ? 85 : 35, pass: pos === "C" ? 35 : 80, three: pos === "C" ? 25 : 78 });
+  const mine = [mk("g1", 50, "PG"), mk("g2", 55, "SG"), mk("w", 58, "SF"), mk("f", 60, "PF"), mk("c", 62, "C")];
+  const bench = [mk("b1", 70, "PG"), mk("star", 90, "C")];
+  const ids = mine.map((p) => p.id);
+  const healthy = [...mine.filter((p) => p.id !== "c"), ...bench];
+  const screen = screenFiveFromPlan(ids, healthy, (p) => p.ovr);
+  assert.equal(screen.five.length, 5);
+  assert.deepEqual(screen.five.slice(0, 4).map((p) => p.id), ["g1", "g2", "w", "f"]);
+  assert.equal(screen.five.some((p) => p.id === "c"), false, "the hurt centre is not on the screen five");
+  assert.equal(screen.fresh, true);
+  const allBack = screenFiveFromPlan(ids, [...mine, ...bench], (p) => p.ovr);
+  assert.deepEqual(allBack.five.map((p) => p.id).sort(), [...ids].sort());
+  assert.equal(allBack.fresh, false, "a healthy saved five keeps the seats the coach set");
+  const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
+  const at = app.indexOf("if (plan.starterIds?.length === 5)");
+  const block = app.slice(at, at + 400);
+  assert.match(block, /screenFiveFromPlan\(plan\.starterIds, available, overall\)/);
+  assert.doesNotMatch(block, /you\.players\.some/, "the season screen must not check a starter just because he is still on the roster");
+});
