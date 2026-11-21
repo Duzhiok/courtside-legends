@@ -100,7 +100,8 @@ for (const [tag, width, height] of SIZES) {
   for (const sel of [".rot-attr", ".rot-ovr", ".rot-min-box", ".rot-stat", ".rot-budget-top strong"]) {
     check(`[${tag}] ${sel} never wraps`, await unbrokenAll(page, sel));
   }
-  check(`[${tag}] the season header's save / abandon buttons never break (保存赛 / 季)`, await page.$$eval(".season-hub-head .btn", (els) => els.length > 0 && els.every((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size === 1 && el.getBoundingClientRect().height < 40)));
+  // .btn.small is min-height 40px, so one line is exactly 40. A wrapped label grows past that.
+  check(`[${tag}] the season header's save / abandon buttons never break (保存赛 / 季)`, await page.$$eval(".season-hub-head .btn", (els) => els.length > 0 && els.every((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size === 1 && el.getBoundingClientRect().height <= 40)));
   if (width <= 900) {
     const sameRow = await page.$$eval("#season-rotation .rot-row", (rows) => rows.every((r) => Math.abs(r.querySelector(".rot-starter").getBoundingClientRect().top - r.querySelector(".rot-min-wrap").getBoundingClientRect().top) < 14));
     check(`[${tag}] on a phone the 首发 toggle sits beside the minutes (one row less per player)`, sameRow);
