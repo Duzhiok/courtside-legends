@@ -222,6 +222,10 @@ test("queue: with a real rAF loop a running job never arms a 0 ms timer (no time
 test("queue: a timer that rings a millisecond early re-arms the leftover delay and still runs the job", () => {
   // B78: court skill-pop stubs rAF to `() => 0`. The 900 ms timer can fire ~1 ms early, the tick
   // leaves the job, and a second clock() read then sees nothing left in the future and disarms.
+  // B83: the stub clock advances 1 ms on every read, so the tick judges at 1899 while a fresh
+  // clock() inside armTimer would read 1900. That is what makes this test discriminate the
+  // seenAt fix: on the pre-fix code the re-arm read sees runAt (1900) already reached and
+  // disarms, so the "leftover millisecond stays armed" assertion goes red.
   const realSet = globalThis.setTimeout;
   const realClear = globalThis.clearTimeout;
   const timers = [];
@@ -239,12 +243,14 @@ test("queue: a timer that rings a millisecond early re-arms the leftover delay a
     const q = createAnimationQueue({
       requestAnimationFrame: () => 0,
       cancelAnimationFrame: () => {},
-      now: () => now,
+      now: () => now++,
     });
     let ran = 0;
     q.enqueue({ id: "pop", delay: 900, step: () => { ran += 1; return true; } });
     assert.equal(timers.length, 1);
-    assert.equal(timers[0].ms, 900);
+    // enqueue reads the clock once for runAt (1000) and armTimer reads it again (1001),
+    // so the first wake-up is armed for 899 ms, not 900.
+    assert.equal(timers[0].ms, 899);
     now = 1899;
     const early = timers[0].fn;
     timers.length = 0;
