@@ -1063,17 +1063,18 @@ export class GameSim {
         habitTov
     );
     if (rnd() < tovChance) {
-      baller.stats.tov += 1;
-      gradeTov(baller);
-      // loose-ball foul chance
+      // A whistle on the loose ball kills the play: it is a personal foul, not a turnover,
+      // and this engine has no bonus, so the offense inbounds instead of shooting two.
       if (rnd() < 0.12) {
         defender.stats.pf += 1;
         gradeFoul(defender);
-        this.emit("miss", this.S(`${baller.name} 失误，${defender.name} 防守犯规`, `${baller.name} turns it over; ${defender.name} is whistled for the defensive foul`), { actorId: baller.id, foul: { foulerId: defender.id, victimId: baller.id, kind: "defensive" }, turnover: { actorId: baller.id, kind: "foul", forcedById: defender.id } });
+        this.possession = off.side;
+        this.emit("miss", this.S(`${defender.name} 抢松动球时犯规，${baller.name} 仍持球`, `${defender.name} fouls on the loose ball; ${baller.name} keeps it`), { actorId: defender.id, foul: { foulerId: defender.id, victimId: baller.id, kind: "loose" } });
         applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
-        shootFts(baller, off, this, 2);
         return;
       }
+      baller.stats.tov += 1;
+      gradeTov(baller);
       const wrapForced =
         wrapTov >= 0.05 && rnd() < 0.55
           ? this.S(`——被 ${defender.name}「死亡缠绕」逼出`, ` — forced by ${defender.name}'s "Death Grip"`)

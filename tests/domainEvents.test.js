@@ -146,7 +146,7 @@ test("domain events: real seeded game — meta shapes hold on every typed event"
     } else {
       assert.equal(typeof e.meta.foul.victimId, "string");
     }
-    assert.ok(["charge", "defensive", "shooting", "and_one", "technical"].includes(e.meta.foul.kind));
+    assert.ok(["charge", "defensive", "shooting", "and_one", "technical", "loose"].includes(e.meta.foul.kind));
   }
   for (const e of turnovers) {
     assert.equal(typeof e.meta.turnover.actorId, "string");

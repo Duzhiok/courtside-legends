@@ -199,7 +199,7 @@ test("playLines: an event carrying foul+turnover yields BOTH lines (charge, loos
   assert.equal(chargeLines.length, 2);
   assert.deepEqual(chargeLines.map((l) => l.kind), ["turnover", "foul"]);
   assert.equal(chargeLines[1].playerId, "baller");
-  // sim.js:1036 loose-ball foul after a turnover: the fouler is the defender.
+  // A recorded loose-ball foul that also carried a turnover (old logs) still prints both lines.
   const loose = [{ meta: { actorId: "baller", foul: { foulerId: "defender", victimId: "baller", kind: "defensive" }, turnover: { actorId: "baller", kind: "foul", forcedById: "defender" } } }];
   const looseLines = playLines(loose, nameOf, "zh");
   assert.equal(looseLines.length, 2);

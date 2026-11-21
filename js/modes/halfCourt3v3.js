@@ -257,8 +257,8 @@ export function playLines(events, nameOf, lang) {
           : { kind: "dreb", playerId: m.reb.rebounderId, text: TL(lang, `${who} 防守篮板`, `${who} defensive board`) }
       );
     }
-    // A foul can ride along with another outcome (charge: sim.js:950, loose-ball foul after a
-    // turnover: :1036) — it is its own line, never swallowed by the outcome branch above.
+    // A foul can ride along with another outcome (charge: sim.js charge branch). A loose-ball
+    // foul is a foul only. Either way the foul is its own line, never swallowed above.
     if (m.foul) {
       lines.push({ kind: "foul", playerId: m.foul.foulerId, text: TL(lang, `${nameOf(m.foul.foulerId)} 犯规`, `Foul on ${nameOf(m.foul.foulerId)}`) });
     }
