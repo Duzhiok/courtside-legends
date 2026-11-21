@@ -71,7 +71,7 @@ export const audio = {
   toggle: () => setMode(manager.getSettings().mode === "off" ? manager.getSettings().lastMode : "off"),
 
   /** Call once the app is usable: builds the audio context in an idle moment (it still needs a tap to start sounding). */
-  prewarm: () => prewarmWhenIdle(() => manager.prewarm()),
+  prewarm: () => prewarmWhenIdle(() => manager.prewarm(), { done: () => manager.isUnlocked() }),
 
   init({ getProfileId: gp, getLang: gl } = {}) {
     if (inited) return;

@@ -1,7 +1,8 @@
 /* global window, document, requestAnimationFrame, performance, localStorage */
 import { chromium } from "playwright-core";
 // How long does the first tap on the home screen take, and when is the AudioContext built (the device start-up is 0.4-1 s)?
-// Before audio.prewarm() it was inside the tap; now it is in the idle time after boot. Usage: node scripts/measure/audio-first-tap.mjs [baseUrl]
+// Before audio.prewarm() it was inside the tap; now it is in the idle time after boot. The prewarm waits for a quiet moment (app >= 2.5 s old, no input for 1.5 s), so a tap sooner than that still pays for the build itself.
+// Usage: node scripts/measure/audio-first-tap.mjs [baseUrl] [waitMsBeforeTap=5000]
 import { homeActive } from "../qa/lib/page.mjs";
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const BASE = process.argv[2] || "http://127.0.0.1:5419/";
@@ -16,7 +17,7 @@ await page.goto(BASE, { waitUntil: "domcontentloaded" });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: "domcontentloaded" });
 await homeActive(page);
-await page.waitForTimeout(3000); // idle time after boot: the prewarm happens here
+await page.waitForTimeout(Number(process.argv[3] ?? 5000)); // quiet time after boot: the prewarm happens here
 const before = await page.evaluate(() => JSON.stringify(window.__a.ctor));
 const click = await page.evaluate(() => new Promise((res) => {
   const t0 = performance.now();

@@ -4,31 +4,70 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { prewarmWhenIdle } from "../js/audio/prewarm.js";
 
-test("prewarmWhenIdle: never synchronous, runs once the browser is idle", () => {
-  const queue = [];
+/** A fake clock + timer: `tick(ms)` moves time and runs whatever fell due. */
+function fakeTime() {
+  let t = 0;
+  const q = [];
+  return {
+    now: () => t,
+    wait: (fn, ms) => q.push({ at: t + ms, fn }),
+    tick(ms) {
+      const end = t + ms;
+      for (;;) {
+        q.sort((x, y) => x.at - y.at);
+        if (!q.length || q[0].at > end) break;
+        const job = q.shift();
+        t = Math.max(t, job.at);
+        job.fn();
+      }
+      t = end;
+    },
+    pending: () => q.length,
+  };
+}
+
+test("prewarmWhenIdle: never synchronous, and not while the app is still young", () => {
+  const time = fakeTime();
   let built = 0;
-  prewarmWhenIdle(() => { built += 1; }, { idle: (fn) => queue.push(fn), inputPending: () => false });
+  prewarmWhenIdle(() => { built += 1; }, { ...time, lastInput: () => -1e9 });
   assert.equal(built, 0, "nothing happens inside the caller's turn");
-  queue.shift()();
+  time.tick(2000);
+  assert.equal(built, 0, "still starting up: the build (one 0.5 s block) waits");
+  time.tick(1000);
+  assert.equal(built, 1, "quiet and old enough: built once");
+  time.tick(60000);
   assert.equal(built, 1);
-  assert.equal(queue.length, 0);
+  assert.equal(time.pending(), 0, "no more polling afterwards");
 });
 
-test("prewarmWhenIdle: steps aside while the player is typing/tapping, but does go ahead after a few deferrals", () => {
-  const queue = [];
+test("prewarmWhenIdle: waits for a quiet moment while the player is tapping, then builds", () => {
+  const time = fakeTime();
   let built = 0;
-  let pending = true;
-  prewarmWhenIdle(() => { built += 1; }, { idle: (fn) => queue.push(fn), inputPending: () => pending, tries: 3 });
-  for (let i = 0; i < 3; i++) queue.shift()(); // three deferrals while input is pending
+  let last = 0;
+  prewarmWhenIdle(() => { built += 1; }, { ...time, lastInput: () => last });
+  for (let i = 0; i < 14; i++) { last = time.now(); time.tick(500); } // a tap every half second for 7 s (well past the minimum age)
+  assert.equal(built, 0, "never in the middle of a burst of taps");
+  time.tick(700);
+  assert.equal(built, 0, "1.2 s of calm is not enough yet");
+  time.tick(1500);
+  assert.equal(built, 1, "1.5 s without input: now");
+});
+
+test("prewarmWhenIdle: a player who never goes quiet already built it with the first tap, so it gives up; and stops once it exists", () => {
+  const busy = fakeTime();
+  let built = 0;
+  prewarmWhenIdle(() => { built += 1; }, { ...busy, lastInput: () => busy.now() });
+  busy.tick(120000);
   assert.equal(built, 0);
-  queue.shift()(); // out of tries: a one-off cost now beats the same cost inside a tap
-  assert.equal(built, 1);
-  const q2 = [];
+  assert.equal(busy.pending(), 0, "gave up: no timer left running");
+  const made = fakeTime();
+  let exists = false;
   let b2 = 0;
-  pending = false;
-  prewarmWhenIdle(() => { b2 += 1; }, { idle: (fn) => q2.push(fn), inputPending: () => pending });
-  q2.shift()();
-  assert.equal(b2, 1, "no pending input: straight away");
+  prewarmWhenIdle(() => { b2 += 1; }, { ...made, lastInput: () => -1e9, done: () => exists });
+  exists = true; // the first tap built it meanwhile
+  made.tick(60000);
+  assert.equal(b2, 0, "nothing to do any more");
+  assert.equal(made.pending(), 0);
 });
 
 class FakeNode { connect() { return this; } }
