@@ -1,6 +1,6 @@
-/* Noto Sans SC draws Latin Extended letters badly (ć -> "c´", č -> misplaced caron, at every weight), which mangled
-   Jokić / Dončić / Dragić. Only that Unicode range is taken from a local Latin font; everything else still uses
-   the families below, so Chinese and plain Latin text look exactly as before. */
+/* Latin Extended letters (ć č ...) are taken from a local Latin font so Jokić / Dončić / Dragić never come out mangled by a CJK font's
+   Latin glyphs (Noto Sans SC used to draw them badly; it is no longer a web font, but a CJK system font may still do the same). Only that
+   Unicode range is affected; everything else uses the families below. */
 @font-face {
   font-family: "CLS Latin Ext";
   font-weight: 100 500;
@@ -39,7 +39,9 @@
   --muted: #6b7280;
   --shadow: 0 18px 40px rgba(15, 28, 20, 0.18);
   --font-display: "CLS Latin Ext", "Bebas Neue", "Arial Narrow", sans-serif;
-  --font-body: "CLS Latin Ext", "Noto Sans SC", "Segoe UI", sans-serif;
+  /* System fonts only for body text: system-ui is SF / Segoe UI / Roboto and brings the platform CJK face (PingFang SC / Microsoft YaHei /
+     Noto Sans CJK) for Chinese; the named ones make that explicit where system-ui would not. No web font is in this chain on purpose (B77). */
+  --font-body: "CLS Latin Ext", system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
 
   /* Arena palette (was css/home.css :root) */
   --arena-1: #07130d;

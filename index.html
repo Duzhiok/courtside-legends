@@ -10,10 +10,12 @@
   <title>场边传奇 · Courtside Legends</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- Web fonts must not block first paint (B77): fetched at low priority as media=print, switched on by js/fontCss.js, text swaps in
-       when they arrive (display=swap). Weight 500 is not requested: the 8 places that ask for it get 400, which saves a third of the bytes. -->
-  <link id="font-css" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet" media="print" />
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet" /></noscript>
+  <!-- Only the display face (Bebas Neue, Latin only, ~20 KB) is a web font, and it must not block first paint (B77): fetched at low priority as
+       media=print, switched on by js/fontCss.js, text swaps in when it arrives (display=swap). Chinese and body text use the system fonts: the
+       Noto Sans SC web font (560 KB, dozens of unicode-range slices) cost 1.5-4 s of main-thread layout the first time each screen was shown
+       (measured: 3331 -> 36 ms for the rotation board) and never helped a network that cannot reach Google. -->
+  <link id="font-css" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" media="print" />
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" /></noscript>
   <link rel="stylesheet" href="css/tokens.css?v=2" />
   <link rel="stylesheet" href="css/style.css?v=20261105m4" />
   <link rel="stylesheet" href="css/home.css?v=20261107c1" />

@@ -30,6 +30,20 @@ test("js/fontCss.js is loaded and switches exactly that link on (a classic exter
   assert.doesNotThrow(() => { globalThis.document = { getElementById: () => null }; new Function(src)(); delete globalThis.document; }, "no link: harmless");
 });
 
-test("only the Noto Sans SC weights the app uses are requested (400 + 700, not 500)", () => {
-  for (const l of links) assert.match(l, /Noto\+Sans\+SC:wght@400;700&/);
+test("the only web font is the small Latin display face: no CJK web font (Noto Sans SC cost 1.5-4 s of first-layout time), and body text stays on system fonts", () => {
+  for (const l of links) {
+    assert.match(l, /family=Bebas\+Neue&display=swap/);
+    assert.doesNotMatch(l, /Noto/i, "no CJK web font request");
+    assert.equal((l.match(/family=/g) || []).length, 1, "one family only");
+  }
+  const tokens = readFileSync(new URL("../css/tokens.css", import.meta.url), "utf8");
+  const body = tokens.match(/--font-body:\s*([^;]+);/)[1];
+  assert.doesNotMatch(body, /Noto Sans SC/, "the body stack does not name the web font any more");
+  assert.match(body, /system-ui/);
+  assert.match(body, /PingFang SC/);
+  assert.match(body, /Microsoft YaHei/);
+  assert.match(body, /sans-serif\s*$/, "ends in the generic family");
+  // the only @font-face left is the local Latin-extended helper (no network source)
+  const faces = [...tokens.matchAll(/@font-face\s*{[^}]*}/g)].map((m) => m[0]);
+  for (const f of faces) assert.doesNotMatch(f, /url\(/, "no downloaded font file");
 });
