@@ -33,14 +33,23 @@
  *
  * Nothing in the repo is modified.
  *
- * Usage: node scripts/measure/b35-make-by-zone.mjs [gamesPerPair=20]
+ * Usage: node scripts/measure/b35-make-by-zone.mjs [gamesPerPair=20] [--fixed-set[=out.json]]
+ *   --fixed-set pins position aggregation to the card `pos` (never the last game's
+ *   playPos — see §11.3: swing players flip buckets between runs and can swing a
+ *   position's 3P% by ~6pt) and dumps the joined per-player realised + probe rows
+ *   as JSON for fixed-set comparison across runs (ablations must be compared on
+ *   the identical player set, not on re-bucketed live aggregates).
  */
 import { realTeam } from "../../tests/helpers/realGame.js";
 import { GameSim, chooseShot, calcMakeProb } from "../../js/engine/sim.js";
 import { hashSeed, seededStream } from "../../js/core/seededRandom.js";
 import { withRng } from "../../js/core/rng.js";
+import { writeFileSync } from "node:fs";
 
-const N = Number(process.argv[2] || 20);
+const args = process.argv.slice(2);
+const N = Number(args.find((a) => !a.startsWith("--")) || 20);
+const fixedSetArg = args.find((a) => a === "--fixed-set" || a.startsWith("--fixed-set="));
+const FIXED_SET = fixedSetArg ? (fixedSetArg.includes("=") ? fixedSetArg.split("=")[1] : "b35-fixed-set.json") : null;
 const PAIRS = [["BOS", "LAL", 1986], ["CHI", "SEA", 1996], ["LAL", "PHI", 2001], ["BOS", "LAL", 2008], ["SAS", "MIA", 2014], ["GSW", "BOS", 2022]];
 
 const ranks = (a) => { const idx = a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]); const r = new Array(a.length); idx.forEach(([, i], k) => { r[i] = k; }); return r; };
@@ -118,7 +127,7 @@ const realTp = sum(used, (r) => r.p.raw.tp * r.p.raw.tpa) / sum(used, (r) => r.p
 const real2 = sum(used, (r) => r.p.raw.fg * r.p.raw.fga - r.p.raw.tp * r.p.raw.tpa) / sum(used, (r) => r.p.raw.fga - r.p.raw.tpa);
 const realP = sum(used, (r) => 2 * r.p.raw.fg * r.p.raw.fga + r.p.raw.tp * r.p.raw.tpa) / sum(used, (r) => r.p.raw.fga);
 console.log(`League real (same players, FGA-weighted): FG% ${pct(realFg)}  2P% ${pct(real2)}  3P% ${pct(realTp)}  FG-only PPS ${f3(realP)}  total PPS (incl FTs) ${f3(sum(used, (r) => r.p.raw.ppg) / sum(used, (r) => r.p.raw.fga))}`);
-const posOf = (r) => (r.p.playPos || r.p.pos || "?");
+const posOf = (r) => (FIXED_SET ? (r.p.pos || "?") : (r.p.playPos || r.p.pos || "?"));
 for (const pos of ["PG", "SG", "SF", "PF", "C"]) {
   const g = used.filter((r) => posOf(r) === pos);
   if (!g.length) continue;
@@ -175,7 +184,7 @@ for (const [a, b, year] of PAIRS) {
     const off = { side, coach, tactic: { offense: 1, threeRate: 1, paintBias: 1, id: "balanced" }, temp: {}, onCourt, chem: 50, morale: 50, fit: 50, gameplan: { offenseFocusId: null } };
     const def = { side: side === "home" ? "away" : "home", coach, tactic: { defense: 1 }, temp: {}, onCourt: oppCourt };
     for (const p of team.players) {
-      const pos = p.playPos || p.pos || "SF";
+      const pos = FIXED_SET ? (p.pos || "SF") : (p.playPos || p.pos || "SF");
       let defender = oppCourt.find((q) => (q.playPos || q.pos) === pos);
       if (!defender) {
         const pi = POS_ORDER.indexOf(pos);
@@ -236,3 +245,21 @@ for (const j of [...joined].sort((x, y) => y.expPps - x.expPps).slice(0, 10))
 console.log("\nLowest expected PPS:");
 for (const j of [...joined].sort((x, y) => x.expPps - y.expPps).slice(0, 10))
   console.log(`  ${String(j.p.name).padEnd(22)} ${j.year} ${j.pos} expPPS ${f3(j.expPps)} realised PPS ${f3((j.real.pts - j.real.ftm) / j.real.fga)} (real FG-only ${f3(realPps(j.real))}) paintShare ${pct(j.share.paint)} str ${j.p.strength} reb ${j.p.rebound}`);
+
+if (FIXED_SET) {
+  // Fixed-set dump: the same joined rows, so ablations are compared on the identical
+  // player set with positions pinned to card pos (no re-bucketing noise, §11.3).
+  // catchShoot/offDribble are included for the §11.4(2) PG-three split in a later run.
+  const dump = joined.map((j) => ({
+    key: `${j.year}|${j.p.id}`, name: j.p.name, year: j.year, pos: j.pos,
+    strength: j.p.strength, rebound: j.p.rebound, three: j.p.three, speed: j.p.speed,
+    scoring: j.p.scoring, paint: j.p.paint,
+    catchShoot: j.p.catchShoot ?? null, offDribble: j.p.offDribble ?? null,
+    paintFg: j.p.paintFg, midFg: j.p.midFg, threeFg: j.p.threeFg,
+    real: { fg: j.real.p.raw.fg, tp: j.real.p.raw.tp, fga: j.real.p.raw.fga, tpa: j.real.p.raw.tpa, ppg: j.real.p.raw.ppg, mpg: j.real.p.raw.mpg },
+    sim: { min: j.real.min, fga: j.real.fga, fgm: j.real.fgm, fga2: j.real.fga2, fgm2: j.real.fgm2, fga3: j.real.fga3, fgm3: j.real.fgm3, pts: j.real.pts, ftm: j.real.ftm },
+    probe: { mp: j.mp, share: j.share, expPps: j.expPps, expPpsFixed: j.expPpsFixed },
+  }));
+  writeFileSync(FIXED_SET, JSON.stringify({ mode: "fixed-set", count: dump.length, players: dump }, null, 1));
+  console.log(`\n--fixed-set: position pinned to card pos; dumped ${dump.length} players to ${FIXED_SET}`);
+}
