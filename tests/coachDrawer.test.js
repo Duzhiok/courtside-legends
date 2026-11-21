@@ -72,3 +72,16 @@ test("English labels, and it tolerates a missing panel or button", () => {
   d.setPaused(true);
   assert.equal(d.isOpen(), true);
 });
+
+test("onOpenChange fires once per transition (the host repaints the hidden body only when it opens)", () => {
+  const calls = [];
+  const button = fakeEl();
+  const d = createCoachDrawer({ panel: fakeEl(), button, onOpenChange: (open) => calls.push(open) });
+  assert.deepEqual(calls, [], "no call for the initial render");
+  button.click();
+  button.click();
+  d.setPaused(true);
+  d.setPaused(true); // still open: no duplicate call
+  d.setPaused(false);
+  assert.deepEqual(calls, [true, false, true, false]);
+});

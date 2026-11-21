@@ -632,7 +632,17 @@ function show(name) {
   const target = screens[name];
   if (target && !target.__shell) {
     scrollScreenToTop(target);
-    focusScreenHeading(target);
+    // Focus on the next frame: focusing now forced a full synchronous layout (~230 ms on the home screen at boot)
+    // before the home bars below had even been written, so layout ran twice. Skip it if the screen changed or the
+    // player already moved focus somewhere real in the meantime.
+    const focusLater = () => {
+      if (!target.classList.contains("active")) return;
+      const cur = document.activeElement;
+      if (cur && cur !== document.body && target.contains(cur)) return;
+      focusScreenHeading(target);
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(focusLater);
+    else focusLater();
   }
   if (name === "home") {
     refreshAccountHomeBar();
@@ -1571,6 +1581,7 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   state.lineupSig = "";
   state.subOutId = null;
   state.subInId = null;
+  state.court?.destroy?.();
   state.court = newCourtView();
   state.court.ensureDom();
   $("#game-team-a").textContent = teamNameL(homeTeam?.name || sim.home.name, getLang());
@@ -1618,8 +1629,14 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
       try {
         paintScoreWithCursor(snap);
         paintLineups(snap);
-        paintMeters(snap);
-        fillSubSelects(snap);
+        // The coach-panel body (meters, orders, subs, positions) is display:none while the drawer is closed in live
+        // play; rebuilding it every possession was pure layout cost. It is repainted once when the drawer opens.
+        if (coachDrawer.isOpen()) {
+          paintMeters(snap);
+          fillSubSelects(snap);
+        } else {
+          paintMomentum(snap);
+        }
         state.court?.render(snap);
         state.domainEvents?.observeTick(snap);
         syncPauseUI(snap);
@@ -7472,6 +7489,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
   state.subInId = null;
   const feed = $("#play-feed");
   if (feed) feed.innerHTML = "";
+  state.court?.destroy?.();
   state.court = newCourtView();
   state.court.ensureDom();
 
@@ -7516,8 +7534,14 @@ function beginGame(homeTeam, awayTeam, youSide) {
       try {
         paintScoreWithCursor(snap);
         paintLineups(snap);
-        paintMeters(snap);
-        fillSubSelects(snap);
+        // The coach-panel body (meters, orders, subs, positions) is display:none while the drawer is closed in live
+        // play; rebuilding it every possession was pure layout cost. It is repainted once when the drawer opens.
+        if (coachDrawer.isOpen()) {
+          paintMeters(snap);
+          fillSubSelects(snap);
+        } else {
+          paintMomentum(snap);
+        }
         state.court?.render(snap);
         state.domainEvents?.observeTick(snap);
         syncPauseUI(snap);
@@ -7890,7 +7914,8 @@ function paintPlayerOrders(snap, { force = false } = {}) {
   const sig =
     on.map((p) => `${p.id}:${JSON.stringify(p.orders || {})}`).join("|") +
     `|f:${snap.offenseFocusId || ""}|a:${actionSel?.value || ""}`;
-  if (!force && box.dataset.sig === sig && document.activeElement?.closest?.("#player-orders-panel")) return;
+  // Rebuild only when the lineup/orders changed, and never under the user's cursor (an open <select> would be wiped mid-pick).
+  if (!force && (box.dataset.sig === sig || document.activeElement?.closest?.("#player-orders-panel"))) return;
   box.dataset.sig = sig;
   if (focusSel) {
     const focusId = snap.offenseFocusId;
@@ -8039,8 +8064,10 @@ function wireTakeoverPanel() {
     panel.hidden = v;
     if (showBtn) showBtn.hidden = !v;
   };
-  $("#btn-takeover-hide")?.addEventListener("click", () => setHidden(true));
-  showBtn?.addEventListener("click", () => setHidden(false));
+  // .onclick (not addEventListener): this runs once per game, and stacking listeners fired N handlers per click by game N.
+  const hideBtn = $("#btn-takeover-hide");
+  if (hideBtn) hideBtn.onclick = () => setHidden(true);
+  if (showBtn) showBtn.onclick = () => setHidden(false);
 
   const lang = getLang();
   const focusSel = $("#takeover-focus-select");
@@ -8072,7 +8099,8 @@ function wireTakeoverPanel() {
       });
     });
   }
-  $("#btn-takeover-focus")?.addEventListener("click", () => {
+  const focusBtn = $("#btn-takeover-focus");
+  if (focusBtn) focusBtn.onclick = () => {
     const res = createTacticalTakeover({ sim: state.sim }).setFocus(focusSel?.value || "");
     if (!res.ok) {
       pushFeed("coach", L("现在不能设回合重点", "Can't set a possession focus right now"));
@@ -8086,7 +8114,7 @@ function wireTakeoverPanel() {
       const f = FOCUS_PLAYS.find((x) => x.id === res.focusId);
       help.textContent = f ? planLabel(f, getLang()).desc : "";
     }
-  });
+  };
   syncTakeoverPanel();
 }
 
@@ -8758,7 +8786,17 @@ $("#btn-sub").onclick = () => {
   paintMeters(snap);
 };
 // Broadcast layout: the full coach panel opens by itself in dead-ball windows (syncPauseUI) and by hand during live play.
-const coachDrawer = createCoachDrawer({ panel: document.querySelector("#screen-game .coach-panel"), button: $("#btn-coach-drawer"), getLang });
+const coachDrawer = createCoachDrawer({
+  panel: document.querySelector("#screen-game .coach-panel"),
+  button: $("#btn-coach-drawer"),
+  getLang,
+  onOpenChange: (open) => {
+    if (!open || !state.sim) return;
+    const snap = state.sim.snapshot();
+    paintMeters(snap);
+    fillSubSelects(snap, true);
+  },
+});
 $("#btn-pause-sim").onclick = () => {
   if (!state.sim) return;
   if (state.sim.paused) resumeGame();
@@ -8783,8 +8821,11 @@ $("#btn-save-game")?.addEventListener("click", () => saveProgress());
  */
 function exitGameToHome() {
   if (!state.sim) return;
+  // Save FIRST: if the write fails the player stays on the game screen, so the 3D view and court must still be alive.
+  if (!saveProgress({ andGoHome: true })) return;
   match3d.stop();
-  saveProgress({ andGoHome: true });
+  state.court?.destroy?.();
+  state.court = null;
 }
 $("#btn-pause-leave")?.addEventListener("click", () => exitGameToHome());
 $("#btn-save-leave")?.addEventListener("click", async () => {

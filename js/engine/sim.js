@@ -563,7 +563,17 @@ export class GameSim {
   }
 
   setSpeed(n) {
+    const prev = this.speed;
     this.speed = clamp(Number(n) || 1, 1, 3);
+    // Re-arm the pending possession timer so a speed change applies now, not after the 1–3.6 s wait
+    // that was scheduled at the old speed. Wall-clock only: the possession outcome is unaffected.
+    if (this.speed !== prev && this._timer && this.running && !this.paused) {
+      const elapsed = Date.now() - (this._timerSetAt || Date.now());
+      const remaining = Math.max(0, this.possessionDelay() - elapsed);
+      clearTimeout(this._timer);
+      this._timerSetAt = Date.now() - elapsed;
+      this._timer = setTimeout(() => this._loop(), remaining);
+    }
   }
 
   /** 1x ≈ watchable real pace; 3x ≈ legacy fastest. */
@@ -600,6 +610,7 @@ export class GameSim {
     }
     if (!this.running || this.paused) return;
     const delay = this.possessionDelay();
+    this._timerSetAt = Date.now();
     this._timer = setTimeout(() => this._loop(), delay);
   }
 

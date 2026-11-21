@@ -194,3 +194,27 @@ test("queue: a throwing job is dropped, not fatal to the queue", () => {
   }
   q.cancelAll();
 });
+
+test("queue: with a real rAF loop a running job never arms a 0 ms timer (no timer storm)", () => {
+  // Regression (2026-11-20 review): armTimer() armed setTimeout(0) for jobs that were already due, and every
+  // fire re-armed it -- ~4,500 timer fires per 5 s alongside rAF for the whole live game.
+  const realSet = globalThis.setTimeout;
+  const realClear = globalThis.clearTimeout;
+  const armed = [];
+  globalThis.setTimeout = (fn, ms) => { armed.push(ms); return armed.length; };
+  globalThis.clearTimeout = () => {};
+  try {
+    const raf = makeRaf();
+    let now = 1000;
+    const q = createAnimationQueue({ requestAnimationFrame: raf.raf, cancelAnimationFrame: raf.caf, now: () => now });
+    q.enqueue({ id: "loop", step: () => false }); // a push loop that runs every frame
+    for (let i = 0; i < 50; i++) { now += 16; raf.run(); }
+    assert.equal(armed.length, 0, `no timer for due jobs, got ${armed.length}`);
+    q.enqueue({ id: "later", delay: 500, step: () => true });
+    assert.equal(armed.at(-1), 500, "a delayed job still gets its real-time wake-up");
+    q.cancelAll();
+  } finally {
+    globalThis.setTimeout = realSet;
+    globalThis.clearTimeout = realClear;
+  }
+});

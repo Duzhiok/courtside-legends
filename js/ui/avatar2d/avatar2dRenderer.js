@@ -72,6 +72,21 @@ export function paintLayers(ctx, layers, imageFor, createCanvas) {
   return { drawn, missing };
 }
 
+/**
+ * Art files are shared by every avatar on the page. Each mount used to keep its own cache, so two avatars mounting
+ * together (home + My Player at boot) fetched body/bottom/shoes.png twice. Only the default loader is shared; a failed
+ * load is evicted so a later mount can retry it.
+ */
+const sharedArt = new Map(); // file -> Promise<HTMLImageElement>
+function loadSharedArt(file) {
+  if (!sharedArt.has(file)) {
+    const p = loadArtImage(file);
+    p.catch(() => sharedArt.delete(file));
+    sharedArt.set(file, p);
+  }
+  return sharedArt.get(file);
+}
+
 export async function mountAvatar2d(container, {
   look,
   jersey = null,   // a worn jersey (avatar2dJersey.jerseyKit): colours + number on the same cut, never part of the look
@@ -91,7 +106,8 @@ export async function mountAvatar2d(container, {
 
   const imageFor = (layer) => {
     if (!cache.has(layer.file)) {
-      cache.set(layer.file, loadImage(layer.file).catch(() => (placeholders ? placeholderImage(layer, createCanvas) : null)));
+      const load = loadImage === loadArtImage ? loadSharedArt : loadImage;
+      cache.set(layer.file, load(layer.file).catch(() => (placeholders ? placeholderImage(layer, createCanvas) : null)));
     }
     return cache.get(layer.file);
   };

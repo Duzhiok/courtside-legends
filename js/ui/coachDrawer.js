@@ -19,12 +19,15 @@ const LABEL = {
 };
 
 /**
- * @param {{ panel: Element|null, button: Element|null, getLang?: () => string }} deps
+ * @param {{ panel: Element|null, button: Element|null, getLang?: () => string, onOpenChange?: (open: boolean) => void }} deps
+ *   onOpenChange fires on every closed→open / open→closed transition (the host skips painting the hidden
+ *   panel body during live play and repaints it once when it opens).
  * @returns {{ setPaused(paused: boolean): void, toggle(): void, isOpen(): boolean }}
  */
-export function createCoachDrawer({ panel, button, getLang = () => "zh" }) {
+export function createCoachDrawer({ panel, button, getLang = () => "zh", onOpenChange = null }) {
   let userOpen = false;
   let paused = false;
+  let lastOpen = null;
 
   function render() {
     const { open, forced } = drawerState({ userOpen, paused });
@@ -35,6 +38,14 @@ export function createCoachDrawer({ panel, button, getLang = () => "zh" }) {
       const text = LABEL[getLang() === "en" ? "en" : "zh"];
       button.textContent = open ? text.open : text.closed;
     }
+    if (lastOpen !== null && open !== lastOpen && typeof onOpenChange === "function") {
+      try {
+        onOpenChange(open);
+      } catch (err) {
+        if (typeof console !== "undefined") console.error("[coach-drawer] onOpenChange", err);
+      }
+    }
+    lastOpen = open;
   }
 
   function toggle() {

@@ -302,8 +302,21 @@ export function createShop({ getLang, getAccount, onUseTickets, ticketContext, o
       return;
     }
     if (action === "use-tickets") {
-      const games = Number(btn.dataset.games) || 5;
-      const res = onUseTickets ? await onUseTickets(games) : { ok: false, reason: "no-games-simmed" };
+      // One run at a time: a double-click used to start a second sim batch (and spend tickets twice) while the first
+      // was still awaiting.
+      if (state.usingTickets) return;
+      state.usingTickets = true;
+      btn.disabled = true;
+      let res;
+      try {
+        const games = Number(btn.dataset.games) || 5;
+        res = onUseTickets ? await onUseTickets(games) : { ok: false, reason: "no-games-simmed" };
+      } catch (err) {
+        console.error("[shop] use tickets", err);
+        res = { ok: false, reason: "no-games-simmed" };
+      } finally {
+        state.usingTickets = false;
+      }
       state.lastUse = res;
       state.status = null;
       render();

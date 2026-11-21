@@ -62,20 +62,36 @@ export function createAnimationQueue({ requestAnimationFrame, cancelAnimationFra
     });
   }
 
-  /** Wake the queue when the next delayed job comes due, even if the rAF loop is idle (or stubbed, as in tests). */
+  /**
+   * Wake the queue when the next delayed job comes due, even if the rAF loop is idle (or stubbed, as in tests).
+   * With a real rAF loop, jobs that are already due run on the next frame, so the timer is only armed for
+   * jobs due in the FUTURE. (Arming it for due jobs too meant a 0 ms setTimeout that re-armed itself on every
+   * tick: ~4,500 timer fires per 5 s and the court redrawn 3–4 times per frame for the whole game.)
+   */
+  let armedFor = -1;
+  function disarm() {
+    if (timerId) clearT(timerId);
+    timerId = 0;
+    armedFor = -1;
+  }
   function armTimer() {
     if (!setT) return;
-    if (timerId) {
-      clearT(timerId);
-      timerId = 0;
+    const t = clock();
+    const pending = jobs.length === 0 ? [] : raf ? jobs.filter((j) => j.runAt > t) : jobs;
+    if (pending.length === 0) {
+      disarm();
+      return;
     }
-    if (jobs.length === 0) return;
-    const earliest = Math.min(...jobs.map((j) => j.runAt));
-    const wait = Math.max(0, earliest - clock());
+    const earliest = Math.min(...pending.map((j) => j.runAt));
+    // Already armed for this exact wake-up: keep it (re-arming on every frame was ~20 clear/set pairs a second).
+    if (timerId && earliest === armedFor) return;
+    disarm();
+    armedFor = earliest;
     timerId = setT(() => {
       timerId = 0;
+      armedFor = -1;
       tick(clock());
-    }, wait);
+    }, Math.max(0, earliest - t));
   }
 
   function tick(t) {
@@ -151,10 +167,7 @@ export function createAnimationQueue({ requestAnimationFrame, cancelAnimationFra
         caf(rafId);
         rafId = 0;
       }
-      if (clearT && timerId) {
-        clearT(timerId);
-        timerId = 0;
-      }
+      if (clearT) disarm();
       for (const job of all) {
         try {
           job.onCancel?.();
@@ -173,10 +186,7 @@ export function createAnimationQueue({ requestAnimationFrame, cancelAnimationFra
         caf(rafId);
         rafId = 0;
       }
-      if (clearT && timerId) {
-        clearT(timerId);
-        timerId = 0;
-      }
+      if (clearT) disarm();
       for (const job of stale) {
         try {
           job.onCancel?.();

@@ -372,6 +372,7 @@ export function renderLegendsGallery(container, legends = GALLERY_LEGENDS, opts 
       try {
         const io = new env.IntersectionObserver((entries) => {
           intersecting = entries[0]?.isIntersecting ?? true;
+          if (intersecting) wake();
         });
         io.observe(viewport);
         removers.push(() => io.disconnect());
@@ -380,6 +381,9 @@ export function renderLegendsGallery(container, legends = GALLERY_LEGENDS, opts 
       }
     }
     if (win?.addEventListener) on(win, "resize", measure);
+    on(doc, "visibilitychange", () => {
+      if (!doc.hidden) wake();
+    });
   }
 
   const step = (t) => {
@@ -392,11 +396,23 @@ export function renderLegendsGallery(container, legends = GALLERY_LEGENDS, opts 
     }
     lastT = t;
   };
+  // Off-screen (another screen is showing, e.g. a live game) or a background tab: stop the frame loop entirely instead
+  // of spinning rAF forever; the IntersectionObserver / visibilitychange wake it again.
+  const dormant = () => !intersecting || (doc.hidden ?? false);
   const loop = (t) => {
+    rafId = 0;
     if (destroyed) return;
+    if (dormant()) {
+      lastT = 0;
+      return;
+    }
     step(t);
     if (env.requestAnimationFrame) rafId = env.requestAnimationFrame(loop);
   };
+  function wake() {
+    if (destroyed || reduced || rafId || !env.requestAnimationFrame) return;
+    rafId = env.requestAnimationFrame(loop);
+  }
 
   measure();
   paint();

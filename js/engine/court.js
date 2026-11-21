@@ -278,15 +278,41 @@ export class CourtView {
     // arc, skill pops, feedback cleanup) — no independent rAF/timeout left.
     this.queue = createAnimationQueue();
     this._reducedListener = null;
+    this._reducedMq = null;
     try {
       if (typeof matchMedia === "function") {
         const mq = matchMedia("(prefers-reduced-motion: reduce)");
         this._reducedListener = (e) => this.setReducedMotion(!!e.matches);
-        if (mq.addEventListener) mq.addEventListener("change", this._reducedListener);
+        if (mq.addEventListener) {
+          mq.addEventListener("change", this._reducedListener);
+          this._reducedMq = mq;
+        }
       }
     } catch {
       /* non-browser or old browser: the constructor-time check stands */
     }
+  }
+
+  /**
+   * Retire this court (the game ended or a new CourtView replaces it): drop every queued animation so no
+   * stale rAF/timer keeps redrawing a court nobody sees, and remove the media-query listener. Idempotent.
+   */
+  destroy() {
+    this.queue.nextGeneration();
+    if (this._reducedMq && this._reducedListener) {
+      try {
+        this._reducedMq.removeEventListener("change", this._reducedListener);
+      } catch {
+        /* ignore */
+      }
+    }
+    this._reducedMq = null;
+    this._reducedListener = null;
+    this._lastSnap = null;
+    this._shot = null;
+    this._dunk = null;
+    this._pass = null;
+    this._destroyed = true;
   }
 
   /** Animations (arcs, drives, trails, pops) run only when effects are on and motion is not reduced. The halo is a state marker, not motion, so it stays. */
