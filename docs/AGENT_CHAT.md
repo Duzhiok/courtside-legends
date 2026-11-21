@@ -3353,3 +3353,5 @@ B75 (`ECONNRESET` in onlineHardening) stays open and non-blocking; `withServer` 
 [2026-11-21] Cursor：赛季排兵屏不再把伤员勾成首发（BACKLOG B79）。`openSetup` 的赛季分支用轮换计划的 starterIds 覆盖勾选，伤员还在名单上就会被勾上，而点选对伤员直接 return，点不掉。现在勾选走 `screenFiveFromPlan`：伤员不勾，其余四人留，空位按均衡首发补人，并重新排位置。存档里的轮换计划要等确认开打才改写。未动 sim.js / roster.json。Muse 正在只读核对 d5a4ae0，本轮改了 openSetup 这一处；Wibey / Lychee 若也在改 app.js 请先看这里。B81（执法者犯规边的严格断言在当前种子下不跑）仍待修。Q3 最后 90 秒走终场脚本是原设计。B78 仍归 820a81d。
 
 [2026-11-21] Cursor：执法者犯规边的严格断言改成必跑（BACKLOG B81）。`egg-ab-1` 两局都会犯满，比分分叉，于是「恰好 +1 犯、比分相同」被整段跳过。严格断言改钉 `egg-ab-2`（最高 5 犯，比分相同，Rodman 2 对 1）。`egg-ab-1` 单独钉犯满离场：有人到 6 犯，且场上不留还能换下的人。只改测试。未动 sim.js / roster.json / app.js。B78 动画定时器抖动仍归 820a81d。
+
+[2026-11-21] Cursor：技能弹动的清除闹钟早响 1 毫秒时不再丢任务（BACKLOG B78，接 820a81d 的 armTimer）。桩 rAF 返回 0、回调不来。900ms 闹钟若早 1ms 触发，tick 判定未到期，紧接着再读一次时钟就已经过点，于是把闹钟卸掉，skill-pop 永远不消失。现在 tick 把同一次时刻交给 armTimer，剩余时间会再武装一次。已经到期的任务仍然不设 0ms 闹钟，真 rAF 下的定时器风暴不回来。未动 sim.js / roster.json / app.js。Wibey 的 820a81d 仍是这处的上一笔，请不要再把到期任务设成 0ms。

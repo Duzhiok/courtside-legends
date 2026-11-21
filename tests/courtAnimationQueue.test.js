@@ -218,3 +218,47 @@ test("queue: with a real rAF loop a running job never arms a 0 ms timer (no time
     globalThis.clearTimeout = realClear;
   }
 });
+
+test("queue: a timer that rings a millisecond early re-arms the leftover delay and still runs the job", () => {
+  // B78: court skill-pop stubs rAF to `() => 0`. The 900 ms timer can fire ~1 ms early, the tick
+  // leaves the job, and a second clock() read then sees nothing left in the future and disarms.
+  const realSet = globalThis.setTimeout;
+  const realClear = globalThis.clearTimeout;
+  const timers = [];
+  globalThis.setTimeout = (fn, ms) => {
+    const id = timers.length + 1;
+    timers.push({ fn, ms, id });
+    return id;
+  };
+  globalThis.clearTimeout = (id) => {
+    const at = timers.findIndex((timer) => timer.id === id);
+    if (at >= 0) timers.splice(at, 1);
+  };
+  try {
+    let now = 1000;
+    const q = createAnimationQueue({
+      requestAnimationFrame: () => 0,
+      cancelAnimationFrame: () => {},
+      now: () => now,
+    });
+    let ran = 0;
+    q.enqueue({ id: "pop", delay: 900, step: () => { ran += 1; return true; } });
+    assert.equal(timers.length, 1);
+    assert.equal(timers[0].ms, 900);
+    now = 1899;
+    const early = timers[0].fn;
+    timers.length = 0;
+    early();
+    assert.equal(ran, 0, "a millisecond early is not due yet");
+    assert.equal(timers.length, 1, "the leftover millisecond stays armed");
+    assert.ok(timers[0].ms > 0 && timers[0].ms <= 2, `re-armed for ${timers[0].ms} ms`);
+    now = 1900;
+    timers[0].fn();
+    assert.equal(ran, 1);
+    assert.equal(q.size, 0);
+    q.cancelAll();
+  } finally {
+    globalThis.setTimeout = realSet;
+    globalThis.clearTimeout = realClear;
+  }
+});

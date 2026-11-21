@@ -74,9 +74,12 @@ export function createAnimationQueue({ requestAnimationFrame, cancelAnimationFra
     timerId = 0;
     armedFor = -1;
   }
-  function armTimer() {
+  function armTimer(seenAt) {
     if (!setT) return;
-    const t = clock();
+    // Use the timestamp the caller already judged jobs against. A fresh clock() here can be a
+    // millisecond later, so a job the tick just decided was not due looks finished-and-future-less
+    // and the wake-up is dropped. A stub rAF (returns 0, never calls back) then never runs it.
+    const t = seenAt ?? clock();
     const pending = jobs.length === 0 ? [] : raf ? jobs.filter((j) => j.runAt > t) : jobs;
     if (pending.length === 0) {
       disarm();
@@ -113,7 +116,7 @@ export function createAnimationQueue({ requestAnimationFrame, cancelAnimationFra
     }
     if (jobs.length > 0) {
       schedule();
-      armTimer();
+      armTimer(t);
     }
   }
 
