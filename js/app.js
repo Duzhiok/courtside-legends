@@ -53,6 +53,7 @@ import { createGmBusinessView } from "./ui/gmBusinessView.js";
 import { createNetworkView } from "./ui/networkViews.js";
 import { TL, getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveDrawBack, resolveResultBack } from "./ui/navBack.js";
+import { freezeDiag, startFreezeDiag } from "./core/freezeDiag.js";
 import { LEGACY_TIERS } from "./career/legacy.js";
 import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
@@ -609,6 +610,7 @@ function show(name) {
     return;
   }
   const from = activeScreenName();
+  freezeDiag()?.noteScreen(name); // freeze diagnostic: last screen before a stall
   refreshGoldChip(); // the top-bar gold balance is visible on every screen
   audio.screen(name, { year: state.season?.year });
   if (from === name) {
@@ -12491,6 +12493,9 @@ async function boot() {
     // S-P2-5 step 1: <img> error fallbacks run through one capture-phase listener
     // (no inline onerror attributes), so a CSP without 'unsafe-inline' can switch on.
     installImgErrorFallback();
+    // Freeze diagnostic (2026-11-20 rotation-board freeze): heartbeat +
+    // longtask observer, records screen + last action for stalls >= 1s.
+    startFreezeDiag();
     applyStaticLang();
     const langBtn = $("#btn-lang");
     const paintLangBtn = () => {
