@@ -45,6 +45,7 @@
 }
 .tb-status { margin: 0 auto 0 0; }
 .tb-status.is-error { color: #a4161a; font-weight: 700; }
+.tb-status.is-warn { color: #8a5a00; font-weight: 700; }
 @media (max-width: 720px) {
   .tb { grid-template-columns: 1fr; }
   .tb-spot { min-width: 72px; }

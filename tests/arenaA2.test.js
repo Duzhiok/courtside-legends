@@ -6,6 +6,7 @@ import { COURTSIDE, FLOOR_HALF_L, FLOOR_HALF_W, SECTIONS, STEP_RISE, buildStands
 import { crowdPeople } from "../js/engine/arena/arenaCrowd.js";
 import { buildArenaEnvironment } from "../js/engine/arena/arenaEnvironment.js";
 import { clockText, drawScoreboard, periodText, scoreboardState } from "../js/engine/arena/arenaScreens.js";
+import { glowBoxes } from "../js/engine/arena/arenaCourtside.js";
 
 const preset = ARENA_PRESETS.classic;
 const { steps, seats } = buildStands();
@@ -150,4 +151,25 @@ test("the board draws the score, clock and period; the scoreboard redraws only w
   env.setSnapshot({ ...snap, score: { home: 4, away: 0 } });
   assert.ok(draws - base > first, "a changed score is");
   assert.doesNotThrow(() => build("low", "classic", { createElement: () => ({ getContext: () => ({}) }) }), "a half-implemented canvas never breaks the venue");
+});
+
+test("both baseline LED boards turn their readable face toward the court", () => {
+  const group = glowBoxes(THREE, null, preset);
+  const boards = group.children.find((m) => m.isInstancedMesh && m.count === 2);
+  const matrix = new THREE.Matrix4();
+  const pos = new THREE.Vector3();
+  const quat = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const euler = new THREE.Euler();
+  const placed = [];
+  for (let i = 0; i < boards.count; i++) {
+    boards.getMatrixAt(i, matrix);
+    matrix.decompose(pos, quat, scale);
+    euler.setFromQuaternion(quat, "YXZ");
+    placed.push({ z: pos.z, ry: euler.y });
+  }
+  const nearNeg = placed.find((p) => p.z < 0);
+  const nearPos = placed.find((p) => p.z > 0);
+  assert.ok(Math.abs(nearNeg.ry) < 1e-6, "the -z board already faces the court");
+  assert.ok(Math.abs(Math.abs(nearPos.ry) - Math.PI) < 1e-6, "the +z board is turned so the court does not see the mirrored face");
 });

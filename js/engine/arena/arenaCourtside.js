@@ -82,7 +82,11 @@ export function glowBoxes(T, doc, preset) {
   const digits = [-1, 1].map((s) => ({ x: 0, y: SHOT_CLOCK_Y, z: s * (RIM_Z + 1.0) - s * 0.14, sx: 0.55, sy: 0.28, sz: 0.02, color: 0xff3b2f }));
   group.add(instancedBoxes(T, [...lights, ...digits], new T.MeshBasicMaterial({ color: 0xffffff })));
   const strip = canvasTexture(T, doc, 1024, 64, (ctx, w, h) => drawLedStrip(ctx, preset, w, h));
-  const boards = [-1, 1].map((s) => ({ x: 0, y: 0.8, z: s * (FLOOR_HALF_L + 0.35), sx: FLOOR_HALF_W * 2, sy: 0.8, sz: 0.12 }));
+  // A box shows the strip correctly on its +z face and mirrored on its -z face. The board at +z
+  // would face the court with that mirrored face, so turn it around. One mesh, same draw call.
+  const boards = [-1, 1].map((s) => ({
+    x: 0, y: 0.8, z: s * (FLOOR_HALF_L + 0.35), sx: FLOOR_HALF_W * 2, sy: 0.8, sz: 0.12, ry: s > 0 ? Math.PI : 0,
+  }));
   group.add(instancedBoxes(T, boards, new T.MeshBasicMaterial(strip ? { map: strip.tex } : { color: preset.shell.led })));
   return group;
 }

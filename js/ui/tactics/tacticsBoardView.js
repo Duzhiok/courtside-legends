@@ -44,14 +44,26 @@ export const ERROR_TEXT = {
   DEFENSE_SCHEME_INVALID: ["防守方案无效", "Invalid defensive scheme"],
   DEFENDER_NOT_ON_TEAM: ["指定的防守人不在本队", "The chosen defender is not on your team"],
 };
-const reasonsText = (errors, lang) => errors.map((c) => (ERROR_TEXT[c] ? TL(lang, ...ERROR_TEXT[c]) : c)).join(TL(lang, "；", "; "));
+/** Poor-but-legal plans still apply. The player has to be able to see why the choice will not show up in the game. */
+export const WARNING_TEXT = {
+  SCHEME_NOT_AVAILABLE_FOR_COACH_OR_ROSTER: ["这套进攻当前教练或阵容打不了，比赛里不会生效", "This offense is not available for this coach or roster, so it will not run"],
+  HANDLER_NOT_A_STARTER: ["持球核心不在首发里，开场不会由他持球", "The ball handler is not starting, so he will not bring the ball up"],
+  DEFENSE_TARGET_MISSING: ["盯防没有目标，这套防守不会触发", "This defense has no target, so it will not trigger"],
+  DEFENSE_TARGET_NOT_ON_OPPONENT: ["盯防目标不在本场对手里，这套防守不会触发", "The defensive target is not on this opponent, so that defense will not trigger"],
+};
+const reasonsText = (codes, text, lang) => codes.map((c) => (text[c] ? TL(lang, ...text[c]) : c)).join(TL(lang, "；", "; "));
 
 export function renderTacticsBoardHtml(m, lang = "zh") {
   const rows = m.rows.map((r) => `<li class="tb-row"><span class="tb-row-label">${esc(r.label)}</span><strong>${esc(r.value)}</strong>${tagHtml(r.tag, lang)}</li>`).join("");
   const coach = m.coach ? `<p class="tb-coach">${esc(TL(lang, "主教练", "Head coach"))}: <strong>${esc(m.coach.name)}</strong></p>` : "";
-  const status = m.errors.length
-    ? `<p class="tb-status is-error" role="alert">${esc(TL(lang, "当前方案无法执行：", "This plan cannot run: "))}${esc(reasonsText(m.errors, lang))}</p>`
-    : m.dirty ? `<p class="tb-status" role="status">${esc(TL(lang, "有未应用的修改", "Unapplied changes"))}</p>` : "";
+  const status = [
+    m.errors.length
+      ? `<p class="tb-status is-error" role="alert">${esc(TL(lang, "当前方案无法执行：", "This plan cannot run: "))}${esc(reasonsText(m.errors, ERROR_TEXT, lang))}</p>`
+      : m.dirty ? `<p class="tb-status" role="status">${esc(TL(lang, "有未应用的修改", "Unapplied changes"))}</p>` : "",
+    m.warnings?.length
+      ? `<p class="tb-status is-warn" role="status">${esc(TL(lang, "注意：", "Note: "))}${esc(reasonsText(m.warnings, WARNING_TEXT, lang))}</p>`
+      : "",
+  ].join("");
   return `<section class="tb" aria-label="${esc(TL(lang, "赛前战术", "Game plan"))}">
     <div class="tb-main">${courtHtml(m, lang)}${actionsHtml(m, lang)}</div>
     <aside class="tb-side">${coach}<ul class="tb-rows">${rows}</ul><h3 class="tb-h">${esc(TL(lang, "进攻体系", "Offensive system"))}</h3><div class="tb-systems">${systemsHtml(m, lang)}</div></aside>

@@ -9,7 +9,7 @@ import { lineupFit } from "../js/engine/chemistry.js";
 import { TACTICS } from "../js/data/coaches.js";
 import { createEditorState, isDirty, tacticalDraftReducer as reduce } from "../js/ui/tactics/tacticalDraft.js";
 import { buildTacticsBoardModel } from "../js/ui/tactics/tacticsBoardModel.js";
-import { renderTacticsBoardHtml, mountTacticsBoard, ERROR_TEXT } from "../js/ui/tactics/tacticsBoardView.js";
+import { renderTacticsBoardHtml, mountTacticsBoard, ERROR_TEXT, WARNING_TEXT } from "../js/ui/tactics/tacticsBoardView.js";
 
 const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 buildCareerSpanIndex(rows);
@@ -136,8 +136,15 @@ test("a blocked plan says WHY, in plain words, in both languages; a stale defens
   // last game's defense target is not on this opponent: engine ignores it, so the player is NOT told the plan cannot run
   const stale = modelFor({ defense: { scheme: "double", targetId: team.players[0].id, defenderId: null, assignments: {} } }, "zh");
   assert.deepEqual(stale.errors, []);
-  assert.doesNotMatch(renderTacticsBoardHtml(stale, "zh"), /无法执行/);
+  const staleHtml = renderTacticsBoardHtml(stale, "zh");
+  assert.doesNotMatch(staleHtml, /无法执行/);
+  assert.match(staleHtml, /注意：盯防目标不在本场对手里，这套防守不会触发/);
+  assert.match(staleHtml, /is-warn/);
+  const staleEn = renderTacticsBoardHtml(modelFor({ defense: { scheme: "double", targetId: team.players[0].id, defenderId: null, assignments: {} } }, "en"), "en");
+  assert.match(staleEn, /Note: The defensive target is not on this opponent/);
+  assert.doesNotMatch(renderTacticsBoardHtml(modelFor({}, "zh"), "zh"), /注意：/);
   for (const code of ["STARTERS_INVALID", "SCHEME_UNKNOWN", "TEMPO_INVALID", "HANDLER_NOT_ON_TEAM", "BALL_ACTION_INVALID", "DEFENSE_SCHEME_INVALID", "DEFENDER_NOT_ON_TEAM"]) {
     assert.ok(ERROR_TEXT[code]?.[0] && ERROR_TEXT[code]?.[1], `${code} has zh and en text`);
   }
+  for (const code of Object.keys(WARNING_TEXT)) assert.ok(WARNING_TEXT[code][0] && WARNING_TEXT[code][1], `${code} has zh and en text`);
 });
