@@ -76,3 +76,11 @@ GameSim outcomes, its random-number consumption and the 2D court. The feed and s
 - Camera framing closer than whole-court fit, eased toward the ball, bounded by `PAN_LIMIT_M`.
 - Evidence: `node scripts/qa/match-3d-readability.mjs` — desktop 207 frames, mobile 305 frames: 0 overlapping plates, exactly one full plate whenever someone has the ball, camera 15.3 m vs fit 19.1 m (desktop), shot path + rim ring visible. A first mobile run found 6/304 one-pixel overlaps (perspective error of the px->metre nudge); fixed with a 7 px gap.
 - Not measured: real-phone FPS.
+
+### S4 visual closure (found by looking at the real screenshots)
+
+- **Black band on phones:** the canvas was fine (it fills its box); the view is ~4:3 on a phone (342x257) so the picture showed an empty strip under the near sideline. First two attempts keyed on "portrait" (aspect < 1) and did nothing, because the phone's 3D view is landscape. Fix: slide the picture down by a fraction that grows as the aspect drops below 16:10 (`setViewOffset`; desktop untouched).
+- **Names vs. page controls / hung scoreboard:** non-focus plates avoid a 56 px strip under the controls and the scoreboard's projected rectangle (hidden, not moved). The focus plate is never hidden.
+- **Names on the rim:** while a shot is in the air no non-focus name sits on the basket it flies to; the focus plate goes see-through (35%) so it cannot hide the ball (on a phone it was as wide as the court and did hide it).
+- **Shot evidence:** `match-3d-readability.mjs` now grabs the canvas in the same task as the render when the ball is 35-65% along its flight (`*-shot-canvas.png`), instead of a screenshot taken after the sampling batch (which could be after the ball landed).
+- Not done / limits: the focus plate is faint for the ~0.8 s flight; the ball is small on a phone (the trail carries it); the left LED text looks garbled at oblique angles but reads right in the frames checked, nothing changed there; real-phone FPS not measured.

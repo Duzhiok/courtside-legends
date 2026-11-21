@@ -8,7 +8,7 @@
 // Screenshots: a mid-play frame and a frame during a shot, per viewport.
 // Usage: node scripts/qa/match-3d-readability.mjs [outDir] [baseUrl] [maxSeconds=60] [desktop|mobile]
 import { chromium } from "playwright-core";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { homeActive, shoot } from "./lib/page.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/match-3d-readability";
@@ -88,7 +88,41 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   await page.evaluate(async () => {
     const { CourtView3D } = await import("/js/engine/court3d.js");
     const orig = CourtView3D.prototype.onShot;
-    CourtView3D.prototype.onShot = function (shot) { window.__view = this; return orig.apply(this, arguments); };
+    CourtView3D.prototype.onShot = function (shot) {
+      window.__view = this;
+      if (!this.__airHook) { // grab the canvas in the SAME task as the render, while the ball is half way along its flight
+        this.__airHook = true;
+        const r = this._renderer;
+        const draw = r.render.bind(r);
+        r.render = (...a) => {
+          draw(...a);
+          try {
+            const s = this._shot;
+            const b = this._ball;
+            if (window.__air || !s || s.settling || !b?.visible) return;
+            const hd = (p, q) => Math.hypot(p.x - q.x, p.z - q.z);
+            const total = hd(s.from, s.to);
+            const done = hd(b.position, s.from);
+            if (!(total > 1 && done / total > 0.35 && done / total < 0.65)) return;
+            const fig = this._figures.get(s.shooterId);
+            const other = { x: s.to.x, z: -s.to.z };
+            window.__air = {
+              png: r.domElement.toDataURL("image/png"),
+              progress: done / total,
+              shooterId: s.shooterId,
+              shooterIsOffense: !!fig?.isOffense,
+              shooterToTarget: fig ? hd(fig.group.position, s.to) : null,
+              shooterToOtherRim: fig ? hd(fig.group.position, other) : null,
+              startedAtShooter: fig ? hd(s.from, fig.group.position) : null,
+              made: s.made,
+              trail: !!this._aids?.parts.trail.visible,
+              rim: !!this._aids?.parts.rimRing.visible,
+            };
+          } catch (err) { window.__hookError = String(err); }
+        };
+      }
+      return orig.apply(this, arguments);
+    };
     window.__frames = [];
     const origPlates = CourtView3D.prototype._updatePlates;
     CourtView3D.prototype._updatePlates = function () {
@@ -107,14 +141,18 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   let shotShot = false;
   let midShot = false;
   let airSample = null;
+  let airMid = null;
   while (Date.now() - t0 < MAX_S * 1000 && !(shotShot && samples.length >= 300)) {
     const batch = await page.evaluate(() => window.__frames.splice(0));
     samples.push(...batch);
     if (!midShot && samples.length >= 100) { await shoot(page, `${OUT}/${tag}-play.png`); midShot = true; }
     const air = batch.find((b) => b.shot && b.trail);
-    if (!shotShot && air) { // a shot is in the air right now
-      airSample = air;
+    if (air && !airSample) airSample = air;
+    const mid = shotShot ? null : await page.evaluate(() => window.__air || null);
+    if (mid) { // the canvas as it was drawn half way through a real shot (not a screenshot taken afterwards)
+      writeFileSync(`${OUT}/${tag}-shot-canvas.png`, Buffer.from(mid.png.split(",")[1], "base64"));
       await shoot(page, `${OUT}/${tag}-shot.png`);
+      airMid = mid;
       shotShot = true;
     }
     await page.waitForTimeout(300);
@@ -132,6 +170,12 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   check(`[${tag}] the camera is closer than the whole-court fit`, samples.every((s) => s.camDist < 0.95 * (samples[0].camDist / 0.8)) && samples[0].camDist > 5);
   check(`[${tag}] a shot was seen in the air`, !!airSample);
   check(`[${tag}] ...with its path line and rim ring on`, !!airSample?.trail && !!airSample?.rim);
+  check(`[${tag}] mid-flight canvas captured`, !!airMid, airMid ? `ball ${Math.round(airMid.progress * 100)}% of the way, ${airMid.made ? "made" : "missed"}` : "");
+  if (airMid) {
+    check(`[${tag}] mid-flight: the path line and rim ring are drawn`, airMid.trail && airMid.rim);
+    // (That the shot is the GameSim shooter's is tests/presentationSync.test.js; the start point is the shooter's spot by construction.)
+    check(`[${tag}] mid-flight: the shooter is on offense and nearer the basket he shoots at than the other`, airMid.shooterIsOffense && airMid.shooterToTarget < airMid.shooterToOtherRim, `${airMid.shooterToTarget?.toFixed?.(1)} m vs ${airMid.shooterToOtherRim?.toFixed?.(1)} m`);
+  }
   check(`[${tag}] no page errors`, errors.length === 0, errors.join(" | "));
   void oneFull;
   await page.close();

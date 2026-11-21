@@ -12,6 +12,8 @@ const OFFICIAL_SHIRTS = [0x2c3036, 0xe6e6e6];
 const RIM_Z = 14.33 - 1.72; // the hoops court3d builds
 const SHOT_CLOCK_Y = 4.55;
 const SCOREBOARD_Y = 6.4;
+/** The hung scoreboard's box (metres), so the broadcast labels can stay clear of where it is drawn on screen. */
+export const SCOREBOARD_BOX = Object.freeze({ y: SCOREBOARD_Y, w: 4.6, h: 2.1, d: 2.1 });
 
 /** Bench players, head coach + assistants, table officials: one pair of instanced meshes. */
 export function courtsidePeople(preset, colors) {
@@ -92,7 +94,7 @@ export function hungScoreboard(T, doc, preset) {
   const casing = new T.MeshBasicMaterial({ color: 0x0a0c0f });
   // BoxGeometry face order: +x, -x, +y, -y, +z, -z. The four sides show the screen; top and bottom are plain casing (a stretched
   // screen on the top face read as a blurry streak from the broadcast camera).
-  const mesh = new T.Mesh(new T.BoxGeometry(4.6, 2.1, 2.1), [face, face, casing, casing, face, face]);
+  const mesh = new T.Mesh(new T.BoxGeometry(SCOREBOARD_BOX.w, SCOREBOARD_BOX.h, SCOREBOARD_BOX.d), [face, face, casing, casing, face, face]);
   mesh.position.set(0, SCOREBOARD_Y, 0); // low enough to sit inside the broadcast frame, high enough to stay above every sightline to the floor
   let shown = "";
   return {

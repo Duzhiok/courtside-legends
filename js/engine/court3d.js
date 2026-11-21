@@ -40,6 +40,7 @@ import { makeFloorTexture } from "./arena/floorTexture.js";
 import { addHoopDetails } from "./arena/arenaHoop.js";
 import { addArenaLights } from "./arena/arenaLights.js";
 import { buildArenaEnvironment } from "./arena/arenaEnvironment.js";
+import { SCOREBOARD_BOX } from "./arena/arenaCourtside.js";
 import { canInstance, instancedBoxes } from "./arena/arenaInstances.js";
 import { createBallAids } from "./broadcast/ballAids.js";
 import { PLATE_LEGIBLE_PX, PLATE_MIN_PX, PLATE_WORLD, compactName, placeLabels, plateScreenSize, platePriority, readableBoost } from "./broadcast/labelLayout.js";
@@ -74,6 +75,13 @@ export const BALL_VISUAL_SCALE = 1.7;
 export const FRAMING_ZOOM = 0.8;
 const PAN_FOLLOW = 0.5;
 const PAN_LIMIT_M = 6;
+/** The arena select and the 2D/3D button sit along the top of the view (about 44 px tall plus their margin): names stay below them. */
+const UI_SAFE_TOP_PX = 56;
+const RIM_CLEAR_PX = 45; // half-size of the square kept free of names around the rim a shot is flying to
+const FOCUS_PLATE_FLIGHT_OPACITY = 0.35;
+const PORTRAIT_FROM_ASPECT = 1.6; // desktop framing (16:10) shows no empty strip
+const PORTRAIT_DROP_PER_ASPECT = 0.55; // 1.34 (a phone's 3D view) -> about 14% of the height: the empty strip goes, the court stays big
+const PORTRAIT_DROP_MAX = 0.25;
 export const BALL_GLIDE_MS = 220;
 const PLATE_BASE_Y = { full: 2.75, compact: 2.5 };
 /** Miss bounce distance toward midcourt: 2D's 18% of court length, in meters. */
@@ -525,6 +533,12 @@ export class CourtView3D {
     const w = this.root?.clientWidth || 0;
     const h = this.root?.clientHeight || 0;
     this._camera.aspect = w > 0 && h > 0 ? w / h : 16 / 9;
+    // A narrower view than the desktop's 16:10 (a phone shows this view at about 4:3, or taller) has to cover more height than the
+    // court needs, so the strip below the near sideline was empty (the black band). Sliding the picture down crops that strip and
+    // shows more stands above instead; a 16:10 or wider view is untouched.
+    const drop = w > 0 && h > 0 ? clamp((PORTRAIT_FROM_ASPECT - this._camera.aspect) * PORTRAIT_DROP_PER_ASPECT, 0, PORTRAIT_DROP_MAX) : 0;
+    if (drop > 0 && typeof this._camera.setViewOffset === "function") this._camera.setViewOffset(w, h, 0, -Math.round(drop * h), w, h);
+    else this._camera.clearViewOffset?.();
     this._camera.updateProjectionMatrix();
     this._renderer.setSize(Math.max(1, w), Math.max(1, h));
     this._layoutCamera(0);
@@ -712,12 +726,44 @@ export class CourtView3D {
         priority: platePriority({ isFocus, isOffense: !!fig.isOffense, distToFocus: focusFig ? Math.hypot(p.x - focusFig.group.position.x, p.z - focusFig.group.position.z) : Infinity }),
       });
     }
-    const placed = placeLabels(items.filter((it) => !it.behind && (it.priority >= 100 || it.h >= PLATE_LEGIBLE_PX)), { gap: 7 }); // a speck is not a name; the gap also absorbs the perspective error of the px->metre nudge
+    // Screen areas a name must not sit on: the page's own controls along the top, and the hung scoreboard where it is drawn now.
+    const blockers = this._plateBlockers(W, H);
+    const blocked = (it, dy = 0) => it.priority < 100 && blockers.some((b) => b.x0 < it.x + it.w / 2 && b.x1 > it.x - it.w / 2 && b.y0 < it.y + dy + it.h / 2 && b.y1 > it.y + dy - it.h / 2);
+    const placed = placeLabels(items.filter((it) => !it.behind && !blocked(it) && (it.priority >= 100 || it.h >= PLATE_LEGIBLE_PX)), { gap: 7 }); // a speck is not a name; the gap also absorbs the perspective error of the px->metre nudge
     for (const it of items) {
       const res = placed.get(it.id) || { visible: false, dy: 0 };
+      if (res.visible && blocked(it, res.dy)) res.visible = false; // nudged up into a blocked area: hide it instead
       it.fig.plate.sprite.visible = res.visible && !it.behind;
+      // The big plate of the player who is shooting must not hide the ball or the rim it flies to (on a phone it is as wide as the court):
+      // while the ball is in the air it is see-through; it is never hidden or moved.
+      if (it.mode === "full" && it.fig.plate.sprite.material) it.fig.plate.sprite.material.opacity = this._shot && !this._shot.settling ? FOCUS_PLATE_FLIGHT_OPACITY : 1;
       it.fig.plate.sprite.position.y = PLATE_BASE_Y[it.mode] + (-res.dy) / it.pxPerMetreUp;
     }
+  }
+
+  /** Screen rectangles {x0,y0,x1,y1} (px) that non-focus name plates avoid: a fixed safe strip under the page's controls, and the hung scoreboard. */
+  _plateBlockers(W, H) {
+    const out = [{ x0: 0, y0: 0, x1: W, y1: UI_SAFE_TOP_PX }];
+    if (this._shot && !this._shot.settling) { // a shot is in the air: nobody's name hangs on the basket it is heading for
+      this._v3.set(this._shot.to.x, this._shot.to.y ?? 3.05, this._shot.to.z).project(this._camera);
+      if (this._v3.z <= 1) {
+        const rx = (this._v3.x * 0.5 + 0.5) * W;
+        const ry = (-this._v3.y * 0.5 + 0.5) * H;
+        out.push({ x0: rx - RIM_CLEAR_PX, y0: ry - RIM_CLEAR_PX, x1: rx + RIM_CLEAR_PX, y1: ry + RIM_CLEAR_PX });
+      }
+    }
+    if (!this._env) return out;
+    const s = SCOREBOARD_BOX;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      this._v3.set((sx * s.w) / 2, s.y + (sy * s.h) / 2, (sz * s.d) / 2).project(this._camera);
+      if (this._v3.z > 1) return out; // the board is behind the camera: nothing to avoid
+      const px = (this._v3.x * 0.5 + 0.5) * W;
+      const py = (-this._v3.y * 0.5 + 0.5) * H;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    out.push({ x0, y0, x1, y1 });
+    return out;
   }
 
   // ------------------------------------------------------------ interface
