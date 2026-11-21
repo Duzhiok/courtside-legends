@@ -293,9 +293,13 @@ export class GameSim {
       onTick,
       onEnd,
     });
-    // Overwrite wrapped teams with the exact mid-game state
+    // Overwrite wrapped teams with the exact mid-game state. JSON clone splits
+    // each player into a roster copy and an on-court copy; play writes the
+    // on-court one, and the box score reads the roster. Link them back.
     sim.home = data.home;
     sim.away = data.away;
+    relinkCourtToRoster(sim.home);
+    relinkCourtToRoster(sim.away);
     assignFeedDisplayNames(sim.home, sim.away, sim.lang);
     sim.quarter = data.quarter || 1;
     sim.clock = data.clock ?? QUARTER_SEC;
@@ -3214,6 +3218,14 @@ function isLanky(p) {
 /** Six personal fouls ends the night. Technicals already count, because they increment pf. */
 function fouledOut(p) {
   return (p?.stats?.pf || 0) >= 6;
+}
+
+/** A saved game is JSON, so the floor and the bench are copies of the roster. Point them back at the roster player. */
+function relinkCourtToRoster(team) {
+  const byId = new Map((team?.roster || []).filter((p) => p?.id).map((p) => [p.id, p]));
+  const link = (p) => (p?.id && byId.get(p.id)) || p;
+  if (team?.onCourt) team.onCourt = team.onCourt.map(link);
+  if (team?.bench) team.bench = team.bench.map(link);
 }
 
 /** Healthy and still allowed to check in. */
