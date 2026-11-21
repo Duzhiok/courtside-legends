@@ -1278,16 +1278,19 @@ $("#long-career-import-file")?.addEventListener("change", async (event) => {
     const imported = importRootSave(await file.text());
     // checked with the file's career: restoring a backup of the same career is not an overwrite
     if (await blockedByForeignSave("career", { sig: careerSig(imported) })) return;
-    if (!(await confirmAction("导入将替换当前长期生涯存档，确定继续？", {
-      title: "导入长期生涯？",
-      acceptLabel: "导入并覆盖",
+    if (!(await confirmAction(L(
+      "导入将替换当前长期生涯存档，确定继续？",
+      "Importing replaces your current long career save. Continue?",
+    ), {
+      title: L("导入长期生涯？", "Import a long career?"),
+      acceptLabel: L("导入并覆盖", "Import and replace"),
     }))) return;
     const persisted = writeRootSave(imported);
     state.longCareerRoot = persisted;
     refreshLongCareerHomeBar();
     resumeLongCareer(persisted);
   } catch (error) {
-    alert(error?.message || "导入存档失败");
+    alert(error?.message || L("导入存档失败", "Couldn't import the save."));
   } finally {
     input.value = "";
   }
@@ -3372,14 +3375,31 @@ async function recycleWithConfirm(acc, ids) {
     const preview = resolvePlayers(ids, acc);
     const gold = preview.reduce((sum, card) => sum + recycleValue(card).gold, 0);
     const fragments = preview.reduce((sum, card) => sum + recycleValue(card).fragments, 0);
-    const names = preview.slice(0, 3).map((card) => card.name).join("、") + (preview.length > 3 ? ` 等 ${preview.length} 张` : "");
-    if (!(await confirmAction(`分解 ${names}？不可撤销，获得 ¤${gold} + ${fragments} 技能碎片。`, { title: "分解球员卡", acceptLabel: "分解" }))) return;
+    const joiner = L("、", ", ");
+    const shown = preview.slice(0, 3).map((card) => (getLang() === "en" ? card.nameEn || card.name : card.name));
+    const names = shown.join(joiner) + (preview.length > 3 ? L(` 等 ${preview.length} 张`, ` and ${preview.length - 3} more`) : "");
+    if (!(await confirmAction(
+      L(`分解 ${names}？不可撤销，获得 ¤${gold} + ${fragments} 技能碎片。`, `Break down ${names}? This can't be undone. You get ¤${gold} + ${fragments} skill fragments.`),
+      { title: L("分解球员卡", "Break down cards"), acceptLabel: L("分解", "Break down") },
+    ))) return;
     try {
       recycleCards(acc, ids);
     } catch (error) {
       if (!error.needsConfirm) throw error;
-      const why = error.needsConfirm.map((c) => `${c.name}（${c.why.join("、")}）`).join("；");
-      if (!(await confirmAction(`注意：${why}。仍然分解吗？`, { title: "这些卡很可能值得留", acceptLabel: "仍然分解" }))) return;
+      const why = error.needsConfirm.map((c) => {
+        const name = getLang() === "en" ? c.nameEn || c.name : c.name;
+        const reasons = c.why.map((reason) => {
+          if (getLang() !== "en") return reason;
+          if (reason === "主力阵容") return "in the lineup";
+          const grade = /^成色 ([A-Z])$/.exec(reason);
+          return grade ? `grade ${grade[1]}` : reason;
+        });
+        return `${name} (${reasons.join(L("、", ", "))})`;
+      }).join(L("；", "; "));
+      if (!(await confirmAction(
+        L(`注意：${why}。仍然分解吗？`, `Note: ${why}. Break them down anyway?`),
+        { title: L("这些卡很可能值得留", "These cards are probably worth keeping"), acceptLabel: L("仍然分解", "Break down anyway") },
+      ))) return;
       recycleCards(acc, ids, { confirmed: true });
     }
     openCollection();
@@ -11340,8 +11360,11 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
       simSeasonBtn.onclick = async () => {
         if (
           !(await confirmAction(
-            "一气模拟完剩余常规赛，过程中不能亲自指挥。全联盟每夜比赛都要跟着模拟，整赛季大约十幾秒，过程中不能交易/调整轮换。",
-            { title: "模拟整个赛季", acceptLabel: "模拟到底" },
+            L(
+              "一气模拟完剩余常规赛，过程中不能亲自指挥。全联盟每夜比赛都要跟着模拟，整赛季大约十几秒，过程中不能交易/调整轮换。",
+              "This sims the rest of the regular season, and you can't coach during it. Every other game that night is simmed too. A full season takes several seconds, and you can't trade or change the rotation while it runs.",
+            ),
+            { title: L("模拟整个赛季", "Sim the rest of the season"), acceptLabel: L("模拟到底", "Sim it all") },
           ))
         )
           return;

@@ -112,7 +112,7 @@ export function recycleCards(account, ids, { confirmed = false, pool = PLAYERS }
   const flagged = cards.filter((card) => recycleWarnings(card, account, lineup).length);
   if (flagged.length && !confirmed) {
     const error = new Error("含主力 / 高成色 / 已升星的卡，需要确认");
-    error.needsConfirm = flagged.map((card) => ({ id: card.id, name: card.name, why: recycleWarnings(card, account, lineup) }));
+    error.needsConfirm = flagged.map((card) => ({ id: card.id, name: card.name, nameEn: card.nameEn || card.name, why: recycleWarnings(card, account, lineup) }));
     throw error;
   }
 
