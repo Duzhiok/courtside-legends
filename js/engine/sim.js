@@ -615,10 +615,8 @@ export class GameSim {
   }
 
   step() {
-    if (this.quarter > 4 && this.score.home !== this.score.away) {
-      this.finish();
-      return;
-    }
+    // Overtime is a full 5:00 period. nextQuarter ends the game when that clock expires and the score differs,
+    // and starts another overtime when it is still tied. Ending here on the first lead skipped the rest of the period.
     if (this.clock <= 0) {
       this.nextQuarter();
       if (!this._quiet) this.onTick(this.snapshot());
