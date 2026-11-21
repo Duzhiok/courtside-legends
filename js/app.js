@@ -311,6 +311,7 @@ import { batchHtml, postGameHtml } from "./ui/careerPostGameView.js";
 import { liveGoalsHtml } from "./ui/liveGoals.js";
 import { pregameCardHtml } from "./ui/pregameCard.js";
 import { createMatchupController } from "./ui/matchupController.js";
+import { createBestCardIndex } from "./data/bestCardIndex.js";
 import {
   advanceCareerOffseason,
   completeCareerOffseason,
@@ -1995,11 +1996,7 @@ $("#btn-halfcourt-back")?.addEventListener("click", () => {
 // vs a random historic strong team, on the existing GameSim via openSetup.
 // The result is recorded in showResult() against the city represented in
 // THIS game; changing the represented city later does not rewrite it.
-const bestCardByBref = (bref) => {
-  let best = null;
-  for (const p of PLAYERS) if (p.bref === bref && (!best || overall(p) > overall(best))) best = p;
-  return best;
-};
+const bestCardByBref = createBestCardIndex(() => PLAYERS, overall);
 function hometownChallengeFor(account) {
   const place = readIdentity(account).identityPlaces?.representedCity;
   if (!place) return null;

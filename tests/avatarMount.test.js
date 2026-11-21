@@ -58,3 +58,14 @@ test("the URL override is detected, so the My World toggle can hide when it has 
   assert.equal(m.hasRendererOverride(""), false);
   assert.equal(m.hasRendererOverride(undefined), false);
 });
+
+test("canReuseViewer: only a 2D canvas built from exactly what the panel would build now, and untouched since", async () => {
+  const { canReuseViewer } = await import("../js/ui/avatarMount.js");
+  const fig = { renderer: "2d", canvas: {} };
+  assert.equal(canReuseViewer(fig, "k", "k"), true);
+  assert.equal(canReuseViewer(fig, "k", "other"), false, "look / jersey / renderer choice changed");
+  assert.equal(canReuseViewer(fig, null, "k"), false, "touched since (a slider preview or an edit) -- an unsaved preview must not survive a re-render");
+  assert.equal(canReuseViewer(null, "k", "k"), false, "nothing mounted");
+  assert.equal(canReuseViewer({ renderer: "3d", canvas: {} }, "k", "k"), false, "a WebGL figure is always rebuilt");
+  assert.equal(canReuseViewer({ renderer: "2d" }, "k", "k"), false, "no canvas to carry over");
+});

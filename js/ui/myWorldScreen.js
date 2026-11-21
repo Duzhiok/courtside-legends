@@ -18,7 +18,7 @@ import { portraitFor } from "./portraitFor.js";
 import { readIdentity, saveIdentity } from "../data/profile.js";
 import { esc } from "../core/html.js";
 import { AVATAR_ACTIONS } from "./avatar3d.js";
-import { chooseAvatarMount, hasRendererOverride, writeRendererPref } from "./avatarMount.js";
+import { canReuseViewer, chooseAvatarMount, chosenRenderer, hasRendererOverride, writeRendererPref } from "./avatarMount.js";
 import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../data/saveOwnership.js";
 import { deleteChallengeArchive, readChallengeArchive } from "../data/challengeArchive.js";
 import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary, trophyCountOf } from "./myWorldView.js";
@@ -66,9 +66,12 @@ export function createMyWorld({
   // has no stage of its own: it edits the very figure the player is looking at. Every re-render frees the viewer
   // (innerHTML destroys the stage) and re-mounts it right after.
   let viewer = null;
-  let viewerToken = 0;
+  let viewerKey = null; // what the mounted figure was built from; null once it was changed (preview / edit), so it is never kept stale
+  let pendingMount = null; // { key, joinable }: a figure being put together right now (several renders can land while it is)
+  const joinable = () => chosenRenderer(globalThis.location?.search) === "2d"; // only a 2D canvas can be moved into a newer stage; a WebGL figure is rebuilt
+  const viewerKeyFor = (kit) => JSON.stringify([readLook(getAccount()), kit, chosenRenderer(globalThis.location?.search)]); // the renderer is part of it even when a mount function is injected: the toggle must rebuild
   function disposeViewer() {
-    viewerToken += 1; // a mount still in flight must not attach itself to a stale panel
+    pendingMount = null; // a mount still in flight must not attach itself to a stale panel
     viewer?.dispose();
     viewer = null;
     delete el.dataset.avatarRenderer;   // CSS hides the 3D-only controls while a 2D figure is mounted
@@ -106,7 +109,14 @@ export function createMyWorld({
   }
 
   function render() {
-    disposeViewer();
+    // A 2D figure that is exactly what would be built again is carried over into the new stage (no ~80 ms re-composition).
+    const kit = jerseyKit(equippedJerseyTemplate(getAccount()));
+    let parked = null;
+    if (canReuseViewer(viewer, viewerKey, viewerKeyFor(kit))) {
+      parked = viewer;
+      viewer = null;
+      parked.canvas.remove?.();
+    } else if (!(pendingMount?.joinable && pendingMount.key === viewerKeyFor(kit))) disposeViewer(); // (a 2D build for exactly this look is already under way: let it finish into the new stage)
     const lang = getLang();
     const account = getAccount();
     let frames = [];
@@ -120,27 +130,52 @@ export function createMyWorld({
     const frameKey = account ? equippedFrameId(account) : null;
     const honours = account ? { title: unlockLabel(equippedTitle(account), lang) || null, list: ownedUnlocks(account, frameKey) } : null;
     el.innerHTML = myWorldHtml({ title: honours?.title || null, honours: honours?.list || null, jerseys: account ? { list: listOwnedJerseys(account), equipped: equippedJerseyKey(account) } : null, identity, games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account), hometown }, lang);
-    mountShowcaseViewer();
+    if (parked) adoptViewer(parked, kit);
+    else mountShowcaseViewer();
   }
 
-  /** Mount the 3D figure into the always-visible showcase stage. Failure is silent: the static portrait stays. */
+  /** The figure is up on `stage`: everything around it (portrait wording, toggle, action buttons) follows. */
+  function showViewer(handle, stage, kit, key) {
+    viewer = handle;
+    viewerKey = key;
+    el.dataset.avatarRenderer = handle.renderer || "3d";
+    stage.querySelector(".mw-showcase-static")?.setAttribute("hidden", "");
+    paintPortrait();                                   // button wording follows the renderer
+    paintRendererToggle();
+    if (kit && el.dataset.avatarRenderer === "3d") say(el.querySelector("#mw-showcase-status"), "3D 形象还没有球衣模型，球衣只会穿在 2D 形象上。", "The 3D figure has no jersey model yet; jerseys show on the 2D figure only.");
+    if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
+    setActionButtons(true);
+  }
+
+  /** Put a figure kept from the previous render into the new stage. */
+  function adoptViewer(handle, kit) {
+    const stage = el.querySelector("#mw-showcase-stage");
+    if (!stage) return handle.dispose();
+    stage.appendChild(handle.canvas);
+    showViewer(handle, stage, kit, viewerKeyFor(kit));
+  }
+
+  /** Mount the figure into the always-visible showcase stage. Failure is silent: the static portrait stays. */
   async function mountShowcaseViewer() {
     const stage = el.querySelector("#mw-showcase-stage");
     if (!stage || viewer) return;
-    const token = ++viewerToken;
+    const kit = jerseyKit(equippedJerseyTemplate(getAccount()));   // the worn jersey; only the 2D figure can wear it
+    const key = viewerKeyFor(kit);
+    if (pendingMount?.joinable && pendingMount.key === key) return; // the same 2D figure is already being built; it lands in whichever stage is current
+    const me = (pendingMount = { key, joinable: joinable() });
     try {
-      const kit = jerseyKit(equippedJerseyTemplate(getAccount()));   // the worn jersey; only the 2D figure can wear it
       const handle = await (mountAvatar || chooseAvatarMount())(stage, { look: readLook(getAccount()), jersey: kit, stage: true });
-      if (token !== viewerToken || !stage.isConnected) return handle.dispose(); // closed or re-rendered meanwhile
-      viewer = handle;
-      el.dataset.avatarRenderer = handle.renderer || "3d";
-      stage.querySelector(".mw-showcase-static")?.setAttribute("hidden", "");
-      paintPortrait();                                   // button wording follows the renderer
-      paintRendererToggle();
-      if (kit && el.dataset.avatarRenderer === "3d") say(el.querySelector("#mw-showcase-status"), "3D 形象还没有球衣模型，球衣只会穿在 2D 形象上。", "The 3D figure has no jersey model yet; jerseys show on the 2D figure only.");
-      if (handle.capturePortrait) el.querySelector('[data-mw-action="use-3d-portrait"]')?.removeAttribute("disabled");
-      setActionButtons(true);
+      if (pendingMount !== me) return handle.dispose();             // closed, or a different look was asked for meanwhile
+      pendingMount = null;
+      const now = el.querySelector("#mw-showcase-stage");
+      if (!now) return handle.dispose();
+      if (now !== stage) {                                          // the panel was re-rendered while this was being built: move the figure over
+        if (handle.renderer !== "2d" || !handle.canvas) { handle.dispose(); return mountShowcaseViewer(); }
+        now.appendChild(handle.canvas);
+      }
+      showViewer(handle, now, kit, key);
     } catch {
+      if (pendingMount === me) pendingMount = null;
       setActionButtons(false);
     }
   }
@@ -323,6 +358,7 @@ export function createMyWorld({
   /** Live preview while a slider is being dragged: the figure follows, nothing is saved until the drag ends. */
   function previewSlider(input) {
     showValue(el, input);
+    viewerKey = null; // the figure now shows an unsaved preview: a re-render must rebuild it from what is saved
     viewer?.setLook(sanitizeLook({ ...readLook(getAccount()), ...patchFromSlider(el, input) }));
   }
 
@@ -341,6 +377,7 @@ export function createMyWorld({
       }
       paintPortrait();
     };
+    viewerKey = null;
     const painting = viewer?.setLook(saved);
     if (painting?.then) painting.then(retake, retake); else retake();
     say(status, "已保存。", "Saved.");
@@ -391,6 +428,7 @@ export function createMyWorld({
       const saved = saveLook(getAccount(), { figure });
       const status = () => el.querySelector("#mw-showcase-status");
       if (!saved.saved) return say(status(), "这台设备不允许保存（浏览器存储被关闭），风格只在这次打开期间有效。", "This device can't save (browser storage is disabled); the style only lasts while this page is open.");
+      viewerKey = null;
       viewer?.setLook(saved);
       render();
       const label = figure === "bobblehead" ? (getLang() === "en" ? "Bobblehead" : "Q 版大头") : (getLang() === "en" ? "Stylized" : "风格化写实");
