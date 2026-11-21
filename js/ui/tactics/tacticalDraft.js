@@ -35,20 +35,23 @@ export function createDraft(team) {
   const gp = team?.gameplan || {};
   const mu = gp.matchup || null;
   const handler = (team?.players || []).find((p) => p.id === gp.offenseFocusId);
+  const onTeam = new Set((team?.players || []).map((p) => p.id));
   const pool = [...(team?.coach?.specialTactics?.length ? team.coach.specialTactics : ["balanced"])];
   return {
     coachId: team?.coach?.id ?? null, // read-only in Gold: the coach comes from the market, not from a card bench
     offensiveSchemeId: pool[0],
     tacticPool: pool,
     starterIds: [...(team?.starterIds || [])],
-    ballHandlerId: gp.offenseFocusId || null,
+    ballHandlerId: handler ? gp.offenseFocusId : null,
     ballAction: handler?.orders?.action || null,
     tempo: normalizeTempo(gp.tempo),
     defense: {
       scheme: mu?.scheme || null,
       targetId: mu?.targetId || null,
-      defenderId: mu?.defenderId || null,
-      assignments: { ...(gp.matchupAssignments || mu?.assignments || {}) },
+      // A defender who has since left (sold, traded) is dropped here: the engine ignores him anyway, and a stale name used to
+      // block Apply with "the chosen defender is not on your team" and no way for the player to clear it.
+      defenderId: onTeam.has(mu?.defenderId) ? mu.defenderId : null,
+      assignments: Object.fromEntries(Object.entries(gp.matchupAssignments || mu?.assignments || {}).filter(([, defender]) => onTeam.has(defender))),
     },
     scope: "team-default", // Gold v1: team default + this match. Persisted per-opponent plans are a later slice.
   };

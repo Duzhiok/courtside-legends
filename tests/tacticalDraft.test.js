@@ -196,3 +196,21 @@ test("previews never write: running the reducer and validation leaves the team b
   }
   assert.equal(JSON.stringify(team), before);
 });
+
+test("a defender or ball handler who has since left the team is dropped when the draft is read, so Apply is never blocked by a stale name", () => {
+  const team = makeTeam();
+  const [a, b] = team.players;
+  team.starterIds = team.players.slice(0, 5).map((p) => p.id);
+  team.gameplan = {
+    offenseFocusId: "sold-guy",
+    matchup: { defenderId: "sold-guy", targetId: "opp-star", scheme: "focus", assignments: { "opp-star": "sold-guy", "opp-2": b.id } },
+    matchupAssignments: { "opp-star": "sold-guy", "opp-2": b.id },
+  };
+  const draft = createDraft(team);
+  assert.equal(draft.defense.defenderId, null, "the gone defender is cleared");
+  assert.equal(draft.ballHandlerId, null, "...and so is a gone ball handler");
+  assert.deepEqual(draft.defense.assignments, { "opp-2": b.id }, "only the assignment of the man who left is dropped");
+  assert.deepEqual(validateDraft(draft, { team }).errors, [], "nothing left to block Apply");
+  team.gameplan.matchup.defenderId = a.id; // someone still here is kept
+  assert.equal(createDraft(team).defense.defenderId, a.id);
+});
