@@ -12819,6 +12819,7 @@ async function boot() {
     clearPeakPoolCache();
     window.__rosterBootOk = true;
     bootGate.open();
+    audio.prewarm(); // the audio device start-up (0.5-1 s, once per browser) happens now, in idle time, not inside the first tap
     $("#load-bar").style.width = "100%";
     $("#load-status").textContent =
       sawCache && !sawBuild

@@ -86,20 +86,35 @@ export function updateSettings(patch) {
   emit();
 }
 
+/**
+ * The AudioContext, created on first use (null where the browser has none). Constructing one is a synchronous native call that opens the
+ * audio device: 0.5-1 s the first time in a browser process, ~3 ms after (measured; the cost is the device start-up, not our code, and
+ * not the constructor options). It needs no user gesture (only `resume()` does), so `prewarm()` can pay it in an idle moment instead of
+ * inside the player's first tap.
+ */
+function ensureContext() {
+  if (ctx) return ctx;
+  const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
+  if (!AC) return null;
+  ctx = new AC();
+  musicBus = ctx.createGain();
+  sfxBus = ctx.createGain();
+  const comp = ctx.createDynamicsCompressor(); // synth + sfx can stack: keep the sum from clipping
+  musicBus.connect(comp);
+  sfxBus.connect(comp);
+  comp.connect(ctx.destination);
+  applyVolumes();
+  return ctx;
+}
+
+/** Build the (still suspended) context ahead of the first gesture. Safe to call repeatedly; false where there is no audio. */
+export function prewarm() {
+  try { return !!ensureContext(); } catch { return false; }
+}
+
 /** Create/resume the context. Call from a user gesture. Safe to call repeatedly. */
 export async function unlock() {
-  if (!ctx) {
-    const AC = globalThis.AudioContext || globalThis.webkitAudioContext;
-    if (!AC) return false;
-    ctx = new AC();
-    musicBus = ctx.createGain();
-    sfxBus = ctx.createGain();
-    const comp = ctx.createDynamicsCompressor(); // synth + sfx can stack: keep the sum from clipping
-    musicBus.connect(comp);
-    sfxBus.connect(comp);
-    comp.connect(ctx.destination);
-    applyVolumes();
-  }
+  if (!ensureContext()) return false;
   try { if (ctx.state === "suspended") await ctx.resume(); } catch { return false; }
   if (pending && !current) { const { track, opts } = pending; pending = null; playTrack(track, opts); }
   emit();

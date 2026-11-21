@@ -7,6 +7,7 @@ import * as playlist from "./playlistPlayer.js";
 import { createDirector, sceneForScreen } from "./musicDirector.js";
 import { asTrack, synthTrackById } from "./synthTracks.js";
 import { sfx } from "./soundEffects.js";
+import { prewarmWhenIdle } from "./prewarm.js";
 import { createRadio } from "./radioPanel.js";
 import { bandOf } from "../data/gacha.js";
 
@@ -68,6 +69,9 @@ export const audio = {
   director: () => director,
   setMode,
   toggle: () => setMode(manager.getSettings().mode === "off" ? manager.getSettings().lastMode : "off"),
+
+  /** Call once the app is usable: builds the audio context in an idle moment (it still needs a tap to start sounding). */
+  prewarm: () => prewarmWhenIdle(() => manager.prewarm()),
 
   init({ getProfileId: gp, getLang: gl } = {}) {
     if (inited) return;
