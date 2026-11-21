@@ -257,37 +257,46 @@ function eggSim({ homeTeam = "CHI", awayTeam = "NYK", enforcer = "rodmade01", ri
   return sim;
 }
 
-test("driveGame: foul edge is one foul on the egg's own dice; at six he sits and the rest of the game can diverge", async () => {
+test("driveGame: under six fouls the foul edge is one foul on the egg's own dice and the score matches", async () => {
+  // egg-ab-1 reaches six fouls and the games diverge, so the strict comparison never ran.
+  // egg-ab-2 stays at five: the extra foul is visible and the box score still matches.
+  const seed = "egg-ab-2";
   const eggCtx = { rivalBrefs: ["ewingpa01"], rng: scriptedRng([0.001, 0.9]) }; // fires, foul
-  const simA = eggSim();
+  const simA = eggSim({ seed });
   const a = await driveGame(simA, "nobody", { egg: eggCtx });
-  const simB = eggSim();
+  const simB = eggSim({ seed });
   const b = await driveGame(simB, "nobody");
   assert.equal(a.egg.edge, "foul");
   assert.equal(a.egg.enforcer.bref, "rodmade01");
   assert.equal(a.egg.rival.bref, "ewingpa01");
   assert.equal(b.egg, null);
-  // The foul edge still rolls on its own stream and only writes pf + grade.
-  // Six fouls now sit him, so once either game disqualifies someone the rest
-  // of the night can diverge. Under six, the two games still match.
-  const rodA = simA.home.roster.find((p) => p.bref === "rodmade01");
-  const rodB = simB.home.roster.find((p) => p.bref === "rodmade01");
-  const disqualified = [simA, simB].some((sim) =>
+  const reachedSix = [simA, simB].some((sim) =>
     sim.home.roster.concat(sim.away.roster).some((p) => (p.stats.pf || 0) >= 6)
   );
-  if (!disqualified) {
-    assert.deepEqual(simA.score, simB.score, "under six fouls the extra foul never touches the dice");
-    assert.equal(rodA.stats.pf, rodB.stats.pf + 1, "exactly one extra foul");
-    // Both runs saturate at 100 here when the games stay aligned, so the
-    // -0.75 is absorbed at the ceiling; the unit test pins the drop itself.
-    assert.ok(rodA.gradeScore <= rodB.gradeScore, "grade never rises");
-  } else {
-    for (const sim of [simA, simB]) {
-      for (const side of [sim.home, sim.away]) {
-        for (const p of side.onCourt) {
-          const stuck = (p.stats.pf || 0) >= 6 && side.bench.some((body) => (body.stats.pf || 0) < 6 && !(body.injuredGames > 0));
-          assert.equal(stuck, false, `${p.name} is on the floor at 6 fouls with a body on the bench`);
-        }
+  assert.equal(reachedSix, false, "egg-ab-2 stays under six, so this comparison is the one that runs");
+  const rodA = simA.home.roster.find((p) => p.bref === "rodmade01");
+  const rodB = simB.home.roster.find((p) => p.bref === "rodmade01");
+  assert.deepEqual(simA.score, simB.score, "the extra foul never touches the dice");
+  assert.equal(rodA.stats.pf, rodB.stats.pf + 1, "exactly one extra foul");
+  assert.ok(rodA.gradeScore <= rodB.gradeScore, "grade never rises");
+});
+
+test("driveGame: at six fouls he sits when a teammate can still play", async () => {
+  const eggCtx = { rivalBrefs: ["ewingpa01"], rng: scriptedRng([0.001, 0.9]) };
+  const simA = eggSim();
+  const a = await driveGame(simA, "nobody", { egg: eggCtx });
+  const simB = eggSim();
+  await driveGame(simB, "nobody");
+  assert.equal(a.egg.edge, "foul");
+  const reachedSix = [simA, simB].some((sim) =>
+    sim.home.roster.concat(sim.away.roster).some((p) => (p.stats.pf || 0) >= 6)
+  );
+  assert.equal(reachedSix, true, "egg-ab-1 reaches six fouls, so the sit-out is what this test watches");
+  for (const sim of [simA, simB]) {
+    for (const side of [sim.home, sim.away]) {
+      for (const p of side.onCourt) {
+        const stuck = (p.stats.pf || 0) >= 6 && side.bench.some((body) => (body.stats.pf || 0) < 6 && !(body.injuredGames > 0));
+        assert.equal(stuck, false, `${p.name} is on the floor at 6 fouls with a body on the bench`);
       }
     }
   }

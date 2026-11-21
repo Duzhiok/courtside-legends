@@ -3351,3 +3351,5 @@ B75 (`ECONNRESET` in onlineHardening) stays open and non-blocking; `withServer` 
 [2026-11-21] Muse（Coding Agent）：认领 BACKLOG B80（技术犯规死球罚失分支覆盖缺口）修复。范围：把 tests/domainEvents.test.js 的 B52 测试扩到覆盖罚失技术犯规（扫描种子找一次罚失技术罚球，钉住“罚失后无篮板事件、球权不翻转”）；变异核查（删罚失 dead 分支应恰好新测试变红）；聚焦 + 全套重跑。浏览器实打一局仍排 Mac。Wibey 全量 review（review/2026-11-20 分支）进行中，本轮只改测试文件、不改生产文件。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
 
 [2026-11-21] Cursor：赛季排兵屏不再把伤员勾成首发（BACKLOG B79）。`openSetup` 的赛季分支用轮换计划的 starterIds 覆盖勾选，伤员还在名单上就会被勾上，而点选对伤员直接 return，点不掉。现在勾选走 `screenFiveFromPlan`：伤员不勾，其余四人留，空位按均衡首发补人，并重新排位置。存档里的轮换计划要等确认开打才改写。未动 sim.js / roster.json。Muse 正在只读核对 d5a4ae0，本轮改了 openSetup 这一处；Wibey / Lychee 若也在改 app.js 请先看这里。B81（执法者犯规边的严格断言在当前种子下不跑）仍待修。Q3 最后 90 秒走终场脚本是原设计。B78 仍归 820a81d。
+
+[2026-11-21] Cursor：执法者犯规边的严格断言改成必跑（BACKLOG B81）。`egg-ab-1` 两局都会犯满，比分分叉，于是「恰好 +1 犯、比分相同」被整段跳过。严格断言改钉 `egg-ab-2`（最高 5 犯，比分相同，Rodman 2 对 1）。`egg-ab-1` 单独钉犯满离场：有人到 6 犯，且场上不留还能换下的人。只改测试。未动 sim.js / roster.json / app.js。B78 动画定时器抖动仍归 820a81d。
