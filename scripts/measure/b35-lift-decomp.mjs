@@ -63,6 +63,13 @@
  * Live makeP is also tallied on a shot basis (meta.shot events only, no
  * recovered blocks) so live and probe compare on the same calcMakeProb
  * level without the §19 first-order block-drag correction.
+ * B35 §21 adds u7 (no zone ceilings / final clamp — pre-cap probe makeP
+ * for the ceiling attribution) and per-shot live input records
+ * (globalThis.__B35_INPUTS, recorded only by the §21 scratch-worktree
+ * sim.js at the calcMakeProb call site): open, makeP (pre-discount),
+ * preCap/postCap, fatM, skillB, quarter, scoreDiff, hot, scoreForm, duo
+ * ids, mind_unlock aura, defBigs, made/fouled. From main-tree sim.js the
+ * record set stays empty and the §21 sections print a skip note.
  * They are published on globalThis.__B35_ABL for the scratch-worktree
  * sim.js to read (main-tree sim.js has no ablation hooks and ignores them).
  * Part A (live games) runs under the requested flags; Part B (probe) always
@@ -74,12 +81,15 @@
  */
 import { realTeam } from "../../tests/helpers/realGame.js";
 import { GameSim, chooseShot, calcMakeProb } from "../../js/engine/sim.js";
+import { skillMakeBonus } from "../../js/data/skills.js";
 import { hashSeed, seededStream } from "../../js/core/seededRandom.js";
 import { withRng } from "../../js/core/rng.js";
 import { writeFileSync } from "node:fs";
 
 const ABL = (process.env.B35_ABL || "").split("+").filter(Boolean);
-globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5"), u6a: ABL.includes("u6a"), u6b: ABL.includes("u6b") };
+globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5"), u6a: ABL.includes("u6a"), u6b: ABL.includes("u6b"), u7: ABL.includes("u7") };
+// §21: per-shot live input records (worktree sim.js only — see header).
+globalThis.__B35_INPUTS = { shots: [], year: null };
 // §19: the worktree sim.js counts would-be U5 leak applications here (main-tree sim.js never increments it).
 globalThis.__B35_U5COUNT = { kick: 0, kickPaint: 0, kickMid: 0, kickThree: 0, tempo: 0, tempoGrind: 0, tempoPush: 0, tempoPaint: 0, tempoMid: 0, tempoThree: 0 };
 console.log(`B35_ABL flags: ${ABL.join("+") || "(none)"} — live games run under these; probe pass 1 is always flag-free`);
@@ -104,6 +114,7 @@ for (const [a, b, year] of PAIRS) {
     const home = i % 2 ? realTeam(a, year) : realTeam(b, year);
     const away = i % 2 ? realTeam(b, year) : realTeam(a, year);
     const events = [];
+    globalThis.__B35_INPUTS.year = year; // §21: tag input records with the season year
     const sim = new GameSim({
       home, away, youSide: "home", injuries: false, speed: 3,
       rng: seededStream(hashSeed(`b35split|${year}|${a}${b}|${i}`)),
@@ -198,6 +209,27 @@ console.log(`League realised 2P%: stats basis ${pct(tot("fgm2") / tot("fga2"))} 
   console.log(`U5 leak counters (Part A, ${gamesPlayed} games): kick bonus applied ${c.kick}x (paint ${c.kickPaint} / mid ${c.kickMid} / three ${c.kickThree}), tempo openBonus applied ${c.tempo}x (grind ${c.tempoGrind} / push ${c.tempoPush}; paint ${c.tempoPaint} / mid ${c.tempoMid} / three ${c.tempoThree})`);
 }
 
+// ---------- §21: per-shot live input distribution (worktree only) ----------
+// Fouled misses are not FGAs (stats fga is not incremented), so they are
+// excluded from the FGA-basis record set, matching the shot-basis tally.
+const INPUT_SHOTS = (globalThis.__B35_INPUTS?.shots || []).filter((s) => s.made || !s.fouled);
+const INPUT_RAW_N = globalThis.__B35_INPUTS?.shots.length || 0;
+console.log(`\n§21 input records: ${INPUT_RAW_N} makeP draws (${INPUT_SHOTS.length} FGA-basis, ${INPUT_RAW_N - INPUT_SHOTS.length} fouled misses excluded)`);
+for (const zone of ["paint", "mid"]) {
+  const g = INPUT_SHOTS.filter((s) => s.zone === zone);
+  if (!g.length) { console.log(`  ${zone}: no records (run from the §21 worktree for input instrumentation)`); continue; }
+  const mean = (f) => g.reduce((s, x) => s + f(x), 0) / g.length;
+  const capped = g.filter((s) => s.preCap > s.postCap);
+  const duoFreq = {};
+  for (const s of g) for (const d of s.duo || []) duoFreq[d] = (duoFreq[d] || 0) + 1;
+  const qShare = [1, 2, 3, 4].map((q) => g.filter((s) => s.quarter === q).length / g.length);
+  console.log(`  ${zone} n=${g.length} open ${mean((s) => s.open).toFixed(3)} makeP ${pct(mean((s) => s.makeP))} realised ${pct(mean((s) => (s.made ? 1 : 0)))} preCap ${pct(mean((s) => s.preCap))} postCap ${pct(mean((s) => s.postCap))}`);
+  console.log(`    capHit ${(100 * capped.length / g.length).toFixed(1)}% (mean clip ${((capped.reduce((s, x) => s + (x.preCap - x.postCap), 0) / Math.max(1, capped.length)) * 100).toFixed(1)}pt on capped, ${(mean((s) => s.preCap - s.postCap) * 100).toFixed(2)}pt overall) | fatM ${mean((s) => s.fatM).toFixed(3)} skillB ${pct(mean((s) => s.skillB))} hot ${mean((s) => s.hot).toFixed(2)} form ${mean((s) => s.scoreForm).toFixed(1)}`);
+  console.log(`    quarter shares Q1–Q4 ${qShare.map((x) => (100 * x).toFixed(0) + "%").join(" ")} | scoreDiff mean ${mean((s) => s.scoreDiff).toFixed(1)} | defBigs ${mean((s) => s.defBigs).toFixed(2)} | aura ${pct(mean((s) => (s.aura ? 1 : 0)))} | discounted ${g.filter((s) => s.discounted).length} guaranteed ${g.filter((s) => s.guaranteed).length}`);
+  console.log(`    duos: ${Object.entries(duoFreq).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${d} ${(100 * n / g.length).toFixed(1)}%`).join(", ") || "(none)"}`);
+}
+globalThis.__B35_INPUTS = null; // probe calls calcMakeProb directly — no live records there
+
 // ---------- Part B: probe (same as b35-make-by-zone.mjs Part B) ----------
 console.log("\nPart B: calcMakeProb zone probe (60 draws/player/zone, fixed open 0.55) + chooseShot shares (300 draws)");
 const DRAW = 60;
@@ -251,12 +283,32 @@ for (const [a, b, year] of PAIRS) {
       // §20 self-check: the probe already passes Q2/0, so u6a must not move it.
       const mpU6a = probeMp({ u6a: true });
       for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU6a"] = mpU6a[zone + "Fixed"];
+      // §21 pass 4: joint-neutral probe (U4 + U6a + U6b) — the comparator for
+      // the U34+U6a+U6b joint run. Pass 5 adds u7 (no zone ceilings / final
+      // clamp) for the pre-cap probe makeP used in the ceiling attribution.
+      const mpU46 = probeMp({ u4: true, u6a: true, u6b: true });
+      for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU46"] = mpU46[zone + "Fixed"];
+      const mpU46nc = probeMp({ u4: true, u6a: true, u6b: true, u7: true });
+      for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU46nc"] = mpU46nc[zone + "Fixed"];
+      // §21: probe-side skillMakeBonus (fresh player state, top-5 onCourt) —
+      // the comparator for the live mean skillB (duo/aura/onCourt channel).
+      // 20 draws average out the joker_jamal proc (absent from these 6 pairs,
+      // but the average is free).
+      const skillB = {};
+      for (const zone of ["paint", "mid", "three"]) {
+        const shot = { zone, pts: zone === "three" ? 3 : 2, weakSide: false };
+        let acc = 0;
+        withRng(seededStream(hashSeed(`b35skillb|${year}|${p.id}|${zone}`)), () => {
+          for (let k = 0; k < 20; k += 1) acc += skillMakeBonus(p, shot, { quarter: 2, scoreDiff: 0, open: 0.55, onCourt });
+        });
+        skillB[zone] = acc / 20;
+      }
       const tally = { paint: 0, mid: 0, three: 0 };
       withRng(seededStream(hashSeed(`b35make-share|${year}|${p.id}`)), () => {
         for (let k = 0; k < 300; k += 1) tally[chooseShot(p, off, null, null).zone] += 1;
       });
       const share = { paint: tally.paint / 300, mid: tally.mid / 300, three: tally.three / 300 };
-      probeRows.push({ p, year, pos, mp, share });
+      probeRows.push({ p, year, pos, mp, share, skillB });
     }
   }
 }
@@ -273,6 +325,10 @@ for (const zone of ["paint", "mid"]) {
   const d6b = wAvg((j) => j.mp[zone + "FixedU6b"] - j.mp[zone + "Fixed"]);
   const d6a = wAvg((j) => j.mp[zone + "FixedU6a"] - j.mp[zone + "Fixed"]);
   console.log(`  probe-side U6b baseline, ${zone}: neutral ${pct(wAvg((j) => j.mp[zone + "Fixed"]))} -> U6b-neutral ${pct(wAvg((j) => j.mp[zone + "FixedU6b"]))} (delta ${gap(d6b)}); U6a self-check delta ${gap(d6a)} (expect 0)`);
+  const d46 = wAvg((j) => j.mp[zone + "FixedU46"] - j.mp[zone + "Fixed"]);
+  console.log(`  probe-side U46 baseline, ${zone}: neutral ${pct(wAvg((j) => j.mp[zone + "Fixed"]))} -> U46-neutral ${pct(wAvg((j) => j.mp[zone + "FixedU46"]))} (delta ${gap(d46)})`);
+  const d46nc = wAvg((j) => j.mp[zone + "FixedU46nc"] - j.mp[zone + "FixedU46"]);
+  console.log(`  probe-side U46 pre-cap (u7), ${zone}: ${pct(wAvg((j) => j.mp[zone + "FixedU46nc"]))} vs capped ${pct(wAvg((j) => j.mp[zone + "FixedU46"]))} (probe clip ${gap(-d46nc)})`);
 }
 
 // ---------- Part C: Oaxaca decomposition (2P, event basis) ----------
@@ -356,7 +412,37 @@ for (const zone of ["paint", "mid"]) {
   const shotMp = wShot((j) => (j.live.liveShot[zone].a ? j.live.liveShot[zone].m / j.live.liveShot[zone].a : 0));
   const probeMpZ = wShot((j) => j.mp[zone + "Fixed"]);
   const probeU4Z = wShot((j) => j.mp[zone + "FixedU4"]);
-  console.log(`  ${zone.padEnd(6)} shot-basis live ${pct(shotMp)} vs probe ${pct(probeMpZ)} vs probe-U4-neutral ${pct(probeU4Z)}  residual vs U4-neutral ${gap(shotMp - probeU4Z)}  (${sum(dec, (j) => j.live.liveShot[zone].a)} shots)`);
+  const probeU46Z = wShot((j) => j.mp[zone + "FixedU46"]);
+  console.log(`  ${zone.padEnd(6)} shot-basis live ${pct(shotMp)} vs probe ${pct(probeMpZ)} vs probe-U4-neutral ${pct(probeU4Z)}  residual vs U4-neutral ${gap(shotMp - probeU4Z)}  residual vs U46-neutral ${gap(shotMp - probeU46Z)}  (${sum(dec, (j) => j.live.liveShot[zone].a)} shots)`);
+}
+// §21: is the residual inside makeP? Per-player mean of the recorded live
+// makeP vs the U46-neutral probe (2PA-weighted). If this matches the realised
+// residual above, the gap is in calcMakeProb inputs, not in the made draw or
+// event accounting; if it is ~0, the gap is downstream of makeP.
+console.log("\n§21 E[makeP_live] vs probe-U46 (per-player mean of recorded makeP, 2PA-weighted):");
+for (const zone of ["paint", "mid"]) {
+  const byKey = new Map();
+  for (const s of INPUT_SHOTS.filter((x) => x.zone === zone)) {
+    const k = `${s.year}|${s.shooterId}`;
+    const r = byKey.get(k) || { sum: 0, n: 0 };
+    r.sum += s.makeP; r.n += 1; byKey.set(k, r);
+  }
+  let num = 0, den = 0, n = 0;
+  for (const j of dec) {
+    const rec = byKey.get(`${j.year}|${j.p.id}`);
+    if (!rec) continue;
+    const w = j.live.liveShot[zone].a;
+    num += (rec.sum / rec.n - j.mp[zone + "FixedU46"]) * w; den += w; n += 1;
+  }
+  console.log(`  ${zone}: E[makeP_live]-probeU46 ${gap(num / Math.max(1, den))} (n=${n} players, ${den} shots)`);
+}
+console.log("\n§21 skillB live mean vs probe (duo/aura/onCourt channel, 2PA-weighted probe):");
+for (const zone of ["paint", "mid"]) {
+  const g = INPUT_SHOTS.filter((s) => s.zone === zone);
+  const liveSkill = g.reduce((s, x) => s + x.skillB, 0) / Math.max(1, g.length);
+  const wShot = (f) => sum(dec, (j) => f(j) * j.live.liveShot[zone].a) / Math.max(1, sum(dec, (j) => j.live.liveShot[zone].a));
+  const probeSkill = wShot((j) => j.skillB[zone]);
+  console.log(`  ${zone}: live mean skillB ${pct(liveSkill)} vs probe ${pct(probeSkill)} (delta ${gap(liveSkill - probeSkill)})`);
 }
 console.log("\nLargest positive stack terms (live makeP far above probe — who benefits most from the live stack?):");
 for (const j of [...dec].sort((x, y) => y.d.stack - x.d.stack).slice(0, 8))
@@ -371,11 +457,16 @@ if (OUT) {
       key: `${j.year}|${j.p.id}`, name: j.p.name, year: j.year, pos: j.pos,
       live: j.live.live,
       liveShot: j.live.liveShot,
-      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed }, mpFixedU4: { paint: j.mp.paintFixedU4, mid: j.mp.midFixedU4, three: j.mp.threeFixedU4 }, mpFixedU6b: { paint: j.mp.paintFixedU6b, mid: j.mp.midFixedU6b, three: j.mp.threeFixedU6b }, mpFixedU6a: { paint: j.mp.paintFixedU6a, mid: j.mp.midFixedU6a, three: j.mp.threeFixedU6a } },
+      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed }, mpFixedU4: { paint: j.mp.paintFixedU4, mid: j.mp.midFixedU4, three: j.mp.threeFixedU4 }, mpFixedU6b: { paint: j.mp.paintFixedU6b, mid: j.mp.midFixedU6b, three: j.mp.threeFixedU6b }, mpFixedU6a: { paint: j.mp.paintFixedU6a, mid: j.mp.midFixedU6a, three: j.mp.threeFixedU6a }, mpFixedU46: { paint: j.mp.paintFixedU46, mid: j.mp.midFixedU46, three: j.mp.threeFixedU46 }, mpFixedU46nc: { paint: j.mp.paintFixedU46nc, mid: j.mp.midFixedU46nc, three: j.mp.threeFixedU46nc }, skillB: j.skillB },
       sim: { min: j.live.min, fga: j.live.fga, fgm: j.live.fgm, fga2: j.live.fga2, fgm2: j.live.fgm2, fga3: j.live.fga3, fgm3: j.live.fgm3 },
       decomp: { realised: j.d.realised, expected: j.d.expected, mix: j.d.mix, stack: j.d.stack, interact: j.d.interact, l2a: j.d.l2a },
     })),
   };
   writeFileSync(OUT, JSON.stringify(dump, null, 2));
   console.log(`\nwrote ${OUT} (${dump.players.length} players)`);
+  if (INPUT_SHOTS.length) {
+    const inPath = OUT.replace(/\.json$/, "-inputs.json");
+    writeFileSync(inPath, JSON.stringify(INPUT_SHOTS));
+    console.log(`wrote ${inPath} (${INPUT_SHOTS.length} FGA-basis shot records)`);
+  }
 }
