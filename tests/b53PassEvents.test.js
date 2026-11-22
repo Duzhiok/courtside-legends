@@ -119,8 +119,11 @@ test("B53: the forced clutch handoff emits a handoff pass to the script shooter"
     sim.onEvent = (e) => events.push(e);
     sim.step();
     const shooterId = sim.home.temp?.lateChase?.shooterId;
+    // The FORCED handoff is the scripted possession, i.e. the first step. Later possessions run ordinary offence, whose handoffs go to whoever
+    // the play calls for (B76: Kerr now shoots like his real minutes say, so he shows up as a receiver there) -- not to the script shooter.
+    const scripted = events.length;
     for (let i = 0; i < 14; i++) sim.step();
-    for (const e of passesOf(events)) {
+    for (const e of passesOf(events.slice(0, scripted))) {
       if (e.meta.pass.kind !== "handoff") continue;
       handoffs += 1;
       assert.equal(e.meta.pass.receiverId, shooterId, `seed ${seed}: handoff feeds the script shooter`);

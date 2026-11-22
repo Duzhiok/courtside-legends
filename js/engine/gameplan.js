@@ -187,9 +187,30 @@ export function aggressionLevel(p) {
   return 0.55;
 }
 
+/** B76: a real shot volume below this share of the league middle (13 per 36) is a true non-shooter and keeps his low appetite. */
+const REAL_VOLUME_FLOOR = 0.45;
+/** Where the engine starts re-passing "unless wide open" and cutting touches (aggressionLevel <= 0.4). */
+const GATE_LEVEL = 0.4;
+const NORMAL_LEVEL = 0.55; // aggressionLevel() of "normal"
+
+/**
+ * B76: the appetite the SHOT side of the engine uses (the "pass unless wide open" gate, the open-look threshold, the touch weight).
+ * Low appetite in the recommended orders means two things: pass first (kick-outs, repasses) and take few shots. For someone with a REAL shot
+ * volume, how many shots he takes is already in the touch weight (shotAppetite), so the gate counted it a second time: 0.02x (Draymond 2022),
+ * 0.04x (Ainge 1986), 0.3-0.5x for the whole organize/low and defend/low groups (scripts/measure/orders-usage-pairing.mjs). He keeps passing
+ * first (aggressionLevel itself is unchanged, so kicks and the order text stay), but his shots are no longer gated. A coach's own order
+ * (ordersManual) and true non-shooters keep exactly the old behaviour.
+ */
+export function shotGateLevel(p) {
+  const lvl = aggressionLevel(p);
+  if (lvl > GATE_LEVEL || p?.ordersManual) return lvl;
+  if (!hasRealShotVolume(p) || shotAppetiteRatio(p) < REAL_VOLUME_FLOOR) return lvl;
+  return NORMAL_LEVEL;
+}
+
 /** Minimum openness (0–1) to willingly pull the trigger. */
 export function shotOpenThreshold(p) {
-  const lvl = aggressionLevel(p);
+  const lvl = shotGateLevel(p);
   if (lvl >= 0.9) return 0.3;
   if (lvl >= 0.7) return 0.36;
   if (lvl >= 0.5) return 0.44;

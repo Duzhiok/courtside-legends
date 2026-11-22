@@ -114,8 +114,11 @@ test("神经刀 in a real game: wider hot/cold streaks, a much fatter ice-cold t
   const coldShare = (xs) => xs.filter((h) => h <= -2).length / xs.length;
   const coldWith = coldShare(withSkill);
   const coldWithout = coldShare(without);
+  // B76: 1.6 -> 1.4. Role players now shoot their real share, so BOTH teams are colder more often (the no-skill team 15-18% -> 25-28% of samples at
+  // heat <= -2); the skill still makes ice-cold stretches clearly more common (34-38% -> 41-42%) but the ratio went 2.1-2.3x -> 1.5-1.6x over six
+  // seeds. The spread check above (still 1.11x, needs 1.05x) is the signature of the skill.
   assert.ok(
-    coldWith > coldWithout * 1.6,
+    coldWith > coldWithout * 1.4,
     `ice-cold stretches should be far more common: with=${(coldWith * 100).toFixed(0)}% without=${(coldWithout * 100).toFixed(0)}%`
   );
 

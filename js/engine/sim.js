@@ -43,6 +43,7 @@ import {
 } from "../data/skills.js";
 import {
   aggressionLevel,
+  shotGateLevel,
   ensurePlayerOrders,
   ensureRoles,
   fitMinuteBudget,
@@ -1113,7 +1114,7 @@ export class GameSim {
     if (tempoDef?.openBonus) open = clamp(open + tempoDef.openBonus, 0.08, 0.92);
 
     // 低攻击欲：机会不够好就再传导一次，而不是自主强投
-    const aggNow = aggressionLevel(baller);
+    const aggNow = shotGateLevel(baller);
     const openNeed = shotOpenThreshold(baller);
     // A called catch-and-shoot play for a SPECIALIST: his standing low-appetite order does not turn the called shot into a re-pass.
     const calledSpecialist = CLUTCH_DECISION_TUNING.specialistTakesIt && pick?.role === "catch_shoot" && baller.id === pick.shooterId;
@@ -1174,7 +1175,7 @@ export class GameSim {
       (off.onCourt || []).some((x) => x.id === sideCtx.organizerId && isQualityPasser(x))
     );
     const sigOk =
-      aggressionLevel(baller) >= 0.35 ||
+      shotGateLevel(baller) >= 0.35 ||
       open >= shotOpenThreshold(baller) ||
       (lobWindow && fromPasser);
     sigOff = sigOk
@@ -1253,7 +1254,7 @@ export class GameSim {
       primaryId: off === this.you() ? this.offenseFocusId : off.gameplan?.offenseFocusId || null,
     });
     // 低欲望被迫出手（传不出去 / 仍不够空）时准心打折——不鼓励硬投
-    if (aggressionLevel(baller) <= 0.35 && open < shotOpenThreshold(baller)) {
+    if (shotGateLevel(baller) <= 0.35 && open < shotOpenThreshold(baller)) {
       makeP *= 0.82;
     }
     // 上帝附体：无论防守如何，那一球必进
@@ -2743,7 +2744,7 @@ export function realPaceFactor(players) {
  * the 0.33 league rate (shot-weighted, so its mean is 1), kept in 0.4-2.6; FOUL_RATE_SCALE lifts the shared base so the league rate lands on the real one.
  * Players without real stats get 1.
  */
-const FOUL_RATE_SCALE = 1.52;
+const FOUL_RATE_SCALE = 1.64; // 1.52 before B76: role players no longer wait for wide-open looks, stars take fewer shots, so fewer free throws came per shot
 const LEAGUE_FTA_PER_FGA = 0.33;
 export function foulDrawHabit(p) {
   const raw = p?.raw;
@@ -2754,8 +2755,8 @@ export function foulDrawHabit(p) {
 }
 
 const THREE_SHARE_SLOPE = 0.5;
-const THREE_SHARE_SHIFT = -0.38;
-const ZONE_STACK_OFFSET = { three: 0.168, mid: 0.100, paint: 0.100 };
+const THREE_SHARE_SHIFT = -0.44; // -0.38 before B76: ungated role shooters took ~1.7 more threes per team-game
+const ZONE_STACK_OFFSET = { three: 0.168, mid: 0.080, paint: 0.080 }; // mid/paint 0.100 before B76: more of the shots now come off non-wide-open looks, which the open term already prices
 
 const STEAL_BASE = 0.023;           // 0.04 originally; 0.034 after Phase A; re-fitted per possession once pace and the fga accounting changed (7.8 per team-game, real 8.1)
 const UNFORCED_TOV_BASE = 0.042;    // 0.06 originally; 0.052 after Phase A; re-fitted per possession with the pace change (turnovers 14.2 per team-game, real 14.4)
@@ -3935,7 +3936,7 @@ function pickBallHandler(off, focusPlay = null, offenseFocusId = null) {
     const tMin = p.targetMinutes ?? 28;
     if ((p.stats?.min || 0) > tMin + 1) w *= 0.35;
     // 攻击欲望：低欲望少要球；专注防守更少触球
-    const agg = aggressionLevel(p);
+    const agg = shotGateLevel(p);
     if (agg <= 0.25) w *= 0.55;
     else if (agg <= 0.4) w *= 0.72;
     else if (agg >= 0.9) w *= 1.1;

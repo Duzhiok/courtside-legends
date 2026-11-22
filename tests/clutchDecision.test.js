@@ -284,7 +284,10 @@ test("role-aware delivery: the call lifts specialists and post players without f
   }
   const duncan = measure("Duncan");
   assert.equal(duncan.role, "post");
-  assert.ok(duncan.perDecision >= 45 && duncan.perDecision >= duncan.base + 30 && duncan.share <= 85, `post: ${duncan.perDecision.toFixed(1)} / ${duncan.share.toFixed(1)}`);
+  // B76: floor 45 -> 35 (52 -> 40 per decision, share 67 -> 51). The lift over his normal play is what the call is about and it stays huge (+40 points,
+  // base 0.3%, still checked by the second term). Teammates who used to be gated no longer swing the ball to the post man, they take their own
+  // shot, so fewer of the possessions in this scenario end with him.
+  assert.ok(duncan.perDecision >= 35 && duncan.perDecision >= duncan.base + 30 && duncan.share <= 85, `post: ${duncan.perDecision.toFixed(1)} / ${duncan.share.toFixed(1)}`);
   // His normal-play baseline here is a handful of shots (5 in 300 games: the scenario rarely gives a post man the ball), so 80% of 5 is noise,
   // not a yardstick. Compare to it only with a real sample; otherwise a post scorer's called shot must still be a real one (>= 50%).
   const duncanFloor = duncan.baseShots >= 50 ? duncan.baseFg - 14 : 50;
