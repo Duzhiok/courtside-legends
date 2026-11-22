@@ -4,6 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { GameSim } from "../js/engine/sim.js";
 import { createPresentationEventNormalizer } from "../js/match/presentation/normalizer.js";
+import { BEAT_DURATIONS } from "../js/match/presentation/choreographer.js";
+import { PASS_FLIGHT_MS } from "../js/engine/court3d.js";
 import { playThroughController } from "./helpers/presentationHarness.js";
 import { realTeam } from "./helpers/realGame.js";
 import { hashSeed, seededStream } from "../js/core/seededRandom.js";
@@ -102,3 +104,20 @@ test("1x: passes are drawn from the player who really has the ball, and repasses
   assert.ok(fromHolder / r.passes.length >= 0.85, `${fromHolder}/${r.passes.length} passes started with the passer holding the ball`);
 });
 
+
+test("a pass beat is at least as long as the ball's flight, so the ball lands inside its own beat", () => {
+  assert.ok(BEAT_DURATIONS.pass >= PASS_FLIGHT_MS, `pass beat ${BEAT_DURATIONS.pass} ms vs flight ${PASS_FLIGHT_MS} ms`);
+});
+
+test("1x: the 3D court keeps up with GameSim well enough to show most shots and a pass in front of most of them", async () => {
+  // Before the beats were tightened (possession_start 1400 -> 700, pass 500 -> 380) one 1x play ran at least 2.9 s against GameSim's ~2.1 s per
+  // possession, so the court was always compressing: 74% of shots shown, 0.32 drawn passes per shown shot, lag 3.0 s. Over these 6 seeds it is now
+  // 85%, 0.62 and 2.1 s. A real regression to the old durations lands well under both floors.
+  let sim = 0, shown = 0, passes = 0;
+  for (const seed of ["sync-1", "sync-2", "sync-3", "sync-4", "sync-5", "sync-6"]) {
+    const r = await playThroughController({ speed: 1, possessions: 60, seed });
+    sim += r.summary.shotsSim; shown += r.summary.shotsShown; passes += r.passes.length;
+  }
+  assert.ok(shown / sim >= 0.8, `${shown}/${sim} shots shown at 1x`);
+  assert.ok(passes / shown >= 0.5, `${(passes / shown).toFixed(2)} drawn passes per shown shot at 1x`);
+});

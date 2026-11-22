@@ -55,8 +55,8 @@ import { ballHolders, openingHolder } from "./ballOwner.js";
 
 /** Compressed-playback beat durations at 1x (ms). */
 export const BEAT_DURATIONS = Object.freeze({
-  possession_start: 1400,
-  pass: 500,
+  possession_start: 700,
+  pass: 380,
   score: 1000,
   miss: 1000,
   dunk: 900,
