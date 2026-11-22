@@ -211,4 +211,22 @@ export function mountSandbox({
   };
 
   SIDES.forEach(renderRoster);
+
+  return {
+    /**
+     * Add a card to a side from outside the picker (the 3v3 player pool).
+     * Same limits and errors as the +1 button, so a pool pick can never
+     * overfill a team or duplicate a card on that side. Re-renders the
+     * roster and the search results, so a pool pick shows as "picked" there.
+     */
+    addCard(side, card) {
+      picks[side] = addToSide(picks[side], card, { max, unique });
+      renderRoster(side);
+      renderResults(side);
+      return picks[side].length;
+    },
+    picksOf(side) {
+      return [...picks[side]];
+    },
+  };
 }

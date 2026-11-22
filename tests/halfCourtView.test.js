@@ -5,6 +5,7 @@ import {
   halfCourtBoxTableHtml,
   halfCourtMarkerHtml,
   halfCourtPickerCardHtml,
+  halfCourtPoolHtml,
 } from "../js/ui/halfCourtView.js";
 
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -68,4 +69,34 @@ test("box score escapes hostile names", () => {
   assert.doesNotMatch(html, /<b>evil<\/b>/);
   assert.doesNotMatch(html, /<i>team<\/i>/);
   assert.match(html, /&lt;b&gt;evil&lt;\/b&gt;/);
+});
+
+test("player pool panel: dealt cards carry +A/+B buttons by card id, names escaped", () => {
+  const cards = [
+    { id: "jordami01-1991-chi", name: "Michael Jordan", bref: "jordami01", season: 1991, team: "CHI", pos: "SG" },
+    { id: "evil-1", name: "<img src=x>", bref: "evil", season: 2000, team: "XXX", pos: "PG" },
+  ];
+  const html = halfCourtPoolHtml({ cards, dealt: true, lang: "zh", esc, ovrOf });
+  assert.match(html, /球员池/);
+  assert.match(html, /换一批/);
+  assert.match(html, /data-hc-pool-add="A:jordami01-1991-chi"/);
+  assert.match(html, /data-hc-pool-add="B:jordami01-1991-chi"/);
+  assert.match(html, /Michael Jordan/);
+  assert.doesNotMatch(html, /<img src=x>/);
+  assert.match(html, /&lt;img src=x&gt;/);
+  const en = halfCourtPoolHtml({ cards, dealt: true, lang: "en", esc, ovrOf });
+  assert.match(en, /Player pool/);
+  assert.match(en, /Re-deal/);
+  assert.match(en, /Team A/);
+});
+
+test("player pool panel: empty states read differently before a deal and after the pool is all picked", () => {
+  const fresh = halfCourtPoolHtml({ cards: [], dealt: false, lang: "zh", esc, ovrOf });
+  assert.match(fresh, /发一池球员/);
+  assert.match(fresh, /还没发牌/);
+  const spent = halfCourtPoolHtml({ cards: [], dealt: true, lang: "zh", esc, ovrOf });
+  assert.match(spent, /换一批/);
+  assert.match(spent, /这池都挑完了/);
+  const err = halfCourtPoolHtml({ cards: [], dealt: true, lang: "zh", esc, ovrOf, error: "每队最多 4 人" });
+  assert.match(err, /每队最多 4 人/);
 });

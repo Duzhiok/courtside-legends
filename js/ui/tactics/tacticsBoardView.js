@@ -63,6 +63,9 @@ export function renderTacticsBoardHtml(m, lang = "zh") {
     m.warnings?.length
       ? `<p class="tb-status is-warn" role="status">${esc(TL(lang, "注意：", "Note: "))}${esc(reasonsText(m.warnings, WARNING_TEXT, lang))}</p>`
       : "",
+    m.saveFailed
+      ? `<p class="tb-status is-warn" role="status">${esc(TL(lang, "已应用，但这次没能保存到本机（存档被占用或空间不足），下次保存时会再试", "Applied, but this save could not be written (the save slot is in use or full); it will be retried on the next save"))}</p>`
+      : "",
   ].join("");
   return `<section class="tb" aria-label="${esc(TL(lang, "赛前战术", "Game plan"))}">
     <div class="tb-main">${courtHtml(m, lang)}${actionsHtml(m, lang)}</div>
@@ -77,14 +80,15 @@ export function renderTacticsBoardHtml(m, lang = "zh") {
  */
 export function mountTacticsBoard(root, { team, opponent = null, lang = "zh", save = null, onApplied = null } = {}) {
   let state = createEditorState(team);
+  let saveFailed = false;
   const paint = () => {
-    const model = buildTacticsBoardModel({ team, draft: state.draft, opponent, lang, dirty: isDirty(state) });
+    const model = buildTacticsBoardModel({ team, draft: state.draft, opponent, lang, dirty: isDirty(state), saveFailed });
     root.innerHTML = renderTacticsBoardHtml(model, lang);
   };
   const dispatch = (action) => { state = tacticalDraftReducer(state, action); paint(); };
   const apply = () => {
     const res = commitDraft(team, state.draft, { save, opponent });
-    if (res.ok) { state = tacticalDraftReducer(state, { type: "MARK_SAVED" }); paint(); onApplied?.(team); }
+    if (res.ok) { saveFailed = !!res.saveFailed; state = tacticalDraftReducer(state, { type: "MARK_SAVED" }); paint(); onApplied?.(team); }
     else paint(); // show the error row for a plan the engine cannot run
     return res;
   };

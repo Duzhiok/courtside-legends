@@ -7438,6 +7438,8 @@ $("#btn-setup-confirm").onclick = () => {
   // Edits made on the tactics board count even if the player never pressed Apply; a plan the engine cannot run stops here.
   const pending = tacticsBoard?.applyPending();
   if (pending && !pending.ok) return $("#setup-tactics-board")?.scrollIntoView?.({ block: "center" });
+  // A valid plan whose autosave failed still starts the game (commitDraft keeps it in memory); say so, so a refused save never looks like a broken start button.
+  if (pending?.saveFailed) alert(L("战术已应用并开打，但这次进度没能保存到本机（存档被占用或空间不足）。打完这场后请检查存档。", "The plan is applied and the game will start, but this save could not be written (the save slot is in use or full). Check your saves after the game."));
   tacticsBoard?.destroy();
   tacticsBoard = null;
   const { home, away, youSide } = state.pendingMatch;

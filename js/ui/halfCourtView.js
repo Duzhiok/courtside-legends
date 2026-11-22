@@ -11,6 +11,7 @@
  */
 import { mountSandbox } from "./sandboxView.js";
 import { HALF_COURT_RULES, halfCourtTeamTotals, playHalfCourtGame } from "../modes/halfCourt3v3.js";
+import { dealPlayerPool, PLAYER_POOL_SIZE } from "../modes/playerPool.js";
 import { hashSeed } from "../core/seededRandom.js";
 import { photoImg } from "../data/photo.js";
 
@@ -71,6 +72,44 @@ export function halfCourtMarkerHtml(p, pos, side, active, esc) {
   return `<g class="hc-player hc-${side}${active ? " hc-active" : ""}" transform="translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})"><circle r="3.1" /><text y="1.1" text-anchor="middle">${esc(initials(p.name))}</text><text class="hc-pos" y="5.4" text-anchor="middle">${esc(p.pos || "")}</text></g>`;
 }
 
+/**
+ * Player-pool panel (pure — unit-tested): the dealt cards, each with +A队 /
+ * +B队 buttons, plus deal / re-deal. `cards` is the current visible pool
+ * (already dealt, already excluding picked cards); `dealt` says a pool was
+ * dealt at all, so an emptied pool reads "all picked" instead of "not dealt".
+ * Buttons carry the card id (not the row index): the pool is re-rendered on
+ * every pick, and a search-box pick in between must not shift the target.
+ */
+export function halfCourtPoolHtml({ cards = [], dealt = false, lang = "zh", esc, ovrOf, error = "" }) {
+  const en = lang === "en";
+  const T = (zh, enText) => (en ? enText : zh);
+  const emptyText = dealt
+    ? T("这池都挑完了，点“换一批”再发一池。", "This pool is all picked. Hit “Re-deal” for a fresh one.")
+    : T("还没发牌。点“发一池球员”，从随机发出的 12 名球员里挑人组队。", `No pool dealt yet. Hit “Deal a pool” and build your teams from ${PLAYER_POOL_SIZE} randomly dealt players.`);
+  const grid = cards.length
+    ? `<div class="hc-pool-grid">${cards
+      .map(
+        (card) => `<div class="hc-pool-card">
+        ${halfCourtPickerCardHtml(card, { ovrOf, esc })}
+        <span class="hc-pool-add">
+          <button type="button" class="btn small" data-hc-pool-add="A:${esc(card.id)}">+${T("A队", "Team A")}</button>
+          <button type="button" class="btn small" data-hc-pool-add="B:${esc(card.id)}">+${T("B队", "Team B")}</button>
+        </span>
+      </div>`,
+      )
+      .join("")}</div>`
+    : `<p class="tiny">${esc(emptyText)}</p>`;
+  return `<section class="hc-pool" aria-label="${esc(T("球员池", "Player pool"))}">
+    <div class="hc-pool-head">
+      <h3>${esc(T("球员池", "Player pool"))}</h3>
+      <button type="button" class="btn small" data-hc-pool-deal>${esc(dealt ? T("换一批", "Re-deal") : T("发一池球员", "Deal a pool"))}</button>
+    </div>
+    <p class="tiny">${esc(T("从池里选人，一张牌只能去一队；想点谁都行，也可以在下面搜索框里自选任何球员。", "Pick from the pool — a card can only go to one team. Or use the search boxes below to pick anyone you want."))}</p>
+    ${grid}
+    <p class="tiny hc-pool-error" role="alert" data-hc-pool-error>${esc(error)}</p>
+  </section>`;
+}
+
 /** Box-score columns in order; `data-col` is what the responsive CSS hides on narrow screens. */
 export const HALF_COURT_BOX_COLUMNS = [
   { id: "player", zh: "球员", en: "Player" },
@@ -109,9 +148,32 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
   let retries = 0;
   let timer = null;
   let baseSeed = null;
+  let sandbox = null;
+  let poolCards = [];
+  let poolDealt = false;
+  let poolError = "";
   const en = () => getLang() === "en";
   const T = (zh, enText) => (en() ? enText : zh);
   const q = (sel) => root.querySelector(sel);
+
+  /** Cards already picked for either side (by search or by pool): never re-dealt, never re-shown. */
+  function pickedIds() {
+    return new Set([...(sandbox?.picksOf("A") || []), ...(sandbox?.picksOf("B") || [])].map((c) => c.id));
+  }
+
+  function renderPool() {
+    const el = q("[data-hc-pool]");
+    if (!el) return;
+    const picked = pickedIds();
+    el.innerHTML = halfCourtPoolHtml({ cards: poolCards.filter((c) => !picked.has(c.id)), dealt: poolDealt, lang: getLang(), esc, ovrOf, error: poolError });
+  }
+
+  function dealPool() {
+    poolDealt = true;
+    poolError = "";
+    poolCards = dealPlayerPool(pool(), { seed: `3v3-${Date.now().toString(36)}`, ovrOf, excludeIds: [...pickedIds()] });
+    renderPool();
+  }
 
   function stopPlayback() {
     clearTimeout(timer);
@@ -209,7 +271,7 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
       <div class="hc-score" data-hc-score aria-live="polite"></div>
       ${courtSvg(T("3v3 半场", "3v3 half-court"))}
       <ol class="hc-log" data-hc-log></ol>`;
-    mountSandbox({
+    sandbox = mountSandbox({
       root: q("[data-hc-picker]"),
       pool,
       ovrOf,
@@ -228,7 +290,37 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
         start(baseSeed);
       },
     });
+    renderPool();
     root.addEventListener("click", (event) => {
+      const dealBtn = event.target.closest("[data-hc-pool-deal]");
+      if (dealBtn) {
+        dealPool();
+        return;
+      }
+      const addBtn = event.target.closest("[data-hc-pool-add]");
+      if (addBtn) {
+        const raw = addBtn.dataset.hcPoolAdd || "";
+        const sep = raw.indexOf(":");
+        const side = raw.slice(0, sep);
+        const card = poolCards.find((c) => c.id === raw.slice(sep + 1));
+        if (!card || (side !== "A" && side !== "B")) return;
+        // The pool hides picked cards at render time, but a search-box pick
+        // after that render can steal one first: a pool card still goes to
+        // one team only, never both.
+        if (pickedIds().has(card.id)) {
+          poolError = T("这张牌已经被选走了", "That card is already picked");
+          renderPool();
+          return;
+        }
+        try {
+          sandbox?.addCard(side, card);
+          poolError = "";
+        } catch (error) {
+          poolError = error.message; // full team / duplicate: the card stays in the pool
+        }
+        renderPool();
+        return;
+      }
       const btn = event.target.closest("[data-hc-action]");
       if (!btn) return;
       const action = btn.dataset.hcAction;
@@ -254,6 +346,7 @@ export function createHalfCourtScreen({ root, pool, ovrOf, esc, getLang = () => 
     },
     setLang(lang) {
       q("[data-hc-picker]")?.__sandboxSetLang?.(lang);
+      renderPool();
       if (result && !q('[data-hc-panel="result"]').hidden) renderResult();
     },
     dispose: stopPlayback,

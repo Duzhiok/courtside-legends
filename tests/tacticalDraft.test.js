@@ -130,18 +130,38 @@ test("commitDraft writes into the SAME team object and keeps the default tactic 
   assert.equal(team.players.find((p) => p.id === team.starterIds[1]).orders.action, "drive_kick");
 });
 
-test("a failed save (throw or false) restores every field: apply is all-or-nothing", () => {
+test("a failed save (throw or false) keeps the valid plan in memory and reports saveFailed, so tip-off is never blocked by the disk", () => {
   for (const failing of [() => { throw new Error("quota"); }, () => false]) {
     const team = makeTeam();
-    const before = planOf(team);
     let s = createEditorState(team);
     s = reduce(s, { type: "SET_TEMPO", tempo: "push" });
     s = reduce(s, { type: "SET_BALL_HANDLER", playerId: team.starterIds[1] });
     const r = commitDraft(team, s.draft, { save: failing });
-    assert.equal(r.ok, false);
-    assert.deepEqual(r.errors, ["SAVE_FAILED"]);
-    assert.equal(planOf(team), before, "nothing was half-applied");
+    assert.equal(r.ok, true, "validation passed: only the save failed");
+    assert.equal(r.saveFailed, true);
+    assert.deepEqual(r.errors, []);
+    assert.equal(team.gameplan.tempo, "push", "the plan stays applied in memory");
+    assert.equal(team.gameplan.offenseFocusId, team.starterIds[1]);
   }
+});
+
+test("createDraft sanitises stale saved values, so the draft is never born invalid", () => {
+  const team = makeTeam();
+  const handler = team.players.find((p) => p.id === team.starterIds[1]);
+  team.coach.specialTactics = ["moreyball", "balanced"]; // renamed/removed tactic id from an old save
+  team.gameplan = {
+    offenseFocusId: handler.id,
+    tempo: "normal",
+    matchup: { defenderId: team.starterIds[0], targetId: "opp-star", scheme: "man", assignments: {} },
+    matchupAssignments: {},
+  };
+  handler.orders = { action: "warp_drive" }; // retired ball action
+  const draft = createDraft(team);
+  assert.equal(draft.offensiveSchemeId, "balanced", "unknown tactic falls back to balanced");
+  assert.deepEqual(draft.tacticPool, ["balanced"]);
+  assert.equal(draft.ballAction, null, "unknown ball action falls back to auto");
+  assert.equal(draft.defense.scheme, null, "unknown defence scheme is dropped");
+  assert.deepEqual(validateDraft(draft, { team }).errors, [], "nothing left to block Apply");
 });
 
 test("an invalid draft is rejected before anything is written", () => {

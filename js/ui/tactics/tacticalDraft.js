@@ -36,17 +36,23 @@ export function createDraft(team) {
   const mu = gp.matchup || null;
   const handler = (team?.players || []).find((p) => p.id === gp.offenseFocusId);
   const onTeam = new Set((team?.players || []).map((p) => p.id));
-  const pool = [...(team?.coach?.specialTactics?.length ? team.coach.specialTactics : ["balanced"])];
+  // A stale save can carry values this build no longer knows (a renamed/removed tactic, a
+  // retired ball action, a defence scheme from an old shape): never let the draft be born
+  // invalid — the board has no control that could clear a scheme it cannot list, so the
+  // player would be stuck with Apply disabled and tip-off blocked forever.
+  const pool = [...(team?.coach?.specialTactics || [])].filter((id) => TACTICS[id]);
+  if (!pool.length) pool.push("balanced");
+  const ballAction = handler && ORDER_ACTION.some((a) => a.id === handler.orders?.action) ? handler.orders.action : null;
   return {
     coachId: team?.coach?.id ?? null, // read-only in Gold: the coach comes from the market, not from a card bench
     offensiveSchemeId: pool[0],
     tacticPool: pool,
     starterIds: [...(team?.starterIds || [])],
     ballHandlerId: handler ? gp.offenseFocusId : null,
-    ballAction: handler?.orders?.action || null,
+    ballAction,
     tempo: normalizeTempo(gp.tempo),
     defense: {
-      scheme: mu?.scheme || null,
+      scheme: DEFENSE_SCHEMES.includes(mu?.scheme) ? mu.scheme : null,
       targetId: mu?.targetId || null,
       // A defender who has since left (sold, traded) is dropped here: the engine ignores him anyway, and a stale name used to
       // block Apply with "the chosen defender is not on your team" and no way for the player to clear it.
@@ -154,18 +160,21 @@ function writePlanFields(team, fields) {
 
 /**
  * All-or-nothing apply onto the live team object (identity preserved: other code holds references to it).
- * `save` is injected (Gold: autosaveCareer); a throw or `false` restores every field and reports SAVE_FAILED.
+ * `save` is injected (Gold: autosaveCareer). A validation error still blocks and applies nothing.
+ * A failed save does NOT roll the plan back and does NOT block: the save is best-effort — a foreign
+ * save slot or a quota error can refuse every write on this device — while the plan in memory is what
+ * the game runs on. The plan stays applied, the failure is reported as `saveFailed`, and the next
+ * successful save persists it. Before this, SAVE_FAILED was treated like a validation error, so
+ * tip-off scrolled back to the board forever with only "unapplied changes" showing and no way forward.
  */
 export function commitDraft(team, draft, { save = null, opponent = null } = {}) {
   const { errors, warnings } = validateDraft(draft, { team, opponent });
   if (errors.length) return { ok: false, errors, warnings };
-  const rollback = structuredClone(planFields(team));
   writePlanFields(team, planFields(applyDraft(team, draft)));
   try {
     if (save && save() === false) throw new Error("save returned false");
   } catch (error) {
-    writePlanFields(team, rollback);
-    return { ok: false, errors: ["SAVE_FAILED"], warnings, error };
+    return { ok: true, errors: [], warnings, saveFailed: true, error };
   }
   return { ok: true, errors: [], warnings };
 }

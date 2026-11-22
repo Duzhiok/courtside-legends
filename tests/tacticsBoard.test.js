@@ -111,6 +111,19 @@ test("applyPending: a plan the engine cannot run is refused, the team is untouch
   assert.ok(root.innerHTML.includes("is-error"));
 });
 
+test("applyPending: a valid plan whose save fails is still applied, and the board says the save failed (not 'cannot run')", () => {
+  const team = makeTeam();
+  const root = fakeRoot();
+  const board = mountTacticsBoard(root, { team, lang: "en", save: () => false });
+  root.click("scheme", "balanced");
+  const res = board.applyPending();
+  assert.equal(res.ok, true);
+  assert.equal(res.saveFailed, true);
+  assert.equal(team.coach.specialTactics[0], "balanced", "the plan is in the team even though the disk refused it");
+  assert.equal(root.innerHTML.includes("is-error"), false, "no 'cannot run' error: validation passed");
+  assert.ok(root.innerHTML.includes("is-warn") && root.innerHTML.includes("could not be written"), "the board warns the save did not land");
+});
+
 test("court places starters with the same position rule as the setup roster (wide positions like G / F-C)", () => {
   const team = makeTeam();
   const five = team.starterIds.map((id) => team.players.find((p) => p.id === id));

@@ -30,7 +30,7 @@ function playerChip(p, handlerId) {
 /**
  * @param {{team: object, draft: object, opponent?: object|null, lang?: string, dirty?: boolean}} args
  */
-export function buildTacticsBoardModel({ team, draft, opponent = null, lang = "zh", dirty = false }) {
+export function buildTacticsBoardModel({ team, draft, opponent = null, lang = "zh", dirty = false, saveFailed = false }) {
   const coach = team?.coach || null;
   const players = team?.players || [];
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -88,6 +88,7 @@ export function buildTacticsBoardModel({ team, draft, opponent = null, lang = "z
     errors,
     warnings,
     dirty: !!dirty,
+    saveFailed: !!saveFailed,
     canApply: !!dirty && errors.length === 0,
   };
 }

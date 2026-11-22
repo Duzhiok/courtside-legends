@@ -150,7 +150,7 @@ export const PHRASES = [
   ["3v3 半场", "3v3 Half-Court"],
   ["双方各选 3 人：21 分制、领先 2 分获胜，弧内 1 分、弧外 2 分，12 秒进攻，自动模拟", "Pick 3 a side: first to 21, win by 2, 1 inside the arc / 2 beyond it, 12-second shot clock, auto-simmed"],
   ["双方各选 3 名球员（每队同一球员只能选一次）。先到 21 分且领先 2 分获胜；弧内 1 分、弧外 2 分；12 秒进攻；防守篮板或抢断后要先清球到弧外。比赛由真实比赛引擎模拟，结果不影响账号和存档。", "Pick 3 players a side (one copy of a player per team). First to 21 with a 2-point lead wins; 1 inside the arc, 2 beyond it; 12-second shot clock; after a defensive rebound or steal the ball must be cleared beyond the arc. The real match engine plays it out; nothing touches your account or saves."],
-  ["跳到结果", "Skip to Result"],
+  ["上面发一池随机球员供你挑，也可以直接在下面搜索框里自选任何球员——光靠搜名字，最后总变成同一批球星。", "A pool of random players is dealt above for you to pick from, or pick anyone you like in the search boxes below — searching by name always ends up the same famous stars."],  ["跳到结果", "Skip to Result"],
   ["再来一场", "Play Again"],
   ["重新选人", "Re-pick Players"],
   ["绝杀挑战", "Clutch Challenge"],

@@ -122,6 +122,15 @@
 }
 #screen-halfcourt .sandbox-roster strong { display: none; }
 
+/* --- player pool: a dealt grid above the search boxes; one card per person, +A/+B to draft --- */
+#screen-halfcourt .hc-pool { display: grid; gap: 8px; margin: 4px 0 14px; }
+#screen-halfcourt .hc-pool-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+#screen-halfcourt .hc-pool-head h3 { margin: 0; font-size: 1rem; }
+#screen-halfcourt .hc-pool-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+#screen-halfcourt .hc-pool-card { border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px; padding: 8px 10px; display: grid; gap: 8px; }
+#screen-halfcourt .hc-pool-add { display: flex; gap: 6px; }
+#screen-halfcourt .hc-pool-error { color: #f0a35e; min-height: 1em; margin: 0; }
+
 /* --- box score: scroll instead of squeeze; hide low-priority columns on phones --- */
 #screen-halfcourt .hc-box-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 @media (max-width: 720px) {
