@@ -1,5 +1,7 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
 import { shotAppetite } from "./shotAppetite.js";
+import { isFloorShooter } from "./floorShooter.js";
+import { resolvePnrPlay, pnrKickMult, pnrShotMult, pnrKickChanceBonus, pnrOpenBonus } from "./pnrPlan.js";
 import { rand as rnd, withRng } from "../core/rng.js";
 import { getLang, skillNameL } from "../i18n.js";
 import { overall } from "../data/players.js";
@@ -836,6 +838,9 @@ export class GameSim {
       }
     }
     const initAction = baller?.orders?.action || "auto";
+    // Roles the coach named for the pick and roll (null = automatic: nothing below changes). See engine/pnrPlan.js.
+    const pnrPlay = initAction === "pnr" ? resolvePnrPlay(off.gameplan?.pnr, off.onCourt, baller) : null;
+    const pnrKick = pnrKickChanceBonus(pnrPlay);
     const ballAgg = aggressionLevel(baller);
     const doubled =
       !!baller && plan?.scheme === "double" && plan?.targetId === baller.id;
@@ -860,7 +865,10 @@ export class GameSim {
       kickChance = clamp(kickChance + 0.35, 0.55, 0.92);
     }
     if (initAction === "drive_kick") kickChance = clamp(kickChance + 0.14, 0.35, 0.78);
-    if (initAction === "pnr") kickChance = clamp(kickChance + 0.1, 0.32, 0.72);
+    if (initAction === "pnr") {
+      if (pnrKick.screen) kickChance = clamp(kickChance + 0.1, 0.32, 0.72); // a slip or a ghost screen is no screen: no bonus
+      if (pnrKick.extra) kickChance = clamp(kickChance + pnrKick.extra, 0.32, 0.8); // fake the drive, then kick
+    }
     if (ballAgg <= 0.35) kickChance = clamp(kickChance + 0.22 + (0.35 - ballAgg) * 0.9, 0.48, 0.94);
     else if (ballAgg >= 0.85 && !calledPlay) kickChance = clamp(kickChance * 0.55, 0.12, 0.45);
     // 独狼：少传球；被包夹时几乎不看队友
@@ -883,7 +891,7 @@ export class GameSim {
     }
     if (schemeKick && rnd() < kickChance) {
       const organizer = baller;
-      const kicked = kickToTeammate(off, baller, offenseFocusId, initAction);
+      const kicked = kickToTeammate(off, baller, offenseFocusId, pnrPlay?.ghost ? null : initAction, pnrPlay);
       if (kicked) {
         organizerId = organizer.id;
         if (ballAgg <= 0.35) {
@@ -900,8 +908,9 @@ export class GameSim {
     if (pick) this._clutchTrace = { handedOff: preKickBaller?.id === pick.shooterId, received: baller?.id === pick.shooterId, doubled };
     // Strong side = ball side; weak side = help/kick-out side (2K spacing)
     const weakSide = kickedOut ? rnd() < 0.72 : rnd() < 0.28;
-    const scheme =
-      initAction === "pnr" || initAction === "drive_kick"
+    const scheme = pnrPlay?.ghost
+      ? null // nobody sets a screen: none of the pick-and-roll weights or credit
+      : initAction === "pnr" || initAction === "drive_kick"
         ? initAction
         : kickedOut && baller?.orders?.usage === "organize"
           ? "drive_kick"
@@ -910,6 +919,7 @@ export class GameSim {
       weakSide,
       kickedOut,
       scheme,
+      pnr: pnrPlay,
       organizerId,
       putback: !!putbackId,
       lateChase: !!script,
@@ -1126,7 +1136,7 @@ export class GameSim {
       !!pick && onBallPick && baller.id === pick.shooterId && aggNow > 0.4 && (open < openNeed || doubled) && rnd() < kickChance;
     if (((aggNow <= 0.4 && open < openNeed) || pressuredPick) && !calledSpecialist) {
       const passer = baller;
-      const kicked2 = kickToTeammate(off, baller, offenseFocusId, sideCtx.scheme || initAction);
+      const kicked2 = kickToTeammate(off, baller, offenseFocusId, sideCtx.scheme || (sideCtx.pnr?.ghost ? null : initAction), sideCtx.pnr);
       if (kicked2 && kicked2.id !== baller.id) {
         if (pick && passer.id === pick.shooterId && this._clutchTrace) this._clutchTrace.repassed = true;
         if (!sideCtx.organizerId) sideCtx.organizerId = passer.id;
@@ -1355,11 +1365,11 @@ export class GameSim {
         }
       }
       // 挡拆掩护加分
-      if (sideCtx.scheme === "pnr") {
+      if (sideCtx.scheme === "pnr" && (!sideCtx.pnr || sideCtx.pnr.realScreen)) {
         const handler = sideCtx.organizerId
           ? off.onCourt.find((x) => x.id === sideCtx.organizerId)
           : baller;
-        const screener = pickScreener(off.onCourt, handler, baller);
+        const screener = sideCtx.pnr?.screener || pickScreener(off.onCourt, handler, baller);
         if (screener) gradeScreen(screener);
       }
       this.noteMomentum(off.side, pts);
@@ -4133,20 +4143,6 @@ function pickPasser(off, scorer) {
   });
 }
 
-/** True catch-and-shoot / spacing threat. */
-function isFloorShooter(p) {
-  if (!p) return false;
-  const threeTend = p.threeTend ?? 30;
-  const three = p.three || 40;
-  return (
-    (threeTend >= 42 && three >= 65) ||
-    p.offenseStyle === "spot" ||
-    p.offenseStyle === "stretch" ||
-    p.orders?.action === "spot" ||
-    p.orders?.attack === "perimeter"
-  );
-}
-
 /** Ball-handler who can punish with mid pull-ups. */
 function isMidHandler(p) {
   if (!p) return false;
@@ -4190,7 +4186,7 @@ function onCourtSpringyBig(onCourt, excludeId = null) {
 }
 
 /** Haliburton-style: start with organizer, finish with a teammate. */
-function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null) {
+function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null, pnrPlay = null) {
   const others = (off.onCourt || []).filter((p) => p.id !== organizer.id);
   if (!others.length) return null;
   const pnrOrKick = scheme === "pnr" || scheme === "drive_kick";
@@ -4216,6 +4212,7 @@ function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null) {
     if (scheme === "pnr" && ["C", "PF"].includes(p.playPos || p.pos) && (p.paint || 0) >= 72) {
       w *= 1.25;
     }
+    if (scheme === "pnr" || pnrPlay?.ghost) w *= pnrKickMult(p, pnrPlay); // the named roll man / pop man / spot / cut, not "any big"
     // 好传球手 → 弹跳内线：空接/短滚成高权重接球点（“打出空间”）
     if (organizerIsPasser && isSpringySpacer(p)) {
       const ath = springAthleteScore(p);
@@ -4382,6 +4379,13 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   if (sideCtx?.scheme === "pnr" && !sideCtx?.kickedOut && isMidHandler(p)) {
     wMid *= 1.35;
   }
+  // Roles named on the tactics board (engine/pnrPlan.js): the weights above go to the named men instead of "any C/PF" / "any shooter".
+  if (sideCtx?.pnr) {
+    const pm = pnrShotMult(p, sideCtx.pnr, { kickedOut: !!sideCtx.kickedOut });
+    w3 *= pm.w3;
+    wMid *= pm.wMid;
+    wPaint *= pm.wPaint;
+  }
   if (focusPlay?.id === "pace_three") w3 *= 1.5;
   if (focusPlay?.id === "post_up") wPaint *= 1.55;
   if (focusPlay?.id === "slow_pace") {
@@ -4518,6 +4522,7 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
     if (sideCtx.scheme === "pnr" && (organizer?.skills || []).includes("pnr_master")) open += 0.05;
     open += (formTactical(baller) - 50) * 0.00035;
   }
+  open += pnrOpenBonus(baller, sideCtx?.pnr, { kickedOut: !!sideCtx?.kickedOut }); // a slipped screen leaves its man open
   // 挡拆 / 突破分球：压缩禁区 → 射手大空位；持球中投口袋也更干净
   if (sideCtx?.scheme === "drive_kick" || sideCtx?.scheme === "pnr") {
     // 挡拆高手：挡拆发起者自己终结（持球中投）更干净
