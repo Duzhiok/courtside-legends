@@ -52,6 +52,8 @@
  * Nothing in the repo is modified by this script itself.
  *
  * B35 §18: ablation flags via the B35_ABL env var (e.g. B35_ABL=u1+u3).
+ * B35 §19 adds u5 (shot-path open leaks: skillKickOpenBonus +
+ * tempoDef.openBonus, applied after the U1 pin).
  * They are published on globalThis.__B35_ABL for the scratch-worktree
  * sim.js to read (main-tree sim.js has no ablation hooks and ignores them).
  * Part A (live games) runs under the requested flags; Part B (probe) always
@@ -68,7 +70,7 @@ import { withRng } from "../../js/core/rng.js";
 import { writeFileSync } from "node:fs";
 
 const ABL = (process.env.B35_ABL || "").split("+").filter(Boolean);
-globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4") };
+globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5") };
 console.log(`B35_ABL flags: ${ABL.join("+") || "(none)"} — live games run under these; probe pass 1 is always flag-free`);
 
 const args = process.argv.slice(2);
