@@ -17,6 +17,10 @@
  * shotOpenThreshold values, which map 1:1 from shotGateLevel.
  *
  * Usage: node scripts/measure/b35-gate-dist.mjs [gamesPerPair=20]
+ *
+ * NOTE (§23, 2026-11-22): passes with kind "assist" are ignored (7fd1d37
+ * emits them before the score event, only on makes — they would select the
+ * "received" bucket on makes). Only real in-possession passes count.
  */
 import { realTeam } from "../../tests/helpers/realGame.js";
 import { GameSim } from "../../js/engine/sim.js";
@@ -78,7 +82,9 @@ for (const [a, b, year] of PAIRS) {
     for (const e of events) {
       if (lastPossession !== null && e.possession !== lastPossession) segPassReceiver = null;
       lastPossession = e.possession;
-      if (e.meta?.pass?.receiverId) {
+      // §23: ignore kind "assist" passes (7fd1d37: emitted before the score
+      // event, only on makes — they would select "received" on makes).
+      if (e.meta?.pass?.receiverId && e.meta.pass.kind !== "assist") {
         segPassReceiver = e.meta.pass.receiverId;
       } else if (e.type === "reb" && e.meta?.reb) {
         segPassReceiver = null;

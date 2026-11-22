@@ -3,9 +3,17 @@
  * The gate-dist probe found the re-pass gate never fires in these games and
  * the SF-SG self-created makeP gap sits entirely in the thr-0.30 bucket, so
  * name the players in that bucket and report their shot counts / makeP.
- * Same 120 games as §15.1 (seed tag `b35sfctx`).
+ * Same 120 games as §15.1 (seed tag `b35sfctx`). Set 2 (§23, seed tag
+ * `b35sfctx2`): the §16.4(2) re-test pairs — see b35-sf-context.mjs.
  *
- * Usage: node scripts/measure/b35-gate-stars.mjs [gamesPerPair=20]
+ * Usage: node scripts/measure/b35-gate-stars.mjs [gamesPerPair=20] [set=1|2]
+ *
+ * NOTE (§23, 2026-11-22): 7fd1d37 added an `assist`-kind pass event, emitted
+ * before the score event and only on makes — it would select the "received"
+ * bucket on makes. Passes with kind "assist" are ignored here; only real
+ * in-possession passes (kick / handoff / repass) count toward "received".
+ * Control: a set-1 re-run must reproduce §16.2 (Jordan/Kobe thr 0.30 with
+ * self makeP ~60%, Kuminga 42.4%).
  */
 import { realTeam } from "../../tests/helpers/realGame.js";
 import { GameSim } from "../../js/engine/sim.js";
@@ -13,7 +21,11 @@ import { shotGateLevel, shotOpenThreshold } from "../../js/engine/gameplan.js";
 import { hashSeed, seededStream } from "../../js/core/seededRandom.js";
 
 const N = Number(process.argv[2] || 20);
-const PAIRS = [["BOS", "LAL", 1986], ["CHI", "SEA", 1996], ["LAL", "PHI", 2001], ["BOS", "LAL", 2008], ["SAS", "MIA", 2014], ["GSW", "BOS", 2022]];
+const SET = Number(process.argv[3] || 1);
+const PAIRS = SET === 2
+  ? [["BOS", "LAL", 1986], ["ORL", "NYK", 1996], ["BOS", "MIL", 2001], ["CLE", "DET", 2008], ["OKC", "SAS", 2014], ["MIL", "BOS", 2022]]
+  : [["BOS", "LAL", 1986], ["CHI", "SEA", 1996], ["LAL", "PHI", 2001], ["BOS", "LAL", 2008], ["SAS", "MIA", 2014], ["GSW", "BOS", 2022]];
+const SEED_TAG = SET === 2 ? "b35sfctx2" : "b35sfctx";
 const pct = (x) => `${(100 * x).toFixed(1)}%`;
 
 const stars = new Map(); // id -> { name, pos, team, year, gate, thr, fga2, fgm2, selfFga, selfFgm, mpSum, mpN, selfMpSum, selfMpN }
@@ -31,7 +43,7 @@ for (const [a, b, year] of PAIRS) {
     const events = [];
     const sim = new GameSim({
       home, away, youSide: "home", injuries: false, speed: 3,
-      rng: seededStream(hashSeed(`b35sfctx|${year}|${a}${b}|${i}`)),
+      rng: seededStream(hashSeed(`${SEED_TAG}|${year}|${a}${b}|${i}`)),
       onEvent: (e) => events.push(e),
       onTick: () => {}, onEnd: () => {},
     });
@@ -49,7 +61,9 @@ for (const [a, b, year] of PAIRS) {
     for (const e of events) {
       if (lastPossession !== null && e.possession !== lastPossession) segPassReceiver = null;
       lastPossession = e.possession;
-      if (e.meta?.pass?.receiverId) {
+      // §23: ignore kind "assist" passes (7fd1d37: emitted before the score
+      // event, only on makes — they would select "received" on makes).
+      if (e.meta?.pass?.receiverId && e.meta.pass.kind !== "assist") {
         segPassReceiver = e.meta.pass.receiverId;
       } else if (e.type === "reb" && e.meta?.reb) {
         segPassReceiver = null;

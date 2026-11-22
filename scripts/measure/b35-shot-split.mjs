@@ -24,6 +24,10 @@
  * so event FGA is ~2-3% below stats FGA; the script reports that coverage gap.
  *
  * Usage: node scripts/measure/b35-shot-split.mjs [gamesPerPair=20] [worstN=12]
+ *
+ * NOTE (§23, 2026-11-22): passes with kind "assist" are ignored (7fd1d37
+ * emits them before the score event, only on makes — they would select the
+ * "received" bucket on makes). Only real in-possession passes count.
  */
 import { realTeam } from "../../tests/helpers/realGame.js";
 import { GameSim, chooseShot } from "../../js/engine/sim.js";
@@ -85,7 +89,9 @@ for (const [a, b, year] of PAIRS) {
       lastPossession = e.possession;
       // Any ball-change carries meta.pass, whatever the event type: "pass" for kick/handoff,
       // "coach" for the low-appetite re-pass (sim.js:1135-1139, kind "repass"). B53.
-      if (e.meta?.pass?.receiverId) {
+      // §23: ignore kind "assist" passes (7fd1d37: emitted before the score
+      // event, only on makes — they would select "received" on makes).
+      if (e.meta?.pass?.receiverId && e.meta.pass.kind !== "assist") {
         segPassReceiver = e.meta.pass.receiverId;
       } else if (e.type === "reb" && e.meta?.reb) {
         rebCount += 1;

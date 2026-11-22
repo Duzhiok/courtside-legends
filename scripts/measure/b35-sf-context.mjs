@@ -19,14 +19,30 @@
  * Position buckets use card-face pos (the §11/§12 method lesson: playPos
  * lets swingmen flip buckets). Same 6 pairs x 20 games = 120 games as §9.
  *
- * Usage: node scripts/measure/b35-sf-context.mjs [gamesPerPair=20]
+ * Set 2 (§23, seed tag `b35sfctx2`): the §16.4(2) re-test — a different
+ * 6 pairs with the star composition flipped (SF gets the efficient
+ * thr-0.30 alphas LeBron CLE2008 + Durant OKC2014, SG loses Jordan/Kobe).
+ * Set 1 is the original §15.1/§16.2 pairs (seed tag `b35sfctx`).
+ *
+ * Usage: node scripts/measure/b35-sf-context.mjs [gamesPerPair=20] [set=1|2]
+ *
+ * NOTE (§23, 2026-11-22): 7fd1d37 added an `assist`-kind pass event, emitted
+ * before the score event and only on makes — it would select the "received"
+ * bucket on makes. Passes with kind "assist" are ignored here; only real
+ * in-possession passes (kick / handoff / repass) count toward "received".
+ * Control: a set-1 re-run must reproduce §15.1/§16.2 (SF self 52.8% /
+ * SG self 55.7%, self makeP 47.9% / 51.9%).
  */
 import { realTeam } from "../../tests/helpers/realGame.js";
 import { GameSim } from "../../js/engine/sim.js";
 import { hashSeed, seededStream } from "../../js/core/seededRandom.js";
 
 const N = Number(process.argv[2] || 20);
-const PAIRS = [["BOS", "LAL", 1986], ["CHI", "SEA", 1996], ["LAL", "PHI", 2001], ["BOS", "LAL", 2008], ["SAS", "MIA", 2014], ["GSW", "BOS", 2022]];
+const SET = Number(process.argv[3] || 1);
+const PAIRS = SET === 2
+  ? [["BOS", "LAL", 1986], ["ORL", "NYK", 1996], ["BOS", "MIL", 2001], ["CLE", "DET", 2008], ["OKC", "SAS", 2014], ["MIL", "BOS", 2022]]
+  : [["BOS", "LAL", 1986], ["CHI", "SEA", 1996], ["LAL", "PHI", 2001], ["BOS", "LAL", 2008], ["SAS", "MIA", 2014], ["GSW", "BOS", 2022]];
+const SEED_TAG = SET === 2 ? "b35sfctx2" : "b35sfctx";
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"];
 
 const pct = (x) => `${(100 * x).toFixed(1)}%`;
@@ -60,7 +76,7 @@ for (const [a, b, year] of PAIRS) {
     const events = [];
     const sim = new GameSim({
       home, away, youSide: "home", injuries: false, speed: 3,
-      rng: seededStream(hashSeed(`b35sfctx|${year}|${a}${b}|${i}`)),
+      rng: seededStream(hashSeed(`${SEED_TAG}|${year}|${a}${b}|${i}`)),
       onEvent: (e) => events.push(e),
       onTick: () => {}, onEnd: () => {},
     });
@@ -81,7 +97,9 @@ for (const [a, b, year] of PAIRS) {
         segPassReceiver = null; segPasses = 0; secondChanceId = null;
       }
       lastPossession = e.possession;
-      if (e.meta?.pass?.receiverId) {
+      // §23: ignore kind "assist" passes (7fd1d37: emitted before the score
+      // event, only on makes — they would select "received" on makes).
+      if (e.meta?.pass?.receiverId && e.meta.pass.kind !== "assist") {
         segPassReceiver = e.meta.pass.receiverId;
         segPasses += 1;
       } else if (e.type === "reb" && e.meta?.reb) {
