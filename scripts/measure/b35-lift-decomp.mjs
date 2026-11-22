@@ -91,7 +91,14 @@ import { withRng } from "../../js/core/rng.js";
 import { writeFileSync } from "node:fs";
 
 const ABL = (process.env.B35_ABL || "").split("+").filter(Boolean);
-globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5"), u6a: ABL.includes("u6a"), u6b: ABL.includes("u6b"), u7: ABL.includes("u7") };
+// "u34" is the docs' shorthand for u3+u4 (the joint signature+tactics
+// neutralisation); expand it so B35_ABL=u34+u6a+u6b enables both. (A past
+// run passed u34 literally and silently ran u3-only — u4 never engaged —
+// because "u34".includes("u4") is false; the flags line below now prints
+// the resolved set so a missing flag is visible at a glance.)
+const ABL_EXPANDED = ABL.flatMap((f) => (f === "u34" ? ["u3", "u4"] : [f]));
+globalThis.__B35_ABL = { u1: ABL_EXPANDED.includes("u1"), u3: ABL_EXPANDED.includes("u3"), u4: ABL_EXPANDED.includes("u4"), u5: ABL_EXPANDED.includes("u5"), u6a: ABL_EXPANDED.includes("u6a"), u6b: ABL_EXPANDED.includes("u6b"), u7: ABL_EXPANDED.includes("u7") };
+console.log(`B35_ABL flags: ${ABL_EXPANDED.join("+") || "(none)"} — live games run under these; probe pass 1 is always flag-free`);
 // §22: per-zone foul rate for the probe FGA-basis transform. Set from the
 // run's own raw records after Part A (see below); B35_FOULF env
 // ("paint:0.24,mid:0.131,three:0.082") overrides, e.g. to reuse §21's f.
@@ -108,7 +115,6 @@ if (process.env.B35_FOULF) {
 globalThis.__B35_INPUTS = { shots: [], year: null };
 // §19: the worktree sim.js counts would-be U5 leak applications here (main-tree sim.js never increments it).
 globalThis.__B35_U5COUNT = { kick: 0, kickPaint: 0, kickMid: 0, kickThree: 0, tempo: 0, tempoGrind: 0, tempoPush: 0, tempoPaint: 0, tempoMid: 0, tempoThree: 0 };
-console.log(`B35_ABL flags: ${ABL.join("+") || "(none)"} — live games run under these; probe pass 1 is always flag-free`);
 
 const args = process.argv.slice(2);
 const N = 20;
