@@ -103,3 +103,23 @@ Not done / not measured: **no on-court referees** (the five table officials are 
 choreography, and GameSim has no referee positions), **no whistle seen in the browser sample** (fouls are rare in 3x runs; the path is
 covered by the controller test), **no mobile run and no real-device FPS** for the cheer (about 2.5k bodies + heads are rewritten every
 50 ms for 1.1 s; headless numbers are not FPS), crowd and bench are not team-coloured fans (the stands cheer for either side).
+
+## 3D pass coverage (B76 follow-up): assist pass + 1x beat durations
+
+Two separate causes of "the ball just appears in the scorer's hands" at 1x, both presentation-side, neither changes a GameSim outcome.
+
+1. **Stream (`7fd1d37`):** an assist is decided after the shot and independently of any earlier kick-out, so about half of the baskets had no pass in
+   front of them. GameSim already records the assister; it is now emitted as a `pass` of `kind: "assist"` before the score/dunk event (the dunk emit
+   moved after the assist roll, no random draw in between; 12 same-seed games: identical box scores). `scripts/measure/pass-coverage.mjs`: pass events
+   82.3 -> 113.2 per game; made baskets with a pass into the scorer 40% -> 78%.
+2. **Scheduler (`c8a5c27`):** a 1x play (`possession_start` 1400 + `pass` 500 each + shot 1000, at least 2.9 s) outlasted GameSim's ~2.1 s per
+   possession, so the scheduler was always compressing and skipped every pass/start beat; 26% of shots were never drawn. `possession_start` 700 ms,
+   `pass` 380 ms (= `PASS_FLIGHT_MS`). Fake clock, 6 seeds, 1x: shots shown 74% -> 85%, drawn passes per shown shot 0.32 -> 0.62, lag median
+   3.0 s -> 2.1 s, holder-correct passes 91% -> 96%. Real browser, clean run, desktop and mobile 1x: made shots followed by the scoreboard 6/6 and 5/5,
+   pause freezes ball/score/clock/feed, 0 page errors. Tests: `tests/presentationSync.test.js` (pass beat >= flight; 1x shown >= 80% and >= 0.5 passes
+   per shown shot; fails on the old durations), `tests/b53PassEvents.test.js` (assist pass precedes its basket, same team, never more than credited assists).
+
+Not done / not measured: about 15% of shots are still not drawn at 1x (showing all of them needs a slower 1x possession cadence, a product choice);
+shots after an offensive rebound still have no pass (the court never invents one); no real-device mobile FPS; 3x was only run once at desktop
+before the beat change (the change shortens beats, 3x already skipped sub-120 ms beats).
+The `kickChance` cap for pass-first men was measured again and not shipped: see BACKLOG B76.

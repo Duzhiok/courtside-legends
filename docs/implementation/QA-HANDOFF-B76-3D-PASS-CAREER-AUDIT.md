@@ -45,8 +45,9 @@ Run in a real browser, desktop 1440 and a phone viewport (390). Use Gold or a qu
 6. Dunks: the pass comes before the dunk animation, not after it.
 
 **Known limits (not regressions):**
-- At 1x the scheduler draws only a small share of the passes in the stream (about 0.27 drawn per shown shot, same before and after). More passes in
-  the stream do not mean many more on screen at 1x. That is the choreographer/scheduler, a separate item.
+- `c8a5c27` also tightened the 1x beats (`possession_start` 1400 to 700 ms, `pass` 500 to 380 ms): at 1x about 85% of shots are drawn (was 74%) and
+  about 0.6 passes per shown shot (was 0.3). Expect noticeably more passing on screen at 1x than before; that is intended. Check that the court
+  still looks natural (players are not yanked mid-step at a possession change) on desktop and a phone. About 15% of shots are still not drawn at 1x.
 - Some shots after an offensive rebound still have no pass (the court never invents one).
 - A kick-out already puts the ball in the scorer's hands that possession, so no second pass is added for those baskets.
 
