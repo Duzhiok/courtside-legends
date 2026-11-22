@@ -23,6 +23,7 @@ import { CURATED_PHOTOS } from "./photos.curated.js";
 import { PHOTO_BY_BREF as SCRAPED_BY_BREF, PHOTO_BY_BREF_DECADE as SCRAPED_BY_DECADE } from "./photos.scraped.js";
 import { PHOTO_BY_BREF_WIKI } from "./photos.wiki.js";
 import { esc as escapeAttr } from "../core/html.js";
+import { memoize } from "../core/memo.js";
 
 export { NOT_A_PORTRAIT, isPortrait } from "./photoBlocklist.js";
 
@@ -63,7 +64,7 @@ function localIllustration(bref) {
 }
 
 /** The credited Wikimedia photo for this card: its own decade first, then ±10 years, then any. */
-export function eraPhoto(player) {
+function eraPhotoUncached(player) {
   const bref = player?.bref;
   if (!bref) return null;
   const decade = decadeOf(player?.season);
@@ -77,6 +78,16 @@ export function eraPhoto(player) {
   }
   return usable(PHOTO_BY_BREF[bref]);
 }
+
+/**
+ * Memoized: the photo tables are module constants and the answer depends
+ * only on (bref, decade), which repeats across a player's season rows —
+ * one lookup per player-decade instead of one per season row.
+ */
+export const eraPhoto = memoize(eraPhotoUncached, (player) => {
+  const bref = player?.bref;
+  return bref ? `${bref}:${decadeOf(player?.season) ?? ""}` : "";
+});
 
 /**
  * A stored `photo` (from a cached card or a partial object) is trusted only if it is

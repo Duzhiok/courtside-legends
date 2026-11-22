@@ -7,6 +7,7 @@
 
 import { shuffle } from "../core/seededRandom.js";
 import { rand } from "../core/rng.js";
+import { memoize } from "../core/memo.js";
 import { skillNameL } from "../i18n.js";
 
 export const SKILL_PACKS = {
@@ -1444,7 +1445,7 @@ export const AURA_HOLDERS = {
 };
 
 /** bref → 其参与的组合技 id 列表 */
-function comboIdsForBref(bref) {
+function comboIdsForBrefUncached(bref) {
   const b = String(bref || "").toLowerCase();
   if (!b) return [];
   const ids = [];
@@ -1458,6 +1459,9 @@ function comboIdsForBref(bref) {
   }
   return uniqSkills(ids);
 }
+
+/** Memoized: the answer depends only on the bref. */
+const comboIdsForBref = memoize(comboIdsForBrefUncached, (bref) => String(bref || "").toLowerCase());
 
 export function brefKey(p) {
   return String(p?.bref || "").toLowerCase();
@@ -1789,7 +1793,7 @@ function hashStr(key) {
 }
 
 /** Name-based trait fallback when bref missing. */
-function traitByName(player) {
+function traitByNameUncached(player) {
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
   if (/tony allen|托尼.?阿伦/.test(name)) return ["sticky_wrap", "thief", "lockdown"];
   if (/shane battier|巴蒂尔/.test(name)) return ["stopper_3d", "charge_taker", "rainmaker"];
@@ -1803,6 +1807,12 @@ function traitByName(player) {
   if (/jrue holiday|霍勒迪/.test(name)) return ["stopper_3d", "thief", "lockdown"];
   return [];
 }
+
+/** Memoized: the answer depends only on the player's name. */
+const traitByName = memoize(
+  traitByNameUncached,
+  (player) => `${player?.nameEn || ""} ${player?.name || ""}`.toLowerCase(),
+);
 
 /**
  * Unlisted role players: infer a specialty from profile, not from star tier.
@@ -2065,13 +2075,22 @@ const SIGNATURE_NAME_TO_BREF = [
   [/ray allen|雷.?阿伦/, "allenra02"],
 ];
 
-export function signatureBrefForName(player) {
+function signatureBrefForNameUncached(player) {
   const name = `${player?.nameEn || ""} ${player?.name || ""}`.toLowerCase();
   for (const [pattern, bref, exclude] of SIGNATURE_NAME_TO_BREF) {
     if (pattern.test(name) && !(exclude && exclude.test(name))) return bref;
   }
   return null;
 }
+
+/**
+ * Memoized: 52 name regexes per call, but the answer depends only on the
+ * player's name, which repeats across that player's season rows.
+ */
+export const signatureBrefForName = memoize(
+  signatureBrefForNameUncached,
+  (player) => `${player?.nameEn || ""} ${player?.name || ""}`.toLowerCase(),
+);
 
 function signatureByName(player) {
   const bref = signatureBrefForName(player);

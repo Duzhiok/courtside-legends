@@ -5,6 +5,7 @@
 import { careerArcIntangibleBias, estimateAge } from "./careerArc.js";
 import { rand } from "../core/rng.js";
 import { clamp } from "../core/seededRandom.js";
+import { memoize } from "../core/memo.js";
 
 const INTANGIBLE_DEFS = {
   gravity: { name: "引力", desc: "吸引协防，给队友创造空位" },
@@ -485,7 +486,13 @@ function classifyValueArchetype(salaryMult, winningImpact, ceiling, bumps = {}, 
   return { id: "fair", tag: null, label: "市场公允" };
 }
 
-function glassBumpFor(player) {
+/** Memo key for the name-based bumps below: the bref identifies the player (same name every season); without a bref, fall back to the name itself so two bref-less players never collide. */
+const bumpKey = (player) => {
+  const bref = String(player.bref || "").toLowerCase();
+  return bref || `n:${`${player.nameEn || ""} ${player.name || ""}`.toLowerCase()}`;
+};
+
+function glassBumpForUncached(player) {
   const bref = String(player.bref || "").toLowerCase();
   if (bref && GLASS_CANNON_BREF[bref]) return GLASS_CANNON_BREF[bref];
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
@@ -501,6 +508,9 @@ function glassBumpFor(player) {
   if (/bol bol/.test(name)) return 18;
   return 0;
 }
+
+/** Memoized: the answer depends only on (bref, name). */
+const glassBumpFor = memoize(glassBumpForUncached, bumpKey);
 
 function ballNeedBiasFor(player, ppg, apg, tpg, mpg) {
   // High usage + assists + turnovers ⇒ ball-dominant profile (guards/creators)
@@ -533,7 +543,7 @@ function offBallBiasFor(player, ppg, apg) {
   return clamp(bias, 18, 92);
 }
 
-function ballHogBumpFor(player) {
+function ballHogBumpForUncached(player) {
   const bref = String(player.bref || "").toLowerCase();
   if (bref && BALL_HOG_BREF[bref]) return BALL_HOG_BREF[bref];
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
@@ -546,7 +556,10 @@ function ballHogBumpFor(player) {
   return 0;
 }
 
-function offBallBumpFor(player) {
+/** Memoized: the answer depends only on (bref, name). */
+const ballHogBumpFor = memoize(ballHogBumpForUncached, bumpKey);
+
+function offBallBumpForUncached(player) {
   const bref = String(player.bref || "").toLowerCase();
   if (bref && OFF_BALL_BREF[bref]) return OFF_BALL_BREF[bref];
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
@@ -557,6 +570,9 @@ function offBallBumpFor(player) {
   if (/durant|杜兰特/.test(name)) return 18;
   return 0;
 }
+
+/** Memoized: the answer depends only on (bref, name). */
+const offBallBumpFor = memoize(offBallBumpForUncached, bumpKey);
 
 /** True primary ball-handler (not a post scorer with inflated usage). */
 function isBallHandlerCore(p) {
@@ -741,7 +757,7 @@ export function ballRolePlayFactor(player, onCourt, { primaryId = null } = {}) {
   return clamp(f, 0.78, 1.1);
 }
 
-function bargainBumpFor(player) {
+function bargainBumpForUncached(player) {
   const bref = String(player.bref || "").toLowerCase();
   if (bref && BARGAIN_BREF[bref]) return BARGAIN_BREF[bref];
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
@@ -753,7 +769,10 @@ function bargainBumpFor(player) {
   return 0;
 }
 
-function overpaidBumpFor(player) {
+/** Memoized: the answer depends only on (bref, name). */
+const bargainBumpFor = memoize(bargainBumpForUncached, bumpKey);
+
+function overpaidBumpForUncached(player) {
   const bref = String(player.bref || "").toLowerCase();
   if (bref && OVERPAID_BREF[bref]) return OVERPAID_BREF[bref];
   const name = `${player.nameEn || ""} ${player.name || ""}`.toLowerCase();
@@ -764,6 +783,9 @@ function overpaidBumpFor(player) {
   if (/deandre ayton|艾顿/.test(name)) return 16;
   return 0;
 }
+
+/** Memoized: the answer depends only on (bref, name). */
+const overpaidBumpFor = memoize(overpaidBumpForUncached, bumpKey);
 
 export function topIntangibles(player, n = 3) {
   const entries = Object.entries(player.intangibles || {});
