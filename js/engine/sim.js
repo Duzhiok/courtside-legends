@@ -1306,11 +1306,13 @@ export class GameSim {
       applyPlusMinus(off, def, pts);
       gradeMake(baller, { pts, open });
       gradeScoredOn(defender, { open, pts });
+      // The dunk event is emitted after the assist is known (below) so the assisting pass can come first; nothing in between draws random numbers.
+      let emitDunk = null;
       if (dunkHighlight) {
         sparkTeamFromHighlight(off, "dunk", baller, (t, msg) => this.emit(t, msg), this.lang);
         def.morale = clamp((def.morale || 50) - 1.2, 0, 100);
         if (defender) defender.mood = clamp((defender.mood ?? 50) - 2, 15, 95);
-        this.emit("dunk", `${baller.name} · ${label || this.S("暴扣", "Dunk")}`, {
+        emitDunk = () => this.emit("dunk", `${baller.name} · ${label || this.S("暴扣", "Dunk")}`, {
           player: {
             id: baller.id,
             name: baller.name,
@@ -1338,6 +1340,13 @@ export class GameSim {
           gradeAssist(primaryAst);
         }
       }
+      // B76: the assist is the sim's own record of who passed to the scorer and it is decided independently of any earlier kick-out, so about half of
+      // all baskets had no pass in front of them in the event stream (3D then had the ball appear in the scorer's hands). Emit it before the dunk /
+      // score event -- but not when a kick-out already put the ball in his hands this possession; that pass is in the stream already.
+      if (primaryAst && !sideCtx.kickedOut) {
+        this.emit("pass", "", { pass: { passerId: primaryAst.id, receiverId: baller.id, kind: "assist" } });
+      }
+      if (emitDunk) emitDunk();
       // 间接助攻：挡拆/分球发起人不是最后一传也不是得分人
       if (sideCtx.kickedOut && sideCtx.organizerId) {
         const org = off.onCourt.find((x) => x.id === sideCtx.organizerId);

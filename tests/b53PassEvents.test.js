@@ -4,7 +4,8 @@ import { GameSim } from "../js/engine/sim.js";
 import { seededStream } from "../js/core/seededRandom.js";
 import { realTeam } from "./helpers/realGame.js";
 
-const KINDS = new Set(["handoff", "kick", "repass"]);
+// "assist": the sim's own record of who passed to the scorer, emitted in front of the basket when no kick-out already did (B76 pass coverage).
+const KINDS = new Set(["handoff", "kick", "repass", "assist"]);
 
 /** Drive a full seeded live game, collecting every event. */
 function playGame(seed) {
@@ -52,7 +53,7 @@ test("B53: every meta.pass is kind-tagged and names two different on-court teamm
     assert.ok(passes.length > 20, `seed ${seed}: a full game has many passes (${passes.length})`);
     for (const e of passes) {
       const p = e.meta.pass;
-      assert.ok(KINDS.has(p.kind), `kind ${p.kind} must be handoff/kick/repass`);
+      assert.ok(KINDS.has(p.kind), `kind ${p.kind} must be handoff/kick/repass/assist`);
       assert.notEqual(p.passerId, p.receiverId, "a pass changes hands");
       // The event payload carries the snapshot at emit time: both ends must be
       // on the floor for the same team.
@@ -130,4 +131,36 @@ test("B53: the forced clutch handoff emits a handoff pass to the script shooter"
     }
   }
   assert.ok(handoffs > 0, "the handoff fired at least once across 40 seeds");
+});
+
+test("B76: an assisted basket has its assisting pass in front of it, from a teammate, and never more passes than the box score has assists", () => {
+  let assisted = 0, madeShots = 0, withPass = 0;
+  for (const seed of [41, 42, 43, 44]) {
+    const events = playGame(seed);
+    let lastPass = null;
+    let credited = 0;
+    for (const e of events) {
+      const pass = e.meta?.pass;
+      if (pass) {
+        lastPass = { ...pass, seq: e.seq };
+        if (pass.kind === "assist") assisted += 1;
+      }
+      const shot = e.meta?.shot;
+      if ((e.type === "score" || e.type === "dunk") && shot?.made !== false && shot) {
+        madeShots += 1;
+        if (lastPass && lastPass.receiverId === shot.shooterId) withPass += 1;
+        if (lastPass?.kind === "assist") {
+          assert.equal(lastPass.receiverId, shot.shooterId, "the assisting pass goes to the man who scores");
+          assert.notEqual(lastPass.passerId, lastPass.receiverId, "nobody assists himself");
+          assert.ok(lastPass.seq < e.seq, "the pass is emitted before the basket");
+        }
+        lastPass = null;
+      }
+      if (e.type === "score" && /AST|助攻/.test(e.text || "")) credited += 1;
+    }
+    const assistPasses = passesOf(events).filter((e) => e.meta.pass.kind === "assist").length;
+    assert.ok(assistPasses <= credited, `seed ${seed}: ${assistPasses} assist passes for ${credited} credited assists`);
+  }
+  assert.ok(assisted >= 20, `${assisted} assist passes over four games`);
+  assert.ok(withPass / madeShots >= 0.7, `${withPass}/${madeShots} made baskets had a pass into the scorer in front of them (was 40% before the assist pass)`);
 });
