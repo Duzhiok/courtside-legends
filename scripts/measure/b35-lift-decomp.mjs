@@ -71,6 +71,8 @@ import { writeFileSync } from "node:fs";
 
 const ABL = (process.env.B35_ABL || "").split("+").filter(Boolean);
 globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5") };
+// §19: the worktree sim.js counts would-be U5 leak applications here (main-tree sim.js never increments it).
+globalThis.__B35_U5COUNT = { kick: 0, kickPaint: 0, kickMid: 0, kickThree: 0, tempo: 0, tempoGrind: 0, tempoPush: 0, tempoPaint: 0, tempoMid: 0, tempoThree: 0 };
 console.log(`B35_ABL flags: ${ABL.join("+") || "(none)"} — live games run under these; probe pass 1 is always flag-free`);
 
 const args = process.argv.slice(2);
@@ -177,6 +179,10 @@ for (const r of used) {
 console.log(`Part A: ${gamesPlayed} games (${gamesFinished} finished), ${used.length} players, stats FGA ${statsFga} vs event FGA ${eventFga} (${blocks} recovered blocks)`);
 console.log(`FGA reconciliation (used players): ${fgaMismatch} players with event-shots+blocks != stats FGA, max |diff| ${maxFgaDiff} (0 = instrumentation is stats-basis-exact)`);
 console.log(`League realised 2P%: stats basis ${pct(tot("fgm2") / tot("fga2"))} (${tot("fga2")} 2PA) | event+blocks basis ${pct(live2m / live2a)} (${live2a} 2PA)`);
+{
+  const c = globalThis.__B35_U5COUNT;
+  console.log(`U5 leak counters (Part A, ${gamesPlayed} games): kick bonus applied ${c.kick}x (paint ${c.kickPaint} / mid ${c.kickMid} / three ${c.kickThree}), tempo openBonus applied ${c.tempo}x (grind ${c.tempoGrind} / push ${c.tempoPush}; paint ${c.tempoPaint} / mid ${c.tempoMid} / three ${c.tempoThree})`);
+}
 
 // ---------- Part B: probe (same as b35-make-by-zone.mjs Part B) ----------
 console.log("\nPart B: calcMakeProb zone probe (60 draws/player/zone, fixed open 0.55) + chooseShot shares (300 draws)");
