@@ -50,12 +50,26 @@
  * Usage (from a worktree with meta.shot.zone instrumented):
  *   node scripts/measure/b35-lift-decomp.mjs [--out=path.json]
  * Nothing in the repo is modified by this script itself.
+ *
+ * B35 §18: ablation flags via the B35_ABL env var (e.g. B35_ABL=u1+u3).
+ * They are published on globalThis.__B35_ABL for the scratch-worktree
+ * sim.js to read (main-tree sim.js has no ablation hooks and ignores them).
+ * Part A (live games) runs under the requested flags; Part B (probe) always
+ * runs flag-free first, then — when the worktree sim.js supports it — a
+ * second probe pass under {u4:true}, so the probe-side baseline of the U4
+ * terms (personality / bigMismatch / defPress are NOT neutral in the probe)
+ * is measured instead of guessed. From main-tree sim.js the second pass
+ * reproduces the first (delta 0) and is harmless.
  */
 import { realTeam } from "../../tests/helpers/realGame.js";
 import { GameSim, chooseShot, calcMakeProb } from "../../js/engine/sim.js";
 import { hashSeed, seededStream } from "../../js/core/seededRandom.js";
 import { withRng } from "../../js/core/rng.js";
 import { writeFileSync } from "node:fs";
+
+const ABL = (process.env.B35_ABL || "").split("+").filter(Boolean);
+globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4") };
+console.log(`B35_ABL flags: ${ABL.join("+") || "(none)"} — live games run under these; probe pass 1 is always flag-free`);
 
 const args = process.argv.slice(2);
 const N = 20;
@@ -184,14 +198,31 @@ for (const [a, b, year] of PAIRS) {
         defender = [...oppCourt].sort((x, y) => Math.abs(POS_ORDER.indexOf(x.playPos || x.pos) - pi) - Math.abs(POS_ORDER.indexOf(y.playPos || y.pos) - pi))[0];
       }
       const mp = {};
-      for (const zone of ["paint", "mid", "three"]) {
-        const shot = { zone, pts: zone === "three" ? 3 : 2, weakSide: false };
-        let accFixed = 0;
-        withRng(seededStream(hashSeed(`b35make|${year}|${p.id}|${zone}`)), () => {
-          for (let k = 0; k < DRAW; k += 1) accFixed += calcMakeProb(p, shot, 0.55, off, def, defender, null, null, { quarter: 2, scoreDiff: 0, onCourt });
-        });
-        mp[zone + "Fixed"] = accFixed / DRAW;
-      }
+      const probeMp = (flags) => {
+        const saved = globalThis.__B35_ABL;
+        globalThis.__B35_ABL = flags;
+        const out = {};
+        try {
+          for (const zone of ["paint", "mid", "three"]) {
+            const shot = { zone, pts: zone === "three" ? 3 : 2, weakSide: false };
+            let accFixed = 0;
+            withRng(seededStream(hashSeed(`b35make|${year}|${p.id}|${zone}`)), () => {
+              for (let k = 0; k < DRAW; k += 1) accFixed += calcMakeProb(p, shot, 0.55, off, def, defender, null, null, { quarter: 2, scoreDiff: 0, onCourt });
+            });
+            out[zone + "Fixed"] = accFixed / DRAW;
+          }
+        } finally {
+          globalThis.__B35_ABL = saved;
+        }
+        return out;
+      };
+      Object.assign(mp, probeMp({}));
+      // §18 pass 2: probe-side baseline of the U4 terms. From a worktree
+      // sim.js with U4 hooks this differs from pass 1 (personality /
+      // bigMismatch / defPress are live in the neutral probe); from
+      // main-tree sim.js it is identical (delta 0).
+      const mpU4 = probeMp({ u4: true });
+      for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU4"] = mpU4[zone + "Fixed"];
       const tally = { paint: 0, mid: 0, three: 0 };
       withRng(seededStream(hashSeed(`b35make-share|${year}|${p.id}`)), () => {
         for (let k = 0; k < 300; k += 1) tally[chooseShot(p, off, null, null).zone] += 1;
@@ -204,6 +235,14 @@ for (const [a, b, year] of PAIRS) {
 const realMap = new Map(used.map((r) => [`${r.year}|${r.p.id}`, r]));
 const joined = probeRows.map((pr) => ({ ...pr, live: realMap.get(`${pr.year}|${pr.p.id}`) })).filter((j) => j.live);
 console.log(`  ${probeRows.length} probe rows, ${joined.length} joined to live rows`);
+// §18: probe-side baseline of the U4 terms (pass 2 minus pass 1, 2PA-weighted).
+// A nonzero delta here is the part of a live-U4 ablation delta that is NOT
+// a live-side contribution — it is the probe's own baseline of those terms.
+for (const zone of ["paint", "mid"]) {
+  const wAvg = (f) => sum(joined, (j) => f(j) * j.live.live[zone].a) / Math.max(1, sum(joined, (j) => j.live.live[zone].a));
+  const d = wAvg((j) => j.mp[zone + "FixedU4"] - j.mp[zone + "Fixed"]);
+  console.log(`  probe-side U4 baseline, ${zone}: neutral ${pct(wAvg((j) => j.mp[zone + "Fixed"]))} -> U4-neutral ${pct(wAvg((j) => j.mp[zone + "FixedU4"]))} (delta ${gap(d)})`);
+}
 
 // ---------- Part C: Oaxaca decomposition (2P, event basis) ----------
 function decomp(j) {
@@ -279,7 +318,7 @@ if (OUT) {
     players: dec.map((j) => ({
       key: `${j.year}|${j.p.id}`, name: j.p.name, year: j.year, pos: j.pos,
       live: j.live.live,
-      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed } },
+      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed }, mpFixedU4: { paint: j.mp.paintFixedU4, mid: j.mp.midFixedU4, three: j.mp.threeFixedU4 } },
       sim: { min: j.live.min, fga: j.live.fga, fgm: j.live.fgm, fga2: j.live.fga2, fgm2: j.live.fgm2, fga3: j.live.fga3, fgm3: j.live.fgm3 },
       decomp: { realised: j.d.realised, expected: j.d.expected, mix: j.d.mix, stack: j.d.stack, interact: j.d.interact, l2a: j.d.l2a },
     })),
