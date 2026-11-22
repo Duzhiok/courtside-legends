@@ -592,3 +592,61 @@ thr 0.30 档的 6 人：Jordan SG CHI1996（自创 289 次，makeP 61.8%）、Ko
 1. **拆 stack 本身**：+6.1pt 的 U1 stack 还是一整块——招牌（`sigMakeBoost`/`openBoost`）、战术分流（`scheme` pnr/drive_kick）、`bigMismatch`、context 乘子（tactic/morale/chem/fit/temp）、hot/mood、hunt/defPress、spark、form/`skillMakeBonus` 各占多少。继续消融：U3 关招牌、U4 中性战术/context。§16.4(1) 的后半句至此仍未做。
 2. SF 缺口：换一组对阵复测球星构成效应（§16.4(2)，未做）。
 3. 局限：单组种子；盖帽按名匹配（1 次 +1 未解）；探针三分占比低估（17.2）；U1 的 0.55 钉死恰逢 catchShoot 阈值（§16.4 已注）；基线与 U1 的 99 人集差 1 名过滤边际球员，联盟数以 98 人交集为准。
+
+## §18 拆 U1 stack：招牌 +1.2pt，战术/context 实战净值 +4.5pt，残差 +1.2pt（Muse，2026-11-22 06:26 轮）
+
+背景：§17.3(1)。三组消融全在 scratch worktree `/tmp/b35-abl18`（跑完已删），主线只改测量脚本：`scripts/measure/b35-lift-decomp.mjs` 得 `B35_ABL` 环境变量（`u1+u3` 等）与探针第二遍（见下）；另修一处脚本 bug——有 0 次禁区/中距离实战出手的球员会让 zone makeP 为 NaN、污染联盟汇总，U3/U4 各有一名纯禁区中锋中招，现从分解中剔除并打印计数。
+
+### 18.0 消融定义与自检
+
+- **U1**（复用 §16/§17）：两处 `calcOpenness` 调用后 `open` 钉死 0.55；`meta.shot.zone` / `meta.block.zone` 仪器同 §17。
+- **U3 = U1 + 招牌关**：`trySignatureOffense` 照常调用（RNG 消耗不变），返回后丢弃——`openBoost`、`_sigMakeBoost`、`guaranteed` 全灭，招牌上限（禁区 0.80/中距离 0.72/三分 0.62/总 0.82）落回普通上限（0.68/0.52/0.45/0.68）。防守招牌（盖帽）不动。
+- **U4 = U1 + 战术/context 中性**：`calcMakeProb` 内中性化 scheme（pnr/drive_kick）、`bigMismatch`、personality（`personalityOnPlay` → ×1）、momentum、战术乘子（offense/defense）、morale/chem/fit/temp、hot/mood、hunt/defPress、spark、bump/double、packPaint、staffShot、tempoMakeBonus、formMakeBonus。**`skillMakeBonus` 留在 U4 外**：探针已含其 zone/open/技能核心（同卡、同 open 0.55），只剩 Q4/关键分/二人组/落后等实战残差，归入 U34 残差再看；整项中性化会把探针已含的大头也算进来，是错的。疲劳、`defBigs`、`paintCrowdPenalty` 也不动（探针已含或近似含）。
+- **U34 = U1 + U3 + U4**：看残差。
+- **探针第二遍（新）**：每轮的 Part B 在中性探针外再跑一遍 `{u4:true}` 的探针 makeP。U4 项在探针里并非全中性（personality、`bigMismatch`、defPress 都在探针里活着），不测这一遍就无法区分“U4 在实战里贡献多少”与“探针自己含了多少”。主线 `sim.js` 无消融钩子时第二遍与第一遍相同（差 0），无害。
+- **自检**：U1 复跑与 §17 的 U1 局逐数一致（99 人、stats FGA 19679、追回盖帽 1143、ALL 行 lift +6.1 / stack +6.0，与 §17 日志同一行）；四轮探针 `mpFixed` 跨轮最大差 0.0（探针与轮次无关）；分解恒等式逐人成立（max err 1.4e-16）；四轮交集 96 人（各轮 `used` 集差 1–3 名过滤边际球员：Brian Shaw、Theo Ratliff、Payton Pritchard、Mitch Kupchak；另 U3/U4 各剔 1 名 0 中距离纯禁区中锋）。以下联盟数以 96 人交集为准（与 §17 的 99 人数差 ≤0.1pt）。
+
+### 18.1 结论：+6.1pt stack 的归属（96 人交集，Oaxaca stack，探针占比加权）
+
+| 位置 | stack U1 | stack U3 | stack U4 | stack U34 | 招牌 live gross | U4 live gross | 探针 U4 基线 | U4 净值 | 残差 | 招牌×U4 交互 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| PG n=16 | +4.8pt | +3.5pt | −6.9pt | −4.7pt | +1.3pt | +11.7pt | +5.3pt | +6.4pt | +0.6pt | +3.5pt |
+| SG n=27 | +7.5pt | +5.2pt | −3.1pt | −5.2pt | +2.3pt | +10.6pt | +5.6pt | +5.0pt | +0.3pt | +0.2pt |
+| SF n=21 | +4.4pt | +4.9pt | −2.8pt | −2.8pt | −0.5pt | +7.2pt | +5.3pt | +1.9pt | +2.5pt | −0.5pt |
+| PF n=14 | +6.6pt | +5.4pt | −5.5pt | −5.7pt | +1.2pt | +12.1pt | +5.8pt | +6.3pt | +0.1pt | +1.0pt |
+| C n=18 | +6.3pt | +5.0pt | −4.2pt | −4.3pt | +1.3pt | +10.5pt | +6.4pt | +4.1pt | +2.1pt | +1.2pt |
+| **联盟** | **+6.1pt** | **+4.9pt** | **−4.1pt** | **−4.5pt** | **+1.2pt** | **+10.2pt** | **+5.7pt** | **+4.5pt** | **+1.2pt** | **+0.8pt** |
+
+恒等式：招牌 +1.2 + U4 净值 +4.5 + 残差 +1.2 − 交互 +0.8 = +6.1（stack U1）。三点解读：
+
+1. **招牌只占 +1.2pt**。`sigMakeBoost`/`openBoost`/上限抬升三者合计在两分上只值约 1.2pt——招牌是点缀，不是 stack 的主力。单人摆动大（Otto Porter +26.2pt、Bjelica +19.4pt、Pierce +15.7pt 对 Horace Grant −12.5pt、Radmanović −12.2pt；2PA 仅 30 余次的球员 ±20pt 是噪声），位置汇总才稳定。SF 的 −0.5pt 是噪声级（≈0），不当真。
+2. **U4 live gross +10.2pt，但其中 +5.7pt 探针里本来就有**。中性化实战战术/context 一共拿掉 10.2pt，可探针自己就含了 5.7pt 同类项（见 18.2）——所以 U4 对 stack 的**净**贡献只有 +4.5pt。只报 live gross 会把 stack 的来源夸大一倍；只报净值会漏掉“探针预期本身就被 personality 抬高了”这一层。两者都要记。
+3. **U4 净值按位置不均**：PG +6.4、PF +6.3、SG +5.0、C +4.1、SF 只有 +1.9pt——SF 从实战战术/context 里得的最少，与 SF 两分缺口为负（−2.5pt）、PF/C 缺口为正（+5.1/+5.6pt）的方向一致，但不是全部解释（缺口里还有探针−真实的公式层差）。PG 的招牌×U4 交互 +3.5pt 偏大（n=16、2PA 最少，可能是噪声；SG +0.2、SF −0.5、PF +1.0、C +1.2）。
+
+### 18.2 探针的 U4 基线：所谓“中性”探针自带 +6.1pt（禁区）/ +4.9pt（中距离）
+
+探针第二遍（2PA 加权，96 人交集）：禁区 51.8% → U4 中性 45.7%（−6.1pt），中距离 43.3% → 38.5%（−4.9pt）；按位置禁区 +5.5~+6.4pt、中距离 PG +4.6 / SG +4.8 / SF +4.9 / PF +4.4 / **C +6.1pt**。构成（另写诊断脚本 `hidden_files/b35-abl18-personality.mjs`，120 名探针球员、探针 context 实测）：
+
+- **主体是 `hiddenPlayFactor`，均值 1.149**——几乎顶到 1.15 的钳制上限（`0.86 + impact×0.0022 + ceiling×0.001 + unlock×0.028`，轮换球员的 impact/ceiling 本来就高）。也就是说“中性”探针里每个球员都先吃了约 +15% 的乘性命中加成；`ballRolePlayFactor` 均值仅 1.007、性格特质项（team/calm/fiery）均值 1.002，几乎不贡献。最低 personality 1.094（Cory Joseph），最高 1.220（Magic/Payton/Curry，team>80 的 ×1.03 叠加）。
+- **defPress 在探针里是 −1.33pt 的固定拖累**（探针教练 `buffs` 缺省 → 8/18 → `base -= 0.444×0.03`），所以 personality 毛值 ≈ 禁区 +7.4pt（6.1 + 1.33）。
+- **bigMismatch 只在大个子中距离上多 +1.5pt**（C 中距离基线 6.1 vs PG 4.6；探针防守人按位置配对，大个子投手的中距离正对大个子防守人）。禁区无 bigMismatch，各位置基线均匀（+5.5~+6.4）佐证主体是 personality 而非错位。
+- **推论**：§10/§13 拿探针当“预期”时，预期里已经含了这 +5.7pt 的 personality 层——实战 stack 的一半以上（+5.7/+10.2）是探针与实战**共有**的项，不是实战独有的“选择/战术红利”。以后任何“实战 − 探针”的解读都要先扣掉这一层；反过来，`hiddenPlayFactor` 均值 1.149 且全员顶格，也说明它在当前样本里几乎不区分球员（是个全员 +15% 的底座，不是鉴别项）——这是 B35 平衡讨论的另一条线：若要压低联盟命中率，动这个底座比动单项加成见效快，但它是全员同乘，改了会动所有人。
+
+### 18.3 分区域：stack 在禁区/中距离各剩多少
+
+实战 makeP（2PA 加权，96 人交集）：
+
+| 区域 | U1 | U3（招牌关） | U4（战术/context 中性） | U34（双关） | 探针 | 探针 U4 中性 |
+|---|---|---|---|---|---|---|
+| 禁区 | 58.2% | 56.8% | 47.1% | 47.2% | 51.8% | 45.7% |
+| 中距离 | 49.1% | 47.4% | 41.2% | 38.3% | 43.3% | 38.5% |
+
+- 招牌在两区差不多（禁区 −1.4pt、中距离 −1.7pt）。
+- U4 在禁区拿掉 −11.1pt、中距离 −7.9pt——禁区更吃 context（挡拆喂饼、士气/战术乘子都在禁区兑现）。
+- **U34 的中距离 38.3% ≈ 探针 U4 中性 38.5%**：中距离上招牌+战术/context 关完之后，实战与中性探针几乎重合——中距离的残差 ≈ 0。**残差全在禁区**：U34 禁区 47.2% vs 探针 U4 中性 45.7%（+1.5pt），与 18.1 的联盟残差 +1.2pt 同源。禁区独有的候选：shot-path 的 open 泄漏（`skillKickOpenBonus` 在 U1 钉死后仍往 open 上加、只喂禁区居多；`tempoDef.openBonus`）、`skillMakeBonus` 的实战残差（`the_answer` 落后禁区、`mamba_spirit` 末节/落后）、`defBigs`/`paintCrowdPenalty` 的阵容差；疲劳是负向、两区都有，不解释禁区独占。
+
+### 18.4 下一步（没做，修法仍等用户批）
+
+1. **U5：shot-path 的 open 泄漏**（`skillKickOpenBonus` + `tempoDef.openBonus`，在 U1 钉死后仍加 open）——验证 18.3 的禁区残差 +1.5pt 是否由此而来。需在 shot path 另加消融点。
+2. SF 缺口：换一组对阵复测球星构成效应（§16.4(2)，仍未做）。
+3. 局限：单组种子；U4 是粗杠杆（整组中性化，live gross 与探针基线靠第二遍探针分开，`personalityOnPlay` 的 fiery 随机项在两遍探针里走不同 RNG 流，量级小）；单人招牌 gross 噪声大（小样本 ±20pt）；PG 交互 +3.5pt 可能是噪声；盖帽按名匹配（1 次 +1 未解）；探针三分占比低估（17.2）；U1 的 0.55 钉死恰逢 catchShoot 阈值（§16.4 已注）。
