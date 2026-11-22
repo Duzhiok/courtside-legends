@@ -103,11 +103,9 @@ import {
   tacticGroupName,
   asstName,
   coachTactics,
-  orderTacticsDefaultFirst,
   ensureTeamStaff,
   isLegendCoach,
   isObscureStaff,
-  rosterTacticUnlocks,
   tacticUnlockHint,
 } from "./data/coaches.js";
 import { FRANCHISES, POS_SLOTS, franchiseName, playersForFranchise } from "./data/franchises.js";
@@ -234,6 +232,7 @@ import {
   finalsSeriesLabel,
   kindLabel,
   listPodMatches,
+  nextCareerMatch,
   nextStageSize,
   noteCareerAllTeamGame,
   noteCareerFinalsGame,
@@ -479,6 +478,7 @@ import {
 } from "./engine/gameplan.js";
 import { screenFiveFromPlan, seatPlayers, setupStarters } from "./engine/lineupSlots.js";
 import { orderSelectHtml, setupCardOrdersHtml } from "./ui/setupCardOrders.js";
+import { setupCardRoleHtml } from "./ui/setupCardRoles.js";
 import {
   PLAYER_ROLES,
   inferPlayerRole,
@@ -1756,7 +1756,6 @@ function continueFromSave() {
         state.setup.selected = new Set(savedIds);
         renderSetupRoster();
         renderSetupRoles();
-        renderSetupOrders();
         renderSetupGameplan();
       }
       return;
@@ -5383,18 +5382,20 @@ function renderScoutBoard(targetEl, { highlightYours = true } = {}) {
   const roundLabel = $("#scout-round-label");
   if (roundLabel) roundLabel.textContent = label;
 
-  const blocks = [];
-  blocks.push(
-    `<div class="scout-match"><strong>${label}</strong> · 四人一组：开门赛 → 胜者组 / 复活赛 → 晋级决胜（两败出局）</div>`
-  );
+  // The column shows only our next game (opponent + players); every other
+  // game folds away so the next opponent is visible without scrolling.
+  const next = nextCareerMatch(c);
+  const others = [];
   for (const log of c.bracketLog || []) {
-    blocks.push(`<div class="scout-match"><strong>${log.label}</strong>（已结束）</div>`);
-    for (const m of log.matches || []) blocks.push(scoutMatchHtml(m, false));
+    others.push(`<div class="scout-match"><strong>${log.label}</strong>（已结束）</div>`);
+    for (const m of log.matches || []) {
+      if (m !== next) others.push(scoutMatchHtml(m, false));
+    }
   }
   for (const pod of c.pods || []) {
     const tag = pod.isFinal ? "决赛组" : `第 ${pod.id + 1} 组`;
     const adv = (pod.advancers || []).map((t) => t.name).join("、") || "—";
-    blocks.push(
+    others.push(
       `<div class="scout-match"><strong>${tag}</strong>${
         pod.done ? ` · 晋级：${adv}` : ""
       }</div>`
@@ -5406,10 +5407,22 @@ function renderScoutBoard(targetEl, { highlightYours = true } = {}) {
       pod.revivalMatch,
       pod.deciderMatch,
     ]) {
-      if (m) blocks.push(scoutMatchHtml(m, highlightYours && m.yours));
+      if (m && m !== next) others.push(scoutMatchHtml(m, highlightYours && m.yours));
     }
   }
-  el.innerHTML = blocks.join("") || `<p class="tiny">暂无对阵</p>`;
+  const head = `<div class="scout-match"><strong>${label}</strong> · 四人一组：开门赛 → 胜者组 / 复活赛 → 晋级决胜（两败出局）</div>`;
+  const nextHtml = next ? scoutMatchHtml(next, true) : "";
+  const othersHtml = others.join("");
+  if (!nextHtml && !othersHtml) {
+    el.innerHTML = `<p class="tiny">暂无对阵</p>`;
+    return;
+  }
+  el.innerHTML =
+    head +
+    (nextHtml || `<p class="tiny">暂无下一战</p>`) +
+    (othersHtml
+      ? `<details class="scout-others"><summary>其他球队的比赛</summary>${othersHtml}</details>`
+      : "");
 }
 
 function scoutMatchHtml(m, isYours) {
@@ -6242,19 +6255,6 @@ function openSetup(home, away, youSide) {
   const { five: fiveNow, fresh } = setupStarters(you.starterIds, available, overall);
   state.setup = { you, selected: new Set(fiveNow.map((p) => p.id)) };
   if (fresh) autoAssignUniquePositions(fiveNow);
-  const asstBit = you.assistant
-    ? ` ｜ 助教 ${you.assistant.name}（激发 ${you.assistant.sparkPotential ?? "-"}）`
-    : "";
-  const autoBit =
-    you.coach?.playerAutonomy != null ? ` · 场上自主 ${you.coach.playerAutonomy}` : "";
-  $("#setup-coach-base").textContent = `基础教练：${you.coach?.name || "自定义"}（${you.coach?.style || ""}${autoBit}）${asstBit}`;
-  renderPhilTactics(you);
-  if (you.coach?.buffs) {
-    $("#phil-off").value = you.coach.buffs.offense;
-    $("#phil-def").value = you.coach.buffs.defense;
-    $("#phil-morale").value = you.coach.buffs.morale;
-    $("#phil-stam").value = you.coach.buffs.stamina;
-  }
   // 未手动改过的位置/倾向按属性推荐填充
   // Season default rotation: restore starters / minutes / orders from the LIVE team's current
   // fields every time, never from the cached live.rotation snapshot. renderSeasonRotation()
@@ -6276,27 +6276,14 @@ function openSetup(home, away, youSide) {
         state.setup.selected = new Set(screen.five.map((p) => p.id));
         if (screen.fresh) autoAssignUniquePositions(screen.five);
       }
-      if (plan.phil) {
-        $("#phil-off").value = plan.phil.offense ?? $("#phil-off").value;
-        $("#phil-def").value = plan.phil.defense ?? $("#phil-def").value;
-        $("#phil-morale").value = plan.phil.morale ?? $("#phil-morale").value;
-        $("#phil-stam").value = plan.phil.stamina ?? $("#phil-stam").value;
-        if (plan.phil.styleName) $("#phil-name").value = plan.phil.styleName;
-      }
     }
   }
-  syncPhilLabels();
-  syncPhilRosterHint();
   ensurePlayerDefaults(you.players);
   ensureRoles(you.players);
   you.lineupPacks = you.lineupPacks || autoBuildAllPacks(you.players);
   you.gameplan = you.gameplan || { matchup: null };
-  state.setup.packPreview = null;
   renderSetupRoster();
-  renderSetupPacks();
-  renderSetupTempo();
   renderSetupRoles();
-  renderSetupOrders();
   renderSetupGameplan();
   // The role/orders renders above can re-seat starters (playPos); redraw the roster once so it, and the tactics board
   // mounted next, both show the final positions.
@@ -6364,57 +6351,6 @@ function syncTempoHelp(el, tempoId) {
   el.textContent = planLabel(t, getLang()).desc;
 }
 
-function renderSetupTempo() {
-  const you = state.setup?.you;
-  const sel = $("#setup-tempo-select");
-  if (!sel || !you) return;
-  you.gameplan = you.gameplan || {};
-  if (!you.gameplan.tempo) you.gameplan.tempo = "normal";
-  fillTempoSelect(sel, you.gameplan.tempo);
-  syncTempoHelp($("#setup-tempo-help"), you.gameplan.tempo);
-  sel.onchange = () => {
-    you.gameplan.tempo = normalizeTempo(sel.value);
-    syncTempoHelp($("#setup-tempo-help"), you.gameplan.tempo);
-  };
-}
-
-function renderSetupPacks() {
-  const box = $("#setup-packs");
-  const you = state.setup?.you;
-  if (!box || !you) return;
-  you.lineupPacks = you.lineupPacks || autoBuildAllPacks(you.players);
-  box.innerHTML = LINEUP_PACK_DEFS.map((d) => {
-    const ids = you.lineupPacks[d.id] || [];
-    const names = ids
-      .map((id) => you.players.find((p) => p.id === id)?.name)
-      .filter(Boolean)
-      .slice(0, 3)
-      .join("/");
-    const active = state.setup.packPreview === d.id ? " active" : "";
-    return `<button type="button" class="btn small${active}" data-pack="${d.id}" title="${escAttr(d.hint)}">${d.name}${
-      names ? ` · ${names}` : ""
-    }</button>`;
-  }).join("");
-  box.querySelectorAll("[data-pack]").forEach((btn) => {
-    btn.onclick = () => {
-      const id = btn.dataset.pack;
-      // Rebuild from current roster then apply as starter selection
-      you.lineupPacks = autoBuildAllPacks(you.players);
-      const ids = you.lineupPacks[id] || [];
-      state.setup.selected = new Set(ids);
-      state.setup.packPreview = id;
-      for (const p of you.players) {
-        if (ids.includes(p.id) && !p.playPos) p.playPos = normalizePos(p.pos);
-      }
-      autoAssignUniquePositions(you.players.filter((p) => ids.includes(p.id)));
-      renderSetupRoster();
-      renderSetupPacks();
-      renderSetupRoles();
-      renderSetupOrders();
-    };
-  });
-}
-
 function fillBallActionSelect(sel, preferred = "pnr") {
   if (!sel) return;
   const cur = sel.value || preferred;
@@ -6428,57 +6364,28 @@ function fillBallActionSelect(sel, preferred = "pnr") {
   syncBallActionDesc(sel);
 }
 
-/** 在持球打法下拉旁展示当前选项说明（挡拆等） */
+/** 在持球打法下拉旁展示当前选项说明（挡拆等）——仅比赛里那支下拉用，赛前那支随进阶设置栏删了。 */
 function syncBallActionDesc(sel) {
   if (!sel) return;
   const id = sel.id || "";
-  const descEl =
-    id === "setup-ball-action"
-      ? $("#setup-ball-action-desc")
-      : id === "offense-ball-action"
-        ? $("#offense-ball-action-desc")
-        : null;
+  const descEl = id === "offense-ball-action" ? $("#offense-ball-action-desc") : null;
   if (!descEl) return;
   const act = ORDER_ACTION.find((a) => a.id === sel.value);
   if (act?.hint) {
     descEl.textContent = `${act.name}：${act.hint}`;
-  } else if (id === "setup-ball-action") {
-    descEl.textContent = "先选持球人与打法；其余人可在下方设成「无球定点」配合。不指定则按本能抢球。";
   } else {
     descEl.textContent = "";
   }
 }
 
-function syncSetupBallHandlerUi() {
-  const you = state.setup?.you;
-  const focusSel = $("#setup-offense-focus");
-  const actionSel = $("#setup-ball-action");
-  if (!you || !focusSel) return;
-  const id = focusSel.value || "";
-  if (!you.gameplan) you.gameplan = {};
-  you.gameplan.offenseFocusId = id || null;
-  const p = id ? you.players.find((x) => x.id === id) : null;
-  if (p) {
-    ensurePlayerOrders([p]);
-    const act = actionSel?.value || suggestedBallHandlerAction(p);
-    if (actionSel) fillBallActionSelect(actionSel, act);
-    p.orders.action = actionSel?.value || act;
-    const u = usageForBallAction(p.orders.action);
-    if (u && p.orders.usage === "auto") p.orders.usage = u;
-  } else if (actionSel) {
-    fillBallActionSelect(actionSel, "pnr");
-  }
-}
-
 // UI 3.0 Gold pre-game tactics board (js/ui/tactics/). The roster list below owns who starts and the board follows it;
-// the old advanced controls stay, and are re-rendered after every Apply, so "start the game" reads one consistent plan.
+// the old advanced controls are gone (user 2026-11-22), so "start the game" reads the board's applied plan
+// plus the coach's own settings and the saved rotation plan.
 let tacticsBoard = null;
 function refreshSetupFromTeam() {
   const you = state.setup?.you;
   if (!you) return;
   state.setup.selected = new Set(you.starterIds);
-  renderPhilTactics(you);
-  renderSetupOrders();
   renderSetupRoster();
 }
 function mountSetupTacticsBoard() {
@@ -6502,93 +6409,34 @@ function mountSetupTacticsBoard() {
   tacticsBoard.syncStarters([...state.setup.selected]);
 }
 
-function renderSetupOrders() {
-  // Team-level ball-handler controls only. The per-player tendency
-  // dropdowns used to be rows here; they now live at the bottom of each
-  // setup card (js/ui/setupCardOrders.js), so there is nothing to match
-  // by name further down the page.
-  const focusSel = $("#setup-offense-focus");
-  const actionSel = $("#setup-ball-action");
-  const you = state.setup?.you;
-  if (!you) return;
-  ensurePlayerOrders(you.players);
-  // Same list rule as renderSetupRoles (setupPlayerList): the focus
-  // dropdown lists the whole roster, not just starters.
-  const list = setupPlayerList(you.players, state.setup.selected, { season: !!state.season });
-  if (focusSel) {
-    const prev = you.gameplan?.offenseFocusId || focusSel.value || "";
-    focusSel.innerHTML =
-      `<option value="">（不指定 · 按本能）</option>` +
-      list.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
-    if (prev && list.some((p) => p.id === prev)) focusSel.value = prev;
-    else focusSel.value = "";
-    focusSel.onchange = () => {
-      syncSetupBallHandlerUi();
-      renderSetupOrders();
-      renderSetupRoster();
-    };
-  }
-  if (actionSel) {
-    const focusId = focusSel?.value || you.gameplan?.offenseFocusId;
-    const p = focusId ? you.players.find((x) => x.id === focusId) : null;
-    fillBallActionSelect(actionSel, p ? suggestedBallHandlerAction(p) : "pnr");
-    actionSel.disabled = !focusId;
-    actionSel.onchange = () => {
-      syncSetupBallHandlerUi();
-      renderSetupOrders();
-      renderSetupRoster();
-    };
-  }
-}
-
+/**
+ * Rotation totals bar under the roster. The per-player role + minutes
+ * controls used to live in a "角色与分钟" list inside the advanced
+ * section; they moved onto each player card (setupCardRoleHtml), so this
+ * only keeps the shared bits: the minutes total and the two section
+ * actions (suggest minutes by stamina / save as the season default
+ * rotation). Suggesting minutes rewrites every card, so it refreshes the
+ * whole setup screen, not just this bar.
+ */
 function renderSetupRoles() {
-  const box = $("#setup-roles");
+  const bar = $("#setup-rotation-bar");
   const you = state.setup?.you;
-  if (!box || !you) return;
+  if (!bar || !you) return;
   ensureRoles(you.players);
   ensurePlayerOrders(you.players);
   // One shared list rule with the orders section (setupPlayerList).
   const list = setupPlayerList(you.players, state.setup.selected, { season: !!state.season });
   const totalMin = list.reduce((s, p) => s + (Number(p.targetMinutes) || 0), 0);
-  box.innerHTML =
-    `<p class="tiny">目标分钟合计约 <strong>${totalMin}</strong>（五人同时上场约 240）。体能差的人打 35+ 会崩，铁肺可接近 48。</p>` +
-    list
-      .map((p) => {
-        const role = p.roleExpectation || inferPlayerRole(p);
-        const opts = Object.values(PLAYER_ROLES)
-          .map((r) => `<option value="${r.id}" ${r.id === role ? "selected" : ""}>${roleName(r, getLang())}</option>`)
-          .join("");
-        const cap = staminaMinuteCap(p);
-        const warn = (p.targetMinutes || 0) > cap ? " over-min" : "";
-        return `<div class="role-row${warn}" data-id="${p.id}">
-        <span>${p.name}<em class="tiny"> · ${p.playPos || p.pos} · 本职${p.pos}</em>
-          <div class="tiny stamina-min-hint">${staminaMinuteHint(p)}</div>
-        </span>
-        <select class="role-select">${opts}</select>
-        <input class="min-input" type="number" min="8" max="48" value="${p.targetMinutes ?? 24}" title="目标分钟（上限参考体能 ${cap}）" />
-      </div>`;
-      })
-      .join("") +
-    `<div class="btn-row" style="margin-top:6px">
+  bar.innerHTML =
+    `<span class="tiny">目标分钟合计约 <strong>${totalMin}</strong>（五人同时上场约 240）。体能差的人打 35+ 会崩，铁肺可接近 48。</span>` +
+    `<span class="btn-row">
       <button type="button" class="btn small" id="btn-setup-suggest-mins">按体能建议分钟</button>
       ${state.season ? `<button type="button" class="btn small primary" id="btn-setup-save-rotation">保存为默认轮换</button>` : ""}
-    </div>`;
-  box.querySelectorAll(".role-row").forEach((row) => {
-    const p = you.players.find((x) => x.id === row.dataset.id);
-    if (!p) return;
-    row.querySelector(".role-select").onchange = (e) => {
-      p.roleExpectation = e.target.value;
-      p._roleManual = true;
-      p.targetMinutes = suggestTargetMinutes(p);
-      renderSetupRoles();
-    };
-    row.querySelector(".min-input").onchange = (e) => {
-      p.targetMinutes = clamp(Number(e.target.value) || 20, 8, 48);
-      renderSetupRoles();
-    };
-  });
+    </span>`;
   $("#btn-setup-suggest-mins")?.addEventListener("click", () => {
     for (const p of you.players) p.targetMinutes = suggestTargetMinutes(p);
+    // Minutes live on the cards now, so the roster must re-render too.
+    renderSetupRoster();
     renderSetupRoles();
   });
   $("#btn-setup-save-rotation")?.addEventListener("click", () => {
@@ -6814,70 +6662,6 @@ function paintLiveMatchupBoard(snap) {
   }
 }
 
-function syncPhilLabels() {
-  $("#phil-off-v").textContent = $("#phil-off").value;
-  $("#phil-def-v").textContent = $("#phil-def").value;
-  $("#phil-morale-v").textContent = $("#phil-morale").value;
-  $("#phil-stam-v").textContent = $("#phil-stam").value;
-}
-["phil-off", "phil-def", "phil-morale", "phil-stam"].forEach((id) => {
-  $(`#${id}`).oninput = () => {
-    syncPhilLabels();
-    syncPhilRosterHint();
-    if (state.setup) renderSetupRoster();
-  };
-});
-
-/** Setup: tactics unlocked by coach book and/or current starters. */
-function renderPhilTactics(you) {
-  const box = $("#phil-tactics");
-  if (!box || !you) return;
-  const picked = (you.players || []).filter((p) => state.setup?.selected?.has(p.id));
-  const roster = picked.length >= 5 ? picked : you.players || [];
-  const lang = getLang();
-  const unlock = rosterTacticUnlocks(roster, lang);
-  const rosterIds = new Set(unlock.ids);
-  const coachIds = new Set(you.coach?.specialTactics || ["balanced"]);
-  const current = new Set(you.coach?.specialTactics || ["balanced"]);
-  // Auto-check newly unlocked roster tactics so they're ready for tip-off
-  for (const id of rosterIds) current.add(id);
-  const labelFor = (t) => {
-    const fromRoster = rosterIds.has(t.id);
-    const fromCoach = coachIds.has(t.id) || t.id === "balanced";
-    const unlocked = fromRoster || fromCoach;
-    const badge = fromRoster && !fromCoach ? (lang === "en" ? " · Roster" : " · 阵容") : fromCoach && fromRoster ? (lang === "en" ? " · Both" : " · 双解锁") : "";
-    const why = unlock.reasons[t.id] || tacticDesc(t, lang) || "";
-    const tdesc = tacticDesc(t, lang) || "";
-    return `<label class="${unlocked ? "" : "tactic-locked"}" title="${escAttr(
-      unlocked ? why : lang === "en" ? `${tdesc} (Needs: two playmakers / quality big / twin towers, or coach-owned)` : `${tdesc}（需：双组织 / 优质内线 / 双塔等阵容条件，或教练自带）`
-    )}"><input type="checkbox" value="${t.id}" ${unlocked ? "" : "disabled"} ${
-      current.has(t.id) && unlocked ? "checked" : ""
-    }/> ${tacticName(t, lang)}${badge}</label>`;
-  };
-  const byGroup = new Map();
-  for (const t of Object.values(TACTICS)) {
-    if (!byGroup.has(t.group)) byGroup.set(t.group, []);
-    byGroup.get(t.group).push(t);
-  }
-  const parts = [];
-  for (const g of TACTIC_GROUPS) {
-    const list = byGroup.get(g.id) || [];
-    if (!list.length) continue;
-    parts.push(`<div class="tiny tactic-group-head">${esc(tacticGroupName(g.id, lang))}</div>`);
-    parts.push(...list.map(labelFor));
-    byGroup.delete(g.id);
-  }
-  for (const list of byGroup.values()) parts.push(...list.map(labelFor));
-  box.innerHTML = parts.join("");
-  const hint = $("#phil-tactics-hint");
-  if (hint) {
-    const bits = Object.values(unlock.reasons);
-    hint.textContent = bits.length
-      ? lang === "en" ? `Roster unlocks: ${bits.slice(0, 4).join("; ")}` : `阵容解锁：${bits.slice(0, 4).join("；")}`
-      : lang === "en" ? "After picking starters: two playmakers → Motion / Moreyball; quality center → PnR / Post / Drop; twin towers → Crash / Second-chance, etc." : "选满首发后：双组织→动态传导/魔球；优质中锋→挡拆/低位/收缩；双塔→冲板/二次进攻等。";
-  }
-}
-
 /** In-game / resume: fill tactic dropdown from coach ∪ on-court unlocks. */
 function fillTacticSelect(team, { preferId = null } = {}) {
   const sel = $("#tactic-select");
@@ -6911,45 +6695,6 @@ function fillTacticSelect(team, { preferId = null } = {}) {
   syncTacticHelp();
 }
 
-/** Live hint: how offense/defense sliders interact with current roster. */
-function syncPhilRosterHint() {
-  const offHint = document.querySelector('.help-desc[data-for="phil-off"]');
-  const defHint = document.querySelector('.help-desc[data-for="phil-def"]');
-  const you = state.setup?.you;
-  const off = Number($("#phil-off")?.value ?? 8);
-  const def = Number($("#phil-def")?.value ?? 8);
-  if (offHint) {
-    if (!you?.players?.length) {
-      offHint.textContent =
-        "抓机会：过高时偏防/弱攻球员也会自主进攻，浪费球权与体力；进攻型阵容则抓机会极强。";
-    } else {
-      const pool = you.players.filter((p) => state.setup.selected?.has(p.id));
-      const list = pool.length >= 3 ? pool : you.players;
-      const scorers = list.filter(
-        (p) =>
-          (p.scoring || 0) >= 78 ||
-          /iso_|scorer|creator|shooter|versatile/.test(p.archetype || "")
-      ).length;
-      const share = scorers / Math.max(1, list.length);
-      if (off >= 14 && share < 0.4) {
-        offHint.textContent = `抓机会偏高（${off}）：当前进攻型偏少（${scorers}/${list.length}）——弱攻球员也容易乱出手，浪费球权与体力。`;
-      } else if (off >= 12 && share >= 0.55) {
-        offHint.textContent = `抓机会偏高（${off}）：进攻手充足（${scorers}/${list.length}）——见空档就打，群狼效率很强。`;
-      } else {
-        offHint.textContent = `抓机会 ${off}：见空档就攻。过高时弱攻/偏防也会出手；进攻型越多，抓机会越强（当前约 ${scorers}/${list.length} 进攻型）。`;
-      }
-    }
-  }
-  if (defHint) {
-    defHint.textContent =
-      def >= 14
-        ? `防守压迫很高（${def}）：盯防更紧，但体力差的球员会快速透支；威少类铁肺几乎无感。`
-        : `防守压迫 ${def}：抬高盯防/协防，吃体力并与球员体力挂钩；体力越好越扛得住高压防守。`;
-  }
-}
-$("#phil-tactics")?.addEventListener("change", () => {
-  if (state.setup) renderSetupRoster();
-});
 
 // One escaper for the whole app (js/core/html.js). `escAttr` stays only as a name so its call sites do not churn.
 function escAttr(s) {
@@ -7095,6 +6840,7 @@ function setupMiniCardHtml(p, { onCourt = false } = {}) {
     ${setupStatGridHtml(p)}
     ${p.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p, getLang())}</div>` : ""}
     ${setupCardOrdersHtml(p)}
+    ${setupCardRoleHtml(p, getLang())}
   </div>`;
 }
 
@@ -7296,18 +7042,19 @@ function renderSetupRoster() {
       noteEl.hidden = true;
       noteEl.textContent = "";
     } else {
-      const checked = [...($("#phil-tactics")?.querySelectorAll("input:checked") || [])].map((x) => x.value);
-      const tacticId = orderTacticsDefaultFirst(checked, you.coach?.specialTactics?.[0])[0];
+      // Preview with the coach's own tactics (the first is his default);
+      // the philosophy sliders went away with the advanced section.
+      const tacticId = you.coach?.specialTactics?.[0];
       const tactic = TACTICS[tacticId] || null;
       const previewCoach = applyCoachPhilosophy(you.coach, {
-        styleName: $("#phil-name")?.value || you.coach?.style,
-        offense: Number($("#phil-off")?.value ?? you.coach?.buffs?.offense ?? 8),
-        defense: Number($("#phil-def")?.value ?? you.coach?.buffs?.defense ?? 8),
-        morale: Number($("#phil-morale")?.value ?? you.coach?.buffs?.morale ?? 8),
-        stamina: Number($("#phil-stam")?.value ?? you.coach?.buffs?.stamina ?? 2),
+        styleName: you.coach?.style,
+        offense: you.coach?.buffs?.offense ?? 8,
+        defense: you.coach?.buffs?.defense ?? 8,
+        morale: you.coach?.buffs?.morale ?? 8,
+        stamina: you.coach?.buffs?.stamina ?? 2,
         tactics: tacticId ? [tacticId] : you.coach?.specialTactics,
       });
-      const primaryId = you.gameplan?.offenseFocusId || $("#setup-offense-focus")?.value || null;
+      const primaryId = you.gameplan?.offenseFocusId || null;
       const ballOpts = { primaryId: primaryId || null };
       const ball = lineupBallNote(picked, ballOpts);
       const fit = lineupFit(picked, previewCoach, tactic, ballOpts);
@@ -7335,15 +7082,10 @@ function renderSetupRoster() {
   const refreshAfter = () => {
     renderSetupRoster();
     renderSetupRoles();
-    renderSetupOrders();
     // Matchup board + key-defense selects are built from the selected
     // starters: without this they kept showing the lineup from when
     // setup was entered, even after drag-swaps changed the five.
     renderSetupGameplan();
-    if (state.setup?.you) {
-      renderPhilTactics(state.setup.you);
-      syncPhilRosterHint();
-    }
   };
 
   bindSetupDragDrop(box, you, refreshAfter);
@@ -7351,7 +7093,7 @@ function renderSetupRoster() {
   box.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
     btn.onclick = (e) => {
       if (box._setupDidDrag?.()) return;
-      if (e.target.closest(".setup-pos-select, .setup-ord-select")) return;
+      if (e.target.closest(".setup-pos-select, .setup-ord-select, .setup-role-select, .setup-min-input")) return;
       const id = btn.dataset.id;
       const p = you.players.find((x) => x.id === id);
       if (!isPlayerAvailable(p)) return;
@@ -7398,6 +7140,31 @@ function renderSetupRoster() {
     };
     sel.onclick = (e) => e.stopPropagation();
   });
+  // Role + minutes transplanted onto the cards: same write path as the old
+  // "角色与分钟" list rows (roleExpectation / targetMinutes on the player),
+  // then a full refresh so the totals bar and the other cards stay in sync.
+  box.querySelectorAll(".setup-role-select").forEach((sel) => {
+    sel.onchange = (e) => {
+      e.stopPropagation();
+      const p = you.players.find((x) => x.id === sel.dataset.roleFor);
+      if (!p) return;
+      p.roleExpectation = sel.value;
+      p._roleManual = true;
+      p.targetMinutes = suggestTargetMinutes(p);
+      refreshAfter();
+    };
+    sel.onclick = (e) => e.stopPropagation();
+  });
+  box.querySelectorAll(".setup-min-input").forEach((inp) => {
+    inp.onchange = (e) => {
+      e.stopPropagation();
+      const p = you.players.find((x) => x.id === inp.dataset.minFor);
+      if (!p) return;
+      p.targetMinutes = clamp(Number(inp.value) || 20, 8, 48);
+      refreshAfter();
+    };
+    inp.onclick = (e) => e.stopPropagation();
+  });
 }
 
 $("#btn-setup-confirm").onclick = () => {
@@ -7411,18 +7178,18 @@ $("#btn-setup-confirm").onclick = () => {
   tacticsBoard = null;
   const { home, away, youSide } = state.pendingMatch;
   const you = youSide === "home" ? home : away;
-  const checked = [...$("#phil-tactics").querySelectorAll("input:checked")].map((x) => x.value);
-  // 用户在排兵布阵设的默认战术（开打前教练的第一位）永远排第一：直接按勾选框
-  // DOM 顺序收集会把枚举第一（均衡进攻）顶到前面，第二场开场就丢了默认。
-  const tactics = orderTacticsDefaultFirst(checked, you.coach?.specialTactics?.[0]);
+  // The advanced section is gone, so there are no pre-game philosophy
+  // overrides anymore: the game starts with the coach's own buffs, style,
+  // and tactics. A saved rotation plan already wrote its phil onto the
+  // coach (applyRotationPlan), and the tactics board — when it applied —
+  // already ordered his tactics with the active scheme first.
   you.coach = applyCoachPhilosophy(you.coach, {
-    styleName: $("#phil-name").value || "自定义方针",
-    offense: Number($("#phil-off").value),
-    defense: Number($("#phil-def").value),
-    morale: Number($("#phil-morale").value),
-    stamina: Number($("#phil-stam").value),
-    tactics: tactics.length ? tactics : ["balanced"],
-    note: "玩家自定义执教方针",
+    styleName: you.coach?.style || "自定义方针",
+    offense: you.coach?.buffs?.offense ?? 8,
+    defense: you.coach?.buffs?.defense ?? 8,
+    morale: you.coach?.buffs?.morale ?? 8,
+    stamina: you.coach?.buffs?.stamina ?? 2,
+    tactics: you.coach?.specialTactics?.length ? [...you.coach.specialTactics] : ["balanced"],
   });
   you.starterIds = [...state.setup.selected];
   // Persist assigned playPos onto roster cards used by the sim
@@ -7436,9 +7203,13 @@ $("#btn-setup-confirm").onclick = () => {
   const tgtId = $("#gp-target")?.value || null;
   const scheme = $("#gp-scheme")?.value || "focus";
   const assignments = readSetupMatchupAssignments();
-  const focusId = $("#setup-offense-focus")?.value || null;
-  const ballAction = $("#setup-ball-action")?.value || null;
-  const tempoId = normalizeTempo($("#setup-tempo-select")?.value || you.gameplan?.tempo);
+  // No more ball-handler dropdowns (advanced section deleted): the focus
+  // is whatever the saved rotation plan — or the tactics board, which
+  // already applied — left on the gameplan; the action is the suggestion
+  // for that player (the `if (focusId)` block below).
+  const focusId = you.gameplan?.offenseFocusId || null;
+  const ballAction = null;
+  const tempoId = normalizeTempo(you.gameplan?.tempo);
   you.gameplan = composeGameplan({
     defenderId: defId,
     targetId: tgtId,

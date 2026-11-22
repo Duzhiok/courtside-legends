@@ -186,11 +186,12 @@ test("S-P2-5: the position select keeps its stopPropagation via property assignm
   // toggle handler already ignores clicks from the select. Both must stay.
   // The toggle guard also covers the per-card tendency selects (.setup-ord-select),
   // which were transplanted onto the cards (2026-11-22) so a dropdown click
-  // never toggles the row.
+  // never toggles the row — and the per-card role select + minutes input
+  // (.setup-role-select, .setup-min-input), transplanted the same way.
   const app = read("js/app.js");
   assert.doesNotMatch(app, /onclick="event\.stopPropagation\(\)"/);
   assert.match(app, /sel\.onclick = \(e\) => e\.stopPropagation\(\);/);
-  assert.match(app, /if \(e\.target\.closest\("\.setup-pos-select, \.setup-ord-select"\)\) return;/);
+  assert.match(app, /if \(e\.target\.closest\("\.setup-pos-select, \.setup-ord-select, \.setup-role-select, \.setup-min-input"\)\) return;/);
 });
 
 test("S-P2-5: app boot installs the single img-error listener", () => {

@@ -315,6 +315,19 @@ export function yourCareerMatch(c) {
   );
 }
 
+/**
+ * The scout column's "next opponent": the next UNFINISHED match only.
+ * Unlike yourCareerMatch it never falls back to a finished match — a done
+ * game is not a next opponent, so the column shows "no next game" instead.
+ */
+export function nextCareerMatch(c) {
+  if (c?.pods?.length) {
+    const open = findYourOpenMatch(c.pods);
+    if (open) return open;
+  }
+  return c?.roundMatches?.find((m) => m.yours && !m.done) || null;
+}
+
 /** 总决赛后：按 PG→C 评出本届最佳阵容 */
 export function computeCareerAllTeam(c) {
   if (!c) return [];

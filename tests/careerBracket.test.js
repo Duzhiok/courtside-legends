@@ -5,6 +5,7 @@ import {
   buildStagePods,
   computeCareerAllTeam,
   findYourOpenMatch,
+  nextCareerMatch,
   noteCareerAllTeamGame,
   noteCareerLoss,
   runCpuMatchInto,
@@ -81,6 +82,20 @@ test("yourCareerMatch: falls back to roundMatches when there are no pods", () =>
 test("yourCareerMatch: no pods, no roundMatches, nothing crashes — returns null", () => {
   assert.equal(yourCareerMatch({}), null);
   assert.equal(yourCareerMatch(null), null);
+});
+
+test("nextCareerMatch: the scout column's next opponent — open match only, never a finished one", () => {
+  const openMatch = { a: team("you"), b: team("z"), yours: true, done: false };
+  const doneMatch = { a: team("you"), b: team("y"), yours: true, done: true };
+  // Open match wins over a finished one in the flat list.
+  assert.equal(nextCareerMatch({ roundMatches: [doneMatch, openMatch] }), openMatch);
+  // No open match: null, not the finished one (a done game is not a next opponent).
+  assert.equal(nextCareerMatch({ roundMatches: [doneMatch] }), null);
+  assert.equal(nextCareerMatch({}), null);
+  assert.equal(nextCareerMatch(null), null);
+  // Pods take priority, same as yourCareerMatch.
+  const { pods } = buildStagePods([team("you"), team("b"), team("c"), team("d")]);
+  assert.equal(nextCareerMatch({ pods, roundMatches: [openMatch] }), findYourOpenMatch(pods));
 });
 
 test("computeCareerAllTeam: with no board yet, falls back to pulling rosters from team/alive/series", () => {

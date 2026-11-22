@@ -1123,31 +1123,6 @@ select, input[type="number"] {
 .setup-fit-line {
   margin-top: 4px;
 }
-.setup-advanced {
-  margin: 8px 0 16px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, .5);
-  padding: 4px 12px 8px;
-}
-.setup-advanced > summary {
-  cursor: pointer;
-  font-weight: 600;
-  padding: 10px 4px;
-  list-style: none;
-  color: var(--ink);
-}
-.setup-advanced > summary::-webkit-details-marker { display: none; }
-.setup-advanced > summary::before {
-  content: "▸ ";
-  color: var(--muted);
-}
-.setup-advanced[open] > summary::before { content: "▾ "; }
-.setup-advanced-body {
-  padding: 4px 2px 10px;
-  max-height: 420px;
-  overflow: auto;
-}
 .setup-roster-box {
   min-width: 0;
 }
@@ -1156,6 +1131,18 @@ select, input[type="number"] {
   gap: 8px;
   max-height: 520px;
   overflow: auto;
+}
+.scout-others > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 2px;
+  color: var(--muted);
+}
+.scout-others > summary::before {
+  content: "▸ ";
+}
+.scout-others[open] > summary::before {
+  content: "▾ ";
 }
 .market-scout {
   max-height: 280px;
@@ -1381,6 +1368,36 @@ select, input[type="number"] {
 }
 .setup-mini .setup-orders-block select {
   pointer-events: auto;
+}
+.setup-mini .setup-role-block {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+}
+.setup-mini .setup-role-block select,
+.setup-mini .setup-role-block input {
+  pointer-events: auto;
+}
+.setup-mini .setup-role-block .setup-min-input {
+  width: 64px;
+}
+.setup-mini .setup-role-block.over-min {
+  background: #fff7ed;
+}
+.setup-mini .setup-role-block.over-min .stamina-min-hint {
+  color: #9a3412;
+  font-weight: 600;
+}
+.setup-rotation-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  margin: 10px 0;
 }
 .setup-mini {
   flex-direction: column;
@@ -1971,19 +1988,6 @@ select, input[type="number"] {
 }
 .pack-row .btn.active {
   outline: 2px solid #2a7a4b;
-}
-.setup-roles {
-  display: grid;
-  gap: 6px;
-  max-height: 220px;
-  overflow: auto;
-}
-.role-row {
-  display: grid;
-  grid-template-columns: 1fr 110px 72px;
-  gap: 6px;
-  align-items: center;
-  font-size: .82rem;
 }
 .momentum-meter {
   display: grid;
@@ -2689,16 +2693,8 @@ select, input[type="number"] {
   max-height: none;
 }
 /* 排兵布阵 itself lives in css/rotation.css; these two are shared with the in-game role rows. */
-.role-row.over-min {
-  border-color: rgba(180, 83, 9, 0.55);
-  background: #fff7ed;
-}
 .stamina-min-hint {
   color: #5b6470;
-}
-.role-row.over-min .stamina-min-hint {
-  color: #9a3412;
-  font-weight: 600;
 }
 .sm-proposals {
   margin: 12px 0;

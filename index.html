@@ -632,8 +632,29 @@
           <h3>对手一眼看</h3>
           <p class="tiny" id="scout-round-label">—</p>
           <div id="scout-board" class="scout-board"></div>
+          <hr class="soft-hr" />
+          <h3>对位</h3>
+          <p class="tiny">默认同位置互防（PG↔PG…）；可手动改每人对位。下方是对一个人的重点策略（钉死他/逼他出球/顶他下盘）。</p>
+          <div id="setup-matchup-board" class="matchup-board"></div>
+          <div class="form-row wrap" style="margin-top:8px">
+            <label class="tiny">重点·我方
+              <select id="gp-defender"></select>
+            </label>
+            <label class="tiny">重点·盯防
+              <select id="gp-target"></select>
+            </label>
+            <label class="tiny">策略
+              <select id="gp-scheme">
+                <option value="focus">钉死他</option>
+                <option value="double">逼他出球</option>
+                <option value="bump">顶他下盘</option>
+              </select>
+            </label>
+          </div>
+          <p class="tiny" id="gp-scheme-hint"></p>
         </div>
       </div>
+      <div id="setup-rotation-bar" class="setup-rotation-bar"></div>
       <div id="setup-skill-panel" class="setup-skill-panel" hidden>
         <h3>技能包（随时可装）</h3>
         <p class="tiny" id="setup-skill-hint">已购技能可在此直接装到名单球员，装完再排首发开打。</p>
@@ -642,87 +663,6 @@
         <div id="setup-skill-inventory" class="career-skill-shop"></div>
       </div>
       <div id="setup-tactics-board" class="setup-tactics-board" hidden></div>
-      <details class="setup-advanced" id="setup-advanced">
-        <summary>进阶设置（可跳过，比赛里也能改）</summary>
-        <div class="setup-advanced-body">
-          <div class="roster-box">
-            <h3>开场执教</h3>
-            <p class="tiny help-line" id="setup-coach-base">基础教练：—</p>
-            <label class="tiny">方针名称 <input id="phil-name" type="text" value="我的体系" /></label>
-            <div class="phil-sliders" id="phil-sliders">
-              <label title="抓机会倾向：见空档就攻；过高时弱攻球员也会乱出手。">
-                <span>进攻倾向</span>
-                <input id="phil-off" type="range" min="0" max="18" value="8" />
-                <span id="phil-off-v">8</span>
-              </label>
-              <label title="防守压迫：越强越吃体力。">
-                <span>防守倾向</span>
-                <input id="phil-def" type="range" min="0" max="18" value="8" />
-                <span id="phil-def-v">8</span>
-              </label>
-              <label title="开场士气与抗压。">
-                <span>士气管理</span>
-                <input id="phil-morale" type="range" min="0" max="18" value="8" />
-                <span id="phil-morale-v">8</span>
-              </label>
-              <label title="正值保护体力；负值铁血连场。">
-                <span>负荷管理</span>
-                <input id="phil-stam" type="range" min="-8" max="10" value="2" />
-                <span id="phil-stam-v">2</span>
-              </label>
-            </div>
-            <p class="tiny">可用战术（可多选；灰色为未解锁——双组织/优质中锋/双塔可阵容解锁）：</p>
-            <div id="phil-tactics" class="tactic-checks"></div>
-            <p class="tiny" id="phil-tactics-hint"></p>
-            <hr class="soft-hr" />
-            <h3>阵容包</h3>
-            <p class="tiny">一键五人组，暂停时可切换。</p>
-            <div id="setup-packs" class="pack-row"></div>
-            <hr class="soft-hr" />
-            <h3>比赛节奏</h3>
-            <p class="tiny">领先可降速打成功率；落后可提速提高回合数。开场后也可在暂停/节间改。</p>
-            <label class="tiny">节奏
-              <select id="setup-tempo-select" title="降速成功率 / 正常 / 提速抢回合"></select>
-            </label>
-            <p class="tiny" id="setup-tempo-help"></p>
-            <hr class="soft-hr" />
-            <h3>对位</h3>
-            <p class="tiny">默认同位置互防（PG↔PG…）；可手动改每人对位。下方是对一个人的重点策略（钉死他/逼他出球/顶他下盘）。</p>
-            <div id="setup-matchup-board" class="matchup-board"></div>
-            <div class="form-row wrap" style="margin-top:8px">
-              <label class="tiny">重点·我方
-                <select id="gp-defender"></select>
-              </label>
-              <label class="tiny">重点·盯防
-                <select id="gp-target"></select>
-              </label>
-              <label class="tiny">策略
-                <select id="gp-scheme">
-                  <option value="focus">钉死他</option>
-                  <option value="double">逼他出球</option>
-                  <option value="bump">顶他下盘</option>
-                </select>
-              </label>
-            </div>
-            <p class="tiny" id="gp-scheme-hint"></p>
-            <hr class="soft-hr" />
-            <h3>角色与分钟</h3>
-            <p class="tiny">按体能分配出场时间：低体不宜长期 35+，铁肺可接近 48。赛季模式可保存为默认轮换。</p>
-            <div id="setup-roles" class="setup-roles"></div>
-            <hr class="soft-hr" />
-            <h3>持球发起</h3>
-            <div class="ball-handler-row" id="setup-ball-handler">
-              <label class="tiny">持球发起人
-                <select id="setup-offense-focus" title="指定谁来持球发动进攻"></select>
-              </label>
-              <label class="tiny">持球打法
-                <select id="setup-ball-action" title="持球人的阵地发动方式：挡拆 / 分球 / 单打等"></select>
-              </label>
-            </div>
-            <p class="tiny" id="setup-ball-action-desc">先选持球人与打法；其余人在各自球员卡下方设置配合，如「无球定点」。不指定则按本能抢球。</p>
-          </div>
-        </div>
-      </details>
       <div class="actions">
         <button class="btn primary" id="btn-setup-confirm" disabled>选满 5 人后开打</button>
       </div>
