@@ -509,17 +509,21 @@ for (const zone of ["paint", "mid"]) {
   const probeSkill = wShot((j) => j.skillB[zone]);
   console.log(`  ${zone}: live mean skillB ${pct(liveSkill)} vs probe ${pct(probeSkill)} (delta ${gap(liveSkill - probeSkill)})`);
 }
-console.log("\n§22 FGA-basis probe (foul-filtered) vs live event-basis makeP — the true baseline residual:");
+console.log("\n§22 FGA-basis probe (foul-filtered) vs live SHOT-basis makeP — the true baseline residual:");
+console.log("  (Shot basis, not event basis: the probe never sees a blocked shot — blocked attempts never reach calcMakeProb — so the live side must be meta.shot only. The event basis carries the block drag (§19: paint 9.0% / mid 6.7%) and would read ~4pt too low.)");
 for (const zone of ["paint", "mid", "three"]) {
-  const wEv = (f) => sum(dec, (j) => f(j) * j.live.live[zone].a) / Math.max(1, sum(dec, (j) => j.live.live[zone].a));
-  const liveEv = wEv((j) => (j.live.live[zone].a ? j.live.live[zone].m / j.live.live[zone].a : 0));
-  const probeFF = wEv((j) => j.mp[zone + "FixedFF"] ?? NaN);
-  const probeU46FF = wEv((j) => j.mp[zone + "FixedU46FF"] ?? NaN);
-  console.log(`  ${zone.padEnd(6)} live event-basis ${pct(liveEv)} vs probe-FF ${pct(probeFF)} vs probe-U46-FF ${pct(probeU46FF)}  residual vs U46-FF ${gap(liveEv - probeU46FF)}  (${sum(dec, (j) => j.live.live[zone].a)} FGA)`);
+  const wSh = (f) => sum(dec, (j) => f(j) * j.live.liveShot[zone].a) / Math.max(1, sum(dec, (j) => j.live.liveShot[zone].a));
+  const liveSh = wSh((j) => (j.live.liveShot[zone].a ? j.live.liveShot[zone].m / j.live.liveShot[zone].a : 0));
+  const probeFF = wSh((j) => j.mp[zone + "FixedFF"] ?? NaN);
+  const probeU46FF = wSh((j) => j.mp[zone + "FixedU46FF"] ?? NaN);
+  console.log(`  ${zone.padEnd(6)} live shot-basis ${pct(liveSh)} vs probe-FF ${pct(probeFF)} vs probe-U46-FF ${pct(probeU46FF)}  residual vs U46-FF ${gap(liveSh - probeU46FF)}  (${sum(dec, (j) => j.live.liveShot[zone].a)} shots)`);
 }
 // §22 Oaxaca re-run on the FGA basis: probe shares are attempt-basis
 // (chooseShot picks the shot; the foul happens after), so convert them with
 // the zone survival rate p+(1-p)(1-f) before comparing with live FGA shares.
+// Live side is SHOT basis (meta.shot only): the probe never sees blocked
+// shots, so the event basis (which carries the §19 block drag) would bias
+// the lift down by the zone block rate.
 function decompFF(j) {
   const ff = globalThis.__B35_FOULF || {};
   const surv = (zone) => {
@@ -530,11 +534,11 @@ function decompFF(j) {
   };
   const wPaint = j.share.paint * surv("paint"), wMid = j.share.mid * surv("mid");
   const probeShareFGA = { paint: wPaint / (wPaint + wMid), mid: wMid / (wPaint + wMid) };
-  const l2a = j.live.live.paint.a + j.live.live.mid.a;
-  const liveShare = { paint: j.live.live.paint.a / l2a, mid: j.live.live.mid.a / l2a };
+  const l2a = j.live.liveShot.paint.a + j.live.liveShot.mid.a;
+  const liveShare = { paint: j.live.liveShot.paint.a / l2a, mid: j.live.liveShot.mid.a / l2a };
   const liveMp = {
-    paint: j.live.live.paint.a ? j.live.live.paint.m / j.live.live.paint.a : NaN,
-    mid: j.live.live.mid.a ? j.live.live.mid.m / j.live.live.mid.a : NaN,
+    paint: j.live.liveShot.paint.a ? j.live.liveShot.paint.m / j.live.liveShot.paint.a : NaN,
+    mid: j.live.liveShot.mid.a ? j.live.liveShot.mid.m / j.live.liveShot.mid.a : NaN,
   };
   const probeMpFF = { paint: j.mp.paintFixedU46FF, mid: j.mp.midFixedU46FF };
   const realised = liveShare.paint * liveMp.paint + liveShare.mid * liveMp.mid;
@@ -547,8 +551,8 @@ function decompFF(j) {
 if (globalThis.__B35_FOULF && dec.every((j) => Number.isFinite(j.mp.paintFixedU46FF) && Number.isFinite(j.mp.midFixedU46FF))) {
   const decFF = dec.map((j) => ({ ...j, dff: decompFF(j) }));
   const badFF = decFF.filter((j) => Math.abs(j.dff.check) > 1e-9);
-  console.log(`\n§22 Oaxaca on the FGA basis (live event vs probe-U46-FF): identity check ${badFF.length} fail (max |err| ${Math.max(0, ...decFF.map((j) => Math.abs(j.dff.check))).toExponential(1)})`);
-  console.log("Pos | n | live2PA | realised2P (FGA) | probe-U46-FF expected2P | lift | mix | stack | interact | live paintShare vs probe-FGA");
+  console.log(`\n§22 Oaxaca on the FGA basis (live SHOT vs probe-U46-FF): identity check ${badFF.length} fail (max |err| ${Math.max(0, ...decFF.map((j) => Math.abs(j.dff.check))).toExponential(1)})`);
+  console.log("Pos | n | live2PA | realised2P (shot) | probe-U46-FF expected2P | lift | mix | stack | interact | live paintShare vs probe-FGA");
   const aggFF = (list) => {
     const w = sum(list, (j) => j.dff.l2a);
     const wAvg = (f) => sum(list, (j) => f(j) * j.dff.l2a) / w;
