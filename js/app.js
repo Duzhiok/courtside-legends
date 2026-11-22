@@ -932,9 +932,14 @@ async function offerLongCareerExportAfterSaveFailure(unsavedAttempt) {
   } catch (error) {
     console.error("[long-career-save] export-after-failure also failed", error);
     alert(
-      "导出也失败了：" +
-        (error?.message || "未知错误") +
-        (schemaBug ? "\n\n这就是上面说的存档格式 bug，请把这条报错截图发给开发者，不要清空浏览器数据。" : ""),
+      L("导出也失败了：", "The export failed too: ") +
+        (error?.message || L("未知错误", "unknown error")) +
+        (schemaBug
+          ? L(
+              "\n\n这就是上面说的存档格式 bug，请把这条报错截图发给开发者，不要清空浏览器数据。",
+              "\n\nThis is the save-format bug from above. Screenshot this error for the developer, and don't clear the browser data.",
+            )
+          : ""),
     );
   }
 }
@@ -1027,7 +1032,7 @@ function resumeLongCareer(root = readRootSave()) {
       writeRootSave(active);
     } catch (error) {
       console.warn("[long-career-upgrade-save]", error);
-      alert("旧存档已在内存中升级，但暂时无法写回浏览器存储；你仍可继续游玩，请稍后手动保存。");
+      alert(L("旧存档已在内存中升级，但暂时无法写回浏览器存储；你仍可继续游玩，请稍后手动保存。", "The old save was upgraded in memory, but it couldn't be written back to browser storage yet. You can keep playing — save again in a moment."));
     }
   }
   state.mode = active.activeMode;
@@ -1077,7 +1082,7 @@ function resumeLongCareer(root = readRootSave()) {
       return true;
     } catch (error) {
       console.error("[long-career-resume]", error);
-      alert(`长期生涯比赛恢复失败：${error?.message || error}`);
+      alert(L(`长期生涯比赛恢复失败：${error?.message || error}`, `Couldn't resume the long-career game: ${error?.message || error}`));
       show("home");
       return false;
     }
@@ -1264,7 +1269,7 @@ $("#btn-long-career-export")?.addEventListener("click", () => {
   try {
     downloadLongCareerExport(root);
   } catch (error) {
-    alert(error?.message || "导出存档失败");
+    alert(error?.message || L("导出存档失败", "Couldn't export the save."));
   }
 });
 $("#btn-long-career-import")?.addEventListener("click", () => {
@@ -1302,7 +1307,7 @@ function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) 
     settleMyTeamResult(st); // the last playoff game may be simulated without ever re-opening the hub
     grantMyTeamGold(st); // derived from the record + a paid-ledger: every save path pays exactly the difference
     const res = saveMyTeamSeason(st);
-    if (!res.ok) alert(res.reason === "storage" ? "赛季保存失败：浏览器存储空间不足。" : "赛季保存失败：存档位被其他存档占用。");
+    if (!res.ok) alert(res.reason === "storage" ? L("赛季保存失败：浏览器存储空间不足。", "Couldn't save the season: the browser is out of storage.") : L("赛季保存失败：存档位被其他存档占用。", "Couldn't save the season: that slot belongs to another save."));
     return res.ok;
   }
   if (state.leagueCareer && st === state.season) {
@@ -1321,7 +1326,7 @@ function saveSeasonAndCareer(st = state.season, { liveGame = "preserve" } = {}) 
   }
   const seasonSaved = saveSeason(st);
   if (!seasonSaved) {
-    alert("赛季保存失败：可能是存档太大或浏览器存储空间不足。");
+    alert(L("赛季保存失败：可能是存档太大或浏览器存储空间不足。", "Couldn't save the season. The save may be too large, or the browser is out of storage."));
   }
   return seasonSaved;
 }
@@ -1364,7 +1369,7 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
     && !state.legend
     && !state.leagueCareer
   ) {
-    if (!silent) alert("当前没有可保存的进度（请在比赛、选秀、赛前或晋级赛中保存）");
+    if (!silent) alert(L("当前没有可保存的进度（请在比赛、选秀、赛前或晋级赛中保存）", "Nothing to save right now. Save during a game, the draft, pre-game setup, or a tournament."));
     return false;
   }
   try {
@@ -1381,13 +1386,13 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
         liveGame: state.sim ? "include" : "preserve",
       });
       if (!saved) {
-        if (!silent) alert("长期生涯进度保存失败，请重试。");
+        if (!silent) alert(L("长期生涯进度保存失败，请重试。", "Couldn't save the long career. Try again."));
         return false;
       }
       if (!silent) {
         const tip = andGoHome
-          ? "长期生涯进度已保存。可随时在首页继续。"
-          : "长期生涯进度已保存到本机。";
+          ? L("长期生涯进度已保存。可随时在首页继续。", "Long career saved. You can continue from the home screen.")
+          : L("长期生涯进度已保存到本机。", "Long career saved on this device.");
         if (state.sim) pushFeed("coach", tip);
         else alert(tip);
       }
@@ -1425,11 +1430,13 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
       return false;
     }
     if (written?.saveFailed) {
-      if (!silent) alert("保存失败：可能是存档太大或浏览器限制。请再试一次。");
+      if (!silent) alert(L("保存失败：可能是存档太大或浏览器限制。请再试一次。", "Save failed. The save may be too large, or the browser blocked it. Try again."));
       return false;
     }
     if (!silent) {
-      const tip = andGoHome ? "进度已保存。可随时在首页点「继续进度」。" : "进度已保存到本机。";
+      const tip = andGoHome
+        ? L("进度已保存。可随时在首页点「继续进度」。", "Progress saved. Continue it from the home screen.")
+        : L("进度已保存到本机。", "Progress saved on this device.");
       if (state.sim) pushFeed("coach", tip);
       else alert(tip);
     }
@@ -1442,7 +1449,7 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
     return true;
   } catch (err) {
     console.error("[save]", err);
-    if (!silent) alert("保存失败：可能是存档太大或浏览器限制。请再试一次。");
+    if (!silent) alert(L("保存失败：可能是存档太大或浏览器限制。请再试一次。", "Save failed. The save may be too large, or the browser blocked it. Try again."));
     return false;
   }
 }
@@ -1672,7 +1679,7 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
 function continueFromSave() {
   const data = readSave();
   if (!data?.app || sessionHidden(data)) {
-    alert("没有找到存档");
+    alert(L("没有找到存档", "No save found."));
     refreshSaveHomeBar();
     return;
   }
@@ -1799,11 +1806,11 @@ function continueFromSave() {
       return;
     }
 
-    alert("存档内容不完整，无法继续。已留在首页。");
+    alert(L("存档内容不完整，无法继续。已留在首页。", "The save is incomplete, so it can't be continued. You're still on the home screen."));
     show("home");
   } catch (err) {
     console.error("[load]", err);
-    alert("读取存档失败：" + (err?.message || err));
+    alert(L("读取存档失败：", "Couldn't read the save: ") + (err?.message || err));
   }
 }
 
@@ -2479,7 +2486,7 @@ function renderFamilyDuel() {
         const player = shop.find((p) => p.id === btn.dataset.familyBuy);
         const result = buyIntoFamilySide(sideState, player, pool);
         if (!result.ok) {
-          alert(result.reason || "无法买入");
+          alert(result.reason || L("无法买入", "Couldn't buy that."));
           return;
         }
         renderFamilyDuel();
@@ -3547,7 +3554,7 @@ $("#btn-draw-pull")?.addEventListener("click", () => {
     renderWishPanel(acc);
     refreshAccountHomeBar();
   } catch (e) {
-    alert(e.message || "抽卡失败");
+    alert(e.message || L("抽卡失败", "The draw failed."));
   }
 });
 
@@ -3561,7 +3568,7 @@ function startRankedMatch() {
   }
   const home = accountToTeam(acc);
   if (!home || home.players.length < 5) {
-    alert("班底不足 5 人，无法排位。");
+    alert(L("班底不足 5 人，无法排位。", "You need 5 players on the roster to play Ranked."));
     return;
   }
   // Prefer account tactic as coach special focus
@@ -3981,11 +3988,13 @@ function pickCard(card) {
   if (card.kind === "player" && d.buyPlayers) {
     const cost = pickCost(d, card.data);
     if (d.budgetMode && d.customPhase === "filler" && cost > 0) {
-      alert("补员阶段只能选 0 块球员");
+      alert(L("补员阶段只能选免费球员（0 块）。", "Filler picks have to be free (¤0)."));
       return;
     }
     if ((team.gold ?? 0) < cost) {
-      alert(d.budgetMode ? `预算不足（需要 ${cost} 块，剩余 ${team.gold}）` : `金币不足（身价 ¤${cost}）`);
+      alert(d.budgetMode
+        ? L(`预算不足（需要 ${cost} 块，剩余 ${team.gold}）`, `Not enough budget (need ${cost}, ${team.gold} left).`)
+        : L(`金币不足（身价 ¤${cost}）`, `Not enough gold (price ¤${cost}).`));
       return;
     }
   }
@@ -4589,12 +4598,12 @@ function hireCareerCoach(coachId) {
   if (!c || c.kind !== "career") return;
   const offer = (c.coachShop || []).find((x) => x.id === coachId);
   if (!offer) {
-    alert("该教练已不在市场上");
+    alert(L("该教练已不在市场上", "That coach is no longer on the market."));
     return;
   }
   const cost = offer.hireCost ?? careerCoachPrice(offer);
   if ((c.gold || 0) < cost) {
-    alert(`聘请「${offer.name}」需要 ¤${cost}，当前 ¤${c.gold || 0}`);
+    alert(L(`聘请「${offer.name}」需要 ¤${cost}，当前 ¤${c.gold || 0}`, `Hiring ${offer.nameEn || offer.name} costs ¤${cost}. You have ¤${c.gold || 0}.`));
     return;
   }
   const old = c.team.coach;
@@ -4613,8 +4622,8 @@ function hireCareerCoach(coachId) {
   c.hiredCoachIds = [...new Set([...(c.hiredCoachIds || []), offer.id])];
   c.coachShop = (c.coachShop || []).filter((x) => x.id !== offer.id);
   const tip = refund
-    ? `已聘请「${offer.name}」（花 ¤${cost}，旧帅折现 ¤${refund}）`
-    : `已聘请「${offer.name}」（¤${cost}）`;
+    ? L(`已聘请「${offer.name}」（花 ¤${cost}，旧帅折现 ¤${refund}）`, `Hired ${offer.nameEn || offer.name} (¤${cost}, previous coach sold back for ¤${refund}).`)
+    : L(`已聘请「${offer.name}」（¤${cost}）`, `Hired ${offer.nameEn || offer.name} (¤${cost}).`);
   openMarket({ career: true });
   alert(tip);
 }
@@ -4882,12 +4891,12 @@ function buyCareerSkillPack(skillId) {
   const c = state.career;
   const res = buySkillOffer(c, skillId);
   if (!res.ok) {
-    if (res.reason === "not-on-shelf") alert("该技能包已不在货架上");
-    else if (res.reason === "not-purchasable") alert("组合技 / 专属技不可购买学习");
-    else if (res.reason === "short") alert(`「${res.offer.name}」需要 ¤${res.cost}，当前 ¤${res.gold}`);
+    if (res.reason === "not-on-shelf") alert(L("该技能包已不在货架上", "That skill pack is no longer on the shelf."));
+    else if (res.reason === "not-purchasable") alert(L("组合技 / 专属技不可购买学习", "Combo and signature skills can't be bought."));
+    else if (res.reason === "short") alert(L(`「${res.offer.name}」需要 ¤${res.cost}，当前 ¤${res.gold}`, `${skillNameL(res.offer.name, "en")} costs ¤${res.cost}. You have ¤${res.gold}.`));
     return;
   }
-  afterSkillChange(`已将「${res.offer.name}」放入技能库（¤${res.cost}）——可随时安装`);
+  afterSkillChange(L(`已将「${res.offer.name}」放入技能库（¤${res.cost}）——可随时安装`, `${skillNameL(res.offer.name, "en")} is in the skill library (¤${res.cost}). Install it whenever you like.`));
 }
 
 /** 收集同 id 球员的所有活引用（生涯名单 / 赛前 / 场上 clone） */
@@ -4920,20 +4929,20 @@ async function forgetPlayerSkill(playerId, skillId) {
   const targets = skillInstallTargets(playerId);
   const player = targets[0];
   if (!player) {
-    alert("找不到该球员");
+    alert(L("找不到该球员", "That player can't be found."));
     return;
   }
   const pack = SKILL_PACKS[skillId];
   if (!pack) return;
   if (pack.duo) {
-    alert("组合技不可手动卸下");
+    alert(L("组合技不可手动卸下", "Combo skills can't be removed by hand."));
     return;
   }
   if (!(player.purchasedSkills || []).includes(skillId)) {
-    alert(`「${pack.name}」是 ${player.name} 自带的技能（非购买获得），不能卸下`);
+    alert(L(`「${pack.name}」是 ${player.name} 自带的技能（非购买获得），不能卸下`, `${skillNameL(pack.name, "en")} came with ${player.nameEn || player.name} and wasn't bought, so it can't be removed.`));
     return;
   }
-  if (!(await confirmAction(L(`卸下 ${player.name} 的「${pack.name}」？（已购技能退回技能库）`, `Remove ${pack.name} from ${player.name}? (Purchased skills return to the skill library)`)))) {
+  if (!(await confirmAction(L(`卸下 ${player.name} 的「${pack.name}」？（已购技能退回技能库）`, `Remove ${skillNameL(pack.name, "en")} from ${player.nameEn || player.name}? Bought skills go back to the library.`)))) {
     return;
   }
   let returned = null;
@@ -4946,8 +4955,8 @@ async function forgetPlayerSkill(playerId, skillId) {
   }
   afterSkillChange(
     returned
-      ? `已卸下「${pack.name}」，退回技能库`
-      : `已卸下 ${player.name} 的「${pack.name}」`
+      ? L(`已卸下「${pack.name}」，退回技能库`, `Removed ${skillNameL(pack.name, "en")}. It's back in the library.`)
+      : L(`已卸下 ${player.name} 的「${pack.name}」`, `Removed ${skillNameL(pack.name, "en")} from ${player.nameEn || player.name}.`),
   );
 }
 
@@ -4958,21 +4967,21 @@ function installInventorySkill(invIndex, playerId, dropSkillId = null) {
   const inv = ensureSkillInventory(c);
   const owned = inv[invIndex];
   if (!owned) {
-    alert("技能库里找不到这项");
+    alert(L("技能库里找不到这项", "That skill isn't in the library."));
     return;
   }
   const targets = skillInstallTargets(playerId);
   const player = targets[0];
   if (!player) {
-    alert("请选择要安装的球员");
+    alert(L("请选择要安装的球员", "Choose a player to install it on."));
     return;
   }
   if ((player.skills || []).includes(owned.id)) {
-    alert(`${player.name} 已有「${owned.name}」`);
+    alert(L(`${player.name} 已有「${owned.name}」`, `${player.nameEn || player.name} already has ${skillNameL(owned.name, "en")}.`));
     return;
   }
   if (!meetsHardGates(player, owned.id)) {
-    alert(`「${owned.name}」不适用于 ${player.name}（球队 / 名单 / 身高限制）`);
+    alert(L(`「${owned.name}」不适用于 ${player.name}（球队 / 名单 / 身高限制）`, `${skillNameL(owned.name, "en")} doesn't fit ${player.nameEn || player.name} (team, roster, or height limit).`));
     return;
   }
   let dropId = dropSkillId;
@@ -4986,20 +4995,20 @@ function installInventorySkill(invIndex, playerId, dropSkillId = null) {
       );
       const n = Number(pick);
       if (!Number.isFinite(n) || n < 1 || n > removableSkills(player).length) {
-        alert("已取消。也可在下方「已装技能」点芯片卸下后再装。");
+        alert(L("已取消。也可在下方「已装技能」点芯片卸下后再装。", "Cancelled. You can also tap a chip under Equipped skills to remove one, then install."));
         return;
       }
       dropId = removableSkills(player)[n - 1];
     }
     if (dropId === owned.id) {
-      alert("不能卸下与要安装的同一技能");
+      alert(L("不能卸下与要安装的同一技能", "You can't remove the same skill you're installing."));
       return;
     }
     let returned = null;
     for (const t of targets) {
       const res = removeSkillFromPlayer(t, dropId);
       if (!res.ok && t === player) {
-        alert(res.reason || "卸下失败");
+        alert(res.reason || L("卸下失败", "Couldn't remove it."));
         return;
       }
       if (res.ok && res.returnToInv) returned = res.returnToInv;
@@ -5019,7 +5028,7 @@ function installInventorySkill(invIndex, playerId, dropSkillId = null) {
     }
   }
   if (!ok) {
-    alert("安装失败（组合技等专属技能不可学习）");
+    alert(L("安装失败（组合技等专属技能不可学习）", "Install failed. Combo and signature skills can't be learned."));
     return;
   }
   for (const t of targets) {
@@ -5032,8 +5041,8 @@ function installInventorySkill(invIndex, playerId, dropSkillId = null) {
   const dropName = dropId ? SKILL_PACKS[dropId]?.name : null;
   afterSkillChange(
     dropName
-      ? `已卸下「${dropName}」，并将「${owned.name}」装到 ${player.name}`
-      : `已将「${owned.name}」装到 ${player.name}（卖掉时可按约 ${Math.round(SKILL_SELL_RATE * 100)}% 变现）`
+      ? L(`已卸下「${dropName}」，并将「${owned.name}」装到 ${player.name}`, `Removed ${skillNameL(dropName, "en")} and installed ${skillNameL(owned.name, "en")} on ${player.nameEn || player.name}.`)
+      : L(`已将「${owned.name}」装到 ${player.name}（卖掉时可按约 ${Math.round(SKILL_SELL_RATE * 100)}% 变现）`, `Installed ${skillNameL(owned.name, "en")} on ${player.nameEn || player.name}. Selling the player returns about ${Math.round(SKILL_SELL_RATE * 100)}%.`),
   );
 }
 
@@ -5616,7 +5625,7 @@ function buyScoutPack(side = null) {
   const c = state.career;
   const res = chargeScoutPack(c, side);
   if (!res.ok) {
-    if (res.reason === "funds") alert(c.kind === "career" ? `球探包需要 ¤${res.cost}` : `${side} 方的挑战赛预算不够 ¤${res.cost}`);
+    if (res.reason === "funds") alert(c.kind === "career" ? L(`球探包需要 ¤${res.cost}`, `A scouting pack costs ¤${res.cost}.`) : L(`${side} 方的挑战赛预算不够 ¤${res.cost}`, `Side ${side} doesn't have ¤${res.cost} left in the challenge budget.`));
     return;
   }
   openMarket({ career: c.kind === "career", duel: c.kind === "duel" });
@@ -5994,7 +6003,7 @@ $("#btn-refresh-coaches")?.addEventListener("click", () => {
   const c = state.career;
   if (!c || c.kind !== "career") return;
   if ((c.gold || 0) < COACH_REFRESH_COST) {
-    alert(`刷新教练市场需要 ¤${COACH_REFRESH_COST}，当前 ¤${c.gold || 0}`);
+    alert(L(`刷新教练市场需要 ¤${COACH_REFRESH_COST}，当前 ¤${c.gold || 0}`, `Refreshing the coach market costs ¤${COACH_REFRESH_COST}. You have ¤${c.gold || 0}.`));
     return;
   }
   c.gold -= COACH_REFRESH_COST;
@@ -6006,7 +6015,7 @@ $("#btn-refresh-skills")?.addEventListener("click", () => {
   const c = state.career;
   if (!c || c.kind !== "career") return;
   if ((c.gold || 0) < SKILL_REFRESH_COST) {
-    alert(`刷新技能包货架需要 ¤${SKILL_REFRESH_COST}，当前 ¤${c.gold || 0}`);
+    alert(L(`刷新技能包货架需要 ¤${SKILL_REFRESH_COST}，当前 ¤${c.gold || 0}`, `Refreshing the skill shelf costs ¤${SKILL_REFRESH_COST}. You have ¤${c.gold || 0}.`));
     return;
   }
   c.gold -= SKILL_REFRESH_COST;
@@ -6020,7 +6029,7 @@ $("#btn-refresh-market").onclick = () => {
   if (c.kind === "career") {
     const refreshCost = careerRefreshCost(c, MARKET_REFRESH_COST);
     if (c.gold < refreshCost) {
-      alert(`刷新需要 ¤${refreshCost}，当前不够`);
+      alert(L(`刷新需要 ¤${refreshCost}，当前不够`, `A refresh costs ¤${refreshCost}, and you don't have it.`));
       return;
     }
     c.gold -= refreshCost;
@@ -6042,7 +6051,7 @@ $("#btn-refresh-market").onclick = () => {
     charged = true;
   }
   if (!charged) {
-    alert(`刷新需要至少一方有 ¤${MARKET_REFRESH_COST}`);
+    alert(L(`刷新需要至少一方有 ¤${MARKET_REFRESH_COST}`, `A refresh needs at least one side to have ¤${MARKET_REFRESH_COST}.`));
     return;
   }
   c.shop = buildAffordableShop(c, 12);
@@ -6071,7 +6080,7 @@ function sellPlayer(id, side = "") {
   };
   if (c.kind === "career") {
     if (c.team.players.length <= 8) {
-      alert("至少保留 8 人");
+      alert(L("至少保留 8 人", "Keep at least 8 players."));
       return;
     }
     const idx = c.team.players.findIndex((p) => p.id === id);
@@ -6081,16 +6090,21 @@ function sellPlayer(id, side = "") {
     c.gold += total;
     const skillNote =
       skills.gold > 0
-        ? `（身价 ¤${body} + 已购技能变现 ¤${skills.gold}：${skills.lines
-            .map((l) => `${l.name}¤${l.refund}`)
-            .join("、")}）`
+        ? L(
+            `（身价 ¤${body} + 已购技能变现 ¤${skills.gold}：${skills.lines
+              .map((l) => `${l.name}¤${l.refund}`)
+              .join("、")}）`,
+            ` (value ¤${body} + bought skills sold back for ¤${skills.gold}: ${skills.lines
+              .map((l) => `${skillNameL(l.name, "en")}¤${l.refund}`)
+              .join(", ")})`,
+          )
         : "";
     openMarket({ career: true });
-    if (skillNote) alert(`卖出 ${p.name} 入账 ¤${total}${skillNote}`);
+    if (skillNote) alert(L(`卖出 ${p.name} 入账 ¤${total}${skillNote}`, `Sold ${p.nameEn || p.name} for ¤${total}${skillNote}`));
   } else {
     const team = side === "B" ? c.teamB : c.teamA;
     if (team.players.length <= 8) {
-      alert("至少保留 8 人");
+      alert(L("至少保留 8 人", "Keep at least 8 players."));
       return;
     }
     const idx = team.players.findIndex((p) => p.id === id);
@@ -6109,11 +6123,11 @@ function buyPlayer(id) {
   if (!p) return;
   const price = playerPrice(p);
   if (c.team.players.length >= 12) {
-    alert("名单已满 12 人");
+    alert(L("名单已满 12 人", "The roster is full at 12."));
     return;
   }
   if (c.gold < price) {
-    alert("金币不足");
+    alert(L("金币不足", "Not enough gold."));
     return;
   }
   c.gold -= price;
@@ -6133,7 +6147,7 @@ $("#btn-bid-resolve").onclick = () => {
   const a = Math.max(0, Number($("#bid-a").value) || 0);
   const b = Math.max(0, Number($("#bid-b").value) || 0);
   if (a === b) {
-    alert("出价相同，请再加价");
+    alert(L("出价相同，请再加价", "The bids match. Raise one."));
     return;
   }
   const winnerIsA = a > b;
@@ -6141,11 +6155,11 @@ $("#btn-bid-resolve").onclick = () => {
   const team = winnerIsA ? c.teamA : c.teamB;
   const goldKey = winnerIsA ? "goldA" : "goldB";
   if (c[goldKey] < bid) {
-    alert("胜出方金币不足");
+    alert(L("胜出方金币不足", "The winning side doesn't have enough gold."));
     return;
   }
   if (team.players.length >= 12) {
-    alert("胜出方名单已满");
+    alert(L("胜出方名单已满", "The winning side's roster is full."));
     return;
   }
   c[goldKey] -= bid;
@@ -6162,7 +6176,7 @@ $("#btn-market-done").onclick = () => {
   const c = state.career;
   if (c.kind === "career") {
     if (c.team.players.length < 8) {
-      alert("至少 8 人才能出战");
+      alert(L("至少 8 人才能出战", "You need at least 8 players to play."));
       return;
     }
     {
@@ -6184,7 +6198,7 @@ $("#btn-market-done").onclick = () => {
     const match = yourCareerMatch(c);
     const opp = match ? (match.a.bracketId === "you" ? match.b : match.a) : null;
     if (!opp) {
-      alert("对阵尚未生成，请重开晋级赛");
+      alert(L("对阵尚未生成，请重开晋级赛", "The bracket isn't ready. Start the tournament again."));
       return;
     }
     // Refresh starter preview for scout
@@ -6627,7 +6641,7 @@ function renderSetupRoles() {
   });
   $("#btn-setup-save-rotation")?.addEventListener("click", () => {
     persistSeasonRotationFromTeam(you, [...(state.setup?.selected || [])]);
-    alert("已保存为本赛季默认轮换（位置 / 分钟 / 角色 / 指令 / 首发）。下场比赛会自动套用。");
+    alert(L("已保存为本赛季默认轮换（位置 / 分钟 / 角色 / 指令 / 首发）。下场比赛会自动套用。", "Saved as this season's default rotation (positions, minutes, roles, orders, starters). The next game will use it."));
   });
 }
 
@@ -9584,7 +9598,7 @@ function renderLeagueManagement() {
           );
           commitManagedCareer(next, "draftBoard");
         } catch (error) {
-          alert(error?.message || "无法完成这次选秀");
+          alert(error?.message || L("无法完成这次选秀", "Couldn't finish this draft pick."));
         }
       },
       forfeitPick() {
@@ -9602,7 +9616,7 @@ function renderLeagueManagement() {
           );
           commitManagedCareer(next, "draftBoard");
         } catch (error) {
-          alert(error?.message || "无法放弃此签");
+          alert(error?.message || L("无法放弃此签", "Couldn't pass on this pick."));
         }
       },
       completeOffseason() {
@@ -9615,23 +9629,28 @@ function renderLeagueManagement() {
             .slice(0, 8);
           const retirements = (completed.result?.log || [])
             .filter((entry) => entry.retired)
-            .map((entry) => `${entry.name} 退役`);
+            .map((entry) => L(`${entry.name} 退役`, `${entry.name} retired`));
           const summary = highlights.length
             ? highlights
                 .map((entry) => `${entry.name} OVR ${entry.before}→${entry.after}`)
                 .join("\n")
-            : "本队本轮成长与续约变化较小。";
+            : L("本队本轮成长与续约变化较小。", "Little growth or contract change for your team this round.");
           const retiredSummary = retirements.length
-            ? `\n\n本队退役：\n${retirements.join("\n")}`
+            ? L(`\n\n本队退役：\n${retirements.join("\n")}`, `\n\nRetired:\n${retirements.join("\n")}`)
             : "";
           // B1 of docs/CAREER_LIFE_ROADMAP.md: surface the board goal result the same way every
           // other offseason outcome already gets surfaced here -- a plain recap alert, not a new
           // UI surface, since root.story.promises (the old home for this) was never rendered
           // anywhere either.
+          const goalLabel = resolvedGoal ? L(resolvedGoal.goal.label, resolvedGoal.goal.labelEn || resolvedGoal.goal.label) : "";
           const goalSummary = resolvedGoal
-            ? `\n\n赛季目标【${resolvedGoal.goal.label}】：${resolvedGoal.achieved ? "达成 ✅" : "未达成 ❌"}（信任度 ${resolvedGoal.trustDelta > 0 ? "+" : ""}${resolvedGoal.trustDelta}）`
+            ? L(
+                `\n\n赛季目标【${goalLabel}】：${resolvedGoal.achieved ? "达成 ✅" : "未达成 ❌"}（信任度 ${resolvedGoal.trustDelta > 0 ? "+" : ""}${resolvedGoal.trustDelta}）`,
+                `\n\nSeason goal [${goalLabel}]: ${resolvedGoal.achieved ? "met ✅" : "missed ❌"} (trust ${resolvedGoal.trustDelta > 0 ? "+" : ""}${resolvedGoal.trustDelta})`,
+              )
             : "";
-          const nextGoalSummary = nextGoal ? `\n\n新赛季目标：${nextGoal.label}` : "";
+          const nextGoalLabel = nextGoal ? L(nextGoal.label, nextGoal.labelEn || nextGoal.label) : "";
+          const nextGoalSummary = nextGoal ? L(`\n\n新赛季目标：${nextGoalLabel}`, `\n\nNext season's goal: ${nextGoalLabel}`) : "";
           // B6: reputation now moves with results, and a well-regarded coach can be poached. Both are
           // surfaced in this same recap; the offer also says where to find it and when it lapses.
           const repSummary = settledReputation
@@ -9667,9 +9686,13 @@ function renderLeagueManagement() {
             });
             if (axp.gained) lifetimeNote = `\n\n🎖️ ${L(`完成一世生涯，账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Completed a lifetime — Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}`;
           }
-          alert(`已进入 ${completed.result?.year || state.season?.year} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${prophecySummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`);
+          const enteredYear = completed.result?.year || state.season?.year;
+          alert(L(
+            `已进入 ${enteredYear} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${prophecySummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`,
+            `Entered the ${enteredYear} season.\n\nOffseason notes:\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${prophecySummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`,
+          ));
         } catch (error) {
-          alert(error?.message || "无法开始新赛季");
+          alert(error?.message || L("无法开始新赛季", "Couldn't start the new season."));
         }
       },
     },
@@ -9686,7 +9709,7 @@ function renderLeagueManagement() {
           });
           commitManagedCareer(next, "development");
         } catch (error) {
-          alert(error?.message || "无法保存发展方案");
+          alert(error?.message || L("无法保存发展方案", "Couldn't save the development plan."));
         }
       },
       recommendPlans() {
@@ -9696,7 +9719,7 @@ function renderLeagueManagement() {
             "development",
           );
         } catch (error) {
-          alert(error?.message || "无法生成发展建议");
+          alert(error?.message || L("无法生成发展建议", "Couldn't build development suggestions."));
         }
       },
     },
@@ -11707,7 +11730,7 @@ $("#btn-season-roster-account")?.addEventListener("click", () => {
   const name = ($("#season-team-name")?.value || "").trim() || "拉斯维加斯 ***";
   const team = accountToTeam(acc, name);
   if (!team || team.players.length < 8) {
-    alert("账号班底不足 8 人，请先去抽卡/开局集齐球员。");
+    alert(L("账号班底不足 8 人，请先去抽卡/开局集齐球员。", "The account roster has fewer than 8 players. Draw cards or start a run until you have a full group."));
     return;
   }
   // 账号班底也要过工资帽
@@ -11721,7 +11744,7 @@ $("#btn-season-roster-account")?.addEventListener("click", () => {
     if (kept.length >= SEASON_MAX_ROSTER) break;
   }
   if (kept.length < 8) {
-    alert("账号班底在工资帽下凑不满 8 人，请改用「自选历史球员」。");
+    alert(L("账号班底在工资帽下凑不满 8 人，请改用「自选历史球员」。", "Eight players won't fit under the cap. Use Choose historical players instead."));
     return;
   }
   team.players = kept;
@@ -12946,20 +12969,20 @@ async function boot() {
     console.error(e);
     const quotaError = /quota|storage quota|存储空间/i.test(e?.message || "");
     $("#load-status").textContent = quotaError
-      ? `本地存档写入失败：${e.message}。名册本身未必损坏。`
-      : `名册加载失败：${e.message}。请确认用本地服务器打开（当前应为 http://127.0.0.1:5173）。`;
+      ? L(`本地存档写入失败：${e.message}。名册本身未必损坏。`, `Couldn't write the local save: ${e.message}. The roster itself may be fine.`)
+      : L(`名册加载失败：${e.message}。请确认用本地服务器打开（当前应为 http://127.0.0.1:5173）。`, `Couldn't load the roster: ${e.message}. Open the game from a local server (http://127.0.0.1:5173).`);
     const tip = $("#load-watchdog");
     if (tip) {
       tip.hidden = false;
       if (quotaError) {
-        tip.innerHTML = "请清理名册缓存后重启：<button type=\"button\" class=\"btn small\" id=\"btn-recover-storage\">清理缓存并重启</button>";
+        tip.innerHTML = `${L("请清理名册缓存后重启：", "Clear the roster cache, then restart: ")}<button type="button" class="btn small" id="btn-recover-storage">${L("清理缓存并重启", "Clear cache and restart")}</button>`;
         $("#btn-recover-storage")?.addEventListener("click", async () => {
           await clearRosterCache();
           try { localStorage.removeItem("cls_root_v3_tmp"); } catch (_) { /* best effort */ }
           location.reload();
         });
       } else {
-        tip.textContent = "可尝试强制刷新（Cmd+Shift+R），或点主页「清除名册本地缓存」后再开。";
+        tip.textContent = L("可尝试强制刷新（Cmd+Shift+R），或点主页「清除名册本地缓存」后再开。", "Try a hard refresh (Cmd+Shift+R), or use Clear local roster cache on the home screen and open the game again.");
       }
     }
   }
@@ -12970,9 +12993,9 @@ $("#btn-clear-roster-cache")?.addEventListener("click", async () => {
   if (btn) btn.disabled = true;
   try {
     await clearRosterCache();
-    alert("名册缓存已清除。刷新页面将重新下载并构建赛季卡。");
+    alert(L("名册缓存已清除。刷新页面将重新下载并构建赛季卡。", "Roster cache cleared. Refresh the page to download it again and rebuild the season cards."));
   } catch (e) {
-    alert(`清除失败：${e.message}`);
+    alert(L(`清除失败：${e.message}`, `Couldn't clear the cache: ${e.message}`));
   } finally {
     if (btn) btn.disabled = false;
   }
