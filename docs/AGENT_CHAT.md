@@ -3392,3 +3392,15 @@ B75 (`ECONNRESET` in onlineHardening) stays open and non-blocking; `withServer` 
 [2026-11-21] Muse（Coding Agent）：认领 BACKLOG B84（cardBuildMemo 测试只钉住重复一致性、钉不住键的正确性，21:26 轮独立验证发现）。范围：只改 tests/cardBuildMemo.test.js——eraPhoto 年代键夹具换 chambto01（Tom Chambers 两年代两张图，Jordan 两年代同图钉不住 decade），断言两年代照片不同且各自重复稳定；加跨球员断言（不同 bref 同年代照片不同；无 bref 的 Zion vs John Smith intangibles 不同，injuryRisk 56 vs 28；同名不同 bref 的 Zion injuryRisk 56 vs 44）；变异核查（键里去掉 decade / bref / name 回落，新测试必须变红）；聚焦 + 全套重跑。生产代码本身无问题（9 处键与未缓存函数读的字段一一对应，全量哈希一致），如测试暴露真实键 bug 再修键。e74b7c5（开不了比赛修 + 3v3 球员池）验证留待循环后续轮次。Wibey 全量 review（review/2026-11-20 分支）进行中。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
 
 [2026-11-21] Muse（Coding Agent）：认领 e74b7c5（Lychee 实施：开不了比赛修 + 3v3 球员池）独立验证。范围：核对 commitDraft 新契约（校验失败仍拦、存档失败 ok:true + saveFailed 不回滚不拦开打、createDraft 洗旧存档非法值）、app.js 确认处 saveFailed 提示与战术板 saveFailed 警告行、playerPool 发牌分档/一人一季卡/已选不重发/短档补足、halfCourt 池面板（按卡 id 的 +A/+B、搜索框抢牌拦截、esc）与 mountSandbox addCard API；重跑 tacticalDraft + tacticsBoard + playerPool + halfCourtView + sandboxView 聚焦测试；变异核查（save 失败改回旧回滚行为、pool 键去 bref，新测试必须变红）；聚焦 + 全套重跑。浏览器实测（确认开打真能开赛、池面板点选）仍排 Mac。B35 新 sim 上 +0.04 paintFg 加成重消融与 SF 2P% 实况选择上下文留待后续轮次。Wibey 全量 review（review/2026-11-20 分支）进行中，本轮只读验证、不改生产文件。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
+
+[2026-11-21] Muse（Coding Agent）：本日汇总（Rule 7：23:26 唯一一次 Board 汇总，关闭本日全部 Muse 认领；19:26/20:26 两轮因 Lychee 性能第二轮在途认领而静默，规则 2）。队列 1–10 项早已全部关闭，本日为规则 4 独立验证 + 测量。
+
+已核验通过（只读验证，生产代码未动；变异核查 + 聚焦 + 全套均过）：d5a4ae0 上场五人沿用修；7c67ef8 赛季 hub 对手面板性能；d581626 Noto 字体移除；58c5838 读档后技术统计接着记；dc9c135 技术犯规死球球权；c8ab49f 六犯罚下；409baea 节间跳球赢家；8774b83 B81 执法者断言必跑；bcac2f7 B79 赛季排兵不勾伤员；d9d271d B78 动画闹钟早响 1ms；ce00e24 B76 测量复现；e9e9e28/01ddff3 性能批（音频预热安静时刻 + My World 最佳卡索引）；32c53f01 B76 shotGateLevel + 英文 batch（de403be1/a491eb41/d032645d）；91c81a58 Lychee 性能第二轮 memo 化建卡（全量 23,448 张卡 sha256 前后一致）；e74b7c5 Lychee 开不了比赛修 + 3v3 球员池。
+
+B35 测量链：§9 拿球后谁出手（补篮通道基本是死的：54 次 crash 板 0 次篮板人自己投；kick 不喂中锋，C 接球出手仅 17.5%）；§10 命中率通道是真（FG-only PPS 与 strength/rebound 相关 0.32/0.36，真实 0.09/0.11）；§11/§12 消融（PF +0.04 paintFg 加成解释一半到全部 PF 2P% 偏差，视桶分法；三分 0.45 上限不是 PG 缺口的驱动）；§13 新 sim 基线（shotGateLevel 后 3P% 34.5%，PF 2P% 缺口回 +5.0pt，§12 结论需在新 sim 上重消融）。测量脚本加 --fixed-set 模式（位置聚合钉死卡面 pos）。
+
+本轮自修（只改测试）：B80 技术犯规罚失分支补测试（种子 9）；B83 B78 测试改递进桩时钟（可区分新旧实现）；B84 cardBuildMemo 键正确性测试（chambto01 两年代两图、跨球员断言，测试 4→8）。新发现 B79/B80/B81/B83/B84 均已登记且已闭。B78 courtSimple:260 自 d9d271d 落地后全套连续通过 14 次。
+
+全套基线（22:26 轮，HEAD 8d5da7f8）：3736 总数：3727 通过，9 失败 = online* ws 环境缺口。
+
+待后续：B35 新 sim 上 +0.04 paintFg 加成重消融（PF+C 一起 vs 只 PF）、SF 2P% 实况选择上下文；tacticalDraft.js 头注释第 6–7 行仍写旧回滚契约，文档滞后；浏览器实测仍排 Mac（match-events、photo-chain、fragments-redeem、Duel、LED 镜像、S4 可读性、性能批首点/冷启动/主页重绘耗时、e74b7c5 真机开赛）。待用户拍板的不催：B65 35% 弧顶占比路线、G-P1-5、D-P1-5、enforcer-egg temp.offense、ADR-011 N1–N8、Riley Q2/Q6、M5–M7。Wibey 全量 review 仍在 review/2026-11-20 分支进行中。
