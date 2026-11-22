@@ -54,6 +54,15 @@
  * B35 §18: ablation flags via the B35_ABL env var (e.g. B35_ABL=u1+u3).
  * B35 §19 adds u5 (shot-path open leaks: skillKickOpenBonus +
  * tempoDef.openBonus, applied after the U1 pin).
+ * B35 §20 adds u6a (skillMakeBonus live-only quarter/scoreDiff residue
+ * neutralised to the probe context Q2/0) and u6b (defBigs rim-protection
+ * term + paintCrowdPenalty zeroed — the lineup-composition terms the probe
+ * only approximately contains). The probe is also run under {u6b:true} (pass
+ * 3, probe-side baseline of those two terms) and {u6a:true} (self-check —
+ * the probe already passes Q2/0, so the delta must be exactly 0).
+ * Live makeP is also tallied on a shot basis (meta.shot events only, no
+ * recovered blocks) so live and probe compare on the same calcMakeProb
+ * level without the §19 first-order block-drag correction.
  * They are published on globalThis.__B35_ABL for the scratch-worktree
  * sim.js to read (main-tree sim.js has no ablation hooks and ignores them).
  * Part A (live games) runs under the requested flags; Part B (probe) always
@@ -70,7 +79,7 @@ import { withRng } from "../../js/core/rng.js";
 import { writeFileSync } from "node:fs";
 
 const ABL = (process.env.B35_ABL || "").split("+").filter(Boolean);
-globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5") };
+globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5"), u6a: ABL.includes("u6a"), u6b: ABL.includes("u6b") };
 // §19: the worktree sim.js counts would-be U5 leak applications here (main-tree sim.js never increments it).
 globalThis.__B35_U5COUNT = { kick: 0, kickPaint: 0, kickMid: 0, kickThree: 0, tempo: 0, tempoGrind: 0, tempoPush: 0, tempoPaint: 0, tempoMid: 0, tempoThree: 0 };
 console.log(`B35_ABL flags: ${ABL.join("+") || "(none)"} — live games run under these; probe pass 1 is always flag-free`);
@@ -121,7 +130,10 @@ for (const [a, b, year] of PAIRS) {
       let r = rows.get(k);
       if (!r) {
         r = { p: byId.get(id), year, min: 0, fga: 0, fgm: 0, fga2: 0, fgm2: 0, fga3: 0, fgm3: 0,
-          live: { paint: { a: 0, m: 0 }, mid: { a: 0, m: 0 }, three: { a: 0, m: 0 } } };
+          live: { paint: { a: 0, m: 0 }, mid: { a: 0, m: 0 }, three: { a: 0, m: 0 } },
+          // §20: shot basis — meta.shot events only (no recovered blocks), so
+          // live makeP compares with the probe on the same calcMakeProb level.
+          liveShot: { paint: { a: 0, m: 0 }, mid: { a: 0, m: 0 }, three: { a: 0, m: 0 } } };
         rows.set(k, r);
       }
       return r;
@@ -133,6 +145,8 @@ for (const [a, b, year] of PAIRS) {
         const r = rowFor(e.meta.shot.shooterId);
         r.live[zone].a += 1;
         if (e.meta.shot.made) r.live[zone].m += 1;
+        r.liveShot[zone].a += 1;
+        if (e.meta.shot.made) r.liveShot[zone].m += 1;
         eventFga += 1;
       } else if (e.type === "miss" && e.meta?.block) {
         // Blocked attempt: counts in stats FGA, no meta.shot. Recover it as
@@ -231,6 +245,12 @@ for (const [a, b, year] of PAIRS) {
       // main-tree sim.js it is identical (delta 0).
       const mpU4 = probeMp({ u4: true });
       for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU4"] = mpU4[zone + "Fixed"];
+      // §20 pass 3: probe-side baseline of the U6b terms (defBigs / paintCrowdPenalty).
+      const mpU6b = probeMp({ u6b: true });
+      for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU6b"] = mpU6b[zone + "Fixed"];
+      // §20 self-check: the probe already passes Q2/0, so u6a must not move it.
+      const mpU6a = probeMp({ u6a: true });
+      for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU6a"] = mpU6a[zone + "Fixed"];
       const tally = { paint: 0, mid: 0, three: 0 };
       withRng(seededStream(hashSeed(`b35make-share|${year}|${p.id}`)), () => {
         for (let k = 0; k < 300; k += 1) tally[chooseShot(p, off, null, null).zone] += 1;
@@ -250,6 +270,9 @@ for (const zone of ["paint", "mid"]) {
   const wAvg = (f) => sum(joined, (j) => f(j) * j.live.live[zone].a) / Math.max(1, sum(joined, (j) => j.live.live[zone].a));
   const d = wAvg((j) => j.mp[zone + "FixedU4"] - j.mp[zone + "Fixed"]);
   console.log(`  probe-side U4 baseline, ${zone}: neutral ${pct(wAvg((j) => j.mp[zone + "Fixed"]))} -> U4-neutral ${pct(wAvg((j) => j.mp[zone + "FixedU4"]))} (delta ${gap(d)})`);
+  const d6b = wAvg((j) => j.mp[zone + "FixedU6b"] - j.mp[zone + "Fixed"]);
+  const d6a = wAvg((j) => j.mp[zone + "FixedU6a"] - j.mp[zone + "Fixed"]);
+  console.log(`  probe-side U6b baseline, ${zone}: neutral ${pct(wAvg((j) => j.mp[zone + "Fixed"]))} -> U6b-neutral ${pct(wAvg((j) => j.mp[zone + "FixedU6b"]))} (delta ${gap(d6b)}); U6a self-check delta ${gap(d6a)} (expect 0)`);
 }
 
 // ---------- Part C: Oaxaca decomposition (2P, event basis) ----------
@@ -322,6 +345,19 @@ for (const zone of ["paint", "mid"]) {
   const wAvg = (f) => sum(dec, (j) => f(j) * j.live.live[zone].a) / Math.max(1, sum(dec, (j) => j.live.live[zone].a));
   console.log(`  ${zone.padEnd(6)} live ${pct(wAvg((j) => j.d.liveMp[zone]))} vs probe ${pct(wAvg((j) => j.d.probeMp[zone]))}  (${sum(dec, (j) => j.live.live[zone].a)} attempts)`);
 }
+// §20: shot-basis live makeP — meta.shot only, no recovered blocks. Blocked
+// shots never reach calcMakeProb, so this is the live number on the same
+// level as the probe; the event-basis residual above understates it by the
+// zone block rate (§19.2). Residual vs the U4-neutral probe is the
+// calcMakeProb-level residual directly, no first-order correction needed.
+console.log("\nShot-basis live makeP vs probe (2PA-weighted league means, no block drag):");
+for (const zone of ["paint", "mid"]) {
+  const wShot = (f) => sum(dec, (j) => f(j) * j.live.liveShot[zone].a) / Math.max(1, sum(dec, (j) => j.live.liveShot[zone].a));
+  const shotMp = wShot((j) => (j.live.liveShot[zone].a ? j.live.liveShot[zone].m / j.live.liveShot[zone].a : 0));
+  const probeMpZ = wShot((j) => j.mp[zone + "Fixed"]);
+  const probeU4Z = wShot((j) => j.mp[zone + "FixedU4"]);
+  console.log(`  ${zone.padEnd(6)} shot-basis live ${pct(shotMp)} vs probe ${pct(probeMpZ)} vs probe-U4-neutral ${pct(probeU4Z)}  residual vs U4-neutral ${gap(shotMp - probeU4Z)}  (${sum(dec, (j) => j.live.liveShot[zone].a)} shots)`);
+}
 console.log("\nLargest positive stack terms (live makeP far above probe — who benefits most from the live stack?):");
 for (const j of [...dec].sort((x, y) => y.d.stack - x.d.stack).slice(0, 8))
   console.log(`  ${String(j.p.name).padEnd(22)} ${j.year} ${j.pos} stack ${gap(j.d.stack)} (realised ${pct(j.d.realised)} vs expected ${pct(j.d.expected)}, ${j.d.l2a} 2PA)`);
@@ -334,7 +370,8 @@ if (OUT) {
     players: dec.map((j) => ({
       key: `${j.year}|${j.p.id}`, name: j.p.name, year: j.year, pos: j.pos,
       live: j.live.live,
-      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed }, mpFixedU4: { paint: j.mp.paintFixedU4, mid: j.mp.midFixedU4, three: j.mp.threeFixedU4 } },
+      liveShot: j.live.liveShot,
+      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed }, mpFixedU4: { paint: j.mp.paintFixedU4, mid: j.mp.midFixedU4, three: j.mp.threeFixedU4 }, mpFixedU6b: { paint: j.mp.paintFixedU6b, mid: j.mp.midFixedU6b, three: j.mp.threeFixedU6b }, mpFixedU6a: { paint: j.mp.paintFixedU6a, mid: j.mp.midFixedU6a, three: j.mp.threeFixedU6a } },
       sim: { min: j.live.min, fga: j.live.fga, fgm: j.live.fgm, fga2: j.live.fga2, fgm2: j.live.fgm2, fga3: j.live.fga3, fgm3: j.live.fgm3 },
       decomp: { realised: j.d.realised, expected: j.d.expected, mix: j.d.mix, stack: j.d.stack, interact: j.d.interact, l2a: j.d.l2a },
     })),
