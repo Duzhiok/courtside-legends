@@ -5,6 +5,7 @@ import { esc } from "../../core/html.js";
 import { TL } from "../../i18n.js";
 import { createEditorState, tacticalDraftReducer, isDirty, commitDraft } from "./tacticalDraft.js";
 import { buildTacticsBoardModel } from "./tacticsBoardModel.js";
+import { pnrPanelHtml } from "./pnrBoardView.js";
 
 const TAG_TEXT = { sim: ["模拟生效", "Sim effect"], advice: ["仅分析", "Analysis only"] };
 const tagHtml = (tag, lang) => `<span class="tb-tag tb-tag-${tag}">${esc(TL(lang, ...TAG_TEXT[tag]))}</span>`;
@@ -43,6 +44,9 @@ export const ERROR_TEXT = {
   BALL_ACTION_INVALID: ["持球打法无效", "Invalid ball-handler play"],
   DEFENSE_SCHEME_INVALID: ["防守方案无效", "Invalid defensive scheme"],
   DEFENDER_NOT_ON_TEAM: ["指定的防守人不在本队", "The chosen defender is not on your team"],
+  PNR_SCREENER_NOT_ON_TEAM: ["挡拆掩护人不在本队", "The pick-and-roll screener is not on your team"],
+  PNR_SCREENER_IS_HANDLER: ["掩护人不能是持球核心本人", "The screener cannot be the ball handler"],
+  PNR_AFTER_SCREEN_UNKNOWN: ["掩护之后的动作无效", "Unknown action after the screen"],
 };
 /** Poor-but-legal plans still apply. The player has to be able to see why the choice will not show up in the game. */
 export const WARNING_TEXT = {
@@ -50,6 +54,8 @@ export const WARNING_TEXT = {
   HANDLER_NOT_A_STARTER: ["持球核心不在首发里，开场不会由他持球", "The ball handler is not starting, so he will not bring the ball up"],
   DEFENSE_TARGET_MISSING: ["盯防没有目标，这套防守不会触发", "This defense has no target, so it will not trigger"],
   DEFENSE_TARGET_NOT_ON_OPPONENT: ["盯防目标不在本场对手里，这套防守不会触发", "The defensive target is not on this opponent, so that defense will not trigger"],
+  PNR_SCREENER_NOT_A_STARTER: ["掩护人不在首发里，开场挡拆不会由他掩护", "The screener is not starting, so he will not set the opening screens"],
+  PNR_POP_WITHOUT_SHOT: ["这名掩护人没有投射威胁，外拆也不会得到射手权重", "This screener is no shooting threat, so popping out earns him no shooter weight"],
 };
 const reasonsText = (codes, text, lang) => codes.map((c) => (text[c] ? TL(lang, ...text[c]) : c)).join(TL(lang, "；", "; "));
 
@@ -68,7 +74,7 @@ export function renderTacticsBoardHtml(m, lang = "zh") {
       : "",
   ].join("");
   return `<section class="tb" aria-label="${esc(TL(lang, "赛前战术", "Game plan"))}">
-    <div class="tb-main">${courtHtml(m, lang)}${actionsHtml(m, lang)}</div>
+    <div class="tb-main">${courtHtml(m, lang)}${actionsHtml(m, lang)}${pnrPanelHtml(m.pnr, lang)}</div>
     <aside class="tb-side">${coach}<ul class="tb-rows">${rows}</ul><h3 class="tb-h">${esc(TL(lang, "进攻体系", "Offensive system"))}</h3><div class="tb-systems">${systemsHtml(m, lang)}</div></aside>
     <div class="tb-bar">${status}<button type="button" class="btn ghost" data-tb="reset"${m.dirty ? "" : " disabled"}>${esc(TL(lang, "重置", "Reset"))}</button><button type="button" class="btn primary" data-tb="apply"${m.canApply ? "" : " disabled"}>${esc(TL(lang, "应用方案", "Apply plan"))}</button></div>
   </section>`;
@@ -102,6 +108,11 @@ export function mountTacticsBoard(root, { team, opponent = null, lang = "zh", sa
       case "scheme": return dispatch({ type: "SET_SCHEME", schemeId: id });
       case "handler": return dispatch({ type: "SET_BALL_HANDLER", playerId: id === state.draft.ballHandlerId ? null : id });
       case "action": return dispatch({ type: "SET_BALL_ACTION", actionId: id });
+      case "pnr-screener": return dispatch({ type: "SET_PNR", patch: { screenerId: id } });
+      case "pnr-after": return dispatch({ type: "SET_PNR", patch: { afterScreen: id } });
+      case "pnr-finish": return dispatch({ type: "SET_PNR", patch: { finish: id } });
+      case "pnr-off": return dispatch({ type: "SET_PNR", patch: { offBall: { [id]: el.dataset.val } } });
+      case "pnr-reset": return dispatch({ type: "CLEAR_PNR" });
       case "reset": return dispatch({ type: "RESET" });
       case "apply": return apply();
       default: return undefined;

@@ -87,7 +87,7 @@ gameplan.pnr = {
   afterScreen: "roll",          // roll | pop | slip | ghost
   offBall: { "p-yyy": "spot", "p-zzz": "cut", ... },  // 其余三人每人一个
   finish: "drive",              // mid | drive | fake_kick（持球人终结）
-  manual: true,                 // 玩家改过其中任何一项（推荐值被覆盖时置 true）
+  // 只存玩家明确选过的项；没选的字段不写（实现时删掉了 `manual`：字段存在就是"已改"，见 §9）
 }
 ```
 
@@ -257,7 +257,7 @@ gameplan.pnr = {
 只做引擎 + 方案字段读入；**板上 UI、`tacticalDraft` 的字段/校验/洗脏值（§3.5–3.6）还没做**，所以现在只有直接写 `team.gameplan.pnr` 才会生效。
 
 - `js/engine/pnrPlan.js`（纯函数，不抽随机数）：`cleanPnrPlan`（脏值逐字段洗掉）、`resolvePnrPlay`（掩护人必须在场且不是持球人，否则回落自动）、
-  `pnrKickMult` / `pnrShotMult` / `pnrKickChanceBonus` / `pnrOpenBonus`。`isFloorShooter` 原样搬到 `js/engine/floorShooter.js`（纯重构，避免循环依赖）。
+  `pnrKickMult` / `pnrShotMult` / `pnrKickChanceBonus` / `pnrOpenBonus`。`isFloorShooter` 原样搬到 `js/engine/shooterType.js`（纯重构，避免循环依赖；切片 2 起 `isMidHandler` 也在这里）。
 - `sim.js` 只加接线：持球人 `orders.action === "pnr"` 时解析一次 `pnrPlay`，放进 `sideCtx.pnr`；`kickToTeammate` 多一个参数；`chooseShot` 末尾乘一个
   `{w3,wMid,wPaint}`；`gradeScreen` 用被指定的掩护人，`slip` / `ghost` 不加掩护分；`ghost` 时 `scheme = null`（没有任何挡拆权重）。
 - **零回归：** 没有 `gameplan.pnr`、或字段全是脏值 / 掩护人不在队里，逐字节等于现在（测试：3 个种子的比分与全队技术统计逐项一致；金标不变）。
@@ -284,3 +284,17 @@ gameplan.pnr = {
 - `fake_kick` 对队友更强的队有用（湖人 +2.9），对公牛是负的（−0.7）：不是白送的加成。
 - 多数球员的 `kickChance` 已经被 0.72 封顶，所以 `fake_kick` / ghost 对**整队传球数**几乎没有影响（测试里这两条断言我删了，不迎合数字）；
   它们的效果走的是投篮权重和 `scheme` 权重。
+
+## 9. 板上面板与 `tacticalDraft` 已落地（Code Puppy，2026-11-22，切片 2）
+
+玩家现在可以在 Gold 赛前页选挡拆角色。持球核心的打法是"指拆"时，战术板下面出现"挡拆配合"：掩护人、掩护之后、其余球员（定点/空切）、持球人终结，外加"全部恢复推荐"。
+
+**和 §2/§3.7 的一处取舍（写下来免得以后被当成 bug）：** §2 说推荐值全部预填，§3.7 说没有 `gameplan.pnr` 就零回归。两句同时成立的做法是：**`draft.pnr` 只存玩家明确选过的项**，没选的显示"推荐"角标但不写入。推荐值本来就是引擎不填时的自动行为（`recommendPnrPlan`：掩护人 = `pickScreener` 事后挑的那个人，会投的外拆、其余下顺，射手定点、其他人空切，持球人是中投型就中投、否则突破），所以"不选"和"选推荐"打出来是同一场球；打开板子、点 Apply 不会改变任何比赛。因此 §3.2 的 `manual` 字段没有必要，已删。`fake_kick` 永远不会被推荐。
+
+- `tacticalDraft.js`：`draft.pnr`；`SET_PNR`（null 清一项）、`CLEAR_PNR`（全部恢复推荐）；换持球人时他不能同时是掩护人；`SYNC_STARTERS` 时离开首发的掩护人/其余球员从方案里掉出来，**不算改动**（draft 和已存快照一起动）；`createDraft` 洗脏值（不在队里的掩护人、掩护人=持球人、未知动作、不在队里的其余球员），Apply 不会被卡灰；`composeGameplan` 多一个 `pnr` 参数，没有就不写字段。
+- 校验码：错误 `PNR_SCREENER_NOT_ON_TEAM` / `PNR_SCREENER_IS_HANDLER` / `PNR_AFTER_SCREEN_UNKNOWN`；警告 `PNR_SCREENER_NOT_A_STARTER` / `PNR_POP_WITHOUT_SHOT`（只在这套方案真的是挡拆时才提示）。
+- `app.js` 的老开打处理器会整体重建 `gameplan`，所以加了一行透传 `pnr`，否则不点 Apply 直接开打会把板上存的角色抹掉。
+- 幽灵跑位：**保留为可选项，标红色"高风险"，选中时写明代价**（§8 的实测：引擎没有换防/包夹，它是纯代价）。等引擎有了防守反应再重新评估。
+- 面板文件：`pnrBoardModel.js`（纯函数）/ `pnrBoardView.js`（HTML）；样式在 `css/tacticsBoard.css`。
+- 已知没做：§3.3 的"性格/契合预览"（空切给一个不爱空切的人会怎样）；板子推荐的"其余球员"在没有射手的阵容里全是空切，这是现有 `isFloorShooter` 的结果，没动。
+- 验证：`tests/tacticalDraftPnr.test.js` 9、`tests/pnrBoard.test.js` 6，共 15 个新测试，8 个变异全部抓到；整套 3850/3850；真实浏览器 `scripts/qa/gold-pnr-roles.mjs` 桌面 + 390px 各 16 项全过（含"选了不 Apply 就不存档""不选就不写""开打后角色还在""按钮 ≥44px"）。

@@ -1,6 +1,6 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
 import { shotAppetite } from "./shotAppetite.js";
-import { isFloorShooter } from "./floorShooter.js";
+import { isFloorShooter, isMidHandler } from "./shooterType.js";
 import { resolvePnrPlay, pnrKickMult, pnrShotMult, pnrKickChanceBonus, pnrOpenBonus } from "./pnrPlan.js";
 import { rand as rnd, withRng } from "../core/rng.js";
 import { getLang, skillNameL } from "../i18n.js";
@@ -4144,11 +4144,6 @@ function pickPasser(off, scorer) {
 }
 
 /** Ball-handler who can punish with mid pull-ups. */
-function isMidHandler(p) {
-  if (!p) return false;
-  return (p.mid || 0) >= 70 || (p.midTend || 0) >= 55 || p.offenseStyle === "midiso";
-}
-
 /** 弹跳/机动内线分：速度+马达+空接/弹跳技能 */
 function springAthleteScore(p) {
   if (!p) return 0;

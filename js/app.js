@@ -7217,6 +7217,7 @@ $("#btn-setup-confirm").onclick = () => {
     assignments,
     offenseFocusId: focusId,
     tempo: tempoId,
+    pnr: you.gameplan?.pnr || null, // roles the tactics board saved: this handler must not wipe them
   });
   ensurePlayerOrders(you.players);
   if (focusId) {

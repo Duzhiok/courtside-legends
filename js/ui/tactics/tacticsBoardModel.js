@@ -13,6 +13,7 @@ import { ovr } from "../../myteam/playerRoleFit.js";
 import { ORDER_ACTION, suggestedBallHandlerAction } from "../../engine/gameplan.js";
 import { normalizePos } from "../../data/positions.js";
 import { validateDraft } from "./tacticalDraft.js";
+import { buildPnrBoardModel } from "./pnrBoardModel.js";
 
 const pick = (lang, zh, en) => (lang === "en" ? en || zh : zh);
 const tacticLabel = (id, lang) => pick(lang, TACTICS[id]?.name || id, TACTICS[id]?.nameEn);
@@ -83,6 +84,7 @@ export function buildTacticsBoardModel({ team, draft, opponent = null, lang = "z
     slots,
     handlerId: handler?.id || null,
     ballActions: handler ? ballActions : [],
+    pnr: buildPnrBoardModel({ team, draft, starters, lang }), // null unless the handler's play is the pick and roll
     threats,
     rows,
     errors,

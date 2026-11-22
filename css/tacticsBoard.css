@@ -46,6 +46,24 @@
 .tb-status { margin: 0 auto 0 0; }
 .tb-status.is-error { color: #a4161a; font-weight: 700; }
 .tb-status.is-warn { color: #8a5a00; font-weight: 700; }
+.tb-pnr { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.tb-pnr .tb-h { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb-pnr .tb-h small { font-weight: 400; color: #4a5a50; }
+.tb-pnr-reset { margin-left: auto; min-height: 44px; }
+.tb-pnr-group { margin-top: 10px; }
+.tb-pnr-h { margin: 0; font-size: .82rem; color: #4a5a50; }
+.tb-pnr-hint { margin: 6px 0 0; font-size: .82rem; color: #4a5a50; }
+.tb-pnr-men { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tb-pnr-man { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb-pnr-man .tb-actions { margin-top: 0; }
+.tb-pnr-name { min-width: 7em; font-weight: 700; }
+.tb-pnr-name small { font-weight: 400; color: #4a5a50; }
+.tb-action.is-risky:not(.is-active) { border-color: #a4161a; }
+.tb-badge { font-size: .72rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; margin-left: 4px; vertical-align: middle; }
+.tb-badge-rec { background: #ece6d8; color: #4a3b12; }
+.tb-badge-set { background: #b34700; color: #fff; } /* white on --accent is 3.5:1; this is 5.5:1 (WCAG AA for small text) */
+.tb-badge-risk { background: #a4161a; color: #fff; }
+.tb-action.is-active .tb-badge-rec { background: rgba(255, 255, 255, .85); }
 @media (max-width: 720px) {
   .tb { grid-template-columns: 1fr; }
   .tb-spot { min-width: 72px; }

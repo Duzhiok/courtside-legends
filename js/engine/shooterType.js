@@ -11,3 +11,9 @@ export function isFloorShooter(p) {
     p.orders?.attack === "perimeter"
   );
 }
+
+/** A handler worth a pull-up: a real mid-range scorer. */
+export function isMidHandler(p) {
+  if (!p) return false;
+  return (p.mid || 0) >= 70 || (p.midTend || 0) >= 55 || p.offenseStyle === "midiso";
+}

@@ -14,12 +14,14 @@ import { TACTICS, availableTactics, orderTacticsDefaultFirst } from "../../data/
 import {
   ORDER_ACTION, TEMPO_OPTIONS, normalizeTempo, ensurePlayerOrders, suggestedBallHandlerAction, usageForBallAction,
 } from "../../engine/gameplan.js";
+import { PNR_AFTER, cleanPnrPlan, recommendPnrPlan } from "../../engine/pnrPlan.js";
+import { isFloorShooter } from "../../engine/shooterType.js";
 
 /** sim.js `setDefenseScheme` accepts these three (index.html #gp-scheme lists the same). */
 export const DEFENSE_SCHEMES = ["focus", "double", "bump"];
 
 /** The one gameplan shape. Used by the old tip-off handler and by `applyDraft`. */
-export function composeGameplan({ defenderId = null, targetId = null, scheme = null, assignments = {}, offenseFocusId = null, tempo }) {
+export function composeGameplan({ defenderId = null, targetId = null, scheme = null, assignments = {}, offenseFocusId = null, tempo, pnr = null }) {
   const board = { ...assignments };
   const focusDef = defenderId || (targetId && board[targetId]) || null;
   return {
@@ -29,7 +31,31 @@ export function composeGameplan({ defenderId = null, targetId = null, scheme = n
     matchupAssignments: board,
     offenseFocusId: offenseFocusId || null,
     tempo: normalizeTempo(tempo),
+    // Additive (engine/pnrPlan.js): absent = every pick-and-roll role is automatic, exactly as before the field existed.
+    ...(pnr ? { pnr } : {}),
   };
+}
+
+/**
+ * The pick-and-roll roles the coach CHOSE (nothing else: an unset choice is shown as "recommended" and plays the engine's own automatic
+ * behaviour, so opening the board and applying never changes a game). Dirty values go: unknown choices, a screener who is the handler or is
+ * not on the team, off-ball men who are not on the team. `keep` narrows to a set of ids (the five starters).
+ */
+function scrubPnr(raw, { keep = null, handlerId = null, ids = null } = {}) {
+  const plan = cleanPnrPlan(raw);
+  if (!plan) return null;
+  const allowed = (id) => (!ids || ids.has(id)) && (!keep || keep.has(id)) && id !== handlerId;
+  return cleanPnrPlan({
+    ...plan,
+    screenerId: plan.screenerId && allowed(plan.screenerId) ? plan.screenerId : null,
+    offBall: Object.fromEntries(Object.entries(plan.offBall).filter(([id]) => allowed(id))),
+  });
+}
+
+/** The pick-and-roll roles only matter while the handler's play is the pick and roll. */
+export function pnrIsActive(draft, team) {
+  const handler = (team?.players || []).find((p) => p.id === draft?.ballHandlerId);
+  return !!handler && (draft.ballAction || suggestedBallHandlerAction(handler)) === "pnr";
 }
 
 export function createDraft(team) {
@@ -51,6 +77,7 @@ export function createDraft(team) {
     starterIds: [...(team?.starterIds || [])],
     ballHandlerId: handler ? gp.offenseFocusId : null,
     ballAction,
+    pnr: scrubPnr(gp.pnr, { ids: onTeam, handlerId: handler ? gp.offenseFocusId : null }),
     tempo: normalizeTempo(gp.tempo),
     defense: {
       scheme: DEFENSE_SCHEMES.includes(mu?.scheme) ? mu.scheme : null,
@@ -88,7 +115,15 @@ export function tacticalDraftReducer(state, action) {
     case "SET_TEMPO": return edit(state, { tempo: normalizeTempo(action.tempo) });
     case "SET_BALL_HANDLER": {
       if ((action.playerId || null) === state.draft.ballHandlerId) return state;
-      return edit(state, { ballHandlerId: action.playerId || null, ballAction: null }); // null = the suggested action
+      // null = the suggested action. The new handler cannot also be the screener.
+      return edit(state, { ballHandlerId: action.playerId || null, ballAction: null, pnr: scrubPnr(state.draft.pnr, { handlerId: action.playerId || null }) });
+    }
+    case "CLEAR_PNR": return state.draft.pnr ? edit(state, { pnr: null }) : state; // every pick-and-roll choice back to "recommended"
+    // patch: { screenerId, afterScreen, finish, offBall: { [id]: "spot" | "cut" | null } }; null clears one choice (back to "recommended").
+    case "SET_PNR": {
+      const cur = state.draft.pnr || {};
+      const { offBall: ob = {}, ...rest } = action.patch || {};
+      return edit(state, { pnr: cleanPnrPlan({ ...cur, ...rest, offBall: { ...(cur.offBall || {}), ...ob } }) });
     }
     case "SET_BALL_ACTION": return edit(state, { ballAction: action.actionId || null });
     case "SET_DEFENSE": return edit(state, { defense: { ...state.draft.defense, ...action.patch } });
@@ -98,7 +133,12 @@ export function tacticalDraftReducer(state, action) {
     // so changing a starter never marks the tactics unsaved. A ball handler who left the five is cleared.
     case "SYNC_STARTERS": {
       const starterIds = [...action.starterIds];
-      const follow = (d) => ({ ...d, starterIds, ...(d.ballHandlerId && !starterIds.includes(d.ballHandlerId) ? { ballHandlerId: null, ballAction: null } : {}) });
+      const keep = new Set(starterIds);
+      const follow = (d) => {
+        const handlerGone = d.ballHandlerId && !keep.has(d.ballHandlerId);
+        // A screener or off-ball man who left the five drops out of the plan: it falls back to the recommendation instead of blocking tip-off.
+        return { ...d, starterIds, ...(handlerGone ? { ballHandlerId: null, ballAction: null } : {}), pnr: scrubPnr(d.pnr, { keep }) };
+      };
       return { ...state, draft: follow(state.draft), savedSnapshot: follow(state.savedSnapshot) };
     }
     case "MARK_SAVED": return { ...state, savedSnapshot: structuredClone(state.draft) };
@@ -125,8 +165,27 @@ export function validateDraft(draft, { team, opponent = null } = {}) {
   // it plays without it. That is worth telling the player, but it is not a plan the engine "cannot run", and it must never block tip-off.
   if (d.scheme && !d.targetId) warnings.push("DEFENSE_TARGET_MISSING");
   if (d.defenderId && !ids.has(d.defenderId)) errors.push("DEFENDER_NOT_ON_TEAM");
+  validatePnr(draft, team, { errors, warnings, ids, starters });
   if (opponent?.players && d.targetId && !opponent.players.some((p) => p.id === d.targetId)) warnings.push("DEFENSE_TARGET_NOT_ON_OPPONENT");
   return { errors, warnings };
+}
+
+function validatePnr(draft, team, { errors, warnings, ids, starters }) {
+  const pnr = draft.pnr;
+  if (!pnr) return;
+  if (pnr.afterScreen && !PNR_AFTER.includes(pnr.afterScreen)) errors.push("PNR_AFTER_SCREEN_UNKNOWN");
+  if (pnr.screenerId) {
+    if (!ids.has(pnr.screenerId)) errors.push("PNR_SCREENER_NOT_ON_TEAM");
+    else if (pnr.screenerId === draft.ballHandlerId) errors.push("PNR_SCREENER_IS_HANDLER");
+    else if (!starters.includes(pnr.screenerId)) warnings.push("PNR_SCREENER_NOT_A_STARTER");
+  }
+  if (pnr.afterScreen === "pop" && pnrIsActive(draft, team)) {
+    const byId = new Map((team.players || []).map((p) => [p.id, p]));
+    const handler = byId.get(draft.ballHandlerId);
+    const named = byId.get(pnr.screenerId);
+    const screener = named || byId.get(recommendPnrPlan(starters.map((id) => byId.get(id)).filter(Boolean), handler).screenerId);
+    if (screener && !isFloorShooter(screener)) warnings.push("PNR_POP_WITHOUT_SHOT"); // engine plays it, but gives him no shooter weight
+  }
 }
 
 /** Pure: returns a new team with the draft written exactly as the tip-off handler writes it. */
@@ -136,7 +195,7 @@ export function applyDraft(team, draft) {
   const pool = draft.tacticPool.includes(active) ? draft.tacticPool : [active, ...draft.tacticPool];
   next.coach = { ...(next.coach || {}), specialTactics: orderTacticsDefaultFirst(pool, active) };
   next.starterIds = [...draft.starterIds];
-  next.gameplan = composeGameplan({ ...draft.defense, offenseFocusId: draft.ballHandlerId, tempo: draft.tempo });
+  next.gameplan = composeGameplan({ ...draft.defense, offenseFocusId: draft.ballHandlerId, tempo: draft.tempo, pnr: cleanPnrPlan(draft.pnr) });
   ensurePlayerOrders(next.players);
   const handler = next.players.find((p) => p.id === draft.ballHandlerId);
   if (handler) {

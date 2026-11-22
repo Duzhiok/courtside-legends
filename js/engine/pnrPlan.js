@@ -8,7 +8,8 @@
  * What changes is WHO the existing weights go to. Before, "roll man" meant any C/PF with paint >= 72 and "spacer" meant any shooter.
  * With a plan, the roll weight goes to the man the coach named, and the generic bigs lose it.
  */
-import { isFloorShooter } from "./floorShooter.js";
+import { isFloorShooter, isMidHandler } from "./shooterType.js";
+import { pickScreener } from "./grade.js";
 
 export const PNR_AFTER = Object.freeze(["roll", "pop", "slip", "ghost"]);
 export const PNR_FINISH = Object.freeze(["mid", "drive", "fake_kick"]);
@@ -164,4 +165,23 @@ export function pnrKickChanceBonus(play) {
 /** Extra openness for the man who slipped the screen when he catches the kick-out. 0 for everybody else and for every other plan. */
 export function pnrOpenBonus(p, play, { kickedOut = false } = {}) {
   return play && kickedOut && play.afterScreen === "slip" && play.screenerId === p?.id ? PNR_TUNING.slipOpen : 0;
+}
+
+/**
+ * What the board shows as "recommended" for the men on the floor. These are not extra rules: each one is what the engine already does
+ * when the plan says nothing (the screener is the man pickScreener picks after the basket; a shooter spaces, anybody else goes in; the
+ * default after-screen is the roll), so leaving a choice unset and choosing the recommended value play the same game.
+ * `fake_kick` is never recommended: it takes a read of the help that numbers cannot make.
+ */
+export const recommendedOffBall = (p) => (isFloorShooter(p) ? "spot" : "cut");
+
+export function recommendPnrPlan(floor, handler) {
+  const men = (floor || []).filter((p) => p && p.id !== handler?.id);
+  const screener = pickScreener(floor, handler, null);
+  return {
+    screenerId: screener?.id || null,
+    afterScreen: screener && isFloorShooter(screener) ? "pop" : "roll",
+    offBall: Object.fromEntries(men.filter((p) => p.id !== screener?.id).map((p) => [p.id, recommendedOffBall(p)])),
+    finish: handler ? (isMidHandler(handler) ? "mid" : "drive") : null,
+  };
 }
