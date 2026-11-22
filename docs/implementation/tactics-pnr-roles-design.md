@@ -286,6 +286,7 @@ gameplan.pnr = {
 - 引擎仍然不模拟防守对挡拆的反应（换防 / 包夹 / 沉退），所以“幽灵只在对手包夹时才有意义”这类说法没有依据，板上也已删除。要给它们一个真实的上行/下行，
   需要先做 B25（防守战术对挡拆的真实行为），见 `b25-defense-behaviour-design.md`。
 - 多数球员的 `kickChance` 已经被 0.72 封顶，所以 `fake_kick` / ghost 对**整队传球数**几乎没有影响；它们的效果走的是投篮权重和 `scheme` 权重。
+- **B85 已修（2026-11-22，Muse）：** ghost 曾把通用大个子档扣到无掩护基线以下——`scheme = null` 使通用滚下档（分球 ×1.25 / 终结 ×1.35）根本没加上，但 `pnrKickMult` / `pnrShotMult` 仍按“已加上”把它除掉（0.8 / 0.74；Longley 探针 ghost paint 76.5% vs 无掩护对照 81.2%）。修法：两函数加 `genericRollApplied` 参数，sim.js 在两处调用点传 `scheme === "pnr"`，ghost 时不再除回（探针 ghost 81.5% vs 对照 81.2%，噪声内；A/B ghost 行 109.9 分，与无方案 109.3 分噪声内一致）。
 
 ## 9. 板上面板与 `tacticalDraft` 已落地（Code Puppy，2026-11-22，切片 2）
 

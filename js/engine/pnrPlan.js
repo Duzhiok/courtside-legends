@@ -91,14 +91,16 @@ const isScreener = (p, play) => play.screenerId === p.id && !play.ghost;
 /**
  * Multiplier on a teammate's weight in kickToTeammate, relative to what kickToTeammate already gave him for a pnr / drive_kick scheme.
  * `qualifiedRoll` is the generic tier the engine hands every C/PF with paint >= 72; with a named screener that tier is taken back.
+ * `genericRollApplied` says whether kickToTeammate actually gave him that tier: a ghost screen nulls the scheme, so the tier was never
+ * added and there is nothing to take back (B85 — dividing it out anyway pushes a generic big below the no-screen baseline).
  */
-export function pnrKickMult(p, play) {
+export function pnrKickMult(p, play, { genericRollApplied = true } = {}) {
   if (!play) return 1;
   let m = 1;
   const genericRoll = isBig(p) && (p.paint || 0) >= 72;
   const screener = isScreener(p, play);
   const named = !!play.screenerId;
-  if (named && genericRoll && !screener) m /= PNR_TUNING.genericRollKick;
+  if (named && genericRoll && !screener && genericRollApplied) m /= PNR_TUNING.genericRollKick;
   if (screener) {
     if (play.afterScreen === "slip") m *= PNR_TUNING.slipKick / (genericRoll ? PNR_TUNING.genericRollKick : 1);
     else if (play.afterScreen === "pop") {
@@ -120,9 +122,11 @@ export function pnrKickMult(p, play) {
 /**
  * Multipliers on a man's own shot weights in chooseShot.
  * kickedOut: he caught the ball from the handler. Otherwise he is the handler finishing it himself.
+ * `genericRollApplied` says whether chooseShot actually gave him the generic roll-finish tier (sideCtx.scheme === "pnr"): a ghost
+ * screen nulls the scheme, so the tier was never added and there is nothing to take back (B85).
  * Returns { w3, wMid, wPaint } that sim.js multiplies in AFTER its existing weights; 1 everywhere when the plan says nothing about him.
  */
-export function pnrShotMult(p, play, { kickedOut = false } = {}) {
+export function pnrShotMult(p, play, { kickedOut = false, genericRollApplied = true } = {}) {
   const out = { w3: 1, wMid: 1, wPaint: 1 };
   if (!play) return out;
   if (!kickedOut) {
@@ -140,7 +144,7 @@ export function pnrShotMult(p, play, { kickedOut = false } = {}) {
   const named = !!play.screenerId;
   const genericRoll = isBig(p);
   const screener = isScreener(p, play);
-  if (named && genericRoll && !screener) out.wPaint /= PNR_TUNING.genericRollFinish; // he is not the roll man any more
+  if (named && genericRoll && !screener && genericRollApplied) out.wPaint /= PNR_TUNING.genericRollFinish; // he is not the roll man any more
   if (screener) {
     if (play.afterScreen === "slip") out.wPaint *= PNR_TUNING.slipFinish / (genericRoll ? PNR_TUNING.genericRollFinish : 1);
     else if (play.afterScreen === "pop") {

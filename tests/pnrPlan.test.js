@@ -72,7 +72,8 @@ test("pop gives the weight to a shooter-screener only; slip makes the slipper th
   const slipBig = play({ screenerId: "big", afterScreen: "slip" });
   assert.ok(Math.abs(pnrKickMult(bigC, slipBig) - PNR_TUNING.slipKick / PNR_TUNING.genericRollKick) < 1e-9, "the generic tier is not stacked on top");
   const ghost = play({ screenerId: "big", afterScreen: "ghost" });
-  assert.ok(pnrKickMult(bigC, ghost) < 1.0001, "a ghosting big gets no roll weight");
+  assert.equal(pnrKickMult(bigC, ghost, { genericRollApplied: false }), 1, "B85: a ghost screen never gave the generic big the roll tier, so there is nothing to take back");
+  assert.ok(Math.abs(pnrKickMult(bigC, ghost) - 1 / PNR_TUNING.genericRollKick) < 1e-9, "default (tier applied): the take-back still happens for a real screen");
 });
 
 test("off-ball roles replace a standing 'spot' order instead of stacking on it", () => {
@@ -97,6 +98,9 @@ test("shot weights: the handler's finish, a ghost screen, and who is the roll ma
   const p = play({ screenerId: "wing", afterScreen: "roll" });
   assert.equal(pnrShotMult(wing, p, kicked).wPaint, PNR_TUNING.rollFinish);
   assert.ok(pnrShotMult(bigC, p, kicked).wPaint < 1, "the big who is not the named roll man loses the roll-finish tier");
+  const ghostBig = play({ screenerId: "big", afterScreen: "ghost" });
+  assert.equal(pnrShotMult(bigC, ghostBig, { kickedOut: true, genericRollApplied: false }).wPaint, 1, "B85: a ghost screen never gave the kicked-out big the roll-finish tier, so there is nothing to take back");
+  assert.ok(Math.abs(pnrShotMult(bigC, ghostBig, { kickedOut: true }).wPaint - 1 / PNR_TUNING.genericRollFinish) < 1e-9, "default (tier applied): the take-back still happens for a real screen");
   const cut = resolvePnrPlay({ offBall: { wing: "cut" } }, floor, handler);
   assert.equal(pnrShotMult(wing, cut, kicked).wPaint, PNR_TUNING.cutFinish);
   assert.equal(pnrShotMult(wing, cut, kicked).w3, PNR_TUNING.cutThree);

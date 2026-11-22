@@ -4207,7 +4207,7 @@ function kickToTeammate(off, organizer, offenseFocusId = null, scheme = null, pn
     if (scheme === "pnr" && ["C", "PF"].includes(p.playPos || p.pos) && (p.paint || 0) >= 72) {
       w *= 1.25;
     }
-    if (scheme === "pnr" || pnrPlay?.ghost) w *= pnrKickMult(p, pnrPlay); // the named roll man / pop man / spot / cut, not "any big"
+    if (scheme === "pnr" || pnrPlay?.ghost) w *= pnrKickMult(p, pnrPlay, { genericRollApplied: scheme === "pnr" }); // the named roll man / pop man / spot / cut, not "any big"
     // 好传球手 → 弹跳内线：空接/短滚成高权重接球点（“打出空间”）
     if (organizerIsPasser && isSpringySpacer(p)) {
       const ath = springAthleteScore(p);
@@ -4376,7 +4376,7 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   }
   // Roles named on the tactics board (engine/pnrPlan.js): the weights above go to the named men instead of "any C/PF" / "any shooter".
   if (sideCtx?.pnr) {
-    const pm = pnrShotMult(p, sideCtx.pnr, { kickedOut: !!sideCtx.kickedOut });
+    const pm = pnrShotMult(p, sideCtx.pnr, { kickedOut: !!sideCtx.kickedOut, genericRollApplied: sideCtx.scheme === "pnr" });
     w3 *= pm.w3;
     wMid *= pm.wMid;
     wPaint *= pm.wPaint;
