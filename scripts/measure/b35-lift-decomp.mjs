@@ -63,13 +63,17 @@
  * Live makeP is also tallied on a shot basis (meta.shot events only, no
  * recovered blocks) so live and probe compare on the same calcMakeProb
  * level without the §19 first-order block-drag correction.
- * B35 §21 adds u7 (no zone ceilings / final clamp — pre-cap probe makeP
- * for the ceiling attribution) and per-shot live input records
- * (globalThis.__B35_INPUTS, recorded only by the §21 scratch-worktree
- * sim.js at the calcMakeProb call site): open, makeP (pre-discount),
- * preCap/postCap, fatM, skillB, quarter, scoreDiff, hot, scoreForm, duo
- * ids, mind_unlock aura, defBigs, made/fouled. From main-tree sim.js the
- * record set stays empty and the §21 sections print a skip note.
+ * B35 §22 adds the foul filter to the probe (U8): after Part A, the per-zone
+ * foul rate f = P(fouled | missed attempt) is measured directly from the raw
+ * per-shot records (and-one rate P(fouled | made) printed alongside as the
+ * independence check); the probe then averages the FGA-basis transform
+ * p/(p+(1-p)(1-f)) per draw, stored as mp[zone+"FixedFF"] (pass 1) and
+ * mp[zone+"FixedU46FF"] (pass 4, U46 joint-neutral). The Oaxaca decomposition
+ * is re-run on the FGA basis (probe shares converted to FGA shares by the
+ * zone survival rate p+(1-p)(1-f)); the residual vs the U46-FF probe is the
+ * true baseline stack. Part A also tallies FTA (sim FTA/FGA per season year,
+ * printed for the §22 real-FTR check) and dumps the raw (unfiltered) input
+ * records to *-inputs-raw.json alongside the FGA-basis *-inputs.json.
  * They are published on globalThis.__B35_ABL for the scratch-worktree
  * sim.js to read (main-tree sim.js has no ablation hooks and ignores them).
  * Part A (live games) runs under the requested flags; Part B (probe) always
@@ -88,6 +92,18 @@ import { writeFileSync } from "node:fs";
 
 const ABL = (process.env.B35_ABL || "").split("+").filter(Boolean);
 globalThis.__B35_ABL = { u1: ABL.includes("u1"), u3: ABL.includes("u3"), u4: ABL.includes("u4"), u5: ABL.includes("u5"), u6a: ABL.includes("u6a"), u6b: ABL.includes("u6b"), u7: ABL.includes("u7") };
+// §22: per-zone foul rate for the probe FGA-basis transform. Set from the
+// run's own raw records after Part A (see below); B35_FOULF env
+// ("paint:0.24,mid:0.131,three:0.082") overrides, e.g. to reuse §21's f.
+globalThis.__B35_FOULF = null;
+if (process.env.B35_FOULF) {
+  const ff = {};
+  for (const kv of process.env.B35_FOULF.split(",")) {
+    const [z, v] = kv.split(":");
+    if (z && Number.isFinite(Number(v))) ff[z] = Number(v);
+  }
+  if (Object.keys(ff).length) globalThis.__B35_FOULF = ff;
+}
 // §21: per-shot live input records (worktree sim.js only — see header).
 globalThis.__B35_INPUTS = { shots: [], year: null };
 // §19: the worktree sim.js counts would-be U5 leak applications here (main-tree sim.js never increments it).
@@ -108,6 +124,7 @@ const gap = (x) => (Number.isFinite(x) ? `${x >= 0 ? "+" : ""}${(100 * x).toFixe
 
 // ---------- Part A: live games, per-player per-zone makes/attempts (events) ----------
 const rows = new Map();
+const ftaByYear = new Map(); // §22: sim FTA/FGA per season year (all players, stats basis)
 let gamesPlayed = 0, gamesFinished = 0, eventFga = 0, statsFga = 0, zoneless = 0, blocks = 0, unmatchedBlocks = 0;
 for (const [a, b, year] of PAIRS) {
   for (let i = 0; i < N; i += 1) {
@@ -140,7 +157,7 @@ for (const [a, b, year] of PAIRS) {
       const k = `${year}|${id}`;
       let r = rows.get(k);
       if (!r) {
-        r = { p: byId.get(id), year, min: 0, fga: 0, fgm: 0, fga2: 0, fgm2: 0, fga3: 0, fgm3: 0,
+        r = { p: byId.get(id), year, min: 0, fga: 0, fgm: 0, fga2: 0, fgm2: 0, fga3: 0, fgm3: 0, fta: 0,
           live: { paint: { a: 0, m: 0 }, mid: { a: 0, m: 0 }, three: { a: 0, m: 0 } },
           // §20: shot basis — meta.shot events only (no recovered blocks), so
           // live makeP compares with the probe on the same calcMakeProb level.
@@ -178,11 +195,14 @@ for (const [a, b, year] of PAIRS) {
       r.min += p.stats.min;
       r.fga += p.stats.fga || 0;
       r.fgm += p.stats.fgm || 0;
+      r.fta += p.stats.fta || 0;
       r.fga3 += p.stats.tpa || 0;
       r.fgm3 += p.stats.tpm || 0;
       r.fga2 += (p.stats.fga || 0) - (p.stats.tpa || 0);
       r.fgm2 += (p.stats.fgm || 0) - (p.stats.tpm || 0);
       statsFga += p.stats.fga || 0;
+      const yb = ftaByYear.get(year) || { fta: 0, fga: 0 };
+      yb.fta += p.stats.fta || 0; yb.fga += p.stats.fga || 0; ftaByYear.set(year, yb);
     }
   }
 }
@@ -204,6 +224,7 @@ for (const r of used) {
 console.log(`Part A: ${gamesPlayed} games (${gamesFinished} finished), ${used.length} players, stats FGA ${statsFga} vs event FGA ${eventFga} (${blocks} recovered blocks)`);
 console.log(`FGA reconciliation (used players): ${fgaMismatch} players with event-shots+blocks != stats FGA, max |diff| ${maxFgaDiff} (0 = instrumentation is stats-basis-exact)`);
 console.log(`League realised 2P%: stats basis ${pct(tot("fgm2") / tot("fga2"))} (${tot("fga2")} 2PA) | event+blocks basis ${pct(live2m / live2a)} (${live2a} 2PA)`);
+console.log(`§22 sim FTA/FGA (stats basis, all players): ${[...ftaByYear.entries()].sort((x, y) => x[0] - y[0]).map(([y, v]) => `${y} ${(v.fta / Math.max(1, v.fga)).toFixed(3)} (${v.fta}/${v.fga})`).join(" | ")} | ALL ${(sum([...ftaByYear.values()], (v) => v.fta) / Math.max(1, sum([...ftaByYear.values()], (v) => v.fga))).toFixed(3)}`);
 {
   const c = globalThis.__B35_U5COUNT;
   console.log(`U5 leak counters (Part A, ${gamesPlayed} games): kick bonus applied ${c.kick}x (paint ${c.kickPaint} / mid ${c.kickMid} / three ${c.kickThree}), tempo openBonus applied ${c.tempo}x (grind ${c.tempoGrind} / push ${c.tempoPush}; paint ${c.tempoPaint} / mid ${c.tempoMid} / three ${c.tempoThree})`);
@@ -214,6 +235,32 @@ console.log(`League realised 2P%: stats basis ${pct(tot("fgm2") / tot("fga2"))} 
 // excluded from the FGA-basis record set, matching the shot-basis tally.
 const INPUT_SHOTS = (globalThis.__B35_INPUTS?.shots || []).filter((s) => s.made || !s.fouled);
 const INPUT_RAW_N = globalThis.__B35_INPUTS?.shots.length || 0;
+// §22: foul rate f per zone, measured directly from the RAW records (fouled
+// misses included). f_missed = P(fouled | missed) is the rate the FGA-basis
+// transform needs; f_made = P(fouled | made) is the and-one rate — under
+// foul/make independence the two agree, which the print checks. The probe
+// filter below uses f_missed from THIS run (same seeds/flags as Part A),
+// unless B35_FOULF overrode it at startup.
+const INPUT_RAW = globalThis.__B35_INPUTS?.shots || [];
+const FOULF = {};
+for (const zone of ["paint", "mid", "three"]) {
+  const g = INPUT_RAW.filter((s) => s.zone === zone);
+  const misses = g.filter((s) => !s.made);
+  const makes = g.filter((s) => s.made);
+  const fMissed = misses.filter((s) => s.fouled).length / Math.max(1, misses.length);
+  const fMade = makes.filter((s) => s.fouled).length / Math.max(1, makes.length);
+  FOULF[zone] = { fMissed, fMade, n: g.length, nMiss: misses.length, nMake: makes.length };
+}
+if (!globalThis.__B35_FOULF) {
+  globalThis.__B35_FOULF = { paint: FOULF.paint.fMissed, mid: FOULF.mid.fMissed, three: FOULF.three.fMissed };
+  console.log(`\n§22 foul rates from this run's raw records (f = P(fouled|missed); and-one = P(fouled|made)):`);
+} else {
+  console.log(`\n§22 foul rates: B35_FOULF override in force ${JSON.stringify(globalThis.__B35_FOULF)}; measured from this run's raw records for comparison:`);
+}
+for (const zone of ["paint", "mid", "three"]) {
+  const f = FOULF[zone];
+  console.log(`  ${zone}: f_missed ${pct(f.fMissed)} (nMiss=${f.nMiss}) | and-one ${pct(f.fMade)} (nMake=${f.nMake}) | gap ${gap(f.fMissed - f.fMade)} (expect ~0 if foul ⟂ make) | filter uses ${pct(globalThis.__B35_FOULF[zone])}`);
+}
 console.log(`\n§21 input records: ${INPUT_RAW_N} makeP draws (${INPUT_SHOTS.length} FGA-basis, ${INPUT_RAW_N - INPUT_SHOTS.length} fouled misses excluded)`);
 for (const zone of ["paint", "mid"]) {
   const g = INPUT_SHOTS.filter((s) => s.zone === zone);
@@ -259,18 +306,30 @@ for (const [a, b, year] of PAIRS) {
         try {
           for (const zone of ["paint", "mid", "three"]) {
             const shot = { zone, pts: zone === "three" ? 3 : 2, weakSide: false };
-            let accFixed = 0;
+            let accFixed = 0, accFF = 0;
+            // §22: FGA-basis transform per draw — a made shot is always an
+            // FGA; a missed shot survives as an FGA with prob (1-f), so the
+            // FGA-basis rate of a draw with makeP p is p/(p+(1-p)(1-f)).
+            const fz = globalThis.__B35_FOULF?.[zone];
+            const hasFF = Number.isFinite(fz);
             withRng(seededStream(hashSeed(`b35make|${year}|${p.id}|${zone}`)), () => {
-              for (let k = 0; k < DRAW; k += 1) accFixed += calcMakeProb(p, shot, 0.55, off, def, defender, null, null, { quarter: 2, scoreDiff: 0, onCourt });
+              for (let k = 0; k < DRAW; k += 1) {
+                const mpk = calcMakeProb(p, shot, 0.55, off, def, defender, null, null, { quarter: 2, scoreDiff: 0, onCourt });
+                accFixed += mpk;
+                if (hasFF) accFF += mpk / (mpk + (1 - mpk) * (1 - fz));
+              }
             });
             out[zone + "Fixed"] = accFixed / DRAW;
+            if (hasFF) out[zone + "FixedFF"] = accFF / DRAW;
           }
         } finally {
           globalThis.__B35_ABL = saved;
         }
         return out;
       };
-      Object.assign(mp, probeMp({}));
+      const mpPlain = probeMp({});
+      Object.assign(mp, mpPlain);
+      for (const zone of ["paint", "mid", "three"]) if (mpPlain[zone + "FixedFF"] !== undefined) mp[zone + "FixedFF"] = mpPlain[zone + "FixedFF"];
       // §18 pass 2: probe-side baseline of the U4 terms. From a worktree
       // sim.js with U4 hooks this differs from pass 1 (personality /
       // bigMismatch / defPress are live in the neutral probe); from
@@ -287,7 +346,7 @@ for (const [a, b, year] of PAIRS) {
       // the U34+U6a+U6b joint run. Pass 5 adds u7 (no zone ceilings / final
       // clamp) for the pre-cap probe makeP used in the ceiling attribution.
       const mpU46 = probeMp({ u4: true, u6a: true, u6b: true });
-      for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU46"] = mpU46[zone + "Fixed"];
+      for (const zone of ["paint", "mid", "three"]) { mp[zone + "FixedU46"] = mpU46[zone + "Fixed"]; if (mpU46[zone + "FixedFF"] !== undefined) mp[zone + "FixedU46FF"] = mpU46[zone + "FixedFF"]; }
       const mpU46nc = probeMp({ u4: true, u6a: true, u6b: true, u7: true });
       for (const zone of ["paint", "mid", "three"]) mp[zone + "FixedU46nc"] = mpU46nc[zone + "Fixed"];
       // §21: probe-side skillMakeBonus (fresh player state, top-5 onCourt) —
@@ -444,6 +503,62 @@ for (const zone of ["paint", "mid"]) {
   const probeSkill = wShot((j) => j.skillB[zone]);
   console.log(`  ${zone}: live mean skillB ${pct(liveSkill)} vs probe ${pct(probeSkill)} (delta ${gap(liveSkill - probeSkill)})`);
 }
+console.log("\n§22 FGA-basis probe (foul-filtered) vs live event-basis makeP — the true baseline residual:");
+for (const zone of ["paint", "mid", "three"]) {
+  const wEv = (f) => sum(dec, (j) => f(j) * j.live.live[zone].a) / Math.max(1, sum(dec, (j) => j.live.live[zone].a));
+  const liveEv = wEv((j) => (j.live.live[zone].a ? j.live.live[zone].m / j.live.live[zone].a : 0));
+  const probeFF = wEv((j) => j.mp[zone + "FixedFF"] ?? NaN);
+  const probeU46FF = wEv((j) => j.mp[zone + "FixedU46FF"] ?? NaN);
+  console.log(`  ${zone.padEnd(6)} live event-basis ${pct(liveEv)} vs probe-FF ${pct(probeFF)} vs probe-U46-FF ${pct(probeU46FF)}  residual vs U46-FF ${gap(liveEv - probeU46FF)}  (${sum(dec, (j) => j.live.live[zone].a)} FGA)`);
+}
+// §22 Oaxaca re-run on the FGA basis: probe shares are attempt-basis
+// (chooseShot picks the shot; the foul happens after), so convert them with
+// the zone survival rate p+(1-p)(1-f) before comparing with live FGA shares.
+function decompFF(j) {
+  const ff = globalThis.__B35_FOULF || {};
+  const surv = (zone) => {
+    const fz = ff[zone];
+    if (!Number.isFinite(fz)) return 1;
+    const pz = j.mp[zone + "Fixed"];
+    return pz + (1 - pz) * (1 - fz);
+  };
+  const wPaint = j.share.paint * surv("paint"), wMid = j.share.mid * surv("mid");
+  const probeShareFGA = { paint: wPaint / (wPaint + wMid), mid: wMid / (wPaint + wMid) };
+  const l2a = j.live.live.paint.a + j.live.live.mid.a;
+  const liveShare = { paint: j.live.live.paint.a / l2a, mid: j.live.live.mid.a / l2a };
+  const liveMp = {
+    paint: j.live.live.paint.a ? j.live.live.paint.m / j.live.live.paint.a : NaN,
+    mid: j.live.live.mid.a ? j.live.live.mid.m / j.live.live.mid.a : NaN,
+  };
+  const probeMpFF = { paint: j.mp.paintFixedU46FF, mid: j.mp.midFixedU46FF };
+  const realised = liveShare.paint * liveMp.paint + liveShare.mid * liveMp.mid;
+  const expected = probeShareFGA.paint * probeMpFF.paint + probeShareFGA.mid * probeMpFF.mid;
+  const mix = (liveShare.paint - probeShareFGA.paint) * probeMpFF.paint + (liveShare.mid - probeShareFGA.mid) * probeMpFF.mid;
+  const stack = probeShareFGA.paint * (liveMp.paint - probeMpFF.paint) + probeShareFGA.mid * (liveMp.mid - probeMpFF.mid);
+  const interact = (liveShare.paint - probeShareFGA.paint) * (liveMp.paint - probeMpFF.paint) + (liveShare.mid - probeShareFGA.mid) * (liveMp.mid - probeMpFF.mid);
+  return { liveShare, probeShareFGA, liveMp, probeMpFF, realised, expected, mix, stack, interact, l2a, check: mix + stack + interact - (realised - expected) };
+}
+if (globalThis.__B35_FOULF && dec.every((j) => Number.isFinite(j.mp.paintFixedU46FF) && Number.isFinite(j.mp.midFixedU46FF))) {
+  const decFF = dec.map((j) => ({ ...j, dff: decompFF(j) }));
+  const badFF = decFF.filter((j) => Math.abs(j.dff.check) > 1e-9);
+  console.log(`\n§22 Oaxaca on the FGA basis (live event vs probe-U46-FF): identity check ${badFF.length} fail (max |err| ${Math.max(0, ...decFF.map((j) => Math.abs(j.dff.check))).toExponential(1)})`);
+  console.log("Pos | n | live2PA | realised2P (FGA) | probe-U46-FF expected2P | lift | mix | stack | interact | live paintShare vs probe-FGA");
+  const aggFF = (list) => {
+    const w = sum(list, (j) => j.dff.l2a);
+    const wAvg = (f) => sum(list, (j) => f(j) * j.dff.l2a) / w;
+    return { n: list.length, w, realised: wAvg((j) => j.dff.realised), expected: wAvg((j) => j.dff.expected), mix: wAvg((j) => j.dff.mix), stack: wAvg((j) => j.dff.stack), interact: wAvg((j) => j.dff.interact), livePaint: wAvg((j) => j.dff.liveShare.paint), probePaint: wAvg((j) => j.dff.probeShareFGA.paint) };
+  };
+  for (const pos of POS_ORDER) {
+    const g = decFF.filter((j) => j.pos === pos);
+    if (!g.length) continue;
+    const A = aggFF(g);
+    console.log(`  ${pos.padEnd(3)} n=${String(A.n).padStart(3)}  ${String(A.w).padStart(5)}  ${pct(A.realised)}  ${pct(A.expected)}  ${gap(A.realised - A.expected)}  ${gap(A.mix)}  ${gap(A.stack)}  ${gap(A.interact)}  paint ${pct(A.livePaint)} vs ${pct(A.probePaint)}`);
+  }
+  const A = aggFF(decFF);
+  console.log(`  ALL n=${String(A.n).padStart(3)}  ${String(A.w).padStart(5)}  ${pct(A.realised)}  ${pct(A.expected)}  ${gap(A.realised - A.expected)}  ${gap(A.mix)}  ${gap(A.stack)}  ${gap(A.interact)}  paint ${pct(A.livePaint)} vs ${pct(A.probePaint)}`);
+} else {
+  console.log("\n§22 Oaxaca on the FGA basis: skipped (no foul filter — run from a worktree with per-shot input records, or set B35_FOULF).");
+}
 console.log("\nLargest positive stack terms (live makeP far above probe — who benefits most from the live stack?):");
 for (const j of [...dec].sort((x, y) => y.d.stack - x.d.stack).slice(0, 8))
   console.log(`  ${String(j.p.name).padEnd(22)} ${j.year} ${j.pos} stack ${gap(j.d.stack)} (realised ${pct(j.d.realised)} vs expected ${pct(j.d.expected)}, ${j.d.l2a} 2PA)`);
@@ -453,12 +568,13 @@ for (const j of [...dec].sort((x, y) => x.d.stack - y.d.stack).slice(0, 8))
 
 if (OUT) {
   const dump = {
+    foulF: globalThis.__B35_FOULF || null, // §22: per-zone foul rates used for the probe FGA-basis transform
     players: dec.map((j) => ({
       key: `${j.year}|${j.p.id}`, name: j.p.name, year: j.year, pos: j.pos,
       live: j.live.live,
       liveShot: j.live.liveShot,
-      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed }, mpFixedU4: { paint: j.mp.paintFixedU4, mid: j.mp.midFixedU4, three: j.mp.threeFixedU4 }, mpFixedU6b: { paint: j.mp.paintFixedU6b, mid: j.mp.midFixedU6b, three: j.mp.threeFixedU6b }, mpFixedU6a: { paint: j.mp.paintFixedU6a, mid: j.mp.midFixedU6a, three: j.mp.threeFixedU6a }, mpFixedU46: { paint: j.mp.paintFixedU46, mid: j.mp.midFixedU46, three: j.mp.threeFixedU46 }, mpFixedU46nc: { paint: j.mp.paintFixedU46nc, mid: j.mp.midFixedU46nc, three: j.mp.threeFixedU46nc }, skillB: j.skillB },
-      sim: { min: j.live.min, fga: j.live.fga, fgm: j.live.fgm, fga2: j.live.fga2, fgm2: j.live.fgm2, fga3: j.live.fga3, fgm3: j.live.fgm3 },
+      probe: { share: j.share, mpFixed: { paint: j.mp.paintFixed, mid: j.mp.midFixed, three: j.mp.threeFixed }, mpFixedU4: { paint: j.mp.paintFixedU4, mid: j.mp.midFixedU4, three: j.mp.threeFixedU4 }, mpFixedU6b: { paint: j.mp.paintFixedU6b, mid: j.mp.midFixedU6b, three: j.mp.threeFixedU6b }, mpFixedU6a: { paint: j.mp.paintFixedU6a, mid: j.mp.midFixedU6a, three: j.mp.threeFixedU6a }, mpFixedU46: { paint: j.mp.paintFixedU46, mid: j.mp.midFixedU46, three: j.mp.threeFixedU46 }, mpFixedU46nc: { paint: j.mp.paintFixedU46nc, mid: j.mp.midFixedU46nc, three: j.mp.threeFixedU46nc }, mpFixedFF: { paint: j.mp.paintFixedFF, mid: j.mp.midFixedFF, three: j.mp.threeFixedFF }, mpFixedU46FF: { paint: j.mp.paintFixedU46FF, mid: j.mp.midFixedU46FF, three: j.mp.threeFixedU46FF }, skillB: j.skillB },
+      sim: { min: j.live.min, fga: j.live.fga, fgm: j.live.fgm, fga2: j.live.fga2, fgm2: j.live.fgm2, fga3: j.live.fga3, fgm3: j.live.fgm3, fta: j.live.fta },
       decomp: { realised: j.d.realised, expected: j.d.expected, mix: j.d.mix, stack: j.d.stack, interact: j.d.interact, l2a: j.d.l2a },
     })),
   };
@@ -468,5 +584,10 @@ if (OUT) {
     const inPath = OUT.replace(/\.json$/, "-inputs.json");
     writeFileSync(inPath, JSON.stringify(INPUT_SHOTS));
     console.log(`wrote ${inPath} (${INPUT_SHOTS.length} FGA-basis shot records)`);
+  }
+  if (INPUT_RAW.length) {
+    const rawPath = OUT.replace(/\.json$/, "-inputs-raw.json");
+    writeFileSync(rawPath, JSON.stringify(INPUT_RAW));
+    console.log(`wrote ${rawPath} (${INPUT_RAW.length} raw shot records, fouled misses included)`);
   }
 }
