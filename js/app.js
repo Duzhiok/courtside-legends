@@ -478,6 +478,7 @@ import {
   usageForBallAction,
 } from "./engine/gameplan.js";
 import { screenFiveFromPlan, seatPlayers, setupStarters } from "./engine/lineupSlots.js";
+import { orderSelectHtml, setupCardOrdersHtml } from "./ui/setupCardOrders.js";
 import {
   PLAYER_ROLES,
   inferPlayerRole,
@@ -6414,12 +6415,6 @@ function renderSetupPacks() {
   });
 }
 
-function orderSelectHtml(list, cur, cls, title) {
-  return `<select class="${cls}" title="${escAttr(title || "")}">${list
-    .map((o) => `<option value="${o.id}" ${o.id === cur ? "selected" : ""} title="${escAttr(o.hint)}">${o.name}</option>`)
-    .join("")}</select>`;
-}
-
 function fillBallActionSelect(sel, preferred = "pnr") {
   if (!sel) return;
   const cur = sel.value || preferred;
@@ -6508,14 +6503,17 @@ function mountSetupTacticsBoard() {
 }
 
 function renderSetupOrders() {
-  const box = $("#setup-orders");
+  // Team-level ball-handler controls only. The per-player tendency
+  // dropdowns used to be rows here; they now live at the bottom of each
+  // setup card (js/ui/setupCardOrders.js), so there is nothing to match
+  // by name further down the page.
   const focusSel = $("#setup-offense-focus");
   const actionSel = $("#setup-ball-action");
   const you = state.setup?.you;
   if (!you) return;
   ensurePlayerOrders(you.players);
-  // Same list rule as renderSetupRoles (setupPlayerList): the orders section
-  // used to list starters only, so bench players had no tendencies to set.
+  // Same list rule as renderSetupRoles (setupPlayerList): the focus
+  // dropdown lists the whole roster, not just starters.
   const list = setupPlayerList(you.players, state.setup.selected, { season: !!state.season });
   if (focusSel) {
     const prev = you.gameplan?.offenseFocusId || focusSel.value || "";
@@ -6541,52 +6539,6 @@ function renderSetupOrders() {
       renderSetupRoster();
     };
   }
-  if (!box) return;
-  box.innerHTML = list
-    .map((p) => {
-      const o = p.orders;
-      const posBit = normalizePos(p.playPos || p.pos);
-      const recTag = p.ordersManual ? "" : `<em class="tiny muted">推荐</em>`;
-      return `<div class="order-row" data-id="${p.id}">
-        <div class="order-name">${p.name}<em class="tiny"> · ${posBit}${p.playPosManual ? "" : "·荐"}</em>
-          <span class="tiny order-summary">${escAttr(ordersLabel(o) || "自由发挥")}</span>
-          ${recTag}
-        </div>
-        <div class="order-group">
-          <span class="order-group-label">进攻</span>
-          <div class="order-controls">
-            ${orderSelectHtml(ORDER_USAGE, o.usage, "ord-usage", "组织 / 得分 / 偏防守 / 蓝领冲抢")}
-            ${orderSelectHtml(ORDER_AGGRESSION, o.aggression || "auto", "ord-agg", "攻击欲望 / 专注防守")}
-            ${orderSelectHtml(ORDER_ACTION, o.action, "ord-action", "挡拆 / 无球 / 冲抢二次")}
-            ${orderSelectHtml(ORDER_ATTACK, o.attack, "ord-attack", "终结区域 / 二次进攻")}
-            ${orderSelectHtml(ORDER_HUNT, o.hunt, "ord-hunt", "个人抓机会")}
-          </div>
-        </div>
-        <div class="order-group">
-          <span class="order-group-label">防守</span>
-          <div class="order-controls">
-            ${orderSelectHtml(ORDER_DEF, o.defFocus, "ord-def", "领防 / 全力防守等")}
-          </div>
-        </div>
-      </div>`;
-    })
-    .join("");
-  box.querySelectorAll(".order-row").forEach((row) => {
-    const p = you.players.find((x) => x.id === row.dataset.id);
-    if (!p) return;
-    const bind = (cls, key) => {
-      row.querySelector(`.${cls}`).onchange = (e) => {
-        markOrdersManual(p, { [key]: e.target.value });
-        renderSetupOrders();
-      };
-    };
-    bind("ord-usage", "usage");
-    bind("ord-agg", "aggression");
-    bind("ord-action", "action");
-    bind("ord-attack", "attack");
-    bind("ord-hunt", "hunt");
-    bind("ord-def", "defFocus");
-  });
 }
 
 function renderSetupRoles() {
@@ -7142,6 +7094,7 @@ function setupMiniCardHtml(p, { onCourt = false } = {}) {
     </div>
     ${setupStatGridHtml(p)}
     ${p.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p, getLang())}</div>` : ""}
+    ${setupCardOrdersHtml(p)}
   </div>`;
 }
 
@@ -7398,7 +7351,7 @@ function renderSetupRoster() {
   box.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
     btn.onclick = (e) => {
       if (box._setupDidDrag?.()) return;
-      if (e.target.closest(".setup-pos-select")) return;
+      if (e.target.closest(".setup-pos-select, .setup-ord-select")) return;
       const id = btn.dataset.id;
       const p = you.players.find((x) => x.id === id);
       if (!isPlayerAvailable(p)) return;
@@ -7427,6 +7380,20 @@ function renderSetupRoster() {
       markPlayPosManual(p, sel.value);
       const five = you.players.filter((x) => state.setup.selected.has(x.id));
       applyLineupPositionEffects(five.length ? five : you.players);
+      refreshAfter();
+    };
+    sel.onclick = (e) => e.stopPropagation();
+  });
+  // Tendency dropdowns transplanted onto the cards: same write path as the
+  // old tendencies-section rows (markOrdersManual), then a full refresh so
+  // the card, roles, and matchup board all see the new instruction.
+  box.querySelectorAll(".setup-ord-select").forEach((sel) => {
+    sel.onchange = (e) => {
+      e.stopPropagation();
+      const card = sel.closest(".setup-mini");
+      const p = you.players.find((x) => x.id === card?.dataset.id);
+      if (!p || !sel.dataset.ordKey) return;
+      markOrdersManual(p, { [sel.dataset.ordKey]: sel.value });
       refreshAfter();
     };
     sel.onclick = (e) => e.stopPropagation();

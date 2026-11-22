@@ -620,13 +620,6 @@
         <button class="btn small" id="btn-save-setup" type="button" title="保存赛前设置">保存进度</button>
       </div>
       <p class="setup-how">怎么排：把球员<strong>拖到</strong>上面的 PG–C 格子里上场，拖回<strong>替补席</strong>下场；两个首发互拖可换位。也可以直接点一下上下场。满 5 人开打。</p>
-      <div id="setup-skill-panel" class="setup-skill-panel" hidden>
-        <h3>技能包（随时可装）</h3>
-        <p class="tiny" id="setup-skill-hint">已购技能可在此直接装到名单球员，装完再排首发开打。</p>
-        <div id="setup-skill-shop" class="career-skill-shop"></div>
-        <h4 class="career-skill-heading">已购技能库</h4>
-        <div id="setup-skill-inventory" class="career-skill-shop"></div>
-      </div>
       <div class="setup-grid setup-grid-simple">
         <div class="roster-box setup-roster-box">
           <h3>首发 <span id="starter-count">0</span>/5</h3>
@@ -640,6 +633,13 @@
           <p class="tiny" id="scout-round-label">—</p>
           <div id="scout-board" class="scout-board"></div>
         </div>
+      </div>
+      <div id="setup-skill-panel" class="setup-skill-panel" hidden>
+        <h3>技能包（随时可装）</h3>
+        <p class="tiny" id="setup-skill-hint">已购技能可在此直接装到名单球员，装完再排首发开打。</p>
+        <div id="setup-skill-shop" class="career-skill-shop"></div>
+        <h4 class="career-skill-heading">已购技能库</h4>
+        <div id="setup-skill-inventory" class="career-skill-shop"></div>
       </div>
       <div id="setup-tactics-board" class="setup-tactics-board" hidden></div>
       <details class="setup-advanced" id="setup-advanced">
@@ -710,7 +710,7 @@
             <p class="tiny">按体能分配出场时间：低体不宜长期 35+，铁肺可接近 48。赛季模式可保存为默认轮换。</p>
             <div id="setup-roles" class="setup-roles"></div>
             <hr class="soft-hr" />
-            <h3>每个人 · 球员指令</h3>
+            <h3>持球发起</h3>
             <div class="ball-handler-row" id="setup-ball-handler">
               <label class="tiny">持球发起人
                 <select id="setup-offense-focus" title="指定谁来持球发动进攻"></select>
@@ -719,8 +719,7 @@
                 <select id="setup-ball-action" title="持球人的阵地发动方式：挡拆 / 分球 / 单打等"></select>
               </label>
             </div>
-            <p class="tiny" id="setup-ball-action-desc">先选持球人与打法；其余人可在下方设成「无球定点」配合。不指定则按本能抢球。</p>
-            <div id="setup-orders" class="player-orders-list setup-orders"></div>
+            <p class="tiny" id="setup-ball-action-desc">先选持球人与打法；其余人在各自球员卡下方设置配合，如「无球定点」。不指定则按本能抢球。</p>
           </div>
         </div>
       </details>

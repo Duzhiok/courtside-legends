@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { setupPlayerList } from "../js/engine/gameplan.js";
+import { ordersLabel, setupPlayerList } from "../js/engine/gameplan.js";
 
 // Regression: the orders (tendencies) section used to list starters only,
 // so bench players had no tendencies to set in any mode, including the Gold
@@ -44,4 +44,35 @@ test("gold-league shape: 12-man roster lists all 12, bench included", () => {
   for (const b of ["b1", "b2", "b3", "b4", "b5", "b6", "b7"]) {
     assert.ok(list.some((p) => p.id === b), `${b} must have a tendencies row`);
   }
+});
+
+// ordersLabel is the one-line tendency summary the live-game coach panel
+// shows next to each on-court player. Cases are the real rows from the
+// user's 2026-11-22 screenshots: "auto" slots (跟随球队 / 自由区域 /
+// 常规防守) are defaults and stay out of the summary.
+test("ordersLabel: the screenshot players read exactly as their dropdowns", () => {
+  assert.equal(
+    ordersLabel({ usage: "balanced", aggression: "normal", action: "post", attack: "paint", hunt: "auto", defFocus: "auto" }),
+    "攻传均衡 · 正常欲望 · 低位要球 · 内线杀伤",
+    "Donyell Marshall"
+  );
+  assert.equal(
+    ordersLabel({ usage: "balanced", aggression: "normal", action: "pnr", attack: "auto", hunt: "auto", defFocus: "auto" }),
+    "攻传均衡 · 正常欲望 · 挡拆",
+    "Jrue Holiday"
+  );
+  assert.equal(
+    ordersLabel({ usage: "defend", aggression: "low", action: "spot", attack: "perimeter", hunt: "patient", defFocus: "auto" }),
+    "偏防守 · 低攻击欲 · 无球定点 · 外线远投 · 耐心传导",
+    "Deron Williams"
+  );
+});
+
+test("ordersLabel: all-auto orders and a missing orders object summarise to nothing (cards fall back to 自由发挥); a set defence shows up", () => {
+  assert.equal(ordersLabel({ usage: "auto", aggression: "auto", action: "auto", attack: "auto", hunt: "auto", defFocus: "auto" }), "");
+  assert.equal(ordersLabel(null), "");
+  assert.equal(
+    ordersLabel({ usage: "auto", aggression: "auto", action: "auto", attack: "auto", hunt: "auto", defFocus: "onball" }),
+    "领防持球"
+  );
 });

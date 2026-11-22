@@ -184,10 +184,13 @@ test("S-P2-5: the position select keeps its stopPropagation via property assignm
   // The inline onclick="event.stopPropagation()" was redundant: the bind site
   // already assigns the same behaviour as a property (CSP-safe), and the row
   // toggle handler already ignores clicks from the select. Both must stay.
+  // The toggle guard also covers the per-card tendency selects (.setup-ord-select),
+  // which were transplanted onto the cards (2026-11-22) so a dropdown click
+  // never toggles the row.
   const app = read("js/app.js");
   assert.doesNotMatch(app, /onclick="event\.stopPropagation\(\)"/);
   assert.match(app, /sel\.onclick = \(e\) => e\.stopPropagation\(\);/);
-  assert.match(app, /if \(e\.target\.closest\("\.setup-pos-select"\)\) return;/);
+  assert.match(app, /if \(e\.target\.closest\("\.setup-pos-select, \.setup-ord-select"\)\) return;/);
 });
 
 test("S-P2-5: app boot installs the single img-error listener", () => {

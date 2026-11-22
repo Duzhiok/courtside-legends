@@ -355,7 +355,6 @@ html, body {
   max-width: 108px;
   padding: 2px 4px;
 }
-.setup-orders { max-height: 320px; }
 .ball-handler-row {
   display: flex;
   flex-wrap: wrap;
@@ -1372,6 +1371,16 @@ select, input[type="number"] {
   gap: 8px;
   align-items: flex-start;
   width: 100%;
+}
+.setup-mini .setup-orders-block {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  display: grid;
+  gap: 4px;
+}
+.setup-mini .setup-orders-block select {
+  pointer-events: auto;
 }
 .setup-mini {
   flex-direction: column;
