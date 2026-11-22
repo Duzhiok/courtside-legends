@@ -264,7 +264,15 @@ function decomp(j) {
   const interact = (liveShare.paint - probeShare.paint) * (liveMp.paint - probeMp.paint) + (liveShare.mid - probeShare.mid) * (liveMp.mid - probeMp.mid);
   return { liveShare, probeShare, liveMp, probeMp, realised, expected, mix, stack, interact, l2a, check: mix + stack + interact - (realised - expected) };
 }
-const dec = joined.map((j) => ({ ...j, d: decomp(j) }));
+const dec = joined
+  // §18: a player with zero live attempts in either 2P zone has an undefined
+  // zone makeP (NaN), which poisons every weighted aggregate. Drop them
+  // from the decomposition (they are marginal rotation players; the U3/U4
+  // runs each had one pure-paint centre with 0 mid attempts). Counted here.
+  .filter((j) => j.live.live.paint.a > 0 && j.live.live.mid.a > 0)
+  .map((j) => ({ ...j, d: decomp(j) }));
+const droppedZeroZone = joined.length - dec.length;
+if (droppedZeroZone > 0) console.log(`  (dropped ${droppedZeroZone} joined players with 0 live attempts in paint or mid — undefined zone makeP)`);
 const badCheck = dec.filter((j) => Math.abs(j.d.check) > 1e-9);
 console.log(`\nDecomposition identity check: ${badCheck.length} players fail mix+stack+interact == realised-expected (max |err| ${Math.max(0, ...dec.map((j) => Math.abs(j.d.check))).toExponential(1)})`);
 console.log("\nPos | n | live2PA | realised2P (event) | probe-expected2P | lift | mix | stack | interact | live paintShare vs probe");
