@@ -497,3 +497,50 @@ FGA/36 的相关：`strength` 0.16（真实 −0.01）、`rebound` 0.17（真实
 1. SF 自主创造两分的防守对位：事件级标记防守人/开放度（仪器缺口），或探针式复现自主出手的对位分布。
 2. 大个子残差：(a)/(b) 二选一需要消融选择机制或真实开放度数据；单砍禁区探针水平（斜率/加成）会重蹈 §12 B 的联盟 FG% 代价，提案必须同时回答补偿问题。
 3. 局限：单组种子；固定集 PF n=14、C n=19、SF n=21；§15.1 与 §13.2/§14 不是同一批种子/样本，跨表比较是定性口径；文本 makeP 有 +4~+7pt 系统性水平差，只看跨位置差值。
+
+## §16 门限分布 + 均匀开放度消融：SF 缺口与大个子残差都不是开放度选择（Muse，2026-11-22 04:26 轮）
+
+背景：§15.3(1)(2)。两部分：(A) 门限探针（只读测量）——新 `scripts/measure/b35-gate-dist.mjs` 与 `scripts/measure/b35-gate-stars.mjs`，120 场，与 §15.1 同种子（`b35sfctx`，同一批比赛）；(B) 均匀开放度消融（scratch worktree `/tmp/b35-abl16`，已删）——U1 把两处 `calcOpenness` 调用后的 `open` 钉死 0.55（探针的固定开放度值），U2 再加关掉低欲望再传导闸（含 pressuredPick 再传导），各跑一次 `b35-make-by-zone.mjs --fixed-set`（`b35split` 种子，与 §13 基线同一批）与 `b35-sf-context.mjs`。新比较脚本 `scripts/measure/b35-compare-fixedset.mjs`。主线生产文件未动。
+
+### 16.1 门限分布：再传导闸在这 120 场里一次都没开过
+
+120 名球员（6 对 × 10 人轮换）里没有任何一人的 `shotGateLevel ≤ 0.4`：门限全是 0.44（114 人，含 B76 修法后被抬到 NORMAL_LEVEL 0.55 的有真实出手量球员）或 0.30（5 名 aggression `"high"` 的 alpha）与 0.36（1 人，Pritchard）。thr 0.58/0.70 档是空的——`aggNow <= 0.4` 的再传导闸对这批轮换球员完全惰性。
+
+### 16.2 SF–SG 自主缺口是球星构成效应，不是位置机制
+
+§15.1 的 −4.0pt 自主 makeP 缺口（SF 47.9% vs SG 51.9%）全在 thr 0.30 档：
+
+| 档 | SG 自主占比 / makeP | SF 自主占比 / makeP |
+|---|---|---|
+| thr 0.30（aggression high） | 14.2% / 60.5%（Jordan 357 + Kobe 331 次出手） | 4.5% / 42.4%（Kuminga 152 次） |
+| thr 0.44（其余所有人） | 44.0% / 49.1% | 56.6% / 48.4%（−0.7pt，噪声级） |
+
+thr 0.30 档的 6 人：Jordan SG CHI1996（自创 289 次，makeP 61.8%）、Kobe SG LAL2008（269 次，59.1%）、Shaq C LAL2001、LeBron PF MIA2014、Kuminga SF GSW2022（133 次，42.4%）、Pritchard PG BOS2022（thr 0.36）。Kuminga 的低 makeP 大半是公式层：固定开放度探针 paint 46.5% / mid 42.3%，预期两分 ≈45.3%，而 Jordan ≈54.3%、Kobe 2008 ≈53.3%——他的卡本身就不是高效两分手；实测自主 makeP 42.4% 比探针预期还低 −2.9pt（n=133，噪声级，方向与 Jordan/Kobe/LeBron/Shaq 的 +5~+12pt 正 lift 相反，提示性而非定论）。
+
+结论：§15.1 的“SF 自主几乎不挑空位、SG 挑 +6.9pt”要改写——那 +6.9pt 不是 SF/SG 的位置机制，而是这 6 对里 SG 恰好有两个历史级 alpha、SF 只有一个低效新星。换一组对阵，缺口会跟着球星走。§15.3(1) 的“防守对位”候选至此不成立（同档内只差 −0.7pt）。
+
+### 16.3 均匀开放度消融：缺口不关，lift 不灭——§13.2 的“选择 lift”是误标
+
+位置两分缺口（98 人交集，sim − real，`b35split` 样本）：
+
+| 位置 | 基线缺口 | U1 缺口 | 基线 lift（实测 − 探针预期） | U1 lift |
+|---|---|---|---|---|
+| PG n=17 | −3.4pt | −2.3pt | +3.7pt | +4.8pt |
+| SG n=27 | +2.0pt | +2.9pt | +6.0pt | +6.7pt |
+| SF n=21 | −2.5pt | −2.4pt | +4.4pt | +4.5pt |
+| PF n=14 | +5.1pt | **+6.6pt** | +6.3pt | +8.0pt |
+| C n=19 | +5.6pt | **+6.0pt** | +6.2pt | +6.6pt |
+| 联盟 | +1.7pt | +2.5pt | +5.4pt | +6.2pt |
+
+1. **大个子残差不是开放度选择**：U1 下 PF/C 缺口不降反升（+5.1→+6.6、+5.6→+6.0），SF 缺口纹丝不动（−2.5→−2.4）。开放度钉死后缺口还在，§15.2 的 (a)/(b) 二选一至此有答案：(b) 开放度选择不是残差的来源。
+2. **SF 自主 makeP 缺口也不是开放度选择**：U1 下 SF 自主 makeP 47.9%→48.7%、SG 自主 51.9%→52.2%，缺口 −4.0→−3.5pt，基本不动；SF 自主两分 52.8%→54.9%、SG 55.7%→57.3%，缺口 −2.9→−2.4pt。
+3. **U2 = U1**：关掉再传导闸后 zone 日志除文件名外完全一致、sf-context 日志字节一致——pressuredPick 再传导在这 120 场里也没有可测量的贡献，闸是完全惰性的（与 16.1 一致）。
+4. **PPS 倾斜也是公式层**：U1 下实测 FG-only PPS 与 strength/rebound 的 Spearman 为 0.46/0.49，比 §13 基线 0.36/0.39 更高——钉死开放度后倾斜不降反升。
+5. **为什么 lift 灭不掉**：探针把实战才有的 makeP 叠加层全去掉了（plan=null、momentum=null、中性 chem/morale/fit=50、无招牌、无战术、无 kickout、无 bigMismatch、位置配对的通用防守人），而实测−探针的差从来就不只是开放度——开放度项本身在 `calcMakeProb` 里只有 `(open−0.45)×0.16`，满格摆动不过 ±5pt。真正的 lift 来源是实战叠加层：招牌 makeBoost/openBoost、挡拆/突破分球加成、catchShoot/offDribble 分流、bigMismatch、personality/chem/morale、live form。§13.2/§15.2 里所有“选择 lift”的表述都要按此修正：那是“实战叠加层 lift”，不是“开放度选择 lift”。
+6. **U1 水平移动的注记**：联盟 FG% 49.1%→49.9%、2P% 54.0%→54.7%——被钉住的 0.55 高于实测平均开放度，水平整体抬升是预期的；比较缺口与 lift 时看的是位置差，不是水平。另：0.55 恰好是 R84 catchShoot 分流的阈值（`open ≥ 0.55` 用 catchShoot），所以 U1 下所有非禁区出手都走 catchShoot——与固定开放度探针同一口径，U1 与探针的比较是干净的；但基线→U1 的水平移动里有一部分是这次分流翻转，不是纯开放度效应。招牌 openBoost 仍在 U1 里加到 open 上（小泄漏：招牌出手的 open 高于 0.55），单人 U1 摆动（如 Kuminga zone 样本 53.0%→44.6%）是噪声级，不作证据。
+
+### 16.4 下一步（没做，修法仍等用户批）
+
+1. 把 +6.2pt 的 U1 lift 拆开：实战 zone mix（`chooseShot` 在 live sideCtx 下的 paint/mid 占比 vs 探针占比）vs 实战 makeP 叠加层各分项（招牌/战术/bigMismatch/personality）。需要事件级 zone 标记（与 §13 catch/dribble 同类仪器缺口）或继续消融（U3 关招牌、U4 中性战术）。
+2. SF 缺口：换一组对阵复测球星构成效应（Kuminga 换成高效 SF alpha 时缺口是否翻转）；Kuminga 自主负选择 −2.9pt 的来源待查（样本小）。
+3. 局限：单组种子；`b35sfctx` 与 `b35split` 是两批不同的比赛（同 6 对），跨表比较是定性口径（§15.3 已注）；U1 的 0.55 钉死恰逢 catchShoot 阈值；招牌 openBoost 泄漏；SF 结论依赖 6 对里的球星分布。
