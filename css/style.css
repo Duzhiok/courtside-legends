@@ -949,6 +949,7 @@ select, input[type="number"] {
   border: 1px solid var(--line);
 }
 .lineups h4 { margin: 0 0 4px; }
+.lineups-you h4:not(:first-child) { margin-top: 16px; }
 .lineup-chem { margin: 0 0 8px; }
 .live-line {
   display: flex;
@@ -958,6 +959,17 @@ select, input[type="number"] {
 }
 .live-line .main { font-size: .9rem; }
 .live-line .status { font-size: .78rem; color: var(--muted); }
+.live-line .intent { font-size: .78rem; color: var(--muted); }
+.live-line .intent .suggest { color: #9a3412; font-weight: 600; }
+/* Drag-to-sub rows (your court + healthy bench): grabbable, with a visible
+   drop target and a staged outline for the tap-tap pick. */
+.lineups .roster-line[draggable="true"] { cursor: grab; }
+.lineups .roster-line.dragging { opacity: .45; }
+.lineups .roster-line.drop-ok { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.lineups .roster-line.staged { box-shadow: 0 0 0 2px var(--accent) inset; border-radius: 8px; }
+@media (max-width: 700px) {
+  .lineups { grid-template-columns: 1fr; }
+}
 .live-line .status .hot-hot,
 .live-line .status .hot-fire { color: #c2410c; font-weight: 700; }
 .live-line .status .hot-cold,
@@ -1782,80 +1794,9 @@ select, input[type="number"] {
 }
 .skill-install-row select { flex: 1 1 120px; min-width: 0; font: inherit; font-size: 0.82rem; }
 
-.sub-panel { display: grid; gap: 8px; margin: 8px 0; }
-.sub-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  align-items: start;
-}
-.sub-col h4 { margin: 0 0 6px; font-size: .88rem; }
-.sub-card-list {
-  display: grid;
-  gap: 6px;
-  max-height: none;
-  overflow: visible;
-  padding-right: 2px;
-}
-.sub-card {
-  position: relative;
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--line);
-  background: #fff;
-  border-radius: 10px;
-  padding: 10px 8px 8px;
-  cursor: pointer;
-  font: inherit;
-}
-.sub-card.on-court {
-  border-color: rgba(42, 157, 143, .4);
-  background: #f3fbf9;
-}
-.sub-card.selected {
-  border-color: var(--accent);
-  background: #fff4eb;
-  box-shadow: 0 0 0 1px rgba(232,93,4,.25);
-}
-.sub-card-body { min-width: 0; flex: 1; }
-.sub-card-body strong { font-size: .9rem; padding-right: 52px; display: block; }
-.sub-pos-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-}
-.sub-pos-row .pos-chips { margin-top: 0; }
-.sub-card.sub-card-locked {
-  opacity: .72;
-  cursor: not-allowed;
-}
-.sub-card.injured {
-  opacity: .55;
-  filter: grayscale(.3);
-  cursor: not-allowed;
-}
-/* On-court injured: still selectable so you can sit them */
-.sub-card.injured.on-court,
-.sub-card.must-sub {
-  opacity: 1;
-  filter: none;
-  cursor: pointer;
-  border-color: rgba(185, 28, 28, 0.55);
-  background: #fef2f2;
-  box-shadow: inset 0 0 0 1px rgba(185, 28, 28, 0.2);
-}
-.sub-card .inj,
 .setup-status-tag.inj {
   color: #b91c1c;
   font-weight: 600;
-}
-@media (max-width: 700px) {
-  .sub-cols { grid-template-columns: 1fr; }
 }
 
 .legend-franchises {

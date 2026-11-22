@@ -51,6 +51,7 @@ import { createCoachingMomentView } from "./ui/coachingMomentView.js";
 import { createDraftGambleView } from "./ui/scoutingView.js";
 import { createGmBusinessView } from "./ui/gmBusinessView.js";
 import { createNetworkView } from "./ui/networkViews.js";
+import { livePlayerIntent, livePlayerSuggestions, liveTeamSuggestion } from "./ui/liveLineupSuggestions.js";
 import { TL, getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveDrawBack, resolveResultBack } from "./ui/navBack.js";
 import { freezeDiag, startFreezeDiag } from "./core/freezeDiag.js";
@@ -1631,7 +1632,6 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   paintScore(snap0);
   paintLineups(snap0);
   paintMeters(snap0);
-  fillSubSelects(snap0, true);
   state.court.render(snap0);
   syncPauseUI(snap0);
   pushFeed("coach", "已读取存档——点「继续比赛」接着打");
@@ -1645,11 +1645,10 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
       try {
         paintScoreWithCursor(snap);
         paintLineups(snap);
-        // The coach-panel body (meters, orders, subs, positions) is display:none while the drawer is closed in live
+        // The coach-panel body (meters, orders, positions) is display:none while the drawer is closed in live
         // play; rebuilding it every possession was pure layout cost. It is repainted once when the drawer opens.
         if (coachDrawer.isOpen()) {
           paintMeters(snap);
-          fillSubSelects(snap);
         } else {
           paintMomentum(snap);
         }
@@ -7313,11 +7312,10 @@ function beginGame(homeTeam, awayTeam, youSide) {
       try {
         paintScoreWithCursor(snap);
         paintLineups(snap);
-        // The coach-panel body (meters, orders, subs, positions) is display:none while the drawer is closed in live
+        // The coach-panel body (meters, orders, positions) is display:none while the drawer is closed in live
         // play; rebuilding it every possession was pure layout cost. It is repainted once when the drawer opens.
         if (coachDrawer.isOpen()) {
           paintMeters(snap);
-          fillSubSelects(snap);
         } else {
           paintMomentum(snap);
         }
@@ -7363,7 +7361,6 @@ function beginGame(homeTeam, awayTeam, youSide) {
     paintScore(snap0);
     paintLineups(snap0);
     paintMeters(snap0);
-    fillSubSelects(snap0, true);
     state.court.render(snap0);
   } catch (err) {
     console.error("[ui] initial paint", err);
@@ -7541,77 +7538,263 @@ function moodClass(mood) {
   return "";
 }
 
-function liveStatusLine(p, marked = false) {
+/**
+ * One live roster row. opts: extra = third-line HTML (intent + suggestions,
+ * your court only), draggable = HTML5-draggable (your court + healthy bench),
+ * side = "you" | "opp" | "bench" (drag identity), staged = tap-to-sub pick,
+ * showOvr = bench rows also show OVR.
+ */
+function liveStatusLine(p, marked = false, opts = {}) {
   const fg = p.fgPct != null ? `${p.fgPct}%` : "—";
   const inj = p.injuredGames > 0 ? ` · <em class="inj">${p.injuryStatus || "伤停"}</em>` : "";
   const grade = p.grade || "C+";
   const gTone = p.gradeTone || "grade-c";
   const gTip = p.gradeLast ? ` title="最近：${escAttr(p.gradeLast)}"` : "";
-  return `<li class="roster-line ${marked ? "marked" : ""}" data-id="${p.id}">
+  const drag = opts.draggable ? ` draggable="true"` : "";
+  const side = opts.side ? ` data-side="${opts.side}"` : "";
+  return `<li class="roster-line ${marked ? "marked" : ""}${opts.staged ? " staged" : ""}" data-id="${p.id}"${drag}${side}>
     ${photoImg(p)}
     <div class="live-line">
-      <div class="main"><span class="live-grade ${gTone}"${gTip}>${grade}</span> ${p.playPos || p.pos} ${p.name} · ${p.stats.pts}分 ${p.stats.reb}板 ${p.stats.ast}助 ${p.stats.stl}断 ${p.stats.blk}帽 · 命中${fg} · 疲劳${p.fatigue}${p.fatigueNote ? `·${p.fatigueNote}` : ""}${p.ironLungs ? "·铁肺" : ""}${
+      <div class="main"><span class="live-grade ${gTone}"${gTip}>${grade}</span> ${p.playPos || p.pos} ${p.name}${opts.showOvr ? ` · OVR ${p.overall ?? overall(p)}` : ""} · ${p.stats.pts}分 ${p.stats.reb}板 ${p.stats.ast}助 ${p.stats.stl}断 ${p.stats.blk}帽 · 命中${fg} · 疲劳${p.fatigue}${p.fatigueNote ? `·${p.fatigueNote}` : ""}${p.ironLungs ? "·铁肺" : ""}${
         p.confidenceLabel ? ` · ${p.confidenceLabel}` : ""
       }${inj}</div>
       <div class="status">手感 <span class="${hotClass(p.hot)}">${p.hotLabel || "平稳"}</span> · 心情 <span class="${moodClass(p.mood)}">${p.moodLabel || "平静"}</span>${
         marked ? " · <strong>对位中</strong>" : ""
-      }</div>
+      }</div>${opts.extra || ""}
     </div>
   </li>`;
 }
 
+/** True while an HTML5 drag is in flight: paintLineups must not yank the rows
+ * out from under it (a tick repaint mid-drag kills the drop). Cleared on
+ * dragend/drop; the lists repaint right after. */
+let liveDragActive = false;
+let liveLineupsBound = false;
+
 function paintLineups(snap) {
+  if (liveDragActive) return;
+  const you = snap.youSide === "home" ? snap.home : snap.away;
+  const opp = snap.youSide === "home" ? snap.away : snap.home;
+  const lang = getLang();
   const plan = snap.defensePlan || {};
+  const assignments = plan.assignments || {};
   const markId = plan.targetId || null;
-  const lineHome = (p) => liveStatusLine(p, snap.youSide === "away" && p.id === markId);
-  const lineAway = (p) => liveStatusLine(p, snap.youSide === "home" && p.id === markId);
-  // Always refresh live feel/mood (cheap: 10 rows)
-  $("#oncourt-a").innerHTML = snap.home.onCourt.map(lineHome).join("");
-  $("#oncourt-b").innerHTML = snap.away.onCourt.map(lineAway).join("");
-  const aTitle = $("#lineup-a-title");
-  const bTitle = $("#lineup-b-title");
-  if (aTitle) aTitle.textContent = `${snap.home.name} 场上`;
-  if (bTitle) bTitle.textContent = `${snap.away.name} 场上`;
-  const aChem = $("#lineup-a-chem");
-  const bChem = $("#lineup-b-chem");
   const youPrimary = snap.offenseFocusId || null;
-  const aPrimary = snap.youSide === "home" ? youPrimary : null;
-  const bPrimary = snap.youSide === "away" ? youPrimary : null;
-  const aBall = lineupBallNote(snap.home.onCourt, { primaryId: aPrimary });
-  const bBall = lineupBallNote(snap.away.onCourt, { primaryId: bPrimary });
-  if (aChem) {
-    aChem.textContent = `化学反应 ${snap.home.chem} · 士气 ${meterText(snap.home.morale)} · 适配 ${snap.home.fit}${
-      aBall ? ` · ${aBall}` : ""
+  // Invert assignments (oppId -> defenderId) so each of our players knows
+  // who he guards; the focus defender gets his own label.
+  const oppById = new Map(opp.onCourt.map((p) => [p.id, p]));
+  const guardOf = {};
+  const focusGuardOf = {};
+  for (const [oppId, defId] of Object.entries(assignments)) {
+    const name = oppById.get(oppId)?.name;
+    if (name) guardOf[defId] = name;
+  }
+  if (plan.targetId && plan.defenderId) {
+    const name = oppById.get(plan.targetId)?.name;
+    if (name) focusGuardOf[plan.defenderId] = name;
+  }
+  // Threat for the "盯死 / 建议主防" suggestions: same helper the defend-advice
+  // line uses (no random gate, advice only).
+  const youScore = snap.score?.[you.side] ?? 0;
+  const oppScore = snap.score?.[opp.side] ?? 0;
+  const { threat } = suggestDefenseScheme(opp.onCourt, oppScore - youScore);
+  const threatGuardId = threat ? assignments[threat.id] || null : null;
+  const bestDefenderId = [...you.onCourt].sort((a, b) => (b.defense || 0) - (a.defense || 0))[0]?.id || null;
+  // An injured on-court player is pre-staged as the sub-out pick, like the
+  // old sub panel did — the row shows staged until he is swapped out.
+  const mustSit = you.onCourt.find((p) => p.injuredGames > 0);
+  if (mustSit && !state.subOutId) state.subOutId = mustSit.id;
+  // Your court: intent + suggestions on a third line, draggable for subs.
+  const youRows = you.onCourt.map((p) => {
+    const intent = livePlayerIntent(p, {
+      isHandler: p.id === youPrimary,
+      guardName: guardOf[p.id] || null,
+      focusGuardName: focusGuardOf[p.id] || null,
+      lang,
+    });
+    const sug = livePlayerSuggestions(p, { isHandler: p.id === youPrimary, threat, threatGuardId, bestDefenderId, lang });
+    const extra = `<div class="intent">${L("意图", "Intent")} ${esc(intent)}${sug.length ? ` · <span class="suggest">${sug.map(esc).join(" · ")}</span>` : ""}</div>`;
+    return liveStatusLine(p, false, { extra, draggable: true, side: "you", staged: state.subOutId === p.id });
+  });
+  // Always refresh live feel/mood (cheap: 10 rows)
+  $("#oncourt-you").innerHTML = youRows.join("");
+  $("#oncourt-opp").innerHTML = opp.onCourt.map((p) => liveStatusLine(p, p.id === markId, { side: "opp" })).join("");
+  const bench = [...(you.bench || [])].sort(byOverallDesc);
+  $("#bench-you").innerHTML = bench.length
+    ? bench
+        .map((p) =>
+          liveStatusLine(p, false, {
+            draggable: !(p.injuredGames > 0),
+            side: "bench",
+            staged: state.subInId === p.id,
+            showOvr: true,
+          }),
+        )
+        .join("")
+    : `<li class="tiny">${L("板凳无人", "Bench is empty")}</li>`;
+  const youTitle = $("#lineup-you-title");
+  const oppTitle = $("#lineup-opp-title");
+  if (youTitle) youTitle.textContent = `${you.name} · ${L("场上", "On Court")}`;
+  if (oppTitle) oppTitle.textContent = `${opp.name} · ${L("场上", "On Court")}`;
+  const youChem = $("#lineup-you-chem");
+  const oppChem = $("#lineup-opp-chem");
+  const youBall = lineupBallNote(you.onCourt, { primaryId: youPrimary });
+  const oppBall = lineupBallNote(opp.onCourt, { primaryId: null });
+  const teamSug = liveTeamSuggestion({ youScore, oppScore, lang });
+  if (youChem) {
+    youChem.textContent = `化学反应 ${you.chem} · 士气 ${meterText(you.morale)} · 适配 ${you.fit}${youBall ? ` · ${youBall}` : ""}${
+      teamSug ? ` · ${teamSug}` : ""
     }`;
   }
-  if (bChem) {
-    bChem.textContent = `化学反应 ${snap.away.chem} · 士气 ${meterText(snap.away.morale)} · 适配 ${snap.away.fit}${
-      bBall ? ` · ${bBall}` : ""
-    }`;
+  if (oppChem) {
+    oppChem.textContent = `化学反应 ${opp.chem} · 士气 ${meterText(opp.morale)} · 适配 ${opp.fit}${oppBall ? ` · ${oppBall}` : ""}`;
+  }
+  const hint = $("#bench-hint");
+  if (hint) {
+    const injuredOn = you.onCourt.filter((p) => p.injuredGames > 0).length;
+    const injuredBench = bench.filter((p) => p.injuredGames > 0).length;
+    const healthyBench = bench.filter((p) => !(p.injuredGames > 0)).length;
+    const dead = !!state.sim?.paused;
+    hint.textContent = !dead
+      ? injuredOn
+        ? L(`场上有 ${injuredOn} 人伤病——先暂停/等到节间，把他换下来`, `${injuredOn} injured on court — call a timeout or wait for the break to sit him`)
+        : L("活球中不可换人——叫暂停或等到节间", "Can't sub live — call a timeout or wait for the break")
+      : injuredOn && healthyBench
+        ? L(`⚠ ${mustSit?.name || "伤员"}不能继续——拖板凳球员到他身上换人`, `⚠ ${mustSit?.name || "The injured player"} can't continue — drag a bench player onto him`)
+        : injuredOn && !healthyBench
+          ? L("⚠ 场上有伤员，但板凳没有健康球员可换", "⚠ Someone is injured on court, but no healthy player is on the bench")
+          : injuredBench
+            ? L(`拖板凳球员到场上球员身上换人；点选场上 + 板凳也行（伤停 ${injuredBench} 人不能上场）`, `Drag a bench player onto an on-court player to sub; tapping on-court + bench works too (${injuredBench} injured on the bench can't play)`)
+            : L("拖板凳球员到场上球员身上换人；点选场上 + 板凳也行", "Drag a bench player onto an on-court player to sub; tapping on-court + bench works too");
   }
   paintDefendTargets(snap);
   paintLiveMatchupBoard(snap);
-  // Click opponent row to select as defend target
-  const oppUl = snap.youSide === "home" ? $("#oncourt-b") : $("#oncourt-a");
-  oppUl?.querySelectorAll("li[data-id]").forEach((li) => {
-    li.style.cursor = "pointer";
-    li.title = "点选设为对位策略目标";
-    li.onclick = () => {
+  bindLiveLineups();
+}
+
+/**
+ * One delegated binding for the three lineup lists (the <ul>s are stable,
+ * the <li>s are repainted every tick). Drag: bench <-> court. Tap: tap a
+ * court row then a bench row (either order) to sub at once. Opponent rows
+ * keep their old job — click to set the defend target.
+ */
+function bindLiveLineups() {
+  if (liveLineupsBound) return;
+  const box = document.querySelector(".lineups");
+  if (!box) return;
+  liveLineupsBound = true;
+  const rowOf = (e) => e.target?.closest?.("li[data-id]") || null;
+  box.addEventListener("dragstart", (e) => {
+    const li = rowOf(e);
+    if (!li || li.getAttribute("draggable") !== "true") return;
+    e.dataTransfer.setData("text/plain", JSON.stringify({ id: li.dataset.id, side: li.dataset.side }));
+    e.dataTransfer.effectAllowed = "move";
+    liveDragActive = true;
+    li.classList.add("dragging");
+  });
+  box.addEventListener("dragover", (e) => {
+    const li = rowOf(e);
+    if (!li || !liveDragActive) return;
+    const valid = (li.dataset.side === "you" || li.dataset.side === "bench") && li.getAttribute("draggable") !== "false";
+    if (!valid) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    li.classList.add("drop-ok");
+  });
+  box.addEventListener("dragleave", (e) => {
+    rowOf(e)?.classList.remove("drop-ok");
+  });
+  box.addEventListener("drop", (e) => {
+    const li = rowOf(e);
+    if (!li) return;
+    e.preventDefault();
+    li.classList.remove("drop-ok");
+    let drag = null;
+    try {
+      drag = JSON.parse(e.dataTransfer.getData("text/plain") || "null");
+    } catch {
+      drag = null;
+    }
+    if (!drag?.id || !drag.side) return;
+    const target = { id: li.dataset.id, side: li.dataset.side };
+    if (drag.side === "bench" && target.side === "you") tryLiveSub(target.id, drag.id);
+    else if (drag.side === "you" && target.side === "bench") tryLiveSub(drag.id, target.id);
+  });
+  box.addEventListener("dragend", () => {
+    liveDragActive = false;
+    box.querySelectorAll(".dragging, .drop-ok").forEach((el) => el.classList.remove("dragging", "drop-ok"));
+    if (state.sim) paintLineups(state.sim.snapshot());
+  });
+  box.addEventListener("click", (e) => {
+    const li = rowOf(e);
+    if (!li || !state.sim) return;
+    const id = li.dataset.id;
+    const side = li.dataset.side;
+    if (side === "opp") {
+      // Click opponent row to select as defend target (unchanged).
+      const snap = state.sim.snapshot();
       const sel = $("#defend-target");
-      if (sel) sel.value = li.dataset.id;
-      const assigned = snap.defensePlan?.assignments?.[li.dataset.id];
+      if (sel) sel.value = id;
+      const assigned = snap.defensePlan?.assignments?.[id];
       const defSel = $("#defend-defender");
       if (defSel && assigned) defSel.value = assigned;
       syncDefendHint({
         ...snap,
         defensePlan: {
           ...(snap.defensePlan || {}),
-          targetId: li.dataset.id,
+          targetId: id,
           defenderId: assigned || snap.defensePlan?.defenderId,
         },
       });
-    };
+      return;
+    }
+    if (side === "you") {
+      if (state.subInId) tryLiveSub(id, state.subInId);
+      else {
+        state.subOutId = state.subOutId === id ? null : id;
+        paintLineups(state.sim.snapshot());
+      }
+      return;
+    }
+    if (side === "bench") {
+      if (li.getAttribute("draggable") === "false") return; // injured bench: never selectable
+      if (state.subOutId) tryLiveSub(state.subOutId, id);
+      else {
+        state.subInId = state.subInId === id ? null : id;
+        paintLineups(state.sim.snapshot());
+      }
+    }
   });
+}
+
+/**
+ * The one sub path for the live screen now (drag or tap-tap both land here).
+ * Same gates as the old confirm button: paused only, and the engine still
+ * validates (injured / fouled-out inbound is refused with a coach message).
+ */
+function tryLiveSub(outId, inId) {
+  if (!state.sim?.paused) {
+    pushFeed("coach", L("活球中不能换人——请先叫暂停或等到节间", "Can't sub live — call a timeout or wait for the break"));
+    return false;
+  }
+  if (!outId || !inId || outId === inId) return false;
+  const ok = state.sim.substitute(outId, inId);
+  if (!ok) {
+    state.subOutId = null;
+    state.subInId = null;
+    return false;
+  }
+  state.subOutId = null;
+  state.subInId = null;
+  state.lineupSig = "";
+  const snap = state.sim.snapshot();
+  fillTacticSelect(state.sim.you(), { preferId: state.sim.you()?.tactic?.id });
+  paintPlayerOrders(snap, { force: true });
+  paintLivePositions(snap);
+  paintDefendTargets(snap);
+  paintLineups(snap);
+  paintMeters(snap);
+  return true;
 }
 
 function paintMeters(snap) {
@@ -7958,7 +8141,6 @@ function initFocusAndPacksUI(homeTeam, awayTeam, youSide) {
         state.sim.applyLineupPack(ids);
         const snap = state.sim.snapshot();
         paintLineups(snap);
-        fillSubSelects(snap, true);
         paintMeters(snap);
       };
     });
@@ -8025,7 +8207,6 @@ function paintLivePositions(snap) {
       const s = state.sim.snapshot();
       paintMeters(s);
       paintLineups(s);
-      fillSubSelects(s, true);
     };
   });
 }
@@ -8101,166 +8282,6 @@ function syncDefendAdvice(snap) {
       ? `Advice: ${threat.name} is their hottest threat (${pts} pts) — locking him down is the safe call.`
       : `建议：对面 ${threat.name} 目前最热（${pts} 分），钉死他最稳。`;
   }
-}
-
-function playerSubCard(p, selected, { onCourt = false } = {}) {
-  const slot = normalizePos(p.playPos || p.pos);
-  const tips = topIntangibles(p, 2)
-    .map((t) => `${t.name}${t.value}`)
-    .join(" ");
-  const hurt = p.injuredGames > 0;
-  // On-court injured MUST stay clickable so you can sub them out;
-  // bench injured cannot check back in.
-  const lockedOut = hurt && !onCourt;
-  const fg = p.fgPct != null ? `${p.fgPct}%` : "—";
-  const status = onCourt
-    ? hurt
-      ? `场上伤 · ${slot}`
-      : `场上 ${slot}`
-    : hurt
-      ? `伤停 · 本职 ${p.pos}`
-      : `场下 · 本职 ${p.pos}`;
-  // div 而非 button：卡内要嵌 PG–C 芯片
-  return `<div class="sub-card ${selected ? "selected" : ""} ${hurt ? "injured" : ""} ${
-    onCourt ? "on-court" : "bench"
-  } ${hurt && onCourt ? "must-sub" : ""}" data-id="${p.id}" data-hurt="${hurt ? "1" : "0"}" role="button" tabindex="${
-    lockedOut ? -1 : 0
-  }" ${lockedOut ? 'aria-disabled="true"' : ""}>
-    <span class="setup-status-tag ${onCourt ? "up" : "down"} ${hurt ? "inj" : ""}">${status}</span>
-    ${photoImg(p, "headshot sm")}
-    <div class="sub-card-body">
-      <strong><span class="live-grade ${p.gradeTone || "grade-c"}">${p.grade || "C+"}</span> ${p.name}</strong>
-      <div class="tiny">OVR ${p.overall ?? overall(p)} · ${p.season} · 疲劳${p.fatigue ?? 0}${
-        p.fatigueNote ? `·${p.fatigueNote}` : ""
-      }${p.ironLungs ? " · 铁肺" : ""}${hurt ? ` · <em class="inj">${p.injuryStatus || "伤停"}</em>` : ""}</div>
-      <div class="tiny">手感 ${p.hotLabel || "平稳"} · 心情 ${p.moodLabel || "平静"} · 命中${fg}${
-        p.gradeLast ? ` · ${p.gradeLast}` : ""
-      }</div>
-      <div class="tiny">攻${p.scoring} 防${p.defense} 传${p.pass} 板${p.rebound} · ${tips}</div>
-      <div class="tiny">${p.stats ? `${p.stats.pts}分 ${p.stats.reb}板 ${p.stats.ast}助` : ""}</div>
-      ${
-        hurt && onCourt
-          ? `<div class="tiny inj">需换下——点选后选健康板凳确认换人</div>`
-          : ""
-      }
-      ${
-        onCourt && !hurt
-          ? `<div class="sub-pos-row">
-              <span class="tiny">改打</span>
-              ${posChipsHtml(p, { dataKey: "data-sub-pos" })}
-            </div>`
-          : ""
-      }
-    </div>
-  </div>`;
-}
-
-function fillSubSelects(snap, force = false) {
-  const outBox = $("#sub-out-list");
-  const inBox = $("#sub-in-list");
-  if (!outBox || !inBox) return;
-  const you = snap.youSide === "home" ? snap.home : snap.away;
-  const order = ["PG", "SG", "SF", "PF", "C"];
-  const onCourt = [...(you.onCourt || [])].sort((a, b) => {
-    const da = order.indexOf(normalizePos(a.playPos || a.pos));
-    const db = order.indexOf(normalizePos(b.playPos || b.pos));
-    return da - db || byOverallDesc(a, b);
-  });
-  const bench = [...(you.bench || [])].sort(byOverallDesc);
-  const feelSig = onCourt
-    .map((p) => `${p.id}:${p.playPos || p.pos}:${p.hot}:${p.mood}:${p.fatigue}`)
-    .join(",");
-  const dead = !!state.sim?.paused;
-  const sig = [
-    ...onCourt.map((p) => `${p.id}:${p.playPos || p.pos}`),
-    "|",
-    ...bench.map((p) => p.id),
-    "|",
-    feelSig,
-    "|",
-    dead ? "1" : "0",
-  ].join(",");
-  if (!force && outBox.dataset.sig === sig) {
-    return;
-  }
-  outBox.dataset.sig = sig;
-  // keep selection if still valid
-  if (!onCourt.some((p) => p.id === state.subOutId)) state.subOutId = null;
-  if (!bench.some((p) => p.id === state.subInId && !(p.injuredGames > 0))) state.subInId = null;
-  // Auto-highlight injured on-court player so they're ready to be swapped out
-  const mustSit = onCourt.find((p) => p.injuredGames > 0);
-  if (mustSit && !state.subOutId) state.subOutId = mustSit.id;
-
-  outBox.innerHTML = onCourt
-    .map((p) => playerSubCard(p, p.id === state.subOutId, { onCourt: true }))
-    .join("");
-  inBox.innerHTML = bench.length
-    ? bench.map((p) => playerSubCard(p, p.id === state.subInId, { onCourt: false })).join("")
-    : `<p class="tiny">板凳无人</p>`;
-
-  const bindSubPick = (box, which) => {
-    box.querySelectorAll(".sub-card").forEach((card) => {
-      const hurt = card.dataset.hurt === "1";
-      const onFloor = card.classList.contains("on-court");
-      // Bench injured: never selectable. On-court injured: must be selectable.
-      if (hurt && !onFloor) return;
-      card.classList.toggle("sub-card-locked", !dead);
-      card.onclick = (e) => {
-        if (e.target.closest(".pos-chip")) return;
-        if (!state.sim?.paused) {
-          pushFeed("coach", "活球中不能换人——请先叫暂停或等到节间");
-          return;
-        }
-        if (which === "out") state.subOutId = card.dataset.id;
-        else state.subInId = card.dataset.id;
-        fillSubSelects(state.sim.snapshot(), true);
-      };
-    });
-  };
-  bindSubPick(outBox, "out");
-  bindSubPick(inBox, "in");
-
-  outBox.querySelectorAll(".pos-chip").forEach((chip) => {
-    chip.disabled = !dead;
-    chip.onclick = (e) => {
-      e.stopPropagation();
-      if (!state.sim?.paused) {
-        pushFeed("coach", "活球中不能调站位——请先叫暂停或等到节间");
-        return;
-      }
-      const wrap = chip.closest(".pos-chips");
-      const id = wrap?.getAttribute("data-sub-pos");
-      if (!id) return;
-      state.sim.setPlayPos(id, chip.dataset.pos);
-      const liveBox = $("#pos-live-list");
-      if (liveBox) liveBox.dataset.sig = "";
-      outBox.dataset.sig = "";
-      const s = state.sim.snapshot();
-      paintMeters(s);
-      paintLineups(s);
-      paintLivePositions(s);
-      fillSubSelects(s, true);
-    };
-  });
-
-  const ready = !!(state.subOutId && state.subInId);
-  $("#btn-sub").disabled = !dead || !ready;
-  const injuredOn = onCourt.filter((p) => p.injuredGames > 0).length;
-  const injuredBench = you.bench.filter((p) => p.injuredGames > 0).length;
-  const healthyBench = you.bench.filter((p) => !(p.injuredGames > 0)).length;
-  $("#sub-pick-hint").textContent = !dead
-    ? injuredOn
-      ? `场上有 ${injuredOn} 人伤病——先暂停/等到节间，把他换下来`
-      : "活球中不可换人/改位——叫暂停或等到节间"
-    : injuredOn && healthyBench
-      ? `⚠ ${mustSit?.name || "伤员"}不能继续——已选中下场，再点一名健康板凳后确认换人`
-      : injuredOn && !healthyBench
-        ? "⚠ 场上有伤员，但板凳没有健康球员可换"
-        : ready
-          ? "已选好，可确认换人"
-          : injuredBench
-            ? `点选场上 + 健康板凳换人（伤停 ${injuredBench} 人不能上场）`
-            : "点选场上 + 板凳换人；场上球员卡可点 PG–C 改打位置";
 }
 
 function syncPauseUI(snap) {
@@ -8348,17 +8369,8 @@ function syncCoachActionLocks(paused) {
   setDis("#btn-defend-double", !dead);
   setDis("#btn-defend-bump", !dead);
   setDis("#btn-defend-clear", !dead);
-  // Sub confirm still needs picks; base lock when live
-  const subBtn = $("#btn-sub");
-  if (subBtn && !dead) subBtn.disabled = true;
   $("#pos-live-list")?.querySelectorAll("select").forEach((s) => {
     s.disabled = !dead;
-  });
-  $("#sub-out-list")?.querySelectorAll("button").forEach((b) => {
-    if (!b.classList.contains("injured")) b.disabled = !dead;
-  });
-  $("#sub-in-list")?.querySelectorAll("button").forEach((b) => {
-    if (!b.classList.contains("injured")) b.disabled = !dead;
   });
 }
 
@@ -8415,7 +8427,6 @@ $("#btn-set-tactic").onclick = () => {
   }
   state.sim.setTactic($("#tactic-select").value);
   syncTacticHelp();
-  fillSubSelects(state.sim.snapshot(), true);
 };
 $("#btn-set-tempo")?.addEventListener("click", () => {
   if (!state.sim?.paused) {
@@ -8545,25 +8556,6 @@ $("#btn-defend-focus")?.addEventListener("click", () => applyDefenseScheme("focu
 $("#btn-defend-double")?.addEventListener("click", () => applyDefenseScheme("double"));
 $("#btn-defend-bump")?.addEventListener("click", () => applyDefenseScheme("bump"));
 $("#btn-defend-clear")?.addEventListener("click", () => applyDefenseScheme(null));
-$("#btn-sub").onclick = () => {
-  if (!state.sim?.paused) {
-    pushFeed("coach", "活球中不能换人——请先叫暂停或等到节间");
-    return;
-  }
-  if (!state.subOutId || !state.subInId) return;
-  state.sim.substitute(state.subOutId, state.subInId);
-  state.subOutId = null;
-  state.subInId = null;
-  state.lineupSig = "";
-  const snap = state.sim.snapshot();
-  fillTacticSelect(state.sim.you(), { preferId: state.sim.you()?.tactic?.id });
-  fillSubSelects(snap, true);
-  paintPlayerOrders(snap, { force: true });
-  paintLivePositions(snap);
-  paintDefendTargets(snap);
-  paintLineups(snap);
-  paintMeters(snap);
-};
 // Broadcast layout: the full coach panel opens by itself in dead-ball windows (syncPauseUI) and by hand during live play.
 const coachDrawer = createCoachDrawer({
   panel: document.querySelector("#screen-game .coach-panel"),
@@ -8573,7 +8565,6 @@ const coachDrawer = createCoachDrawer({
     if (!open || !state.sim) return;
     const snap = state.sim.snapshot();
     paintMeters(snap);
-    fillSubSelects(snap, true);
   },
 });
 $("#btn-pause-sim").onclick = () => {
@@ -8585,7 +8576,6 @@ $("#btn-pause-sim").onclick = () => {
     state.sim.forceOutInjured(state.sim.opp());
     const snap = state.sim.snapshot();
     syncPauseUI(snap);
-    fillSubSelects(snap, true);
     paintLineups(snap);
     pushFeed("coach", "模拟已暂停——可调整后点「继续比赛」恢复");
   }
