@@ -6,12 +6,11 @@ const badge = (cls, text) => ` <small class="tb-badge tb-badge-${cls}">${esc(tex
 
 function marks(o, lang) {
   return (o.recommended && !o.changed ? badge("rec", TL(lang, "推荐", "Suggested")) : "")
-    + (o.changed ? badge("set", TL(lang, "已改", "Changed")) : "")
-    + (o.risky ? badge("risk", TL(lang, "高风险", "Risky")) : "");
+    + (o.changed ? badge("set", TL(lang, "已改", "Changed")) : "");
 }
 
 const button = (kind, o, label, lang, extra = "") =>
-  `<button type="button" class="tb-action${o.selected ? " is-active" : ""}${o.risky ? " is-risky" : ""}" data-tb="${kind}" data-id="${esc(o.id)}"${extra} aria-pressed="${o.selected}">${esc(label)}${marks(o, lang)}</button>`;
+  `<button type="button" class="tb-action${o.selected ? " is-active" : ""}" data-tb="${kind}" data-id="${esc(o.id)}"${extra} aria-pressed="${o.selected}">${esc(label)}${marks(o, lang)}</button>`;
 
 const group = (title, body, hint = "") =>
   `<div class="tb-pnr-group"><h4 class="tb-pnr-h">${esc(title)}</h4><div class="tb-actions">${body}</div>${hint ? `<p class="tb-pnr-hint">${esc(hint)}</p>` : ""}</div>`;

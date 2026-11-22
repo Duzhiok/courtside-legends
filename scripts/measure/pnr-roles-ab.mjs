@@ -6,6 +6,7 @@
 import { GameSim } from "../../js/engine/sim.js";
 import { seededStream, hashSeed } from "../../js/core/seededRandom.js";
 import { realTeam } from "../../tests/helpers/realGame.js";
+import { markOrdersManual } from "../../js/engine/gameplan.js";
 
 const [games = 24, hc = "CHI", hy = 1996, ac = "SEA", ay = 1996, screenerBref = "longllu01"] = process.argv.slice(2).map((v, i) => (i === 0 || i === 2 || i === 4 ? Number(v) : v));
 
@@ -26,7 +27,7 @@ function run(plan) {
     const home = realTeam(hc, hy);
     const screener = home.players.find((p) => p.bref === screenerBref);
     if (!screener) throw new Error(`no ${screenerBref} on ${hc} ${hy}: ${home.players.map((p) => p.bref).join(", ")}`);
-    for (const p of home.players) p.orders = { ...(p.orders || {}), action: "pnr" };
+    for (const p of home.players) markOrdersManual(p, { action: "pnr" }); // without the manual flag the engine re-derives the orders
     home.gameplan = { ...(home.gameplan || {}), ...(plan ? { pnr: { screenerId: screener.id, ...plan } } : {}) };
     let kicks = 0;
     const sim = new GameSim({

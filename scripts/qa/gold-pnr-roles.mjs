@@ -48,7 +48,7 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   check(`[${tag}] four groups: screener / after / the rest / finish`, groups.length === 4, groups.join(" | "));
   const pressed = (sel) => page.$$eval(`${B} ${sel}[aria-pressed="true"]`, (b) => b.length);
   check(`[${tag}] exactly one screener and one after-screen are shown selected`, (await pressed('[data-tb="pnr-screener"]')) === 1 && (await pressed('[data-tb="pnr-after"]')) === 1);
-  check(`[${tag}] slip and ghost carry a risk badge`, (await page.$$eval(`${B} .tb-badge-risk`, (b) => b.length)) === 2);
+  check(`[${tag}] no unmeasured "high risk" warning on slip or ghost`, !/高风险|risk/i.test(await page.textContent(`${B} .tb-pnr`)));
   check(`[${tag}] the three other men each have spot / cut`, (await page.$$eval(`${B} .tb-pnr-man`, (r) => r.length)) === 3);
   await page.click(`${B} [data-tb="apply"]`); // apply the handler + action first, then look at "nothing chosen = nothing written"
   await page.waitForTimeout(300);
@@ -57,7 +57,7 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
 
   await page.click(`${B} [data-tb="pnr-after"][data-id="slip"]`);
   const hint = await page.textContent(`${B} .tb-pnr-hint`);
-  check(`[${tag}] the cost of a slipped screen is written next to the choice`, /掩护|screen/i.test(hint) && /加成|bonus/i.test(hint), hint);
+  check(`[${tag}] what a slipped screen does is written next to the choice`, /掩护|screen/i.test(hint) && /加成|bonus/i.test(hint), hint);
   const offId = await page.$eval(`${B} [data-tb="pnr-off"]`, (b) => b.dataset.id);
   await page.click(`${B} [data-tb="pnr-off"][data-id="${offId}"][data-val="cut"]`);
   await page.click(`${B} [data-tb="pnr-finish"][data-id="fake_kick"]`);

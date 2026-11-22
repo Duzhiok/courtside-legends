@@ -49,14 +49,13 @@ test("an untouched plan shows the recommendation everywhere and nothing as chang
   assert.equal(offIds.includes(id(team, 0)) || offIds.includes(pnr.screener.find((p) => p.selected).id), false);
 });
 
-test("choices are marked changed, slip and ghost are marked risky, fake_kick is never the recommendation", () => {
+test("choices are marked changed, fake_kick is never the recommendation", () => {
   const team = makeTeam();
   let s = pnrState(team);
   s = reduce(s, { type: "SET_PNR", patch: { afterScreen: "slip", finish: "fake_kick", screenerId: id(team, 3), offBall: { [id(team, 1)]: "cut" } } });
   const { pnr } = board(team, s);
   assert.equal(pnr.anyChanged, true);
   assert.equal(pnr.afterScreen.find((o) => o.id === "slip").changed, true);
-  assert.deepEqual(pnr.afterScreen.filter((o) => o.risky).map((o) => o.id), ["slip", "ghost"]);
   assert.equal(pnr.finish.find((o) => o.id === "fake_kick").recommended, false);
   assert.equal(pnr.screener.find((p) => p.id === id(team, 3)).selected, true);
   assert.equal(pnr.offBall.every((p) => p.id !== id(team, 3)), true, "the screener is off the off-ball list");
@@ -64,16 +63,16 @@ test("choices are marked changed, slip and ghost are marked risky, fake_kick is 
   assert.equal(ghost.offBall.some((p) => p.id === id(team, 3)), true, "a ghosting screener plays off the ball like the others");
 });
 
-test("HTML: buttons are pressable states, risky options say so, the selected option's hint is shown, reset only when something changed", () => {
+test("HTML: buttons are pressable states, the selected option's hint is shown, no unmeasured warning is shown, reset only when something changed", () => {
   const team = makeTeam("Bad <img src=x> Name");
   const html = (s, lang = "en") => renderTacticsBoardHtml(board(team, s, lang), lang);
   const base = html(pnrState(team));
   for (const kind of ["pnr-screener", "pnr-after", "pnr-off", "pnr-finish"]) assert.ok(base.includes(`data-tb="${kind}"`), kind);
   assert.equal(base.includes("pnr-reset"), false);
   assert.equal(base.includes("<img"), false, "names are escaped");
-  assert.equal((base.match(/tb-badge-risk/g) || []).length, 2, "slip and ghost");
+  assert.equal(/risk|高风险/i.test(base), false, "a warning needs a measurement behind it; slip and ghost measure within noise of roll");
   const slip = html(reduce(pnrState(team), { type: "SET_PNR", patch: { afterScreen: "slip" } }));
-  assert.ok(slip.includes("no screen pass bonus"), "the cost is written where the choice is made");
+  assert.ok(slip.includes("no screen pass bonus"), "what the engine does is written where the choice is made");
   assert.ok(slip.includes('data-tb="pnr-reset"'));
   assert.ok(html(pnrState(team), "zh").includes("挡拆配合"));
   // an off-ball choice that happens to equal the recommendation is still a choice the coach made, and must look like one
