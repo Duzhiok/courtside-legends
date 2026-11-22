@@ -3,8 +3,9 @@
 // What this is NOT: a second tactical engine or a new save format. A draft is a normalised *view* of fields the
 // team already has (coach.specialTactics, starterIds, gameplan, players[].orders). `applyDraft` writes exactly what
 // the old tip-off handler (`#btn-setup-confirm` in app.js) writes, through the same `composeGameplan`, so there is
-// one gameplan shape. Previews (reducer) never touch the team; only `commitDraft` does, and it rolls back on a
-// failed save, so "apply" is all-or-nothing.
+// one gameplan shape. Previews (reducer) never touch the team; only `commitDraft` does. A validation
+// error still blocks and applies nothing; a failed save does NOT roll the plan back and does NOT block
+// tip-off — the plan stays applied in memory and the failure is reported as `saveFailed` (see `commitDraft`).
 //
 // Honest mapping of the spec's "offensive / defensive system" onto what GameSim really has:
 //   offensiveSchemeId = the one active tactic (first of coach.specialTactics at tip-off)
