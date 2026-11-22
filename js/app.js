@@ -7550,7 +7550,7 @@ function liveStatusLine(p, marked = false, opts = {}) {
   const grade = p.grade || "C+";
   const gTone = p.gradeTone || "grade-c";
   const gTip = p.gradeLast ? ` title="最近：${escAttr(p.gradeLast)}"` : "";
-  const drag = opts.draggable ? ` draggable="true"` : "";
+  const drag = opts.draggable === undefined ? "" : ` draggable="${opts.draggable ? "true" : "false"}"`;
   const side = opts.side ? ` data-side="${opts.side}"` : "";
   return `<li class="roster-line ${marked ? "marked" : ""}${opts.staged ? " staged" : ""}" data-id="${p.id}"${drag}${side}>
     ${photoImg(p)}
