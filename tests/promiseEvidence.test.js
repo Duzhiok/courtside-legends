@@ -246,3 +246,24 @@ test("contract promises settle from the events the REAL season-end functions wri
   const next = rolloverSeason(cutState, { year: 1997 }).reborn;
   assert.equal(settleRebornPromises(a2, next).settled[0].status, "broken", "the new season proves no contract was signed");
 });
+
+test("a promise made to ANOTHER player is not judged by this run's games (it stays open, nothing moves)", () => {
+  const a = account();
+  recordPerson(a, { id: "other", name: "Other", role: "player", bref: "oth01" });
+  promise(a, "minutes", { type: "minutes", minGames: 2, minMpg: 10, dueAfterGames: 3 }, { targetId: "other" });
+  const out = settleRebornPromises(a, run(games(6))); // 6 games at 20 mpg would both fulfil and pass the deadline
+  assert.equal(out.settled.length, 0);
+  assert.equal(status(a), "open");
+  assert.equal(out.reborn.player.coachTrust, 40);
+});
+
+test("a promise made to this run's player still settles; a target with no bref is not excluded", () => {
+  const mine = account();
+  promise(mine, "minutes", { type: "minutes", minGames: 2, minMpg: 10, dueAfterGames: 3 });
+  assert.equal(settleRebornPromises(mine, run(games(3))).settled[0].status, "fulfilled");
+
+  const unknown = account();
+  recordPerson(unknown, { id: "ghost", name: "Ghost", role: "player" }); // typed-in id, no bref
+  promise(unknown, "minutes", { type: "minutes", minGames: 2, minMpg: 10, dueAfterGames: 3 }, { targetId: "ghost" });
+  assert.equal(settleRebornPromises(unknown, run(games(3))).settled[0].status, "fulfilled");
+});

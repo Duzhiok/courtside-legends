@@ -13,7 +13,7 @@
  * start promise, and a trade/contract promise only resolves on a real event
  * or once the deadline season has passed.
  */
-import { markTrustEffectsApplied, pendingTrustEffects } from "../career/careerRelationships.js";
+import { markTrustEffectsApplied, pendingTrustEffects, personById } from "../career/careerRelationships.js";
 import { settleGamePromises } from "../career/promiseEngine.js";
 import { collectEvidence, evidenceWindow } from "./promiseEvidence.js";
 import { roleForTrust } from "./trust.js";
@@ -22,9 +22,20 @@ import { roleForTrust } from "./trust.js";
 
 const clampTrust = (v) => Math.max(0, Math.min(100, Math.round(v)));
 
-/** (promise) => the Reborn player's evidence snapshot over that promise's own window. */
+/**
+ * (promise) => the Reborn player's evidence snapshot over that promise's own window.
+ * Promises live on the ACCOUNT, but this run's games are only evidence for promises made to THIS run's
+ * player: when both brefs are known and differ, the promise gets an empty snapshot (stays open) instead
+ * of being judged, and its relationship moved, by someone else's season. Same rule as the trust effects.
+ */
 export function rebornPromiseWindow(reborn, { account = null } = {}) {
-  return evidenceWindow(collectEvidence(reborn, account), reborn);
+  const window = evidenceWindow(collectEvidence(reborn, account), reborn);
+  const bref = reborn?.identity?.bref || null;
+  return (promise) => {
+    const target = account ? personById(account, promise?.targetId)?.bref || null : null;
+    if (bref && target && target !== bref) return { game: null, season: null };
+    return window(promise);
+  };
 }
 
 /**

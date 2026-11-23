@@ -250,9 +250,12 @@ test("Reborn: a promise made to someone else's player does not move this run's t
     player: { coachTrust: 40, rotationRole: "bench", seasonLog: [1, 2, 3].map((g) => ({ year: 1996, game: g, min: 24, role: "bench" })) },
   };
   const out = settleRebornPromises(acct, reborn);
-  assert.equal(out.settled.length, 1);
+  // It used to be judged by this run's games and then "consumed"; that decided someone else's promise with the
+  // wrong evidence. Now it is simply not this run's to judge: still open, nothing moved, nothing consumed.
+  assert.equal(out.settled.length, 0);
   assert.equal(out.reborn.player.coachTrust, 40);
-  assert.equal(promisesOf(acct)[0].effect.applied, true); // consumed, not re-applied to anyone later
+  assert.equal(promisesOf(acct)[0].status, "open");
+  assert.notEqual(promisesOf(acct)[0].effect?.applied, true);
 });
 
 test("settleGamePromises settles relationship promises too when given a snapshot", () => {
