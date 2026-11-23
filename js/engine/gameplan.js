@@ -102,58 +102,68 @@ export function normalizeTempo(id) {
  * Example: Haliburton → usage=organize, action=drive_kick.
  */
 export const ORDER_USAGE = [
-  { id: "auto", name: "自由", hint: "按球员本能" },
-  { id: "organize", name: "偏组织", hint: "传球发动、突破分球优先；体力消耗略低" },
-  { id: "score", name: "偏得分", hint: "终结与造投优先；强打更耗体力" },
-  { id: "balanced", name: "攻传均衡", hint: "持球兼顾得分与分球" },
-  { id: "defend", name: "偏防守", hint: "降低持球权重，优先当领防人盯持球核；追防更耗体力" },
+  { id: "auto", name: "自由", nameEn: "Free", hint: "按球员本能", hintEn: "Follow his instincts" },
+  { id: "organize", name: "偏组织", nameEn: "Playmaker", hint: "传球发动、突破分球优先；体力消耗略低", hintEn: "Pass and kick first; a little less tiring" },
+  { id: "score", name: "偏得分", nameEn: "Scorer", hint: "终结与造投优先；强打更耗体力", hintEn: "Finish and create shots; forcing it costs energy" },
+  { id: "balanced", name: "攻传均衡", nameEn: "Balance", hint: "持球兼顾得分与分球", hintEn: "Score and pass" },
+  { id: "defend", name: "偏防守", nameEn: "Defense-first", hint: "降低持球权重，优先当领防人盯持球核；追防更耗体力", hintEn: "Fewer touches; guard the ball-handler" },
   {
     id: "hustle",
     name: "蓝领冲抢",
+    nameEn: "Hustle",
     hint: "少持球：冲抢进攻篮板与二次进攻，防守投入拉满；更耗体力",
+    hintEn: "Crash the glass and play defense; more tiring",
   },
 ];
 
 export const ORDER_ATTACK = [
-  { id: "auto", name: "自由区域", hint: "按手感与战术" },
-  { id: "paint", name: "内线杀伤", hint: "杀筐 / 低位" },
-  { id: "perimeter", name: "外线远投", hint: "提高三分比重" },
-  { id: "mid", name: "中距离", hint: "中投与急停" },
-  { id: "foul_hunt", name: "造犯规", hint: "冲击篮下赚罚球" },
+  { id: "auto", name: "自由区域", nameEn: "Open areas", hint: "按手感与战术", hintEn: "By feel and the play" },
+  { id: "paint", name: "内线杀伤", nameEn: "Paint", hint: "杀筐 / 低位", hintEn: "At the rim or in the post" },
+  { id: "perimeter", name: "外线远投", nameEn: "Threes", hint: "提高三分比重", hintEn: "More threes" },
+  { id: "mid", name: "中距离", nameEn: "Midrange", hint: "中投与急停", hintEn: "Pull-ups and stops" },
+  { id: "foul_hunt", name: "造犯规", nameEn: "Draw fouls", hint: "冲击篮下赚罚球", hintEn: "Attack the rim for free throws" },
   {
     id: "putback",
     name: "二次进攻",
+    nameEn: "Putbacks",
     hint: "冲板后补篮/二次强攻；少外线开火",
+    hintEn: "Crash and finish; fewer jumpers",
   },
 ];
 
 export const ORDER_ACTION = [
-  { id: "auto", name: "自由战术", hint: "体系默认" },
+  { id: "auto", name: "自由战术", nameEn: "Freestyle", hint: "体系默认", hintEn: "The system decides" },
   {
     id: "pnr",
     name: "挡拆",
+    nameEn: "Pick-and-roll",
     hint:
       "持球叫掩护：可杀筐、中投口袋、短滚/外弹分球；射手吃空位，顺下可空接。适合组织点+能掩护的内线。",
+    hintEn: "Call a screen: finish, pull up, or kick it out.",
   },
   {
     id: "drive_kick",
     name: "突破分球",
+    nameEn: "Drive and kick",
     hint: "突入禁区吸引协防再分边：弱侧射手空位大增，适合持球突破手+定点射手。",
+    hintEn: "Drive, draw help, and kick it out.",
   },
-  { id: "iso", name: "单打清侧", hint: "拉开一对一，球权集中给持球核造投。" },
-  { id: "spot", name: "无球定点", hint: "接球就投 / 空切，少持球，配合持球发动。" },
-  { id: "post", name: "低位要球", hint: "背身与内线策应，需要吨位与脚步。" },
+  { id: "iso", name: "单打清侧", nameEn: "Clear-out", hint: "拉开一对一，球权集中给持球核造投。", hintEn: "One-on-one for the ball-handler." },
+  { id: "spot", name: "无球定点", nameEn: "Spot up", hint: "接球就投 / 空切，少持球，配合持球发动。", hintEn: "Catch and shoot or cut; fewer touches." },
+  { id: "post", name: "低位要球", nameEn: "Post up", hint: "背身与内线策应，需要吨位与脚步。", hintEn: "Back to the basket; needs size." },
   {
     id: "crash",
     name: "冲抢二次",
+    nameEn: "Crash",
     hint: "蓝领：冲进攻篮板、补篮二次进攻；少接球单打。",
+    hintEn: "Offensive boards and putbacks.",
   },
 ];
 
 export const ORDER_HUNT = [
-  { id: "auto", name: "跟随球队", hint: "用球队进攻倾向" },
-  { id: "patient", name: "耐心传导", hint: "少强投，多传球；略省体力" },
-  { id: "hunt", name: "积极抓机会", hint: "见空档就攻；强打更耗体力" },
+  { id: "auto", name: "跟随球队", nameEn: "Team call", hint: "用球队进攻倾向", hintEn: "Use the team tendency" },
+  { id: "patient", name: "耐心传导", nameEn: "Patient", hint: "少强投，多传球；略省体力", hintEn: "Fewer forced shots, more passes" },
+  { id: "hunt", name: "积极抓机会", nameEn: "Hunt", hint: "见空档就攻；强打更耗体力", hintEn: "Attack the opening" },
 ];
 
 /**
@@ -161,11 +171,11 @@ export const ORDER_HUNT = [
  * 低欲望 / 专注防守 → 不主动要球强投，只有好机会才出手，否则先传导。
  */
 export const ORDER_AGGRESSION = [
-  { id: "auto", name: "欲望跟随", hint: "按角色与球队倾向" },
-  { id: "high", name: "高攻击欲", hint: "主动要球终结，一般空档就出手" },
-  { id: "normal", name: "正常欲望", hint: "攻传平衡，正常出手门槛" },
-  { id: "low", name: "低攻击欲", hint: "不自主进攻；只有好机会才出手，否则先传导" },
-  { id: "lock_d", name: "专注防守", hint: "进攻极度克制，防守投入更高；几乎只投大空位" },
+  { id: "auto", name: "欲望跟随", nameEn: "Follow role", hint: "按角色与球队倾向", hintEn: "By role and team tendency" },
+  { id: "high", name: "高攻击欲", nameEn: "High", hint: "主动要球终结，一般空档就出手", hintEn: "Look to finish a normal opening" },
+  { id: "normal", name: "正常欲望", nameEn: "Normal", hint: "攻传平衡，正常出手门槛", hintEn: "Balanced shot selection" },
+  { id: "low", name: "低攻击欲", nameEn: "Low", hint: "不自主进攻；只有好机会才出手，否则先传导", hintEn: "Shoot only a good look, otherwise pass" },
+  { id: "lock_d", name: "专注防守", nameEn: "Lock down", hint: "进攻极度克制，防守投入更高；几乎只投大空位", hintEn: "Almost only wide-open shots" },
 ];
 
 /** 0..1 — higher = more willing to attack / shoot. */
@@ -219,16 +229,18 @@ export function shotOpenThreshold(p) {
 }
 
 export const ORDER_DEF = [
-  { id: "auto", name: "常规防守", hint: "按对位与球队压迫" },
-  { id: "onball", name: "领防持球", hint: "优先领防对方持球点，对位权重拉高；追防更耗体力" },
-  { id: "deny", name: "盯防卡位", hint: "贴身限制持球/接球；追防更耗体力" },
-  { id: "help", name: "协防扫荡", hint: "收缩协防、补强侧；主防略省力" },
-  { id: "switch", name: "换防弹性", hint: "优先换防错位" },
-  { id: "smart", name: "智慧犯规", hint: "关键球更敢掏球/犯规策略" },
+  { id: "auto", name: "常规防守", nameEn: "Standard", hint: "按对位与球队压迫", hintEn: "By matchup and team pressure" },
+  { id: "onball", name: "领防持球", nameEn: "On the ball", hint: "优先领防对方持球点，对位权重拉高；追防更耗体力", hintEn: "Guard their ball-handler" },
+  { id: "deny", name: "盯防卡位", nameEn: "Deny", hint: "贴身限制持球/接球；追防更耗体力", hintEn: "Body up on the catch" },
+  { id: "help", name: "协防扫荡", nameEn: "Help", hint: "收缩协防、补强侧；主防略省力", hintEn: "Sink and rotate" },
+  { id: "switch", name: "换防弹性", nameEn: "Switch", hint: "优先换防错位", hintEn: "Switch the mismatch" },
+  { id: "smart", name: "智慧犯规", nameEn: "Smart fouls", hint: "关键球更敢掏球/犯规策略", hintEn: "More willing to reach or foul late" },
   {
     id: "allout",
     name: "全力防守",
+    nameEn: "All out",
     hint: "蓝领锁防：压迫与追防拉满，防守效果提升，更耗体力",
+    hintEn: "Full pressure; better defense, more tiring",
   },
 ];
 
@@ -671,21 +683,22 @@ export function ensurePlayerDefaults(players, opts = {}) {
   return players;
 }
 
-export function ordersLabel(orders) {
+export function ordersLabel(orders, lang = "zh") {
   if (!orders) return "";
   const bits = [];
+  const name = (item) => (lang === "en" ? item.nameEn || item.name : item.name);
   const u = ORDER_USAGE.find((x) => x.id === orders.usage);
   const a = ORDER_ATTACK.find((x) => x.id === orders.attack);
   const act = ORDER_ACTION.find((x) => x.id === orders.action);
   const h = ORDER_HUNT.find((x) => x.id === orders.hunt);
   const ag = ORDER_AGGRESSION.find((x) => x.id === orders.aggression);
   const d = ORDER_DEF.find((x) => x.id === orders.defFocus);
-  if (u && u.id !== "auto") bits.push(u.name);
-  if (ag && ag.id !== "auto") bits.push(ag.name);
-  if (act && act.id !== "auto") bits.push(act.name);
-  if (a && a.id !== "auto") bits.push(a.name);
-  if (h && h.id !== "auto") bits.push(h.name);
-  if (d && d.id !== "auto") bits.push(d.name);
+  if (u && u.id !== "auto") bits.push(name(u));
+  if (ag && ag.id !== "auto") bits.push(name(ag));
+  if (act && act.id !== "auto") bits.push(name(act));
+  if (a && a.id !== "auto") bits.push(name(a));
+  if (h && h.id !== "auto") bits.push(name(h));
+  if (d && d.id !== "auto") bits.push(name(d));
   return bits.join(" · ");
 }
 

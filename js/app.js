@@ -6838,7 +6838,7 @@ function setupMiniCardHtml(p, { onCourt = false } = {}) {
     </div>
     ${setupStatGridHtml(p)}
     ${p.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p, getLang())}</div>` : ""}
-    ${setupCardOrdersHtml(p)}
+    ${setupCardOrdersHtml(p, getLang())}
     ${setupCardRoleHtml(p, getLang())}
   </div>`;
 }
@@ -7916,24 +7916,25 @@ function paintPlayerOrders(snap, { force = false } = {}) {
   box.innerHTML = on
     .map((p) => {
       const o = p.orders || {};
+      const lang = getLang();
       return `<div class="order-row compact" data-id="${p.id}">
         <div class="order-name">${p.playPos || p.pos} ${p.name}
-          <span class="tiny order-summary">${escAttr(ordersLabel(o) || "自由发挥")}</span>
+          <span class="tiny order-summary">${escAttr(ordersLabel(o, lang) || L("自由发挥", "Play free"))}</span>
         </div>
         <div class="order-group">
-          <span class="order-group-label">进攻</span>
+          <span class="order-group-label">${L("进攻", "Offense")}</span>
           <div class="order-controls">
-            ${orderSelectHtml(ORDER_USAGE, o.usage || "auto", "ord-usage", "组织 / 得分 / 偏防守 / 蓝领冲抢")}
-            ${orderSelectHtml(ORDER_AGGRESSION, o.aggression || "auto", "ord-agg", "攻击欲望 / 专注防守")}
-            ${orderSelectHtml(ORDER_ACTION, o.action || "auto", "ord-action", "挡拆 / 无球 / 冲抢二次")}
-            ${orderSelectHtml(ORDER_ATTACK, o.attack || "auto", "ord-attack", "终结 / 二次进攻")}
-            ${orderSelectHtml(ORDER_HUNT, o.hunt || "auto", "ord-hunt", "抓机会")}
+            ${orderSelectHtml(ORDER_USAGE, o.usage || "auto", "ord-usage", L("组织 / 得分 / 偏防守 / 蓝领冲抢", "Playmaker / scorer / defense / hustle"), undefined, lang)}
+            ${orderSelectHtml(ORDER_AGGRESSION, o.aggression || "auto", "ord-agg", L("攻击欲望 / 专注防守", "Shot appetite / lock down"), undefined, lang)}
+            ${orderSelectHtml(ORDER_ACTION, o.action || "auto", "ord-action", L("挡拆 / 无球 / 冲抢二次", "Screen / off ball / crash"), undefined, lang)}
+            ${orderSelectHtml(ORDER_ATTACK, o.attack || "auto", "ord-attack", L("终结 / 二次进攻", "Finish spot / putbacks"), undefined, lang)}
+            ${orderSelectHtml(ORDER_HUNT, o.hunt || "auto", "ord-hunt", L("抓机会", "Hunting his own shot"), undefined, lang)}
           </div>
         </div>
         <div class="order-group">
-          <span class="order-group-label">防守</span>
+          <span class="order-group-label">${L("防守", "Defense")}</span>
           <div class="order-controls">
-            ${orderSelectHtml(ORDER_DEF, o.defFocus || "auto", "ord-def", "领防 / 全力防守等")}
+            ${orderSelectHtml(ORDER_DEF, o.defFocus || "auto", "ord-def", L("领防 / 全力防守等", "On the ball / all out"), undefined, lang)}
           </div>
         </div>
       </div>`;

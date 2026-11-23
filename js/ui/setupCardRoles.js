@@ -26,9 +26,10 @@ export function setupCardRoleHtml(p, lang = "zh") {
     .join("");
   const cap = staminaMinuteCap(p);
   const warn = (p.targetMinutes || 0) > cap ? " over-min" : "";
+  const say = (zh, en) => (lang === "en" ? en : zh);
   return `<div class="setup-role-block${warn}">
-    <label class="tiny">角色 <select class="setup-role-select" data-role-for="${p.id}" title="场上角色">${opts}</select></label>
-    <label class="tiny">分钟 <input class="setup-min-input" type="number" min="8" max="48" value="${p.targetMinutes ?? 24}" data-min-for="${p.id}" title="目标分钟（上限参考体能 ${cap}）" /></label>
+    <label class="tiny">${say("角色", "Role")} <select class="setup-role-select" data-role-for="${p.id}" title="${say("场上角色", "Role on the floor")}">${opts}</select></label>
+    <label class="tiny">${say("分钟", "Min")} <input class="setup-min-input" type="number" min="8" max="48" value="${p.targetMinutes ?? 24}" data-min-for="${p.id}" title="${say(`目标分钟（上限参考体能 ${cap}）`, `Target minutes (stamina suggests ${cap})`)}" /></label>
     <div class="tiny stamina-min-hint">${esc(staminaMinuteHint(p, lang))}</div>
   </div>`;
 }

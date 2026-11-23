@@ -37,3 +37,13 @@ test("card role block: no target defaults to 24 minutes; role and minutes carry 
   assert.match(html, /data-min-for="p2"/, "minutes input is keyed to the player");
   assert.match(html, /type="number"[^>]*value="24"/, "minutes default to 24");
 });
+
+test("card role block speaks English when lang is en", () => {
+  const html = setupCardRoleHtml(star, "en");
+  assert.match(html, />Role </);
+  assert.match(html, />Min </);
+  assert.match(html, /title="Role on the floor"/);
+  assert.match(html, /title="Target minutes \(stamina suggests 42\)"/);
+  assert.match(html, /Stamina 90 · can carry about 42 min/);
+  assert.doesNotMatch(html, /角色|分钟|体能/);
+});

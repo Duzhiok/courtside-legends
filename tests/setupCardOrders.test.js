@@ -4,6 +4,7 @@
 // further down the page.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { ordersLabel } from "../js/engine/gameplan.js";
 import { orderSelectHtml, setupCardOrdersHtml } from "../js/ui/setupCardOrders.js";
 
 const orders = {
@@ -37,6 +38,21 @@ test("card orders block: recommended (untouched) orders carry the 推荐 tag; mi
   const blank = setupCardOrdersHtml({});
   assert.match(blank, /<option value="auto" selected title="[^"]*">欲望跟随<\/option>/, "aggression falls back to auto");
   assert.doesNotMatch(blank, /<option value="balanced" selected /, "nothing is pre-picked without orders");
+});
+
+test("card orders speak English when lang is en", () => {
+  const html = setupCardOrdersHtml({ orders, ordersManual: false }, "en");
+  assert.match(html, /<option value="balanced" selected title="Score and pass">Balance<\/option>/);
+  assert.match(html, /<option value="post" selected title="Back to the basket; needs size\.">Post up<\/option>/);
+  assert.match(html, /<option value="auto" selected title="Use the team tendency">Team call<\/option>/);
+  assert.match(html, />Offense</);
+  assert.match(html, />Defense</);
+  assert.match(html, />Suggested</);
+  assert.doesNotMatch(html, /攻传均衡|进攻|推荐|跟随球队/);
+  assert.equal(
+    ordersLabel({ usage: "balanced", aggression: "normal", action: "post", attack: "paint", hunt: "auto", defFocus: "auto" }, "en"),
+    "Balance · Normal · Post up · Paint",
+  );
 });
 
 test("orderSelectHtml: selected option, key attribute, and hostile titles are escaped", () => {
