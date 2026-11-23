@@ -18,7 +18,7 @@ const orders = {
 
 test("card orders block: 6 selects, one per tendency, each carrying its key and the current value selected", () => {
   const html = setupCardOrdersHtml({ orders, ordersManual: true });
-  for (const [key, value] of Object.entries(orders)) {
+  for (const [key, _value] of Object.entries(orders)) {
     assert.match(html, new RegExp(`data-ord-key="${key}"`), `${key} select is keyed`);
   }
   assert.equal((html.match(/data-ord-key="/g) || []).length, 6, "exactly 6 tendency selects");

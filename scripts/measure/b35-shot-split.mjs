@@ -184,7 +184,7 @@ for (const r of [...used].filter((r) => ["C", "PF"].includes(posOf(r)) && realPt
 console.log("\nPart B: chooseShot zone mix (300 draws per player, neutral context; + putback context)");
 const DRAW = 300;
 const probeRows = [];
-for (const [a, b, year] of PAIRS) {
+for (const [a, _b, year] of PAIRS) {
   const team = realTeam(a, year);
   const onCourt = team.players.slice(0, 5);
   const off = { coach: { playerAutonomy: 40, buffs: { offense: 8 } }, temp: {}, tactic: { threeRate: 1, paintBias: 1, id: "balanced" }, onCourt };

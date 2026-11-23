@@ -20,11 +20,6 @@ const aMap = byKey(abl);
 const keys = [...bMap.keys()].filter((k) => aMap.has(k));
 console.log(`intersection ${keys.length} players (base ${base.players.length}, abl ${abl.players.length})`);
 
-const real2p = (p) => {
-  const r = p.real;
-  const fgm = r.fg * r.fga, tpm = r.tp * r.tpa;
-  return (fgm - tpm) / (r.fga - r.tpa);
-};
 const exp2pFixed = (p) => {
   const pr = p.probe;
   const w2 = pr.share.paint + pr.share.mid;

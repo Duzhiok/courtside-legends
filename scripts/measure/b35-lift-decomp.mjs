@@ -124,7 +124,6 @@ const PAIRS = [["BOS", "LAL", 1986], ["CHI", "SEA", 1996], ["LAL", "PHI", 2001],
 const POS_ORDER = ["PG", "SG", "SF", "PF", "C"];
 
 const sum = (xs, f) => xs.reduce((s, x) => s + f(x), 0);
-const f3 = (x) => (Number.isFinite(x) ? x.toFixed(3) : "-");
 const pct = (x) => (Number.isFinite(x) ? (100 * x).toFixed(1) + "%" : "-");
 const gap = (x) => (Number.isFinite(x) ? `${x >= 0 ? "+" : ""}${(100 * x).toFixed(1)}pt` : "-");
 
