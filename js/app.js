@@ -144,6 +144,7 @@ import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import { setupBoardHtml, setupRosterModel, setupRosterStatus } from "./ui/setupRosterView.js";
 import { playoffsHtml, playoffsPromptHtml } from "./ui/seasonPlayoffsView.js";
+import { advanceCopy, anotherGameCopy, championCopy, eliminatedCopy, seriesGameCopy } from "./ui/careerResultCopy.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
 import {
   loadPlayers,
@@ -11814,29 +11815,14 @@ function handleCareerResult(youWin, snap) {
     const canLadder =
       !c.fromCustom && (tierId === "gold" || tierId === "playoff15" || tierId === "champ7");
     const nextTier = canLadder ? tier.next : null;
-    const lang = getLang();
-    $("#result-title").textContent =
-      tierId === "champ7" ? (lang === "en" ? "Historical Champions Challenge · Cleared!" : "历史总冠军挑战 · 通关！") : tierId === "playoff15" ? (lang === "en" ? "Playoff Challenge Champions!" : "季后赛挑战冠军！") : (lang === "en" ? "Champions!" : "总冠军！");
-    $("#result-summary").textContent = (nextTier
-      ? lang === "en"
-        ? `Champions! Earned ¤${reward}. Now ¤${c.gold}. Continue to ${tier.nextLabelEn || tier.nextLabel} (roster and gold kept). ${injLine}`
-        : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。可继续${tier.nextLabel}（保留阵容与金币）。${injLine}`
-      : tierId === "champ7"
-        ? lang === "en"
-          ? `You beat all 7 historical champions! Earned ¤${reward}. Now ¤${c.gold}. ${injLine}`
-          : `你已击败 7 支历史总冠军！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`
-        : lang === "en"
-          ? `Champions! Earned ¤${reward}. Now ¤${c.gold}. ${injLine}`
-          : `捧杯！获得 ¤${reward}。当前 ¤${c.gold}。${injLine}`) + challengeNote;
-    if (wasFinals && c.series) {
-      $("#result-summary").textContent =
-        `${finalsSeriesLabel(c.series, getLang())} · ${$("#result-summary").textContent}`;
-    }
+    const copy = championCopy({ tierId, nextTier, tier, reward, gold: c.gold, injLine, challengeNote, wasFinals, series: c.series, lang: getLang() }, { finalsSeriesLabel });
+    $("#result-title").textContent = copy.title;
+    $("#result-summary").textContent = copy.summary;
     const allTeam = computeCareerAllTeam(c);
     renderResultAllTeam(allTeam, L("本届最佳阵容 · PG → C", "All-Tournament Team · PG → C"), selectFinalsMvp(c.finalsBoard, "you"));
     if (nextTier === "playoff15" || nextTier === "champ7") {
       c.pendingChallenge = nextTier;
-      cont.textContent = tier.nextLabel;
+      cont.textContent = copy.continueLabel;
       cont.onclick = () => {
         c.pendingChallenge = null;
         beginCareerChallengeTier(nextTier);
@@ -11851,7 +11837,7 @@ function handleCareerResult(youWin, snap) {
       }
     } else {
       c.pendingChallenge = null;
-      cont.textContent = "捧杯回主页";
+      cont.textContent = copy.continueLabel;
       cont.onclick = () => {
         archiveFinishedChallenge(c, "champion");
         clearSave();
@@ -11867,17 +11853,15 @@ function handleCareerResult(youWin, snap) {
   }
 
   if (result.eliminated) {
-    $("#result-title").textContent = wasFinals ? "总决赛出局" : losses >= 2 ? "两败出局" : "淘汰出局";
-    $("#result-summary").textContent =
-      wasFinals && c.series
-        ? `${finalsSeriesLabel(c.series)} · 系列赛失利出局。可回看其他对决。${injLine}`
-        : `${careerRoundLabel(c.round)} · ${kind}失利后出局（负场 ${losses}）。可回看其他对决。${injLine}`;
+    const copy = eliminatedCopy({ wasFinals, losses, series: c.series, round: c.round, kind, injLine }, { finalsSeriesLabel, careerRoundLabel });
+    $("#result-title").textContent = copy.title;
+    $("#result-summary").textContent = copy.summary;
     if (wasFinals) {
       const allTeam = computeCareerAllTeam(c);
       const oppId = c.series?.opp?.bracketId;
       renderResultAllTeam(allTeam, "总决赛最佳阵容 · PG → C", oppId ? selectFinalsMvp(c.finalsBoard, oppId) : null);
     }
-    cont.textContent = "回主页";
+    cont.textContent = copy.continueLabel;
     cont.onclick = () => {
       archiveFinishedChallenge(c, "eliminated");
       clearSave();
@@ -11895,15 +11879,10 @@ function handleCareerResult(youWin, snap) {
   c.gold += reward;
 
   if (result.seriesGame) {
-    const s = result.series;
-    const nextGame = (s.wins || 0) + (s.losses || 0) + 1;
-    $("#result-title").textContent = youWin
-      ? `总决赛 G${result.gameNo} 拿下`
-      : `总决赛 G${result.gameNo} 惜败`;
-    $("#result-summary").textContent =
-      `${finalsSeriesLabel(s)}。获得 ¤${reward}，当前 ¤${c.gold}。` +
-      `G${nextGame} 开打前可先进市场买卖球员，调整阵容再战。${injLine}`;
-    cont.textContent = `备战总决赛 G${nextGame}（先进市场）`;
+    const copy = seriesGameCopy({ youWin, series: result.series, gameNo: result.gameNo, reward, gold: c.gold, injLine }, { finalsSeriesLabel });
+    $("#result-title").textContent = copy.title;
+    $("#result-summary").textContent = copy.summary;
+    cont.textContent = copy.continueLabel;
     cont.onclick = () => {
       c.shop = null;
       openMarket({ career: true, afterWin: youWin, refillShop: true });
@@ -11917,13 +11896,11 @@ function handleCareerResult(youWin, snap) {
   if (result.needAnotherGame) {
     const next = findYourOpenMatch(c.pods);
     const nextKind = next?.kind ? kindLabel(next.kind) : "下一场";
-    $("#result-title").textContent = youWin ? `${kind}过关` : `${kind}失利 · 还有机会`;
-    $("#result-summary").textContent = youWin
-      ? `${kind}获胜（¤${reward}）。组内下一场：${nextKind}（对阵 ${
-          next ? (next.a.bracketId === "you" ? next.b.name : next.a.name) : "？"
-        }）。负场 ${losses}/2。${injLine}`
-      : `${kind}失利（¤${reward}）。进入 ${nextKind} 争取晋级。负场 ${losses}/2 —— 再输就出局。${injLine}`;
-    cont.textContent = `备战${nextKind}`;
+    const nextOppName = next ? (next.a.bracketId === "you" ? next.b.name : next.a.name) : "？";
+    const copy = anotherGameCopy({ youWin, kind, reward, nextKind, nextOppName, losses, injLine });
+    $("#result-title").textContent = copy.title;
+    $("#result-summary").textContent = copy.summary;
+    cont.textContent = copy.continueLabel;
     cont.onclick = () => {
       c.shop = null;
       openMarket({ career: true, afterWin: youWin, refillShop: true });
@@ -11936,9 +11913,10 @@ function handleCareerResult(youWin, snap) {
 
   // Finished this stage path — next stage seeded (or waiting)
   const nextLabel = careerRoundLabel(c.round, c.finals);
-  $("#result-title").textContent = youWin ? "晋级成功" : "惊险晋级";
-  $("#result-summary").textContent = `${kind}赛果已计入。获得 ¤${reward}，当前 ¤${c.gold}。下一轮：${nextLabel}。负场 ${losses}/2。${injLine}`;
-  cont.textContent = c.stageSize === 2 ? "备战总决赛" : "备战下一轮";
+  const copy = advanceCopy({ youWin, kind, reward, gold: c.gold, nextLabel, losses, injLine, stageSize: c.stageSize });
+  $("#result-title").textContent = copy.title;
+  $("#result-summary").textContent = copy.summary;
+  cont.textContent = copy.continueLabel;
   cont.onclick = () => {
     c.shop = null;
     openMarket({ career: true, afterWin: true, refillShop: true });
