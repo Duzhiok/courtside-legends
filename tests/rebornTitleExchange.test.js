@@ -14,7 +14,7 @@ import { ROWS, coin, fakeUserLog, run, userAlways } from "./helpers/rebornLeague
 
 /**
  * A real GameSim playoff run (1997, the player's club first, trust 80) played to its end. Returns the state just before the title game, the title
- * game's real report and the final state. "tx-145" is a fixed seed whose run wins the title with the player on court and yields exactly one keepsake offer; "tx-119" wins it without a
+ * game's real report and the final state. "tx-145" is a fixed seed whose run wins the title with the player on court and yields exactly one keepsake offer; "tx-17" wins it without a
  * minute for him. Re-pick after any GameSim recalibration (the assertions are the design, the seed is not):
  * `node scripts/measure/find-playoff-seeds.mjs tx 1 240 8`.
  */
@@ -118,8 +118,8 @@ test("no title evidence, no championship keepsake: not on court, not a participa
   assert.equal(ledgerless.created.length, 0, "and a man the run never met is never invented: with the real ledger, this title game offers nothing");
 });
 
-test("a title won without playing a minute offers nothing (real run, seed tx-119): the keepsake is for men he really shared the floor with", { timeout: 120000 }, async () => {
-  const { before, report, reborn } = await realTitleRun("tx-119");
+test("a title won without playing a minute offers nothing (real run, seed tx-17): the keepsake is for men he really shared the floor with", { timeout: 120000 }, async () => {
+  const { before, report, reborn } = await realTitleRun("tx-17");
   assert.equal(reborn.playoffs.status, "champion");
   assert.equal(report.line.min, 0);
   assert.equal(report.isChampionship, true, "it is still the title game");

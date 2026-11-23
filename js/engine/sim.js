@@ -1,6 +1,7 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
 import { shotAppetite } from "./shotAppetite.js";
 import { isFloorShooter, isMidHandler } from "./shooterType.js";
+import { runningFit, scaleTempoCosts, chasePaceMult } from "./paceFit.js";
 import { coverageOf, coverageCtx, screenKeep, coverageOpen, coverageMake, bigMismatchMult, blockMult } from "./defenseCoverage.js";
 import { resolvePnrPlay, pnrKickMult, pnrShotMult, pnrKickChanceBonus, pnrOpenBonus } from "./pnrPlan.js";
 import { rand as rnd, withRng } from "../core/rng.js";
@@ -949,7 +950,7 @@ export class GameSim {
     if (focus?.id === "pace_three") pace *= 1.22;
     else if (focus?.id === "slow_pace") pace *= 0.68;
     // 终场落后：强制抢攻（短回合）
-    if (chase?.paceBoost) pace *= 1.38;
+    if (chase?.paceBoost) pace *= chase.paceMult ?? 1.38; // B26: graded by deficit / clock / lineup; the post-foul script has no paceMult and keeps 1.38
     let usedHi = chase?.paceBoost ? 11 : focus?.id === "slow_pace" ? 28 : 24;
     let usedLo = chase?.paceBoost ? 4 : focus?.id === "slow_pace" ? 12 : 6;
     if (!chase?.paceBoost && tempo && focus?.id !== "slow_pace" && focus?.id !== "pace_three") {
@@ -1070,7 +1071,7 @@ export class GameSim {
     // for the literal "can he dribble it up without coughing it up" tax -- falls back to
     // `pass` for old save snapshots that predate `handle`.
     const bigHandlerTov = bigHandler ? (100 - (baller.handle ?? baller.pass)) * 0.0004 : 0;
-    const tempoTov = off === this.you() ? getTempoDef(off.gameplan?.tempo)?.tovMult ?? 1 : 1;
+    const tempoTov = off === this.you() ? scaleTempoCosts(getTempoDef(off.gameplan?.tempo), runningFit(off.onCourt))?.tovMult ?? 1 : 1;
     const habitTov = turnoverHabit(baller);
     const tovChance = Math.max(
       0.012,
@@ -1121,7 +1122,7 @@ export class GameSim {
     // Shot + optional signature move (random proc — not every touch)
     let shot = chooseShot(baller, off, focus, sideCtx);
     let open = calcOpenness(baller, defender, off, def, plan, sideCtx, shot);
-    const tempoDef = off === this.you() ? getTempoDef(off.gameplan?.tempo) : null;
+    const tempoDef = off === this.you() ? scaleTempoCosts(getTempoDef(off.gameplan?.tempo), runningFit(off.onCourt)) : null;
     if (tempoDef?.openBonus) open = clamp(open + tempoDef.openBonus, 0.08, 0.92);
 
     // 低攻击欲：机会不够好就再传导一次，而不是自主强投
@@ -3362,9 +3363,7 @@ function updateComeback(sim, off, def) {
     sim._comebackSaid[off.side] = false;
     return;
   }
-  const court = off.onCourt || [];
-  const avg = (key, fallback) => court.reduce((n, p) => n + (Number(p[key]) || fallback), 0) / Math.max(1, court.length);
-  const runs = clamp((avg("speed", 50) - 35) / 35, 0, 1) * clamp((78 - avg("fatigue", 0)) / 40, 0, 1);
+  const runs = runningFit(off.onCourt);
   t.comeback = { level, paceMult: 1 + COMEBACK_PACE * level * runs };
   sim._comebackSaid = sim._comebackSaid || {};
   if (!sim._comebackSaid[off.side] && off !== sim.you()) {
@@ -3389,6 +3388,7 @@ function applyLateGameScripts(sim, off, def) {
       needThree,
       shooterId: shooter?.id || null,
       paceBoost: true,
+      paceMult: chasePaceMult(offInfo.deficit, sim.clock || 0, runningFit(off.onCourt)),
       deficit: offInfo.deficit,
     };
     // 同步到你方 UI：焦点战术 + 持球人
