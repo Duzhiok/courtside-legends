@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { seasonGames } from "../js/engine/season.js";
+import { playoffsHtml } from "../js/ui/seasonPlayoffsView.js";
 
 // B59 + B60: the last two items from the 2026-11-07 My Team Season closing notes.
 // B59: after a season ends (phase === "done") the "下一场" card's three buttons and the
@@ -9,8 +10,8 @@ import { seasonGames } from "../js/engine/season.js";
 // hidden / not rendered instead; the done text already points at 「再来一季」/ offseason.
 // B60: the season page's remaining hardcoded "82" follows the season length, so a
 // 20-game quick My Team season no longer shows "第 X/82 场".
-// renderSeasonHub / renderSeasonPlayoffs are DOM functions in app.js (no jsdom in this
-// project), so these pin the source the way tests/playoffPageContrast.test.js does.
+// renderSeasonHub is a DOM function in app.js (no jsdom in this project), so its checks pin the source the way
+// tests/playoffPageContrast.test.js does; the playoffs tab is a pure view (js/ui/seasonPlayoffsView.js), so it is tested by what it draws.
 
 const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
 
@@ -29,18 +30,27 @@ test("B59: renderSeasonHub hides the three next-game buttons once the season is 
   );
 });
 
-test("B59: renderSeasonPlayoffs only builds the bulk sims while the season is live", () => {
-  const po = fnBody(app, "renderSeasonPlayoffs");
-  // The two sim buttons exist only when the phase is not done (no more disabled stubs).
-  assert.match(po, /const poSimButtons =\s*\n\s*st\.phase === "done"\s*\n\s*\? ""/);
-  assert.ok(po.includes('id="btn-season-advance-po"'), "advance-po button is built");
-  assert.ok(po.includes('id="btn-season-sim-all-po"'), "sim-all-po button is built");
-  assert.doesNotMatch(po, /id="btn-season-advance-po"[^>]*disabled/);
-  assert.doesNotMatch(po, /id="btn-season-sim-all-po"[^>]*disabled/);
-  // The offseason button still renders for a done non-My Team season, and the row is
-  // omitted entirely when it would be empty (done My Team season).
-  assert.match(po, /const poOffseasonButton =\s*\n\s*st\.phase === "done" && !st\.myTeam/);
-  assert.match(po, /poSimButtons \|\| poOffseasonButton \? `<div class="btn-row">/);
+test("B59: the playoffs tab only builds the bulk sims while the season is live", () => {
+  // The tab's markup is a pure view since B61, so this asserts what it draws, not what the source says.
+  const series = { high: { id: "A", name: "A" }, low: { id: "B", name: "B" }, winsHigh: 4, winsLow: 0, done: true, games: [] };
+  const base = (over) => ({
+    year: 2024, userTeamId: "A", teams: { A: { name: "A" }, B: { name: "B" } }, standings: {}, playerSeason: {},
+    playoffs: { east: { round: 1, series: [series] }, west: { round: 1, series: [series] }, finals: null, championId: null },
+    ...over,
+  });
+  const live = playoffsHtml(base({ phase: "playoffs" }));
+  // The sim buttons exist while the phase is not done, and they are real buttons (no more disabled stubs).
+  assert.ok(live.includes('id="btn-season-advance-po"'), "advance-po button is built");
+  assert.ok(live.includes('id="btn-season-sim-all-po"'), "sim-all-po button is built");
+  assert.doesNotMatch(live, /id="btn-season-advance-po"[^>]*disabled/);
+  assert.doesNotMatch(live, /id="btn-season-sim-all-po"[^>]*disabled/);
+  assert.doesNotMatch(live, /btn-season-offseason/, "no offseason button while the season is live");
+  // Done: no bulk buttons at all; the offseason button still renders for a non-My Team season...
+  const done = playoffsHtml(base({ phase: "done" }));
+  assert.doesNotMatch(done, /btn-season-night-po|btn-season-advance-po|btn-season-sim-all-po/);
+  assert.ok(done.includes('id="btn-season-offseason"'));
+  // ...and the row is omitted entirely when it would be empty (a done My Team season).
+  assert.doesNotMatch(playoffsHtml(base({ phase: "done", myTeam: true })), /btn-row/);
 });
 
 test("B59: the done-phase hub still disables the buttons as before (hidden is additive)", () => {
