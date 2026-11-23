@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { seasonGames } from "../js/engine/season.js";
+import { setLang } from "../js/i18n.js";
 import { playoffsHtml } from "../js/ui/seasonPlayoffsView.js";
+import { nextCardView } from "../js/ui/seasonHubView.js";
 
 // B59 + B60: the last two items from the 2026-11-07 My Team Season closing notes.
 // B59: after a season ends (phase === "done") the "下一场" card's three buttons and the
@@ -10,9 +12,12 @@ import { playoffsHtml } from "../js/ui/seasonPlayoffsView.js";
 // hidden / not rendered instead; the done text already points at 「再来一季」/ offseason.
 // B60: the season page's remaining hardcoded "82" follows the season length, so a
 // 20-game quick My Team season no longer shows "第 X/82 场".
-// renderSeasonHub is a DOM function in app.js (no jsdom in this project), so its checks pin the source the way
-// tests/playoffPageContrast.test.js does; the playoffs tab is a pure view (js/ui/seasonPlayoffsView.js), so it is tested by what it draws.
+// renderSeasonHub is a DOM function in app.js (no jsdom in this project); the hiding loop is pinned in its source, but what the
+// card says and which buttons it disables is the pure js/ui/seasonHubView.js, and the playoffs tab is js/ui/seasonPlayoffsView.js:
+// both are tested by what they draw.
 
+const helpers = { hubTeamHex: () => "#000", playoffSeriesLabel: () => "" };
+const season = (over) => ({ phase: "regular", userTeamId: "A", teams: { A: { id: "A", name: "Aces" }, B: { id: "B", name: "Bolts" } }, schedule: [], ...over });
 const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
 
 function fnBody(source, name) {
@@ -54,19 +59,26 @@ test("B59: the playoffs tab only builds the bulk sims while the season is live",
 });
 
 test("B59: the done-phase hub still disables the buttons as before (hidden is additive)", () => {
+  // What the card says to disable is now decided by the pure seasonHubView; app.js only writes it onto the buttons and then hides them.
+  const card = nextCardView(season({ phase: "done" }), { phase: "done", info: null, managed: false }, helpers);
+  assert.equal(card.play, true, "play stays disabled");
+  assert.equal(card.simOne, true, "sim-one stays disabled");
+  assert.equal(card.simWeek, true, "sim-5 stays disabled");
   const hub = fnBody(app, "renderSeasonHub");
-  // The existing disabled assignments stay — hidden only changes presentation.
-  assert.ok(hub.includes('$("#btn-season-play").disabled = true;'));
-  assert.ok(hub.includes('$("#btn-season-sim-one").disabled = true;'));
+  assert.ok(hub.includes('$("#btn-season-play").disabled = card.play;'), "app.js writes the card's verdict onto the play button");
+  assert.ok(hub.includes('$("#btn-season-sim-one").disabled = card.simOne;'));
 });
 
 test("B60: the hub next-match line shows the real season length, not a hardcoded 82", () => {
-  const hub = fnBody(app, "renderSeasonHub");
-  const line = hub.split("\n").find((l) => l.includes("nm-meta"));
-  assert.ok(line, "nm-meta line not found in renderSeasonHub");
-  assert.ok(line.includes("第 ${played + 1}/${seasonGames(st)} 场"), `zh line still hardcodes 82: ${line}`);
-  assert.ok(line.includes("Game ${played + 1}/${seasonGames(st)}"), `en line still hardcodes 82: ${line}`);
-  assert.doesNotMatch(line, /\/82/);
+  const info = { game: { homeId: "A", awayId: "B" }, day: 0 };
+  const zh = nextCardView(season({ rsGames: 20 }), { phase: "regular", info }, helpers).html;
+  assert.match(zh, /第 1\/20 场/);
+  setLang("en");
+  const en = nextCardView(season({ rsGames: 20 }), { phase: "regular", info }, helpers).html;
+  setLang("zh");
+  assert.match(en, /Game 1\/20/);
+  assert.doesNotMatch(zh + en, /\/82/);
+  assert.match(nextCardView(season({}), { phase: "regular", info }, helpers).html, /第 1\/82 场/, "a standard season still reads 82");
 });
 
 test("B60: simRestOfSeason caps its loop at the season length, not a hardcoded 82", () => {

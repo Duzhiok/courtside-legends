@@ -145,6 +145,7 @@ import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import { setupBoardHtml, setupRosterModel, setupRosterStatus } from "./ui/setupRosterView.js";
 import { playoffsHtml, playoffsPromptHtml } from "./ui/seasonPlayoffsView.js";
 import { advanceCopy, anotherGameCopy, championCopy, eliminatedCopy, seriesGameCopy } from "./ui/careerResultCopy.js";
+import { hubHeading, nextCardView } from "./ui/seasonHubView.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
 import {
   loadPlayers,
@@ -277,7 +278,6 @@ import {
   saveSeason,
   seasonProgressLabel,
   seasonStaffBonus,
-  seasonTeamIds,
   simAllPlayoffs,
   simScheduledGame,
   simUserNextGame,
@@ -9120,23 +9120,12 @@ function renderSeasonHub({ persist = true } = {}) {
   syncSeasonScreenTitle();
   const you = st.teams[st.userTeamId];
   const pay = payrollSummary(you);
-  const eraTitle =
-    st.mode === "historical" && st.league?.yearLabel
-      ? L(`${st.league.yearLabel} 历史赛季`, `${st.league.yearLabel} Historic Season`)
-      : L(`${st.year} 赛季`, `${st.year} Season`);
-  $("#season-hub-title").textContent = `${you?.name || L("我方", "Your team")} · ${eraTitle}`;
-  const histNote =
-    st.mode === "historical" ? L(` · ${seasonTeamIds(st).length} 队当年阵容`, ` · ${seasonTeamIds(st).length} teams, historic rosters`) : "";
-  const capMetaText = `${seasonProgressLabel(st, getLang())}${histNote} · ${L(`薪资 ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`, `Payroll ${formatSalary(pay.payroll)}/${SEASON_SALARY_CAP}`)}${
-    pay.overCap ? L("（超软帽）", " (over soft cap)") : ""
-  } · ${L(`空间 ${formatSalary(pay.space)}`, `Room ${formatSalary(pay.space)}`)}`;
-  // A My Team roster is frozen and has no market, so payroll / cap room would only alarm: show the lock instead.
-  const metaText = st.myTeam ? `${seasonProgressLabel(st, getLang())} · ${L("阵容已锁定", "Lineup locked")}${st.myTeam.goldEarned ? ` · 🪙 ¤${st.myTeam.goldEarned}` : ""}` : capMetaText;
+  const heading = hubHeading(st, { you, pay, lang: getLang() });
+  $("#season-hub-title").textContent = heading.title;
   // R111：同一串信息拆成 pill（DOM 拼装，不走 innerHTML，队名原样当文本），只改外观。
   const metaEl = $("#season-hub-meta");
   metaEl.replaceChildren();
-  for (const part of metaText.split(" · ")) {
-    if (!part) continue;
+  for (const part of heading.metaParts) {
     const pill = document.createElement("span");
     pill.className = "hub-meta-pill";
     pill.textContent = part;
@@ -9145,79 +9134,24 @@ function renderSeasonHub({ persist = true } = {}) {
 
   const nextCard = $("#season-next-card");
   const nextEl = $("#season-next-match");
-  if (st.phase === "regular") {
+  // advanceToUserGame moves the schedule on to the user's turn (it mutates the season), so the lookup stays here; the view only words it.
+  // The card is decided by the phase as it was BEFORE that advance (a finished regular season is moved on to "awards" by it).
+  const hubPhase = st.phase;
+  let nextInfo = null;
+  if (hubPhase === "regular") {
     advanceToUserGame(st, { stopBeforeUser: true });
-    const info = nextUserGame(st);
+    nextInfo = nextUserGame(st);
+  } else if (hubPhase === "playoffs") {
+    nextInfo = nextUserPlayoffGame(st);
+  }
+  const card = nextCardView(st, { phase: hubPhase, info: nextInfo, managed: isManagedCareer(state.leagueCareer) }, { hubTeamHex, playoffSeriesLabel });
+  if (card) {
     nextCard.hidden = false;
-    if (info) {
-      const g = info.game;
-      const home = st.teams[g.homeId]?.name;
-      const away = st.teams[g.awayId]?.name;
-      const played = userGamesPlayed(st);
-      const youHome = g.homeId === st.userTeamId;
-      nextEl.innerHTML = `<div class="next-matchup"><span class="nm-team${youHome ? " nm-you" : ""}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.homeId])}"></i>${esc(home)}</span><span class="nm-vs">VS</span><span class="nm-team${youHome ? "" : " nm-you"}"><i class="nm-dot" style="background:${hubTeamHex(st.teams[g.awayId])}"></i>${esc(away)}</span></div><p class="nm-meta">${L(`第 ${played + 1}/${seasonGames(st)} 场 · 日程日 ${info.day + 1}`, `Game ${played + 1}/${seasonGames(st)} · Day ${info.day + 1}`)}</p>`;
-      $("#btn-season-play").disabled = false;
-      $("#btn-season-sim-one").disabled = false;
-      $("#btn-season-sim-week").disabled = false;
-    } else {
-      nextEl.textContent = L("常规赛已打完——查看评奖后进入季后赛", "Regular season done — check awards, then enter the playoffs");
-      $("#btn-season-play").disabled = true;
-      $("#btn-season-sim-one").disabled = true;
-      $("#btn-season-sim-week").disabled = true;
-      if (!st.awards && st.phase === "regular") {
-        /* advanceToUserGame may set awards */
-      }
-    }
-  } else if (st.phase === "awards") {
-    nextCard.hidden = false;
-    nextEl.textContent = L("常规赛结束。已生成赛季评奖，可进入季后赛。", "Regular season over. Awards are in — you can enter the playoffs.");
-    $("#btn-season-play").disabled = true;
-    $("#btn-season-sim-one").disabled = true;
-    $("#btn-season-sim-week").disabled = true;
-  } else if (st.phase === "playoffs" || st.phase === "done") {
-    nextCard.hidden = false;
-    const champ = st.playoffs?.championId
-      ? st.teams[st.playoffs.championId]?.name
-      : null;
-    if (st.phase === "done") {
-      nextEl.textContent = st.myTeam
-        ? champ
-          ? L(`总冠军：${champ}。这一季打完了，点上方「再来一季」继续。`, `Champions: ${champ}. That's the season — hit "Play another season" above.`)
-          : L("这一季打完了，点上方「再来一季」继续。", "That's the season — hit \"Play another season\" above.")
-        : champ
-        ? isManagedCareer(state.leagueCareer)
-          ? L(`总冠军：${champ}。可进入休赛期选秀，完成选择后开启 ${Number(st.year) + 1} 赛季。`, `Champions: ${champ}. Head to the offseason draft, then start the ${Number(st.year) + 1} season.`)
-          : L(`总冠军：${champ}。可进入休赛期：球员按史实生涯成长/衰老，并开启 ${Number(st.year) + 1} 赛季。`, `Champions: ${champ}. Head to the offseason: players grow and age on their real career curves, then the ${Number(st.year) + 1} season starts.`)
-        : isManagedCareer(state.leagueCareer)
-          ? L("赛季结束。可进入休赛期选秀。", "Season over. Head to the offseason draft.")
-          : L("赛季结束。可进入休赛期让球员按史实潜力成长。", "Season over. Head to the offseason, where players grow on their real potential.");
-      $("#btn-season-play").disabled = true;
-      $("#btn-season-sim-one").disabled = true;
-    } else {
-      const info = nextUserPlayoffGame(st);
-      if (info) {
-        // User's series is still alive and it's their turn to play a game -- 亲自指挥/快速模拟本场
-        // used to be unconditionally disabled for the ENTIRE playoffs (user report: "季后赛我不能
-        // 手动打吗？？？"), forcing everyone through 模拟下一轮/一键打完季后赛 with zero personal
-        // control. Mirror the regular-season hub: show whose turn it is and let them play it.
-        const label = playoffSeriesLabel(st, info.series);
-        const youAreHigh = info.series.high?.id === st.userTeamId;
-        const myWins = youAreHigh ? info.series.winsHigh : info.series.winsLow;
-        const theirWins = youAreHigh ? info.series.winsLow : info.series.winsHigh;
-        const oppName = (youAreHigh ? info.series.low : info.series.high)?.name || L("对手", "Opponent");
-        const atHome = info.homeId === st.userTeamId;
-        nextEl.textContent = L(`${label} 第 ${myWins + theirWins + 1} 场 · ${myWins}-${theirWins} vs ${oppName}（${atHome ? "主场" : "客场"}）`, `${label} Game ${myWins + theirWins + 1} · ${myWins}-${theirWins} vs ${oppName} (${atHome ? "Home" : "Away"})`);
-        $("#btn-season-play").disabled = false;
-        $("#btn-season-sim-one").disabled = false;
-      } else {
-        nextEl.textContent = champ
-          ? L(`总冠军：${champ}`, `Champions: ${champ}`)
-          : L("你的系列赛暂无进行中的比赛——可能在等另一分区，或已被淘汰。可点「季后赛」页签模拟剩余赛事。", "Your series has no game right now — it may be waiting on the other bracket, or you may be out. Use the Playoffs tab to sim the rest.");
-        $("#btn-season-play").disabled = true;
-        $("#btn-season-sim-one").disabled = true;
-      }
-    }
-    $("#btn-season-sim-week").disabled = true; // "模拟5场"是常规赛概念，对季后赛不适用
+    if (card.html != null) nextEl.innerHTML = card.html;
+    else nextEl.textContent = card.text;
+    $("#btn-season-play").disabled = card.play;
+    $("#btn-season-sim-one").disabled = card.simOne;
+    $("#btn-season-sim-week").disabled = card.simWeek;
   }
 
   // B59: once the season is over there is no next game — the three action buttons are
