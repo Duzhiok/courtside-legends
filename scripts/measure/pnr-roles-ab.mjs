@@ -1,7 +1,7 @@
 /**
  * Pick-and-roll roles A/B (docs/implementation/tactics-pnr-roles-design.md §5). Same seeds, same teams, every player on the "pnr" action,
  * and ONLY team.gameplan.pnr differs. Reports what the engine does with each plan; it assumes no answer.
- *   node scripts/measure/pnr-roles-ab.mjs [games=24] [homeCode=CHI] [homeYear=1996] [awayCode=SEA] [awayYear=1996] [screenerBref=longllu01]
+ *   [AWAY_TACTIC=switch_all] node scripts/measure/pnr-roles-ab.mjs [games=24] [homeCode=CHI] [homeYear=1996] [awayCode=SEA] [awayYear=1996] [screenerBref=longllu01]
  */
 import { GameSim } from "../../js/engine/sim.js";
 import { seededStream, hashSeed } from "../../js/core/seededRandom.js";
@@ -35,6 +35,7 @@ function run(plan) {
       onEvent: (e) => { if (e.meta?.pass && e.meta.pass.kind !== "assist" && e.meta.pass.receiverId === screener.id) kicks += 1; },
       onTick() {}, onEnd() {},
     });
+    if (process.env.AWAY_TACTIC) sim.setTactic(process.env.AWAY_TACTIC, "away"); // B25: what the plans are worth against a coverage
     // Step the game (runFast is quiet and emits no events).
     sim.running = true;
     for (let steps = 0; sim.running && steps < 2000; steps += 1) {

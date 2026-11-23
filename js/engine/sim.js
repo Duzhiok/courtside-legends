@@ -1,6 +1,7 @@
 import { TACTICS, coachTactics, composeStaff, isQualityPasser } from "../data/coaches.js";
 import { shotAppetite } from "./shotAppetite.js";
 import { isFloorShooter, isMidHandler } from "./shooterType.js";
+import { coverageOf, coverageCtx, screenKeep, coverageOpen, coverageMake, bigMismatchMult, blockMult } from "./defenseCoverage.js";
 import { resolvePnrPlay, pnrKickMult, pnrShotMult, pnrKickChanceBonus, pnrOpenBonus } from "./pnrPlan.js";
 import { rand as rnd, withRng } from "../core/rng.js";
 import { getLang, skillNameL } from "../i18n.js";
@@ -1227,6 +1228,7 @@ export class GameSim {
           skillBonus: skillBlockBonus(defender, shot, def.onCourt),
           sigBoost: sigBlk?.blockBoost || 0,
           packPaint: def.tactic?.packPaint,
+          coverageMult: blockMult(coverageOf(def.tactic), coverageCtx(sideCtx), shot.zone),
         }) * skillBlockResist(baller);
     if (rnd() < blkChance) {
       baller.stats.fga += 1;
@@ -1259,6 +1261,7 @@ export class GameSim {
       sigMakeBoost: baller._sigMakeBoost || 0,
       scheme: sideCtx.scheme,
       kickedOut: sideCtx.kickedOut,
+      cov: coverageCtx(sideCtx),
       onCourt: off.onCourt,
       tempoMakeBonus: tempoDef?.makeBonus || 0,
       primaryId: off === this.you() ? this.offenseFocusId : off.gameplan?.offenseFocusId || null,
@@ -4074,7 +4077,7 @@ function estHeightCm(p) {
  * Block odds with severe size/position mismatch penalties.
  * A PG rejecting Howard at the rim should be extremely rare.
  */
-export function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonus = 0, sigBoost = 0, packPaint = false } = {}) {
+export function calcBlockChance(baller, defender, shot, open, { defPress = 0, skillBonus = 0, sigBoost = 0, packPaint = false, coverageMult = 1 } = {}) {
   const blk = defender.block || 40;
   // Calibrated on paired fixed seeds against the same players' real blocks per 36 (scripts/measure/steal-block-pairing.mjs). The old floor (paint 0.055
   // even at block rating 0, so only 3x between a 0 and an 80) gave low-rated men 1.8x their real blocks (a rating-20 guard averaged 0.97 per 36 against 0.00
@@ -4101,6 +4104,7 @@ export function calcBlockChance(baller, defender, shot, open, { defPress = 0, sk
 
   if (shot.zone === "paint") {
     if (packPaint) chance *= 1.25; // packed paint: more bodies at the rim
+    chance *= coverageMult; // zone_drop on a pick and roll
     // Vertical + strength mismatch
     if (htGap >= 20) chance *= switchGod ? 0.35 : 0.08;
     else if (htGap >= 12) chance *= switchGod ? 0.55 : 0.18;
@@ -4490,6 +4494,10 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
   const defPress = defensePressLevel(def.coach);
   const hunt = offenseHuntLevel(off.coach, baller, off);
   const perimDef = perimeterDefenseRating(defender, shot?.zone);
+  // switch_all / zone_drop answer the action they face (defenseCoverage.js); `keep` is 1 for every other defense, so the sums below are unchanged.
+  const coverage = coverageOf(def.tactic);
+  const cov = coverageCtx(sideCtx);
+  const keep = screenKeep(coverage, cov);
   let open =
     0.45 +
     (baller.speed - defender.speed) * 0.002 +
@@ -4514,22 +4522,23 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
     // 传球魔术：分球找到更大空位（此前该技能在模拟器里没有任何效果）
     if ((organizer?.skills || []).includes("dime_dropper")) open += 0.05;
     // 挡拆高手：挡拆分球找到更大空位（顺下接球、分球射手都算）
-    if (sideCtx.scheme === "pnr" && (organizer?.skills || []).includes("pnr_master")) open += 0.05;
+    if (sideCtx.scheme === "pnr" && (organizer?.skills || []).includes("pnr_master")) open += 0.05 * keep;
     open += (formTactical(baller) - 50) * 0.00035;
   }
   open += pnrOpenBonus(baller, sideCtx?.pnr, { kickedOut: !!sideCtx?.kickedOut }); // a slipped screen leaves its man open
+  open += coverageOpen(coverage, cov, { zone: shot?.zone });
   // 挡拆 / 突破分球：压缩禁区 → 射手大空位；持球中投口袋也更干净
   if (sideCtx?.scheme === "drive_kick" || sideCtx?.scheme === "pnr") {
     // 挡拆高手：挡拆发起者自己终结（持球中投）更干净
-    if (sideCtx.scheme === "pnr" && (baller.skills || []).includes("pnr_master")) open += 0.05;
+    if (sideCtx.scheme === "pnr" && (baller.skills || []).includes("pnr_master")) open += 0.05 * keep;
     if (sideCtx.kickedOut && isFloorShooter(baller)) {
-      open += sideCtx.scheme === "drive_kick" ? 0.1 : 0.085;
+      open += sideCtx.scheme === "drive_kick" ? 0.1 : 0.085 * keep;
     } else if (sideCtx.scheme === "pnr" && !sideCtx.kickedOut && isMidHandler(baller)) {
-      open += 0.055; // pull-up / short mid after screen
+      open += 0.055 * keep; // pull-up / short mid after screen
     } else if (sideCtx.kickedOut && ["C", "PF"].includes(baller.playPos || baller.pos)) {
-      open += 0.04; // roll dunk window
-      if ((baller.skills || []).includes("lob_finisher")) open += 0.07;
-      else if ((baller.skills || []).includes("spring_board")) open += 0.04;
+      open += 0.04 * keep; // roll dunk window
+      if ((baller.skills || []).includes("lob_finisher")) open += 0.07 * keep;
+      else if ((baller.skills || []).includes("spring_board")) open += 0.04 * keep;
     }
   }
   // 弹跳型中锋拉空间：自己吃空接窗；队友因协防被扯开
@@ -4565,7 +4574,7 @@ function calcOpenness(baller, defender, off, def, plan, sideCtx = null, shot = n
     open += 0.03 + (baller.pass || 50) * 0.00035;
   }
   if (baller.orders?.action === "pnr") {
-    open += 0.025 + (baller.pass || 50) * 0.0002;
+    open += (0.025 + (baller.pass || 50) * 0.0002) * keep;
   }
   if (defender.orders?.defFocus === "onball") open -= 0.055;
   if (defender.orders?.defFocus === "deny") open -= 0.05;
@@ -4619,6 +4628,8 @@ export function paintCrowdPenalty(onCourt, zone) {
 }
 
 export function calcMakeProb(baller, shot, open, off, def, defender, plan, momentum = null, gameCtx = {}) {
+  const coverage = coverageOf(def.tactic); // defenseCoverage.js: identity for every defense but switch_all / zone_drop
+  const keepMk = screenKeep(coverage, gameCtx.cov);
   // Start from zone FG% with a slight haircut — raw season % already assumes real contests
   let base =
     (shot.zone === "three" ? baller.threeFg : shot.zone === "paint" ? baller.paintFg : baller.midFg) *
@@ -4679,14 +4690,14 @@ export function calcMakeProb(baller, shot, open, off, def, defender, plan, momen
   const scheme = gameCtx.scheme;
   if (scheme === "pnr" || scheme === "drive_kick") {
     if (shot.zone === "three" && gameCtx.kickedOut && isFloorShooter(baller)) {
-      base += scheme === "drive_kick" ? 0.055 : 0.045;
+      base += scheme === "drive_kick" ? 0.055 : 0.045 * keepMk;
     }
     if (shot.zone === "mid" && isMidHandler(baller) && (scheme === "pnr" || !gameCtx.kickedOut)) {
       // 会中投的持球人：挡拆后中距离口袋球更好打
-      base += 0.05 + Math.max(0, (baller.mid || 50) - 70) * 0.0012;
+      base += (0.05 + Math.max(0, (baller.mid || 50) - 70) * 0.0012) * keepMk;
     }
     if (shot.zone === "paint" && gameCtx.kickedOut && ["C", "PF"].includes(baller.playPos || baller.pos)) {
-      base += 0.03;
+      base += 0.03 * keepMk;
     }
   }
   // 多塔阵破绽：3-4个真中锋同时在场时，defense 评分碾压后卫的大个子常常被派去守射手
@@ -4700,7 +4711,7 @@ export function calcMakeProb(baller, shot, open, off, def, defender, plan, momen
     const mismatchBase = isCenter ? 0.05 : 0.03;
     const mobility = clamp(((defender.speed || 50) - 50) / 40, 0, 1);
     const bonus = mismatchBase * (1 - mobility * 0.5);
-    bigMismatch = bonus * (shot.zone === "three" ? 1 : 0.5) * (isFloorShooter(baller) ? 1.1 : 0.85);
+    bigMismatch = bonus * (shot.zone === "three" ? 1 : 0.5) * (isFloorShooter(baller) ? 1.1 : 0.85) * bigMismatchMult(coverage, gameCtx.cov);
     base += bigMismatch;
   }
   base *= personalityOnPlay(baller, off.chem, off.onCourt, {
@@ -4764,6 +4775,7 @@ export function calcMakeProb(baller, shot, open, off, def, defender, plan, momen
     // 独狼硬解包夹：额外掉准，仍不愿传球
     if ((baller.skills || []).includes("lone_wolf")) base -= 0.04;
   }
+  base += coverageMake(coverage, gameCtx.cov, { zone: shot.zone, baller, defender });
   if (shot.zone === "paint") {
     base += (baller.strength - 70) * 0.0005;
     // Pack the paint: collapsing inside makes the rim crowded.
