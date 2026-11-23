@@ -364,6 +364,7 @@ import { createMyWorld } from "./ui/myWorldScreen.js";
 import { chooseAvatarMount } from "./ui/avatarMount.js";
 import { createGate, deferUntil } from "./ui/bootGate.js";
 import { createCoachDrawer } from "./ui/coachDrawer.js";
+import { createCoachMode, simpleTactics } from "./ui/coachMode.js";
 import { archiveSummaryLine } from "./ui/myWorldView.js";
 import { createPlayerVoice } from "./ui/playerVoice.js";
 import { createShop } from "./ui/shopView.js";
@@ -6661,7 +6662,9 @@ function paintLiveMatchupBoard(snap) {
   }
 }
 
-/** In-game / resume: fill tactic dropdown from coach ∪ on-court unlocks. */
+let coachMode = null; // B22: created with the coach drawer below; null until then (and in tests)
+
+/** In-game / resume: fill tactic dropdown from coach ∪ on-court unlocks. Simple coach mode shows three of them (js/ui/coachMode.js). */
 function fillTacticSelect(team, { preferId = null } = {}) {
   const sel = $("#tactic-select");
   if (!sel || !team) return;
@@ -6675,6 +6678,13 @@ function fillTacticSelect(team, { preferId = null } = {}) {
       why ? " ★" : ""
     }</option>`;
   };
+  if (coachMode?.isSimple()) {
+    const few = simpleTactics(tactics, cur, coachTactics(team.coach)[0]?.id);
+    sel.innerHTML = few.map(optionFor).join("");
+    sel.value = few.some((t) => t.id === cur) ? cur : few[0].id;
+    syncTacticHelp();
+    return;
+  }
   const grouped = new Map();
   for (const t of tactics) {
     if (!grouped.has(t.group)) grouped.set(t.group, []);
@@ -8566,6 +8576,17 @@ const coachDrawer = createCoachDrawer({
     if (!open || !state.sim) return;
     const snap = state.sim.snapshot();
     paintMeters(snap);
+  },
+});
+// Coach bench: simple / advanced (B22). A device preference; the dropdown is rebuilt because <option hidden> does nothing on iOS Safari.
+coachMode = createCoachMode({
+  panel: document.querySelector("#screen-game .coach-panel"),
+  button: $("#btn-coach-mode"),
+  storage: globalThis.localStorage,
+  getLang,
+  onChange: () => {
+    const team = state.sim?.you();
+    if (team) fillTacticSelect(team);
   },
 });
 $("#btn-pause-sim").onclick = () => {
@@ -12314,6 +12335,7 @@ async function boot() {
       screens.sandbox?.__sandboxSetLang?.(nextLang);
       halfCourtScreen?.setLang(nextLang);
       applyStaticLang();
+      coachMode?.refreshLabel();
       relocalizeShellScreens(screens); // screens built on the Screen Shell re-render their own language
       timeTravelScreen.repaint();
       refreshCareerEntry();

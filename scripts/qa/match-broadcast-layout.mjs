@@ -1,7 +1,7 @@
 // Broadcast-first match layout QA (real browser). Run against any build; layout assertions are skipped with --baseline so the
 // same script produces the before/after court-size numbers.
 //   node scripts/qa/match-broadcast-layout.mjs <baseUrl> <outDir> [--baseline]
-import { openSingleSeason } from "./lib/page.mjs";
+import { enterLiveGame as enterLive } from "./lib/liveGame.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 
@@ -15,38 +15,7 @@ let failed = 0;
 const check = (label, ok, detail = "") => { if (!ok) failed++; report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`); };
 const browser = await chromium.launch({ executablePath: EXE });
 
-async function enterLiveGame(page) {
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 90000 });
-  await page.evaluate(async () => {
-    const acc = await import("/js/data/account.js");
-    const players = await import("/js/data/players.js");
-    const coaches = await import("/js/data/coaches.js");
-    const market = await import("/js/engine/seasonMarket.js");
-    const a = acc.createAccount("Broadcast QA");
-    const per = Math.floor(1950 / 12);
-    const sorted = players.PLAYERS.map((p) => ({ id: p.id, bref: p.bref, ovr: players.overall(p), sal: market.playerSalary(p) })).filter((p) => p.sal <= per).sort((x, y) => y.ovr - x.ovr);
-    const picked = []; const seen = new Set(); let budget = 0;
-    for (const p of sorted) { if (picked.length >= 12) break; if (p.bref && seen.has(p.bref)) continue; if (budget + p.sal > 1950) continue; picked.push(p.id); if (p.bref) seen.add(p.bref); budget += p.sal; }
-    a.playerIds = picked; a.onboardingDone = true; a.gold = 500; a.fragments = 200;
-    a.coachId = coaches.COACHES[0].id; a.coachIds = [a.coachId];
-    acc.saveAccount(a); acc.setActiveAccountId(a.id);
-  });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 90000 });
-  await openSingleSeason(page);
-  await page.waitForSelector("#screen-season.active");
-  await page.click("#btn-season-roster-account");
-  await page.waitForFunction(() => !document.querySelector("#btn-season-start").disabled, null, { timeout: 15000 });
-  await page.click("#btn-season-start");
-  await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 30000 });
-  await page.click("#btn-season-play");
-  await page.waitForSelector("#screen-setup.active", { timeout: 15000 });
-  await page.click("#btn-setup-confirm");
-  await page.waitForSelector("#screen-game.active", { timeout: 15000 });
-}
+const enterLiveGame = (page) => enterLive(page, BASE);
 
 const measure = (page) => page.evaluate(() => {
   const r = (sel) => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); const vis = !el.hidden && getComputedStyle(el).display !== "none" && b.width > 0; return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom), vis }; };

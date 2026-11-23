@@ -775,7 +775,7 @@
           <p class="tiny court-3d-note" id="court-3d-note" hidden></p>
         </div>
         <aside class="coach-panel">
-          <h3>教练席</h3>
+          <h3>教练席 <button class="btn small ghost coach-mode-toggle" id="btn-coach-mode" type="button" aria-pressed="false" title="简单：暂停 / 提速 / 换人 + 3 个常用战术；高级：全部指令">高级</button></h3>
           <p class="tiny">你指挥：<strong id="you-side">主队</strong></p>
           <div class="momentum-meter" id="momentum-meter" title="连续得分势头；叫暂停可打断对方高潮">
             <span>势头</span>
@@ -796,9 +796,9 @@
           <p class="tiny" id="pause-hint" hidden>死球窗口——可改战术、沟通、换人、站位与方针，然后点「继续比赛」。</p>
           <!-- M3 tactical takeover: live-ball setFocusPlay / setTempo as a UI wrapper over the existing APIs (same calls the dead-ball panel makes). Hiding it calls nothing, so the sim is unaffected. -->
           <div class="takeover-panel" id="takeover-panel">
-            <h4><span>战术接管</span><button class="btn small ghost" id="btn-takeover-hide" type="button">隐藏</button></h4>
-            <p class="tiny">活球中也能改：回合重点与节奏立即生效，下一回合就能看到。不改模拟规则，只是把暂停里的操作搬到活球。</p>
-            <div class="focus-row">
+            <h4><span>战术接管</span><button class="btn small ghost adv-only" id="btn-takeover-hide" type="button">隐藏</button></h4>
+            <p class="tiny adv-only">活球中也能改：回合重点与节奏立即生效，下一回合就能看到。不改模拟规则，只是把暂停里的操作搬到活球。</p>
+            <div class="focus-row adv-only">
               <label class="tiny">回合重点
                 <select id="takeover-focus-select"></select>
               </label>
@@ -808,7 +808,7 @@
               <label class="tiny">比赛节奏</label>
               <div class="btn-row" id="takeover-tempo-row"></div>
             </div>
-            <p class="tiny" id="takeover-status">当前：—</p>
+            <p class="tiny adv-only" id="takeover-status">当前：—</p>
           </div>
           <button class="btn small ghost" id="btn-takeover-show" type="button" hidden>显示战术接管</button>
           <div id="deadball-panel" class="deadball-panel locked">
@@ -818,32 +818,32 @@
               <button class="btn small" id="btn-set-tactic">布置</button>
             </div>
             <p class="tiny" id="tactic-help">暂停或节间才可布置战术。</p>
-            <div class="focus-row">
+            <div class="focus-row adv-only">
               <label class="tiny">比赛节奏
                 <select id="tempo-select" title="领先可降速打成功率；落后可提速抢回合"></select>
               </label>
               <button class="btn small" id="btn-set-tempo" type="button">应用节奏</button>
             </div>
-            <p class="tiny" id="tempo-help">领先倾向降速保命中；落后可提速提高回合数。暂停/节间可改。</p>
-            <div class="focus-row">
+            <p class="tiny adv-only" id="tempo-help">领先倾向降速保命中；落后可提速提高回合数。暂停/节间可改。</p>
+            <div class="focus-row adv-only">
               <label class="tiny">回合重点
                 <select id="focus-play-select"></select>
               </label>
               <button class="btn small" id="btn-set-focus" type="button">执行</button>
             </div>
-            <p class="tiny" id="focus-help">暂停后设定未来数个进攻回合的重点。</p>
-            <details class="live-skill-panel" id="live-skill-panel" hidden>
+            <p class="tiny adv-only" id="focus-help">暂停后设定未来数个进攻回合的重点。</p>
+            <details class="live-skill-panel adv-only" id="live-skill-panel" hidden>
               <summary>技能包（随时可装）</summary>
               <p class="tiny" id="live-skill-hint">暂停/节间可买入或安装技能到名单球员。</p>
               <div id="live-skill-shop" class="career-skill-shop"></div>
               <h4 class="career-skill-heading">已购技能库</h4>
               <div id="live-skill-inventory" class="career-skill-shop"></div>
             </details>
-            <div class="pack-row" id="live-packs"></div>
-            <div class="btn-row">
+            <div class="pack-row adv-only" id="live-packs"></div>
+            <div class="btn-row adv-only">
               <button class="btn" id="btn-talk" title="暂停/节间：沟通抬士气，并打开每人进攻与防守指令">沟通</button>
             </div>
-            <details class="live-phil" id="live-phil-panel">
+            <details class="live-phil adv-only" id="live-phil-panel">
               <summary>临场调整执教方针</summary>
               <p class="tiny help-line">仅在暂停或节间可改攻防重心与负荷。防＝全队压迫，不是针对某个人的策略。</p>
               <div class="phil-sliders compact">
@@ -854,12 +854,12 @@
               </div>
               <button class="btn small primary" id="btn-live-phil" type="button">应用方针</button>
             </details>
-            <div class="pos-live-panel">
+            <div class="pos-live-panel adv-only">
               <h4>场上站位</h4>
               <p class="tiny">暂停/节间点 PG–C 改位（与占位者互换）；下方「场上」卡也可改。</p>
               <div id="pos-live-list" class="pos-live-list"></div>
             </div>
-            <details class="player-orders-panel" id="player-orders-panel">
+            <details class="player-orders-panel adv-only" id="player-orders-panel">
               <summary>个人攻防指令（点「沟通」展开）</summary>
               <p class="tiny" id="talk-orders-hint">先指定持球人与打法，再为其他人设无球/防守。例：保罗持球挡拆 · 希罗无球定点。</p>
               <div class="ball-handler-row">
@@ -874,7 +874,7 @@
               <p class="tiny" id="offense-ball-action-desc"></p>
               <div id="player-orders-list" class="player-orders-list"></div>
             </details>
-            <div class="defense-panel" id="defense-panel">
+            <div class="defense-panel adv-only" id="defense-panel">
               <h4>对位 / 防守布置</h4>
               <p class="tiny">先为对方每人选盯防人；再可设对一个人的重点策略（钉死他/逼他出球/顶他下盘）。活球中需暂停或节间。</p>
               <div id="live-matchup-board" class="matchup-board"></div>
@@ -896,7 +896,7 @@
               <p class="tiny" id="defend-advice"></p>
             </div>
           </div>
-          <div class="meter">
+          <div class="meter adv-only">
             <div title="影响出手胆量与抗压；沟通/暂停可抬升">我方士气 <span id="morale">50</span></div>
             <div class="bar"><i id="morale-bar"></i></div>
             <div title="球星自负、两人仍抢球才算持球冲突会拉低；设无球可化解；化学反应核可抬升">我方化学反应 <span id="chem">50</span></div>
@@ -911,18 +911,18 @@
             <div class="bar opp"><i id="opp-morale-bar"></i></div>
           </div>
           <div class="btn-row">
-            <button class="btn ghost" id="btn-auto-offense" type="button" title="按比赛情况自动微调进攻战术/焦点。你仍可随时叫暂停接手">进攻托管：关</button>
-            <button class="btn ghost" id="btn-auto-defense" type="button" title="按对方核心自动调整盯防/包夹。你仍可随时叫暂停接手">防守托管：关</button>
-            <button class="btn ghost" id="btn-auto-rotation" type="button" title="不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回">自动轮换：关</button>
-            <span class="tiny" id="timeout-tier-label" title="托管助手叫暂停的积极程度：只改灵敏度，不改留 4 个暂停给你的底线">暂停策略：</span>
-            <button class="btn ghost" id="btn-tier-conservative" type="button" title="保守：很少叫暂停，对方高潮 10 分、分差 14 分才考虑，末节关键分不叫停">保守</button>
-            <button class="btn primary" id="btn-tier-balanced" type="button" title="均衡：现在的叫停灵敏度">均衡</button>
-            <button class="btn ghost" id="btn-tier-aggressive" type="button" title="积极：更勤叫暂停，对方高潮 6 分、分差 8 分就考虑，冷却 60 秒">积极</button>
+            <button class="btn ghost adv-only" id="btn-auto-offense" type="button" title="按比赛情况自动微调进攻战术/焦点。你仍可随时叫暂停接手">进攻托管：关</button>
+            <button class="btn ghost adv-only" id="btn-auto-defense" type="button" title="按对方核心自动调整盯防/包夹。你仍可随时叫暂停接手">防守托管：关</button>
+            <button class="btn ghost adv-only" id="btn-auto-rotation" type="button" title="不改战术，只按疲劳自动换人：累了换下，主力体力恢复满后立即换回">自动轮换：关</button>
+            <span class="tiny adv-only" id="timeout-tier-label" title="托管助手叫暂停的积极程度：只改灵敏度，不改留 4 个暂停给你的底线">暂停策略：</span>
+            <button class="btn ghost adv-only" id="btn-tier-conservative" type="button" title="保守：很少叫暂停，对方高潮 10 分、分差 14 分才考虑，末节关键分不叫停">保守</button>
+            <button class="btn primary adv-only" id="btn-tier-balanced" type="button" title="均衡：现在的叫停灵敏度">均衡</button>
+            <button class="btn ghost adv-only" id="btn-tier-aggressive" type="button" title="积极：更勤叫暂停，对方高潮 6 分、分差 8 分就考虑，冷却 60 秒">积极</button>
             <button class="btn warn" id="btn-quick-sim" type="button" title="用当前阵容与战术立刻打完剩余比赛（双方自动轮换）">快速模拟整场</button>
             <button class="btn primary" id="btn-save-game" type="button" title="保存比分、阵容与进度到本机，可关机离开后再继续">保存进度</button>
             <button class="btn ghost" id="btn-save-leave" type="button" title="保存后返回首页">保存并离开</button>
           </div>
-          <p class="tiny" id="managed-hint">三个托管均关：进攻、防守、换人均由你亲自指挥。</p>
+          <p class="tiny adv-only" id="managed-hint">三个托管均关：进攻、防守、换人均由你亲自指挥。</p>
           </div>
         </aside>
         <!-- Broadcast layout: the live feed is its own column beside the court (css/matchBroadcast.css) -->

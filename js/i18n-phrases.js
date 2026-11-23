@@ -326,6 +326,8 @@ export const PHRASES = [
   ["主队", "Home"],
   ["客队", "Away"],
   ["教练席", "Coach's Bench"],
+  ["高级", "Advanced"],
+  ["简单：暂停 / 提速 / 换人 + 3 个常用战术；高级：全部指令", "Simple: timeout / pace / subs + 3 tactics. Advanced: every order."],
   ["你指挥：", "You coach: "],
   ["势头", "Momentum"],
   ["叫暂停", "Timeout"],

@@ -58,6 +58,28 @@
 .coach-panel.coach-paused .coach-drawer-toggle { display: none; } /* a dead-ball window keeps the panel open */
 .coach-panel .momentum-meter { margin: 0; }
 
+/* Simple / advanced (B22): simple mode keeps timeout, speed, pace, the bench, save and three tactics; everything tagged .adv-only stays in the DOM, only hidden. */
+.coach-panel[data-coach-mode="simple"] .adv-only { display: none !important; }
+.coach-panel h3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.coach-panel .coach-mode-toggle { min-height: 44px; min-width: 64px; font-weight: 600; }
+.coach-panel .coach-mode-toggle[aria-pressed="true"] { background: var(--accent, #2f6bff); color: #fff; border-color: transparent; }
+/* Desktop: the open panel lives in a fixed-height row and scrolls inside. Advanced mode keeps that; simple mode is short enough to fit if the court gives a little
+   and the body goes two columns (live tempo | tactic), so nothing the mode exists for sits behind a scroll. */
+@media (min-width: 801px) {
+  .court-wrap:has(.coach-panel.coach-open[data-coach-mode="simple"]) { --court-max: max(200px, 28vh); }
+  .coach-panel.coach-open[data-coach-mode="simple"] .coach-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 16px; align-items: start; }
+  .coach-panel.coach-open[data-coach-mode="simple"] .coach-body > * { margin-top: 0; margin-bottom: 0; }
+  .coach-panel.coach-open[data-coach-mode="simple"] .coach-body > :is(p, .meter) { grid-column: 1 / -1; }
+  /* tempo on the left; the tactic card with the save row tucked under it on the right (it has the room) */
+  .coach-panel.coach-open[data-coach-mode="simple"] .coach-body > .takeover-panel { grid-column: 1; grid-row: 2 / span 2; }
+  .coach-panel.coach-open[data-coach-mode="simple"] .coach-body > #deadball-panel { grid-column: 2; grid-row: 2; }
+  .coach-panel.coach-open[data-coach-mode="simple"] .coach-body > .btn-row { grid-column: 2; grid-row: 3; }
+}
+/* Shorter desktop screens (the row is only 100vh-240px): give the open simple panel the ~70px it is short instead of squeezing the court below ~200px. */
+@media (min-width: 801px) and (max-height: 940px) {
+  .court-wrap:has(.coach-panel.coach-open[data-coach-mode="simple"]) { height: calc(clamp(520px, calc(100vh - 240px), 1000px) + 72px); }
+}
+
 @media (max-width: 800px) {
   .court-wrap {
     --court-max: 44vh;
