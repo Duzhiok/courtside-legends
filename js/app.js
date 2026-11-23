@@ -142,6 +142,7 @@ import { benchSectionHtml, budgetBarHtml, fitLabel, rotationRowHtml, starterMinu
 import { learnedBadgeHtml, learnedLineHtml, learnedSkillIds } from "./ui/learnedBadge.js";
 import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
+import { setupBoardHtml, setupRosterModel, setupRosterStatus } from "./ui/setupRosterView.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
 import {
   loadPlayers,
@@ -6986,63 +6987,19 @@ function bindSetupDragDrop(box, you, refreshAfter) {
 function renderSetupRoster() {
   const you = state.setup.you;
   const box = $("#setup-roster");
-  const picked = you.players.filter((p) => state.setup.selected.has(p.id));
   // 5 人却空一格：通常是两人叠位，渲染前自动拆开
-  resolveStarterPositionCollisions(picked);
-  const slotMap = Object.fromEntries(POS_SLOTS.map((s) => [s.id, []]));
-  for (const p of picked) {
-    const pos = normalizePos(p.playPos || p.pos);
-    (slotMap[pos] || slotMap.SF).push(p);
-  }
-  for (const s of POS_SLOTS) slotMap[s.id].sort(byOverallDesc);
-  const pool = you.players.filter((p) => !state.setup.selected.has(p.id)).sort(byOverallDesc);
-  const left = 5 - state.setup.selected.size;
-
-  const slotsHtml = POS_SLOTS.map((s) => {
-    const list = slotMap[s.id];
-    if (!list.length) {
-      return `<div class="setup-slot empty" data-drop-slot="${s.id}">
-        <span class="slot-badge">${s.id}</span>
-        <span class="slot-empty-hint">拖到这里</span>
-      </div>`;
-    }
-    const p = list[0];
-    return `<div class="setup-slot filled" data-drop-slot="${s.id}" data-id="${p.id}">
-        <span class="slot-badge">${s.id}</span>
-        ${setupMiniCardHtml(p, { onCourt: true })}
-      </div>`;
-  }).join("");
-
-  box.innerHTML = `<div class="setup-lineup-board">
-    <section class="setup-oncourt-panel">
-      <header class="setup-panel-head">
-        <h4>场上五人</h4>
-        <span class="tiny">拖到格子换位 · 点一下也可下场</span>
-      </header>
-      <div class="setup-slots setup-slots-row">${slotsHtml}</div>
-    </section>
-    <section class="setup-pool-panel" data-drop-bench="1">
-      <header class="setup-panel-head">
-        <h4>替补席</h4>
-        <span class="tiny">${
-          left > 0 ? `拖到上方上场（还差 ${left}）` : "首发已满 · 拖到有人的格子可换人"
-        }</span>
-      </header>
-      <div class="setup-pool">${
-        pool.length
-          ? pool.map((p) => setupMiniCardHtml(p, { onCourt: false })).join("")
-          : `<p class="tiny">替补席空了</p>`
-      }</div>
-    </section>
-  </div>`;
+  resolveStarterPositionCollisions(you.players.filter((p) => state.setup.selected.has(p.id)));
+  const model = setupRosterModel(you.players, state.setup.selected, byOverallDesc);
+  const { picked } = model;
+  const status = setupRosterStatus({ selectedCount: state.setup.selected.size, ...model });
+  box.innerHTML = setupBoardHtml(model, setupMiniCardHtml);
 
   $("#starter-count").textContent = String(state.setup.selected.size);
   tacticsBoard?.syncStarters([...state.setup.selected]);
   const confirmBtn = $("#btn-setup-confirm");
   if (confirmBtn) {
-    confirmBtn.disabled = state.setup.selected.size !== 5;
-    confirmBtn.textContent =
-      state.setup.selected.size === 5 ? "确认开打" : `再选 ${left} 人后开打`;
+    confirmBtn.disabled = status.confirmDisabled;
+    confirmBtn.textContent = status.confirmLabel;
   }
   const noteEl = $("#setup-ball-note");
   const posNote = $("#setup-pos-note");
@@ -7073,20 +7030,7 @@ function renderSetupRoster() {
       noteEl.textContent = `搭配参考：适配 ${fit} · 化学反应 ${chem}${ball ? " · " + ball : ""}`;
     }
   }
-  if (posNote) {
-    if (picked.length === 5) {
-      const slots = POS_SLOTS.map((s) => {
-        const who = slotMap[s.id][0];
-        return who ? `${s.id} ${who.name}` : `${s.id} 空`;
-      });
-      const overlap = picked.length - new Set(picked.map((p) => normalizePos(p.playPos || p.pos))).size;
-      posNote.textContent = overlap
-        ? `有位置挤在一起了，把人拖开即可`
-        : `首发已齐：${slots.join(" · ")}`;
-    } else {
-      posNote.textContent = `还差 ${left} 人 · 从替补席拖到空位`;
-    }
-  }
+  if (posNote) posNote.textContent = status.posNote;
 
   const refreshAfter = () => {
     renderSetupRoster();
