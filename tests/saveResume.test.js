@@ -20,6 +20,17 @@ test("a switch the save does set wins over the legacy flag, one by one; an expli
   assert.equal(resumeSettings({ mode: "quick", autoOffense: 1 }).autoOffense, true, "set values are coerced to booleans");
 });
 
+test("null counts as unset for the other two switches too, so the legacy flag applies (B100)", () => {
+  // The earlier test pinned null→legacy only for autoDefense; M2 (!= null → !== undefined) on
+  // autoOffense/autoRotation would have slipped through uncaught.
+  const on = resumeSettings({ mode: "quick", managed: true, autoOffense: null, autoRotation: null });
+  assert.deepEqual([on.autoOffense, on.autoRotation], [true, true], "null falls back to managed:true");
+  const off = resumeSettings({ mode: "quick", managed: false, autoOffense: null, autoRotation: null });
+  assert.deepEqual([off.autoOffense, off.autoRotation], [false, false], "null falls back to managed:false");
+  const undef = resumeSettings({ mode: "quick", managed: true, autoOffense: undefined, autoRotation: undefined });
+  assert.deepEqual([undef.autoOffense, undef.autoRotation], [true, true], "undefined is unset the same way");
+});
+
 test("mode, lastMode and speed fall back the way the old inline code did", () => {
   assert.deepEqual(
     [resumeSettings({ mode: "draft" }).lastMode, resumeSettings({ mode: "draft", lastMode: "season" }).lastMode],
