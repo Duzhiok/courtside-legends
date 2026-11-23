@@ -152,7 +152,7 @@ test("M1: exactly one dominant Play Now CTA, wired to a one-click handler that s
   const fnStart = appSource.indexOf("function startPlayNow()");
   assert.ok(fnStart >= 0, "app.js must define startPlayNow");
   const fnBody = appSource.slice(fnStart, wiring);
-  assert.match(fnBody, /autoFillTeam\(/, "startPlayNow must auto-fill both teams");
+  assert.match(fnBody, /exhibitionTeams\(/, "startPlayNow must auto-fill both teams"); // B99: B98 draws both sides via exhibitionTeams (which auto-fills, excluding the other side's people), not autoFillTeam directly
   assert.match(fnBody, /beginGame\(/, "startPlayNow must go straight into the game");
   assert.ok(!/openSetup\(/.test(fnBody), "startPlayNow must not show the setup screen");
 });
