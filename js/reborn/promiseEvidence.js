@@ -80,6 +80,22 @@ export function collectEvidence(reborn, account = null) {
   return records;
 }
 
+/** Same order as careerRelationships ROLE_RANK. The best role played inside a closed window. */
+const WINDOW_ROLE_RANK = { dnp: 0, garbage: 1, bench: 2, rotation: 3, starter: 4 };
+
+function bestWindowRole(games) {
+  let best = undefined;
+  let rank = -1;
+  for (const g of games) {
+    const next = WINDOW_ROLE_RANK[g.role];
+    if (next > rank) {
+      rank = next;
+      best = g.role;
+    }
+  }
+  return best;
+}
+
 /** Latest season any evidence (or a season-start marker) shows — "what year is it now". */
 function latestSeason(records, reborn) {
   const years = records.map((r) => r.seasonId).filter(Number.isInteger);
@@ -109,23 +125,37 @@ export function evidenceWindow(records, reborn) {
     }
     if (kind !== "minutes" && kind !== "role" && kind !== "start") return { game: null, season: null };
 
-    const inWindow = games.filter((g) => madeSeason === null || g.seasonId > madeSeason || (g.seasonId === madeSeason && g.gameId > madeGame));
+    // The window is the promise's own deadline, not "every later game".
+    // A new season restarts the game clock, so its games are not evidence
+    // for a deadline that already passed (B88). Same-season games past the
+    // deadline are out too; playoff games keep their continuing numbers
+    // and still count while they fall inside the deadline.
+    const dueAfter = Number.isInteger(promise?.check?.dueAfterGames) ? promise.check.dueAfterGames : null;
+    const deadlineGame = dueAfter === null ? null : madeGame + dueAfter;
+    const seasonMovedOn = madeSeason !== null && season !== null && season > madeSeason;
+    const inWindow = games.filter((g) => {
+      if (!Number.isInteger(g.gameId) || g.gameId <= madeGame) return false;
+      if (madeSeason !== null && g.seasonId !== madeSeason) return false;
+      if (deadlineGame !== null && g.gameId > deadlineGame) return false;
+      return true;
+    });
     const played = inWindow.filter((g) => g.minutesPlayed > 0);
     const mpg = played.length ? played.reduce((s, g) => s + g.minutesPlayed, 0) / played.length : undefined;
     const startedAny = inWindow.some((g) => g.started === true);
     // "Never started" is only a fact when every game in the window recorded it.
     const startKnown = inWindow.every((g) => g.started !== null);
-    // A later season means the game clock restarted: the deadline has passed.
-    const clock = lastGame
-      ? (madeSeason === null || lastGame.seasonId === madeSeason ? lastGame.gameId : madeGame + 10000)
-      : null;
+    // A later season means the game clock restarted: the deadline has passed,
+    // even before that season's first game is played (season_start is enough).
+    const clock = seasonMovedOn ? madeGame + 10000 : (lastGame ? lastGame.gameId : null);
     return {
-      season: lastGame?.seasonId ?? null,
+      season: seasonMovedOn ? madeSeason : (lastGame?.seasonId ?? null),
       game: kind === "start" && !startedAny && !startKnown ? null : clock,
       gamesPlayed: played.length,
       mpg,
       started: startedAny ? true : undefined,
-      role: reborn?.player?.rotationRole ?? lastGame?.role,
+      // After the season moves on, the live rotation is next year's role.
+      // Only a role actually played inside the window can keep the promise.
+      role: seasonMovedOn ? bestWindowRole(inWindow) : (reborn?.player?.rotationRole ?? lastGame?.role),
     };
   };
 }

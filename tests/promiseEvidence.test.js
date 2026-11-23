@@ -169,10 +169,54 @@ test("a real playGame records the facts the promises need, with a stable id", as
   // and a start promise really settles from it (fulfilled iff he started — never random)
   const a = account();
   recordPerson(a, { id: "rbn", name: "Run", role: "player", bref: out.reborn.identity.bref });
-  makePromise(a, { makerId: "coach", targetId: "rbn", kind: "start", text: "start", madeSeason: season.year - 1, madeGame: 0, check: { type: "start", dueAfterGames: 1 } });
+  makePromise(a, { makerId: "coach", targetId: "rbn", kind: "start", text: "start", madeSeason: season.year, madeGame: 0, check: { type: "start", dueAfterGames: 1 } });
   const settled = settleRebornPromises(a, out.reborn);
   assert.equal(settled.settled.length, 1);
   assert.equal(settled.settled[0].status, row.started ? "fulfilled" : "broken");
+});
+
+test("a deadline the old season missed is not kept by the next season (B88)", () => {
+  const minutesCheck = { type: "minutes", minGames: 5, minMpg: 20, dueAfterGames: 10 };
+  const oldGames = [79, 80, 81, 82].map((game) => ({ year: 1996, game, min: 25, role: "rotation", started: false }));
+  const nextGame = { year: 1997, game: 1, min: 25, role: "starter", started: true };
+  const rolled = (log) => run(log, {
+    player: { coachTrust: 40, rotationRole: "starter", seasonLog: log, seasonYear: 1997 },
+    timeline: { events: [{ year: 1997, event: "season_start", outcome: "camp" }] },
+  });
+
+  const stillOpen = account();
+  promise(stillOpen, "minutes", minutesCheck, { madeGame: 78 });
+  assert.equal(settleRebornPromises(stillOpen, run(oldGames)).settled.length, 0, "four games, deadline at game 88: still open");
+
+  const atRollover = account();
+  promise(atRollover, "minutes", minutesCheck, { madeGame: 78 });
+  const closed = settleRebornPromises(atRollover, rolled(oldGames));
+  assert.equal(closed.settled[0].status, "broken");
+  assert.equal(promisesOf(atRollover)[0].resolvedSeason, 1996);
+  assert.equal(closed.reborn.player.coachTrust, 35);
+
+  const leaked = account();
+  promise(leaked, "minutes", minutesCheck, { madeGame: 78 });
+  const afterNext = settleRebornPromises(leaked, rolled([...oldGames, nextGame]));
+  assert.equal(afterNext.settled[0].status, "broken", "the 1997 game is outside the 1996 window");
+  assert.equal(promisesOf(leaked)[0].resolvedSeason, 1996);
+
+  const role = account();
+  promise(role, "role", { type: "role", role: "starter", dueAfterGames: 10 }, { madeGame: 78 });
+  assert.equal(settleRebornPromises(role, rolled([...oldGames, nextGame])).settled[0].status, "broken");
+
+  const start = account();
+  promise(start, "start", { type: "start", dueAfterGames: 10 }, { madeGame: 78 });
+  assert.equal(settleRebornPromises(start, rolled([...oldGames, nextGame])).settled[0].status, "broken");
+});
+
+test("the same season's playoff games still count until the deadline", () => {
+  const a = account();
+  promise(a, "minutes", { type: "minutes", minGames: 5, minMpg: 20, dueAfterGames: 10 }, { madeGame: 78 });
+  const throughPlayoffs = [79, 80, 81, 82, 83].map((game) => ({ year: 1996, game, min: 25, role: "rotation", started: true }));
+  const kept = settleRebornPromises(a, run(throughPlayoffs));
+  assert.equal(kept.settled[0].status, "fulfilled");
+  assert.equal(promisesOf(a)[0].resolvedSeason, 1996);
 });
 
 test("contract promises settle from the events the REAL season-end functions write", async () => {
