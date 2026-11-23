@@ -179,3 +179,27 @@ test("card shows one scenario line per role skill, none for star skills", () => 
   const star = skillChipsHtml({ skills: ["rainmaker"], roleSkills: [] }, "zh");
   assert.ok(!star.includes("role-scenario"), star);
 });
+
+test("Patrick Beverley named kit: every season carries sticky_wrap + stopper_3d + motor_engine", () => {
+  const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
+  buildCareerSpanIndex(rows);
+  const cards = rows.filter((r) => r.bref === "beverpa01").map(seasonToCard);
+  assert.equal(cards.length, 12, "expected 12 Beverley season cards");
+  for (const c of cards) {
+    for (const id of ["sticky_wrap", "stopper_3d", "motor_engine"]) {
+      assert.ok((c.skills || []).includes(id), `${c.season} ${c.name} is missing ${id}: ${JSON.stringify(c.skills)}`);
+    }
+    // corner_camp is kept explicitly: entering the named list stops the role
+    // layer, and he had it in 9 of 12 seasons before the kit.
+    assert.ok((c.skills || []).includes("corner_camp"), `${c.season} ${c.name} lost corner_camp`);
+    assert.ok((c.skills || []).length <= 7, `${c.season} exceeds the skill cap`);
+  }
+  // The kit is identity, not attributes: re-running assignment moves no OVR.
+  const card2020 = cards.find((c) => c.season === 2020);
+  const ovrBefore = overall(card2020);
+  assignSkillPacks(card2020);
+  assert.equal(overall(card2020), ovrBefore);
+  for (const id of ["sticky_wrap", "stopper_3d", "motor_engine", "corner_camp"]) {
+    assert.ok((card2020.skills || []).includes(id), `re-assignment dropped ${id}`);
+  }
+});

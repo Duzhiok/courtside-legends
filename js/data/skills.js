@@ -1540,6 +1540,9 @@ const TRAIT_SKILLS = {
   // Avery Bradley / Jrue Holiday style stoppers (partial)
   bradlav01: ["sticky_wrap", "thief"],
   holidjr01: ["stopper_3d", "thief", "lockdown"],
+  // Patrick Beverley — 联盟头号牛皮糖：94 英尺贴身撕咬 + 持球克星 + 永动机；
+  // corner_camp 显式保留他原有的底角三分（进显式名单后角色层不再跑，不写就丢，见 Oakley 条目）
+  beverpa01: ["sticky_wrap", "stopper_3d", "motor_engine", "corner_camp"],
   // Raja Bell
   bellra01: ["sticky_wrap", "lockdown"],
   // Kendrick Perkins / enforcer bigs
