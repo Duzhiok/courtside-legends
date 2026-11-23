@@ -46,6 +46,7 @@ test("validateSeasonNames: throws on a markup name in any slot, passes on a clea
     teams: { LAL: { name: "湖人", players: [{ name: "科比" }], coach: { name: "禅师", style: "三角进攻" } } },
     customNames: { LAL: "湖人" },
     league: { labels: { LAL: "湖人" } },
+    freeAgents: [{ name: "自由球员" }],
   };
   assert.doesNotThrow(() => validateSeasonNames(clean));
   const cases = [
@@ -53,6 +54,7 @@ test("validateSeasonNames: throws on a markup name in any slot, passes on a clea
     ["player name", (s) => { s.teams.LAL.players[0].name = EVIL; }],
     ["coach name", (s) => { s.teams.LAL.coach.name = EVIL; }],
     ["coach style", (s) => { s.teams.LAL.coach.style = EVIL; }],
+    ["free-agent name (the market tab renders it)", (s) => { s.freeAgents[0].name = EVIL; }],
     ["customNames value", (s) => { s.customNames.LAL = EVIL; }],
     ["league.labels value", (s) => { s.league.labels.LAL = EVIL; }],
   ];

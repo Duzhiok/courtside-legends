@@ -133,3 +133,15 @@ test("S-P1-1: the trade-market team dropdown escapes the name and the id of the 
   assert.ok(html.includes("&lt;img src=x onerror=1&gt;"), "the name is there, escaped");
   assert.ok(html.includes("&quot;&gt;&lt;script&gt;"), "the id is escaped inside the attribute");
 });
+
+test("a free agent from a crafted save cannot put markup on the page (name, positions, the market line and the upside text)", () => {
+  setLang("zh");
+  const st = freshSeason();
+  const evil = "<img src=x onerror=1>";
+  Object.assign(st.freeAgents[0], { name: evil, pos: "<b>PG</b>", market: { salaryEst: 5e6, leagueAvg: 5e6, salaryMult: "<u>9</u>" } });
+  const you = st.teams[st.userTeamId];
+  Object.assign(you.players[0], { name: evil, playPos: "<i>C</i>" });
+  const html = render(st);
+  for (const raw of ["<img src=x", "<b>PG</b>", "<u>9</u>", "<i>C</i>"]) assert.ok(!html.includes(raw), `${raw} did not reach the page raw`);
+  assert.ok(html.includes("&lt;img src=x onerror=1&gt;"), "the name is still shown, escaped");
+});

@@ -63,7 +63,7 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
       const learned = learnedOf(p);
       return `<div class="sm-row">
         <div>
-          <strong>${p.playPos || p.pos} ${p.name}</strong> ${badge}${learnedBadgeHtml(learned, getLang())}${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
+          <strong>${esc(p.playPos || p.pos)} ${esc(p.name)}</strong> ${badge}${learnedBadgeHtml(learned, getLang())}${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
           <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p, getLang())}</div>
           ${fit ? `<div class="tiny">${esc(fit)}</div>` : ""}
           ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
@@ -88,10 +88,10 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
       const learned = learnedOf(p);
       return `<div class="sm-row">
         <div>
-          <strong>${p.pos} ${p.name}</strong>${learnedBadgeHtml(learned, getLang())}
+          <strong>${esc(p.pos)} ${esc(p.name)}</strong>${learnedBadgeHtml(learned, getLang())}
           <div class="tiny">OVR ${overall(p)} · ${p.season} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
-          <div class="tiny">${marketMeta(p, getLang())}</div>
-          ${upside ? `<div class="tiny season-pick-upside">${upside}</div>` : ""}
+          <div class="tiny">${esc(marketMeta(p, getLang()))}</div>
+          ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
           ${learnedLineHtml(learned, getLang())}
         </div>
         <button type="button" class="btn small primary sm-sign" data-sign="${p.id}" ${

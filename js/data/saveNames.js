@@ -38,6 +38,10 @@ export function validateSeasonNames(season, message = "invalid season names") {
       }
     }
   }
+  // The free-agent pool is rendered by the market tab (name and position into innerHTML), and a crafted save could put markup there.
+  if (Array.isArray(season.freeAgents)) {
+    checkNames(season.freeAgents.map((p) => p?.name), message);
+  }
   if (season.customNames && typeof season.customNames === "object") {
     checkNames(Object.values(season.customNames), message);
   }
