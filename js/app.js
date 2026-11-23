@@ -55,7 +55,6 @@ import { livePlayerIntent, livePlayerSuggestions, liveTeamSuggestion } from "./u
 import { TL, getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
 import { navPush, navPop, resolveDrawBack, resolveResultBack } from "./ui/navBack.js";
 import { freezeDiag, startFreezeDiag } from "./core/freezeDiag.js";
-import { LEGACY_TIERS } from "./career/legacy.js";
 import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
 import { XP_TABLE, awardAccountXp, levelSnapshot, levelTitle, madePlayoffs, recordDailyLogin } from "./data/accountLevel.js";
@@ -146,6 +145,7 @@ import { playoffsHtml, playoffsPromptHtml } from "./ui/seasonPlayoffsView.js";
 import { advanceCopy, anotherGameCopy, championCopy, eliminatedCopy, seriesGameCopy } from "./ui/careerResultCopy.js";
 import { hubHeading, nextCardView } from "./ui/seasonHubView.js";
 import { marketHtml } from "./ui/seasonMarketView.js";
+import { offseasonRecap } from "./ui/offseasonRecap.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
 import {
   loadPlayers,
@@ -9250,73 +9250,21 @@ function renderLeagueManagement() {
           const completed = completeCareerOffseason(state.leagueCareer);
           if (!commitManagedCareer(completed.career, "standings")) return;
           const { resolvedGoal, nextGoal, settledReputation, prophecy, poachOffer, retirement: coachRetirement } = queueNextTimeTravelEvent() || {};
-          const highlights = (completed.result?.log || [])
-            .filter((entry) => entry.delta > 0 || (entry.salaryAfter || 0) > (entry.salaryBefore || 0) + 10)
-            .slice(0, 8);
-          const retirements = (completed.result?.log || [])
-            .filter((entry) => entry.retired)
-            .map((entry) => L(`${entry.name} 退役`, `${entry.name} retired`));
-          const summary = highlights.length
-            ? highlights
-                .map((entry) => `${entry.name} OVR ${entry.before}→${entry.after}`)
-                .join("\n")
-            : L("本队本轮成长与续约变化较小。", "Little growth or contract change for your team this round.");
-          const retiredSummary = retirements.length
-            ? L(`\n\n本队退役：\n${retirements.join("\n")}`, `\n\nRetired:\n${retirements.join("\n")}`)
-            : "";
-          // B1 of docs/CAREER_LIFE_ROADMAP.md: surface the board goal result the same way every
-          // other offseason outcome already gets surfaced here -- a plain recap alert, not a new
-          // UI surface, since root.story.promises (the old home for this) was never rendered
-          // anywhere either.
-          const goalLabel = resolvedGoal ? L(resolvedGoal.goal.label, resolvedGoal.goal.labelEn || resolvedGoal.goal.label) : "";
-          const goalSummary = resolvedGoal
-            ? L(
-                `\n\n赛季目标【${goalLabel}】：${resolvedGoal.achieved ? "达成 ✅" : "未达成 ❌"}（信任度 ${resolvedGoal.trustDelta > 0 ? "+" : ""}${resolvedGoal.trustDelta}）`,
-                `\n\nSeason goal [${goalLabel}]: ${resolvedGoal.achieved ? "met ✅" : "missed ❌"} (trust ${resolvedGoal.trustDelta > 0 ? "+" : ""}${resolvedGoal.trustDelta})`,
-              )
-            : "";
-          const nextGoalLabel = nextGoal ? L(nextGoal.label, nextGoal.labelEn || nextGoal.label) : "";
-          const nextGoalSummary = nextGoal ? L(`\n\n新赛季目标：${nextGoalLabel}`, `\n\nNext season's goal: ${nextGoalLabel}`) : "";
-          // B6: reputation now moves with results, and a well-regarded coach can be poached. Both are
-          // surfaced in this same recap; the offer also says where to find it and when it lapses.
-          const repSummary = settledReputation
-            ? `\n\n${L("教练声望", "Coaching reputation")}：${settledReputation.from} → ${settledReputation.to}`
-            : "";
-          // D: the draft prophecy settles off his real third season; say how it went.
-          const sign = (n) => (n > 0 ? `+${n}` : `${n}`);
-          const prophecySummary = prophecy
-            ? `\n\n🔮 ${prophecy.hit
-              ? L(`预言成真：${prophecy.name} 前三季巅峰 OVR ${prophecy.best}（信任 ${sign(prophecy.trust)}、声望 ${sign(prophecy.reputation)}）`, `Called it: ${prophecy.name} peaked at OVR ${prophecy.best} in his first three seasons (trust ${sign(prophecy.trust)}, reputation ${sign(prophecy.reputation)})`)
-              : L(`预言落空：${prophecy.name} 前三季巅峰只有 OVR ${prophecy.best}（信任 ${sign(prophecy.trust)}）`, `Missed: ${prophecy.name} only peaked at OVR ${prophecy.best} in his first three seasons (trust ${sign(prophecy.trust)})`)}`
-            : "";
-          const poachTeam = poachOffer ? teamNameL(poachOffer.teamName, getLang()) : "";
-          const poachSummary = poachOffer
-            ? `\n\n📨 ${L(`${poachTeam} 想挖你！请到「穿越生涯」页查看并决定——本赛季第一场比赛开打后，邀请自动作废。`, `${poachTeam} wants to hire you away! Open the Time-travel career page to decide — the offer lapses once this season's first game is played.`)}`
-            : "";
-          // B7: at the retirement age the coach hangs up the whistle for you; say so, and where the verdict is.
-          const coachTier = coachRetirement ? LEGACY_TIERS[coachRetirement.tier] : null;
-          const coachRetireSummary = coachRetirement
-            ? `\n\n🏁 ${L(`你今年 ${coachRetirement.age} 岁，到了退休年龄，依规挂靴。生涯评级：${coachTier?.label}。请到「穿越生涯」页查看完整总评。`, `You're ${coachRetirement.age}: the retirement age. Your coaching career ends here — verdict: ${coachTier?.labelEn}. Open the Time-travel career page for the full summary.`)}`
-            : "";
           // Account Level: completing a Reborn lifetime pays +800 once.
           // Keyed by career start year + retirement age + tier, so this
           // recap can never pay the same lifetime twice. Announced in the
           // recap alert itself (no second modal stacked on top of it).
-          let lifetimeNote = "";
+          let lifetimeXp = null;
           if (coachRetirement) {
             const root = state.longCareerRoot || readRootSave();
             const acc = getAccount(root?.profile?.accountId) || activeAccount();
-            const axp = awardAccountXp(acc, XP_TABLE.rebornLifetime, {
+            lifetimeXp = awardAccountXp(acc, XP_TABLE.rebornLifetime, {
               source: "rebornLifetime",
               key: `retirement:${root?.story?.startYear ?? "?"}:${coachRetirement.age}:${coachRetirement.tier}`,
             });
-            if (axp.gained) lifetimeNote = `\n\n🎖️ ${L(`完成一世生涯，账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Completed a lifetime — Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}`;
           }
           const enteredYear = completed.result?.year || state.season?.year;
-          alert(L(
-            `已进入 ${enteredYear} 赛季。\n\n休赛期亮点：\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${prophecySummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`,
-            `Entered the ${enteredYear} season.\n\nOffseason notes:\n${summary}${retiredSummary}${goalSummary}${nextGoalSummary}${repSummary}${prophecySummary}${poachSummary}${coachRetireSummary}${lifetimeNote}`,
-          ));
+          alert(offseasonRecap({ completed, resolvedGoal, nextGoal, settledReputation, prophecy, poachOffer, coachRetirement, lifetimeXp, enteredYear, lang: getLang() }));
         } catch (error) {
           alert(error?.message || L("无法开始新赛季", "Couldn't start the new season."));
         }

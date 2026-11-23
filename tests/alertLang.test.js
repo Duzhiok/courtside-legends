@@ -53,11 +53,13 @@ test("every Chinese alert goes through L()", () => {
   assert.deepEqual(bare, []);
 });
 
-test("English alerts cover saves, filler picks, and the offseason recap", () => {
+test("English alerts cover saves, filler picks, and the offseason recap", async () => {
   assert.match(app, /No save found\./);
   assert.match(app, /Filler picks have to be free/);
   assert.match(app, /Keep at least 8 players\./);
-  assert.match(app, /Offseason notes:/);
+  // The offseason recap's words moved to js/ui/offseasonRecap.js (B61): assert what it says, not where the text lives.
+  const { offseasonRecap } = await import("../js/ui/offseasonRecap.js");
+  assert.match(offseasonRecap({ completed: { result: { log: [] } }, enteredYear: 2031, lang: "en" }), /Offseason notes:/);
   assert.match(app, /Couldn't clear the cache:/);
   assert.equal(app.includes("只能选 0 块球员"), false);
 });
