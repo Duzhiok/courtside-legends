@@ -142,6 +142,7 @@ import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import { setupBoardHtml, setupRosterModel, setupRosterStatus } from "./ui/setupRosterView.js";
 import { playoffsHtml, playoffsPromptHtml } from "./ui/seasonPlayoffsView.js";
+import { draftMoneyLabelHtml, draftTitle } from "./ui/draftChrome.js";
 import { legendChipsHtml, legendPosHtml, resumeRoute, resumeSettings } from "./ui/saveResume.js";
 import { advanceCopy, anotherGameCopy, championCopy, eliminatedCopy, seriesGameCopy } from "./ui/careerResultCopy.js";
 import { hubHeading, nextCardView } from "./ui/seasonHubView.js";
@@ -1720,12 +1721,7 @@ function continueFromSave() {
 
     if (route === "draft") {
       show("draft");
-      $("#draft-title").textContent =
-        state.draft.mode === "custom"
-          ? "自定义对战 · 先花 15 块再补 0 块"
-          : state.draft.mode === "duel"
-            ? "双人对抗 · 金币买球员（刷新另计）"
-            : "选秀建队";
+      paintDraftHeader(state.draft);
       $("#roster-a-title").textContent = state.draft.teams.A.name;
       $("#roster-b-title").textContent = state.draft.teams.B.name;
       if (typeof updateCustomDraftChrome === "function") updateCustomDraftChrome();
@@ -3614,31 +3610,20 @@ function initDraft(mode) {
     picking: false,
     _cpuTimer: null,
   };
-  if (isCustom) {
-    $("#draft-title").textContent = "自定义 · 15 块轮抽 → 32 历史球队淘汰赛";
-  } else if (isDuel) {
-    $("#draft-title").textContent = "双人对抗 · 金币买球员（刷新另计）";
-  } else {
-    $("#draft-title").textContent = "选秀建队";
-  }
-  const moneyLabel = $("#draft-money-label");
-  if (moneyLabel) {
-    moneyLabel.innerHTML = isCustom
-      ? `预算：<strong id="draft-gold">${CUSTOM_BUDGET}</strong> 块`
-      : state.draft.buyPlayers
-        ? `金币：<strong id="draft-gold">${state.draft.teams.A.gold}</strong>`
-        : // Draft Team: picking is free; the gold only pays for refreshing the list once the free ones are used
-          L(
-            `选人免费 · 刷新用金币：<strong id="draft-gold">${state.draft.teams.A.gold}</strong>（前 ${DRAFT_FREE_REFRESHES} 次刷新免费，之后每次 ¤${draftRefreshCost(state.draft)}）`,
-            `Picks are free · gold for refreshing: <strong id="draft-gold">${state.draft.teams.A.gold}</strong> (first ${DRAFT_FREE_REFRESHES} refreshes free, then ¤${draftRefreshCost(state.draft)} each)`,
-          );
-  }
+  paintDraftHeader(state.draft);
   updateCustomDraftChrome();
   $("#roster-a-title").textContent = state.draft.teams.A.name;
   $("#roster-b-title").textContent = state.draft.teams.B.name;
   $("#btn-start-game").disabled = true;
   refreshDraftUI();
   dealPack();
+}
+
+/** Title + money line: shared by a fresh draft and a resumed one (B94). */
+function paintDraftHeader(d) {
+  $("#draft-title").textContent = draftTitle(d.mode);
+  const moneyLabel = $("#draft-money-label");
+  if (moneyLabel) moneyLabel.innerHTML = draftMoneyLabelHtml(d);
 }
 
 function updateCustomDraftChrome() {
