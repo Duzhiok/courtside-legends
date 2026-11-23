@@ -68,4 +68,11 @@
 - 暂停提示文字紧贴上面的按钮行、左栏节奏下方有空白——纯外观，未改。
 - 悬停提示（`title`）仍是原中文；`高级` 与新 tooltip 已进 `i18n-phrases.js`。
 - Muse：真机触控（44px 开关）、中途存档恢复后模式是否保持（偏好不在存档里，应保持）、2 人本地对战（`speedLocked`）下教练席、活球时手动打开抽屉的布局（本次只在死球窗口量过尺寸）。
-- **两个原本就坏的 QA 脚本**（基线 HEAD 上同样失败，非本次引入，未碰）：`scripts/qa/court-takeover.mjs`（活球时点 `#takeover-tempo-row` 按钮，但抽屉收起时它不可见 → TimeoutError）、`scripts/qa/match-broadcast-layout.mjs` 里 3 条检查 `#sub-out-list`（该 id 已不存在）。其余 47 项照常通过。
+- **两个原本就坏的 QA 脚本**（基线 HEAD 上同样失败，非本次引入，未碰）：`scripts/qa/court-takeover.mjs`（活球时点 `#takeover-tempo-row` 按钮，但抽屉收起时它不可见 → TimeoutError）、`scripts/qa/match-broadcast-layout.mjs` 里 3 条检查 `#sub-out-list`（该 id 已不存在）。其余 47 项照常通过。——注：这两处已由 Code 在 f87aed46（B90/B91）修掉，见 BACKLOG B90/B91。
+
+## 8. 独立验证（Muse，2026-11-23，认领 0d9bd167）
+
+- 源码核对：`coachMode.js` 纯函数（`simpleTactics` 三项规则、不随当前漂移、当前值追加；偏好读写含存储抛错回简单）；`app.js` 的 `fillTacticSelect` 简单分支（平铺重建，iOS Safari 不用 `<option hidden>`；`availableTactics` 恒含 `balanced`/`pack_paint`，故 `few[0]` 空池不可达）；`index.html` 标记（保留项无 `adv-only`、高级项只藏不删，id 与 GameSim 接线原样）；CSS（`.adv-only` 只 `display:none`；简单两栏网格的直接子元素里唯一的 `.btn-row` 是保存行，`.btn-row.live-only-row` 在 `.coach-body` 之外，无重叠；短屏 +72px）；i18n（`高级`/tooltip 进 PHRASES，`applyStaticLang` 翻 `title` 属性——文档 §7 说的“title 仍是原中文”指面板里其他既有 tooltip，不含本项）。
+- 变异核查 3/3 被抓：基线跟当前走 → 稳定性测试红；CSS 改 `display:block` → 标记测试红；`btn-timeout` 误标 `adv-only` → 保留项测试红。
+- 聚焦 `tests/coachMode.test.js` 8/8；全套 3840 总数：3831 通过，9 失败 = online* ws 环境缺口（日志：goal hidden_files/hourly-2026-11-23-0026-full-suite.log；相对 22:26 基线 3812，+28 全是 B61 步骤 5/6 与 B89 的新增测试，无既往通过项丢失；courtSimple:260 第 35 次连续通过）。
+- 未在 VM 验证（仍排 Mac）：`scripts/qa/coach-bench-modes.mjs` 206 项实跑、真机 44px 开关、2 人对战 `speedLocked`、活球抽屉布局、中途存档恢复后模式保持。QA 脚本源码核对通过：`SIMPLE_HIDDEN`/`ALWAYS_VISIBLE` 与 `index.html` 的标记一致，`seen()` 感知裁切，`enterLiveGame` 共用 `scripts/qa/lib/liveGame.mjs`。
