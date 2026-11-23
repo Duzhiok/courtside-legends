@@ -8,6 +8,8 @@ import {
   DEFAULT_TAKEOVER_WINDOW,
   MAX_ACTIVE_RIVALS,
   RIVALRY_TAKEOVER_WINDOW,
+  RIVAL_DORMANT_AFTER_YEARS,
+  activeRivals,
   challengeCandidates,
   challengeRival,
   headToHead,
@@ -168,3 +170,52 @@ test("fast-forward stops before a game against a rival (ahead of a plain key gam
   assert.equal(stop.type, "rivalry");
   assert.equal(stop.detail.rival, star.name);
 });
+
+// --- slots: a rival nobody has faced for seasons stops holding one -------------------------------------------------------------------------------------------
+
+const oldRival = (i, year) => ({ bref: `old${i}`, name: `Old ${i}`, origin: "story", reason: "taunt", since: { year, game: 3, gameId: `o${i}` }, games: [{ gameId: `o${i}`, year, game: 3, won: false, margin: 9 }] });
+const fullLedger = (year) => ({ version: 1, watch: {}, rivals: [oldRival(0, year), oldRival(1, year), oldRival(2, year)] });
+
+test("slots: three rivals met this season or two seasons ago still hold every slot; at the dormancy boundary they let go", () => {
+  const ledger = fullLedger(1997);
+  assert.equal(RIVAL_DORMANT_AFTER_YEARS, 3);
+  assert.equal(activeRivals(ledger, 1997).length, 3);
+  assert.equal(activeRivals(ledger, 1999).length, 3, "two seasons without a meeting: still in play");
+  assert.equal(activeRivals(ledger, 2000).length, 0, "three seasons without one: dormant");
+  assert.equal(challengeRival(ledger, { ...report(1), year: 1999 }, "bryanko01").reason, "full");
+  assert.deepEqual(challengeCandidates(ledger, { ...report(1), year: 1999 }), []);
+  assert.equal(challengeRival(ledger, { ...report(1), year: 2000 }, "bryanko01").rival?.origin, "challenge");
+  assert.equal(challengeCandidates(ledger, { ...report(1), year: 2000 }).length, 1);
+});
+
+test("slots: with every slot dormant, a new story beat forms - and the old rivals' history is untouched", () => {
+  const ledger = fullLedger(1997);
+  const before = structuredClone(ledger.rivals);
+  const lateReport = (n, extra = {}) => report(n, { year: 2001, margin: 2, takeover: { attempted: true }, won: true, ...extra });
+  const meet = recordRivalryMeetings(ledger, lateReport(1)).ledger; // first sight: a watch entry only
+  const out = recordRivalryMeetings(meet, lateReport(2));
+  assert.equal(out.formed.length, 1);
+  assert.equal(out.formed[0].origin, "story");
+  assert.equal(out.formed[0].reason, "clutch");
+  assert.equal(out.ledger.rivals.length, 4, "history is kept: the ledger lists all four");
+  assert.deepEqual(out.ledger.rivals.slice(0, 3), before, "the dormant three are exactly as they were");
+  assert.equal(activeRivals(out.ledger, 2001).length, 1, "...but only the new one holds a slot");
+});
+
+test("slots: a rival who is faced again is active again, and the meeting is recorded", () => {
+  const ledger = { version: 1, watch: {}, rivals: [{ ...oldRival(0, 1997), bref: "bryanko01", name: "Kobe" }, oldRival(1, 1997), oldRival(2, 1997)] };
+  assert.equal(activeRivals(ledger, 2001).length, 0);
+  const out = recordRivalryMeetings(ledger, report(7, { year: 2001, won: true }));
+  assert.equal(out.met.length, 1);
+  assert.equal(activeRivals(out.ledger, 2001).map((r) => r.bref).join(), "bryanko01");
+  assert.equal(headToHead(out.ledger.rivals[0]).meetings, 2);
+});
+
+test("slots: a missing year or a rival with no year on record counts as active (old saves lose nobody)", () => {
+  const noYear = { version: 1, watch: {}, rivals: [0, 1, 2].map((i) => ({ bref: `x${i}`, games: [] })) };
+  assert.equal(activeRivals(noYear, 2030).length, 3, "no year on the rival: active whatever the season");
+  assert.equal(activeRivals(fullLedger(1997), undefined).length, 3, "no year on the report: the old behaviour");
+  assert.equal(challengeRival(fullLedger(1997), { ...report(1), year: undefined }, "bryanko01").reason, "full");
+  assert.deepEqual(activeRivals(null, 2000), []);
+});
+

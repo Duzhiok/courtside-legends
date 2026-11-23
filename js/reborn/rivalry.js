@@ -47,6 +47,12 @@ const DUEL_GAME_SCORE = 10;
 const TAUNT_GS_GAP = 10;
 const TAUNT_MIN_PTS = 20;
 export const MAX_ACTIVE_RIVALS = 3;
+/**
+ * A rival you have not faced for this many seasons is dormant (retired, traded out of your conference, out of the rotation). He stays in the ledger - the
+ * timeline, the museum and the head-to-head do not change - but he stops holding one of the MAX_ACTIVE_RIVALS slots. Before this the ledger only ever
+ * grew, so a career that filled its three slots in the first seasons could never form another rivalry, whoever had since retired.
+ */
+export const RIVAL_DORMANT_AFTER_YEARS = 3;
 /** The Reborn driver's normal clutch window, and the wider one vs a rival. */
 export const DEFAULT_TAKEOVER_WINDOW = Object.freeze({ clock: 120, margin: 5 });
 export const RIVALRY_TAKEOVER_WINDOW = Object.freeze({ clock: 180, margin: 8 });
@@ -63,6 +69,24 @@ export function rivalryLedger(reborn) {
     rivals: Array.isArray(raw.rivals) ? raw.rivals : [],
   };
 }
+
+/** The last season this rival was faced (or formed). Null when the ledger has no year for him. */
+function lastMetYear(rival) {
+  const years = [rival?.since?.year, ...(Array.isArray(rival?.games) ? rival.games.map((g) => g?.year) : [])].filter(Number.isFinite);
+  return years.length ? Math.max(...years) : null;
+}
+
+/** Rivals who still hold a slot in season `year`. An unknown year (an old save, a missing report year) counts as active: nobody is ever dropped on a guess. */
+export function activeRivals(ledger, year) {
+  const all = Array.isArray(ledger?.rivals) ? ledger.rivals : [];
+  if (!Number.isFinite(year)) return all;
+  return all.filter((r) => {
+    const met = lastMetYear(r);
+    return met == null || year - met < RIVAL_DORMANT_AFTER_YEARS;
+  });
+}
+
+const slotsFull = (ledger, year) => activeRivals(ledger, year).length >= MAX_ACTIVE_RIVALS;
 
 /** G / F / C — enough to say "he guards you". */
 function posGroup(pos) {
@@ -162,7 +186,7 @@ export function recordRivalryMeetings(ledgerIn, report) {
 
   // 2. The direct matchup heats up toward a rivalry (auto or story).
   const opp = directMatchup(report);
-  if (!opp || isRival(ledger, opp.bref) || ledger.rivals.length >= MAX_ACTIVE_RIVALS) return out;
+  if (!opp || isRival(ledger, opp.bref) || slotsFull(ledger, report.year)) return out;
   const prev = ledger.watch[opp.bref];
   if (prev?.lastGameId === report.gameId) return out;
   const close = Math.abs(report.margin ?? 99) <= CLOSE_GAME_MARGIN;
@@ -193,13 +217,13 @@ export function challengeRival(ledgerIn, report, bref) {
   const opp = (report?.opponents || []).find((o) => o.bref === bref && o.min > 0);
   if (!opp || !report?.gameId) return { ledger, rival: null, reason: "not-faced" };
   if (isRival(ledger, bref)) return { ledger, rival: null, reason: "already" };
-  if (ledger.rivals.length >= MAX_ACTIVE_RIVALS) return { ledger, rival: null, reason: "full" };
+  if (slotsFull(ledger, report.year)) return { ledger, rival: null, reason: "full" };
   return { ledger, rival: formRival(ledger, opp, report, "challenge", "challenge") };
 }
 
 /** Who can be challenged after this game: the top performers you faced, not yet rivals. */
 export function challengeCandidates(ledger, report, limit = 3) {
-  if (!report?.gameId || ledger.rivals.length >= MAX_ACTIVE_RIVALS) return [];
+  if (!report?.gameId || slotsFull(ledger, report.year)) return [];
   return (report.opponents || [])
     .filter((o) => o.bref && o.min > 0 && !isRival(ledger, o.bref))
     .sort((a, b) => (b.gs || 0) - (a.gs || 0))

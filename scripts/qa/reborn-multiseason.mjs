@@ -23,7 +23,7 @@ import { buildSeason, playGame, rosterCards } from "../../js/reborn/season.js";
 import { rolloverSeason } from "../../js/reborn/contract.js";
 import { collectEvidence, evidenceWindow } from "../../js/reborn/promiseEvidence.js";
 import { jerseyState } from "../../js/collectibles/jerseyExchange.js";
-import { MAX_ACTIVE_RIVALS, directMatchup, rivalryLedger } from "../../js/reborn/rivalry.js";
+import { MAX_ACTIVE_RIVALS, activeRivals, directMatchup, rivalryLedger } from "../../js/reborn/rivalry.js";
 
 const ROWS = JSON.parse(readFileSync(new URL("../../js/data/roster.json", import.meta.url), "utf8")).players;
 const SEEDS = Number(process.argv[2]) || 4;
@@ -102,7 +102,7 @@ for (const { seed, window: windowYear } of scenarios) {
           const led = rivalryLedger(afterState);
           const recorded = led.watch[opp.bref]?.lastGameId === report.gameId
             || led.rivals.some((r) => r.bref === opp.bref && (r.since?.gameId === report.gameId || r.games.some((g) => g.gameId === report.gameId)))
-            || led.rivals.length >= MAX_ACTIVE_RIVALS;                       // the ledger is full: no new person is added, existing rivals still record
+            || activeRivals(led, report.year).length >= MAX_ACTIVE_RIVALS;   // every slot is held by a rival still in play: no new person is added, existing rivals still record
           totals.direct[expectYear > first ? "later" : "first"] += 1;
           if (!recorded) { totals.directMissed += 1; problems.push(`${report.gameId}: direct matchup ${opp.bref} is not in the rivalry ledger`); }
         }
