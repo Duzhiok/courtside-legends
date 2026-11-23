@@ -321,6 +321,50 @@ test("invalid legacy manual values are marked invalid and do not borrow automati
   assert.doesNotMatch(box.innerHTML, /value="defense" selected/);
 });
 
+test("development plans use English when lang is en", () => {
+  const model = career();
+  const alpha = model.season.teams.USER.players[0].bref;
+  model.management.developmentPlans[alpha] = {
+    focus: "defense",
+    role: "bench",
+    mentorBref: "mentor",
+    load: "low",
+    source: "manual",
+  };
+  model.manualOverrides = { training: { [alpha]: structuredClone(model.management.developmentPlans[alpha]) } };
+  model.recommendations = {
+    training: {
+      mentor: {
+        focus: "conditioning",
+        role: "starter",
+        mentorBref: null,
+        load: "normal",
+        source: "automatic",
+      },
+    },
+  };
+  model.season.teams.USER.players[0]._developmentEffects = {
+    totalPoints: 3,
+    moraleDelta: 2,
+    injuryRiskDelta: -1,
+    reasons: ["stable role"],
+  };
+  const box = container();
+  renderDevelopmentPlans(box, { career: model, lang: "en" }, {});
+
+  assert.match(box.innerHTML, /Player development/);
+  assert.match(box.innerHTML, /A manual plan wins/);
+  assert.match(box.innerHTML, />Manual</);
+  assert.match(box.innerHTML, />Suggested</);
+  assert.match(box.innerHTML, />Defense</);
+  assert.match(box.innerHTML, />Bench</);
+  assert.match(box.innerHTML, />Low</);
+  assert.match(box.innerHTML, /No mentor/);
+  assert.match(box.innerHTML, /Save plan/);
+  assert.match(box.innerHTML, /Last offseason: 3 growth · morale \+2 · load \/ injury risk -1 · stable role/);
+  assert.doesNotMatch(box.innerHTML, /球员发展方案|手动|自动建议|上次休赛期/);
+});
+
 test("delegated actions keep a synchronous pending guard through the current turn", async () => {
   const model = career();
   let calls = 0;

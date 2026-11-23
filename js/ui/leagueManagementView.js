@@ -228,23 +228,23 @@ export function renderDraftBoard(container, { career, teamNames = {}, lang = get
 }
 
 const FOCUS_OPTIONS = [
-  ["balanced", "均衡"],
-  ["shooting", "投射"],
-  ["playmaking", "组织"],
-  ["defense", "防守"],
-  ["conditioning", "体能"],
+  ["balanced", "均衡", "Balanced"],
+  ["shooting", "投射", "Shooting"],
+  ["playmaking", "组织", "Playmaking"],
+  ["defense", "防守", "Defense"],
+  ["conditioning", "体能", "Conditioning"],
 ];
 const ROLE_OPTIONS = [
-  ["alpha", "核心"],
-  ["starter", "首发"],
-  ["sixth", "第六人"],
-  ["role", "角色球员"],
-  ["bench", "替补"],
+  ["alpha", "核心", "Alpha"],
+  ["starter", "首发", "Starter"],
+  ["sixth", "第六人", "Sixth man"],
+  ["role", "角色球员", "Role player"],
+  ["bench", "替补", "Bench"],
 ];
 const LOAD_OPTIONS = [
-  ["low", "低"],
-  ["normal", "正常"],
-  ["high", "高"],
+  ["low", "低", "Low"],
+  ["normal", "正常", "Normal"],
+  ["high", "高", "High"],
 ];
 const FOCUS_VALUES = new Set(FOCUS_OPTIONS.map(([value]) => value));
 const ROLE_VALUES = new Set(ROLE_OPTIONS.map(([value]) => value));
@@ -263,28 +263,33 @@ function isDisplayPlan(value, source = null) {
   );
 }
 
-function options(entries, selected) {
+function options(entries, selected, lang) {
   return entries
-    .map(([value, label]) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(label)}</option>`)
+    .map(([value, zh, en]) => `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(say(lang, zh, en))}</option>`)
     .join("");
 }
 
-function developmentEffects(player) {
+function developmentEffects(player, lang) {
   const effect = player?._developmentEffects;
   if (!effect || typeof effect !== "object") return "";
-  const reasons = Array.isArray(effect.reasons) ? effect.reasons.join("、") : "";
-  return `<div class="development-plan-effects tiny">上次休赛期：成长 ${escapeHtml(effect.totalPoints ?? 0)} 点 ·
-    士气 ${Number(effect.moraleDelta) >= 0 ? "+" : ""}${escapeHtml(effect.moraleDelta ?? 0)} ·
-    负荷/伤病风险 ${Number(effect.injuryRiskDelta) >= 0 ? "+" : ""}${escapeHtml(effect.injuryRiskDelta ?? 0)}
-    ${reasons ? ` · ${escapeHtml(reasons)}` : ""}</div>`;
+  const reasons = Array.isArray(effect.reasons) ? effect.reasons.join(say(lang, "、", ", ")) : "";
+  const points = escapeHtml(effect.totalPoints ?? 0);
+  const morale = `${Number(effect.moraleDelta) >= 0 ? "+" : ""}${escapeHtml(effect.moraleDelta ?? 0)}`;
+  const risk = `${Number(effect.injuryRiskDelta) >= 0 ? "+" : ""}${escapeHtml(effect.injuryRiskDelta ?? 0)}`;
+  const body = say(
+    lang,
+    `上次休赛期：成长 ${points} 点 · 士气 ${morale} · 负荷/伤病风险 ${risk}`,
+    `Last offseason: ${points} growth · morale ${morale} · load / injury risk ${risk}`,
+  );
+  return `<div class="development-plan-effects tiny">${body}${reasons ? ` · ${escapeHtml(reasons)}` : ""}</div>`;
 }
 
-export function renderDevelopmentPlans(container, { career } = {}, handlers = {}) {
+export function renderDevelopmentPlans(container, { career, lang = getLang() } = {}, handlers = {}) {
   if (!container) return container;
   container.onclick = null;
   container.onchange = null;
   if (!career?.management) {
-    container.innerHTML = "<p class=\"tiny\">发展方案属于长期生涯模式，请先创建或载入长期生涯。</p>";
+    container.innerHTML = `<p class="tiny">${say(lang, "发展方案属于长期生涯模式，请先创建或载入长期生涯。", "Development plans belong to a long career. Create or load one first.")}</p>`;
     return container;
   }
   const roster = career.season?.teams?.[career.season?.userTeamId]?.players || [];
@@ -317,40 +322,43 @@ export function renderDevelopmentPlans(container, { career } = {}, handlers = {}
       };
       const marker = ownsManual
         ? validManual
-          ? "手动"
-          : "手动（无效）"
+          ? say(lang, "手动", "Manual")
+          : say(lang, "手动（无效）", "Manual (invalid)")
         : recommendedPlan
-          ? "自动建议"
-          : "未设置";
+          ? say(lang, "自动建议", "Suggested")
+          : say(lang, "未设置", "Not set");
       const mentors = [
-        ["", "无导师"],
+        ["", "无导师", "No mentor"],
         ...roster
           .filter((entry) => entry.bref !== player.bref)
-          .map((entry) => [entry.bref, entry.name || entry.bref]),
+          .map((entry) => [entry.bref, entry.name || entry.bref, entry.name || entry.bref]),
       ];
       return `<div class="development-plan-row" data-plan-row="${escapeHtml(player.bref)}">
         <div class="development-plan-player">
           <strong>${escapeHtml(player.pos || player.playPos || "—")} ${escapeHtml(player.name || player.bref)}</strong>
           <span class="development-plan-marker">${escapeHtml(marker)}</span>
-          <div class="tiny">OVR ${escapeHtml(overall(player))} · 年龄 ${escapeHtml(player.age ?? "—")} ·
-            当前角色 ${escapeHtml(player.roleExpectation || "—")} / ${escapeHtml(player.targetMinutes ?? "—")} 分钟</div>
-          ${developmentEffects(player)}
+          <div class="tiny">${say(
+            lang,
+            `OVR ${escapeHtml(overall(player))} · 年龄 ${escapeHtml(player.age ?? "—")} · 当前角色 ${escapeHtml(player.roleExpectation || "—")} / ${escapeHtml(player.targetMinutes ?? "—")} 分钟`,
+            `OVR ${escapeHtml(overall(player))} · age ${escapeHtml(player.age ?? "—")} · current role ${escapeHtml(player.roleExpectation || "—")} / ${escapeHtml(player.targetMinutes ?? "—")} min`,
+          )}</div>
+          ${developmentEffects(player, lang)}
         </div>
-        <label>重点<select class="development-plan-focus">${options(FOCUS_OPTIONS, plan.focus)}</select></label>
-        <label>角色<select class="development-plan-role">${options(ROLE_OPTIONS, plan.role)}</select></label>
-        <label>导师<select class="development-plan-mentor">${options(mentors, plan.mentorBref || "")}</select></label>
-        <label>负荷<select class="development-plan-load">${options(LOAD_OPTIONS, plan.load)}</select></label>
-        <button type="button" class="btn small primary" data-action="save-plan" data-bref="${escapeHtml(player.bref)}">保存方案</button>
+        <label>${say(lang, "重点", "Focus")}<select class="development-plan-focus">${options(FOCUS_OPTIONS, plan.focus, lang)}</select></label>
+        <label>${say(lang, "角色", "Role")}<select class="development-plan-role">${options(ROLE_OPTIONS, plan.role, lang)}</select></label>
+        <label>${say(lang, "导师", "Mentor")}<select class="development-plan-mentor">${options(mentors, plan.mentorBref || "", lang)}</select></label>
+        <label>${say(lang, "负荷", "Load")}<select class="development-plan-load">${options(LOAD_OPTIONS, plan.load, lang)}</select></label>
+        <button type="button" class="btn small primary" data-action="save-plan" data-bref="${escapeHtml(player.bref)}">${say(lang, "保存方案", "Save plan")}</button>
       </div>`;
     })
     .join("");
 
   container.innerHTML = `<section class="development-plan-panel">
-    <header class="development-plan-head"><div><h4>球员发展方案</h4>
-      <p class="tiny">手动方案拥有最高优先级，生成建议不会覆盖它。</p></div>
-      <button type="button" class="btn small" data-action="recommend-plans">生成自动建议</button>
+    <header class="development-plan-head"><div><h4>${say(lang, "球员发展方案", "Player development")}</h4>
+      <p class="tiny">${say(lang, "手动方案拥有最高优先级，生成建议不会覆盖它。", "A manual plan wins. Generating suggestions will not replace it.")}</p></div>
+      <button type="button" class="btn small" data-action="recommend-plans">${say(lang, "生成自动建议", "Suggest plans")}</button>
     </header>
-    <div class="development-plan-list">${rows || "<p class=\"tiny\">当前阵容没有球员。</p>"}</div>
+    <div class="development-plan-list">${rows || `<p class="tiny">${say(lang, "当前阵容没有球员。", "No players on the roster.")}</p>`}</div>
   </section>`;
 
   container.onclick = (event) => {
@@ -418,7 +426,7 @@ function historyCard(entry, career, lang = "zh") {
     )
     .join("");
   const pick = entry.userDraftPick
-    ? `<p><strong>${en ? "Your draft pick:" : "本队选秀："}</strong>#${escapeHtml(entry.userDraftPick.pickNumber)} ${escapeHtml(entry.userDraftPick.name || entry.userDraftPick.bref || "—")} · ${escapeHtml(sourceLabel(entry.userDraftPick.source))}</p>`
+    ? `<p><strong>${en ? "Your draft pick:" : "本队选秀："}</strong>#${escapeHtml(entry.userDraftPick.pickNumber)} ${escapeHtml(entry.userDraftPick.name || entry.userDraftPick.bref || "—")} · ${escapeHtml(sourceLabel(entry.userDraftPick.source, lang))}</p>`
     : "";
   const champion = entry.championId
     ? teamName(career, {}, entry.championId)
