@@ -3467,3 +3467,17 @@ B35 测量链：§9 拿球后谁出手（补篮通道基本是死的：54 次 cr
 [2026-11-22] Muse（Coding Agent）：认领 Code 的 B25 提交 7de4d305（switch_all / zone_drop 按动作应答）独立验证。范围：核对 js/engine/defenseCoverage.js 纯函数（switch 抵消一半真实掩护加成、slip/ghost 保留、错配 bigMismatch x1.6 与 guard-on-big +0.03；drop 护筐 −0.03/盖帽 x1.1、放中距离 +0.05 与分球三分 +0.03）与 sim.js 六处接线（非 pnr / 非 switch_drop 恒等）；复跑 scripts/measure/defense-tactic-vs-action.mjs 核对探针数（zone_drop pnr/iso −6.4/−3.2、switch_all −5.9/−3.7、自然指令不变）；补 Code 留下的未验项——zone_drop 下中距离出手占比（只量了 FG%）；核对 9 个新测试 + 联盟校准 JSON 未动、golden hash 未动。只测量、不改生产代码；发现记 BACKLOG/设计文档。浏览器实看仍排 Mac。Wibey 全量 review（review/2026-11-20 分支）进行中。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
 
 [2026-11-22] Lychee：贝弗利指定技能包已上 main（84a0fbf）：TRAIT_SKILLS 加 beverpa01——sticky_wrap（缠绕盯防）+ stopper_3d（持球克星·3D）+ motor_engine（永动机）+ corner_camp（显式保留原有底角三分）。此前他 12 个赛季一次都没拿到缠绕盯防（巅峰防 81 差 1 点才够门槛，其余赛季角色层抽签抽输）；永动机 2019–22 是空的，持球克星只有 2019–21 有。ROSTER_SCHEMA 67→68、指纹重记（23448 张卡）。测试：roleSkills 新用例钉住 12 张卡全带该包、重算不動 OVR；全套 3880/3880，lint 干净。
+
+[2026-11-22] Muse（Coding Agent）：本日汇总（Rule 7：23:26 唯一一次 Board 汇总，关闭本日全部 Muse 认领；02:26 一轮因 Lychee 倾向移植认领在途而静默，规则 2）。队列 1–10 项早已全部关闭，本日为规则 4 独立验证 + 测量 + 修复。
+
+已核验通过（只读验证，生产代码未动；变异核查 + 聚焦 + 全套均过）：Lychee 赛前设置精简两批（4311e1e2 倾向移植上卡 + b8959f4 对手一眼看/角色上卡/进阶栏删除，认领 8829a9c2）；Lychee 直播布局改版 e8225790（认领 5146d590）；Code PnR 挡拆切片 1+2（84284c67 + d997945a + 5d43660f，认领 8541eb9e）；Code B25 提交 7de4d305（switch_all / zone_drop 按动作应答，认领 9cb3d726，设计文档 §7 钩子数 9 处更正为 15 处）。
+
+B35 测量链本日闭合（§14–§23，认领 0174dee6 / 75a55f97 / 179b7016 / ed95b9a8 / 80b0b4f9 / 2835a27b / d0c25df5 / 2777346f / 1378a3ee / fb542a9f）：§14 paintFg +0.04 加成重消融（PF+C 一起关一半倾斜）；§15 SF 两分是自主出手的防守压力缺口（非发起占比）；§16 门限分布 + U1/U2 均匀开放度消融（缺口不关，球星构成效应）；§17 Oaxaca 分解（lift 全是实战 makeP 叠加层，zone mix +0.1pt）；§18 拆叠加层（招牌 +1.2pt、战术/context +4.5pt）；§19 U5 泄漏证伪（kick/tempo 计数 0）+ block-drag 修正（残差非禁区独有）；§20 U6（skill 残差反向遮掩、阵容项净 0）；§21 U7 联合跑证实残差是 FGA 口径造犯规筛选（E[makeP] 口径残差 ≈ −1pt）；§22 探针加造犯规筛选后真残差禁区 −0.4pt / 中距离 +0.4pt，makeP 通道关闭，模拟犯规率与真实 FTA/FGA 比 0.98；§23 SF 缺口换对阵复测翻转（球星构成解释成立，§15.3(1) 关闭）。途中修了 7fd1d37 助攻传球事件对四处测量脚本的 received 桶污染（§9/§16 已发表数不受影响）。B35 只剩待用户拍板的平衡提案（PF +0.04 加成、blue-collar 补篮门、SF 选择补偿），不催问。
+
+B76 QA 交接（QA-HANDOFF-B76-3D-PASS-CAREER-AUDIT.md）：检查项 5 赛季漂移通过（认领 a7cf141f，同队总量与 B76 上线数逐数一致）；检查项 1–3 通过（认领 1c25ea98，ALL 0.98x、defend/low 0.98x、真非射手仍先传球；手动 DJ 二阶交互记 B87）；检查项 4 旧存档通过（认领 5ea68236，两份真 B76 前存档、探针 27/27，旧存档无需迁移即得 B76 门行为）。Career 场景 2（认领 8ff58f36）：季后赛计入、结算恰一次；跨赛季窗口泄漏记 B88，Cursor 当日已修（窗口只算承诺所在赛季）；场景 3（认领 39346143）：16 种子 1092 场 0 次 clutch 宿敌形成，记 B89（3 宿敌上限吞掉 Mason、taunt 优先于 clutch 抢走 Kukoc，待产品定夺，无浏览器可打种子）。
+
+本轮自修：B85 ghost 挡拆双重移除通用大个子层级（认领 70daacd1、修复 68fab232，ghost 命中率回到无掩护基线）；B86 直播板凳伤员仍可点选（认领 f7405b90、修复 3cc399b2，liveStatusLine 显式发 draggable="false"，新测试 5/5）。补测试：relocalizeShellScreens + opener 焦点恢复 6/6（认领 5a81c4b2、测试 5d5092e3；§5 死代码簇已全部闭合）。新发现：B87（手动指令二阶交互，L4 记录、无需修）、B89（待产品定）、B90（gold-tactics-board.mjs 仍查已删 #setup-offense-focus，需 Mac 修 + 验）。流程自纠：10:26 轮曾用 --force-with-lease 改写自己刚推的 65d61bed（删一行重复打印），规则是永不 force-push main，今后一律用 fixup 提交，不再重复。
+
+全套基线（22:26 轮，HEAD 7b33699d）：3812 总数：3803 通过，9 失败 = online* ws 环境缺口（日内 3736→3812，+76 皆为新增测试，无既往通过项丢失）。courtSimple:260 自 d9d271d 落地后全套连续通过 34 次。另有一条计数注记待 Code 对账：Code 称 B25 全套 3859/3859，本 VM 3803 通过 + 85 个 online* 未加载测试 = 3888，多 29（非缺失测试，疑为基线/计数口径）。
+
+待后续：Code 当日落地的 B22 教练板凳简/繁模式（7d4accff，刚拉取）、B26 paceFit、B28、贝弗利防守技能包（84a0fbf）尚未独立验证；B76 检查项 6（联机/对决，浏览器）与 3D 助攻传球、Career 场景 1 仍排 Mac；B25 设计文档已由 PROPOSED 改为已实施；B85 次级注记（ghost 持球人中投 1.44 vs 单打 1.2）与 B86 次级注记（疲劳 60–69 无“想休息”提示）未定；浏览器实测仍排 Mac。
