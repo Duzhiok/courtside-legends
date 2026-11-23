@@ -85,6 +85,13 @@ export function simulateCpuMatch(home, away) {
   };
 }
 
+/** Gold a Gold Challenge result pays: the title, a won game, or a lost one (scales with the round reached). */
+export function careerResultReward({ champion = false, youWin = false, round } = {}) {
+  const r = round || 1;
+  if (champion) return 400 + r * 100;
+  return youWin ? 120 + r * 40 : 40;
+}
+
 export function budgetGold(c) {
   if (c.kind === "duel") return Math.max(c.goldA || 0, c.goldB || 0);
   return c.gold || 0;

@@ -259,6 +259,7 @@ import {
   rollScoutPackOffer,
   chargeScoutPack,
   teamStarters,
+  careerResultReward,
 } from "./engine/careerEconomy.js";
 import {
   advanceLeagueOffseason,
@@ -294,6 +295,7 @@ import {
   HISTORICAL_CHAMPION_CHALLENGERS,
   HISTORICAL_PLAYOFF_CHALLENGERS,
   challengeTierMeta,
+  nextChallengeTier,
   challengeTierName,
 } from "./data/careerChallenges.js";
 import { challengeArchiveEntry, duelArchiveEntry, makeRunId, readChallengeArchive, recordChallengeArchive } from "./data/challengeArchive.js";
@@ -11318,15 +11320,13 @@ function handleCareerResult(youWin, snap) {
   const losses = c.losses?.you || 0;
 
   if (result.champion) {
-    const reward = 400 + (c.round || 1) * 100;
+    const reward = careerResultReward({ champion: true, round: c.round });
     c.gold += reward;
     const challengeGrant = recordChallengeProgress(activeAccount(), "goldChampion");
     const challengeNote = challengeGrant ? ` ${grantNote(challengeGrant, getLang())}` : "";
     const tierId = c.challengeTier || (c.fromCustom ? "custom" : "gold");
     const tier = challengeTierMeta(tierId === "custom" ? "gold" : tierId);
-    const canLadder =
-      !c.fromCustom && (tierId === "gold" || tierId === "playoff15" || tierId === "champ7");
-    const nextTier = canLadder ? tier.next : null;
+    const nextTier = nextChallengeTier(tierId, c.fromCustom);
     const copy = championCopy({ tierId, nextTier, tier, reward, gold: c.gold, injLine, challengeNote, wasFinals, series: c.series, lang: getLang() }, { finalsSeriesLabel });
     $("#result-title").textContent = copy.title;
     $("#result-summary").textContent = copy.summary;
@@ -11387,19 +11387,21 @@ function handleCareerResult(youWin, snap) {
     return;
   }
 
-  const reward = youWin ? 120 + (c.round || 1) * 40 : 40;
+  const reward = careerResultReward({ youWin, round: c.round });
   c.gold += reward;
+  // Every non-final branch continues to the market the same way (same order: clear shop, open, save).
+  const continueToMarket = (afterWin) => () => {
+    c.shop = null;
+    openMarket({ career: true, afterWin, refillShop: true });
+    autosaveCareer();
+  };
 
   if (result.seriesGame) {
     const copy = seriesGameCopy({ youWin, series: result.series, gameNo: result.gameNo, reward, gold: c.gold, injLine }, { finalsSeriesLabel });
     $("#result-title").textContent = copy.title;
     $("#result-summary").textContent = copy.summary;
     cont.textContent = copy.continueLabel;
-    cont.onclick = () => {
-      c.shop = null;
-      openMarket({ career: true, afterWin: youWin, refillShop: true });
-      autosaveCareer();
-    };
+    cont.onclick = continueToMarket(youWin);
     setResultActionMode("career", { showContinue: true, continuePrimary: true });
     autosaveCareer();
     return;
@@ -11413,11 +11415,7 @@ function handleCareerResult(youWin, snap) {
     $("#result-title").textContent = copy.title;
     $("#result-summary").textContent = copy.summary;
     cont.textContent = copy.continueLabel;
-    cont.onclick = () => {
-      c.shop = null;
-      openMarket({ career: true, afterWin: youWin, refillShop: true });
-      autosaveCareer();
-    };
+    cont.onclick = continueToMarket(youWin);
     setResultActionMode("career", { showContinue: true, continuePrimary: true });
     autosaveCareer();
     return;
@@ -11429,11 +11427,7 @@ function handleCareerResult(youWin, snap) {
   $("#result-title").textContent = copy.title;
   $("#result-summary").textContent = copy.summary;
   cont.textContent = copy.continueLabel;
-  cont.onclick = () => {
-    c.shop = null;
-    openMarket({ career: true, afterWin: true, refillShop: true });
-    autosaveCareer();
-  };
+  cont.onclick = continueToMarket(true);
   setResultActionMode("career", { showContinue: true, continuePrimary: true });
   autosaveCareer();
 }

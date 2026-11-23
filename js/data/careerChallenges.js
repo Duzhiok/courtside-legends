@@ -62,6 +62,12 @@ export function challengeTierMeta(tier) {
   return CAREER_CHALLENGE_TIERS[tier] || CAREER_CHALLENGE_TIERS.gold;
 }
 
+/** Where a champion goes next: the ladder gold → playoff15 → champ7 → end. Custom runs never climb. */
+export function nextChallengeTier(tierId, fromCustom = false) {
+  if (fromCustom || !["gold", "playoff15", "champ7"].includes(tierId)) return null;
+  return challengeTierMeta(tierId).next;
+}
+
 /** Tier display name in the given language (defaults to zh). */
 export function challengeTierName(tier, lang = "zh") {
   const meta = challengeTierMeta(tier);
