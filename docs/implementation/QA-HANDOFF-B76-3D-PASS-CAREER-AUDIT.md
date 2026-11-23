@@ -104,3 +104,55 @@ dueAfterGames 10` (deadline game 88; regular season ends at 82).
   (needs a product call on the semantics): cap the window at the promise's
   own deadline, or drop the season-change clock jump and let "next 10 games"
   span seasons. See B88.
+
+## 6. Scenario 3 results (Muse, 2026-11-22 — probe only, no production change)
+
+Probe: `~/workspace/goals/courtside-legends-development/hidden_files/clutch-funnel-detail.mjs`
+(detail variant of `scripts/qa/clutch-funnel.mjs`: same fixed seeds +
+always-take hook, plus per-game formation / near-miss diagnostics; replays
+`recordRivalryMeetings` game by game so the formation moment is visible).
+Logs: `hourly-2026-11-22-2126-clutch-funnel-{2seeds,6seeds,10seeds,diag,diag2,seed16}.log`.
+Real modules (`createRebornState` / `playSeason` / `directMatchup` /
+`recordRivalryMeetings`).
+
+- **No clutch rivalry formed in 16 seeds (1092 played games).** Funnel:
+  played 1092 → takeover accepted 134 (12.3%) → shot actually attempted 21
+  (15.7% of accepted; the armed decision is consumed by your next possession
+  and GameSim decides whether the shooter gets it up) → final margin ≤ 3 in
+  10 (47.6%) → direct matchup exists in 5 (50%) → 2nd+ meeting in 2 (40%)
+  → formed 0. The handoff's "about 2% of games" is not reproduced: clutch
+  beats are 2/1092 = 0.18% of games, formations 0/1092.
+- **The five shotClose games without a matchup:** 4× the player's own line
+  was under the 12-minute meeting minimum (1, 1, 1, 6 min — a takeover can be
+  attempted on 1 minute of court time, but the game never counts as a
+  meeting); 1× the OVR gap (Jerome Williams, 40 OVR, vs Rice 78 / Mason 72 /
+  Pierce 60 — all 20+ away; `RIVAL_OVR_GAP` is 12).
+- **The three first-meeting near-misses:** seed 1 game 24 vs Juwan Howard
+  (margin 3), seed 8 game 17 vs Tom Chambers (margin 3), seed 14 game 22 vs
+  Juwan Howard (margin 2).
+- **The two clutch beats that did not form — both mechanisms verified with
+  exact numbers:**
+  1. Seed 14, game 51 vs Anthony Mason (margin 3, 2nd meeting): the ledger
+     already held 3 rivals — Shawn Kemp, Chris Gatling, Christian Laettner,
+     all taunt/story — so `recordRivalryMeetings` returns early at
+     `MAX_ACTIVE_RIVALS` before the watch update and the story-beat check.
+     The clutch beat is swallowed by the cap.
+  2. Seed 16, game 55 vs Toni Kukoc (margin 1, 2nd meeting): lost by 1,
+     Kukoc 21 pts, GS 20.5 vs your 8.7 (gap 11.8 ≥ 10) — `storyBeat` checks
+     taunt before clutch, so the rivalry formed as **taunt**, not clutch, at
+     the very game the clutch beat occurred. (Thorpe auto at game 40, Mason
+     auto at game 62; the ledger ended full at 3.)
+- **Structural note:** the funnel draws random identities, mostly fringe
+  players (OVR 40–50; e.g. Williams 40, Mobley 42, rookie Nash 50). Three
+  seeds formed zero rivals all season (Williams / Mobley / Nash: 2 / 7 / 5
+  watch entries); five seeds played under 55 games. For low-minute, low-OVR
+  identities the rivalry system barely engages at all.
+- **Browser replay: no seed to replay.** Scenario 3 cannot be verified
+  end-to-end in the browser from a found seed — there is none. Filed as
+  BACKLOG B89: needs a product call on whether the gates (12-min minimum,
+  OVR gap 12, 2 meetings), the 3-rival cap, and taunt-before-clutch priority
+  are intended, or whether the scenario needs a scripted/seeded setup (e.g. a
+  star identity with real minutes) instead of natural play. The formation
+  code itself is covered by unit tests (`rebornRivalry` / `clutchDecision` /
+  `clutchController`, 79 focused tests green); this is reachability, not a
+  code bug.
