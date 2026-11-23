@@ -113,7 +113,7 @@ export const PHRASES = [
   ["朋友一起玩", "Play with Friends"],
   ["自动配队", "Auto Match"],
   // M2a first-game tip on the game screen
-  ["你指挥主队。比赛会自己打下去；想换人、改战术就点「叫暂停」，不想管就打开右侧的托管开关。", "You coach the home team. The game plays itself; call a Timeout to sub or change tactics, or switch on autopilot on the right and just watch."],
+  ["你指挥主队。比赛会自己打下去；想换人、改战术就点「叫暂停」，不想管就点「教练席」里的「高级」，打开托管开关。", "You coach the home team. The game plays itself; call a Timeout to sub or change tactics, or open Coach's Bench → Advanced and switch on autopilot, then just watch."],
   ["知道了", "Got it"],
   ["本场目标", "Goals for this game"],
   ["系统自动组两队，先进赛前设置再开打", "The system builds both teams — you get the setup screen before tip-off"],
