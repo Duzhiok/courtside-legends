@@ -145,3 +145,41 @@ test("a free agent from a crafted save cannot put markup on the page (name, posi
   for (const raw of ["<img src=x", "<b>PG</b>", "<u>9</u>", "<i>C</i>"]) assert.ok(!html.includes(raw), `${raw} did not reach the page raw`);
   assert.ok(html.includes("&lt;img src=x onerror=1&gt;"), "the name is still shown, escaped");
 });
+
+// B93 (Muse): 6576ab63 escaped the free agent's market line but not the roster row's (salaryLine runs the same marketMeta), and the ids that sit
+// inside data-* attributes, the season fields and the day were never escaped (st.year too, but a non-integer year makes picksOwnedBy throw before the page is drawn). Each hostile value gets its OWN custom tag (no real page
+// ever has an <x-...> element), so a miss names the field and cannot be mistaken for markup the page legitimately contains.
+test("B93: every save-controlled value on the market tab is escaped -- roster salary line, ids inside attributes, seasons and the day", () => {
+  setLang("zh");
+  const st = freshSeason();
+  const you = st.teams[st.userTeamId];
+  const mark = (name) => `<x-${name}>`;
+  const asAttr = (name) => `q"><x-${name}>`; // an id that tries to close its attribute and open a tag
+  Object.assign(you.players[0], { season: mark("roster-season"), id: asAttr("roster-id"), market: { salaryEst: 5e6, leagueAvg: 5e6, salaryMult: mark("roster-salary") } });
+  listPlayerForTrade(st, you.players[0].id); // a listed player also gets the sale-preference select, which carries the id too
+  Object.assign(st.freeAgents[0], { season: mark("fa-season"), id: asAttr("fa-id") });
+  st.staffMarket = { coaches: [{ id: asAttr("coach-id"), name: "Coach", season: mark("coach-season") }], assistants: [{ id: asAttr("asst-id"), name: "Asst", season: mark("asst-season") }] };
+  st.dayIndex = mark("day");
+  const offer = { id: asAttr("proposal-id"), round: 1, giveIds: [], fromTeamName: "Rivals", targetName: "Star", reason: "r", receivePlayers: [], offerPicks: [] };
+  const html = render(st, { proposals: [offer], managed: true });
+  const names = ["roster-season", "roster-id", "roster-salary", "fa-season", "fa-id", "coach-id", "coach-season", "asst-id", "asst-season", "day", "proposal-id"];
+  for (const n of names) {
+    assert.ok(!html.includes(`<x-${n}>`), `${n}: did not reach the page as a tag`);
+    assert.ok(html.includes(`&lt;x-${n}&gt;`), `${n}: is still shown, escaped`);
+  }
+  assert.doesNotMatch(html, /<x-/, "no hostile tag of any kind");
+  // and an id with a quote cannot close its own attribute: the button still carries the whole id
+  assert.match(html, /data-cut="q&quot;&gt;&lt;x-roster-id&gt;"/);
+  assert.match(html, /data-list-pref="q&quot;&gt;&lt;x-roster-id&gt;"/);
+});
+
+test("B93: the pick swap section also escapes the owner team's name when a pick came from another team", () => {
+  setLang("zh");
+  const st = freshSeason();
+  const other = Object.keys(st.teams).find((id) => id !== st.userTeamId);
+  st.teams[other].name = "<x-pick-owner>";
+  st.pickOwnership = { [st.year]: { [other]: st.userTeamId } }; // the user holds that team's first-rounder, as after a pick swap
+  const html = render(st, { managed: true });
+  assert.ok(html.includes("&lt;x-pick-owner&gt;"), "the owner is named, escaped");
+  assert.doesNotMatch(html, /<x-pick-owner>/);
+});

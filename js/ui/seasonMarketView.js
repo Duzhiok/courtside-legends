@@ -42,7 +42,7 @@ function listingPrefSelectHtml(st, playerId) {
     .map(([id, def]) => `<option value="${id}" title="${esc(en ? def.whyEn : def.why)}"${id === current ? " selected" : ""}>${esc(en ? def.labelEn : def.label)}</option>`)
     .join("");
   const label = en ? "What do you want back?" : "出售倾向";
-  return `<select class="sm-list-pref" data-list-pref="${playerId}" aria-label="${label}" title="${label}">${options}</select>`;
+  return `<select class="sm-list-pref" data-list-pref="${esc(playerId)}" aria-label="${label}" title="${label}">${options}</select>`;
 }
 
 /**
@@ -64,13 +64,13 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
       return `<div class="sm-row">
         <div>
           <strong>${esc(p.playPos || p.pos)} ${esc(p.name)}</strong> ${badge}${learnedBadgeHtml(learned, getLang())}${isListed ? ` <span class="chip tiny">${getLang() === "en" ? "Listed" : "已挂牌"}</span>` : ""}
-          <div class="tiny">OVR ${overall(p)} · ${p.season} · ${salaryLine(p, getLang())}</div>
+          <div class="tiny">OVR ${overall(p)} · ${esc(p.season)} · ${esc(salaryLine(p, getLang()))}</div>
           ${fit ? `<div class="tiny">${esc(fit)}</div>` : ""}
           ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
           ${learnedLineHtml(learned, getLang())}
         </div>
-        <span class="btn-row">${isListed ? listingPrefSelectHtml(st, p.id) : ""}<button type="button" class="btn small ghost sm-list-trade" data-list-trade="${p.id}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
-        <button type="button" class="btn small ghost sm-cut" data-cut="${p.id}">${L("裁掉", "Cut")}</button></span>
+        <span class="btn-row">${isListed ? listingPrefSelectHtml(st, p.id) : ""}<button type="button" class="btn small ghost sm-list-trade" data-list-trade="${esc(p.id)}">${isListed ? (getLang() === "en" ? "Unlist" : "取消挂牌") : (getLang() === "en" ? "List for trade" : "挂牌")}</button>
+        <button type="button" class="btn small ghost sm-cut" data-cut="${esc(p.id)}">${L("裁掉", "Cut")}</button></span>
       </div>`;
     })
     .join("");
@@ -89,12 +89,12 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
       return `<div class="sm-row">
         <div>
           <strong>${esc(p.pos)} ${esc(p.name)}</strong>${learnedBadgeHtml(learned, getLang())}
-          <div class="tiny">OVR ${overall(p)} · ${p.season} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
+          <div class="tiny">OVR ${overall(p)} · ${esc(p.season)} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
           <div class="tiny">${esc(marketMeta(p, getLang()))}</div>
           ${upside ? `<div class="tiny season-pick-upside">${esc(upside)}</div>` : ""}
           ${learnedLineHtml(learned, getLang())}
         </div>
-        <button type="button" class="btn small primary sm-sign" data-sign="${p.id}" ${
+        <button type="button" class="btn small primary sm-sign" data-sign="${esc(p.id)}" ${
         can ? "" : "disabled"
       }>${L("签约", "Sign")}</button>
       </div>`;
@@ -144,11 +144,11 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
         <div>
           <strong>${esc(c.name)}</strong>
           <span class="chip tiny">${esc(c.style || L("主帅", "Head coach"))}</span>
-          <div class="tiny">${c.season || ""} · ${esc(coachRecordLabel(c, getLang()))} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
+          <div class="tiny">${esc(c.season || "")} · ${esc(coachRecordLabel(c, getLang()))} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
           <div class="tiny">${esc(staffMarketLabel(c, getLang()))}</div>
           <div class="tiny">${esc(c.note || "")}</div>
         </div>
-        <button type="button" class="btn small primary sm-hire-coach" data-hire-coach="${c.id}" ${
+        <button type="button" class="btn small primary sm-hire-coach" data-hire-coach="${esc(c.id)}" ${
         can ? "" : "disabled"
       }>${hc ? L("换帅", "Replace") : L("聘用", "Hire")}${can ? "" : L("·超帽", " · over cap")}</button>
       </div>`;
@@ -163,11 +163,11 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
         <div>
           <strong>${esc(a.name)}</strong>
           <span class="chip tiny">${esc(a.role || L("助教", "Assistant"))}</span>
-          <div class="tiny">${a.season || ""} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
+          <div class="tiny">${esc(a.season || "")} · ${L(`要价 ${formatSalary(sal)}`, `Asking ${formatSalary(sal)}`)}</div>
           <div class="tiny">${esc(staffMarketLabel(a, getLang()))}</div>
           <div class="tiny">${esc(a.note || "")}</div>
         </div>
-        <button type="button" class="btn small primary sm-hire-asst" data-hire-asst="${a.id}" ${
+        <button type="button" class="btn small primary sm-hire-asst" data-hire-asst="${esc(a.id)}" ${
         can ? "" : "disabled"
       }>${asst ? L("更换", "Replace") : L("聘用", "Hire")}${can ? "" : L("·超帽", " · over cap")}</button>
       </div>`;
@@ -221,7 +221,7 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
     <section class="sm-proposals">
       <header class="sm-fa-head"><h4>${L("收到的交易请求", "Trade offers received")}</h4><div class="btn-row"><span class="tiny">${proposals.length ? L(`${proposals.length} 份待处理`, `${proposals.length} pending`) : L("暂无新报价", "No new offers")}</span><button type="button" class="btn small" id="btn-refresh-proposals">${L("刷新报价", "Refresh offers")}</button></div></header>
       ${unmetListingHintHtml(st, proposals)}
-      ${proposals.map((proposal) => `<article class="trade-proposal-card" data-proposal-id="${proposal.id}">
+      ${proposals.map((proposal) => `<article class="trade-proposal-card" data-proposal-id="${esc(proposal.id)}">
         <strong>${L(`${esc(proposal.fromTeamName)} 想得到 ${esc(proposal.targetName)}`, `${esc(proposal.fromTeamName)} wants ${esc(proposal.targetName)}`)}</strong> <span class="chip tiny">${(proposal.round || 1) === 2 ? L("第二轮", "Round 2") : L("第一轮", "Round 1")}</span>
         <p class="tiny">${esc(proposal.reason)}</p>
         <div class="tiny">${L("对方球员：", "Their players: ")}${proposal.receivePlayers.length ? proposal.receivePlayers.map((player) => `${esc(player.name)} · OVR ${overall(player)} · ${formatSalary(playerSalary(player))}`).join("；") : L("仅选秀权，不搭球员", "Picks only, no players attached")}</div>
@@ -239,13 +239,13 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
           const value = estimateDraftPickValue(pick, { currentYear: st.year, lang: getLang() });
           return `<span title="${esc(value.explanation)}">${esc(value.label)}${L(`（≈ +${value.ovrEquivalent} OVR）`, ` (≈ +${value.ovrEquivalent} OVR)`)}</span>`;
         }).join("、")}</div>` : "")}
-        <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${proposal.id}">${L("接受报价", "Accept")}</button>${(proposal.round || 1) === 2 ? "" : `<button type="button" class="btn small" data-trade-proposal-action="counter" data-proposal-id="${proposal.id}">${L("再谈谈", "Counter")}</button>`}<button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${proposal.id}">${L("拒绝", "Decline")}</button></div>
+        <div class="btn-row" style="margin-top:8px"><button type="button" class="btn small primary" data-trade-proposal-action="accept" data-proposal-id="${esc(proposal.id)}">${L("接受报价", "Accept")}</button>${(proposal.round || 1) === 2 ? "" : `<button type="button" class="btn small" data-trade-proposal-action="counter" data-proposal-id="${esc(proposal.id)}">${L("再谈谈", "Counter")}</button>`}<button type="button" class="btn small ghost" data-trade-proposal-action="decline" data-proposal-id="${esc(proposal.id)}">${L("拒绝", "Decline")}</button></div>
       </article>`).join("") || `<p class="tiny">${L("最近没有球队主动报价。球员打出连续好表现后，新的报价会在下一次刷新市场时出现。", "No team has offered lately. Once your players string good games together, new offers show up on the next market refresh.")}</p>`}
     </section>
     <section class="sm-trade">
       <h4>${L("交易（多对多 · 可含选秀权 · 可选三方）", "Trades (multi-for-multi · picks allowed · three-team optional)")}</h4>
       <p class="tiny">${L("勾选我方/对方要换的球员或未来选秀权，多选多。薪资/身价大致配平即可。选好想要的对方球员后点「推荐方案」自动配平。选了第三方就走三方循环：我方勾选 → 对手球队，对手勾选 → 第三方，第三方勾选 → 我方（三方暂不带选秀权）。", "Tick players or future picks on either side, many for many — salary and value just need to roughly balance. After picking the opponent players you want, hit Recommend to auto-balance. With a third team it becomes a cycle: your picks → opponent, opponent's picks → third team, third team's picks → you (no picks in three-team deals yet).")}</p>
-      <p class="tiny">${L("交易窗口：", "Trade window: ")}${(() => { const d = tradeDeadlineDay(st); return d == null ? L("本赛季无截止日", "No deadline this season") : L(`常规赛第 ${d} 天后关闭（当前第 ${st.dayIndex || 0} 天）`, `Closes after regular-season day ${d} (now day ${st.dayIndex || 0})`); })()} · ${L(`本赛季已交易 ${seasonTradeCount(st)} 次（换签不计）。`, `${seasonTradeCount(st)} trades this season (pick swaps excluded).`)}</p>
+      <p class="tiny">${L("交易窗口：", "Trade window: ")}${(() => { const d = tradeDeadlineDay(st); return d == null ? L("本赛季无截止日", "No deadline this season") : L(`常规赛第 ${esc(d)} 天后关闭（当前第 ${esc(st.dayIndex || 0)} 天）`, `Closes after regular-season day ${esc(d)} (now day ${esc(st.dayIndex || 0)})`); })()} · ${L(`本赛季已交易 ${seasonTradeCount(st)} 次（换签不计）。`, `${seasonTradeCount(st)} trades this season (pick swaps excluded).`)}</p>
       <div class="form-row">
         <label>${L("对手球队", "Opponent")}
           <select id="sm-trade-cpu">${cpuOpts}</select>
@@ -264,8 +264,8 @@ export function marketHtml(st, { you, pay, proposals, managed, learnedOf }) {
     </section>
     ${managed ? `<section class="sm-picks">
       <h4>${L("选秀权交易（上下换签）", "Pick swaps (move up/down)")}</h4>
-      <p class="tiny">${L(`用我方 ${st.year} 年首轮自然签，换对方同年首轮签：战绩越差的签越值钱，对方按战绩估值，差太多会拒绝。换来的签在赛季末选秀的顺位里生效；一枚签一季只能换一次。`, `Swap your ${st.year} natural first-rounder for theirs: the worse the record, the more the pick is worth, and they value it by record — too lopsided and they refuse. A swapped pick takes effect in the end-of-season draft order; one pick can only be swapped once a season.`)}</p>
-      <p class="tiny">${L(`我方持有 ${st.year} 年首轮签：`, `Your ${st.year} first-round picks: `)}${picksOwnedBy(st, st.year, st.userTeamId).map((srcId) => srcId === st.userTeamId ? L("自然签", "Own pick") : L(`${st.teams[srcId]?.name || srcId} 的签`, `${st.teams[srcId]?.name || srcId}'s pick`)).join("、") || L("无", "None")}</p>
+      <p class="tiny">${L(`用我方 ${esc(st.year)} 年首轮自然签，换对方同年首轮签：战绩越差的签越值钱，对方按战绩估值，差太多会拒绝。换来的签在赛季末选秀的顺位里生效；一枚签一季只能换一次。`, `Swap your ${esc(st.year)} natural first-rounder for theirs: the worse the record, the more the pick is worth, and they value it by record — too lopsided and they refuse. A swapped pick takes effect in the end-of-season draft order; one pick can only be swapped once a season.`)}</p>
+      <p class="tiny">${L(`我方持有 ${esc(st.year)} 年首轮签：`, `Your ${esc(st.year)} first-round picks: `)}${picksOwnedBy(st, st.year, st.userTeamId).map((srcId) => srcId === st.userTeamId ? L("自然签", "Own pick") : L(`${esc(st.teams[srcId]?.name || srcId)} 的签`, `${esc(st.teams[srcId]?.name || srcId)}'s pick`)).join("、") || L("无", "None")}</p>
       <div class="form-row">
         <label>${L("对方球队", "Opponent")}
           <select id="sm-pick-cpu">${cpuOpts}</select>
