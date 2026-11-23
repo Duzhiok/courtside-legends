@@ -75,7 +75,7 @@
 
 按推荐：Q1 做在现有战术里；Q2 假掩护/幽灵是换防的答案；Q3 补偿均匀乘数。
 
-**代码**：`js/engine/defenseCoverage.js`（纯函数，无随机数）+ `sim.js` 里 9 处“常数 × `keep`”/加一项。`keep` 对其它防守恒为 1，所以数值逐位不变。
+**代码**：`js/engine/defenseCoverage.js`（纯函数，无随机数）+ `sim.js` 里 15 处接线（11 处“常数 × `keep`/`keepMk` + `coverageOpen` / `coverageMake` / `bigMismatchMult` / `blockMult` 各 1 处；独立验证数过，见 §8）。`keep` 对其它防守恒为 1，所以数值逐位不变。
 `zone_drop.defense` 1.08 → **1.04**（补偿）；`switch_all` 保持 1.10（自然订单下它没有漂移）。两个战术的 `desc`（中英）改成真实行为。
 
 **验收（`defense-tactic-vs-action.mjs`，3 组对阵 × 150 场 / 格，客队战术之外同种子）：**
@@ -100,3 +100,19 @@
 - `bigMismatch` 放大（`switchBigOnGuard` 1.6）和 `dropBlockMult` 在这个探针里看不出单独贡献，数值是首版猜测，没有单独标定。
 - 联盟里有 CPU 教练把 `switch_all` 放进 `specialTactics`：校准 JSON 用默认战术所以没碰到它们；自然订单探针（3 组对阵）显示不漂移，但没有跑完整赛季级别的联盟模拟。
 - 挡拆比单打高 14 分的问题没动（§6）。
+
+## 8. 独立验证（Muse，2026-11-22 22:26 轮，认领 9cb3d726）
+
+**探针复现**：`defense-tactic-vs-action.mjs 150 all`（3 组对阵 × 150 场/格，同种子）12 格逐数复现 §7 表：auto −4.9/−2.9、pnr −6.4/−5.9、iso −3.2/−3.7（vs balanced）。记录：goal hidden_files/b25-verify-probe.json（log 同名；两次 `--json=~/...` 都因 `~` 在 `=` 后不展开而写盘失败，数字以 log 为准，同种子重跑可逐数复现）。
+
+**联盟校准**：`gamesim-calibration.mjs 12`（6 年代 × 12 场）B25 前后逐字节相同（scratch worktree /tmp/b25-before @ 7de4d305^ 对照，跑完已删）。附带核实：autopilot 只换 offense/spacing/pace_transition 三组（sim.js:120–121），防守组永不自动换，所以默认战术下无漂移是结构性的；5 个教练 specialTactics 里的 switch_all/zone_drop 只有人选时才生效。
+
+**接线核对**（只读，未改生产代码）：sim.js 共 15 处 hook——11 处 `* keep`/`* keepMk` + coverageOpen/coverageMake/bigMismatchMult/blockMult 各 1 处（§7 原写“9 处”已更正）。drive_kick 的 0.1/0.055 不乘 keep 是对的——drive_kick 没有掩护，无物可抵消；`cov` 经 gameCtx 从同一 sideCtx 传进 calcMakeProb（sim.js:1264）；非 pnr / 非 switch_drop 时 keep=1、各项加 0/乘 1，恒等（×1 是精确的 IEEE 754 恒等变换）。单测 defenseCoverage + tacticGroups 聚焦 15/15。
+
+**中距离出手占比**（补 Code 留下的未验项）：新探针 goal hidden_files/b25-midshare-probe.mjs（3 组对阵 × 120 场，scratch worktree /tmp/b25-mid 里给 shot 事件加 zone，主线未动，跑完已删；被盖/造犯规罚球不出 shot 事件，两格同口径排除，counted/FGA 0.933–0.937 均衡）。沉退下中距离占比只微升：pnr 37.1%→37.7%（+0.6pt）、auto 30.4%→30.7%（+0.3pt）；禁区占比回落（52.0→50.9 / 58.0→57.6）、三分占比微升（10.9→11.3 / 11.6→11.8）。沉退的已实现效果主要是禁区 FG% −2.1pt（pnr 62.0→59.8，auto 61.0→58.9），不是中距离洪水；中距离 FG% 反微升（55.8→56.5 / 53.9→54.1），与放 pull-up 一致。三分 FG% 反降（40.9→39.5 / 35.9→33.8）——分球三分被放（+0.03 open）却更不准，疑似构成效应（多投的三分分给出手机会更差的人），未拆，不声称原因。盖帽/场 5.37→5.39（pnr）、5.35→5.39（auto）：dropBlockMult ×1.1 在 360 场/格下看不出场均盖帽提升，与 Code 的“首版猜测”一致，数值仍待标定。
+
+**未复跑**：A2 挡拆角色对换防的场均分差（slip +0.3/+0.6、ghost +2.5/−1.9）本轮未按 Code 的 150/120 场规模重跑；机制已由单测钉住（真掩护 < slip 至少 0.02 makeP、ghost 只对 switch 加 open），场均数仍以 Code 的测量为准。
+
+**新发现**：BACKLOG B90——gold-tactics-board.mjs 仍引用已删的 #setup-offense-focus（3 处），且本机无 playwright-core（Mac 路径脚本），需 Mac 上改后实跑。
+
+**结论**：B25 Built → Verified。本轮只改文档 + BACKLOG，生产代码未动。
