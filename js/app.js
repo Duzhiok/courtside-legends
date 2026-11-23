@@ -57,7 +57,7 @@ import { navPush, navPop, resolveDrawBack, resolveResultBack } from "./ui/navBac
 import { freezeDiag, startFreezeDiag } from "./core/freezeDiag.js";
 import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
 import { MIN_COMPETITIVE_ROSTER, competitivePlayersNeeded, competitiveUnlocked } from "./data/competitiveGate.js";
-import { XP_TABLE, awardAccountXp, levelSnapshot, levelTitle, madePlayoffs, recordDailyLogin } from "./data/accountLevel.js";
+import { XP_TABLE, awardAccountXp, levelSnapshot, levelTitle, madePlayoffs, recordDailyLogin, xpGainNote } from "./data/accountLevel.js";
 import {
   codexProgress,
   cardRoom,
@@ -218,6 +218,7 @@ import {
   DRAFT_FREE_REFRESHES,
   advanceTurn,
   autoFillTeam,
+  exhibitionTeams,
   customSideCanSpend,
   customSpendPhaseDone,
   draftRefreshCost,
@@ -1807,8 +1808,7 @@ document.querySelectorAll(".mode-card[data-mode]:not([data-career-identity])").f
  * positions, default orders/packs, and a neutral gameplan.
  */
 function startPlayNow() {
-  const home = autoFillTeam("主队传奇", 10);
-  const away = autoFillTeam("客队传奇", 10);
+  const { home, away } = exhibitionTeams(10);
   if (home?.players) syncTeamDuoSkills(home.players);
   if (away?.players) syncTeamDuoSkills(away.players);
   ensureTeamStaff(home, {
@@ -1912,8 +1912,7 @@ function startMode(mode) {
     return;
   }
   if (mode === "quick") {
-    const home = autoFillTeam("主队传奇", 10);
-    const away = autoFillTeam("客队传奇", 10);
+    const { home, away } = exhibitionTeams(10);
     openSetup(home, away, "home");
     return;
   }
@@ -4523,7 +4522,7 @@ $("#btn-legend-finish").onclick = () => {
     coach,
     starterIds: starters.slice(0, 5).map((p) => p.id),
   };
-  const away = autoFillTeam("挑战者", 10);
+  const away = autoFillTeam("挑战者", 10, { excludeIds: home.players.map((p) => p.id) }); // nobody plays against himself
   openSetup(home, away, "home");
 };
 
@@ -8882,7 +8881,7 @@ function showResult(snap, { formNotes = [] } = {}) {
     const axp = awardAccountXp(activeAccount(), XP_TABLE[kind], { source: kind });
     if (axp.gained) {
       const summary = $("#result-summary");
-      if (summary) summary.textContent += ` 🎖️ ${L(`账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}`;
+      if (summary) summary.textContent += ` ${xpGainNote(axp, getLang())}`;
       celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
     }
   }
@@ -10126,7 +10125,7 @@ function awardMyTeamGameXp(st) {
   const axp = awardAccountXp(acc, XP_TABLE.myTeamGame, { source: "myTeamGame" });
   if (!axp.gained) return "";
   celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
-  return L(`🎖️ 账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `🎖️ Account XP +${axp.gained} (Lv.${axp.levelAfter})`);
+  return xpGainNote(axp, getLang());
 }
 
 function handleSeasonResult(snap) {
@@ -11261,7 +11260,7 @@ function handleRankedResult(youWin, snap) {
   const progress = [
     ...notes.map(progressNoteText),
     ...tickets.map((g) => grantNote(g, getLang())),
-    axp.gained ? `🎖️ ${L(`账号经验 +${axp.gained}（Lv.${axp.levelAfter}）`, `Account XP +${axp.gained} (Lv.${axp.levelAfter})`)}` : "",
+    xpGainNote(axp, getLang()),
   ].filter(Boolean).join(" ");
   celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
   const cont = $("#btn-result-continue");

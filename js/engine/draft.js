@@ -223,6 +223,16 @@ export function autoFillTeam(name, nPlayers = 8, { excludeIds = null, power = 0 
 }
 
 /**
+ * The two preset exhibition sides (Play Now and the quick-game card). One real person plays for one side
+ * only: two independent draws put the same player on both teams in ~5% of games.
+ */
+export function exhibitionTeams(nPlayers = 10) {
+  const home = autoFillTeam("主队传奇", nPlayers);
+  const away = autoFillTeam("客队传奇", nPlayers, { excludeIds: (home?.players || []).map((p) => p.id) });
+  return { home, away };
+}
+
+/**
  * Spend gold to replace weakest roster spots with better free agents.
  * Later tournament rounds call this so CPU lineups slowly upgrade.
  */

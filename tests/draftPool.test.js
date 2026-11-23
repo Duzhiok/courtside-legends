@@ -9,7 +9,7 @@ import { HIDDEN_TIERS, PLAYERS, clonePlayer, overall, seasonToCard } from "../js
 import { buildCareerSpanIndex } from "../js/data/careerArc.js";
 import { clamp, shuffle } from "../js/core/seededRandom.js";
 import { rand, withRng } from "../js/core/rng.js";
-import { autoFillTeam, createDrawPool, drawPack, takenPeople } from "../js/engine/draft.js";
+import { autoFillTeam, createDrawPool, drawPack, exhibitionTeams, takenPeople } from "../js/engine/draft.js";
 
 const rows = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 buildCareerSpanIndex(rows);
@@ -176,4 +176,14 @@ test("the cached library follows the roster: a card added later is drawable, and
     PLAYERS.pop();
   }
   assert.equal(createDrawPool(new Set()).live, before.live, "and gone again when the roster shrinks back");
+});
+
+test("exhibitionTeams: no real person plays for both sides (any season of him)", () => {
+  for (let i = 0; i < 60; i++) {
+    const { home, away } = exhibitionTeams(10);
+    assert.equal(home.players.length, 10);
+    assert.equal(away.players.length, 10);
+    const mine = new Set(home.players.map((p) => p.bref));
+    assert.ok(away.players.every((p) => p.bref && !mine.has(p.bref)), `game ${i}: same player on both sides`);
+  }
 });

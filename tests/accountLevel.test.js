@@ -220,3 +220,15 @@ test("levelSnapshot + levelHtml: badge, title, bar, track states", () => {
   assert.match(en, /Rookie/);
   assert.match(en, /Claim/);
 });
+
+test("xpGainNote: gain, level, the XP left to the next level, and a nudge when that level pays", () => {
+  const { xpGainNote, xpForLevel } = level;
+  assert.equal(xpGainNote({ gained: 0, totalXp: 10 }), "");
+  assert.equal(xpGainNote(null), "");
+  // Lv.1 needs 130: 35 total leaves 95, and Lv.2 pays the first level-up reward.
+  assert.equal(xpGainNote({ gained: 25, totalXp: 35 }), "🎖️ 账号经验 +25（Lv.1 · 再 95 经验升 Lv.2，升级有奖励）");
+  assert.equal(xpGainNote({ gained: 25, totalXp: 35 }, "en"), "🎖️ Account XP +25 (Lv.1 · 95 XP to Lv.2, which has a reward)");
+  // Lv.2 -> Lv.3 pays nothing: no nudge.
+  assert.equal(xpGainNote({ gained: 5, totalXp: xpForLevel(1) + 5 }), `🎖️ 账号经验 +5（Lv.2 · 再 ${xpForLevel(2) - 5} 经验升 Lv.3）`);
+  assert.match(xpGainNote({ gained: 50, totalXp: 10_000_000 }), /（Lv\.100）$/);
+});

@@ -247,6 +247,23 @@ export function claimLevelReward(account, level, { rng = Math.random, pool, stor
 }
 
 /** Everything My World needs to render the level card + reward track. */
+/**
+ * The post-game XP line: what was gained, the level, and how far the next level is (plus a nudge when
+ * that level pays a reward), so a first-time player sees what XP is for. "" when nothing was gained.
+ */
+export function xpGainNote(axp, lang = "zh") {
+  if (!(axp?.gained > 0)) return "";
+  const lv = levelForTotalXp(axp.totalXp);
+  const en = lang === "en";
+  if (lv.isMax) return en ? `🎖️ Account XP +${axp.gained} (Lv.${lv.level})` : `🎖️ 账号经验 +${axp.gained}（Lv.${lv.level}）`;
+  const left = lv.xpForNext - lv.xpIntoLevel;
+  const next = lv.level + 1;
+  const reward = REWARD_TRACK.some((r) => r.level === next);
+  return en
+    ? `🎖️ Account XP +${axp.gained} (Lv.${lv.level} · ${left} XP to Lv.${next}${reward ? ", which has a reward" : ""})`
+    : `🎖️ 账号经验 +${axp.gained}（Lv.${lv.level} · 再 ${left} 经验升 Lv.${next}${reward ? "，升级有奖励" : ""}）`;
+}
+
 export function levelSnapshot(account, lang = "zh", storage) {
   const axp = account ? getAxp(account) : getGuestAxp(storage);
   const { level, xpIntoLevel, xpForNext, pct } = levelForTotalXp(axp.totalXp);
