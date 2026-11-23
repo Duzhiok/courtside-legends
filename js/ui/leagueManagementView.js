@@ -4,11 +4,14 @@ import {
   filterCareerTimeline,
 } from "../modes/careerTimeline.js";
 import { esc as escapeHtml } from "../core/html.js";
+import { getLang } from "../i18n.js";
 
-function sourceLabel(source) {
+const say = (lang, zh, en) => (lang === "en" ? en : zh);
+
+function sourceLabel(source, lang) {
   return source === "historical-debut"
-    ? "历史首秀班（非精确选秀史）"
-    : "架空新秀";
+    ? say(lang, "历史首秀班（非精确选秀史）", "Historical debut class (not an exact draft history)")
+    : say(lang, "架空新秀", "Fictional prospect");
 }
 
 function teamName(career, teamNames, teamId) {
@@ -40,37 +43,40 @@ function invoke(handler, button, ...args) {
   return result;
 }
 
-function selectionRow(selection, career, teamNames) {
+function selectionRow(selection, career, teamNames, lang) {
   if (selection?.forfeited) {
     return `<div class="sm-row draft-board-selection">
     <div>
       <strong>#${escapeHtml(selection?.pickNumber)} ${escapeHtml(teamName(career, teamNames, selection?.teamId))}</strong>
-      <div>放弃此签 · 未选人，不占名单</div>
+      <div>${say(lang, "放弃此签 · 未选人，不占名单", "Passed · no player, no roster spot")}</div>
     </div>
   </div>`;
   }
   const contract = selection?.contract || {};
   const years = contract.yearsRemaining ?? contract.years ?? 4;
-  const contractLength = Number(years) === 4 ? "四年" : `${escapeHtml(years)}年`;
+  const contractLength = Number(years) === 4
+    ? say(lang, "四年", "4-year")
+    : say(lang, `${escapeHtml(years)}年`, `${escapeHtml(years)}-year`);
   const waived = selection?.waived?.name
-    ? ` · 裁掉 ${escapeHtml(selection.waived.name)}`
+    ? say(lang, ` · 裁掉 ${escapeHtml(selection.waived.name)}`, ` · waived ${escapeHtml(selection.waived.name)}`)
     : "";
   return `<div class="sm-row draft-board-selection">
     <div>
       <strong>#${escapeHtml(selection?.pickNumber)} ${escapeHtml(teamName(career, teamNames, selection?.teamId))}</strong>
-      <div>${escapeHtml(selection?.name || selection?.bref || "—")} · ${escapeHtml(sourceLabel(selection?.source))}</div>
-      <div class="tiny">${contractLength}合同 · ¤${escapeHtml(contract.salary ?? "—")}${waived}</div>
+      <div>${escapeHtml(selection?.name || selection?.bref || "—")} · ${escapeHtml(sourceLabel(selection?.source, lang))}</div>
+      <div class="tiny">${contractLength}${say(lang, "合同", " contract")} · ¤${escapeHtml(contract.salary ?? "—")}${waived}</div>
     </div>
   </div>`;
 }
 
-export function renderDraftBoard(container, { career, teamNames = {} } = {}, handlers = {}) {
+export function renderDraftBoard(container, { career, teamNames = {}, lang = getLang() } = {}, handlers = {}) {
   if (!container) return container;
   container.onclick = null;
   container.onchange = null;
+  const waiveFirst = say(lang, "请先选择要裁掉的球员。", "Choose a player to waive first.");
 
   if (!career?.management) {
-    container.innerHTML = "<p class=\"tiny\">选秀属于长期生涯模式，请先创建或载入长期生涯。</p>";
+    container.innerHTML = `<p class="tiny">${say(lang, "选秀属于长期生涯模式，请先创建或载入长期生涯。", "The draft belongs to a long career. Create or load one first.")}</p>`;
     return container;
   }
 
@@ -83,23 +89,25 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
   if (!draft) {
     const nextYear = Number(career.season?.year || 0);
     container.innerHTML = seasonDone
-      ? `<div class="draft-board-empty"><p>赛季已经结束，可以进入休赛期选秀。</p>
-          <button type="button" class="btn primary" data-action="prepare-draft">进入休赛期选秀</button></div>`
-      : `<div class="draft-board-empty"><p>下一届选秀：${escapeHtml(nextYear)} 年。</p>
-          <p class="tiny">完成总决赛后即可查看新秀并亲自做出选择。</p></div>`;
+      ? `<div class="draft-board-empty"><p>${say(lang, "赛季已经结束，可以进入休赛期选秀。", "The season is over. You can enter the offseason draft.")}</p>
+          <button type="button" class="btn primary" data-action="prepare-draft">${say(lang, "进入休赛期选秀", "Enter the offseason draft")}</button></div>`
+      : `<div class="draft-board-empty"><p>${say(lang, `下一届选秀：${escapeHtml(nextYear)} 年。`, `Next draft: ${escapeHtml(nextYear)}.`)}</p>
+          <p class="tiny">${say(lang, "完成总决赛后即可查看新秀并亲自做出选择。", "Finish the Finals to see the prospects and make the picks yourself.")}</p></div>`;
   } else {
     const selections = (draft.selections || [])
-      .map((selection) => selectionRow(selection, career, teamNames))
+      .map((selection) => selectionRow(selection, career, teamNames, lang))
       .join("");
     const userPicks = (draft.selections || []).filter(
       (selection) => selection.teamId === career.season?.userTeamId,
     );
+    const pickJoiner = say(lang, "、", ", ");
     if (draft.status === "complete") {
+      const pickList = userPicks.map((s) => (s.forfeited ? say(lang, "放弃此签", "Passed") : s.name)).join(pickJoiner);
       container.innerHTML = `<section class="draft-board-panel">
-        <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀完成</h4>
-        <p class="tiny">你的选择：${escapeHtml(userPicks.map((s) => (s.forfeited ? "放弃此签" : s.name)).join("、") || "—")}</p></div></header>
-        <div class="draft-board-selections">${selections || "<p class=\"tiny\">暂无选择记录</p>"}</div>
-        <div class="btn-row"><button type="button" class="btn primary" data-action="complete-offseason">开始新赛季</button></div>
+        <header class="draft-board-head"><div><h4>${say(lang, `${escapeHtml(draft.year)} 年选秀完成`, `${escapeHtml(draft.year)} draft complete`)}</h4>
+        <p class="tiny">${say(lang, "你的选择：", "Your picks: ")}${escapeHtml(pickList || "—")}</p></div></header>
+        <div class="draft-board-selections">${selections || `<p class="tiny">${say(lang, "暂无选择记录", "No picks recorded")}</p>`}</div>
+        <div class="btn-row"><button type="button" class="btn primary" data-action="complete-offseason">${say(lang, "开始新赛季", "Start the new season")}</button></div>
       </section>`;
     } else {
       const currentTeamId = draft.order?.[draft.currentPick];
@@ -108,9 +116,9 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
         career.season?.teams?.[career.season?.userTeamId]?.players || [];
       const waiverControl =
         userTurn && userRoster.length >= 15
-          ? `<label class="draft-waiver-control">为新秀腾位置
+          ? `<label class="draft-waiver-control">${say(lang, "为新秀腾位置", "Clear a roster spot")}
               <select class="draft-waiver-select">
-                <option value="" disabled selected>选择要裁掉的球员</option>${userRoster
+                <option value="" disabled selected>${say(lang, "选择要裁掉的球员", "Choose a player to waive")}</option>${userRoster
                 .map(
                   (player) =>
                     `<option value="${escapeHtml(player.id)}">${escapeHtml(player.name || player.bref || player.id)}</option>`,
@@ -130,29 +138,43 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
         ? prospects
             .map((prospect) => `<button type="button" class="draft-board-prospect" data-action="pick" data-prospect-id="${escapeHtml(prospect.prospectId)}"${waiverRequired ? " disabled" : ""}>
               <strong>${escapeHtml(prospect.name)}</strong>
-              <span>${escapeHtml(prospect.pos || prospect.player?.pos || "—")} · ${escapeHtml(sourceLabel(prospect.source))}</span>
-              <span>球探区间 ${escapeHtml(prospect.scoutingRange?.min ?? "—")}–${escapeHtml(prospect.scoutingRange?.max ?? "—")}</span>
-              <span>年龄 ${escapeHtml(prospect.player?.age ?? "—")} · 当前卡年 ${escapeHtml(prospect.player?.season ?? "—")}</span>
+              <span>${escapeHtml(prospect.pos || prospect.player?.pos || "—")} · ${escapeHtml(sourceLabel(prospect.source, lang))}</span>
+              <span>${say(lang, "球探区间", "Scout range")} ${escapeHtml(prospect.scoutingRange?.min ?? "—")}–${escapeHtml(prospect.scoutingRange?.max ?? "—")}</span>
+              <span>${say(lang, "年龄", "Age")} ${escapeHtml(prospect.player?.age ?? "—")} · ${say(lang, "当前卡年", "Card year")} ${escapeHtml(prospect.player?.season ?? "—")}</span>
             </button>`)
             .join("")
-        : `<p class="draft-board-recovery">电脑球队仍在选秀计时中，暂时不能代替其选人。请重新载入存档以恢复自动推进。</p>`;
+        : `<p class="draft-board-recovery">${say(lang, "电脑球队仍在选秀计时中，暂时不能代替其选人。请重新载入存档以恢复自动推进。", "The CPU team is still on the clock. You can't pick for them. Reload the save to resume the auto-pick.")}</p>`;
       const userSlots = (draft.order || []).filter((id) => id === career.season?.userTeamId).length;
       const userSelections = (draft.selections || []).filter((s) => s.teamId === career.season?.userTeamId);
       const userPicked = userSelections.filter((s) => !s.forfeited).length;
       const userForfeited = userSelections.filter((s) => s.forfeited).length;
       const slotsLine =
-        userSlots > 1 ? `<p class="tiny">我方本届签位共 ${userSlots} 个，已选 ${userPicked} 个${userForfeited ? `，放弃 ${userForfeited} 个` : ""}</p>` : "";
+        userSlots > 1
+          ? `<p class="tiny">${say(
+              lang,
+              `我方本届签位共 ${userSlots} 个，已选 ${userPicked} 个${userForfeited ? `，放弃 ${userForfeited} 个` : ""}`,
+              `Your picks this draft: ${userSlots}. Taken: ${userPicked}.${userForfeited ? ` Passed: ${userForfeited}.` : ""}`,
+            )}</p>`
+          : "";
       const forfeitControl = userTurn
-        ? `<div class="btn-row"><button type="button" class="btn small ghost" data-action="forfeit">放弃此签（不选人，不占名单）</button></div>`
+        ? `<div class="btn-row"><button type="button" class="btn small ghost" data-action="forfeit">${say(lang, "放弃此签（不选人，不占名单）", "Pass (no player, no roster spot)")}</button></div>`
         : "";
+      const roundBit = draft.round > 1
+        ? say(lang, `第 ${escapeHtml(draft.round)} 轮 · `, `Round ${escapeHtml(draft.round)} · `)
+        : "";
+      const onClock = say(
+        lang,
+        `当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择`,
+        `Pick ${escapeHtml(Number(draft.currentPick) + 1)} · ${escapeHtml(teamName(career, teamNames, currentTeamId))} on the clock`,
+      );
       container.innerHTML = `<section class="draft-board-panel">
-        <header class="draft-board-head"><div><h4>${escapeHtml(draft.year)} 年选秀</h4>
-        <p>${draft.round > 1 ? `第 ${escapeHtml(draft.round)} 轮 · ` : ""}当前第 ${escapeHtml(Number(draft.currentPick) + 1)} 顺位 · ${escapeHtml(teamName(career, teamNames, currentTeamId))} 选择</p>${slotsLine}</div></header>
+        <header class="draft-board-head"><div><h4>${say(lang, `${escapeHtml(draft.year)} 年选秀`, `${escapeHtml(draft.year)} draft`)}</h4>
+        <p>${roundBit}${onClock}</p>${slotsLine}</div></header>
         ${waiverControl}
         ${forfeitControl}
         <div class="draft-board-prospects">${cards}</div>
-        <h4>已完成选择</h4>
-        <div class="draft-board-selections">${selections || "<p class=\"tiny\">尚无选择</p>"}</div>
+        <h4>${say(lang, "已完成选择", "Picks so far")}</h4>
+        <div class="draft-board-selections">${selections || `<p class="tiny">${say(lang, "尚无选择", "No picks yet")}</p>`}</div>
       </section>`;
     }
   }
@@ -169,7 +191,7 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
       const waiverError = container.querySelector?.(".draft-waiver-error");
       if (container.querySelector?.(".draft-waiver-select") && !waivePlayerId) {
         if (waiverError) {
-          waiverError.textContent = "请先选择要裁掉的球员。";
+          waiverError.textContent = waiveFirst;
           waiverError.hidden = false;
         }
         return undefined;
@@ -198,7 +220,7 @@ export function renderDraftBoard(container, { career, teamNames = {} } = {}, han
     });
     const waiverError = container.querySelector?.(".draft-waiver-error");
     if (waiverError) {
-      waiverError.textContent = selected ? "" : "请先选择要裁掉的球员。";
+      waiverError.textContent = selected ? "" : waiveFirst;
       waiverError.hidden = selected;
     }
   };

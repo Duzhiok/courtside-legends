@@ -132,6 +132,33 @@ test("draft view escapes names/data, labels sources, and hides exact potential",
   assert.deepEqual(model, before);
 });
 
+test("draft board uses English when lang is en", () => {
+  const model = career();
+  const box = container();
+  renderDraftBoard(box, { career: model, teamNames: {}, lang: "en" }, {});
+  assert.match(box.innerHTML, /Historical debut class \(not an exact draft history\)/);
+  assert.match(box.innerHTML, /Fictional prospect/);
+  assert.match(box.innerHTML, /Scout range 77–91/);
+  assert.match(box.innerHTML, /2030 draft/);
+  assert.match(box.innerHTML, /Pick 1 · User &lt;Team&gt; on the clock/);
+  assert.doesNotMatch(box.innerHTML, /历史首秀班|球探区间|年选秀/);
+
+  model.management.draft.currentPick = 1;
+  const cpu = container();
+  renderDraftBoard(cpu, { career: model, teamNames: {}, lang: "en" }, {});
+  assert.match(cpu.innerHTML, /The CPU team is still on the clock/);
+  assert.doesNotMatch(cpu.innerHTML, /电脑球队/);
+
+  model.phase = "regular";
+  model.season.phase = "regular";
+  model.season.year = 2031;
+  model.management.draft.status = "complete";
+  const waiting = container();
+  renderDraftBoard(waiting, { career: model, teamNames: {}, lang: "en" }, {});
+  assert.match(waiting.innerHTML, /Next draft: 2031\./);
+  assert.doesNotMatch(waiting.innerHTML, /下一届选秀/);
+});
+
 test("draft picking is available only on the user's turn", () => {
   const model = career();
   let picked = null;
