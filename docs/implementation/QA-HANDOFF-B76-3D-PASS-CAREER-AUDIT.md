@@ -72,3 +72,35 @@ Left as decided: `rivalryStakes` has no caller (Reborn pre-game already shows th
 2. A promise made in one season and settled in the next, across a playoff run: settles once, with the playoff games counted only if the promise says so.
 3. A story-clutch rivalry formed through natural play (needs: takeover attempted, final margin <= 3, at least 2 meetings; about 2% of games): use
    `node scripts/qa/clutch-funnel.mjs 2` to find a seed, then play it in the browser. The funnel script is a measurement tool; thresholds were not changed.
+
+## 5. Scenario 2 results (Muse, 2026-11-22 — probe only, no production change)
+
+Probe: `~/workspace/goals/courtside-legends-development/hidden_files/career-scenario2-probe.mjs`
+(log: `hourly-2026-11-22-2026-career-scenario2.log`). Real modules
+(`makePromise` / `settleRebornPromises` / `evidenceWindow` / `rolloverSeason`),
+settling after every game exactly as `rebornView`'s `syncAccount` does.
+Promise: minutes, madeSeason 1996, madeGame 78, `minGames 5, minMpg 20,
+dueAfterGames 10` (deadline game 88; regular season ends at 82).
+
+- **Settles once: PASS in all four walks.** One legacy event, trust moves
+  once (+3 kept / −5 broken), a second settle call right after settles nothing.
+- **Playoff games count: yes, unconditionally.** Fulfilled at playoff game 83
+  (5th window game, 25 min); broken at playoff game 88 (10 min). Playoff
+  games are ordinary `seasonLog` rows in the same season with continuing game
+  numbers, and the promise check schema has no playoff flag — so there is no
+  way for a promise to "say" playoffs do or don't count. That is the design
+  as built, recorded here rather than filed as a gap.
+- **Cross-season window leak: FAIL — filed as BACKLOG B88.** Promise unmet at
+  end of the regular season (4 games), team misses the playoffs. At rollover
+  the clock is still 82 — the deadline (88) is NOT passed, so the rollover
+  settle resolves nothing, despite the `rebornView` comment "the new season
+  passes every old deadline" (that only holds for contract/trade promises,
+  whose season clock advances via the `season_start` event). The first 1997
+  game (25 min) then fulfils the promise: the window counts the 1997 game
+  (5 games @ 25 mpg), the clock jumps to `madeGame + 10000`, but
+  `evaluatePromise` checks `met` before the deadline, so fulfilment wins
+  over "deadline passed" — `resolvedSeason` is 1997 for a 1996 promise.
+  The same window + clock is shared by role/start promises. Suggested fix
+  (needs a product call on the semantics): cap the window at the promise's
+  own deadline, or drop the season-change clock jump and let "next 10 games"
+  span seasons. See B88.
