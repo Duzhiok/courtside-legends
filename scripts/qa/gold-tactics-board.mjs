@@ -1,7 +1,8 @@
 // Browser smoke for UI 3.0 Slice 1: the Gold pre-game tactics board, wired into the real setup screen.
 // Real flow: Gold Challenge -> market -> finish prep -> setup. Checks the board renders the starting five, a preview does
-// not touch the team, Apply writes + keeps the old advanced controls in step, "start" applies pending edits, other modes
-// do not show the board. Desktop 1440 + mobile 390.
+// is a draft (the board says "unapplied"), Apply makes it the board's saved handler, "start" applies pending edits (read off the LIVE game's own ball-handler
+// control), other modes do not show the board. (The old setup "advanced" select this used to read is gone; that a preview never writes the team is pinned by
+// tests/tacticalDraft.test.js, not here: the board only exposes the draft.) Desktop 1440 + mobile 390.
 // Usage: node scripts/qa/gold-tactics-board.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -48,18 +49,17 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   check(`[${tag}] Apply is disabled while nothing changed`, await page.$eval('#setup-tactics-board [data-tb="apply"]', (b) => b.disabled));
   await shoot(page, `${OUT}/${tag}-board.png`);
 
-  // Preview: pick a ball handler on the court; the team and the old control must not move yet.
-  const oldFocusBefore = await page.$eval("#setup-offense-focus", (s) => s.value);
+  // Preview: pick a ball handler on the court; it is a draft until Apply.
   const handlerId = await page.$eval('#setup-tactics-board [data-tb="handler"]', (b) => b.dataset.id);
   await page.click(`#setup-tactics-board [data-tb="handler"][data-id="${handlerId}"]`);
   check(`[${tag}] picking a handler shows his plays`, (await page.$$("#setup-tactics-board .tb-action")).length > 0);
   check(`[${tag}] board now says unapplied changes`, /未应用|Unapplied/.test(await page.textContent("#setup-tactics-board .tb-status").catch(() => "")));
-  check(`[${tag}] preview left the old control untouched`, (await page.$eval("#setup-offense-focus", (s) => s.value)) === oldFocusBefore);
+  check(`[${tag}] the picked player is the board's handler while unapplied`, await page.$eval(`#setup-tactics-board [data-tb="handler"][data-id="${handlerId}"]`, (b) => b.getAttribute("aria-pressed") === "true"));
 
-  // Apply: the old advanced control follows.
+  // Apply: the draft becomes the saved plan.
   await page.click('#setup-tactics-board [data-tb="apply"]');
   await page.waitForTimeout(300);
-  check(`[${tag}] Apply moves the old ball-handler select to the same player`, (await page.$eval("#setup-offense-focus", (s) => s.value)) === handlerId);
+  check(`[${tag}] after Apply the picked player is still the board's handler`, await page.$eval(`#setup-tactics-board [data-tb="handler"][data-id="${handlerId}"]`, (b) => b.getAttribute("aria-pressed") === "true"));
   check(`[${tag}] after Apply the board is clean again`, await page.$eval('#setup-tactics-board [data-tb="apply"]', (b) => b.disabled));
   check(`[${tag}] the court still shows five`, (await spots()) === 5);
 

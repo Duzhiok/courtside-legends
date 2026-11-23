@@ -47,7 +47,8 @@ async function run(width, height, tag) {
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("dialog", (d) => d.accept());
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+  // This script is about the full takeover controls (focus plays included), which B22's simple mode hides by default: opt in to advanced.
+  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem("cls_coach_mode_v1", "advanced"); });
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
 
@@ -55,9 +56,13 @@ async function run(width, height, tag) {
   await page.click("#btn-play-now");
   await page.waitForSelector("#screen-game.active", { timeout: 15000 });
   check(`[${tag}] game screen opens`, (await screen(page)) === "screen-game");
+  // Live ball keeps the coach drawer shut (one slim action bar); the takeover controls live inside it, so open it the way a player does.
+  await page.click("#btn-coach-drawer");
+  await page.waitForFunction(() => document.querySelector("#btn-coach-drawer")?.getAttribute("aria-expanded") === "true", null, { timeout: 5000 });
   check(`[${tag}] takeover panel is visible`, await visible(page, "#takeover-panel"));
   check(`[${tag}] takeover has 3 tempo buttons`, (await count(page, "#takeover-tempo-row [data-tempo]")) === 3);
-  check(`[${tag}] takeover focus select has the 4 plays + clear`, (await page.$$eval("#takeover-focus-select option", (els) => els.length)) === 5);
+  // 5 plays + "no focus" (iso_star, post_up, pace_three, slow_pace, hunt_mismatch); this said 4 + clear until hunt_mismatch shipped.
+  check(`[${tag}] takeover focus select has the 5 plays + clear`, (await page.$$eval("#takeover-focus-select option", (els) => els.length)) === 6);
   check(`[${tag}] takeover status line present`, (await text(page, "#takeover-status")).length > 0, await text(page, "#takeover-status"));
   check(`[${tag}] no horizontal overflow (game)`, await noOverflow(page));
 
@@ -108,6 +113,7 @@ async function run(width, height, tag) {
 
   // F. Quick-sim to the result: the game still finishes cleanly after takeover use.
   await page.click("#btn-quick-sim");
+  await page.click("#app-confirm-accept"); // quick-sim asks first (confirmAction's <dialog>, not a native dialog)
   await page.waitForSelector("#screen-result.active", { timeout: 30000 });
   check(`[${tag}] quick-sim finishes after takeover use`, (await screen(page)) === "screen-result");
   check(`[${tag}] no horizontal overflow (result)`, await noOverflow(page));
@@ -122,6 +128,7 @@ async function run(width, height, tag) {
   await homeActive(rm);
   await rm.click("#btn-play-now");
   await rm.waitForSelector("#screen-game.active", { timeout: 15000 });
+  await rm.click("#btn-coach-drawer"); // live ball: the takeover panel is inside the (shut) coach drawer
   check(
     `[${tag}] reduced-motion is detected by the court`,
     await rm.evaluate(() => document.querySelector("#court-stage")?.dataset.reducedMotion === "1")

@@ -78,7 +78,7 @@ async function run(width, height, tag) {
   await page.screenshot({ path: `${OUT}/${tag}-timeout.png` });
 
   // the tempo/focus controls are still wired: tactic select is enabled during the window
-  const ctl = await page.evaluate(() => ({ tactic: !document.querySelector("#tactic-select").disabled, sub: !!document.querySelector("#sub-out-list"), speed: !!document.querySelector("#btn-speed") }));
+  const ctl = await page.evaluate(() => ({ tactic: !document.querySelector("#tactic-select").disabled, sub: !!document.querySelector("#bench-you"), speed: !!document.querySelector("#btn-speed") }));
   check(`[${tag}] timeout: tactic select is enabled and speed/sub controls still exist`, ctl.tactic && ctl.sub && ctl.speed);
 
   await page.click("#btn-resume");
