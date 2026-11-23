@@ -26,10 +26,8 @@ test("S-P1-1: the stats table escapes the team and player names", () => {
   assert.ok(!appSrc.includes("<strong>${team.name}</strong>"), "no unescaped stats header remains");
 });
 
-test("S-P1-1: the trade-market team dropdown escapes the name and the id", () => {
-  assert.ok(appSrc.includes('<option value="${escAttr(t.id)}">${esc(t.name)}</option>'));
-  assert.ok(!appSrc.includes('<option value="${t.id}">${t.name}</option>'));
-});
+// S-P1-1 (the trade-market team dropdown escapes the name and the id) now lives in seasonMarketView.test.js: the market markup
+// moved out of app.js (B61 step 9), and that test asserts the rendered dropdown instead of a source literal.
 
 test("S-P1-1: the player card escapes the name, team and position", () => {
   assert.ok(appSrc.includes('<div class="name">${esc(p.name)} <span class="pos-badge">'));
