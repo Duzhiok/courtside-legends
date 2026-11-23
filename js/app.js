@@ -142,6 +142,7 @@ import { LOCAL_AVATARS } from "./data/avatars.local.js";
 import { creditRows, creditsHtml } from "./ui/creditsView.js";
 import { setupBoardHtml, setupRosterModel, setupRosterStatus } from "./ui/setupRosterView.js";
 import { playoffsHtml, playoffsPromptHtml } from "./ui/seasonPlayoffsView.js";
+import { legendChipsHtml, legendPosHtml, resumeRoute, resumeSettings } from "./ui/saveResume.js";
 import { advanceCopy, anotherGameCopy, championCopy, eliminatedCopy, seriesGameCopy } from "./ui/careerResultCopy.js";
 import { hubHeading, nextCardView } from "./ui/seasonHubView.js";
 import { marketHtml } from "./ui/seasonMarketView.js";
@@ -1679,14 +1680,8 @@ function continueFromSave() {
   markSessionResumed(); // continuing this save keeps its owner (unassociated stays unassociated)
   try {
     const app = data.app;
-    state.mode = app.mode;
-    state.lastMode = app.lastMode || app.mode;
-    state.speed = app.speed || 1;
-    // Legacy single-toggle saves: carry the old on/off forward as all three switches.
-    const legacyManaged = !!app.managed;
-    state.autoOffense = app.autoOffense != null ? !!app.autoOffense : legacyManaged;
-    state.autoDefense = app.autoDefense != null ? !!app.autoDefense : legacyManaged;
-    state.autoRotation = app.autoRotation != null ? !!app.autoRotation : legacyManaged;
+    // (a legacy single-toggle save carries its old on/off forward as all three switches)
+    Object.assign(state, resumeSettings(app));
     state.timeoutTier = normalizeTimeoutTier(app.timeoutTier);
     state.career = reviveCareer(app.career);
     state.tournament = app.tournament || null;
@@ -1695,7 +1690,8 @@ function continueFromSave() {
     state.pendingMatch = app.pendingMatch || null;
     state.setup = null;
 
-    if (data.sim) {
+    const route = resumeRoute(data, state);
+    if (route === "game") {
       const homeTeam = state.pendingMatch?.home || {
         name: data.sim.home.name,
         players: data.sim.home.roster,
@@ -1722,7 +1718,7 @@ function continueFromSave() {
       return;
     }
 
-    if (data.screen === "draft" && state.draft) {
+    if (route === "draft") {
       show("draft");
       $("#draft-title").textContent =
         state.draft.mode === "custom"
@@ -1740,7 +1736,7 @@ function continueFromSave() {
       return;
     }
 
-    if (data.screen === "setup" && state.pendingMatch) {
+    if (route === "setup") {
       const { home, away, youSide } = state.pendingMatch;
       const savedIds = app.setup?.selected || [];
       openSetup(home, away, youSide);
@@ -1753,24 +1749,14 @@ function continueFromSave() {
       return;
     }
 
-    if (data.screen === "legend" && state.legend) {
+    if (route === "legend") {
       show("legend");
       const L = state.legend;
       const chipBox = $("#legend-franchises");
       if (chipBox && L.franchises?.length) {
-        chipBox.innerHTML = L.franchises
-          .map(
-            (f) =>
-              `<span class="franchise-chip" data-id="${f.id}">${franchiseName(f, getLang())} <small>${f.id}</small></span>`
-          )
-          .join("");
+        chipBox.innerHTML = legendChipsHtml(L.franchises, getLang());
       }
-      $("#legend-pos").innerHTML = POS_SLOTS.map(
-        (s) =>
-          `<label><input type="radio" name="legend-pos" value="${s.id}" ${
-            s.id === (L.pickPos || "SF") ? "checked" : ""
-          }/> ${s.label}</label>`
-      ).join("");
+      $("#legend-pos").innerHTML = legendPosHtml(L.pickPos || "SF");
       $("#legend-pos").onchange = () => {
         const v = $("#legend-pos").querySelector("input:checked")?.value;
         if (v) state.legend.pickPos = v;
@@ -1785,7 +1771,7 @@ function continueFromSave() {
       return;
     }
 
-    if (data.screen === "market" && state.career) {
+    if (route === "market") {
       openMarket({
         career: state.career.kind === "career",
         duel: state.career.kind === "duel",
@@ -1793,7 +1779,7 @@ function continueFromSave() {
       return;
     }
 
-    if (data.screen === "tournament" && state.tournament) {
+    if (route === "tournament") {
       show("tournament");
       return;
     }
@@ -4371,13 +4357,8 @@ function startLegendMode() {
     pickPos: "SF",
     targetSize: 10,
   };
-  $("#legend-franchises").innerHTML = eight
-    .map((f) => `<span class="franchise-chip" data-id="${f.id}">${franchiseName(f, getLang())} <small>${f.id}</small></span>`)
-    .join("");
-  $("#legend-pos").innerHTML = POS_SLOTS.map(
-    (s) =>
-      `<label><input type="radio" name="legend-pos" value="${s.id}" ${s.id === "SF" ? "checked" : ""}/> ${s.label}</label>`
-  ).join("");
+  $("#legend-franchises").innerHTML = legendChipsHtml(eight, getLang());
+  $("#legend-pos").innerHTML = legendPosHtml("SF");
   $("#legend-pos").onchange = () => {
     const v = $("#legend-pos").querySelector("input:checked")?.value;
     if (v) state.legend.pickPos = v;
