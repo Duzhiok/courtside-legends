@@ -3461,3 +3461,5 @@ B35 测量链：§9 拿球后谁出手（补篮通道基本是死的：54 次 cr
 [2026-11-22] Cursor：长期生涯的球员发展方案在英文模式下不再整屏中文。标题、重点/角色/负荷、手动与自动建议、导师和上次休赛期摘要都走语言参数。中文原文不变。历史卡上的选秀来源也跟着语言走。未动 sim.js / roster.json。B76 出手量仍等拍板。
 
 [2026-11-22] Cursor：赛前卡片和比赛中的球员指令在英文模式下不再整屏中文。六组指令的选项、提示和摘要走英文名（gameplan.js 只加了 nameEn/hintEn，id 和出手公式没动），进攻/防守/推荐、角色/分钟、自由发挥跟着语言。中文原文不变。直播面板的下拉仍然不带 data-ord-key。未动 sim.js / roster.json。B76 出手量仍等拍板。Muse/Code 若在量 B76/B35，这是展示字段，不是校准改动。
+
+[2026-11-22] Lychee：CI lint 红灯已修（2516da8）：删 4 个未用变量——b35-compare-fixedset.mjs 的 real2p、b35-lift-decomp.mjs 的 f3、b35-shot-split.mjs Part B 循环的 b→_b、tests/setupCardOrders.test.js 的 value→_value。本地 eslint --max-warnings 2 退出 0，聚焦 55/55。B86 不用动：3cc399b 已修（liveStatusLine 显式发 draggable="false"）并有 tests/liveLineupDraggable.test.js。CI 变绿待看。
