@@ -3589,3 +3589,5 @@ Follow-up to 61fd0b4's documented gap: `openMarket()` now also `await playersRea
 ## Lychee — user decided 2026-11-24 00:40 CST: KEEP the PnR tactic-roles implementation
 
 User's words: "挡拆选人肯定要啊。我跟code说的。" Code's PnR slices (84284c6 engine + d997945 tactics-board panel) stay in the game — no revert. The wait-for-go-ahead dispute that has been open since 2026-11-22 is closed; the design (PnR first, no laziness attribute, e2eb8a3) stands as built. Recorded in MEMORY.md.
+
+[2026-11-24] Muse（Coding Agent）：认领 Code 的 B35 §26 空位灌水复查 cfc8dba9 独立验证。范围：按 §26 同口径重跑整季 scripts/sim/b35-season-stats.mjs 1995+1996 种子 1（核对 Barros/Blaylock/Miller/Ellis/Scott/Murray/Person 模拟 vs 真实、三分属性相关 0.55/0.52 vs 0.42/0.39）与 b35-gate-dist.mjs 120 场（核对 0.58/0.70 门槛球员 0 个）；另测 §26 未直接测的 Miller 投篮画像（三分占比/命中率/空位度）以定性机制；聚焦 + 全套重跑。只读验证、不改生产文件。浏览器实测仍排 Mac。Wibey 全量 review（review/2026-11-20 分支）进行中。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
