@@ -106,3 +106,14 @@
 | 后台回填 23,448 张全完成 | （启动前已完成） | +8960ms（本机 headless 环境比 Node 纯计算的 1.2s 慢得多，`requestIdleCallback` 空闲时间比预期稀，但完全不阻塞主线程，无报错） |
 
 验证：新增 `tests/playersLazyBuild.test.js`（7 个用例）；全套 `3977/3977`（Node 测试从不走 `loadPlayers()`，所以之前 30 文件的测试零改动）；lint 干净；真浏览器对比确认无 page error。未做账号门后的 openCollection/openDailyDraw 点击归因完整测试（需先创建账号），但已确认没有调用方依赖这几个函数的同步返回值，改 async 安全。
+
+## 11. 独立验证（2026-11-23 20:26 轮，Muse；认领 74de949c，覆盖 61fd0b42 + 跟进 358ffa8f）——通过
+
+- **真实冷路径探针**（自写，goal hidden_files/perf-r3-verify-probe.mjs；fetch 桩喂本地 roster.json/roster.meta.json，无浏览器无 IDB）：懒分支 15/15、eager 分支 4/4。懒：loadPlayers 76ms 即 resolve 且 PLAYERS 仍为 []、isPlayersReady() false；playersReady() 在 50ms 后仍 pending、约 1.4s 后随回填完成触发、满池 23,448 张；回填中途 PLAYERS 恒为 []（从未出现半池数组）；getSeasonCards(1996) 416 张与行数一致，且其条目与回填后的 PLAYERS 条目是同一对象（现建与回填共享 cardForRow 缓存）；二次 playersReady() 立即 resolve 同一数组；Jordan 1996 卡与 fresh seasonToCard 深相等。eager（?eagerCards=1）：resolve 即满池 23,448，isPlayersReady() 立即 true。
+- **§1 数字复跑**（本机 Node，scripts/measure/perf-r3-lazy.mjs）：JSON.parse 100ms（文档 132）、span index 25ms（25）、2020 季 93ms（125）、一队一季 1.50ms（1.34）、全量建卡 988ms（1204）、块中位数 29.9ms（33）、最长块 88.2ms（99）、单张 42.1µs（~51）——量级与文档一致。
+- **六处 async 入口**：openCollection/openDailyDraw/startHometownChallenge/startClutchChallenge/startMyTeamSeason/openMarket 的全部调用方均为 fire-and-forget（事件监听 / return void / 末尾调用），无一依赖同步返回值或调用后紧接的同步 DOM 读取；openMarket 先 show("market") 再 await，屏先现后填，refill 后的 autosave 仍在 openMarket 内（afterWin/refillShop 支）执行，无保存丢失。
+- **缓存失效**：bannerStatsCache 键含 PLAYERS.length，回填换池后失效；createBestCardIndex 按数组身份+长度重建，无 stale 空索引陷阱；每日抽卡唯一 show("draw") 在 openDailyDraw 的 await 之后，claimDailyDraw 的默认 pool 在 UI 上不可达于未就绪窗口。
+- **剩余 §6 项**：codexProgress/searchPeople/playersForFranchise/credits/hometownKnownBrefs 等均为只读，窗口内最差是空列表，无写操作；赛季引擎路径在开局后才跑，窗口已过。
+- **变异核查**（scratch worktree，已删）：M1 cardForRow 取消记忆化 → 身份测试变红（6 pass / 1 fail）；M2 回填去掉 _markFullyBuilt() → 探针在 playersReady() 处永久挂起、永不 PASS（证实探针能抓到等待者未释放）。
+- **测试**：聚焦 playersLazyBuild 7/7；全套 3908：3899 通过，9 失败 = online* ws 环境缺口（与 19:26 基线逐数相同；3899+85 未加载 = 3984，与 Code 所称 3984/3984 一致）。courtSimple "court skill pop" 通过。
+- **注记**：① 设计 §3 要求把零散 seasonToCard 调用点改走 cardForRow，实际未改（analyticsSpecialist.js、scoutCareer.js、reborn/identity.js、reborn/training.js）——不是缺陷：identity.js 的 buildPlayerCard 会对建出的卡写 growth deltas，共享缓存实例反而会污染池子；其余三处是瞬时只读计算。不要盲目“补改”。② getSeasonCards 目前零生产调用点，且暖启动下因 `_rawRows` 为 null 静默返 []——记 B102（latent API 陷阱）。③ 懒路径下 onProgress 会报 1/"done"，而此时池子尚未就绪——boot 用 isPlayersReady() 判断故无 live 影响，但任何把进度 1.0 当作“池子就绪”的后来者会被误导。④ 提交的 7 个测试不覆盖懒分支（需浏览器 fetch），懒语义目前只由本轮外部探针 + Mac 浏览器实测兜底，建议把 fetch 桩版探针收进 tests/（已记 B102 行）。浏览器实测（冷启动 TTI 对照、回填完成前开抽卡/搜人/市场/开生涯、账号门后点击归因）仍排 Mac。
