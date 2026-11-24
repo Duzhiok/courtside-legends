@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { setLang } from "../js/i18n.js";
 import {
   renderCareerHistory,
   renderDevelopmentPlans,
@@ -535,4 +536,37 @@ test("history view uses one delegated filter handler and clear empty states", ()
   const unmanaged = container();
   renderCareerHistory(unmanaged, { career: { season: {} } });
   assert.match(unmanaged.innerHTML, /长期生涯|载入/);
+});
+
+// i18n coverage pin (2026-11-23 10:26 verification follow-up): the committed
+// suite only ever passed lang: "en" explicitly, so if the lang = getLang()
+// default were replaced by a hardcoded "zh", every English test still
+// passed — while the production call sites (app.js:9192/9270) pass no lang
+// at all and would silently render Chinese in English mode. This test
+// exercises the default path the production call sites rely on.
+test("draft board + development plans follow the current UI language when no lang is passed", () => {
+  const model = career();
+  const draftBox = container();
+  const planBox = container();
+  try {
+    setLang("en");
+    renderDraftBoard(draftBox, { career: model, teamNames: {} }, {});
+    assert.match(draftBox.innerHTML, /Historical debut class \(not an exact draft history\)/);
+    assert.match(draftBox.innerHTML, /Fictional prospect/);
+    assert.doesNotMatch(draftBox.innerHTML, /历史首秀班|架空新秀/);
+    renderDevelopmentPlans(planBox, { career: model }, {});
+    assert.match(planBox.innerHTML, /Player development/);
+    assert.match(planBox.innerHTML, /Not set/);
+    assert.doesNotMatch(planBox.innerHTML, /球员发展方案|未设置/);
+
+    setLang("zh");
+    renderDraftBoard(draftBox, { career: model, teamNames: {} }, {});
+    assert.match(draftBox.innerHTML, /历史首秀班（非精确选秀史）/);
+    assert.match(draftBox.innerHTML, /架空新秀/);
+    renderDevelopmentPlans(planBox, { career: model }, {});
+    assert.match(planBox.innerHTML, /球员发展方案/);
+    assert.match(planBox.innerHTML, /未设置/);
+  } finally {
+    setLang("zh");
+  }
 });
