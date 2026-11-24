@@ -83,11 +83,13 @@ export function cardForRow(row) {
   return card;
 }
 
-/** All cards for one season, memoized. Cheap (~0.1ms/card) even when PLAYERS itself isn't fully built yet. */
+/** All cards for one season, memoized. Cheap (~0.1ms/card) even when PLAYERS itself isn't fully built yet.
+ * B102: on a warm boot (IDB cache hit / already fully built) _rawRows is never set -- fall back to the
+ * already-built PLAYERS pool instead of silently handing back an empty season. */
 export function getSeasonCards(season) {
   if (_seasonCache.has(season)) return _seasonCache.get(season);
-  const rows = (_rawRows || []).filter((r) => r.season === season);
-  const cards = rows.map(cardForRow);
+  const cards = _rawRows ? _rawRows.filter((r) => r.season === season).map(cardForRow)
+    : PLAYERS.filter((p) => p.season === season);
   _seasonCache.set(season, cards);
   return cards;
 }

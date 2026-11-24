@@ -56,3 +56,18 @@ test("getSeasonCards: without loadPlayers() having set up raw rows, returns an e
   // asks for a season before that (or in Node, ever) must get [] back, not a crash.
   assert.deepEqual(getSeasonCards(1874), []);
 });
+
+test("getSeasonCards: B102 — on a warm boot (_rawRows never set, PLAYERS already built) it falls back to PLAYERS, not an empty array", () => {
+  // A real warm path (IDB cache hit / already fully built) never populates _rawRows; it only ever
+  // has the finished PLAYERS pool. getSeasonCards must still find real cards there instead of
+  // silently handing back [] for a season that genuinely has players on it.
+  const marker = { ...cardForRow({ season: 1873, team: "CHI", name: "Warm Boot Marker", ppg: 1, mpg: 1, gp: 1 }) };
+  PLAYERS.push(marker);
+  try {
+    const found = getSeasonCards(1873);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].name, "Warm Boot Marker");
+  } finally {
+    PLAYERS.pop();
+  }
+});
