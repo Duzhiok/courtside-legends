@@ -186,3 +186,179 @@ body:has(.screen.arena.active) .topbar {
 @media (prefers-reduced-motion: reduce) {
   #screen-home.arena .hero-cta { transition: none; }
 }
+
+/* ---------------- Live match (#screen-game): TV broadcast ---------------- */
+
+/* Scorebug: dark plate, team colour edges (home amber / away sky, same as the court tokens), big digits, orange quarter chip. */
+#screen-game.arena .scoreboard {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--surface-line);
+  background:
+    linear-gradient(90deg, rgba(255, 224, 138, .16) 0%, transparent 28%, transparent 72%, rgba(125, 211, 252, .16) 100%),
+    linear-gradient(180deg, #0d2418 0%, #050d09 100%);
+  box-shadow: var(--shadow-deep), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+#screen-game.arena .scoreboard::before,
+#screen-game.arena .scoreboard::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+}
+#screen-game.arena .scoreboard::before { left: 0; background: linear-gradient(#ffe08a, #e0a526); }
+#screen-game.arena .scoreboard::after { right: 0; background: linear-gradient(#7dd3fc, #2b8cc4); }
+#screen-game.arena .team-score > span {
+  color: var(--text-mid);
+  font-weight: 800;
+  font-size: .95rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+#screen-game.arena .team-score strong {
+  font-size: clamp(2.8rem, 6vw, 4rem);
+  color: #fff;
+  text-shadow: 0 0 22px rgba(246, 200, 112, .25);
+  font-variant-numeric: tabular-nums;
+}
+#screen-game.arena .clock {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 150px;
+  padding: 6px 18px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .45);
+  border: 1px solid rgba(255, 255, 255, .08);
+}
+#screen-game.arena #quarter {
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--orange);
+  color: #1a0d02;
+  font-weight: 900;
+  font-size: .78rem;
+  letter-spacing: .08em;
+}
+#screen-game.arena #game-clock { color: #fff; font-size: 2.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+#screen-game.arena #poss-label { color: var(--gold); opacity: 1; font-weight: 700; font-size: .78rem; }
+/* LIVE bug while the ball is live; gone in a dead-ball window. */
+#screen-game.arena .clock::before {
+  content: "LIVE";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-120%);
+  display: none;
+}
+#screen-game.arena .scoreboard .clock { position: relative; }
+#screen-game.arena:not(:has(.coach-panel.coach-paused)) .team-score:first-child::after {
+  content: "● LIVE";
+  margin-top: 2px;
+  color: #f87171;
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+/* Coach bench + lineups: dark glass panels. */
+#screen-game.arena :is(.coach-panel, .lineups > div) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .025));
+  border: 1px solid var(--surface-line);
+  color: var(--text-hi);
+}
+#screen-game.arena .coach-panel h3 { color: var(--gold); letter-spacing: .04em; }
+#screen-game.arena .coach-panel strong { color: var(--text-hi); }
+#screen-game.arena :is(.deadball-panel, .takeover-panel, .defense-panel, .pos-live-panel) {
+  background: rgba(0, 0, 0, .22);
+  border-color: rgba(255, 255, 255, .1);
+}
+#screen-game.arena .deadball-panel.open-window { border-color: rgba(134, 239, 172, .45); box-shadow: inset 0 0 0 1px rgba(134, 239, 172, .12); }
+#screen-game.arena .deadball-panel.locked::before { color: var(--text-low); }
+#screen-game.arena .momentum-meter .bar,
+#screen-game.arena .bar { background: rgba(255, 255, 255, .1); }
+#screen-game.arena .lineups li { border-bottom-color: rgba(255, 255, 255, .07); }
+#screen-game.arena .lineups h4 { color: var(--gold); letter-spacing: .03em; }
+#screen-game.arena .live-line .main { color: var(--text-hi); }
+#screen-game.arena :is(.live-line .status, .live-line .intent) { color: var(--text-low); }
+#screen-game.arena .live-line .intent .suggest { color: #fdba74; }
+#screen-game.arena .live-line .status :is(.hot-hot, .hot-fire) { color: #fb923c; }
+#screen-game.arena .live-line .status :is(.hot-cold, .hot-ice) { color: #7dd3fc; }
+#screen-game.arena .live-line .status .mood-up { color: #86efac; }
+#screen-game.arena .live-line .status .mood-down { color: #fcd34d; }
+#screen-game.arena .live-line.marked { background: rgba(234, 88, 12, .14); outline-color: #fb923c; }
+#screen-game.arena details > summary { color: var(--text-mid); }
+#screen-game.arena .takeover-tempo-btn[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: #1a0d02; font-weight: 800; }
+#screen-game.arena .btn.warn { background: var(--orange); border-color: var(--orange); color: #1a0d02; font-weight: 800; }
+#screen-game.arena .btn.primary.pulse { box-shadow: 0 0 0 0 rgba(246, 200, 112, .5); }
+
+/* First-run tip: gold-edged note on the dark ground. */
+#screen-game.arena .first-run-tip { background: rgba(246, 200, 112, .08); border-color: var(--surface-line-strong); color: var(--text-hi); }
+
+/* Form fields inside arena screens. */
+.screen.arena :is(select, input[type="number"], input[type="text"], input[type="search"]) {
+  background: rgba(0, 0, 0, .35);
+  color: var(--text-hi);
+  border: 1px solid rgba(255, 255, 255, .18);
+  color-scheme: dark;
+}
+.screen.arena :is(select, input):focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.screen.arena label { color: var(--text-mid); }
+
+/* ---------------- Result (#screen-result): the final-buzzer card ---------------- */
+#screen-result.arena .result-card {
+  max-width: 980px;
+  margin: 0 auto;
+  background:
+    radial-gradient(600px 220px at 50% -40px, rgba(246, 200, 112, .22), transparent 70%),
+    linear-gradient(180deg, #0d2418 0%, #06110b 100%);
+  border: 1px solid var(--surface-line-strong);
+  box-shadow: var(--shadow-deep);
+  color: var(--text-hi);
+}
+#screen-result.arena #result-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4.5vw, 2.6rem);
+  letter-spacing: .04em;
+  color: var(--gold);
+}
+#screen-result.arena .big-score {
+  color: #fff;
+  font-size: clamp(3.4rem, 10vw, 5.2rem);
+  text-shadow: 0 0 34px rgba(246, 200, 112, .3);
+  font-variant-numeric: tabular-nums;
+}
+#screen-result.arena #result-summary { color: var(--text-mid); max-width: 70ch; margin-inline: auto; }
+#screen-result.arena .result-explain { max-width: none; background: rgba(0, 0, 0, .25); border-color: var(--surface-line); }
+#screen-result.arena .result-explain h3 { color: var(--gold); }
+#screen-result.arena .result-explain-team { background: var(--surface-1); border-color: rgba(255, 255, 255, .1); color: var(--text-mid); }
+#screen-result.arena .result-explain-team > strong { color: var(--text-hi); }
+#screen-result.arena .result-explain li { color: var(--text-mid); }
+#screen-result.arena .box-score { max-width: none; }
+#screen-result.arena .box-wrap > strong { color: var(--gold); }
+#screen-result.arena .box-score table { color: var(--text-hi); }
+#screen-result.arena .box-score th { color: var(--text-low); font-weight: 700; font-size: .74rem; letter-spacing: .04em; border-bottom-color: var(--surface-line-strong); }
+#screen-result.arena .box-score td { border-bottom-color: rgba(255, 255, 255, .07); font-variant-numeric: tabular-nums; }
+#screen-result.arena .box-score tbody tr:hover td { background: rgba(246, 200, 112, .06); }
+#screen-result.arena .result-card > .actions {
+  background: rgba(6, 17, 11, .92);
+  border-top-color: var(--surface-line);
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, .45);
+}
+#screen-result.arena :is(.result-rewards, .result-all-team) { color: var(--text-hi); }
+#screen-game.arena #game-team-a { color: #ffe08a; }
+#screen-game.arena #game-team-b { color: #7dd3fc; }
+#screen-result.arena .box-score td { color: var(--text-hi); }
+#screen-result.arena .box-score td :is(small, .tiny, .season) { color: var(--text-low); }
+@media (max-width: 560px) {
+  #screen-game.arena .scoreboard { padding: 10px 14px; gap: 6px; }
+  /* two short lines beat "HOME ALL-S…" */
+  #screen-game.arena .team-score > span { font-size: .72rem; letter-spacing: .02em; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; max-width: 100%; }
+  #screen-game.arena .team-score { min-width: 0; }
+  #screen-game.arena .clock { min-width: 0; padding: 6px 10px; }
+  #screen-game.arena #game-clock { font-size: 1.8rem; }
+  #screen-game.arena #poss-label { font-size: .7rem; white-space: nowrap; }
+}
