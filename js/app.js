@@ -1924,7 +1924,7 @@ async function startMode(mode) {
     return;
   }
   if (mode === "legend") {
-    startLegendMode();
+    await startLegendMode();
     return;
   }
   if (mode === "career") {
@@ -2400,10 +2400,10 @@ document.querySelectorAll("[data-duel-filler]").forEach((btn) => {
   };
 });
 syncDuelFillerButtons();
-$("#btn-custom-legend")?.addEventListener("click", () => {
+$("#btn-custom-legend")?.addEventListener("click", async () => {
   state.mode = "legend";
   state.lastMode = "legend";
-  startLegendMode();
+  await startLegendMode();
 });
 $("#btn-custom-father-son")?.addEventListener("click", () => startFamilyDuel("fatherSon"));
 $("#btn-custom-brothers")?.addEventListener("click", () => startFamilyDuel("brothers"));
@@ -4345,7 +4345,8 @@ function legendPlayerKey(p) {
     .trim();
 }
 
-function startLegendMode() {
+async function startLegendMode() {
+  await playersReady(); // perf-r3: rollLegendTeam() below reads PLAYERS synchronously
   const eight = shuffle(FRANCHISES).slice(0, 8);
   state.legend = {
     franchises: eight,

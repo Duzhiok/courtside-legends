@@ -73,3 +73,20 @@ test("every initDraft() call site awaits it, so dealPack() can't run before PLAY
   assert.ok(calls.length >= 3, `expected at least 3 initDraft() call sites, found ${calls.length}`);
   for (const m of calls) assert.ok(m[2], `initDraft(...) call at offset ${m.index} is missing await`);
 });
+
+// Legend Mode (#btn-custom-legend) is a 5th entry point sharing the same root cause: it bypasses
+// startMode() entirely and rollLegendTeam() -- called at the end of startLegendMode() -- reads
+// PLAYERS directly via playersForFranchise(PLAYERS, f).
+test("startLegendMode is async and awaits playersReady() before rollLegendTeam()", () => {
+  assertAsync("startLegendMode");
+  const b = body("startLegendMode");
+  const readyAt = b.search(/await playersReady\(\)/);
+  const rollAt = b.search(/\brollLegendTeam\(\)/);
+  assert.ok(readyAt >= 0 && rollAt >= 0 && readyAt < rollAt, "playersReady() must be awaited before rollLegendTeam()");
+});
+
+test("every startLegendMode() call site awaits it (startMode branch + #btn-custom-legend)", () => {
+  const calls = [...src.matchAll(/^(\s*)(await )?startLegendMode\(\)/gm)];
+  assert.ok(calls.length >= 2, `expected at least 2 startLegendMode() call sites, found ${calls.length}`);
+  for (const m of calls) assert.ok(m[2], `startLegendMode() call at offset ${m.index} is missing await`);
+});
