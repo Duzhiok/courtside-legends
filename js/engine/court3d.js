@@ -37,6 +37,7 @@ import { clamp } from "../core/seededRandom.js";
 import { webglAvailable } from "../core/capabilities.js";
 import { arenaPreset, qualityProfile } from "./arena/arenaPresets.js";
 import { makeFloorTexture } from "./arena/floorTexture.js";
+import { loadPlayerTemplate, makeGlbFigure, players3dEnabled } from "./court3dPlayers.js";
 import { addHoopDetails } from "./arena/arenaHoop.js";
 import { addArenaLights } from "./arena/arenaLights.js";
 import { buildArenaEnvironment } from "./arena/arenaEnvironment.js";
@@ -257,7 +258,10 @@ async function loadThreeForReplay(doc) {
 export class CourtView3D {
   static async create(container, opts = {}) {
     const T = await loadThreeForReplay(opts.doc);
-    return new CourtView3D(container, { ...opts, three: T });
+    // Experimental humanoid players (?players3d=1): a null template (flag off, load failure, timeout) keeps the capsule figures.
+    const wantGlb = opts.players3d ?? players3dEnabled();
+    const playerTemplate = opts.playerTemplate ?? (wantGlb ? await loadPlayerTemplate(T) : null);
+    return new CourtView3D(container, { ...opts, three: T, playerTemplate });
   }
 
   constructor(container, opts = {}) {
@@ -310,6 +314,7 @@ export class CourtView3D {
     this._possession = null;
     this._phaseStart = null;
     this._phase = 1;
+    this._playerTpl = opts.playerTemplate || null; // GLB humanoid template; null = capsule figures
     this._figures = new Map();
     this._lineupSig = "";
     this._shot = null;
@@ -583,6 +588,7 @@ export class CourtView3D {
     this._lineupSig = sig;
     for (const fig of this._figures.values()) {
       this._scene.remove(fig.group);
+      fig.glb?.dispose();
     }
     this._figures.clear();
     for (const pos of positions) {
@@ -599,6 +605,17 @@ export class CourtView3D {
   _makeFigure(pos) {
     const T = this.T;
     const color = this._colors[pos.side] ?? 0x888888;
+    if (this._playerTpl) {
+      try {
+        const g = makeGlbFigure(T, this._playerTpl, { color, playerId: pos.playerId });
+        const plate = this._makePlate(pos.short, pos.pts);
+        if (plate) g.group.add(plate.sprite);
+        g.group.position.set(pos.x, 0, pos.z);
+        return { ...g, plate, playerId: pos.playerId, short: pos.short, isOffense: pos.isOffense, pts: pos.pts, pinned: null };
+      } catch {
+        this._playerTpl = null; // a bad clone must never break the replay: fall back to capsules for the rest of the view
+      }
+    }
     const group = new T.Group();
     const mat = new T.MeshStandardMaterial({ color, roughness: 0.8 });
     const body = new T.Mesh(new T.CapsuleGeometry(0.3, 0.75, 4, 12), mat);
@@ -705,7 +722,7 @@ export class CourtView3D {
         fig.plate.sprite.scale.set(w.w, w.h, 1);
         fig.plate.sprite.material.depthTest = !isFocus; // the active player's name is never behind a scoreboard or a body
         fig.plate.sprite.renderOrder = isFocus ? 20 : 5;
-        fig.body.material.emissive?.setHex(isFocus ? 0x3d3d3d : 0x000000);
+        fig.body.material?.emissive?.setHex(isFocus ? 0x3d3d3d : 0x000000);
       }
       const p = fig.group.position;
       const baseY = p.y + PLATE_BASE_Y[mode]; // the plate rides on the figure: a dunker in the air carries his plate up with him
@@ -873,6 +890,7 @@ export class CourtView3D {
       shooterId: shot.shooterId,
     };
     this._aids?.setShot((u) => this._shotPoint(this._shot, u), to);
+    fig.glb?.trigger("jump", (SHOT_FLIGHT_MS / 1000) * 1.2); // the shooter rises with the release
     this._ballRest = null;
     this._setReplayState("shot");
     return true;
@@ -979,6 +997,7 @@ export class CourtView3D {
     } catch {
       /* texture already gone */
     }
+    for (const fig of this._figures.values()) fig.glb?.dispose();
     this._figures.clear();
   }
 
@@ -990,6 +1009,7 @@ export class CourtView3D {
     const info = this._renderer?.info?.render;
     if (!ds) return;
     ds.arena = this._arena.id;
+    ds.players = this._playerTpl ? "glb" : "capsule";
     this._statFrames = (this._statFrames || 0) + 1;
     if (info && this._statFrames % 30 === 1) {
       ds.drawCalls = String(info.calls);
@@ -1029,6 +1049,8 @@ export class CourtView3D {
       r();
     }
     const tSec = now / 1000;
+    this._dt = this._lastNow === null ? 0.016 : clamp((now - this._lastNow) / 1000, 0.001, 0.25);
+    this._lastNow = now;
     const positions = snapshotTo3DPositions(snap, phase, tSec);
     let handlerPos = null;
     for (const pos of positions) {
@@ -1049,6 +1071,7 @@ export class CourtView3D {
       fig.armL.rotation.x = swing;
       fig.armR.rotation.x = -swing;
       fig.body.rotation.z = Math.sin(now * 0.0011 + pos.slotIndex * 2.3) * 0.02;
+      fig.glb?.step(this._dt, x, z, fig.group.rotation.y);
       if (pos.isHandler) handlerPos = { x, z };
     }
     // Follow the real ball holder when the presentation has named one; the PG slot is only the fallback.
@@ -1058,8 +1081,6 @@ export class CourtView3D {
     // the handler's half (camera and look-target move together, so the
     // framing never rotates).
     // Closer than the whole-court fit, so the camera pans along the court with the ball (eased: a new holder never snaps the view).
-    this._dt = this._lastNow === null ? 0.016 : clamp((now - this._lastNow) / 1000, 0.001, 0.25);
-    this._lastNow = now;
     const panTarget = handlerPos ? clamp(handlerPos.z * PAN_FOLLOW, -PAN_LIMIT_M, PAN_LIMIT_M) : 0;
     this._panZ += (panTarget - this._panZ) * (1 - Math.exp(-this._dt * 4));
     this._layoutCamera(this._panZ);
@@ -1124,6 +1145,10 @@ export class CourtView3D {
         const v = (el - DUNK_DRIVE_MS) / DUNK_NET_MS;
         const jumpY = Math.sin(v * Math.PI) * 0.9;
         if (fig) fig.group.position.set(d.to.x, jumpY, d.to.z);
+        if (!d.jumped) {
+          d.jumped = true;
+          fig?.glb?.trigger("jump", (DUNK_NET_MS + DUNK_SETTLE_MS) / 1000);
+        }
         ball.position.set(d.to.x, 1.6 + jumpY + v * 1.2, d.to.z);
         this._rimShakeUntil = now + 150;
         this._flash(0.5);
@@ -1228,6 +1253,12 @@ export class CourtView3D {
    */
   _landed({ made, pts = 0, side = "home", shooterId = null, dunk = false }) {
     if (made && !this._reducedMotion) this._env?.cheer?.(dunk || pts >= 3 ? 1.3 : 1, side, this._clock());
+    if (made && !this._reducedMotion) {
+      // The scorer celebrates; a three or a dunk gets the whole scoring side on its feet.
+      for (const fig of this._figures.values()) {
+        if (fig.glb && (fig.playerId === shooterId || ((dunk || pts >= 3) && fig.isOffense))) fig.glb.trigger("celebrate");
+      }
+    }
     try {
       this.onShotLanded?.({ made, pts, side, shooterId, dunk });
     } catch {

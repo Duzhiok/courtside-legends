@@ -31,9 +31,18 @@ material name works directly; 11 clips incl. `Man_Idle` / `Man_Walk` / `Man_Run`
 `Man_RunningJump`; 3,967 verts / 1,852 tris; 31 bones. Prefer `man.glb` for the first playable 3D match
 unless a second distinct character is needed — then this file is the second body.
 
-## Next steps (not done)
+## Status (2026-11-24): first playable prototype — `man.glb` on the 3D court, behind a flag
 
-1. Pick the court model (`man.glb` recommended) and write the loader module (clone ×10, home/away shirt
-   colors, idle/run/jump/celebrate wired to the S1a–S4 presentation timeline, capsule fallback).
-2. Add `SkeletonUtils` to the vendored three build if cloning is the route.
-3. Mac browser visual check (desktop + 390px) + perf measurement before calling it a prototype.
+- Enable with `?players3d=1` (or `localStorage["cls.players3d"]="1"`); OFF by default. The capsule figures stay the fallback
+  (flag off, WebGL/load failure, 8 s timeout, bad clone). `data-players="glb|capsule"` on `#court-3d-root` shows which is live.
+- `js/engine/court3dPlayers.js`: loads `assets/avatar3d/man.glb` once, `SkeletonUtils.clone` ×10, shirt = team colour, shorts =
+  darker team colour, skin/hair by player-id hash. Clips: Man_Idle / Man_Run (timeScale by ground speed) / Man_Jump (shooter at
+  release, dunk lift-off) / Man_Clapping (scorer; whole scoring side on a three or dunk). CourtView3D keeps authority over
+  positions, facing and timing; GameSim is untouched.
+- `js/vendor/three-gltf.min.js` (GLTFLoader + SkeletonUtils, 48 KB, built by `scripts/vendor/build-three-gltf.sh` against the
+  vendored full `three.module.js` so classes are shared with the court scene; the avatar bundle's private three copy cannot be mixed in).
+- QA: `node scripts/qa/players3d.mjs [outDir] [baseUrl]` (desktop 1440 + mobile 390, capsule vs glb).
+- Measured under SOFTWARE GL (headless, SwiftShader) — fps is not meaningful there; relative cost is: draw calls 88→106 and
+  tris 125k→135k (desktop), 79→101 and 48k→58k (mobile). Real-GPU fps on a Mac is still to be measured by hand.
+- Not done: celebrate/jump poses only exercised, not eyeballed; the ball is not attached to a hand; no shadows; the
+  second body (`quaternius-clothed-man.glb`) is unused; Mixamo not used (needs an Adobe login + licence check).
