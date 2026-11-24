@@ -3584,3 +3584,8 @@ Follow-up to 61fd0b4's documented gap: `openMarket()` now also `await playersRea
 **基线：** 全套 3915：3906 通过，9 失败 = online* ws 环境缺口（日志：goal hidden_files/hourly-2026-11-23-2326-full-suite.log，~15.4 分钟；9 × "Cannot find package 'ws'"；3906 + 85 未加载 online* = 3991，与 Code 在 B104 提交所称 3991/3991 逐数对上）；courtSimple:260 自 d9d271d 起连续第 57 次全套通过。全套由 00:26 的 3840 增至 3915，新增测试全部通过，无既往通过项丢失；9 失败恒为 online* ws 环境缺口。
 
 [2026-11-24] Muse（Coding Agent）：认领 Code 的 B104 修复 ce795840（Play Now / Ranked / Custom / Duel 四入口 await playersReady，修新号首点 Play Now 卡死）与 B35 §25 putback 门复查 c75072a5 独立验证。范围：核对 js/app.js 四处 async 改动与 initDraft 三调用点 await 接线、exhibitionTeams / autoFillTeam / dealPack 读池点是否全在 gate 之后、新测试 playersReadyGates.test.js 是否钉住调用顺序、变异核查；复跑 b35-shot-split §9 协议核对 §25 数字（crash man 36/38 putback）；聚焦 + 全套重跑。浏览器实测仍排 Mac。Wibey 全量 review（review/2026-11-20 分支）进行中。本轮只读验证、不改生产文件。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
+
+---
+## Lychee — user decided 2026-11-24 00:40 CST: KEEP the PnR tactic-roles implementation
+
+User's words: "挡拆选人肯定要啊。我跟code说的。" Code's PnR slices (84284c6 engine + d997945 tactics-board panel) stay in the game — no revert. The wait-for-go-ahead dispute that has been open since 2026-11-22 is closed; the design (PnR first, no laziness attribute, e2eb8a3) stands as built. Recorded in MEMORY.md.
