@@ -69,6 +69,7 @@ async function createGmCareer(page) {
   await fresh(page);
   await page.evaluate(async () => {
     const acc = await import("/js/data/account.js"); const pl = await import("/js/data/players.js"); const co = await import("/js/data/coaches.js");
+    await pl.playersReady(); // perf-r3: the account roster below is read straight off PLAYERS — home-active no longer implies the pool is built
     const a = acc.createAccount("权限QA"); const seen = new Set(); a.playerIds = [...pl.PLAYERS].filter((p) => pl.overall(p) >= 55 && pl.overall(p) <= 72).filter((p) => !seen.has(p.bref) && seen.add(p.bref)).slice(0, 15).map((p) => p.id); // one card per person (the builder dedupes); mid OVR so the salary cap fits
     a.onboardingDone = true; a.welcomeGranted = true; a.coachId = co.COACHES[0].id; a.coachIds = [a.coachId]; acc.saveAccount(a);
   });
@@ -190,6 +191,8 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await en.page.evaluate(async () => {
     const ttc = await import("/js/modes/timeTravelCareer.js");
     const sr = await import("/js/data/saveRoot.js");
+    const players = await import("/js/data/players.js");
+    await players.playersReady(); // perf-r3: acceptInterviewOffer builds every roster off PLAYERS synchronously — home-active no longer implies the pool is built
     const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7, role: "COACH" });
     const root = ttc.resolveFutureKnowledgeChoice(ttc.acceptInterviewOffer(prologue, prologue.offers[1].id), "introduce-load-management");
     sr.writeRootSave(root, localStorage);

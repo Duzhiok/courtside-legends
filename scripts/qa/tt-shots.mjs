@@ -28,6 +28,8 @@ async function seedCareer(page, mutateSrc = "") {
     const ttc = await import("/js/modes/timeTravelCareer.js");
     const sr = await import("/js/data/saveRoot.js");
     const cc = await import("/js/modes/careerContract.js");
+    const players = await import("/js/data/players.js");
+    await players.playersReady(); // perf-r3: acceptInterviewOffer builds every roster off PLAYERS synchronously — home-active no longer implies the pool is built
     const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7 });
     let root = ttc.acceptInterviewOffer(prologue, prologue.offers[1].id);
     if (src) root = await new Function("root", "cc", `return (async () => { ${src} })()`)(root, cc);

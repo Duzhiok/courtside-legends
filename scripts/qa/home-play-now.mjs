@@ -102,6 +102,8 @@ for (const [width, height, size] of [
     const ttc = await import("/js/modes/timeTravelCareer.js");
     const sr = await import("/js/data/saveRoot.js");
     const sg = await import("/js/data/savegame.js");
+    const players = await import("/js/data/players.js");
+    await players.playersReady(); // perf-r3: acceptInterviewOffer builds every roster off PLAYERS synchronously — home-active no longer implies the pool is built
     const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7 });
     const root = ttc.acceptInterviewOffer(prologue, prologue.offers[1].id);
     sr.writeRootSave(root, localStorage);

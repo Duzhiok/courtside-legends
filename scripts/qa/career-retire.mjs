@@ -34,6 +34,8 @@ async function openCareer(width, height, scenario) {
     const rollover = await import("/js/modes/seasonRollover.js");
     const coachMod = await import("/js/career/coachProfile.js");
     const sr = await import("/js/data/saveRoot.js");
+    const players = await import("/js/data/players.js");
+    await players.playersReady(); // perf-r3: acceptInterviewOffer builds every roster off PLAYERS synchronously — home-active no longer implies the pool is built
     const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7 });
     let root = ttc.acceptInterviewOffer(prologue, prologue.offers[1].id);
     const team = root.leagueCareer.season.userTeamId;

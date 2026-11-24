@@ -36,11 +36,13 @@ async function openHome(width, height, { lang = "zh", withCareer = false } = {})
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate((l) => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem("courtside.lang", l); }, lang);
   await page.reload({ waitUntil: "domcontentloaded" });
-  await homeActive(page); // roster is loaded once the home screen is active
+  await homeActive(page); // NB: home-active no longer implies the pool is built (perf-r3 lazy backfill) — the evaluate below awaits playersReady() first
   if (withCareer) {
     await page.evaluate(async () => {
       const ttc = await import("/js/modes/timeTravelCareer.js");
       const sr = await import("/js/data/saveRoot.js");
+      const players = await import("/js/data/players.js");
+      await players.playersReady(); // perf-r3: acceptInterviewOffer builds every roster off PLAYERS synchronously — home-active no longer implies the pool is built
       const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7 });
       sr.writeRootSave(ttc.acceptInterviewOffer(prologue, prologue.offers[1].id), localStorage);
     });
