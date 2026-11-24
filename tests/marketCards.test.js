@@ -41,4 +41,23 @@ test("shop card: the analyst fit tag can show without the scout (Gold) and never
   assert.ok(gold.includes("fit-badge"), "Jordan into the 1996 Kings: the analyst flags the fit");
   assert.ok(!gold.includes("value-badge"), "no scout bought: the hidden value stays hidden");
   assert.ok(!playerMarketCardHtml(jordan, ctx, { budget: 1e9 }).includes("fit-badge"), "fitOn defaults to scoutOn (the duel)");
+  // B101: the fitOn = scoutOn default was unpinned — { scoutOn: true } with no
+  // fitOn must still show the fit tag (Jordan's tier into these Kings is great).
+  assert.ok(
+    playerMarketCardHtml(jordan, ctx, { scoutOn: true, budget: 1e9 }).includes("fit-badge"),
+    "scout bought, fitOn omitted: the fit tag follows scoutOn"
+  );
+  // B101: the value badge must be gated on scoutOn, not fitOn — Kerr is a
+  // bargain (妖人) the scout would reveal, so with the fit tag on but no
+  // scout the value stays hidden; with the scout it shows (the control that
+  // keeps the pin from passing vacuously on a valueless fixture).
+  const kerr = realTeam("CHI", 1996).players.find((x) => x.id === "kerrst01-1996-chi");
+  assert.ok(
+    !playerMarketCardHtml(kerr, ctx, { fitOn: true, scoutOn: false, budget: 1e9 }).includes("value-badge"),
+    "fit on, no scout: Kerr's bargain value stays hidden"
+  );
+  assert.ok(
+    playerMarketCardHtml(kerr, ctx, { fitOn: true, scoutOn: true, budget: 1e9 }).includes("value-badge"),
+    "scout bought: Kerr's bargain value is revealed"
+  );
 });
