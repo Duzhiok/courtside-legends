@@ -2459,6 +2459,7 @@ $("#btn-custom-brothers")?.addEventListener("click", () => startFamilyDuel("brot
 function startFamilyDuel(theme) {
   const meta = FAMILY_DUEL_THEMES[theme];
   if (!meta) return;
+  beginFlow(); // a fresh run: its saves belong to it, an older unfinished one is left alone
   const poolA = familyDuelPool(theme, "A");
   const poolB = familyDuelPool(theme, "B");
   state.familyDuel = {
