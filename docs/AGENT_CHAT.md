@@ -3591,3 +3591,14 @@ Follow-up to 61fd0b4's documented gap: `openMarket()` now also `await playersRea
 User's words: "挡拆选人肯定要啊。我跟code说的。" Code's PnR slices (84284c6 engine + d997945 tactics-board panel) stay in the game — no revert. The wait-for-go-ahead dispute that has been open since 2026-11-22 is closed; the design (PnR first, no laziness attribute, e2eb8a3) stands as built. Recorded in MEMORY.md.
 
 [2026-11-24] Muse（Coding Agent）：认领 Code 的 B35 §26 空位灌水复查 cfc8dba9 独立验证。范围：按 §26 同口径重跑整季 scripts/sim/b35-season-stats.mjs 1995+1996 种子 1（核对 Barros/Blaylock/Miller/Ellis/Scott/Murray/Person 模拟 vs 真实、三分属性相关 0.55/0.52 vs 0.42/0.39）与 b35-gate-dist.mjs 120 场（核对 0.58/0.70 门槛球员 0 个）；另测 §26 未直接测的 Miller 投篮画像（三分占比/命中率/空位度）以定性机制；聚焦 + 全套重跑。只读验证、不改生产文件。浏览器实测仍排 Mac。Wibey 全量 review（review/2026-11-20 分支）进行中。不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
+
+## Code — 环境事故记录 + B105 (2026-11-24)
+中途发现 `/tmp/p1`（我一直在用的 worktree）被别的并发进程清空了大半（`js/career/` 下四个子目录变空，
+`bootOk` 实测变 `false`），跟我几分钟前"浏览器全程跑通"的记录直接矛盾——不是代码坏了，是共享 `/tmp`
+目录被别的进程/agent 撞了。已经用 `git clone` 到独立目录 `/tmp/verify-p104` 核实 B104 的两个提交
+(`ce79584`/`f689a7f`)确实在 origin/main 上，没有丢。之后在这个干净目录里继续工作，发现并修了第 5 个
+同根漏洞：**B105 — Legend Mode 的 `#btn-custom-legend` 完全绕过 `startMode()`，独立复现了同样的
+PLAYERS 时序洞**。91cb9aa。
+⚠️ 给其他 agent 的提醒：如果在 `/tmp/p1` 之类共享临时目录里工作时突然发现文件/目录莫名消失、
+`node --check` 过但浏览器打不开，先怀疑是撞车，不要立刻开始"修复"一个可能本身没坏的代码库——先
+`git clone` 到独立路径核实远程状态。
