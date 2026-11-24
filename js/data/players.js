@@ -34,6 +34,63 @@ export let PLAYERS = [];
 
 let _loaded = false;
 let _loading = null;
+// Perf round 3 (lazy card build): PLAYERS can be a partially-built array while the background
+// backfill runs. `_fullyBuilt` starts true so every Node test (which pushes cards onto PLAYERS
+// directly and never calls loadPlayers()) keeps seeing an instantly-ready pool; only the real
+// browser cold-boot path flips it false for the window between "index ready" and "all 23k cards
+// built". See docs/implementation/perf-r3-lazy-cards-design.md.
+let _fullyBuilt = true;
+let _readyWaiters = [];
+const _cardCache = new WeakMap(); // raw row -> built card (shared by on-demand builds and the backfill loop)
+const _seasonCache = new Map(); // season -> built cards for that season
+let _rawRows = null;
+
+/** True once every row in roster.json has a built card in PLAYERS (always true until a cold boot starts backfilling). */
+export function isPlayersReady() {
+  return _fullyBuilt;
+}
+
+/** Resolves once PLAYERS is the complete 23k-card pool. Resolves immediately if already full. */
+export function playersReady() {
+  if (_fullyBuilt) return Promise.resolve(PLAYERS);
+  return new Promise((resolve) => _readyWaiters.push(resolve));
+}
+
+function _markFullyBuilt() {
+  _fullyBuilt = true;
+  const waiters = _readyWaiters;
+  _readyWaiters = [];
+  for (const resolve of waiters) resolve(PLAYERS);
+}
+
+/**
+ * Dev guard for a full-pool scan that forgot to await playersReady(). Always just warns (never
+ * throws in the running app — a half pool is a bug, not a reason to crash a real player's game);
+ * tests can assert on the warning text if they want to pin a specific call site.
+ */
+export function assertPlayersReady(where = "") {
+  if (_fullyBuilt) return;
+  console.warn(`[roster] full-pool read before playersReady(): ${where}`);
+}
+
+/** Row -> card, memoized. The single on-demand build path; nothing else should call seasonToCard directly on a roster.json row. */
+export function cardForRow(row) {
+  let card = _cardCache.get(row);
+  if (!card) {
+    card = seasonToCard(row);
+    _cardCache.set(row, card);
+  }
+  return card;
+}
+
+/** All cards for one season, memoized. Cheap (~0.1ms/card) even when PLAYERS itself isn't fully built yet. */
+export function getSeasonCards(season) {
+  if (_seasonCache.has(season)) return _seasonCache.get(season);
+  const rows = (_rawRows || []).filter((r) => r.season === season);
+  const cards = rows.map(cardForRow);
+  _seasonCache.set(season, cards);
+  return cards;
+}
 
 /**
  * Convert raw per-game season row → game card with attributes + hidden tier.
@@ -1634,14 +1691,36 @@ export function loadPlayers(onProgress) {
     }
 
     const raw = data.players || [];
+    _rawRows = raw;
     buildCareerSpanIndex(raw);
+    report(0.25, "build");
+    const eager = (() => {
+      try {
+        return new URLSearchParams(globalThis.location?.search || "").get("eagerCards") === "1";
+      } catch {
+        return false;
+      }
+    })();
+    if (!eager) {
+      // Lazy path: resolve now with PLAYERS still empty. Anything that needs a specific card can
+      // use cardForRow/getSeasonCards (built straight from the raw rows, no dependency on PLAYERS).
+      // PLAYERS itself stays [] — never a holey half-built array — until the idle backfill below
+      // swaps in the complete pool in one atomic assignment, so "PLAYERS.length" and a plain
+      // `.map`/`.filter` over it are never lied to: it is either honestly empty or honestly whole.
+      _loaded = true;
+      _fullyBuilt = false;
+      report(0.3, "build");
+      console.info(`[roster] index ready (${raw.length} rows); cards build on demand + idle backfill`);
+      _backfill(raw, meta);
+      report(1, "done");
+      return PLAYERS;
+    }
     const list = new Array(raw.length);
     // Larger chunks = fewer yields = faster wall-clock on cold build
     const chunk = 800;
-    report(0.25, "build");
     for (let i = 0; i < raw.length; i += chunk) {
       const end = Math.min(i + chunk, raw.length);
-      for (let j = i; j < end; j++) list[j] = seasonToCard(raw[j]);
+      for (let j = i; j < end; j++) list[j] = cardForRow(raw[j]);
       report(0.25 + 0.7 * (end / raw.length), "build");
       await new Promise((r) => setTimeout(r, 0));
     }
@@ -1659,4 +1738,30 @@ export function loadPlayers(onProgress) {
     throw err;
   });
   return _loading;
+}
+
+/**
+ * Idle-time backfill for the lazy cold path: builds the full card array off the main render path,
+ * then swaps PLAYERS over in one atomic assignment (so nothing ever observes a partial PLAYERS
+ * array). Shares cardForRow's cache with any on-demand build that already happened mid-backfill.
+ * Small chunks (200) so a single block is never a long task; falls back to setTimeout where
+ * requestIdleCallback doesn't exist (Safari, Node).
+ */
+function _backfill(raw, meta) {
+  const list = new Array(raw.length);
+  let i = 0;
+  const idle = typeof requestIdleCallback === "function" ? requestIdleCallback : (fn) => setTimeout(() => fn({ timeRemaining: () => 0 }), 0);
+  const step = () => {
+    const end = Math.min(i + 200, raw.length);
+    for (; i < end; i++) list[i] = cardForRow(raw[i]);
+    if (i < raw.length) {
+      idle(step);
+      return;
+    }
+    PLAYERS = list;
+    _markFullyBuilt();
+    console.info(`[roster] backfill complete: ${PLAYERS.length} cards`);
+    saveCachedPlayers(meta, PLAYERS).catch(() => {});
+  };
+  idle(step);
 }

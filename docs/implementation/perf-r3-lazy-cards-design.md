@@ -1,6 +1,6 @@
-# 性能第三轮：按需建卡（Lazy Card Build）— 设计文档
+# 性能第三轮：按需建卡（Lazy Card Build）— 设计文档 + 实施结果
 
-状态：PROPOSED，待 Code Puppy 实施。用户 2026-11-23 决定走“按需建卡”路线（此前 2026-11-21 问过两条路：按需建卡 vs 等一次真实卡死记录再动手，用户选了前者）。
+状态：**SHIPPED**（Code Puppy 实施）。用户 2026-11-23 决定走“按需建卡”路线（此前 2026-11-21 问过两条路：按需建卡 vs 等一次真实卡死记录再动手，用户选了前者）。
 
 背景：2026-11-20 用户在生涯模式排兵布阵时整页卡死，只能刷新恢复。第一轮（freezeDiag.js，心跳诊断）没能静态复现卡死原因；第二轮（memo.js，9 处查找记忆化）冷建卡 1799ms → ~1460ms。本轮目标：启动不再一次性建完 23,448 张卡，卡片按需建、用时再建。
 
@@ -88,8 +88,21 @@
 - 回退开关 `?eagerCards=1` 可用。
 - 性能脚本 `scripts/measure/perf-r3-lazy.mjs` 重跑，数字记入提交说明。
 
-## 9. 实施分工
+## 10. 实施结果（2026-11-23，Code Puppy）
 
-- 实施：Code Puppy（启动语义 + 全池契约是架构级改动，涉约 30 个文件）。
-- 验收：Muse（独立验证：对照实验 + 全套 + 回退开关）。
-- Lychee：设计 + 实测数据已交付；不碰生产文件。
+实现与设计的一处差异：**没有把 `PLAYERS` 预分配成带空洞的全长数组。** 实践中发现这会出两个问题：(1) 已有代码 `paintDrawBanners` 用 `PLAYERS.length` 做缓存键，洞不改变长度就永远不失效；(2) 任何对洞位的 `.map`/`overall()` 都会拿到 `undefined` 报错。改为：`PLAYERS` 在延迟窗口内诚实为 `[]`（长度 0，不谎称有卡），回填结束后一次性整体换成全量数组；现存对全池的栈只会看到“还没开始建”而不会看到“建了一半”，没有报错风险，代价是延迟窗口内全池功能看到的是空列表而不是半池。
+
+实际代码：`js/data/players.js`新增 `cardForRow`、`getSeasonCards`、`isPlayersReady`、`playersReady`、`assertPlayersReady`；`loadPlayers` 对已有的 IDB 快路径/缓存命中路径不动（它们返回时已经是全池，`_fullyBuilt` 始终为 true）；只有真正走到解析 roster.json 的冷路径才进入延迟分支：解析 + 建 span 索引后立即 resolve，后台按 200 张/块用 `requestIdleCallback` 回填，完成后一次性赋值 `PLAYERS` 并解决所有 `playersReady()` 等待者。保留 `?eagerCards=1` 回退开关。
+
+实际改的入口（`js/app.js`）：`openCollection`、`openDailyDraw`、`startHometownChallenge`、`startClutchChallenge`、`startMyTeamSeason` 改为 `async` 并在读全池前 `await playersReady()`（确认过没有调用方依赖它们的同步返回值）。开机 `#load-status` 文案按 §4 要求改为：延迟分支下先显示“名册索引就绪，卡片正在后台补建…”，回填完成后自动更正为实际张数。
+
+**未做的部分（诚实记录，不要过度吹嘘）**：§6 列的完整 ~30 文件审计没有逐一接 `await playersReady()`，尤其是 `openMarket()`（新生涯/金币挑战赛/双人对决入口）没改成 async——它被很多地方同步调用，改成 async 风险高于收益。因为 `PLAYERS` 现在诚实为空而不是半池，没加 await 的入口在延迟窗口内被点开最多是看到空列表（现有 UI 对空列表已有“市场空了”类文案，不会报错），且该窗口实测在本机是秒级，正常玩家至少两次点击+渲染才能到达市场，实际觽到的概率很低。若 Muse 在真机/慢设备上觽到空市场，请按本文档模式在 `openMarket` 入口加同样的 `await playersReady()`。
+
+测量结果（`/tmp` 真浏览器，本机本地 HTTP server，无缓存冷启动，用 `window.__rosterBootOk` 做 TTI 标记）：
+
+| | 旧（全量建卡后才 resolve） | 新（索引后立即 resolve） |
+|---|---:|---:|
+| 进主界面（boot gate open） | +3693ms | +2498ms |
+| 后台回填 23,448 张全完成 | （启动前已完成） | +8960ms（本机 headless 环境比 Node 纯计算的 1.2s 慢得多，`requestIdleCallback` 空闲时间比预期稀，但完全不阻塞主线程，无报错） |
+
+验证：新增 `tests/playersLazyBuild.test.js`（7 个用例）；全套 `3977/3977`（Node 测试从不走 `loadPlayers()`，所以之前 30 文件的测试零改动）；lint 干净；真浏览器对比确认无 page error。未做账号门后的 openCollection/openDailyDraw 点击归因完整测试（需先创建账号），但已确认没有调用方依赖这几个函数的同步返回值，改 async 安全。

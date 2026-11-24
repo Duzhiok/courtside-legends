@@ -13,11 +13,13 @@ console.log(`span index: ${(performance.now() - tParse).toFixed(0)}ms`);
 const rows2020 = raw.filter((r) => r.season === 2020);
 const tS = performance.now();
 const cards2020 = rows2020.map(seasonToCard);
+void cards2020;
 console.log(`2020 season (${rows2020.length} cards): ${(performance.now() - tS).toFixed(0)}ms`);
 
 const team = raw.filter((r) => r.season === 2020 && r.team === "LAL");
 const tT = performance.now();
 const teamCards = team.map(seasonToCard);
+void teamCards;
 console.log(`one team-season (${team.length} cards): ${(performance.now() - tT).toFixed(2)}ms`);
 
 const list = new Array(raw.length);

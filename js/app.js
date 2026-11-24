@@ -157,6 +157,9 @@ import {
   PLAYERS,
   clonePlayer,
   deriveSubAttributes,
+  playersReady,
+  assertPlayersReady,
+  isPlayersReady,
 } from "./data/players.js";
 import { audio } from "./audio/index.js";
 import { clearRosterCache } from "./data/rosterCache.js";
@@ -1994,9 +1997,11 @@ function hometownChallengeFor(account) {
   });
   return built.available ? { place, built } : null;
 }
-function startHometownChallenge() {
+async function startHometownChallenge() {
   const found = hometownChallengeFor(activeAccount());
   if (!found) return;
+  await playersReady(); // perf-r3
+  assertPlayersReady("startHometownChallenge");
   const opp = pickOpponentTeam(PLAYERS, {});
   if (!opp) return;
   state.mode = "sandbox";
@@ -2076,7 +2081,9 @@ function openClutchChallenge() {
   show("clutch");
 }
 
-function startClutchChallenge() {
+async function startClutchChallenge() {
+  await playersReady(); // perf-r3
+  assertPlayersReady("startClutchChallenge");
   let scenario;
   try {
     scenario = initializeScenario({ pool: PLAYERS });
@@ -3229,9 +3236,11 @@ $("#credits-body")?.addEventListener("click", (event) => {
   paintCredits();
 });
 
-function openCollection() {
+async function openCollection() {
   const acc = requireAccountReady();
   if (!acc) return;
+  await playersReady(); // perf-r3: boot resolves before the full 23k-card pool is built; wait for it here
+  assertPlayersReady("openCollection");
   // S-P2-4: sort on one cached overall() per card, not two calls per comparison.
   const ovrOf = cachedOvrOf(overall);
   const players = resolvePlayers(acc.playerIds, acc).sort((a, b) => ovrOf(b) - ovrOf(a));
@@ -3464,9 +3473,11 @@ function paintDrawBanners(acc) {
   $("#draw-banner-explain").innerHTML = bannerExplainHtml(selected, bannerStatsCache.stats[selected.id], { days, wishName, lang: getLang() }, esc);
 }
 
-function openDailyDraw() {
+async function openDailyDraw() {
   const acc = requireAccountReady();
   if (!acc) return;
+  await playersReady(); // perf-r3: banner odds/wishlist search need the full card pool
+  assertPlayersReady("openDailyDraw");
   $("#draw-rules").innerHTML = drawRulesHtml(getLang());
   paintDrawBanners(acc);
   const choice = pendingRollChoice(acc);
@@ -10765,6 +10776,8 @@ function myTeamResumeLabel() {
 async function startMyTeamSeason(variant, { again = false } = {}) {
   const account = activeAccount();
   if (!account) { alert(L("请先创建 / 登录账号。", "Sign in or create an account first.")); return; }
+  await playersReady(); // perf-r3
+  assertPlayersReady("startMyTeamSeason");
   // 8-player unlock gate (user decision 2026-11-08): a My Team Season (AI regular season) needs 8 players on the account.
   // The lineup validator (validateMyTeamLineup, minRoster 8) enforces the same floor on the saved draft; this is the
   // account-level check, so the gate also holds for programmatic starts.
@@ -11942,16 +11955,28 @@ async function boot() {
     bootGate.open();
     audio.prewarm(); // the audio device start-up (0.5-1 s, once per browser) happens now, in idle time, not inside the first tap
     $("#load-bar").style.width = "100%";
-    $("#load-status").textContent =
-      sawCache && !sawBuild
+    // perf-r3: on the lazy path, PLAYERS is still [] right here (the pool finishes building in
+    // idle time after boot) — don't tell the player we loaded 0 cards. Once the backfill finishes
+    // we quietly correct the line if the dialog is still showing it.
+    $("#load-status").textContent = isPlayersReady()
+      ? sawCache && !sawBuild
         ? L(`已从本地缓存加载 ${PLAYERS.length} 张赛季卡`, `Loaded ${PLAYERS.length} season cards from local cache`)
-        : L(`已加载 ${PLAYERS.length} 张赛季卡（已写入本地缓存，下次秒开）`, `Loaded ${PLAYERS.length} season cards (cached, next launch is instant)`);
+        : L(`已加载 ${PLAYERS.length} 张赛季卡（已写入本地缓存，下次秒开）`, `Loaded ${PLAYERS.length} season cards (cached, next launch is instant)`)
+      : L("名册索引就绪，卡片正在后台补建…", "Roster index ready; cards are building in the background…");
+    if (!isPlayersReady()) {
+      playersReady().then(() => {
+        const el = $("#load-status");
+        if (el) el.textContent = L(`名册已全部就绪：${PLAYERS.length} 张赛季卡`, `Roster fully ready: ${PLAYERS.length} season cards`);
+      });
+    }
     const wd = $("#load-watchdog");
     if (wd) wd.hidden = true;
     const poolNote = document.querySelector("#howto-dialog ul");
     if (poolNote) {
       const li = document.createElement("li");
-      li.textContent = `卡池 ${PLAYERS.length} 张；换人面板显示板凳头像与属性；传奇模式可从八队历史球员自选位置组队。`;
+      li.textContent = isPlayersReady()
+        ? `卡池 ${PLAYERS.length} 张；换人面板显示板凳头像与属性；传奇模式可从八队历史球员自选位置组队。`
+        : `卡池正在后台补建；换人面板显示板凳头像与属性；传奇模式可从八队历史球员自选位置组队。`;
       poolNote.appendChild(li);
     }
     // ADR-004 D5: the read path runs the lazy v3→v4 migration (inside
