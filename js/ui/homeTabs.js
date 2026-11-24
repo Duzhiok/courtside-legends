@@ -51,7 +51,8 @@ export function wireHomeTabs(doc = document, { onActivate } = {}) {
   const panels = [...doc.querySelectorAll(".home-category-panel[data-category]")];
   if (!tabs.length || !panels.length) return null;
   // Landing vs. compact chrome is pure CSS, keyed off this attribute (the default tab keeps the full hero).
-  const screen = tabs[0].closest(".screen");
+  // The row doubles as the bottom tab bar (js/ui/bottomNav.js), which moves it under <body>; the home screen still owns it.
+  const screen = tabs[0].closest(".screen") || doc.getElementById?.("screen-home");
   const activate = (id) => {
     if (screen) screen.dataset.homeTab = id;
     for (const btn of tabs) {

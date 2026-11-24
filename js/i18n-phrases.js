@@ -490,6 +490,7 @@ export const PHRASES = [
   ["游戏特色", "Game Features"],
   ["历代传奇球星", "All-Time Legends"],
   ["模式分类", "Mode Categories"],
+  ["卡牌抽卡", "Cards"],
   ["选择卡池", "Choose a Pool"],
   ["搜索心愿单球员", "Search wishlist players"],
   ["清空搜索", "Clear search"],

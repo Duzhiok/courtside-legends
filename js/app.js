@@ -374,6 +374,7 @@ import {
   recordCareerCompletion,
 } from "./career/careerAchievements.js";
 import { wireHomeTabs } from "./ui/homeTabs.js";
+import { syncTabbar } from "./ui/bottomNav.js";
 import { createMyWorld } from "./ui/myWorldScreen.js";
 import { chooseAvatarMount } from "./ui/avatarMount.js";
 import { createGate, deferUntil } from "./ui/bootGate.js";
@@ -608,6 +609,11 @@ let state = {
 const navStack = [];
 let navPopping = false;
 
+/** B116 bottom tab bar: shown on the hub screens only, lit for where the player is (js/ui/bottomNav.js). */
+function syncAppTabbar(name = activeScreenName()) {
+  syncTabbar(document, name, screens.home?.dataset.homeTab);
+}
+
 function show(name) {
   if (!screens[name]) {
     // U-P2-8: an unknown name used to clear every screen's .active and then
@@ -625,6 +631,7 @@ function show(name) {
     // Same-screen re-show (re-render flows): no stack change.
     Object.values(screens).forEach((el) => el && el.classList.remove("active"));
     screens[name].classList.add("active");
+    syncAppTabbar(name);
     if (name === "home") {
       refreshAccountHomeBar();
       refreshSaveHomeBar();
@@ -635,6 +642,7 @@ function show(name) {
   if (!navPopping) navPush(navStack, from, name);
   Object.values(screens).forEach((el) => el && el.classList.remove("active"));
   screens[name].classList.add("active");
+  syncAppTabbar(name);
   // Static screens have no Shell observer: reuse the Shell's scroll-to-top
   // + focus-to-heading on navigation (A-P2-11). Shell screens already do
   // this via their MutationObserver (el.__shell), so skip them. Same-screen
@@ -11874,6 +11882,22 @@ async function boot() {
       getAccount: activeAccount,
     });
     activateHomeTab = wireHomeTabs(document, { onActivate: (id) => { audio.homeTab(id); if (id === "world") refreshMyWorld(); if (id === "players") myTeamClubhouse?.refresh(); } });
+    // B116 bottom tab bar. The four home tabs switch the panel themselves (wireHomeTabs, above); from the collection or
+    // the draw they also bring the player back to home. The cards tab opens the collection behind the same account
+    // gate as the account bar's "我的球员卡". show() re-lights the bar.
+    $("[data-tabbar]")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (btn.dataset.nav === "cards") {
+        if (activeScreenName() === "collection") return;
+        if (!requireAccountReady({ zh: "我的球员卡", en: "My Player Cards" })) return;
+        openCollection();
+        return;
+      }
+      if (btn.dataset.category && activeScreenName() !== "home") show("home");
+      else syncAppTabbar();
+    });
+    syncAppTabbar();
     // Legacy Museum (篮球人生博物馆): the honours wall's earned titles open the
     // career legacy detail view (user decision 2026-11-10, after 375b75d).
     // My Home screen — Screen Shell: mount once at boot (museum pattern); open() only renders.

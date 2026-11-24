@@ -49,7 +49,7 @@
   <link rel="stylesheet" href="css/coachingMoment.css?v=1" />
   <link rel="stylesheet" href="css/network.css?v=1" />
   <link rel="stylesheet" href="css/matchBroadcast.css?v=1" />
-  <link rel="stylesheet" href="css/arena.css?v=10" />
+  <link rel="stylesheet" href="css/arena.css?v=11" />
 </head>
 <body>
   <div id="app">
@@ -163,9 +163,11 @@
           <button type="button" class="btn daily-strip-btn" id="btn-home-daily-tasks"><span>每日任务</span><span class="tiny daily-strip-meta" id="home-daily-tasks-meta"></span></button>
           <button type="button" class="btn daily-strip-btn" id="btn-home-daily-draw"><span>每日抽卡</span><span class="tiny daily-strip-meta" id="home-daily-draw-meta"></span></button>
         </div>
-        <div class="home-category-tabs" role="tablist" aria-label="模式分类">
+        <!-- B116: this row is also the fixed bottom tab bar (js/ui/bottomNav.js: moved under body, shown on home / collection / draw). -->
+        <div class="home-category-tabs" data-tabbar role="tablist" aria-label="模式分类">
           <button type="button" class="home-tab" data-category="world" role="tab">我的篮球人生</button>
           <button type="button" class="home-tab" data-category="players" role="tab">我的球队</button>
+          <button type="button" class="home-tab tabbar-cards" data-nav="cards" role="tab" aria-selected="false">卡牌抽卡</button>
           <button type="button" class="home-tab" data-category="career" role="tab">传奇生涯</button>
           <button type="button" class="home-tab" data-category="custom" role="tab">自由球场</button>
         </div>

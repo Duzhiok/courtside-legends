@@ -36,7 +36,7 @@ for (const [w, h, tag] of [[1440, 900, "wide"], [1280, 800, "desktop"], [390, 84
   await reloadHome(page);
 
   // 1. Navigation: fourth tab exists, the old default + Quick Play are unchanged
-  const tabs = await page.$$eval(".home-tab", (els) => els.map((e) => e.dataset.category));
+  const tabs = await page.$$eval(".home-tab[data-category]", (els) => els.map((e) => e.dataset.category));
   check(`[${tag}] four tabs, world first`, tabs.join() === "world,players,career,custom", tabs.join());
   check(`[${tag}] default tab is My World`, await visible(page, "#my-world-root .mw-identity"));
   const cta = await page.$eval("#btn-play-now", (el) => el.getBoundingClientRect().bottom);
