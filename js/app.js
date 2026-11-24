@@ -5389,7 +5389,7 @@ function seedCareerStage() {
 function formatStarterLine(players) {
   if (!players?.length) return "—";
   return players
-    .map((p) => `${p.pos || p.playPos || "?"} ${p.name}${p.season ? `('${String(p.season).slice(2)})` : ""}`)
+    .map((p) => `${p.pos || p.playPos || "?"} ${esc(p.name)}${p.season ? `('${String(p.season).slice(2)})` : ""}`)
     .join(" · ");
 }
 
@@ -5417,7 +5417,7 @@ function renderScoutBoard(targetEl, { highlightYours = true } = {}) {
   }
   for (const pod of c.pods || []) {
     const tag = pod.isFinal ? "决赛组" : `第 ${pod.id + 1} 组`;
-    const adv = (pod.advancers || []).map((t) => t.name).join("、") || "—";
+    const adv = (pod.advancers || []).map((t) => esc(t.name)).join("、") || "—";
     others.push(
       `<div class="scout-match"><strong>${tag}</strong>${
         pod.done ? ` · 晋级：${adv}` : ""
@@ -5452,10 +5452,10 @@ function scoutMatchHtml(m, isYours) {
   const kind = m.kind ? `〔${kindLabel(m.kind)}〕` : "";
   let outcome = "";
   if (m.done && m.winner) {
-    if (m.kind === "winners") outcome = ` · ${m.winner.name} 直接晋级`;
-    else if (m.kind === "revival") outcome = ` · ${m.winner.name} 复活成功`;
-    else if (m.kind === "decider" || m.kind === "final") outcome = ` · ${m.winner.name} 晋级`;
-    else outcome = ` · ${m.winner.name} 胜`;
+    if (m.kind === "winners") outcome = ` · ${esc(m.winner.name)} 直接晋级`;
+    else if (m.kind === "revival") outcome = ` · ${esc(m.winner.name)} 复活成功`;
+    else if (m.kind === "decider" || m.kind === "final") outcome = ` · ${esc(m.winner.name)} 晋级`;
+    else outcome = ` · ${esc(m.winner.name)} 胜`;
   }
   const score =
     m.done && m.score
