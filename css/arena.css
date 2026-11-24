@@ -1,0 +1,188 @@
+/* ==========================================================
+   Arena theme — 2026-11 visual upgrade.
+   Screens tagged class="screen arena" get the dark game look: deep arena
+   ground, glass surfaces, gold lines, orange for the one hot action.
+   B10 still holds (deep forest green + gold); this swaps the cream page and
+   white admin cards for a dark ground, screen by screen — screens without
+   .arena are untouched. Tokens: css/tokens.css "Arena surfaces".
+   Loaded last so the scoped rules win without !important.
+   ========================================================== */
+
+/* Page ground follows the active screen. */
+html:has(.screen.arena.active), body:has(.screen.arena.active) {
+  background:
+    radial-gradient(1100px 520px at 85% -8%, rgba(246, 200, 112, .10), transparent 60%),
+    radial-gradient(900px 600px at -10% 30%, rgba(29, 74, 49, .55), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .012) 0 2px, transparent 2px 64px),
+    linear-gradient(180deg, #0a1d13 0%, var(--arena-page) 55%, #040b07 100%);
+  background-color: var(--arena-page); /* no background-attachment: fixed — it repaints on every scroll on phones */
+  color: var(--text-hi);
+}
+body:has(.screen.arena.active) .topbar {
+  background: rgba(4, 12, 8, .78);
+  border: 1px solid var(--surface-line);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .45);
+  backdrop-filter: blur(10px);
+}
+.screen.arena { color: var(--text-hi); }
+.screen.arena .tiny { color: var(--text-low); }
+.screen.arena :is(h1, h2, h3, h4) { color: var(--text-hi); }
+
+/* Generic buttons on a dark ground. */
+.screen.arena .btn:not(.primary):not(.hero-cta):not(.warn) {
+  background: var(--surface-2);
+  color: var(--text-hi);
+  border: 1px solid rgba(255, 255, 255, .16);
+}
+.screen.arena .btn:not(.primary):not(.hero-cta):not(.warn):hover { border-color: var(--gold); background: var(--surface-3); }
+.screen.arena .btn.primary { background: var(--gold); color: var(--arena-1); border-color: var(--gold); font-weight: 800; }
+.screen.arena .btn.primary:hover { filter: brightness(1.06); }
+.screen.arena .btn:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+
+/* ---------------- Home ---------------- */
+
+/* Hero: a real stage. Taller on the landing tab, gold rim, a court-line floor. */
+#screen-home.arena .home-banner {
+  border: 1px solid var(--surface-line);
+  background:
+    radial-gradient(640px 300px at 82% -20%, rgba(246, 200, 112, .30), transparent 62%),
+    radial-gradient(520px 280px at -5% 115%, rgba(255, 122, 26, .26), transparent 60%),
+    linear-gradient(0deg, rgba(201, 166, 107, .10) 0 1px, transparent 1px) 0 100% / 100% 34px no-repeat,
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .03) 0 2px, transparent 2px 48px),
+    linear-gradient(150deg, #04100a 0%, var(--arena-2) 58%, #1f5236 100%);
+  box-shadow: var(--shadow-deep);
+}
+#screen-home.arena .home-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--orange) 70%, transparent);
+  opacity: .85;
+}
+#screen-home.arena .hero-cta {
+  background: linear-gradient(180deg, #ffd889 0%, var(--gold) 55%, #e3ac4b 100%);
+  color: #1a1206;
+  font-weight: 800;
+  letter-spacing: .02em;
+  box-shadow: 0 10px 26px rgba(246, 200, 112, .30), inset 0 1px 0 rgba(255, 255, 255, .5);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+#screen-home.arena .hero-cta:hover { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(246, 200, 112, .42), inset 0 1px 0 rgba(255, 255, 255, .5); }
+#screen-home.arena .home-banner-facts li { background: rgba(0, 0, 0, .28); border-color: var(--surface-line); }
+
+/* Continue / account strips: glass rows with the coloured edge kept. */
+#screen-home.arena .account-home-bar {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-line);
+  box-shadow: none;
+  color: var(--text-hi);
+}
+#screen-home.arena .account-home-bar strong { color: var(--text-hi); }
+#screen-home.arena .btn.continue { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
+#screen-home.arena .btn.continue:hover,
+#screen-home.arena .btn.continue:focus-visible { background: var(--gold); color: var(--arena-1); }
+
+/* Daily strip: two dark tiles with an icon and a gold status line instead of white pills. */
+#screen-home.arena .daily-strip-btn {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 10px 16px;
+  text-align: left;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .02));
+  border: 1px solid var(--surface-line);
+  color: var(--text-hi);
+}
+#screen-home.arena .daily-strip-btn:hover { border-color: var(--surface-line-strong); background: linear-gradient(135deg, rgba(246, 200, 112, .12), rgba(255, 255, 255, .03)); }
+#screen-home.arena .daily-strip-btn::before {
+  content: "";
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(246, 200, 112, .14) center / 20px 20px no-repeat;
+  border: 1px solid rgba(246, 200, 112, .35);
+}
+/* checklist + card glyphs (inline SVG, gold stroke) */
+#screen-home.arena #btn-home-daily-tasks::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c870' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6h11M9 12h11M9 18h11'/%3E%3Cpath d='m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17'/%3E%3C/svg%3E");
+}
+#screen-home.arena #btn-home-daily-draw::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c870' stroke-width='2' stroke-linejoin='round'%3E%3Crect x='7' y='3' width='13' height='17' rx='2' transform='rotate(8 13.5 11.5)'/%3E%3Crect x='4' y='4' width='13' height='17' rx='2'/%3E%3Cpath d='m10.5 9 1 2 2 .3-1.5 1.4.4 2.1-1.9-1-1.9 1 .4-2.1L7.5 11.3l2-.3z'/%3E%3C/svg%3E");
+}
+#screen-home.arena .daily-strip-btn > span:first-child { font-weight: 800; font-size: 1rem; }
+#screen-home.arena .daily-strip-btn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; row-gap: 0; align-items: center; }
+#screen-home.arena .daily-strip-btn::before { grid-row: 1 / span 2; }
+#screen-home.arena .daily-strip-meta { opacity: 1; color: var(--gold); font-weight: 600; }
+
+/* Section tabs: dark segmented control, active = gold plate. */
+#screen-home.arena .home-category-tabs {
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--surface-line);
+}
+#screen-home.arena .home-tab {
+  color: var(--text-mid);
+  min-height: 44px;
+  font-size: 1.05rem;
+  letter-spacing: .06em;
+}
+#screen-home.arena .home-tab:hover { color: var(--text-hi); background: var(--surface-1); }
+#screen-home.arena .home-tab.active {
+  background: linear-gradient(180deg, #ffd889, var(--gold));
+  color: #1a1206;
+  box-shadow: 0 6px 18px rgba(246, 200, 112, .25);
+}
+#screen-home.arena .home-category-hint { color: var(--text-low); }
+
+/* Group labels: gold kicker with a fading rule. */
+#screen-home.arena .mode-group-label { color: var(--gold); letter-spacing: .14em; }
+#screen-home.arena .mode-group-label::after { background: linear-gradient(90deg, var(--surface-line-strong), transparent); }
+
+/* Mode cards: dark glass, white title, gold hover rim, photo bleeds in from the right. */
+#screen-home.arena .mode-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, .07) 0%, rgba(255, 255, 255, .025) 100%);
+  border: 1px solid rgba(255, 255, 255, .1);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .35);
+  color: var(--text-hi);
+  backdrop-filter: none;
+}
+#screen-home.arena .mode-card strong { color: var(--text-hi); }
+#screen-home.arena .mode-card > span:not(.mode-card-photo) { color: var(--text-mid); }
+#screen-home.arena .mode-card:hover,
+#screen-home.arena .mode-card:focus-visible {
+  border-color: var(--surface-line-strong);
+  box-shadow: var(--glow-gold), 0 16px 34px rgba(0, 0, 0, .4);
+}
+#screen-home.arena .mode-card > span.mode-lock-note { color: #fbbf24; }
+#screen-home.arena .mode-card-photo img { -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 65%); mask-image: linear-gradient(90deg, transparent 0%, #000 65%); }
+#screen-home.arena :is(.mode-card-feature, .mode-card-dark) {
+  background:
+    radial-gradient(420px 200px at 100% 0%, rgba(246, 200, 112, .18), transparent 70%),
+    linear-gradient(120deg, #04100a 0%, var(--arena-2) 60%, var(--arena-3) 100%);
+  border-color: var(--surface-line-strong);
+}
+#screen-home.arena .mode-card-variants summary { color: var(--text-mid); }
+
+/* Panels built for the light page (clubhouse cards, legends gallery head, utility row). */
+#screen-home.arena .mtc-card { background: var(--surface-1); border-color: var(--surface-line); box-shadow: none; color: var(--text-hi); }
+#screen-home.arena .mtc-card h3 { color: var(--text-hi); }
+#screen-home.arena :is(.mtc-note, .mtc-empty) { color: var(--text-mid); }
+#screen-home.arena .mtc-notice { color: #86efac; }
+#screen-home.arena .lg-head h2 { color: var(--text-hi); }
+#screen-home.arena .lg-head-sub { color: var(--text-low); opacity: 1; }
+#screen-home.arena .mw-kicker { color: var(--gold); opacity: .9; }
+#screen-home.arena .home-utility-row .btn { color: var(--text-mid); }
+
+@media (max-width: 560px) {
+  #screen-home.arena .daily-strip-btn { padding: 10px 12px; column-gap: 10px; }
+  #screen-home.arena .daily-strip-btn::before { width: 30px; height: 30px; background-size: 18px 18px; }
+  /* four tabs fit a 360px phone without a hidden, scrolled-off fourth label */
+  #screen-home.arena .home-category-tabs { overflow-x: visible; }
+  #screen-home.arena .home-tab { flex: 1 1 0; min-width: 0; padding: 10px 2px; font-size: .84rem; letter-spacing: 0; }
+  html[lang="en"] #screen-home.arena .home-tab { font-size: 1rem; } /* Bebas is condensed: it can be bigger than CJK */
+}
+@media (prefers-reduced-motion: reduce) {
+  #screen-home.arena .hero-cta { transition: none; }
+}

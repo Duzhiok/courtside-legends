@@ -11779,6 +11779,7 @@ async function boot() {
       paintVoiceBtn();
       voice.refresh();
       refreshGoldChip();
+      refreshDailyStrip(activeAccount()); // its meta lines are JS strings: the static walker half-translated them ("需Account")
       shop?.refresh();
     });
     audio.init({ getProfileId: () => activeAccount()?.id || null, getLang });
