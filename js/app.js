@@ -1536,6 +1536,8 @@ function newCourtView() {
       photo: L("人物：照片", "Players: Photos"),
       fxOn: L("动效：开", "Effects: On"),
       fxOff: L("动效：关", "Effects: Off"),
+      modeTip: L("点击切换球员显示：简易小人 / 球员照片", "Click to switch how players look: simple figures / photos"),
+      fxTip: L("点击开关球场动画（移动、传球弧线、扣篮）；不影响比赛结果", "Click to turn court animation (movement, pass arcs, dunks) on/off; it never changes the score"),
       zoneAway: L("客队篮筐", "Away basket"),
       zoneHome: L("主队篮筐", "Home basket"),
       advancing: L("推进中", "Advancing"),

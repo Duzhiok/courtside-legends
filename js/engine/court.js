@@ -240,6 +240,8 @@ export class CourtView {
       photo: opts.labels?.photo || "人物：照片",
       fxOn: opts.labels?.fxOn || "动效：开",
       fxOff: opts.labels?.fxOff || "动效：关",
+      modeTip: opts.labels?.modeTip || "点击切换球员显示：简易小人 / 球员照片",
+      fxTip: opts.labels?.fxTip || "点击开关球场动画（移动、传球弧线、扣篮）；不影响比赛结果",
       zoneAway: opts.labels?.zoneAway || "客队篮筐",
       zoneHome: opts.labels?.zoneHome || "主队篮筐",
       advancing: opts.labels?.advancing || "推进中",
@@ -437,11 +439,13 @@ export class CourtView {
     this.passArcPath = this.root.querySelector("#court-pass-arc");
     this.modeBtn = this.root.querySelector("#court-mode-btn");
     if (this.modeBtn) {
+      this.modeBtn.title = this.labels.modeTip; // B97 #8: say what the toggle does
       this.modeBtn.textContent = this.simple ? this.labels.simple : this.labels.photo;
       this.modeBtn.addEventListener("click", () => this.setSimpleMode(!this.simple));
     }
     this.fxBtn = this.root.querySelector("#court-fx-btn");
     if (this.fxBtn) {
+      this.fxBtn.title = this.labels.fxTip;
       this.fxBtn.textContent = this._effects ? this.labels.fxOn : this.labels.fxOff;
       this.fxBtn.addEventListener("click", () => this.setEffectsEnabled(!this._effects));
     }

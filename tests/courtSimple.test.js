@@ -73,6 +73,7 @@ function makeRoot() {
     "#court-ball": makeEl(),
     "#court-formation": makeEl(),
     "#court-mode-btn": makeEl(),
+    "#court-fx-btn": makeEl(),
   };
   return {
     querySelector: (sel) => parts[sel] || null,
@@ -462,4 +463,11 @@ test("B54: formation line falls back to the balanced label when no tactic is set
   const line = root._parts["#court-formation"].textContent;
   assert.ok(line.includes("Balanced"), `balanced fallback in English, got: ${line}`);
   assert.ok(!line.includes("均衡"), "no hardcoded balanced fallback");
+});
+
+// B97 #8: "人物：照片 / 动效：开" used to be unexplained toggles.
+test("court: the look and effects toggles carry a tooltip saying what they do", () => {
+  const { root } = setup();
+  assert.match(root._parts["#court-mode-btn"].title, /简易|照片/);
+  assert.match(root._parts["#court-fx-btn"].title, /动画/);
 });
