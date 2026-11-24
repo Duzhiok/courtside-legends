@@ -5461,10 +5461,10 @@ function scoutMatchHtml(m, isYours) {
       ? `<div class="score">${m.score.home} - ${m.score.away}${outcome}</div>`
       : `<div class="score">${isYours ? "待你出战" : m.done ? "已赛" : "待赛"}</div>`;
   return `<div class="scout-match ${isYours ? "yours" : ""}">
-    <div>${kind} ${m.a?.name || "?"} vs ${m.b?.name || "?"}${isYours ? " · <em>你的比赛</em>" : ""}</div>
+    <div>${kind} ${esc(m.a?.name || "?")} vs ${esc(m.b?.name || "?")}${isYours ? " · <em>你的比赛</em>" : ""}</div>
     ${score}
-    <div class="scout-lineup"><strong>${m.a?.name || ""}</strong>：${formatStarterLine(m.startersA)}</div>
-    <div class="scout-lineup"><strong>${m.b?.name || ""}</strong>：${formatStarterLine(m.startersB)}</div>
+    <div class="scout-lineup"><strong>${esc(m.a?.name || "")}</strong>：${formatStarterLine(m.startersA)}</div>
+    <div class="scout-lineup"><strong>${esc(m.b?.name || "")}</strong>：${formatStarterLine(m.startersB)}</div>
   </div>`;
 }
 

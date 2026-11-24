@@ -362,3 +362,196 @@ body:has(.screen.arena.active) .topbar {
   #screen-game.arena #game-clock { font-size: 1.8rem; }
   #screen-game.arena #poss-label { font-size: .7rem; white-space: nowrap; }
 }
+
+/* ---------------- Gold Challenge market (#screen-market): card-collection floor ---------------- */
+.screen.arena .nav-back { background: var(--surface-2); color: var(--text-hi); border-color: rgba(255, 255, 255, .16); }
+.screen.arena .nav-back:hover { background: var(--surface-3); border-color: var(--gold); }
+#screen-market.arena .panel-head h2 { font-family: var(--font-display); letter-spacing: .05em; font-size: 2rem; color: var(--gold); }
+#screen-market.arena .panel-head strong { color: var(--gold); }
+#screen-market.arena :is(.roster-box, .career-coach-panel, .market-scout, .bid-panel) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .02));
+  border: 1px solid var(--surface-line);
+  color: var(--text-hi);
+}
+#screen-market.arena .roster-box h3 { color: var(--gold); letter-spacing: .03em; }
+#screen-market.arena :is(.match-chip, .scout-match) { background: rgba(0, 0, 0, .28); border-color: rgba(255, 255, 255, .1); color: var(--text-hi); }
+#screen-market.arena .scout-others > summary { color: var(--text-mid); }
+/* player / coach / skill cards */
+#screen-market.arena :is(.market-row, .career-coach-card, .career-skill-card) {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .025));
+  border: 1px solid rgba(255, 255, 255, .11);
+  color: var(--text-hi);
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+#screen-market.arena :is(.market-row, .career-coach-card, .career-skill-card):hover {
+  border-color: var(--surface-line-strong);
+  box-shadow: var(--glow-gold);
+}
+#screen-market.arena .market-row strong { color: #fff; }
+#screen-market.arena .market-row.unaffordable { background: rgba(0, 0, 0, .25); border-color: rgba(255, 255, 255, .06); }
+#screen-market.arena .market-row.unaffordable strong { color: var(--text-low); }
+#screen-market.arena .market-row :is(.btn:disabled, .btn.buy-disabled) { background: rgba(255, 255, 255, .06); color: var(--text-low); border-color: rgba(255, 255, 255, .12); }
+/* legendary coach / skill cards get the gold frame; mythic the purple one */
+#screen-market.arena .career-coach-card:has(.rarity-tag.myth),
+#screen-market.arena .career-skill-card.rarity-legend { border-color: rgba(255, 215, 0, .55); box-shadow: inset 0 0 0 1px rgba(255, 215, 0, .18); }
+#screen-market.arena .career-skill-card.rarity-mythic { border-color: rgba(168, 85, 247, .6); box-shadow: inset 0 0 0 1px rgba(168, 85, 247, .2); }
+#screen-market.arena .career-coach-card.current { border-color: #86efac; }
+/* position dock / form boxes / chips */
+#screen-market.arena .market-pos-dock { background: rgba(6, 17, 11, .94); border-color: var(--surface-line); box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+#screen-market.arena #my-market-roster .pos-row-head { background: rgba(246, 200, 112, .08); color: var(--gold); }
+#screen-market.arena .pos-row { background: rgba(0, 0, 0, .18); border-color: rgba(255, 255, 255, .08); }
+#screen-market.arena .market-form { background: rgba(0, 0, 0, .28); border-color: rgba(255, 255, 255, .08); }
+#screen-market.arena .market-form-mood { color: var(--gold); }
+#screen-market.arena .market-form-log li { color: var(--text-low); }
+#screen-market.arena .market-form-log .form-when { color: var(--text-hi); }
+#screen-market.arena .market-form-tip.warn { color: #fdba74; }
+#screen-market.arena .market-form-tip.hot { color: #86efac; }
+#screen-market.arena .chip { background: rgba(255, 255, 255, .08); color: var(--text-mid); }
+#screen-market.arena .chip.growth { background: rgba(134, 239, 172, .14); color: #86efac; }
+#screen-market.arena .chip.warn { background: rgba(253, 186, 116, .14); color: #fdba74; }
+#screen-market.arena .pos-gap-chip { border-color: rgba(134, 239, 172, .4); color: #bbf7d0; background: rgba(134, 239, 172, .06); }
+#screen-market.arena .actions { position: sticky; bottom: 0; z-index: 5; padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, transparent, rgba(6, 17, 11, .96) 30%); }
+#screen-market.arena .scout-lineup { color: var(--text-low); }
+#screen-market.arena .scout-lineup strong { color: var(--text-hi); }
+#screen-market.arena .scout-match.yours { border-color: var(--orange); box-shadow: inset 3px 0 0 var(--orange); }
+#screen-market.arena .scout-match .score { color: var(--gold); }
+@media (max-width: 560px) {
+  #screen-market.arena .actions { background: rgba(6, 17, 11, .96); border-top: 1px solid var(--surface-line); margin: 0 -20px; padding-inline: 20px; }
+  #screen-market.arena .actions .tiny { display: none; } /* the sticky bar is one button on a phone; the hint lives in #market-hint */
+  #screen-market.arena .actions .btn.primary { flex: 1; }
+  #screen-market.arena .panel-head h2 { font-size: 1.7rem; }
+}
+
+/* ---------------- Player Reborn (#screen-reborn): creation + career dashboard ----------------
+   The screen had almost no CSS of its own (raw browser buttons). Every top-level section becomes a card;
+   the identity block is the hero, "play next game" the one gold action. */
+#screen-reborn.arena > .panel-head > h2 { color: var(--gold); font-family: var(--font-display); font-size: 2rem; letter-spacing: .05em; }
+#screen-reborn.arena #reborn-body { display: grid; gap: 14px; max-width: 980px; }
+#screen-reborn.arena #reborn-body > :is(section, p) { margin: 0; }
+#screen-reborn.arena #reborn-body > section,
+#screen-reborn.arena .reborn-create > section {
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .02));
+  border: 1px solid var(--surface-line);
+}
+#screen-reborn.arena :is(h3, h4) { margin: 0 0 8px; color: var(--gold); letter-spacing: .03em; }
+#screen-reborn.arena p { color: var(--text-mid); line-height: 1.55; margin: 4px 0; }
+#screen-reborn.arena strong { color: var(--text-hi); }
+#screen-reborn.arena #reborn-body > p { padding: 0 4px; font-weight: 700; color: var(--text-hi); letter-spacing: .02em; }
+
+/* Raw buttons → arena buttons. */
+#screen-reborn.arena :is(.reborn-create-year, button.reborn-create-destiny, .reborn-create-pick, .reborn-create-confirm) {
+  font: inherit;
+  cursor: pointer;
+  color: var(--text-hi);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: var(--surface-2);
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+#screen-reborn.arena :is(.reborn-create-year, button.reborn-create-destiny, .reborn-create-pick):hover { border-color: var(--surface-line-strong); background: var(--surface-3); }
+#screen-reborn.arena :is(.reborn-create-year, button.reborn-create-destiny, .reborn-create-pick).is-active {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(246, 200, 112, .22), rgba(246, 200, 112, .06));
+  box-shadow: var(--glow-gold);
+}
+#screen-reborn.arena .reborn-create { display: grid; gap: 14px; }
+#screen-reborn.arena .reborn-create > h3 { font-family: var(--font-display); font-size: 1.7rem; letter-spacing: .05em; color: #fff; margin: 0; }
+#screen-reborn.arena .reborn-create-years { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 10px; }
+#screen-reborn.arena .reborn-create-year { min-height: 48px; padding: 8px 20px; font-family: var(--font-display); font-size: 1.35rem; letter-spacing: .05em; }
+#screen-reborn.arena .reborn-create-note { color: var(--text-low); font-size: .85rem; }
+#screen-reborn.arena .reborn-create-destinies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+#screen-reborn.arena button.reborn-create-destiny {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 120px;
+  padding: 16px;
+  text-align: left;
+}
+#screen-reborn.arena button.reborn-create-destiny strong { font-size: 1.1rem; color: #fff; }
+#screen-reborn.arena button.reborn-create-destiny span { color: var(--text-mid); font-size: .9rem; line-height: 1.45; }
+#screen-reborn.arena button.reborn-create-destiny::before { content: ""; width: 34px; height: 34px; border-radius: 10px; background: rgba(246, 200, 112, .14) center / 20px no-repeat; border: 1px solid rgba(246, 200, 112, .35); }
+#screen-reborn.arena button.reborn-create-destiny[data-reborn-destiny="random"]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c870' stroke-width='2' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='16' height='16' rx='3'/%3E%3Ccircle cx='9' cy='9' r='1.2' fill='%23f6c870'/%3E%3Ccircle cx='15' cy='15' r='1.2' fill='%23f6c870'/%3E%3Ccircle cx='15' cy='9' r='1.2' fill='%23f6c870'/%3E%3Ccircle cx='9' cy='15' r='1.2' fill='%23f6c870'/%3E%3C/svg%3E"); }
+#screen-reborn.arena button.reborn-create-destiny[data-reborn-destiny="historical"]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c870' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E"); }
+#screen-reborn.arena button.reborn-create-destiny[data-reborn-destiny="fictional"]::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6c870' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='m12 3 2.6 5.6 6 .7-4.5 4.1 1.3 6L12 16.4 6.6 19.4l1.3-6L3.4 9.3l6-.7z'/%3E%3C/svg%3E"); }
+#screen-reborn.arena .reborn-create-list-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 420px; overflow: auto; padding: 2px; }
+#screen-reborn.arena .reborn-create-pick { display: grid; gap: 2px; padding: 10px 12px; text-align: left; min-height: 56px; }
+#screen-reborn.arena .reborn-create-pick span { color: var(--text-low); font-size: .82rem; }
+#screen-reborn.arena .reborn-create-confirm {
+  justify-self: start;
+  min-height: 52px;
+  padding: 12px 28px;
+  border: 0;
+  background: linear-gradient(180deg, #ffd889 0%, var(--gold) 55%, #e3ac4b 100%);
+  color: #1a1206;
+  font-weight: 800;
+  font-size: 1.05rem;
+  box-shadow: 0 10px 26px rgba(246, 200, 112, .3);
+}
+#screen-reborn.arena .reborn-create-confirm:disabled { background: var(--surface-2); color: var(--text-low); box-shadow: none; cursor: not-allowed; }
+
+/* Dashboard: identity hero with the trust ladder. */
+#screen-reborn.arena #reborn-body > .reborn-identity {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 22px;
+  border-color: var(--surface-line-strong);
+  background:
+    radial-gradient(460px 200px at 100% 0%, rgba(246, 200, 112, .22), transparent 70%),
+    linear-gradient(150deg, #04100a 0%, var(--arena-2) 60%, var(--arena-3) 100%);
+  box-shadow: var(--shadow-deep);
+}
+#screen-reborn.arena .reborn-identity h3 { font-family: var(--font-display); font-size: 2.2rem; letter-spacing: .04em; color: #fff; margin-bottom: 2px; }
+#screen-reborn.arena .reborn-identity p:first-of-type { color: var(--gold); font-weight: 700; }
+#screen-reborn.arena .reborn-trust-bar { height: 10px; margin: 10px 0 6px; border-radius: 999px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+#screen-reborn.arena .reborn-trust-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--orange), var(--gold)); box-shadow: 0 0 12px rgba(246, 200, 112, .45); }
+#screen-reborn.arena :is(.reborn-hint, .reborn-ladder) { color: var(--text-low); font-size: .86rem; }
+#screen-reborn.arena .reborn-reveal { border-color: var(--gold); background: rgba(246, 200, 112, .12); }
+#screen-reborn.arena .reborn-champion { border-color: var(--gold); box-shadow: var(--glow-gold); }
+
+/* Actions: play next = the gold CTA, fast-forward + the rest = glass. */
+#screen-reborn.arena .btn { min-height: 46px; }
+#screen-reborn.arena #reborn-body > .btn { justify-self: start; }
+#screen-reborn.arena .btn[data-play] {
+  background: linear-gradient(180deg, #ffd889 0%, var(--gold) 55%, #e3ac4b 100%);
+  color: #1a1206;
+  border: 0;
+  font-weight: 800;
+  font-size: 1.05rem;
+  padding: 12px 26px;
+  box-shadow: 0 10px 26px rgba(246, 200, 112, .3);
+}
+#screen-reborn.arena .btn[data-reset] { color: var(--text-low); background: transparent; border-color: rgba(255, 255, 255, .12); }
+#screen-reborn.arena .reborn-training-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+/* Tables, brackets, timeline. */
+#screen-reborn.arena table { width: 100%; border-collapse: collapse; color: var(--text-hi); font-size: .88rem; font-variant-numeric: tabular-nums; }
+#screen-reborn.arena :is(th, td) { padding: 5px 8px; border-bottom: 1px solid rgba(255, 255, 255, .07); text-align: left; }
+#screen-reborn.arena .reborn-standings { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+#screen-reborn.arena .reborn-standings > h3 { grid-column: 1 / -1; }
+#screen-reborn.arena .reborn-bracket { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+#screen-reborn.arena .reborn-series { padding: 8px 10px; border-radius: 10px; background: rgba(0, 0, 0, .25); color: var(--text-mid); }
+#screen-reborn.arena .reborn-series-me { box-shadow: inset 3px 0 0 var(--orange); color: var(--text-hi); }
+#screen-reborn.arena .reborn-timeline p { position: relative; padding-left: 18px; }
+#screen-reborn.arena .reborn-timeline p::before { content: ""; position: absolute; left: 4px; top: .6em; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px rgba(246, 200, 112, .18); }
+#screen-reborn.arena details > summary { color: var(--text-mid); cursor: pointer; }
+#screen-reborn.arena .reborn-fragments { background: linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .02)); border-color: var(--surface-line); }
+#screen-reborn.arena :is(.reborn-honours small, .reborn-fragments small) { color: var(--text-low); }
+#screen-reborn.arena .reborn-fragments-on { color: #86efac; }
+
+@media (max-width: 640px) {
+  #screen-reborn.arena .reborn-create-destinies { grid-template-columns: minmax(0, 1fr); }
+  #screen-reborn.arena button.reborn-create-destiny { min-height: 0; grid-template-columns: auto 1fr; column-gap: 12px; }
+  #screen-reborn.arena button.reborn-create-destiny::before { grid-row: 1 / span 2; }
+  #screen-reborn.arena :is(.reborn-create-confirm, .btn[data-play]) { justify-self: stretch; width: 100%; }
+  #screen-reborn.arena .reborn-identity h3 { font-size: 1.8rem; }
+}
+/* Hierarchy: who you are → this season → this week's training → play. The long awakening / fragment panels follow. */
+#screen-reborn.arena #reborn-body > .reborn-identity { order: -4; }
+#screen-reborn.arena #reborn-body > :is(.reborn-reveal, .reborn-contract) { order: -3; }
+#screen-reborn.arena #reborn-body > p:not([class]) { order: -2; }
+#screen-reborn.arena #reborn-body > :is(.reborn-training, .btn[data-play], .btn[data-ff], .reborn-ff-progress, .reborn-ff) { order: -1; }
+#screen-reborn.arena .reborn-awakening ul, #screen-reborn.arena #reborn-body > section ul { padding-left: 18px; color: var(--text-mid); }

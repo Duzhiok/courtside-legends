@@ -83,7 +83,9 @@ export const REBORN_TITLE = Object.freeze({ zh: "球员重生", en: "Player Rebo
  * goBack-or-home fallback now lives in the factory's mount() instead.
  */
 export function ensureRebornScreen({ getLang = () => "zh", onBack, onRelocalize } = {}) {
-  return mountScreen({ id: "reborn", title: REBORN_TITLE, getLang, onBack, onRelocalize }).el;
+  const el = mountScreen({ id: "reborn", title: REBORN_TITLE, getLang, onBack, onRelocalize }).el;
+  el.classList.add("arena"); // 2026-11 visual upgrade: the career dashboard uses the dark arena look (css/arena.css)
+  return el;
 }
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
