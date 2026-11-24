@@ -4,9 +4,19 @@
 // assertions: without a browser on this VM the markup is the contract.
 // Step 1 (handlers + watchdog externalised) landed 2026-11-19 (df18515);
 // steps 2+3 (remaining inline modules externalised, Report-Only meta on the
-// three entry pages) land here. The ENFORCING CSP meta is still NOT added --
-// it needs Mac browser QA of the Report-Only trial first, because a wrong
-// policy would blank the whole game on Pages.
+// three entry pages) landed 2026-11-20 (739445ef, verified by Lychee).
+// Step 4 (enforce) landed 2026-11-24: the Report-Only meta was never a trial,
+// because browsers ignore Content-Security-Policy-Report-Only delivered via
+// <meta> (Wibey's 2026-11-24 note; MDN/spec agree), so it produced no signal
+// in four days and waiting on it was waiting on nothing. The flip itself is
+// the trial: it was preceded by a static compliance audit of current main
+// (all scripts local incl. dynamic vendor imports, no inline script/handler,
+// no eval, photo hosts all inside img-src, no external fetch, fonts/WS/blob
+// covered), and Mac browser QA still has to run the 739445ef checklist
+// (cold start, watchdog failure path, photo fallback, fonts, online WS,
+// audio blob, feedback preview, save export) plus a re-run of
+// scripts/qa/match-events.mjs, treating any CSP console error as a real
+// failure. Revert is one line per page.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -16,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
-// The Report-Only policy, exactly as drafted in csp-prep-2026-11-19.md §D.
+// The enforcing policy, exactly as drafted in csp-prep-2026-11-19.md §D.
 // Single source of truth for the meta tags: the tests below parse each page's
 // meta and compare directive by directive, so a hand-edit that drops a host
 // (e.g. a photo CDN) turns red here instead of breaking photos on Pages.
@@ -46,9 +56,9 @@ function parsePolicy(content) {
   return out;
 }
 
-function reportOnlyMeta(html, page) {
-  const m = html.match(/<meta http-equiv="Content-Security-Policy-Report-Only" content="([^"]+)" \/>/);
-  assert.ok(m, `${page} is missing the Report-Only CSP meta`);
+function enforcingMeta(html, page) {
+  const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)" \/>/);
+  assert.ok(m, `${page} is missing the enforcing CSP meta`);
   return m[1];
 }
 
@@ -94,13 +104,14 @@ test("S-P2-5: preview page and spike page load their logic from external modules
   assert.match(read("scripts/spike/avatar3d.js"), /mountAvatar3d/);
 });
 
-test("S-P2-5: Report-Only CSP meta on the three entry pages, matching the §D draft", () => {
+test("S-P2-5: enforcing CSP meta on the three entry pages, matching the §D draft", () => {
   for (const page of ["index.html", "online.html", "preview-3d-match.html"]) {
     const html = read(page);
-    // No enforcing meta yet: Report-Only only. Enforce waits for Mac QA.
-    assert.doesNotMatch(html, /http-equiv="Content-Security-Policy"(?!-Report-Only)/,
-      `${page} already has an enforcing CSP meta (must wait for Mac QA)`);
-    const parsed = parsePolicy(reportOnlyMeta(html, page));
+    // Step 4 (2026-11-24): enforcing meta, no Report-Only meta left. Meta
+    // Report-Only is ignored by browsers, so it can never be the trial.
+    assert.doesNotMatch(html, /http-equiv="Content-Security-Policy-Report-Only"/,
+      `${page} still has a Report-Only CSP meta (ignored by browsers; enforce instead)`);
+    const parsed = parsePolicy(enforcingMeta(html, page));
     assert.deepEqual(Object.keys(parsed).sort(), Object.keys(CSP_POLICY).sort(),
       `${page} policy directives differ from the §D draft`);
     for (const [directive, sources] of Object.entries(CSP_POLICY)) {
