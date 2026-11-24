@@ -7,7 +7,7 @@
  * global state/behaviour it owns, everything else is imported directly.
  */
 import { getLang, L, teamNameL, TL } from "../../i18n.js";
-import { PLAYERS, overall } from "../../data/players.js";
+import { PLAYERS, overall, playersReady } from "../../data/players.js";
 import { listHistoricalYears } from "../../data/historicalSeasons.js";
 import { readRootSave } from "../../data/saveRoot.js";
 import { readIdentity } from "../../data/profile.js";
@@ -194,6 +194,7 @@ export function createTimeTravelScreen({
     });
     $("#btn-time-travel-interview").addEventListener("click", async () => {
       if (await blockedByForeignSave("career")) return; // another account's career holds the slot: say so now
+      await playersReady(); // perf-r3 gap: createTimeTravelPrologue reads PLAYERS synchronously to build every roster
       try {
         prologue = createTimeTravelPrologue({
           year: Number(year.value),

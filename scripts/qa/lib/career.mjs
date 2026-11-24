@@ -24,6 +24,8 @@ export async function createCareerInPage({ growth = false, epiphanyGames = 0, le
   const sr = await import("/js/data/saveRoot.js");
   const dev = await import("/js/modes/playerDevelopment.js");
   const bal = await import("/js/career/balance.js");
+  const players = await import("/js/data/players.js");
+  await players.playersReady(); // perf-r3 gap: createTimeTravelPrologue reads PLAYERS synchronously (real bug, fixed in js/ui/timeTravel/screen.js too)
   const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7 });
   const root = ttc.resolveFutureKnowledgeChoice(ttc.acceptInterviewOffer(prologue, prologue.offers[1].id), "introduce-load-management");
   const season = root.leagueCareer.season;
@@ -71,6 +73,14 @@ export async function playLive(page, state) {
  * `onStep` runs after every `stepMs` (default 30s) of game clock, so a caller can sample the page while the game is going.
  */
 export async function fastForwardToResult(page, { onStep, stepMs = 30_000 } = {}) {
+  // The auto-offense/auto-defense buttons live inside the coach drawer's body (closed by default once the
+  // tip-off dead-ball window passes) AND behind B22's .adv-only gate (simple mode, the default, hides them).
+  // Open the drawer, then flip to advanced -- same fix as B91's court-takeover.mjs, plus the drawer half B92 missed.
+  const drawerOpen = await page.evaluate(() => document.querySelector(".coach-panel")?.classList.contains("coach-open"));
+  if (!drawerOpen) await page.click("#btn-coach-drawer");
+  await page.waitForSelector("#btn-coach-mode", { state: "visible", timeout: 5000 });
+  const simple = await page.evaluate(() => document.querySelector("#btn-coach-mode")?.getAttribute("aria-pressed") !== "true");
+  if (simple) await page.click("#btn-coach-mode");
   for (const sel of ["#btn-auto-offense", "#btn-auto-defense"]) await page.click(sel);
   for (let i = 0; i < 2; i++) await page.click("#btn-speed");
   await page.click("#btn-pause-sim");
