@@ -19,7 +19,8 @@
  *
  * Caveats (recorded, not hidden):
  * - paintFg/midFg are NOT measured real zone %: seasonToCard derives them from overall fg
- *   (players.js:123-125: paintFg = 0.48 + (fg-0.42)*0.7 + big bonus; midFg = fg*0.95).
+ *   (players.js:123-125: paintFg = 0.48 + (fg-0.42)*0.7, no position bonus since B35 scheme A;
+ *   midFg = fg*0.95).
  *   The probe therefore measures what the ENGINE does given those synthetic bases; a direct
  *   sim-vs-real paint%/mid% comparison is impossible from roster.json (only fg/tp/fga/tpa).
  * - Blocked shots carry no meta.shot (they emit meta.block instead), so event FGA is ~6%

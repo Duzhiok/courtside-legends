@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 68; // bump: Patrick Beverley gains the named trait kit (sticky_wrap / stopper_3d / motor_engine / corner_camp)
+export const ROSTER_SCHEMA = 69; // bump: B35 scheme A — C/PF paintFg +0.04 bonus removed (players.js)
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good

@@ -901,3 +901,23 @@ thr 桶分解（自主出手占本位置总 2PA 的份额 / 自主平均 makeP�
 1. B35 测量链至此全部闭合：§22 命中率通道 + §23 SF 缺口归因。剩余修法提案（PF +0.04 加成去留、蓝领补篮门槛、SF 选择效应的数值补偿）仍等用户批，见 BACKLOG B35。
 2. 局限：每组对阵各只一组种子；0.44 档 +2.3pt 是残余观察，未做显著性深究；事件口径（被盖/造犯规未中无 meta.shot，覆盖率 92.2%），与 §15.1/§16.2 同口径、可比。
 3. 浏览器实测仍排 Mac（match-events、photo-chain、fragments-redeem、Duel、LED 镜像、S4 可读性、性能批首点/冷启动/主页重绘耗时、e74b7c5 真机开赛、3D assist pass 1x/3x/暂停/2D-3D 切换）。
+
+## §24 修法落地：PF/C 同去 +0.04 加成（用户 2026-11-23 批）
+
+用户在 §23 闭合后拍板：PF 和 C 都去掉 +0.04（不是只去 PF）。实施（Lychee，2026-11-23）：`js/data/players.js:124` 删去 `(["C", "PF"].includes(pos) ? 0.04 : 0)` 一项，`paintFg = clamp(0.48 + (fg - 0.42) * 0.7, 0.35, 0.72)`；行内注释记 B35 §14。`prospectCard.js` 自有公式本就无此加成，不动。`overall()` 不吃 paintFg，评分不动。
+
+连带指纹（按规矩重记，非静默改数）：ROSTER_SCHEMA 68→69，`tests/fixtures/cardSchema.json` 重记（23,448 张卡，摘要 a4bf65db…）；`tests/fixtures/simGolden.json` 用 `scripts/sim/golden-hash.mjs record` 重记，20 个种子里 18 个变了（§7 的 V5 变了 15 个，同量级），global/injected 两路一致。
+
+主线复测（`scripts/measure/b35-make-by-zone.mjs 20 --fixed-set`，120 场，与 §13/§14 同口径；输出 `b35-fixedset-main-postfix.json`，日志见 goal hidden_files `b35-postfix-run.log`）：
+
+| 指标 | §13 基线（B76 后） | §14 B 组预测 | 本次主线复测 |
+|---|---|---|---|
+| 联盟 FG% / FG-only PPS | 49.1% / — | 48.7% / 1.063 | **48.6% / 1.062**（真实 48.8% / 1.062） |
+| PF 两分缺口 | +5.0pt | +2.2pt | **+2.7pt**（56.6% vs 真实 53.9%，n=14） |
+| C 两分缺口 | +5.6pt | +2.3pt | **+2.4pt**（57.8% vs 真实 55.4%，n=19） |
+| PG 两分缺口 | −3.4pt | 不动 | −3.8pt（45.7% vs 49.5%） |
+| SF 两分缺口 | −2.5pt | 不动 | −2.2pt（50.6% vs 52.8%） |
+
+结论：与 §14 预测一致（PF +2.7 vs 预测 +2.2，差 0.5pt 在 n=14 单种子噪声内；其余逐项吻合）。PF/C 缺口各剩 +2.4~2.7pt——§14 已说明这是加成能解释的上限，另一半在别处（§15 的选择 lift 位置差仍是候选，未再追）。SF 缺口不动，符合 §23（构成效应，无需数值补偿）。本轮未动：蓝领补篮门槛（§9，另案）、控卫灌水（§7.5(2)，仍未解）。
+
+**种子重选（同一轮的连带）**：全套测试首跑 3969 过 / 5 挂，全在重生荣誉线——测试文件自己写明了“GameSim 重校准后重选种子，断言是设计、种子不是”。`find-playoff-seeds.mjs tx 1 240 8`（16 分钟，8 并行）得：title 23 个、title-dnp 仅 tx-236、finals-loss 29 个；tx-29 已沦为 out-earlier，tx-17 由 title-dnp 变 title（会上场了），tx-145 仍夺冠但自动生成的宿敌抢占了 rivals[0]、respect 读成 38（< 40 下限）。重选：rebornHonors 夺冠测 tx-29→tx-15、决赛失利测 honors-real-11→tx-3；rebornTitleExchange DNP 测 tx-17→tx-236；tx-145 另写探针逐个验 respect∈[40,60) 且恰好一个藏品邀约（tx-71/94/108/119/156/157 六个过），取 tx-71；“上场 9 分钟”注释因未核实分钟数而去掉。两文件单跑 15/15 过，全套重跑见下。

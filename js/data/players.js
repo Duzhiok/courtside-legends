@@ -178,7 +178,9 @@ export function seasonToCard(r) {
 
   // Approximate zone FG% from overall / 3P tendencies (not exact shot-zone data)
   const threeFg = clamp(tp || 0.28, 0.05, 0.5);
-  const paintFg = clamp(0.48 + (fg - 0.42) * 0.7 + (["C", "PF"].includes(pos) ? 0.04 : 0), 0.35, 0.72);
+  // B35 §14: C/PF 没有 +0.04 禁区加成——消融证实它是大个子两分偏高的最大单一来源
+  // （PF 两分缺口 +5.1pt、C +5.6pt 里约六成是它），拿掉后联盟 FG% 仍贴真实。
+  const paintFg = clamp(0.48 + (fg - 0.42) * 0.7, 0.35, 0.72);
   const midFg = clamp(fg * 0.95, 0.28, 0.55);
 
   const prod = ppg * 1.0 + rpg * 0.7 + apg * 0.9 + spg * 1.5 + bpg * 1.4;
