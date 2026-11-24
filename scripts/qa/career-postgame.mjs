@@ -163,10 +163,10 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   for (let i = 0; i < 60 && !(await resultUp()); i++) {
     await page.clock.runFor(30_000);
     const stopped = await page.evaluate(() => {
-      const btn = document.querySelector("#btn-pause-sim");
-      return btn && !btn.hidden && btn.textContent.trim() === "继续模拟" ? (document.querySelector("#pause-hint")?.textContent || "paused").trim().slice(0, 30) : null;
+      const btn = document.querySelector("#btn-resume"); // the pause toggle hides itself while paused
+      return btn && !btn.hidden ? (document.querySelector("#pause-hint")?.textContent || "paused").trim().slice(0, 30) : null;
     });
-    if (stopped) { resumes.push(stopped); await page.click("#btn-pause-sim"); }
+    if (stopped) { resumes.push(stopped); await page.click("#btn-resume"); }
   }
   const liveDone = await resultUp();
   check(`[${tag}] live: a stopped game was resumed (our own pause at least)`, resumes.length >= 1, resumes.join(" | "));

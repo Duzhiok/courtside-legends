@@ -1545,7 +1545,10 @@ function newCourtView() {
       attackHome: L("主队攻向客队篮", "Home attacking the away basket"),
       attackAway: L("客队攻向主队篮", "Away attacking the home basket"),
       balanced: L("均衡", "Balanced"),
+      roleOff: L("攻", "O"),
+      roleDef: L("防", "D"),
     },
+    teamName: (name) => teamNameL(name),
   });
 }
 
@@ -1631,8 +1634,7 @@ function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   const speedBtn = $("#btn-speed");
   if (speedBtn) {
     speedBtn.hidden = speedLocked(state.mode, currentTournamentMatch());
-    const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";
-    speedBtn.textContent = `速度 x${state.speed} · ${label}`;
+    speedBtn.textContent = speedButtonText(state.speed);
   }
   state.autoOffense = !!sim.autoOffense;
   state.autoDefense = !!sim.autoDefense;
@@ -6701,8 +6703,9 @@ function fillTacticSelect(team, { preferId = null } = {}) {
   const cur = preferId || sel.value || team.tactic?.id || "";
   const optionFor = (t) => {
     const why = tacticUnlockHint(t.id, court);
-    const title = why ? `${t.desc || ""}（${why}）` : t.desc || "";
-    return `<option value="${t.id}" title="${escAttr(title)}">${t.name}${
+    const desc = tacticDesc(t, getLang());
+    const title = why ? `${desc}（${why}）` : desc;
+    return `<option value="${t.id}" title="${escAttr(title)}">${esc(tacticName(t, getLang()))}${
       why ? " ★" : ""
     }</option>`;
   };
@@ -7255,7 +7258,7 @@ function beginGame(homeTeam, awayTeam, youSide) {
   $("#game-team-a").textContent = teamNameL(homeTeam.name, getLang());
   $("#game-team-b").textContent = teamNameL(awayTeam.name, getLang());
   paintFeedIdentity(homeTeam, awayTeam);
-  $("#you-side").textContent = youSide === "home" ? homeTeam.name : awayTeam.name;
+  $("#you-side").textContent = teamNameL(youSide === "home" ? homeTeam.name : awayTeam.name, getLang());
 
   const injuryMode =
     state.mode === "career" ||
@@ -7268,8 +7271,8 @@ function beginGame(homeTeam, awayTeam, youSide) {
   const speedBtn = $("#btn-speed");
   if (speedBtn) {
     speedBtn.hidden = speedLocked(state.mode, currentTournamentMatch());
-    speedBtn.textContent = "速度 x1 · 真实";
-    speedBtn.title = "切换 1x真实 / 2x / 3x最快";
+    speedBtn.textContent = speedButtonText(1);
+    speedBtn.title = L("切换 1x真实 / 2x / 3x最快", "Cycle 1x real time / 2x / 3x fastest");
   }
   const quickBtn = $("#btn-quick-sim");
   if (quickBtn) {
@@ -7530,20 +7533,23 @@ function moodClass(mood) {
  */
 function liveStatusLine(p, marked = false, opts = {}) {
   const fg = p.fgPct != null ? `${p.fgPct}%` : "—";
-  const inj = p.injuredGames > 0 ? ` · <em class="inj">${p.injuryStatus || "伤停"}</em>` : "";
+  const inj = p.injuredGames > 0 ? ` · <em class="inj">${esc(p.injuryStatus || L("伤停", "Injured"))}</em>` : "";
   const grade = p.grade || "C+";
   const gTone = p.gradeTone || "grade-c";
-  const gTip = p.gradeLast ? ` title="最近：${escAttr(p.gradeLast)}"` : "";
+  const gTip = p.gradeLast ? ` title="${L("最近：", "Last: ")}${escAttr(p.gradeLast)}"` : "";
   const drag = opts.draggable === undefined ? "" : ` draggable="${opts.draggable ? "true" : "false"}"`;
   const side = opts.side ? ` data-side="${opts.side}"` : "";
   return `<li class="roster-line ${marked ? "marked" : ""}${opts.staged ? " staged" : ""}" data-id="${p.id}"${drag}${side}>
     ${photoImg(p)}
     <div class="live-line">
-      <div class="main"><span class="live-grade ${gTone}"${gTip}>${grade}</span> ${p.playPos || p.pos} ${p.name}${opts.showOvr ? ` · OVR ${p.overall ?? overall(p)}` : ""} · ${p.stats.pts}分 ${p.stats.reb}板 ${p.stats.ast}助 ${p.stats.stl}断 ${p.stats.blk}帽 · 命中${fg} · 疲劳${p.fatigue}${p.fatigueNote ? `·${p.fatigueNote}` : ""}${p.ironLungs ? "·铁肺" : ""}${
+      <div class="main"><span class="live-grade ${gTone}"${gTip}>${esc(grade)}</span> ${esc(p.playPos || p.pos)} ${esc(p.name)}${opts.showOvr ? ` · OVR ${p.overall ?? overall(p)}` : ""} · ${L(
+        `${p.stats.pts}分 ${p.stats.reb}板 ${p.stats.ast}助 ${p.stats.stl}断 ${p.stats.blk}帽 · 命中${fg} · 疲劳${p.fatigue}`,
+        `${p.stats.pts} pts ${p.stats.reb} reb ${p.stats.ast} ast ${p.stats.stl} stl ${p.stats.blk} blk · FG ${fg} · Fatigue ${p.fatigue}`,
+      )}${p.fatigueNote ? `·${esc(p.fatigueNote)}` : ""}${p.ironLungs ? L("·铁肺", " · Iron Lungs") : ""}${
         p.confidenceLabel ? ` · ${p.confidenceLabel}` : ""
       }${inj}</div>
-      <div class="status">手感 <span class="${hotClass(p.hot)}">${p.hotLabel || "平稳"}</span> · 心情 <span class="${moodClass(p.mood)}">${p.moodLabel || "平静"}</span>${
-        marked ? " · <strong>对位中</strong>" : ""
+      <div class="status">${L("手感", "Touch")} <span class="${hotClass(p.hot)}">${p.hotLabel || L("平稳", "Steady")}</span> · ${L("心情", "Mood")} <span class="${moodClass(p.mood)}">${p.moodLabel || L("平静", "Calm")}</span>${
+        marked ? ` · <strong>${L("对位中", "Matched up")}</strong>` : ""
       }</div>${opts.extra || ""}
     </div>
   </li>`;
@@ -7618,20 +7624,20 @@ function paintLineups(snap) {
     : `<li class="tiny">${L("板凳无人", "Bench is empty")}</li>`;
   const youTitle = $("#lineup-you-title");
   const oppTitle = $("#lineup-opp-title");
-  if (youTitle) youTitle.textContent = `${you.name} · ${L("场上", "On Court")}`;
-  if (oppTitle) oppTitle.textContent = `${opp.name} · ${L("场上", "On Court")}`;
+  if (youTitle) youTitle.textContent = `${teamNameL(you.name)} · ${L("场上", "On Court")}`;
+  if (oppTitle) oppTitle.textContent = `${teamNameL(opp.name)} · ${L("场上", "On Court")}`;
   const youChem = $("#lineup-you-chem");
   const oppChem = $("#lineup-opp-chem");
-  const youBall = lineupBallNote(you.onCourt, { primaryId: youPrimary });
-  const oppBall = lineupBallNote(opp.onCourt, { primaryId: null });
+  const youBall = ballNoteL(lineupBallNote(you.onCourt, { primaryId: youPrimary }));
+  const oppBall = ballNoteL(lineupBallNote(opp.onCourt, { primaryId: null }));
   const teamSug = liveTeamSuggestion({ youScore, oppScore, lang });
   if (youChem) {
-    youChem.textContent = `化学反应 ${you.chem} · 士气 ${meterText(you.morale)} · 适配 ${you.fit}${youBall ? ` · ${youBall}` : ""}${
+    youChem.textContent = `${chemLine(you)}${youBall ? ` · ${youBall}` : ""}${
       teamSug ? ` · ${teamSug}` : ""
     }`;
   }
   if (oppChem) {
-    oppChem.textContent = `化学反应 ${opp.chem} · 士气 ${meterText(opp.morale)} · 适配 ${opp.fit}${oppBall ? ` · ${oppBall}` : ""}`;
+    oppChem.textContent = `${chemLine(opp)}${oppBall ? ` · ${oppBall}` : ""}`;
   }
   const hint = $("#bench-hint");
   if (hint) {
@@ -7843,11 +7849,11 @@ function paintMomentum(snap) {
   bar.style.width = `${pct}%`;
   wrap?.classList.toggle("hot", pts >= 8);
   if (!m.side || pts < 4) {
-    label.textContent = "平静";
+    label.textContent = L("平静", "Even");
     return;
   }
-  const name = m.side === "home" ? snap.home.name : snap.away.name;
-  label.textContent = `${name} 连得 ${pts}`;
+  const name = teamNameL(m.side === "home" ? snap.home.name : snap.away.name);
+  label.textContent = L(`${name} 连得 ${pts}`, `${name} ${pts}-0 run`);
 }
 
 function paintPlayerOrders(snap, { force = false } = {}) {
@@ -8288,14 +8294,14 @@ function syncPauseUI(snap) {
     hint.hidden = !paused;
     if (paused) {
       const labels = {
-        timeout: "暂停窗口——双方都可以调整。改完点「继续比赛」。",
-        quarter: "节间休息——恢复 15 点疲劳。可调整战术、沟通、换人与站位。",
-        half: "中场休息——恢复 35 点疲劳。可调整战术与阵容。",
-        manual: "模拟已暂停——可调整后点「继续比赛」。",
-        injury: "有人受伤——请立刻把伤员换下，再点「继续比赛」。",
-        event: "比赛事件——在事件卡里做个决定；直接点「继续比赛」就按默认处理。",
+        timeout: L("暂停窗口——双方都可以调整。改完点「继续比赛」。", "Timeout: both sides can adjust. Press Resume Game when done."),
+        quarter: L("节间休息——恢复 15 点疲劳。可调整战术、沟通、换人与站位。", "Quarter break: +15 fatigue recovered. Change tactics, talk, subs and positions."),
+        half: L("中场休息——恢复 35 点疲劳。可调整战术与阵容。", "Halftime: +35 fatigue recovered. Change tactics and lineup."),
+        manual: L("模拟已暂停——可调整后点「继续比赛」。", "Paused: make your changes, then press Resume Game."),
+        injury: L("有人受伤——请立刻把伤员换下，再点「继续比赛」。", "Injury: sub the injured player out, then press Resume Game."),
+        event: L("比赛事件——在事件卡里做个决定；直接点「继续比赛」就按默认处理。", "Match event: decide on the event card, or press Resume Game to take the default."),
       };
-      hint.textContent = labels[reason] || "死球窗口——可调整后点「继续比赛」。";
+      hint.textContent = labels[reason] || L("死球窗口——可调整后点「继续比赛」。", "Dead ball: make your changes, then press Resume Game.");
     }
   }
   if (liveHint) liveHint.hidden = !!paused;
@@ -8313,7 +8319,14 @@ function syncPauseUI(snap) {
   syncTakeoverPanel();
   coachDrawer.setPaused(paused);
   const pauseSim = $("#btn-pause-sim");
-  if (pauseSim) pauseSim.textContent = paused ? "继续模拟" : "暂停模拟";
+  if (pauseSim) {
+    pauseSim.textContent = paused ? L("继续模拟", "Resume") : L("暂停模拟", "Pause");
+    // Paused: #btn-resume is the one way back in, so the toggle would just be a second "resume" next to it.
+    // Keyboard Back still calls .click() on it, which works while hidden.
+    pauseSim.hidden = paused;
+  }
+  const saveLeave = $("#btn-save-leave");
+  if (saveLeave) saveLeave.hidden = paused; // the pause row has its own 保存并离开
 }
 
 /** Live ball: only shout + call timeout. Dead ball: tactics / talk / subs / scheme. */
@@ -8573,7 +8586,7 @@ $("#btn-pause-sim").onclick = () => {
     const snap = state.sim.snapshot();
     syncPauseUI(snap);
     paintLineups(snap);
-    pushFeed("coach", "模拟已暂停——可调整后点「继续比赛」恢复");
+    pushFeed("coach", L("模拟已暂停——可调整后点「继续比赛」恢复", "Paused: make your changes, then press Resume Game"));
   }
 };
 $("#btn-save-game")?.addEventListener("click", () => saveProgress());
@@ -8633,9 +8646,36 @@ $("#btn-speed").onclick = () => {
   if (speedLocked(state.mode, currentTournamentMatch())) return;
   state.speed = state.speed === 1 ? 2 : state.speed === 2 ? 3 : 1;
   state.sim.setSpeed(state.speed);
-  const label = state.speed === 1 ? "真实" : state.speed === 2 ? "加速" : "最快";
-  $("#btn-speed").textContent = `速度 x${state.speed} · ${label}`;
+  $("#btn-speed").textContent = speedButtonText(state.speed);
 };
+
+/** "化学反应 68 · 士气 66 · 适配 95" in the current language. */
+function chemLine(team) {
+  return `${L("化学反应", "Chem")} ${team.chem} · ${L("士气", "Morale")} ${meterText(team.morale)} · ${L("适配", "Fit")} ${team.fit}`;
+}
+
+/** lineupBallNote() (data/intangibles.js) only speaks Chinese; translate its two shapes for English. */
+function ballNoteL(note) {
+  if (!note || getLang() !== "en") return note;
+  if (note === "缺少持球发起点") return "No primary ball handler";
+  let m = /^持球核 (.+) \+ (\d+) 名无球点$/.exec(note);
+  if (m) return `Ball handler ${m[1]} + ${m[2]} off-ball spacers`;
+  m = /^指定持球：(.+) · (.+) 无球配合$/.exec(note);
+  if (m) return `Set handler: ${m[1]} · ${m[2]} off the ball`;
+  m = /^双核分工：(.+) 持球 · (.+) 无球$/.exec(note);
+  if (m) return `Two creators: ${m[1]} on the ball · ${m[2]} off it`;
+  m = /^持球冲突：(.+)$/.exec(note);
+  if (m) return `Ball-handler clash: ${m[1]}`;
+  m = /^无球偏弱：(.+)（可共存，火力略削）$/.exec(note);
+  if (m) return `Weak off the ball: ${m[1]} (workable, a bit less firepower)`;
+  m = /^指定持球：(.+)$/.exec(note);
+  return m ? `Set handler: ${m[1]}` : note;
+}
+
+function speedButtonText(speed) {
+  const label = speed === 1 ? L("真实", "Real time") : speed === 2 ? L("加速", "Fast") : L("最快", "Fastest");
+  return `${L("速度", "Speed")} x${speed} · ${label}`;
+}
 
 const AUTOPILOT_BUTTONS = [
   { btn: "#btn-auto-offense", stateKey: "autoOffense", setter: "setAutoOffense", label: "进攻托管" },
@@ -8799,7 +8839,7 @@ function setResultActionMode(mode, { showContinue = false, continuePrimary = fal
     if (extra) extra.hidden = true;
   }
   again.hidden = false;
-  again.textContent = "再来一局";
+  again.textContent = L("再来一局", "Play Again");
   cont.hidden = !showContinue;
   const useContinuePrimary = showContinue && continuePrimary;
   cont.classList.toggle("primary", useContinuePrimary);
@@ -8811,13 +8851,13 @@ function renderResultExplain(snap) {
   if (!box) return;
   let summary;
   try {
-    summary = summarizeMatchResult(snap);
+    summary = summarizeMatchResult(snap, { lang: getLang(), teamName: (n) => teamNameL(n) });
   } catch {
     box.hidden = true;
     return;
   }
   const pctText = (value) => `${(value * 100).toFixed(0)}%`;
-  const sideLabel = (side) => (side === "home" ? snap.home.name : snap.away.name);
+  const sideLabel = (side) => esc(teamNameL(side === "home" ? snap.home.name : snap.away.name));
   const rows = ["home", "away"].map((side) => {
     const totals = summary.teamTotals[side];
     const shoot = summary.shooting[side];
@@ -8825,16 +8865,16 @@ function renderResultExplain(snap) {
     const pm = summary.plusMinus[side];
     return `<div class="result-explain-team">
       <strong>${sideLabel(side)}</strong>
-      <span>命中率 ${pctText(shoot.fg)} · 三分 ${pctText(shoot.tp)} · 罚球 ${pctText(shoot.ft)}</span>
-      <span>失误 ${totals.tov} · 前场篮板 ${totals.oreb}</span>
-      ${top ? `<span>最佳表现：${top.name}（${top.pts}分 ${top.reb}板 ${top.ast}助攻）</span>` : ""}
-      ${pm.best ? `<span>+/- 最高：${pm.best.name} ${pm.best.pm >= 0 ? "+" : ""}${pm.best.pm}</span>` : ""}
+      <span>${L("命中率", "FG")} ${pctText(shoot.fg)} · ${L("三分", "3PT")} ${pctText(shoot.tp)} · ${L("罚球", "FT")} ${pctText(shoot.ft)}</span>
+      <span>${L("失误", "TOV")} ${totals.tov} · ${L("前场篮板", "OREB")} ${totals.oreb}</span>
+      ${top ? `<span>${L("最佳表现", "Top performer")}: ${esc(top.name)} ${L(`（${top.pts}分 ${top.reb}板 ${top.ast}助攻）`, `(${top.pts} pts ${top.reb} reb ${top.ast} ast)`)}</span>` : ""}
+      ${pm.best ? `<span>${L("+/- 最高", "Best +/-")}: ${esc(pm.best.name)} ${pm.best.pm >= 0 ? "+" : ""}${pm.best.pm}</span>` : ""}
     </div>`;
   }).join("");
   const factors = summary.factors.length
-    ? `<ul>${summary.factors.map((line) => `<li>${line}</li>`).join("")}</ul>`
-    : `<p class="tiny">比赛各项数据较为接近，胜负更多取决于关键回合的质量。</p>`;
-  box.innerHTML = `<h3>赛后解析</h3><div class="result-explain-grid">${rows}</div>${factors}`;
+    ? `<ul>${summary.factors.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>`
+    : `<p class="tiny">${L("比赛各项数据较为接近，胜负更多取决于关键回合的质量。", "The numbers were close; the game came down to the big possessions.")}</p>`;
+  box.innerHTML = `<h3>${L("赛后解析", "Why it went this way")}</h3><div class="result-explain-grid">${rows}</div>${factors}`;
   box.hidden = false;
 }
 
@@ -8855,14 +8895,16 @@ function showResult(snap, { formNotes = [] } = {}) {
     state.hometownChallenge = null;
   }
   audio.outcome(youWin);
-  const winner = hs === as ? L("平局", "Tie") : hs > as ? snap.home.name : snap.away.name;
+  const winner = hs === as ? L("平局", "Tie") : teamNameL(hs > as ? snap.home.name : snap.away.name);
   $("#result-title").textContent = hs === as ? L("加时仍平——以模拟终局计", "Still tied after OT — decided by sim") : L(`${winner} 获胜`, `${winner} wins`);
+  // The per-player form notes are engine-built Chinese lines; English shows the count instead of mixing languages.
   const formBit = formNotes?.length
-    ? `本场表现已写入自信/战术地位：${formNotes.slice(0, 3).join("；")}${
-        formNotes.length > 3 ? "…" : ""
-      }`
-    : "本场表现会带入下一场：打得好更敢投、队友更愿意喂球。";
-  $("#result-summary").textContent = `化学反应 / 适配度 / 暗属性影响了回合效率。${formBit}`;
+    ? L(
+        `本场表现已写入自信/战术地位：${formNotes.slice(0, 3).join("；")}${formNotes.length > 3 ? "…" : ""}`,
+        `This game's form carries over: ${formNotes.length} player${formNotes.length > 1 ? "s" : ""} changed confidence / role.`,
+      )
+    : L("本场表现会带入下一场：打得好更敢投、队友更愿意喂球。", "Form carries into the next game: hot players shoot more and get fed more.");
+  $("#result-summary").textContent = `${L("化学反应 / 适配度 / 暗属性影响了回合效率。", "Chemistry, fit and hidden traits shaped every possession. ")}${formBit}`;
   renderResultExplain(snap);
   $("#result-rewards").hidden = true; // season modes repaint it in wireSeasonResultContinue
   renderResultAllTeam(null);
@@ -11523,10 +11565,10 @@ function boxTable(team) {
       </tr>`;
     })
     .join("");
-  return `<div class="box-wrap"><strong>${esc(team.name)}</strong>
+  return `<div class="box-wrap"><strong>${esc(teamNameL(team.name))}</strong>
     <div class="table-scroll"><table>
       <thead><tr>
-        <th>球员</th><th>评级</th><th>MIN</th><th>PTS</th><th>REB</th><th>OREB</th><th>DREB</th>
+        <th>${L("球员", "Player")}</th><th>${L("评级", "Grade")}</th><th>MIN</th><th>PTS</th><th>REB</th><th>OREB</th><th>DREB</th>
         <th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>PF</th>
         <th>FGM-A</th><th>3PM-A</th><th>FTM-A</th><th>+/-</th>
       </tr></thead>

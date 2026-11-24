@@ -205,6 +205,8 @@ const TEAM_NAME_EN = {
   "雷霆": "Thunder", "马刺": "Spurs", "骑士": "Cavaliers", "魔术": "Magic",
   "鹈鹕": "Pelicans", "黄蜂": "Hornets", "黄蜂/鹈鹕": "Hornets / Pelicans",
   // the league's default display names (data/league.js LEAGUE_TEAM_META) are city + nickname, so they need their own rows
+  // draft.js quickMatchTeams() default names for Play Now / quick exhibitions
+  "主场群星": "Home All-Stars", "客场挑战者": "Away Challengers",
   "西雅图超音速": "Seattle SuperSonics", "拉斯维加斯": "Las Vegas", "拉斯维加斯 ***": "Las Vegas ***",
 };
 

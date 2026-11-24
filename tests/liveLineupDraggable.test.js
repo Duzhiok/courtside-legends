@@ -22,6 +22,8 @@ function loadLiveStatusLine() {
     "overall",
     "hotClass",
     "moodClass",
+    "esc",
+    "L",
     `${body}\nreturn liveStatusLine;`,
   )(
     () => "",
@@ -29,6 +31,8 @@ function loadLiveStatusLine() {
     () => 80,
     () => "",
     () => "",
+    (s) => String(s),
+    (zh) => zh,
   );
 }
 

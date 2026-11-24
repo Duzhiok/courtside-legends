@@ -90,3 +90,20 @@ test("最佳表现 ranks by the box score shown next to it, not the live gradeSc
   assert.equal(summary.topPerformers.away.name, "Volume Scorer");
   assert.equal(summary.topPerformers.away.pts, 24);
 });
+
+test("2026-11 review: factor lines never print a negative gap, and English mode gets English lines", () => {
+  // Seen on the result screen: "三分命中率差距 -32 个百分点" and "罚球多命中 -8 个" when the loser led those columns.
+  const snap = snapFixture({
+    home: { name: "主场群星", roster: [player("W", { pts: 60, fgm: 25, fga: 50, tpm: 2, tpa: 10, ftm: 8, fta: 10 })] },
+    away: { name: "客场挑战者", roster: [player("L", { pts: 50, fgm: 15, fga: 40, tpm: 6, tpa: 10, ftm: 16, fta: 18 })] },
+    score: { home: 60, away: 50 },
+  });
+  const zh = summarizeMatchResult(snap).factors.join("\n");
+  assert.doesNotMatch(zh, /-\d/, zh);
+  assert.match(zh, /客场挑战者 罚球多命中 8 个，仍没能赢下比赛/);
+  const names = { "主场群星": "Home All-Stars", "客场挑战者": "Away Challengers" };
+  const en = summarizeMatchResult(snap, { lang: "en", teamName: (n) => names[n] || n }).factors.join("\n");
+  assert.doesNotMatch(en, /[一-鿿]/, en);
+  assert.match(en, /Away Challengers shot 40 points better from three/);
+  assert.match(en, /Away Challengers made 8 more free throws and still lost/);
+});

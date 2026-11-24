@@ -1022,6 +1022,13 @@ select, input[type="number"] {
 .app-confirm-card p { margin: 0; color: var(--muted); line-height: 1.55; }
 .app-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .result-card { padding: 28px 22px; text-align: center; }
+/* The analysis + two box scores push the next-step buttons 800-1200px below the fold; keep them reachable. */
+.result-card > .actions {
+  position: sticky; bottom: 0; z-index: 5;
+  margin: 16px -22px -28px; padding: 12px 22px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255,255,255,.94); backdrop-filter: blur(6px); border-top: 1px solid var(--line);
+  border-radius: 0 0 14px 14px; box-shadow: 0 -6px 16px rgba(0,0,0,.06);
+}
 .big-score {
   font-family: var(--font-display);
   font-size: 3.4rem;
@@ -2055,8 +2062,10 @@ select, input[type="number"] {
 .fc-zone-tag {
   position: absolute; left: 8%; color: rgba(255,255,255,.55); font-size: .68rem; letter-spacing: .04em;
 }
-.fc-zone-tag.top { top: 4%; }
-.fc-zone-tag.bottom { bottom: 4%; }
+/* Corners belong to the effects / players toggles (top) and the formation caption (bottom-left), so the basket tags
+   sit beside the top hoop and in the free bottom-right corner instead of underneath them. */
+.fc-zone-tag.top { top: 4%; left: calc(50% + 26px); }
+.fc-zone-tag.bottom { bottom: 4%; left: auto; right: 8%; }
 
 .ball-dot {
   position: absolute; width: 12px; height: 12px; border-radius: 50%;
@@ -2180,6 +2189,10 @@ select, input[type="number"] {
   pointer-events: auto;
 }
 .court-fx-btn:hover { background: rgba(0,0,0,.75); }
+/* Touch: the two court toggles were 20-24px tall; give fingers a usable target without covering the court. */
+@media (pointer: coarse) {
+  .court-fx-btn, .court-mode-btn { min-height: 34px; padding: 6px 12px; font-size: .78rem; }
+}
 @media (prefers-reduced-motion: reduce) {
   .court-token, .ball-dot { transition: none !important; }
   .court-token .tok-figure, .court-token .tok-avatar, .fc-hoop,

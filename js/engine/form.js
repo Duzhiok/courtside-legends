@@ -10,14 +10,15 @@ import { gameNote, NEGATIVE_NOTES, rateGame } from "./formRating.js";
 export { NEGATIVE_NOTES };
 
 /** Human label for confidence band. */
-export function confidenceLabel(conf) {
+export function confidenceLabel(conf, lang = "zh") {
   const c = Number(conf) || 50;
-  if (c >= 78) return "自信爆棚";
-  if (c >= 68) return "信心十足";
-  if (c >= 58) return "状态回升";
-  if (c >= 45) return "平常心";
-  if (c >= 35) return "信心不足";
-  return "自我怀疑";
+  const en = lang === "en";
+  if (c >= 78) return en ? "Sky-high confidence" : "自信爆棚";
+  if (c >= 68) return en ? "Confident" : "信心十足";
+  if (c >= 58) return en ? "Confidence rising" : "状态回升";
+  if (c >= 45) return en ? "Even-keeled" : "平常心";
+  if (c >= 35) return en ? "Shaky" : "信心不足";
+  return en ? "Self-doubt" : "自我怀疑";
 }
 
 export function tacticalLabel(tac) {

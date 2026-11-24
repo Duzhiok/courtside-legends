@@ -250,7 +250,10 @@ export class CourtView {
       attackHome: opts.labels?.attackHome || "主队攻向客队篮",
       attackAway: opts.labels?.attackAway || "客队攻向主队篮",
       balanced: opts.labels?.balanced || "均衡",
+      roleOff: opts.labels?.roleOff || "攻",
+      roleDef: opts.labels?.roleDef || "防",
     };
+    this.teamName = typeof opts.teamName === "function" ? opts.teamName : (name) => name;
     // B54 remainder: tactic names come from sim data (off.tactic) and carry
     // nameEn; resolve per render so a mid-game language flip takes effect.
     // No getLang passed (bare construction, tests) keeps the Chinese default.
@@ -520,7 +523,7 @@ export class CourtView {
             ? this.labels.phaseSet
             : this.labels.phaseFinish;
 
-    this.formLabel.textContent = `${off.name} · ${this._tacticName(off) || this.labels.balanced} · ${
+    this.formLabel.textContent = `${this.teamName(off.name)} · ${this._tacticName(off) || this.labels.balanced} · ${
       attackingUp ? this.labels.attackHome : this.labels.attackAway
     } · ${phaseName}`;
 
@@ -960,7 +963,7 @@ export class CourtView {
           <span class="tok-pts">${Number(p.stats?.pts) || 0}</span>
         </div>
         <span class="tok-name" title="${esc(p.name)}">${esc(shortName(p.name))}</span>
-        <span class="tok-role">${isOff ? "攻" : "防"}</span>
+        <span class="tok-role">${isOff ? this.labels.roleOff : this.labels.roleDef}</span>
       `
         : `
         <div class="tok-avatar">
@@ -969,7 +972,7 @@ export class CourtView {
           <span class="tok-pts">${Number(p.stats?.pts) || 0}</span>
         </div>
         <span class="tok-name" title="${esc(p.name)}">${esc(shortName(p.name))}</span>
-        <span class="tok-role">${isOff ? "攻" : "防"}</span>
+        <span class="tok-role">${isOff ? this.labels.roleOff : this.labels.roleDef}</span>
       `;
       this.tokenBox.appendChild(el);
       this.tokens.set(`${side}-${p.id}`, el);

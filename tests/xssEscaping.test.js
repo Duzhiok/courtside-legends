@@ -21,7 +21,7 @@ test("S-P1-1: the standings table escapes the team name (default tab — the aut
 });
 
 test("S-P1-1: the stats table escapes the team and player names", () => {
-  assert.ok(appSrc.includes("<strong>${esc(team.name)}</strong>"), "stats header escapes team.name");
+  assert.ok(appSrc.includes("<strong>${esc(teamNameL(team.name))}</strong>"), "stats header escapes team.name (after the display-name lookup)");
   assert.ok(appSrc.includes('${photoImg(p, "headshot sm")} ${esc(p.name)}'), "stats rows escape p.name");
   assert.ok(!appSrc.includes("<strong>${team.name}</strong>"), "no unescaped stats header remains");
 });

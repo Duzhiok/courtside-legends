@@ -47,8 +47,9 @@ function paintTopButton() {
   const on = manager.getSettings().mode !== "off";
   btn.classList.toggle("is-on", on);
   btn.setAttribute("aria-pressed", String(on));
-  btn.textContent = on ? "♪ 音乐开" : "♪ 音乐";
-  btn.title = on ? "关闭背景音乐" : "开启背景音乐";
+  const en = document.documentElement.lang === "en";
+  btn.textContent = on ? (en ? "♪ Music on" : "♪ 音乐开") : en ? "♪ Music" : "♪ 音乐";
+  btn.title = on ? (en ? "Turn background music off" : "关闭背景音乐") : en ? "Turn background music on" : "开启背景音乐";
 }
 
 function bindUnlock() {

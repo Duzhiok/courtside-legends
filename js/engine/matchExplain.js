@@ -82,15 +82,21 @@ function requireSnap(snap) {
   }
 }
 
-export function summarizeMatchResult(snap) {
+/**
+ * @param {object} snap completed game snapshot
+ * @param {{ lang?: "zh"|"en", teamName?: (name: string) => string }} [opts] factor-line language (default zh) and a
+ *   display-name mapper for the team names inside them (e.g. i18n teamNameL)
+ */
+export function summarizeMatchResult(snap, { lang = "zh", teamName = (name) => name } = {}) {
   requireSnap(snap);
+  const en = lang === "en";
   const home = teamTotals(snap.home);
   const away = teamTotals(snap.away);
   const homeScore = snap.score.home;
   const awayScore = snap.score.away;
   const winnerSide = homeScore === awayScore ? null : homeScore > awayScore ? "home" : "away";
-  const winner = winnerSide ? snap[winnerSide] : null;
-  const loser = winnerSide ? snap[winnerSide === "home" ? "away" : "home"] : null;
+  const winner = winnerSide ? { name: teamName(snap[winnerSide].name) } : null;
+  const loser = winnerSide ? { name: teamName(snap[winnerSide === "home" ? "away" : "home"].name) } : null;
   const winnerTotals = winnerSide ? (winnerSide === "home" ? home : away) : null;
   const loserTotals = winnerSide ? (winnerSide === "home" ? away : home) : null;
 
@@ -100,29 +106,47 @@ export function summarizeMatchResult(snap) {
     if (Math.abs(tovDiff) >= 3) {
       factors.push(
         tovDiff > 0
-          ? `${loser.name} 失误比 ${winner.name} 多 ${tovDiff} 次，白送回合`
-          : `${winner.name} 失误反而比 ${loser.name} 多 ${-tovDiff} 次，仍靠效率取胜`,
+          ? en
+            ? `${loser.name} turned it over ${tovDiff} more times than ${winner.name}: free possessions`
+            : `${loser.name} 失误比 ${winner.name} 多 ${tovDiff} 次，白送回合`
+          : en
+            ? `${winner.name} turned it over ${-tovDiff} more times than ${loser.name} and still won on efficiency`
+            : `${winner.name} 失误反而比 ${loser.name} 多 ${-tovDiff} 次，仍靠效率取胜`,
       );
     }
     const orebDiff = winnerTotals.oreb - loserTotals.oreb;
     if (Math.abs(orebDiff) >= 3) {
       factors.push(
         orebDiff > 0
-          ? `${winner.name} 前场篮板多抢 ${orebDiff} 个，制造了额外进攻回合`
-          : `${loser.name} 前场篮板多抢 ${-orebDiff} 个，但没能转化成胜势`,
+          ? en
+            ? `${winner.name} grabbed ${orebDiff} more offensive rebounds: extra possessions`
+            : `${winner.name} 前场篮板多抢 ${orebDiff} 个，制造了额外进攻回合`
+          : en
+            ? `${loser.name} grabbed ${-orebDiff} more offensive rebounds but could not turn them into a win`
+            : `${loser.name} 前场篮板多抢 ${-orebDiff} 个，但没能转化成胜势`,
       );
     }
     const tpDiffPct = pct(winnerTotals.tpm, winnerTotals.tpa) - pct(loserTotals.tpm, loserTotals.tpa);
     if (Math.abs(tpDiffPct) >= 0.1 && (winnerTotals.tpa >= 5 || loserTotals.tpa >= 5)) {
+      const gap = Math.abs(Math.round(tpDiffPct * 100));
+      const hotter = tpDiffPct > 0 ? winner.name : loser.name;
       factors.push(
-        `三分命中率差距 ${(tpDiffPct * 100).toFixed(0)} 个百分点，${
-          tpDiffPct > 0 ? winner.name : loser.name
-        } 的外线手感是关键`,
+        en
+          ? `${hotter} shot ${gap} points better from three: outside shooting decided it`
+          : `三分命中率差距 ${gap} 个百分点，${hotter} 的外线手感是关键`,
       );
     }
     const ftDiff = winnerTotals.ftm - loserTotals.ftm;
     if (Math.abs(ftDiff) >= 6) {
-      factors.push(`${winner.name} 罚球多命中 ${ftDiff} 个，罚球线上占了便宜`);
+      factors.push(
+        ftDiff > 0
+          ? en
+            ? `${winner.name} made ${ftDiff} more free throws: the line paid off`
+            : `${winner.name} 罚球多命中 ${ftDiff} 个，罚球线上占了便宜`
+          : en
+            ? `${loser.name} made ${-ftDiff} more free throws and still lost`
+            : `${loser.name} 罚球多命中 ${-ftDiff} 个，仍没能赢下比赛`,
+      );
     }
   }
 

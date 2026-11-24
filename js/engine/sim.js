@@ -3123,7 +3123,7 @@ function slim(p, slimLang = "zh") {
     hotLabel: hotLabel(p.hot || 0, slimLang),
     moodLabel: moodLabel(p.mood ?? 50, slimLang),
     confidence: Math.round(formConfidence(p)),
-    confidenceLabel: confidenceLabel(p.confidence),
+    confidenceLabel: confidenceLabel(p.confidence, slimLang),
     tacticalStatus: Math.round(formTactical(p)),
     tacticalLabel: tacticalLabel(p.tacticalStatus),
     lastGame: p.lastGame || null,
