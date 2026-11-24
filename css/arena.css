@@ -540,3 +540,109 @@ body:has(.screen.arena.active) .topbar {
 #screen-reborn.arena #reborn-body > p:not([class]) { order: -2; }
 #screen-reborn.arena #reborn-body > :is(.reborn-training, .btn[data-play], .btn[data-ff], .reborn-ff-progress, .reborn-ff) { order: -1; }
 #screen-reborn.arena .reborn-awakening ul, #screen-reborn.arena #reborn-body > section ul { padding-left: 18px; color: var(--text-mid); }
+
+/* ---------------- Starting five (#screen-setup): the locker-room whiteboard ---------------- */
+#screen-setup.arena .panel-head h2 { font-family: var(--font-display); letter-spacing: .05em; font-size: 2rem; color: var(--gold); }
+#screen-setup.arena .setup-how { background: rgba(134, 239, 172, .08); border-color: rgba(134, 239, 172, .28); color: #bbf7d0; }
+#screen-setup.arena :is(.roster-box, .setup-oncourt-panel, .setup-pool-panel, .setup-skill-panel, .tb-bar) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .02));
+  border: 1px solid var(--surface-line);
+  color: var(--text-hi);
+}
+#screen-setup.arena :is(.roster-box h3, .setup-panel-head h4, .career-skill-heading, .tb-h) { color: var(--gold); letter-spacing: .03em; }
+#screen-setup.arena strong { color: var(--text-hi); }
+#screen-setup.arena :is(.tiny, em, .scout-lineup, .stamina-min-hint, .setup-pos-row, .tb-hint, .tb-spot-pos, .tb-row-label, .matchup-arrow) { color: var(--text-low); }
+#screen-setup.arena .setup-fit-hint { color: #86efac; }
+#screen-setup.arena .scout-lineup strong, #screen-setup.arena .matchup-opp { color: var(--text-hi); }
+/* player cards */
+#screen-setup.arena .setup-mini { background: linear-gradient(135deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .025)); border: 1px solid rgba(255, 255, 255, .11); color: var(--text-hi); }
+#screen-setup.arena .setup-mini.on-court { border-color: var(--orange); box-shadow: inset 0 0 0 1px rgba(255, 122, 26, .25), 0 6px 18px rgba(0, 0, 0, .3); }
+#screen-setup.arena .slot-badge { background: var(--gold); color: var(--arena-1); }
+#screen-setup.arena .setup-stat.mid { background: rgba(255, 255, 255, .08); color: var(--text-mid); }
+#screen-setup.arena .setup-stat.hi { background: rgba(134, 239, 172, .16); color: #86efac; }
+#screen-setup.arena .setup-stat.lo { background: rgba(251, 146, 60, .14); color: #fdba74; }
+#screen-setup.arena .setup-action-label { background: rgba(251, 146, 60, .16); color: #fdba74; }
+#screen-setup.arena .order-group-label { color: #fdba74; }
+#screen-setup.arena :is(.setup-orders-block, .setup-role-block) { border-color: rgba(255, 255, 255, .1); }
+/* form fields on a dark ground */
+#screen-setup.arena :is(select, input.setup-min-input) { background: rgba(0, 0, 0, .35); color: var(--text-hi); border: 1px solid rgba(255, 255, 255, .18); color-scheme: dark; }
+#screen-setup.arena select option { background: #0f2a1c; color: #fff; }
+#screen-setup.arena :is(select, input.setup-min-input):focus-visible { outline: 3px solid var(--orange); outline-offset: 1px; }
+/* opponent scouting */
+#screen-setup.arena :is(.scout-match, .matchup-row) { background: rgba(0, 0, 0, .28); border-color: rgba(255, 255, 255, .1); color: var(--text-hi); }
+#screen-setup.arena .scout-match.yours { border-color: var(--orange); box-shadow: inset 3px 0 0 var(--orange); }
+#screen-setup.arena .scout-match .score { color: var(--gold); }
+#screen-setup.arena .scout-others > summary { color: var(--text-mid); }
+#screen-setup.arena .soft-hr { border-color: rgba(255, 255, 255, .1); }
+/* tactics board: the wooden court stays, its chrome goes dark */
+#screen-setup.arena :is(.tb-spot, .tb-system) { background: rgba(8, 22, 14, .9); color: var(--text-hi); border: 1px solid rgba(255, 255, 255, .18); }
+#screen-setup.arena :is(.tb-spot-name, .tb-spot-ovr, .tb-system-name, .tb-system-meta) { color: var(--text-hi); }
+#screen-setup.arena .tb-system:hover { border-color: var(--gold); }
+#screen-setup.arena .tb-system.is-active { background: var(--gold); border-color: var(--gold); }
+#screen-setup.arena .tb-system.is-active :is(.tb-system-name, .tb-system-meta) { color: var(--arena-1); }
+#screen-setup.arena .tb-tag-advice { background: rgba(255, 255, 255, .1); color: var(--text-mid); }
+#screen-setup.arena .tb-coach { color: var(--text-hi); }
+#screen-setup.arena .setup-tactics-board .tb-bar { background: rgba(6, 17, 11, .94); }
+/* the confirm bar stays reachable */
+#screen-setup.arena > .actions { position: sticky; bottom: 0; z-index: 5; padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, transparent, rgba(6, 17, 11, .96) 30%); }
+@media (max-width: 560px) {
+  #screen-setup.arena .panel-head h2 { font-size: 1.7rem; }
+  #screen-setup.arena > .actions { background: rgba(6, 17, 11, .96); border-top: 1px solid var(--surface-line); margin: 0 -20px; padding-inline: 20px; }
+  #screen-setup.arena > .actions .btn.primary { flex: 1; }
+}
+#screen-setup.arena .career-skill-card { background: linear-gradient(135deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .025)); border: 1px solid rgba(255, 255, 255, .11); color: var(--text-hi); }
+#screen-setup.arena .career-skill-card.rarity-legend { border-color: rgba(255, 215, 0, .55); }
+#screen-setup.arena .career-skill-card.rarity-mythic { border-color: rgba(168, 85, 247, .6); box-shadow: inset 0 0 0 1px rgba(168, 85, 247, .2); }
+#screen-setup.arena .tb-bar :is(span, strong, p, label) { color: var(--text-mid); }
+#screen-setup.arena .tb-bar .btn.primary { color: var(--arena-1); }
+#screen-setup.arena .tb-main > * { color: var(--text-hi); }
+
+/* ---------------- Season / dynasty hub (#screen-season) ---------------- */
+#screen-season.arena .panel-head h2 { font-family: var(--font-display); letter-spacing: .05em; font-size: 2rem; color: var(--gold); }
+#screen-season.arena :is(.season-setup-panel, .season-hub-panel) { color: var(--text-hi); }
+#screen-season.arena :is(.tiny, em) { color: var(--text-low); }
+#screen-season.arena #season-year-blurb, #screen-season.arena #season-roster-hint { color: var(--text-low); } /* ids kept out of :is() — it would carry their specificity */
+#screen-season.arena :is(label, .form-row > span) { color: var(--text-mid); }
+#screen-season.arena strong { color: var(--text-hi); }
+#screen-season.arena :is(select, input[type="text"], input[type="number"]) { background: rgba(0, 0, 0, .35); color: var(--text-hi); border: 1px solid rgba(255, 255, 255, .18); border-radius: 8px; padding: 6px 10px; color-scheme: dark; }
+#screen-season.arena select option { background: #0f2a1c; color: #fff; }
+#screen-season.arena :is(select, input):focus-visible { outline: 3px solid var(--orange); outline-offset: 1px; }
+/* the pill toggles (length / mode / roster source): the chosen one is gold */
+#screen-season.arena :is(.season-mode-pick, .season-length-pick, .season-roster-pick) .btn.primary,
+#screen-season.arena .btn.small[aria-pressed="true"] { background: var(--gold); color: var(--arena-1); border-color: var(--gold); font-weight: 800; }
+#screen-season.arena .btn.ghost { background: transparent; color: var(--text-mid); border: 1px solid rgba(255, 255, 255, .18); }
+#screen-season.arena .btn:disabled { background: rgba(255, 255, 255, .06); color: var(--text-low); border-color: rgba(255, 255, 255, .1); }
+/* cards and panels */
+#screen-season.arena :is(.season-next-card, .season-stand-card, .season-pick-panel, .season-roster-preview, .season-pick-selected, .season-pick-row, .season-pick-franchise-bar) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .025));
+  border: 1px solid var(--surface-line);
+  color: var(--text-hi);
+  box-shadow: none;
+}
+#screen-season.arena :is(.season-next-card h4, .season-stand-card h4, .season-hub-head h3) { color: var(--gold); }
+#screen-season.arena .season-pick-chip, #screen-season.arena .season-roster-preview .chip { background: rgba(255, 255, 255, .08); color: var(--text-mid); border-color: rgba(255, 255, 255, .12); }
+#screen-season.arena #season-pick-cap.over { color: #fdba74; }
+#screen-season.arena .season-tabs .btn.active { background: var(--gold); color: var(--arena-1); border-color: var(--gold); font-weight: 800; }
+/* tables */
+#screen-season.arena .season-table th { background: rgba(246, 200, 112, .08); color: var(--gold); border-bottom-color: var(--surface-line-strong); }
+#screen-season.arena .season-table td { color: var(--text-hi); border-bottom-color: rgba(255, 255, 255, .07); }
+#screen-season.arena .season-table tbody tr:nth-child(even) td { background: rgba(255, 255, 255, .03); }
+#screen-season.arena .season-table td.rank { color: var(--text-low); }
+#screen-season.arena .season-table tbody tr.you td { background: rgba(255, 122, 26, .16); color: #fff; }
+#screen-season.arena .season-table tbody tr.you td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
+/* Tabs and cards built from light legacy components stay legible as a cream "clipboard" panel on the dark floor,
+   until each one gets its own dark pass. Text and fields are reset to the light-ground values inside it. */
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) {
+  background: #f6f1e4;
+  border: 1px solid rgba(246, 200, 112, .45);
+  border-radius: 14px;
+  padding: 14px;
+  color: #0f1c14;
+}
+#screen-season.arena .msc { padding: 8px 12px; margin-top: 10px; }
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) :is(.tiny, em) { color: #5b6470; }
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) :is(strong, h3, h4, label) { color: #0f1c14; }
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) :is(select, input[type="text"], input[type="number"]) { background: #fff; color: #0f1c14; border: 1px solid #d9d2c3; color-scheme: light; }
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) select option { background: #fff; color: #0f1c14; }
+#screen-season.arena .season-pick-row .chip { background: rgba(255, 255, 255, .1); color: var(--text-mid); }
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) .btn.ghost { background: transparent; color: #0f1c14; border: 1px solid rgba(15, 28, 20, .35); }
