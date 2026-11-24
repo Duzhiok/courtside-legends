@@ -580,6 +580,17 @@ body:has(.screen.arena.active) .topbar {
 #screen-setup.arena .tb-system:hover { border-color: var(--gold); }
 #screen-setup.arena .tb-system.is-active { background: var(--gold); border-color: var(--gold); }
 #screen-setup.arena .tb-system.is-active :is(.tb-system-name, .tb-system-meta) { color: var(--arena-1); }
+/* B114: ball-handler play buttons (.tb-action) were missed by the step-4 pass — base is a white
+   pill (tacticsBoard.css) and .is-active is ink-on-dark, invisible against the dark board and
+   inconsistent with the gold .tb-system.is-active next to it. Same treatment as .tb-system. */
+#screen-setup.arena .tb-action { background: rgba(8, 22, 14, .9); color: var(--text-hi); border: 1px solid rgba(255, 255, 255, .18); }
+#screen-setup.arena .tb-action.is-active { background: var(--gold); border-color: var(--gold); color: var(--arena-1); }
+/* B114: PnR small print (#4a5a50 in tacticsBoard.css) is too dim on the dark board. */
+#screen-setup.arena :is(.tb-pnr .tb-h small, .tb-pnr-name small) { color: var(--text-low); }
+/* B114: the step-4 .tb-bar :is(span, strong, p, label) rule flattens .tb-status.is-error/.is-warn
+   to --text-mid (readable, but the error/warn signal is lost) — restore dark-ground red/amber. */
+#screen-setup.arena .tb-status.is-error { color: #fca5a5; }
+#screen-setup.arena .tb-status.is-warn { color: #fcd34d; }
 #screen-setup.arena .tb-tag-advice { background: rgba(255, 255, 255, .1); color: var(--text-mid); }
 #screen-setup.arena .tb-coach { color: var(--text-hi); }
 #screen-setup.arena .setup-tactics-board .tb-bar { background: rgba(6, 17, 11, .94); }
