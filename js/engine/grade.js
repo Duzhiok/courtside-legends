@@ -36,6 +36,40 @@ export function gradeTone(letter) {
   return "grade-f";
 }
 
+/**
+ * gradeLast reason strings are stored in Chinese (the sim writes them as
+ * plain strings, and old saves already carry them). Map them to English
+ * at display time so the live-roster tooltip follows the UI language;
+ * unknown strings fall back to themselves (old-save compatible).
+ */
+const GRADE_REASON_EN = {
+  "三分命中": "3-pointer made",
+  "投篮命中": "Field goal made",
+  "投篮不中": "Shot missed",
+  "助攻": "Assist",
+  "间接助攻": "Hockey assist",
+  "失误": "Turnover",
+  "抢断": "Steal",
+  "盖帽": "Block",
+  "进攻篮板": "Offensive rebound",
+  "防守篮板": "Defensive rebound",
+  "挡拆掩护": "Screen set",
+  "罚球命中": "Free throw made",
+  "罚球不中": "Free throw missed",
+  "犯规": "Foul",
+  "贴防到位": "Tight defence",
+  "被得分（轻微）": "Scored on (light)",
+  "失位被捅穿": "Beaten off the ball",
+  "成功干扰": "Good contest",
+};
+
+export function gradeReasonLabel(reason, lang = "zh") {
+  const r = String(reason ?? "");
+  if (!r) return r;
+  if (lang === "en") return GRADE_REASON_EN[r] || r;
+  return r;
+}
+
 export function ensureGrade(p) {
   if (!p) return;
   if (p.gradeScore == null) p.gradeScore = GRADE_START;

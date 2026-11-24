@@ -53,6 +53,7 @@ import { createGmBusinessView } from "./ui/gmBusinessView.js";
 import { createNetworkView } from "./ui/networkViews.js";
 import { livePlayerIntent, livePlayerSuggestions, liveTeamSuggestion } from "./ui/liveLineupSuggestions.js";
 import { getLang, setLang, applyStaticLang, L, skillNameL, teamNameL } from "./i18n.js";
+import { gradeReasonLabel } from "./engine/grade.js";
 import { navPush, navPop, resolveDrawBack, resolveResultBack } from "./ui/navBack.js";
 import { freezeDiag, startFreezeDiag } from "./core/freezeDiag.js";
 import { canClaimDailyDraw, claimDailyDraw, dailyDrawState, grantNote, grantWelcomeTickets, recordCareerTasks, recordChallengeProgress, recordRankedTasks, taskBoard } from "./data/dailyTasks.js";
@@ -7537,7 +7538,7 @@ function liveStatusLine(p, marked = false, opts = {}) {
   const inj = p.injuredGames > 0 ? ` · <em class="inj">${esc(p.injuryStatus || L("伤停", "Injured"))}</em>` : "";
   const grade = p.grade || "C+";
   const gTone = p.gradeTone || "grade-c";
-  const gTip = p.gradeLast ? ` title="${L("最近：", "Last: ")}${escAttr(p.gradeLast)}"` : "";
+  const gTip = p.gradeLast ? ` title="${L("最近：", "Last: ")}${escAttr(gradeReasonLabel(p.gradeLast, getLang()))}"` : "";
   const drag = opts.draggable === undefined ? "" : ` draggable="${opts.draggable ? "true" : "false"}"`;
   const side = opts.side ? ` data-side="${opts.side}"` : "";
   return `<li class="roster-line ${marked ? "marked" : ""}${opts.staged ? " staged" : ""}" data-id="${p.id}"${drag}${side}>
