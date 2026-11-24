@@ -33,3 +33,12 @@ test("position select marks the natural position and the chosen one, and escapes
   assert.ok(html.includes('data-id="x1"') && /<option value="PF" selected>/.test(html) && html.includes("SF·本职"));
   assert.ok(posSelectHtml({ id: "x1", pos: "SF" }, { disabled: true }).includes("disabled"));
 });
+
+test("shop card: the analyst fit tag can show without the scout (Gold) and never leaks the scout's value badge", () => {
+  const jordan = realTeam("CHI", 1996).players.find((x) => x.name === "Michael Jordan");
+  const ctx = { team: { players: realTeam("SAC", 1996).players.slice(0, 8), coach: null } };
+  const gold = playerMarketCardHtml(jordan, ctx, { fitOn: true, budget: 1e9 });
+  assert.ok(gold.includes("fit-badge"), "Jordan into the 1996 Kings: the analyst flags the fit");
+  assert.ok(!gold.includes("value-badge"), "no scout bought: the hidden value stays hidden");
+  assert.ok(!playerMarketCardHtml(jordan, ctx, { budget: 1e9 }).includes("fit-badge"), "fitOn defaults to scoutOn (the duel)");
+});

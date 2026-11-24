@@ -1,6 +1,6 @@
 // Browser QA: the gold-tournament market (and the shared free-agent market template) must show
 // every candidate's core attributes BEFORE you spend any gold on them -- not just OVR/price/salary.
-// Fit/value badges stay gated behind a scout pack (hidden info by design); raw attributes don't.
+// Gold sells no scout pack (2026-11): the analyst fit tag is free, the hidden value badge (妖人 / 板凳匪徒) stays hidden.
 // Usage: node scripts/qa/career-market-attrs.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -14,7 +14,8 @@ const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} $
 const browser = await chromium.launch({ executablePath: EXE });
 
 async function run(width, height, tag) {
-  const page = await browser.newPage({ viewport: { width, height } });
+  const ctx = await browser.newContext({ viewport: { width, height } });
+  const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("dialog", (d) => d.accept());
@@ -33,7 +34,7 @@ async function run(width, height, tag) {
       hasAttrs: !!el.querySelector(".rot-attrs"),
       chipCount: el.querySelectorAll(".rot-attrs .rot-attr").length,
       chipText: el.querySelector(".rot-attrs")?.textContent.replace(/\s+/g, " ").trim() || "",
-      hasFitBadge: !!el.querySelector(".fit-badge"),
+      hasValueBadge: !!el.querySelector(".value-badge"),
       buyable: !!el.querySelector("[data-buy], [data-hire-career-coach], [data-buy-skill]"),
     }))
   );
@@ -49,15 +50,39 @@ async function run(width, height, tag) {
     withAttrRow.every((r) => /\d/.test(r.chipText) && !/undefined|NaN/.test(r.chipText)),
     withAttrRow.find((r) => !/\d/.test(r.chipText) || /undefined|NaN/.test(r.chipText))?.chipText || ""
   );
-  check(
-    `[${tag}] no scout pack bought yet -> no fit badge leaks (that's still gated)`,
-    rows.every((r) => !r.hasFitBadge)
-  );
+  check(`[${tag}] no scout -> the hidden value badge never leaks`, rows.every((r) => !r.hasValueBadge));
+  check(`[${tag}] Gold sells no scout pack: no offer card, no "球探包" anywhere on the market`,
+    await page.evaluate(() => document.querySelector("#scout-pack-offer")?.hidden !== false && !/球探包|Scout pack/i.test(document.querySelector("#screen-market").innerText)));
+  for (let i = 0; i < 6; i++) { await page.click("#btn-refresh-market").catch(() => {}); await page.waitForTimeout(150); }
+  check(`[${tag}] still no scout pack after 6 refreshes (it used to show on ~30% of them)`,
+    await page.evaluate(() => document.querySelector("#scout-pack-offer")?.hidden !== false && !/球探包/.test(document.querySelector("#screen-market").innerText)));
 
-  await page.screenshot({ path: `${OUT}/${tag}-market.png` });
-  check(`[${tag}] no horizontal overflow on the market screen`, await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
-  check(`[${tag}] no page errors`, errors.length === 0, errors.join(" | "));
+  // An old Gold save that already paid for this batch's report keeps it (and the label) until the next batch.
+  // An old Gold save that already paid for this batch's report keeps it (and the label) until the next batch.
+  // Patch the save before the app boots: the page saves itself on the way out, so a patch-then-reload is overwritten.
+  await page.click("#btn-save-market");
+  await page.waitForTimeout(300);
+  const old = await ctx.newPage();
+  old.on("pageerror", (e) => errors.push(e.message));
+  old.on("dialog", (d) => d.accept());
   await page.close();
+  await old.addInitScript(() => {
+    if (sessionStorage.getItem("qaPatched")) return;
+    sessionStorage.setItem("qaPatched", "1");
+    const data = JSON.parse(localStorage.getItem("cls_savegame_v1") || "null");
+    if (!data?.app?.career) return;
+    Object.assign(data.app.career, { scoutActive: true, scoutBuyer: null, scoutOffer: { cost: 80, bought: true, reason: "round" } });
+    localStorage.setItem("cls_savegame_v1", JSON.stringify(data));
+  });
+  await old.goto(BASE, { waitUntil: "domcontentloaded" });
+  await old.waitForFunction(() => window.__rosterBootOk === true, null, { timeout: 60000 });
+  await old.click("#btn-continue-save");
+  await old.waitForSelector("#screen-market.active", { timeout: 15000 });
+  check(`[${tag}] old save with a paid scout report: it still shows`, await old.evaluate(() => /球探已启用/.test(document.querySelector("#scout-pack-offer")?.innerText || "")));
+  await old.screenshot({ path: `${OUT}/${tag}-market.png` });
+  check(`[${tag}] no horizontal overflow on the market screen`, await old.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  check(`[${tag}] no page errors`, errors.length === 0, errors.join(" | "));
+  await ctx.close();
 }
 
 await run(1280, 800, "desktop");

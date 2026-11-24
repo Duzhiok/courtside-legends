@@ -12,6 +12,8 @@ import {
   buildAffordableShop,
   rollScoutPackOffer,
   chargeScoutPack,
+  scoutPacksOn,
+  analystFitVisible,
   simulateCpuMatch,
   teamStarters,
 } from "../js/engine/careerEconomy.js";
@@ -315,4 +317,32 @@ test("chargeScoutPack: only the challenge budget moves; account lifestyle gold i
   const c = { kind: "career", gold: 500, scoutOffer: offerOf(80), account };
   chargeScoutPack(c);
   assert.equal(account.gold, 1234);
+});
+
+// ---------------------------------------------------------------- Gold Challenge sells no scout packs (2026-11)
+test("rollScoutPackOffer: Gold Challenge never rolls a scout pack, even on a roll that always hits; the duel still does", () => {
+  const realRandom = Math.random;
+  Math.random = () => 0;
+  try {
+    for (const reason of ["round", "refresh"]) {
+      const gold = { kind: "career", scoutActive: true, scoutBuyer: null, scoutOffer: { cost: 80, bought: true } };
+      rollScoutPackOffer(gold, reason);
+      assert.equal(gold.scoutOffer, null, reason);
+      assert.equal(gold.scoutActive, false, "a new batch ends last batch's report");
+      const duel = { kind: "duel" };
+      rollScoutPackOffer(duel, reason);
+      assert.ok(duel.scoutOffer, `duel ${reason}`);
+    }
+  } finally {
+    Math.random = realRandom;
+  }
+});
+
+test("analystFitVisible: the roster-fit tag is free in Gold, bought in the duel; an old Gold save's paid report still counts", () => {
+  assert.equal(scoutPacksOn({ kind: "career" }), false);
+  assert.equal(scoutPacksOn({ kind: "duel" }), true);
+  assert.equal(analystFitVisible({ kind: "career" }), true);
+  assert.equal(analystFitVisible({ kind: "career", scoutActive: true }), true);
+  assert.equal(analystFitVisible({ kind: "duel" }), false);
+  assert.equal(analystFitVisible({ kind: "duel", scoutActive: true }), true);
 });

@@ -276,12 +276,26 @@ export function buildAffordableShop(c, size = 12) {
 }
 
 /**
- * 每换一批货重新 roll：有时出球探包，有时没有（不是每轮必买）。
+ * Gold Challenge sells no scout packs (2026-11 decision: it is about building the legends you like,
+ * not about finding value in a random batch; scouting value lives in GM Career). The two-player duel
+ * market keeps them. A Gold save that already bought this batch's report keeps it until the next batch.
+ */
+export const scoutPacksOn = (c) => c?.kind !== "career";
+
+/** The analyst's roster-fit tag on a market card: free in Gold Challenge, bought with the scout pack in the duel. */
+export const analystFitVisible = (c) => !scoutPacksOn(c) || !!c?.scoutActive;
+
+/**
+ * 每换一批货重新 roll：有时出球探包，有时没有（不是每轮必买）。Gold Challenge never rolls one.
  * @param {"round"|"refresh"} reason
  */
 export function rollScoutPackOffer(c, reason = "round") {
   c.scoutActive = false;
   c.scoutBuyer = null;
+  if (!scoutPacksOn(c)) {
+    c.scoutOffer = null;
+    return;
+  }
   const chance = reason === "refresh" ? SCOUT_PACK_REFRESH_CHANCE : SCOUT_PACK_CHANCE;
   if (rand() >= chance) {
     c.scoutOffer = null;

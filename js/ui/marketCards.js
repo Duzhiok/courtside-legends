@@ -137,11 +137,11 @@ function shopRevealBadge(p, scoutActive) {
   return valueBadgeHtml(valueBadge(p, { scouted: scoutActive }));
 }
 
-export function playerMarketCardHtml(p, c, { duel = false, scoutOn = false, homeTactic = null, budget = 0 } = {}) {
+export function playerMarketCardHtml(p, c, { duel = false, scoutOn = false, fitOn = scoutOn, homeTactic = null, budget = 0 } = {}) {
   const price = playerPrice(p);
   const afford = price <= budget;
   const badge = shopRevealBadge(p, scoutOn);
-  const fitTier = scoutOn
+  const fitTier = fitOn
     ? rosterFitTier(rosterFitDelta(p, c.team?.players || [], c.team?.coach, homeTactic))
     : null;
   const fitBadge = fitTier === "great"

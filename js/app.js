@@ -259,6 +259,8 @@ import {
   careerRefreshCost,
   rollScoutPackOffer,
   chargeScoutPack,
+  scoutPacksOn,
+  analystFitVisible,
   teamStarters,
   careerResultReward,
 } from "./engine/careerEconomy.js";
@@ -5566,7 +5568,13 @@ function paintScoutPackOffer(c) {
   if (!el) return;
   if (paintPendingChallengeBanner(c)) return;
   const offer = c.scoutOffer;
-  if (!offer || offer.bought) {
+  // Gold Challenge sells no scout packs: only a report this batch already paid for (an old save) is shown.
+  if (!scoutPacksOn(c) && !c.scoutActive) {
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+  if (!offer || offer.bought || !scoutPacksOn(c)) {
     if (c.scoutActive) {
       el.hidden = false;
       const by = c.scoutBuyer ? `（${c.scoutBuyer} 方付费，双方可见）` : "";
@@ -5651,11 +5659,11 @@ function openMarket({ career = false, duel = false, afterWin = false, refillShop
     const tierName = challengeTierName(c.challengeTier || "gold", lang);
     $("#market-hint").textContent = afterWin
       ? lang === "en"
-        ? `Game bonus banked · ${tierName}. Buy players / coaches / skill packs; refresh ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}. Scout packs appear randomly. ${roundBit}`
-        : `赛果奖金已入账 · ${tier.name}。可买球员/教练/技能包；刷新 ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}。球探包随机刷出。${roundBit}`
+        ? `Game bonus banked · ${tierName}. Buy players / coaches / skill packs; refresh ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}. ${roundBit}`
+        : `赛果奖金已入账 · ${tier.name}。可买球员/教练/技能包；刷新 ¤${careerRefreshCost(c, MARKET_REFRESH_COST)}。${roundBit}`
       : lang === "en"
-        ? `${fieldBit}. Now ¤${c.gold || 600}. Scout packs appear randomly (about 30% refresh). ${roundBit}`
-        : `${fieldBit}。当前 ¤${c.gold || 600}。球探包随机出现（约三成换货）。${roundBit}`;
+        ? `${fieldBit}. Now ¤${c.gold || 600}. ${roundBit}`
+        : `${fieldBit}。当前 ¤${c.gold || 600}。${roundBit}`;
     $("#market-right-title").textContent = lang === "en" ? "Free Market (buy in bulk)" : "自由市场（可连买）";
     $("#market-left-title").textContent = lang === "en" ? "My Team (evaluate sells)" : "我的球队（评估是否卖出）";
     $("#gold-amt").textContent = String(c.gold);
@@ -5909,11 +5917,12 @@ function paintFreeAgentList(c, duel = false) {
   }
   const scoutOn = !!c.scoutActive;
   // 数据分析师报告：不是「位置缺人/战术标签命中」这种粗糙标签，而是真正把他换进现有
-  // 主力、比较换前换后的化学反应+阵容适配，只有真正会变强才标注。和隐藏能力一样
-  // 需要买过侦察包才显示，没侦察就不谎称知道谁适合。
+  // 主力、比较换前换后的化学反应+阵容适配，只有真正会变强才标注。金币挑战免费显示；
+  // 双人对决仍要买过侦察包（analystFitVisible）。
+  const fitOn = analystFitVisible(c);
   const homeTactic = coachTactics(c.team?.coach)[0] || null;
   box.innerHTML = sortedMarketShop(c.shop)
-    .map((p) => playerMarketCardHtml(p, c, { duel, scoutOn, homeTactic, budget }))
+    .map((p) => playerMarketCardHtml(p, c, { duel, scoutOn, fitOn, homeTactic, budget }))
     .join("");
   box.querySelectorAll("[data-buy]").forEach((btn) => {
     if (btn.disabled) return;
@@ -5945,7 +5954,7 @@ function paintCareerMarketList(c) {
   const scoutOn = !!c.scoutActive;
   const homeTactic = coachTactics(c.team?.coach)[0] || null;
   const playerCards = sortedMarketShop(c.shop || []).map((p) =>
-    playerMarketCardHtml(p, c, { duel: false, scoutOn, homeTactic, budget })
+    playerMarketCardHtml(p, c, { duel: false, scoutOn, fitOn: analystFitVisible(c), homeTactic, budget })
   );
   const coachCards = (c.coachShop || []).map((offer) => coachMarketCardHtml(offer, budget, c.team?.coach));
   const skillCards = (c.skillShop || []).map((offer) => skillOfferCardHtml(offer, budget));
