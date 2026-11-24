@@ -1679,7 +1679,7 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
 }
 
 /** 从本机存档恢复。 */
-function continueFromSave() {
+async function continueFromSave() {
   const data = readSave();
   if (!data?.app || sessionHidden(data)) {
     alert(L("没有找到存档", "No save found."));
@@ -1771,6 +1771,10 @@ function continueFromSave() {
       if (L.current) {
         L.franchiseQueue = [L.current, ...(L.franchiseQueue || []).filter((f) => f.id !== L.current.id)];
       }
+      // B106: resume path re-rolls the legend candidate pool from PLAYERS without ever
+      // passing through startLegendMode, so the B105 gate does not cover it — wait for the
+      // perf-r3 backfill here too (the home Continue button is clickable before it finishes).
+      await playersReady();
       rollLegendTeam();
       return;
     }

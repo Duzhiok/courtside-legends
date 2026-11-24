@@ -90,3 +90,18 @@ test("every startLegendMode() call site awaits it (startMode branch + #btn-custo
   assert.ok(calls.length >= 2, `expected at least 2 startLegendMode() call sites, found ${calls.length}`);
   for (const m of calls) assert.ok(m[2], `startLegendMode() call at offset ${m.index} is missing await`);
 });
+
+// B106: resuming a save whose screen is "legend" re-rolls the candidate pool from PLAYERS
+// (continueFromSave -> rollLegendTeam) without ever passing through startLegendMode, so the
+// B105 gate does not cover it. The home Continue button is clickable as soon as home shows,
+// which on a cold boot is before the perf-r3 lazy backfill finishes (PLAYERS still []).
+test("continueFromSave awaits playersReady() before rollLegendTeam() on the legend resume branch", () => {
+  assertAsync("continueFromSave");
+  const b = body("continueFromSave");
+  const legendAt = b.search(/if \(route === "legend"\)/);
+  assert.ok(legendAt >= 0, "legend resume branch not found in continueFromSave");
+  const seg = b.slice(legendAt);
+  const readyAt = seg.search(/await playersReady\(\)/);
+  const rollAt = seg.search(/\brollLegendTeam\(\)/);
+  assert.ok(readyAt >= 0 && rollAt >= 0 && readyAt < rollAt, "playersReady() must be awaited before rollLegendTeam() on the legend resume branch");
+});
