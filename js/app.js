@@ -488,6 +488,7 @@ import {
 import { screenFiveFromPlan, seatPlayers, setupStarters } from "./engine/lineupSlots.js";
 import { orderSelectHtml, setupCardOrdersHtml } from "./ui/setupCardOrders.js";
 import { setupCardRoleHtml } from "./ui/setupCardRoles.js";
+import { setupCardMoreHtml, setupKeyStatsHtml } from "./ui/setupCardView.js";
 import {
   suggestTargetMinutes,
 } from "./data/playerMinutes.js";
@@ -6780,11 +6781,11 @@ function setupPosSelectHtml(p) {
   const cur = normalizePos(p.playPos || p.pos);
   const nat = normalizePos(p.pos);
   const rec = recommendPlayPos(p);
-  return `<select class="setup-pos-select" data-pos-for="${p.id}" title="改打哪个位置（未手动改过则用属性推荐）">
+  return `<select class="setup-pos-select" data-pos-for="${p.id}" title="${L("改打哪个位置（未手动改过则用属性推荐）", "Which spot he plays (suggested from his ratings until you change it)")}">
     ${POS_SLOTS.map(
       (s) =>
         `<option value="${s.id}" ${s.id === cur ? "selected" : ""}>${s.id}${
-          s.id === rec ? "（推荐）" : s.id === nat ? "（本职）" : ""
+          s.id === rec ? L("（推荐）", " (suggested)") : s.id === nat ? L("（本职）", " (natural)") : ""
         }</option>`
     ).join("")}
   </select>`;
@@ -6809,18 +6810,18 @@ function setupPosFitHint(p) {
     (paint >= 78 && pass >= 70 && spd >= 72 && scoring >= 80);
   if (positionless) {
     const extra = [];
-    if (pass >= 70) extra.push("擅挡拆");
-    else if (pass >= 62) extra.push("可掩护");
-    if (def >= 75 && spd >= 72) extra.push("可换防");
-    return [`全能→PG–C`, ...extra].slice(0, 2).join(" · ");
+    if (pass >= 70) extra.push(L("擅挡拆", "PnR"));
+    else if (pass >= 62) extra.push(L("可掩护", "screens"));
+    if (def >= 75 && spd >= 72) extra.push(L("可换防", "switches"));
+    return [L(`全能→PG–C`, "Positionless→PG–C"), ...extra].slice(0, 2).join(" · ");
   }
   const tips = [];
-  if (pass >= 78 || (pass >= 70 && spd >= 70)) tips.push("擅组织→PG");
-  if (three >= 78 && (spd >= 68 || pass >= 60)) tips.push("外线→SG/SF");
-  if (three >= 80 && reb < 65) tips.push("定点射手");
-  if (reb >= 78 || blk >= 72 || (paint >= 80 && pass < 65 && spd < 70)) tips.push("内线→PF/C");
-  if (def >= 82 && spd >= 72) tips.push("锁防守");
-  if (!tips.length) tips.push(`本职 ${nat}`);
+  if (pass >= 78 || (pass >= 70 && spd >= 70)) tips.push(L("擅组织→PG", "Playmaker→PG"));
+  if (three >= 78 && (spd >= 68 || pass >= 60)) tips.push(L("外线→SG/SF", "Wing→SG/SF"));
+  if (three >= 80 && reb < 65) tips.push(L("定点射手", "Spot-up shooter"));
+  if (reb >= 78 || blk >= 72 || (paint >= 80 && pass < 65 && spd < 70)) tips.push(L("内线→PF/C", "Big→PF/C"));
+  if (def >= 82 && spd >= 72) tips.push(L("锁防守", "Lockdown"));
+  if (!tips.length) tips.push(`${L("本职", "Natural")} ${nat}`);
   return tips.slice(0, 2).join(" · ");
 }
 
@@ -6863,28 +6864,41 @@ function setupStatGridHtml(p) {
 }
 
 function setupMiniCardHtml(p, { onCourt = false } = {}) {
+  const lang = getLang();
   const out = !isPlayerAvailable(p);
   const ovr = overall(p);
   const phy = physiqueLabel(p);
-  const actionLabel = onCourt ? "拖下去 / 点下场" : state.setup.selected.size >= 5 ? "拖到格子可换人" : "拖上去 / 点上场";
+  const nat = normalizePos(p.pos);
+  const pos = onCourt ? normalizePos(p.playPos || p.pos) : nat;
+  const actionLabel = out
+    ? L("伤停", "Injured")
+    : onCourt
+      ? L("点下场 / 拖走", "Tap to bench")
+      : state.setup.selected.size >= 5
+        ? L("拖到格子换人", "Drag onto a slot")
+        : L("点上场 / 拖上去", "Tap to start");
+  // Headline stats read sub-attributes too; old saves without stored values derive them (same rule as the full sheet).
+  const src = p.handle != null && p.perimDef != null ? p : { ...deriveSubAttributes(p), ...p };
+  const drawer = `${setupStatGridHtml(p)}${setupCardOrdersHtml(p, lang)}${setupCardRoleHtml(p, lang)}`;
   // 用 div 而不是 button：浏览器对 button 的 HTML5 拖拽经常丢 drop
-  return `<div class="setup-mini ${onCourt ? "on-court" : "bench"} ${out ? "injured" : ""}" data-id="${p.id}" data-action="toggle" draggable="${out ? "false" : "true"}" role="button" tabindex="0" ${
+  return `<div class="setup-mini setup-card ${onCourt ? "on-court" : "bench"} ${out ? "injured" : ""}" data-id="${p.id}" data-action="toggle" draggable="${out ? "false" : "true"}" role="button" tabindex="0" ${
     out ? 'aria-disabled="true"' : ""
   }>
-    <div class="setup-mini-top">
-      ${photoImg(p, "headshot sm")}
-      <div class="setup-mini-body">
-        <strong>${p.name}</strong>
-        <div class="tiny">OVR ${ovr} · ${p.season} · 本职 ${normalizePos(p.pos)}${phy ? ` · ${phy}` : ""}</div>
-        <div class="tiny setup-fit-hint">${setupPosFitHint(p)}</div>
-        ${onCourt ? `<div class="setup-pos-row"><span class="tiny">打</span>${setupPosSelectHtml(p)}</div>` : ""}
-      </div>
-      <span class="setup-action-label">${out ? "伤停" : actionLabel}</span>
+    <div class="setup-card-hero">
+      ${photoImg(p, "headshot")}
+      <span class="setup-card-pos" data-pos="${pos}">${pos}</span>
+      <span class="setup-card-ovr"><em>OVR</em>${ovr}</span>
     </div>
-    ${setupStatGridHtml(p)}
-    ${p.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p, getLang())}</div>` : ""}
-    ${setupCardOrdersHtml(p, getLang())}
-    ${setupCardRoleHtml(p, getLang())}
+    <div class="setup-mini-body">
+      <strong>${esc(p.name)}</strong>
+      <div class="tiny setup-card-meta">${esc(p.season)} · ${L("本职", "Natural")} ${nat}${phy ? ` · ${phy}` : ""}</div>
+      <div class="tiny setup-fit-hint">${setupPosFitHint(p)}</div>
+    </div>
+    ${setupKeyStatsHtml(src, pos, lang)}
+    ${p.skills?.length ? `<div class="skill-row compact">${skillChipsHtml(p, lang)}</div>` : ""}
+    ${onCourt ? `<div class="setup-pos-row"><span class="tiny">${L("打", "Plays")}</span>${setupPosSelectHtml(p)}</div>` : ""}
+    <span class="setup-action-label">${actionLabel}</span>
+    ${setupCardMoreHtml(p, drawer, { open: !!state.setup.openMore?.has(p.id), lang })}
   </div>`;
 }
 
@@ -7025,8 +7039,10 @@ function renderSetupRoster() {
   resolveStarterPositionCollisions(you.players.filter((p) => state.setup.selected.has(p.id)));
   const model = setupRosterModel(you.players, state.setup.selected, byOverallDesc);
   const { picked } = model;
-  const status = setupRosterStatus({ selectedCount: state.setup.selected.size, ...model });
-  box.innerHTML = setupBoardHtml(model, setupMiniCardHtml);
+  const status = setupRosterStatus({ selectedCount: state.setup.selected.size, ...model }, getLang());
+  // A focused minutes input would fire its change (and a nested re-render) from the blur that innerHTML causes; flush it first.
+  if (box.contains(document.activeElement)) document.activeElement.blur();
+  box.innerHTML = setupBoardHtml(model, setupMiniCardHtml, getLang());
 
   $("#starter-count").textContent = String(state.setup.selected.size);
   tacticsBoard?.syncStarters([...state.setup.selected]);
@@ -7061,7 +7077,7 @@ function renderSetupRoster() {
       const chem = teamChemistry(picked, ballOpts);
       applyLineupPositionEffects(picked);
       noteEl.hidden = false;
-      noteEl.textContent = `搭配参考：适配 ${fit} · 化学反应 ${chem}${ball ? " · " + ball : ""}`;
+      noteEl.textContent = `${L("搭配参考：适配", "Lineup check: fit")} ${fit} · ${L("化学反应", "chemistry")} ${chem}${ball ? " · " + ball : ""}`;
     }
   }
   if (posNote) posNote.textContent = status.posNote;
@@ -7077,9 +7093,20 @@ function renderSetupRoster() {
 
   bindSetupDragDrop(box, you, refreshAfter);
 
+  // Every change re-renders the board: remember which settings drawers are open so a dropdown change does not slam it shut.
+  if (!state.setup.openMore) state.setup.openMore = new Set();
+  box.querySelectorAll(".setup-card-more").forEach((d) => {
+    d.addEventListener("toggle", () => {
+      const id = d.dataset.moreFor;
+      if (d.open) state.setup.openMore.add(id);
+      else state.setup.openMore.delete(id);
+    });
+  });
+
   box.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
     btn.onclick = (e) => {
       if (box._setupDidDrag?.()) return;
+      if (e.target.closest(".setup-card-more")) return; // the settings drawer (summary + its controls) never toggles the player
       if (e.target.closest(".setup-pos-select, .setup-ord-select, .setup-role-select, .setup-min-input")) return;
       const id = btn.dataset.id;
       const p = you.players.find((x) => x.id === id);
@@ -11778,6 +11805,8 @@ async function boot() {
       refreshRankedCardLock();
       // The season hub builds its tabs from JS strings, so a language flip has to rebuild them (no save: nothing changed).
       if (state.season && $("#screen-season").classList.contains("active")) renderSeasonHub({ persist: false });
+      // The starting-five cards and their status lines are JS strings too: redraw them in place (picks and drawers stay).
+      if (state.setup?.you && $("#screen-setup")?.classList.contains("active")) renderSetupRoster();
       paintLangBtn();
       paintVoiceBtn();
       voice.refresh();

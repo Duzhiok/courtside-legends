@@ -657,3 +657,90 @@ body:has(.screen.arena.active) .topbar {
 #screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) select option { background: #fff; color: #0f1c14; }
 #screen-season.arena .season-pick-row .chip { background: rgba(255, 255, 255, .1); color: var(--text-mid); }
 #screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) .btn.ghost { background: transparent; color: #0f1c14; border: 1px solid rgba(15, 28, 20, .35); }
+
+/* ---- Starting-five card v2 (Stitch "首发阵容 · 位置图谱"): photo + position + OVR up top, four stats for the spot,
+   stamina, skills; settings and the full sheet fold into one drawer per card (js/ui/setupCardView.js). ---- */
+#screen-setup.arena .setup-card { gap: 6px; padding: 0 0 8px; overflow: hidden; border-radius: 14px; }
+#screen-setup.arena .setup-card-hero {
+  position: relative;
+  height: 104px;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(246, 200, 112, .18), transparent 60%), linear-gradient(180deg, #13281c, #0b170f);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+#screen-setup.arena .setup-card-hero > img,
+#screen-setup.arena .setup-card-hero .photo-wrap { position: absolute; inset: 0; width: 100%; height: 100%; }
+#screen-setup.arena .setup-card-hero img.headshot {
+  width: 100%; height: 100%; border: 0; border-radius: 0; background: transparent;
+  object-fit: cover; object-position: 50% 18%;
+  mask-image: linear-gradient(180deg, #000 62%, transparent);
+}
+#screen-setup.arena .setup-card-hero .team-badge { position: absolute; left: 8px; bottom: 6px; top: auto; z-index: 1; }
+#screen-setup.arena .setup-card-pos {
+  position: absolute; top: 8px; left: 8px; z-index: 1;
+  min-width: 30px; padding: 2px 7px; border-radius: 7px;
+  font: 800 .74rem/1.4 var(--font-display); letter-spacing: .06em; text-align: center;
+  color: #fff; background: #2563eb; box-shadow: 0 2px 8px rgba(0, 0, 0, .4);
+}
+#screen-setup.arena .setup-card-pos[data-pos="SG"] { background: #d97706; }
+#screen-setup.arena .setup-card-pos[data-pos="SF"] { background: #7c3aed; }
+#screen-setup.arena .setup-card-pos[data-pos="PF"] { background: #059669; }
+#screen-setup.arena .setup-card-pos[data-pos="C"] { background: #ea580c; }
+#screen-setup.arena .setup-card-ovr {
+  position: absolute; top: 6px; right: 8px; z-index: 1;
+  display: flex; flex-direction: column; align-items: flex-end;
+  font: 400 1.9rem/0.9 var(--font-display); color: var(--gold); text-shadow: 0 2px 10px rgba(0, 0, 0, .7);
+}
+#screen-setup.arena .setup-card-ovr em { font: 700 .56rem/1 var(--font-body); letter-spacing: .12em; color: var(--text-mid); }
+#screen-setup.arena .setup-card .setup-mini-body { padding: 0 10px; }
+#screen-setup.arena .setup-card .setup-mini-body strong { padding-right: 0; font-size: .95rem; color: #fff; }
+#screen-setup.arena .setup-card.on-court .setup-mini-body strong { color: var(--gold); }
+#screen-setup.arena .setup-key-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; padding: 0 10px; }
+#screen-setup.arena .setup-key-stat { display: flex; justify-content: space-between; align-items: baseline; font-size: .78rem; }
+#screen-setup.arena .setup-key-stat em { font-style: normal; color: var(--text-low); }
+#screen-setup.arena .setup-key-stat b { font-variant-numeric: tabular-nums; color: var(--text-hi); }
+#screen-setup.arena .setup-key-stat.hi b { color: #86efac; }
+#screen-setup.arena .setup-key-stat.lo b { color: #fdba74; }
+#screen-setup.arena .setup-stamina { display: flex; align-items: center; gap: 8px; padding: 0 10px; }
+#screen-setup.arena .setup-stamina .tiny { flex: none; color: var(--text-low); }
+#screen-setup.arena .setup-stamina i { position: relative; flex: 1; height: 4px; border-radius: 99px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+#screen-setup.arena .setup-stamina i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--v); background: linear-gradient(90deg, #10b981, var(--gold)); }
+#screen-setup.arena .setup-card .skill-row.compact,
+#screen-setup.arena .setup-card .setup-pos-row { padding: 0 10px; margin-top: 0; }
+#screen-setup.arena .setup-card .setup-action-label { align-self: center; margin: 0 10px; width: auto; }
+/* the drawer */
+#screen-setup.arena .setup-card-more { pointer-events: auto; margin: 0 10px; border-top: 1px solid rgba(255, 255, 255, .08); padding-top: 6px; }
+#screen-setup.arena .setup-card-more > summary {
+  list-style: none; cursor: pointer; display: grid; gap: 1px; padding: 6px 22px 6px 8px; position: relative;
+  border-radius: 8px; background: rgba(0, 0, 0, .22); min-height: 36px;
+}
+#screen-setup.arena .setup-card-more > summary::-webkit-details-marker { display: none; }
+#screen-setup.arena .setup-card-more > summary::after { content: "▾"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--gold); transition: transform .15s; }
+#screen-setup.arena .setup-card-more[open] > summary::after { transform: translateY(-50%) rotate(180deg); }
+#screen-setup.arena .setup-card-more > summary:hover { background: rgba(246, 200, 112, .1); }
+#screen-setup.arena .setup-card-more > summary:focus-visible { outline: 3px solid var(--orange); outline-offset: 1px; }
+#screen-setup.arena .setup-card-more-label { font-size: .72rem; font-weight: 700; color: var(--gold); }
+#screen-setup.arena .setup-card-more-sum { font-size: .72rem; color: var(--text-mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#screen-setup.arena .setup-card-more[open] .setup-card-more-sum { white-space: normal; }
+#screen-setup.arena .setup-card-more .setup-orders-block,
+#screen-setup.arena .setup-card-more .setup-role-block { border-top-color: rgba(255, 255, 255, .08); }
+/* slots + bench layout */
+#screen-setup.arena .setup-slots-row { grid-template-columns: repeat(5, minmax(150px, 1fr)); }
+#screen-setup.arena .setup-slot.empty { background: rgba(0, 0, 0, .25); border-color: rgba(246, 200, 112, .35); }
+#screen-setup.arena .slot-empty-hint { color: var(--text-low); }
+#screen-setup.arena .setup-pool { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); max-height: none; }
+#screen-setup.arena .setup-card.bench .setup-card-hero { height: 76px; }
+#screen-setup.arena .setup-card.bench .setup-card-ovr { font-size: 1.5rem; }
+@media (max-width: 560px) {
+  /* a phone swipes through the five instead of scrolling a 5,000 px stack */
+  #screen-setup.arena .setup-slots-row {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 172px;
+    overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; -webkit-overflow-scrolling: touch;
+  }
+  #screen-setup.arena .setup-slots-row > .setup-slot { scroll-snap-align: start; }
+  #screen-setup.arena .setup-pool { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+#screen-setup.arena .setup-slot.filled > .slot-badge { display: none; } /* the card's own position chip says it */
+#screen-setup.arena .setup-card .setup-mini-body { flex: none; }
+#screen-setup.arena .setup-card .setup-action-label { margin-top: auto; } /* drawers line up along the bottom of a row */
+#screen-setup.arena :is(.setup-grid, .setup-grid > *, .setup-roster-box, .setup-roster, .setup-lineup-board, .setup-oncourt-panel, .setup-pool-panel) { min-width: 0; }
+#screen-setup.arena .setup-card .role-scenario { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
