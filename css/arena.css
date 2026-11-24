@@ -85,9 +85,6 @@ body:has(.screen.arena.active) .topbar {
 
 /* Daily strip: two dark tiles with an icon and a gold status line instead of white pills. */
 #screen-home.arena .daily-strip-btn {
-  flex-direction: row;
-  justify-content: flex-start;
-  gap: 12px;
   padding: 10px 16px;
   text-align: left;
   border-radius: 14px;
@@ -98,7 +95,6 @@ body:has(.screen.arena.active) .topbar {
 #screen-home.arena .daily-strip-btn:hover { border-color: var(--surface-line-strong); background: linear-gradient(135deg, rgba(246, 200, 112, .12), rgba(255, 255, 255, .03)); }
 #screen-home.arena .daily-strip-btn::before {
   content: "";
-  flex: none;
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -245,16 +241,6 @@ body:has(.screen.arena.active) .topbar {
 }
 #screen-game.arena #game-clock { color: #fff; font-size: 2.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
 #screen-game.arena #poss-label { color: var(--gold); opacity: 1; font-weight: 700; font-size: .78rem; }
-/* LIVE bug while the ball is live; gone in a dead-ball window. */
-#screen-game.arena .clock::before {
-  content: "LIVE";
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-120%);
-  display: none;
-}
-#screen-game.arena .scoreboard .clock { position: relative; }
 #screen-game.arena:not(:has(.coach-panel.coach-paused)) .team-score:first-child::after {
   content: "● LIVE";
   margin-top: 2px;
@@ -293,7 +279,6 @@ body:has(.screen.arena.active) .topbar {
 #screen-game.arena details > summary { color: var(--text-mid); }
 #screen-game.arena .takeover-tempo-btn[aria-pressed="true"] { background: var(--orange); border-color: var(--orange); color: #1a0d02; font-weight: 800; }
 #screen-game.arena .btn.warn { background: var(--orange); border-color: var(--orange); color: #1a0d02; font-weight: 800; }
-#screen-game.arena .btn.primary.pulse { box-shadow: 0 0 0 0 rgba(246, 200, 112, .5); }
 
 /* First-run tip: gold-edged note on the dark ground. */
 #screen-game.arena .first-run-tip { background: rgba(246, 200, 112, .08); border-color: var(--surface-line-strong); color: var(--text-hi); }
