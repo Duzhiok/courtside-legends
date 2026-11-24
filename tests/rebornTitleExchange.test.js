@@ -14,7 +14,7 @@ import { ROWS, coin, fakeUserLog, run, userAlways } from "./helpers/rebornLeague
 
 /**
  * A real GameSim playoff run (1997, the player's club first, trust 80) played to its end. Returns the state just before the title game, the title
- * game's real report and the final state. "tx-71" is a fixed seed whose run wins the title with the player on court and yields exactly one keepsake offer; "tx-236" wins it without a
+ * game's real report and the final state. "tx-29" (re-picked 2026-11-24 after the review engine batch: tx-71's top Finals opponent no longer counts as a participant) is a fixed seed whose run wins the title with the player on court and yields exactly one keepsake offer; "tx-236" wins it without a
  * minute for him. Re-pick after any GameSim recalibration (the assertions are the design, the seed is not):
  * `node scripts/measure/find-playoff-seeds.mjs tx 1 240 8`.
  */
@@ -48,7 +48,7 @@ function withRival(state, report) {
 }
 
 test("the title game's real report carries the evidence a championship keepsake needs: settled, a title, a win, only men who really played", { timeout: 120000 }, async () => {
-  const { before, report, reborn } = await realTitleRun("tx-71");
+  const { before, report, reborn } = await realTitleRun("tx-29");
   assert.equal(reborn.playoffs.status, "champion");
   assert.ok(report && before, "the run has a title game");
   const finals = reborn.playoffs.series.find((s) => s.id === "F");
@@ -66,7 +66,7 @@ test("the title game's real report carries the evidence a championship keepsake 
 });
 
 test("the title is what unlocks the keepsake: the same real game, a man he has met three times: offered with the title, nothing without it", { timeout: 120000 }, async () => {
-  const { before, report } = await realTitleRun("tx-71");
+  const { before, report } = await realTitleRun("tx-29");
   const { state, opp } = withRival(before, report);
   const ledger0 = rivalryLedger(state);
   const respect = respectFromRival(ledger0.rivals[0]);
@@ -101,7 +101,7 @@ test("the title is what unlocks the keepsake: the same real game, a man he has m
 });
 
 test("no title evidence, no championship keepsake: not on court, not a participant, a lost game, or just not flagged", { timeout: 120000 }, async () => {
-  const { before, report } = await realTitleRun("tx-71");
+  const { before, report } = await realTitleRun("tx-29");
   const { state } = withRival(before, report);
   const ledger0 = rivalryLedger(state);
   const offeredBrefs = (rep) => {
@@ -128,7 +128,7 @@ test("a title won without playing a minute offers nothing (real run, seed tx-236
 });
 
 test("the offseason carries on from a title: contract, rollover, the next season starts clean; the honour, the jersey and the history stay", { timeout: 120000 }, async () => {
-  const { before, report, reborn } = await realTitleRun("tx-71");
+  const { before, report, reborn } = await realTitleRun("tx-29");
   const { state } = withRival(before, report);
   // the title game's offer, as the player would have got it, then the season ends
   const rivalry = recordRivalryMeetings(rivalryLedger(state), report);
