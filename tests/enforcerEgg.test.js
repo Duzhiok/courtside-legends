@@ -258,9 +258,10 @@ function eggSim({ homeTeam = "CHI", awayTeam = "NYK", enforcer = "rodmade01", ri
 }
 
 test("driveGame: under six fouls the foul edge is one foul on the egg's own dice and the score matches", async () => {
-  // Seeds are pinned to a scan of egg-ab-1..30 (B76 moved every game's dice, which swapped these two): egg-ab-2 reaches six fouls and the games
-  // diverge, so the strict comparison would never run; egg-ab-1 stays under six: the extra foul is visible and the box score still matches.
-  const seed = "egg-ab-1";
+  // Seeds are pinned to a scan of egg-ab-1..40 (B76 moved every game's dice, which swapped these two; the B35 §30/§31 recalibration moved them again):
+  // egg-ab-2 reaches six fouls and the games diverge, so the strict comparison would never run; egg-ab-3 stays under six: the extra foul is visible
+  // and the box score still matches. Re-scan if a GameSim change moves the dice again.
+  const seed = "egg-ab-3";
   const eggCtx = { rivalBrefs: ["ewingpa01"], rng: scriptedRng([0.001, 0.9]) }; // fires, foul
   const simA = eggSim({ seed });
   const a = await driveGame(simA, "nobody", { egg: eggCtx });
@@ -273,7 +274,7 @@ test("driveGame: under six fouls the foul edge is one foul on the egg's own dice
   const reachedSix = [simA, simB].some((sim) =>
     sim.home.roster.concat(sim.away.roster).some((p) => (p.stats.pf || 0) >= 6)
   );
-  assert.equal(reachedSix, false, "egg-ab-1 stays under six, so this comparison is the one that runs");
+  assert.equal(reachedSix, false, "egg-ab-3 stays under six, so this comparison is the one that runs");
   const rodA = simA.home.roster.find((p) => p.bref === "rodmade01");
   const rodB = simB.home.roster.find((p) => p.bref === "rodmade01");
   assert.deepEqual(simA.score, simB.score, "the extra foul never touches the dice");

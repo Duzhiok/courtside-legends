@@ -2328,6 +2328,14 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
     if (m.id === "god_mode" && late && close) proc += 0.045;
     if (rand() > proc) continue;
     const zone = signatureZone(m);
+    // B35 §30: a signature move enhances the shot already chosen, it does not
+    // conjure a different one. chooseShot's anchored share had priced Miller's
+    // threes at ~0.43, but splash_spot (zone three) replaced the pick on ~25%
+    // of his shots and forced threes — taken share 0.58 against a 0.43 choice
+    // rate. When the caller passes the chosen zone, a signature whose zone does
+    // not match is skipped and the next signature is tried. No zone passed →
+    // unfiltered (tests, duel).
+    if (gameCtx.zone && zone !== gameCtx.zone) continue;
     return {
       id: m.id,
       name: m.name,

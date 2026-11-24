@@ -1197,6 +1197,7 @@ export class GameSim {
           kickedOut: !!sideCtx?.kickedOut,
           scheme: sideCtx?.scheme || null,
           fromPasser,
+          zone: shot.zone,
         })
       : null;
     if (sigOff) {
@@ -2790,7 +2791,9 @@ export function foulDrawHabit(p) {
 
 const THREE_SHARE_SLOPE = 0.5;
 const THREE_SHARE_SHIFT = -0.44; // -0.38 before B76: ungated role shooters took ~1.7 more threes per team-game
-const ZONE_STACK_OFFSET = { three: 0.168, mid: 0.080, paint: 0.080 }; // mid/paint 0.100 before B76: more of the shots now come off non-wide-open looks, which the open term already prices
+const THREE_SHARE_ANCHOR = 0.75; // B35 §30: weight of the player's own real 3PA share in the final-share blend (logit space)
+const THREE_SKILL_BONUS_CAP = 0.03; // B35 §31: passive skill stack on threes caps here (Miller's rainmaker+splash_spot+big_heart total +0.086); 0.04 first, tightened to 0.03 when the §31 offset lift (three 0.168 -> 0.148) pushed him back up ~1.5pt — single-skill role players sit below 0.03, so only stacked shooters feel it
+const ZONE_STACK_OFFSET = { three: 0.148, mid: 0.080, paint: 0.080 }; // mid/paint 0.100 before B76: more of the shots now come off non-wide-open looks, which the open term already prices; three 0.168 -> 0.148 in B35 §31: the §30 sig filter + §31 skill cap / sig-ceiling cut cost the league ~1.5pt of 3P% (34.8 -> 33.0 vs real ~36.5) and the jumbo mismatch band; stars are ceiling-pinned so the offset lift does not move them, it restores the level for the shooters below the ceiling
 
 const STEAL_BASE = 0.023;           // 0.04 originally; 0.034 after Phase A; re-fitted per possession once pace and the fga accounting changed (7.8 per team-game, real 8.1)
 const UNFORCED_TOV_BASE = 0.042;    // 0.06 originally; 0.052 after Phase A; re-fitted per possession with the pace change (turnovers 14.2 per team-game, real 14.4)
@@ -4460,10 +4463,21 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   // mapped p' = sigmoid(THREE_SHARE_SLOPE * logit(p) + THREE_SHARE_SHIFT): high shares are pulled down, low and middle ones up. Not applied to the deliberate
   // end-of-game chase for a three. Result: top third x1.15, middle x0.84, eras 0.5-1.2 of real, per-player correlation 0.85 -> 0.90, and the
   // per-player three-point percentage correlation 0.30 -> 0.42.
+  // B35 §30: the global mapping alone could not fix per-player outliers — Miller stayed at ~69% vs 43% real, while Byron Scott (attribute-implied
+  // share already at his real 34%) barely moved under an attribute-level anchor: the inflation is in the context stack (kick-outs, weak side, orders),
+  // which lifts the TAKEN share far above the attribute-implied one. So the anchor lives here, on the FINAL share: blend the shaped share toward the
+  // player's own real 3PA share (raw.tpa/raw.fga) in logit space, weight THREE_SHARE_ANCHOR. Context still moves the final share, damped by (1 - anchor).
+  // No raw volume (custom/generated players) → global shaping only.
   // wPaint + wMid > 0: a threes-only profile has p3 = 1, logit(1) = Infinity and w3 became Infinity * 0 = NaN (every shot fell to "mid").
   if (!sideCtx?.lateChaseNeedThree && w3 > 0 && wPaint + wMid > 0) {
     const p3 = w3 / (w3 + wPaint + wMid);
-    const shaped = 1 / (1 + Math.exp(-(THREE_SHARE_SLOPE * Math.log(p3 / (1 - p3)) + THREE_SHARE_SHIFT)));
+    let shaped = 1 / (1 + Math.exp(-(THREE_SHARE_SLOPE * Math.log(p3 / (1 - p3)) + THREE_SHARE_SHIFT)));
+    const rawFga = p.raw?.fga || 0;
+    if (rawFga > 0) {
+      const realShare = clamp(p.raw.tpa / rawFga, 0.03, 0.8);
+      const logit = (x) => Math.log(x / (1 - x));
+      shaped = 1 / (1 + Math.exp(-((1 - THREE_SHARE_ANCHOR) * logit(shaped) + THREE_SHARE_ANCHOR * logit(realShare))));
+    }
     w3 = (shaped / (1 - shaped)) * (wPaint + wMid);
   }
 
@@ -4691,12 +4705,18 @@ export function calcMakeProb(baller, shot, open, off, def, defender, plan, momen
   if (gameCtx.tempoMakeBonus) base += gameCtx.tempoMakeBonus;
   // Confident scorers finish contested looks a bit more willingly/cleanly
   if (open < 0.42) base += (formConfidence(baller) - 50) * 0.00025;
-  base += skillMakeBonus(baller, shot, {
+  // B35 §31: cap the passive skill stack on threes. A star's real threeFg already
+  // prices his skill; rainmaker + splash_spot + big_heart stacking additively
+  // (+8.6pt on Miller) double-counts it and pins multi-skill shooters far above
+  // their real percentage. The cap binds on stacked shooters and leaves
+  // single-skill role players alone.
+  const skillBonus = skillMakeBonus(baller, shot, {
     quarter: gameCtx.quarter ?? 1,
     scoreDiff: gameCtx.scoreDiff ?? 0,
     open,
     onCourt: off?.onCourt || gameCtx.onCourt || null,
   });
+  base += shot.zone === "three" ? Math.min(skillBonus, THREE_SKILL_BONUS_CAP) : skillBonus;
   // Signature proc: big bump, still not a guaranteed make
   if (gameCtx.sigMakeBoost) base += gameCtx.sigMakeBoost;
   // 挡拆/突破分球制造的优质出手
@@ -4808,7 +4828,11 @@ export function calcMakeProb(baller, shot, open, off, def, defender, plan, momen
     // it would also swallow the big-mismatch bonus above whenever the shooter's otherwise
     // already near it -- exactly the case we're trying to reward. Let that one specific
     // matchup push a bit past the normal cap instead of being thrown away by it.
-    base = Math.min(base, gameCtx.sigMakeBoost ? 0.62 : 0.45 + bigMismatch);
+    // B35 §31: the signature ceiling lift is 0.52, not 0.62. A 0.62 lift let a star's
+    // trademark three (splash_spot fires on 25% of Miller's threes) sit far above his
+    // real percentage and pinned his season 3P% near 50%; 0.52 still rewards the
+    // signature look without letting it carry the whole line.
+    base = Math.min(base, gameCtx.sigMakeBoost ? 0.52 : 0.45 + bigMismatch);
   }
   // Applied after the zone ceilings on purpose: a lineup already pinned at the ceiling must still pay for it.
   base -= paintCrowdPenalty(off.onCourt, shot.zone);

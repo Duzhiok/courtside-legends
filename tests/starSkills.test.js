@@ -128,6 +128,19 @@ test("上帝附体 is a mid-range shot flagged as a guaranteed make", () => {
   assert.equal(miss, null);
 });
 
+test("B35 §30: a signature move only fires on its own zone (splash_spot does not turn a mid into a three)", () => {
+  const miller = { skills: ["splash_spot"] };
+  // withRandom(0) forces the proc roll to succeed; the zone filter must still skip it on a mid.
+  const miss = withRandom(0, () => trySignatureOffense(miller, null, { zone: "mid" }));
+  assert.equal(miss, null);
+  const hit = withRandom(0, () => trySignatureOffense(miller, null, { zone: "three" }));
+  assert.equal(hit?.id, "splash_spot");
+  assert.equal(hit?.shot.zone, "three");
+  // No zone passed → unfiltered, as before (tests, duel).
+  const unfiltered = withRandom(0, () => trySignatureOffense(miller, null, {}));
+  assert.equal(unfiltered?.id, "splash_spot");
+});
+
 test("曼巴精神 shoots better late and when trailing; also saves stamina", () => {
   const kobe = { skills: ["mamba_spirit"] };
   const early = skillMakeBonus(kobe, { zone: "mid" }, { quarter: 1, scoreDiff: 10, open: 0.5 });

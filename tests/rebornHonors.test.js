@@ -181,7 +181,7 @@ test("real GameSim run, a title: the clinching game (and only it) carries isCham
 test("real GameSim run, a Finals loss: finalist honour, no title flag anywhere", { timeout: 120000 }, async () => {
   // Fixed seed on the real engine that happens to reach the Finals and lose them. Re-pick it after any GameSim recalibration (the assertions
   // are the design, the seed is not): `node scripts/measure/find-playoff-seeds.mjs tx 1 240 8` lists title / title-dnp / finals-loss seeds.
-  let reborn = run("tx-5", 1997); // re-picked 2026-11-24 after the review engine batch + B35 §27 (tx-3 now goes out earlier, tx-23 wins it)
+  let reborn = run("tx-11", 1997); // re-picked 2026-11-24 after the B35 §30/§31 engine recalibration (tx-5 now goes out earlier; tx-11 is the first finals-loss seed in `node scripts/measure/find-playoff-seeds.mjs tx 1 240 8`)
   reborn.player.coachTrust = 80;
   fakeUserLog(reborn, 1997, userAlways(reborn, true));
   advanceLeague(reborn, ROWS, { year: 1997, simulate: coin });

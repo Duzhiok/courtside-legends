@@ -155,8 +155,12 @@ test("a real plan changes the game, and the same plan gives the same game twice"
 });
 
 test("every after-screen choice is wired into the game (each one plays differently from no plan and from the others)", () => {
-  const boxes = Object.fromEntries(["roll", "pop", "slip", "ghost"].map((afterScreen) => [afterScreen, game(1, { afterScreen }).box]));
-  const none = game(1, null).box;
+  // Seed 3, re-picked 2026-11-24 after the B35 §30/§31 engine recalibration moved the
+  // dice: on seed 1 slip and ghost now coincide (the screener rarely touches the ball,
+  // so the choice only shows when the dice put him in play). The assertions are the
+  // design, the seed is not — re-pick it if a GameSim change collapses them again.
+  const boxes = Object.fromEntries(["roll", "pop", "slip", "ghost"].map((afterScreen) => [afterScreen, game(3, { afterScreen }).box]));
+  const none = game(3, null).box;
   assert.notEqual(boxes.slip, none, "slip");
   assert.notEqual(boxes.ghost, none, "ghost");
   assert.notEqual(boxes.slip, boxes.ghost, "slip is not ghost");

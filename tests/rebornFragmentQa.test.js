@@ -53,10 +53,11 @@ const CARD = { skills: ["rainmaker", "glass_cleaner", "clutch_killer"] };
 const xpOf = (out) => (out.report.growth || []).reduce((n, e) => n + (e.xp || 0), 0);
 
 test("QA handoff: earn-then-spend over a real multi-week run (no rigged earnings)", async () => {
-  // qa-multi-5 draws a historical bench player who really plays at trust 80
+  // qa-multi-1 draws a historical bench player who really plays at trust 80
   // and stands out at least 3 times in 8 weeks — pinned by probe (re-pick the seed if a GameSim change breaks that).
-  // Re-picked 2026-11-24 after the B35 §27 blue-collar widening (qa-multi-1, Priest Lauderdale, now earns 2).
-  const start = createRebornState("qa-multi-5", ROWS);
+  // Re-picked 2026-11-24 after the B35 §30/§31 engine recalibration (qa-multi-5, Adrian Lewis, now earns 2);
+  // the §27 re-pick before it was qa-multi-5 after qa-multi-1 (Priest Lauderdale) dropped to 2 under the blue-collar widening.
+  const start = createRebornState("qa-multi-1", ROWS);
   start.player.coachTrust = 80; // a starter really plays (same set-up as the one-game test)
   let reborn = chooseFocus(start, "shooting", 1);
   const teamId = reborn.player.teamId;

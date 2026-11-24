@@ -2,8 +2,9 @@
 // a threes-only shot profile no longer yields NaN weights, and skipped possessions still count as floor time.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GameSim, chooseShot } from "../js/engine/sim.js";
-import { seededStream } from "../js/core/seededRandom.js";
+import { GameSim, chooseShot, calcMakeProb } from "../js/engine/sim.js";
+import { withRng } from "../js/core/rng.js";
+import { seededStream, hashSeed } from "../js/core/seededRandom.js";
 import { realTeam } from "./helpers/realGame.js";
 import { createDuel, playPossession, OFFENSE, OFFENSE_CHOICES, DEFENSE_CHOICES } from "../js/duel/duelSim.js";
 
@@ -72,6 +73,49 @@ test("chooseShot: a threes-only profile still returns a three (no NaN weights)",
   let threes = 0;
   for (let i = 0; i < 50; i++) if (chooseShot(p, off)?.zone === "three") threes += 1;
   assert.equal(threes, 50);
+});
+
+test("calcMakeProb B35 §31: the passive skill stack on threes caps at +0.03", () => {
+  const sim = new GameSim({ home: realTeam("CHI", 1996), away: realTeam("SEA", 1996), youSide: "home", injuries: false, speed: 3, rng: seededStream(hashSeed("b35s31")) });
+  const off = sim.home, def = sim.away;
+  const base = [...off.onCourt, ...off.bench].find((p) => (p.threeFg || 0) >= 0.35 && (p.threeFg || 0) <= 0.45 && (p.three || 0) >= 70);
+  assert.ok(base, "the fixture needs a mid-40s three-point shooter");
+  const defender = def.onCourt[0];
+  const shot = { zone: "three", pts: 3 };
+  // Late and close so big_heart contributes its full bonus (uncapped total ≈ +0.10).
+  const makeP = (skills) => {
+    const baller = { ...base, skills };
+    return calcMakeProb(baller, shot, 0.5, off, def, defender, null, null, { quarter: 4, scoreDiff: -3 });
+  };
+  const none = makeP([]);
+  const one = makeP(["rainmaker"]);
+  const three = makeP(["rainmaker", "splash_spot", "big_heart"]);
+  assert.ok(one > none, `one skill still helps: ${one} vs ${none}`);
+  assert.ok(three - none < 0.05, `three stacked skills cap near +0.03 (x tail): ${three} vs ${none}`);
+  assert.ok(three - none > 0.005, `the capped stack still helps: ${three} vs ${none}`);
+});
+
+test("chooseShot B35 §30: the real three-share anchors the choice (same attributes, different raw volume)", () => {
+  // Same attributes/tendencies; only raw.tpa/fga differ. The anchor (logit blend
+  // of the final shaped share toward the player's own real share) must separate
+  // them; a player with no raw volume keeps the unanchored rate and must not crash.
+  const base = { id: "s", name: "Shooter", three: 93, mid: 74, paint: 60, threeTend: 99, midTend: 53, paintTend: 59, shotTend: 83, offenseStyle: "spot" };
+  const off = { coach: { playerAutonomy: 40 }, temp: {}, onCourt: [] };
+  const rate = (p, n = 1500) => {
+    let threes = 0;
+    withRng(seededStream(`b35s30|${p.id}`), () => {
+      for (let i = 0; i < n; i++) if (chooseShot(p, off)?.zone === "three") threes += 1;
+    });
+    return threes / n;
+  };
+  const low = { ...base, id: "low", raw: { tpa: 4.2, fga: 14 } }; // real share 30%
+  const high = { ...base, id: "high", raw: { tpa: 8.4, fga: 14 } }; // real share 60%
+  const noRaw = { ...base, id: "noraw" };
+  const rLow = rate(low);
+  const rHigh = rate(high);
+  const rNoRaw = rate(noRaw);
+  assert.ok(rHigh - rLow > 0.08, `high real share shoots more threes: high ${rHigh} vs low ${rLow}`);
+  assert.ok(rLow < rNoRaw - 0.05, `anchor pulls the low-share shooter below the unanchored rate: low ${rLow} vs no-raw ${rNoRaw}`);
 });
 
 test("a skipped possession still counts its clock as elapsed time and minutes", () => {
