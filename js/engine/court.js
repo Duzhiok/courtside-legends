@@ -960,7 +960,7 @@ export class CourtView {
           <div class="tok-arm right"></div>
           <div class="tok-leg left"></div>
           <div class="tok-leg right"></div>
-          <span class="tok-pts">${Number(p.stats?.pts) || 0}</span>
+          <span class="tok-pts" hidden></span>
         </div>
         <span class="tok-name" title="${esc(p.name)}">${esc(shortName(p.name))}</span>
         <span class="tok-role">${isOff ? this.labels.roleOff : this.labels.roleDef}</span>
@@ -969,11 +969,12 @@ export class CourtView {
         <div class="tok-avatar">
           <img src="${esc(photoUrl(p))}" alt="" loading="lazy" referrerpolicy="no-referrer"
             data-dim-on-error />
-          <span class="tok-pts">${Number(p.stats?.pts) || 0}</span>
+          <span class="tok-pts" hidden></span>
         </div>
         <span class="tok-name" title="${esc(p.name)}">${esc(shortName(p.name))}</span>
         <span class="tok-role">${isOff ? this.labels.roleOff : this.labels.roleDef}</span>
       `;
+      this._paintPts(el, p);
       this.tokenBox.appendChild(el);
       this.tokens.set(`${side}-${p.id}`, el);
     };
@@ -991,14 +992,37 @@ export class CourtView {
       el.style.left = `${x}%`;
       el.style.top = `${y}%`;
     }
-    const pts = el.querySelector(".tok-pts");
-    if (pts) pts.textContent = String(p.stats?.pts ?? 0);
+    this._paintPts(el, p);
     const nm = el.querySelector(".tok-name");
     if (nm) nm.textContent = name;
     el.classList.toggle("hot", (p.stats?.pts || 0) >= 15);
     el.classList.toggle("offense", isOff);
     el.classList.toggle("defense", !isOff);
   }
+
+  /** One painter for the points pill, used by both rebuildTokens and moveToken. */
+  _paintPts(el, p) {
+    const pill = el.querySelector(".tok-pts");
+    if (!pill) return;
+    const badge = pointsBadge(p.stats?.pts, this.getLang());
+    pill.textContent = badge.text;
+    pill.hidden = badge.hidden;
+    pill.title = badge.title;
+  }
+}
+
+/**
+ * B97 #7: every token used to carry a black "0" pill from tip-off -- ten unexplained
+ * zeros on a fresh court. The pill now appears only once the player has scored, and
+ * carries a tooltip saying what the number is. Pure, so it is unit-testable.
+ */
+export function pointsBadge(pts, lang = "zh") {
+  const n = Number(pts) || 0;
+  return {
+    text: String(n),
+    hidden: n <= 0,
+    title: lang === "en" ? `${n} pts this game` : `本场 ${n} 分`,
+  };
 }
 
 /** Map frontcourt-relative slot → full court % coords. attackingUp = home has ball.

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CourtView } from "../js/engine/court.js";
+import { CourtView, pointsBadge } from "../js/engine/court.js";
 
 // CourtView schedules animation frames while a push is in progress;
 // Node has no rAF, and the tests drive renders manually, so no-op it.
@@ -141,6 +141,24 @@ test("court simple: points keep updating through moveToken in simple mode", () =
   const ptsEl = firstToken.querySelector(".tok-pts");
   view.render(snap(12));
   assert.equal(ptsEl.textContent, "12");
+});
+
+// B97 #7: a fresh court used to show ten unexplained black "0" pills.
+test("court: the points pill stays hidden at 0 and appears (with a tooltip) once the player scores", () => {
+  const { root, view } = setup();
+  const ptsEl = root._parts["#court-tokens"].children[0].querySelector(".tok-pts");
+  view.render(snap(0));
+  assert.equal(ptsEl.hidden, true, "no pill before the player has scored");
+  view.render(snap(12));
+  assert.equal(ptsEl.hidden, false, "pill shows once he has points");
+  assert.equal(ptsEl.textContent, "12");
+  assert.match(ptsEl.title, /12/);
+});
+
+test("pointsBadge: hidden at 0 / missing / junk, shown and labelled in both languages", () => {
+  for (const v of [0, undefined, null, "x", -3]) assert.equal(pointsBadge(v).hidden, true, `hidden for ${v}`);
+  assert.deepEqual(pointsBadge(7, "zh"), { text: "7", hidden: false, title: "本场 7 分" });
+  assert.deepEqual(pointsBadge(7, "en"), { text: "7", hidden: false, title: "7 pts this game" });
 });
 
 test("court simple: pushing class follows the 2.6s push phase", () => {
