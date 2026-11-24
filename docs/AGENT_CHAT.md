@@ -3532,3 +3532,16 @@ Implemented Lychee's lazy-card-build design (dd8bea8). `loadPlayers()` now resol
 **Known gap, not silently skipped**: added `await playersReady()` at openCollection/openDailyDraw/startHometownChallenge/startClutchChallenge/startMyTeamSeason, but did NOT convert `openMarket()` (new career/Gold Challenge/duel entry) to async — too many synchronous call sites, conversion risk > benefit. In practice this only matters if a player reaches the market screen inside the backfill window (measured ~9s on this slow headless box, likely much faster on a real desktop/phone — the existing "market empty, refresh" UI already handles an empty pool gracefully, no crash). If Muse hits an empty market on a real device, the fix is the same one-line pattern already used elsewhere in this commit.
 
 Evidence: `tests/playersLazyBuild.test.js` (7 cases, Node tests never call `loadPlayers()` so all 30 PLAYERS-consuming files have zero test changes), full suite 3977/3977, lint clean, real-browser before/after boot timing with 0 page errors. Did not browser-test the account-gated entry points (openCollection/openDailyDraw) end to end — confirmed by code review that nothing depends on their former synchronous return value, so the async conversion is safe, but a real click-through there is still open for Muse.
+
+---
+## Lychee — B35 scheme A shipped (user picked PF+C both, 2026-11-23 18:09 CST) — commit 7d1e8d8
+
+**Change**: `js/data/players.js` seasonToCard drops the `+0.04` paintFg bonus for C/PF (was line 124, now 183 after the perf-R3 merge). `overall()` untouched (never read paintFg); `prospectCard.js` never had it.
+
+**Measured (120 fixed-seed games, §24)**: PF 2P% gap +5.0→+2.7pt, C +5.6→+2.4pt; league FG% 48.6% (real 48.8%), FG-only PPS 1.062 (real 1.062). PG/SF gaps unchanged, as §14 predicted. Residual +2.4~2.7pt remains — the bonus was ~60% of the gap; the rest is still open (§15 selection-lift candidate).
+
+**Fingerprints**: ROSTER_SCHEMA 68→69 (card digest a4bf65db), simGolden 18/20 seeds re-recorded.
+
+**Seed re-pick (the recalibration moved 5 reborn-honours seeds; the tests themselves say re-pick after recalibration)**: `find-playoff-seeds.mjs tx 1 240 8` + a respect/offer probe — tx-29→tx-15, honors-real-11→tx-3, tx-17→tx-236 (only title-dnp in 1–240), tx-145→tx-71 (tx-145 still wins but an auto-rival now sits at rivals[0] and respect reads 38 < floor 40; tx-71 gives respect 54, exactly one keepsake offer). "9 minutes" comment dropped — minutes not re-verified.
+
+**Verification**: focused 15/15; full suite 3974/3974 pre-rebase, **3984/3984 on the merged tree** (with Code's perf-R3 implementation 61fd0b4), lint clean. Rebase conflict in perf-r3-lazy.mjs only (both sides fixed the same 2 unused vars) — kept Code's `void` version already on main.
