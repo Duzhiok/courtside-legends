@@ -7,12 +7,14 @@ import { CUSTOM_BUDGET } from "../data/customPool.js";
 import { DRAFT_FREE_REFRESHES, draftRefreshCost } from "../engine/draft.js";
 import { L } from "../i18n.js";
 
-// Raw Chinese on purpose: the static phrase table translates the page once at
-// boot / on a language switch, and that is how this title has always behaved.
+// B95: the custom/duel titles are long compound strings that were never added to the static
+// phrase table, so the boot-time / language-switch translation sweep (which does catch a short
+// phrase like "选秀建队") never touches them. Use L() directly instead of depending on that sweep.
 export function draftTitle(mode) {
-  if (mode === "custom") return "自定义 · 15 块轮抽 → 32 历史球队淘汰赛";
-  if (mode === "duel") return "双人对抗 · 金币买球员（刷新另计）";
-  return "选秀建队";
+  if (mode === "custom")
+    return L("自定义 · 15 块轮抽 → 32 历史球队淘汰赛", "Custom · 15-gold-per-round draft → 32 historical teams, single elimination");
+  if (mode === "duel") return L("双人对抗 · 金币买球员（刷新另计）", "1v1 Duel · buy players with gold (refreshing costs extra)");
+  return L("选秀建队", "Draft a Team");
 }
 
 /** The "budget / gold" line above the pack. `d` is a live draft (reads A's gold). */

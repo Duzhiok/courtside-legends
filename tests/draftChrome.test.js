@@ -1,6 +1,8 @@
 // B94: the draft screen's title and money line come from one place, so a fresh draft and a resumed one agree.
 // `oldTitle` / `oldMoney` are the inline expressions initDraft used before the move (the fresh-start behavior that
 // must not change); the resumed path used a different, stale title and never painted the money line at all.
+// B95: `oldTitle` always returned raw Chinese regardless of language -- draftTitle() now follows L() instead,
+// so a fresh/resumed draft in English mode no longer shows Chinese title text.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { setLang, L } from "../js/i18n.js";
@@ -16,9 +18,10 @@ const draftOf = (mode, gold = 600) => ({
 });
 
 function oldTitle(mode) {
-  if (mode === "custom") return "自定义 · 15 块轮抽 → 32 历史球队淘汰赛";
-  if (mode === "duel") return "双人对抗 · 金币买球员（刷新另计）";
-  return "选秀建队";
+  if (mode === "custom")
+    return L("自定义 · 15 块轮抽 → 32 历史球队淘汰赛", "Custom · 15-gold-per-round draft → 32 historical teams, single elimination");
+  if (mode === "duel") return L("双人对抗 · 金币买球员（刷新另计）", "1v1 Duel · buy players with gold (refreshing costs extra)");
+  return L("选秀建队", "Draft a Team");
 }
 function oldMoney(d) {
   const isCustom = d.mode === "custom";
@@ -47,8 +50,18 @@ test("a fresh draft is painted exactly as before, in every mode and language", (
 });
 
 test("the custom title is the fresh-start one (a resumed custom draft no longer shows the older wording)", () => {
+  setLang("zh");
   assert.equal(draftTitle("custom"), "自定义 · 15 块轮抽 → 32 历史球队淘汰赛");
   assert.notEqual(draftTitle("custom"), "自定义对战 · 先花 15 块再补 0 块");
+});
+
+test("B95: custom/duel/plain titles are English in English mode, not leftover Chinese", () => {
+  setLang("en");
+  assert.equal(draftTitle("custom"), "Custom · 15-gold-per-round draft → 32 historical teams, single elimination");
+  assert.equal(draftTitle("duel"), "1v1 Duel · buy players with gold (refreshing costs extra)");
+  assert.equal(draftTitle("draft"), "Draft a Team");
+  for (const mode of ["custom", "duel", "draft"]) assert.ok(!/[\u4e00-\u9fff]/.test(draftTitle(mode)), `${mode} title leaked Chinese in English mode`);
+  setLang("zh");
 });
 
 test("each mode says what its money is for, and always exposes the #draft-gold element", () => {
