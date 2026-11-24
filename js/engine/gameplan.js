@@ -463,12 +463,26 @@ export function recommendPlayerOrders(player = null) {
   // B35: "low scoring rating" is not "does not shoot". Webber 1995 (rating 72, 16 shots per 36) read as a blue collar
   // and took ~3 per 36. Someone who really took at least a league-average share of shots is never a hustle /
   // lock-down / defend role. Same yardstick as the engine's touch weight (shotAppetite.js).
-  const volumeScorer = hasRealShotVolume(player) && shotAppetiteRatio(player) >= 1; // real numbers only: the shotTend fallback is not evidence
+  // B35 §27 (user decision 2026-11-24, scheme B): widen the blue-collar pool
+  // from 196 to 389 cards — the crash/putback instruction covered only 0.84%
+  // of cards (~0.12 per team-season), so crash-putbacks were 36 per 120 games.
+  // Scoring <78 (was <74), defense >=70 (was >=76), rebound >=60 (was >=68);
+  // the defense>=82 alternative is unchanged.
+  // A/B correction (same day, before shipping): scheme B as first written let
+  // real 16-19 ppg scorers through — Gasol 2002 (17.6 ppg, ratio 0.98),
+  // Parish 1987 (17.5, 0.98), Giannis 2016 (16.9, 1.00), Allen 2024 (16.5,
+  // 0.93) — and the flagged run proved starvation (Gasol 13.4 -> 5.3 pts/36,
+  // Giannis 16.3 -> 4.0; B76's gate lift does not save them, the orders
+  // themselves — hunt=patient, aggression=lock_d — cut their general shot
+  // frequency). So the volume guard is ratio >= 0.9, not >= 1.0: 276 cards,
+  // all four (and the other six flagged names) excluded; highest real scorer
+  // left in the pool is Mutombo at 16.6 ppg, a putback-style center.
+  const volumeScorer = hasRealShotVolume(player) && shotAppetiteRatio(player) >= 0.9; // real numbers only: the shotTend fallback is not evidence
   const blueCollar =
     !volumeScorer &&
-    scoring < 74 &&
-    defense >= 76 &&
-    (rebound >= 68 || defense >= 82) &&
+    scoring < 78 &&
+    defense >= 70 &&
+    (rebound >= 60 || defense >= 82) &&
     apg < 5 &&
     !lobThreat &&
     !/iso_|mamba|creator|goat|engine|floor_general/.test(arch);

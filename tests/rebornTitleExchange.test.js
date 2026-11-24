@@ -119,7 +119,7 @@ test("no title evidence, no championship keepsake: not on court, not a participa
 });
 
 test("a title won without playing a minute offers nothing (real run, seed tx-236): the keepsake is for men he really shared the floor with", { timeout: 120000 }, async () => {
-  const { before, report, reborn } = await realTitleRun("tx-236"); // re-picked 2026-11-23 after the B35 paintFg recalibration (tx-17 now plays minutes in the title game)
+  const { before, report, reborn } = await realTitleRun("tx-253"); // re-picked 2026-11-24 after the B35 §27 blue-collar widening (tx-236 now eliminated; tx 1-240 has no title-dnp seed under the new engine — first found in 241-480)
   assert.equal(reborn.playoffs.status, "champion");
   assert.equal(report.line.min, 0);
   assert.equal(report.isChampionship, true, "it is still the title game");

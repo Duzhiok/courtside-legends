@@ -19,7 +19,11 @@ const threeShare = (tend, skill, games = 16) => {
 
 test("a roster of real volume shooters takes about half its shots from three, not two thirds (the stack of multipliers saturated)", () => {
   const heavy = threeShare(90, 82);
-  assert.ok(heavy > 0.38 && heavy < 0.62, `a three-heavy roster took ${(heavy * 100).toFixed(0)}% of its shots from three`);
+  // Floor 0.35 (was 0.38): the B35 §27 blue-collar widening moved the realised
+  // share 0.396 -> 0.37 on these fixed seeds (the old value was already 1.6pt
+  // from the old floor); the mechanism is unchanged — heavy is still ~3x the
+  // middling roster and far from two thirds. Revisit if it drops toward 0.30.
+  assert.ok(heavy > 0.35 && heavy < 0.62, `a three-heavy roster took ${(heavy * 100).toFixed(0)}% of its shots from three`);
 });
 
 test("the share still follows the players: a three-heavy roster takes at least twice the threes of a middling one, and a non-shooting one almost none", () => {
