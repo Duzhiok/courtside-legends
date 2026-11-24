@@ -6703,7 +6703,7 @@ function fillTacticSelect(team, { preferId = null } = {}) {
   const tactics = availableTactics(team.coach || { specialTactics: ["balanced"] }, court);
   const cur = preferId || sel.value || team.tactic?.id || "";
   const optionFor = (t) => {
-    const why = tacticUnlockHint(t.id, court);
+    const why = tacticUnlockHint(t.id, court, getLang());
     const desc = tacticDesc(t, getLang());
     const title = why ? `${desc}（${why}）` : desc;
     return `<option value="${t.id}" title="${escAttr(title)}">${esc(tacticName(t, getLang()))}${
