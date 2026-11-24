@@ -99,10 +99,12 @@ function turnovers(tempoId, speed, games) {
   return tov / games;
 }
 
-test("engine: pushing costs a slow lineup more turnovers than a fast one (difference of differences against the normal tempo)", () => {
-  const G = 40;
+test("engine: pushing costs a slow lineup more turnovers than a fast one", () => {
+  // Re-measured 2026-11-24 (code review: late-Q3 no longer runs the endgame scripts, which reshuffled every seeded stream). The old
+  // 40-game difference-of-differences (> 1.4) sat inside the seed noise: on 240 games the scaled engine reads DiD +0.98 and an engine
+  // that does not scale -0.32, but any 40 of them swing by +-0.6. The normal tempo has no costs to scale, so its gap only added noise;
+  // the push gap alone separates cleanly: 240 games, scaled +1.13 vs unscaled -0.18; these 120 read +1.15.
+  const G = 120;
   const pushGap = turnovers("push", 36, G) - turnovers("push", 92, G);
-  const normalGap = turnovers("normal", 36, G) - turnovers("normal", 92, G);
-  // 40 games of fixed seeds: the scaled engine reads +2.25, an engine that does not scale reads +0.73 (speed has other small effects of its own)
-  assert.ok(pushGap - normalGap > 1.4, `push gap ${pushGap.toFixed(2)} vs normal gap ${normalGap.toFixed(2)}`);
+  assert.ok(pushGap > 0.6, `push gap slow - fast ${pushGap.toFixed(2)}`);
 });

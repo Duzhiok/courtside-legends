@@ -620,7 +620,7 @@ export class GameSim {
         /* ignore */
       }
       // Advance clock slightly so a hard-fail possession cannot soft-lock tip-off
-      this.clock = Math.max(0, this.clock - 8);
+      this._burnIdle(8);
     }
     if (!this.running || this.paused) return;
     const delay = this.possessionDelay();
@@ -776,7 +776,7 @@ export class GameSim {
     const def = this.possession === "home" ? this.away : this.home;
     if (!off.onCourt?.length || !def.onCourt?.length) {
       this.emit("coach", this.S("场上人数不足，跳过回合", "Not enough players on court — possession skipped"));
-      this.clock = Math.max(0, this.clock - 10);
+      this._burnIdle(10);
       this.possession = flip(this.possession);
       return;
     }
@@ -933,7 +933,7 @@ export class GameSim {
     }
     let defender = pickDefender(def, baller, plan);
     if (!baller || !defender) {
-      this.clock = Math.max(0, this.clock - 8);
+      this._burnIdle(8);
       this.possession = flip(this.possession);
       return;
     }
@@ -2100,7 +2100,7 @@ export class GameSim {
 
     // 终场落后分差不大：一定要抢攻；需要三分时布置 pace_three 并把球给最稳射手
     const clutchChase =
-      late &&
+      this.quarter >= 4 && // a real endgame only (late also covers late Q3, which re-plans but must not chase)
       deficit >= 1 &&
       deficit <= 9 &&
       (this.clock <= 150 || (deficit <= 6 && this.clock <= 200));
@@ -2252,6 +2252,17 @@ export class GameSim {
    * Pull any injured players off the floor onto the bench when a healthy body exists.
    * Returns how many were forced out.
    */
+  /**
+   * Clock that runs off without a played possession (skipped / failed possession). It used to come off the clock only, so
+   * those seconds never reached elapsedSec or anyone's minutes and team minutes summed to less than 5 x the game length.
+   */
+  _burnIdle(sec) {
+    const used = Math.min(sec, Math.max(0, this.clock));
+    this.clock = Math.max(0, this.clock - sec);
+    this.elapsedSec = (this.elapsedSec || 0) + used;
+    addMinutes(this.home, this.away, used);
+  }
+
   forceOutInjured(team) {
     if (!team?.onCourt?.length) return 0;
     let n = 0;
@@ -3259,11 +3270,11 @@ function availableBody(p) {
 
 function addMinutes(off, def, used) {
   const mins = used / 60;
-  for (const p of off.onCourt) {
+  for (const p of off.onCourt || []) {
     p.stats.min += mins;
     p.stats.pm += 0; // updated on scores
   }
-  for (const p of def.onCourt) p.stats.min += mins;
+  for (const p of def.onCourt || []) p.stats.min += mins;
 }
 
 function applyPlusMinus(scoringSide, other, pts) {
@@ -3312,7 +3323,8 @@ function lateGameInfo(sim, side) {
   const deficit = (sim.score[other.side] || 0) - (sim.score[side.side] || 0);
   const q = sim.quarter || 1;
   const clock = sim.clock || 0;
-  const late = q >= 4 || (q === 3 && clock <= 90);
+  // End of game only: Q3's last 90 s used to count, so teams chased, hunted threes and fouled on purpose before the third-quarter buzzer.
+  const late = q >= 4;
   // 分差不大：末节/加时落后 1–9，时间越紧窗口越大
   const chasing =
     late &&
@@ -4448,7 +4460,8 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   // mapped p' = sigmoid(THREE_SHARE_SLOPE * logit(p) + THREE_SHARE_SHIFT): high shares are pulled down, low and middle ones up. Not applied to the deliberate
   // end-of-game chase for a three. Result: top third x1.15, middle x0.84, eras 0.5-1.2 of real, per-player correlation 0.85 -> 0.90, and the
   // per-player three-point percentage correlation 0.30 -> 0.42.
-  if (!sideCtx?.lateChaseNeedThree && w3 > 0) {
+  // wPaint + wMid > 0: a threes-only profile has p3 = 1, logit(1) = Infinity and w3 became Infinity * 0 = NaN (every shot fell to "mid").
+  if (!sideCtx?.lateChaseNeedThree && w3 > 0 && wPaint + wMid > 0) {
     const p3 = w3 / (w3 + wPaint + wMid);
     const shaped = 1 / (1 + Math.exp(-(THREE_SHARE_SLOPE * Math.log(p3 / (1 - p3)) + THREE_SHARE_SHIFT)));
     w3 = (shaped / (1 - shaped)) * (wPaint + wMid);

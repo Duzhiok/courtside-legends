@@ -281,7 +281,7 @@ export function playPossession(state, choice = {}, opts = {}) {
   } else {
     defense = choice.defense;
     if (!DEFENSE_CHOICES.includes(defense)) throw new Error(`duelSim: choose a defense (${DEFENSE_CHOICES.join(", ")})`);
-    offense = cpuOffenseChoice(defender.duelist, shooter.duelist, state.difficulty, rng);
+    offense = cpuOffenseChoice(shooter.duelist, defender.duelist, state.difficulty, rng); // the CPU is the shooter here: rate ITS moves
   }
   const spacing = opts.spacing ? (opts.spacing[offense] || 0) : 0;
   const prob = makeProb(shooter.duelist, defender.duelist, offense, defense, {
