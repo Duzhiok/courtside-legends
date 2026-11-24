@@ -1812,7 +1812,8 @@ document.querySelectorAll(".mode-card[data-mode]:not([data-career-identity])").f
  * produce with no user input: top-5-available starters with unique
  * positions, default orders/packs, and a neutral gameplan.
  */
-function startPlayNow() {
+async function startPlayNow() {
+  await playersReady(); // perf-r3: exhibitionTeams() reads PLAYERS synchronously
   const { home, away } = exhibitionTeams(10);
   if (home?.players) syncTeamDuoSkills(home.players);
   if (away?.players) syncTeamDuoSkills(away.players);
@@ -1863,8 +1864,9 @@ $("#btn-play-now-tip-ok")?.addEventListener("click", () => {
   if (tip) tip.hidden = true;
 });
 
-function startMode(mode) {
+async function startMode(mode) {
   if (!mode) return;
+  await playersReady(); // perf-r3: every branch below either draws from PLAYERS or dispatches to a function that does
   if (mode === "playNow") {
     startPlayNow();
     return;
@@ -1937,7 +1939,7 @@ function startMode(mode) {
     openSandbox();
     return;
   }
-  initDraft(mode);
+  await initDraft(mode);
   show("draft");
 }
 
@@ -2358,16 +2360,16 @@ $("#btn-clutch-home")?.addEventListener("click", () => { cancelClutchChallenge()
 $("#btn-clutch-result-back")?.addEventListener("click", () => { cancelClutchChallenge(); show("clutch"); });
 
 $("#btn-custom-hub-back")?.addEventListener("click", () => goBack());
-$("#btn-custom-budget")?.addEventListener("click", () => {
+$("#btn-custom-budget")?.addEventListener("click", async () => {
   state.mode = "custom";
   state.lastMode = "custom";
-  initDraft("custom");
+  await initDraft("custom");
   show("draft");
 });
-$("#btn-custom-duel")?.addEventListener("click", () => {
+$("#btn-custom-duel")?.addEventListener("click", async () => {
   state.mode = "duel";
   state.lastMode = "duel";
-  initDraft("duel");
+  await initDraft("duel");
   show("draft");
 });
 
@@ -3546,9 +3548,10 @@ $("#btn-draw-pull")?.addEventListener("click", () => {
   }
 });
 
-function startRankedMatch() {
+async function startRankedMatch() {
   const acc = requireAccountReady({ zh: "排位赛", en: "Ranked" });
   if (!acc) return;
+  await playersReady(); // perf-r3: autoFillTeam() below reads PLAYERS synchronously
   // 8-player unlock gate (user decision 2026-11-08): ranked needs 8 players on the account.
   if (!competitiveUnlocked(acc)) {
     alert(L(`再抽 ${competitivePlayersNeeded(acc)} 张球员即可解锁排位赛。`, `Draw ${competitivePlayersNeeded(acc)} more players to unlock Ranked.`));
@@ -3575,7 +3578,7 @@ function startRankedMatch() {
 }
 
 // —— Draft ——
-function initDraft(mode) {
+async function initDraft(mode) {
   const isDuel = mode === "duel";
   const isCustom = mode === "custom";
   const isHumanVsHuman = isDuel || isCustom;
@@ -3630,6 +3633,7 @@ function initDraft(mode) {
   $("#roster-b-title").textContent = state.draft.teams.B.name;
   $("#btn-start-game").disabled = true;
   refreshDraftUI();
+  await playersReady(); // perf-r3: dealPack() below draws from PLAYERS synchronously
   dealPack();
 }
 
