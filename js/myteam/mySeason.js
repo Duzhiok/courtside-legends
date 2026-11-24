@@ -12,6 +12,7 @@ import { applyPlayerPrefs } from "../data/playerPrefs.js";
 import { overall } from "../data/players.js";
 import { createSeason } from "../engine/season.js";
 import { resolveSavedLineup, validateMyTeamLineup } from "./lineup.js";
+import { toSafeDisplayName } from "../data/saveNames.js";
 
 const QUICK_GAMES = 20;
 const FULL_GAMES = 82;
@@ -40,7 +41,8 @@ export function buildMyTeamSeason(account, { variant = "quick", seed = Date.now(
 
   const st = createSeason({
     userTeamId: "LAS",
-    userTeamName: `${account.name} 班底`,
+    // An account name with < > (or a long one) used to make the season unsaveable: validateSeasonNames refuses such team names.
+    userTeamName: `${toSafeDisplayName(account.name, 56) || "My"} 班底`,
     userTeam: { players, coach },
     mode: "modern",
     year: new Date().getFullYear(),

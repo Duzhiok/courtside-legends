@@ -19,7 +19,7 @@
  * the two. Guest progression lives in its own localStorage key (no account
  * object), so guests level up locally too.
  */
-import { saveAccount, todayKey } from "./account.js";
+import { pruneDatedKeys, saveAccount, todayKey } from "./account.js";
 import { grantPackDraws } from "./accountGacha.js";
 import { GUEST_AXP_KEY } from "./accountKeys.js";
 
@@ -183,6 +183,7 @@ export function awardXp(account, amount, { source = "", key = null } = {}) {
   if (key) {
     if (axp.once[key]) return { gained: 0, totalXp: axp.totalXp, levelBefore: levelForTotalXp(axp.totalXp).level, levelAfter: levelForTotalXp(axp.totalXp).level, leveledUp: false, duplicate: true, owner: "account" };
     axp.once[key] = source || "award";
+    pruneDatedKeys(axp.once);
   }
   const result = applyAward(axp, amount);
   writeAxp(account, axp);
@@ -197,6 +198,7 @@ export function awardAccountXp(account, amount, { source = "", key = null, stora
   if (key) {
     if (axp.once[key]) return { gained: 0, totalXp: axp.totalXp, levelBefore: levelForTotalXp(axp.totalXp).level, levelAfter: levelForTotalXp(axp.totalXp).level, leveledUp: false, duplicate: true, owner: "guest" };
     axp.once[key] = source || "award";
+    pruneDatedKeys(axp.once);
   }
   const result = applyAward(axp, amount);
   saveGuestAxp(storage, axp);

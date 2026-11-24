@@ -32,8 +32,11 @@ export const HOTLINK_HEADSHOTS = true;
 
 /** Basketball-Reference's own headshot thumbnail for a bref id. 404s gracefully (no bref match)
  *  and photoImg()'s onerror already swaps a failed <img> to the generated avatar. */
+/** Basketball-Reference ids are lowercase letters + digits (jamesle01). Anything else (an edited save) never reaches a URL or markup. */
+export const BREF_RE = /^[a-z0-9]{3,12}$/;
+
 export function bbrefHeadshotUrl(bref) {
-  if (!bref) return null;
+  if (!bref || !BREF_RE.test(bref)) return null;
   return `https://www.basketball-reference.com/req/202106291/images/headshots/${bref}.jpg`;
 }
 
@@ -95,7 +98,8 @@ export const eraPhoto = memoize(eraPhotoUncached, (player) => {
  */
 function safeStoredPhoto(url) {
   if (!url) return null;
-  if (url.startsWith("assets/avatars/")) return url;
+  if (typeof url !== "string") return null;
+  if (url.startsWith("assets/avatars/")) return /^assets\/avatars\/[\w./-]+$/.test(url) && !url.includes("..") ? url : null;
   return usable(url);
 }
 
@@ -142,8 +146,9 @@ export function photoImg(player, cls = "headshot") {
   const avatar = avatarDataUri(player);
   // A remote photo that fails once (rate limit, flaky network) is retried once with a cache-busting query before the
   // generated avatar takes over, so a one-off failure does not leave initials on screen for the whole session.
-  const fallback = src === avatar ? "" : ` data-fb="${avatar}"`;
-  const img = `<img class="${escapeAttr(cls)}" src="${src}" alt="${escapeAttr(player?.name)}" loading="lazy" referrerpolicy="no-referrer"${fallback}>`;
+  // Escaped even though every rung is meant to be a safe URL: a stored photo / bref comes from a save the player can edit.
+  const fallback = src === avatar ? "" : ` data-fb="${escapeAttr(avatar)}"`;
+  const img = `<img class="${escapeAttr(cls)}" src="${escapeAttr(src)}" alt="${escapeAttr(player?.name)}" loading="lazy" referrerpolicy="no-referrer"${fallback}>`;
   const team = player?.team || "";
   if (!team) return img;
   const tip = escapeAttr(`${player.season || ""} ${team}${TIP_SUFFIX[photoSourceOf(player)]}`.trim());

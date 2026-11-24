@@ -64,16 +64,17 @@ function renderMarket() {
   $("market-roster").innerHTML = m.roster
     .map((c, i) => {
       const starter = i < 5 ? "（首发）" : "";
-      return `<li>${esc(c.name)} ${c.pos} OVR ${c.ovr}${starter} <input data-list-price="${c.id}" placeholder="挂牌价" size="6" /> <button data-list="${c.id}" type="button">挂牌</button> <button data-up="${c.id}" type="button" class="ghost">↑</button> <button data-down="${c.id}" type="button" class="ghost">↓</button></li>`;
+      const id = esc(c.id);
+      return `<li>${esc(c.name)} ${esc(c.pos)} OVR ${esc(c.ovr)}${starter} <input data-list-price="${id}" placeholder="挂牌价" size="6" /> <button data-list="${id}" type="button">挂牌</button> <button data-up="${id}" type="button" class="ghost">↑</button> <button data-down="${id}" type="button" class="ghost">↓</button></li>`;
     })
     .join("");
   $("market-board").innerHTML = m.listings
     .map((l) => {
       const mine = state.account && l.seller === state.account.name;
       const action = mine
-        ? `<button data-cancel="${l.id}" type="button">撤牌</button>`
-        : `<button data-buy="${l.id}" type="button">购买</button>`;
-      return `<li>${esc(l.card.name)} ${l.card.pos} OVR ${l.card.ovr} · ${l.price} 金 · ${l.seller ? esc(l.seller) : "系统"} ${action}</li>`;
+        ? `<button data-cancel="${esc(l.id)}" type="button">撤牌</button>`
+        : `<button data-buy="${esc(l.id)}" type="button">购买</button>`;
+      return `<li>${esc(l.card.name)} ${esc(l.card.pos)} OVR ${esc(l.card.ovr)} · ${esc(l.price)} 金 · ${l.seller ? esc(l.seller) : "系统"} ${action}</li>`;
     })
     .join("");
 }
@@ -84,7 +85,7 @@ function marketAction() {
     const btn = ev.target.closest("button");
     if (!btn) return;
     if (btn.dataset.list) {
-      const input = rosterEl.querySelector(`[data-list-price="${btn.dataset.list}"]`);
+      const input = rosterEl.querySelector(`[data-list-price="${CSS.escape(btn.dataset.list)}"]`);
       const price = Number(input?.value);
       if (!Number.isInteger(price)) return setStatus("挂牌价需为整数。", true);
       send({ type: "market_list", cardId: btn.dataset.list, price, token: state.token });
@@ -140,8 +141,8 @@ function playerRow(framePlayer) {
   const name = p.cardName || p.name || framePlayer.id;
   const st = framePlayer.stats || {};
   const hot = framePlayer.hot > 0 ? ` 手感+${framePlayer.hot}` : framePlayer.hot < 0 ? ` 手感${framePlayer.hot}` : "";
-  const inj = framePlayer.injuredGames > 0 ? ` ${framePlayer.injuryStatus || "伤停"}` : "";
-  return `${esc(name)} ${esc(framePlayer.playPos)} · ${st.pts}分 ${st.reb}板 ${st.ast}助 · 体力${framePlayer.fatigue}${hot}${inj}`;
+  const inj = framePlayer.injuredGames > 0 ? ` ${esc(framePlayer.injuryStatus || "伤停")}` : "";
+  return `${esc(name)} ${esc(framePlayer.playPos)} · ${esc(st.pts)}分 ${esc(st.reb)}板 ${esc(st.ast)}助 · 体力${esc(framePlayer.fatigue)}${esc(hot)}${inj}`;
 }
 
 function renderFrame(frame) {
@@ -172,8 +173,8 @@ function renderFrame(frame) {
   const inSel = $("sub-in");
   const prevOut = outSel.value;
   const prevIn = inSel.value;
-  outSel.innerHTML = mine.onCourt.map((p) => `<option value="${p.id}">${playerRow(p)}</option>`).join("");
-  inSel.innerHTML = mine.bench.map((p) => `<option value="${p.id}">${playerRow(p)}</option>`).join("");
+  outSel.innerHTML = mine.onCourt.map((p) => `<option value="${esc(p.id)}">${playerRow(p)}</option>`).join("");
+  inSel.innerHTML = mine.bench.map((p) => `<option value="${esc(p.id)}">${playerRow(p)}</option>`).join("");
   if (mine.onCourt.some((p) => p.id === prevOut)) outSel.value = prevOut;
   if (mine.bench.some((p) => p.id === prevIn)) inSel.value = prevIn;
 
@@ -183,7 +184,7 @@ function renderFrame(frame) {
     `<option value="">不指定</option>` +
     mine.onCourt.map((p) => {
       const base = state.rosterById.get(p.id) || {};
-      return `<option value="${p.id}">${esc(base.cardName || base.name || p.id)}</option>`;
+      return `<option value="${esc(p.id)}">${esc(base.cardName || base.name || p.id)}</option>`;
     }).join("");
   focusSel.value = mine.focusId || prevFocus || "";
 
@@ -195,7 +196,7 @@ function renderFrame(frame) {
   const ownRoster = [...mine.onCourt, ...mine.bench];
   posPlayerSel.innerHTML = ownRoster.map((p) => {
     const base = state.rosterById.get(p.id) || {};
-    return `<option value="${p.id}">${esc(base.cardName || base.name || p.id)}（${esc(p.playPos)}）</option>`;
+    return `<option value="${esc(p.id)}">${esc(base.cardName || base.name || p.id)}（${esc(p.playPos)}）</option>`;
   }).join("");
   if (ownRoster.some((p) => p.id === prevPosPlayer)) {
     posPlayerSel.value = prevPosPlayer;
@@ -264,6 +265,7 @@ function handleMessage(msg) {
     case "room":
       state.code = msg.code;
       state.side = msg.side;
+      if (typeof msg.seat === "string") state.seat = msg.seat; // proves the seat is ours if the socket drops
       $("room-code").textContent = `房号：${msg.code}（把房号发给对手）`;
       $("lobby").hidden = true;
       $("waiting").hidden = false;
@@ -415,8 +417,9 @@ function bind() {
     const code = $("room-code-input").value.trim();
     if (!state.ws || !state.connected) return setStatus("请先点「连接服务器」。", true);
     if (!state.name || !code) return setStatus("请填名字和房号。", true);
+    if (state.code !== code) state.seat = null; // a different room: our old seat secret means nothing there
     state.code = code;
-    send({ type: "join", code, name: state.name, teamId: state.teamId, token: state.token });
+    send({ type: "join", code, name: state.name, teamId: state.teamId, token: state.token, seat: state.seat });
   });
   $("btn-register").addEventListener("click", () => {
     const name = $("account-name").value.trim();
@@ -475,7 +478,7 @@ function bind() {
     if (!state.code || !state.name) return;
     $("btn-reconnect").hidden = true;
     connect(() => {
-      send({ type: "join", code: state.code, name: state.name, teamId: state.teamId, token: state.token });
+      send({ type: "join", code: state.code, name: state.name, teamId: state.teamId, token: state.token, seat: state.seat });
     });
   });
   $("btn-sub").addEventListener("click", () => {

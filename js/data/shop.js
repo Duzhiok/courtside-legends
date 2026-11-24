@@ -24,7 +24,7 @@
  *   entry); the equipped state is derived from the look, so the editor and the shop
  *   can never disagree about what the avatar is wearing.
  */
-import { saveAccount, todayKey } from "./account.js";
+import { pruneDatedKeys, saveAccount, todayKey } from "./account.js";
 import { awardAccountXp, XP_TABLE } from "./accountLevel.js";
 import { readLook, saveLook } from "./avatarLook.js";
 import { SHOP_ITEMS, itemById } from "./shopCatalog.js";
@@ -262,6 +262,7 @@ export function awardAutoGameXp(account, gamesSimmed, today = todayKey()) {
   const xpGames = Math.min(gamesSimmed, Math.max(0, SHOP_AUTO_DAILY_CAP - (shop.autoUsed[today] || 0)));
   if (xpGames <= 0) return { xpGames: 0, gained: 0 };
   shop.autoUsed[today] = (shop.autoUsed[today] || 0) + xpGames;
+  pruneDatedKeys(shop.autoUsed, today);
   writeShop(account, shop);
   const res = awardAccountXp(account, SHOP_AUTO_XP_PER_GAME * xpGames, { source: "autoGame" });
   return { xpGames, gained: res.gained || 0 };

@@ -799,11 +799,16 @@ function buildSaveLabel() {
 }
 
 /** 金币晋级赛自动存档（静默），防止误退丢进度 */
+/** The sim of a game still in progress (null once its final buzzer went: onEnd marks it in state.finishedSim). */
+function liveGameSim() {
+  return state.sim && state.sim !== state.finishedSim ? state.sim : null;
+}
+
 function autosaveCareer() {
   if (!state.career || state.career.kind !== "career") return false;
   const screen = activeScreenName();
   let forceScreen = "market";
-  if (state.sim) forceScreen = "game";
+  if (liveGameSim()) forceScreen = "game";
   else if (screen === "setup" && state.pendingMatch) forceScreen = "setup";
   return saveProgress({ silent: true, forceScreen });
 }
@@ -1408,17 +1413,22 @@ function saveProgress({ andGoHome = false, silent = false, forceScreen = null } 
       }
       return true;
     }
+    // A game that already hit the final buzzer is never saved as a live game: "Continue" would replay its last
+    // possessions and settle (pay) it a second time.
+    const liveSim = liveGameSim();
     const payload = {
-      screen: state.sim ? "game" : screen === "home" ? "game" : screen,
+      screen: liveSim ? "game" : screen === "home" ? "game" : screen,
       label: buildSaveLabel(),
       app: serializeAppSlice(state),
-      sim: state.sim ? state.sim.exportState() : null,
+      sim: liveSim ? liveSim.exportState() : null,
       feed: collectFeedLines(),
-      matchEvents: state.sim ? state.matchEvents?.exportState() || null : null,
+      matchEvents: liveSim ? state.matchEvents?.exportState() || null : null,
+      flowId: state.flowId || null,
     };
     // Prefer game screen if sim exists
-    if (forceScreen) payload.screen = forceScreen;
-    else if (state.sim) payload.screen = "game";
+    if (forceScreen === "game" && !liveSim) payload.screen = state.career ? "market" : "home";
+    else if (forceScreen) payload.screen = forceScreen;
+    else if (liveSim) payload.screen = "game";
     else if (state.draft) payload.screen = "draft";
     else if (state.setup) payload.screen = "setup";
     else if (state.legend) payload.screen = "legend";
@@ -1596,6 +1606,13 @@ function currentTournamentMatch() {
 function wireRestoredSim(sim, homeTeam, awayTeam, youSide) {
   if (state.sim) state.sim.stop();
   state.sim = sim;
+  // A quick-sim disables its button for the rest of THAT game; only beginGame re-enabled it, so a game resumed
+  // after a quick-simmed one could never be quick-simmed.
+  const quickBtn = $("#btn-quick-sim");
+  if (quickBtn) {
+    quickBtn.disabled = false;
+    quickBtn.hidden = false;
+  }
   wireDomainEvents();
   match3d.startMatch({ offer: state.career?.kind === "career" });
   state.lineupSig = "";
@@ -1663,6 +1680,7 @@ function restoreSavedGame({ simSave, context = {}, feed = [], homeTeam, awayTeam
       }
     },
     onEnd: (snap) => {
+      state.finishedSim = sim; // from here on this game is a result, not a resumable live game
       syncInjuriesToTeams(sim, homeTeam, awayTeam);
       state.domainEvents?.observeEnd(snap);
       const formNotes = syncFormToTeams(sim, homeTeam, awayTeam);
@@ -1687,6 +1705,7 @@ async function continueFromSave() {
     return;
   }
   markSessionResumed(); // continuing this save keeps its owner (unassociated stays unassociated)
+  state.flowId = data.flowId || null; // resuming continues that save's flow
   try {
     const app = data.app;
     // (a legacy single-toggle save carries its old on/off forward as all three switches)
@@ -1817,6 +1836,7 @@ document.querySelectorAll(".mode-card[data-mode]:not([data-career-identity])").f
  * positions, default orders/packs, and a neutral gameplan.
  */
 async function startPlayNow() {
+  beginFlow(); // a fresh run: its saves belong to it, an older unfinished one is left alone
   await playersReady(); // perf-r3: exhibitionTeams() reads PLAYERS synchronously
   const { home, away } = exhibitionTeams(10);
   if (home?.players) syncTeamDuoSkills(home.players);
@@ -1868,6 +1888,19 @@ $("#btn-play-now-tip-ok")?.addEventListener("click", () => {
   if (tip) tip.hidden = true;
 });
 
+/** A new play flow (mode start): its saves are stamped with this id, see sessionSaveIsCurrentFlow. */
+let flowSeq = 0;
+function beginFlow() {
+  flowSeq += 1;
+  state.flowId = `f${Date.now().toString(36)}${flowSeq.toString(36)}`;
+}
+/** True when the unfinished-game slot holds this flow's own save (or the legacy unstamped case on both sides). */
+function sessionSaveIsCurrentFlow() {
+  const saved = readSave();
+  if (!saved) return false;
+  return (saved.flowId ?? null) === (state.flowId ?? null);
+}
+
 async function startMode(mode) {
   if (!mode) return;
   await playersReady(); // perf-r3: every branch below either draws from PLAYERS or dispatches to a function that does
@@ -1899,6 +1932,7 @@ async function startMode(mode) {
     openHalfCourt();
     return;
   }
+  beginFlow();
   state.mode = mode;
   state.lastMode = mode;
   state.career = null;
@@ -2004,6 +2038,7 @@ function hometownChallengeFor(account) {
   return built.available ? { place, built } : null;
 }
 async function startHometownChallenge() {
+  beginFlow(); // a fresh run: its saves belong to it, an older unfinished one is left alone
   const found = hometownChallengeFor(activeAccount());
   if (!found) return;
   await playersReady(); // perf-r3
@@ -3553,6 +3588,7 @@ $("#btn-draw-pull")?.addEventListener("click", () => {
 });
 
 async function startRankedMatch() {
+  beginFlow(); // a fresh run: its saves belong to it, an older unfinished one is left alone
   const acc = requireAccountReady({ zh: "排位赛", en: "Ranked" });
   if (!acc) return;
   await playersReady(); // perf-r3: autoFillTeam() below reads PLAYERS synchronously
@@ -3583,6 +3619,7 @@ async function startRankedMatch() {
 
 // —— Draft ——
 async function initDraft(mode) {
+  beginFlow(); // a fresh run: its saves belong to it, an older unfinished one is left alone
   const isDuel = mode === "duel";
   const isCustom = mode === "custom";
   const isHumanVsHuman = isDuel || isCustom;
@@ -4350,6 +4387,7 @@ function legendPlayerKey(p) {
 }
 
 async function startLegendMode() {
+  beginFlow(); // a fresh run: its saves belong to it, an older unfinished one is left alone
   await playersReady(); // perf-r3: rollLegendTeam() below reads PLAYERS synchronously
   const eight = shuffle(FRANCHISES).slice(0, 8);
   state.legend = {
@@ -7270,12 +7308,15 @@ function beginGame(homeTeam, awayTeam, youSide) {
       }
     },
     onEnd: (snap) => {
+      state.finishedSim = sim; // from here on this game is a result, not a resumable live game
       syncInjuriesToTeams(sim, homeTeam, awayTeam);
       state.domainEvents?.observeEnd(snap);
       const formNotes = syncFormToTeams(sim, homeTeam, awayTeam);
       showResult(snap, { formNotes });
       if (state.career?.kind === "career") autosaveCareer();
-      else clearSave();
+      // Only the current flow's own save goes. A quick game started while an older run sat in "Continue progress"
+      // used to delete that run at the final buzzer without a word.
+      else if (sessionSaveIsCurrentFlow()) clearSave();
       refreshSaveHomeBar();
     },
   });

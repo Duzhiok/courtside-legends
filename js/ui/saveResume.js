@@ -25,8 +25,19 @@ export function resumeSettings(app) {
  * `loaded` = { draft, pendingMatch, legend, career, tournament } as revived from the save (only their truthiness matters).
  * Returns "game" | "draft" | "setup" | "legend" | "market" | "tournament" | "incomplete".
  */
+/**
+ * A saved sim that already reached its final buzzer (4th quarter or later, clock out, not tied). Older builds saved
+ * the finished game as a live one; resuming it replayed the ending and settled (paid) the game a second time.
+ */
+export function isFinishedSimSave(sim) {
+  if (!sim || typeof sim !== "object") return false;
+  const s = sim.score || {};
+  return (Number(sim.quarter) || 1) >= 4 && Number(sim.clock ?? 1) <= 0 && Number(s.home) !== Number(s.away);
+}
+
 export function resumeRoute(data, loaded) {
-  if (data.sim) return "game";
+  if (data.sim && !isFinishedSimSave(data.sim)) return "game";
+  if (data.sim && loaded.career) return "market"; // its result is already settled: back to the run, not the replay
   const needs = { draft: loaded.draft, setup: loaded.pendingMatch, legend: loaded.legend, market: loaded.career, tournament: loaded.tournament };
   // A save is user data: only a real string that names one of these screens counts. ("constructor" / "toString" would pass an `in` test,
   // and ["draft"] coerces to the key "draft".)

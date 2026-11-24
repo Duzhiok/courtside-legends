@@ -29,6 +29,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import WebSocket from "ws";
 import { clientIp, createRegistrationGate } from "./online-ratelimit.mjs";
 import { createTransport, listeningInfo, loadTlsCredentials, parseServerConfig } from "./online-transport.mjs";
@@ -48,6 +49,11 @@ export const GRACE_MS = 30000; // disconnect grace before a forfeit win
 export const MATCH_BAND = 2; // team-OVR band for instant queue matches
 export const QUEUE_STALE_MS = 60000; // past this, a queued player matches anyone
 export const QUEUE_SWEEP_MS = 10000; // periodic re-check for stale pairs
+export const ROOM_TTL_MS = 5 * 60 * 1000; // a finished / empty room is dropped after this long
+/** Per-connection message budget: a steady 20/s with bursts of 40 is far above any real client (a few per possession). */
+export const MSG_PER_SEC = 20;
+export const MSG_BURST = 40;
+export const MSG_DROP_CLOSE = 400; // this many dropped messages and the socket is closed
 export const RATING_BAND = 100; // rating band for instant ranked matches
 export const MAX_MESSAGE_BYTES = 64 * 1024; // hard cap per client message (ws default is 100 MiB)
 
@@ -111,6 +117,7 @@ export function createOnlineServer({
   matchBand = MATCH_BAND,
   queueStaleMs = QUEUE_STALE_MS,
   queueSweepMs = QUEUE_SWEEP_MS,
+  roomTtlMs = ROOM_TTL_MS,
   ratingBand = RATING_BAND,
   accountsFile,
   economyFile,
@@ -158,6 +165,16 @@ export function createOnlineServer({
   const tactics = Object.values(TACTICS).map((t) => ({ id: t.id, name: t.name }));
   const rooms = new Map();
   const queue = [];
+  /** The secret that proves a seat is yours on reconnect (sent once, with the "room" message). */
+  const issueSeat = (seat) => {
+    if (!seat) return undefined;
+    seat.secret ??= randomBytes(16).toString("hex");
+    return seat.secret;
+  };
+  const sameSecret = (a, b) => {
+    if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  };
 
   // Record a finished game for authed seats: Elo + win/loss, then tell
   // each connected player their new numbers. Draws and guest seats
@@ -339,8 +356,8 @@ export function createOnlineServer({
     a.ctx.side = "home";
     b.ctx.room = room;
     b.ctx.side = "away";
-    send(a.ws, { type: "room", code: room.code, side: "home", matched: true });
-    send(b.ws, { type: "room", code: room.code, side: "away", matched: true });
+    send(a.ws, { type: "room", code: room.code, side: "home", matched: true, seat: issueSeat(room.seats.home) });
+    send(b.ws, { type: "room", code: room.code, side: "away", matched: true, seat: issueSeat(room.seats.away) });
     startGame(room);
     broadcastQueuePositions();
   };
@@ -364,7 +381,26 @@ export function createOnlineServer({
     for (const entry of [...queue]) tryMatch(entry);
   };
 
-  const sweepTimer = setInterval(sweepQueue, queueSweepMs);
+  // Rooms nobody is in any more (finished, abandoned after the grace window, both seats gone) were kept forever,
+  // with their GameSim. Swept once they have been dead for roomTtlMs.
+  const sweepRooms = (now = Date.now()) => {
+    for (const [code, room] of rooms) {
+      const anyone = room.seats.home?.ws || room.seats.away?.ws || room.spectators.size > 0;
+      const dead = room.over || !anyone;
+      if (!dead) {
+        room.deadSince = null;
+        continue;
+      }
+      room.deadSince ??= now;
+      if (now - room.deadSince >= roomTtlMs) {
+        if (room.graceTimer) clearTimeout(room.graceTimer);
+        if (room.resumeTimer) clearTimeout(room.resumeTimer);
+        try { room.sim?.stop(); } catch { /* already stopped */ }
+        rooms.delete(code);
+      }
+    }
+  };
+  const sweepTimer = setInterval(() => { sweepQueue(); sweepRooms(); }, queueSweepMs);
   if (typeof sweepTimer.unref === "function") sweepTimer.unref();
 
   const armGraceTimer = (room, side) => {
@@ -434,6 +470,12 @@ export function createOnlineServer({
     return name && accounts.get(name) ? name : null;
   };
 
+  const ownsSeat = (seat, msg) => {
+    if (sameSecret(seat.secret, msg?.seat)) return true;
+    const account = resolveAccount(msg);
+    return !!(account && seat.account && account === seat.account);
+  };
+
   // ws defaults to a 100 MiB cap; every real message here is a few hundred bytes.
   const transport = createTransport({ port, host, credentials, maxPayload: MAX_MESSAGE_BYTES });
   const { wss } = transport;
@@ -447,8 +489,21 @@ export function createOnlineServer({
     // Per-connection context; queue matches and room setup mutate it via
     // the shared reference, so handlers always read the current room.
     const ctx = { room: null, side: null, spectator: null };
+    const bucket = { tokens: MSG_BURST, at: Date.now(), dropped: 0 };
 
     const onMessage = (raw) => {
+      // Token bucket per connection: a flood of messages (each may cost a JSON parse, a sim decision or a
+      // blocking scrypt hash) is dropped instead of stalling everyone else's games.
+      const t = Date.now();
+      bucket.tokens = Math.min(MSG_BURST, bucket.tokens + ((t - bucket.at) / 1000) * MSG_PER_SEC);
+      bucket.at = t;
+      if (bucket.tokens < 1) {
+        bucket.dropped += 1;
+        if (bucket.dropped === 1 || bucket.dropped % 50 === 0) send(ws, { type: "decision_rejected", reason: "操作太频繁，请稍后再试" });
+        if (bucket.dropped > MSG_DROP_CLOSE) ws.close(1008, "rate limit");
+        return;
+      }
+      bucket.tokens -= 1;
       let msg;
       try {
         msg = JSON.parse(raw);
@@ -472,7 +527,7 @@ export function createOnlineServer({
           room.seats.home = { name: account, teamId: null, ws, needsFull: true, account, rosterCards: cards };
           ctx.room = room;
           ctx.side = "home";
-          return send(ws, { type: "room", code: room.code, side: "home" });
+          return send(ws, { type: "room", code: room.code, side: "home", seat: issueSeat(room.seats.home) });
         }
         if (!presetById.has(msg.teamId)) {
           return send(ws, { type: "decision_rejected", reason: "球队不存在" });
@@ -482,7 +537,7 @@ export function createOnlineServer({
         room.seats.home = { name: account || name, teamId: msg.teamId, ws, needsFull: true, account: account || null };
         ctx.room = room;
         ctx.side = "home";
-        return send(ws, { type: "room", code: room.code, side: "home" });
+        return send(ws, { type: "room", code: room.code, side: "home", seat: issueSeat(room.seats.home) });
       }
 
       if (msg.type === "join") {
@@ -490,10 +545,12 @@ export function createOnlineServer({
         if (!target) return send(ws, { type: "decision_rejected", reason: "房号不存在" });
         const name = String(msg.name || "").trim();
         if (!name) return send(ws, { type: "decision_rejected", reason: "请填写名字" });
-        // Seat reclaim: same name on a dead socket takes its seat back.
+        // Seat reclaim: a dead socket's seat goes back only to whoever proves it is theirs -- the seat secret the
+        // server issued with the "room" message, or the same signed-in account. A name alone (anyone with the room
+        // code can see and type it) used to be enough to take over the other player's game.
         for (const s of ["home", "away"]) {
           const seat = target.seats[s];
-          if (seat && seat.name === name && !seat.ws) {
+          if (seat && seat.name === name && !seat.ws && ownsSeat(seat, msg)) {
             seat.ws = ws;
             ctx.room = target;
             ctx.side = s;
@@ -501,7 +558,7 @@ export function createOnlineServer({
               clearTimeout(target.graceTimer);
               target.graceTimer = null;
             }
-            send(ws, { type: "room", code: target.code, side: s, reclaimed: true });
+            send(ws, { type: "room", code: target.code, side: s, reclaimed: true, seat: issueSeat(seat) });
             if (target.started && !target.over) {
               const snap = target.sim.snapshot();
               send(ws, {
@@ -536,7 +593,7 @@ export function createOnlineServer({
           target.seats.away = { name: account, teamId: null, ws, needsFull: true, account, rosterCards: cards };
           ctx.room = target;
           ctx.side = "away";
-          send(ws, { type: "room", code: target.code, side: "away" });
+          send(ws, { type: "room", code: target.code, side: "away", seat: issueSeat(target.seats.away) });
           startGame(target);
           return;
         }
@@ -551,7 +608,7 @@ export function createOnlineServer({
         target.seats.away = { name: account || name, teamId: msg.teamId, ws, needsFull: true, account: account || null };
         ctx.room = target;
         ctx.side = "away";
-        send(ws, { type: "room", code: target.code, side: "away" });
+        send(ws, { type: "room", code: target.code, side: "away", seat: issueSeat(target.seats.away) });
         startGame(target);
         return;
       }
@@ -647,10 +704,10 @@ export function createOnlineServer({
 
       if (msg.type === "login") {
         const name = String(msg.name || "").trim();
-        if (accounts.isLocked(name)) {
+        if (accounts.isLocked(name, ip)) {
           return send(ws, { type: "decision_rejected", reason: "尝试过多，请 1 分钟后再试" });
         }
-        if (!accounts.verify(name, msg.password)) {
+        if (!accounts.verify(name, msg.password, ip)) {
           return send(ws, { type: "decision_rejected", reason: "名字或密码不对" });
         }
         const token = accounts.createSession(name);
@@ -724,6 +781,9 @@ export function createOnlineServer({
     presets,
     secure: transport.secure,
     port: () => wss.address()?.port,
+    /** Tests: how many rooms are held, and run the room sweep at a given clock. */
+    roomCount: () => rooms.size,
+    sweepRooms,
     close: () =>
       new Promise((resolve) => {
         clearInterval(sweepTimer);

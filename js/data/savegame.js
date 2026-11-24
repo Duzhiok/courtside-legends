@@ -115,6 +115,9 @@ export function writeSave(payload) {
     // In-Match Events state of the live game (optional, additive: older saves simply lack it and
     // restore a fresh one; SAVE_VERSION unchanged). Without it a reload re-fired seen events.
     ...(payload.matchEvents ? { matchEvents: payload.matchEvents } : {}),
+    // Which play flow wrote this slot (app.js state.flowId; optional, additive). The final buzzer only clears the slot
+    // when it is the current flow's own save, never an older unfinished run the player left in "Continue progress".
+    ...(payload.flowId ? { flowId: payload.flowId } : {}),
   };
   const text = JSON.stringify(data);
   try {

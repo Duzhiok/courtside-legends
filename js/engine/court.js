@@ -13,6 +13,7 @@
  */
 
 import { photoUrl } from "../data/photo.js";
+import { esc } from "../core/html.js";
 import { createAnimationQueue } from "./courtAnimationQueue.js";
 import { clamp } from "../core/seededRandom.js";
 
@@ -951,23 +952,23 @@ export class CourtView {
         ? `
         <div class="tok-figure">
           <div class="tok-head"></div>
-          <div class="tok-torso">${normPos(p.playPos || p.pos)}</div>
+          <div class="tok-torso">${esc(normPos(p.playPos || p.pos))}</div>
           <div class="tok-arm left"></div>
           <div class="tok-arm right"></div>
           <div class="tok-leg left"></div>
           <div class="tok-leg right"></div>
-          <span class="tok-pts">${p.stats?.pts ?? 0}</span>
+          <span class="tok-pts">${Number(p.stats?.pts) || 0}</span>
         </div>
-        <span class="tok-name" title="${p.name}">${shortName(p.name)}</span>
+        <span class="tok-name" title="${esc(p.name)}">${esc(shortName(p.name))}</span>
         <span class="tok-role">${isOff ? "攻" : "防"}</span>
       `
         : `
         <div class="tok-avatar">
-          <img src="${photoUrl(p)}" alt="" loading="lazy" referrerpolicy="no-referrer"
+          <img src="${esc(photoUrl(p))}" alt="" loading="lazy" referrerpolicy="no-referrer"
             data-dim-on-error />
-          <span class="tok-pts">${p.stats?.pts ?? 0}</span>
+          <span class="tok-pts">${Number(p.stats?.pts) || 0}</span>
         </div>
-        <span class="tok-name" title="${p.name}">${shortName(p.name)}</span>
+        <span class="tok-name" title="${esc(p.name)}">${esc(shortName(p.name))}</span>
         <span class="tok-role">${isOff ? "攻" : "防"}</span>
       `;
       this.tokenBox.appendChild(el);

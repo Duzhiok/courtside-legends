@@ -87,6 +87,33 @@ function idbDelete(key) {
   );
 }
 
+function idbKeys() {
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readonly");
+        const req = tx.objectStore(STORE).getAllKeys();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      })
+  );
+}
+
+/**
+ * Delete every stored entry that does not belong to `keepKey` (old schemas / old roster builds). Each rebuild used to
+ * add a full ~23k-card copy and never removed the previous one, so IndexedDB grew by tens of MB per deploy.
+ */
+async function dropStaleEntries(keepKey) {
+  const keys = await idbKeys();
+  let n = 0;
+  for (const k of keys) {
+    if (typeof k === "string" && (k === keepKey || k.startsWith(`${keepKey}::`))) continue;
+    await idbDelete(k);
+    n += 1;
+  }
+  return n;
+}
+
 function yieldPaint() {
   return new Promise((r) => setTimeout(r, 0));
 }
@@ -126,6 +153,16 @@ function chunkKey(base, i) {
 
 function manifestKey(base) {
   return `${base}::manifest`;
+}
+
+/** True when a cached roster.json is the build the server's meta names (or the meta can't be read: offline keeps the copy). */
+async function rawCopyIsCurrent(data) {
+  try {
+    const meta = await fetchRosterMeta();
+    return (data?.generated ?? null) === (meta?.generated ?? null) && (data?.version ?? null) === (meta?.version ?? null);
+  } catch (_) {
+    return true;
+  }
 }
 
 /** Tiny metadata fetch (~100 bytes). */
@@ -253,6 +290,12 @@ export async function saveCachedPlayers(meta, players) {
       /* ignore */
     }
     rememberKey(meta, key);
+    try {
+      const dropped = await dropStaleEntries(key);
+      if (dropped) console.info(`[rosterCache] removed ${dropped} stale entries`);
+    } catch (_) {
+      /* best effort */
+    }
     console.info(`[rosterCache] saved ${players.length} cards in ${chunks} chunks → ${key}`);
   } catch (e) {
     console.warn("[rosterCache] write failed (quota?). Rebuild will run every visit until this works.", e);
@@ -275,8 +318,13 @@ export async function fetchRosterJson(url = "./js/data/roster.json", onProgress)
         onProgress?.(0.1, "cache");
         await yieldPaint();
         const data = await hit.json();
-        onProgress?.(0.2, "download");
-        return { data, fromCache: true };
+        // The raw copy was trusted forever: after a deploy the cards were rebuilt from the OLD roster.json and stored
+        // under the NEW meta key. Use it only while it is still the build roster.meta.json names.
+        if (await rawCopyIsCurrent(data)) {
+          onProgress?.(0.2, "download");
+          return { data, fromCache: true };
+        }
+        await cache.delete(url);
       }
     } catch (e) {
       console.warn("[rosterCache] cache read", e);

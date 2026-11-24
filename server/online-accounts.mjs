@@ -7,7 +7,7 @@
  * - Accounts persist as JSON. The default file lives in the user's home
  *   directory, NOT inside the repo: the static site serves the repo root,
  *   so an accounts file there would be publicly readable.
- * - Sessions are in-memory tokens only; a server restart logs everyone
+ * - Sessions are in-memory tokens only (7-day sliding expiry); a server restart logs everyone
  *   out (accounts and ratings survive).
  */
 
@@ -23,6 +23,8 @@ export const START_RATING = 1000;
  *  blocks the event loop, so unthrottled guessing is both a brute-force and a denial-of-service hole. */
 export const MAX_LOGIN_FAILURES = 5;
 export const LOGIN_LOCK_MS = 60_000;
+/** Sessions expire after this long without use (each use slides it); they used to live until a restart. */
+export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** New accounts need at least 8 characters; a 4-character password has too small a guessing space. */
 export const MIN_PASSWORD_LENGTH = 8;
 /** True when a password the user just typed is shorter than the current minimum: the account still
@@ -39,11 +41,13 @@ function publicView(acct) {
   return { name: acct.name, rating: acct.rating, wins: acct.wins, losses: acct.losses };
 }
 
-export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE, now = Date.now } = {}) {
+export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE, now = Date.now, sessionTtlMs = SESSION_TTL_MS } = {}) {
   const accounts = new Map();
-  const sessions = new Map();
-  // Only EXISTING accounts are tracked, so made-up names cannot grow this map.
-  const failures = new Map(); // name -> { count, lockedUntil }
+  const sessions = new Map(); // token -> { name, expires }
+  // Only EXISTING accounts are tracked, so made-up names cannot grow this map. Keyed by name AND the caller's
+  // address: a per-name lock let anyone keep any account locked out forever with 5 wrong guesses a minute.
+  const failures = new Map(); // `${name}\u0000${from}` -> { count, lockedUntil }
+  const failKey = (name, from) => `${name}\u0000${from || ""}`;
   try {
     const raw = readFileSync(file, "utf8");
     for (const a of JSON.parse(raw)) accounts.set(a.name, a);
@@ -90,12 +94,13 @@ export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE, now = Date.no
       save();
       return { ok: true, name: clean };
     },
-    isLocked: (name) => (failures.get(String(name || "").trim())?.lockedUntil ?? 0) > now(),
-    verify: (name, password) => {
+    isLocked: (name, from = "") => (failures.get(failKey(String(name || "").trim(), from))?.lockedUntil ?? 0) > now(),
+    verify: (name, password, from = "") => {
       const clean = String(name || "").trim();
       const acct = accounts.get(clean);
       if (!acct || typeof password !== "string") return false;
-      const record = failures.get(clean);
+      const key = failKey(clean, from);
+      const record = failures.get(key);
       if (record && record.lockedUntil > now()) return false; // refuse before paying for scrypt
       let ok = false;
       try {
@@ -106,19 +111,32 @@ export function createAccountStore({ file = DEFAULT_ACCOUNTS_FILE, now = Date.no
         ok = false;
       }
       if (ok) {
-        failures.delete(clean);
+        failures.delete(key);
         return true;
       }
       const count = (record?.count || 0) + 1;
-      failures.set(clean, count >= MAX_LOGIN_FAILURES ? { count: 0, lockedUntil: now() + LOGIN_LOCK_MS } : { count, lockedUntil: 0 });
+      failures.set(key, count >= MAX_LOGIN_FAILURES ? { count: 0, lockedUntil: now() + LOGIN_LOCK_MS } : { count, lockedUntil: 0 });
       return false;
     },
     createSession: (name) => {
       const token = randomBytes(16).toString("hex");
-      sessions.set(token, name);
+      const t = now();
+      // Drop expired tokens while we are here, so the map cannot grow without bound.
+      for (const [k, v] of sessions) if (v.expires <= t) sessions.delete(k);
+      sessions.set(token, { name, expires: t + sessionTtlMs });
       return token;
     },
-    getSession: (token) => sessions.get(token) || null,
+    getSession: (token) => {
+      const entry = sessions.get(token);
+      if (!entry) return null;
+      const t = now();
+      if (entry.expires <= t) {
+        sessions.delete(token);
+        return null;
+      }
+      entry.expires = t + sessionTtlMs; // sliding
+      return entry.name;
+    },
     recordMatch: (winnerName, loserName) => {
       if (!winnerName || !loserName || winnerName === loserName) return null;
       const winner = accounts.get(winnerName);

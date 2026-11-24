@@ -148,7 +148,8 @@ test("P1 wire: delta chain rebuilds exactly the frame a reclaim gets in full", a
     a.ws.close();
     await waitFor(b.messages, (m) => m.type === "opponent_disconnected");
     const a2 = await connect(url);
-    a2.ws.send(JSON.stringify({ type: "join", code, name: "Alice", teamId: server.presets[0].id }));
+    const aliceSeat = a.messages.find((m) => m.type === "room")?.seat;
+    a2.ws.send(JSON.stringify({ type: "join", code, name: "Alice", teamId: server.presets[0].id, seat: aliceSeat }));
     await waitFor(a2.messages, (m) => m.type === "room" && m.reclaimed);
     await waitFor(a2.messages, (m) => m.type === "joined");
     const full = a2.messages.find((m) => m.type === "frame");
@@ -200,7 +201,7 @@ test("P1 wire: reclaim inside the grace window cancels the forfeit", async () =>
     b.ws.close();
     await waitFor(a.messages, (m) => m.type === "opponent_disconnected");
     const b2 = await connect(url);
-    b2.ws.send(JSON.stringify({ type: "join", code, name: "Bob", teamId: server.presets[1].id }));
+    b2.ws.send(JSON.stringify({ type: "join", code, name: "Bob", teamId: server.presets[1].id, seat: b.messages.find((m) => m.type === "room")?.seat }));
     await waitFor(b2.messages, (m) => m.type === "room" && m.reclaimed);
     await waitFor(a.messages, (m) => m.type === "opponent_back");
     await new Promise((r) => setTimeout(r, 1200));

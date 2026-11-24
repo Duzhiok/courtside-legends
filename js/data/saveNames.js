@@ -15,6 +15,11 @@ export function isSafeDisplayName(value) {
   return typeof value === "string" && value.length <= MAX_SAVE_NAME_LENGTH && !/[<>]/.test(value);
 }
 
+/** A name built from user text (an account name) made safe to store: no < >, capped so the save guard above accepts it. */
+export function toSafeDisplayName(value, maxLength = MAX_SAVE_NAME_LENGTH) {
+  return String(value ?? "").replace(/[<>]/g, "").trim().slice(0, maxLength);
+}
+
 function checkNames(names, message) {
   for (const name of names) {
     if (name !== undefined && !isSafeDisplayName(name)) {

@@ -26,6 +26,28 @@ export function todayKey(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
+const DATED_KEY_RE = /(\d{4})-(\d{2})-(\d{2})/;
+/**
+ * Drop the entries of a once-per-day ledger (keys that carry a todayKey date, e.g. "task:win:2026-11-02" or
+ * "2026-11-02") older than `keepDays`. Those keys only dedupe their own day, so an old one can never match again,
+ * but they were kept forever and every account grew by a few keys a day. Keys without a date are kept. Mutates `obj`.
+ */
+export function pruneDatedKeys(obj, today = todayKey(), keepDays = 30) {
+  if (!obj || typeof obj !== "object") return 0;
+  const t = DATED_KEY_RE.exec(today);
+  if (!t) return 0;
+  const cutoff = Date.UTC(+t[1], +t[2] - 1, +t[3]) - keepDays * 86400000;
+  let n = 0;
+  for (const key of Object.keys(obj)) {
+    const m = DATED_KEY_RE.exec(key);
+    if (m && Date.UTC(+m[1], +m[2] - 1, +m[3]) < cutoff) {
+      delete obj[key];
+      n += 1;
+    }
+  }
+  return n;
+}
+
 function uid() {
   return `acc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }

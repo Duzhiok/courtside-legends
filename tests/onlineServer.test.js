@@ -91,7 +91,7 @@ test("online P0: create, join, frames, decisions, pause, reclaim", async () => {
   assert.equal(roomMsg.side, "home");
 
   b.send({ type: "join", code: roomMsg.code, name: "Bob", teamId: teamB.id });
-  await b.waitFor((m) => m.type === "room", "room B");
+  const roomB = await b.waitFor((m) => m.type === "room", "room B");
   const joinedA = await a.waitFor((m) => m.type === "joined", "joined A");
   const joinedB = await b.waitFor((m) => m.type === "joined", "joined B");
   assert.equal(joinedA.side, "home");
@@ -137,7 +137,15 @@ test("online P0: create, join, frames, decisions, pause, reclaim", async () => {
   await waitForApplied(a, (f) => f.paused === true, "paused after disconnect");
   const b2 = track(await connect(url));
   await b2.waitFor((m) => m.type === "welcome", "welcome B2");
-  b2.send({ type: "join", code: roomMsg.code, name: "Bob", teamId: teamB.id });
+  const bobSeat = roomB.seat;
+  assert.equal(typeof bobSeat, "string", "the server issued Bob a seat secret");
+  // The name alone no longer takes a dead seat (anyone with the room code could type it).
+  const thief = track(await connect(url));
+  await thief.waitFor((m) => m.type === "welcome", "welcome thief");
+  thief.send({ type: "join", code: roomMsg.code, name: "Bob", teamId: teamB.id });
+  const refused = await thief.waitFor((m) => m.type === "decision_rejected", "name-only reclaim refused");
+  assert.match(refused.reason, /已开始/);
+  b2.send({ type: "join", code: roomMsg.code, name: "Bob", teamId: teamB.id, seat: bobSeat });
   const reclaimed = await b2.waitFor((m) => m.type === "room", "reclaim");
   assert.equal(reclaimed.reclaimed, true);
   assert.equal(reclaimed.side, "away");
