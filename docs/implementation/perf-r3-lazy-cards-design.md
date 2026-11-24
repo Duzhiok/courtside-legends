@@ -96,7 +96,7 @@
 
 实际改的入口（`js/app.js`）：`openCollection`、`openDailyDraw`、`startHometownChallenge`、`startClutchChallenge`、`startMyTeamSeason` 改为 `async` 并在读全池前 `await playersReady()`（确认过没有调用方依赖它们的同步返回值）。开机 `#load-status` 文案按 §4 要求改为：延迟分支下先显示“名册索引就绪，卡片正在后台补建…”，回填完成后自动更正为实际张数。
 
-**未做的部分（诚实记录，不要过度吹嘘）**：§6 列的完整 ~30 文件审计没有逐一接 `await playersReady()`，尤其是 `openMarket()`（新生涯/金币挑战赛/双人对决入口）没改成 async——它被很多地方同步调用，改成 async 风险高于收益。因为 `PLAYERS` 现在诚实为空而不是半池，没加 await 的入口在延迟窗口内被点开最多是看到空列表（现有 UI 对空列表已有“市场空了”类文案，不会报错），且该窗口实测在本机是秒级，正常玩家至少两次点击+渲染才能到达市场，实际觽到的概率很低。若 Muse 在真机/慢设备上觽到空市场，请按本文档模式在 `openMarket` 入口加同样的 `await playersReady()`。
+**已补的缺口（2026-11-23 第二次）**：`openMarket()`（新生涯/Gold Challenge/双人对决入口，17 个调用点）也改成 `async` 并在 `show("market")` 之后、`buildAffordableShop` 之前 `await playersReady()`。确认过没有调用方依赖它的同步返回值或调用后紧接的同步 DOM 读取。用已有的 `scripts/qa/career-market-attrs.mjs` 做了真市场回归：新存档/旧存档、案例属性条、无球探包、无横向溢出、无 page error 在桌面+手机 `18/18` 全通过。至此 §6 列的关键入口（收藏、每日抽卡、乡愁挑战、关键球挑战、My Team 赛季、市场）全部接上；剩下未接的少数文件主要是只读或不走冷路径的辅助屏幕。
 
 测量结果（`/tmp` 真浏览器，本机本地 HTTP server，无缓存冷启动，用 `window.__rosterBootOk` 做 TTI 标记）：
 

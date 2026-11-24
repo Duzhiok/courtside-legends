@@ -5623,8 +5623,10 @@ function buyScoutPack(side = null) {
   openMarket({ career: c.kind === "career", duel: c.kind === "duel" });
 }
 
-function openMarket({ career = false, duel = false, afterWin = false, refillShop = false } = {}) {
+async function openMarket({ career = false, duel = false, afterWin = false, refillShop = false } = {}) {
   show("market");
+  await playersReady(); // perf-r3: buildAffordableShop below needs the full card pool
+  assertPlayersReady("openMarket");
   const c = state.career;
   const isDuel = duel || c?.kind === "duel";
   $("#bid-panel").hidden = !isDuel;
