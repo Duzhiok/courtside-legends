@@ -3562,3 +3562,23 @@ Follow-up to 61fd0b4's documented gap: `openMarket()` now also `await playersRea
 
 ## Code — Play Now 开局卡死 (B104, 2026-11-24T04:54:53.422665)
 继续首次体验走查第三段(比赛结束页之后),复现了比 B92 更严重的真实 bug:全新存档点 Play Now,两队建队时 PLAYERS 还没回填完,实时比赛一直`场上人数不足,跳过回合`,30 分钟虚拟时间走不完一场。跟 startPlayNow/startMode(quick)/startRankedMatch/initDraft(duel+custom) 四个入口都同根——都在 PLAYERS 回填完成前同步读池子。四处都改成 async + await playersReady()。跟 Muse 同轮撞了 B103 编号(她发现的是 QA 脚本缺 await,我的是生产入口缺 await),已经把我这条改成 B104,rebase 冲突已解决。ce79584。3991/3991,lint 干净。
+# Draft — 2026-11-23 Rule 7 consolidated Board entry (23:26 run)
+
+## Muse · 2026-11-23 日汇总（Rule 7 当日唯一 Board 记录）
+
+本日 Muse 共 25 项认领，全部完成并已推送（认领提交：0d9bd167、0c49199e、5d4a3a9b、bd2b7e4a、f92bc992、b6701c08、243f0123、7f9a1b2b、d0355e94、413a55c5、ac851c5c、2f9d3f9a、a1b8d95c、efc78f0c、8950ab18、b3097acf、3aaf138b、a303792f、196ed129、bf27b645、2ed8a99b、74de949c、70c0430b、8163ad71、f2b9bf7f）。当日细节见各轮日志 ~/memory/2026-11-23.md；以下为闭合与遗留清单。
+
+**独立验证通过（只读验证 + 变异核查 + 聚焦/全套重跑，生产代码零改动）：**
+- B22 教练席简单/高级模式（7d4accff）；B61 第 5–13 步全部（31c4198f、ef9283d9、a4e89508、6c9717e0、00a2c6f9、ab66a20a、a0f67727、8d57ca83、45cc52e8）；B26 paceFit（1aef24dd，探针复测与文档逐数一致）；B28 功能角色审计（cec73e68，文档两处小注记不影响结论）；Beverley 防守技能包（84a0fbf，角落三分 9/12 计数未复现、实为 7 张在卡，结论不受影响）；B89 宿敌休眠释放名额（830184bd，reborn-multiseason 1230 场 0 漏记）；B88 承诺窗口跨赛季泄漏（3347cc3d，自写探针 41/41）；Cursor 英文模式三提交（7cfbc24e、26101383、c2ebbeab）；B90/B91 QA 脚本修（f87aed46，源码核对，本 VM 无浏览器未实跑）；B92 穿越开局空阵容（480eb328，真实生产 bug）与 B102 getSeasonCards 暖启动回退（c3edeef8）；B93 市场标签页转义修复（564c2cf4）；B94 读档选秀标题/余额（00126dc3，自写探针 473/473）；B96 Reborn 只判自己球员承诺（26f755a5）；B97 首段托管指引修（56c01324）；B98 两队同人排除 + 结算经验行（e910ee6c，300 场 0 同人）；aea7f36d Gold 下架球探包（自写探针 419/419）；B35 scheme A（7d1e8d81，120 场复测：联盟 FG% 48.6%、PF 缺口 +5.0→+2.7pt、C +5.6→+2.4pt）；性能第三轮懒建卡（61fd0b42 + 358ffa8f，真实冷路径探针 19/19，§1 数字量级一致）。
+
+**本日发现并已修复/关闭：** B92（01:26 登记，QA 脚本死于 adv-only 托管键）、B93（02:26 登记，阵容行 salaryLine 泄漏；03:26 验证关闭）、B99（15:26，homeTabs 测试钉旧实现）、B100（17:26 补钉，saveResume null→legacy 覆盖缺口）、B101（18:26 登记，fitOn 默认与 value-badge 门控未钉；21:26 补钉关闭）、B102（20:26 登记，暖启动静默返 []；22:26 验证关闭）、B103（22:26 登记并修复，11 个 QA 脚本补 await playersReady()）。B88、B93、B94、B99、B100、B101、B102、B103 本日关闭。
+
+**当日上游（他队）落地：** Lychee 性能第三轮设计 dd8bea8（用户选按需建卡）与 B35 scheme A 7d1e8d8；Code 性能第三轮实现 61fd0b4 + 358ffa8、B61 第 5–13 步、B92/B93/B94/B96/B97/B98/B102 修复、B35 §25 putback 门复查 c75072a5、B104 Play Now 生产修复 ce795840（23:26 拉取时新到，见下条）；Cursor B88 修复与英文模式三提交。
+
+**待后续轮次（不催用户）：** B104（ce795840，Play Now/Ranked/Custom/Duel 四入口 await playersReady，真实复现：新号首点 Play Now 卡死 30 分钟）与 B35 §25（c75072a5）于 22:26 基线后落地，待独立验证；B95 draftTitle 英文（UI Agent 线）；B97 其余登记项 ①–⑧；B85/B86 次要注记未定；i18n 验证发现的两处测试覆盖缺口（34 条 nameEn/hintEn 未全钉、默认 lang 路径未钉）待补钉。
+
+**待 John 决定（已问，不催）：** B89 Story-clutch 自然形成率（16 种子 / 1092 场实打 0 形成；选项：保持阈值 + 编排种子，或放宽一档）；B35 §24 honors-real-11 措辞注记（称“不再打进总决赛”不准，实际复跑为夺冠，重选 tx-3 仍必要）；B97 文案单复数（“托管开关”单数 vs 实际三个开关）。
+
+**仍排 Mac（本 VM 无浏览器）：** B103 的 11 个 QA 脚本实跑；B76 检查项 6（联机/对决）；3D 助攻传球；Career 场景 1；B92 quick-play-onboarding；B94/B97 浏览器实测；性能第三轮冷启动 TTI 对照。
+
+**基线：** 全套 3915：3906 通过，9 失败 = online* ws 环境缺口（日志：goal hidden_files/hourly-2026-11-23-2326-full-suite.log，~15.4 分钟；9 × "Cannot find package 'ws'"；3906 + 85 未加载 online* = 3991，与 Code 在 B104 提交所称 3991/3991 逐数对上）；courtSimple:260 自 d9d271d 起连续第 57 次全套通过。全套由 00:26 的 3840 增至 3915，新增测试全部通过，无既往通过项丢失；9 失败恒为 online* ws 环境缺口。
