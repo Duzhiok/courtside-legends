@@ -225,10 +225,15 @@ export function autoFillTeam(name, nPlayers = 8, { excludeIds = null, power = 0 
 /**
  * The two preset exhibition sides (Play Now and the quick-game card). One real person plays for one side
  * only: two independent draws put the same player on both teams in ~5% of games.
+ *
+ * B97 finding #6: both sides used to be named "主队传奇" / "客队传奇" -- sharing the same
+ * "传奇" suffix made them read as the same team on a scoreboard that otherwise only
+ * distinguishes home/away by color. Distinct suffixes fix that without touching the
+ * draw logic, pool exclusion, or coach/assistant assignment above.
  */
 export function exhibitionTeams(nPlayers = 10) {
-  const home = autoFillTeam("主队传奇", nPlayers);
-  const away = autoFillTeam("客队传奇", nPlayers, { excludeIds: (home?.players || []).map((p) => p.id) });
+  const home = autoFillTeam("主场群星", nPlayers);
+  const away = autoFillTeam("客场挑战者", nPlayers, { excludeIds: (home?.players || []).map((p) => p.id) });
   return { home, away };
 }
 

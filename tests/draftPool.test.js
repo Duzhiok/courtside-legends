@@ -187,3 +187,19 @@ test("exhibitionTeams: no real person plays for both sides (any season of him)",
     assert.ok(away.players.every((p) => p.bref && !mine.has(p.bref)), `game ${i}: same player on both sides`);
   }
 });
+
+// B97 finding #6: the home and away exhibition teams used to both be named "...传奇"
+// (only a home/away prefix differed), so a scoreboard that only varies by color made
+// them look like the same team. The two names must be genuinely distinct words, not
+// just a shared suffix with a different prefix.
+test("exhibitionTeams: home and away names are not a shared-suffix near-duplicate", () => {
+  const { home, away } = exhibitionTeams(10);
+  assert.notEqual(home.name, away.name, "home and away must not share a literal name");
+  assert.ok(home.name && away.name, "both names must be non-empty");
+  const sharedSuffix = (a, b) => {
+    let n = 0;
+    while (n < a.length && n < b.length && a[a.length - 1 - n] === b[b.length - 1 - n]) n++;
+    return n;
+  };
+  assert.ok(sharedSuffix(home.name, away.name) < 2, `names share too long a suffix: "${home.name}" / "${away.name}"`);
+});
