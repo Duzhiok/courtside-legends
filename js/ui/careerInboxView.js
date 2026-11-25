@@ -32,8 +32,6 @@ import {
   buildInboxContext,
   createCareerInboxState,
   inboxSummary,
-  localizeInboxChoice,
-  localizeInboxEvent,
   pendingInboxEvents,
   queueInboxEvents,
   recordNews,
@@ -44,19 +42,18 @@ import {
 import { applyDecision, openPromises } from "../career/careerDecisions.js";
 import {
   advanceTimeline,
-  describeTimelineStop,
   describeTimelineTarget,
   nextTimelineTarget,
 } from "../career/careerTimeline.js";
-import { careerSummary, describeHistoryEntry } from "../career/careerHistory.js";
+import { careerSummary } from "../career/careerHistory.js";
 import { teamNameL } from "../i18n.js";
+import { INBOX_SEASON_GAMES, inboxBodyHtml } from "./careerInboxHtml.js";
 import { mountScreen } from "./screenShell.js";
 
 /** The page title, rendered once by the shell in the current language. */
 export const CAREER_INBOX_TITLE = Object.freeze({ zh: "职业收件箱", en: "Career Inbox" });
 
 const INBOX_SEASON_YEAR = 1997;
-const INBOX_SEASON_GAMES = 82;
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
@@ -490,83 +487,10 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
       games: d ? d.index : 0,
     });
 
-    const header = `<section><h3>CAREER HUB · 1996–97</h3>`
-      + `<p>${L("你的篮球世界正在发生变化", "Your basketball world is changing", l)}</p>`
-      + `<p>${L("待处理", "Pending", l)} ${summary.pending}（${L("紧急", "urgent", l)} ${summary.urgent}）· ${L("未读新闻", "Unread news", l)} ${summary.unreadNews} · ${L("进行中的承诺", "Open promises", l)} ${summary.openPromises}</p>`
-      + `<p>${L("信任", "Trust", l)} ${slice.state.trust} / 100 · ${L("媒体压力", "Media pressure", l)} ${slice.state.mediaPressure} · ${L("时间线偏离", "Timeline divergence", l)} ${slice.state.divergence}</p>`
-      + (d
-        ? `<p>${d.teamId} · ${L("第", "Game ", l)}${Math.min(d.index + 1, INBOX_SEASON_GAMES)}/${INBOX_SEASON_GAMES}${L(" 场", "", l)} · ${d.wins}${L("胜", "W", l)}${d.losses}${L("负", "L", l)}${core ? ` · ${L("核心", "Core", l)} ${core.name}（OVR ${overall(core)}）` : ""}</p>`
-        : "")
-      + `</section>`;
-
-    const picker = !d
-      ? `<section><h3>${L("选一支球队，开始 1996–97 赛季", "Pick a team to start the 1996–97 season", l)}</h3>`
-        + `<p>${L("演示赛季：真实赛程、真实比赛（GameSim），收件箱事件由真实状态驱动。", "Demo season: real schedule, real games (GameSim); inbox events are driven by real state.", l)}</p>`
-        + `<select id="inbox-team-pick">${teamOptions(l).map((team) => `<option value="${team.id}">${team.name} · ${team.id}</option>`).join("")}</select> `
-        + `<button type="button" class="btn" data-start-demo="1">${L("开始赛季", "Start season", l)}</button></section>`
-      : "";
-
-    const timeline = d && !done
-      ? `<section><h3>${L("推进时间", "Advance time", l)}</h3>`
-        + `<button type="button" class="btn" data-run="next-game" ${busy ? "disabled" : ""}>${L("下一场比赛", "Next game", l)}</button> `
-        + `<button type="button" class="btn" data-run="next-event" ${busy ? "disabled" : ""}>${L("下一重要事件", "Next important event", l)}</button> `
-        + `<button type="button" class="btn" data-run="next-key-node" ${busy ? "disabled" : ""}>${targetLabel || L("下一赛季关键节点", "Next season key node", l)}</button>`
-        + (lastStop ? `<p>${describeTimelineStop(lastStop, l)}</p>` : "")
-        + (lastRun
-          ? `<p>${L("模拟了", "Simmed ", l)}${lastRun.reports.length}${L(" 场", " games", l)} · ${lastRun.wins}${L("胜", "W", l)}${lastRun.reports.length - lastRun.wins}${L("负", "L", l)} · ${L("信任", "Trust", l)} ${lastRun.trustBefore} → ${lastRun.trustAfter}</p>`
-          : "")
-        + `</section>`
-      : d && done
-        ? `<section><p>${L("赛季打完了。", "The season is over.", l)}</p></section>`
-        : "";
-
-    const result = lastResult
-      ? `<section><h3>${L("决定已记录", "Decision recorded", l)}</h3><p>${l === "en" ? lastResult.reasonEn : lastResult.reason}</p>`
-        + lastResult.followUp.map((f) => `<p>${l === "en" ? f.textEn : f.text}</p>`).join("")
-        + `</section>`
-      : "";
-
-    const pendingHtml = pending.length
-      ? `<section><h3>${L("待处理事件", "Pending events", l)}</h3>${pending.map((instance) => {
-        const localized = localizeInboxEvent(instance, l);
-        // Choices come from the definition; look them up by event id.
-        const def = pendingDefinition(instance.eventId);
-        const facts = instance.facts || {};
-        const factsLine = [
-          facts.coreName ? `${L("核心", "Core", l)} ${facts.coreName}（${L("上场", "last game", l)} ${facts.coreLastPts ?? "—"} ${L("分，赛季场均", "pts, season avg", l)} ${facts.coreAvgPts != null ? Math.round(facts.coreAvgPts * 10) / 10 : "—"}）` : "",
-          facts.losingStreak ? `${facts.losingStreak} ${L("连败", "game losing streak", l)}` : "",
-          facts.prospect ? `${L("球探目标", "Scout target", l)} ${facts.prospect.name}（${facts.prospect.pos} · OVR ${facts.prospect.ovr} · ${L("评估", "estimate", l)} ${facts.prospect.estimate}）` : "",
-          facts.veteran ? `${L("老将", "Veteran", l)} ${facts.veteran.name}（${facts.veteran.age} ${L("岁", "yrs", l)} · OVR ${facts.veteran.ovr}）` : "",
-          facts.contenderName ? `${L("对方", "Suitor", l)} ${facts.contenderName}` : "",
-        ].filter(Boolean).join(" · ");
-        return `<article><h4>${instance.urgency === "urgent" ? "❗ " : ""}${localized.title}</h4>`
-          + `<p>${localized.prompt}</p>`
-          + (factsLine ? `<p>${factsLine}</p>` : "")
-          + `<div>${(def.choices || []).map((choice) => {
-            const c = localizeInboxChoice(choice, l);
-            return `<button type="button" class="btn" data-decide="${instance.eventId}:${choice.id}">${c.label}</button>`;
-          }).join(" ")}</div>`
-          + `<div>${(def.choices || []).map((choice) => {
-            const c = localizeInboxChoice(choice, l);
-            return `<p><b>${c.label}</b>：${c.description}<br>${L("后果", "Consequence", l)}：${c.consequence}</p>`;
-          }).join("")}</div></article>`;
-      }).join("")}</section>`
-      : `<section><p>${L("暂无待处理事件——推进时间，事件会从真实状态中出现。", "No pending events — advance time and events will emerge from real state.", l)}</p></section>`;
-
-    const promisesHtml = promises.length
-      ? `<section><h3>${L("进行中的承诺", "Open promises", l)}</h3>${promises.map((p) => `<p>${l === "en" ? p.textEn : p.text} · ${L("第", "due after game ", l)}${p.dueGame + 1}${L(" 场后检查", "", l)}</p>`).join("")}</section>`
-      : "";
-
-    const newsHtml = news.length
-      ? `<section><h3>${L("联盟动态", "League news", l)}</h3>${news.map((item) => `<p>${item.read ? "" : "● "}${l === "en" ? item.textEn : item.text}</p>`).join("")}</section>`
-      : "";
-
-    const historyHtml = history.length
-      ? `<section><h3>${L("生涯记录", "Career record", l)}</h3>${history.map((entry) => `<p>${describeHistoryEntry(entry, l)}</p>`).join("")}`
-        + `<p>${L("决定", "Decisions", l)} ${sum.choices} · ${L("承诺兑现", "Promises kept", l)} ${sum.promisesKept} · ${L("违约", "broken", l)} ${sum.promisesBroken} · ${L("时间线偏离", "Divergence", l)} ${sum.divergence}</p></section>`
-      : "";
-
-    body.innerHTML = header + picker + timeline + result + pendingHtml + promisesHtml + newsHtml + historyHtml;
+    body.innerHTML = inboxBodyHtml({
+      l, slice, summary, d, core, done, busy, targetLabel, lastStop, lastRun, lastResult,
+      teams: teamOptions(l), promises, pending, history, news, sum, definitionOf: pendingDefinition,
+    });
 
     body.querySelector("[data-start-demo]")?.addEventListener("click", () => {
       const pick = body.querySelector("#inbox-team-pick");
