@@ -218,6 +218,16 @@ body.has-tabbar .account-gate { bottom: calc(var(--tabbar-pad, 96px) + env(safe-
 #screen-home.arena .mw-card .btn:not(.primary):not(.mw-gold) { background: #fff; color: #1d5a3b; border-color: #b9cdbf; }
 #screen-home.arena .mw-card .btn:not(.primary):not(.mw-gold):hover { background: #eef4ee; border-color: #1d5a3b; }
 #screen-home.arena .mw-card .btn.mw-gold { background: var(--mw-gold); color: #2a2208; border-color: #c9a24a; }
+/* The hometown idol search sits on that same white card. The arena form rule paints every
+   search box for a dark page (cream ink, translucent black, color-scheme: dark), which on
+   white paper is the gray bar in the screenshot. */
+#screen-home.arena .mw-card :is(select, input[type="number"], input[type="text"], input[type="search"]) {
+  background: #fff;
+  color: #24352b;
+  border: 1px solid #d9d2c3;
+  color-scheme: light;
+}
+#screen-home.arena .mw-card :is(select, input)::placeholder { color: #5b6470; }
 #screen-home.arena .home-utility-row .btn { color: var(--text-mid); }
 
 @media (max-width: 560px) {
