@@ -7,7 +7,7 @@ import { photoImg } from "../data/photo.js";
 import { overall } from "../data/players.js";
 import { esc } from "./myTeamViewKit.js";
 import {
-  cancelTraining, claimTraining, sessionProgress, sessionStatus, slotCount, startBlocker,
+  bestAttr, cancelTraining, claimTraining, previewGain, sessionProgress, sessionStatus, slotCount, startBlocker,
   startTraining, trainingInfo, trainingState,
 } from "../data/trainingCamp.js";
 import { ATTR_LABELS, CAMPS, DURATIONS, refundShare } from "../data/trainingRules.js";
@@ -91,7 +91,7 @@ export function formHtml(account, sel, { pool, lang }) {
     return `<button type="button" class="tc-chip${key === sel.attr ? " on" : ""}" data-tc-attr="${key}">${esc(attrName(key, lang))}${note}</button>`;
   }).join("");
   const durBtns = Object.entries(DURATIONS).map(([id, d]) => `<button type="button" class="tc-dur${id === sel.durationId ? " on" : ""}" data-tc-dur="${id}">
-      <strong>${esc(pick(lang, d.label, d.labelEn))}</strong><small>${fmtDuration(d.ms)} · ¤${d.cost}</small><small>+${d.xp} XP${d.skillChance ? ` · ✦${Math.round(d.skillChance * 1000) / 10}%` : ""}</small></button>`).join("");
+      <strong>${esc(pick(lang, d.label, d.labelEn))}</strong><small>${fmtDuration(d.ms)} · ¤${d.cost}</small><small>+${d.xp} XP${sel.playerId ? ` · ≈+${previewGain(account, sel.playerId, sel.attr, d.xp, pool)}` : ""}${d.skillChance ? ` · ✦${Math.round(d.skillChance * 1000) / 10}%` : ""}</small></button>`).join("");
   const budget = info ? `<p class="tiny">${pick(lang, "成长预算", "Growth budget")}: ${info.used}/${info.budget.total} · ${pick(lang, "单项上限", "per attribute")} +${info.budget.perAttr} · ${pick(lang, "可领悟技能", "skills")} ≤ ${info.budget.skills}</p>` : "";
   const blocker = sel.playerId ? startBlocker(account, sel, { pool }) : null;
   const why = blocker ? pick(lang, blocker.message, blocker.en) : "";
@@ -170,7 +170,7 @@ export function createTrainingScreen({ root, getAccount, pool, getLang = () => "
     const acc = getAccount();
     if (!acc) return;
     if (t.dataset.tcCamp) {
-      sel = { ...sel, campId: t.dataset.tcCamp, attr: CAMPS[t.dataset.tcCamp].attrs[0] };
+      sel = { ...sel, campId: t.dataset.tcCamp, attr: sel.playerId ? bestAttr(acc, sel.playerId, t.dataset.tcCamp, pool()) : CAMPS[t.dataset.tcCamp].attrs[0] };
       paintForm();
     } else if (t.dataset.tcAttr) {
       sel = { ...sel, attr: t.dataset.tcAttr };
@@ -200,7 +200,9 @@ export function createTrainingScreen({ root, getAccount, pool, getLang = () => "
   }
   function onChange(event) {
     if (event.target.matches("[data-tc-player]")) {
-      sel = { ...sel, playerId: event.target.value };
+      const acc = getAccount();
+      const playerId = event.target.value;
+      sel = { ...sel, playerId, attr: playerId && acc ? bestAttr(acc, playerId, sel.campId, pool()) : sel.attr };
       paintForm();
     }
   }

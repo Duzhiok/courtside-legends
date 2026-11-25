@@ -48,6 +48,9 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 900 }], ["mob
   check("center opens with 2 free slots", (await page.$$(".tc-slot.empty")).length === 2);
   const firstId = await page.$eval("[data-tc-player] option:not([value=''])", (o) => o.value);
   await page.selectOption("[data-tc-player]", firstId);
+  const attrOn = await page.$eval("[data-tc-attr].on", (el) => el.textContent);
+  const gainShown = await page.$$eval(".tc-dur small", (els) => els.some((e) => /≈\+\d/.test(e.textContent)));
+  check("default attribute chosen and gain preview shown", /\d/.test(attrOn) && gainShown, attrOn);
   await page.click('[data-tc-camp="shooting"]');
   await page.click('[data-tc-dur="fullDay"]');
   await shoot(page, `${OUT}/${name}-1-form.png`);

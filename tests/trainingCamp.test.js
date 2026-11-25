@@ -144,3 +144,14 @@ test("a card in training can't be recycled", () => {
   camp.startTraining(acc, shoot("c0"), opts(T0));
   assert.throws(() => recycleCards(acc, ["c0"], { confirmed: true, pool: POOL }), /训练中/);
 });
+
+test("UI helpers: default attribute is the strongest open one; the gain preview matches what a claim really adds", () => {
+  const acc = account();
+  assert.equal(camp.bestAttr(acc, "c0", "shooting", POOL), "three", "three 70 > mid 62 > scoring 65? no: 70 is highest");
+  acc.cardMods.c0 = { training: { attrs: { three: 5 } } }; // three is capped -> next best open one
+  assert.equal(camp.bestAttr(acc, "c0", "shooting", POOL), "scoring");
+  const fresh = account();
+  const predicted = camp.previewGain(fresh, "c1", "three", rules.DURATIONS.elite.xp, POOL);
+  const s = camp.startTraining(fresh, shoot("c1", "elite"), opts(T0));
+  assert.equal(camp.claimTraining(fresh, s.id, opts(T0 + 8 * 24 * HOUR)).gained, predicted);
+});

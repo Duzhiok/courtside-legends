@@ -89,6 +89,23 @@ export function trainingInfo(account, playerId, pool = PLAYERS) {
   return { tier, budget, used, attrs, skills: t.skills };
 }
 
+/** Default attribute for a camp: the card's strongest trainable one (training your weakest by default is a trap). */
+export function bestAttr(account, playerId, campId, pool = PLAYERS) {
+  const camp = CAMPS[campId];
+  const info = trainingInfo(account, playerId, pool);
+  if (!info) return camp.attrs[0];
+  const open = camp.attrs.filter((key) => !info.attrs[key].capped);
+  return (open.length ? open : camp.attrs).reduce((a, b) => (info.attrs[b].value > info.attrs[a].value ? b : a));
+}
+
+/** Points a session of `earned` XP would add right now (banked XP included). Pure preview for the UI. */
+export function previewGain(account, playerId, attr, earned, pool = PLAYERS) {
+  const info = trainingInfo(account, playerId, pool);
+  if (!info) return 0;
+  const a = info.attrs[attr];
+  return applyXp({ base: a.base, bonus: a.bonus, xp: a.xp, earned, perAttr: info.budget.perAttr, totalLeft: Math.max(0, info.budget.total - info.used) }).gained;
+}
+
 /** Why a session can't start, or null. */
 export function startBlocker(account, { playerId, campId, attr, durationId }, { pool = PLAYERS } = {}) {
   const camp = CAMPS[campId];
