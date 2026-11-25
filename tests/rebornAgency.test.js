@@ -190,9 +190,22 @@ test("autonomy is earned: 'call your own play' unlocks at the trusted tier, and 
   const high = A.buildDecisionContext(sim, me, { coach: phil, decisionId: "u|1", autonomy: A.AUDIBLE_AT });
   assert.ok(!low.options.includes("setup") && low.audible === null);
   assert.ok(high.options.includes("setup") && high.audible.targetId !== me && high.values.setup > 0);
-  // The same bad deviation is punished less once you have the coach's trust.
-  const g = (autonomy) => A.gradeTakeover({ context: { ...high, playerState: { autonomy } }, choiceId: "pullup", accepted: true, points: 0 }, { attempted: true, made: false, points: 0 });
-  assert.ok(g(90).trustDelta >= g(0).trustDelta);
+  // The same deviation, missed, costs less trust once you have the coach's trust.
+  // Pin the band, not just the sign: pullup/pass sit in the poor band here (quality
+  // -0.40/-0.61), where both autonomies clamp at -MAX_TRUST_PER_GAME and the old
+  // `>=` assertion passed with the softening removed (B142). drive is a good-band
+  // deviation (quality 0.63, deviate_good_missed: -0.3 * (1 - tolerance) x leverage 2
+  // x scale 2): autonomy 0 (tolerance 0.25) -> -0.90, autonomy 90 (tolerance 0.61)
+  // -> -0.47, so a strict `>` isolates the softening.
+  const g = (autonomy) => A.gradeTakeover({ context: { ...high, playerState: { autonomy } }, choiceId: "drive", accepted: true, points: 0 }, { attempted: true, made: false, points: 0 });
+  assert.ok(g(90).trustDelta > g(0).trustDelta, "high autonomy softens the same missed deviation");
+  assert.ok(Math.abs(g(0).trustDelta + 0.9) < 0.01 && Math.abs(g(90).trustDelta + 0.47) < 0.01, "softening magnitude pinned");
+  // The neutral band pins the formula itself: trust = execution * 0.3 - 0.2 * (1 - tolerance);
+  // missed at execution -0.4 -> tolerance 0.25 (autonomy 0) gives -1.08, tolerance 0.61
+  // (autonomy 90 under Phil Jackson) gives -0.79.
+  const neutral = (tolerance) => A.evaluateDecision({ hadInstruction: true, followed: false, quality: 0, execution: -0.4, tolerance });
+  assert.ok(neutral(0.61).trustDelta > neutral(0.25).trustDelta, "higher tolerance softens a neutral missed deviation");
+  assert.ok(Math.abs(neutral(0.25).trustDelta + 1.08) < 0.01 && Math.abs(neutral(0.61).trustDelta + 0.79) < 0.01, "neutral-band softening magnitude pinned");
   // Playing it: the teammate really gets the call for one possession and the autopilot comes back.
   sim.autoOffense = true;
   const star = [...sim.home.onCourt].sort((a, b) => b.scoring - a.scoring)[0];
