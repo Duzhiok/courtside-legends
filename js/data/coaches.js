@@ -265,6 +265,8 @@ export const TACTICS = {
     defense: 1.1,
     pace: 0.9,
     threeRate: 0.78,
+    paintExtra: 1.18, // B23: was hard-coded in sim.js (id check)
+    threeExtra: 0.82,
     needs: ["dominant_big", "rebounder", "rim_protector", "versatile_big"],
   },
   flex: {
@@ -292,6 +294,7 @@ export const TACTICS = {
     pace: 0.98,
     threeRate: 0.9,
     orbBoost: 0.095, // B23: 0.07 own + the 0.025 sim.js used to add for this id (one source now)
+    paintExtra: 1.12, // B23: was hard-coded in sim.js (id check)
     needs: ["rebounder", "dominant_big", "versatile_big", "athlete"],
   },
   second_chance: {
@@ -306,6 +309,7 @@ export const TACTICS = {
     pace: 0.96,
     threeRate: 0.85,
     orbBoost: 0.075, // B23: 0.05 own + the 0.025 sim.js used to add for this id (one source now)
+    paintExtra: 1.12, // B23: was hard-coded in sim.js (id check)
     paintBias: 1.35,
     needs: ["dominant_big", "finisher", "rebounder", "roll_man"],
   },

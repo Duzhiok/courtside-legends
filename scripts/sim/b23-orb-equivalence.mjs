@@ -1,5 +1,5 @@
-// B23 (ORB single source): fixed-seed replay hash. Run before and after moving the +0.025 crash bonus into
-// the tactics' orbBoost: the printed hash must be identical. Usage: node scripts/sim/b23-orb-equivalence.mjs [games=60]
+// B23 (single source): fixed-seed replay hash. Run before and after moving a hard-coded tactic bonus (crash ORB +0.025,
+// paint x1.12, twin_towers paint/three) into the tactic data: the printed hash must be identical. Usage: node scripts/sim/b23-orb-equivalence.mjs [games=60]
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { seasonToCard } from "../../js/data/players.js";
@@ -14,7 +14,7 @@ const coach = (t) => ({ id: `t-${t}`, name: "T", specialTactics: [t], preferred:
 const games = Number(process.argv[2] || 60);
 const hash = createHash("sha256");
 let orb = 0;
-for (const tactic of ["crash_boards", "second_chance", "balanced"]) {
+for (const tactic of ["crash_boards", "second_chance", "twin_towers", "balanced"]) {
   for (const roster of [CENTERS, MIX]) {
     for (let i = 0; i < games; i++) {
       const real = Math.random; Math.random = seededStream(1000 + i);
@@ -32,4 +32,4 @@ for (const tactic of ["crash_boards", "second_chance", "balanced"]) {
     }
   }
 }
-console.log(`games ${games * 6}, away offensive rebounds ${orb}, replay hash ${hash.digest("hex").slice(0, 16)}`);
+console.log(`games ${games * 8}, away offensive rebounds ${orb}, replay hash ${hash.digest("hex").slice(0, 16)}`);

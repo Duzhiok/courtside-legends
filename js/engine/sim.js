@@ -4440,13 +4440,9 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
     wPaint *= paintBias;
     w3 *= Math.max(0.55, 1.15 - paintBias * 0.25);
   }
-  if (off.tactic?.id === "crash_boards" || off.tactic?.id === "second_chance") {
-    wPaint *= 1.12;
-  }
-  if (off.tactic?.id === "twin_towers") {
-    wPaint *= 1.18;
-    w3 *= 0.82;
-  }
+  // B23: the per-tactic extras (crash boards x1.12 paint, twin towers x1.18 paint / x0.82 three) live in the tactic data
+  wPaint *= Number(off.tactic?.paintExtra) || 1;
+  w3 *= Number(off.tactic?.threeExtra) || 1;
   if (lock > 0.4 && attack === "auto") {
     if (tr >= 1.15) w3 *= 1 + lock * 0.3;
     if (tr <= 0.9) {
