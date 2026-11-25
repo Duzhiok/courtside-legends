@@ -93,8 +93,8 @@ export async function askTakeover({ sim, playerId, onAsk, root, context = null }
 }
 
 /** The season driver's onTakeover hook. `onAsk` is the view's dialog. `root` is the long-career root save, passed through so the takeover guard (R7) reads the save's identity. */
-export function createTakeoverHook({ onAsk, root } = {}) {
-  const ask = onAsk || showTakeoverDialog;
+export function createTakeoverHook({ onAsk, root, getLang = () => "zh" } = {}) {
+  const ask = onAsk || ((args) => showTakeoverDialog({ ...args, lang: getLang() }));
   return ({ sim, playerId, context }) => askTakeover({ sim, playerId, onAsk: ask, root, context });
 }
 

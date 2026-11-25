@@ -91,7 +91,9 @@ export function ensureRebornScreen({ getLang = () => "zh", onBack, onRelocalize 
   return el;
 }
 
-const L = (zh, en, lang) => (lang === "en" ? en : zh);
+// `lang` may be the language or the view's getLang function: render() passed the function in 22 places, so the
+// whole Reborn screen (play button, season line, training, restart) stayed Chinese in English mode.
+const L = (zh, en, lang) => ((typeof lang === "function" ? lang() : lang) === "en" ? en : zh);
 
 /** The identity card: who you are, your trust, your role. */
 function autonomyLine(reborn, lang) {
@@ -410,7 +412,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     try {
       const week = currentWeek();
       const out = await playGame(reborn, season, rows, {
-        onTakeover: createTakeoverHook({ root: readRootSave() }),
+        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang }),
         trainingDone: reborn.player.training?.week === week,
       });
       if (!out) return;
@@ -452,7 +454,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     try {
       const week = currentWeek();
       const out = await playPlayoffGame(reborn, rows, {
-        onTakeover: createTakeoverHook({ root: readRootSave() }),
+        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang }),
         trainingDone: reborn.player.training?.week === week,
       });
       if (!out) return;
@@ -478,7 +480,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     render();
     try {
       const out = await fastForward(reborn, season, rows, {
-        onTakeover: createTakeoverHook({ root: readRootSave() }),
+        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang }),
         // The second arg is the reborn state after that game: record the
         // awakening evidence live, so a skill fired mid-run is on the card
         // from the next simmed game on.

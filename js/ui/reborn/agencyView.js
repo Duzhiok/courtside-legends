@@ -36,7 +36,8 @@ const READ_TEXT = {
 function observationLine(obs, lang) {
   const [zh, en] = READ_TEXT[obs.pick] || READ_TEXT.pass;
   const prefix = obs.clarity === "cloudy" ? T("你看得不太清楚：", "You can't quite tell: ", lang) : obs.clarity === "sharp" ? T("你看得很清楚：", "You see it clearly: ", lang) : "";
-  return prefix + T(zh, en, lang);
+  const text = T(zh, en, lang);
+  return prefix && lang === "en" ? prefix + text[0].toLowerCase() + text.slice(1) : prefix + text;
 }
 
 function optionLabel(id, context, lang) {
