@@ -7,8 +7,12 @@ export async function resumeToHub(page) {
   await homeActive(page);
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
   await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 }).catch(async () => {
-    await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
-    await page.click("#btn-time-travel-continue");
+    // The old fallback clicked the locked architect card (it only opens an unlock note now) and then
+    // #btn-time-travel-continue, which is never reachable from there. Go through the HQ the way a
+    // player does, then take its "进入赛季中心" button into the hub. (If a decision is pending or the
+    // career is over, that button is hidden and the click times out -- same limit as before.)
+    await enterTimeTravel(page);
+    await page.click("#btn-time-travel-continue", { timeout: 20000 });
     await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 });
   });
 }
