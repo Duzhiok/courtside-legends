@@ -1,0 +1,189 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "name": "Courtside Legends Design Tokens",
+  "version": "2.8.0",
+  "description": "Courtside Legends (场边传奇) 全局工程级 Design Tokens 规范配置文件，覆盖桌面端战术布阵、实战临场指挥、季后赛绝杀博弈、选秀大会与休赛期多方交易雷达，支持对接 Style Dictionary、Tailwind CSS、Vanilla JS 及 MCP (Model Context Protocol) 自动化验收工具链。",
+  "meta": {
+    "project": "Courtside Legends",
+    "theme": "Dark Esports Tactical",
+    "supported_platforms": ["desktop", "mobile", "figma", "mcp"],
+    "screens_covered": [
+      {
+        "domain": "lineup_and_tactics",
+        "title": "首发阵容 · 换上罗德曼后联防阵型与站位实时变化",
+        "viewport": { "width": 1440, "height": 960, "device": "desktop" },
+        "figma_frame": "Lineup_Tactics_Desktop_Zone23",
+        "css_file": "css/tactics_board.css"
+      },
+      {
+        "domain": "player_detail_modal",
+        "title": "首发阵容 · 替补席球员深度数据与对调弹窗 (内线防守特化·罗德曼)",
+        "viewport": { "width": 920, "height": 680, "device": "desktop" },
+        "figma_frame": "Lineup_Modal_PlayerDetail_Swap",
+        "css_file": "css/player_modal.css"
+      },
+      {
+        "domain": "live_match_tactics",
+        "title": "临场指挥与 3D 战术回放 · 场边传奇",
+        "viewport": { "width": 390, "height": 844, "device": "mobile" },
+        "figma_frame": "Match_Live_Tactics_Mobile",
+        "css_file": "css/match_live.css"
+      },
+      {
+        "domain": "clutch_playoffs",
+        "title": "抢七生死战 · 临场战术板点名单打",
+        "viewport": { "width": 390, "height": 844, "device": "mobile" },
+        "figma_frame": "Playoffs_Clutch_Decision_Mobile",
+        "css_file": "css/arena.css"
+      },
+      {
+        "domain": "match_adaptation",
+        "title": "西部半决赛 G1 · 20秒短暂停吸氧与霍华德换人 / 致命抢断反超",
+        "viewport": { "width": 390, "height": 844, "device": "mobile" },
+        "figma_frame": "Match_Playoffs_WCSF_G1",
+        "css_file": "css/arena.css"
+      },
+      {
+        "domain": "offseason_draft",
+        "title": "选秀大会与休赛期签约 · 场边传奇",
+        "viewport": { "width": 390, "height": 844, "device": "mobile" },
+        "figma_frame": "Offseason_Draft_Combine_Mobile",
+        "css_file": "css/draft.css"
+      },
+      {
+        "domain": "trade_radar",
+        "title": "休赛期球员交易提案雷达 · 场边传奇",
+        "viewport": { "width": 390, "height": 844, "device": "mobile" },
+        "figma_frame": "Offseason_Trade_Radar_Mobile",
+        "css_file": "css/trade_radar.css"
+      },
+      {
+        "domain": "trade_urgent_counter",
+        "title": "交易被加价 · 临场紧急博弈反制弹窗",
+        "viewport": { "width": 390, "height": 844, "device": "mobile" },
+        "figma_frame": "Offseason_Counter_Modal_Overlay",
+        "css_file": "css/trade_radar.css"
+      }
+    ]
+  },
+  "color": {
+    "background": {
+      "darkest": { "value": "#070b09", "type": "color", "description": "全局基底色，深邃夜战黑绿色" },
+      "surface": { "value": "#0e1511", "type": "color", "description": "仪表盘、顶栏 HUD、球场底板及雷达底板色" },
+      "surface-elevated": { "value": "#16201a", "type": "color", "description": "卡片表面、浮层底板及选秀槽位背景" },
+      "surface-container": { "value": "#1b2620", "type": "color", "description": "选中状态、鼠标悬浮与高亮交互底色" },
+      "court-perspective": { "value": "#0b130e", "type": "color", "description": "3D 俯视微透视半场球场底板色" },
+      "glass-modal": { "value": "rgba(14, 21, 17, 0.92)", "type": "color", "description": "高斯模糊遮罩与浮层弹窗背景色" },
+      "radar-grid": { "value": "rgba(56, 189, 248, 0.04)", "type": "color", "description": "交易雷达与战术网格背景细线层" }
+    },
+    "accent": {
+      "gold": { "value": "#f48225", "type": "color", "description": "核心战术金橙、状元签高光、关键绝杀与 Captain 队长标识" },
+      "gold-glow": { "value": "rgba(244, 130, 37, 0.45)", "type": "color", "description": "核心发光投影色阶" },
+      "gold-subtle": { "value": "#fbbf24", "type": "color", "description": "99 OVR 顶尖评级高光、特权金色文字" },
+      "cyan": { "value": "#38bdf8", "type": "color", "description": "战术传球链路、控卫高亮、雷达扫描线与倒计时强调色" },
+      "cyan-glow": { "value": "rgba(56, 189, 248, 0.35)", "type": "color", "description": "冰蓝科技发光色阶" },
+      "green-cba": { "value": "#22c55e", "type": "color", "description": "CBA 100% 合规、体能 99% 及成功执行状态绿色" },
+      "purple-star": { "value": "#c084fc", "type": "color", "description": "超级巨星评级、历史级模板与招牌终极徽章紫光" },
+      "red-alert": { "value": "#ef4444", "type": "color", "description": "末节压哨倒计时、突破硬工资帽与加价警报红" }
+    },
+    "tactical": {
+      "zone-defense-fill": { "value": "rgba(244, 130, 37, 0.08)", "type": "color", "description": "2-3 联防区域高亮底色填充" },
+      "zone-defense-border": { "value": "rgba(244, 130, 37, 0.35)", "type": "color", "description": "2-3 铁血联防轮廓虚线边框" },
+      "court-line": { "value": "rgba(56, 189, 248, 0.18)", "type": "color", "description": "半场三分线、禁区及中圈战术标线" }
+    },
+    "text": {
+      "primary": { "value": "#f8fafc", "type": "color", "description": "高强调主标题、比分大字、球员姓名" },
+      "secondary": { "value": "#94a3b8", "type": "color", "description": "战术指令、球探评语、数据标签与阵型说明" },
+      "muted": { "value": "#64748b", "type": "color", "description": "顺位年份、规则注释、次级辅助说明" },
+      "gold": { "value": "#fbbf24", "type": "color", "description": "评分高亮大字与冠军标识文字" },
+      "timer": { "value": "#ef4444", "type": "color", "description": "压哨计时高燃文字" }
+    },
+    "border": {
+      "subtle": { "value": "rgba(255, 255, 255, 0.08)", "type": "color", "description": "微弱默认卡片与模块边框" },
+      "tactical": { "value": "rgba(244, 130, 37, 0.40)", "type": "color", "description": "战术高亮、选中项激活边框" },
+      "radar": { "value": "rgba(56, 189, 248, 0.25)", "type": "color", "description": "雷达轮廓与科技外圈边框" }
+    },
+    "salary-cap": {
+      "used": { "value": "#38bdf8", "type": "color", "description": "已占用保障合同空间进度色" },
+      "available": { "value": "#22c55e", "type": "color", "description": "剩余可用薪资额度进度色" },
+      "tax-line": { "value": "#ef4444", "type": "color", "description": "奢侈税起征警戒线" }
+    }
+  },
+  "gradient": {
+    "cta-primary": { "value": "linear-gradient(135deg, #f48225 0%, #fbbf24 100%)", "type": "gradient", "description": "核心主行动金色流光渐变" },
+    "momentum-home": { "value": "linear-gradient(90deg, #f48225 0%, #fbbf24 100%)", "type": "gradient", "description": "主队进攻起势流光渐变" },
+    "momentum-away": { "value": "linear-gradient(90deg, #3b82f6 0%, #38bdf8 100%)", "type": "gradient", "description": "客队反扑对冲流光渐变" }
+  },
+  "typography": {
+    "fontFamilies": {
+      "display": { "value": "Space Grotesk, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", "type": "fontFamily" },
+      "mono": { "value": "'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace", "type": "fontFamily" }
+    },
+    "fontSizes": {
+      "xs": { "value": "10px", "type": "dimension" },
+      "sm": { "value": "12px", "type": "dimension" },
+      "base": { "value": "14px", "type": "dimension" },
+      "md": { "value": "16px", "type": "dimension" },
+      "lg": { "value": "18px", "type": "dimension" },
+      "xl": { "value": "20px", "type": "dimension" },
+      "2xl": { "value": "24px", "type": "dimension" },
+      "3xl": { "value": "32px", "type": "dimension" },
+      "score": { "value": "40px", "type": "dimension" }
+    },
+    "fontWeights": {
+      "regular": { "value": "400", "type": "fontWeight" },
+      "medium": { "value": "500", "type": "fontWeight" },
+      "semibold": { "value": "600", "type": "fontWeight" },
+      "bold": { "value": "700", "type": "fontWeight" },
+      "extrabold": { "value": "800", "type": "fontWeight" }
+    },
+    "lineHeights": {
+      "tight": { "value": "1.1", "type": "dimension" },
+      "normal": { "value": "1.4", "type": "dimension" },
+      "relaxed": { "value": "1.6", "type": "dimension" }
+    }
+  },
+  "spacing": {
+    "2xs": { "value": "4px", "type": "dimension" },
+    "xs": { "value": "8px", "type": "dimension" },
+    "sm": { "value": "10px", "type": "dimension" },
+    "md": { "value": "12px", "type": "dimension" },
+    "lg": { "value": "16px", "type": "dimension" },
+    "xl": { "value": "20px", "type": "dimension" },
+    "2xl": { "value": "24px", "type": "dimension" },
+    "3xl": { "value": "32px", "type": "dimension" }
+  },
+  "borderRadius": {
+    "none": { "value": "0px", "type": "dimension" },
+    "sm": { "value": "6px", "type": "dimension" },
+    "md": { "value": "10px", "type": "dimension" },
+    "card": { "value": "14px", "type": "dimension" },
+    "modal": { "value": "18px", "type": "dimension" },
+    "pill": { "value": "9999px", "type": "dimension" }
+  },
+  "boxShadow": {
+    "card": { "value": "0 8px 24px rgba(0, 0, 0, 0.45)", "type": "boxShadow" },
+    "modal": { "value": "0 20px 50px rgba(0, 0, 0, 0.75)", "type": "boxShadow" },
+    "hud": { "value": "0 10px 30px rgba(0, 0, 0, 0.65)", "type": "boxShadow" },
+    "cta-glow": { "value": "0 0 20px rgba(244, 130, 37, 0.45)", "type": "boxShadow" },
+    "cyan-glow": { "value": "0 0 16px rgba(56, 189, 248, 0.35)", "type": "boxShadow" }
+  },
+  "layout": {
+    "viewport": {
+      "mobile": { "width": { "value": "390px", "type": "dimension" }, "height": { "value": "844px", "type": "dimension" } },
+      "desktop": { "width": { "value": "1440px", "type": "dimension" }, "height": { "value": "960px", "type": "dimension" } }
+    },
+    "desktop-grid": {
+      "court-column-width": { "value": "932px", "type": "dimension" },
+      "sidebar-width": { "value": "440px", "type": "dimension" },
+      "top-header-height": { "value": "64px", "type": "dimension" },
+      "bench-tray-height": { "value": "104px", "type": "dimension" }
+    },
+    "mobile-grid": {
+      "header-hud-height": { "value": "78px", "type": "dimension" },
+      "scoreboard-hud-height": { "value": "84px", "type": "dimension" },
+      "tactical-stage-height": { "value": "380px", "type": "dimension" },
+      "bottom-dock-height": { "value": "68px", "type": "dimension" }
+    }
+  }
+}
