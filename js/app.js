@@ -1121,8 +1121,13 @@ function resumeLongCareer(root = readRootSave()) {
   return true;
 }
 
+/** The career save in play: the one already in memory, else whatever is on disk. Read each call, never cached. */
+function currentCareerRoot() {
+  return state.longCareerRoot || readRootSave();
+}
+
 /** ADR-008a Q1: another account's save (or the guest's, until claimed) is never offered to the current player. */
-function careerHidden(root = state.longCareerRoot || readRootSave()) {
+function careerHidden(root = currentCareerRoot()) {
   return hiddenFromMe(saveVisibility("career", careerSig(root)));
 }
 function sessionHidden(peek = peekSave()) {
@@ -1227,7 +1232,7 @@ function refreshLongCareerHomeBar() {
   const bar = $("#long-career-home-bar");
   const meta = $("#long-career-home-meta");
   if (!bar || !meta) return;
-  const root = state.longCareerRoot || readRootSave();
+  const root = currentCareerRoot();
   const career = root?.leagueCareer;
   if (!career || careerHidden(root)) {
     bar.hidden = true;
@@ -1271,7 +1276,7 @@ const timeTravelScreen = createTimeTravelScreen({
   // Account Level: a resolved Reborn story event pays +30 XP (win or lose —
   // every choice counts). Keyed per event+year so a replayed event pays once.
   onStoryEventResolved: ({ eventId, year } = {}) => {
-    const root = state.longCareerRoot || readRootSave();
+    const root = currentCareerRoot();
     const acc = getAccount(root?.profile?.accountId) || activeAccount();
     const axp = awardAccountXp(acc, XP_TABLE.careerEvent, { source: "rebornEvent", key: `storyEvent:${eventId || "unknown"}@${year ?? "?"}` });
     celebrateAccountLevelUp(axp.levelBefore, axp.levelAfter);
@@ -1282,10 +1287,10 @@ const queueNextTimeTravelEvent = () => timeTravelScreen.queueNextTimeTravelEvent
 
 $("#btn-long-career-resume")?.addEventListener("click", () => {
   if (careerHidden()) return refreshLongCareerHomeBar();
-  resumeLongCareer(state.longCareerRoot || readRootSave());
+  resumeLongCareer(currentCareerRoot());
 });
 $("#btn-long-career-export")?.addEventListener("click", () => {
-  const root = state.longCareerRoot || readRootSave();
+  const root = currentCareerRoot();
   if (!root?.leagueCareer) return;
   try {
     downloadLongCareerExport(root);
@@ -9148,7 +9153,7 @@ function savedSeasonSource() {
   if (careerHidden()) return {};
   const live = state.season || (seasonHidden() ? null : loadSeason());
   if (live) return { live };
-  const root = state.longCareerRoot || readRootSave();
+  const root = currentCareerRoot();
   return root?.leagueCareer?.season ? { root } : {};
 }
 
@@ -9390,7 +9395,7 @@ function renderLeagueManagement() {
           // recap alert itself (no second modal stacked on top of it).
           let lifetimeXp = null;
           if (coachRetirement) {
-            const root = state.longCareerRoot || readRootSave();
+            const root = currentCareerRoot();
             const acc = getAccount(root?.profile?.accountId) || activeAccount();
             lifetimeXp = awardAccountXp(acc, XP_TABLE.rebornLifetime, {
               source: "rebornLifetime",
@@ -11250,7 +11255,7 @@ $("#btn-season-start")?.addEventListener("click", async () => {
   if (await blockedByForeignSave(seasonSetupKind === "franchise" ? "career" : "season")) return;
   if (
     seasonSetupKind === "franchise"
-    && hasExistingCareerRoot(state.longCareerRoot || readRootSave())
+    && hasExistingCareerRoot(currentCareerRoot())
     && !(await confirmAction(L("开始新联盟经理生涯将替换当前长期生涯存档，确定继续？", "Starting a new league-manager career will replace your current long career save. Continue?"), {
       title: L("覆盖联盟经理存档？", "Overwrite the league-manager save?"),
       acceptLabel: L("覆盖并开始", "Overwrite and start"),
@@ -11860,7 +11865,7 @@ async function boot() {
       mountAvatar: deferUntil(bootGate, (stage, opts) => chooseAvatarMount()(stage, opts)), // the portrait stays until the figure is allowed to load
       getAccount: activeAccount,
       onPortraitChanged: refreshAccountAvatar,
-      readRootSave: () => state.longCareerRoot || readRootSave(),
+      readRootSave: () => currentCareerRoot(),
       topCards: (account) => resolvePlayers(account.playerIds || [], account).sort((a, b) => overall(b) - overall(a)).slice(0, 3),
       readSession: peekSave,
       sessionLabel: (meta, lang) => formatSaveLabel(meta, lang),
@@ -11878,7 +11883,7 @@ async function boot() {
       myTeamSigOf: myTeamSig,
       onResumeMyTeam: resumeMyTeamSeason,
       confirm: (message) => confirmAction(message, { title: L("认领本机存档？", "Claim this local save?"), acceptLabel: L("确认认领", "Claim it") }),
-      onResumeCareer: () => !careerHidden() && resumeLongCareer(state.longCareerRoot || readRootSave()),
+      onResumeCareer: () => !careerHidden() && resumeLongCareer(currentCareerRoot()),
       onResumeSession: () => continueFromSave(),
       onClaimed: () => { refreshLongCareerHomeBar(); refreshSaveHomeBar(); },
       onOpenCollection: () => openCollection(),
@@ -11921,7 +11926,7 @@ async function boot() {
     // Screen Shell: mount once at boot (museum pattern); open() only renders.
     rebornView = createRebornView({
       getLang,
-      readRootSave: () => state.longCareerRoot || readRootSave(),
+      readRootSave: () => currentCareerRoot(),
       writeRootSave,
       show,
       goBack,
@@ -11940,7 +11945,7 @@ async function boot() {
       getLang,
       getAccount: activeAccount,
       saveAccount,
-      readRootSave: () => state.longCareerRoot || readRootSave(),
+      readRootSave: () => currentCareerRoot(),
       writeRootSave,
       show,
       goBack,
@@ -11951,7 +11956,7 @@ async function boot() {
     // Screen Shell: mount once at boot (museum pattern); open() only renders.
     careerInboxView = createCareerInboxView({
       getLang,
-      readRootSave: () => state.longCareerRoot || readRootSave(),
+      readRootSave: () => currentCareerRoot(),
       writeRootSave,
       show,
       goBack,
@@ -11965,7 +11970,7 @@ async function boot() {
     let gmBusinessView = null;
     gmBusinessView = createGmBusinessView({
       getLang,
-      readRootSave: () => state.longCareerRoot || readRootSave(),
+      readRootSave: () => currentCareerRoot(),
       writeRootSave,
       show,
       goBack,
@@ -11977,7 +11982,7 @@ async function boot() {
     // Screen Shell: mount once at boot (museum pattern); open() only renders.
     const draftGambleView = createDraftGambleView({
       getLang,
-      readRootSave: () => state.longCareerRoot || readRootSave(),
+      readRootSave: () => currentCareerRoot(),
       writeRootSave,
       show,
       goBack,
