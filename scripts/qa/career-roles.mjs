@@ -1,6 +1,6 @@
 // Browser E2E for Career Role Permissions (ADR-006 R4): the Coach and GM
 // flows through the real UI, desktop + mobile, Chinese + English.
-// Coach (?career=coach -> Time Travel, role COACH): market trade / FA /
+// Coach (a COACH-role Time Travel career): market trade / FA /
 // cut are refused with a readable reason, rotation save and commanding
 // a game work. GM (League Manager setup, role GM): trade opens, rotation
 // save and commanding a game are refused. GM+Coach (default Time Travel
@@ -12,8 +12,7 @@
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { CJK, homeActive, noOverflow, shoot } from "./lib/page.mjs";
-import { openInterview, skipInterview } from "./lib/interview.mjs";
-import { openCareer, resumeToHub } from "./lib/career.mjs";
+import { createCareerInPage, openCareer, resumeToHub } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/career-roles";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -27,6 +26,9 @@ const check = (label, ok, detail = "") => {
 };
 const saved = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("cls_root_v3") || "null"));
 const roleOf = (root) => ({ identity: root?.identity?.currentRole, career: root?.leagueCareer?.role, kind: root?.leagueCareer?.kind });
+// Every role refusal reads "...是<X>的职责" (see careerGuards). Other dialogs are NOT refusals: an empty trade asks for players,
+// a saved rotation says "saved" -- so "no refusal" must not mean "no dialog at all".
+const refused = (messages) => messages.some((m) => m.includes("职责"));
 const visible = (page, sel) => page.$eval(sel, (el) => !el.hidden && el.getClientRects().length > 0).catch(() => false);
 
 /** A fresh page with dialog capture: every alert/confirm lands in `dialogs`. */
@@ -45,24 +47,8 @@ const fresh = async (page, query = "") => {
   await homeActive(page);
 };
 
-/** Coach: ?career=coach -> Time Travel creation -> skip the interview -> load management -> hub. */
-async function createCoachCareer(page) {
-  await fresh(page, "?career=coach");
-  await page.waitForSelector("#time-travel-year option", { state: "attached", timeout: 15000 });
-  await page.evaluate(() => { const y = document.querySelector("#time-travel-year"); y.value = "1995"; y.dispatchEvent(new Event("change")); });
-  await page.click("#btn-time-travel-interview");
-  await page.waitForSelector("#time-travel-offers .tt-offer", { timeout: 10000 });
-  await openInterview(page, "middle");
-  await page.waitForSelector("#tt-interview:not([hidden])");
-  await skipInterview(page);
-  await page.waitForSelector("#time-travel-decision:not([hidden])", { timeout: 15000 });
-  await page.click('[data-story-choice="introduce-load-management"]');
-  await page.click("#time-travel-decision > .tt-confirm-slot [data-act=confirm]");
-  await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 }).catch(async () => {
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await resumeToHub(page);
-  });
-}
+/** Coach: a real coach-only (role COACH) 1995 career built by the engine, resumed to the season hub through the real buttons. */
+const createCoachCareer = (page) => openCareer(page, BASE, { role: "COACH" });
 
 /** GM: League Manager setup (franchise) with an account roster, straight to the hub. */
 async function createGmCareer(page) {
@@ -75,7 +61,8 @@ async function createGmCareer(page) {
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
-  await page.click('.mode-card[data-mode="franchise"]');
+  await page.click('.home-tab[data-category="career"]'); // the GM card is on the career tab (it was a top-level mode card once)
+  await page.click('[data-career-identity="gm"]');
   await page.waitForSelector("#screen-season.active");
   await page.click("#btn-career-length-franchise");
   await page.click("#btn-season-roster-account");
@@ -107,8 +94,11 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   const signBtn = await page.$(".sm-sign");
   if (signBtn) {
     takeDialogs();
+    // A fresh career already sits above the hard cap, so every Sign button starts disabled by the CAP rule. This check is about
+    // the ROLE gate in the click handler, so enable the button in the DOM and click it: any refusal now comes from the role.
+    await signBtn.evaluate((b) => { b.disabled = false; });
     await signBtn.click();
-    check(`[${tag}] Coach: signing a free agent is refused`, takeDialogs().some((m) => m.includes("教练")), "no refusal dialog");
+    check(`[${tag}] Coach: signing a free agent is refused, and the reason names the GM's job`, takeDialogs().some((m) => m.includes("经理")), "no refusal dialog");
   } else {
     check(`[${tag}] Coach: a free-agent sign button exists to test`, false, "no .sm-sign on the market");
   }
@@ -116,20 +106,27 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   if (cutBtn) {
     takeDialogs();
     await cutBtn.click();
-    check(`[${tag}] Coach: cutting a player is refused before the confirm`, takeDialogs().some((m) => m.includes("教练")), "no refusal dialog");
+    check(`[${tag}] Coach: cutting a player is refused before the confirm`, takeDialogs().some((m) => m.includes("经理")), "no refusal dialog");
   } else {
     check(`[${tag}] Coach: a cut button exists to test`, false, "no .sm-cut on the market");
   }
   await openRotation(page);
   takeDialogs();
+  // Save keeps only the starters the player ticked (none ticked = none saved), so tick five like a player would.
+  // Re-locate by position each time: every tick re-renders the board.
+  for (let i = 0; i < 5; i += 1) {
+    const box = page.locator(".rot-start-cb").nth(i);
+    if (!(await box.isChecked())) await box.check();
+  }
   await page.click("#btn-rot-save");
   const afterRot = await saved(page);
   const rot = afterRot?.leagueCareer?.season?.teams?.[afterRot.leagueCareer.season.userTeamId]?.rotation;
-  check(`[${tag}] Coach: rotation save runs (no refusal) and persists 5 starters`, takeDialogs().length === 0 && rot?.starterIds?.length === 5, JSON.stringify({ dialogs: takeDialogs(), starters: rot?.starterIds?.length }));
+  const rotDialogs = takeDialogs();
+  check(`[${tag}] Coach: rotation save runs (no refusal) and persists 5 starters`, !refused(rotDialogs) && rot?.starterIds?.length === 5, JSON.stringify({ dialogs: rotDialogs, starters: rot?.starterIds?.length }));
   takeDialogs();
   await page.click("#btn-season-play");
   await page.waitForSelector("#screen-setup.active", { timeout: 10000 });
-  check(`[${tag}] Coach: commanding the game opens the setup screen`, takeDialogs().length === 0);
+  check(`[${tag}] Coach: commanding the game opens the setup screen`, !refused(takeDialogs()));
   await shoot(page, `${OUT}/${tag}-1-coach-setup.png`);
   await page.click("#btn-setup-back").catch(() => {});
   await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 10000 }).catch(async () => {
@@ -148,15 +145,15 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await openMarket(gm.page);
   gm.takeDialogs();
   await gm.page.click("#btn-sm-trade");
-  check(`[${tag}] GM: trade runs (no refusal dialog)`, gm.takeDialogs().length === 0, "trade was refused");
-  check(`[${tag}] GM: the trade panel still offers both sides`, (await gm.page.$$("#sm-trade-you input[type=checkbox]")).length > 0 && (await gm.page.$$("#sm-trade-cpu input[type=checkbox]")).length > 0);
+  check(`[${tag}] GM: trade is not refused for the role`, !refused(gm.takeDialogs()), "trade was refused");
+  check(`[${tag}] GM: the trade panel still offers both sides`, (await gm.page.$$("#sm-trade-cols .sm-give-player")).length > 0 && (await gm.page.$$("#sm-trade-cols .sm-want-player")).length > 0);
   await openRotation(gm.page);
   gm.takeDialogs();
   await gm.page.click("#btn-rot-save");
-  check(`[${tag}] GM: rotation save is refused, and the reason names the GM's job`, gm.takeDialogs().some((m) => m.includes("总经理")), "no refusal dialog");
+  check(`[${tag}] GM: rotation save is refused, and the reason names the coach's job`, gm.takeDialogs().some((m) => m.includes("教练的职责")), "no refusal dialog");
   gm.takeDialogs();
   await gm.page.click("#btn-season-play");
-  check(`[${tag}] GM: commanding the game is refused and the hub stays put`, gm.takeDialogs().some((m) => m.includes("总经理")) && (await visible(gm.page, "#season-hub-panel")), "no refusal dialog or left the hub");
+  check(`[${tag}] GM: commanding the game is refused and the hub stays put`, gm.takeDialogs().some((m) => m.includes("教练的职责")) && (await visible(gm.page, "#season-hub-panel")), "no refusal dialog or left the hub");
   await shoot(gm.page, `${OUT}/${tag}-2-gm-hub.png`);
   check(`[${tag}] GM: no horizontal overflow`, await noOverflow(gm.page));
   check(`[${tag}] GM: no page errors`, gm.errors.length === 0, gm.errors.join(" | "));
@@ -170,15 +167,15 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await openMarket(dual.page);
   dual.takeDialogs();
   await dual.page.click("#btn-sm-trade");
-  check(`[${tag}] GM+Coach: trade runs`, dual.takeDialogs().length === 0, "trade was refused");
+  check(`[${tag}] GM+Coach: trade runs`, !refused(dual.takeDialogs()), "trade was refused");
   await openRotation(dual.page);
   dual.takeDialogs();
   await dual.page.click("#btn-rot-save");
-  check(`[${tag}] GM+Coach: rotation save runs`, dual.takeDialogs().length === 0, "rotation was refused");
+  check(`[${tag}] GM+Coach: rotation save runs`, !refused(dual.takeDialogs()), "rotation was refused");
   dual.takeDialogs();
   await dual.page.click("#btn-season-play");
   await dual.page.waitForSelector("#screen-setup.active", { timeout: 10000 });
-  check(`[${tag}] GM+Coach: commanding the game opens the setup screen`, dual.takeDialogs().length === 0);
+  check(`[${tag}] GM+Coach: commanding the game opens the setup screen`, !refused(dual.takeDialogs()));
   check(`[${tag}] GM+Coach: no page errors`, dual.errors.length === 0, dual.errors.join(" | "));
   await dual.page.close();
 
@@ -188,15 +185,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await en.page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem("courtside.lang", "en"); });
   await en.page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(en.page);
-  await en.page.evaluate(async () => {
-    const ttc = await import("/js/modes/timeTravelCareer.js");
-    const sr = await import("/js/data/saveRoot.js");
-    const players = await import("/js/data/players.js");
-    await players.playersReady(); // perf-r3: acceptInterviewOffer builds every roster off PLAYERS synchronously — home-active no longer implies the pool is built
-    const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7, role: "COACH" });
-    const root = ttc.resolveFutureKnowledgeChoice(ttc.acceptInterviewOffer(prologue, prologue.offers[1].id), "introduce-load-management");
-    sr.writeRootSave(root, localStorage);
-  });
+  await en.page.evaluate(createCareerInPage, { role: "COACH" });
   await en.page.reload({ waitUntil: "domcontentloaded" });
   await resumeToHub(en.page);
   await openMarket(en.page);
@@ -209,6 +198,5 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
 }
 await browser.close();
 const failed = report.filter((line) => line.startsWith("FAIL"));
-console.log(report.join("\n"));
 console.log(`\n${report.length - failed.length}/${report.length} passed`);
 process.exit(failed.length ? 1 : 0);

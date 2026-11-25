@@ -3,6 +3,7 @@
 // Usage: node scripts/qa/career-retire.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { enterTimeTravel } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/retire";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -67,8 +68,7 @@ async function openCareer(width, height, scenario) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
-  await page.click('[data-career-era="historical"]');
+  await enterTimeTravel(page);
   await page.waitForSelector(".tt-hq-name", { timeout: 10000 });
   return { page, errors };
 }
@@ -100,8 +100,7 @@ const reload = async (page) => {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
-  await page.click('[data-career-era="historical"]');
+  await enterTimeTravel(page);
   await page.waitForSelector(".tt-hq-name", { timeout: 10000 });
 };
 const toggleLang = async (page) => { await page.evaluate(() => document.querySelector("#btn-lang").click()); await page.waitForTimeout(300); };

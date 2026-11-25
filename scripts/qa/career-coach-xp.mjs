@@ -8,7 +8,7 @@
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { CJK, homeActive, noOverflow, onResult, overflowers, settled, shoot } from "./lib/page.mjs";
-import { openCareer, resumeToHub } from "./lib/career.mjs";
+import { openCareer, resumeToHub, enterTimeTravel } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/coach-xp";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -41,8 +41,7 @@ const backToHub = async (page) => {
 const openHq = async (page) => {
   await page.evaluate(() => document.querySelector("#btn-season-back")?.click());
   await homeActive(page);
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
-  await page.click('[data-career-era="historical"]');
+  await enterTimeTravel(page);
   await page.waitForSelector("#tt-perks:not([hidden])", { timeout: 20000 });
   await settled(page);
 };

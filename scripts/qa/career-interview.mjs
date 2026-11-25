@@ -5,6 +5,7 @@
 // Usage: node scripts/qa/career-interview.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { enterTimeTravel } from "./lib/career.mjs";
 import { CJK, noOverflow, shoot, text, textContrast } from "./lib/page.mjs";
 import { openInterview, sitInterview, skipInterview } from "./lib/interview.mjs";
 
@@ -37,8 +38,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
-  await page.click('[data-career-era="historical"]');
+  await enterTimeTravel(page);
   await page.waitForSelector("#time-travel-year option", { state: "attached", timeout: 10000 });
   await page.evaluate(() => { const y = document.querySelector("#time-travel-year"); y.value = "1995"; y.dispatchEvent(new Event("change")); });
   await page.click("#btn-time-travel-interview");
@@ -112,8 +112,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     await page.evaluate(() => document.querySelector("#btn-long-career-resume")?.click());
     await page.waitForSelector("#tt-prophecy:not([hidden])", { timeout: 15000 }).catch(async () => {
       await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 });
-      await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
-      await page.click('[data-career-era="historical"]');
+      await enterTimeTravel(page);
       await page.waitForSelector("#tt-prophecy:not([hidden])", { timeout: 10000 });
     });
     check(`[${tag}] ${status} verdict shown from the save`, (await text(page, "#tt-prophecy")).includes(word) && (await text(page, "#tt-prophecy")).includes(String(best)));
@@ -123,8 +122,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
-  await page.click('[data-career-era="historical"]');
+  await enterTimeTravel(page);
   await page.waitForSelector("#time-travel-year option", { state: "attached", timeout: 10000 });
   await page.evaluate(() => { const y = document.querySelector("#time-travel-year"); y.value = "1995"; y.dispatchEvent(new Event("change")); });
   await page.click("#btn-time-travel-interview");
@@ -157,8 +155,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
   await en.reload({ waitUntil: "domcontentloaded" });
   await en.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await en.evaluate(() => document.querySelector("#btn-lang").click());
-  await en.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]')?.click());
-  await en.click('[data-career-era="historical"]');
+  await enterTimeTravel(en);
   await en.waitForSelector("#time-travel-year option", { state: "attached" });
   await en.evaluate(() => { const y = document.querySelector("#time-travel-year"); y.value = "1995"; y.dispatchEvent(new Event("change")); });
   await en.click("#btn-time-travel-interview");

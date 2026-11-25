@@ -571,14 +571,19 @@ export function createTimeTravelScreen({
     return recap;
   }
 
+  /** The status line for a saved career: a waiting decision, or the notice for where the career stands (fired / left / retired...). */
+  function setCareerStatus() {
+    setStatus(state.story.pendingDecision
+      ? { zh: "有一项决定在等你。", en: "A decision is waiting for you." }
+      : { zh: careerStateNotice(state.story, "zh"), en: careerStateNotice(state.story, "en") });
+  }
+
   function open() {
     ensureYears();
     ensureOrigins();
     wireWizard();
     if (hasCareer()) {
-      setStatus(state.story.pendingDecision
-        ? { zh: "有一项决定在等你。", en: "A decision is waiting for you." }
-        : { zh: careerStateNotice(state.story, "zh"), en: careerStateNotice(state.story, "en") });
+      setCareerStatus();
     } else {
       prologue = null;
       setStatus("");
@@ -593,6 +598,9 @@ export function createTimeTravelScreen({
     ensureYears();
     ensureOrigins();
     wireWizard();
+    // Same line open() writes: resuming a career that is OVER (fired / left / retired) lands here, and the player must be
+    // told where it stands -- this path used to leave the status line empty.
+    if (hasCareer()) setCareerStatus();
     renderScreen();
   }
 

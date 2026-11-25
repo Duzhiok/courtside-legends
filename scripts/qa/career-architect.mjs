@@ -51,7 +51,9 @@ async function run(width, height, tag) {
   check(`[${tag}] locked: progress reads 0 / 2`, /0 \/ 2/.test(locked.progress), locked.progress);
   check(`[${tag}] locked: pills show Coach + GM`, JSON.stringify(locked.pills) === JSON.stringify(["教练生涯", "经理生涯"]), locked.pills.join(" | "));
   await page.screenshot({ path: `${OUT}/${tag}-career-locked.png`, fullPage: true, animations: "disabled" });
-  await page.click('[data-career-identity="gm_coach"]');
+  // The locked card is aria-disabled ("soft" disabled: a real click still opens the unlock note), which Playwright's actionability
+  // check treats as not enabled and waits on forever -- so click it the way a player can.
+  await page.click('[data-career-identity="gm_coach"]', { force: true });
   await page.waitForTimeout(200);
   const lockedNote = await page.evaluate(() => {
     const note = document.querySelector("#career-entry-note");

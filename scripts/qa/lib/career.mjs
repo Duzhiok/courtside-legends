@@ -14,19 +14,36 @@ export async function resumeToHub(page) {
 }
 
 /**
+ * Open the career HQ (the "time travel" screen) the way a player does: home -> "传奇生涯" tab -> the COACH card. With a career
+ * loaded in memory that opens its HQ (perk points, finance, job board, contract); with none it opens the new-career wizard.
+ * Clicked from JS so it works from any screen (the home panel may be hidden), through the same handler as a real click.
+ * (Scripts used to click `.mode-card[data-mode="timeTravel"]` + `[data-career-era="historical"]`. That mode card is now the
+ * LOCKED career-architect card -- it only opens an unlock note -- and the era picker is gone for a saved career, so every
+ * "go back to HQ" step sat for 20-30s and timed out.)
+ */
+export async function enterTimeTravel(page) {
+  await page.evaluate(() => {
+    document.querySelector('.home-tab[data-category="career"]')?.click();
+    document.querySelector('[data-career-identity="coach"]').click();
+  });
+  await page.waitForSelector("#screen-time-travel.active", { timeout: 20000 });
+}
+
+/**
  * Runs INSIDE the page: a real 1995 career, intro decision answered like a player's first click, saved.
  * `growth`: arm every young player's XP bar 10 short of a level (C2). `epiphanyGames`: pre-load that many
  * big games into every player's streak window (C3), so the next game is the one that tips it.
  * `learnedSkills`: the first player has already learned two skills in play, the second one (C3's ledger).
+ * `role`: "COACH" for a coach-only career (the default is the full GM + coach career).
  */
-export async function createCareerInPage({ growth = false, epiphanyGames = 0, learnedSkills = false } = {}) {
+export async function createCareerInPage({ growth = false, epiphanyGames = 0, learnedSkills = false, role = null } = {}) {
   const ttc = await import("/js/modes/timeTravelCareer.js");
   const sr = await import("/js/data/saveRoot.js");
   const dev = await import("/js/modes/playerDevelopment.js");
   const bal = await import("/js/career/balance.js");
   const players = await import("/js/data/players.js");
   await players.playersReady(); // perf-r3 gap: createTimeTravelPrologue reads PLAYERS synchronously (real bug, fixed in js/ui/timeTravel/screen.js too)
-  const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7 });
+  const prologue = ttc.createTimeTravelPrologue({ year: 1995, philosophy: "analytics", seed: 7, ...(role ? { role } : {}) });
   const root = ttc.resolveFutureKnowledgeChoice(ttc.acceptInterviewOffer(prologue, prologue.offers[1].id), "introduce-load-management");
   const season = root.leagueCareer.season;
   const mine = season.teams[season.userTeamId].players.filter((p) => p.bref);

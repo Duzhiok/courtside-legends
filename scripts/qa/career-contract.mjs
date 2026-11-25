@@ -4,6 +4,7 @@
 // Usage: node scripts/qa/career-contract.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { enterTimeTravel } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/contract";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -12,6 +13,19 @@ const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_
 const report = [];
 const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
 const browser = await chromium.launch({ executablePath: EXE });
+
+/**
+ * Saved career -> its HQ screen (where the contract / offer cards live). Resume lands on the season hub; the HQ is one
+ * "time travel" mode-card click away. (The old flow clicked [data-career-era="historical"] after that, but a saved career
+ * no longer shows the era picker -- that panel only appears when you start a NEW career.)
+ */
+async function openHq(page) {
+  await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
+  await page.waitForSelector("#season-hub-panel:not([hidden]), #screen-time-travel.active", { timeout: 20000 });
+  // Always click the mode card, even when resume already landed on the HQ: that click runs the screen's open(), which is what
+  // writes the status line (a fired career's notice, "decision waiting", ...).
+  await enterTimeTravel(page);
+}
 
 /** Build a real save at the end of season five (or after two bad seasons) and load it in the UI. */
 async function openScenario(width, height, records) {
@@ -39,9 +53,7 @@ async function openScenario(width, height, records) {
   }, records);
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-  await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
-  await page.click('[data-career-era="historical"]');
+  await openHq(page);
   return { page, errors };
 }
 
@@ -83,8 +95,7 @@ for (const [width, height, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]
     check(`[${tag}] accepting records the offer and keeps the career going (B4: status "active")`, saved.status === "active" && !!saved.offer, JSON.stringify(saved));
     check(`[${tag}] status line confirms the signing`, /续约已签署/.test(await page.$eval("#time-travel-status", (e) => e.textContent)));
     check(`[${tag}] a renewed career can still Continue`, await page.$eval("#btn-time-travel-continue", (b) => !b.hidden));
-    await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
-    await page.click('[data-career-era="historical"]');
+    await enterTimeTravel(page);
     check(`[${tag}] re-entering a renewed career still offers Continue`, await page.$eval("#btn-time-travel-continue", (b) => !b.hidden));
     check(`[${tag}] no page errors (renewal)`, errors.length === 0, errors.join(" | "));
     await page.close();
