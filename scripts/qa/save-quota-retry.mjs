@@ -6,6 +6,7 @@
 // Usage: node scripts/qa/save-quota-retry.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { enterTimeTravel } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/quota";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -44,7 +45,7 @@ async function openRenewal() {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
+  await enterTimeTravel(page); // in-memory career -> HQ (the locked architect card only shows the unlock note)
   await page.waitForSelector("#time-travel-contract:not([hidden])", { timeout: 10000 });
   return { page, errors, dialogs };
 }

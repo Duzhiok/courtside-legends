@@ -4,6 +4,7 @@
 // Usage: node scripts/qa/tt-shots.mjs [outDir] [baseUrl] [tag]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
+import { enterTimeTravel } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/tt";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
@@ -38,7 +39,7 @@ async function seedCareer(page, mutateSrc = "") {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
   await page.evaluate(() => document.querySelector("#btn-long-career-resume").click());
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
+  await enterTimeTravel(page); // in-memory career -> HQ (the locked architect card only shows the unlock note)
   await page.waitForTimeout(500);
 }
 
@@ -47,7 +48,7 @@ const shot = (page, name) => page.screenshot({ path: `${OUT}/${TAG}-${name}.png`
 for (const [w, h, tag] of [[1280, 800, "d"], [390, 844, "m"]]) {
   // 1. create form + interview offers
   let page = await boot(w, h);
-  await page.evaluate(() => document.querySelector('.mode-card[data-mode="timeTravel"]').click());
+  await enterTimeTravel(page); // fresh profile: coach card opens the new-career wizard (the locked architect card only shows the unlock note)
   await page.waitForTimeout(400);
   await shot(page, `${tag}-1-create`);
   await page.evaluate(() => document.querySelector("#btn-time-travel-interview").click());

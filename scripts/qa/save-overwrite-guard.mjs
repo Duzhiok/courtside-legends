@@ -4,7 +4,7 @@
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { CJK, homeActive, noOverflow, shoot, text } from "./lib/page.mjs";
-import { createCareerInPage } from "./lib/career.mjs";
+import { createCareerInPage, enterTimeTravel } from "./lib/career.mjs";
 
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const OUT = process.argv[2] || "/tmp/cls-qa/guard";
@@ -80,8 +80,7 @@ for (const [w, h, tag] of [[1280, 800, "desktop"], [390, 844, "mobile"]]) {
     check(`[${tag}] all four raw storage keys byte-identical after the attack`, same(before, await raw(page)));
 
     // 2. UI: starting a time-travel career says why, with a single "Got it" button.
-    await page.click('.home-tab[data-category="career"]');
-    await page.click('.mode-card[data-mode="timeTravel"]');
+    await enterTimeTravel(page); // no career in memory -> the new-career wizard (the locked architect card only shows the unlock note)
     await page.waitForSelector("#btn-time-travel-interview", { state: "visible" });
     await page.click("#btn-time-travel-interview");
     await page.waitForSelector("#app-confirm-dialog[open]");
