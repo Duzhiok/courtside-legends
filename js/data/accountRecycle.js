@@ -16,6 +16,7 @@
  */
 import { overall, PLAYERS } from "./players.js";
 import { resolvePlayers, saveAccount, uniqueByPerson } from "./account.js";
+import { isInTraining } from "./trainingCamp.js";
 import { bandOf } from "./gacha.js";
 import {
   SKILL_PACKS,
@@ -105,6 +106,7 @@ export function recycleCards(account, ids, { confirmed = false, pool = PLAYERS }
   if (!wanted.length) throw new Error("没有可分解的卡");
   if (wanted.includes(account.favoriteId)) throw new Error("本命卡不能分解——先换本命");
   if (account.pendingRoll && wanted.includes(account.pendingRoll.playerId)) throw new Error("这张卡还有成色没选，先去抽卡页选完");
+  if (wanted.some((id) => isInTraining(account, id))) throw new Error("训练中的卡不能分解——先领取或取消训练");
   if (account.playerIds.length - wanted.length < MIN_KEEP) throw new Error(`至少保留 ${MIN_KEEP} 张卡`);
 
   const cards = resolvePlayers(wanted, account, pool);

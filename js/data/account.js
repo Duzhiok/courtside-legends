@@ -9,6 +9,7 @@ import { MERGE_ATTR_KEYS, SKILL_PACKS } from "./skills.js";
 import { applyHiddenRoll, legacyRollSeed } from "./cardRoll.js";
 import { MAX_STARS } from "./gacha.js";
 import { applyGrowth } from "./growthPaths.js";
+import { applyTrainingBonus } from "./trainingRules.js";
 import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY as ACTIVE_KEY, CORRUPT_ACCOUNTS_KEY } from "./accountKeys.js";
 import { rand } from "../core/rng.js";
 
@@ -255,6 +256,7 @@ export function applyCardMods(player, mod, fallbackSeed = null) {
     }
   }
   applyGrowth(p, mod?.growth);
+  applyTrainingBonus(p, mod?.training);
   const extra = (mod?.skills || []).filter((id) => SKILL_PACKS[id]);
   if (extra.length) {
     const have = new Set(p.skills || []);

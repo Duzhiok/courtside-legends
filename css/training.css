@@ -1,0 +1,30 @@
+/* Training Center (My Team offline progression). Mobile-first; tokens from tokens.css. */
+#screen-training .panel-head { display: flex; align-items: center; gap: 12px; }
+#screen-training .tc-gold { margin-left: auto; font-weight: 700; }
+.tc-toast { min-height: 1.4em; margin: 6px 0; font-weight: 600; }
+.tc-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 10px 0 18px; }
+.tc-slot { border: 1px solid rgba(0, 0, 0, 0.14); border-radius: 12px; padding: 12px; background: #fff; display: grid; gap: 8px; align-content: start; }
+.tc-slot.empty { border-style: dashed; opacity: 0.75; }
+.tc-slot.ready { border-color: #1f8f4e; box-shadow: 0 0 0 2px rgba(31, 143, 78, 0.18); }
+.tc-slot-head { display: flex; gap: 10px; align-items: center; }
+.tc-slot-who { display: grid; gap: 2px; min-width: 0; }
+.tc-slot-who small { opacity: 0.7; }
+.tc-portrait { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; flex: none; background: #e8e8e8; }
+.tc-portrait img { width: 100%; height: 100%; object-fit: cover; }
+.tc-bar { height: 8px; border-radius: 99px; background: rgba(0, 0, 0, 0.1); overflow: hidden; }
+.tc-bar i { display: block; height: 100%; background: #1f8f4e; transition: width 0.4s linear; }
+.tc-eta, .tc-ready, .tc-why { margin: 0; font-size: 0.9rem; }
+.tc-ready { color: #1f8f4e; font-weight: 600; }
+.tc-why { color: #b3261e; min-height: 1.3em; }
+.tc-form { display: grid; gap: 10px; }
+.tc-form [data-tc-form] { display: grid; gap: 10px; }
+.tc-field { display: grid; gap: 4px; }
+.tc-field select { min-height: 44px; font-size: 1rem; max-width: 100%; }
+.tc-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.tc-chip { min-height: 44px; padding: 0 14px; border-radius: 99px; border: 1px solid rgba(0, 0, 0, 0.2); background: #fff; font: inherit; cursor: pointer; }
+.tc-chip.on, .tc-dur.on { background: #12351f; color: #fff; border-color: #12351f; }
+.tc-durs { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.tc-dur { min-height: 44px; display: grid; gap: 2px; padding: 8px; text-align: left; border-radius: 10px; border: 1px solid rgba(0, 0, 0, 0.2); background: #fff; font: inherit; cursor: pointer; }
+.tc-dur small { opacity: 0.8; }
+.tc-log { margin: 6px 0 24px; padding-left: 18px; display: grid; gap: 4px; }
+.tc-skill { color: #8a5a00; }

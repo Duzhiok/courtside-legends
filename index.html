@@ -43,6 +43,7 @@
   <link rel="stylesheet" href="css/radio.css?v=1" />
   <link rel="stylesheet" href="css/duel.css?v=1" />
   <link rel="stylesheet" href="css/halfCourt.css?v=1" />
+  <link rel="stylesheet" href="css/training.css?v=1" />
   <link rel="stylesheet" href="css/shop.css?v=1" />
   <link rel="stylesheet" href="css/reborn.css?v=1" />
   <link rel="stylesheet" href="css/draftGamble.css?v=1" />
@@ -189,6 +190,11 @@
               <strong>排位赛</strong>
               <span>账号班底自动选最强 12 人（同一球员只上一张）· 赢金币 · 本命涨经验 · 连续爆发可领悟技能</span>
               <span class="mode-lock-note" id="ranked-lock-note" hidden></span>
+            </button>
+            <button class="mode-card" id="btn-training-entry" type="button">
+              <small class="mode-tag">离线养成</small>
+              <strong>训练中心</strong>
+              <span>花金币安排球员训练，离线也计时；回来领取属性成长和稀有技能突破（仅「我的球队」）</span>
             </button>
           </div>
         </div>
@@ -389,6 +395,19 @@
       </div>
       <p class="tiny">自由度拉满：任意球员、任意年份、可以重复。五个 1991 乔丹 vs 五个 2006 科比？点「×5」就行。这是唯一允许同一球员重复上场的模式；结果不影响账号和存档。</p>
       <div data-sandbox-body></div>
+    </main>
+
+    <main id="screen-training" class="screen">
+      <div class="panel-head">
+        <button class="nav-back" id="btn-training-back"><span>返回</span></button>
+        <h2 tabindex="-1">训练中心</h2>
+        <span class="tc-gold" data-tc-gold aria-label="金币"></span>
+      </div>
+      <p class="tiny">给你永久拥有的球员卡安排离线训练：付金币、选项目、关掉游戏也会照常计时，回来领取。完成的奖励不会过期。训练成长只对「我的球队」的卡生效，不进金币挑战赛、历史对决和联机排位。</p>
+      <p class="tc-toast" data-tc-toast role="status"></p>
+      <section aria-label="训练位"><div class="tc-slots" data-tc-slots></div></section>
+      <section class="tc-form" aria-label="开始训练"><div data-tc-form></div></section>
+      <section aria-label="最近奖励"><h3>最近领取</h3><div data-tc-log></div></section>
     </main>
 
     <main id="screen-halfcourt" class="screen">

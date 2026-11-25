@@ -39,6 +39,7 @@ import { careerPhaseLabelL, playerCardHtml } from "./ui/playerCard.js";
 import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountProgress.js";
 import { mountSandbox } from "./ui/sandboxView.js";
 import { createHalfCourtScreen } from "./ui/halfCourtView.js";
+import { createTrainingScreen } from "./ui/trainingView.js";
 import { ensureDuelScreen, handleDuelBack, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { buySkillOffer } from "./engine/skillShopPurchase.js";
 import { createRebornView } from "./ui/reborn/rebornView.js";
@@ -548,6 +549,7 @@ const screens = {
   clutchResult: $("#screen-clutch-result"),
   clutch3d: $("#screen-clutch-3d"),
   halfCourt: $("#screen-halfcourt"),
+  training: $("#screen-training"),
 };
 
 /**
@@ -2031,6 +2033,23 @@ function openHalfCourt() {
 $("#btn-halfcourt-entry")?.addEventListener("click", () => startMode("halfcourt"));
 $("#btn-halfcourt-back")?.addEventListener("click", () => {
   halfCourtScreen?.dispose();
+  goBack();
+});
+
+// —— Training Center (offline My Team progression; js/data/trainingCamp.js, js/ui/trainingView.js) ——
+const trainingScreen = screens.training
+  ? createTrainingScreen({ root: screens.training, getAccount: () => activeAccount(), pool: () => PLAYERS, getLang })
+  : null;
+async function openTraining() {
+  await playersReady(); // onboarding (inside requireAccountReady) and the card list both read PLAYERS
+  const acc = requireAccountReady({ zh: "训练中心", en: "Training Center" });
+  if (!acc) return;
+  trainingScreen?.open();
+  show("training");
+}
+$("#btn-training-entry")?.addEventListener("click", () => openTraining());
+$("#btn-training-back")?.addEventListener("click", () => {
+  trainingScreen?.dispose();
   goBack();
 });
 

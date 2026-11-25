@@ -78,6 +78,12 @@ function learnableFrom(rule, player, owned) {
   return rule.skills.filter((id) => SKILL_PACKS[id] && isLearnableSkill(id) && !owned.has(id) && canRetainSkill(player, id));
 }
 
+/** Same gates, by family id — shared with the Training Camp breakthrough (no second skill engine). */
+export function learnableInFamily(ruleId, player, owned = new Set()) {
+  const rule = EPIPHANY_RULES.find((r) => r.id === ruleId);
+  return rule ? learnableFrom(rule, player, owned) : [];
+}
+
 /** Consecutive qualifying games at the END of the form, for one rule. */
 function trailingGames(form, rule) {
   let games = 0;
