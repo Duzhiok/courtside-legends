@@ -209,6 +209,15 @@ body.has-tabbar .account-gate { bottom: calc(var(--tabbar-pad, 96px) + env(safe-
 #screen-home.arena .lg-head h2 { color: var(--text-hi); }
 #screen-home.arena .lg-head-sub { color: var(--text-low); opacity: 1; }
 #screen-home.arena .mw-kicker { color: var(--gold); opacity: .9; }
+/* The "My World" cards below the hero stay light paper panels (myWorld.css, a full light palette: trophies, champion
+   block, owned rows...). Keep the arena's light ink and ghost buttons out of them -- they made headings and every button
+   white-on-white (contrast ~1.1). Same approach as the season panels (:691) and the post-game card. */
+#screen-home.arena .mw-card { color: #24352b; }
+#screen-home.arena .mw-card h3 { color: var(--mw-green); }
+#screen-home.arena .mw-card .tiny { color: #4f5e55; }
+#screen-home.arena .mw-card .btn:not(.primary):not(.mw-gold) { background: #fff; color: #1d5a3b; border-color: #b9cdbf; }
+#screen-home.arena .mw-card .btn:not(.primary):not(.mw-gold):hover { background: #eef4ee; border-color: #1d5a3b; }
+#screen-home.arena .mw-card .btn.mw-gold { background: var(--mw-gold); color: #2a2208; border-color: #c9a24a; }
 #screen-home.arena .home-utility-row .btn { color: var(--text-mid); }
 
 @media (max-width: 560px) {
@@ -691,6 +700,10 @@ body.has-tabbar .account-gate { bottom: calc(var(--tabbar-pad, 96px) + env(safe-
 #screen-season.arena .msc { padding: 8px 12px; margin-top: 10px; }
 #screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) :is(.tiny, em) { color: #5b6470; }
 #screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) :is(strong, h3, h4, label) { color: #0f1c14; }
+/* …and their secondary buttons: the arena ghost button (light ink on 8% white) is invisible on these light panels
+   ("去自由市场 / 交易" on every evaluation card measured 1.01). Same palette as the scout card's (myTeamClubhouse.css:179). */
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs) .btn:not(.primary):not(.hero-cta):not(.warn) { color: #163a29; background: #f4f8f5; border-color: #b9c9be; }
+#screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs) .btn:not(.primary):not(.hero-cta):not(.warn):hover { background: #e6efe9; border-color: #163a29; }
 #screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) :is(select, input[type="text"], input[type="number"]) { background: #fff; color: #0f1c14; border: 1px solid #d9d2c3; color-scheme: light; }
 #screen-season.arena :is(.season-rotation, .season-market, .season-evaluation, .draft-board, .development-plan, .career-history, .season-playoffs, .msc) select option { background: #fff; color: #0f1c14; }
 #screen-season.arena .season-pick-row .chip { background: rgba(255, 255, 255, .1); color: var(--text-mid); }
