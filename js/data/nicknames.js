@@ -6,6 +6,7 @@
  * 查找顺序：bref 精确匹配 → 赛季限定（如同一人不同时期称号不同）→ 姓名兜底
  * （复用 skills.js 里已经验证过的 signatureBrefForName，避免重复维护一套名字匹配）。
  */
+import { esc } from "../core/html.js";
 import { signatureBrefForName } from "./skills.js";
 
 /** bref → 外号（唯一，一人一个） */
@@ -75,5 +76,6 @@ export function primaryNickname(player) {
 export function nicknameBadgeHtml(player) {
   const nick = primaryNickname(player);
   if (!nick) return "";
-  return `<span class="nickname-badge" title="外号：${nick}">「${nick}」</span>`;
+  const safe = esc(nick); // the table is static today, but this is markup built from data, so escape it like every other view does
+  return `<span class="nickname-badge" title="外号：${safe}">「${safe}」</span>`;
 }

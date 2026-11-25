@@ -35,3 +35,16 @@ test("badge html embeds the single nickname and is empty when there is none", ()
   assert.ok(html.includes("nickname-badge"));
   assert.equal(nicknameBadgeHtml(athlete("nobody02")), "");
 });
+
+test("nicknameBadgeHtml escapes the nickname in both the title attribute and the text", () => {
+  const key = "zzhostile01";
+  NICKNAMES[key] = `"><img src=x onerror=alert(1)>`;
+  try {
+    const out = nicknameBadgeHtml({ bref: key, name: "Hostile", season: 1996 });
+    assert.ok(!out.includes("<img"), "no raw tag");
+    assert.ok(!out.includes('title="外号："'), "the attribute was not closed early");
+    assert.equal((out.match(/&quot;&gt;&lt;img/g) || []).length, 2, "escaped in the title and in the text");
+  } finally {
+    delete NICKNAMES[key];
+  }
+});

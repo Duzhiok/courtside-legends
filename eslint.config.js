@@ -59,7 +59,7 @@ files: ["js/**/*.js"],
     // Escape-by-default views. A plain `...<tag>${value}...` template here would let a hostile name (they
     // arrive in saves) become markup -- the B93/B111/B118-B121 bug class -- so markup must go through
     // html`` (js/core/html.js). When you migrate another view to html``, add it to this list.
-    files: ["js/ui/networkViews.js", "js/ui/careerInboxHtml.js"],
+    files: ["js/ui/networkViews.js", "js/ui/careerInboxHtml.js", "js/ui/gmBusinessView.js"],
     rules: {
       "no-restricted-syntax": [
         "error",
