@@ -31,6 +31,7 @@ import { ROLE_LABEL } from "./trust.js";
 import { playGame, rosterCards } from "./season.js";
 import { rivalryLedger, rivalsOnRoster } from "./rivalry.js";
 import { overall } from "../data/players.js";
+import { esc } from "../core/html.js";
 
 /** An opponent whose best card is at least this OVR counts as a key game. */
 export const KEY_GAME_STAR_OVR = 85;
@@ -111,8 +112,8 @@ export function describeFastForwardTarget(target, lang = "zh") {
   }
   if (target.type === "rivalry") {
     return zh
-      ? `模拟到宿敌对决（vs ${target.detail.rival}）`
-      : `Sim to the rivalry game (vs ${target.detail.rivalEn || target.detail.rival})`;
+      ? `模拟到宿敌对决（vs ${esc(target.detail.rival)}）`
+      : `Sim to the rivalry game (vs ${esc(target.detail.rivalEn || target.detail.rival)})`;
   }
   if (target.type === "key-game") {
     return zh
@@ -134,16 +135,16 @@ export function describeFastForwardEvent(event, lang = "zh") {
         : `Week ${d.week} training is here — pick a focus to continue.`;
     case "rivalry":
       return zh
-        ? `下一场对阵 ${d.opp}，你的宿敌 ${d.rival} 在对面——亲自打这场吧。`
-        : `Next up: ${d.opp}, and your rival ${d.rivalEn || d.rival} is on the other side — play this one yourself.`;
+        ? `下一场对阵 ${d.opp}，你的宿敌 ${esc(d.rival)} 在对面——亲自打这场吧。`
+        : `Next up: ${d.opp}, and your rival ${esc(d.rivalEn || d.rival)} is on the other side — play this one yourself.`;
     case "rivalry-formed":
       return zh
-        ? `一段宿敌关系诞生了：${d.rival}。`
-        : `A rivalry is born: ${d.rivalEn || d.rival}.`;
+        ? `一段宿敌关系诞生了：${esc(d.rival)}。`
+        : `A rivalry is born: ${esc(d.rivalEn || d.rival)}.`;
     case "key-game":
       return zh
-        ? `下一场是硬仗，对阵 ${d.opp}${d.star ? `（${d.star} 在对面）` : ""}——亲自打这场吧。`
-        : `Next up is a key game vs ${d.opp}${d.star ? ` (${d.star} on the other side)` : ""} — play this one yourself.`;
+        ? `下一场是硬仗，对阵 ${d.opp}${d.star ? `（${esc(d.star)} 在对面）` : ""}——亲自打这场吧。`
+        : `Next up is a key game vs ${d.opp}${d.star ? ` (${esc(d.star)} on the other side)` : ""} — play this one yourself.`;
     case "takeover":
       return zh ? "关键回合你接管了比赛，看看结果。" : "You took over the clutch moment — see how it went.";
     case "reveal":

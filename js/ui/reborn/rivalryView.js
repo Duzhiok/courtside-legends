@@ -14,9 +14,10 @@ import {
 } from "../../reborn/rivalry.js";
 import { rosterCards } from "../../reborn/season.js";
 import { eggCopy } from "../../reborn/enforcerEgg.js";
+import { esc } from "../../core/html.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
-const nameOf = (r, lang) => (lang === "en" ? r.nameEn || r.name : r.name);
+const nameOf = (r, lang) => esc(lang === "en" ? r.nameEn || r.name : r.name);
 const record = (r, lang) => {
   const h = headToHead(r);
   return L(`交手 ${h.meetings} 次 · ${h.wins}胜${h.losses}负`, `${h.meetings} meetings · ${h.wins}-${h.losses}`, lang);
@@ -71,10 +72,10 @@ export function rivalryReportHtml({ report, reborn, lang = "zh" } = {}) {
   const lines = [];
   for (const f of report.rivalry.formed) {
     const lead = FORMED[f.origin === "story" ? f.reason : f.origin] || FORMED.auto;
-    lines.push(`<p class="reborn-rivalry-born">${L(...lead, lang)}${L(`${f.name} 成了你的宿敌。`, `${f.nameEn || f.name} is your rival now.`, lang)}</p>`);
+    lines.push(`<p class="reborn-rivalry-born">${L(...lead, lang)}${L(`${esc(f.name)} 成了你的宿敌。`, `${esc(f.nameEn || f.name)} is your rival now.`, lang)}</p>`);
   }
   for (const m of report.rivalry.met) {
-    lines.push(`<p>${L(`宿敌对决 vs ${m.name}：你 ${m.you.pts} 分，他 ${m.rival.pts} 分，${m.won ? "你赢了" : "你输了"} · 现在 ${m.wins}胜${m.losses}负`, `Rivalry game vs ${m.nameEn || m.name}: you ${m.you.pts}, him ${m.rival.pts}, ${m.won ? "you won" : "you lost"} · now ${m.wins}-${m.losses}`, lang)}</p>`);
+    lines.push(`<p>${L(`宿敌对决 vs ${esc(m.name)}：你 ${m.you.pts} 分，他 ${m.rival.pts} 分，${m.won ? "你赢了" : "你输了"} · 现在 ${m.wins}胜${m.losses}负`, `Rivalry game vs ${esc(m.nameEn || m.name)}: you ${m.you.pts}, him ${m.rival.pts}, ${m.won ? "you won" : "you lost"} · now ${m.wins}-${m.losses}`, lang)}</p>`);
   }
   // Enforcer egg: one line, only when it fired tonight.
   if (report.enforcerEgg?.fired) {
@@ -88,7 +89,7 @@ export function rivalryReportHtml({ report, reborn, lang = "zh" } = {}) {
   }
   const candidates = challengeCandidates(rivalryLedger(reborn), report);
   if (candidates.length) {
-    const buttons = candidates.map((o) => `<button type="button" class="btn" data-rival-challenge="${o.bref}">${L(`向 ${o.name} 下战书`, `Challenge ${o.nameEn || o.name}`, lang)}（${o.pts} ${L("分", "pts", lang)}）</button>`);
+    const buttons = candidates.map((o) => `<button type="button" class="btn" data-rival-challenge="${o.bref}">${L(`向 ${esc(o.name)} 下战书`, `Challenge ${esc(o.nameEn || o.name)}`, lang)}（${o.pts} ${L("分", "pts", lang)}）</button>`);
     lines.push(`<div class="reborn-rival-challenge"><p class="tiny">${L("今晚谁让你不服？", "Who got under your skin tonight?", lang)}</p>${buttons.join("")}</div>`);
   }
   return lines.length ? `<section class="reborn-rivalry" data-testid="rivalry-report">${lines.join("")}</section>` : "";
@@ -97,5 +98,5 @@ export function rivalryReportHtml({ report, reborn, lang = "zh" } = {}) {
 /** One career-timeline line for a rivalry event. */
 export function rivalryTimelineLine({ event, lang = "zh" } = {}) {
   const how = L(...(ORIGIN[event.origin] || ORIGIN.auto), lang);
-  return `<p>${event.year} ${L("赛季", "season", lang)}：${L(`宿敌诞生 — ${event.name}（${how}）`, `Rivalry born — ${event.nameEn || event.name} (${how})`, lang)}</p>`;
+  return `<p>${event.year} ${L("赛季", "season", lang)}：${L(`宿敌诞生 — ${esc(event.name)}（${how}）`, `Rivalry born — ${esc(event.nameEn || event.name)} (${how})`, lang)}</p>`;
 }

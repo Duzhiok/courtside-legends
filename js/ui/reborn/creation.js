@@ -28,6 +28,7 @@ import {
 } from "../../reborn/identity.js";
 import { seasonToCard, overall } from "../../data/players.js";
 import { hashSeed, seededStream } from "../../core/seededRandom.js";
+import { esc } from "../../core/html.js";
 import { TL } from "../../i18n.js";
 
 /** One line of era background per offered start year. */
@@ -184,7 +185,7 @@ export function creationHtml({
     const rowsHtml = list
       .map((entry) => {
         const name = zh ? entry.name : entry.nameEn;
-        return `<button type="button" class="reborn-create-pick${pickedBref === entry.bref ? " is-active" : ""}" data-reborn-pick="${entry.bref}"><strong>${name}</strong><span>${entry.team} · ${entry.pos}${entry.ovr ? ` · OVR ${entry.ovr}` : ""}</span></button>`;
+        return `<button type="button" class="reborn-create-pick${pickedBref === entry.bref ? " is-active" : ""}" data-reborn-pick="${entry.bref}"><strong>${esc(name)}</strong><span>${entry.team} · ${entry.pos}${entry.ovr ? ` · OVR ${entry.ovr}` : ""}</span></button>`;
       })
       .join("");
     listHtml =

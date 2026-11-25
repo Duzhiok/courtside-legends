@@ -14,6 +14,7 @@ import {
   skillSourceOf,
 } from "../career/player/signatureAwakening.js";
 import { SKILL_PACKS } from "../data/skills.js";
+import { esc } from "../core/html.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
@@ -43,12 +44,12 @@ export function awakeningProgressHtml({ awakening, card, lang = "zh" } = {}) {
       const ability = p.abilityMet
         ? `<span>${L("天赋达标", "Ability met", lang)} (${p.abilityLabel})</span>`
         : `<span>${L("天赋未达标", "Ability not met", lang)} (${p.abilityLabel})</span>`;
-      return `<li><strong>${L(p.name, p.nameEn, lang)}</strong> · ${status} — ${L("表现证据", "Evidence", lang)} ${p.qualifying}/${p.needed} · ${p.keyMet ? L("关键表现 ✓", "Key performance ✓", lang) : L("关键表现 —", "Key performance —", lang)} · ${ability}<br><small>${L(p.evidenceLabel, p.evidenceLabelEn, lang)}</small><br><small>${L(p.unlocks, p.unlocksEn, lang)}</small></li>`;
+      return `<li><strong>${L(esc(p.name), esc(p.nameEn), lang)}</strong> · ${status} — ${L("表现证据", "Evidence", lang)} ${p.qualifying}/${p.needed} · ${p.keyMet ? L("关键表现 ✓", "Key performance ✓", lang) : L("关键表现 —", "Key performance —", lang)} · ${ability}<br><small>${L(p.evidenceLabel, p.evidenceLabelEn, lang)}</small><br><small>${L(p.unlocks, p.unlocksEn, lang)}</small></li>`;
     })
     .join("");
   const missing = MISSING_EVIDENCE.map(
     (m) =>
-      `<li><strong>${L(m.name, m.nameEn, lang)}</strong> · ${L("暂无比赛证据", "No game evidence yet", lang)}<br><small>${L(m.needed, m.neededEn, lang)}</small></li>`,
+      `<li><strong>${L(esc(m.name), esc(m.nameEn), lang)}</strong> · ${L("暂无比赛证据", "No game evidence yet", lang)}<br><small>${L(m.needed, m.neededEn, lang)}</small></li>`,
   ).join("");
   const owned = [...sources.awakened, ...sources.innate]
     .map((id) => {
@@ -84,7 +85,7 @@ export function awakeningBannerHtml({ awakened = [], lang = "zh" } = {}) {
         ev.keyGame != null
           ? L(`第 ${ev.keyGame} 场的关键表现`, `the key performance in game ${ev.keyGame}`, lang)
           : L("持续的比赛表现", "sustained game performance", lang);
-      return `<p>✦ ${L("领悟", "Awakened", lang)}：${L(rule?.name || a.skillId, rule?.nameEn || a.skillId, lang)} — ${L(
+      return `<p>✦ ${L("领悟", "Awakened", lang)}：${L(esc(rule?.name || a.skillId), esc(rule?.nameEn || a.skillId), lang)} — ${L(
         rule?.unlocks || "",
         rule?.unlocksEn || "",
         lang,

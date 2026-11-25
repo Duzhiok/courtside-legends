@@ -13,6 +13,7 @@ import { seasonToCard } from "../data/players.js";
 import { identityOf } from "../career/careerIdentity.js";
 import { requireCapability } from "../career/careerGuards.js";
 import { specialtyAttributes } from "./fragments.js";
+import { esc } from "../core/html.js";
 
 export const TRAINING_FOCI = ["shooting", "defense", "playmaking"];
 
@@ -131,8 +132,8 @@ export function describeGrowth(entries, lang = "zh") {
     if (!entry.leveled?.length && gameXp > 0) {
       lines.push(
         zh
-          ? `训练经验 +${gameXp}${entry.name ? `（${entry.name}）` : ""}`
-          : `Training XP +${gameXp}${entry.name ? ` (${entry.name})` : ""}`,
+          ? `训练经验 +${gameXp}${entry.name ? `（${esc(entry.name)}）` : ""}`
+          : `Training XP +${gameXp}${entry.name ? ` (${esc(entry.name)})` : ""}`,
       );
     }
   }

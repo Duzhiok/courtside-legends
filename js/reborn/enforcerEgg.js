@@ -33,6 +33,7 @@
  */
 import { clamp } from "../core/seededRandom.js";
 import { gradeFoul } from "../engine/grade.js";
+import { esc } from "../core/html.js";
 
 /**
  * Chance the incident fires, rolled once per game the first time your
@@ -79,8 +80,8 @@ export function findEggPair(youOnCourt = [], oppOnCourt = [], rivalBrefs = []) {
 export function eggCopy(incident, lang = "zh") {
   const en = incident?.enforcer || {};
   const rv = incident?.rival || {};
-  const eName = lang === "en" ? en.nameEn || en.name : en.name;
-  const rName = lang === "en" ? rv.nameEn || rv.name : rv.name;
+  const eName = esc(lang === "en" ? en.nameEn || en.name : en.name);
+  const rName = esc(lang === "en" ? rv.nameEn || rv.name : rv.name);
   if (incident?.edge === "foul") {
     return lang === "en"
       ? `${eName} gets too physical with ${rName} — whistle, foul on ${eName}.`

@@ -11,6 +11,7 @@
  * Persistence is the app's root save (root.reborn, additive, v3 stays).
  */
 import { mountScreen } from "../screenShell.js";
+import { esc } from "../../core/html.js";
 import { confirmAction } from "../confirmModal.js";
 import { buildPlayerCard } from "../../reborn/identity.js";
 import { creationHtml, createRebornFromChoice, seedFromSearch } from "./creation.js";
@@ -103,7 +104,7 @@ export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
   const hintLine = hint ? `<p class="reborn-hint">${hint[lang === "en" ? "en" : "zh"]}</p>` : "";
   const ladder = describeNextTier(trust, lang);
   const ladderLine = ladder ? `<p class="reborn-ladder" data-testid="trust-ladder">${ladder}</p>` : "";
-  return `<section class="reborn-identity"><h3>${name}</h3>`
+  return `<section class="reborn-identity"><h3>${esc(name)}</h3>`
     + `<p>${reborn.player.teamId} · ${card?.pos || ""} · OVR ${card ? overall(card) : "—"}</p>`
     + `<p>${L("教练信任", "Coach trust", lang)} ${trust} / 100 · ${roleLabel} · ${contractStatusLabel(status, lang)}</p>`
     + `<div class="reborn-trust-bar" role="progressbar" aria-valuenow="${trust}" aria-valuemin="0" aria-valuemax="100"><span style="width:${trust}%"></span></div>`

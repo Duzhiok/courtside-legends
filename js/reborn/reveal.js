@@ -8,6 +8,7 @@
  * contain the real name (pinned by tests — a leak would spoil the reveal).
  */
 import { REVEAL_TRUST } from "./identity.js";
+import { esc } from "../core/html.js";
 
 /** Foreshadowing beats on the way to the trust-40 reveal. */
 export const REVEAL_HINTS = [
@@ -51,7 +52,7 @@ export function latestRevealHint(identity, trust) {
 /** The reveal moment itself: the real name, finally. Only call after the reveal. */
 export function revealLine(identity, lang = "zh") {
   if (!identity) return null;
-  const name = lang === "en" ? identity.nameEn || identity.name : identity.name;
+  const name = esc(lang === "en" ? identity.nameEn || identity.name : identity.name);
   return lang === "en"
     ? `So you are ${name}. The camp player was never a stranger — he was you all along.`
     : `原来你就是 ${name}。这个无名试训球员从来不是陌生人——他一直就是你。`;
