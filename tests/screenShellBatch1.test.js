@@ -9,8 +9,11 @@
 // second open would settle two seasons on one click).
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createCareerInboxView, CAREER_INBOX_TITLE } from "../js/ui/careerInboxView.js";
 import { createGmBusinessView, GM_BUSINESS_TITLE } from "../js/ui/gmBusinessView.js";
+import { createRootState, readRootSave, writeRootSave } from "../js/data/saveRoot.js";
+import { createMemoryStorage } from "./helpers/memoryStorage.js";
 
 globalThis.MutationObserver = class {
   observe() {}
@@ -78,6 +81,10 @@ function makeEl(tag = "div") {
   Object.defineProperty(el, "innerHTML", {
     get: () => el._html,
     set: (v) => {
+      // B127: browsers coerce on assignment (B122's html`` returns a
+      // SafeHtml object, not a string) — the stub must do the same or a
+      // real open() render trips on v.includes.
+      v = String(v);
       el._html = v;
       // The shell's head markup is materialised so mountScreen's
       // querySelector calls find real elements; anything else is just text.
@@ -271,4 +278,79 @@ test("gm business: opening twice does not stack body click handlers", () => {
     1,
     "one back handler after two opens",
   );
+});
+
+// B127: ?inbox=1 on a browser with no root save. open() drives the real
+// roster load (fetch is stubbed to roster.json on disk) and the real
+// saveRoot read/write against an empty MemoryStorage.
+globalThis.fetch = async () => ({
+  ok: true,
+  json: async () => JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")),
+  clone: () => ({}),
+});
+
+function inboxViewWithRealSave({ lang = "zh", seedRoot = null } = {}) {
+  const storage = createMemoryStorage();
+  if (seedRoot) storage.setItem("cls_root_v3", JSON.stringify(seedRoot));
+  const app = installDoc();
+  let langValue = lang;
+  const shown = [];
+  let writes = 0;
+  const view = createCareerInboxView({
+    getLang: () => langValue,
+    readRootSave: () => readRootSave(storage),
+    writeRootSave: (root) => {
+      writes += 1;
+      return writeRootSave(root, storage);
+    },
+    show: (id) => shown.push(id),
+    goBack: () => {},
+  });
+  const el = view.mount();
+  return {
+    view, el, app, storage, shown,
+    get writes() {
+      return writes;
+    },
+    setLang: (next) => {
+      langValue = next;
+    },
+    body: () => el.querySelector("#career-inbox-body"),
+  };
+}
+
+test("inbox B127: open with no root save shows a hint instead of throwing", async () => {
+  const t = inboxViewWithRealSave({ lang: "zh" });
+  await assert.doesNotReject(() => t.view.open(), "open() must not throw without a save");
+  assert.deepEqual(t.shown, ["careerInbox"], "the inbox screen still opens");
+  assert.match(t.body().innerHTML, /需要一份生涯存档/, "zh hint explains the missing save");
+  assert.doesNotMatch(t.body().innerHTML, /选一支球队/, "no demo picker without a save");
+  assert.equal(t.writes, 0, "no write is attempted against the missing root");
+  assert.ok(!("cls_root_v3" in t.storage.dump()), "no root save is created as a side effect");
+});
+
+test("inbox B127: the no-save hint renders in English", async () => {
+  const t = inboxViewWithRealSave({ lang: "en" });
+  await t.view.open();
+  assert.match(t.body().innerHTML, /needs a career save/, "en hint explains the missing save");
+  assert.doesNotMatch(t.body().innerHTML, /需要一份生涯存档/, "en mode shows no Chinese hint");
+});
+
+test("inbox B127: a language switch re-renders the no-save hint", async () => {
+  const t = inboxViewWithRealSave({ lang: "zh" });
+  await t.view.open();
+  assert.match(t.body().innerHTML, /需要一份生涯存档/);
+  t.setLang("en");
+  t.el.__shellRelocalize();
+  assert.match(t.body().innerHTML, /needs a career save/, "hint follows the language switch");
+  assert.doesNotMatch(t.body().innerHTML, /需要一份生涯存档/);
+});
+
+test("inbox B127: open with a root save still renders the team picker", async () => {
+  const t = inboxViewWithRealSave({ lang: "zh", seedRoot: createRootState({}) });
+  await t.view.open();
+  assert.deepEqual(t.shown, ["careerInbox"]);
+  assert.match(t.body().innerHTML, /选一支球队/, "demo picker renders on the saved path");
+  assert.doesNotMatch(t.body().innerHTML, /需要一份生涯存档/, "no hint when a save exists");
+  assert.ok("cls_root_v3" in t.storage.dump(), "the fresh slice persists into the existing root");
 });

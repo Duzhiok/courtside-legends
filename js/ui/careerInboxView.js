@@ -236,6 +236,10 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
   let lastStop = null;
   let lastRun = null;
   let busy = false;
+  // B127: open() found no root save yet, so the inbox never loaded a
+  // slice — render() re-renders the hint (in the current language) on a
+  // language switch instead of returning stale text.
+  let noSave = false;
 
   function persist() {
     const root = readRootSave() || {};
@@ -466,9 +470,21 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
     return teams.length ? teams : [{ id: "CHI", name: teamNameL("公牛", lang) }];
   }
 
+  /** B127: the no-save hint — same inline pattern as leagueManagementView's "请先创建或载入长期生涯". Static text, no interpolation. */
+  function renderNoSave() {
+    if (!el) return;
+    const body = el.querySelector("#career-inbox-body");
+    if (!body) return;
+    body.innerHTML = `<p class="tiny">${L("职业收件箱需要一份生涯存档：请先创建或载入长期生涯，再用 ?inbox=1 打开。", "The Career Inbox needs a career save: create or load a long career first, then open ?inbox=1.", lang())}</p>`;
+  }
+
   function render() {
     // A language switch can relocalize before the demo has opened.
-    if (!el || !slice) return;
+    if (!el) return;
+    if (!slice) {
+      if (noSave) renderNoSave();
+      return;
+    }
     const body = el.querySelector("#career-inbox-body");
     const l = lang();
     const summary = inboxSummary(slice.inbox);
@@ -527,6 +543,18 @@ export function createCareerInboxView({ getLang, readRootSave, writeRootSave, sh
     async open() {
       mount();
       rows = await loadRows();
+      // B127: the inbox slice persists under root.careerInbox, so with no
+      // root save yet there is nothing to load — and no valid root to write
+      // a fresh slice into (writeRootSave would throw "invalid root save"
+      // from validateRoot: a bare { careerInbox } has no schemaVersion).
+      // Show the hint instead of throwing out of the dev-entry setTimeout
+      // and stranding the page on home. The saved path below is unchanged.
+      noSave = !(typeof readRootSave === "function" ? readRootSave() : null);
+      if (noSave) {
+        renderNoSave();
+        show("careerInbox");
+        return;
+      }
       loadSlice();
       render();
       show("careerInbox");
