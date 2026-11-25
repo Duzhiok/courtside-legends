@@ -75,14 +75,14 @@ export function marketOwnedCard(p, canSell, sideLabel = "") {
   const badge = valueBadge(p, { owned: true });
   const v = badge?.text;
   const tips = topIntangibles(p, 3)
-    .map((t) => `${t.name}${t.value}`)
+    .map((t) => `${esc(t.name)}${t.value}`)
     .join(" · ");
   const inj =
     p.injuredGames > 0 ? ` · <em class="inj">${p.injuryStatus || "伤停"}${p.injuredGames}场</em>` : "";
   const tags = (p.tags || [])
     .filter((t) => t !== "妖人")
     .slice(0, 2)
-    .map((t) => `<span class="chip warn">${t}</span>`)
+    .map((t) => `<span class="chip warn">${esc(t)}</span>`)
     .join("");
   const boost = p._posBoostNote
     ? `<div class="tiny pos-boost-note">↑ ${esc(p._posBoostNote)}</div>`

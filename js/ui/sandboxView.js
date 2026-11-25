@@ -148,7 +148,7 @@ export function mountSandbox({
       if (button.dataset.start != null) {
         const options = { eraParity: q("[data-parity]").checked, pool: pool() };
         const [teamA, teamB] = SIDES.map((side) =>
-          buildSandboxTeam(q(`[data-name="${side}"]`).value.trim() || teamNameOf(side, currentLang), picks[side], { ...options, slotOffset: SLOT_OFFSET[side], min, max })
+          buildSandboxTeam(q(`[data-name="${side}"]`).value.trim().replace(/[<>]/g, "") || teamNameOf(side, currentLang), picks[side], { ...options, slotOffset: SLOT_OFFSET[side], min, max })
         );
         onStart(teamA, teamB);
         return;

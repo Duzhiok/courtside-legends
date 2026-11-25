@@ -2495,7 +2495,7 @@ function familyDuelCardRow(p, { onBuy } = {}) {
   return `<div class="market-row">
     ${photoImg(p)}
     <div style="flex:1">
-      <strong>${p.name}</strong>
+      <strong>${esc(p.name)}</strong>
       <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · <strong>¤${price}</strong></div>
     </div>
     ${onBuy ? `<button class="btn small" data-family-buy="${p.id}">买入</button>` : ""}
@@ -3932,7 +3932,7 @@ function renderPack() {
         el.classList.add("card-disabled");
       }
       const tips = topIntangibles(p, 2)
-        .map((t) => `<span class="chip growth">${t.name} ${t.value}</span>`)
+        .map((t) => `<span class="chip growth">${esc(t.name)} ${t.value}</span>`)
         .join("");
       // A price only where picking really costs something (Budget Draft: blocks, Duel: gold). Draft Team picks
       // are free, and a "¤123" on a free pick made players think they were spending money.
@@ -4220,8 +4220,8 @@ function renderPosBoard(players, { usePlayPosLabel = false, editable = false } =
           .map((p) => {
             const natural = p.pos && normalizePos(p.pos) !== s.id ? `原${p.pos}·` : "";
             const label = usePlayPosLabel
-              ? `${p.name} <span class="tiny">(${p.season} ${natural}${p.franchiseId || p.team || ""})</span>`
-              : `${p.name} <span class="tiny">(${p.season}${p.pos && p.pos !== s.id ? ` · 原${p.pos}` : ""})</span>`;
+              ? `${esc(p.name)} <span class="tiny">(${p.season} ${natural}${p.franchiseId || p.team || ""})</span>`
+              : `${esc(p.name)} <span class="tiny">(${p.season}${p.pos && p.pos !== s.id ? ` · 原${p.pos}` : ""})</span>`;
             // (d) 签下后角色不丢：阵容行保留同一套角色标签（角色球员/原型）。
             const role = poolRoleLine(p, getLang());
             const roleTag = role.label ? ` <span class="tiny role-tag">${role.label}</span>` : "";
@@ -4312,7 +4312,7 @@ function lineupChemistryPreviewHtml(players, coach = null, tactic = null, { prim
   if (ball) bits.push(ball);
   const boostLine = boostNotes.length
     ? `<div class="tiny pos-boost-summary">${boostNotes
-        .map((p) => `${p.name}↑ ${escAttr(p._posBoostNote)}`)
+        .map((p) => `${esc(p.name)}↑ ${escAttr(p._posBoostNote)}`)
         .join(" · ")}</div>`
     : "";
   return `<div class="legend-fit-preview"><strong>${bits.join(" · ")}</strong>${boostLine}</div>`;
@@ -4487,12 +4487,12 @@ function rollLegendTeam() {
     box.innerHTML = list
       .map((p) => {
         const tips = topIntangibles(p, 2)
-          .map((t) => `${t.name}${t.value}`)
+          .map((t) => `${esc(t.name)}${t.value}`)
           .join(" · ");
         return `<button class="setup-player" data-id="${p.id}">
           ${photoImg(p)}
           <div>
-            <strong>${p.name}</strong>
+            <strong>${esc(p.name)}</strong>
             <div class="tiny">${p.season} · 原位置 ${p.pos} · OVR ${overall(p)} · ${p.team}${
               physiqueLabel(p) ? ` · ${physiqueLabel(p)}` : ""
             }</div>
@@ -4819,7 +4819,7 @@ function paintSkillManageBlock(roster) {
           const s = SKILL_PACKS[id];
           if (!s) return "";
           const bought = (p.purchasedSkills || []).includes(id);
-          return `<span class="skill-chip removable ${s.tone}${bought ? " bought" : ""}" data-forget-player="${p.id}" data-forget-skill="${id}" title="点击卸下「${escAttr(s.name)}」${bought ? "（退回技能库）" : ""}">${s.name}</span>`;
+          return `<span class="skill-chip removable ${s.tone}${bought ? " bought" : ""}" data-forget-player="${p.id}" data-forget-skill="${id}" title="点击卸下「${escAttr(s.name)}」${bought ? "（退回技能库）" : ""}">${esc(s.name)}</span>`;
         })
         .join("");
       return `<div class="skill-manage-card">
@@ -6384,7 +6384,7 @@ function fillTempoSelect(sel, currentId) {
   const lang = getLang();
   sel.innerHTML = TEMPO_OPTIONS.map((t) => {
     const lbl = planLabel(t, lang);
-    return `<option value="${t.id}" title="${escAttr(lbl.desc)}" ${t.id === cur ? "selected" : ""}>${lbl.name}</option>`;
+    return `<option value="${t.id}" title="${escAttr(lbl.desc)}" ${t.id === cur ? "selected" : ""}>${esc(lbl.name)}</option>`;
   }).join("");
 }
 
@@ -6400,7 +6400,7 @@ function fillBallActionSelect(sel, preferred = "pnr") {
   sel.innerHTML = ORDER_ACTION.filter((a) => a.id !== "auto")
     .map(
       (a) =>
-        `<option value="${a.id}" title="${escAttr(a.hint)}" ${a.id === cur ? "selected" : ""}>${a.name}</option>`
+        `<option value="${a.id}" title="${escAttr(a.hint)}" ${a.id === cur ? "selected" : ""}>${esc(a.name)}</option>`
     )
     .join("");
   if ([...sel.options].some((o) => o.value === preferred)) sel.value = preferred;
@@ -8068,7 +8068,7 @@ function wireTakeoverPanel() {
       `<option value="">${L("（无重点）", "(No focus)")}</option>` +
       FOCUS_PLAYS.map((f) => {
         const lbl = planLabel(f, lang);
-        return `<option value="${f.id}" title="${escAttr(lbl.desc)}">${lbl.name}</option>`;
+        return `<option value="${f.id}" title="${escAttr(lbl.desc)}">${esc(lbl.name)}</option>`;
       }).join("");
   }
   const tempoRow = $("#takeover-tempo-row");
@@ -8150,7 +8150,7 @@ function initFocusAndPacksUI(homeTeam, awayTeam, youSide) {
       `<option value="">${L("（无重点）", "(No focus)")}</option>` +
       FOCUS_PLAYS.map((f) => {
         const lbl = planLabel(f, lang);
-        return `<option value="${f.id}" title="${escAttr(lbl.desc)}">${lbl.name}</option>`;
+        return `<option value="${f.id}" title="${escAttr(lbl.desc)}">${esc(lbl.name)}</option>`;
       }).join("");
   }
   wireTakeoverPanel();
@@ -8158,7 +8158,7 @@ function initFocusAndPacksUI(homeTeam, awayTeam, youSide) {
   if (packBox) {
     packBox.innerHTML = LINEUP_PACK_DEFS.map(
       (d) =>
-        `<button type="button" class="btn small" data-live-pack="${d.id}" title="${escAttr(d.hint)}">${d.name}</button>`
+        `<button type="button" class="btn small" data-live-pack="${d.id}" title="${escAttr(d.hint)}">${esc(d.name)}</button>`
     ).join("");
     packBox.querySelectorAll("[data-live-pack]").forEach((btn) => {
       btn.onclick = () => {
@@ -11082,7 +11082,7 @@ function syncSeasonPickCap() {
           p._seasonFree ? "free" : ""
         }" data-remove="${p.id}" ${
           locked ? "disabled title=\"系统补人，移出自选球员后会重算\"" : ""
-        }>${p.pos} ${p.name} · ${p.season} · ${
+        }>${p.pos} ${esc(p.name)} · ${p.season} · ${
           p._seasonFree ? "免费" : formatSalary(playerSalary(p))
         } · OVR ${overall(p)}${tag}${locked ? "" : " ×"}</button>`;
       })
@@ -11146,7 +11146,7 @@ function renderSeasonOfferPack() {
       return `<div class="sm-row season-pick-row ${already ? "picked" : ""}">
         ${photoImg(p, "headshot")}
         <div class="season-pick-meta">
-          <strong>${p.pos} ${p.name}</strong>
+          <strong>${p.pos} ${esc(p.name)}</strong>
           <span class="chip tiny">${meta.role}</span>
           <div class="tiny">${L(`${p.season} 赛季`, `${p.season} season`)} · OVR ${meta.ovr} · ${L("当季工资", "This season's salary")} <strong>${formatSalary(sal)}</strong></div>
           <div class="tiny season-pick-attrs">${L("攻", "ATK")}${p.scoring ?? "—"} ${L("三分", "3PT")}${p.three ?? "—"} ${L("中投", "MID")}${p.mid ?? "—"} ${L("内线", "INS")}${p.paint ?? "—"} ${L("传", "PAS")}${p.pass ?? "—"} ${L("防", "DEF")}${p.defense ?? "—"} ${L("板", "REB")}${p.rebound ?? "—"} ${L("断", "STL")}${p.steal ?? "—"} ${L("帽", "BLK")}${p.block ?? "—"} ${L("速", "SPD")}${p.speed ?? "—"} ${L("力", "STR")}${p.strength ?? "—"} ${L("球商", "IQ")}${p.iq ?? "—"} ${L("关键", "CLT")}${p.clutch ?? "—"}</div>
