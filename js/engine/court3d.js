@@ -37,7 +37,7 @@ import { clamp } from "../core/seededRandom.js";
 import { webglAvailable } from "../core/capabilities.js";
 import { arenaPreset, qualityProfile } from "./arena/arenaPresets.js";
 import { makeFloorTexture } from "./arena/floorTexture.js";
-import { loadPlayerTemplate, makeGlbFigure, players3dEnabled } from "./court3dPlayers.js";
+import { PLAYER_HEIGHT_M, loadPlayerTemplate, makeGlbFigure, players3dEnabled } from "./court3dPlayers.js";
 import { addHoopDetails } from "./arena/arenaHoop.js";
 import { addArenaLights } from "./arena/arenaLights.js";
 import { buildArenaEnvironment } from "./arena/arenaEnvironment.js";
@@ -68,12 +68,15 @@ export const PASS_FLIGHT_MS = 380;
 export const DUNK_DRIVE_MS = 420;
 const DUNK_NET_MS = 150;
 const DUNK_SETTLE_MS = 200;
+const DUNK_TAKEOFF_AT = 0.55; // share of the drive after which the dunker leaves the floor (jump clip)
 export const DUNK_TOTAL_MS = DUNK_DRIVE_MS + DUNK_NET_MS + DUNK_SETTLE_MS; // 770
 export const BALL_RADIUS_M = 0.12;
 /** The ball is drawn bigger than life (a regulation ball is a speck from the broadcast angle). Its centre offset keeps it resting on the floor. */
 export const BALL_VISUAL_SCALE = 1.7;
 /** Broadcast framing: closer than "the whole court fits", panning along the court with the ball. */
 export const FRAMING_ZOOM = 0.8;
+/** The humanoid players (?players3d=1) get a ~10% closer camera on top of their bigger size: the bodies are the show there. */
+export const GLB_FRAMING_ZOOM = 0.72;
 const PAN_FOLLOW = 0.5;
 const PAN_LIMIT_M = 6;
 /** The arena select and the 2D/3D button sit along the top of the view (about 44 px tall plus their margin): names stay below them. */
@@ -84,7 +87,12 @@ const PORTRAIT_FROM_ASPECT = 1.6; // desktop framing (16:10) shows no empty stri
 const PORTRAIT_DROP_PER_ASPECT = 0.55; // 1.34 (a phone's 3D view) -> about 14% of the height: the empty strip goes, the court stays big
 const PORTRAIT_DROP_MAX = 0.25;
 export const BALL_GLIDE_MS = 220;
+const DRIBBLE_OUT_M = 0.1;
 const PLATE_BASE_Y = { full: 2.75, compact: 2.5 };
+/** Capsule figures are ~2.0 m to the crown; a humanoid is PLAYER_HEIGHT_M, so its plates ride that much higher. */
+const CAPSULE_HEIGHT_M = 2.0;
+/** A non-focus plate that collides is hidden, not stacked: a tower of names over a bunched backcourt read as noise. The focus plate never moves. */
+const PLATE_MAX_SHIFTS = 0;
 /** Miss bounce distance toward midcourt: 2D's 18% of court length, in meters. */
 export const MISS_BOUNCE_M = 5.16;
 /** The clutch scenario is always 2016 GSW (home) vs CLE (away). */
@@ -557,7 +565,8 @@ export class CourtView3D {
     const h = this.root?.clientHeight || 0;
     const aspect = w > 0 && h > 0 ? w / h : 16 / 9;
     const dist = fitCameraDistance(aspect, this._fov);
-    this._camera.position.set(dist * 0.94 * FRAMING_ZOOM, dist * 0.5 * FRAMING_ZOOM, panZ);
+    const zoom = this._playerTpl ? GLB_FRAMING_ZOOM : FRAMING_ZOOM;
+    this._camera.position.set(dist * 0.94 * zoom, dist * 0.5 * zoom, panZ);
     this._camera.lookAt(0, 0.6, panZ);
   }
 
@@ -608,7 +617,7 @@ export class CourtView3D {
     if (this._playerTpl) {
       try {
         const g = makeGlbFigure(T, this._playerTpl, { color, playerId: pos.playerId });
-        const plate = this._makePlate(pos.short, pos.pts);
+        const plate = this._makePlate(pos.short, pos.pts, color);
         if (plate) g.group.add(plate.sprite);
         g.group.position.set(pos.x, 0, pos.z);
         return { ...g, plate, playerId: pos.playerId, short: pos.short, isOffense: pos.isOffense, pts: pos.pts, pinned: null };
@@ -639,13 +648,18 @@ export class CourtView3D {
     };
     const armL = mkArm(-0.38);
     const armR = mkArm(0.38);
-    const plate = this._makePlate(pos.short, pos.pts);
+    const plate = this._makePlate(pos.short, pos.pts, color);
     if (plate) group.add(plate.sprite);
     group.position.set(pos.x, 0, pos.z);
     return { group, body, head, armL, armR, plate, playerId: pos.playerId, short: pos.short, isOffense: pos.isOffense, pts: pos.pts, pinned: null };
   }
 
-  _makePlate(name, pts) {
+  /** Plate height above the floor for `mode`, scaled to the figure kind on court. */
+  _plateY(mode) {
+    return PLATE_BASE_Y[mode] + (this._playerTpl ? PLAYER_HEIGHT_M - CAPSULE_HEIGHT_M : 0);
+  }
+
+  _makePlate(name, pts, color = null) {
     try {
       const canvas = document.createElement("canvas");
       canvas.width = 256;
@@ -657,8 +671,8 @@ export class CourtView3D {
         new this.T.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }),
       );
       sprite.scale.set(PLATE_WORLD.compact.w, PLATE_WORLD.compact.h, 1);
-      sprite.position.y = PLATE_BASE_Y.compact;
-      const plate = { sprite, canvas, ctx, texture, mode: null };
+      sprite.position.y = this._plateY("compact");
+      const plate = { sprite, canvas, ctx, texture, mode: null, color };
       this._drawPlate(plate, name, pts, "compact");
       return plate;
     } catch {
@@ -681,8 +695,14 @@ export class CourtView3D {
       ctx.textBaseline = "middle";
       ctx.fillText(`${name} · ${pts}`, canvas.width / 2, canvas.height / 2 + 1);
     } else {
-      ctx.fillStyle = "rgba(6, 20, 14, 0.6)";
+      ctx.fillStyle = "rgba(6, 20, 14, 0.78)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Team colour strip: two "PG" plates side by side are told apart by side, not by squinting at the jersey.
+      if (plate.color != null) {
+        ctx.fillStyle = `#${Number(plate.color).toString(16).padStart(6, "0")}`;
+        ctx.fillRect(0, 0, 18, canvas.height);
+        ctx.fillRect(0, canvas.height - 6, canvas.width, 6);
+      }
       ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
       ctx.font = "bold 42px sans-serif"; // big in the canvas: a compact plate is small on screen
       ctx.textAlign = "center";
@@ -725,7 +745,7 @@ export class CourtView3D {
         fig.body.material?.emissive?.setHex(isFocus ? 0x3d3d3d : 0x000000);
       }
       const p = fig.group.position;
-      const baseY = p.y + PLATE_BASE_Y[mode]; // the plate rides on the figure: a dunker in the air carries his plate up with him
+      const baseY = p.y + this._plateY(mode); // the plate rides on the figure: a dunker in the air carries his plate up with him
       this._v3.set(p.x, baseY, p.z).project(this._camera);
       const sy = (-this._v3.y * 0.5 + 0.5) * H;
       // How many screen pixels one metre of height is worth HERE: the camera looks down, so it is less than the face-on scale.
@@ -747,15 +767,15 @@ export class CourtView3D {
     // Screen areas a name must not sit on: the page's own controls along the top, and the hung scoreboard where it is drawn now.
     const blockers = this._plateBlockers(W, H);
     const blocked = (it, dy = 0) => it.priority < 100 && blockers.some((b) => b.x0 < it.x + it.w / 2 && b.x1 > it.x - it.w / 2 && b.y0 < it.y + dy + it.h / 2 && b.y1 > it.y + dy - it.h / 2);
-    const placed = placeLabels(items.filter((it) => !it.behind && !blocked(it) && (it.priority >= 100 || it.h >= PLATE_LEGIBLE_PX)), { gap: 7 }); // a speck is not a name; the gap also absorbs the perspective error of the px->metre nudge
+    const placed = placeLabels(items.filter((it) => !it.behind && !blocked(it) && (it.priority >= 100 || it.h >= PLATE_LEGIBLE_PX)), { gap: 7, maxShifts: PLATE_MAX_SHIFTS }); // a speck is not a name; the gap also absorbs the perspective error of the px->metre nudge
     for (const it of items) {
       const res = placed.get(it.id) || { visible: false, dy: 0 };
       if (res.visible && blocked(it, res.dy)) res.visible = false; // nudged up into a blocked area: hide it instead
       it.fig.plate.sprite.visible = res.visible && !it.behind;
       // The big plate of the player who is shooting must not hide the ball or the rim it flies to (on a phone it is as wide as the court):
       // while the ball is in the air it is see-through; it is never hidden or moved.
-      if (it.mode === "full" && it.fig.plate.sprite.material) it.fig.plate.sprite.material.opacity = this._shot && !this._shot.settling ? FOCUS_PLATE_FLIGHT_OPACITY : 1;
-      it.fig.plate.sprite.position.y = PLATE_BASE_Y[it.mode] + (-res.dy) / it.pxPerMetreUp;
+      if (it.mode === "full" && it.fig.plate.sprite.material) it.fig.plate.sprite.material.opacity = (this._shot && !this._shot.settling) || this._dunk ? FOCUS_PLATE_FLIGHT_OPACITY : 1; // a dunk is at the rim too
+      it.fig.plate.sprite.position.y = this._plateY(it.mode) + (-res.dy) / it.pxPerMetreUp;
     }
   }
 
@@ -878,7 +898,7 @@ export class CourtView3D {
       return true;
     }
     this._shot = {
-      from: { x: fig.group.position.x, y: 2.2, z: fig.group.position.z },
+      from: { x: fig.group.position.x, y: 2.2 + (this._playerTpl ? PLAYER_HEIGHT_M - CAPSULE_HEIGHT_M : 0), z: fig.group.position.z }, // release over the head
       to,
       start: this._clock(),
       made: !!shot.made,
@@ -1053,6 +1073,7 @@ export class CourtView3D {
     this._lastNow = now;
     const positions = snapshotTo3DPositions(snap, phase, tSec);
     let handlerPos = null;
+    let handlerFig = null;
     for (const pos of positions) {
       const fig = this._figures.get(pos.playerId);
       if (!fig) continue;
@@ -1072,11 +1093,17 @@ export class CourtView3D {
       fig.armR.rotation.x = -swing;
       fig.body.rotation.z = Math.sin(now * 0.0011 + pos.slotIndex * 2.3) * 0.02;
       fig.glb?.step(this._dt, x, z, fig.group.rotation.y);
-      if (pos.isHandler) handlerPos = { x, z };
+      if (pos.isHandler) {
+        handlerPos = { x, z };
+        handlerFig = fig;
+      }
     }
     // Follow the real ball holder when the presentation has named one; the PG slot is only the fallback.
     const ownerFig = this._ballOwner ? this._figures.get(this._ballOwner) : null;
-    if (ownerFig) handlerPos = { x: ownerFig.group.position.x, z: ownerFig.group.position.z };
+    if (ownerFig) {
+      handlerPos = { x: ownerFig.group.position.x, z: ownerFig.group.position.z };
+      handlerFig = ownerFig;
+    }
     // Camera: fixed sideline TV angle + a very slight lateral drift toward
     // the handler's half (camera and look-target move together, so the
     // framing never rotates).
@@ -1084,7 +1111,7 @@ export class CourtView3D {
     const panTarget = handlerPos ? clamp(handlerPos.z * PAN_FOLLOW, -PAN_LIMIT_M, PAN_LIMIT_M) : 0;
     this._panZ += (panTarget - this._panZ) * (1 - Math.exp(-this._dt * 4));
     this._layoutCamera(this._panZ);
-    this._updateBall(now, attackingUp, handlerPos); // a dunk moves its dunker here, so plates are laid out after it
+    this._updateBall(now, attackingUp, handlerPos, handlerFig); // a dunk moves its dunker here, so plates are laid out after it
     this._updateAids(now);
     this._updatePlates();
     this._updateEffects(now);
@@ -1092,7 +1119,7 @@ export class CourtView3D {
     this._publishStats();
   }
 
-  _updateBall(now, attackingUp, handlerPos) {
+  _updateBall(now, attackingUp, handlerPos, handlerFig = null) {
     const ball = this._ball;
     if (!ball) return;
     if (this._shot || this._dunk || this._ballRest || this._pass) this._glide = null;
@@ -1139,6 +1166,11 @@ export class CourtView3D {
           fig.group.position.set(x, 0, z);
           fig.pinned = { x, z };
         }
+        // Take off on the last strides of the drive, so the jump clip has the whole flight to play (not 150 ms at the rim).
+        if (!d.jumped && el >= DUNK_DRIVE_MS * DUNK_TAKEOFF_AT) {
+          d.jumped = true;
+          fig?.glb?.trigger("jump", (DUNK_TOTAL_MS - el) / 1000);
+        }
         ball.position.set(x, 1.6, z); // ball in the dunker’s hands
         ball.visible = true;
       } else if (el < DUNK_DRIVE_MS + DUNK_NET_MS) {
@@ -1164,6 +1196,7 @@ export class CourtView3D {
         if (fig) {
           fig.group.position.set(d.to.x, 0, d.to.z);
           fig.pinned = { x: d.to.x, z: d.to.z };
+          if (!this._reducedMotion) fig.glb?.trigger("celebrate"); // the dunker celebrates once he is back on the floor
         }
         ball.position.set(d.to.x, BALL_RADIUS_M, d.to.z);
         this._ballRest = { x: d.to.x, z: d.to.z };
@@ -1191,10 +1224,28 @@ export class CourtView3D {
       this._pass = null;
       this._setBallOwner(p.toId);
     }
-    // Idle: the ball dribbles with the handler.
+    // Idle: the ball dribbles with the handler. A humanoid dribbles under his right palm (the rig's hand bone, eased so an arm
+    // swing in the run clip does not whip the ball around); a capsule keeps the fixed offset.
     if (handlerPos) {
       let bx = handlerPos.x + 0.35;
       let bz = handlerPos.z + 0.3;
+      let top = BALL_RADIUS_M + 0.35;
+      const hand = handlerFig?.glb?.handWorld?.((this._handV = this._handV || new this.T.Vector3()));
+      if (hand && Number.isFinite(hand.x)) {
+        const ox = hand.x - handlerPos.x;
+        const oz = hand.z - handlerPos.z;
+        const len = Math.hypot(ox, oz) || 1;
+        // Ease the hand's offset from the body (not its world spot), so a running handler never drags the ball behind him.
+        const tx = ox + (ox / len) * DRIBBLE_OUT_M; // a touch outside the hip, not through the leg
+        const tz = oz + (oz / len) * DRIBBLE_OUT_M;
+        const hs = this._handS && this._handS.id === handlerFig.playerId ? this._handS : (this._handS = { id: handlerFig.playerId, x: tx, z: tz });
+        const k = 1 - Math.exp(-(this._dt || 0.016) * 14);
+        hs.x += (tx - hs.x) * k;
+        hs.z += (tz - hs.z) * k;
+        bx = handlerPos.x + hs.x;
+        bz = handlerPos.z + hs.z;
+        top = Math.max(BALL_RADIUS_M + 0.3, hand.y - BALL_RADIUS_M * BALL_VISUAL_SCALE);
+      }
       if (this._glide) {
         const u = clamp((this._clock() - this._glide.start) / BALL_GLIDE_MS, 0, 1);
         const e = easeOut(u);
@@ -1202,7 +1253,8 @@ export class CourtView3D {
         bz = lerp(this._glide.from.z, bz, e);
         if (u >= 1) this._glide = null;
       }
-      ball.position.set(bx, BALL_RADIUS_M + Math.abs(Math.sin(now * 0.006)) * 0.35, bz);
+      // |sin| is sharp at 0 (the bounce on the floor) and slow near 1 (the ball sitting in the hand).
+      ball.position.set(bx, lerp(BALL_RADIUS_M, top, Math.abs(Math.sin(now * 0.006))), bz);
       ball.visible = true;
     } else {
       ball.visible = false;
@@ -1256,7 +1308,8 @@ export class CourtView3D {
     if (made && !this._reducedMotion) {
       // The scorer celebrates; a three or a dunk gets the whole scoring side on its feet.
       for (const fig of this._figures.values()) {
-        if (fig.glb && (fig.playerId === shooterId || ((dunk || pts >= 3) && fig.isOffense))) fig.glb.trigger("celebrate");
+        if (!fig.glb || (dunk && fig.playerId === shooterId)) continue; // a dunker is still in the air: he celebrates on landing
+        if (fig.playerId === shooterId || ((dunk || pts >= 3) && fig.isOffense)) fig.glb.trigger("celebrate");
       }
     }
     try {

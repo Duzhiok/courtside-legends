@@ -118,5 +118,6 @@ view = createMatchPresentationView({
   },
 });
 view3d.resize?.();
+globalThis.__preview3d = view3d; // dev page only: QA scripts (.rvqa / scripts/qa) read the ball / hand / plates from here
 statusEl.textContent = "Ready — press “Play from start”.";
 playFromStart();

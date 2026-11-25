@@ -16,7 +16,10 @@ const MODEL_URL = new URL("../../assets/avatar3d/man.glb", import.meta.url).href
 const GLTF_LIB_URL = new URL("../vendor/three-gltf.min.js", import.meta.url).href;
 
 export const PLAYERS3D_STORAGE_KEY = "cls.players3d";
-export const PLAYER_HEIGHT_M = 2.0;
+/** Drawn ~15% taller than a real 2.0 m player, like the oversized ball: from the broadcast angle a life-size figure reads as a speck. */
+export const PLAYER_HEIGHT_M = 2.3;
+/** The dribbling hand. Quaternius rig bone names, as GLTFLoader leaves them (it strips "." : "Palm.R" -> "PalmR"); first found wins. */
+const HAND_BONES = ["PalmR", "Palm.R", "MiddleHandR", "MiddleHand.R", "LowerArmR"];
 const LOAD_TIMEOUT_MS = 8000;
 const FADE_S = 0.18;
 /** Below this ground speed (m/s) a figure stands; above it, it runs. Hysteresis keeps the clip from flickering. */
@@ -145,6 +148,12 @@ export function makeGlbFigure(T, tpl, { color = 0x888888, playerId = "" } = {}) 
   });
   body.material = shirt || own[0] || { emissive: { setHex() {} } };
 
+  let hand = null;
+  for (const n of HAND_BONES) {
+    hand = model.getObjectByName?.(n) || null;
+    if (hand) break;
+  }
+
   const mixer = new T.AnimationMixer(model);
   const actions = {};
   for (const [k, clip] of Object.entries(tpl.clips)) {
@@ -223,6 +232,11 @@ export function makeGlbFigure(T, tpl, { color = 0x888888, playerId = "" } = {}) 
       st.yaw += diff * (1 - Math.exp(-d * 9));
       model.rotation.y = st.yaw;
       mixer.update(d);
+    },
+    /** World position of the right palm after this frame's pose (call after step()), or null if the rig has no hand bone. */
+    handWorld(out) {
+      if (!hand || typeof hand.getWorldPosition !== "function") return null;
+      return hand.getWorldPosition(out);
     },
     dispose() {
       mixer.stopAllAction();
