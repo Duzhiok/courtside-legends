@@ -6641,10 +6641,10 @@ function renderSetupGameplan() {
   defSel.innerHTML =
     `<option value="">（跟对位表）</option>` +
     youPool
-      .map((p) => `<option value="${p.id}">${matchupPosOf(p)} ${p.name}（防${p.defense}）</option>`)
+      .map((p) => `<option value="${p.id}">${matchupPosOf(p)} ${esc(p.name)}（防${p.defense}）</option>`)
       .join("");
   tgtSel.innerHTML = boardOpp
-    .map((p) => `<option value="${p.id}">${matchupPosOf(p)} ${p.name}（OVR ${overall(p)}）</option>`)
+    .map((p) => `<option value="${p.id}">${matchupPosOf(p)} ${esc(p.name)}（OVR ${overall(p)}）</option>`)
     .join("");
   if (you.gameplan?.matchup?.defenderId) defSel.value = you.gameplan.matchup.defenderId;
   if (you.gameplan?.matchup?.targetId) tgtSel.value = you.gameplan.matchup.targetId;
@@ -6698,7 +6698,7 @@ function paintLiveMatchupBoard(snap) {
       youPool
         .map(
           (p) =>
-            `<option value="${p.id}">${matchupPosOf(p)} ${p.name}（防${p.defense}）</option>`
+            `<option value="${p.id}">${matchupPosOf(p)} ${esc(p.name)}（防${p.defense}）</option>`
         )
         .join("");
     if (cur && [...defSel.options].some((o) => o.value === cur)) defSel.value = cur;
@@ -7913,7 +7913,7 @@ function paintPlayerOrders(snap, { force = false } = {}) {
     const stillOn = focusId && on.some((p) => p.id === focusId);
     focusSel.innerHTML =
       `<option value="">（不指定 · 按本能）</option>` +
-      on.map((p) => `<option value="${p.id}">${p.playPos || p.pos} ${p.name}</option>`).join("");
+      on.map((p) => `<option value="${p.id}">${p.playPos || p.pos} ${esc(p.name)}</option>`).join("");
     if (stillOn) {
       focusSel.value = focusId;
     } else {
@@ -7947,7 +7947,7 @@ function paintPlayerOrders(snap, { force = false } = {}) {
       const o = p.orders || {};
       const lang = getLang();
       return `<div class="order-row compact" data-id="${p.id}">
-        <div class="order-name">${p.playPos || p.pos} ${p.name}
+        <div class="order-name">${p.playPos || p.pos} ${esc(p.name)}
           <span class="tiny order-summary">${escAttr(ordersLabel(o, lang) || L("自由发挥", "Play free"))}</span>
         </div>
         <div class="order-group">
@@ -8216,7 +8216,7 @@ function paintLivePositions(snap) {
         <span class="pos-live-name">
           <span class="slot-badge live">${cur}</span>
           ${photoImg(p, "headshot sm")}
-          <span>${p.name}<em class="tiny">本职 ${nat}</em></span>
+          <span>${esc(p.name)}<em class="tiny">本职 ${nat}</em></span>
         </span>
         ${posChipsHtml(p, { dataKey: "data-live-pos" })}
       </div>`;
@@ -8250,7 +8250,7 @@ function paintDefendTargets(snap) {
   sel.innerHTML = opp.onCourt
     .map((p) => {
       const tip = `${p.hotLabel}/${p.moodLabel}${p.strength >= 70 ? "·壮" : p.strength <= 55 ? "·瘦" : ""}`;
-      return `<option value="${p.id}">${p.playPos || p.pos} ${p.name}（${p.stats.pts}分 · ${tip}）</option>`;
+      return `<option value="${p.id}">${p.playPos || p.pos} ${esc(p.name)}（${p.stats.pts}分 · ${tip}）</option>`;
     })
     .join("");
   if (planId && [...sel.options].some((o) => o.value === planId)) sel.value = planId;

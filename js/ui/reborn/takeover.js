@@ -12,6 +12,7 @@
  * to show, and the choice is yours to feel, not to optimize.
  */
 import { createClutchController } from "../../engine/clutchController.js";
+import { esc } from "../../core/html.js";
 import { identityOf } from "../../career/careerIdentity.js";
 import { requireCapability } from "../../career/careerGuards.js";
 import { mountScreen } from "../screenShell.js";
@@ -117,7 +118,7 @@ export function takeoverDialogHtml({ sim, playerId, lang = "zh" } = {}) {
   }).join("");
   return `<div class="reborn-takeover-dialog" role="dialog" aria-modal="true" aria-label="${zh ? "关键回合" : "Takeover moment"}">`
     + `<h2>${zh ? "关键时刻，球在你手里" : "Takeover moment — the ball is yours"}</h2>`
-    + `<p class="reborn-takeover-situation">${qLabel} ${mmss} · ${score[youSide]} – ${score[oppSide]}${name ? ` · ${name}` : ""}</p>`
+    + `<p class="reborn-takeover-situation">${qLabel} ${mmss} · ${score[youSide]} – ${score[oppSide]}${name ? ` · ${esc(name)}` : ""}</p>`
     + `<div class="reborn-takeover-options">${buttons}</div>`
     + `<p class="reborn-takeover-hint">${zh ? "按 1 / 2 / 3 选择" : "Press 1 / 2 / 3 to choose"}</p>`
     + `</div>`;
