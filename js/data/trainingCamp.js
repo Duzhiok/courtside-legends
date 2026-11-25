@@ -187,23 +187,33 @@ function rollBreakthrough(session, card, t, budget) {
   return options[Math.floor(rng() * options.length)];
 }
 
-export function claimTraining(account, sessionId, { now = Date.now(), pool = PLAYERS, save = saveAccount } = {}) {
-  const { state, session } = takeSession(account, sessionId);
-  if (sessionStatus(session, now) !== "ready") throw refuse("训练还没完成", "Training is not finished yet");
-  const base = catalogCard(session.playerId, pool);
+/**
+ * Put `earned` XP into one attribute of one card, under that card's tier budget (per-attribute, total, ceiling).
+ * The single door for every XP source (training claims, hosted league): nothing adds attributes any other way.
+ * Mutates account.cardMods[id].training's working copy `t` in place; the caller stores/saves.
+ */
+export function bankXp(account, playerId, attr, earned, pool = PLAYERS) {
+  const base = catalogCard(playerId, pool);
   const budget = TIER_BUDGETS[base ? trainingTier(base) : "common"];
-  const t = trainingOf(account, session.playerId);
+  const t = trainingOf(account, playerId);
   const used = Object.values(t.attrs).reduce((sum, n) => sum + (n || 0), 0);
   const step = applyXp({
-    base: Math.round(Number(base?.[session.attr]) || 0),
-    bonus: t.attrs[session.attr] || 0,
-    xp: t.xp[session.attr] || 0,
-    earned: session.xp,
+    base: Math.round(Number(base?.[attr]) || 0),
+    bonus: t.attrs[attr] || 0,
+    xp: t.xp[attr] || 0,
+    earned,
     perAttr: budget.perAttr,
     totalLeft: Math.max(0, budget.total - used),
   });
-  t.attrs[session.attr] = step.bonus;
-  t.xp[session.attr] = step.xp;
+  t.attrs[attr] = step.bonus;
+  t.xp[attr] = step.xp;
+  return { step, budget, t };
+}
+
+export function claimTraining(account, sessionId, { now = Date.now(), pool = PLAYERS, save = saveAccount } = {}) {
+  const { state, session } = takeSession(account, sessionId);
+  if (sessionStatus(session, now) !== "ready") throw refuse("训练还没完成", "Training is not finished yet");
+  const { step, budget, t } = bankXp(account, session.playerId, session.attr, session.xp, pool);
 
   const [card] = (account.playerIds || []).includes(session.playerId) ? resolvePlayers([session.playerId], account, pool) : [];
   const skillId = card ? rollBreakthrough(session, card, t, budget) : null;
