@@ -294,6 +294,21 @@ test("selection immutably advances the draft and adds one contracted rookie", ()
   assert.equal("nbaId" in rookie, false);
 });
 
+test("a drafted generated rookie carries the shooting fields GameSim reads (B42: 0-for-784 without them)", () => {
+  const season = playableSeason();
+  const draft = createDraftState({ season, seed: "selection", players: [] });
+  const prospect = draft.prospects[0];
+  const ratingsBefore = { three: prospect.player.three, mid: prospect.player.mid, paint: prospect.player.paint };
+
+  selectDraftProspect(draft, season, prospect.prospectId);
+
+  const rookie = season.teams[draft.order[0]].players[0];
+  for (const key of ["ft", "paintFg", "midFg", "threeFg", "handle", "perimDef"]) {
+    assert.ok(Number.isFinite(rookie[key]), `${key} must be a finite number on a drafted rookie`);
+  }
+  assert.deepEqual({ three: rookie.three, mid: rookie.mid, paint: rookie.paint }, ratingsBefore);
+});
+
 test("invalid and duplicate selections reject without partial mutation", () => {
   const season = playableSeason();
   const draft = createDraftState({ season, seed: "atomic", players: [] });

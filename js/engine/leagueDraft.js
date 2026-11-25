@@ -1,4 +1,5 @@
 import { overall, PLAYERS } from "../data/players.js";
+import { completeProspectCard } from "../data/prospectCard.js";
 import { ensurePickLedger, setPickOwner } from "./pickLedger.js";
 import { tradeCapabilityCheck, tradeWindowCheck } from "./seasonMarket.js";
 import { clamp } from "../core/seededRandom.js";
@@ -560,8 +561,11 @@ export function selectDraftProspect(
 
   const pickNumber = draft.currentPick + 1;
   const contract = rookieContractForPick(pickNumber, draft.year);
-  const rookie = clone(prospect.player);
-  if (prospect.source === "generated") {
+  // A generated prospect is a rating-only card; without shooting percentages GameSim has him miss every
+  // shot and free throw. Completing it here (not at generation) also covers prospects already saved raw.
+  const generated = prospect.source === "generated";
+  const rookie = generated ? completeProspectCard(clone(prospect.player)) : clone(prospect.player);
+  if (generated) {
     delete rookie.photo;
     delete rookie.nbaId;
   }
