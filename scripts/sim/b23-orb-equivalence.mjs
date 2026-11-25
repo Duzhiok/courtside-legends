@@ -14,7 +14,7 @@ const coach = (t) => ({ id: `t-${t}`, name: "T", specialTactics: [t], preferred:
 const games = Number(process.argv[2] || 60);
 const hash = createHash("sha256");
 let orb = 0;
-for (const tactic of ["crash_boards", "second_chance", "twin_towers", "balanced"]) {
+for (const tactic of ["crash_boards", "second_chance", "twin_towers", "paint_attack", "balanced"]) {
   for (const roster of [CENTERS, MIX]) {
     for (let i = 0; i < games; i++) {
       const real = Math.random; Math.random = seededStream(1000 + i);
@@ -32,4 +32,4 @@ for (const tactic of ["crash_boards", "second_chance", "twin_towers", "balanced"
     }
   }
 }
-console.log(`games ${games * 8}, away offensive rebounds ${orb}, replay hash ${hash.digest("hex").slice(0, 16)}`);
+console.log(`games ${games * 10}, away offensive rebounds ${orb}, replay hash ${hash.digest("hex").slice(0, 16)}`);

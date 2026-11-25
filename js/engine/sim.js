@@ -4436,10 +4436,8 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   w3 *= 0.75 + tr * 0.35 * tacticPull;
   // 内线进攻 / 二次进攻：抬油漆区权重
   const paintBias = Number(off.tactic?.paintBias) || 0;
-  if (paintBias > 1) {
-    wPaint *= paintBias;
-    w3 *= Math.max(0.55, 1.15 - paintBias * 0.25);
-  }
+  if (paintBias > 1) wPaint *= paintBias;
+  w3 *= Number(off.tactic?.threeSqueeze) || 1; // B23: was derived from paintBias; now its own field
   // B23: the per-tactic extras (crash boards x1.12 paint, twin towers x1.18 paint / x0.82 three) live in the tactic data
   wPaint *= Number(off.tactic?.paintExtra) || 1;
   w3 *= Number(off.tactic?.threeExtra) || 1;

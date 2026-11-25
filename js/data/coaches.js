@@ -311,6 +311,7 @@ export const TACTICS = {
     orbBoost: 0.075, // B23: 0.05 own + the 0.025 sim.js used to add for this id (one source now)
     paintExtra: 1.12, // B23: was hard-coded in sim.js (id check)
     paintBias: 1.35,
+    threeSqueeze: 0.8125, // B23: was 1.15 - paintBias * 0.25
     needs: ["dominant_big", "finisher", "rebounder", "roll_man"],
   },
   paint_attack: {
@@ -325,6 +326,7 @@ export const TACTICS = {
     pace: 0.94,
     threeRate: 0.72,
     paintBias: 1.5,
+    threeSqueeze: 0.775, // B23: was 1.15 - paintBias * 0.25
     needs: ["dominant_big", "finisher", "paint", "post"],
   },
 };
