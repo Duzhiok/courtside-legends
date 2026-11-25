@@ -88,11 +88,14 @@ export async function fastForwardToResult(page, { onStep, stepMs = 30_000 } = {}
   for (let i = 0; i < Math.ceil(1_800_000 / stepMs) && !(await resultUp()); i++) {
     await page.clock.runFor(stepMs);
     if (onStep && !(await resultUp())) await onStep(i);
+    // Any pause window (manual, dead ball, match event, injury) hides #btn-pause-sim and shows #btn-resume as the one
+    // way back in (app.js syncPauseUi). The old check waited for #btn-pause-sim to read "继续模拟" while visible, which
+    // no longer happens, so every caller sat paused until its timeout. Language-independent now.
     const stopped = await page.evaluate(() => {
-      const btn = document.querySelector("#btn-pause-sim");
-      return btn && !btn.hidden && btn.textContent.trim() === "继续模拟"; // Chinese UI only: call this before switching language
+      const btn = document.querySelector("#btn-resume");
+      return !!btn && !btn.hidden && btn.getClientRects().length > 0;
     });
-    if (stopped) await page.click("#btn-pause-sim");
+    if (stopped) await page.click("#btn-resume");
   }
   return resultUp();
 }
