@@ -14,3 +14,22 @@
 .reborn-honours { list-style: none; padding: 0; margin: 0.25rem 0 0; display: grid; gap: 0.15rem; }
 .reborn-honours small, .reborn-fragments small { color: #6b7280; }
 .reborn-fragments-on { font-weight: 600; color: #2f6f52; }
+
+/* Player Agency: the clutch dialog's coach card, your read, and the choice stack. Reuses the dialog's own tokens. */
+.reborn-agency { max-width: 460px; }
+.reborn-agency .reborn-takeover-situation { font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: .02em; }
+.reborn-agency-card { margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; background: rgba(255, 255, 255, .55); }
+.reborn-agency-card b { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.reborn-agency-card p { margin: 4px 0 2px; font-weight: 600; line-height: 1.35; }
+.reborn-agency-card small { color: var(--muted); }
+.reborn-agency-coach { border-left-color: var(--gold, #b8860b); }
+.reborn-agency-nocall { border-left-color: var(--line); }
+.reborn-agency-read { border-left-color: var(--accent, #2f7d5b); }
+.reborn-agency .reborn-takeover-option { display: grid; grid-template-columns: 22px 1fr; gap: 0 10px; align-items: baseline; }
+.reborn-agency .reborn-takeover-key { grid-row: 1 / span 2; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--paper, #f3efe4); font-size: .8rem; }
+.reborn-agency .reborn-takeover-desc { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+.reborn-agency .reborn-takeover-option[data-option="follow"] { border-color: var(--gold, #b8860b); }
+.reborn-agency .reborn-takeover-option[data-option="setup"] { border-style: dashed; }
+.reborn-agency .reborn-takeover-option:hover, .reborn-agency .reborn-takeover-option:focus-visible { border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: 1px; }
+.reborn-agency-feedback { font-weight: 600; border-left: 3px solid var(--gold, #b8860b); padding-left: 8px; }
+.reborn-autonomy { margin: 2px 0; color: var(--muted); font-size: .9rem; }

@@ -25,10 +25,15 @@ export const AUTONOMY_TIERS = [
 ];
 /** Design units (the table in the brief) -> the save's integer trust and autonomy. */
 export const AGENCY_TRUST_SCALE = 2;
-export const AGENCY_AUTONOMY_SCALE = 4;
+// Calibrated (scripts/measure/agency-calibration.mjs): a player who reads well gains ~1.2 per clutch, ~16 clutches a season,
+// so the 'trusted' tier (40) is a season and a half away; a reckless player is back at 0 in under a season.
+export const AGENCY_AUTONOMY_SCALE = 10;
+/** Autonomy that unlocks calling your own play (the 'setup' option), and how much of it softens the coach's reaction. */
+export const AUDIBLE_AT = 40;
+export const AUTONOMY_TOLERANCE_PER_POINT = 1 / 250;
 export const CLUTCH_LEVERAGE = 2;
 export const MAX_TRUST_PER_GAME = 4;
-export const MAX_AUTONOMY_PER_GAME = 4;
+export const MAX_AUTONOMY_PER_GAME = 6;
 /** EV gap (points per possession) that counts as a clearly better / worse choice. */
 const QUALITY_SPAN = 0.25;
 
@@ -102,7 +107,7 @@ export function coachInstruction(sim, coach, playerId) {
   if (!coach) return null;
   const { you } = sides(sim);
   const others = you.onCourt.filter((p) => p.id !== playerId);
-  const big = [...others].filter((p) => ["C", "PF"].includes(p.playPos || p.pos)).sort((a, b) => r(b, "paint") - r(a, "paint"))[0];
+  const big = [...others].filter((p) => ["C", "PF"].includes(p.pos)).sort((a, b) => r(b, "paint") - r(a, "paint"))[0];
   const shooter = [...others].sort((a, b) => r(b, "three") - r(a, "three"))[0];
   const postMinded = (coach.specialTactics || []).some((t) => ["post_up", "triangle", "grind"].includes(t));
   if (twoDiscount(sim) < 1 && shooter && coach.archetype !== "stubborn") return { action: "find_shooter", targetId: shooter.id, focusId: "pace_three" };
@@ -111,6 +116,21 @@ export function coachInstruction(sim, coach, playerId) {
   if (star && star.id !== playerId) return { action: "star_iso", targetId: star.id, focusId: "iso_star" };
   // The star is you, or there is no post to feed: he draws up a look for the best shooter on the floor.
   return shooter ? { action: "find_shooter", targetId: shooter.id, focusId: "pace_three" } : null;
+}
+
+/** Once you have earned the freedom: the teammate with the best look right now, and the play that gets him the ball. */
+function bestSetup(sim, playerId, two) {
+  const { you, opp } = sides(sim);
+  let top = null;
+  for (const t of you.onCourt) {
+    if (t.id === playerId) continue;
+    const l = looks(t, opp);
+    const three = l.three;
+    const inside = Math.max(l.rim * two, l.post * two);
+    const value = Math.max(three, inside);
+    if (!top || value > top.value) top = { value, targetId: t.id, targetName: t.name, focusId: three >= inside ? "pace_three" : ["C", "PF"].includes(t.pos) ? "post_up" : "iso_star" };
+  }
+  return top;
 }
 
 /** Expected points per option, from the floor as it stands before anyone moves. */
@@ -150,6 +170,8 @@ export function observe(values, { iq = 50, decisionId = "" } = {}) {
 export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, decisionId, trust = 0, autonomy = AUTONOMY_START } = {}) {
   const instruction = coachCallsPlay(sim, coach) ? coachInstruction(sim, coach, playerId) : null;
   const values = optionValues(sim, playerId, instruction);
+  const audible = autonomy >= AUDIBLE_AT ? bestSetup(sim, playerId, twoDiscount(sim)) : null;
+  if (audible) values.setup = audible.value;
   const { you } = sides(sim);
   const target = instruction ? you.onCourt.find((p) => p.id === instruction.targetId) : null;
   return {
@@ -157,7 +179,8 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
     coach: coach ? { id: coach.id, name: coach.name, nameEn: coach.nameEn, archetype: coach.archetype || null, tolerance: coachTolerance(coach) } : null,
     coachInstruction: instruction ? { ...instruction, targetName: target?.name || "" } : null,
     observation: observe(values, { iq, decisionId }),
-    options: [...(instruction ? ["follow"] : []), "drive", "pullup", "pass"],
+    audible: audible ? { targetId: audible.targetId, targetName: audible.targetName, focusId: audible.focusId } : null,
+    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), "pass"],
     values,
     playerState: { trust, autonomy, iq },
   };
@@ -218,7 +241,7 @@ export function gradeTakeover(takeover, clutchOutcome = null) {
   const followed = choiceId === "follow";
   const quality = decisionQuality(ctx.values, choiceId);
   const execution = executionQuality({ clutch: clutchOutcome, points: takeover.points ?? 0 });
-  const graded = evaluateDecision({ hadInstruction: !!ctx.coachInstruction, followed, quality, execution, tolerance: ctx.coach?.tolerance ?? 0.5 });
+  const graded = evaluateDecision({ hadInstruction: !!ctx.coachInstruction, followed, quality, execution, tolerance: Math.min(1, (ctx.coach?.tolerance ?? 0.5) + (ctx.playerState?.autonomy ?? 0) * AUTONOMY_TOLERANCE_PER_POINT) });
   const round2 = (v) => Math.round(v * 100) / 100;
   return { decisionId: ctx.decisionId, choiceId, followed, instruction: ctx.coachInstruction, observation: ctx.observation, coach: ctx.coach, quality: round2(quality), execution: round2(execution), points: takeover.points ?? clutchOutcome?.points ?? 0, ...graded };
 }

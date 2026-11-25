@@ -35,6 +35,8 @@ const READ_TEXT = {
 
 function observationLine(obs, lang) {
   const [zh, en] = READ_TEXT[obs.pick] || READ_TEXT.pass;
+  // Seeing clearly that nothing is open is a read too, not "clearly seeing nothing".
+  if (obs.pick === "pass" && obs.clarity === "sharp") return T("你看清楚了：现在没有明显的机会，再等一等", "You see it clearly: nothing is open yet, be patient", lang);
   const prefix = obs.clarity === "cloudy" ? T("你看得不太清楚：", "You can't quite tell: ", lang) : obs.clarity === "sharp" ? T("你看得很清楚：", "You see it clearly: ", lang) : "";
   const text = T(zh, en, lang);
   return prefix && lang === "en" ? prefix + text[0].toLowerCase() + text.slice(1) : prefix + text;
@@ -42,6 +44,7 @@ function observationLine(obs, lang) {
 
 function optionLabel(id, context, lang) {
   if (id === "follow") return [T("执行教练战术", "Run the coach's call", lang), callLabel(context.coachInstruction, lang)];
+  if (id === "setup") return [T("自己布置", "Call your own play", lang), T(`把球交给 ${esc(context.audible.targetName)}，他现在机会最好`, `Get the ball to ${esc(context.audible.targetName)}, he has the best look`, lang)];
   if (id === "drive") return [T("自主判断", "Your own read", lang), T("突破上篮", "Drive to the rim", lang)];
   if (id === "pullup") return [T("自主判断", "Your own read", lang), T("急停跳投", "Pull-up jumper", lang)];
   return [T("继续阅读防守", "Keep reading", lang), T("让进攻流动，找更好的机会", "Let the offense flow for a better look", lang)];

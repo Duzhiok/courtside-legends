@@ -113,7 +113,7 @@ export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAUL
   // Player Agency: following the coach's call or reading the defense is a choice too, played through the normal offense.
   if (context && decision?.choiceId && !context.options.includes(decision.choiceId)) return null;
   if (context && decision?.choiceId && !decision.shooterId) {
-    return { choiceId: decision.choiceId, kind: decision.choiceId === "follow" ? "plan" : "pass", accepted: true, context };
+    return { choiceId: decision.choiceId, kind: decision.choiceId === "follow" ? "plan" : decision.choiceId === "setup" ? "audible" : "pass", accepted: true, context };
   }
   if (!decision || !decision.shooterId || !decision.actionHint) return null;
   // The hook may carry the attempt id it already issued (the takeover UI's
@@ -139,7 +139,7 @@ export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAUL
 function playChoicePossession(sim, takeover) {
   const youKey = sim.youSide;
   const before = sim.score[youKey];
-  const call = takeover.kind === "plan" ? takeover.context.coachInstruction : null;
+  const call = takeover.kind === "plan" ? takeover.context.coachInstruction : takeover.kind === "audible" ? takeover.context.audible : null;
   const saved = { auto: sim.autoOffense, focusPlay: sim.focusPlay ? { ...sim.focusPlay } : null, offenseFocusId: sim.offenseFocusId };
   if (call) {
     sim.autoOffense = false;
@@ -181,7 +181,7 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
       // Drawing up the play costs the timeout he called (only when the dialog actually happens).
       if (context?.coachInstruction && onTakeover) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
       takeover = await attemptTakeover(sim, playerId, onTakeover, window, context);
-      if (takeover?.kind === "plan" || takeover?.kind === "pass") takeover.points = playChoicePossession(sim, takeover);
+      if (takeover?.kind === "plan" || takeover?.kind === "audible" || takeover?.kind === "pass") takeover.points = playChoicePossession(sim, takeover);
     }
     if (watcher && !eggIncident) eggIncident = watcher.maybeFire();
   }

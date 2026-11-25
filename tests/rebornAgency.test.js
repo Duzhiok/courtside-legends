@@ -182,6 +182,40 @@ test("a choice the context did not offer is refused, never graded", async () => 
   assert.ok(!out.takeover || out.takeover.choiceId !== "follow" || out.takeover.context.coachInstruction, "follow without a call never lands");
 });
 
+test("autonomy is earned: 'call your own play' unlocks at the trusted tier, and freedom softens the coach's reaction", async () => {
+  const sim = clutchSim();
+  const me = sim.home.onCourt[0].id;
+  const phil = A.teamCoach("CHI", 1996);
+  const low = A.buildDecisionContext(sim, me, { coach: phil, decisionId: "u|1", autonomy: A.AUDIBLE_AT - 1 });
+  const high = A.buildDecisionContext(sim, me, { coach: phil, decisionId: "u|1", autonomy: A.AUDIBLE_AT });
+  assert.ok(!low.options.includes("setup") && low.audible === null);
+  assert.ok(high.options.includes("setup") && high.audible.targetId !== me && high.values.setup > 0);
+  // The same bad deviation is punished less once you have the coach's trust.
+  const g = (autonomy) => A.gradeTakeover({ context: { ...high, playerState: { autonomy } }, choiceId: "pullup", accepted: true, points: 0 }, { attempted: true, made: false, points: 0 });
+  assert.ok(g(90).trustDelta >= g(0).trustDelta);
+  // Playing it: the teammate really gets the call for one possession and the autopilot comes back.
+  sim.autoOffense = true;
+  const star = [...sim.home.onCourt].sort((a, b) => b.scoring - a.scoring)[0];
+  const out = await driveGame(sim, star.id, {
+    onTakeover: ({ context }) => ({ choiceId: context.options.includes("setup") ? "setup" : "pass" }),
+    agency: { coach: phil, iq: 60, decisionId: "u|2", autonomy: 60 },
+  });
+  assert.equal(out.takeover?.kind, "audible");
+  assert.equal(sim.autoOffense, true);
+  assert.ok(A.gradeTakeover(out.takeover, null).choiceId === "setup");
+});
+
+test("the coach's 'post' call goes to a natural big, not to a guard the lineup slotted at PF", () => {
+  const sim = clutchSim();
+  const guard = sim.home.onCourt.find((p) => !["C", "PF"].includes(p.pos));
+  guard.playPos = "PF";
+  guard.paint = 95;
+  const coach = { archetype: "disciplinarian", playerAutonomy: 20, specialTactics: ["post_up"] };
+  const me = sim.home.onCourt.find((p) => p !== guard).id;
+  const call = A.coachInstruction(sim, coach, me);
+  assert.notEqual(call?.action === "post_entry" ? call.targetId : null, guard.id);
+});
+
 test("old saves and legacy hooks are untouched: no autonomy field reads as the start, a legacy pick keeps the old rule", () => {
   assert.equal(A.autonomyTier(undefined).id, "executor");
   const t = updateTrust(50, { gameScore: 7, role: "rotation", takeover: { attempted: true, made: true } });

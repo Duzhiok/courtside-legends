@@ -84,7 +84,7 @@ export async function askTakeover({ sim, playerId, onAsk, root, context = null }
   if (!opened.ok) return null;
   const choice = await onAsk({ sim, playerId, options: TAKEOVER_OPTIONS, context });
   // Player Agency: the coach's call and patience are choices the driver plays through the offense (season.js).
-  if (context && (choice === "follow" || choice === "pass")) return { choiceId: choice };
+  if (context && (choice === "follow" || choice === "pass" || choice === "setup")) return { choiceId: choice };
   const decision = takeoverDecisionFor(choice);
   if (!decision) return null;
   const selected = controller.select(playerId, decision.actionHint);
@@ -157,7 +157,7 @@ export function showTakeoverDialog({ sim, playerId, lang = "zh", context = null 
     };
     const onKey = (event) => {
       const ids = context ? context.options : TAKEOVER_OPTIONS.map((o) => o.id);
-      const index = ["1", "2", "3", "4"].indexOf(event.key);
+      const index = ["1", "2", "3", "4", "5"].indexOf(event.key);
       if (index >= 0 && ids[index]) done(ids[index]);
     };
     shell.el.addEventListener("click", (event) => {
