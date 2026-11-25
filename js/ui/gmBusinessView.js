@@ -13,6 +13,7 @@
  * view never fabricates a game result itself. Every money figure is $M.
  */
 import { html } from "../core/html.js";
+import { teamNameL } from "../i18n.js";
 import { attachToCareerRoot, createExecutiveScenario, advanceScenarioSeason, minorityOpportunity } from "../career/gm/businessScenario.js";
 import { availableBusinessEvents, applyBusinessEvent, businessEventForInbox } from "../career/gm/businessEvents.js";
 import { setTicketPrice, signSponsorship, sponsorshipOffers } from "../career/gm/franchiseBusiness.js";
@@ -74,7 +75,7 @@ export function gmBusinessHtml(state, { lang = "zh", players = [] } = {}) {
   const clues = state.knowledge.clues.map((c) => clueView(c, state.knowledge.ledger));
   return html`
   <section class="gm-business">
-    <p class="gm-stage">${L("当前身份", "Current stage", lang)}：<strong>${stageLabel(stage, lang)}</strong> · ${b.teamName} · ${b.season}–${String(b.season + 1).slice(2)} ${L("赛季", "season", lang)}</p>
+    <p class="gm-stage">${L("当前身份", "Current stage", lang)}：<strong>${stageLabel(stage, lang)}</strong> · ${teamNameL(b.teamName, lang)} · ${b.season}–${String(b.season + 1).slice(2)} ${L("赛季", "season", lang)}</p>
     <div class="gm-panels">
       <div class="gm-panel">
         <h3>${L("球队经营", "Franchise", lang)}</h3>

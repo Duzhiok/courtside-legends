@@ -71,3 +71,17 @@ test("after a settled season the dashboard shows real money and the minority pat
   assert.ok(html.includes("收入明细"), "revenue breakdown appears in deep management");
   assert.ok(html.includes("篮球商业操盘手"), "stage advanced to president after the title run");
 });
+
+test("B131: English dashboard localizes the stored Chinese team name (stored field untouched)", () => {
+  const s = createExecutiveScenario({ players: draftPlayers });
+  assert.equal(s.business.teamName, "灰熊", "stored field stays Chinese");
+  const en = gmBusinessHtml(s, { lang: "en" });
+  assert.ok(en.includes("Grizzlies"), "English render shows Grizzlies");
+  assert.ok(!en.includes("灰熊"), "no raw Chinese team name in English render");
+  assert.ok(en.includes("1996") && en.includes("season"), "season line still renders in English");
+  const zh = gmBusinessHtml(s, { lang: "zh" });
+  assert.ok(zh.includes("灰熊"), "Chinese render keeps the stored name");
+  // a user-named team (relocate/rebrand) passes through unchanged in English
+  const renamed = { ...s, business: { ...s.business, teamName: "我的球队" } };
+  assert.ok(gmBusinessHtml(renamed, { lang: "en" }).includes("我的球队"), "user-named team passes through");
+});
