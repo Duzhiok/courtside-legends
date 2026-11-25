@@ -10,6 +10,9 @@ import { overall } from "../js/data/players.js";
 import { createRebornState, buildPlayerCard } from "../js/reborn/identity.js";
 import { buildSeason, playGame } from "../js/reborn/season.js";
 import { rookieClassForYear } from "../js/engine/leagueDraft.js";
+import { GameSim } from "../js/engine/sim.js";
+import { seasonToCard } from "../js/data/players.js";
+import { seededStream, hashSeed } from "../js/core/seededRandom.js";
 
 const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 const SHOOTING = ["threeFg", "midFg", "paintFg", "ft"];
@@ -84,4 +87,24 @@ test("an old save whose stored prospect is bare plays on a completed card", () =
   for (const key of [...SHOOTING, ...SUBS]) delete reborn.identity.generated[key];
   const card = buildPlayerCard(reborn.identity, ROWS, { season: 1997 });
   for (const key of SHOOTING) assert.ok(Number.isFinite(card[key]), key);
+});
+
+test("GameSim heals a bare generated card saved before B123: he scores, and the saved card is untouched", () => {
+  const pool = ROWS.filter((r) => r.season === 2020).map(seasonToCard);
+  const bare = rookieClassForYear(2030, { seed: "b123", minimumSize: 40 })
+    .filter((p) => p.source === "generated").slice(0, 5)
+    .map((p, i) => ({ ...p.player, id: `rk${i}`, name: `Rookie ${i}` }));
+  assert.ok(bare.every((p) => !Number.isFinite(p.threeFg)), "fixture really is bare");
+  const team = (name, players) => ({ name, players, starterIds: players.slice(0, 5).map((p) => p.id) });
+  let pts = 0;
+  for (let i = 0; i < 6; i += 1) {
+    const sim = new GameSim({
+      home: team("H", [...bare, ...pool.slice(5, 12)]), away: team("A", pool.slice(12, 24)), youSide: "home",
+      speed: 3, rng: seededStream(hashSeed(`b123|${i}`)), onEvent() {}, onTick() {}, onEnd() {},
+    });
+    sim.runFast();
+    pts += sim.home.roster.filter((p) => String(p.id).startsWith("rk")).reduce((n, p) => n + p.stats.pts, 0);
+  }
+  assert.ok(pts > 0, `the bare rookies scored ${pts} points over 6 games`);
+  assert.ok(bare.every((p) => !Number.isFinite(p.threeFg)), "the caller's saved card was not mutated");
 });

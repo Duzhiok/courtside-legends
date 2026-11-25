@@ -7,6 +7,7 @@ import { resolvePnrPlay, pnrKickMult, pnrShotMult, pnrKickChanceBonus, pnrOpenBo
 import { rand as rnd, withRng } from "../core/rng.js";
 import { getLang, skillNameL } from "../i18n.js";
 import { overall } from "../data/players.js";
+import { completeProspectCard } from "../data/prospectCard.js";
 import { lineupFit, personalityOnPlay, teamChemistry } from "./chemistry.js";
 import { buildSamePosMatchups } from "./matchups.js";
 import { classifyClutchRole, deliveryOf } from "./clutchRole.js";
@@ -2874,7 +2875,9 @@ function wrapTeam(team, side) {
     const baseMin = p.targetMinutes ?? undefined;
     const cardName = p.cardName || p.name;
     return {
-      ...structuredClone(p),
+      // A rating-only card (a generated rookie saved before B123) has no shooting percentages and would
+      // miss every shot; completing the per-game copy heals old saves without touching the saved card.
+      ...completeProspectCard(structuredClone(p)),
       cardName,
       name: cardName,
       roleExpectation: role,
