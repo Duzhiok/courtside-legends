@@ -251,7 +251,15 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
 
   function persist() {
     if (!state || typeof writeRootSave !== "function") return;
-    const root = readRootSave() || {};
+    // B136 (B127's sibling): no root save open — e.g. ?draft-gamble=1 in a
+    // fresh browser — means there is nothing to attach gmDraftGamble to.
+    // Writing a bare {} root would throw "invalid root save" in saveRoot
+    // (validateRoot requires schemaVersion) and, on open(), leave the page
+    // stuck on home. The gamble is self-contained, so keep playing in
+    // memory for this session instead; resume-across-refresh only applies
+    // once a career save exists (see the header comment).
+    const root = readRootSave();
+    if (!root) return;
     root.gmDraftGamble = state;
     writeRootSave(root);
   }
@@ -303,7 +311,12 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
         return prospect ? { card: prospect.player } : null;
       })
       .filter(Boolean)
-      .sort((a, b) => gamble.hiddenByBref[b.bref].potential - gamble.hiddenByBref[a.bref].potential)
+      // B136: `passed` items are { card } wrappers — the sort key is the
+      // card's bref, not a bare .bref (which is undefined and made
+      // hiddenByBref[undefined].potential throw whenever 2+ CPU picks
+      // existed, i.e. every real draft: run-review silently died in the
+      // click handler's catch and the review phase was unreachable).
+      .sort((a, b) => gamble.hiddenByBref[b.card.bref].potential - gamble.hiddenByBref[a.card.bref].potential)
       .slice(0, 3);
     state.review = projectThreeYears({
       drafted,
@@ -467,9 +480,14 @@ export function createDraftGambleView({ getLang, readRootSave, writeRootSave, sh
         }
         if (action === "restart") {
           if (!(await confirmAction(L("换个种子重新开始？当前这次选秀的结果会被清除。", "Start over with a new seed? This draft's outcome will be cleared.", lang())))) return;
-          const root = readRootSave() || {};
-          delete root.gmDraftGamble;
-          writeRootSave(root);
+          // B136: with no root save open there is nothing to delete from —
+          // writeRootSave({}) would throw "invalid root save" and the
+          // restart below would never run. Just drop the in-memory run.
+          const root = readRootSave();
+          if (root) {
+            delete root.gmDraftGamble;
+            writeRootSave(root);
+          }
           await open(true);
         }
       } catch (e) {
