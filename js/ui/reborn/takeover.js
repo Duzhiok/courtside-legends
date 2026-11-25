@@ -16,6 +16,7 @@ import { esc } from "../../core/html.js";
 import { identityOf } from "../../career/careerIdentity.js";
 import { requireCapability } from "../../career/careerGuards.js";
 import { mountScreen } from "../screenShell.js";
+import { agencyDialogHtml } from "./agencyView.js";
 
 /** The three takeover options. `pass` declines the moment (no decision). */
 export const TAKEOVER_OPTIONS = Object.freeze([
@@ -74,30 +75,33 @@ export function takeoverDecisionFor(optionId) {
  * silently skipped. `root` is the long-career root save (optional; a
  * missing root reads as the Classic GM + Coach, which holds everything).
  */
-export async function askTakeover({ sim, playerId, onAsk, root } = {}) {
+export async function askTakeover({ sim, playerId, onAsk, root, context = null } = {}) {
   // Reborn has no leagueCareer object, so the guard reads a bare
   // { role } — careerRole accepts that (see careerGuards.js).
   requireCapability({ role: identityOf(root) }, "takeover", root);
   const controller = createClutchController({ sim });
   const opened = controller.openDecision();
   if (!opened.ok) return null;
-  const choice = await onAsk({ sim, playerId, options: TAKEOVER_OPTIONS });
+  const choice = await onAsk({ sim, playerId, options: TAKEOVER_OPTIONS, context });
+  // Player Agency: the coach's call and patience are choices the driver plays through the offense (season.js).
+  if (context && (choice === "follow" || choice === "pass")) return { choiceId: choice };
   const decision = takeoverDecisionFor(choice);
   if (!decision) return null;
   const selected = controller.select(playerId, decision.actionHint);
   if (!selected.ok) return null;
-  return { ...controller.selection, attemptId: controller.attemptId };
+  return { ...controller.selection, attemptId: controller.attemptId, ...(context ? { choiceId: choice } : {}) };
 }
 
 /** The season driver's onTakeover hook. `onAsk` is the view's dialog. `root` is the long-career root save, passed through so the takeover guard (R7) reads the save's identity. */
 export function createTakeoverHook({ onAsk, root } = {}) {
   const ask = onAsk || showTakeoverDialog;
-  return ({ sim, playerId }) => askTakeover({ sim, playerId, onAsk: ask, root });
+  return ({ sim, playerId, context }) => askTakeover({ sim, playerId, onAsk: ask, root, context });
 }
 
 /** Pure HTML for the takeover dialog (no percentages, no win probability). */
-export function takeoverDialogHtml({ sim, playerId, lang = "zh" } = {}) {
+export function takeoverDialogHtml({ sim, playerId, lang = "zh", context = null } = {}) {
   const zh = lang !== "en";
+  if (context) return agencyDialogHtml({ sim, playerId, lang, context });
   const player = sim?.you?.()?.onCourt?.find((p) => p.id === playerId)
     || sim?.you?.()?.roster?.find((p) => p.id === playerId);
   const name = player?.name || "";
@@ -131,7 +135,7 @@ export function takeoverDialogHtml({ sim, playerId, lang = "zh" } = {}) {
  * (or null on dismiss). Keys 1/2/3 choose; a click on the shell itself — the
  * backdrop outside the dialog — dismisses. Requires a DOM.
  */
-export function showTakeoverDialog({ sim, playerId, lang = "zh" } = {}) {
+export function showTakeoverDialog({ sim, playerId, lang = "zh", context = null } = {}) {
   if (typeof document === "undefined") {
     return Promise.resolve(null);
   }
@@ -152,8 +156,9 @@ export function showTakeoverDialog({ sim, playerId, lang = "zh" } = {}) {
       resolve(choice);
     };
     const onKey = (event) => {
-      const index = ["1", "2", "3"].indexOf(event.key);
-      if (index >= 0) done(TAKEOVER_OPTIONS[index].id);
+      const ids = context ? context.options : TAKEOVER_OPTIONS.map((o) => o.id);
+      const index = ["1", "2", "3", "4"].indexOf(event.key);
+      if (index >= 0 && ids[index]) done(ids[index]);
     };
     shell.el.addEventListener("click", (event) => {
       const button = event.target.closest("[data-option]");
@@ -162,7 +167,7 @@ export function showTakeoverDialog({ sim, playerId, lang = "zh" } = {}) {
     });
     document.addEventListener("keydown", onKey, true);
     // Set the body before opening: the shell focuses the first option on activation.
-    shell.body.innerHTML = takeoverDialogHtml({ sim, playerId, lang });
+    shell.body.innerHTML = takeoverDialogHtml({ sim, playerId, lang, context });
     shell.open();
   });
 }

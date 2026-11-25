@@ -25,6 +25,8 @@ import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
+import { AUTONOMY_START, buildDecisionContext, clampAutonomy, gradeTakeover, teamCoach } from "./agency.js";
+import { rosterCode } from "./franchises.js";
 import { applyGameGrowth } from "./training.js";
 import { activeSpecialty, earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
 import { gameEvidenceId } from "./promiseEvidence.js";
@@ -104,10 +106,15 @@ export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW
  * / rejected). Purely the interface call — the choice itself comes from the
  * hook (PR4 builds the options, the player picks).
  */
-export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAULT_TAKEOVER_WINDOW) {
+export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAULT_TAKEOVER_WINDOW, context = null) {
   if (!takeoverEligible(sim, playerId, window)) return null;
   if (typeof onTakeover !== "function") return null;
-  const decision = await onTakeover({ sim, playerId });
+  const decision = await onTakeover({ sim, playerId, context });
+  // Player Agency: following the coach's call or reading the defense is a choice too, played through the normal offense.
+  if (context && decision?.choiceId && !context.options.includes(decision.choiceId)) return null;
+  if (context && decision?.choiceId && !decision.shooterId) {
+    return { choiceId: decision.choiceId, kind: decision.choiceId === "follow" ? "plan" : "pass", accepted: true, context };
+  }
   if (!decision || !decision.shooterId || !decision.actionHint) return null;
   // The hook may carry the attempt id it already issued (the takeover UI's
   // ClutchController); otherwise issue one here. Either way, exactly one
@@ -119,8 +126,35 @@ export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAUL
     shooterId: decision.shooterId,
     actionHint: decision.actionHint,
   });
-  if (!res.accepted) return { ...decision, attemptId, accepted: false, reason: res.reason };
-  return { ...decision, attemptId, accepted: true };
+  const agency = context ? { context, choiceId: decision.choiceId || (decision.actionHint === "three" ? "pullup" : "drive") } : {};
+  if (!res.accepted) return { ...decision, ...agency, attemptId, accepted: false, reason: res.reason };
+  return { ...decision, ...agency, attemptId, accepted: true };
+}
+
+/**
+ * Play the one possession a non-shot agency choice covers. "follow" runs the coach's call (his focus play + the ball
+ * to his man) with the autopilot off for that possession only, so it cannot be overruled mid-call; keeping reading lets the
+ * offense flow ("pass"). Either way GameSim decides what happens; the points of the possession are the evidence.
+ */
+function playChoicePossession(sim, takeover) {
+  const youKey = sim.youSide;
+  const before = sim.score[youKey];
+  const call = takeover.kind === "plan" ? takeover.context.coachInstruction : null;
+  const saved = { auto: sim.autoOffense, focusPlay: sim.focusPlay ? { ...sim.focusPlay } : null, offenseFocusId: sim.offenseFocusId };
+  if (call) {
+    sim.autoOffense = false;
+    sim.setFocusPlay(call.focusId);
+    sim.setOffenseFocus(call.targetId);
+  }
+  sim.step();
+  if (call) {
+    sim.autoOffense = saved.auto;
+    sim.focusPlay = saved.focusPlay;
+    sim.offenseFocusId = saved.offenseFocusId;
+    const you = youKey === "home" ? sim.home : sim.away;
+    if (you.gameplan) you.gameplan.offenseFocusId = saved.offenseFocusId;
+  }
+  return sim.score[youKey] - before;
 }
 
 /**
@@ -131,7 +165,7 @@ export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAUL
  * on its own seeded stream, never the sim's, so the sim's dice are identical
  * with the egg on or off.
  */
-export async function driveGame(sim, playerId, { onTakeover = null, window = DEFAULT_TAKEOVER_WINDOW, egg = null } = {}) {
+export async function driveGame(sim, playerId, { onTakeover = null, window = DEFAULT_TAKEOVER_WINDOW, egg = null, agency = null } = {}) {
   sim._quiet = true;
   sim.running = true;
   sim.paused = false;
@@ -143,7 +177,11 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
   while (sim.running && guard++ < 8000) {
     sim.step();
     if (!takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
-      takeover = await attemptTakeover(sim, playerId, onTakeover, window);
+      const context = agency ? buildDecisionContext(sim, playerId, agency) : null;
+      // Drawing up the play costs the timeout he called (only when the dialog actually happens).
+      if (context?.coachInstruction && onTakeover) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
+      takeover = await attemptTakeover(sim, playerId, onTakeover, window, context);
+      if (takeover?.kind === "plan" || takeover?.kind === "pass") takeover.points = playChoicePossession(sim, takeover);
     }
     if (watcher && !eggIncident) eggIncident = watcher.maybeFire();
   }
@@ -230,7 +268,16 @@ export async function playGame(
         rng: seededStream(hashSeed(`${reborn.seed}|${year}|${season.index}|enforcer-egg`)),
       }
     : null;
-  const { takeover, egg: eggIncident } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx });
+  const gameId = gameEvidenceId(reborn.seed, year, season.index + 1);
+  const autonomyBefore = reborn.player.autonomy ?? AUTONOMY_START;
+  const agencyCtx = {
+    coach: teamCoach(rosterCode(teamId, year), year),
+    iq: Number(playerCard.iq) || 50,
+    decisionId: `${gameId}|takeover`,
+    trust: reborn.player.coachTrust,
+    autonomy: autonomyBefore,
+  };
+  const { takeover, egg: eggIncident } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx, agency: agencyCtx });
 
   const youSide = sim.youSide === "home" ? sim.home : sim.away;
   const stats = youSide.roster.find((p) => p.id === playerCard.id)?.stats || {};
@@ -256,6 +303,7 @@ export async function playGame(
   const takeoverOutcome = takeover?.accepted
     ? sim.clutchLog.find((o) => o.attemptId === takeover.attemptId) || null
     : null;
+  const agency = gradeTakeover(takeover, takeoverOutcome);
   // Training pays trust once a week, on the week's last game — never once
   // per game, or a bench player could train his way to starter without
   // ever playing.
@@ -266,13 +314,13 @@ export async function playGame(
     trainingDone: trainingThisWeek,
     minutes: line.min,
     takeover: takeoverOutcome ? { attempted: takeoverOutcome.attempted, made: takeoverOutcome.made } : null,
+    agency,
   });
   const trustAfter = trustChange.trust;
   const roleAfter = roleForTrust(trustAfter);
   const won = isHome
     ? sim.score.home > sim.score.away
     : sim.score.away > sim.score.home;
-  const gameId = gameEvidenceId(reborn.seed, year, season.index + 1);
   const gameWeek = Math.floor(season.index / REBORN_GAMES_PER_WEEK) + 1;
   // Real opponent box lines (the only evidence a rivalry is built from).
   const oppSide = sim.youSide === "home" ? sim.away : sim.home;
@@ -293,6 +341,8 @@ export async function playGame(
 
   const next = structuredClone(reborn);
   next.player.coachTrust = trustAfter;
+  const autonomyAfter = clampAutonomy(autonomyBefore + (agency?.autonomyDelta || 0));
+  next.player.autonomy = autonomyAfter;
   next.player.rotationRole = roleAfter;
   next.identity = maybeReveal(next.identity, trustAfter);
   // The trust-40 reveal flips here (if it flips at all) — the report
@@ -395,6 +445,7 @@ export async function playGame(
             reason: takeoverOutcome.reason,
           }
         : null,
+      agency: agency ? { ...agency, trustApplied: Math.round(agency.trustDelta), autonomyBefore, autonomyAfter } : null,
       weekBoundary: isWeekBoundary(season.index, REBORN_GAMES_PER_WEEK),
       enforcerEgg: eggIncident || null,
       jersey: { offers: jerseys.created.map((o) => ({ id: o.id, fromBref: o.fromBref, fromName: o.fromName, fromNameEn: o.fromNameEn, reasons: o.reasons, respect: o.respect })) },

@@ -72,20 +72,22 @@ export function nextTier(trust) {
  */
 export function updateTrust(
   trust,
-  { gameScore: gs = 0, role = "bench", trainingDone = false, takeover = null, minutes = null } = {},
+  { gameScore: gs = 0, role = "bench", trainingDone = false, takeover = null, minutes = null, agency = null } = {},
 ) {
   const expected = expectedGameScore(role);
   // `minutes` omitted (null) keeps the old rule; a real game passes the minutes he actually played.
   const unplayed = Number.isFinite(minutes) && minutes < MIN_JUDGED_MINUTES;
   const perfDelta = unplayed ? 0 : Math.max(-5, Math.min(7, Math.round((gs - expected) * 1.2)));
   const trainingDelta = trainingDone ? (role === "dnp" ? 4 : 2) : 0;
-  const takeoverDelta = takeover?.attempted ? (takeover.made ? 4 : -2) : 0;
+  // A graded decision (agency.js: read before the action + what the sim did) replaces the old made/missed rule.
+  const takeoverDelta = agency ? Math.round(agency.trustDelta) : takeover?.attempted ? (takeover.made ? 4 : -2) : 0;
   const delta = perfDelta + trainingDelta + takeoverDelta;
   const parts = [unplayed
     ? { kind: "unplayed", delta: 0, minutes }
     : { kind: "performance", delta: perfDelta, gameScore: gs, expected }];
   if (trainingDone) parts.push({ kind: "training", delta: trainingDelta });
-  if (takeover?.attempted) parts.push({ kind: "takeover", delta: takeoverDelta, made: takeover.made });
+  if (agency) parts.push({ kind: "agency", delta: takeoverDelta, verdict: agency.verdict });
+  else if (takeover?.attempted) parts.push({ kind: "takeover", delta: takeoverDelta, made: takeover.made });
   return { trust: clampTrust(trust + delta), delta, role, parts };
 }
 
@@ -114,6 +116,8 @@ export function describeTrustChange(change, lang = "zh") {
       bits.push(zh ? "没有上场，教练没法评价你，信任不扣" : "Didn't play — nothing for the coach to judge, no trust lost");
     } else if (part.kind === "training") {
       bits.push(zh ? `完成本周训练 +${part.delta}` : `Weekly training done +${part.delta}`);
+    } else if (part.kind === "agency") {
+      bits.push(`${zh ? "关键回合的判断" : "Your read in the clutch"} ${part.delta >= 0 ? "+" : ""}${part.delta}`);
     } else if (part.kind === "takeover") {
       bits.push(
         zh

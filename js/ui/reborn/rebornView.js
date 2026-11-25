@@ -35,6 +35,8 @@ import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from
 import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, specializeClick, unlockClick } from "./fragmentsView.js";
 import { mirrorUnlocksToAccount, runUnlockIds } from "../../collectibles/legacyCosmetics.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
+import { describeAgencyFeedback } from "./agencyView.js";
+import { AUTONOMY_START, autonomyTier } from "../../reborn/agency.js";
 import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
 import { mirrorHonorsToAccount } from "../../reborn/honors.js";
 import { enterPlayoffs, playPlayoffGame, regularGames } from "../../reborn/playoffFlow.js";
@@ -92,6 +94,12 @@ export function ensureRebornScreen({ getLang = () => "zh", onBack, onRelocalize 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 
 /** The identity card: who you are, your trust, your role. */
+function autonomyLine(reborn, lang) {
+  const a = reborn.player.autonomy ?? AUTONOMY_START;
+  const tier = autonomyTier(a);
+  return `<p class="reborn-autonomy" data-testid="autonomy">${L("战术自主权", "Tactical autonomy", lang)} ${a} / 100 · ${lang === "en" ? tier.en : tier.zh}</p>`;
+}
+
 export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
   const name = reborn.identity.revealed ? reborn.identity.name : L("无名试训球员", "Unnamed camp player", lang);
   const trust = reborn.player.coachTrust;
@@ -109,6 +117,7 @@ export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
     + `<p>${L("教练信任", "Coach trust", lang)} ${trust} / 100 · ${roleLabel} · ${contractStatusLabel(status, lang)}</p>`
     + `<div class="reborn-trust-bar" role="progressbar" aria-valuenow="${trust}" aria-valuemin="0" aria-valuemax="100"><span style="width:${trust}%"></span></div>`
     + ladderLine
+    + autonomyLine(reborn, lang)
     + hintLine
     + `</section>`;
 }
@@ -164,6 +173,7 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
     `<p>${parts}</p>`,
     ...[...growth, ...fragmentsReportLines(report, lang)].map((g) => `<p>${g}</p>`),
     ...(takeover ? [`<p>${takeover}</p>`] : []),
+    ...(report.agency ? [`<p class="reborn-agency-feedback" data-testid="agency-feedback">${describeAgencyFeedback(report.agency, lang)}</p>`] : []),
   ];
   return `<section class="reborn-report">${lines.join("")}</section>`;
 }
