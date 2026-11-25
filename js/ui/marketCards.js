@@ -95,7 +95,7 @@ export function marketOwnedCard(p, canSell, sideLabel = "") {
     ${photoImg(p)}
     <div class="market-owned-body">
       <div class="market-owned-head">
-        <strong>${p.name}${v ? ` ${valueBadgeHtml(badge)}` : ""}</strong>
+        <strong>${esc(p.name)}${v ? ` ${valueBadgeHtml(badge)}` : ""}</strong>
         ${posCtrl}
       </div>
       <div class="tiny">${p.season} · 原${p.pos} · OVR ${overall(p)}${inj}${
@@ -152,7 +152,7 @@ export function playerMarketCardHtml(p, c, { duel = false, scoutOn = false, fitO
   return `<div class="market-row ${afford ? "" : "unaffordable"}">
     ${photoImg(p)}
     <div style="flex:1">
-      <strong>${p.name}${badge ? ` ${badge}` : ""}${fitBadge}</strong>
+      <strong>${esc(p.name)}${badge ? ` ${badge}` : ""}${fitBadge}</strong>
       <div class="tiny">${p.season} ${p.pos} · OVR ${overall(p)} · <strong>¤${price}</strong>${
         afford ? "" : " · 超出预算"
       }${physiqueLabel(p) ? ` · ${physiqueLabel(p)}` : ""}</div>

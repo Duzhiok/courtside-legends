@@ -5303,8 +5303,8 @@ function renderResultAllTeam(team, title = "总决赛最佳阵容", mvp = null) 
   box.hidden = false;
   const mvpLine = mvp
     ? `<p class="tiny">${L(
-        `总决赛 MVP：${mvp.name}${mvp.teamName ? `（${mvp.teamName}）` : ""} · ${mvp.ppg}分 ${mvp.rpg}板 ${mvp.apg}助 · ${mvp.gp}场`,
-        `Finals MVP: ${mvp.name}${mvp.teamName ? ` (${mvp.teamName})` : ""} · ${mvp.ppg} PTS ${mvp.rpg} REB ${mvp.apg} AST · ${mvp.gp} G`,
+        `总决赛 MVP：${esc(mvp.name)}${mvp.teamName ? `（${esc(mvp.teamName)}）` : ""} · ${mvp.ppg}分 ${mvp.rpg}板 ${mvp.apg}助 · ${mvp.gp}场`,
+        `Finals MVP: ${esc(mvp.name)}${mvp.teamName ? ` (${esc(mvp.teamName)})` : ""} · ${mvp.ppg} PTS ${mvp.rpg} REB ${mvp.apg} AST · ${mvp.gp} G`,
       )}</p>`
     : "";
   box.innerHTML = `
@@ -5321,8 +5321,8 @@ function renderResultAllTeam(team, title = "总决赛最佳阵容", mvp = null) 
           return `<div class="all-team-slot">
             <span class="all-team-pos">${p.slot || p.pos}</span>
             ${photoImg(p, "headshot")}
-            <strong>${p.name}</strong>
-            <em class="tiny">${p.teamName || ""}</em>
+            <strong>${esc(p.name)}</strong>
+            <em class="tiny">${esc(p.teamName || "")}</em>
             <span class="tiny">${avg}</span>
           </div>`;
         })
@@ -6123,7 +6123,7 @@ function renderBidCard(c) {
     $("#bid-card").innerHTML = "<p class='tiny'>暂无可竞价球员</p>";
     return;
   }
-  $("#bid-card").innerHTML = `${photoImg(p, "headshot lg")} <strong>${p.name}</strong> · 估价 ¤${playerPrice(p)}`;
+  $("#bid-card").innerHTML = `${photoImg(p, "headshot lg")} <strong>${esc(p.name)}</strong> · 估价 ¤${playerPrice(p)}`;
   $("#bid-a").value = Math.min(c.goldA, playerPrice(p));
   $("#bid-b").value = Math.min(c.goldB, Math.round(playerPrice(p) * 0.9));
 }
@@ -6368,7 +6368,7 @@ function openSetup(home, away, youSide) {
     else {
       const oppTeam = youSide === "home" ? away : home;
       scout.innerHTML = `<div class="scout-match yours">
-        <div>本场对手：${oppTeam.name}</div>
+        <div>本场对手：${esc(oppTeam.name)}</div>
         <div class="scout-lineup"><strong>预计首发</strong>：${formatStarterLine(teamStarters(oppTeam))}</div>
       </div>`;
       const rl = $("#scout-round-label");
@@ -9180,7 +9180,7 @@ function previewSeasonRoster(team) {
     .slice(0, 12)
     .map(
       (p) =>
-        `<div class="chip">${p.pos || ""} ${p.name}<div class="tiny">OVR ${overall(p)} · ${p.season}</div></div>`
+        `<div class="chip">${p.pos || ""} ${esc(p.name)}<div class="tiny">OVR ${overall(p)} · ${p.season}</div></div>`
     )
     .join("");
   hint.textContent = `已选 ${team.players.length} 人 · 教练 ${team.coach?.name || "—"}`;
@@ -9618,7 +9618,7 @@ function renderSeasonMarket() {
     const cpuPicksPool = teamDraftAssets(st, tid);
     const myPlayerRows = [...(you.players || [])]
       .sort((a, b) => overall(b) - overall(a))
-      .map((p) => tradeCheckboxRow("sm-give-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
+      .map((p) => tradeCheckboxRow("sm-give-player", p.id, `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
       .join("");
     // Picks sit after the players inside a scrolling list, so they get their own heading (and the
     // column title says they are there) -- otherwise they read as just more players, below the fold.
@@ -9629,7 +9629,7 @@ function renderSeasonMarket() {
     );
     const cpuPlayerRows = [...(cpu?.players || [])]
       .sort((a, b) => overall(b) - overall(a))
-      .map((p) => tradeCheckboxRow("sm-want-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
+      .map((p) => tradeCheckboxRow("sm-want-player", p.id, `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
       .join("");
     const cpuPickRows = pickBlock(
       cpuPicksPool.map((pk) => tradeCheckboxRow("sm-want-pick", pk.id, pickLabel(pk, tid))).join(""),
@@ -9642,7 +9642,7 @@ function renderSeasonMarket() {
     const team3Rows = cpu3
       ? [...(cpu3.players || [])]
           .sort((a, b) => overall(b) - overall(a))
-          .map((p) => tradeCheckboxRow("sm-want3-player", p.id, `${p.name} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
+          .map((p) => tradeCheckboxRow("sm-want3-player", p.id, `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
           .join("")
       : "";
     const countNote = (players, picks) =>

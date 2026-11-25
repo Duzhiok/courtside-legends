@@ -32,22 +32,22 @@ export function playoffsHtml(st, { managed = false, hasDraft = false } = {}) {
           .join("")}</div>`
       : "";
   const seriesHtml = (s) =>
-    `<div class="season-series-row"><span>${s.high?.name || s.high?.id} vs ${
+    `<div class="season-series-row"><span>${esc(s.high?.name || s.high?.id)} vs ${esc(
       s.low?.name || s.low?.id
-    }</span><strong>${s.winsHigh}-${s.winsLow}${s.done ? ` · ${s.winnerName || s.winnerId}` : ""}</strong></div>${gameLogHtml(s)}`;
+    )}</span><strong>${s.winsHigh}-${s.winsLow}${s.done ? ` · ${esc(s.winnerName || s.winnerId)}` : ""}</strong></div>${gameLogHtml(s)}`;
   const finalsCardHtml = (f) => {
     const next = f.done ? null : nextSeriesHomeAway(f);
     return `<div class="season-award-card finals-card"><h4>${L("总决赛", "Finals")} · ${L("七场四胜", "best of 7")}</h4>
       <div class="finals-board"><span>${esc(f.high?.name || f.high?.id)}</span><strong>${f.winsHigh} – ${f.winsLow}</strong><span>${esc(f.low?.name || f.low?.id)}</span></div>
       ${gameLogHtml(f)}
       ${next ? `<p class="tiny">${L(`下一场：第 ${f.winsHigh + f.winsLow + 1} 场 · 主场 ${esc(teamName(next.homeId))}`, `Next: Game ${f.winsHigh + f.winsLow + 1} · home ${esc(teamName(next.homeId))}`)}</p>` : ""}
-      ${po.championId ? `<p><strong>${L(`总冠军 ${st.teams[po.championId]?.name}`, `Champions ${st.teams[po.championId]?.name}`)}</strong></p>` : ""}</div>`;
+      ${po.championId ? `<p><strong>${L(`总冠军 ${esc(st.teams[po.championId]?.name)}`, `Champions ${esc(st.teams[po.championId]?.name)}`)}</strong></p>` : ""}</div>`;
   };
   const confBlock = (key, title) => {
     const b = po[key];
     return `<div class="season-award-card"><h4>${title} · R${b.round}</h4>${(b.series || [])
       .map(seriesHtml)
-      .join("")}${b.finalist ? `<p class="tiny">${L(`分区冠军：${st.teams[b.finalist]?.name}`, `Conference champions: ${st.teams[b.finalist]?.name}`)}</p>` : ""}</div>`;
+      .join("")}${b.finalist ? `<p class="tiny">${L(`分区冠军：${esc(st.teams[b.finalist]?.name)}`, `Conference champions: ${esc(st.teams[b.finalist]?.name)}`)}</p>` : ""}</div>`;
   };
   const finalsTeamHtml = (st.finalsAllTeam || []).length
     ? `<div class="season-award-card"><h4>${L("总决赛最佳阵容 · PG → C", "Finals All-Team · PG → C")}</h4>
@@ -56,8 +56,8 @@ export function playoffsHtml(st, { managed = false, hasDraft = false } = {}) {
             .map(
               (p) => `<div class="all-team-slot">
                 <span class="all-team-pos">${p.slot || p.pos}</span>
-                <strong>${p.name}</strong>
-                <em class="tiny">${p.teamName || ""}</em>
+                <strong>${esc(p.name)}</strong>
+                <em class="tiny">${esc(p.teamName || "")}</em>
                 <span class="tiny">${p.gp ? L(`${p.ppg}分 ${p.rpg}板 ${p.apg}助`, `${p.ppg} pts ${p.rpg} reb ${p.apg} ast`) : `OVR ${p.ovr}`}</span>
               </div>`
             )
@@ -66,7 +66,7 @@ export function playoffsHtml(st, { managed = false, hasDraft = false } = {}) {
     : "";
   const finalsMvpHtml = st.finalsMvp
     ? `<div class="season-award-card"><h4>${L("总决赛 MVP", "Finals MVP")}</h4>
-        <p><strong>${st.finalsMvp.name}</strong>${st.finalsMvp.teamName ? ` · ${st.finalsMvp.teamName}` : ""} · ${st.finalsMvp.gp ? L(`${st.finalsMvp.ppg}分 ${st.finalsMvp.rpg}板 ${st.finalsMvp.apg}助（${st.finalsMvp.gp}场）`, `${st.finalsMvp.ppg} pts ${st.finalsMvp.rpg} reb ${st.finalsMvp.apg} ast (${st.finalsMvp.gp} G)`) : `OVR ${st.finalsMvp.ovr}`}</p></div>`
+        <p><strong>${esc(st.finalsMvp.name)}</strong>${st.finalsMvp.teamName ? ` · ${esc(st.finalsMvp.teamName)}` : ""} · ${st.finalsMvp.gp ? L(`${st.finalsMvp.ppg}分 ${st.finalsMvp.rpg}板 ${st.finalsMvp.apg}助（${st.finalsMvp.gp}场）`, `${st.finalsMvp.ppg} pts ${st.finalsMvp.rpg} reb ${st.finalsMvp.apg} ast (${st.finalsMvp.gp} G)`) : `OVR ${st.finalsMvp.ovr}`}</p></div>`
     : "";
   const userRecord = st.standings?.[st.userTeamId];
   const playoffStats = Object.values(st.playerSeason || {})
@@ -127,7 +127,7 @@ export function playoffsHtml(st, { managed = false, hasDraft = false } = {}) {
                       r.renewal ? ` (${r.renewal})` : ""
                     }`)
                   : "";
-              return `${r.name}：${r.fromSeason}→${r.toSeason} · OVR ${r.before}${
+              return `${esc(r.name)}：${r.fromSeason}→${r.toSeason} · OVR ${r.before}${
                 r.delta >= 0 ? "+" : ""
               }${r.delta}→${r.after}${sal}`;
             })
