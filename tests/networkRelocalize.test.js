@@ -110,7 +110,8 @@ function makeEl(tag = "div") {
   };
   Object.defineProperty(el, "innerHTML", {
     get: () => el._html,
-    set: (v) => {
+    set: (value) => {
+      const v = String(value); // a real innerHTML setter stringifies (html`` results are objects)
       el._html = v;
       if (v.includes("panel-head") && v.includes("screen-shell-body")) {
         el.children = parseShellHtml(v);
@@ -293,7 +294,7 @@ test("network: a film answer survives a language switch, same challenge, English
   const challengeBefore = body.innerHTML;
   setLang("en");
   el.__shellRelocalize();
-  assert.ok(body.innerHTML.includes("Find the opponent's biggest weakness"), "film re-renders in en after relocalize");
+  assert.ok(body.innerHTML.includes("Find the opponent&#39;s biggest weakness"), "film re-renders in en after relocalize (the apostrophe is escaped like all text)");
   assert.ok(body.innerHTML.includes(label), "same challenge after the switch");
   assert.ok(body.innerHTML.includes("Reputation"), "film result re-renders in en");
   assert.ok(!body.innerHTML.includes("声望变化"), "no zh result left");

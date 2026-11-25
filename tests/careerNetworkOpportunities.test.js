@@ -140,3 +140,25 @@ test("G network views: pure render helpers emit the interactive hooks the view b
   assert.ok(board.includes("球探"));
   assert.ok(board.includes("data-network-accept"));
 });
+
+test("G network views: a hostile name/team/note never becomes markup (html`` escapes by default)", () => {
+  const EVIL = `<img src=x onerror="alert(1)">`;
+  const hostile = (out, where) => {
+    assert.ok(!out.includes("<img"), `${where}: raw <img> leaked into the markup`);
+    assert.ok(out.includes("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"), `${where}: the name should show as escaped text`);
+  };
+  const pool = prospectPool(ROWS, 1997);
+  const report = { ...scoutReportFor(pool[0], ROWS, { seed: 8 }), name: EVIL, team: EVIL };
+  hostile(scoutProspectHtml({ report, lang: "zh" }), "scout card");
+  const analytics = analyticsChallengeHtml({
+    challenge: { options: [{ id: "o", name: EVIL, pos: "PG", team: EVIL, ovr: 1, price: 1, stats: { ppg: 1, fg: 0.4, mpg: 1 } }] },
+    lang: "zh",
+  });
+  hostile(analytics, "analytics option");
+  const board = networkBoardHtml({
+    profile: emptyNetworkProfile({ role: "scout", team: EVIL }),
+    offers: [{ id: "x", team: EVIL, titleZh: EVIL, level: 1, eligible: true }],
+    unemployedNote: EVIL, lang: "zh",
+  });
+  hostile(board, "career board");
+});

@@ -96,7 +96,8 @@ function makeEl(tag = "div") {
   };
   Object.defineProperty(el, "innerHTML", {
     get: () => el._html,
-    set: (v) => {
+    set: (value) => {
+      const v = String(value); // a real innerHTML setter stringifies (html`` results are objects)
       el._html = v;
       // The shell's head markup is materialised so mountScreen's
       // querySelector calls find real elements; anything else is just text.

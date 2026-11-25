@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { esc } from "../js/core/html.js";
+import { esc, html, raw } from "../js/core/html.js";
 import { esc as ttEsc } from "../js/ui/timeTravel/format.js";
 import { esc as kitEsc } from "../js/ui/myTeamViewKit.js";
 
@@ -51,4 +51,22 @@ test("no client module defines its own HTML escaper (import js/core/html.js)", (
     .filter((file) => !ALLOWED.has(file))
     .filter((file) => LOCAL_ESCAPER.test(readFileSync(join(root, file), "utf8")));
   assert.deepEqual(offenders, []);
+});
+
+test("html`` escapes every interpolation but trusts the literal parts", () => {
+  const name = `<img src=x onerror="alert(1)"> & 'o'`;
+  const bad = "&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &#39;o&#39;";
+  assert.equal(String(html`<b title="${name}">${name}</b>`), `<b title="${bad}">${bad}</b>`);
+});
+
+test("html`` inserts nested html``/raw() as markup, joins arrays, and drops null/undefined/false", () => {
+  const rows = ["<a>", "b"].map((n) => html`<li>${n}</li>`);
+  assert.equal(String(html`<ul>${rows}</ul>`), "<ul><li>&lt;a&gt;</li><li>b</li></ul>");
+  assert.equal(String(html`${raw("<hr>")}|${null}|${undefined}|${false}|${0}`), "<hr>||||0");
+  assert.equal(String(html`${["x", false, "<y>"]}`), "x&lt;y&gt;", "an array drops false members and still escapes strings");
+  assert.equal(String(html`${html`<i>${"<"}</i>`}`), "<i>&lt;</i>", "nested html`` is not escaped a second time");
+});
+
+test("a plain string interpolated into html`` is escaped even if it looks like markup (no accidental raw)", () => {
+  assert.equal(String(html`<p>${"<b>hi</b>"}</p>`), "<p>&lt;b&gt;hi&lt;/b&gt;</p>");
 });

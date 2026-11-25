@@ -51,9 +51,25 @@ export default [
     ignores: ["node_modules/**", "js/data/roster.json", "docs/superpowers/**"],
   },
   {
-    files: ["js/**/*.js"],
+files: ["js/**/*.js"],
     languageOptions: browserSource,
     rules,
+  },
+  {
+    // Escape-by-default views. A plain `...<tag>${value}...` template here would let a hostile name (they
+    // arrive in saves) become markup -- the B93/B111/B118-B121 bug class -- so markup must go through
+    // html`` (js/core/html.js). When you migrate another view to html``, add it to this list.
+    files: ["js/ui/networkViews.js"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "TemplateLiteral[expressions.length>0]:not(TaggedTemplateExpression > TemplateLiteral.quasi):has(TemplateElement[value.raw=/<[a-zA-Z]/])",
+          message: "Build markup with html`` (js/core/html.js) so every ${value} is escaped by default.",
+        },
+      ],
+    },
   },
   {
     // The online server and its tests run on Node only. It was never listed here, so it was

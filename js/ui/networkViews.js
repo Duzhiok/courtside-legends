@@ -34,6 +34,7 @@ import {
   missingLabel,
 } from "../career/network/careerOpportunities.js";
 import { mountScreen } from "./screenShell.js";
+import { html, raw } from "../core/html.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 const STORE_PREFIX = "cl-network-v1";
@@ -87,69 +88,86 @@ function writeStore(kind, accountId, value) {
 /* Pure render helpers (node-testable)                                 */
 /* ------------------------------------------------------------------ */
 
+// Every builder below goes through html``: all data is escaped by default. The exported builders return a
+// plain string (their callers and tests concatenate and search it); nested fragments stay html``.
+const pick = (lang, zh, en) => (lang === "en" ? en : zh);
+
 export function scoutProspectHtml({ report, lang = "zh" } = {}) {
   const [lo, hi] = report.potentialRange || ["?", "?"];
-  return `<div class="nw-card" data-bref="${report.bref}">
+  const fg = report.observed.fg ? `${Math.round(report.observed.fg * 100)}% FG` : "";
+  return html`<div class="nw-card" data-bref="${report.bref}">
     <div class="nw-name">${report.name} · ${report.pos} · ${report.team}</div>
     <div class="nw-line">${L("当前实力", "Current", lang)}: ${report.currentGrade} &nbsp; ${L("潜力预测", "Potential", lang)}: ${lo}–${hi} &nbsp; ${L("情报可信度", "Confidence", lang)}: ${report.confidence}%</div>
-    <div class="nw-line">${L("已观察", "Observed", lang)}: ${report.sampleSize.gp}${L("场", " gp", lang)} · ${report.sampleSize.mpg}${L("分钟", " mpg", lang)} · ${report.observed.ppg}${L("分", " pts", lang)} · ${report.observed.fg ? `${Math.round(report.observed.fg * 100)}% FG` : ""}</div>
+    <div class="nw-line">${L("已观察", "Observed", lang)}: ${report.sampleSize.gp}${L("场", " gp", lang)} · ${report.sampleSize.mpg}${L("分钟", " mpg", lang)} · ${report.observed.ppg}${L("分", " pts", lang)} · ${fg}</div>
     <div class="nw-actions"><button type="button" class="btn small primary" data-scout-rec="1" data-bref="${report.bref}">${L("推荐选秀", "Recommend", lang)}</button>
     <button type="button" class="btn small" data-scout-rec="0" data-bref="${report.bref}">${L("放弃", "Pass", lang)}</button></div>
-  </div>`;
+  </div>`.toString();
 }
 
 export function scoutRevealHtml({ graded, total, lang = "zh" } = {}) {
   const rows = (graded || []).map((g) => {
     const tier = DEVELOPMENT_TIER_LABEL[g.report.tier] || {};
     const verdict = SCOUT_VERDICT_LABEL[g.verdict] || {};
-    return `<div class="nw-line">${g.report.name} — ${L("实际发展", "Actually became", lang)}: ${tier[lang === "en" ? "en" : "zh"] || g.report.tier} · ${L("三年后最高", "Peak in 3 yrs", lang)}: ${g.report.peakPpg ?? "—"}${L("分", " pts", lang)} · ${L("判定", "Verdict", lang)}: ${verdict[lang === "en" ? "en" : "zh"] || g.verdict} (${g.points > 0 ? "+" : ""}${g.points})</div>`;
-  }).join("");
-  return `<div class="nw-reveal"><h3>${L("三年后：你的判断得到了验证", "Three years later: your calls, verified", lang)}</h3>${rows}
+    const sign = g.points > 0 ? "+" : "";
+    return html`<div class="nw-line">${g.report.name} — ${L("实际发展", "Actually became", lang)}: ${tier[lang === "en" ? "en" : "zh"] || g.report.tier} · ${L("三年后最高", "Peak in 3 yrs", lang)}: ${g.report.peakPpg ?? "—"}${L("分", " pts", lang)} · ${L("判定", "Verdict", lang)}: ${verdict[lang === "en" ? "en" : "zh"] || g.verdict} (${sign}${g.points})</div>`;
+  });
+  return html`<div class="nw-reveal"><h3>${L("三年后：你的判断得到了验证", "Three years later: your calls, verified", lang)}</h3>${rows}
   <div class="nw-total">${L("本届球探评分", "Scout class score", lang)}: ${total.total} (${L("命中", "hits", lang)} ${total.hits} · ${L("错失", "misses", lang)} ${total.misses})</div>
-  <p class="tiny">${L("这是原始时间线的真实发展——在你自己的时间线里，结局可能不同。", "This is the original timeline's real development — in your own timeline it could differ.", lang)}</p></div>`;
+  <p class="tiny">${L("这是原始时间线的真实发展——在你自己的时间线里，结局可能不同。", "This is the original timeline's real development — in your own timeline it could differ.", lang)}</p></div>`.toString();
 }
 
 function filmStripHtml({ strip, lang = "zh" } = {}) {
   const rows = (strip || []).map((p) => {
     const pts = (p.points?.home || 0) + (p.points?.away || 0);
     const shots = (p.shots || []).map((s) => `${s.made ? "✓" : "✗"}${s.pts}`).join(" ");
-    return `<div class="nw-line">Q${p.quarter} ${p.clock ?? ""} · ${p.side === "home" ? L("主队", "Home", lang) : L("客队", "Away", lang)} · +${pts}${L("分", " pts", lang)} ${shots}</div>`;
-  }).join("");
-  return `<div class="nw-strip">${rows || `<div class="nw-line">${L("暂无回合记录", "No possessions recorded", lang)}</div>`}</div>`;
+    return html`<div class="nw-line">Q${p.quarter} ${p.clock ?? ""} · ${p.side === "home" ? L("主队", "Home", lang) : L("客队", "Away", lang)} · +${pts}${L("分", " pts", lang)} ${shots}</div>`;
+  });
+  const empty = html`<div class="nw-line">${L("暂无回合记录", "No possessions recorded", lang)}</div>`;
+  return html`<div class="nw-strip">${rows.length ? rows : empty}</div>`;
 }
 
 export function filmChallengeHtml({ challenge, lang = "zh" } = {}) {
-  const opts = (challenge?.options || []).map((o) => `<button type="button" class="btn nw-opt" data-film-opt="${o.id}">
-    <b>${lang === "en" ? (o.titleEn || o.titleZh) : o.titleZh}</b><span>${lang === "en" ? (o.summaryEn || o.summaryZh) : o.summaryZh}</span></button>`).join("");
-  return `<div class="nw-challenge"><h3>${L("找出对手最大的弱点", "Find the opponent's biggest weakness", lang)}</h3>
+  const opts = (challenge?.options || []).map((o) => html`<button type="button" class="btn nw-opt" data-film-opt="${o.id}">
+    <b>${pick(lang, o.titleZh, o.titleEn || o.titleZh)}</b><span>${pick(lang, o.summaryZh, o.summaryEn || o.summaryZh)}</span></button>`);
+  return html`<div class="nw-challenge"><h3>${L("找出对手最大的弱点", "Find the opponent's biggest weakness", lang)}</h3>
   <p class="tiny">${challenge.gameLabel} · ${L("最终比分", "Final", lang)} ${challenge.finalScore?.home ?? "?"}–${challenge.finalScore?.away ?? "?"}</p>
   ${filmStripHtml({ strip: challenge.strip, lang })}
-  <div class="nw-opts">${opts}</div></div>`;
+  <div class="nw-opts">${opts}</div></div>`.toString();
 }
 
 export function analyticsChallengeHtml({ challenge, lang = "zh" } = {}) {
-  const opts = (challenge?.options || []).map((o) => `<button type="button" class="btn nw-opt" data-analytics-opt="${o.id}">
+  const opts = (challenge?.options || []).map((o) => html`<button type="button" class="btn nw-opt" data-analytics-opt="${o.id}">
     <b>${o.name} · ${o.pos} · ${o.team}</b>
-    <span>OVR ${o.ovr} · ¤${o.price} · ${o.stats.ppg}${L("分", " pts", lang)} · ${(o.stats.fg * 100).toFixed(0)}% FG · ${o.stats.mpg}${L("分钟", " min", lang)}</span></button>`).join("");
-  return `<div class="nw-challenge"><h3>${L("谁是被低估的球员？", "Who is the most undervalued player?", lang)}</h3>
+    <span>OVR ${o.ovr} · ¤${o.price} · ${o.stats.ppg}${L("分", " pts", lang)} · ${(o.stats.fg * 100).toFixed(0)}% FG · ${o.stats.mpg}${L("分钟", " min", lang)}</span></button>`);
+  return html`<div class="nw-challenge"><h3>${L("谁是被低估的球员？", "Who is the most undervalued player?", lang)}</h3>
   <p class="tiny">${L("只看数字：每单位身价的产出最高者获胜。", "Read the numbers: the most production per unit of price wins.", lang)}</p>
-  <div class="nw-opts">${opts}</div></div>`;
+  <div class="nw-opts">${opts}</div></div>`.toString();
+}
+
+function offerRowHtml(o, lang) {
+  const action = o.eligible
+    ? html`<button type="button" class="btn small primary" data-network-accept="${o.id}">${L("接受", "Accept", lang)}</button>`
+    : html`<span class="tiny">${L("未达标", "Not eligible", lang)}: ${(o.missing || []).map((m) => missingLabel(m, lang)).join(lang === "en" ? ", " : "、")}</span>`;
+  return html`<div class="nw-line">${o.team ? `${o.team} · ` : ""}${pick(lang, o.titleZh, o.titleEn || o.titleZh)} (${o.level})
+    ${action}</div>`;
 }
 
 export function networkBoardHtml({ profile, offers, unemployedNote, lang = "zh" } = {}) {
   const standing = reputationStanding(profile.reputation);
   const role = NETWORK_ROLES[profile.currentRole];
-  const rows = (offers || []).map((o) => `<div class="nw-line">${o.team ? `${o.team} · ` : ""}${lang === "en" ? (o.titleEn || o.titleZh) : o.titleZh} (${o.level})
-    ${o.eligible
-      ? `<button type="button" class="btn small primary" data-network-accept="${o.id}">${L("接受", "Accept", lang)}</button>`
-      : `<span class="tiny">${L("未达标", "Not eligible", lang)}: ${(o.missing || []).map((m) => missingLabel(m, lang)).join(lang === "en" ? ", " : "、")}</span>`}</div>`).join("");
-  return `<div class="nw-profile"><h3>${L("我的职业", "My career", lang)}</h3>
-  <div class="nw-line">${L("当前职位", "Current role", lang)}: ${role ? (lang === "en" ? (role.labelEn || role.labelZh) : role.labelZh) : profile.currentRole}${profile.team ? ` · ${profile.team}` : ""}</div>
-  <div class="nw-line">${L("声望", "Reputation", lang)}: ${profile.reputation}${lang === "en" ? ` (${standing.labelEn || standing.labelZh})` : `（${standing.labelZh}）`}· ${L("经验", "Experience", lang)}: ${profile.experienceSeasons}${L("季", " seasons", lang)}</div>
-  <div class="nw-line">${L("判断记录", "Judgment record", lang)}: ${L("录像", "Film", lang)} ${profile.decisions?.filmCorrect || 0}/${profile.decisions?.filmTotal || 0} · ${L("球探", "Scout", lang)} ${profile.decisions?.scoutHits || 0}/${profile.decisions?.scoutTotal || 0} · ${L("分析验证", "Analytics verified", lang)} ${profile.decisions?.analyticsVerified || 0}</div>
-  ${profile.unemployed ? `<div class="nw-line">${L("状态：失业中", "Status: unemployed", lang)}</div>` : ""}
-  ${unemployedNote ? `<p class="tiny">${typeof unemployedNote === "string" ? unemployedNote : (lang === "en" ? (unemployedNote.en || unemployedNote.zh || "") : (unemployedNote.zh || unemployedNote.en || ""))}</p>` : ""}</div>
-  <div class="nw-board"><h3>${L("职业机会", "Career opportunities", lang)}</h3>${rows || `<p class="tiny">${L("暂无职位空缺", "No openings right now", lang)}</p>`}</div>`;
+  const rows = (offers || []).map((o) => offerRowHtml(o, lang));
+  const roleLabel = role ? pick(lang, role.labelZh, role.labelEn || role.labelZh) : profile.currentRole;
+  const standingLabel = lang === "en" ? ` (${standing.labelEn || standing.labelZh})` : `（${standing.labelZh}）`;
+  const note = typeof unemployedNote === "string" ? unemployedNote
+    : unemployedNote && (lang === "en" ? (unemployedNote.en || unemployedNote.zh || "") : (unemployedNote.zh || unemployedNote.en || ""));
+  const d = profile.decisions;
+  return html`<div class="nw-profile"><h3>${L("我的职业", "My career", lang)}</h3>
+  <div class="nw-line">${L("当前职位", "Current role", lang)}: ${roleLabel}${profile.team ? ` · ${profile.team}` : ""}</div>
+  <div class="nw-line">${L("声望", "Reputation", lang)}: ${profile.reputation}${standingLabel}· ${L("经验", "Experience", lang)}: ${profile.experienceSeasons}${L("季", " seasons", lang)}</div>
+  <div class="nw-line">${L("判断记录", "Judgment record", lang)}: ${L("录像", "Film", lang)} ${d?.filmCorrect || 0}/${d?.filmTotal || 0} · ${L("球探", "Scout", lang)} ${d?.scoutHits || 0}/${d?.scoutTotal || 0} · ${L("分析验证", "Analytics verified", lang)} ${d?.analyticsVerified || 0}</div>
+  ${profile.unemployed && html`<div class="nw-line">${L("状态：失业中", "Status: unemployed", lang)}</div>`}
+  ${note && html`<p class="tiny">${note}</p>`}</div>
+  <div class="nw-board"><h3>${L("职业机会", "Career opportunities", lang)}</h3>${rows.length ? rows : html`<p class="tiny">${L("暂无职位空缺", "No openings right now", lang)}</p>`}</div>`.toString();
 }
 
 /** Demo job board for the slice. Real season-state openings are an A/E integration follow-up. */
@@ -218,7 +236,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   }
 
   function homeHtml() {
-    return `<div class="nw-home">
+    return html`<div class="nw-home">
       <p>${L("从篮球行业的底层开始，让你自己决定最终成为谁。", "Start at the bottom of the basketball industry — and decide for yourself who you become.", lang())}</p>
       <div class="nw-opts">
         <button type="button" class="btn primary" data-nw-open="scout">${L("球探：发现下一个传奇", "Scout: discover the next legend", lang())}</button>
@@ -245,11 +263,11 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     const s = scoutState;
     if (!s || !body) return;
     const decided = s.decisions.size >= s.reports.length;
-    body.innerHTML = `<h3>${L("球探考察", "Scout evaluation", lang())} · ${s.season - 1}–${String(s.season).slice(2)}${L("选秀", " draft", lang())}</h3>
+    body.innerHTML = html`<h3>${L("球探考察", "Scout evaluation", lang())} · ${s.season - 1}–${String(s.season).slice(2)}${L("选秀", " draft", lang())}</h3>
       <p class="tiny">${L("考察 5 名新人：根据球探报告决定推荐或放弃。三年后看真实发展。", "Evaluate 5 prospects: recommend or pass from the scout report. See the real development three years later.", lang())}</p>
-      ${s.reports.map((r) => scoutProspectHtml({ report: r, lang: lang() })).join("")}
+      ${s.reports.map((r) => raw(scoutProspectHtml({ report: r, lang: lang() })))}
       <button type="button" class="btn primary" id="btn-scout-reveal" ${decided ? "" : "disabled"}>${L("三年后揭晓", "Reveal in three years", lang())}</button>
-      <div id="scout-result">${s.revealed ? scoutRevealHtml({ graded: s.revealed.graded, total: s.revealed.total, lang: lang() }) : ""}</div>`;
+      <div id="scout-result">${s.revealed && raw(scoutRevealHtml({ graded: s.revealed.graded, total: s.revealed.total, lang: lang() }))}</div>`;
     body.querySelectorAll("[data-scout-rec]").forEach((btn) => {
       btn.disabled = s.decisions.has(btn.dataset.bref);
       btn.addEventListener("click", () => {
@@ -282,13 +300,13 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   async function openFilm({ seed = 11 } = {}) {
     currentView = "film";
     const rows = await getRows();
-    body.innerHTML = `<p>${L("正在模拟一场比赛，生成真实回合记录…", "Simulating a game to build a real possession log…", lang())}</p>`;
+    body.innerHTML = html`<p>${L("正在模拟一场比赛，生成真实回合记录…", "Simulating a game to build a real possession log…", lang())}</p>`;
     const home = buildTeamFromRows(rows, "CHI", 1997);
     const away = buildTeamFromRows(rows, "UTA", 1997);
     const log = collectPossessionLog({ home, away, seed });
     const challenge = buildFilmChallenge(log, { seed, focusSide: "away" });
     if (!challenge) {
-      body.innerHTML = `<p>${L("这场比赛没有产生足够的录像发现，换个种子再试一次。", "This game produced too few film findings — try another seed.", lang())}</p>`;
+      body.innerHTML = html`<p>${L("这场比赛没有产生足够的录像发现，换个种子再试一次。", "This game produced too few film findings — try another seed.", lang())}</p>`;
       filmState = null;
       return;
     }
@@ -302,7 +320,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     const filmExplanation = filmLang === "en" ? (grade.explanationEn || grade.explanationZh) : grade.explanationZh;
     const filmSuggestion = filmLang === "en" ? (rec.suggestionEn || rec.suggestionZh) : rec.suggestionZh;
     const filmParens = filmLang === "en" ? ["(", ")"] : ["（", "）"];
-    return `<div class="nw-reveal"><p>${filmExplanation}</p>
+    return html`<div class="nw-reveal"><p>${filmExplanation}</p>
       <p class="tiny">${L("已提交给主教练的建议", "Recommendation filed to the head coach", filmLang)}: ${filmSuggestion}${filmParens[0]}${L("可信度", "confidence", filmLang)}: ${rec.confidence}${filmParens[1]}</p>
       <p class="tiny">${L("声望变化", "Reputation", filmLang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;
   }
@@ -311,7 +329,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   function renderFilm() {
     const f = filmState;
     if (!f || !body) return;
-    body.innerHTML = filmChallengeHtml({ challenge: f.challenge, lang: lang() }) + `<div id="film-result">${f.answered ? filmResultHtml(f.answered) : ""}</div>`;
+    body.innerHTML = html`${raw(filmChallengeHtml({ challenge: f.challenge, lang: lang() }))}<div id="film-result">${f.answered && filmResultHtml(f.answered)}</div>`;
     body.querySelectorAll("[data-film-opt]").forEach((btn) => {
       btn.disabled = !!f.answered;
       btn.addEventListener("click", () => {
@@ -337,7 +355,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     const challenge = buildAnalyticsChallenge(rows, { season, seed });
     const board = findUndervalued(rows, { season, minGp: 20, limit: 5 });
     if (!challenge) {
-      body.innerHTML = `<p>${L("该赛季数据不足，无法生成挑战。", "Not enough data in this season to build the challenge.", lang())}</p>`;
+      body.innerHTML = html`<p>${L("该赛季数据不足，无法生成挑战。", "Not enough data in this season to build the challenge.", lang())}</p>`;
       analyticsState = null;
       return;
     }
@@ -349,7 +367,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   function analyticsResultHtml({ grade }) {
     const aLang = lang();
     const explanation = aLang === "en" ? (grade.explanationEn || grade.explanationZh) : grade.explanationZh;
-    return `<div class="nw-reveal"><p>${explanation}</p>
+    return html`<div class="nw-reveal"><p>${explanation}</p>
       <p class="tiny">${L("声望变化", "Reputation", aLang)}: ${grade.reputationDelta > 0 ? "+" : ""}${grade.reputationDelta}</p></div>`;
   }
 
@@ -357,9 +375,8 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
   function renderAnalytics() {
     const a = analyticsState;
     if (!a || !body) return;
-    const boardHtml = a.board.map((b) => `<div class="nw-line">${b.row.name} · ${b.row.pos} · ${b.row.team} — ${L("价值比", "Value ratio", lang())} ${b.valueRatio} · OVR ${b.ovr} · ¤${b.price}</div>`).join("");
-    body.innerHTML = analyticsChallengeHtml({ challenge: a.challenge, lang: lang() })
-      + `<div id="analytics-result">${a.answered ? analyticsResultHtml(a.answered) : ""}</div><h3>${L("价值榜", "Value board", lang())}</h3>${boardHtml}`;
+    const boardHtml = a.board.map((b) => html`<div class="nw-line">${b.row.name} · ${b.row.pos} · ${b.row.team} — ${L("价值比", "Value ratio", lang())} ${b.valueRatio} · OVR ${b.ovr} · ¤${b.price}</div>`);
+    body.innerHTML = html`${raw(analyticsChallengeHtml({ challenge: a.challenge, lang: lang() }))}<div id="analytics-result">${a.answered && analyticsResultHtml(a.answered)}</div><h3>${L("价值榜", "Value board", lang())}</h3>${boardHtml}`;
     body.querySelectorAll("[data-analytics-opt]").forEach((btn) => {
       btn.disabled = !!a.answered;
       btn.addEventListener("click", () => {
@@ -378,8 +395,7 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
     currentView = "board";
     const p = profile();
     const { offers, unemployedNote } = generateOpportunities(p, DEMO_JOB_BOARD, { seed: 5 });
-    body.innerHTML = networkBoardHtml({ profile: p, offers, unemployedNote, lang: lang() })
-      + `<div class="nw-actions"><button type="button" class="btn" id="btn-network-fired">${L("模拟：被解雇", "Simulate: get fired", lang())}</button></div><div id="network-result"></div>`;
+    body.innerHTML = html`${raw(networkBoardHtml({ profile: p, offers, unemployedNote, lang: lang() }))}<div class="nw-actions"><button type="button" class="btn" id="btn-network-fired">${L("模拟：被解雇", "Simulate: get fired", lang())}</button></div><div id="network-result"></div>`;
     body.querySelectorAll("[data-network-accept]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const offer = offers.find((o) => o.id === btn.dataset.networkAccept);
@@ -389,14 +405,16 @@ export function createNetworkView({ getLang, getRows = loadRows, getAccountId = 
         // Re-render first, then write the result into the fresh #network-result:
         // writing before openBoard() wiped the line (the board replaces the body).
         openBoard();
-        body.querySelector("#network-result").innerHTML = `<p>${L("已接受", "Accepted", lang())}: ${(() => { const role = NETWORK_ROLES[transition.to]; return role ? (lang() === "en" ? (role.labelEn || role.labelZh) : role.labelZh) : transition.to; })()} · ${transition.toTeam || ""}</p>`;
+        const toRole = NETWORK_ROLES[transition.to];
+        const toLabel = toRole ? pick(lang(), toRole.labelZh, toRole.labelEn || toRole.labelZh) : transition.to;
+        body.querySelector("#network-result").innerHTML = html`<p>${L("已接受", "Accepted", lang())}: ${toLabel} · ${transition.toTeam || ""}</p>`;
       });
     });
     body.querySelector("#btn-network-fired")?.addEventListener("click", () => {
       const { profile: next, noteZh, noteEn } = dismissalOutcome(p, { reason: "fired", year: 1997 });
       saveProfile(next);
       openBoard();
-      body.querySelector("#network-result").innerHTML = `<p>${lang() === "en" ? (noteEn || noteZh) : noteZh}</p>`;
+      body.querySelector("#network-result").innerHTML = html`<p>${pick(lang(), noteZh, noteEn || noteZh)}</p>`;
     });
   }
 
