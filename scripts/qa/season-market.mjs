@@ -1,53 +1,28 @@
 // Season market tab, real app + real buttons (B61 step 9): the markup comes from js/ui/seasonMarketView.js, the wiring from app.js.
-// Goes into a single season, opens "自由市场", then lists / unlists a player, cuts one (confirm dialog), signs a free agent with the
+// Builds a real career (lib/career.mjs openCareer), opens "自由市场", then lists / unlists a player, cuts one (confirm dialog), signs a free agent with the
 // room that opened up, refreshes the pool, and flips tabs. Desktop 1440 and phone 390 (no sideways overflow).
 // usage: node scripts/qa/season-market.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
-import { openSingleSeason } from "./lib/page.mjs";
+import { openCareer } from "./lib/career.mjs";
 
 const OUT = process.argv[2] || "/tmp/cls-qa/season-market";
 const BASE = process.argv[3] || "http://127.0.0.1:5173/";
 mkdirSync(OUT, { recursive: true });
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const report = [];
-const check = (label, ok, detail = "") => report.push(`${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`);
+const check = (label, ok, detail = "") => {
+  const line = `${ok ? "PASS" : "FAIL"} ${label}${detail ? ` — ${detail}` : ""}`;
+  report.push(line);
+  console.log(line); // live: a crash later in the script must not swallow what already ran
+};
 const browser = await chromium.launch({ executablePath: EXE });
 
 async function run(width, height, tag) {
   const page = await browser.newPage({ viewport: { width, height } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(BASE, { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-  await page.evaluate(async () => {
-    const acc = await import("/js/data/account.js");
-    const players = await import("/js/data/players.js");
-    const coaches = await import("/js/data/coaches.js");
-    const market = await import("/js/engine/seasonMarket.js");
-    const a = acc.createAccount("QA 市场");
-    const picked = []; const seen = new Set(); let budget = 0;
-    for (const p of [...players.PLAYERS].sort((x, y) => players.overall(y) - players.overall(x))) {
-      if (picked.length >= 12) break;
-      const sal = market.playerSalary(p);
-      if (sal > Math.floor(1950 / 12) || (p.bref && seen.has(p.bref)) || budget + sal > 1950) continue; // per-player cap, so 12 always fit
-      picked.push(p.id); if (p.bref) seen.add(p.bref); budget += sal;
-    }
-    a.playerIds = picked; a.onboardingDone = true; a.gold = 500; a.fragments = 0;
-    a.coachId = coaches.COACHES[0].id; a.coachIds = [a.coachId];
-    acc.saveAccount(a); acc.setActiveAccountId(a.id);
-  });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => document.querySelector("#screen-home")?.classList.contains("active"), null, { timeout: 60000 });
-  await openSingleSeason(page);
-  await page.waitForSelector("#screen-season.active");
-  await page.click("#btn-season-roster-account");
-  await page.waitForFunction(() => !document.querySelector("#btn-season-start").disabled, null, { timeout: 10000 });
-  await page.click("#btn-season-start");
-  await page.waitForSelector("#season-hub-panel:not([hidden])", { timeout: 20000 });
-
+  await openCareer(page, BASE); // a real career built by the engine, driven to the season hub through the real buttons
   await page.click('[data-season-tab="market"]');
   await page.waitForSelector("#season-market .sm-cap-card", { timeout: 10000 });
   const counts = () => page.evaluate(() => ({
@@ -105,7 +80,6 @@ async function run(width, height, tag) {
 await run(1440, 900, "desktop");
 await run(390, 844, "mobile");
 await browser.close();
-console.log(report.join("\n"));
 const failed = report.filter((l) => l.startsWith("FAIL")).length;
 console.log(`\n${report.length - failed}/${report.length} checks passed`);
 process.exit(failed ? 1 : 0);

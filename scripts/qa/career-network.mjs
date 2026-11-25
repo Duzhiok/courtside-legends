@@ -32,8 +32,10 @@ async function run(width, height, tag) {
   const prospects = await page.$$eval(".nw-card", (els) => els.length);
   check(`[${tag}] scout: 5 prospects shown`, prospects === 5, `got ${prospects}`);
   await page.screenshot({ path: `${OUT}/scout-${tag}.png` });
-  const recBtns = await page.$$("[data-scout-rec='1']");
-  for (const btn of recBtns) await btn.click();
+  // Every click re-renders the slice, so a handle list collected up front goes stale after the first one:
+  // re-locate by position each time (the cards keep their order and count).
+  const recCount = await page.locator("[data-scout-rec='1']").count();
+  for (let i = 0; i < recCount; i += 1) await page.locator("[data-scout-rec='1']").nth(i).click();
   await page.waitForTimeout(300);
   const revealEnabled = await page.$eval("#btn-scout-reveal", (el) => !el.disabled);
   check(`[${tag}] scout: reveal enables after all 5 decisions`, revealEnabled);
