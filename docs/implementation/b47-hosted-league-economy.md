@@ -42,7 +42,8 @@ Training Center sink with the 2 slots we ship (`js/data/trainingRules.js`): ¤26
 `js/data/hostedLeague.js` + `tests/hostedLeague.test.js` (8 tests, 3 mutations caught). It is **not wired to any screen or save entry point**, so nothing changes for players yet. It was built with the recommended defaults for the three open questions: **weekly cap is hard and wins (Q1)**, **hosted XP goes through `trainingCamp.bankXp` (Q2)**, **a hosted game pays 50% of ranked (Q3)**. Changing an answer = changing a constant (`WEEKLY_PAID_GAMES`, `PRICE_SHARE`, `HOSTED_XP_PER_GAME`, `TAPER`) or dropping the XP line. Semantics: the day you set the plan does not count; each later full day settles when you are back, 20 games, seeded by hash(account, day, game), at most 7 days of catch-up.
 
 ## Proposed implementation slices (remaining)
-1. ~~`hostedLeague.js`~~ done (above). Still to do: an adapter that supplies `playGame` from the real GameSim (home = the account's best five, auto coach) using the seed.
+1. ~~`hostedLeague.js`~~ done (above).
+1b. ~~GameSim adapter~~ done: `js/data/hostedPlay.js` (`createHostedPlayGame`, `hostedReady`, `hostedSquad`, `hostedOpponents`) + `tests/hostedPlay.test.js` (5 tests, mutations caught). Squad = the account's own best distinct people (training bonuses applied), position-balanced five via `bestStarters`, automatic coaching, RNG = `seededStream(seed)`; opponent = real team-season (1985+) picked by `seed % n`. Still inert: nothing calls it yet. It needs the roster pool loaded (`hostedReady` is false until then), so the future wiring must await `playersReady()` first.
 2. Return report UI — story first (key game, who grew, surprise), numbers second.
 3. Plan editor — lineup + training focus snapshot taken at logout.
 
