@@ -149,6 +149,7 @@ import { legendChipsHtml, legendPosHtml, resumeRoute, resumeSettings } from "./u
 import { advanceCopy, anotherGameCopy, championCopy, eliminatedCopy, seriesGameCopy } from "./ui/careerResultCopy.js";
 import { hubHeading, nextCardView } from "./ui/seasonHubView.js";
 import { marketHtml } from "./ui/seasonMarketView.js";
+import { tradeColumnsHtml, tradeSummaryText } from "./ui/tradeBoardView.js";
 import { rotationBoardHtml } from "./ui/seasonRotationView.js";
 import { offseasonRecap } from "./ui/offseasonRecap.js";
 import { valueBadge, valueBadgeHtml } from "./ui/valueBadge.js";
@@ -366,7 +367,6 @@ import {
   renderRosterEvaluation,
 } from "./ui/rosterEvaluationView.js";
 import { buildTradeComparison, renderTradeComparisonHtml } from "./engine/tradeComparison.js";
-import { estimateDraftPickValue } from "./engine/draftPickValue.js";
 import { decorateHome } from "./ui/homeShowcase.js";
 import { initCareerEntry, refreshCareerEntry } from "./ui/careerEntry.js";
 import {
@@ -436,12 +436,10 @@ import {
   hireAssistant,
   hireCoach,
   payrollSummary,
-  pickValueOf,
   playerSalary,
   refreshFreeAgency,
   refreshStaffMarket,
   signFreeAgent,
-  teamDraftAssets,
   upcomingUserGames,
 } from "./engine/seasonMarket.js";
 import { recommendTradePackage } from "./engine/tradeBuilder.js";
@@ -9589,97 +9587,28 @@ function renderSeasonMarket() {
   const asst = you.assistant;
   box.innerHTML = marketHtml(st, { you, pay, proposals, managed: isManagedCareer(state.leagueCareer), learnedOf: epiphanyLearned });
 
-  // A club can now hold other clubs' picks, so say whose pick it is when it is not the holder's own.
-  const pickLabel = (pk, holderId) => {
-    const v = estimateDraftPickValue(pk, { currentYear: st.year, lang: getLang() });
-    const from = pk.sourceTeamId && pk.sourceTeamId !== holderId
-      ? L(`${esc(st.teams[pk.sourceTeamId]?.name || pk.sourceTeamId)} 的 `, `${esc(st.teams[pk.sourceTeamId]?.name || pk.sourceTeamId)}'s `)
-      : "";
-    return `<span title="${esc(v.explanation)}">${from}${esc(v.label)}${L(`（≈ +${v.ovrEquivalent} OVR）`, ` (≈ +${v.ovrEquivalent} OVR)`)}</span>`;
-  };
-  const tradeCheckboxRow = (cls, id, label) =>
-    `<label class="sm-row sm-trade-check"><span><input type="checkbox" class="${cls}" value="${id}"> ${label}</span></label>`;
+  const tradeTid = () => $("#sm-trade-cpu")?.value;
+  const tradeTid3 = () => $("#sm-trade-cpu3")?.value;
+  const ticked = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
 
   const updateTradeSummary = () => {
-    const tid = $("#sm-trade-cpu")?.value;
-    const cpu = st.teams[tid];
+    const tid = tradeTid();
     const summary = $("#sm-trade-summary");
-    if (!cpu || !summary) return;
-    const myPicksPool = teamDraftAssets(st, st.userTeamId);
-    const cpuPicksPool = teamDraftAssets(st, tid);
-    const checkedVals = (sel) => [...box.querySelectorAll(sel)].map((el) => el.value);
-    const give = checkedVals(".sm-give-player:checked").map((id) => you.players.find((p) => p.id === id)).filter(Boolean);
-    const tid3 = $("#sm-trade-cpu3")?.value;
-    const cpu3 = tid3 && tid3 !== tid ? st.teams[tid3] : null;
-    // In a three-team cycle the user receives team 3's players, not team 2's.
-    const want = cpu3
-      ? checkedVals(".sm-want3-player:checked").map((id) => cpu3.players.find((p) => p.id === id)).filter(Boolean)
-      : checkedVals(".sm-want-player:checked").map((id) => cpu.players.find((p) => p.id === id)).filter(Boolean);
-    const givePicks = cpu3 ? [] : checkedVals(".sm-give-pick:checked").map((id) => myPicksPool.find((p) => p.id === id)).filter(Boolean);
-    const wantPicks = cpu3 ? [] : checkedVals(".sm-want-pick:checked").map((id) => cpuPicksPool.find((p) => p.id === id)).filter(Boolean);
-    const salOut = give.reduce((s, p) => s + playerSalary(p), 0);
-    const salIn = want.reduce((s, p) => s + playerSalary(p), 0);
-    const valOut = give.reduce((s, p) => s + overall(p), 0) + givePicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
-    const valIn = want.reduce((s, p) => s + overall(p), 0) + wantPicks.reduce((s, pk) => s + pickValueOf(st, pk), 0);
-    if (!give.length && !want.length && !givePicks.length && !wantPicks.length) {
-      summary.textContent = L("勾选两边要换的东西后，这里会显示薪资/身价对比", "Tick things on both sides and the salary/value comparison shows here");
-      return;
-    }
-    summary.textContent = L(`送出：薪资 ${formatSalary(salOut)} · 身价≈${valOut.toFixed(1)}｜得到：薪资 ${formatSalary(salIn)} · 身价≈${valIn.toFixed(1)}`, `Out: salary ${formatSalary(salOut)} · value ≈${valOut.toFixed(1)} | In: salary ${formatSalary(salIn)} · value ≈${valIn.toFixed(1)}`);
+    if (!st.teams[tid] || !summary) return;
+    summary.textContent = tradeSummaryText(st, you, tid, tradeTid3(), {
+      givePlayers: ticked(".sm-give-player:checked"),
+      wantPlayers: ticked(".sm-want-player:checked"),
+      want3Players: ticked(".sm-want3-player:checked"),
+      givePicks: ticked(".sm-give-pick:checked"),
+      wantPicks: ticked(".sm-want-pick:checked"),
+    });
   };
 
   const renderTradeCols = () => {
-    const tid = $("#sm-trade-cpu")?.value;
+    const tid = tradeTid();
     const cols = $("#sm-trade-cols");
     if (!cols || !tid) return;
-    const cpu = st.teams[tid];
-    const myPicksPool = teamDraftAssets(st, st.userTeamId);
-    const cpuPicksPool = teamDraftAssets(st, tid);
-    const myPlayerRows = [...(you.players || [])]
-      .sort((a, b) => overall(b) - overall(a))
-      .map((p) => tradeCheckboxRow("sm-give-player", p.id, `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
-      .join("");
-    // Picks sit after the players inside a scrolling list, so they get their own heading (and the
-    // column title says they are there) -- otherwise they read as just more players, below the fold.
-    const pickBlock = (rows, count) => (count ? `<div class="sm-pick-head">${L("选秀权", "Picks")} · ${count}</div>${rows}` : "");
-    const myPickRows = pickBlock(
-      myPicksPool.map((pk) => tradeCheckboxRow("sm-give-pick", pk.id, pickLabel(pk, st.userTeamId))).join(""),
-      myPicksPool.length,
-    );
-    const cpuPlayerRows = [...(cpu?.players || [])]
-      .sort((a, b) => overall(b) - overall(a))
-      .map((p) => tradeCheckboxRow("sm-want-player", p.id, `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
-      .join("");
-    const cpuPickRows = pickBlock(
-      cpuPicksPool.map((pk) => tradeCheckboxRow("sm-want-pick", pk.id, pickLabel(pk, tid))).join(""),
-      cpuPicksPool.length,
-    );
-    const tid3 = $("#sm-trade-cpu3")?.value;
-    const cpu3 = tid3 && tid3 !== tid ? st.teams[tid3] : null;
-    // Three-team cycle: picks are not supported there yet, so hide pick rows rather than let the
-    // user tick something the engine will silently ignore.
-    const team3Rows = cpu3
-      ? [...(cpu3.players || [])]
-          .sort((a, b) => overall(b) - overall(a))
-          .map((p) => tradeCheckboxRow("sm-want3-player", p.id, `${esc(p.name)} · OVR ${overall(p)} · ${formatSalary(playerSalary(p))}`))
-          .join("")
-      : "";
-    const countNote = (players, picks) =>
-      `<span class="sm-count"> · ${L(`${players || 0} 名球员`, `${players || 0} players`)}${cpu3 || !picks ? "" : ` · ${L(`${picks} 个选秀权（列表下方）`, `${picks} picks (below the list)`)}`}</span>`;
-    cols.innerHTML = `
-      <section>
-        <h5 class="tiny">${L("我方送出", "You send")}${cpu3 ? L(`（→ ${esc(cpu.name)}）`, ` (→ ${esc(cpu.name)})`) : ""}${countNote(you.players?.length, myPicksPool.length)}</h5>
-        <div class="sm-list">${myPlayerRows}${cpu3 ? "" : myPickRows}</div>
-      </section>
-      <section>
-        <h5 class="tiny">${L("对方送出", "They send")}${cpu3 ? L(`（→ ${esc(cpu3.name)}）`, ` (→ ${esc(cpu3.name)})`) : ""}${countNote(cpu?.players?.length, cpuPicksPool.length)}</h5>
-        <div class="sm-list">${cpuPlayerRows}${cpu3 ? "" : cpuPickRows}</div>
-      </section>
-      ${cpu3 ? `<section>
-        <h5 class="tiny">${L("第三方送出（→ 我方）", "Third team sends (→ you)")}</h5>
-        <div class="sm-list">${team3Rows}</div>
-      </section>` : ""}
-    `;
+    cols.innerHTML = tradeColumnsHtml(st, you, tid, tradeTid3());
     cols.querySelectorAll("input[type=checkbox]").forEach((el) => el.addEventListener("change", updateTradeSummary));
     updateTradeSummary();
   };

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { esc } from "../js/core/html.js";
 import { marketOwnedCard, playerMarketCardHtml } from "../js/ui/marketCards.js";
 import { playoffsHtml } from "../js/ui/seasonPlayoffsView.js";
+import { tradeColumnsHtml } from "../js/ui/tradeBoardView.js";
 import { evaluateRosterPlayer, renderRosterEvaluation } from "../js/ui/rosterEvaluationView.js";
 
 // Regression (B119, 2026-11-24): esc audit batch 3 — the season/market/trade
@@ -58,13 +59,17 @@ test("bid card: duel bid player name is escaped", () => {
   assert.ok(!/\$\{p\.name\}/.test(line), "no raw ${p.name} may remain on the bid-card line");
 });
 
+// B61 step 14 moved the trade columns out of app.js into tradeBoardView.js, and the three copy-pasted label call sites
+// into one playerRows(): this now renders the real columns (tests/tradeBoardView.test.js also pins the full markup).
 test("trade rows: all three player checkbox labels escape the name", () => {
-  const labels = [...appSrc.matchAll(/tradeCheckboxRow\("sm-(?:give|want|want3)-player", p\.id, `([^`]*)`\)/g)];
-  assert.equal(labels.length, 3, "expected the three player trade label call sites");
-  for (const [, label] of labels) {
-    assert.ok(label.includes("esc(p.name)"), `trade label must esc the player name: ${label}`);
-    assert.ok(!label.includes("${p.name}"), `no raw \${p.name} in trade label: ${label}`);
-  }
+  const players = (id) => [{ id, name: BAD, season: 1994, ovr2k: 70, ratingSource: "anchor", salary: 100, age: 25 }];
+  const st = {
+    year: 1994, dayIndex: 10, phase: "regular", userTeamId: "U", tradeLog: [], draftAssets: [],
+    teams: { U: { name: "U", players: players("u") }, A: { name: "A", players: players("a") }, B: { name: "B", players: players("b") } },
+  };
+  const html = tradeColumnsHtml(st, st.teams.U, "A", "B");
+  for (const cls of ["sm-give-player", "sm-want-player", "sm-want3-player"]) assert.ok(html.includes(`class="${cls}"`), `${cls} row rendered`);
+  assertEscaped(html, "trade columns");
 });
 
 test("season roster preview chips escape the player name", () => {
