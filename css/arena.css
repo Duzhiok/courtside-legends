@@ -370,6 +370,8 @@ body.has-tabbar .account-gate { bottom: calc(var(--tabbar-pad, 96px) + env(safe-
   box-shadow: 0 -10px 24px rgba(0, 0, 0, .45);
 }
 #screen-result.arena :is(.result-rewards, .result-all-team) { color: var(--text-hi); }
+/* …except the post-game settlement card, a light paper panel (careerPostGame.css): dark ink, same as the season panels below. */
+#screen-result.arena .pg-card :is(strong, h3, h4) { color: #0f1c14; }
 #screen-game.arena #game-team-a { color: #ffe08a; }
 #screen-game.arena #game-team-b { color: #7dd3fc; }
 #screen-result.arena .box-score td { color: var(--text-hi); }

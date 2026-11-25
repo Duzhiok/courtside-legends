@@ -9687,7 +9687,8 @@ function renderSeasonMarket() {
       showSeasonTab("market");
     };
   });
-  $("#btn-sm-refresh-fa")?.addEventListener("click", () => {
+  $("#btn-sm-refresh-fa")?.addEventListener("click", async () => {
+    await playersReady(); // perf-r3: the pool is drawn from PLAYERS, which is still [] for a while after a cold resume -- refreshing then stored an EMPTY market
     refreshFreeAgency(st, { force: true });
     if (!saveSeasonAndCareer(st)) return;
     renderSeasonMarket();

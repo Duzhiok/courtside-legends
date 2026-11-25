@@ -5,7 +5,10 @@
   border-radius: 12px;
   border: 1px solid var(--line);
   border-left: 5px solid var(--muted);
-  background: rgba(255, 255, 255, .7);
+  /* A self-contained light panel: solid paper + its own dark ink. The result screen went dark (arena theme,
+     056a18a4) and its light text colour was inherited in here, so names on the paper rows became invisible. */
+  background: #fdfcf8;
+  color: var(--ink);
 }
 .pg-win { border-left-color: var(--good); }
 .pg-loss { border-left-color: var(--bad); }
