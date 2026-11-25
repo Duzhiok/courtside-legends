@@ -149,6 +149,7 @@ import { legendChipsHtml, legendPosHtml, resumeRoute, resumeSettings } from "./u
 import { advanceCopy, anotherGameCopy, championCopy, eliminatedCopy, seriesGameCopy } from "./ui/careerResultCopy.js";
 import { hubHeading, nextCardView } from "./ui/seasonHubView.js";
 import { marketHtml } from "./ui/seasonMarketView.js";
+import { DEV_ENTRY_DELAY_MS, devEntriesFromSearch } from "./ui/devEntries.js";
 import { tradeColumnsHtml, tradeSummaryText } from "./ui/tradeBoardView.js";
 import { rotationBoardHtml } from "./ui/seasonRotationView.js";
 import { offseasonRecap } from "./ui/offseasonRecap.js";
@@ -12114,57 +12115,24 @@ async function boot() {
     }
     refreshAccountHomeBar();
     setTimeout(() => show("home"), 200);
-    // Player Reborn dev entry: ?reborn=1 opens the slice after boot.
-    if (new URLSearchParams(location.search).get("reborn") === "1") {
-      setTimeout(() => { openRebornGuarded(); }, 250);
-    }
-    // Career Relationships dev entry (workstream E): ?relationships=1
-    // opens the relationships / promises / legacy panel after boot.
-    if (new URLSearchParams(location.search).get("relationships") === "1") {
-      setTimeout(() => { relationshipsView.open(); }, 250);
-    }
-    // Shared Career Inbox dev entry (workstream A): ?inbox=1 opens the
-    // inbox slice after boot.
-    if (new URLSearchParams(location.search).get("inbox") === "1") {
-      setTimeout(() => { careerInboxView.open(); }, 250);
-    }
-    // Signature Awakening dev entry (workstream D): ?awakening=1 opens the
-    // Reborn slice — the awakening progress panel lives on its season
-    // screen, and a skill fired there lands on the card from the next game.
-    if (new URLSearchParams(location.search).get("awakening") === "1") {
-      setTimeout(() => { openRebornGuarded(); }, 250);
-    }
-    // GM Executive Dynasty dev entry: ?gm-business=1 opens the business scenario after boot.
-    if (new URLSearchParams(location.search).get("gm-business") === "1") {
-      setTimeout(() => { gmBusinessView.open(gmBusinessView.createScenario({ players: PLAYERS }), PLAYERS); }, 250);
-    }
-    // Career Role Permissions dev entry: ?career=coach opens the Time
-    // Travel creation with the Coach role pre-set (ADR-006 R4) — the
-    // Career entry's Coach card does the same through onPlay; the GM
-    // path is the League Manager setup, the GM+Coach path is the
-    // existing card.
-    if (new URLSearchParams(location.search).get("career") === "coach") {
-      setPrologueRole("COACH");
-      setTimeout(() => { startMode("timeTravel"); }, 250);
-    }
-    // Coach tactical depth dev entry (workstream B): ?coach-tactics=1 opens
-    // the tactical comeback challenge after boot.
-    if (new URLSearchParams(location.search).get("coach-tactics") === "1") {
-      setTimeout(() => { coachingMomentView.open(); }, 250);
-    }
-    // GM draft gamble dev entry (workstream C): ?draft-gamble=1 opens
-    // the 1996 scouting/draft slice after boot.
-    if (new URLSearchParams(location.search).get("draft-gamble") === "1") {
-      setTimeout(() => { draftGambleView.open(); }, 250);
-    }
-    // [Career 2.0 G] Career Network dev entries: ?scout=1 / ?film=1 /
-    // ?analytics=1 / ?network=1 open the slices after boot.
-    {
-      const networkParam = new URLSearchParams(location.search);
-      if (networkParam.get("scout") === "1") setTimeout(() => { networkView.open("scout"); }, 250);
-      else if (networkParam.get("film") === "1") setTimeout(() => { networkView.open("film"); }, 250);
-      else if (networkParam.get("analytics") === "1") setTimeout(() => { networkView.open("analytics"); }, 250);
-      else if (networkParam.get("network") === "1") setTimeout(() => { networkView.open("board"); }, 250);
+    // Developer entry points (?reborn=1, ?inbox=1, ?career=coach, ...): devEntries.js decides WHICH the URL asks for;
+    // this table is what each one does. `now` runs at once, `later` once home has painted. They are independent.
+    const devEntryActions = {
+      reborn: { later: () => openRebornGuarded() },
+      relationships: { later: () => relationshipsView.open() },
+      inbox: { later: () => careerInboxView.open() },
+      // Reborn's season screen carries the awakening progress panel; a skill fired there lands on the card next game.
+      awakening: { later: () => openRebornGuarded() },
+      "gm-business": { later: () => gmBusinessView.open(gmBusinessView.createScenario({ players: PLAYERS }), PLAYERS) },
+      // Time Travel creation with the Coach role pre-set (ADR-006 R4), same path as the Career entry's Coach card.
+      "career-coach": { now: () => setPrologueRole("COACH"), later: () => startMode("timeTravel") },
+      "coach-tactics": { later: () => coachingMomentView.open() },
+      "draft-gamble": { later: () => draftGambleView.open() },
+      network: { later: (board) => networkView.open(board) },
+    };
+    for (const { key, arg } of devEntriesFromSearch(location.search)) {
+      devEntryActions[key].now?.();
+      setTimeout(() => { devEntryActions[key].later(arg); }, DEV_ENTRY_DELAY_MS);
     }
   } catch (e) {
     console.error(e);
