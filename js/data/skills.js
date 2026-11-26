@@ -1015,7 +1015,7 @@ export const SIGNATURE_SKILLS = {
   // 库里：百步穿杨（半场射程）+ 接投 + 自主变向创造 + 引力
   curryst01: ["logo_range", "splash_spot", "rainmaker", "gravity_well", "ankle_breaker"],
   hardeja01: ["stepback", "euro_step", "freeze_iso", "dime_dropper", "rainmaker", "rhythm_master"],
-  westbru01: ["motor_engine", "dime_dropper", "ankle_breaker", "coast_to_coast"],
+  westbru01: ["motor_engine", "dime_dropper", "ankle_breaker", "coast_to_coast", "poster_slam"],
   // Derrick Rose — 劲爆第一步 / 杀筐，不是传球核
   rosede01: ["first_step", "coast_to_coast", "ankle_breaker", "clutch_killer"],
   onealsh01: ["mountain_slam", "paint_bully", "motor_engine", "rim_protector"],
@@ -1205,7 +1205,7 @@ const SKILL_AGE_DROPS = {
   },
   westbru01: {
     coast_to_coast: 34,
-    motor_engine: 35,
+    // motor_engine 掉落 2026-11-26 按用户要求删掉（他应该一直有永动机；通用 maxAge 36 仍会在 37 岁摘掉它）
   },
   antetgi01: {
     coast_to_coast: 35,

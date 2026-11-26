@@ -952,7 +952,7 @@ export const SCRAPED_ANCHORS_2K = {
   "brookar01:2022": {"ovr":71,"scoring":74,"three":72,"mid":79,"paint":66,"defense":48,"speed":70},
   "brookar01:2023": {"ovr":71,"scoring":74,"three":72,"mid":79,"paint":66,"defense":48,"speed":70},
   "brookdi01:2017": {"ovr":68,"scoring":75,"three":77,"mid":75,"paint":70,"speed":79},
-  "brookdi01:2018": {"ovr":75,"scoring":75,"three":81,"mid":67,"paint":74,"speed":79},
+  "brookdi01:2018": {"ovr":75,"scoring":75,"three":81,"mid":67,"paint":74,"defense":54,"speed":79},
   "brookdi01:2019": {"ovr":74,"scoring":76,"three":81,"mid":71,"paint":74,"defense":54,"speed":75},
   "brookdi01:2020": {"ovr":77,"scoring":81,"three":80,"mid":83,"paint":76,"defense":69,"speed":75,"steal":63},
   "brookdi01:2021": {"ovr":78,"scoring":82,"three":77,"mid":88,"paint":78,"defense":71,"speed":75,"steal":66},
