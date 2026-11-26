@@ -258,8 +258,9 @@ function eggSim({ homeTeam = "CHI", awayTeam = "NYK", enforcer = "rodmade01", ri
 }
 
 test("driveGame: under six fouls the foul edge is one foul on the egg's own dice and the score matches", async () => {
-  // Seeds are pinned to a scan of egg-ab-1..40 (B76 moved every game's dice, which swapped these two; the B35 §30/§31 recalibration moved them again):
-  // egg-ab-2 reaches six fouls and the games diverge, so the strict comparison would never run; egg-ab-3 stays under six: the extra foul is visible
+  // Seeds are pinned to a scan of egg-ab-1..40 (B76 moved every game's dice, which swapped these two; the B35 §30/§31 recalibration moved them again;
+  // the 2026-11-26 skill change — Kerr rainmaker + the motor_engine funnel — moved them again, egg-ab-2 no longer reaches six):
+  // egg-ab-5 reaches six fouls and the games diverge, so the strict comparison would never run; egg-ab-3 stays under six: the extra foul is visible
   // and the box score still matches. Re-scan if a GameSim change moves the dice again.
   const seed = "egg-ab-3";
   const eggCtx = { rivalBrefs: ["ewingpa01"], rng: scriptedRng([0.001, 0.9]) }; // fires, foul
@@ -284,15 +285,15 @@ test("driveGame: under six fouls the foul edge is one foul on the egg's own dice
 
 test("driveGame: at six fouls he sits when a teammate can still play", async () => {
   const eggCtx = { rivalBrefs: ["ewingpa01"], rng: scriptedRng([0.001, 0.9]) };
-  const simA = eggSim({ seed: "egg-ab-2" }); // pinned by a seed scan, see above
+  const simA = eggSim({ seed: "egg-ab-5" }); // pinned by a seed scan, see above
   const a = await driveGame(simA, "nobody", { egg: eggCtx });
-  const simB = eggSim({ seed: "egg-ab-2" });
+  const simB = eggSim({ seed: "egg-ab-5" });
   await driveGame(simB, "nobody");
   assert.equal(a.egg.edge, "foul");
   const reachedSix = [simA, simB].some((sim) =>
     sim.home.roster.concat(sim.away.roster).some((p) => (p.stats.pf || 0) >= 6)
   );
-  assert.equal(reachedSix, true, "egg-ab-2 reaches six fouls, so the sit-out is what this test watches");
+  assert.equal(reachedSix, true, "egg-ab-5 reaches six fouls, so the sit-out is what this test watches");
   for (const sim of [simA, simB]) {
     for (const side of [sim.home, sim.away]) {
       for (const p of side.onCourt) {

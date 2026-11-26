@@ -145,11 +145,13 @@ function syntheticStar(id, over) {
   });
 }
 
-test("R106: bigs never roll lockdown; empty pool falls back to motor_engine only", () => {
+test("R106: bigs never roll lockdown; empty pool gives no skill at all", () => {
   const ids = Array.from({ length: 20 }, (_, i) => `r106-lock-${i}`);
   const rolled = ids.map((id) => syntheticStar(id));
   assert.ok(rolled.every((c) => !c.skills.includes("lockdown")));
-  assert.ok(rolled.some((c) => c.skills.includes("motor_engine")), "at least one roll should trigger");
+  // 2026-11-26: the motor_engine fallback is gone — an empty candidate pool
+  // means no skill, not a forced motor_engine.
+  assert.ok(rolled.every((c) => (c.skills || []).length === 0), "empty pool rolls blank");
   const blank = ids.map((id) => syntheticStar(`${id}-blank`, { archetype: "bench", defense: 50 }));
   assert.ok(blank.every((c) => !c.skills.includes("clutch_killer")));
 });

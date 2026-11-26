@@ -14,10 +14,12 @@ import { ROWS, coin, fakeUserLog, run, userAlways } from "./helpers/rebornLeague
 
 /**
  * A real GameSim playoff run (1997, the player's club first, trust 80) played to its end. Returns the state just before the title game, the title
- * game's real report and the final state. "tx-17" (re-picked 2026-11-24 after the B35 §30/§31 engine recalibration: tx-29's pre-title ledger now holds
- * two rivals, so rivals[0] is no longer the pushed three-meeting man and the respect reads 38) is a fixed seed whose run wins the title with the
- * player on court and yields exactly one keepsake offer; "tx-236" wins it without a minute for him. Re-pick after any GameSim recalibration (the
- * assertions are the design, the seed is not): `node scripts/measure/find-playoff-seeds.mjs tx 1 240 8`.
+ * game's real report and the final state. "tx-71" (re-picked 2026-11-26 after the skill change: tx-17 now wins the title without a minute for the
+ * player; the first title seeds tx-15/29/35/63/64 yield no keepsake — their earlier playoff games already filled the 2-offer season cap; tx-66
+ * yields one but its pre-title ledger already holds a rival, so rivals[0] is not the pushed man and the LOW_RESPECT check reads NOT_A_PARTICIPANT;
+ * tx-71 is the first title seed with a clean ledger AND cap room in `node scripts/measure/find-playoff-seeds.mjs tx 1 240 8`)
+ * is a fixed seed whose run wins the title with the player on court and yields exactly one keepsake offer; "tx-253" wins it without a minute for
+ * him. Re-pick after any GameSim recalibration (the assertions are the design, the seed is not): `node scripts/measure/find-playoff-seeds.mjs tx 1 240 8`.
  */
 async function realTitleRun(seed) {
   let reborn = run(seed, 1997);
@@ -49,7 +51,7 @@ function withRival(state, report) {
 }
 
 test("the title game's real report carries the evidence a championship keepsake needs: settled, a title, a win, only men who really played", { timeout: 120000 }, async () => {
-  const { before, report, reborn } = await realTitleRun("tx-17");
+  const { before, report, reborn } = await realTitleRun("tx-71");
   assert.equal(reborn.playoffs.status, "champion");
   assert.ok(report && before, "the run has a title game");
   const finals = reborn.playoffs.series.find((s) => s.id === "F");
@@ -67,7 +69,7 @@ test("the title game's real report carries the evidence a championship keepsake 
 });
 
 test("the title is what unlocks the keepsake: the same real game, a man he has met three times: offered with the title, nothing without it", { timeout: 120000 }, async () => {
-  const { before, report } = await realTitleRun("tx-17");
+  const { before, report } = await realTitleRun("tx-71");
   const { state, opp } = withRival(before, report);
   const ledger0 = rivalryLedger(state);
   const respect = respectFromRival(ledger0.rivals[0]);
@@ -102,7 +104,7 @@ test("the title is what unlocks the keepsake: the same real game, a man he has m
 });
 
 test("no title evidence, no championship keepsake: not on court, not a participant, a lost game, or just not flagged", { timeout: 120000 }, async () => {
-  const { before, report } = await realTitleRun("tx-17");
+  const { before, report } = await realTitleRun("tx-71");
   const { state } = withRival(before, report);
   const ledger0 = rivalryLedger(state);
   const offeredBrefs = (rep) => {

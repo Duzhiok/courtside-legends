@@ -79,10 +79,16 @@ test("role layer: rim protector (block>=78) earns rim_protector", () => {
   assert.deepEqual(p.skills, ["rim_protector"]);
 });
 
-test("role layer: stamina (stamina>=80) earns motor_engine", () => {
-  const p = rolePlayer({ stamina: 85 });
+test("role layer: stamina (stamina>=88) earns motor_engine", () => {
+  const p = rolePlayer({ stamina: 90 });
   assignSkillPacks(p);
   assert.deepEqual(p.skills, ["motor_engine"]);
+});
+
+test("role layer: stamina below 88 earns no motor_engine", () => {
+  const p = rolePlayer({ stamina: 85 });
+  assignSkillPacks(p);
+  assert.deepEqual(p.skills, []);
 });
 
 test("role layer: corner camper (three>=72, threeTend>=40, not a first option)", () => {

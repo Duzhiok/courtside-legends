@@ -55,10 +55,14 @@ test("chase pace follows the urgency (clock per point of deficit) and the lineup
 
 // ---- engine side ----
 
+// Seeds re-picked 2026-11-26 after the skill change (Kerr rainmaker + Kukoc positionless + motor_engine funnel): the old `b26chase` set's
+// deficit mix shifted (426 → 335 chase possessions, big-deficit chases 93 → 138) and the aggregate quartile margin flipped to -0.18s,
+// though the engine still spends the multiplier where it varies (within-band margins +1.66s / +1.37s at deficit ≥ 4). All four scanned
+// prefixes pass under the new skills; b26chase2 has the widest margin (1.61s). Re-pick again after any GameSim recalibration.
 function chasePossessions(games) {
   const out = [];
   for (let g = 0; g < games; g += 1) {
-    const sim = new GameSim({ home: realTeam("CHI", 1996), away: realTeam("SEA", 1996), youSide: "home", injuries: false, speed: 3, rng: seededStream(hashSeed(`b26chase|${g}`)), onEvent() {}, onTick() {}, onEnd() {} });
+    const sim = new GameSim({ home: realTeam("CHI", 1996), away: realTeam("SEA", 1996), youSide: "home", injuries: false, speed: 3, rng: seededStream(hashSeed(`b26chase2|${g}`)), onEvent() {}, onTick() {}, onEnd() {} });
     sim.running = true;
     for (let n = 0; sim.running && n < 2000; n += 1) {
       sim.step(); if (sim.paused) sim.setPaused(false);

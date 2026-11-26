@@ -137,7 +137,9 @@ test("end to end: a real Reborn game asks with a context, plays the choice, grad
     contexts.push(context);
     return { choiceId: context.options.includes("follow") ? "follow" : "pass" };
   };
-  let reborn = createRebornState("agency-e2e-1", ROWS);
+  // Seed re-picked 2026-11-26 after the skill change: "agency-e2e-1" plays 14 games with no takeover window (0 asks) under the new skills.
+  // Scanned agency-e2e-2..9: e2e-2 and e2e-4 get a window but without a coach instruction; e2e-3 gets one in game 11 with a coach instruction.
+  let reborn = createRebornState("agency-e2e-3", ROWS);
   const season = buildSeason(reborn, ROWS);
   let report = null;
   for (let i = 0; i < 14 && !report?.agency; i++) {

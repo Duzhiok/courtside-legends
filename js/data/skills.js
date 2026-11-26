@@ -1127,6 +1127,13 @@ export const SIGNATURE_SKILLS = {
   mingya01: ["soft_touch", "dream_shake", "high_tower"],
   // Tyrese Haliburton — base identity (2025 peak kit also in SEASON_SIGNATURE)
   halibty01: ["dime_dropper", "clean_dime"],
+  // Ben Wallace — 4 届最佳防守球员：护筐放签名表，身份技只看年龄门槛——
+  // 中锋卡面速度由场均数据推算偏低（2000 卡 43），在 TRAIT 里会被护筐 46 的速度门槛摘掉
+  wallabe01: ["rim_protector"],
+  // Leandro Barbosa — 巴西闪电：第一步放签名表，卡面速度 67 够不着第一步 74 的门槛
+  barbole01: ["first_step"],
+  // Mark Eaton — 7 尺 4 盖帽王：护筐放签名表，1985/1989/1993 卡速度 44–45，够不着护筐 46 的门槛
+  eatonma01: ["rim_protector"],
 };
 
 /**
@@ -1562,6 +1569,30 @@ const TRAIT_SKILLS = {
   wallara01: ["hothead", "mid_maestro", "lockdown"],
   // Draymond temper lite
   // already has lockdown packs; add hothead as trait merge
+  // --- 2026-11-26 用户批准：12 名特点鲜明的角色球员补专属技能 ---
+  // Ben Wallace — 4 届最佳防守球员，落选秀；护筐在 SIGNATURE_SKILLS（速度门槛），
+  // def_captain 在 AURA_HOLDERS，这里只补篮板
+  wallabe01: ["crash_board"],
+  // Mark Eaton — 7 尺 4 盖帽王；护筐在 SIGNATURE_SKILLS（速度门槛）
+  // Michael Cooper — 1987 最佳防守球员，Showtime 外线大锁
+  coopemi01: ["lockdown"],
+  // Jamal Crawford — 3 届最佳第六人，胯下换手 + 四分打
+  crawfja01: ["freeze_iso"],
+  // Lou Williams — 3 届最佳第六人，历史替补得分王，神经刀
+  willilo02: ["nerve_blade"],
+  // Derek Fisher — 0.4 秒绝杀，5 冠
+  fishede01: ["clutch_killer"],
+  // Steve Kerr — 生涯三分 45.4%，历史第一
+  kerrst01: ["rainmaker"],
+  // Udonis Haslem — 落选秀，热火 20 年队魂，硬汉 + 篮板
+  hasleud01: ["enforcer", "crash_board"],
+  // Anderson Varejão — 造进攻犯规大师 + 前场板
+  varejan01: ["charge_taker", "crash_board"],
+  // Danny Green — 3 冠 3 队，3&D
+  greenda02: ["stopper_3d"],
+  // Toni Kukoc — 6 尺 11 的组织前锋，公牛第六人
+  kukocto01: ["positionless"],
+  // Leandro Barbosa — 巴西闪电，2007 最佳第六人；第一步在 SIGNATURE_SKILLS（速度门槛）
 };
 
 const STAR_TIERS = new Set(["star", "allstar", "superstar", "hof", "nba50"]);
@@ -1620,11 +1651,9 @@ function candidateSkills(p) {
   if ((p.intangibles?.gravity || 0) >= 80) cands.add("gravity_well");
   if ((p.mid || 0) >= 88) cands.add("mid_maestro");
   if (!isBig && (p.scoring || 0) >= 92) cands.add("freeze_iso");
-  if (!cands.size) {
-    // R106: 无候选兜底只给 motor_engine——此前会随机给 clutch_killer，
-    // 低关键球卡（如 Maravich clutch 52）也会中大心脏。
-    cands.add("motor_engine");
-  }
+  // 2026-11-26 用户决定：无候选就空着，不再兜底永动机——此前兜底让
+  // motor_engine 成了全游戏最常见的技能。R106 的教训（别随机给
+  // clutch_killer）仍成立，所以这里直接留空，不补任何技能。
   for (const id of SKILL_ROLL_DENY[String(p.bref || "").toLowerCase()] || []) cands.delete(id);
   return [...cands];
 }
@@ -1888,8 +1917,8 @@ function roleSkills(player) {
   if (iq >= 72 && def >= 74) out.push("charge_taker");
   // 护筐
   if (block >= 78 || bpg >= 1.5) out.push("rim_protector");
-  // 体能
-  if (stamina >= 80) out.push("motor_engine");
+  // 体能（2026-11-26：80→88；80 分挡太低，角色球员几乎人人有永动机）
+  if (stamina >= 88) out.push("motor_engine");
   // 底角定点：纯射手而非第一选择（3D 已占位时仍可叠加，上限 2 个截断）
   if (three >= 72 && threeTend >= 40 && scoring <= 82) out.push("corner_camp");
   // 替补组织：传球手而非第一选择（dime_dropper 仍为手动限定）
