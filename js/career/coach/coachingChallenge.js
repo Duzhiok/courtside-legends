@@ -40,6 +40,7 @@ import {
   explainClutchOutcome,
 } from "../../engine/clutchController.js";
 import { createTacticalTakeover } from "../../engine/tacticalTakeover.js";
+import { paceChaseHint } from "../../engine/sim.js";
 import {
   createTacticalState,
   recordSystemRun,
@@ -616,6 +617,8 @@ export function createCoachingChallenge({ pool, seed, rng, recommend = null } = 
         bench: (y?.bench || []).filter((p) => !(p.injuredGames > 0)).map(slim),
         focus: sim?.focusPlay?.id || null,
         tempo: y?.gameplan?.tempo || "normal",
+        // Pace three-tier (§4.3): the push suggestion, if the chase zone applies — the view renders it under the tempo select.
+        paceHint: paceChaseHint(sim),
         timeouts: sim?.timeouts?.home ?? 0,
         tactic: y?.tactic?.id || null,
         fit: y?.fit ?? 50,

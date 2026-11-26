@@ -70,7 +70,7 @@
 
 | # | 杠杆 | 机制（起点值） | 读数点 |
 |---|---|---|---|
-| P1 | 快攻三分 | `chooseShot` 里 tempo=push 时 `w3 × 1.25`，只对 `three ≥ 55` 的人生效（沿用 B4 的硬门槛逻辑，不会投的不投）。与 `pace_three` 重点（×1.5）和 `needThree`（×3.2）**乘法叠加、设上限**：三者同在时总倍率不超过 ×3.5，避免末节三分占比爆炸 | `chooseShot`（新增 tempo 读数，见 §6） |
+| P1 | 快攻三分 | `chooseShot` 里 tempo=push 时 `w3 × 1.25`，只对 `three ≥ 55` 的人生效（沿用 B4 的硬门槛逻辑，不会投的不投）。与 `pace_three` 重点（×1.5）和 `needThree`（×3.2）**乘法叠加、设上限**：三者同在时总倍率不超过 ×3.5，避免末节三分占比爆炸；但上限不砍到 pace_three + needThree 自身已有的 4.8 以下（实现：`min(合乘, max(3.5, 非节奏合乘))`）——追分时提速只能帮忙，不能帮倒忙 | `chooseShot`（新增 tempo 读数，见 §6） |
 | P2 | 出手欲望 | `offenseHuntLevel` +0.15（push 时）。`hunt` 会抬高强打频率和失误里的 `forcedHunt` 项——欲望的代价自动由现有公式收 | `offenseHuntLevel`（新增 tempo 参数，见 §6） |
 | P3 | 抓机会 | 出手门槛放宽：`shotOpenThreshold` −0.06（push 时），即“一般的空档就投，不等大空位”。与 P2 的区别：P2 是更想打，P3 是更敢投。只对 `aggressionLevel` ≥ 0.5 的球员生效，避免蓝领跟着乱投 | `shotOpenThreshold` / `shotGateLevel`（`gameplan.js`，新增 tempo 读数） |
 | P4 | 转换抢断/压迫（可选 v1.1） | push 时防守压迫 `defPress` +0.1（抢断、造失误），代价是被过掉后对手空位更好。**先不做**：压迫已有教练防守 buff 一条通道，再加节奏通道会双重叠加；列为后续项 | —（本次不做） |

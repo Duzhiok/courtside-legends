@@ -108,7 +108,9 @@ test("engine: pushing costs a slow lineup more turnovers than a fast one", () =>
   // 40-game difference-of-differences (> 1.4) sat inside the seed noise: on 240 games the scaled engine reads DiD +0.98 and an engine
   // that does not scale -0.32, but any 40 of them swing by +-0.6. The normal tempo has no costs to scale, so its gap only added noise;
   // the push gap alone separates cleanly: 240 games, scaled +1.13 vs unscaled -0.18; these 120 read +1.15.
-  const G = 120;
+  // Re-measured 2026-11-26 (pace three-tier build reshuffled the seeded streams again: the 120-game push gap read +0.59, inside the
+  // noise band). 240 games now read push gap +0.87, normal gap -0.04, DiD +0.91 — the effect is intact, so the test runs 240 games.
+  const G = 240;
   const pushGap = turnovers("push", 36, G) - turnovers("push", 92, G);
   assert.ok(pushGap > 0.6, `push gap slow - fast ${pushGap.toFixed(2)}`);
 });

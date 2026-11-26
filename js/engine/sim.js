@@ -927,6 +927,9 @@ export class GameSim {
       putback: !!putbackId,
       lateChase: !!script,
       lateChaseNeedThree: !!chase?.needThree,
+      // Pace three-tier: the tempo dial rides along so chooseShot reads it
+      // (player side only — CPU has no tempo, B4 is its pace brain).
+      tempoId: off === this.you() ? (off.gameplan?.tempo || "normal") : null,
     };
     // Shout focus: burn one possession of "execute the tactic" attention
     for (const p of off.onCourt) {
@@ -1010,6 +1013,7 @@ export class GameSim {
       gradeGoodContest(defender, { open: 0.2 });
       this.emit("miss", this.S(`${defender.name} 造进攻犯规！${baller.name} 撞人`, `${defender.name} draws the charge! ${baller.name} barrels in`), { actorId: defender.id, foul: { foulerId: baller.id, victimId: defender.id, kind: "charge" }, turnover: { actorId: baller.id, kind: "charge", forcedById: defender.id } });
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: true }));
+      notePushMiss(off, this.you()); // T4: a push possession ending in a turnover leaves transition defense late
       this.possession = flip(this.possession);
       return;
     }
@@ -1050,6 +1054,7 @@ export class GameSim {
         { actorId: defender.id, turnover: { actorId: baller.id, kind: "steal", forcedById: defender.id } }
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: true }));
+      notePushMiss(off, this.you()); // T4: a push possession ending in a turnover leaves transition defense late
       this.possession = flip(this.possession);
       return;
     }
@@ -1116,19 +1121,26 @@ export class GameSim {
         { actorId: baller.id, turnover: { actorId: baller.id, kind: forcedHunt ? "forced" : "unforced", forcedById: defender.id } }
       );
       applyPossessionFatigue(off, def, baller, defender, fatOpts({ wasted: forcedHunt }));
+      notePushMiss(off, this.you()); // T4: a push possession ending in a turnover leaves transition defense late
       this.possession = flip(this.possession);
       return;
     }
 
     // Shot + optional signature move (random proc — not every touch)
+    // Pace three-tier (T4): the defense just pushed and missed — transition defense
+    // is late, so this possession's looks are a touch more open. One use per
+    // possession; the re-passed shot below reuses the same bonus.
+    const transitionOpenBonus = takePushMissBonus(def);
     let shot = chooseShot(baller, off, focus, sideCtx);
     let open = calcOpenness(baller, defender, off, def, plan, sideCtx, shot);
+    if (transitionOpenBonus) open = clamp(open + transitionOpenBonus, 0.08, 0.92);
     const tempoDef = off === this.you() ? scaleTempoCosts(getTempoDef(off.gameplan?.tempo), runningFit(off.onCourt)) : null;
     if (tempoDef?.openBonus) open = clamp(open + tempoDef.openBonus, 0.08, 0.92);
 
     // 低攻击欲：机会不够好就再传导一次，而不是自主强投
     const aggNow = shotGateLevel(baller);
-    const openNeed = shotOpenThreshold(baller);
+    // Pace three-tier (P3/C2): push loosens the gate, grind tightens it (player side only).
+    const openNeed = shotOpenThreshold(baller, off === this.you() ? off.gameplan?.tempo : null);
     // A called catch-and-shoot play for a SPECIALIST: his standing low-appetite order does not turn the called shot into a re-pass.
     const calledSpecialist = CLUTCH_DECISION_TUNING.specialistTakesIt && pick?.role === "catch_shoot" && baller.id === pick.shooterId;
     // M2b-1: a called on-ball creator still reads the defence. Under real pressure (the look is below his own shot
@@ -1160,6 +1172,7 @@ export class GameSim {
         }
         shot = chooseShot(baller, off, focus, sideCtx);
         open = calcOpenness(baller, defender, off, def, plan, sideCtx, shot);
+        if (transitionOpenBonus) open = clamp(open + transitionOpenBonus, 0.08, 0.92);
         if (tempoDef?.openBonus) open = clamp(open + tempoDef.openBonus, 0.08, 0.92);
       }
     }
@@ -2119,6 +2132,14 @@ export class GameSim {
       def = 6;
       stam = -2;
       morale = 12;
+      // Pace three-tier (§8 decision 1 = B, user 2026-11-26): the managed side also
+      // pushes tempo when chasing late — mirror of the lead branch's auto-grind below.
+      // GameSim starts gameplan as null, so create it (setTempo does the same);
+      // without this neither auto-push nor auto-grind ever fires in a fresh auto game.
+      if (!you.gameplan) you.gameplan = {};
+      if (!you.gameplan.tempo || you.gameplan.tempo === "normal" || you.gameplan.tempo === "grind") {
+        you.gameplan.tempo = "push";
+      }
     } else if (deficit >= 10 && late) {
       want = pick("pace_space", "smallball", "iso_heavy", "five_out", "pnr_spam", "balanced");
       focus = "iso_star";
@@ -2139,7 +2160,8 @@ export class GameSim {
       off = 7;
       def = 13;
       stam = 4;
-      if (you.gameplan && (!you.gameplan.tempo || you.gameplan.tempo === "normal")) {
+      if (!you.gameplan) you.gameplan = {};
+      if (!you.gameplan.tempo || you.gameplan.tempo === "normal") {
         you.gameplan.tempo = "grind";
       }
     } else if (deficit <= -4) {
@@ -3355,6 +3377,34 @@ function lateGameInfo(sim, side) {
   return { deficit, clock, late, chasing, needThree, wantIntentionalFoul };
 }
 
+/**
+ * Pace three-tier (§4.3): a pure-UI suggestion read — it never changes tactics.
+ * In the chase zone (lateGameInfo window + B4 zone) with tempo != push and a lineup
+ * fit to run (runningFit >= 0.4), tell the coach pushing buys more possessions.
+ * Returns null otherwise (tempo already push, too tired to run, not chasing, quiet sim).
+ * Numbers are computed from the live lineup (scaleTempoCosts), not hardcoded.
+ */
+export function paceChaseHint(sim) {
+  if (!sim || sim._quiet) return null;
+  const you = sim.you?.();
+  if (!you) return null;
+  const tempoId = you.gameplan?.tempo || "normal";
+  if (tempoId === "push") return null;
+  const fit = runningFit(you.onCourt);
+  if (fit < 0.4) return null;
+  const info = lateGameInfo(sim, you);
+  const b4Zone = (sim.quarter || 1) >= 3 && info.deficit >= 10;
+  if (!info.chasing && !b4Zone) return null;
+  const clock = info.clock;
+  // Avg seconds per possession (§4.1): push ~10, normal ~14, grind ~20.
+  const perPoss = tempoId === "grind" ? 20 : 14;
+  const extra = Math.max(0, Math.round(clock / 10 - clock / perPoss));
+  const scaled = scaleTempoCosts(getTempoDef("push"), fit);
+  const makeCost = Math.abs((scaled?.makeBonus ?? -0.024) * 100);
+  const tovCost = Math.round(((scaled?.tovMult ?? 1.22) - 1) * 100);
+  return { deficit: info.deficit, clock, extra, makeCost, tovCost };
+}
+
 // B4 — a team that trails big in the second half changes its approach (the final minutes are the late-game script's).
 const COMEBACK_MIN_DEFICIT = 10; // no change below this
 const COMEBACK_FULL_DEFICIT = 22; // full effect at/after this
@@ -3594,6 +3644,23 @@ export function reboundContestWeight(p, { offensive = false } = {}) {
   return Math.max(0.5, w);
 }
 
+/** Pace three-tier (T4): a push-tempo possession that ends in a miss/turnover leaves
+ *  the pusher's transition defense late — the opponent's next possession gets +0.02 open.
+ *  Only the player's team ever carries a tempo; CPU teams never set the flag. */
+export function notePushMiss(off, youTeam) {
+  if (off && off === youTeam && getTempoDef(off.gameplan?.tempo)?.id === "push") {
+    off.temp = off.temp || {};
+    off.temp.lastPushMiss = true;
+  }
+}
+
+/** Pace three-tier (T4) read side: one use of the transition-defense bonus, then cleared. */
+export function takePushMissBonus(def) {
+  if (!def?.temp?.lastPushMiss) return 0;
+  def.temp.lastPushMiss = false;
+  return 0.02;
+}
+
 function resolveRebound(off, def, sim, afterBlock) {
   // Team ORB rate: bigger frontcourts crash more; 冲板指令再抬一档
   const offSize = avg(off.onCourt.map((p) => p.rebound || 50));
@@ -3607,7 +3674,10 @@ function resolveRebound(off, def, sim, afterBlock) {
     crashers * 0.032 +
     tacticOrb; // B23: the crash tactics' extra 0.025 now lives in their orbBoost (js/data/coaches.js)
   if (rnd() < clamp(offReb, 0.1, 0.42)) {
-    const reb = weighted(off.onCourt, (p) => reboundContestWeight(p, { offensive: true }));
+    // Pace three-tier (G3): a grinding team crashes harder — offensive rebound
+    // contest weight +10% (player side only; CPU has no tempo).
+    const grindCrash = off === sim.you() && getTempoDef(off.gameplan?.tempo)?.id === "grind" ? 1.1 : 1;
+    const reb = weighted(off.onCourt, (p) => reboundContestWeight(p, { offensive: true }) * grindCrash);
     reb.stats.reb += 1;
     reb.stats.oreb += 1;
     gradeOreb(reb);
@@ -3626,13 +3696,20 @@ function resolveRebound(off, def, sim, afterBlock) {
     reb.stats.dreb += 1;
     gradeDreb(reb);
     sim.emit("reb", sim.S(`${reb.name} 抢到防守篮板`, `${reb.name} secures the defensive rebound`), { actorId: reb.id, reb: { rebounderId: reb.id, offensive: false } });
+    notePushMiss(off, sim.you()); // T4: a push possession ending in a miss leaves transition defense late
     sim.possession = flip(off.side);
   }
 }
 
 /** Coach offense slider 0–18 → hunt-opportunity intensity 0–1. */
-function offenseHuntLevel(coach, baller = null, team = null) {
+export function offenseHuntLevel(coach, baller = null, team = null) {
   let h = clamp((Number(coach?.buffs?.offense) || 8) / 18, 0, 1);
+  // Pace three-tier (P2/G2): push hunts more, grind stays patient — deltas live on
+  // TEMPO_OPTIONS. Only the player's team ever carries gameplan.tempo (setTempo
+  // writes it to you() only); CPU teams read as normal, so no you-gate is needed.
+  // Applied before the player's hunt/patient orders, so a patient order still holds.
+  const tempoDelta = getTempoDef(team?.gameplan?.tempo)?.huntDelta || 0;
+  if (tempoDelta) h = clamp(h + tempoDelta, 0, 1);
   const oh = baller?.orders?.hunt;
   if (oh === "hunt") h = clamp(h + 0.28, 0, 1);
   if (oh === "patient") h = clamp(h * 0.45, 0, 1);
@@ -4403,7 +4480,10 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
     wMid *= pm.wMid;
     wPaint *= pm.wPaint;
   }
-  if (focusPlay?.id === "pace_three") w3 *= 1.5;
+  // The pace_three focus and the late-chase needThree stack multiplicatively below;
+  // the tempo dial (P1/G1) is applied after them — see the cap note there.
+  let threeComboMult = 1;
+  if (focusPlay?.id === "pace_three") threeComboMult *= 1.5;
   if (focusPlay?.id === "post_up") wPaint *= 1.55;
   if (focusPlay?.id === "slow_pace") {
     // Grind it out: fewer rushed threes, more mid / half-court paint
@@ -4414,15 +4494,15 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
   // 终场抢攻三分：把球给有把握的射手后强制拔三分（砖匠仍硬门）
   if (sideCtx?.lateChaseNeedThree) {
     if (threeSkill >= 72 || threeTend >= 48) {
-      w3 *= 3.2;
+      threeComboMult *= 3.2;
       wPaint *= 0.45;
       wMid *= 0.4;
     } else if (threeSkill >= 62 || threeTend >= 38) {
-      w3 *= 2.1;
+      threeComboMult *= 2.1;
       wPaint *= 0.65;
       wMid *= 0.55;
     } else {
-      w3 *= 0.35;
+      threeComboMult *= 0.35;
       wPaint *= 1.25;
     }
   } else if (sideCtx?.lateChase) {
@@ -4430,6 +4510,22 @@ export function chooseShot(p, off, focusPlay = null, sideCtx = null) {
     wPaint *= 1.08;
     wMid *= 0.9;
   }
+  // Pace three-tier (P1/G1): the tempo dial reshapes the shot mix — push adds
+  // fast-break threes for shooters only (B4's hard gate), grind tilts to mid/paint.
+  // The three-way stack (tempo × pace_three × needThree) is capped at ×3.5, but the
+  // cap never cuts below what pace_three + needThree already give on their own
+  // (1.5 × 3.2 = 4.8): pushing in the chase can only help, never hurt.
+  const tempoDef = getTempoDef(sideCtx?.tempoId);
+  if (tempoDef?.id === "push") {
+    if (threeSkill >= COMEBACK_THREE_MIN_SKILL) {
+      threeComboMult = Math.min(threeComboMult * (tempoDef.threeMult ?? 1.25), Math.max(3.5, threeComboMult));
+    }
+  } else if (tempoDef?.id === "grind") {
+    threeComboMult *= tempoDef.threeMult ?? 0.9;
+    wMid *= tempoDef.midMult ?? 1.1;
+    wPaint *= tempoDef.paintMult ?? 1.05;
+  }
+  w3 *= threeComboMult;
 
   const tacticPull = 1 - autonomy * 0.45;
   const tr = off.tactic?.threeRate ?? 1;

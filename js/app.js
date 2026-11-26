@@ -497,7 +497,7 @@ import {
 import { MATCHUP_NEAR_POS, buildSamePosMatchups, matchupPosOf, sortByMatchupPos } from "./engine/matchups.js";
 import { CourtView } from "./engine/court.js";
 import { CourtView3D, captureClutchReplaySnapshot, buildReplayShot } from "./engine/court3d.js";
-import { GameSim, suggestDefenseScheme } from "./engine/sim.js";
+import { GameSim, suggestDefenseScheme, paceChaseHint } from "./engine/sim.js";
 import {
   createClutchController,
   explainClutchOutcome,
@@ -8175,6 +8175,20 @@ function syncTakeoverPanel() {
   });
   const focusSel = $("#takeover-focus-select");
   if (focusSel && document.activeElement !== focusSel) focusSel.value = cur.focusPlay?.id || "";
+  // Pace three-tier (§4.3): in the chase zone the tempo help becomes a push
+  // suggestion (live numbers from the lineup); otherwise it stays the tempo desc.
+  const help = $("#tempo-help");
+  if (help) {
+    const hint = state.sim ? paceChaseHint(state.sim) : null;
+    if (hint) {
+      help.textContent = L(
+        `落后 ${hint.deficit} 分剩 ${hint.clock} 秒：提速能多打约 ${hint.extra} 个回合，快攻三分 + 出手欲望上升；现在推的代价是命中 −${hint.makeCost.toFixed(1)}、失误 +${hint.tovCost}%。`,
+        `Down ${hint.deficit} with ${hint.clock}s left: pushing buys ~${hint.extra} more possessions, more fast-break threes and hunting; it costs ${hint.makeCost.toFixed(1)} shooting and +${hint.tovCost}% turnovers.`
+      );
+    } else {
+      syncTempoHelp(help, cur.tempo);
+    }
+  }
 }
 
 function initFocusAndPacksUI(homeTeam, awayTeam, youSide) {

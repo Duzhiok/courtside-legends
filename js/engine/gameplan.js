@@ -34,14 +34,20 @@ export const TEMPO_OPTIONS = [
     nameEn: "Grind It Out",
     short: "降速",
     shortEn: "Grind",
-    desc: "咬死进攻时间，回合更少；出手更从容、空位更好、失误更低",
-    descEn: "Burn clock for fewer possessions; shots come easier, open looks better, fewer turnovers",
+    desc: "磨质量、磨失误、磨篮板：投得更准、丢得更少、板抢得更凶、体能留得更多；代价是回合更少、追分更难",
+    descEn: "Better looks, fewer turnovers, harder on the glass, fresher legs; costs possessions and comeback pace",
     paceMult: 0.7,
     makeBonus: 0.032,
     openBonus: 0.045,
     tovMult: 0.78,
     usedLo: 14,
     usedHi: 28,
+    // Pace three-tier (design docs/implementation/pace-strategy-design.md §3.2): shot mix + patience + pickiness
+    threeMult: 0.9,
+    midMult: 1.1,
+    paintMult: 1.05,
+    huntDelta: -0.1,
+    openThresholdDelta: 0.04,
   },
   {
     id: "normal",
@@ -57,6 +63,11 @@ export const TEMPO_OPTIONS = [
     tovMult: 1,
     usedLo: 6,
     usedHi: 24,
+    threeMult: 1,
+    midMult: 1,
+    paintMult: 1,
+    huntDelta: 0,
+    openThresholdDelta: 0,
   },
   {
     id: "push",
@@ -64,14 +75,20 @@ export const TEMPO_OPTIONS = [
     nameEn: "Run and Gun",
     short: "提速",
     shortEn: "Push",
-    desc: "缩短进攻时间拉高回合数；出手更仓促、失误略增",
-    descEn: "Shorten possessions for more of them; shots come rushed, turnovers tick up",
+    desc: "抢回合、抢三分、抢机会：回合更多、三分更多、更敢投；代价是投得更差、退防更慢、累得更快",
+    descEn: "More possessions, more threes, more hunting; costs shooting quality, transition defense and legs",
     paceMult: 1.32,
     makeBonus: -0.024,
     openBonus: -0.035,
     tovMult: 1.22,
     usedLo: 4,
     usedHi: 14,
+    // Pace three-tier (design docs/implementation/pace-strategy-design.md §3.1): fast-break threes + hunt + looser gate
+    threeMult: 1.25,
+    midMult: 1,
+    paintMult: 1,
+    huntDelta: 0.15,
+    openThresholdDelta: -0.06,
   },
 ];
 
@@ -219,13 +236,20 @@ export function shotGateLevel(p) {
 }
 
 /** Minimum openness (0–1) to willingly pull the trigger. */
-export function shotOpenThreshold(p) {
+export function shotOpenThreshold(p, tempoId = null) {
   const lvl = shotGateLevel(p);
-  if (lvl >= 0.9) return 0.3;
-  if (lvl >= 0.7) return 0.36;
-  if (lvl >= 0.5) return 0.44;
-  if (lvl >= 0.25) return 0.58;
-  return 0.7;
+  let t;
+  if (lvl >= 0.9) t = 0.3;
+  else if (lvl >= 0.7) t = 0.36;
+  else if (lvl >= 0.5) t = 0.44;
+  else if (lvl >= 0.25) t = 0.58;
+  else t = 0.7;
+  // Pace three-tier (§3.1 P3 / §3.2 C2): push loosens the gate (only for players
+  // with real appetite, aggressionLevel >= 0.5 — blue collars don't start chucking),
+  // grind tightens it (only good looks). Deltas live on TEMPO_OPTIONS.
+  const delta = getTempoDef(tempoId)?.openThresholdDelta || 0;
+  if (delta < 0 && lvl < 0.5) return t;
+  return t + delta; // base 0.3–0.7, deltas −0.06/+0.04 — always inside [0.24, 0.74], no clamp needed
 }
 
 export const ORDER_DEF = [

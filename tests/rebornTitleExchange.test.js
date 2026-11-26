@@ -131,7 +131,7 @@ test("a title won without playing a minute offers nothing (real run, seed tx-236
 });
 
 test("the offseason carries on from a title: contract, rollover, the next season starts clean; the honour, the jersey and the history stay", { timeout: 120000 }, async () => {
-  const { before, report, reborn } = await realTitleRun("tx-17");
+  const { before, report, reborn } = await realTitleRun("tx-144"); // re-picked 2026-11-26 after the pace three-tier build (tx-17 now loses the Finals; tx-144 is the first title seed with a clean pre-title ledger, 10 title-game minutes and cap room in the probe over tx-28/61/119/121/136/144)
   const { state } = withRival(before, report);
   // the title game's offer, as the player would have got it, then the season ends
   const rivalry = recordRivalryMeetings(rivalryLedger(state), report);
