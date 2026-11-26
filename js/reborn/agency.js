@@ -14,7 +14,7 @@
  */
 import { COACHES } from "../data/coaches.js";
 import { clamp, hashSeed, seededStream } from "../core/seededRandom.js";
-import { screenOffer, withoutTeamOptions } from "./teamplay.js";
+import { screenOffer, spotOffer, withoutTeamOptions } from "./teamplay.js";
 
 export const AUTONOMY_START = 10;
 export const AUTONOMY_TIERS = [
@@ -135,7 +135,7 @@ function bestSetup(sim, playerId, two) {
 }
 
 /** Expected points per option, from the floor as it stands before anyone moves. `offer` = a teammate's screen (PA3). */
-export function optionValues(sim, playerId, instruction, offer = null) {
+export function optionValues(sim, playerId, instruction, offer = null, spot = null) {
   const { you, opp } = sides(sim);
   const me = you.onCourt.find((p) => p.id === playerId);
   const two = twoDiscount(sim);
@@ -159,6 +159,8 @@ export function optionValues(sim, playerId, instruction, offer = null) {
   }
   // Patience ("pass": give up this shot, keep reading): the offense's normal flow is worth about a point; with under 8 seconds there is no time to read.
   values.pass = sim.clock < 8 ? 0.7 : 1.0 * (two < 1 ? 0.8 : 1);
+  // S2: asking for the catch lifts his share of the touches (measured 14.7% -> 19.6%), so it is mostly the normal flow plus a slice of his own look.
+  if (spot) values.spot = 0.8 * values.pass + 0.2 * mine.three;
   return values;
 }
 
@@ -186,7 +188,8 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
   const calls = coachCallsPlay(sim, coach) && (!routine || importance >= ROUTINE_CALL_IMPORTANCE);
   const instruction = calls ? coachInstruction(sim, coach, playerId) : null;
   const offer = screenOffer(sim, playerId); // PA3: a teammate who can set a real screen right now (null when none / no time)
-  const values = optionValues(sim, playerId, instruction, offer);
+  const spot = spotOffer(sim, playerId); // S2: a teammate he can ask to find him (null when no time)
+  const values = optionValues(sim, playerId, instruction, offer, spot);
   const audible = autonomy >= AUDIBLE_AT ? bestSetup(sim, playerId, twoDiscount(sim)) : null;
   if (audible) values.setup = audible.value;
   const { you } = sides(sim);
@@ -199,7 +202,8 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
     observation: observe(withoutTeamOptions(values), { iq, decisionId }),
     audible: audible ? { targetId: audible.targetId, targetName: audible.targetName, focusId: audible.focusId } : null,
     offer: values.screen != null ? offer : null,
-    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), ...(values.screen != null ? ["screen", "screenAlt"] : []), "pass"],
+    spotOffer: values.spot != null ? spot : null,
+    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), ...(values.screen != null ? ["screen", "screenAlt"] : []), ...(values.spot != null ? ["spot"] : []), "pass"],
     values,
     playerState: { trust, autonomy, iq },
   };

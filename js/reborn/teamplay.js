@@ -27,7 +27,7 @@ export const REL_DELTA = Object.freeze({ screenScored: 0.5, highLeverageScored: 
  * The two PA3 options. They are GRADED like any other option but are never part of the baseline the old options are graded
  * against (the median, the blurred read, PA2's "is there a real opening" gap): adding teammates must not move PA1/PA2.
  */
-export const TEAM_OPTIONS = Object.freeze(["screen", "screenAlt"]);
+export const TEAM_OPTIONS = Object.freeze(["screen", "screenAlt", "spot"]);
 export const withoutTeamOptions = (values) => Object.fromEntries(Object.entries(values || {}).filter(([k]) => !TEAM_OPTIONS.includes(k)));
 
 /** No time left to run a pick and roll (the same cut-off agency.js uses for "keep reading"). */
@@ -73,6 +73,19 @@ export function screenOffer(sim, playerId) {
     finish: plan.finish,
     fact: foulFact(opp?.onCourt),
   };
+}
+
+/**
+ * S2: "find me" - stand on the wing and ask for the catch. The teammate asked is the man on the floor most likely to run the
+ * offense (best passer); the engine decides who really has the ball. Null when there is no time or nobody to ask.
+ */
+export function spotOffer(sim, playerId) {
+  if (!sim || !(sim.clock >= MIN_CLOCK_FOR_SCREEN)) return null;
+  const you = sim.youSide === "home" ? sim.home : sim.away;
+  if (!you?.onCourt?.some((p) => p.id === playerId)) return null;
+  const mate = [...you.onCourt].filter((p) => p.id !== playerId).sort((a, b) => (Number(b.pass) || 0) - (Number(a.pass) || 0))[0];
+  if (!mate) return null;
+  return { kind: "spot", teammateId: mate.id, personId: mate.bref || mate.id, name: mate.name, nameEn: mate.nameEn || mate.name, pos: mate.pos, iq: Number(mate.iq) || 50 };
 }
 
 // ------------------------------------------------------------------------------------------ the response (PA3.3)
@@ -145,6 +158,32 @@ export function playScreenPossession(sim, { playerId, screenerId, afterScreen, f
   return { points: sim.score[key] - pointsBefore, turnover: teamTotals(team) > turnoversBefore };
 }
 
+/**
+ * S2: run ONE possession with the player asking for the catch (`orders.action = "spot"`: the engine lifts his weight as a
+ * receiver and as a three-point shooter and lowers it as a handler), then restore his orders. It is a tilt, not a promise: the
+ * evidence is what the sim recorded - his own shot / points, and which teammate's assist count rose (the passer).
+ */
+export function playSpotPossession(sim, { playerId }) {
+  const key = sim.youSide;
+  const team = key === "home" ? sim.home : sim.away;
+  const me = team.roster.find((p) => p.id === playerId);
+  const saved = me?.orders ? { ...me.orders } : null;
+  const stat = (p, k) => p.stats?.[k] || 0;
+  const before = { pts: sim.score[key], fga: stat(me, "fga"), fgm: stat(me, "fgm"), mine: stat(me, "pts"), tov: teamTotals(team), ast: Object.fromEntries(team.roster.map((p) => [p.id, stat(p, "ast")])) };
+  sim.setPlayerOrders(playerId, { action: "spot" });
+  sim.step();
+  sim.setPlayerOrders(playerId, saved || { action: "auto" });
+  const passer = team.roster.find((p) => p.id !== playerId && stat(p, "ast") > before.ast[p.id]);
+  return {
+    points: sim.score[key] - before.pts,
+    shot: stat(me, "fga") > before.fga,
+    made: stat(me, "fgm") > before.fgm,
+    myPoints: stat(me, "pts") - before.mine,
+    turnover: teamTotals(team) > before.tov,
+    passer: passer ? { id: passer.id, personId: passer.bref || passer.id, name: passer.name, nameEn: passer.nameEn || passer.name, pos: passer.pos } : null,
+  };
+}
+
 // ----------------------------------------------------------------------------------------- the evidence (PA3.4)
 
 /**
@@ -168,6 +207,31 @@ export function settleScreen({ decisionId, offer, points = 0, turnover = false, 
     turnover,
     delta,
     reason: turnover ? "turnover" : scored ? (critical ? "highLeverageScored" : "screenScored") : "missed",
+  };
+}
+
+/**
+ * What a "find me" request was worth, from what the sim recorded. Only a real assisted score moves chemistry (+0.5, +1.0 in a
+ * clutch possession), and it moves it with the man who actually passed. Not getting the ball costs nothing: it is the common case.
+ */
+export function settleSpot({ decisionId, offer, run, critical = false }) {
+  const fed = run.made && run.passer;
+  const who = fed ? run.passer : offer;
+  const reason = fed ? "fed" : run.shot ? "shot" : "ignored";
+  return {
+    id: `${decisionId}|spot|${who.personId}`,
+    kind: "spot",
+    teammateId: fed ? run.passer.id : offer.teammateId,
+    personId: who.personId,
+    name: who.name,
+    nameEn: who.nameEn,
+    pos: who.pos,
+    points: run.myPoints,
+    shot: run.shot,
+    made: run.made,
+    turnover: false,
+    delta: fed ? (critical ? REL_DELTA.highLeverageScored : REL_DELTA.screenScored) : 0,
+    reason,
   };
 }
 

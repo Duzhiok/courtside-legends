@@ -44,6 +44,10 @@ async function playOne(page, tag, state) {
           state.keyed = d.options.indexOf("screenAlt") + 1;
           await page.keyboard.press(String(state.keyed));
           state.picks.push("screenAlt(key)");
+        } else if (state.offers === 3 && d.options.includes("spot")) {
+          state.spotLabel = d.labels.spot;
+          await page.click('.reborn-takeover-option[data-option="spot"]');
+          state.picks.push("spot(click)");
         } else {
           await page.click('.reborn-takeover-option[data-option="screen"]');
           state.picks.push("screen(click)");
@@ -88,7 +92,7 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
   await page.click('.reborn-identity [data-mode="full"]');
 
   const state = { first: null, offers: 0, picks: [], keyed: 0, feedback: [] };
-  for (let games = 0; games < 25 && !(state.offers >= 3 && state.feedback.length >= 2); games++) {
+  for (let games = 0; games < 30 && !(state.offers >= 4 && state.feedback.length >= 3); games++) {
     await playOne(page, tag, state);
     const lines = await page.$$eval("[data-testid=teamplay-feedback]", (els) => els.map((e) => e.textContent));
     if (lines.length) { state.feedback.push(lines); if (state.feedback.length === 1) await shoot(page, `${OUT}/${tag}-report.png`); }
@@ -104,6 +108,9 @@ for (const [width, height, tag] of [[1440, 900, "desktop"], [390, 844, "mobile"]
     if (LANG === "en") check(`${tag}: dialog is English`, !/[\u4e00-\u9fff]/.test(f.mate.replace(/[A-Z][a-z]+ [A-Z][a-z]+/g, "")), f.mate.slice(0, 100));
   }
   check(`${tag}: took one by click and one by key (${state.keyed ? `key ${state.keyed}` : "no key"})`, state.picks.some((p) => p.endsWith("(click)")) && state.picks.some((p) => p.endsWith("(key)")), state.picks.join(" "));
+  check(`${tag}: "find me" was offered with an honest label (no promise of the ball)`, !!state.spotLabel && /不保证传给你|not guaranteed/.test(state.spotLabel), (state.spotLabel || "never offered").slice(0, 90));
+  const spotLines = state.feedback.flat().filter((l) => /找到你|把球给了你|拿到出手|拿到了球|没有找到|You spotted|got the ball|did not find|found you/.test(l) || (state.picks.includes("spot(click)") && /没有接你的要求|did not go along/.test(l)));
+  check(`${tag}: after a game the report says what the "find me" did`, state.picks.includes("spot(click)") ? spotLines.length > 0 : false, (spotLines[0] || "").slice(0, 110));
   check(`${tag}: after a game the report says what the screen did`, state.feedback.length > 0, state.feedback[0]?.join(" | ").slice(0, 120));
   if (state.feedback.length) {
     const flat = state.feedback.flat().join(" ");

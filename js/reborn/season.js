@@ -27,7 +27,7 @@ import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, teamCoach } from "./agency.js";
 import { createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
-import { REL_START, acceptanceChance, playScreenPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleScreen, teamplayOf } from "./teamplay.js";
+import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
 import { rosterCode } from "./franchises.js";
 import { applyGameGrowth } from "./training.js";
 import { activeSpecialty, earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
@@ -103,8 +103,8 @@ export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW
 }
 
 /** Which kind of possession each non-shot agency choice plays (anything else is "keep reading"). */
-const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen" };
-const PLAYED_KINDS = ["plan", "audible", "pass", "screen"];
+const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen", spot: "spot" };
+const PLAYED_KINDS = ["plan", "audible", "pass", "screen", "spot"];
 
 /**
  * Ask the hook for a takeover decision and submit it through the M2b
@@ -191,10 +191,29 @@ function playScreenChoice(sim, t, playerId, agency) {
   return run.points;
 }
 
+/** S2: "find me". Same rules as a request for the other screen: his answer is one roll on his own stream; a "no" stops nothing. */
+function playSpotChoice(sim, t, playerId, agency) {
+  const { spotOffer: offer, decisionId, values, playerState } = t.context;
+  const chance = acceptanceChance({
+    autonomy: playerState?.autonomy ?? 0,
+    chemistry: agency?.mateStrength?.[offer.personId] ?? REL_START,
+    opportunity: requestOpportunity(values, "spot"),
+    roleInfluence: roleInfluence(agency?.role),
+    iq: offer.iq,
+  });
+  t.teammate = { offer, proposed: true, ...respondToRequest({ decisionId, chance }) };
+  if (!t.teammate.accepted) {
+    t.accepted = false;
+    return 0;
+  }
+  t.run = playSpotPossession(sim, { playerId });
+  return t.run.points;
+}
+
 /** Play the possession a non-shot agency choice covers and record its points on the choice (the evidence it is graded on). */
 function playChoice(sim, t, playerId, agency) {
   if (!PLAYED_KINDS.includes(t?.kind)) return;
-  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : playChoicePossession(sim, t);
+  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : t.kind === "spot" ? playSpotChoice(sim, t, playerId, agency) : playChoicePossession(sim, t);
 }
 
 /**
@@ -409,17 +428,19 @@ export async function playGame(
   next.player.rotationRole = roleAfter;
   // PA3: what the screens you called really did (GameSim's points / turnover), settled into the run once per game and
   // teammate. A teammate who said no is reported but moves nothing.
-  const screens = [takeover, ...extras].filter((t) => t?.kind === "screen" && t.teammate);
+  const screens = [takeover, ...extras].filter((t) => (t?.kind === "screen" || t?.kind === "spot") && t.teammate);
   const mateEvidence = screens
     .filter((t) => t.accepted)
-    .map((t) => settleScreen({ decisionId: t.context.decisionId, offer: t.teammate.offer, points: t.points || 0, turnover: !!t.turnover, critical: !t.context.routine, proposed: t.teammate.proposed }));
+    .map((t) => (t.kind === "spot"
+      ? settleSpot({ decisionId: t.context.decisionId, offer: t.teammate.offer, run: t.run, critical: !t.context.routine })
+      : settleScreen({ decisionId: t.context.decisionId, offer: t.teammate.offer, points: t.points || 0, turnover: !!t.turnover, critical: !t.context.routine, proposed: t.teammate.proposed })));
   const mates = recordTeammateEvidence(reborn, gameId, mateEvidence);
   next.teamplay = mates.teamplay;
   const teamplay = screens.length
     ? {
         items: [
           ...mateEvidence,
-          ...screens.filter((t) => !t.accepted).map((t) => ({ kind: "screen", rejected: true, proposed: true, name: t.teammate.offer.name, nameEn: t.teammate.offer.nameEn, chance: t.teammate.chance })),
+          ...screens.filter((t) => !t.accepted).map((t) => ({ kind: t.kind, rejected: true, proposed: true, name: t.teammate.offer.name, nameEn: t.teammate.offer.nameEn, chance: t.teammate.chance })),
         ],
         moved: mates.moved,
       }

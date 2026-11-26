@@ -62,6 +62,10 @@ function mateCard(offer, lang) {
 
 function optionLabel(id, context, lang) {
   const offer = context.offer;
+  if (id === "spot") {
+    const who = esc(lang === "en" ? context.spotOffer.nameEn || context.spotOffer.name : context.spotOffer.name);
+    return [T("无球要球", "Off the ball", lang), T(`站到外线要球，请 ${who} 找你（他可能不答应，也不保证传给你）`, `Spot up and ask ${who} to find you (he may say no, and the ball is not guaranteed)`, lang)];
+  }
   const mate = offer ? esc(lang === "en" ? offer.nameEn || offer.name : offer.name) : "";
   if (id === "screen") return [T("队友配合", "With a teammate", lang), T(`接受 ${mate} 的挡拆：${AFTER_ZH[offer.afterScreen]}`, `Take ${mate}'s screen: he ${AFTER_EN[offer.afterScreen]}`, lang)];
   if (id === "screenAlt") return [T("提出另一种打法", "Ask for another way", lang), T(`要求 ${mate}：${AFTER_ZH[offer.alt]}（他可能不答应）`, `Ask ${mate}: ${AFTER_EN[offer.alt]} (he may say no)`, lang)];
@@ -140,6 +144,11 @@ export function describeTeamplayFeedback(teamplay, lang = "zh") {
   const nameOf = (x) => esc(lang === "en" ? x.nameEn || x.name : x.name);
   const lines = teamplay.items.map((i) => {
     const who = nameOf(i);
+    if (i.kind === "spot" && !i.rejected) {
+      if (i.reason === "fed") return T(`你站好位置，${who} 把球给了你，打成了（${i.points} 分）。`, `You spotted up, ${who} found you and it fell (${i.points} pts).`, lang);
+      if (i.reason === "shot") return T(`你要到了球，拿到出手机会，${i.made ? `打成了（${i.points} 分）` : "没有投进"}。`, `You got the ball and a shot${i.made ? ` (${i.points} pts)` : ", it did not fall"}.`, lang);
+      return T("你站位要球，这一回合队友没有找到你。", "You spotted up; the team did not find you this possession.", lang);
+    }
     if (i.rejected) return T(`${who} 没有接你的要求，这一回合按球队的原则打了。`, `${who} did not go along with your request; the possession played on the team's principles.`, lang);
     if (i.reason === "turnover") return T(`和 ${who} 的挡拆出现了失误。`, `The screen with ${who} ended in a turnover.`, lang);
     if (i.points > 0) return T(`和 ${who} 的挡拆打成了（${i.points} 分）。`, `The screen with ${who} paid off (${i.points} pts).`, lang);

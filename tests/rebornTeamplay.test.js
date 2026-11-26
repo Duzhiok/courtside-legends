@@ -178,11 +178,18 @@ test("6. the new options are graded but never move the baseline of the old ones 
   const ctx = buildDecisionContext(sim, me.id, { coach: teamCoach("CHI", 1996), iq: 60, decisionId: "g|1" });
   assert.ok(ctx.offer && ctx.options.includes("screen") && ctx.options.includes("screenAlt"));
   assert.ok(Number.isFinite(ctx.values.screen) && Number.isFinite(ctx.values.screenAlt));
-  const { screen, screenAlt, ...base } = ctx.values;
-  for (const id of Object.keys(base)) assert.equal(decisionQuality(ctx.values, id), decisionQuality(base, id), `${id} is graded against the same baseline`);
-  assert.equal(opportunityOf(ctx.values), opportunityOf(base), "PA2's pacing sees no difference");
-  assert.ok(Number.isFinite(decisionQuality(ctx.values, "screen")) && Number.isFinite(decisionQuality(ctx.values, "screenAlt")));
-  assert.ok(screen !== undefined && screenAlt !== undefined);
+  // The options that existed before PA3, by name (not "everything except the ones I remember adding").
+  const legacy = Object.fromEntries(Object.entries(ctx.values).filter(([k]) => ["pullup", "drive", "follow", "setup", "pass"].includes(k)));
+  for (const id of Object.keys(legacy)) assert.equal(decisionQuality(ctx.values, id), decisionQuality(legacy, id), `${id} is graded against the same baseline as before PA3`);
+  assert.equal(opportunityOf(ctx.values), opportunityOf(legacy), "PA2's pacing sees no difference");
+  for (const id of ["screen", "screenAlt", "spot"]) assert.ok(Number.isFinite(decisionQuality(ctx.values, id)), `${id} is graded too`);
+  // Deterministic: extreme PA3 values must not move a single old option's grade or PA2's opening gap, whatever the floor looks like.
+  const old = { pullup: 1.1, drive: 0.9, pass: 1.0 };
+  for (const extreme of [{ screen: 9, screenAlt: 9, spot: 9 }, { screen: -9, screenAlt: -9, spot: -9 }]) {
+    const mixed = { ...old, ...extreme };
+    for (const id of Object.keys(old)) assert.equal(decisionQuality(mixed, id), decisionQuality(old, id), `${id} unmoved by ${JSON.stringify(extreme)}`);
+    assert.equal(opportunityOf(mixed), opportunityOf(old), `PA2 gap unmoved by ${JSON.stringify(extreme)}`);
+  }
 });
 
 test("7. the settle table: what the real possession did decides, a miss after a good screen is not punished", () => {
@@ -300,4 +307,111 @@ test("12. the dialog: the teammate speaks with a real line, both ways are offere
   assert.match(lines[1], /乙 的挡拆打成了（2 分）/);
   assert.match(lines[2], /默契 \+0\.5/);
   assert.deepEqual(describeTeamplayFeedback(null), []);
+});
+
+// ------------------------------------------------------------------------------------------------- S2: "find me"
+
+test("13. the 'find me' request goes to the best passer on the floor, never to you, and not when there is no time", () => {
+  const sim = toOurPossession(liveSim());
+  const me = mine(sim);
+  const offer = T.spotOffer(sim, me.id);
+  const mates = sim.home.onCourt.filter((p) => p.id !== me.id);
+  const best = [...mates].sort((a, b) => (Number(b.pass) || 0) - (Number(a.pass) || 0))[0];
+  assert.equal(offer.teammateId, best.id);
+  assert.notEqual(offer.teammateId, me.id);
+  assert.equal(T.spotOffer({ ...sim, clock: 5, youSide: sim.youSide, home: sim.home, away: sim.away }, me.id), null);
+  assert.equal(T.spotOffer(sim, "nobody"), null);
+});
+
+test("14. GameSim honours it: asking for the catch gives the player clearly more shots, and his orders come back untouched", () => {
+  const eras = [["CHI", 1996, "SEA", 1996], ["LAL", 2001, "SAS", 2001], ["BOS", 1986, "HOU", 1986]];
+  const shotRate = (asked) => {
+    let n = 0;
+    let shots = 0;
+    for (const [h, hy, a, ay] of eras) {
+      for (let seed = 1; seed <= 10; seed++) {
+        for (const slot of [1, 3]) {
+          const sim = new GameSim({ home: realTeam(h, hy), away: realTeam(a, ay), youSide: "home", injuries: false, speed: 3, rng: seededStream(seed * 53 + slot), onEvent: () => {}, onTick: () => {}, onEnd: () => {} });
+          Object.assign(sim, { autoOffense: true, autoDefense: true, autoRotation: true, _quiet: true, running: true });
+          const me = sim.home.onCourt[slot];
+          for (let k = 0; sim.running && k < 30;) {
+            if (sim.possession === "home" && sim.clock > 30 && sim.home.onCourt.includes(me)) {
+              const ordersBefore = JSON.stringify(me.orders);
+              let run = null;
+              const fga = me.stats?.fga || 0;
+              if (asked) {
+                run = T.playSpotPossession(sim, { playerId: me.id });
+                assert.equal(JSON.stringify(me.orders), ordersBefore, "orders restored");
+                if (run.shot) shots++;
+              } else {
+                sim.step();
+                if ((me.stats?.fga || 0) > fga) shots++;
+              }
+              n++;
+              k++;
+            } else sim.step();
+          }
+        }
+      }
+    }
+    return shots / n;
+  };
+  const control = shotRate(false);
+  const asked = shotRate(true);
+  assert.ok(asked > control + 0.02, `asking for the catch: ${control.toFixed(3)} -> ${asked.toFixed(3)} shots per possession`);
+});
+
+test("15. a 'find me' settles only on a real assist, with the man who actually passed; not getting the ball costs nothing", () => {
+  const offer = { teammateId: "pg", personId: "pg", name: "控卫", nameEn: "PG", pos: "PG" };
+  const passer = { id: "sf", personId: "sf", name: "前锋", nameEn: "SF", pos: "SF" };
+  const s = (run, critical = false) => T.settleSpot({ decisionId: "g|r1", offer, run: { points: 0, shot: false, made: false, myPoints: 0, passer: null, ...run }, critical });
+  const fed = s({ shot: true, made: true, myPoints: 3, passer });
+  assert.equal(fed.delta, 0.5);
+  assert.equal(fed.personId, "sf", "the chemistry moves with the one who passed, not the one asked");
+  assert.equal(fed.id, "g|r1|spot|sf");
+  assert.equal(s({ shot: true, made: true, myPoints: 3, passer }, true).delta, 1.0, "clutch");
+  assert.equal(s({ shot: true, made: true, myPoints: 2, passer: null }).delta, 0, "scored on his own: nobody to thank");
+  assert.equal(s({ shot: true, made: false }).delta, 0);
+  assert.equal(s({ shot: true, made: false }).reason, "shot");
+  const none = s({});
+  assert.equal(none.delta, 0);
+  assert.equal(none.reason, "ignored");
+  assert.equal(none.personId, "pg", "an ignored request is about the teammate who was asked");
+});
+
+test("16. in a real Reborn game a 'find me' is asked, answered, run and reported; the same game replays identically", async () => {
+  const hook = ({ context }) => (context ? { choiceId: context.options.includes("spot") ? "spot" : "pass" } : null);
+  let reborn = createRebornState("pa3-spot-1", ROWS);
+  const season = buildSeason(reborn, ROWS);
+  let found = null;
+  for (let i = 0; i < 12 && !found; i++) {
+    const index = season.index;
+    const out = await playGame(reborn, season, ROWS, { onTakeover: hook, participation: { getMode: () => "full" } });
+    if (out.report.teamplay?.items?.some((x) => x.kind === "spot")) found = { before: reborn, index, out };
+    reborn = out.reborn;
+  }
+  assert.ok(found, "a 'find me' came up within 12 games on full participation");
+  const items = found.out.report.teamplay.items.filter((x) => x.kind === "spot");
+  assert.ok(items.every((x) => x.rejected || ["fed", "shot", "ignored"].includes(x.reason)));
+  assert.ok(found.out.report.teamplay.moved.every((m) => Math.abs(m.delta) <= T.MAX_REL_PER_GAME));
+  season.index = found.index;
+  const again = await playGame(found.before, season, ROWS, { onTakeover: hook, participation: { getMode: () => "full" } });
+  assert.deepEqual(again.report.teamplay, found.out.report.teamplay, "deterministic");
+});
+
+test("17. the dialog offers it honestly (no promise of the ball) and every outcome has a plain line", () => {
+  const sim = toOurPossession(liveSim(5));
+  const ctx = buildDecisionContext(sim, mine(sim).id, { coach: teamCoach("CHI", 1996), iq: 60, decisionId: "g|1" });
+  assert.ok(ctx.spotOffer && ctx.options.includes("spot") && Number.isFinite(ctx.values.spot));
+  assert.ok(ctx.options.indexOf("spot") < ctx.options.indexOf("pass"), "before 'keep reading'");
+  const zh = agencyDialogHtml({ sim, context: ctx, lang: "zh" });
+  assert.match(zh, /data-option="spot"/);
+  assert.match(zh, /不保证传给你/);
+  assert.match(agencyDialogHtml({ sim, context: ctx, lang: "en" }), /the ball is not guaranteed/);
+  const lines = (reason, extra = {}) => describeTeamplayFeedback({ items: [{ kind: "spot", reason, name: "乙", nameEn: "B", points: 3, ...extra }], moved: [] }, "zh")[0];
+  assert.match(lines("fed"), /乙 把球给了你，打成了（3 分）/);
+  assert.match(lines("shot", { made: false }), /没有投进/);
+  assert.match(lines("shot", { made: true }), /打成了（3 分）/);
+  assert.match(lines("ignored"), /队友没有找到你/);
+  assert.match(describeTeamplayFeedback({ items: [{ kind: "spot", rejected: true, name: "乙", nameEn: "B" }] }, "zh")[0], /乙 没有接你的要求/);
 });
