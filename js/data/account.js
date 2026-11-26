@@ -13,6 +13,8 @@ import { applyTrainingBonus } from "./trainingRules.js";
 import { ACCOUNTS_KEY, ACTIVE_ACCOUNT_KEY as ACTIVE_KEY, CORRUPT_ACCOUNTS_KEY } from "./accountKeys.js";
 import { rand } from "../core/rng.js";
 
+/** Version of the account store envelope. Absent = 0 (every store written before this field existed). */
+export const ACCOUNT_STORE_VERSION = 1;
 const STORE_KEY = ACCOUNTS_KEY;
 
 // rarityLabel(ovr) used to live here (pure-OVR tag text). It is now data/playerLegacy.js's
@@ -81,6 +83,8 @@ function loadStore() {
       quarantineCorruptStore(raw);
       return { accounts: [], corrupt: true };
     }
+    // Written by a newer build: read it, but never write back (we could drop fields we do not know about).
+    if (Number.isInteger(parsed.version) && parsed.version > ACCOUNT_STORE_VERSION) return { ...parsed, newer: true };
     return parsed;
   } catch {
     quarantineCorruptStore(raw);
@@ -133,7 +137,7 @@ export function discardCorruptAccountStore() {
  */
 function saveStore(store) {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ ...store, version: ACCOUNT_STORE_VERSION }));
     return true;
   } catch (err) {
     console.error(
@@ -192,6 +196,10 @@ export function saveAccount(account) {
         + CORRUPT_ACCOUNTS_KEY
         + " — export the backup before discarding the damaged store",
     );
+    return account;
+  }
+  if (store.newer) {
+    console.error("[account] refusing to save: the account store was written by a newer game version");
     return account;
   }
   const i = store.accounts.findIndex((a) => a.id === account.id);

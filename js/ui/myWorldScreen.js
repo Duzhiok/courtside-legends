@@ -23,6 +23,7 @@ import { careerSig, claimSave, saveVisibility, seasonSig, sessionSig } from "../
 import { deleteChallengeArchive, readChallengeArchive } from "../data/challengeArchive.js";
 import { journeyFromRoot, legacyFromAccount, myWorldHtml, ownedShopSummary, trophyCountOf } from "./myWorldView.js";
 import { hometownHtml } from "./hometownView.js";
+import { mountCloudPanel } from "./cloudPanel.js";
 import { readHometownState, setIdol } from "../data/hometown/hometownState.js";
 
 export function createMyWorld({
@@ -130,6 +131,7 @@ export function createMyWorld({
     const frameKey = account ? equippedFrameId(account) : null;
     const honours = account ? { title: unlockLabel(equippedTitle(account), lang) || null, list: ownedUnlocks(account, frameKey) } : null;
     el.innerHTML = myWorldHtml({ title: honours?.title || null, honours: honours?.list || null, jerseys: account ? { list: listOwnedJerseys(account), equipped: equippedJerseyKey(account) } : null, identity, games: visibleGames(account, lang), legacy: legacyFromAccount(account), frames, look: readLook(account), portrait: portraitFor(account), level: levelSnapshot(account, lang), furniture: ownedFurnitureIds(account), homeLayout: account?.homeLayout ?? null, frame: equippedFrameClassKey(account), ownedOutfits: ownedOutfitIds(account), owned: ownedShopSummary(account), hometown }, lang);
+    mountCloudPanel(el, lang); // no-op unless the cloud feature flag is on
     if (parked) adoptViewer(parked, kit);
     else mountShowcaseViewer();
   }

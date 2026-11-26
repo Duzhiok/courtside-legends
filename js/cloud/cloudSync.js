@@ -39,8 +39,10 @@ function fnv(text) {
 
 /** Fingerprint of what the player did, not of when it was written (savedAt moves on every save). */
 export function contentHash(root) {
-  const { savedAt: _ignored, ...rest } = root;
-  return fnv(JSON.stringify(rest));
+  // savedAt moves on every save; profile.accountId is per-DEVICE ownership (local account ids are random per device),
+  // not something the player did. Neither makes two saves "different".
+  const { savedAt: _ignored, profile, ...rest } = root;
+  return fnv(JSON.stringify({ ...rest, profile: profile ? { ...profile, accountId: null } : profile }));
 }
 
 /** Does the cloud row hold the same content as this root? (An unreadable row counts as "no".) */
@@ -59,7 +61,7 @@ function failure(error) {
   return { status: FAILURE_STATUS[error?.kind] || "offline", error: error?.message };
 }
 
-export function createCloudSync({ storage, transport, userId, linkedAccountId = null, slot = CAREER_SLOT }) {
+export function createCloudSync({ storage, transport, userId, linkedAccountId = null, slot = CAREER_SLOT, now = Date.now }) {
   if (!userId) throw new Error("createCloudSync needs the signed-in cloud userId: sync state is kept per user");
   const readAll = () => {
     try {
@@ -97,7 +99,7 @@ export function createCloudSync({ storage, transport, userId, linkedAccountId = 
       return failure(error);
     }
     if (res.conflict) return { status: "conflict", cloudRevision: res.revision };
-    remember({ revision: res.revision, hash });
+    remember({ revision: res.revision, hash, at: now() });
     return { status: "uploaded", revision: res.revision };
   }
 
@@ -119,7 +121,7 @@ export function createCloudSync({ storage, transport, userId, linkedAccountId = 
     // The cloud moved. If it already holds exactly what this device has (a lost-response retry, or the same career
     // opened on two devices), adopt its revision instead of calling it a conflict.
     if (localChanged && cloudHolds(remote, root)) {
-      remember({ revision: remote.revision, hash: contentHash(root) });
+      remember({ revision: remote.revision, hash: contentHash(root), at: now() });
       return { status: "up-to-date", revision: remote.revision };
     }
     return localChanged ? { status: "conflict", cloudRevision: remote.revision } : { status: "cloud-newer", cloudRevision: remote.revision };
@@ -140,6 +142,9 @@ export function createCloudSync({ storage, transport, userId, linkedAccountId = 
     } catch (error) {
       return { status: "invalid-cloud", error: error.message };
     }
+    // The save came from another device, whose local account id is a different random string. The player confirmed that
+    // THIS device's linked account is that cloud user, so the restored career becomes this account's (never someone else's).
+    if (linkedAccountId && incoming.profile) incoming = { ...incoming, profile: { ...incoming.profile, accountId: linkedAccountId } };
     const current = readRootSave(storage);
     if (current) storage.setItem(SYNC_BACKUP_KEY, exportRootSave(current));
     try {
@@ -147,7 +152,7 @@ export function createCloudSync({ storage, transport, userId, linkedAccountId = 
     } catch (error) {
       return { status: "blocked", error: error.message };
     }
-    remember({ revision: remote.revision, hash: contentHash(incoming) });
+    remember({ revision: remote.revision, hash: contentHash(incoming), at: now() });
     return { status: "restored", revision: remote.revision, backedUp: !!current };
   }
 

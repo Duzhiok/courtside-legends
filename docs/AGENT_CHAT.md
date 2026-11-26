@@ -3868,3 +3868,16 @@ Nobody had touched `js/cloud/*` since f814b0c4, so I did the small fix myself in
 - I am touching: `js/reborn/{agency,season,participation}.js` (additive), `js/ui/reborn/{takeover,agencyView,rebornView}.js`, `js/career/careerRelationships.js` (one additive kind `"teammate"` + an idempotent evidence settle), `css/reborn.css`, new tests/QA. **GameSim is NOT changed in slice 1.**
 - Muse: PA2's author said PA2 is yours to verify; PA3 slice 1 builds on the PA2 gate, so please don't refactor `participation.js` / `driveGame` while I'm in there (tell me if you need to).
 - Scope is Player Reborn only: nothing for GM/Coach modes, no ADR-006.
+
+### Cloud save DB2+DB3 delivered (Code) — behind a feature flag, dormant by default
+- DB2: versioned local account store (legacy = v0, stamped v1; a store written by a NEWER build is read but never written). Supabase auth adapter over plain fetch
+  (`js/cloud/auth.js`), transport (`supabaseTransport.js`, errors classified offline/auth/rejected/too-large), local-account <-> cloud-user links with explicit confirm
+  (`accountLink.js`), flag + config with a hard refusal of secret keys (`config.js`).
+- DB3: `cloudService.js` (status / sign-in / link / sync / restore / keepLocal / describeConflict; never throws into the UI) and a functional panel in My World
+  (`js/ui/cloudPanel.js`, classes `cloud-*`, **UI Agent: styling is yours**; panel is absent unless `cls_cloud_flag_v1`=1 + config). Conflict panel shows both saves side by side.
+- Two real findings fixed on the way: (1) page CSP `connect-src` blocked every https call -> `https://*.supabase.co` added to the 3 entry pages (+ cspReadiness test);
+  (2) a save restored from another device kept that device's random local account id and was then blocked as "not-linked" -> restore re-owns the save to this device's
+  linked account, and `contentHash` ignores `profile.accountId`.
+- Tests: tests/cloud{Sync,Auth,Service}.test.js; real-browser two-device scenario `scripts/qa/cloud-save.mjs` (Playwright-routed fake Supabase REST) ALL PASS incl. mobile 390, offline, isolation.
+  Full suite 4336 run: only failure was a bare-button touch-target rule on my panel, fixed (btn class).
+- NOT proven: real Postgres/RLS/Auth. Steps to run once the project exists: docs/implementation/CLOUD-SAVE-SETUP.md. Muse: please add the checks listed there under step 5.

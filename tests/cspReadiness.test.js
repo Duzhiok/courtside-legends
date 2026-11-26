@@ -41,7 +41,7 @@ const CSP_POLICY = {
     "https://cdn.nba.com", "https://www.basketball-reference.com",
   ],
   "media-src": ["'self'", "blob:"],
-  "connect-src": ["'self'", "ws:", "wss:"],
+  "connect-src": ["'self'", "ws:", "wss:", "https://*.supabase.co"],
   "object-src": ["'none'"],
   "base-uri": ["'self'"],
   "form-action": ["'self'"],

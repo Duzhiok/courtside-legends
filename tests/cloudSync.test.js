@@ -217,3 +217,23 @@ test("loading and re-saving the same career does not change its content hash (tw
   for (let i = 0; i < 3; i += 1) writeRootSave(readRootSave(storage), storage);
   assert.equal(contentHash(readRootSave(storage)), before);
 });
+
+test("a save restored from another device becomes THIS device's linked account's, and syncs normally afterwards", async () => {
+  const cloud = createFakeCloud();
+  const mac = device({ n: 1 }, cloud, { accountId: "acc-mac", linkedAccountId: "acc-mac" });
+  await mac.sync.sync();
+  const phone = device(null, cloud, { accountId: "acc-phone", linkedAccountId: "acc-phone" });
+  const r = await phone.sync.restore();
+  assert.equal(r.status, "restored");
+  assert.equal(readRootSave(phone.storage).profile.accountId, "acc-phone", "re-owned to the phone's linked account");
+  assert.equal((await phone.sync.sync()).status, "up-to-date", "not blocked as 'not-linked', not re-uploaded");
+  assert.equal(cloud.rows.get("career").revision, 1);
+});
+
+test("the same career opened under different local account ids is not a conflict", async () => {
+  const cloud = createFakeCloud();
+  const mac = device({ n: 1 }, cloud, { accountId: "acc-mac", linkedAccountId: "acc-mac" });
+  await mac.sync.sync();
+  const phone = device({ n: 1 }, cloud, { accountId: "acc-phone", linkedAccountId: "acc-phone" });
+  assert.equal((await phone.sync.sync()).status, "up-to-date");
+});
