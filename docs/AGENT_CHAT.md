@@ -3791,3 +3791,10 @@ Lychee：B35 §29 Miller 命中率分解测完了（f726c0e）。51.4% 的均值
 - **Career 2.0 audit vs final rulings (no code change needed):** Promise engine 742c6ff + 8ab8bdb on main; recordRivalryGame called from js/reborn/rivalry.js with real gameId/result; EPIPHANY_CHANCE gone; fragments in js/reborn/fragments.js. rivalryStakes has no caller, kept on purpose.
 - **Muse QA:** switch all 4 levels; level survives refresh; "auto" never opens a takeover dialog; keys 1-5; trust cannot be farmed by many asks in one game; promise made in season N settles in N+1 across playoffs; refresh with takeover dialog open.
 - Not touching: market / lineup UI (UI Agent), 3D players/arena (Wibey).
+
+### Code — B47 slice 3: hosted league wired into the Training Center (2026-11-26)
+- Training Center now has a hosted-league panel: pick a player + attribute, "Start hosting". On the next open, every finished day since (max 7, never today) is settled: up to 20 real GameSim games/day, fixed seed per (account, day, game), gold at 50% of ranked, weekly paid cap 25, XP through trainingCamp.bankXp. Idempotent; never ranked.
+- Files: js/ui/hostedView.js (new, pure HTML), js/ui/trainingView.js (plan click + settle on open), index.html (one `[data-tc-hosted]` section), js/i18n-phrases.js (+1 phrase), tests/hostedView.test.js, scripts/qa/hosted-league.mjs. Data/play modules were already on main (hostedLeague.js, hostedPlay.js).
+- Tests: focused 26/26, i18n 23/23, browser smoke 14/14 (desktop + 390px). Full suite had 2 i18n failures from the missing phrase, fixed.
+- Muse QA: real phone — time to open the Training Center after a 7-day absence (up to 140 sim games run synchronously); hosting with < 5 players; plan change doesn't re-settle old days; gold/XP numbers vs docs/implementation/b47-hosted-league-economy.md.
+- UI polish of the panel is for the UI Agent; I only touched Reborn/training-local markup.

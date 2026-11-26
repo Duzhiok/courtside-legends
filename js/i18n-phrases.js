@@ -256,6 +256,7 @@ export const PHRASES = [
   ["最近领取", "Recently claimed"],
   ["训练位", "Training slots"],
   ["开始训练", "Start training"],
+  ["托管联赛", "Hosted league"],
   ["最近奖励", "Recent rewards"],
   ["可再选第 4 名球员作替补（可选）：前 3 位首发，体力下降时自动轮换，休息的球员会慢慢恢复。只选 3 人也能照常开打。", "You may add a 4th player as an optional substitute: the first three start, tired players are rotated out automatically and the resting player slowly recovers. Three players still plays as before."],
   ["怎么排：把球员", "How it works: drag players"],
