@@ -34,15 +34,34 @@ test("nothing is owed without a plan, and never for today: games settle the day 
   assert.equal(run(acc, T0 + 2 * DAY).days.length, 1, "two days on: the first full day settles");
 });
 
+test("economy constants are pinned by value, not read back from the module (B47 follow-up a)", () => {
+  // These used to be asserted only through the imported constants, so changing
+  // a constant left every test green. Pin the literal values here; a deliberate
+  // economy change must update this test too.
+  assert.equal(hosted.DAILY_GAMES, 20);
+  assert.equal(hosted.WEEKLY_PAID_GAMES, 25);
+  assert.equal(hosted.MAX_CATCH_UP_DAYS, 7);
+  assert.equal(hosted.PRICE_SHARE, 0.5);
+  assert.equal(hosted.RANKED_PAY.win, 40);
+  assert.equal(hosted.RANKED_PAY.loss, 12);
+  assert.equal(hosted.HOSTED_XP_PER_GAME, 8);
+  assert.equal(hosted.YIELD_EVERY_GAMES, 5);
+  assert.deepEqual(hosted.TAPER, [
+    { upTo: 5, gold: 1, xp: 1 },
+    { upTo: 10, gold: 0.5, xp: 0.5 },
+    { upTo: 20, gold: 0, xp: 0.25 },
+  ]);
+});
+
 test("a day follows the ADR taper: gold 100/50/0%, XP 100/50/25%, priced at half of ranked", () => {
   const acc = account();
   start(acc);
   const r = run(acc, T0 + 2 * DAY, always(true));
-  const { RANKED_PAY, PRICE_SHARE, HOSTED_XP_PER_GAME } = hosted;
-  const win = RANKED_PAY.win * PRICE_SHARE;
+  const win = 20; // ranked win 40 x PRICE_SHARE 0.5, pinned literally (see constants test)
+  const xp = 8; // HOSTED_XP_PER_GAME, pinned literally
   assert.equal(r.days[0].games, 20);
   assert.equal(r.gold, 5 * win + 5 * Math.round(win * 0.5), "only games 1-10 pay gold");
-  assert.equal(r.xp, 5 * HOSTED_XP_PER_GAME + 5 * Math.round(HOSTED_XP_PER_GAME * 0.5) + 10 * Math.round(HOSTED_XP_PER_GAME * 0.25));
+  assert.equal(r.xp, 5 * xp + 5 * Math.round(xp * 0.5) + 10 * Math.round(xp * 0.25));
   assert.equal(acc.gold, r.gold);
 });
 
@@ -75,7 +94,7 @@ test("the weekly cap is HARD: after 25 paid games the rest of the week pays noth
   start(acc);
   const r = run(acc, T0 + 7 * DAY); // Tue..Sun settled = 6 days of 20 games, all in one Monday-based week
   const paid = r.days.reduce((n, d) => n + d.paid, 0);
-  assert.equal(paid, hosted.WEEKLY_PAID_GAMES);
+  assert.equal(paid, 25, "weekly cap is 25 paid games, pinned literally");
   assert.equal(r.days.reduce((n, d) => n + d.games, 0), 120, "every game is still played and recorded");
   assert.equal(r.days.at(-1).gold, 0);
   const week2 = run(acc, T0 + 9 * DAY); // Mon + Tue of the next week: a new week, a fresh cap
@@ -102,7 +121,7 @@ test("hosted XP goes through the Training Center bank: same tier budget, no dire
 test("catch-up is bounded: away for a month settles at most MAX_CATCH_UP_DAYS", () => {
   const acc = account();
   start(acc);
-  assert.equal(run(acc, T0 + 30 * DAY).days.length, hosted.MAX_CATCH_UP_DAYS);
+  assert.equal(run(acc, T0 + 30 * DAY).days.length, 7, "catch-up is capped at 7 days, pinned literally");
 });
 
 test("it touches nothing but gold, one card's XP bank and its own log", () => {
@@ -143,7 +162,7 @@ test("it plays in small chunks, handing the thread back between them, and report
     yieldFrame: async () => { assert.ok(sinceYield <= hosted.YIELD_EVERY_GAMES, `${sinceYield} games ran without yielding`); sinceYield = 0; yields += 1; },
     onProgress: (p) => seen.push(p),
   });
-  assert.equal(yields, (3 * hosted.DAILY_GAMES) / hosted.YIELD_EVERY_GAMES - 1, "3 days of 20 games, a yield after every chunk except the last");
+  assert.equal(yields, 11, "3 days of 20 games, a yield after every chunk of 5 except the last");
   assert.ok(seen.every((p, i) => p.total === 60 && (i === 0 || p.done > seen[i - 1].done)), JSON.stringify(seen.slice(0, 3)));
   assert.ok(seen.at(-1).done < seen.at(-1).total, "no yield once everything is played");
 });

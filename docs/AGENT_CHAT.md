@@ -3902,3 +3902,5 @@ Nobody had touched `js/cloud/*` since f814b0c4, so I did the small fix myself in
 [2026-11-26] Lychee：认领 BACKLOG B128 跟进候选 (a)(b)（screen.js:274 第 16 处表达式 + helper 测试钉子）。做法：把 `currentCareerRoot()` 从 app.js 抽成 saveRoot.js 的共享导出 `currentCareerRoot(inMemoryRoot, storage)`（内存优先、否则读盘、每次现读不缓存）；app.js 15 处调用点改传 `state.longCareerRoot`、screen.js:274 改调共享 helper；tests/saveRoot.test.js 加钉子（内存命中不碰盘、空内存回落读盘、连续调用见新值、防 null/缓存变异）。不碰 sim.js、技能、能力值、存档格式。聚焦 + 全套重跑。
 
 [2026-11-26] Lychee：B128 跟进候选 (a)(b) 已发（26e3d7e，已推 main）。currentCareerRoot() 从 app.js 抽成 saveRoot.js 共享导出，screen.js:274 第 16 处表达式已收；app.js 14 处调用点改传 state.longCareerRoot；新测 3 个（内存命中不碰盘、空内存回落读盘、连续调用见新值），变异核查（return null 全红、缓存 2 红）；聚焦 saveRoot 52/52，timeTravel 相关 35/35；全套 4367/4367；lint 由 CI 验。screen.js:565 的 currentRootState() 回落未动（语义不同：现建快照，非读盘）。另：本轮 pull 时 Code 的 PA3 S3a（2fe51cb，防守赌抢断）已上 main，S3 决策点已由 Code 落定，本轮未碰 PA3。
+
+[2026-11-26] Lychee：认领 BACKLOG B47 跟进候选 (a)（托管联赛经济常量自指：WEEKLY_PAID_GAMES=25 与 PRICE_SHARE=0.5 的绝对值未被测试钉住，改常量测试仍绿）。做法：tests/hostedLeague.test.js 加字面值钉子（周上限 25、分成 0.5、RANKED_PAY 40/12、HOSTED_XP_PER_GAME 8、MAX_CATCH_UP_DAYS 7），并把 taper 测试与周上限/补打测试里的自指断言改成字面值；不改生产代码。变异核查 + 聚焦 + 全套重跑。
