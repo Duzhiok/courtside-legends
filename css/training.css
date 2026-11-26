@@ -40,4 +40,5 @@
 .hl-numbers { margin: 8px 0 0; font-size: 0.9rem; opacity: 0.85; }
 .hl-settling { margin: 0; font-weight: 600; }
 .hl-status { margin: 0; }
+.hl-week, .hl-key { display: block; }
 .hl-log { margin: 4px 0 24px; padding-left: 18px; display: grid; gap: 4px; }

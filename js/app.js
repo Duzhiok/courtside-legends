@@ -2056,7 +2056,7 @@ async function openTraining() {
   trainingScreen?.open();
   show("training");
   // Settling can pay gold, so repaint the training header/slots (trainingScreen.open does both) once it did.
-  hostedPanel?.open().then((settled) => { if (settled) trainingScreen?.open(); });
+  hostedPanel?.open().then((settled) => { if (settled) { trainingScreen?.open(); refreshGoldChip(); } }); // the top-bar balance too: it is on every screen
 }
 $("#btn-training-entry")?.addEventListener("click", () => openTraining());
 $("#btn-training-back")?.addEventListener("click", () => {

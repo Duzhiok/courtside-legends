@@ -75,7 +75,7 @@ test("the welcome-back card leads with the story: record, best game, who grew; t
   const out = view.hostedReportHtml(result(), { playerId: "a", attr: "three" }, ctx());
   assert.match(out, /离线打了 2 天/);
   assert.match(out, /40 场 26 胜 14 负/);
-  assert.match(out, /最精彩：第 7 场 112–98 大胜 LAL\|2001（\+14）/, "the biggest of the days' key games");
+  assert.match(out, /最精彩：第 7 场 112–98 大胜 2001 湖人（\+14）/, "the biggest of the days' key games");
   assert.match(out, /a 的三分 \+2（\+115 经验）/);
   assert.ok(out.indexOf("hl-story") < out.indexOf("hl-numbers"), "story before numbers");
   assert.match(out, /金币 \+¤290/);
@@ -86,7 +86,7 @@ test("the report speaks English, and says 'banked' when nothing broke through", 
   const out = view.hostedReportHtml(result({ gained: 0 }), { playerId: "a", attr: "three" }, ctx("en"));
   assert.match(out, /Welcome back/);
   assert.match(out, /26–14 over 40 games/);
-  assert.match(out, /Best game: #7, 112–98 over LAL\|2001 \(\+14\)/);
+  assert.match(out, /Best game: #7, 112–98 over 2001 Lakers \(\+14\)/);
   assert.match(out, /banked 115 3PT XP/);
   assert.doesNotMatch(out, /[\u4e00-\u9fff]/, "no Chinese left in the English card");
 });
@@ -103,6 +103,27 @@ test("names and team names from the save are escaped, never markup", () => {
   const acc = account({ hosted: { plan: { playerId: "a", attr: "three" }, settledDay: 1, log: [{ day: 1, games: 20, wins: 10, paid: 10, gold: 1, xp: 1, key: { index: 1, me: 100, opponentScore: 90, margin: 10, opponent: evil } }] } });
   assert.ok(!view.hostedLogHtml(acc, ctx()).includes("<img"));
   assert.ok(!view.hostedFormHtml(acc, { playerId: "a", attr: "three" }, { ...ctx(), pool }).includes("<img"));
+});
+
+test("the log's key game and the status line's weekly progress sit on their own line, so the first line stays scannable", () => {
+  const acc = account({ hosted: { plan: { playerId: null, attr: null }, settledDay: 1, log: [
+    { day: 20001, games: 20, wins: 14, paid: 10, gold: 150, xp: 60, key: { index: 7, me: 112, opponentScore: 98, margin: 14, opponent: "LAL|2001" } },
+  ] } });
+  assert.match(view.hostedLogHtml(acc, ctx()), /<small class="hl-key">最精彩：第 7 场/, "key game is its own element, not inline noise");
+  assert.match(view.hostedFormHtml(acc, { playerId: "", attr: "three" }, ctx()), /<b>托管中[^<]*<\/b><span class="tiny hl-week">本周已计奖励 \d+\/\d+ 场<\/span>/, "only the status is bold; progress is a separate line");
+});
+
+test("opponents are named for people, never by their internal key (SEA|2008)", () => {
+  assert.equal(view.opponentLabel("SEA|2008", "zh"), "2008 超音速");
+  assert.equal(view.opponentLabel("PHI|2011", "en"), "2011 76ers");
+  assert.equal(view.opponentLabel("ZZZ|1999", "zh"), "1999 ZZZ", "an abbreviation with no known name stays readable, without the pipe");
+  assert.equal(view.opponentLabel("LAL", "zh"), "湖人", "no season: just the name");
+  assert.equal(view.opponentLabel(undefined, "zh"), "");
+  const acc = account({ hosted: { plan: { playerId: null, attr: null }, settledDay: 1, log: [
+    { day: 20001, games: 20, wins: 14, paid: 10, gold: 1, xp: 1, key: { index: 7, me: 112, opponentScore: 98, margin: 14, opponent: "SEA|2008" } },
+    { day: 20000, games: 20, wins: 0, paid: 10, gold: 1, xp: 1, key: { index: 2, me: 90, opponentScore: 91, margin: -1, opponent: "UTA|2013" } },
+  ] } });
+  for (const lang of ["zh", "en"]) assert.ok(!view.hostedLogHtml(acc, ctx(lang)).includes("|"), `no raw key on screen (${lang})`);
 });
 
 test("log: newest first, at most seven days, and rows saved before key games existed still render", () => {

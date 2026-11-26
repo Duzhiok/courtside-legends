@@ -158,6 +158,11 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 900 }], ["mob
   check(`[${name}] the settling line shows live progress (${lines.length} different texts)`, lines.filter((t) => /\d+%/.test(t)).length >= 3, lines.slice(0, 4).join(" | "));
   check(`[${name}] the catch-up is capped at 7 days and all 140 games were played`, /离线打了 7 天/.test(bigReport) && /140 场/.test(bigReport), bigReport.slice(0, 90));
   check(`[${name}] gold from the 7 days was paid once`, (await store(page)).gold > goldBeforeBig, `${goldBeforeBig} -> ${(await store(page)).gold}`);
+  // The top-bar balance is on every screen: it must show the money the settlement just paid (it used to keep the old number).
+  const chipGold = await page.$eval("#gold-chip-amt", (el) => el.textContent.trim());
+  check(`[${name}] the top-bar gold chip shows the settled balance`, chipGold === String((await store(page)).gold), `chip ${chipGold} vs account ${(await store(page)).gold}`);
+  const shown = await page.$eval("#screen-training", (el) => el.innerText);
+  check(`[${name}] no internal team key (SEA|2008) is shown to the player`, !/[A-Z]{2,3}\|\d{4}/.test(shown), (shown.match(/[A-Z]{2,3}\|\d{4}/) || [""])[0]);
   await shoot(page, `${OUT}/${name}-3-seven-days.png`);
 
   check(`[${name}] no page errors`, errors.length === 0, errors.join(" | "));

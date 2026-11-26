@@ -7,6 +7,8 @@
  */
 import { html, raw } from "../core/html.js";
 import { overall } from "../data/players.js";
+import { TEAM_NAMES_ZH } from "../data/legends.js";
+import { teamNameL } from "../i18n.js";
 import { trainingInfo } from "../data/trainingCamp.js";
 import { ATTR_LABELS, CAMPS } from "../data/trainingRules.js";
 import {
@@ -22,13 +24,21 @@ const cardOf = (pool, id) => pool.find((p) => p.id === id);
 const dayLabel = (day) => new Date(day * 86400000).toISOString().slice(5, 10);
 const record = (rows) => ({ wins: rows.reduce((n, r) => n + r.wins, 0), games: rows.reduce((n, r) => n + r.games, 0) });
 
+/** The internal opponent key "SEA|2008" as a name a player can read: "2008 超音速" / "2008 SuperSonics". An abbreviation with no known name stays as the abbreviation. */
+export function opponentLabel(key, lang) {
+  const [abbr, season] = String(key ?? "").split("|");
+  const zh = TEAM_NAMES_ZH[abbr];
+  const name = zh ? teamNameL(zh, lang) : abbr;
+  return season ? `${season} ${name}` : name;
+}
+
 /** One sentence about the game worth remembering (row.key), or "" for rows saved before it existed. */
 function keyGameLine(key, lang) {
   if (!key) return "";
   const score = `${key.me}–${key.opponentScore}`;
   return key.margin > 0
-    ? pick(lang, `最精彩：第 ${key.index} 场 ${score} 大胜 ${key.opponent}（+${key.margin}）`, `Best game: #${key.index}, ${score} over ${key.opponent} (+${key.margin})`)
-    : pick(lang, `最接近的一场：第 ${key.index} 场 ${score} 惜败 ${key.opponent}`, `Closest one: #${key.index}, ${score} against ${key.opponent}`);
+    ? pick(lang, `最精彩：第 ${key.index} 场 ${score} 大胜 ${opponentLabel(key.opponent, lang)}（+${key.margin}）`, `Best game: #${key.index}, ${score} over ${opponentLabel(key.opponent, lang)} (+${key.margin})`)
+    : pick(lang, `最接近的一场：第 ${key.index} 场 ${score} 惜败 ${opponentLabel(key.opponent, lang)}`, `Closest one: #${key.index}, ${score} against ${opponentLabel(key.opponent, lang)}`);
 }
 
 /** The "welcome back" card for a settlement that just happened: story first, then the numbers. */
@@ -55,7 +65,7 @@ export function hostedReportHtml(result, plan, { pool, lang }) {
 export function hostedLogHtml(account, { lang }) {
   const log = hostedState(account).log.slice(0, 7);
   if (!log.length) return html`<p class="tiny">${pick(lang, "还没有结算过的托管比赛。开启后，从明天起每天的比赛会在你回来时结算。", "No hosted games settled yet. Once it is on, each full day is settled when you come back.")}</p>`.toString();
-  return html`<ul class="hl-log">${log.map((row) => html`<li><b>${dayLabel(row.day)}</b> ${pick(lang, `${row.wins} 胜 ${row.games - row.wins} 负`, `${row.wins}–${row.games - row.wins}`)} · ¤${row.gold} · +${row.xp} XP${row.paid === 0 ? html`<small> · ${pick(lang, "本周奖励已满", "weekly rewards used up")}</small>` : ""}${row.key ? html`<small> · ${keyGameLine(row.key, lang)}</small>` : ""}</li>`)}</ul>`.toString();
+  return html`<ul class="hl-log">${log.map((row) => html`<li><b>${dayLabel(row.day)}</b> ${pick(lang, `${row.wins} 胜 ${row.games - row.wins} 负`, `${row.wins}–${row.games - row.wins}`)} · ¤${row.gold} · +${row.xp} XP${row.paid === 0 ? html`<small> · ${pick(lang, "本周奖励已满", "weekly rewards used up")}</small>` : ""}${row.key ? html`<small class="hl-key">${keyGameLine(row.key, lang)}</small>` : ""}</li>`)}</ul>`.toString();
 }
 
 /** Status + plan editor. `sel` = { playerId, attr }. */
@@ -74,7 +84,7 @@ export function hostedFormHtml(account, sel, { now, pool, lang }) {
   return html`<p class="tiny">${pick(lang,
     `你离线时，球队每天自动打 ${DAILY_GAMES} 场，次日回来结算。前 5 场全额、6–10 场半额、之后只给少量经验；每周最多 ${WEEKLY_PAID_GAMES} 场有奖励。不影响排位。`,
     `While you are away your team plays ${DAILY_GAMES} games a day, settled when you return. Games 1–5 pay in full, 6–10 half, after that a little XP only; at most ${WEEKLY_PAID_GAMES} paid games a week. Ranked is never affected.`)}</p>
-    <p class="hl-status" role="status"><b>${status}</b> · ${pick(lang, `本周已计奖励 ${paid}/${WEEKLY_PAID_GAMES} 场`, `paid this week ${paid}/${WEEKLY_PAID_GAMES}`)}</p>
+    <p class="hl-status" role="status"><b>${status}</b><span class="tiny hl-week">${pick(lang, `本周已计奖励 ${paid}/${WEEKLY_PAID_GAMES} 场`, `paid this week ${paid}/${WEEKLY_PAID_GAMES}`)}</span></p>
     ${ready ? "" : html`<p class="tc-why" role="status">${pick(lang, "至少需要 5 位不同的球员才能组队托管。", "You need at least 5 different players to field a hosted team.")}</p>`}
     <label class="tc-field"><span>${pick(lang, "成长重点球员", "Growth focus")}</span>
       <select data-hosted-player><option value="">${pick(lang, "不指定（只赚金币）", "None (gold only)")}</option>${owned.map((p) => html`<option value="${p.id}" ${p.id === sel.playerId ? "selected" : ""}>${p.name} ${p.season} · ${overall(p)}</option>`)}</select></label>
