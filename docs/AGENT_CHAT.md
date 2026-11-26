@@ -3768,3 +3768,19 @@ Lychee：B35 §29 Miller 命中率分解测完了（f726c0e）。51.4% 的均值
 **推送路径注记：** hatch-git 会在 git 调用时把 .git/config 的 core.sshCommand 当“非 git 自写键”剥离并移入 .git/config.untrusted.*（已积多份），该值无法持久；推送改用 `GIT_SSH_COMMAND="ssh -F /home/hatch/.ssh/config" git push`（经 ~/.ssh/config 的 ProxyCommand 走 ssh.github.com:443），后续轮次无需再恢复 core.sshCommand。18:46 注记称“SSH 无需该值”只对了一半：`git ls-remote` 走 HTTPS fetch 所以直接成功，push 走 git@github.com 需该变量。
 
 [2026-11-25] Muse（Coding Agent）：认领 BACKLOG B146 跟进候选 ①②（觉醒面板 abilityLabelEn 接线 + scripts/qa/avatar-identity.mjs cls_lang 改 courtside.lang）修复。范围：① js/ui/awakeningView.js:45–46 两处 ability span 改 L(p.abilityLabel, p.abilityLabelEn, lang)，新增 tests/awakeningProgressEn.test.js 断言英文四项能力标签（Block/Rebound/Pass/Clutch）与中文对照；② scripts/qa/avatar-identity.mjs:33 localStorage 键 cls_lang 改 courtside.lang（全仓唯一残留，其余 QA 脚本已用 courtside.lang）；变异核查；聚焦 + 全套重跑。只改 awakeningView.js / tests/ / scripts/qa/avatar-identity.mjs + BACKLOG B146 行。浏览器实测（avatar-identity.mjs en 档实跑、觉醒面板英文目视）仍排 Mac。注：本认领晚于当日 23:26 Rule 7 汇总——调度器乱序先跑了 23:26 轮；完成记录记入当日日志，由明日首轮汇总并入。Wibey 全量 review（review/2026-11-20 分支）进行中。本轮不碰 sim.js、roster.json、存档版本、modeCatalog、M4-A 表单与 profile.js 字段、职业创建入口、Code 的 Slice 1 / GameSim 校准认领范围、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
+
+# 补记 — 2026-11-25 Rule 7 收官补记（23:26 轮实跑）
+
+## Muse · 2026-11-25 日汇总补记（接 0b4492ed）
+
+本日 Rule 7 主汇总已由调度器乱序提前执行的 23:26 轮于 21:27 写入（0b4492ed，覆盖 00:26–20:26 共 21 项认领），并已交付。本轮为按计划时间实跑的 23:26 轮：调度器今日将同一任务执行了两次（21:27 与 23:26）；21:26 轮仍无任何记录（当日日志、全套日志、提交均无），原因未明，明日首轮继续核对。本补记只记主汇总之后的新增内容，关闭当日第 22 项认领；不再重列已汇总的 21 项。本日 Board 出现两次汇总提交，属调度器重复执行所致，非空闲签到。
+
+**主汇总后新增并闭合：** 22:26 轮 B146 跟进候选 ①② 修复（认领 2328ee11，修复 53a99474）：觉醒面板 abilityLabelEn 接线（awakeningView.js:45–46 两处改 `L(p.abilityLabel, p.abilityLabelEn, lang)`，新测 tests/awakeningProgressEn.test.js 2/2，变异核查旧码下英文断言变红）+ avatar-identity.mjs 存储键 cls_lang → courtside.lang（全仓代码已无 cls_lang 残留，仅文档历史提及）。本轮独立复核：两处改动与测试文件逐项核实，新测重跑 2/2，全套日志 2226 复核 4186：4176 通过、10 失败 = online* ws 环境缺口（ℹ pass 4176 / fail 10，10 × "Cannot find package 'ws'"，文件级加载失败、零单项失败；较 20:26 基线净增 2 项通过，恰为新增测试，无既往通过项丢失），courtSimple "court skill pop" 通过——自 d9d271d 后全套连续第 102 次通过。浏览器实测（avatar-identity.mjs en 档实跑、觉醒面板英文目视）仍排 Mac。
+
+**当日认领至此共 22 项，全部完成并已推送**（主汇总 21 项 + 本补记 1 项：2328ee11/53a99474）。当日认领全部关闭，无在途认领。HEAD 53a99474 = origin/main，工作树干净。
+
+**待后续轮次（不催用户）：** B147 跟进候选 ②（审计文档数字修正与 Status 刷新，需作者或 UI Agent 确认口径）；B125 剩余 ⑤ 其余 24 个 QA 脚本盘点（Code 进行中）；B128 跟进候选 (a)(b)（screen.js:274 第 16 处表达式 + helper 测试钉子）；B135 跟进候选 ①–⑤（① 决斗挑战者隔离待 John 定夺——主聊天 06:49 已呈递二选一，尚未回复；CSP 冒烟最后有用日提醒同条发出，尚未回复）；B134 跟进候选 ①②（① 点掉对话框按次扣暂停——PA1.5 未动 driveGame 扣费点，仍为对话框有指令即扣；② 原型名文案口径 disciplinarian vs control）；B133 跟进候选：.pg-rank 3.05 与 lowContrast→textContrast 切换（由 Code 定）；B47 跟进候选 (a)(b)(c)；i18n 跟进候选 rebornIdentityHtml 英文身份卡显示中文名（改法需定夺）；B97 其余登记项（①–⑤ 交 UI Agent、⑦后半名字重叠待评估）；B109 注记 b（ballNoteL 未覆盖形状原样返中文，目前 7 种全覆盖，无实际漏网）；B76 检查项 6 + 3D 助攻传球 + Career 场景 1 仍排 Mac；B85 次要注记（ghost 持球人中投 1.44 vs 单打 1.2 是否接受）与 B86 次要注记（疲劳 60–69 提示口径）未定；B139 注记 (a) career-contract 断言不隔离 resume() 修复（真正隔离证据是本轮探针）；B143 注记：opts.colors 若传字符串色值，条带 fillStyle 非法会被 canvas 静默忽略；PHRASES 的 "比赛节奏" 重复条是无害旧债。
+
+**待 John 决定（已问，不催）：** B135 决斗挑战者隔离二选一；CSP 冒烟最后有用日提醒；Amazon 追问日到期——Gokul 仍未确认 Dec 2 档期，follow-up 待 John 提供电话号码与发送许可；B89 Story-clutch 产品决定与 B35 §24 honors-real-11 措辞注记；B65 3v3 目标（31.9% 饱和于 32.6%，35% 需阵容驱动占比）；B35 蓝领阈值 fix（数值平衡）；B76 选项；M5–M7 方向；ADR-011 N1–N9 与 Riley Q2/Q6；enforcer-egg 临时进攻加成；G-P1-5、D-P1-5。
+
+**收官基线：** 全套 4186：4176 通过，10 失败 = online* ws 环境缺口（日内 4157:4147 → 4186:4176，净增 29 项通过，恰为当日新增测试，无既往通过项丢失；courtSimple 连续第 102 次通过）。eslint 本 VM 未装，未跑。Wibey 全量 review（review/2026-11-20 分支）进行中。
