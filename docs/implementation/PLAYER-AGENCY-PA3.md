@@ -138,3 +138,18 @@ PA1/PA2 untouched: the two new options are graded but excluded from the baseline
 ## Owner direction after slice 1 (2026-11-26)
 Interaction levels: **L1** ordinary talk = non-blocking bubble / feed, no pause; **L2** a tactical moment = short action panel with keys, waits for the player; **L3** full decision panel only for real moments (buzzer, rival, coach conflict, Finals). Ordinary teammate talk must not all be big blocking modals; share ONE dispatch entry with Critical Moments so a possession never opens two dialogs.
 Slice order: **S2** ask for the ball, create for teammates, off-ball screen / cut / spacing (teammate may accept, refuse or counter; only what the engine really supports) -> **S3** defense: help, switch, pressure, box-out (defensive players need their own growth path) -> **S4** L1/L2/L3 UI layering -> **S5** long-term chemistry changing teammate behaviour -> PA4. Teammates should have basketball judgement derived from attributes + context, not hard-coded per type. No LLM, currency, second relationship database or second engine.
+
+## Slice 2 audit (2026-11-26, measured, no S2 code yet)
+
+What the engine really reads for a player's own action (`orders.action`): `pnr`, `drive_kick`, `iso`, `post`, `spot`. **`cut` is not a standalone action** (it exists only as `offBall` inside a pick-and-roll plan; zero standalone reads), and there is no hand-off or off-ball-screen lever. So S2 must not ship a "cut" or "off-ball screen" button.
+
+| Request | Engine lever | Verdict |
+|---|---|---|
+| Call for the ball (I run this one) | S1's `requestedBallHandlerId` + an action | real |
+| Spot up / "find me" (off-ball) | `setPlayerOrders(id, {action:"spot"})`: receiver weight x1.45, three-point weight x1.35, handler weight x0.82 (do NOT use `setOffenseFocus`: it makes you the handler) | real, **modest** |
+| Post up / feed the post | `action:"post"` (paint weight x1.3) + focus play `post_up` | partial |
+| Cut, off-ball screen, hand-off | none standalone | not available |
+
+Measured (3 team-eras x 10 seeds x 2 non-star slots = 1800 own possessions): spot-up request -> I get a shot **14.7% -> 19.6%**, I score **6.8% -> 9.2%**, team points per possession **1.057 -> 1.038** (unchanged). It moves touches to the player; it does not make the offense better, and ~80% of the time the player asked and did not get the ball. UI copy and feedback must say so ("you asked; the team did not find you"), never promise the ball.
+
+Evidence that exists without an event stream: the player's own `fga/fgm/pts` deltas and each teammate's `ast` delta for the possession (the passer is the teammate whose `ast` rose). A refused or ignored request must cost nothing; an unreasonable ball request (-0.3 in the PA3.4 table) needs a definition from stats (e.g. a turnover or a clearly worse look than the passer's alternative) before it is allowed to bite.
