@@ -41,3 +41,23 @@
 .reborn-mode-desc { flex-basis: 100%; color: var(--muted); }
 .reborn-identity .reborn-mode-chip { border-color: var(--surface-line-strong, var(--line)); }
 .reborn-identity .reborn-mode-chip[aria-pressed="true"] { background: var(--gold, #f6c870); color: var(--ink); border-color: var(--gold, #f6c870); }
+
+/* PA3 levels. L2: the compact panel docks to the bottom instead of centring a full card. L1: the bubble, a small floating line
+   that never covers the court and never takes focus. */
+.screen-shell-modal.active[data-tier="L2"] { align-items: flex-end; }
+.screen-shell-modal[data-tier="L2"] .reborn-agency { max-width: 520px; margin: 0 auto; padding: 14px 16px; }
+.reborn-agency-readline { margin: 6px 0 0; color: var(--muted); font-weight: 600; line-height: 1.35; }
+
+.reborn-bubble-host { position: fixed; z-index: 45; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100vw - 24px)); }
+.reborn-bubble { position: relative; padding: 10px 12px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper, #f3efe4); color: var(--ink); box-shadow: var(--shadow); overflow: hidden; }
+.reborn-bubble-line { margin: 0 0 8px; font-weight: 600; line-height: 1.35; }
+.reborn-bubble-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.reborn-bubble-option { min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-pill, 999px); background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+.reborn-bubble-option kbd { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 4px; border-radius: 50%; background: var(--ink); color: var(--paper, #f3efe4); font: inherit; font-size: .75rem; }
+.reborn-bubble-option:hover, .reborn-bubble-option:focus-visible { border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: 1px; }
+.reborn-bubble-hint { display: block; margin-top: 6px; color: var(--muted); font-size: .75rem; }
+.reborn-bubble-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--gold, #b8860b); transform-origin: left; }
+.reborn-bubble-host.running .reborn-bubble-timer { animation: reborn-bubble-count var(--bubble-ms, 3200ms) linear forwards; }
+.reborn-bubble-host.paused .reborn-bubble-timer { opacity: .35; }
+@keyframes reborn-bubble-count { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .reborn-bubble-host.running .reborn-bubble-timer { animation: none; } }

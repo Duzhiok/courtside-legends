@@ -26,7 +26,7 @@ import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, teamCoach } from "./agency.js";
-import { createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
+import { askTier, createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
 import { DEFENSE_COOLDOWN, MIN_DEFENSE_STAKES, buildDefenseContext, defenseExecution, playGamblePossession } from "./defense.js";
 import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
 import { rosterCode } from "./franchises.js";
@@ -255,7 +255,7 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
     sim.step();
     const mayAsk = !gate || gate.mode() !== "auto";
     if (mayAsk && !takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
-      const context = agency ? buildDecisionContext(sim, playerId, agency) : null;
+      const context = agency ? { ...buildDecisionContext(sim, playerId, agency), tier: askTier({ critical: true }) } : null;
       // Drawing up the play costs the timeout he called (only when the dialog actually happens).
       if (context?.coachInstruction && onTakeover) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
       takeover = await attemptTakeover(sim, playerId, onTakeover, window, context);
@@ -265,10 +265,12 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
       const importance = importanceOf(sim);
       const critical = takeoverEligible(sim, playerId, window);
       // Auto mode never builds a context; the other modes build one (cheap) to learn whether the coach disagrees.
-      const context = onCourt && gate.mode() !== "auto" && agency
+      const built = onCourt && gate.mode() !== "auto" && agency
         ? buildDecisionContext(sim, playerId, { ...agency, decisionId: `${agency.decisionId}|r${extras.length + 1}`, routine: !critical, importance })
         : null;
-      if (context && gate.ask({ onCourt, importance, critical, conflict: !!context.coachInstruction, opportunity: opportunityOf(context.values) })) {
+      const opportunity = built ? opportunityOf(built.values) : 0;
+      const context = built ? { ...built, importance, tier: askTier({ critical, conflict: !!built.coachInstruction, importance, opportunity }) } : null;
+      if (context && gate.ask({ onCourt, importance, critical, conflict: !!context.coachInstruction, opportunity })) {
         if (critical && context.coachInstruction) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
         const asked = await attemptTakeover(sim, playerId, onTakeover, window, context, true);
         if (asked) {
@@ -281,7 +283,8 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
       const onCourt = youSide().onCourt?.some((p) => p.id === playerId);
       const importance = importanceOf(sim);
       if (defenseCooldown > 0 && onCourt) defenseCooldown -= 1;
-      const context = onCourt && defenseCooldown === 0 && gate.mode() !== "auto" ? buildDefenseContext(sim, playerId, { ...agency, decisionId: `${agency.decisionId}|d${extras.length + 1}`, importance }) : null;
+      const built = onCourt && defenseCooldown === 0 && gate.mode() !== "auto" ? buildDefenseContext(sim, playerId, { ...agency, decisionId: `${agency.decisionId}|d${extras.length + 1}`, importance }) : null;
+      const context = built ? { ...built, tier: askTier({ importance }) } : null; // a style choice is never a clutch moment: L2 when the game is close and late, else a bubble
       if (context && Math.abs(context.values.gamble) >= MIN_DEFENSE_STAKES && gate.ask({ onCourt, importance, opportunity: Math.abs(context.values.gamble) })) {
         defenseCooldown = DEFENSE_COOLDOWN;
         const asked = await attemptTakeover(sim, playerId, onTakeover, window, context, true);

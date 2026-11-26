@@ -87,6 +87,16 @@ export function participationBarHtml(mode, lang = "zh") {
 
 const STEAL_WORD = { high: ["出色", "strong"], mid: ["一般", "average"], low: ["偏弱", "weak"] };
 
+/** Real fields only: fouls, stamina, steal skill. */
+function defenseFactsLine(f, lang) {
+  const [zhWord, enWord] = STEAL_WORD[f.stealRating >= 70 ? "high" : f.stealRating < 45 ? "low" : "mid"];
+  return T(`你已犯规 ${f.fouls} 次 · 体力 ${Math.max(0, 100 - f.fatigue)}% · 抢断能力${zhWord}`, `Fouls ${f.fouls} · stamina ${Math.max(0, 100 - f.fatigue)}% · steal skill ${enWord}`, lang);
+}
+const defenseOptionList = (lang) => [
+  ["gamble", T("赌抢断", "Gamble", lang), T("抢断更多，但犯规和体力代价也更大", "More steals, but more fouls and more stamina spent", lang)],
+  ["stay", T("稳守", "Stay home", lang), T("守住位置，不冒险（球队默认防守）", "Hold your position, no risk (the team's own defense)", lang)],
+];
+
 /** S3a: the compact panel for THEIR possession - facts that are real fields, two options, and a plain warning about the price. */
 function defenseDialogHtml({ sim, lang, context, mode }) {
   const f = context.facts;
@@ -96,13 +106,8 @@ function defenseDialogHtml({ sim, lang, context, mode }) {
   const clock = Number(sim?.clock) || 0;
   const mmss = `${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, "0")}`;
   const q = Number(sim?.quarter) || 4;
-  const [zhWord, enWord] = STEAL_WORD[f.stealRating >= 70 ? "high" : f.stealRating < 45 ? "low" : "mid"];
-  const facts = T(`你已犯规 ${f.fouls} 次 · 体力 ${Math.max(0, 100 - f.fatigue)}% · 抢断能力${zhWord}`, `Fouls ${f.fouls} · stamina ${Math.max(0, 100 - f.fatigue)}% · steal skill ${enWord}`, lang);
-  const options = [
-    ["gamble", T("赌抢断", "Gamble", lang), T("抢断更多，但犯规和体力代价也更大", "More steals, but more fouls and more stamina spent", lang)],
-    ["stay", T("稳守", "Stay home", lang), T("守住位置，不冒险（球队默认防守）", "Hold your position, no risk (the team's own defense)", lang)],
-  ];
-  const buttons = options.map(([id, kind, label], i) => `<button type="button" class="reborn-takeover-option" data-option="${id}" data-key="${i + 1}"><span class="reborn-takeover-key">${i + 1}</span> <span class="reborn-takeover-desc">${kind}</span> <span class="reborn-takeover-label">${label}</span></button>`).join("");
+  const facts = defenseFactsLine(f, lang);
+  const buttons = defenseOptionList(lang).map(([id, kind, label], i) => `<button type="button" class="reborn-takeover-option" data-option="${id}" data-key="${i + 1}"><span class="reborn-takeover-key">${i + 1}</span> <span class="reborn-takeover-desc">${kind}</span> <span class="reborn-takeover-label">${label}</span></button>`).join("");
   return `<div class="reborn-takeover-dialog reborn-agency reborn-agency-defense" role="dialog" aria-modal="true" aria-label="${T("防守选择", "Defensive choice", lang)}">`
     + `<h2>${T("对手进攻：你怎么防", "Their ball: how do you defend?", lang)}</h2>`
     + `<p class="reborn-takeover-situation">${q <= 4 ? `Q${q}` : `OT${q - 4}`} ${mmss} · ${score[youSide]} – ${score[oppSide]}</p>`
@@ -113,7 +118,7 @@ function defenseDialogHtml({ sim, lang, context, mode }) {
     + `</div>`;
 }
 
-export function agencyDialogHtml({ sim, lang = "zh", context, mode = null }) {
+export function agencyDialogHtml({ sim, lang = "zh", context, mode = null, compact = false }) {
   if (context.side === "defense") return defenseDialogHtml({ sim, lang, context, mode });
   const youSide = sim?.youSide || "home";
   const oppSide = youSide === "home" ? "away" : "home";
@@ -134,10 +139,36 @@ export function agencyDialogHtml({ sim, lang = "zh", context, mode = null }) {
   return `<div class="reborn-takeover-dialog reborn-agency" role="dialog" aria-modal="true" aria-label="${T("关键回合", "Takeover moment", lang)}">`
     + `<h2>${context.routine ? T("这一回合，你想怎么打", "This possession: your call", lang) : T("关键回合，你决定怎么打", "Clutch possession: your call", lang)}</h2>`
     + `<p class="reborn-takeover-situation">${q <= 4 ? `Q${q}` : `OT${q - 4}`} ${mmss} · ${score[youSide]} – ${score[oppSide]}</p>`
-    + coachCard + mateCard(context.offer, lang) + readCard
+    + (compact ? `<p class="reborn-agency-readline">${observationLine(context.observation, lang)}</p>` : coachCard) + mateCard(context.offer, lang) + (compact ? "" : readCard)
     + `<div class="reborn-takeover-options">${buttons}</div>`
     + (mode ? participationBarHtml(mode, lang) : "")
-    + `<p class="reborn-takeover-hint">${T(`你的战术自主权：${tier.zh}。好判断会赢得更多自由；盲目出手失败会让教练收紧。`, `Your autonomy: ${tier.en}. Good reads earn freedom; reckless misses make the coach tighten up.`, lang)}</p>`
+    + (compact ? "" : `<p class="reborn-takeover-hint">${T(`你的战术自主权：${tier.zh}。好判断会赢得更多自由；盲目出手失败会让教练收紧。`, `Your autonomy: ${tier.en}. Good reads earn freedom; reckless misses make the coach tighten up.`, lang)}</p>`)
+    + `</div>`;
+}
+
+const BUBBLE_SHORT = {
+  follow: ["执行战术", "Run the call"], drive: ["突破", "Drive"], pullup: ["跳投", "Pull-up"], pass: ["传球", "Pass"],
+  setup: ["自己布置", "Set one up"], screen: ["接受挡拆", "Take the screen"], screenAlt: ["换种打法", "Another way"], spot: ["要球", "Ask for it"],
+  gamble: ["赌抢断", "Gamble"], stay: ["稳守", "Stay home"],
+};
+
+/**
+ * L1: the bubble. One line of real context and a chip per option; it never covers the court and an unanswered one just lets him play it
+ * on his own (the caller times it out). The teammate's offer, when there is one, is the line; a defensive one shows his own facts.
+ */
+export function agencyBubbleHtml({ lang = "zh", context }) {
+  const defense = context.side === "defense";
+  const line = defense ? defenseFactsLine(context.facts, lang) : context.offer ? `「${mateLine(context.offer, lang)}」` : observationLine(context.observation, lang);
+  const chips = context.options.map((id, i) => {
+    const [zh, en] = BUBBLE_SHORT[id] || [id, id];
+    const label = defense ? defenseOptionList(lang).find(([k]) => k === id)?.[2] : optionLabel(id, context, lang)[1];
+    return `<button type="button" class="reborn-bubble-option" data-option="${id}" data-key="${i + 1}" title="${label || ""}"><kbd>${i + 1}</kbd> ${T(zh, en, lang)}</button>`;
+  }).join("");
+  return `<div class="reborn-bubble" role="status" aria-live="polite" data-tier="L1">`
+    + `<p class="reborn-bubble-line">${line}</p>`
+    + `<div class="reborn-bubble-options">${chips}</div>`
+    + `<span class="reborn-bubble-timer" aria-hidden="true"></span>`
+    + `<small class="reborn-bubble-hint">${T("不回应就按你自己的判断打。悬停可暂停。", "No answer: he plays it on his own read. Hover to pause.", lang)}</small>`
     + `</div>`;
 }
 

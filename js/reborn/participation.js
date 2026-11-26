@@ -54,6 +54,28 @@ export function opportunityOf(values) {
 export const CLEAR_OPPORTUNITY = 0.42;
 export const MODERATE_OPPORTUNITY = 0.3;
 
+/**
+ * PA3 interaction levels: HOW a question that is being asked is shown (the gate above decides WHETHER).
+ * L3 = the full panel, only for a real moment (a clutch possession, or the coach disagrees with you).
+ * L2 = a short action panel with keys that waits for you (an important possession, or a clear opening).
+ * L1 = a small bubble that never covers the court and needs no answer (everything else: Full control's fill-in questions).
+ * One pure rule, stamped on the context at every ask site, so a future moment (the buzzer-beater proposal) plugs into the SAME dispatch.
+ */
+export const ASK_TIERS = Object.freeze({ L1: "L1", L2: "L2", L3: "L3" });
+export function askTier({ critical = false, conflict = false, importance = 0, opportunity = 0 } = {}) {
+  if (critical || conflict) return ASK_TIERS.L3;
+  if (importance >= 0.55 || opportunity >= MODERATE_OPPORTUNITY) return ASK_TIERS.L2;
+  return ASK_TIERS.L1;
+}
+/** An L1 bubble waits this long for an answer; after two in a row that nobody touched it shortens (a player who is not engaging is not made to wait). */
+export const BUBBLE_MS = 3200;
+export const BUBBLE_MS_QUICK = 1200;
+export const BUBBLE_QUICK_AFTER = 2;
+/** A bubble pops up where the pointer may already be (right after "play next game"): clicks in its first moments are not answers. */
+export const BUBBLE_CLICK_GUARD_MS = 250;
+export const bubbleWindow = (ignoredInARow = 0) => (ignoredInARow >= BUBBLE_QUICK_AFTER ? BUBBLE_MS_QUICK : BUBBLE_MS);
+export const nextIgnored = (ignoredInARow, answered) => (answered ? 0 : ignoredInARow + 1);
+
 /** Whether the mode asks at all. Pure: every input is given. Fast simulation and the bench never ask. */
 export function shouldOfferDecision({ mode, onCourt, fastSimulation = false, hasLegalActions = true, importance = 0, isCritical = false, hasMeaningfulConflict = false, opportunity = 0 }) {
   if (!onCourt || fastSimulation || !hasLegalActions) return false;
