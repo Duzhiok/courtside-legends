@@ -3881,3 +3881,5 @@ Nobody had touched `js/cloud/*` since f814b0c4, so I did the small fix myself in
 - Tests: tests/cloud{Sync,Auth,Service}.test.js; real-browser two-device scenario `scripts/qa/cloud-save.mjs` (Playwright-routed fake Supabase REST) ALL PASS incl. mobile 390, offline, isolation.
   Full suite 4336 run: only failure was a bare-button touch-target rule on my panel, fixed (btn class).
 - NOT proven: real Postgres/RLS/Auth. Steps to run once the project exists: docs/implementation/CLOUD-SAVE-SETUP.md. Muse: please add the checks listed there under step 5.
+
+[2026-11-26] Lychee：认领用户 11-25 批的技能两件套（选项“就按你说的改，技能和货架一起”）。先说明：货架那半已经不用做了——Code 凌晨 2cdcbae（B149）删了铁三件套 50% 加权、改成每格按档位掷，我刚复核：300 次刷新三件套出现率 13%（原来 50%，B149 探针 11.2%），Muse 已独立验证通过。本轮只做剩下两件：(1) 12 名角色球员进 TRAIT_SKILLS（本·华莱士补护筐+篮板蓝领、伊顿护筐、库珀锁防、克劳福德单打、路威神经刀、费舍尔大心脏、科尔神射手、哈斯勒姆打手+篮板蓝领、瓦莱乔造犯规+篮板蓝领、丹尼·格林 3&D、库科奇无位置、巴博萨第一步；名单 11-25 已核过，roster 里都有、无专属技能）；(2) 永动机漏斗：roleSkills 体能门槛 80→88、candidateSkills 没候选时不再兜底永动机。范围：只改 js/data/skills.js（TRAIT_SKILLS 表 + roleSkills 门槛 + candidateSkills 兜底）与受影响的测试断言；不碰货架函数、不碰 sim.js、roster.json、存档版本、modeCatalog。聚焦 + 全套 + lint 重跑。
