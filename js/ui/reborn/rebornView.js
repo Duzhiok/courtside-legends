@@ -36,7 +36,8 @@ import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, 
 import { mirrorUnlocksToAccount, runUnlockIds } from "../../collectibles/legacyCosmetics.js";
 import { readParticipation, writeParticipation } from "../../reborn/participation.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
-import { describeAgencyFeedback, participationBarHtml } from "./agencyView.js";
+import { describeAgencyFeedback, describeTeamplayFeedback, participationBarHtml } from "./agencyView.js";
+import { mirrorTeammatesToAccount, teamplayOf } from "../../reborn/teamplay.js";
 import { AUTONOMY_START, autonomyTier } from "../../reborn/agency.js";
 import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
 import { mirrorHonorsToAccount } from "../../reborn/honors.js";
@@ -178,6 +179,7 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
     ...[...growth, ...fragmentsReportLines(report, lang)].map((g) => `<p>${g}</p>`),
     ...(takeover ? [`<p>${takeover}</p>`] : []),
     ...(report.agency ? [`<p class="reborn-agency-feedback" data-testid="agency-feedback">${describeAgencyFeedback(report.agency, lang)}</p>`] : []),
+    ...describeTeamplayFeedback(report.teamplay, lang).map((l) => `<p class="reborn-teamplay-feedback" data-testid="teamplay-feedback">${l}</p>`),
   ];
   return `<section class="reborn-report">${lines.join("")}</section>`;
 }
@@ -265,6 +267,9 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     // Rivalries: the run's ledger is the truth; the account gets an idempotent copy.
     const hasRivals = rivalryLedger(rebornState).rivals.length > 0;
     if (hasRivals) mirrorRivalriesToAccount(account, rebornState);
+    // Teammates (PA3): same rule, the run is the truth and the account's relationship ledger gets an idempotent integer copy.
+    const hasMates = Object.keys(teamplayOf(rebornState).mates).length > 0;
+    if (hasMates) mirrorTeammatesToAccount(account, rebornState);
     // Kept jerseys: the run is the truth, the account gets an idempotent copy (deduped by instance id).
     const jerseysAdded = mirrorJerseysToAccount(account, jerseyState(rebornState));
     // Titles and Finals losses: the run is the truth, the account's legacy gets an idempotent copy (deduped by id).
@@ -273,7 +278,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     const unlocksAdded = mirrorUnlocksToAccount(account, runUnlockIds(rebornState));
     const out = settleRebornPromises(account, rebornState);
     if (!out.settled.length) {
-      if (hasRivals || jerseysAdded || honorsAdded || unlocksAdded) { try { saveAccount(account); } catch { /* guest */ } }
+      if (hasRivals || hasMates || jerseysAdded || honorsAdded || unlocksAdded) { try { saveAccount(account); } catch { /* guest */ } }
       return [];
     }
     if (out.reborn !== rebornState) {

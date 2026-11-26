@@ -43,7 +43,28 @@ function observationLine(obs, lang) {
   return prefix && lang === "en" ? prefix + text[0].toLowerCase() + text.slice(1) : prefix + text;
 }
 
+const AFTER_ZH = { roll: "掩护后顺下切篮", pop: "掩护后外拆投篮" };
+const AFTER_EN = { roll: "rolls to the rim after the screen", pop: "pops out for the jumper after the screen" };
+
+/** What the teammate says. The only fact he quotes is one the engine really counted (the opposing big's personal fouls). */
+function mateLine(offer, lang) {
+  const f = offer.fact;
+  if (!f) return T("我来给你挡拆。", "I'll set the screen for you.", lang);
+  const who = esc(lang === "en" ? f.nameEn || f.name : f.name);
+  return T(`${who} 已经 ${f.pf} 次犯规了，我来给你挡拆，逼他防守。`, `${who} already has ${f.pf} fouls: I'll screen for you, make him defend.`, lang);
+}
+
+function mateCard(offer, lang) {
+  if (!offer) return "";
+  const name = esc(lang === "en" ? offer.nameEn || offer.name : offer.name);
+  return `<div class="reborn-agency-card reborn-agency-mate" data-testid="teammate-offer"><b>${T("队友交流", "Teammate", lang)} · ${name}${T(`（${esc(offer.pos || "")}）`, ` (${esc(offer.pos || "")})`, lang)}</b><p>「${mateLine(offer, lang)}」</p><small>${T("他愿意为你掩护；也可以提出另一种打法，但他不一定答应。", "He is ready to screen for you; you can ask for another way, but he may say no.", lang)}</small></div>`;
+}
+
 function optionLabel(id, context, lang) {
+  const offer = context.offer;
+  const mate = offer ? esc(lang === "en" ? offer.nameEn || offer.name : offer.name) : "";
+  if (id === "screen") return [T("队友配合", "With a teammate", lang), T(`接受 ${mate} 的挡拆：${AFTER_ZH[offer.afterScreen]}`, `Take ${mate}'s screen: he ${AFTER_EN[offer.afterScreen]}`, lang)];
+  if (id === "screenAlt") return [T("提出另一种打法", "Ask for another way", lang), T(`要求 ${mate}：${AFTER_ZH[offer.alt]}（他可能不答应）`, `Ask ${mate}: ${AFTER_EN[offer.alt]} (he may say no)`, lang)];
   if (id === "follow") return [T("执行教练战术", "Run the coach's call", lang), callLabel(context.coachInstruction, lang)];
   if (id === "setup") return [T("自己布置", "Call your own play", lang), T(`把球交给 ${esc(context.audible.targetName)}，他现在机会最好`, `Get the ball to ${esc(context.audible.targetName)}, he has the best look`, lang)];
   if (id === "drive") return [T("自主判断", "Your own read", lang), T("突破上篮", "Drive to the rim", lang)];
@@ -80,7 +101,7 @@ export function agencyDialogHtml({ sim, lang = "zh", context, mode = null }) {
   return `<div class="reborn-takeover-dialog reborn-agency" role="dialog" aria-modal="true" aria-label="${T("关键回合", "Takeover moment", lang)}">`
     + `<h2>${context.routine ? T("这一回合，你想怎么打", "This possession: your call", lang) : T("关键回合，你决定怎么打", "Clutch possession: your call", lang)}</h2>`
     + `<p class="reborn-takeover-situation">${q <= 4 ? `Q${q}` : `OT${q - 4}`} ${mmss} · ${score[youSide]} – ${score[oppSide]}</p>`
-    + coachCard + readCard
+    + coachCard + mateCard(context.offer, lang) + readCard
     + `<div class="reborn-takeover-options">${buttons}</div>`
     + (mode ? participationBarHtml(mode, lang) : "")
     + `<p class="reborn-takeover-hint">${T(`你的战术自主权：${tier.zh}。好判断会赢得更多自由；盲目出手失败会让教练收紧。`, `Your autonomy: ${tier.en}. Good reads earn freedom; reckless misses make the coach tighten up.`, lang)}</p>`
@@ -111,4 +132,20 @@ export function describeAgencyFeedback(agency, lang = "zh") {
   const a = (agency.autonomyAfter ?? 0) - (agency.autonomyBefore ?? 0);
   const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
   return T(`教练点评：${zh}（${many}信任 ${sign(t)} · 自主权 ${sign(a)}）`, `Coach: ${en} (${many}trust ${sign(t)} · autonomy ${sign(a)})`, lang);
+}
+
+/** The lines after the game about the screens you called: what GameSim did, then who moved and by how much. Pure strings (HTML-escaped). */
+export function describeTeamplayFeedback(teamplay, lang = "zh") {
+  if (!teamplay?.items?.length) return [];
+  const nameOf = (x) => esc(lang === "en" ? x.nameEn || x.name : x.name);
+  const lines = teamplay.items.map((i) => {
+    const who = nameOf(i);
+    if (i.rejected) return T(`${who} 没有接你的要求，这一回合按球队的原则打了。`, `${who} did not go along with your request; the possession played on the team's principles.`, lang);
+    if (i.reason === "turnover") return T(`和 ${who} 的挡拆出现了失误。`, `The screen with ${who} ended in a turnover.`, lang);
+    if (i.points > 0) return T(`和 ${who} 的挡拆打成了（${i.points} 分）。`, `The screen with ${who} paid off (${i.points} pts).`, lang);
+    return T(`和 ${who} 的挡拆没投进，配合本身没有问题。`, `The screen with ${who} did not fall, but the play itself was fine.`, lang);
+  });
+  const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
+  for (const m of teamplay.moved || []) lines.push(T(`你和 ${nameOf(m)} 的默契 ${sign(m.delta)}`, `Chemistry with ${nameOf(m)} ${sign(m.delta)}`, lang));
+  return lines;
 }

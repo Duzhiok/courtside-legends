@@ -1,6 +1,7 @@
 // Player Agency PA2: how often the game asks you something. Four modes, ONE GameSim and ONE grading engine (agency.js):
 // the mode only changes the decision frequency. Nothing here touches the sim's dice (the gate has its own seeded stream).
 import { clamp } from "../core/seededRandom.js";
+import { withoutTeamOptions } from "./teamplay.js";
 
 export const PARTICIPATION_MODES = Object.freeze({ AUTO: "auto", KEY: "key", HIGH: "high", FULL: "full" });
 export const DEFAULT_PARTICIPATION = PARTICIPATION_MODES.KEY;
@@ -45,7 +46,7 @@ export function importanceOf(sim) {
 
 /** 0..1: how much a read is worth right now = the gap between the best and the worst option (points per possession). */
 export function opportunityOf(values) {
-  const v = Object.entries(values || {}).filter(([k]) => k !== "setup").map(([, x]) => x);
+  const v = Object.entries(withoutTeamOptions(values)).filter(([k]) => k !== "setup").map(([, x]) => x);
   if (v.length < 2) return 0;
   return clamp((Math.max(...v) - Math.min(...v)) / 0.9, 0, 1);
 }

@@ -101,7 +101,40 @@ A defensive specialist must have a meaningful path to earning trust and autonomy
 
 **Slice 1 design (decisions this audit makes, open to the owner's veto):**
 - Trigger: inside the existing PA2 ask path; a screen offer is one more option in `buildDecisionContext` (field `offer`), not a new modal and not a new gate.
-- Execution: the existing PnR levers for exactly one possession (`orders.action = "pnr"`, `gameplan.pnr` with the named screener and `afterScreen`), restored afterwards, same pattern as `playChoicePossession`. No engine change is needed for slice 1.
+- Execution: the existing PnR levers for exactly one possession (`orders.action = "pnr"`, `gameplan.pnr` with the named screener and `afterScreen`), restored afterwards, same pattern as `playChoicePossession`. ~~No engine change is needed for slice 1.~~ **Corrected after building it: one small engine hook WAS needed, see "Slice 1 as built".**
 - Evidence: the possession's points (and turnover) feed the existing `evaluateDecision`; the relationship delta comes from the PA3.4 table; evidence id = game id + decision id + teammate id.
 - Randomness: any acceptance roll uses its own seeded stream, like PA2's gate; GameSim's RNG is untouched.
 - Out of slice 1: PA3.5 (defense), alley-oop, "ignored a better teammate" (needs a counterfactual), free-form requests beyond screen / roll / pop.
+
+## Slice 1 as built (2026-11-26) — what is real, and how we know
+
+Code: `js/reborn/teamplay.js` (new), additive hooks in `agency.js` / `participation.js` / `season.js` / `rivalry.js` (one `export`), UI in `js/ui/reborn/{agencyView,takeover,rebornView}.js`, ledger kind `"teammate"`, **one hook in `js/engine/sim.js`**. Tests: `tests/rebornTeamplay.test.js` (13). Browser: `scripts/qa/reborn-teamplay.mjs` (desktop 1440 + mobile 390, zh + en).
+
+### The GameSim change (shared engine) and its effect
+`sim.requestedBallHandlerId` (default `null`). In `resolvePossession`, right after `pickBallHandler()` has drawn, a request made by the player's own side replaces the handler for that ONE possession and is cleared on the spot; put-backs are left alone.
+- **Why it is needed:** `pickBallHandler` is a weighted random draw; `setOffenseFocus` only tilts the weights. Measured over 3 team-eras x 8 seeds with a non-star as the player: the named screen ran in **24.6%** of requested possessions without the hook, **37.2%** with it. Without it, roughly one asked-for screen in three would silently be a different play.
+- **Why it is safe:** the draw happens first, so the dice are consumed exactly as before; unset (every other game) changes nothing. The full suite (4332 tests, incl. the engine determinism tests) passed with it. Not saved, never persisted.
+- A second finding, no engine change: `setOffenseFocus(id, { action })` rebuilds the handler's `orders`, so orders set by hand BEFORE it are discarded and the engine never sees `"pnr"` (the first prototype was a silent no-op: 3.6% -> 6.4%). The action must go through `setOffenseFocus`, and the way back through the same public call (it also recomputes lineup chemistry). PA1's "ball to the coach's man" has the same tilt-not-force property; unchanged.
+
+### Evidence per step (a button is not proof)
+| Step | Real evidence |
+|---|---|
+| Offer | `screenOffer` = the engine's own `recommendPnrPlan` on the live floor (teammate on court, never you; none under 8 s). The foul line quotes `stats.pf` only (>= 3) |
+| Accept / ask for the other way | `playScreenPossession` runs ONE possession through `setOffenseFocus(id, {action:"pnr"})` + `gameplan.pnr` + the hook; levers are restored (test 4 compares `orders`, gameplan identity, focus, autopilot) |
+| It ran | the named screener is credited `"挡拆掩护"` by the engine in far more possessions than on the autopilot (test 3: pop and roll differ from each other and from the control); test 4b: with vs without the hook |
+| Refusal | `acceptanceChance` (owner's sketch = 56.5%) + one roll on its own seeded stream `teamplay\|decisionId` (test 5: same id, same answer; GameSim results identical with and without the rolls). A "no" = not carried out, not graded, nothing settled, possession plays on |
+| Settle | possession points / turnover from the sim: scored +0.5 (clutch +1.0), miss 0, turnover -0.5; per teammate per game capped at +-3, once per (game, teammate) (test 8) |
+| Ledger | run is the truth (`reborn.teamplay`, fractional); account gets an idempotent INTEGER copy via `mirrorTeammatesToAccount` (the ledger rounds), same pattern as rivalries/jerseys/honours (test 9). Browser: records appear, one per teammate |
+| Player feedback | post-game lines: what the screen did, who declined, chemistry +-n |
+
+PA1/PA2 untouched: the two new options are graded but excluded from the baseline (median, blurred read, PA2's opportunity gap) — test 6, and the existing "autonomy softening magnitude" test would fail otherwise.
+
+### Known limits / found, not fixed
+- Slice 1 lives inside the PA2 ask: still ONE blocking dialog per decision. The owner's L1/L2/L3 split (below) is the next UI work; slice 1 does not solve fatigue in Full control.
+- Slice 1 only helps a ball-handler; off-ball, defense, rebounds have no teammate presence yet (slices 2-3).
+- Pre-existing PA2 oddity: the gate can still ask at `Q4 0:00` (the game is effectively over). Not caused by PA3; screen offers correctly do not appear then.
+- Headless screenshots taken the instant the modal appears catch its fade-in (page shows through); 900 ms later the dialog is clean. Not a layout bug.
+
+## Owner direction after slice 1 (2026-11-26)
+Interaction levels: **L1** ordinary talk = non-blocking bubble / feed, no pause; **L2** a tactical moment = short action panel with keys, waits for the player; **L3** full decision panel only for real moments (buzzer, rival, coach conflict, Finals). Ordinary teammate talk must not all be big blocking modals; share ONE dispatch entry with Critical Moments so a possession never opens two dialogs.
+Slice order: **S2** ask for the ball, create for teammates, off-ball screen / cut / spacing (teammate may accept, refuse or counter; only what the engine really supports) -> **S3** defense: help, switch, pressure, box-out (defensive players need their own growth path) -> **S4** L1/L2/L3 UI layering -> **S5** long-term chemistry changing teammate behaviour -> PA4. Teammates should have basketball judgement derived from attributes + context, not hard-coded per type. No LLM, currency, second relationship database or second engine.

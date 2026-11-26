@@ -192,6 +192,8 @@ export class GameSim {
     this.focusPlay = null;
     /** Primary offensive option player id (persists until cleared). */
     this.offenseFocusId = null;
+    /** PA3: set by a player's request for ONE possession only (see step()); transient, never saved. */
+    this.requestedBallHandlerId = null;
     /** M2b-1 clutch decision: armed by submitDecision(), consumed by your next offensive possession. */
     this.clutchDecision = null;
     /** Structured outcomes of every consumed clutch decision (also sent as a `coach` event's meta). */
@@ -821,6 +823,14 @@ export class GameSim {
     let baller = putbackId
       ? off.onCourt.find((p) => p.id === putbackId) || pickBallHandler(off, focus, handlerFocus)
       : pickBallHandler(off, focus, handlerFocus);
+    // Player Agency PA3: the player's own request names who runs THIS possession (consumed here, so it can never leak into
+    // the next one). The draw above has already happened, so the dice are used exactly as before; unset (the default,
+    // and every game that is not a Reborn request) changes nothing. A put-back stays a put-back.
+    if (off === this.you() && this.requestedBallHandlerId) {
+      const requested = putbackId ? null : off.onCourt.find((p) => p.id === this.requestedBallHandlerId);
+      if (requested) baller = requested;
+      this.requestedBallHandlerId = null;
+    }
     let kickedOut = false;
     let organizerId = null;
     // 终场需要三分：高概率直接把球给最稳射手

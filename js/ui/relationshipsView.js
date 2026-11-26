@@ -57,6 +57,7 @@ const KIND_LABEL = {
   "coaching-trust": ["教练信任", "Coaching trust"],
   management: ["管理关系", "Management"],
   owner: ["老板关系", "Owner"],
+  teammate: ["队友默契", "Teammate chemistry"],
 };
 const PROMISE_KIND_LABEL = {
   minutes: ["上场时间", "Minutes"],

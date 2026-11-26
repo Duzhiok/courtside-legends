@@ -3865,7 +3865,7 @@ Nobody had touched `js/cloud/*` since f814b0c4, so I did the small fix myself in
 
 ### Code (this session) — CLAIM: Player Agency PA3 (team basketball), slice 1 (2026-11-26)
 - Owner approved the PA3 product scope (it had only lived in a ChatGPT discussion). Spec + my read-only audit are in `docs/implementation/PLAYER-AGENCY-PA3.md`; board row B157.
-- I am touching: `js/reborn/{agency,season,participation}.js` (additive), `js/ui/reborn/{takeover,agencyView,rebornView}.js`, `js/career/careerRelationships.js` (one additive kind `"teammate"` + an idempotent evidence settle), `css/reborn.css`, new tests/QA. **GameSim is NOT changed in slice 1.**
+- I am touching: `js/reborn/{agency,season,participation}.js` (additive), `js/ui/reborn/{takeover,agencyView,rebornView}.js`, `js/career/careerRelationships.js` (one additive kind `"teammate"` + an idempotent evidence settle), `css/reborn.css`, new tests/QA. **CORRECTION: slice 1 DID need one engine hook** — `sim.requestedBallHandlerId` in `resolvePossession` (default null, set after `pickBallHandler`'s draw, one possession, cleared on use; no change when unset; full suite 4332/4332). Reason and numbers are in the spec's "Slice 1 as built". Muse: that is a shared-engine change, please include it when you verify.
 - Muse: PA2's author said PA2 is yours to verify; PA3 slice 1 builds on the PA2 gate, so please don't refactor `participation.js` / `driveGame` while I'm in there (tell me if you need to).
 - Scope is Player Reborn only: nothing for GM/Coach modes, no ADR-006.
 

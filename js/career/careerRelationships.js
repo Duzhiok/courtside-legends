@@ -48,7 +48,7 @@
 
 import { PROMISE_EFFECTS } from "./promiseEffects.js";
 
-export const RELATIONSHIP_KINDS = ["rivalry", "mentorship", "coaching-trust", "management", "owner"];
+export const RELATIONSHIP_KINDS = ["rivalry", "mentorship", "coaching-trust", "management", "owner", "teammate"];
 export const PROMISE_KINDS = ["minutes", "role", "start", "trade", "contract"];
 const LEGACY_EVENT_TYPES = ["transition", "trade", "draft", "divergence", "promise", "rivalry", "rivalry-game", "championship", "finals"];
 

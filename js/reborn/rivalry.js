@@ -236,7 +236,7 @@ export function rivalryTimelineEvent(rival) {
 }
 
 /** The run's own person id in the account store (fictional runs have no bref). */
-const selfPersonId = (reborn) => reborn?.identity?.bref || `reborn:${reborn?.seed}`;
+export const selfPersonId = (reborn) => reborn?.identity?.bref || `reborn:${reborn?.seed}`;
 
 /**
  * Project the run's rivals into the account relationship store + legacy.

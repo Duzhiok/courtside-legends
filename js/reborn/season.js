@@ -27,6 +27,7 @@ import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, teamCoach } from "./agency.js";
 import { createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
+import { REL_START, acceptanceChance, playScreenPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleScreen, teamplayOf } from "./teamplay.js";
 import { rosterCode } from "./franchises.js";
 import { applyGameGrowth } from "./training.js";
 import { activeSpecialty, earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
@@ -101,6 +102,10 @@ export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW
   return true;
 }
 
+/** Which kind of possession each non-shot agency choice plays (anything else is "keep reading"). */
+const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen" };
+const PLAYED_KINDS = ["plan", "audible", "pass", "screen"];
+
 /**
  * Ask the hook for a takeover decision and submit it through the M2b
  * interface. Returns the submitted decision or null (not eligible / skipped
@@ -115,7 +120,7 @@ export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAUL
   // Player Agency: following the coach's call or reading the defense is a choice too, played through the normal offense.
   if (context && decision?.choiceId && !context.options.includes(decision.choiceId)) return null;
   if (context && decision?.choiceId && !decision.shooterId) {
-    return { choiceId: decision.choiceId, kind: decision.choiceId === "follow" ? "plan" : decision.choiceId === "setup" ? "audible" : "pass", accepted: true, context };
+    return { choiceId: decision.choiceId, kind: CHOICE_KIND[decision.choiceId] || "pass", accepted: true, context };
   }
   if (!decision || !decision.shooterId || !decision.actionHint) return null;
   // The hook may carry the attempt id it already issued (the takeover UI's
@@ -160,6 +165,39 @@ function playChoicePossession(sim, takeover) {
 }
 
 /**
+ * PA3: a teammate's screen. Taking his offer is simply yes; asking for the OTHER way to use him is a request, and he answers it
+ * with one roll on his own stream (never the sim's). A "no" costs nothing and stops nothing: the possession just plays on.
+ */
+function playScreenChoice(sim, t, playerId, agency) {
+  const { offer, decisionId, values, playerState } = t.context;
+  const proposed = t.choiceId === "screenAlt";
+  t.teammate = { offer, proposed, accepted: true, chance: null };
+  if (proposed) {
+    const chance = acceptanceChance({
+      autonomy: playerState?.autonomy ?? 0,
+      chemistry: agency?.mateStrength?.[offer.personId] ?? REL_START,
+      opportunity: requestOpportunity(values, "screenAlt"),
+      roleInfluence: roleInfluence(agency?.role),
+      iq: offer.iq,
+    });
+    t.teammate = { offer, proposed, ...respondToRequest({ decisionId, chance }) };
+    if (!t.teammate.accepted) {
+      t.accepted = false; // not carried out: nothing to grade, nothing to settle
+      return 0;
+    }
+  }
+  const run = playScreenPossession(sim, { playerId, screenerId: offer.teammateId, afterScreen: proposed ? offer.alt : offer.afterScreen, finish: offer.finish });
+  t.turnover = run.turnover;
+  return run.points;
+}
+
+/** Play the possession a non-shot agency choice covers and record its points on the choice (the evidence it is graded on). */
+function playChoice(sim, t, playerId, agency) {
+  if (!PLAYED_KINDS.includes(t?.kind)) return;
+  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : playChoicePossession(sim, t);
+}
+
+/**
  * Drive one live game possession by possession; the takeover hook fires at most once.
  * `egg` is the enforcer-egg context ({ rivalBrefs, rng }) or null: when present,
  * the watcher rolls once, the first time your enforcer shares the floor
@@ -188,7 +226,7 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
       // Drawing up the play costs the timeout he called (only when the dialog actually happens).
       if (context?.coachInstruction && onTakeover) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
       takeover = await attemptTakeover(sim, playerId, onTakeover, window, context);
-      if (takeover?.kind === "plan" || takeover?.kind === "audible" || takeover?.kind === "pass") takeover.points = playChoicePossession(sim, takeover);
+      playChoice(sim, takeover, playerId, agency);
     } else if (gate && onTakeover && sim.running && !sim.clutchDecision && sim.possession === sim.youSide) {
       const onCourt = youSide().onCourt?.some((p) => p.id === playerId);
       const importance = importanceOf(sim);
@@ -201,7 +239,7 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
         if (critical && context.coachInstruction) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
         const asked = await attemptTakeover(sim, playerId, onTakeover, window, context, true);
         if (asked) {
-          if (asked.kind === "plan" || asked.kind === "audible" || asked.kind === "pass") asked.points = playChoicePossession(sim, asked);
+          playChoice(sim, asked, playerId, agency);
           extras.push(asked);
         }
       } else if (onCourt) gate.skipped();
@@ -299,6 +337,9 @@ export async function playGame(
     decisionId: `${gameId}|takeover`,
     trust: reborn.player.coachTrust,
     autonomy: autonomyBefore,
+    // PA3: plain data (no functions) so a teammate's answer can read how close he is to you and how much you carry.
+    role,
+    mateStrength: Object.fromEntries(Object.entries(teamplayOf(reborn).mates).map(([id, m]) => [id, m.strength])),
   };
   const { takeover, extras, egg: eggIncident } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx, agency: agencyCtx, participation });
 
@@ -366,6 +407,23 @@ export async function playGame(
   const autonomyAfter = clampAutonomy(autonomyBefore + (agency?.autonomyDelta || 0));
   next.player.autonomy = autonomyAfter;
   next.player.rotationRole = roleAfter;
+  // PA3: what the screens you called really did (GameSim's points / turnover), settled into the run once per game and
+  // teammate. A teammate who said no is reported but moves nothing.
+  const screens = [takeover, ...extras].filter((t) => t?.kind === "screen" && t.teammate);
+  const mateEvidence = screens
+    .filter((t) => t.accepted)
+    .map((t) => settleScreen({ decisionId: t.context.decisionId, offer: t.teammate.offer, points: t.points || 0, turnover: !!t.turnover, critical: !t.context.routine, proposed: t.teammate.proposed }));
+  const mates = recordTeammateEvidence(reborn, gameId, mateEvidence);
+  next.teamplay = mates.teamplay;
+  const teamplay = screens.length
+    ? {
+        items: [
+          ...mateEvidence,
+          ...screens.filter((t) => !t.accepted).map((t) => ({ kind: "screen", rejected: true, proposed: true, name: t.teammate.offer.name, nameEn: t.teammate.offer.nameEn, chance: t.teammate.chance })),
+        ],
+        moved: mates.moved,
+      }
+    : null;
   next.identity = maybeReveal(next.identity, trustAfter);
   // The trust-40 reveal flips here (if it flips at all) — the report
   // carries it so the view can stage the reveal moment.
@@ -468,6 +526,7 @@ export async function playGame(
           }
         : null,
       agency: agency ? { ...agency, trustApplied: Math.round(agency.trustDelta), autonomyBefore, autonomyAfter } : null,
+      teamplay,
       weekBoundary: isWeekBoundary(season.index, REBORN_GAMES_PER_WEEK),
       enforcerEgg: eggIncident || null,
       jersey: { offers: jerseys.created.map((o) => ({ id: o.id, fromBref: o.fromBref, fromName: o.fromName, fromNameEn: o.fromNameEn, reasons: o.reasons, respect: o.respect })) },

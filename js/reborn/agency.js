@@ -14,6 +14,7 @@
  */
 import { COACHES } from "../data/coaches.js";
 import { clamp, hashSeed, seededStream } from "../core/seededRandom.js";
+import { screenOffer, withoutTeamOptions } from "./teamplay.js";
 
 export const AUTONOMY_START = 10;
 export const AUTONOMY_TIERS = [
@@ -133,8 +134,8 @@ function bestSetup(sim, playerId, two) {
   return top;
 }
 
-/** Expected points per option, from the floor as it stands before anyone moves. */
-export function optionValues(sim, playerId, instruction) {
+/** Expected points per option, from the floor as it stands before anyone moves. `offer` = a teammate's screen (PA3). */
+export function optionValues(sim, playerId, instruction, offer = null) {
   const { you, opp } = sides(sim);
   const me = you.onCourt.find((p) => p.id === playerId);
   const two = twoDiscount(sim);
@@ -145,6 +146,17 @@ export function optionValues(sim, playerId, instruction) {
     const tl = t ? looks(t, opp) : null;
     values.follow = !tl ? 0.9 : instruction.action === "find_shooter" ? tl.three : instruction.action === "post_entry" ? tl.post * two : Math.max(tl.three, tl.rim * two);
   }
+  // PA3: a screen helps the handler (his man is screened off) and puts the screener in a look of his own. `screen` is the way the
+  // teammate offered, `screenAlt` the other way to use him; the screener's basketball IQ nudges how well he sets it.
+  const mate = offer && you.onCourt.find((p) => p.id === offer.teammateId);
+  if (mate) {
+    const own = Math.max(mine.three, mine.rim * two);
+    const ml = looks(mate, opp);
+    const edge = 1 + (r(mate, "iq") - 50) * 0.002;
+    const via = (after) => 0.55 * own * 1.12 + 0.45 * (after === "pop" ? ml.three : ml.rim * two) * edge;
+    values.screen = via(offer.afterScreen);
+    values.screenAlt = via(offer.alt);
+  }
   // Patience ("pass": give up this shot, keep reading): the offense's normal flow is worth about a point; with under 8 seconds there is no time to read.
   values.pass = sim.clock < 8 ? 0.7 : 1.0 * (two < 1 ? 0.8 : 1);
   return values;
@@ -152,7 +164,7 @@ export function optionValues(sim, playerId, instruction) {
 
 /** Quality of one option in [-1, 1]: its EV against the median of what was on the table. */
 export function decisionQuality(values, choiceId) {
-  const evs = Object.values(values).sort((a, b) => a - b);
+  const evs = Object.values(withoutTeamOptions(values)).sort((a, b) => a - b); // the baseline is the pre-PA3 options only
   const median = evs[Math.floor((evs.length - 1) / 2)];
   return clamp((values[choiceId] - median) / QUALITY_SPAN, -1, 1);
 }
@@ -173,7 +185,8 @@ const ROUTINE_CALL_IMPORTANCE = 0.4;
 export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, decisionId, trust = 0, autonomy = AUTONOMY_START, routine = false, importance = 1 } = {}) {
   const calls = coachCallsPlay(sim, coach) && (!routine || importance >= ROUTINE_CALL_IMPORTANCE);
   const instruction = calls ? coachInstruction(sim, coach, playerId) : null;
-  const values = optionValues(sim, playerId, instruction);
+  const offer = screenOffer(sim, playerId); // PA3: a teammate who can set a real screen right now (null when none / no time)
+  const values = optionValues(sim, playerId, instruction, offer);
   const audible = autonomy >= AUDIBLE_AT ? bestSetup(sim, playerId, twoDiscount(sim)) : null;
   if (audible) values.setup = audible.value;
   const { you } = sides(sim);
@@ -183,9 +196,10 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
     routine,
     coach: coach ? { id: coach.id, name: coach.name, nameEn: coach.nameEn, archetype: coach.archetype || null, tolerance: coachTolerance(coach) } : null,
     coachInstruction: instruction ? { ...instruction, targetName: target?.name || "" } : null,
-    observation: observe(values, { iq, decisionId }),
+    observation: observe(withoutTeamOptions(values), { iq, decisionId }),
     audible: audible ? { targetId: audible.targetId, targetName: audible.targetName, focusId: audible.focusId } : null,
-    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), "pass"],
+    offer: values.screen != null ? offer : null,
+    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), ...(values.screen != null ? ["screen", "screenAlt"] : []), "pass"],
     values,
     playerState: { trust, autonomy, iq },
   };

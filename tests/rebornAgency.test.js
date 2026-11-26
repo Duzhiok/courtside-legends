@@ -79,7 +79,9 @@ test("6. no coach on record = no instruction (never an invented one); a free cho
   assert.equal(A.coachInstruction(sim, null, me.id), null);
   const ctx = A.buildDecisionContext(sim, me.id, { coach: null, iq: 70, decisionId: "g|1" });
   assert.equal(ctx.coachInstruction, null);
-  assert.deepEqual(ctx.options, ["drive", "pullup", "pass"]);
+  // No coach, so no "follow"; the three personal options are unchanged. A teammate who can set a real screen adds the two PA3 options before "pass".
+  assert.deepEqual(ctx.options.filter((o) => !["screen", "screenAlt"].includes(o)), ["drive", "pullup", "pass"]);
+  assert.ok(!ctx.options.includes("follow"));
   const free = grade({ hadInstruction: false, followed: false, quality: -0.9, execution: -1 });
   const defied = grade({ hadInstruction: true, followed: false, quality: -0.9, execution: -1 });
   assert.ok(free.trustDelta > defied.trustDelta && free.autonomyDelta > defied.autonomyDelta);
