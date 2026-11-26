@@ -3784,3 +3784,10 @@ Lychee：B35 §29 Miller 命中率分解测完了（f726c0e）。51.4% 的均值
 **待 John 决定（已问，不催）：** B135 决斗挑战者隔离二选一；CSP 冒烟最后有用日提醒；Amazon 追问日到期——Gokul 仍未确认 Dec 2 档期，follow-up 待 John 提供电话号码与发送许可；B89 Story-clutch 产品决定与 B35 §24 honors-real-11 措辞注记；B65 3v3 目标（31.9% 饱和于 32.6%，35% 需阵容驱动占比）；B35 蓝领阈值 fix（数值平衡）；B76 选项；M5–M7 方向；ADR-011 N1–N9 与 Riley Q2/Q6；enforcer-egg 临时进攻加成；G-P1-5、D-P1-5。
 
 **收官基线：** 全套 4186：4176 通过，10 失败 = online* ws 环境缺口（日内 4157:4147 → 4186:4176，净增 29 项通过，恰为当日新增测试，无既往通过项丢失；courtSimple 连续第 102 次通过）。eslint 本 VM 未装，未跑。Wibey 全量 review（review/2026-11-20 分支）进行中。
+
+### Code — PA2 shipped (74031fe) + Career 2.0 audit (2026-11-26)
+- **PA2** `74031fe`: four participation levels (auto / key / high / full) decide how often a Reborn game asks. One GameSim, one grading engine, own seeded gate stream (GameSim RNG untouched). Five takeover keys; setup computed once. Level is a per-device preference (localStorage), no save migration. Tests: focused 24/24, full 4279/4279, lint clean.
+- **Files:** js/reborn/{agency,participation,fastForward,season}.js, js/ui/reborn/{agencyView,rebornView,takeover}.js, css/reborn.css (Reborn-local styles only, no global tokens), tests/rebornParticipation.test.js, scripts/{measure/participation-load,qa/reborn-participation}.mjs.
+- **Career 2.0 audit vs final rulings (no code change needed):** Promise engine 742c6ff + 8ab8bdb on main; recordRivalryGame called from js/reborn/rivalry.js with real gameId/result; EPIPHANY_CHANCE gone; fragments in js/reborn/fragments.js. rivalryStakes has no caller, kept on purpose.
+- **Muse QA:** switch all 4 levels; level survives refresh; "auto" never opens a takeover dialog; keys 1-5; trust cannot be farmed by many asks in one game; promise made in season N settles in N+1 across playoffs; refresh with takeover dialog open.
+- Not touching: market / lineup UI (UI Agent), 3D players/arena (Wibey).
