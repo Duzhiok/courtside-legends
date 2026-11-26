@@ -12,7 +12,14 @@
  *   - cloud data is validated through importRootSave (same checks + migration as a file import) before anything local
  *     is touched; the local save is backed up first, and writeRootSave keeps its own save-ownership guard;
  *   - nothing is ever overwritten silently: sync() only ever UPLOADS when the cloud has not moved; everything else is
- *     reported (`cloud-newer`, `conflict`) and waits for restore() / keepLocal().
+ *     reported (`cloud-newer`, `conflict`) and waits for restore() / keepLocal();
+ *   - one browser can serve several people: the sync bookkeeping is kept PER CLOUD USER, and a local save is only ever
+ *     uploaded to the cloud user it is linked to (`linkedAccountId` = the local account that user signed in as).
+ *     A guest save (no account) never leaves the device. Without this, B signing in on A's browser would upload A's career.
+ *
+ * A transport reports why a call failed by throwing an Error with `.kind`: "offline" (default), "auth" (not signed in /
+ * session expired), "rejected" (the server refused the data), "too-large". They surface as the statuses `offline`,
+ * `auth-required`, `rejected`, `too-large`, so the UI never calls a signed-out player "offline".
  */
 import { ROOT_SAVE_VERSION, exportRootSave, importRootSave, readRootSave, writeRootSave } from "../data/saveRoot.js";
 
@@ -45,22 +52,34 @@ function cloudHolds(remote, root) {
   }
 }
 
-export function createCloudSync({ storage, transport, slot = CAREER_SLOT }) {
-  const readState = () => {
+const FAILURE_STATUS = { offline: "offline", auth: "auth-required", rejected: "rejected", "too-large": "too-large" };
+
+/** A transport error as a result object (never thrown at the caller). */
+function failure(error) {
+  return { status: FAILURE_STATUS[error?.kind] || "offline", error: error?.message };
+}
+
+export function createCloudSync({ storage, transport, userId, linkedAccountId = null, slot = CAREER_SLOT }) {
+  if (!userId) throw new Error("createCloudSync needs the signed-in cloud userId: sync state is kept per user");
+  const readAll = () => {
     try {
-      return JSON.parse(storage.getItem(SYNC_STATE_KEY) || "{}")[slot] || { revision: 0, hash: null };
+      const all = JSON.parse(storage.getItem(SYNC_STATE_KEY) || "{}");
+      return all && typeof all === "object" ? all : {};
     } catch {
-      return { revision: 0, hash: null };
+      return {};
     }
   };
+  const readState = () => readAll()[userId]?.[slot] || { revision: 0, hash: null };
   const remember = (entry) => {
-    let all = {};
-    try {
-      all = JSON.parse(storage.getItem(SYNC_STATE_KEY) || "{}");
-    } catch {
-      all = {};
-    }
-    storage.setItem(SYNC_STATE_KEY, JSON.stringify({ ...all, [slot]: entry }));
+    const all = readAll();
+    storage.setItem(SYNC_STATE_KEY, JSON.stringify({ ...all, [userId]: { ...(all[userId] || {}), [slot]: entry } }));
+  };
+  /** Why this local save may not go to THIS cloud user's account ("guest" | "not-linked"), or null when it may. */
+  const notUploadable = (root) => {
+    if (!root) return null;
+    const owner = root.profile?.accountId ?? null;
+    if (owner === null) return "guest";
+    return owner === linkedAccountId ? null : "not-linked";
   };
 
   async function upload(root, expectedRevision) {
@@ -75,7 +94,7 @@ export function createCloudSync({ storage, transport, slot = CAREER_SLOT }) {
         idempotencyKey: `${slot}:${expectedRevision}:${hash}`,
       });
     } catch (error) {
-      return { status: "offline", error: error.message };
+      return failure(error);
     }
     if (res.conflict) return { status: "conflict", cloudRevision: res.revision };
     remember({ revision: res.revision, hash });
@@ -85,11 +104,13 @@ export function createCloudSync({ storage, transport, slot = CAREER_SLOT }) {
   /** Look at both sides and upload only when that is provably safe. */
   async function sync() {
     const root = readRootSave(storage);
+    const blocked = notUploadable(root);
+    if (blocked) return { status: blocked }; // decided before any network call: nothing of this save leaves the device
     let remote;
     try {
       remote = await transport.get({ slot });
     } catch (error) {
-      return { status: "offline", error: error.message };
+      return failure(error);
     }
     const known = readState();
     const localChanged = !!root && contentHash(root) !== known.hash;
@@ -110,7 +131,7 @@ export function createCloudSync({ storage, transport, slot = CAREER_SLOT }) {
     try {
       remote = await transport.get({ slot });
     } catch (error) {
-      return { status: "offline", error: error.message };
+      return failure(error);
     }
     if (!remote) return { status: "empty" };
     let incoming;
@@ -134,11 +155,13 @@ export function createCloudSync({ storage, transport, slot = CAREER_SLOT }) {
   async function keepLocal() {
     const root = readRootSave(storage);
     if (!root) return { status: "empty" };
+    const blocked = notUploadable(root);
+    if (blocked) return { status: blocked };
     let remote;
     try {
       remote = await transport.get({ slot });
     } catch (error) {
-      return { status: "offline", error: error.message };
+      return failure(error);
     }
     return upload(root, remote ? remote.revision : 0);
   }
