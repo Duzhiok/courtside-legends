@@ -25,7 +25,8 @@ import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
 import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
-import { AUTONOMY_START, buildDecisionContext, clampAutonomy, gradeTakeover, teamCoach } from "./agency.js";
+import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, teamCoach } from "./agency.js";
+import { createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
 import { rosterCode } from "./franchises.js";
 import { applyGameGrowth } from "./training.js";
 import { activeSpecialty, earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
@@ -106,8 +107,9 @@ export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW
  * / rejected). Purely the interface call — the choice itself comes from the
  * hook (PR4 builds the options, the player picks).
  */
-export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAULT_TAKEOVER_WINDOW, context = null) {
-  if (!takeoverEligible(sim, playerId, window)) return null;
+export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAULT_TAKEOVER_WINDOW, context = null, force = false) {
+  // `force`: a participation-mode ask outside the clutch window (the gate already decided it is worth asking).
+  if (force ? !sim.running || sim.clutchDecision : !takeoverEligible(sim, playerId, window)) return null;
   if (typeof onTakeover !== "function") return null;
   const decision = await onTakeover({ sim, playerId, context });
   // Player Agency: following the coach's call or reading the defense is a choice too, played through the normal offense.
@@ -165,27 +167,48 @@ function playChoicePossession(sim, takeover) {
  * on its own seeded stream, never the sim's, so the sim's dice are identical
  * with the egg on or off.
  */
-export async function driveGame(sim, playerId, { onTakeover = null, window = DEFAULT_TAKEOVER_WINDOW, egg = null, agency = null } = {}) {
+export async function driveGame(sim, playerId, { onTakeover = null, window = DEFAULT_TAKEOVER_WINDOW, egg = null, agency = null, participation = null } = {}) {
   sim._quiet = true;
   sim.running = true;
   sim.paused = false;
   sim.breakReason = null;
   let takeover = null;
+  const extras = [];
+  // participation = { getMode } switches the participation modes on; without it the game is the classic once-per-game clutch ask.
+  const gate = participation ? createDecisionGate(participation) : null;
+  const youSide = () => (sim.youSide === "home" ? sim.home : sim.away);
   let eggIncident = null;
   const watcher = egg ? createEggWatcher({ sim, rivalBrefs: egg.rivalBrefs, rng: egg.rng }) : null;
   let guard = 0;
   while (sim.running && guard++ < 8000) {
     sim.step();
-    if (!takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
+    const mayAsk = !gate || gate.mode() !== "auto";
+    if (mayAsk && !takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
       const context = agency ? buildDecisionContext(sim, playerId, agency) : null;
       // Drawing up the play costs the timeout he called (only when the dialog actually happens).
       if (context?.coachInstruction && onTakeover) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
       takeover = await attemptTakeover(sim, playerId, onTakeover, window, context);
       if (takeover?.kind === "plan" || takeover?.kind === "audible" || takeover?.kind === "pass") takeover.points = playChoicePossession(sim, takeover);
+    } else if (gate && onTakeover && sim.running && !sim.clutchDecision && sim.possession === sim.youSide) {
+      const onCourt = youSide().onCourt?.some((p) => p.id === playerId);
+      const importance = importanceOf(sim);
+      const critical = takeoverEligible(sim, playerId, window);
+      // Auto mode never builds a context; the other modes build one (cheap) to learn whether the coach disagrees.
+      const context = onCourt && gate.mode() !== "auto" && agency
+        ? buildDecisionContext(sim, playerId, { ...agency, decisionId: `${agency.decisionId}|r${extras.length + 1}`, routine: !critical, importance })
+        : null;
+      if (context && gate.ask({ onCourt, importance, critical, conflict: !!context.coachInstruction, opportunity: opportunityOf(context.values) })) {
+        if (critical && context.coachInstruction) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
+        const asked = await attemptTakeover(sim, playerId, onTakeover, window, context, true);
+        if (asked) {
+          if (asked.kind === "plan" || asked.kind === "audible" || asked.kind === "pass") asked.points = playChoicePossession(sim, asked);
+          extras.push(asked);
+        }
+      } else if (onCourt) gate.skipped();
     }
     if (watcher && !eggIncident) eggIncident = watcher.maybeFire();
   }
-  return { takeover, egg: eggIncident };
+  return { takeover, extras, egg: eggIncident };
 }
 
 /**
@@ -198,7 +221,7 @@ export async function playGame(
   reborn,
   season,
   players,
-  { rng = null, onTakeover = null, trainingDone = false, game: gameOverride = null } = {},
+  { rng = null, onTakeover = null, trainingDone = false, game: gameOverride = null, participation = null } = {},
 ) {
   // gameOverride: a playoff game (playoffs.js decides who plays whom next, so it is not in the season's list). It may carry `po`:
   // { round, series, n, titleGame } and is logged as a playoff game; `titleGame` = this game wins the championship if the player wins it.
@@ -277,7 +300,7 @@ export async function playGame(
     trust: reborn.player.coachTrust,
     autonomy: autonomyBefore,
   };
-  const { takeover, egg: eggIncident } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx, agency: agencyCtx });
+  const { takeover, extras, egg: eggIncident } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx, agency: agencyCtx, participation });
 
   const youSide = sim.youSide === "home" ? sim.home : sim.away;
   const stats = youSide.roster.find((p) => p.id === playerCard.id)?.stats || {};
@@ -300,10 +323,9 @@ export async function playGame(
   };
   const gs = Math.round(gameScore(stats) * 10) / 10;
   const trustBefore = reborn.player.coachTrust;
-  const takeoverOutcome = takeover?.accepted
-    ? sim.clutchLog.find((o) => o.attemptId === takeover.attemptId) || null
-    : null;
-  const agency = gradeTakeover(takeover, takeoverOutcome);
+  const outcomeOf = (t) => (t?.accepted ? sim.clutchLog.find((o) => o.attemptId === t.attemptId) || null : null);
+  const takeoverOutcome = outcomeOf(takeover);
+  const agency = combineGrades([gradeTakeover(takeover, takeoverOutcome), ...extras.map((t) => gradeTakeover(t, outcomeOf(t)))]);
   // Training pays trust once a week, on the week's last game — never once
   // per game, or a bench player could train his way to starter without
   // ever playing.

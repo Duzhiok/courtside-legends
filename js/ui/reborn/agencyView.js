@@ -5,6 +5,7 @@
  */
 import { esc } from "../../core/html.js";
 import { autonomyTier } from "../../reborn/agency.js";
+import { MODE_LABELS, MODE_PACING, PARTICIPATION_MODES, sanitizeMode } from "../../reborn/participation.js";
 
 const T = (zh, en, lang) => (lang === "en" ? en : zh);
 
@@ -51,7 +52,15 @@ function optionLabel(id, context, lang) {
 }
 
 /** The agency version of the takeover dialog. */
-export function agencyDialogHtml({ sim, lang = "zh", context }) {
+/** The four participation modes as a switch (used in the dialog footer and on the Reborn screen). Pure HTML. */
+export function participationBarHtml(mode, lang = "zh") {
+  const m = sanitizeMode(mode);
+  const chips = Object.values(PARTICIPATION_MODES).map((id) => `<button type="button" class="reborn-mode-chip" data-mode="${id}" aria-pressed="${id === m}">${T(MODE_LABELS[id].zh, MODE_LABELS[id].en, lang)}</button>`).join("");
+  return `<div class="reborn-mode" role="group" aria-label="${T("比赛参与程度", "Match involvement", lang)}">${chips}`
+    + `<small class="reborn-mode-desc">${T(MODE_LABELS[m].descZh, MODE_LABELS[m].descEn, lang)} ${T("每场预计决策", "Decisions per game", lang)}: ${MODE_PACING[m].target}</small></div>`;
+}
+
+export function agencyDialogHtml({ sim, lang = "zh", context, mode = null }) {
   const youSide = sim?.youSide || "home";
   const oppSide = youSide === "home" ? "away" : "home";
   const score = sim?.score || { home: 0, away: 0 };
@@ -69,10 +78,11 @@ export function agencyDialogHtml({ sim, lang = "zh", context }) {
     return `<button type="button" class="reborn-takeover-option" data-option="${id}" data-key="${i + 1}"><span class="reborn-takeover-key">${i + 1}</span> <span class="reborn-takeover-desc">${kind}</span> <span class="reborn-takeover-label">${label}</span></button>`;
   }).join("");
   return `<div class="reborn-takeover-dialog reborn-agency" role="dialog" aria-modal="true" aria-label="${T("关键回合", "Takeover moment", lang)}">`
-    + `<h2>${T("关键回合，你决定怎么打", "Clutch possession: your call", lang)}</h2>`
+    + `<h2>${context.routine ? T("这一回合，你想怎么打", "This possession: your call", lang) : T("关键回合，你决定怎么打", "Clutch possession: your call", lang)}</h2>`
     + `<p class="reborn-takeover-situation">${q <= 4 ? `Q${q}` : `OT${q - 4}`} ${mmss} · ${score[youSide]} – ${score[oppSide]}</p>`
     + coachCard + readCard
     + `<div class="reborn-takeover-options">${buttons}</div>`
+    + (mode ? participationBarHtml(mode, lang) : "")
     + `<p class="reborn-takeover-hint">${T(`你的战术自主权：${tier.zh}。好判断会赢得更多自由；盲目出手失败会让教练收紧。`, `Your autonomy: ${tier.en}. Good reads earn freedom; reckless misses make the coach tighten up.`, lang)}</p>`
     + `</div>`;
 }
@@ -96,8 +106,9 @@ const VERDICT = {
 export function describeAgencyFeedback(agency, lang = "zh") {
   if (!agency) return null;
   const [zh, en] = VERDICT[agency.verdict] || VERDICT.free_neutral;
+  const many = agency.decisions > 1 ? T(`本场 ${agency.decisions} 个决定 · `, `${agency.decisions} decisions · `, lang) : "";
   const t = agency.trustApplied ?? Math.round(agency.trustDelta);
   const a = (agency.autonomyAfter ?? 0) - (agency.autonomyBefore ?? 0);
   const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
-  return T(`教练点评：${zh}（信任 ${sign(t)} · 自主权 ${sign(a)}）`, `Coach: ${en} (trust ${sign(t)} · autonomy ${sign(a)})`, lang);
+  return T(`教练点评：${zh}（${many}信任 ${sign(t)} · 自主权 ${sign(a)}）`, `Coach: ${en} (${many}trust ${sign(t)} · autonomy ${sign(a)})`, lang);
 }

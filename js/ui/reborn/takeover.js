@@ -16,7 +16,7 @@ import { esc } from "../../core/html.js";
 import { identityOf } from "../../career/careerIdentity.js";
 import { requireCapability } from "../../career/careerGuards.js";
 import { mountScreen } from "../screenShell.js";
-import { agencyDialogHtml } from "./agencyView.js";
+import { agencyDialogHtml, participationBarHtml } from "./agencyView.js";
 
 /** The three takeover options. `pass` declines the moment (no decision). */
 export const TAKEOVER_OPTIONS = Object.freeze([
@@ -93,15 +93,16 @@ export async function askTakeover({ sim, playerId, onAsk, root, context = null }
 }
 
 /** The season driver's onTakeover hook. `onAsk` is the view's dialog. `root` is the long-career root save, passed through so the takeover guard (R7) reads the save's identity. */
-export function createTakeoverHook({ onAsk, root, getLang = () => "zh" } = {}) {
+export function createTakeoverHook({ onAsk, root, getLang = () => "zh", getMode = null, onMode = null } = {}) {
   const ask = onAsk || ((args) => showTakeoverDialog({ ...args, lang: getLang() }));
-  return ({ sim, playerId, context }) => askTakeover({ sim, playerId, onAsk: ask, root, context });
+  // The involvement switch rides along with every dialog so it can be changed mid-match.
+  return ({ sim, playerId, context }) => askTakeover({ sim, playerId, onAsk: (args) => ask({ ...args, mode: getMode ? getMode() : null, onMode }), root, context });
 }
 
 /** Pure HTML for the takeover dialog (no percentages, no win probability). */
-export function takeoverDialogHtml({ sim, playerId, lang = "zh", context = null } = {}) {
+export function takeoverDialogHtml({ sim, playerId, lang = "zh", context = null, mode = null } = {}) {
   const zh = lang !== "en";
-  if (context) return agencyDialogHtml({ sim, playerId, lang, context });
+  if (context) return agencyDialogHtml({ sim, playerId, lang, context, mode });
   const player = sim?.you?.()?.onCourt?.find((p) => p.id === playerId)
     || sim?.you?.()?.roster?.find((p) => p.id === playerId);
   const name = player?.name || "";
@@ -135,7 +136,7 @@ export function takeoverDialogHtml({ sim, playerId, lang = "zh", context = null 
  * (or null on dismiss). Keys 1/2/3 choose; a click on the shell itself — the
  * backdrop outside the dialog — dismisses. Requires a DOM.
  */
-export function showTakeoverDialog({ sim, playerId, lang = "zh", context = null } = {}) {
+export function showTakeoverDialog({ sim, playerId, lang = "zh", context = null, mode = null, onMode = null } = {}) {
   if (typeof document === "undefined") {
     return Promise.resolve(null);
   }
@@ -161,13 +162,20 @@ export function showTakeoverDialog({ sim, playerId, lang = "zh", context = null 
       if (index >= 0 && ids[index]) done(ids[index]);
     };
     shell.el.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-mode]");
+      if (chip) {
+        // Changing how involved you are does not answer the question: keep the dialog open.
+        onMode?.(chip.dataset.mode);
+        shell.body.querySelector(".reborn-mode")?.replaceWith(Object.assign(document.createElement("div"), { innerHTML: participationBarHtml(chip.dataset.mode, lang) }).firstElementChild);
+        return;
+      }
       const button = event.target.closest("[data-option]");
       if (button) done(button.dataset.option);
       else if (event.target === shell.el || event.target === shell.body) done(null);
     });
     document.addEventListener("keydown", onKey, true);
     // Set the body before opening: the shell focuses the first option on activation.
-    shell.body.innerHTML = takeoverDialogHtml({ sim, playerId, lang, context });
+    shell.body.innerHTML = takeoverDialogHtml({ sim, playerId, lang, context, mode });
     shell.open();
   });
 }

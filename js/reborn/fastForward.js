@@ -173,7 +173,7 @@ export async function fastForward(
   reborn,
   season,
   players,
-  { playOne = playGame, onTakeover = null, onGame = null } = {},
+  { playOne = playGame, onTakeover = null, onGame = null, participation = null } = {},
 ) {
   let current = reborn;
   const reports = [];
@@ -198,6 +198,8 @@ export async function fastForward(
     }
     const out = await playOne(current, season, players, {
       onTakeover,
+      // Fast play: the mode can still silence the clutch ask (auto), but it never asks the everyday questions.
+      participation: participation ? { ...participation, fastSimulation: true } : null,
       trainingDone: current.player.training?.week === week,
     });
     if (!out) break;

@@ -34,8 +34,9 @@ import { promiseBannerHtml } from "../promiseBannerView.js";
 import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from "../../reborn/training.js";
 import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, specializeClick, unlockClick } from "./fragmentsView.js";
 import { mirrorUnlocksToAccount, runUnlockIds } from "../../collectibles/legacyCosmetics.js";
+import { readParticipation, writeParticipation } from "../../reborn/participation.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
-import { describeAgencyFeedback } from "./agencyView.js";
+import { describeAgencyFeedback, participationBarHtml } from "./agencyView.js";
 import { AUTONOMY_START, autonomyTier } from "../../reborn/agency.js";
 import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
 import { mirrorHonorsToAccount } from "../../reborn/honors.js";
@@ -102,7 +103,7 @@ function autonomyLine(reborn, lang) {
   return `<p class="reborn-autonomy" data-testid="autonomy">${L("战术自主权", "Tactical autonomy", lang)} ${a} / 100 · ${lang === "en" ? tier.en : tier.zh}</p>`;
 }
 
-export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
+export function rebornIdentityHtml({ reborn, card, lang = "zh", mode = null } = {}) {
   const name = reborn.identity.revealed ? reborn.identity.name : L("无名试训球员", "Unnamed camp player", lang);
   const trust = reborn.player.coachTrust;
   const role = roleForTrust(trust);
@@ -120,6 +121,7 @@ export function rebornIdentityHtml({ reborn, card, lang = "zh" } = {}) {
     + `<div class="reborn-trust-bar" role="progressbar" aria-valuenow="${trust}" aria-valuemin="0" aria-valuemax="100"><span style="width:${trust}%"></span></div>`
     + ladderLine
     + autonomyLine(reborn, lang)
+    + (mode ? participationBarHtml(mode, lang) : "")
     + hintLine
     + `</section>`;
 }
@@ -358,7 +360,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         ? `<section class="reborn-ff"><p>${describeFastForwardEvent(ffState.event, lang())}</p><p>${L("模拟了", "Simmed ", lang)}${ffState.reports.length}${L(" 场", " games", lang)} · ${ffState.reports.filter((r) => r.won).length}${L("胜", "W", lang)}${ffState.reports.length - ffState.reports.filter((r) => r.won).length}${L("负", "L", lang)} · ${L("信任", "Trust", lang)} ${ffState.trustBefore} → ${reborn.player.coachTrust}</p></section>`
         : "";
     const html = [
-      rebornIdentityHtml({ reborn, card, lang: lang() }),
+      rebornIdentityHtml({ reborn, card, lang: lang(), mode: readParticipation() }),
       revealBanner,
       awakeningBannerHtml({ awakened: lastAwakened, lang: lang() }),
       promiseBannerHtml({ settled: lastPromises, lang: lang() }),
@@ -412,7 +414,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     try {
       const week = currentWeek();
       const out = await playGame(reborn, season, rows, {
-        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang }),
+        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang, getMode: readParticipation, onMode: writeParticipation }),
+        participation: { getMode: readParticipation },
         trainingDone: reborn.player.training?.week === week,
       });
       if (!out) return;
@@ -454,7 +457,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     try {
       const week = currentWeek();
       const out = await playPlayoffGame(reborn, rows, {
-        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang }),
+        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang, getMode: readParticipation, onMode: writeParticipation }),
+        participation: { getMode: readParticipation },
         trainingDone: reborn.player.training?.week === week,
       });
       if (!out) return;
@@ -480,7 +484,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
     render();
     try {
       const out = await fastForward(reborn, season, rows, {
-        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang }),
+        onTakeover: createTakeoverHook({ root: readRootSave(), getLang: lang, getMode: readParticipation, onMode: writeParticipation }),
+        participation: { getMode: readParticipation },
         // The second arg is the reborn state after that game: record the
         // awakening evidence live, so a skill fired mid-run is on the card
         // from the next simmed game on.
@@ -594,6 +599,12 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         } catch (e) {
           console.warn(e);
         }
+        return;
+      }
+      const modeChip = event.target.closest("[data-mode]");
+      if (modeChip) {
+        writeParticipation(modeChip.dataset.mode);
+        render();
         return;
       }
       if (event.target.closest("[data-play]")) {

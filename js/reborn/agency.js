@@ -167,8 +167,12 @@ export function observe(values, { iq = 50, decisionId = "" } = {}) {
 }
 
 /** The whole decision as the dialog and the grader need it. */
-export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, decisionId, trust = 0, autonomy = AUTONOMY_START } = {}) {
-  const instruction = coachCallsPlay(sim, coach) ? coachInstruction(sim, coach, playerId) : null;
+/** A coach only stops play for a call when it matters; on an everyday possession he calls it only in a close game. */
+const ROUTINE_CALL_IMPORTANCE = 0.4;
+
+export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, decisionId, trust = 0, autonomy = AUTONOMY_START, routine = false, importance = 1 } = {}) {
+  const calls = coachCallsPlay(sim, coach) && (!routine || importance >= ROUTINE_CALL_IMPORTANCE);
+  const instruction = calls ? coachInstruction(sim, coach, playerId) : null;
   const values = optionValues(sim, playerId, instruction);
   const audible = autonomy >= AUDIBLE_AT ? bestSetup(sim, playerId, twoDiscount(sim)) : null;
   if (audible) values.setup = audible.value;
@@ -176,6 +180,7 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
   const target = instruction ? you.onCourt.find((p) => p.id === instruction.targetId) : null;
   return {
     decisionId,
+    routine,
     coach: coach ? { id: coach.id, name: coach.name, nameEn: coach.nameEn, archetype: coach.archetype || null, tolerance: coachTolerance(coach) } : null,
     coachInstruction: instruction ? { ...instruction, targetName: target?.name || "" } : null,
     observation: observe(values, { iq, decisionId }),
@@ -244,4 +249,22 @@ export function gradeTakeover(takeover, clutchOutcome = null) {
   const graded = evaluateDecision({ hadInstruction: !!ctx.coachInstruction, followed, quality, execution, tolerance: Math.min(1, (ctx.coach?.tolerance ?? 0.5) + (ctx.playerState?.autonomy ?? 0) * AUTONOMY_TOLERANCE_PER_POINT) });
   const round2 = (v) => Math.round(v * 100) / 100;
   return { decisionId: ctx.decisionId, choiceId, followed, instruction: ctx.coachInstruction, observation: ctx.observation, coach: ctx.coach, quality: round2(quality), execution: round2(execution), points: takeover.points ?? clutchOutcome?.points ?? 0, ...graded };
+}
+
+/**
+ * A game can hold several decisions (participation modes). They settle together: the headline is the one that mattered most,
+ * and the totals are capped so a busy mode cannot farm trust or autonomy faster than a quiet one by volume alone.
+ */
+export const MULTI_DECISION_CAP = 1.5;
+export function combineGrades(grades) {
+  const list = (grades || []).filter(Boolean);
+  if (list.length <= 1) return list[0] || null;
+  const headline = list.reduce((a, b) => (Math.abs(b.trustDelta) + Math.abs(b.autonomyDelta) > Math.abs(a.trustDelta) + Math.abs(a.autonomyDelta) ? b : a));
+  const sum = (k) => list.reduce((t, g) => t + g[k], 0);
+  return {
+    ...headline,
+    decisions: list.length,
+    trustDelta: clamp(sum("trustDelta"), -MAX_TRUST_PER_GAME * MULTI_DECISION_CAP, MAX_TRUST_PER_GAME * MULTI_DECISION_CAP),
+    autonomyDelta: clamp(sum("autonomyDelta"), -MAX_AUTONOMY_PER_GAME * MULTI_DECISION_CAP, MAX_AUTONOMY_PER_GAME * MULTI_DECISION_CAP),
+  };
 }

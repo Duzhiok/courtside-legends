@@ -33,3 +33,11 @@
 .reborn-agency .reborn-takeover-option:hover, .reborn-agency .reborn-takeover-option:focus-visible { border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: 1px; }
 .reborn-agency-feedback { font-weight: 600; border-left: 3px solid var(--gold, #b8860b); padding-left: 8px; }
 .reborn-autonomy { margin: 2px 0; color: var(--muted); font-size: .9rem; }
+
+/* Involvement switch: the four participation modes, in the dialog footer and on the Reborn screen. */
+.reborn-mode { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.reborn-mode-chip { min-height: 36px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-pill, 999px); background: transparent; color: inherit; font: inherit; font-size: .85rem; cursor: pointer; }
+.reborn-mode-chip[aria-pressed="true"] { background: var(--ink); color: var(--paper, #f3efe4); border-color: var(--ink); font-weight: 700; }
+.reborn-mode-desc { flex-basis: 100%; color: var(--muted); }
+.reborn-identity .reborn-mode-chip { border-color: var(--surface-line-strong, var(--line)); }
+.reborn-identity .reborn-mode-chip[aria-pressed="true"] { background: var(--gold, #f6c870); color: var(--ink); border-color: var(--gold, #f6c870); }
