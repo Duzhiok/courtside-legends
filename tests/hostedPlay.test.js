@@ -69,3 +69,12 @@ test("end to end through settleHosted: one real day = 20 real games, settled onc
   const again = hosted.settleHosted(acc, { now: T0 + 2 * 86400000, playGame: game, pool: POOL, save: () => {} });
   assert.equal(again.days.length, 0);
 });
+
+test("an opponent's starters are worked out on first use, not for every team up front (eager, it froze the Training Center ~4 s on every cold open)", async () => {
+  const { bestStarters } = await import("../js/engine/lineupSlots.js");
+  const teams = play.hostedOpponents(POOL);
+  assert.equal(typeof Object.getOwnPropertyDescriptor(teams[0], "starterIds").get, "function", "a lazy getter, not a precomputed array");
+  const first = teams[0].starterIds;
+  assert.equal(teams[0].starterIds, first, "computed once, then reused");
+  assert.deepEqual(first, bestStarters(teams[0].players, overall).map((p) => p.id), "the same five a precomputed list would have held");
+});

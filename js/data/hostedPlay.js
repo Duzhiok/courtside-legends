@@ -28,7 +28,13 @@ export function hostedOpponents(pool = PLAYERS) {
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([name, cards]) => ({ name, players: cards.sort((a, b) => overall(b) - overall(a)).slice(0, SQUAD_SIZE) }))
     .filter((t) => t.players.length >= 7)
-    .map((t) => ({ ...t, starterIds: bestStarters(t.players, overall).map((p) => p.id) }));
+    // The five starters are worked out the first time a game actually uses this team, not for every team up front: picking
+    // them costs ~4 ms a team, so doing all ~1000 here froze the Training Center for ~4 s on every cold open (hostedReady()
+    // only needs to know that opponents exist). Same function, same result, just later - and at most 140 teams per settle.
+    .map((t) => {
+      let starters = null;
+      return { ...t, get starterIds() { return (starters ??= bestStarters(t.players, overall).map((p) => p.id)); } };
+    });
   opponentCache.set(pool, { size: pool.length, teams });
   return teams;
 }

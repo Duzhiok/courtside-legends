@@ -35,8 +35,10 @@ async function openCenter(page) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
   await page.click('.home-tab[data-category="players"]');
+  const clickedAt = Date.now();
   await page.click("#btn-training-entry");
   await page.waitForSelector("#screen-training.active [data-hosted] select", { timeout: 20000 });
+  return Date.now() - clickedAt;
 }
 
 const hostedText = (page) => page.$eval("[data-hosted]", (el) => el.textContent.replace(/\s+/g, " ").trim());
@@ -49,7 +51,10 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 900 }], ["mob
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await seed(page);
-  await openCenter(page);
+  const coldOpenMs = await openCenter(page);
+  // Regression: the panel used to pick all ~1000 opponents' starters on first paint, freezing a cold open for ~4 s (5.3 s -> ~1-3 s).
+  // The bound is loose on purpose: this is the browser's first page (cold JIT, roster cache still being written), 1-3 s is normal noise.
+  check(`[${name}] a cold open of the Training Center is not frozen by the hosted panel (${coldOpenMs} ms; it was ~5300 ms+)`, coldOpenMs < 4000, `${coldOpenMs} ms`);
 
   check(`[${name}] the hosted league card is on the Training Center, off by default`, /托管联赛/.test(await hostedText(page)) && /未开启/.test(await hostedText(page)));
   check(`[${name}] nothing to report before the first day`, (await page.$("[data-hosted-report]")) === null);
