@@ -381,6 +381,7 @@ export const PHRASES = [
   ["你的联队 · 场上", "Your Team · On Court"],
   ["对方 · 场上", "Opponent · On Court"],
   ["板凳 · 换人", "Bench · Subs"],
+  ["板凳", "Bench"],
   ["拖板凳球员到场上球员身上换人；点选场上 + 板凳也行", "Drag a bench player onto an on-court player to sub; tapping on-court + bench works too"],
   ["我方士气", "Our Morale"],
   ["我方化学反应", "Our Chemistry"],

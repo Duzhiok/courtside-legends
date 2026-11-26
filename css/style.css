@@ -949,7 +949,7 @@ select, input[type="number"] {
   border: 1px solid var(--line);
 }
 .lineups h4 { margin: 0 0 4px; }
-.lineups-you h4:not(:first-child) { margin-top: 16px; }
+.lineups h4:not(:first-child) { margin-top: 16px; }
 .lineup-chem { margin: 0 0 8px; }
 .live-line {
   display: flex;

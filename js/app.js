@@ -7691,10 +7691,26 @@ function paintLineups(snap) {
         )
         .join("")
     : `<li class="tiny">${L("板凳无人", "Bench is empty")}</li>`;
+  // Opponent bench: display-only (side "opp-bench" matches no click/drag
+  // branch in bindLiveLineups, so it can never be subbed or set as a
+  // defend target). Same OVR-sorted readout as your bench.
+  const oppBench = [...(opp.bench || [])].sort(byOverallDesc);
+  $("#bench-opp").innerHTML = oppBench.length
+    ? oppBench
+        .map((p) =>
+          liveStatusLine(p, false, {
+            side: "opp-bench",
+            showOvr: true,
+          }),
+        )
+        .join("")
+    : `<li class="tiny">${L("板凳无人", "Bench is empty")}</li>`;
   const youTitle = $("#lineup-you-title");
   const oppTitle = $("#lineup-opp-title");
   if (youTitle) youTitle.textContent = `${teamNameL(you.name)} · ${L("场上", "On Court")}`;
   if (oppTitle) oppTitle.textContent = `${teamNameL(opp.name)} · ${L("场上", "On Court")}`;
+  const oppBenchTitle = $("#lineup-opp-bench-title");
+  if (oppBenchTitle) oppBenchTitle.textContent = L("板凳", "Bench");
   const youChem = $("#lineup-you-chem");
   const oppChem = $("#lineup-opp-chem");
   const youBall = ballNoteL(lineupBallNote(you.onCourt, { primaryId: youPrimary }));
@@ -7732,10 +7748,11 @@ function paintLineups(snap) {
 }
 
 /**
- * One delegated binding for the three lineup lists (the <ul>s are stable,
+ * One delegated binding for the four lineup lists (the <ul>s are stable,
  * the <li>s are repainted every tick). Drag: bench <-> court. Tap: tap a
  * court row then a bench row (either order) to sub at once. Opponent rows
- * keep their old job — click to set the defend target.
+ * keep their old job — click to set the defend target. Opponent bench rows
+ * are display-only (side "opp-bench" matches no branch below).
  */
 function bindLiveLineups() {
   if (liveLineupsBound) return;
@@ -7807,6 +7824,7 @@ function bindLiveLineups() {
       });
       return;
     }
+    if (side === "opp-bench") return; // opponent bench is display-only
     if (side === "you") {
       if (state.subInId) tryLiveSub(id, state.subInId);
       else {
