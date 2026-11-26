@@ -10,7 +10,7 @@ import { overall } from "../data/players.js";
 import { trainingInfo } from "../data/trainingCamp.js";
 import { ATTR_LABELS, CAMPS } from "../data/trainingRules.js";
 import {
-  DAILY_GAMES, WEEKLY_PAID_GAMES, clearHostedPlan, dayOf, hostedState, setHostedPlan, settleHosted, weekOf,
+  DAILY_GAMES, WEEKLY_PAID_GAMES, clearHostedPlan, dayOf, hostedState, setHostedPlan, settleHostedAsync, weekOf,
 } from "../data/hostedLeague.js";
 import { createHostedPlayGame, hostedReady } from "../data/hostedPlay.js";
 
@@ -97,7 +97,8 @@ const afterPaint = () => new Promise((resolve) => {
 /**
  * Mount on `root` (the training screen; the card lives in [data-hosted]). `open()` settles whatever is owed, paints,
  * and resolves to true when something was settled (the caller repaints gold). Games run on the main thread (~30 ms each,
- * ~0.6 s for a normal day away, ~4 s for the 7-day catch-up cap), so a "settling" line is painted first.
+ * 140 for the 7-day catch-up cap), so they are played in chunks of a few games with a paint in between and a live
+ * percentage on the "settling" line; the page stays responsive.
  */
 export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh", now = () => Date.now(), play = createHostedPlayGame, save }) {
   const box = () => root.querySelector("[data-hosted]");
@@ -105,7 +106,15 @@ export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh"
   let sel = { playerId: "", attr: "three" };
   let reportHtml = "";
   let settling = false;
+  let progress = null; // { done, total } games while settling
   const ctx = () => ({ now: now(), pool: pool(), lang: getLang() });
+
+  const settlingText = (lang) => `${pick(lang, "正在结算你离线时的比赛", "Settling the games played while you were away")}${progress ? ` · ${Math.round((progress.done / progress.total) * 100)}%` : ""}…`;
+  /** Progress ticks several times a second: update the one line, never repaint the form (it would eat clicks). */
+  function paintSettling() {
+    const line = top()?.querySelector(".hl-settling");
+    if (line) line.textContent = settlingText(getLang());
+  }
 
   function paint() {
     const acc = getAccount();
@@ -114,7 +123,7 @@ export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh"
     const { lang } = ctx();
     const head = top();
     if (head) {
-      head.innerHTML = html`${settling ? html`<p class="hl-settling" role="status">${pick(lang, "正在结算你离线时的比赛……", "Settling the games played while you were away…")}</p>` : ""}${reportHtml ? raw(reportHtml) : ""}`.toString();
+      head.innerHTML = html`${settling ? html`<p class="hl-settling" role="status">${settlingText(lang)}</p>` : ""}${reportHtml ? raw(reportHtml) : ""}`.toString();
     }
     el.innerHTML = html`<h3>${pick(lang, "托管联赛", "Hosted league")}</h3>
       ${raw(hostedFormHtml(acc, sel, ctx()))}
@@ -122,6 +131,7 @@ export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh"
   }
 
   async function open() {
+    if (settling) return false; // a second visit while the first is still settling must not settle the same days twice
     const acc = getAccount();
     if (!acc || !box()) return false;
     const plan = hostedState(acc).plan;
@@ -132,10 +142,14 @@ export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh"
     let settled = false;
     if (owes) {
       settling = true;
+      progress = null;
       paint();
       await afterPaint(); // the "settling" line must be ON SCREEN before the games block the thread (a bare timer is not a paint)
       try {
-        const result = settleHosted(acc, { now: now(), playGame: play(acc, { pool: pool() }), pool: pool(), ...(save ? { save } : {}) });
+        const result = await settleHostedAsync(getAccount, {
+          now: now(), playGame: play(acc, { pool: pool() }), pool: pool(), ...(save ? { save } : {}),
+          yieldFrame: afterPaint, onProgress: (p) => { progress = p; paintSettling(); },
+        });
         if (result.days.length) {
           reportHtml = hostedReportHtml(result, hostedState(acc).plan, ctx());
           settled = true;
@@ -144,6 +158,7 @@ export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh"
         console.error("[hosted] settle failed", error); // leave the day unsettled: the next visit tries again
       }
       settling = false;
+      progress = null;
     }
     paint();
     return settled;
@@ -151,7 +166,7 @@ export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh"
 
   root.addEventListener("click", (event) => {
     const t = event.target.closest("button");
-    if (!t || !root.contains(t) || !box()?.contains(t)) return;
+    if (!t || !root.contains(t) || !box()?.contains(t) || settling) return; // plan edits wait until the games are done
     const acc = getAccount();
     if (!acc) return;
     if (t.dataset.hostedAttr) {
@@ -167,7 +182,7 @@ export function createHostedPanel({ root, getAccount, pool, getLang = () => "zh"
     }
   });
   root.addEventListener("change", (event) => {
-    if (!event.target.matches("[data-hosted-player]") || !box()?.contains(event.target)) return;
+    if (!event.target.matches("[data-hosted-player]") || !box()?.contains(event.target) || settling) return;
     sel = { ...sel, playerId: event.target.value };
     paint();
   });

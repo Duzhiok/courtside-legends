@@ -114,3 +114,60 @@ test("it touches nothing but gold, one card's XP bank and its own log", () => {
   assert.deepEqual(acc.playerIds, ["c0", "c1"]);
   assert.ok(acc.gold > 0 && acc.hosted.log.length === 3);
 });
+
+// --- async settlement (the page must not freeze for a 7-day catch-up) ---
+
+const wins3of4 = ({ index }) => ({ won: index % 4 !== 0, score: { me: 100, opponent: 90 }, opponent: "T" });
+const asyncRun = (acc, ref = acc, extra = {}) => hosted.settleHostedAsync(ref, { now: T0 + 4 * DAY, playGame: wins3of4, pool: POOL, save: noSave, ...extra });
+
+test("async settlement gives exactly the synchronous result", async () => {
+  const a = account();
+  const b = account();
+  start(a);
+  start(b);
+  const sync = run(a, T0 + 4 * DAY, wins3of4);
+  const viaAsync = await asyncRun(b);
+  assert.deepEqual(viaAsync, sync);
+  assert.equal(b.gold, a.gold);
+  assert.deepEqual(b.hosted, a.hosted);
+});
+
+test("it plays in small chunks, handing the thread back between them, and reports rising progress", async () => {
+  const acc = account();
+  start(acc);
+  let sinceYield = 0;
+  let yields = 0;
+  const seen = [];
+  await asyncRun(acc, acc, {
+    playGame: (g) => { sinceYield += 1; return wins3of4(g); },
+    yieldFrame: async () => { assert.ok(sinceYield <= hosted.YIELD_EVERY_GAMES, `${sinceYield} games ran without yielding`); sinceYield = 0; yields += 1; },
+    onProgress: (p) => seen.push(p),
+  });
+  assert.equal(yields, (3 * hosted.DAILY_GAMES) / hosted.YIELD_EVERY_GAMES - 1, "3 days of 20 games, a yield after every chunk except the last");
+  assert.ok(seen.every((p, i) => p.total === 60 && (i === 0 || p.done > seen[i - 1].done)), JSON.stringify(seen.slice(0, 3)));
+  assert.ok(seen.at(-1).done < seen.at(-1).total, "no yield once everything is played");
+});
+
+test("what the player did while it settled survives: the result is written onto the CURRENT account, not the old object", async () => {
+  const stored = { ...account(), gold: 600 };
+  start(stored);
+  const current = () => JSON.parse(JSON.stringify(stored)); // like getAccount(): a fresh copy of what is saved
+  let spent = false;
+  const out = await asyncRun(stored, () => (spent ? stored : current()), {
+    yieldFrame: async () => { if (!spent) { spent = true; stored.gold -= 150; } }, // starts a training session half way
+  });
+  assert.ok(out.gold > 0);
+  assert.equal(stored.gold, 600 - 150 + out.gold, "the 150 spent during settlement is still spent");
+});
+
+test("if the account was switched away while settling, nothing is paid and nothing is marked settled", async () => {
+  const mine = account();
+  start(mine);
+  const other = { ...account(), id: "someone-else" };
+  let calls = 0;
+  const out = await asyncRun(mine, () => (calls++ === 0 ? mine : other)); // first read = mine, the end-of-settlement read = a different account
+  assert.deepEqual(out.days, []);
+  assert.equal(mine.gold, 0);
+  assert.equal(other.gold, 0);
+  assert.equal(hosted.hostedState(mine).settledDay, hosted.dayOf(T0), "still owed: the next visit settles it");
+});

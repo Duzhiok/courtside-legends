@@ -1,6 +1,6 @@
 // Hosted league smoke (B47): turn it on from the Training Center, "go offline" for 3 days (the settled day is shifted back and
 // the page reloaded = game closed and reopened), come back to the welcome-back card, check gold / XP / the log, reopen (nothing
-// is paid twice), then turn it off. Desktop + 390px. Shots in OUT.
+// is paid twice), then turn it off; finally a 7-day catch-up (140 games) must not freeze the page. Desktop + 390px. Shots in OUT.
 // Usage: node scripts/qa/hosted-league.mjs [outDir] [baseUrl]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
@@ -116,6 +116,45 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 900 }], ["mob
   check(`[${name}] turning it off clears the plan and the settled day (no retroactive games)`, acc.hosted.plan === null && acc.hosted.settledDay === null, JSON.stringify({ plan: acc.hosted.plan, settledDay: acc.hosted.settledDay }));
   check(`[${name}] the card reads off again`, /未开启/.test(await hostedText(page)));
   await shoot(page, `${OUT}/${name}-2-off.png`);
+
+  // ---- the 7-day catch-up (140 games): the page must stay responsive while it settles ----
+  await page.click("[data-hosted-save]"); // on again (a fresh start: settledDay = today)
+  await page.evaluate(() => {
+    const store = JSON.parse(localStorage.getItem("cls_accounts_v1"));
+    const today = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
+    store.accounts[0].hosted.settledDay = today - 9; // far more than the 7-day cap is owed
+    localStorage.setItem("cls_accounts_v1", JSON.stringify(store));
+  });
+  const goldBeforeBig = (await store(page)).gold;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await homeActive(page);
+  await page.click('.home-tab[data-category="players"]');
+  await page.evaluate(() => {
+    // Longest gap between two animation frames = the longest the page was frozen. Recording starts when the "settling" line
+    // first appears: before that the roster is still loading (openTraining awaits playersReady), which is not hosted-league's doing.
+    window.__gaps = [];
+    window.__lines = new Set();
+    window.__started = false;
+    let last = performance.now();
+    const tick = () => { const now = performance.now(); if (window.__started) window.__gaps.push(now - last); last = now; requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    new MutationObserver(() => {
+      const el = document.querySelector(".hl-settling");
+      if (!el) return;
+      window.__lines.add(el.textContent);
+      if (!window.__started) { window.__started = true; last = performance.now(); }
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+  await page.click("#btn-training-entry");
+  await page.waitForSelector("[data-hosted-report]", { timeout: 90000 });
+  const { maxGap, lines, top } = await page.evaluate(() => ({ maxGap: Math.max(...window.__gaps), lines: [...window.__lines], top: window.__gaps.map((g, i) => [Math.round(g), i]).sort((a, b) => b[0] - a[0]).slice(0, 3) }));
+  const bigReport = await page.$eval("[data-hosted-report]", (el) => el.textContent.replace(/\s+/g, " "));
+  check(`[${name}] 7-day catch-up: the page is never frozen for long (longest frame gap ${Math.round(maxGap)} ms; it was ~4000 ms in one block)`, maxGap < 700, `${Math.round(maxGap)} ms; slowest 3 frames (ms, index): ${JSON.stringify(top)}`);
+  check(`[${name}] the settling line shows live progress (${lines.length} different texts)`, lines.filter((t) => /\d+%/.test(t)).length >= 3, lines.slice(0, 4).join(" | "));
+  check(`[${name}] the catch-up is capped at 7 days and all 140 games were played`, /离线打了 7 天/.test(bigReport) && /140 场/.test(bigReport), bigReport.slice(0, 90));
+  check(`[${name}] gold from the 7 days was paid once`, (await store(page)).gold > goldBeforeBig, `${goldBeforeBig} -> ${(await store(page)).gold}`);
+  await shoot(page, `${OUT}/${name}-3-seven-days.png`);
+
   check(`[${name}] no page errors`, errors.length === 0, errors.join(" | "));
   await ctx.close();
 }
