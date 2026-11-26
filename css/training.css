@@ -28,3 +28,16 @@
 .tc-dur small { opacity: 0.8; }
 .tc-log { margin: 6px 0 24px; padding-left: 18px; display: grid; gap: 4px; }
 .tc-skill { color: #8a5a00; }
+
+/* B47 hosted league card */
+.tc-hosted-top:empty, .tc-hosted-top [data-hosted-top]:empty { display: none; }
+.tc-hosted-top { margin: 8px 0; }
+.tc-hosted { display: grid; gap: 10px; margin: 18px 0; }
+.tc-hosted [data-hosted] { display: grid; gap: 10px; }
+.hl-report { border: 1px solid #1f8f4e; border-radius: 12px; padding: 12px 14px; background: #f1faf4; color: #12351f; box-shadow: 0 0 0 2px rgba(31, 143, 78, 0.14); }
+.hl-report h4 { margin: 0 0 6px; }
+.hl-story { margin: 4px 0; font-weight: 600; }
+.hl-numbers { margin: 8px 0 0; font-size: 0.9rem; opacity: 0.85; }
+.hl-settling { margin: 0; font-weight: 600; }
+.hl-status { margin: 0; }
+.hl-log { margin: 4px 0 24px; padding-left: 18px; display: grid; gap: 4px; }

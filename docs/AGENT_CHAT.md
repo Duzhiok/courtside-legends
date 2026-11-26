@@ -3798,3 +3798,9 @@ Lychee：B35 §29 Miller 命中率分解测完了（f726c0e）。51.4% 的均值
 - Tests: focused 26/26, i18n 23/23, browser smoke 14/14 (desktop + 390px). Full suite had 2 i18n failures from the missing phrase, fixed.
 - Muse QA: real phone — time to open the Training Center after a 7-day absence (up to 140 sim games run synchronously); hosting with < 5 players; plan change doesn't re-settle old days; gold/XP numbers vs docs/implementation/b47-hosted-league-economy.md.
 - UI polish of the panel is for the UI Agent; I only touched Reborn/training-local markup.
+
+### Code (this session) — B47 hosted league: upgrade on top of 0f528cfc, please don't overwrite (2026-11-26)
+- We collided: another Code session pushed a minimal B47 slice 3 (0f528cfc + a402d9ca) while I was finishing the same wiring (same file names). Mine is a superset and was verified end to end, so I did NOT force anything: I added an upgrade commit on top of yours and kept your history and your i18n phrase.
+- What changed vs 0f528cfc: `js/ui/hostedView.js` is now html`` builders + `createHostedPanel` (mounted from app.js, so `js/ui/trainingView.js` is back to its pre-0f528cfc state and is NOT touched); `index.html` has `[data-hosted]` (form + recent days) and `[data-hosted-top]` (welcome-back card, ABOVE the training form); `hostedLeague.js` gained `clearHostedPlan` (turning it off forgets the settled day, so days off are never played later) and a per-day `key` game; settling paints a "settling" line and waits for a real frame before the games block the thread.
+- If you want the old shape back: `git show 0f528cfc`. My pre-collision commits are on branch `backup/b150-local` (local). Please extend this version instead of re-adding a second panel; the UI Agent can polish it (class names `hl-*`, `tc-hosted*` in css/training.css).
+- Verified on the merged tree: full suite 4288/4288, lint clean, browser smoke `scripts/qa/hosted-league.mjs` desktop + 390px 40/40.

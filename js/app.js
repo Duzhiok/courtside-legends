@@ -40,6 +40,7 @@ import { applyRankedGame, progressNoteText, setFavorite } from "./data/accountPr
 import { mountSandbox } from "./ui/sandboxView.js";
 import { createHalfCourtScreen } from "./ui/halfCourtView.js";
 import { createTrainingScreen } from "./ui/trainingView.js";
+import { createHostedPanel } from "./ui/hostedView.js";
 import { ensureDuelScreen, handleDuelBack, initDuelView, openDuelAvatarChallenge, openDuelChallenge, openDuelSelect, paintDuelRecordsIntoMyWorld } from "./ui/duelView.js";
 import { buySkillOffer } from "./engine/skillShopPurchase.js";
 import { createRebornView } from "./ui/reborn/rebornView.js";
@@ -2044,12 +2045,18 @@ $("#btn-halfcourt-back")?.addEventListener("click", () => {
 const trainingScreen = screens.training
   ? createTrainingScreen({ root: screens.training, getAccount: () => activeAccount(), pool: () => PLAYERS, getLang })
   : null;
+// B47 hosted league: the offline-games card on the same screen. It settles what is owed when the screen opens.
+const hostedPanel = screens.training
+  ? createHostedPanel({ root: screens.training, getAccount: () => activeAccount(), pool: () => PLAYERS, getLang })
+  : null;
 async function openTraining() {
   await playersReady(); // onboarding (inside requireAccountReady) and the card list both read PLAYERS
   const acc = requireAccountReady({ zh: "训练中心", en: "Training Center" });
   if (!acc) return;
   trainingScreen?.open();
   show("training");
+  // Settling can pay gold, so repaint the training header/slots (trainingScreen.open does both) once it did.
+  hostedPanel?.open().then((settled) => { if (settled) trainingScreen?.open(); });
 }
 $("#btn-training-entry")?.addEventListener("click", () => openTraining());
 $("#btn-training-back")?.addEventListener("click", () => {

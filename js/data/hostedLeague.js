@@ -55,6 +55,23 @@ export function setHostedPlan(account, { playerId = null, attr = null } = {}, { 
   return account.hosted.plan;
 }
 
+/**
+ * Turn hosted league off. Forgets the settled day on purpose: turning it back on starts from that day, so the days it was
+ * off are never played retroactively (setHostedPlan seeds `settledDay` from `now` when it is null).
+ */
+export function clearHostedPlan(account, { save = saveAccount } = {}) {
+  account.hosted = { ...hostedState(account), plan: null, settledDay: null };
+  save(account);
+}
+
+/** The game worth telling a story about: the biggest win, or - on a day with no win - the closest loss (highest margin). */
+const keyGameOf = (res, index) => {
+  const me = Number(res?.score?.me);
+  const opponentScore = Number(res?.score?.opponent);
+  if (!Number.isFinite(me) || !Number.isFinite(opponentScore)) return null;
+  return { index, me, opponentScore, margin: me - opponentScore, opponent: String(res.opponent || "") };
+};
+
 const addXpToCard = (account, plan, earned, pool) => {
   if (!plan?.playerId || !plan.attr || !(account.playerIds || []).includes(plan.playerId)) return 0;
   const { step, t } = bankXp(account, plan.playerId, plan.attr, earned, pool);
@@ -81,7 +98,10 @@ export function settleHosted(account, { now = Date.now(), playGame, pool, save =
     if (weekOf(day) !== paidWeek.week) paidWeek = { week: weekOf(day), paid: 0 };
     const row = { day, games: 0, wins: 0, paid: 0, gold: 0, xp: 0 };
     for (let index = 1; index <= DAILY_GAMES; index += 1) {
-      const won = !!playGame({ seed: hostedSeed(account.id, day, index), day, index }).won;
+      const result = playGame({ seed: hostedSeed(account.id, day, index), day, index });
+      const won = !!result.won;
+      const key = keyGameOf(result, index);
+      if (key && (!row.key || key.margin > row.key.margin)) row.key = key;
       row.games += 1;
       row.wins += won ? 1 : 0;
       const tier = taperFor(index);
