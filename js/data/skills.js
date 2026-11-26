@@ -1593,6 +1593,14 @@ const TRAIT_SKILLS = {
   // Toni Kukoc — 6 尺 11 的组织前锋，公牛第六人
   kukocto01: ["positionless"],
   // Leandro Barbosa — 巴西闪电，2007 最佳第六人；第一步在 SIGNATURE_SKILLS（速度门槛）
+  // --- 2026-11-26 用户追加：Dillon Brooks 补场上恶汉 enforcer ---
+  // 联盟公认的恶汉/搅局者：2023 防守二阵，贴身撕咬 + 垃圾话 + 技术犯规；卡面力量
+  // 只有 41–50，roleSkills 的 enforcer 启发式（力量 ≥86）永远够不着，8 个赛季一张
+  // enforcer 都没有，只能显式点名。进了显式名单后角色层不再跑，下面四项是他各赛季
+  // 现有的角色层技能，显式保留（见 Oakley/Beverley 条目），否则会被摘掉：
+  // motor_engine（体能 95–96，铁人标签）、corner_camp（底角接球投）、stopper_3d
+  //（2023 防守二阵 / 2025 防守 84）、sticky_wrap（2024 外线防守 87）
+  brookdi01: ["enforcer", "motor_engine", "corner_camp", "stopper_3d", "sticky_wrap"],
 };
 
 const STAR_TIERS = new Set(["star", "allstar", "superstar", "hof", "nba50"]);

@@ -8,7 +8,7 @@
  * Bump SCHEMA when card fields / intangibles logic change so old caches invalidate.
  */
 // tests/cardSchema.test.js fails when the cards this app builds change without a bump here.
-export const ROSTER_SCHEMA = 71; // bump: 2026-11-26 skill kits — 12 role players gain named skills, motor_engine role gate 80→88, candidateSkills motor fallback removed; cards change skills
+export const ROSTER_SCHEMA = 72; // bump: 2026-11-26 Dillon Brooks gains named enforcer kit (retaining his role skills); cards change skills
 // stopped overriding his `three` rating with a flat 66-80 regardless of season -- real NBA2K
 // data rated his jumper in the high 70s EVERY year even in his worst shooting seasons (28.5%
 // in 2019, 27.0% in 2021) and only matched the box-score formula in his genuinely good
