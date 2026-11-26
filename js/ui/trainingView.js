@@ -11,6 +11,9 @@ import {
   startTraining, trainingInfo, trainingState,
 } from "../data/trainingCamp.js";
 import { ATTR_LABELS, CAMPS, DURATIONS, refundShare } from "../data/trainingRules.js";
+import { setHostedPlan, settleHosted } from "../data/hostedLeague.js";
+import { createHostedPlayGame, hostedReady } from "../data/hostedPlay.js";
+import { hostedHtml, settledHtml } from "./hostedView.js";
 
 const pick = (lang, zh, en) => (lang === "en" ? en : zh);
 const attrName = (key, lang) => (ATTR_LABELS[key] || [key, key])[lang === "en" ? 1 : 0];
@@ -108,6 +111,7 @@ export function formHtml(account, sel, { pool, lang }) {
 export function createTrainingScreen({ root, getAccount, pool, getLang = () => "zh", now = () => Date.now(), save }) {
   let sel = { playerId: "", campId: "shooting", attr: "three", durationId: "fullDay" };
   let timer = null;
+  let lastSettle = null;
   const $ = (s) => root.querySelector(s);
   const ctx = () => ({ now: now(), pool: pool(), lang: getLang() });
   const opts = () => ({ now: now(), pool: pool(), ...(save ? { save } : {}) });
@@ -148,6 +152,7 @@ export function createTrainingScreen({ root, getAccount, pool, getLang = () => "
   function paintAll() {
     const acc = getAccount();
     $("[data-tc-log]").innerHTML = acc ? logHtml(acc, ctx()) : "";
+    if ($("[data-tc-hosted]")) $("[data-tc-hosted]").innerHTML = acc ? `${settledHtml(lastSettle, getLang())}${hostedHtml(acc, ctx())}` : "";
     paintSlots();
     paintForm();
   }
@@ -190,6 +195,13 @@ export function createTrainingScreen({ root, getAccount, pool, getLang = () => "
         toast(r.skillName ? `训练突破！领悟「${r.skillName}」` : r.gained ? `${attrName(r.attr, "zh")} +${r.gained}` : "经验已积累，继续训练就会突破", r.skillName ? `Breakthrough! Learned "${r.skillName}"` : r.gained ? `${attrName(r.attr, "en")} +${r.gained}` : "XP banked — keep training to break through");
         paintAll();
       }
+    } else if (t.hasAttribute("data-hosted-save")) {
+      const playerId = $("[data-hosted-player]")?.value || null;
+      const attr = $("[data-hosted-attr]")?.value || null;
+      if (!playerId) return toast("请先选择一名球员。", "Choose a player first.");
+      setHostedPlan(acc, { playerId, attr }, { now: now(), ...(save ? { save } : {}) });
+      toast("托管已开始：从明天起，你不在时球队会自动比赛。", "Hosting on: from tomorrow your squad plays while you're away.");
+      paintAll();
     } else if (t.dataset.tcCancel) {
       const r = attempt(() => cancelTraining(acc, t.dataset.tcCancel, opts()));
       if (r) {
@@ -213,6 +225,11 @@ export function createTrainingScreen({ root, getAccount, pool, getLang = () => "
     open() {
       sel = { ...sel, playerId: "" };
       toast("", "");
+      lastSettle = null;
+      const acc = getAccount();
+      if (acc && hostedReady(acc, pool())) {
+        lastSettle = attempt(() => settleHosted(acc, { now: now(), pool: pool(), playGame: createHostedPlayGame(acc, { pool: pool() }), ...(save ? { save } : {}) }));
+      }
       paintAll();
       clearInterval(timer);
       timer = setInterval(tick, 1000);
