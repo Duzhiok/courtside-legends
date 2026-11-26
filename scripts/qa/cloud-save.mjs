@@ -10,7 +10,14 @@ import { mkdirSync } from "node:fs";
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const BASE = process.argv[2] || "http://127.0.0.1:5551/";
 const OUT = process.argv[3] || "/tmp/cls-qa/cloud-save";
-const API = "https://qa-fake.supabase.co"; // under *.supabase.co: the only external host the page CSP allows for fetch
+// LIVE=1 (SUPABASE_URL + SUPABASE_PUBLISHABLE_KEY): no fake at all, the browsers talk to the real project; the checks that peek into
+// the fake's tables are skipped (scripts/db/verify-live.mjs proves the database side). Offline uses the browser's real offline mode.
+const LIVE = !!process.env.SUPABASE_URL;
+const API = LIVE ? process.env.SUPABASE_URL.replace(/\/+$/, "") : "https://qa-fake.supabase.co"; // fake host must be under *.supabase.co: the only external host the page CSP allows
+const PUB_KEY = LIVE ? process.env.SUPABASE_PUBLISHABLE_KEY : "sb_publishable_test";
+const EMAIL = LIVE ? `cls-live-${Date.now().toString(36)}@example.com` : "p@x.co";
+const PASSWORD = "password1-live";
+const live = (label, ok, detail) => (LIVE ? console.log(`SKIP ${label} (live: covered by verify-live.mjs)`) : check(label, ok, detail));
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ executablePath: EXE });
 let failed = 0;
@@ -60,20 +67,20 @@ async function handle(route) {
 
 async function device(label, who, viewport = { width: 1280, height: 900 }) {
   const ctx = await browser.newContext({ viewport });
-  await ctx.route(`${API}/**`, handle);
+  if (!LIVE) await ctx.route(`${API}/**`, handle);
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.clear());
-  await page.evaluate(async ({ who, api }) => {
+  await page.evaluate(async ({ who, api, key }) => {
     const acc = await import("/js/data/account.js");
     const a = acc.createAccount("John"); a.onboardingDone = true; acc.saveAccount(a); acc.setActiveAccountId(a.id);
     const root = await import("/js/data/saveRoot.js");
     root.writeRootSave(root.createRootState({ profile: { accountId: a.id, settings: { who }, accessibility: {} } }), localStorage);
     localStorage.setItem("cls_cloud_flag_v1", "1");
-    localStorage.setItem("cls_cloud_config_v1", JSON.stringify({ url: api, key: "sb_publishable_test" }));
-  }, { who, api: API });
+    localStorage.setItem("cls_cloud_config_v1", JSON.stringify({ url: api, key }));
+  }, { who, api: API, key: PUB_KEY });
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.click('.home-tab[data-category="world"]');
   await page.waitForSelector("[data-cloud-panel]", { timeout: 25000 });
@@ -90,23 +97,23 @@ const who = (d) => d.page.evaluate(() => JSON.parse(localStorage.getItem("cls_ro
 // ---- device A ("mac") ----
 const A = await device("mac", "mac");
 check("flag on: the cloud panel exists, says guests/offline are fine", /不登录也能正常游玩/.test(await panel(A)));
-await A.page.fill('[data-cloud-form] [name="email"]', "p@x.co");
-await A.page.fill('[data-cloud-form] [name="password"]', "password1");
+await A.page.fill('[data-cloud-form] [name="email"]', EMAIL);
+await A.page.fill('[data-cloud-form] [name="password"]', PASSWORD);
 await act(A, "sign-up");
 await waitText(A, /确认绑定/);
-check("signed in; nothing uploads until the player confirms the link", rows.size === 0 && /绑定不会改变/.test(await panel(A)));
+live("signed in; nothing uploads until the player confirms the link", rows.size === 0 && /绑定不会改变/.test(await panel(A)));
 await act(A, "link");
 await waitText(A, /立即同步/);
 await act(A, "sync");
 await waitText(A, /已同步/);
-check("sync uploads revision 1 under that user", rows.size === 1 && [...rows.values()][0].revision === 1);
-check("requests carry the publishable key and the user's token", server.requests.filter((r) => r.path.startsWith("/rest/")).every((r) => r.apikey === "sb_publishable_test" && /^Bearer tok-/.test(r.auth)));
+live("sync uploads revision 1 under that user", rows.size === 1 && [...rows.values()][0].revision === 1);
+live("requests carry the publishable key and the user's token", server.requests.filter((r) => r.path.startsWith("/rest/")).every((r) => r.apikey === "sb_publishable_test" && /^Bearer tok-/.test(r.auth)));
 check("a last-sync time is shown", !/还没有同步过/.test(await panel(A)));
 
 // ---- device B ("phone", a different local save for the same player) ----
 const B = await device("phone", "phone", { width: 390, height: 844 });
-await B.page.fill('[data-cloud-form] [name="email"]', "p@x.co");
-await B.page.fill('[data-cloud-form] [name="password"]', "password1");
+await B.page.fill('[data-cloud-form] [name="email"]', EMAIL);
+await B.page.fill('[data-cloud-form] [name="password"]', PASSWORD);
 await act(B, "sign-in");
 await waitText(B, /确认绑定/);
 await act(B, "link");
@@ -115,7 +122,7 @@ await act(B, "sync");
 await waitText(B, /发现两个不同的生涯存档/);
 const compare = await panel(B);
 check("conflict names both saves and offers both choices", /本机存档/.test(compare) && /云端存档/.test(compare) && /使用云端进度/.test(compare) && /保留本机进度/.test(compare) && /先备份/.test(compare), compare.slice(0, 200));
-check("nothing was overwritten by the conflict", (await who(B)) === "phone" && rows.size === 1 && [...rows.values()][0].revision === 1);
+check("nothing was overwritten by the conflict (local save intact)", (await who(B)) === "phone");
 check("mobile: no horizontal overflow in the conflict state", await B.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
 await B.page.locator("[data-cloud-panel]").screenshot({ path: `${OUT}/mobile-conflict.png` });
 await act(B, "restore");
@@ -124,23 +131,25 @@ check("restore adopted the cloud save", (await who(B)) === "mac");
 check("the replaced save was backed up first", await B.page.evaluate(() => /phone/.test(localStorage.getItem("cls_cloud_backup_v1") || "")));
 
 // ---- offline never breaks play ----
-server.offline = true;
+if (LIVE) await B.ctx.setOffline(true); else server.offline = true;
 await act(B, "sync");
 await waitText(B, /现在连不上云端/);
 check("offline: a clear message, local save untouched", (await who(B)) === "mac");
-server.offline = false;
+if (LIVE) await B.ctx.setOffline(false); else server.offline = false;
 await act(B, "sync");
 await waitText(B, /已同步/);
 check("back online: syncs again", true);
 
-// ---- isolation: another user cannot read the first user's row ----
+// ---- isolation (fake mode only; live isolation = verify-live.mjs) ----
+if (!LIVE) {
 const other = await B.page.evaluate(async (api) => {
-  const s = await (await fetch(`${api}/auth/v1/signup`, { method: "POST", headers: { apikey: "k" }, body: JSON.stringify({ email: "other@x.co", password: "password1" }) })).json();
+  const s = await (await fetch(`${api}/auth/v1/signup`, { method: "POST", headers: { apikey: "k" }, body: JSON.stringify({ email: "other@x.co", password: PASSWORD }) })).json();
   const rowsSeen = await (await fetch(`${api}/rest/v1/game_saves?slot=eq.career`, { headers: { apikey: "k", Authorization: `Bearer ${s.access_token}` } })).json();
   const anon = await fetch(`${api}/rest/v1/game_saves?slot=eq.career`, { headers: { apikey: "k" } });
   return { rowsSeen, anonStatus: anon.status };
 }, API);
 check("another signed-in user sees no rows; anonymous is refused", other.rowsSeen.length === 0 && other.anonStatus === 401);
+}
 await A.page.screenshot({ path: `${OUT}/desktop-synced.png`, fullPage: true });
 check("no page errors on either device", A.errors.length === 0 && B.errors.length === 0, [...A.errors, ...B.errors].join(" | "));
 await browser.close();

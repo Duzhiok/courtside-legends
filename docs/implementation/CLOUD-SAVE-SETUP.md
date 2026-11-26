@@ -14,12 +14,15 @@ Status: DB1–DB3 code is done and dormant (feature flag off). Verified against 
    localStorage.setItem("cls_cloud_config_v1", JSON.stringify({ url: "https://<ref>.supabase.co", key: "<publishable key>" }));
    ```
    (`?cloud=1` also works for the flag.) My World then shows the cloud panel.
-5. Real-service checks to run once (this is what the fake cannot prove):
-   - sign up, link, sync from two browsers; the conflict panel shows both saves;
-   - user B cannot read user A's row (RLS) and an anonymous request is refused;
-   - two concurrent `save_put` calls with the same expected revision: exactly one wins, the other gets `conflict`;
-   - the same call retried with the same idempotency key does not bump the revision twice;
-   - `save_data` over 4,000,000 characters is rejected and the game reports "too large".
+5. Real-service checks (DB3.1), in this order. Only the publishable key is ever used; the scripts refuse a secret key:
+   - `node scripts/db/verify-save-put.mjs` — no project needed: runs the migration on real Postgres (PGlite) with Supabase's default
+     grants and checks RLS/RPC security. 38 checks. The ORIGINAL migration fails 20 of them (anon could execute save_put; a NULL expected
+     revision overwrote an existing save; same key + different payload was accepted; no 413; no downgrade guard).
+   - Apply `db/migrations/0001_game_saves.sql` in the Supabase SQL editor.
+   - `SUPABASE_URL=… SUPABASE_PUBLISHABLE_KEY=… node scripts/db/verify-live.mjs` — real Auth (register/login/refresh/logout), anonymous and
+     cross-user denial, forged owner, 8 truly concurrent writers (exactly one wins), idempotent retry, key reuse, 413.
+   - `SUPABASE_URL=… SUPABASE_PUBLISHABLE_KEY=… node scripts/qa/cloud-save.mjs http://127.0.0.1:5551/ /tmp/cls-qa/cloud-live` — two real
+     browser contexts through the real project: link, sync, conflict, restore + backup, offline recovery.
 6. CSP: `connect-src` now allows `https://*.supabase.co` (index.html, online.html, preview-3d-match.html). A custom Supabase domain needs
    its own entry, in all three pages and in `tests/cspReadiness.test.js`.
 
