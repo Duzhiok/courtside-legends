@@ -3813,3 +3813,29 @@ Lychee：B35 §29 Miller 命中率分解测完了（f726c0e）。51.4% 的均值
 - Found and fixed while testing: a lost-response retry was reported as a conflict (cloud already held our content); sync() now adopts the cloud revision when contents are identical.
 - Still to do before this is real: the Supabase transport, a sign-in flow, a version field on the local account store (audit prerequisite), and a small UI (status line + "use cloud / keep this device" choice). The UI part belongs to the UI Agent.
 - Muse: nothing to browser-test yet (no UI). Unit coverage only.
+
+### Code (this session) — review of "Cloud saves slice 1" (f814b0c4): sound, but 1 real bug + 3 gaps to close before wiring (2026-11-26)
+Read-only review; I changed nothing (it is your slice). 12/12 of its tests pass; CAS + idempotency + validate-before-restore + backup-before-restore + `for update` serialisation in `save_put` all look right.
+
+**BUG (reproduced; code at the end of this note): sync state is not bound to the cloud user, and nothing checks who owns the local root.**
+- `SYNC_STATE_KEY` = one `{revision, hash}` per *slot*, shared by whoever is signed in on this browser. The audit lists "account isolation" among the things to unit-test; there is no such test.
+- Repro with `createFakeCloud()`: A's career on a browser (`profile.accountId = "acc-A"`) syncs to cloud A (uploaded). A signs out, B signs in on the SAME browser (empty cloud B): `sync()` -> `uploaded` — **A's whole career is now in B's cloud**. Variant: B's cloud already has a row at the same revision number A's state remembers -> `sync()` says `up-to-date` without ever comparing content.
+- Why it matters: a shared family tablet is the normal case for this game. It is a privacy leak and it can mark the wrong data as in sync.
+- Suggested fix (small): `createCloudSync({ storage, transport, userId })`; key the state by `userId` (`{[userId]: {[slot]: entry}}`); refuse to upload unless the local root is linked to that cloud user (`root.profile.accountId` <-> the cloud user link from the audit; guests / `accountId === null` never sync); add the two repro cases above as tests (they should fail today).
+
+**GAPS (design, not bugs):**
+1. `catch` turns EVERY transport error into `offline`. A 401 (signed out), the `save_data <= 4,000,000` CHECK, or a schema-version rejection would all look like "no network" forever. The transport should map them to distinct statuses: `offline` / `auth-required` / `rejected` / `too-large`.
+2. The 4,000,000-char limit is a guess: the audit says save sizes were "not measured" and they still are (my attempt to measure a played-through career in the browser hung, not pursued). Measure a real played-through root (+ `cls_root_v3_backup`) before keeping that number; cloud also has to fit `localStorage`'s shared ~5 MB for the backup copy `restore()` writes (`SYNC_BACKUP_KEY`).
+3. `contentHash` ignores only `savedAt`. If the root carries other volatile fields (timestamps inside league/career state), two devices that did nothing will report `conflict`. Worth one test that loads, re-saves and re-hashes a real root.
+
+**Still the owner's call (from DB-PHASE0-AUDIT.md, unanswered anywhere I can see):** who creates the Supabase project (URL + anon key as env values, never committed); confirm guests stay local-only; confirm reject-and-ask conflicts; fold the duel server's accounts into the same identity later.
+
+Repro (drop into a scratch .mjs; imports as in tests/cloudSync.test.js):
+```js
+const storage = createMemoryStorage();
+writeRootSave(createRootState({ profile: { accountId: "acc-A", settings: {}, accessibility: {} } }), storage);
+const cloudA = createFakeCloud(), cloudB = createFakeCloud();
+await createCloudSync({ storage, transport: cloudA }).sync();            // "uploaded"  (fine)
+const res = await createCloudSync({ storage, transport: cloudB }).sync(); // B signs in on the same browser
+// res.status === "uploaded" and cloudB.rows.get("career").data contains "acc-A"  <- A's career leaked into B's cloud
+```
