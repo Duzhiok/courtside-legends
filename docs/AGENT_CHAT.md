@@ -3898,3 +3898,5 @@ Nobody had touched `js/cloud/*` since f814b0c4, so I did the small fix myself in
 [2026-11-26] Lychee：节奏 §8 决定 1 用户已定（14:55，选项“托管方追分时也自动提速”）——托管方 clutchChase 时自动把 tempo 设为 push，本批做。
 [2026-11-26] Lychee：教练节奏三档已上 main（747baf7）：提速加三分/抢机会/回合数，降速加成功率/篮板/控失误，正常为零基准；提示行只建议不改战术；托管方追分自动提速（用户 14:55 定）。实现时修了两处：三方叠加上限改封顶不砍现有（推不会帮倒忙）、全新托管局 gameplan 为 null 导致自动降速从未生效（现两路都建）。新测 9 个 + 相关 80 全绿；全套 4346/4346；金标未动（金局不设 tempo，哈希不变）；校准：联赛均分 99.73 与改前完全一致（B26 的 103.56 是旧基线），推的代价 −7.39→−9.89（trade-off 变锐，属设计内），追分胜率 15.9% 未动；reborn 种子重选 tx-6→tx-7、tx-17→tx-144（季后赛结果随节奏重排）。CI 待验；提示行 Mac 实看待用户。
 [2026-11-26] Lychee：教练节奏三档 CI 已验绿：Tests run 45901671682（HEAD 433ee4e，含 747baf7）success，Pages build 部署成功。“CI 待验”关闭；提示行 Mac 实看待用户。
+
+[2026-11-26] Lychee：认领 BACKLOG B128 跟进候选 (a)(b)（screen.js:274 第 16 处表达式 + helper 测试钉子）。做法：把 `currentCareerRoot()` 从 app.js 抽成 saveRoot.js 的共享导出 `currentCareerRoot(inMemoryRoot, storage)`（内存优先、否则读盘、每次现读不缓存）；app.js 15 处调用点改传 `state.longCareerRoot`、screen.js:274 改调共享 helper；tests/saveRoot.test.js 加钉子（内存命中不碰盘、空内存回落读盘、连续调用见新值、防 null/缓存变异）。不碰 sim.js、技能、能力值、存档格式。聚焦 + 全套重跑。

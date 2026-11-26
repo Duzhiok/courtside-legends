@@ -885,6 +885,16 @@ export function writeRootSaveFreeingOrphans(root, storage) {
   }
 }
 
+/**
+ * The career save in play: the one already in memory, else whatever is on disk.
+ * Read each call, never cached — a later write must be visible immediately.
+ * `inMemoryRoot` is the app's live root (app.js `state.longCareerRoot`); pass
+ * null/undefined when there is none and the disk copy is the answer.
+ */
+export function currentCareerRoot(inMemoryRoot, storage) {
+  return inMemoryRoot || readRootSave(storage);
+}
+
 export function readRootSave(storage) {
   try {
     const text = getStorage(storage).getItem(ROOT_SAVE_KEY);

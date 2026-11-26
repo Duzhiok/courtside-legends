@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   ROOT_SAVE_KEY,
   createRootState,
+  currentCareerRoot,
   writeRootSave,
   readRootSave,
   clearRootSave,
@@ -1028,4 +1029,44 @@ test("S-P1-1: ordinary team, player, coach and style names still import fine", (
   const imported = importRootSave(exportEnvelope(careerRootWithSeason(season)));
   assert.equal(imported.leagueCareer.season.teams.POR.name, "波特兰开拓者");
   assert.equal(imported.leagueCareer.season.teams.POR.coach.style, "普林斯顿");
+});
+
+// B128 follow-up (b): the shared currentCareerRoot() helper is the single place that
+// answers "the career save in play". These pin its contract: in-memory wins without
+// touching storage, empty memory falls back to disk, and every call re-reads (no cache).
+test("currentCareerRoot prefers the in-memory root and never touches storage", () => {
+  const mem = createRootState({ activeMode: "timeTravel", story: { timelineId: "timeline-mem" } });
+  const untouched = {
+    getItem() { throw new Error("storage must not be read when memory has the root"); },
+    setItem() { throw new Error("storage must not be written"); },
+    removeItem() { throw new Error("storage must not be written"); },
+  };
+  assert.equal(currentCareerRoot(mem, untouched), mem);
+  assert.equal(currentCareerRoot(mem), mem);
+});
+
+test("currentCareerRoot falls back to the disk root when memory is empty, null when both are", () => {
+  const storage = createMemoryStorage();
+  const disk = createRootState({ activeMode: "timeTravel", story: { timelineId: "timeline-disk" } });
+  writeRootSave(disk, storage);
+  assert.equal(currentCareerRoot(null, storage).story.timelineId, "timeline-disk");
+  assert.equal(currentCareerRoot(undefined, storage).story.timelineId, "timeline-disk");
+  assert.deepEqual(currentCareerRoot(null, storage), readRootSave(storage));
+  assert.equal(currentCareerRoot(null, createMemoryStorage()), null);
+});
+
+test("currentCareerRoot reads fresh on every call: no memoised in-memory or disk value", () => {
+  const storage = createMemoryStorage();
+  const memA = createRootState({ activeMode: "timeTravel", story: { timelineId: "timeline-A" } });
+  const memB = createRootState({ activeMode: "timeTravel", story: { timelineId: "timeline-B" } });
+  assert.equal(currentCareerRoot(memA, storage), memA);
+  assert.equal(currentCareerRoot(memB, storage), memB);
+  assert.equal(currentCareerRoot(memA, storage), memA);
+
+  const diskC = createRootState({ activeMode: "timeTravel", story: { timelineId: "timeline-C" } });
+  writeRootSave(diskC, storage);
+  assert.equal(currentCareerRoot(null, storage).story.timelineId, "timeline-C");
+  const diskD = createRootState({ activeMode: "timeTravel", story: { timelineId: "timeline-D" } });
+  writeRootSave(diskD, storage, { release: true });
+  assert.equal(currentCareerRoot(null, storage).story.timelineId, "timeline-D");
 });

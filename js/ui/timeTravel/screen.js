@@ -9,7 +9,7 @@
 import { getLang, L, teamNameL, TL } from "../../i18n.js";
 import { PLAYERS, overall, playersReady } from "../../data/players.js";
 import { listHistoricalYears } from "../../data/historicalSeasons.js";
-import { readRootSave } from "../../data/saveRoot.js";
+import { currentCareerRoot } from "../../data/saveRoot.js";
 import { readIdentity } from "../../data/profile.js";
 import { DEFAULT_COACH_ORIGIN, listCoachOrigins } from "../../career/coachOrigins.js";
 import { ensureCoachProfile } from "../../career/coachProfile.js";
@@ -271,7 +271,7 @@ export function createTimeTravelScreen({
   async function acceptOffer(offerId, note = { zh: "", en: "" }) {
     if (hasCareer()) return;
     if (await blockedByForeignSave("career")) return;
-    const existing = state.longCareerRoot || readRootSave();
+    const existing = currentCareerRoot(state.longCareerRoot);
     if (hasExistingCareerRoot(existing) && !(await confirmAction(
       TL(lang(), "接受新邀请将替换当前长期生涯存档，确定继续？", "Accepting will replace your current long-career save. Continue?"),
       { title: TL(lang(), "覆盖长期生涯？", "Overwrite your career?"), acceptLabel: TL(lang(), "覆盖并继续", "Overwrite and continue") },
