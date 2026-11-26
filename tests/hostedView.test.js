@@ -126,6 +126,25 @@ test("opponents are named for people, never by their internal key (SEA|2008)", (
   for (const lang of ["zh", "en"]) assert.ok(!view.hostedLogHtml(acc, ctx(lang)).includes("|"), `no raw key on screen (${lang})`);
 });
 
+test("B155 follow-up 2: the seven abbreviations that had no Chinese name now resolve (NBA stays as-is, pending a wording call)", () => {
+  // Seasons are real roster seasons for each abbreviation; CHR is the Bobcats
+  // (historicalSeasons.js calls those teams 山猫), not the Hornets.
+  assert.equal(view.opponentLabel("BRK|2021", "zh"), "2021 篮网");
+  assert.equal(view.opponentLabel("BRK|2021", "en"), "2021 Nets");
+  assert.equal(view.opponentLabel("CHH|1997", "zh"), "1997 黄蜂");
+  assert.equal(view.opponentLabel("CHH|1997", "en"), "1997 Hornets");
+  assert.equal(view.opponentLabel("CHO|2019", "zh"), "2019 黄蜂");
+  assert.equal(view.opponentLabel("CHR|2009", "zh"), "2009 山猫");
+  assert.equal(view.opponentLabel("CHR|2009", "en"), "2009 Bobcats");
+  assert.equal(view.opponentLabel("KCK|1980", "zh"), "1980 国王");
+  assert.equal(view.opponentLabel("KCK|1980", "en"), "1980 Kings");
+  assert.equal(view.opponentLabel("NOK|2006", "zh"), "2006 黄蜂");
+  assert.equal(view.opponentLabel("VAN|2000", "zh"), "2000 灰熊");
+  assert.equal(view.opponentLabel("VAN|2000", "en"), "2000 Grizzlies");
+  assert.equal(view.opponentLabel("NBA|2012", "zh"), "2012 NBA", "NBA is a mid-season-trade composite row, not a team — still falls back to the abbreviation");
+  assert.equal(view.opponentLabel("NBA|2012", "en"), "2012 NBA");
+});
+
 test("log: newest first, at most seven days, and rows saved before key games existed still render", () => {
   const log = Array.from({ length: 9 }, (_, i) => ({ day: 20000 + 9 - i, games: 20, wins: 10, paid: 10, gold: 5, xp: 5 }));
   const out = view.hostedLogHtml(account({ hosted: { plan: { playerId: null, attr: null }, settledDay: 1, log } }), ctx());
