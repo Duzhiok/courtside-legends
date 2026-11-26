@@ -42,8 +42,8 @@ export function awakeningProgressHtml({ awakening, card, lang = "zh" } = {}) {
             ? L("待领悟", "Ready", lang)
             : L("进行中", "In progress", lang);
       const ability = p.abilityMet
-        ? `<span>${L("天赋达标", "Ability met", lang)} (${p.abilityLabel})</span>`
-        : `<span>${L("天赋未达标", "Ability not met", lang)} (${p.abilityLabel})</span>`;
+        ? `<span>${L("天赋达标", "Ability met", lang)} (${L(p.abilityLabel, p.abilityLabelEn, lang)})</span>`
+        : `<span>${L("天赋未达标", "Ability not met", lang)} (${L(p.abilityLabel, p.abilityLabelEn, lang)})</span>`;
       return `<li><strong>${L(esc(p.name), esc(p.nameEn), lang)}</strong> · ${status} — ${L("表现证据", "Evidence", lang)} ${p.qualifying}/${p.needed} · ${p.keyMet ? L("关键表现 ✓", "Key performance ✓", lang) : L("关键表现 —", "Key performance —", lang)} · ${ability}<br><small>${L(p.evidenceLabel, p.evidenceLabelEn, lang)}</small><br><small>${L(p.unlocks, p.unlocksEn, lang)}</small></li>`;
     })
     .join("");

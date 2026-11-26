@@ -30,7 +30,7 @@ const fresh = async (viewport, lang = "zh") => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${BASE}?avatar=3d`, { waitUntil: "domcontentloaded" });
-  await page.evaluate((l) => { localStorage.clear(); localStorage.setItem("cls_lang", l); }, lang);
+  await page.evaluate((l) => { localStorage.clear(); localStorage.setItem("courtside.lang", l); }, lang);
   await page.reload({ waitUntil: "domcontentloaded" });
   await homeActive(page);
   await page.click('.home-tab[data-category="world"]');
