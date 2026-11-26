@@ -160,3 +160,27 @@ Evidence: the player's own `fga/fgm/pts` deltas and the teammate whose `ast` ros
 UI copy never promises the ball ("不保证传给你 / the ball is not guaranteed"); outcomes: fed / got a shot / the team did not find you / he did not go along. Keys 1-8.
 Tests 13-17 in `tests/rebornTeamplay.test.js`; extreme-value test proves PA3 options never move old grades or PA2's opening gap (the real floor alone could not catch a baseline leak). Mutations caught: no engine order, credit the wrong man, orders not restored, a PA3 option leaking into the baseline (screen or spot), punishing an ignored request.
 Not built (engine has no lever): standalone cut, off-ball screen, hand-off; post-up / "feed the post" is only partial. Next: S3 (defense) needs a measurement first — there is no explicit box-out or go-for-the-steal order.
+
+## Slice 3 audit (2026-11-26, measured, no S3 code yet)
+
+Setup: the player's `defFocus` set for ONE defensive possession via `setPlayerOrders`, restored; 3 team-eras x 10 seeds x 2 non-star slots = 1800 opposing possessions per row. Per possession:
+
+| defFocus | opp points | my steals | my fouls | opp turnover rate | my rebounds |
+|---|---|---|---|---|---|
+| auto | 0.986 | 0.010 | 0.032 | 0.130 | 0.060 |
+| allout | 0.986 | **0.031** | **0.048** | 0.143 | 0.061 |
+| onball | 0.989 | 0.019 | 0.045 | 0.135 | 0.056 |
+| deny | 0.973 | 0.019 | 0.036 | 0.132 | 0.057 |
+| smart | 0.970 | 0.019 | 0.035 | 0.134 | 0.058 |
+| help | 0.966 | 0.011 | 0.033 | 0.127 | 0.061 |
+| switch | 0.978 | 0.011 | 0.035 | 0.130 | 0.061 |
+
+Reading it honestly:
+- **Gambling for the steal is real and is a genuine trade**: `allout` triples steals (0.010 -> 0.031) and costs ~50% more fouls. Far outside noise. Evidence exists without events: the player's own `stl` / `pf` deltas.
+- **Rebounds do not move at all** (0.056-0.061 across every focus): **there is no box-out lever**. A "box out" button would be a lie until the engine gets one (needs its own measured lever, not a label).
+- **help / switch / deny do not show a scoring effect we can measure**: 0.966-0.989 opposing points per possession is inside the noise of 1800 possessions (SE ~0.03). Grading a "help defense" decision by opposing points would reward luck. Their effect on a pick and roll specifically goes through `defenseCoverage.js` (team level), not through the player's `defFocus`.
+
+Consequences for S3 (proposal, not built):
+1. Ship only what is real: a **steal gamble vs. stay-disciplined** decision with its real trade (steals vs fouls, graded on his own `stl`/`pf`/forced turnovers, never on opposing points).
+2. **Do not expose box-out, help or switch as outcome-bearing decisions** until the engine has a measured lever for them.
+3. "Defensive players need a meaningful growth path" therefore needs design before code: today the engine gives a defender two things to be good at that are measurable (steal pressure and not fouling) and nothing for rebounding position or help. A real growth path needs either an engine lever for rebounding position (an engine change with its own measurement and full regression) or a defensive grade built from stats the engine already records (stl, blk, pf, forced tov, opposing FG% as the primary matchup). Decision needed before S3 implementation.
