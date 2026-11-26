@@ -85,7 +85,36 @@ export function participationBarHtml(mode, lang = "zh") {
     + `<small class="reborn-mode-desc">${T(MODE_LABELS[m].descZh, MODE_LABELS[m].descEn, lang)} ${T("每场预计决策", "Decisions per game", lang)}: ${MODE_PACING[m].target}</small></div>`;
 }
 
+const STEAL_WORD = { high: ["出色", "strong"], mid: ["一般", "average"], low: ["偏弱", "weak"] };
+
+/** S3a: the compact panel for THEIR possession - facts that are real fields, two options, and a plain warning about the price. */
+function defenseDialogHtml({ sim, lang, context, mode }) {
+  const f = context.facts;
+  const youSide = sim?.youSide || "home";
+  const oppSide = youSide === "home" ? "away" : "home";
+  const score = sim?.score || { home: 0, away: 0 };
+  const clock = Number(sim?.clock) || 0;
+  const mmss = `${Math.floor(clock / 60)}:${String(Math.floor(clock % 60)).padStart(2, "0")}`;
+  const q = Number(sim?.quarter) || 4;
+  const [zhWord, enWord] = STEAL_WORD[f.stealRating >= 70 ? "high" : f.stealRating < 45 ? "low" : "mid"];
+  const facts = T(`你已犯规 ${f.fouls} 次 · 体力 ${Math.max(0, 100 - f.fatigue)}% · 抢断能力${zhWord}`, `Fouls ${f.fouls} · stamina ${Math.max(0, 100 - f.fatigue)}% · steal skill ${enWord}`, lang);
+  const options = [
+    ["gamble", T("赌抢断", "Gamble", lang), T("抢断更多，但犯规和体力代价也更大", "More steals, but more fouls and more stamina spent", lang)],
+    ["stay", T("稳守", "Stay home", lang), T("守住位置，不冒险（球队默认防守）", "Hold your position, no risk (the team's own defense)", lang)],
+  ];
+  const buttons = options.map(([id, kind, label], i) => `<button type="button" class="reborn-takeover-option" data-option="${id}" data-key="${i + 1}"><span class="reborn-takeover-key">${i + 1}</span> <span class="reborn-takeover-desc">${kind}</span> <span class="reborn-takeover-label">${label}</span></button>`).join("");
+  return `<div class="reborn-takeover-dialog reborn-agency reborn-agency-defense" role="dialog" aria-modal="true" aria-label="${T("防守选择", "Defensive choice", lang)}">`
+    + `<h2>${T("对手进攻：你怎么防", "Their ball: how do you defend?", lang)}</h2>`
+    + `<p class="reborn-takeover-situation">${q <= 4 ? `Q${q}` : `OT${q - 4}`} ${mmss} · ${score[youSide]} – ${score[oppSide]}</p>`
+    + `<div class="reborn-agency-card reborn-agency-read" data-testid="defense-facts"><b>${T("你的状态", "Your state", lang)}</b><p>${facts}</p></div>`
+    + `<div class="reborn-takeover-options">${buttons}</div>`
+    + (mode ? participationBarHtml(mode, lang) : "")
+    + `<p class="reborn-takeover-hint">${T("赌抢断不会让对手少得分：它换来更多抢断，也会换来更多犯规。", "A gamble does not stop the other team scoring: it buys steals and costs fouls.", lang)}</p>`
+    + `</div>`;
+}
+
 export function agencyDialogHtml({ sim, lang = "zh", context, mode = null }) {
+  if (context.side === "defense") return defenseDialogHtml({ sim, lang, context, mode });
   const youSide = sim?.youSide || "home";
   const oppSide = youSide === "home" ? "away" : "home";
   const score = sim?.score || { home: 0, away: 0 };
@@ -127,10 +156,18 @@ const VERDICT = {
   free_neutral: ["你按自己的判断打完了这个回合。", "You played the possession on your own read."],
 };
 
+const VERDICT_DEFENSE = {
+  free_good_scored: ["你赌对了：抢下了球。", "You read it right and took the ball."],
+  free_good_missed: ["赌的时机是对的，这回合没抢到。", "Right moment to gamble; it just did not come off."],
+  free_poor_scored: ["抢到了，但那不是个好时机。", "You got it, but it was not the moment to gamble."],
+  free_poor_missed: ["不该赌的时候赌了，球队为此买单。", "You gambled when you should not have, and the team paid for it."],
+  free_neutral: ["你按自己的判断防完了这个回合。", "You defended the possession on your own read."],
+};
+
 /** The coach's line after the game, with what it did to trust and autonomy. */
 export function describeAgencyFeedback(agency, lang = "zh") {
   if (!agency) return null;
-  const [zh, en] = VERDICT[agency.verdict] || VERDICT.free_neutral;
+  const [zh, en] = (agency.side === "defense" ? VERDICT_DEFENSE : VERDICT)[agency.verdict] || VERDICT.free_neutral;
   const many = agency.decisions > 1 ? T(`本场 ${agency.decisions} 个决定 · `, `${agency.decisions} decisions · `, lang) : "";
   const t = agency.trustApplied ?? Math.round(agency.trustDelta);
   const a = (agency.autonomyAfter ?? 0) - (agency.autonomyBefore ?? 0);
@@ -157,4 +194,15 @@ export function describeTeamplayFeedback(teamplay, lang = "zh") {
   const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
   for (const m of teamplay.moved || []) lines.push(T(`你和 ${nameOf(m)} 的默契 ${sign(m.delta)}`, `Chemistry with ${nameOf(m)} ${sign(m.delta)}`, lang));
   return lines;
+}
+
+/** After the game: what each defensive gamble did, from his own steal / foul and the team's forced turnover. Plain, never a promise. */
+export function describeDefenseFeedback(defense, lang = "zh") {
+  return (defense || []).map((d) => {
+    if (d.steal && d.foul) return T("你赌抢断断下了球，但也犯了一次规。", "Your gamble took the ball, and cost a foul.", lang);
+    if (d.steal) return T("你赌抢断成功，断下了球。", "Your gamble paid off: you took the ball.", lang);
+    if (d.foul) return T(`你赌抢断没成，还犯了一次规（累计 ${d.fouls} 次）。`, `Your gamble missed and cost a foul (${d.fouls} now).`, lang);
+    if (d.forcedTurnover) return T("你没断下球，但逼出了对手的失误。", "You did not take it, but the pressure forced a turnover.", lang);
+    return T("你赌抢断没有结果，对手正常完成了这次进攻。", "Your gamble came to nothing; they ran their possession as normal.", lang);
+  });
 }

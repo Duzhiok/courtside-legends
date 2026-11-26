@@ -27,6 +27,7 @@ import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, teamCoach } from "./agency.js";
 import { createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
+import { DEFENSE_COOLDOWN, MIN_DEFENSE_STAKES, buildDefenseContext, defenseExecution, playGamblePossession } from "./defense.js";
 import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
 import { rosterCode } from "./franchises.js";
 import { applyGameGrowth } from "./training.js";
@@ -103,8 +104,8 @@ export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW
 }
 
 /** Which kind of possession each non-shot agency choice plays (anything else is "keep reading"). */
-const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen", spot: "spot" };
-const PLAYED_KINDS = ["plan", "audible", "pass", "screen", "spot"];
+const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen", spot: "spot", gamble: "defense", stay: "defense" };
+const PLAYED_KINDS = ["plan", "audible", "pass", "screen", "spot", "defense"];
 
 /**
  * Ask the hook for a takeover decision and submit it through the M2b
@@ -210,10 +211,22 @@ function playSpotChoice(sim, t, playerId, agency) {
   return t.run.points;
 }
 
+/**
+ * S3a: the defensive gamble. "Stay home" runs nothing (the possession plays on the team's own defense at the next step);
+ * "gamble" runs ONE opposing possession with his focus all-out, then restores it. The evidence is his own steal / foul.
+ */
+function playDefenseChoice(sim, t, playerId) {
+  if (t.choiceId === "gamble") {
+    t.run = playGamblePossession(sim, { playerId });
+    t.execution = defenseExecution(t.run);
+  }
+  return 0;
+}
+
 /** Play the possession a non-shot agency choice covers and record its points on the choice (the evidence it is graded on). */
 function playChoice(sim, t, playerId, agency) {
   if (!PLAYED_KINDS.includes(t?.kind)) return;
-  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : t.kind === "spot" ? playSpotChoice(sim, t, playerId, agency) : playChoicePossession(sim, t);
+  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : t.kind === "spot" ? playSpotChoice(sim, t, playerId, agency) : t.kind === "defense" ? playDefenseChoice(sim, t, playerId) : playChoicePossession(sim, t);
 }
 
 /**
@@ -235,6 +248,7 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
   const gate = participation ? createDecisionGate(participation) : null;
   const youSide = () => (sim.youSide === "home" ? sim.home : sim.away);
   let eggIncident = null;
+  let defenseCooldown = 0; // opposing possessions left before the defense may be asked again
   const watcher = egg ? createEggWatcher({ sim, rivalBrefs: egg.rivalBrefs, rng: egg.rng }) : null;
   let guard = 0;
   while (sim.running && guard++ < 8000) {
@@ -256,6 +270,20 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
         : null;
       if (context && gate.ask({ onCourt, importance, critical, conflict: !!context.coachInstruction, opportunity: opportunityOf(context.values) })) {
         if (critical && context.coachInstruction) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
+        const asked = await attemptTakeover(sim, playerId, onTakeover, window, context, true);
+        if (asked) {
+          playChoice(sim, asked, playerId, agency);
+          extras.push(asked);
+        }
+      } else if (onCourt) gate.skipped();
+    } else if (gate && onTakeover && agency && sim.running && !sim.clutchDecision && sim.possession !== sim.youSide) {
+      // S3a: THEIR possession. One shared gate with the offense, so a game's total questions still obey the mode's cap.
+      const onCourt = youSide().onCourt?.some((p) => p.id === playerId);
+      const importance = importanceOf(sim);
+      if (defenseCooldown > 0 && onCourt) defenseCooldown -= 1;
+      const context = onCourt && defenseCooldown === 0 && gate.mode() !== "auto" ? buildDefenseContext(sim, playerId, { ...agency, decisionId: `${agency.decisionId}|d${extras.length + 1}`, importance }) : null;
+      if (context && Math.abs(context.values.gamble) >= MIN_DEFENSE_STAKES && gate.ask({ onCourt, importance, opportunity: Math.abs(context.values.gamble) })) {
+        defenseCooldown = DEFENSE_COOLDOWN;
         const asked = await attemptTakeover(sim, playerId, onTakeover, window, context, true);
         if (asked) {
           playChoice(sim, asked, playerId, agency);
@@ -436,6 +464,8 @@ export async function playGame(
       : settleScreen({ decisionId: t.context.decisionId, offer: t.teammate.offer, points: t.points || 0, turnover: !!t.turnover, critical: !t.context.routine, proposed: t.teammate.proposed })));
   const mates = recordTeammateEvidence(reborn, gameId, mateEvidence);
   next.teamplay = mates.teamplay;
+  const gambles = [takeover, ...extras].filter((t) => t?.kind === "defense" && t.choiceId === "gamble" && t.run);
+  const defense = gambles.length ? gambles.map((t) => ({ steal: t.run.steal, foul: t.run.foul, fouls: t.run.fouls, forcedTurnover: t.run.forcedTurnover })) : null;
   const teamplay = screens.length
     ? {
         items: [
@@ -548,6 +578,7 @@ export async function playGame(
         : null,
       agency: agency ? { ...agency, trustApplied: Math.round(agency.trustDelta), autonomyBefore, autonomyAfter } : null,
       teamplay,
+      defense,
       weekBoundary: isWeekBoundary(season.index, REBORN_GAMES_PER_WEEK),
       enforcerEgg: eggIncident || null,
       jersey: { offers: jerseys.created.map((o) => ({ id: o.id, fromBref: o.fromBref, fromName: o.fromName, fromNameEn: o.fromNameEn, reasons: o.reasons, respect: o.respect })) },

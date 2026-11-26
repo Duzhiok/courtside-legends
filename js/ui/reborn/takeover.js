@@ -84,7 +84,7 @@ export async function askTakeover({ sim, playerId, onAsk, root, context = null }
   if (!opened.ok) return null;
   const choice = await onAsk({ sim, playerId, options: TAKEOVER_OPTIONS, context });
   // Player Agency: the coach's call and patience are choices the driver plays through the offense (season.js).
-  if (context && ["follow", "pass", "setup", "screen", "screenAlt", "spot"].includes(choice)) return { choiceId: choice };
+  if (context && ["follow", "pass", "setup", "screen", "screenAlt", "spot", "gamble", "stay"].includes(choice)) return { choiceId: choice };
   const decision = takeoverDecisionFor(choice);
   if (!decision) return null;
   const selected = controller.select(playerId, decision.actionHint);

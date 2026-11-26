@@ -36,7 +36,7 @@ import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, 
 import { mirrorUnlocksToAccount, runUnlockIds } from "../../collectibles/legacyCosmetics.js";
 import { readParticipation, writeParticipation } from "../../reborn/participation.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
-import { describeAgencyFeedback, describeTeamplayFeedback, participationBarHtml } from "./agencyView.js";
+import { describeAgencyFeedback, describeDefenseFeedback, describeTeamplayFeedback, participationBarHtml } from "./agencyView.js";
 import { mirrorTeammatesToAccount, teamplayOf } from "../../reborn/teamplay.js";
 import { AUTONOMY_START, autonomyTier } from "../../reborn/agency.js";
 import { playoffReportLine, playoffsPanelHtml, playoffsTimelineLine, standingsHtml } from "./playoffsView.js";
@@ -180,6 +180,7 @@ export function rebornReportHtml({ report, lang = "zh" } = {}) {
     ...(takeover ? [`<p>${takeover}</p>`] : []),
     ...(report.agency ? [`<p class="reborn-agency-feedback" data-testid="agency-feedback">${describeAgencyFeedback(report.agency, lang)}</p>`] : []),
     ...describeTeamplayFeedback(report.teamplay, lang).map((l) => `<p class="reborn-teamplay-feedback" data-testid="teamplay-feedback">${l}</p>`),
+    ...describeDefenseFeedback(report.defense, lang).map((l) => `<p class="reborn-teamplay-feedback" data-testid="defense-feedback">${l}</p>`),
   ];
   return `<section class="reborn-report">${lines.join("")}</section>`;
 }

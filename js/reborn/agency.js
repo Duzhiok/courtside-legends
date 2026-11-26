@@ -165,9 +165,10 @@ export function optionValues(sim, playerId, instruction, offer = null, spot = nu
 }
 
 /** Quality of one option in [-1, 1]: its EV against the median of what was on the table. */
-export function decisionQuality(values, choiceId) {
+export function decisionQuality(values, choiceId, baseline = null) {
   const evs = Object.values(withoutTeamOptions(values)).sort((a, b) => a - b); // the baseline is the pre-PA3 options only
-  const median = evs[Math.floor((evs.length - 1) / 2)];
+  // A defensive question has two options and a fixed baseline (staying home = 0); a median of two would call a bad gamble "neutral".
+  const median = baseline ?? evs[Math.floor((evs.length - 1) / 2)];
   return clamp((values[choiceId] - median) / QUALITY_SPAN, -1, 1);
 }
 
@@ -261,12 +262,13 @@ export function gradeTakeover(takeover, clutchOutcome = null) {
   const ctx = takeover?.context;
   if (!ctx || !takeover.choiceId || takeover.accepted === false) return null;
   const choiceId = takeover.choiceId;
+  if (ctx.side === "defense" && choiceId === "stay") return null; // doing the normal thing is not a decision to grade
   const followed = choiceId === "follow";
-  const quality = decisionQuality(ctx.values, choiceId);
-  const execution = executionQuality({ clutch: clutchOutcome, points: takeover.points ?? 0 });
+  const quality = decisionQuality(ctx.values, choiceId, ctx.baseline ?? null);
+  const execution = takeover.execution ?? executionQuality({ clutch: clutchOutcome, points: takeover.points ?? 0 });
   const graded = evaluateDecision({ hadInstruction: !!ctx.coachInstruction, followed, quality, execution, tolerance: Math.min(1, (ctx.coach?.tolerance ?? 0.5) + (ctx.playerState?.autonomy ?? 0) * AUTONOMY_TOLERANCE_PER_POINT) });
   const round2 = (v) => Math.round(v * 100) / 100;
-  return { decisionId: ctx.decisionId, choiceId, followed, instruction: ctx.coachInstruction, observation: ctx.observation, coach: ctx.coach, quality: round2(quality), execution: round2(execution), points: takeover.points ?? clutchOutcome?.points ?? 0, ...graded };
+  return { decisionId: ctx.decisionId, side: ctx.side || "offense", choiceId, followed, instruction: ctx.coachInstruction, observation: ctx.observation, coach: ctx.coach, quality: round2(quality), execution: round2(execution), points: takeover.points ?? clutchOutcome?.points ?? 0, ...graded };
 }
 
 /**
