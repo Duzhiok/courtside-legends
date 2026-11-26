@@ -123,3 +123,21 @@ test("rollSkillShopOffers: avoided skills lose to fresh ones", () => {
     for (const o of offers) assert.ok(keep.has(o.id), `avoided skill offered: ${o.id}`);
   }
 });
+
+test("rollSkillShopOffers: no pack dominates the shelf (the endurance trio used to be on ~52% of shelves)", () => {
+  const trio = new Set(["iron_lungs", "motor_engine", "iron_body"]);
+  const N = 2000;
+  const seen = new Map();
+  let withTrio = 0;
+  let previous = [];
+  for (let i = 0; i < N; i += 1) {
+    const shelf = rollSkillShopOffers(6, previous).map((o) => o.id); // a refresh avoids the last shelf, like the game
+    previous = shelf;
+    if (shelf.some((id) => trio.has(id))) withTrio += 1;
+    for (const id of shelf) seen.set(id, (seen.get(id) || 0) + 1);
+  }
+  // Fair share is ~8% per pack (6 slots / 76 packs). Generous bounds: the old rolls gave 52% / 23%.
+  assert.ok(withTrio / N < 0.25, `endurance trio on ${(withTrio / N * 100).toFixed(1)}% of shelves`);
+  const most = Math.max(...seen.values()) / N;
+  assert.ok(most < 0.2, `most common pack is on ${(most * 100).toFixed(1)}% of shelves`);
+});

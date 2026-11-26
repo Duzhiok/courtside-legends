@@ -2675,8 +2675,23 @@ export function purchasedSkillsRefund(player, rate = SKILL_SELL_RATE) {
   return { gold, lines };
 }
 
-/** 货架高光：体力 / 耐久类（玩家常找的铁肺·永动机·铁人） */
-const SHOP_DURABILITY_IDS = ["iron_lungs", "motor_engine", "iron_body"];
+/**
+ * 货架后半段每一格各自掷一次"这格什么档"，而不是全压在稀有档：稀有只有 12 个包，
+ * 以前 3-4 格都从里面抽，结果每个稀有包出现在 ~22% 的货架上，玩家老见那几样。
+ * 现在稀有/史诗/传奇/神话都有机会，每个包的出现率拉平到 5–10%。
+ */
+const FILL_TIER_WEIGHTS = [["rare", 0.4], ["epic", 0.3], ["legendary", 0.22], ["mythic", 0.08]];
+const TIER_FALLBACK = ["rare", "epic", "legendary", "mythic", "common"];
+
+function fillTierOrder() {
+  let roll = rand();
+  let first = "rare";
+  for (const [tier, weight] of FILL_TIER_WEIGHTS) {
+    roll -= weight;
+    if (roll < 0) { first = tier; break; }
+  }
+  return [first, ...TIER_FALLBACK.filter((tier) => tier !== first)];
+}
 
 function offerFromPack(s, lang = "zh") {
   const rarity = skillRarity(s);
@@ -2716,7 +2731,7 @@ function buildRarityTiers(block) {
 
 /**
  * 随机抽出一柜技能包货架。
- * 分层保底：至少 1 个神话/传奇、1 个史诗，并提高铁肺/永动机/铁人曝光；
+ * 分层保底：至少 1 个神话/传奇、1 个史诗；其余格每格各自掷档位，保证花样多、不老是那几样；
  * excludeIds 用于刷新时避开上一柜，减少「来回就那几样」。
  * @returns {{ id, name, desc, tone, cost, rarity, rarityLabel }[]}
  */
@@ -2741,21 +2756,10 @@ export function rollSkillShopOffers(size = 6, excludeIds = [], avoidIds = null, 
     return true;
   };
 
-  // ① 高光位：约 28% 神话、42% 传奇、30% 史诗；其中一半偏向体力三件套
+  // ① 高光位：约 28% 神话、42% 传奇、30% 史诗
   const roll = rand();
   const highOrder =
     roll < 0.28 ? ["mythic", "legendary", "epic"] : roll < 0.7 ? ["legendary", "mythic", "epic"] : ["epic", "legendary", "mythic"];
-  if (rand() < 0.5) {
-    const dura = SHOP_DURABILITY_IDS.map((id) => SKILL_PACKS[id]).filter(
-      (s) => s && isLearnableSkill(s.id) && !seen.has(s.id)
-    );
-    // 仍尊重软屏蔽，但若全被屏蔽则忽略屏蔽；同档内优先非已拥有技能
-    let duraPool = dura.filter((s) => !softBlock.has(s.id));
-    if (!duraPool.length) duraPool = dura;
-    const duraFresh = avoidIds ? duraPool.filter((s) => !avoidIds.has(s.id)) : duraPool;
-    if (duraFresh.length) duraPool = duraFresh;
-    if (duraPool.length) take(duraPool[Math.floor(rand() * duraPool.length)]);
-  }
   if (picks.length < 1) take(pickFromTier(tiers, highOrder, seen, avoidIds));
 
   // ② 史诗保底
@@ -2766,14 +2770,10 @@ export function rollSkillShopOffers(size = 6, excludeIds = [], avoidIds = null, 
     take(pickFromTier(tiers, ["legendary", "epic", "mythic", "rare"], seen, avoidIds));
   }
 
-  // ④ 其余：稀有/普通为主，偶尔塞史诗
-  const fillOrder =
-    rand() < 0.2
-      ? ["epic", "rare", "common", "legendary"]
-      : ["rare", "common", "epic", "legendary"];
+  // ④ 其余：每格各自掷档位（见 FILL_TIER_WEIGHTS）
   let guard = 0;
   while (picks.length < size && guard++ < 80) {
-    const s = pickFromTier(tiers, fillOrder, seen, avoidIds);
+    const s = pickFromTier(tiers, fillTierOrder(), seen, avoidIds);
     if (!s) break;
     take(s);
   }

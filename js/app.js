@@ -4759,7 +4759,7 @@ function paintSkillShopRoot({ shop: skillBox, inv: invBox, hint }, c) {
   const gold = c.gold || 0;
   const inv = ensureSkillInventory(c);
   if (hint) {
-    hint.textContent = `货架 ${SKILL_SHOP_SIZE} 格，刷新会避开近期出现过的包；铁肺/永动机/铁人会提高曝光。满员可卸或替换。已购卸下退回库；卖掉按约 ${Math.round(SKILL_SELL_RATE * 100)}% 变现。组合技不可买/卸。刷新 ¤${SKILL_REFRESH_COST}。`;
+    hint.textContent = `货架 ${SKILL_SHOP_SIZE} 格，刷新会避开近期出现过的包；每格各自随机档位，常换常新。满员可卸或替换。已购卸下退回库；卖掉按约 ${Math.round(SKILL_SELL_RATE * 100)}% 变现。组合技不可买/卸。刷新 ¤${SKILL_REFRESH_COST}。`;
   }
   skillBox.innerHTML = (c.skillShop || [])
     .map((offer) => skillOfferCardHtml(offer, gold))
