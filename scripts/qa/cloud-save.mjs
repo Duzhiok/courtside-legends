@@ -143,7 +143,7 @@ check("back online: syncs again", true);
 // ---- isolation (fake mode only; live isolation = verify-live.mjs) ----
 if (!LIVE) {
 const other = await B.page.evaluate(async (api) => {
-  const s = await (await fetch(`${api}/auth/v1/signup`, { method: "POST", headers: { apikey: "k" }, body: JSON.stringify({ email: "other@x.co", password: PASSWORD }) })).json();
+  const s = await (await fetch(`${api}/auth/v1/signup`, { method: "POST", headers: { apikey: "k" }, body: JSON.stringify({ email: "other@x.co", password: "password1" }) })).json();
   const rowsSeen = await (await fetch(`${api}/rest/v1/game_saves?slot=eq.career`, { headers: { apikey: "k", Authorization: `Bearer ${s.access_token}` } })).json();
   const anon = await fetch(`${api}/rest/v1/game_saves?slot=eq.career`, { headers: { apikey: "k" } });
   return { rowsSeen, anonStatus: anon.status };
