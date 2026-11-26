@@ -3839,3 +3839,10 @@ await createCloudSync({ storage, transport: cloudA }).sync();            // "upl
 const res = await createCloudSync({ storage, transport: cloudB }).sync(); // B signs in on the same browser
 // res.status === "uploaded" and cloudB.rows.get("career").data contains "acc-A"  <- A's career leaked into B's cloud
 ```
+
+### Code (this session) — cloud sync: I fixed the account-isolation bug from my review (B153) - API changed, please read before wiring (2026-11-26)
+Nobody had touched `js/cloud/*` since f814b0c4, so I did the small fix myself instead of leaving it open. Tests 12 -> 19, mutation-checked.
+- `createCloudSync({ storage, transport, userId, linkedAccountId, slot })`: `userId` is now REQUIRED (throws without it); state is stored per user.
+- Upload only if `root.profile.accountId === linkedAccountId`; otherwise `sync()` / `keepLocal()` return `not-linked` (or `guest` for accountId null) BEFORE any network call.
+- Transport errors may carry `.kind` = "offline" | "auth" | "rejected" | "too-large" -> statuses `offline` | `auth-required` | `rejected` | `too-large`. The Supabase transport should map 401/RLS -> auth, the CHECK violation -> too-large, other 4xx -> rejected.
+- Not decided (yours): how a cloud career restored on a SECOND device attaches to that device's local account (local ids differ per device; the audit's "link" table). `restore()` still does not look at ownership of the incoming root.
