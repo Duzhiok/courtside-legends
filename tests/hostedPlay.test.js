@@ -72,9 +72,24 @@ test("end to end through settleHosted: one real day = 20 real games, settled onc
 
 test("an opponent's starters are worked out on first use, not for every team up front (eager, it froze the Training Center ~4 s on every cold open)", async () => {
   const { bestStarters } = await import("../js/engine/lineupSlots.js");
-  const teams = play.hostedOpponents(POOL);
+  const { performance } = await import("node:perf_hooks");
+  // A fresh pool object, never handed to hostedOpponents before: the module caches per pool identity, so the
+  // earlier tests (which read every starter of POOL) cannot have warmed these teams' closures. Without this,
+  // this test could only prove "it is a getter", not "nothing was computed before first use" (B152 note b).
+  const freshPool = POOL.filter((c) => c.season === 1996);
+  const teams = play.hostedOpponents(freshPool);
+  assert.ok(teams.length > 1, `a real slice of clubs (${teams.length})`);
   assert.equal(typeof Object.getOwnPropertyDescriptor(teams[0], "starterIds").get, "function", "a lazy getter, not a precomputed array");
+  // The cold-open Training Center path only asks whether opponents exist; it must not trigger the computation.
+  const chiIds = POOL.filter((c) => c.team === "CHI" && c.season === 1996).sort((a, b) => overall(b) - overall(a)).slice(0, 10).map((c) => c.id);
+  assert.equal(play.hostedReady(account(chiIds), freshPool), true);
+  const startedAt = performance.now();
   const first = teams[0].starterIds;
+  const firstMs = performance.now() - startedAt;
+  assert.ok(firstMs > 1, `first access really computes the five (${firstMs.toFixed(2)} ms)`);
+  const reusedAt = performance.now();
   assert.equal(teams[0].starterIds, first, "computed once, then reused");
+  const secondMs = performance.now() - reusedAt;
+  assert.ok(secondMs < 1, `second access is just the cached array (${secondMs.toFixed(3)} ms)`);
   assert.deepEqual(first, bestStarters(teams[0].players, overall).map((p) => p.id), "the same five a precomputed list would have held");
 });
