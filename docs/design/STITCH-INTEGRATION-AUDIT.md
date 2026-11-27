@@ -1,11 +1,13 @@
 # Stitch design integration: Phase 1 audit (current theme + the lineup/tactics screen)
 
-Status: audit done; **blocked on the Stitch/Figma reference** (not in the repo or the brief). Nothing in CSS changed yet.
+Status: audit done; **partially unblocked 2026-11-26** — the Stitch token export is now in the repo (`docs/design/stitch-tokens.json` v2.8.0 + `STITCH-TOKENS-README.md`, 8fedc1c7; reference only, not loaded by the app — see the README's colour-roles ruling), so Phase 1 token mapping can start. Still blocked on the visual reference: the Stitch screens as PNG / the Figma file or link are not in the repo, so no side-by-side restyle check yet. Nothing in CSS changed yet.
 
 ## What exists
 - **One token file**: `css/tokens.css` (44 custom properties). `style.css` and `home.css` both say "do not re-declare :root
-  here" and comply. `timeTravel.css` (22) / `timeTravelViews.css` (4) / `matchBroadcast.css` (2) / `arena.css` (1) define
-  local scoped variables. Good base: Stitch tokens go **into tokens.css**, no second file.
+  here" and comply. `timeTravel.css` (22) / `timeTravelViews.css` (5) / `matchBroadcast.css` (1) / `arena.css` (3) define
+  local scoped variables (counts = distinct `--name:` declarations per file at baseline 1ed09d1; corrected 2026-11-26 —
+  the audit first wrote 4/2/1, missing `--v`, and `--tab-ico` / `--tabbar-pad` / `--tabbar-h`; `matchBroadcast.css`
+  had counted a `var(--accent)` use, not a definition). Good base: Stitch tokens go **into tokens.css**, no second file.
 - **Two token generations live side by side** in tokens.css:
   - light "paper" set: `--paper --ink --line --court --wood --accent --muted --good --warn --bad --shadow`
   - dark "arena" set: `--arena-* --surface-1/2/3 --surface-line(-strong) --text-hi/mid/low --gold --orange --glow-gold --shadow-deep`
@@ -18,7 +20,9 @@ Status: audit done; **blocked on the Stitch/Figma reference** (not in the repo o
 - **Hardcoded colours**: ~1,300 hex literals; worst `style.css` 345, `arena.css` 110, `myTeamClubhouse.css` 105,
   `myWorld.css` 104, `home.css` 63. Migrate only what a redesigned screen touches (no repo-wide sweep).
 - **Components**: buttons = `.btn` (+ `.primary/.ghost`...) plus ~14 screen-local button families (`.tt-btn`, `.pg-gbtn`,
-  `.voice-btn`, `.career-era-btn`, ...). 55 distinct `*card*` classes. 12 dialog/sheet families (`.screen-shell-modal`,
+  `.voice-btn`, `.career-era-btn`, ...). 78 distinct `*card*` class selectors in CSS (counting method: distinct class
+  selectors containing `card` across `css/*.css` at baseline 1ed09d1; BEM `--` modifiers folded: 76; names ending in
+  `-card` / `card`: 42; used in markup: 74 — the audit first wrote 55, which no counting method reproduces). 12 dialog/sheet families (`.screen-shell-modal`,
   `.app-confirm-dialog`, `.mev-sheet`, `.shop-dialog`, `.reborn-takeover-dialog`, ...). Phase 1 target: `.btn` variants,
   one card shell, one dialog shell from tokens; screen-local families adopt them only when their screen is redesigned.
 
@@ -35,6 +39,8 @@ Observed: ~2,000px tall single column of equal-weight panels; the tactics board 
 the starting five is drawn twice (dark cards + light wood court) in two visual languages; dense small text in cards.
 
 ## Needed to start Phase 1 tokens / Phase 2
-The Stitch export (screens as PNG + its colour/type/spacing tokens, or the Figma file/link). Then: map tokens onto
+Token export: **in the repo** (`docs/design/stitch-tokens.json` v2.8.0 + `STITCH-TOKENS-README.md`; reference only — the
+README's colour-roles ruling and hard rules apply). Still missing: the Stitch screens as PNG, or the Figma file/link
+(the JSON names figma frames, e.g. `Lineup_Tactics_Desktop_Zone23`, but no file/link is in the repo). Then: map tokens onto
 tokens.css semantics, restyle `#screen-setup` against it, viewport screenshots desktop 1440 + mobile 390 side by side
 with the reference.
