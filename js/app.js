@@ -1576,7 +1576,11 @@ function wireDomainEvents() {
   const savedEvents = state.restoredMatchEvents || null;
   state.restoredMatchEvents = null;
   state.matchEvents = state.sim && !speedLocked(state.mode, currentTournamentMatch())
-    ? createMatchEventsSession({ sim: state.sim, saved: savedEvents, getLang })
+    ? createMatchEventsSession({
+        sim: state.sim, saved: savedEvents, getLang,
+        // In-game calls are a coaching capability: a GM-only career watches; its decisions take the default.
+        mayDecide: () => !isManagedCareer(state.leagueCareer) || canDo(state.leagueCareer, "commandGame"),
+      })
     : null;
   state.matchEvents?.reshowPending();
 }
@@ -7488,7 +7492,8 @@ function handleSimEvent(e) {
   // With the 3D court up, the feed line and the scoreboard wait for the presentation cursor to reach this event (they never run
   // ahead of the action). Coach/system lines are not plays: the TEXT shows at once, but never the score they carry (that snapshot
   // can already include plays the court has not shown yet); the scoreboard stays with the cursor. 2D mode is unchanged.
-  if (e?.type === "coach" && !e.meta?.pass) {
+  // A clutch-result line ("绝杀结果：…命中") IS the outcome of a play: it waits with the play, or it spoils the shot in flight.
+  if (e?.type === "coach" && !e.meta?.pass && !e.meta?.clutchOutcome) {
     pushFeed(e.type, e.text, e);
     if (!match3d.active) paintScoreSafe(e);
     return;
@@ -8684,6 +8689,9 @@ const coachDrawer = createCoachDrawer({
     if (!open || !state.sim) return;
     const snap = state.sim.snapshot();
     paintMeters(snap);
+    // A match-event card is mounted BEFORE this panel opens (the pause that opens it comes a tick later), so the scroll done when the
+    // card was shown hit a hidden panel. Bring the open decision into view now that the panel really has a size.
+    document.querySelector("#match-event-card:not(:empty)")?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   },
 });
 // Coach bench: simple / advanced (B22). A device preference; the dropdown is rebuilt because <option hidden> does nothing on iOS Safari.

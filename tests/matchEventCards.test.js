@@ -45,7 +45,7 @@ const foul = {
 };
 
 test("the three MVP families exist with bilingual labels", () => {
-  assert.deepEqual(MATCH_EVENT_FAMILIES, ["takeover", "weakness", "foulTrouble"]);
+  assert.deepEqual(MATCH_EVENT_FAMILIES, ["takeover", "weakness", "foulTrouble", "clutchOffense", "clutchDefense"]);
   assert.equal(matchEventFamilyLabel("takeover", "zh"), "球星接管");
   assert.equal(matchEventFamilyLabel("weakness", "en"), "Opponent weakness");
   assert.equal(matchEventFamilyLabel("foulTrouble", "en"), "Foul trouble");

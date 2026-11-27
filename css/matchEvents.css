@@ -37,20 +37,22 @@
 .mev-toast span { overflow-wrap: anywhere; }
 
 /* --- coach-panel decision card --- */
-.mev-card { position: relative; padding: 10px 12px; border: 1px solid #c8cfc2; border-radius: 12px; background: #fffdf6; }
-.mev-card h4 { margin: 6px 0 0; font-size: 1rem; line-height: 1.3; }
+.mev-card { position: relative; padding: 10px 12px; border: 1px solid #c8cfc2; border-radius: 12px; background: #fffdf6; color: #1c2a22; } /* explicit ink: the card sits in the DARK coach panel and used to inherit its light text */
+#match-event-card .mev-card h4 { margin: 6px 0 0; font-size: 1rem; line-height: 1.3; color: #1c2a22; } /* arena.css `.screen.arena :is(h1..h4)` paints headings light (1.08:1 on this cream card) and out-ranks a plain class selector */
+/* The coach panel is a fixed-height scroller: a five-option card in one column (436 px) is taller than the panel (396 px) and can never be seen whole. Two columns fit it. */
+@media (min-width: 701px) { #match-event-card .mev-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* --- mobile bottom sheet --- */
 #match-event-sheet { display: none; }
-.mev-sheet { position: relative; padding: 8px 14px 16px; background: #fffdf6; }
+.mev-sheet { position: relative; padding: 8px 14px 16px; background: #fffdf6; color: #1c2a22; } /* the sheet hangs off <body>, whose arena text is light: without this the option text was light-on-cream */
 .mev-sheet-handle { width: 40px; height: 4px; margin: 0 auto 8px; border-radius: 999px; background: #c8cfc2; }
 .mev-sheet-score { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #e3e6df; font-size: 0.9rem; }
 .mev-sheet-score b { font-variant-numeric: tabular-nums; }
 .mev-sheet-clock { color: #4f5e55; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 .mev-sheet-body { padding-top: 8px; }
-.mev-sheet-body h4 { margin: 6px 0 0; font-size: 1.05rem; line-height: 1.3; }
+.mev-sheet-body h4 { margin: 6px 0 0; font-size: 1.05rem; line-height: 1.3; color: #1c2a22; }
 @media (max-width: 700px) {
-  #match-event-sheet:not(:empty) { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 62vh; overflow-y: auto; border-radius: 16px 16px 0 0; box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.25); }
+  #match-event-sheet:not(:empty) { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; max-height: 68vh; overflow-y: auto; border-radius: 16px 16px 0 0; box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.25); }
   #match-event-sheet:not(:empty) .mev-sheet { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 }
 

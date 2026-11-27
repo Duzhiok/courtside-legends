@@ -13,7 +13,9 @@
  *
  * QA hooks (read once per game, ignored when absent): globalThis.__CLS_MATCH_EVENT_SEED fixes the
  * event seed; globalThis.__CLS_MATCH_EVENT_TUNING overrides MATCH_EVENT_TUNING fields (e.g.
- * { warmupBoundaries: 0, chance: { takeover: 1 } }) to force an event in a browser run.
+ * { warmupBoundaries: 0, chance: { takeover: 1 } }) to force an event in a browser run;
+ * globalThis.__CLS_QA_EXPOSE_SIM = true publishes the live sim as globalThis.__CLS_QA_SIM so a QA script can place
+ * the game at a late-game situation (critical moments). Never set by the app.
  */
 import { createMatchEventController } from "./matchEventCards.js";
 import {
@@ -29,8 +31,9 @@ import {
   settleMatchEventOutcomes,
   stepMatchEvents,
 } from "../engine/matchEvents.js";
+import { ratingsFromSim } from "../engine/criticalMoments.js";
 
-function resolveTuning(override) {
+export function resolveTuning(override) {
   const extra = override && typeof override === "object" ? override : {};
   return Object.freeze({
     ...MATCH_EVENT_TUNING,
@@ -50,8 +53,11 @@ export function createMatchEventsSession({
   tuning = resolveTuning(globalThis.__CLS_MATCH_EVENT_TUNING),
   ui = null,
   defer = (fn) => Promise.resolve().then(fn),
+  /** May this player make in-game coaching calls? (A GM career has no commandGame capability: decisions auto-resolve.) */
+  mayDecide = () => true,
 } = {}) {
   if (!sim) throw new Error("createMatchEventsSession needs the live sim");
+  if (globalThis.__CLS_QA_EXPOSE_SIM === true) globalThis.__CLS_QA_SIM = sim;
   let state = saved ? restoreMatchEventState(saved, { seed: String(seed) }) : createMatchEventState({ seed: String(seed) });
   let pausedByUs = false;
   let busy = false;
@@ -69,7 +75,7 @@ export function createMatchEventsSession({
       return null;
     }
   };
-  const canPrompt = () => (Number(sim.speed) || 1) <= promptMaxSpeed && sim.running !== false;
+  const canPrompt = () => (Number(sim.speed) || 1) <= promptMaxSpeed && sim.running !== false && mayDecide() !== false;
 
   function resolve(choiceId, { auto }) {
     const r = decideMatchEvent(state, choiceId, { auto, snapshot: snapshot() });
@@ -127,7 +133,7 @@ export function createMatchEventsSession({
         pausedByUs = false;
         resolve(state.pending.defaultChoiceId, { auto: true });
       }
-      const r = stepMatchEvents(state, evt, tuning);
+      const r = stepMatchEvents(state, evt, tuning, { ratings: ratingsFromSim(sim) });
       state = settleMatchEventOutcomes(r.state, evt.snapshot, { tuning });
       if (r.event) show(r.event);
     } finally {

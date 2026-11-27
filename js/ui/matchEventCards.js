@@ -33,13 +33,15 @@
 import { esc } from "../core/html.js";
 import { TL } from "../i18n.js";
 
-export const MATCH_EVENT_FAMILIES = ["takeover", "weakness", "foulTrouble"];
+export const MATCH_EVENT_FAMILIES = ["takeover", "weakness", "foulTrouble", "clutchOffense", "clutchDefense"];
 const MATCH_EVENT_SEVERITIES = ["info", "decision"];
 
 const FAMILY_LABEL = {
   takeover: ["球星接管", "Star takeover"],
   weakness: ["对手弱点", "Opponent weakness"],
   foulTrouble: ["犯规麻烦", "Foul trouble"],
+  clutchOffense: ["关键时刻", "Critical moment"],
+  clutchDefense: ["关键时刻", "Critical moment"],
 };
 
 const pick = (pair, lang) => {
@@ -226,6 +228,9 @@ export function createMatchEventController({ onDecide, onDismiss, getLang = () =
     if (mounts?.card) {
       mounts.card.innerHTML = matchEventCardHtml(event, l);
       wire(mounts.card, event);
+      // The card is the last child of a fixed-height, scrolling coach panel, below the page fold: bring ALL of it (its options
+      // included) into view, or the game stops on a decision the player cannot see.
+      mounts.card.scrollIntoView?.({ block: "nearest", inline: "nearest" });
       return true;
     }
     return false;

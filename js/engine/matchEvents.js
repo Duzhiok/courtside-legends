@@ -22,6 +22,7 @@
  * Pure: no DOM, no Math.random, no sim import. `applyMatchEffect` takes the sim instance.
  */
 import { hashSeed, seededStream } from "../core/seededRandom.js";
+import { CRITICAL_FAMILIES, CRITICAL_TUNING, buildCritical, criticalCandidates, inCrunchWindow } from "./criticalMoments.js";
 
 export const MATCH_EVENT_STATE_VERSION = 1;
 
@@ -51,13 +52,15 @@ export const MATCH_EVENT_TUNING = Object.freeze({
   historyCap: 20,
   firedCap: 60,
   /** The choice auto-resolve uses, per family. Must be a no-op choice to keep fast sim neutral. */
-  defaults: Object.freeze({ takeover: "ignore", weakness: "ignore", foulTrouble: "keep" }),
+  defaults: Object.freeze({ takeover: "ignore", weakness: "ignore", foulTrouble: "keep", clutchOffense: "ignore", clutchDefense: "ignore" }),
 });
 
 export const MATCH_EVENT_BOUNDARIES = Object.freeze(["POSSESSION_START", "PERIOD_START"]);
-const FAMILY_ORDER = ["foulTrouble", "weakness", "takeover"];
+// Critical moments (criticalMoments.js) come first: a last possession outranks any routine event.
+const FAMILY_ORDER = [...CRITICAL_FAMILIES, "foulTrouble", "weakness", "takeover"];
 const FAMILIES = new Set(FAMILY_ORDER);
-const EFFECT_KINDS = new Set(["setOffenseFocus", "setFocusPlay", "substitute"]);
+const EFFECT_KINDS = new Set(["setOffenseFocus", "setFocusPlay", "substitute", "submitDecision", "setDefenseScheme"]);
+const isCritical = (id) => CRITICAL_FAMILIES.some((f) => String(id).startsWith(`${f}:`));
 
 const pair = (zh, en) => ({ zh, en });
 
@@ -311,8 +314,9 @@ function buildFoulTrouble(c, snap) {
 const BUILDERS = { takeover: buildTakeover, weakness: buildWeakness, foulTrouble: buildFoulTrouble };
 
 /** The full event object for one candidate (Lychee's UI contract + `effects` per choice). */
-export function buildMatchEvent(candidate, snap, tuning = MATCH_EVENT_TUNING) {
-  const built = BUILDERS[candidate.family](candidate, snap);
+export function buildMatchEvent(candidate, snap, tuning = MATCH_EVENT_TUNING, ctx = null) {
+  const built = candidate.critical ? buildCritical(candidate, snap, ctx) : BUILDERS[candidate.family](candidate, snap);
+  const who = built.player || candidate.player;
   const fallback = built.choices.find((ch) => !ch.disabled && !built.effects[ch.id]?.length)?.id;
   const wanted = tuning.defaults[candidate.family];
   const usable = built.choices.find((ch) => ch.id === wanted && !ch.disabled);
@@ -324,8 +328,8 @@ export function buildMatchEvent(candidate, snap, tuning = MATCH_EVENT_TUNING) {
     body: built.body,
     clock: matchClockLabel(snap),
     score: scoreLine(snap),
-    player: playerLine(candidate.player),
-    playerId: candidate.player.id,
+    player: playerLine(who),
+    playerId: who.id,
     choices: built.choices,
     defaultChoiceId: usable ? usable.id : fallback,
     effects: built.effects,
@@ -340,13 +344,27 @@ const roll = (seed, boundary, id) => seededStream(hashSeed(`${seed}|${boundary}|
  * Feed one domain event. Returns { state, event } where `event` is a newly fired decision (or null).
  * Never mutates `state`. Only POSSESSION_START advances the boundary counter; both boundary types may fire.
  */
-export function stepMatchEvents(state, domainEvent, tuning = MATCH_EVENT_TUNING) {
+export function stepMatchEvents(state, domainEvent, tuning = MATCH_EVENT_TUNING, ctx = null) {
   if (!state || !domainEvent || !MATCH_EVENT_BOUNDARIES.includes(domainEvent.type)) return { state, event: null };
   const snap = domainEvent.snapshot;
   const next = { ...state, fired: [...state.fired], history: [...state.history] };
   if (domainEvent.type === "POSSESSION_START") next.boundaries += 1;
   if (next.pending || !snap) return { state: next, event: null };
-  if (next.fired.length >= tuning.maxPerGame) return { state: next, event: null };
+  // `tuning.critical` is a QA/balance override of the crunch window only (the situation, never a probability).
+  const crunch = tuning.critical ? { ...CRITICAL_TUNING, ...tuning.critical } : CRITICAL_TUNING;
+  // Critical moments: no dice, no warm-up, no spacing -- the situation itself is the trigger. Own cap.
+  if (domainEvent.type === "POSSESSION_START" && next.fired.filter(isCritical).length < crunch.maxPerGame) {
+    const crit = criticalCandidates(snap, { boundary: next.boundaries, tuning: crunch }).find((c) => !next.fired.includes(c.id));
+    if (crit) {
+      const event = buildMatchEvent(crit, snap, tuning, ctx);
+      next.pending = event;
+      next.fired.push(event.id);
+      return { state: next, event };
+    }
+  }
+  // One voice at a time: routine events stay quiet in the crunch window, whoever has the ball.
+  if (inCrunchWindow(snap, crunch)) return { state: next, event: null };
+  if (next.fired.filter((id) => !isCritical(id)).length >= tuning.maxPerGame) return { state: next, event: null };
   if (next.boundaries < tuning.warmupBoundaries) return { state: next, event: null };
   if (next.lastFiredAt != null && next.boundaries - next.lastFiredAt < tuning.minGapBoundaries) return { state: next, event: null };
   const fired = new Set(next.fired);
@@ -416,6 +434,10 @@ export function applyMatchEffect(sim, effects) {
     if (e.kind === "setOffenseFocus") ok = sim.setOffenseFocus(e.playerId) !== false && ok;
     else if (e.kind === "setFocusPlay") ok = sim.setFocusPlay(e.focusId) !== false && ok;
     else if (e.kind === "substitute") ok = sim.substitute(e.outId, e.inId) !== false && ok;
+    else if (e.kind === "submitDecision") {
+      const r = sim.submitDecision({ attemptId: sim.issueAttemptId(), kind: "clutch_shooter", shooterId: e.shooterId, actionHint: e.actionHint });
+      ok = !!r?.accepted && ok;
+    } else if (e.kind === "setDefenseScheme") ok = sim.setDefenseScheme(e.scheme, e.targetId) !== false && ok;
     else ok = false;
   }
   return ok;
@@ -437,7 +459,7 @@ function outcomeText(entry, snap) {
   const runAgainst = score.against - base.score.against;
   const run = pair(`这段比分 ${runFor}–${runAgainst}`, `${runFor}–${runAgainst} run since`);
   const name = entry.playerName;
-  if (entry.family === "takeover") {
+  if (entry.family === "takeover" || isCritical(entry.id)) {
     const pts = now.pts - base.player.pts;
     const fgm = now.fgm - base.player.fgm;
     const fga = now.fga - base.player.fga;
