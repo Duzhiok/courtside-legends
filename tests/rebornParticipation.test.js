@@ -6,7 +6,7 @@ import { seededStream } from "../js/core/seededRandom.js";
 import { realTeam } from "./helpers/realGame.js";
 import * as P from "../js/reborn/participation.js";
 import { combineGrades, teamCoach, MAX_TRUST_PER_GAME, MULTI_DECISION_CAP } from "../js/reborn/agency.js";
-import { driveGame } from "../js/reborn/season.js";
+import { driveGame, takeoverEligible } from "../js/reborn/season.js";
 import { participationBarHtml, describeAgencyFeedback } from "../js/ui/reborn/agencyView.js";
 
 const mkSim = (seed = 3) => new GameSim({ home: realTeam("CHI", 1996), away: realTeam("SEA", 1996), youSide: "home", injuries: false, speed: 3, rng: seededStream(seed), onEvent() {}, onTick() {}, onEnd() {} });
@@ -97,6 +97,46 @@ test("a game without participation is the classic one clutch ask (old callers an
   const out = await driveGame(sim, me, { onTakeover: () => { asked += 1; return { choiceId: "pass" }; }, agency: { coach: teamCoach("CHI", 1996), iq: 60, decisionId: "c", autonomy: 10 } });
   assert.equal(asked, 1);
   assert.deepEqual(out.extras, []);
+});
+
+/** Late, close, your ball: the same clutch setup the agency tests use, seeded so the gate path is exercised. */
+const clutchSim = (seed) => {
+  const sim = mkSim(seed);
+  Object.assign(sim, { quarter: 4, clock: 110, possession: "home" });
+  sim.score.home = 96; sim.score.away = 98;
+  return sim;
+};
+
+test("gate extras: a dismissed ask with a coach call costs no timeout; only a made choice spends one (B134 ①)", async () => {
+  // The hook answers only the first instructed offense ask ("pass"); everything else is dismissed, including
+  // defense questions (a steal question never carries a coach call) and later critical asks. `spent` mirrors the
+  // charge rule exactly (classic asks are always critical; gate asks only spend when critical), so the final
+  // timeout count pins the rule on both sites at once.
+  let dismissedCritical = 0;
+  for (const seed of [7, 1, 2, 3]) {
+    const sim = clutchSim(seed);
+    sim.timeouts.home = 2;
+    const star = [...sim.home.onCourt].sort((a, b) => b.scoring - a.scoring)[0];
+    let answered = false;
+    let spent = 0;
+    await driveGame(sim, star.id, {
+      onTakeover: ({ sim: live, context }) => {
+        if (context?.side === "defense") return null;
+        const critical = takeoverEligible(live, star.id);
+        if (!answered && context?.coachInstruction && context.options.includes("pass")) {
+          answered = true;
+          if (critical) spent += 1;
+          return { choiceId: "pass" };
+        }
+        if (critical && context?.coachInstruction) dismissedCritical += 1;
+        return null;
+      },
+      agency: { coach: teamCoach("CHI", 1996), iq: 60, decisionId: `gate|${seed}`, autonomy: 10 },
+      participation: { getMode: () => "full" },
+    });
+    assert.equal(sim.timeouts.home, 2 - spent, `seed ${seed}: only a made choice spends a timeout`);
+  }
+  assert.ok(dismissedCritical >= 1, "at least one dismissed critical ask carried a coach call (the gate charge site was exercised)");
 });
 
 test("every extra decision is armed through the normal sim API: a shot decision is honoured or settled, never left armed", async () => {

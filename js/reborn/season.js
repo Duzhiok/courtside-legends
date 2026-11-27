@@ -256,9 +256,11 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
     const mayAsk = !gate || gate.mode() !== "auto";
     if (mayAsk && !takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
       const context = agency ? { ...buildDecisionContext(sim, playerId, agency), tier: askTier({ critical: true }) } : null;
-      // Drawing up the play costs the timeout he called (only when the dialog actually happens).
-      if (context?.coachInstruction && onTakeover) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
       takeover = await attemptTakeover(sim, playerId, onTakeover, window, context);
+      // B134 ①: the call costs the timeout he spent drawing it up — but only when the player actually makes a choice
+      // and it is accepted. Dismissing the dialog (Esc / backdrop) or letting an L1 bubble time out unanswered costs
+      // nothing: the play was never run.
+      if (takeover?.accepted && context?.coachInstruction) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
       playChoice(sim, takeover, playerId, agency);
     } else if (gate && onTakeover && sim.running && !sim.clutchDecision && sim.possession === sim.youSide) {
       const onCourt = youSide().onCourt?.some((p) => p.id === playerId);
@@ -271,9 +273,10 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
       const opportunity = built ? opportunityOf(built.values) : 0;
       const context = built ? { ...built, importance, tier: askTier({ critical, conflict: !!built.coachInstruction, importance, opportunity }) } : null;
       if (context && gate.ask({ onCourt, importance, critical, conflict: !!context.coachInstruction, opportunity })) {
-        if (critical && context.coachInstruction) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
         const asked = await attemptTakeover(sim, playerId, onTakeover, window, context, true);
         if (asked) {
+          // B134 ①, same rule as the classic ask above: a dismissed ask costs no timeout.
+          if (critical && asked.accepted && context.coachInstruction) sim.timeouts[sim.youSide] = Math.max(0, sim.timeouts[sim.youSide] - 1);
           playChoice(sim, asked, playerId, agency);
           extras.push(asked);
         }

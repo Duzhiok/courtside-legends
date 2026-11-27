@@ -176,7 +176,30 @@ test("running the coach's call borrows the autopilot for one possession only, an
   assert.equal(out.takeover.kind, "plan");
   assert.ok(Number.isFinite(out.takeover.points));
   assert.equal(sim.autoOffense, true, "autopilot back on");
-  assert.equal(timeoutsAtCall, 0, "he spent his last timeout drawing it up");
+  assert.equal(timeoutsAtCall, 1, "the timeout is still there while the player decides (B134 ①: only a made choice spends it)");
+  assert.equal(sim.timeouts.home, 0, "running the call spent his last timeout");
+});
+
+test("dismissing the dialog costs no timeout: only a made choice spends one (B134 ①)", async () => {
+  const sim = clutchSim({ clock: 110, home: 96, away: 98 });
+  sim.timeouts.home = 1;
+  let asked = 0;
+  let firstInstruction = null;
+  let timeoutsAtFirstAsk = null;
+  const star = [...sim.home.onCourt].sort((a, b) => b.scoring - a.scoring)[0];
+  const out = await driveGame(sim, star.id, {
+    onTakeover: ({ sim: live, context }) => {
+      asked += 1;
+      if (timeoutsAtFirstAsk === null) { timeoutsAtFirstAsk = live.timeouts.home; firstInstruction = context?.coachInstruction; }
+      return null; // Esc / backdrop / an unanswered L1 bubble: no choice
+    },
+    agency: { coach: A.teamCoach("CHI", 1996), iq: 60, decisionId: "dismiss|1" },
+  });
+  assert.ok(asked >= 1, "the dialog came up");
+  assert.ok(firstInstruction, "the first ask carried a coach call (the charge path was live)");
+  assert.equal(timeoutsAtFirstAsk, 1, "nothing is spent just for being asked");
+  assert.equal(out.takeover, null, "no choice, no takeover");
+  assert.equal(sim.timeouts.home, 1, "dismissals never spend the timeout");
 });
 
 test("a choice the context did not offer is refused, never graded", async () => {
