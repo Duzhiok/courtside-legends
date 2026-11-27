@@ -61,7 +61,7 @@ function failure(error) {
   return { status: FAILURE_STATUS[error?.kind] || "offline", error: error?.message };
 }
 
-export function createCloudSync({ storage, transport, userId, linkedAccountId = null, slot = CAREER_SLOT, now = Date.now }) {
+export function createCloudSync({ storage, transport, userId, linkedAccountId = null, slot = CAREER_SLOT, now = Date.now, isCurrent = () => true }) {
   if (!userId) throw new Error("createCloudSync needs the signed-in cloud userId: sync state is kept per user");
   const readAll = () => {
     try {
@@ -135,6 +135,9 @@ export function createCloudSync({ storage, transport, userId, linkedAccountId = 
     } catch (error) {
       return failure(error);
     }
+    // The response of a request that began for ANOTHER user / device account (signed out and in again meanwhile) must never
+    // touch this device's save: the server only ever answers with the caller's rows, but the caller may no longer be current.
+    if (!isCurrent()) return { status: "stale" };
     if (!remote) return { status: "empty" };
     let incoming;
     try {

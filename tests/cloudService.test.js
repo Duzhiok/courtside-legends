@@ -168,3 +168,44 @@ test("panel: every state tells the player what is going on, in both languages, a
   assert.doesNotMatch(newer, /keep-local/, "cloud-newer has no local edits to keep");
   assert.doesNotMatch(cloudPanelHtml({ status: out, message: "<img onerror=x>" }), /<img/);
 });
+
+test("a late answer for a signed-out user never touches the next user's save (restore and the conflict view)", async () => {
+  const backend = createFakeBackend();
+  const mac = device(backend, { settings: { who: "A-mac" }, accountId: "acc-A-mac" });
+  await signInAndLink(mac, "a@x.co");
+  await mac.svc.sync();
+
+  // A phone whose cloud reads we can hold back.
+  const storage = createMemoryStorage();
+  putSave(storage, { who: "B-local" }, "acc-B");
+  const auth = backend.auth();
+  const state = { accountId: "acc-A-phone" };
+  let release;
+  const held = new Promise((r) => { release = r; });
+  const slowTransport = () => {
+    const t = backend.transportFor(auth);
+    return { ...t, get: async (args) => { const res = await t.get(args); await held; return res; } };
+  };
+  const svc = createCloudService({ storage, auth, makeTransport: slowTransport, localAccountId: () => state.accountId, now: () => 1 });
+  putSave(storage, { who: "A-phone" }, "acc-A-phone");
+  await svc.signUp({ email: "a@x.co", password: "pw" }).then((x) => (x.error ? svc.signIn({ email: "a@x.co", password: "pw" }) : x));
+  assert.equal(svc.linkAccount({ confirmed: true }).ok, true);
+
+  const pendingRestore = svc.restore();
+  const pendingView = svc.describeConflict();
+  // While both requests are out: A signs out, B signs in on this device (its local account is B's now).
+  await svc.signOut();
+  await svc.signUp({ email: "b@x.co", password: "pw" });
+  state.accountId = "acc-B";
+  putSave(storage, { who: "B-local" }, "acc-B");
+  const before = storage.getItem(ROOT_SAVE_KEY);
+  release();
+
+  assert.equal((await pendingRestore).status, "stale");
+  const view = await pendingView;
+  assert.equal(view.cloud, null);
+  assert.equal(view.stale, true);
+  assert.equal(storage.getItem(ROOT_SAVE_KEY), before, "B's save is byte-for-byte untouched");
+  assert.equal(readRootSave(storage).profile.settings.who, "B-local");
+  assert.equal(storage.getItem("cls_cloud_backup_v1"), null, "no backup was written either");
+});

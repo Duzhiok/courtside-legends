@@ -43,7 +43,11 @@ export function createCloudService({ storage, auth, makeTransport, localAccountI
   const syncer = () => {
     const session = auth.session();
     transport ||= makeTransport();
-    return createCloudSync({ storage, transport, now, userId: session.userId, linkedAccountId: links.localOf(session.userId) });
+    const localId = localAccountId();
+    // Everything this call will do belongs to THIS cloud user and THIS local account; if either changes while a request is in flight
+    // the late answer is dropped (see cloudSync.restore).
+    const isCurrent = () => auth.session()?.userId === session.userId && localAccountId() === localId;
+    return createCloudSync({ storage, transport, now, userId: session.userId, linkedAccountId: links.localOf(session.userId), isCurrent });
   };
   const guarded = (fn) => async () => {
     const g = gate();
@@ -107,6 +111,8 @@ export function createCloudService({ storage, auth, makeTransport, localAccountI
       try {
         transport ||= makeTransport();
         const remote = await transport.get({ slot: "career" });
+        // Signed out / switched user while the request was out: never show one user's cloud career under another.
+        if (auth.session()?.userId !== g.session.userId || localAccountId() !== g.localId) return { local, cloud: null, stale: true };
         if (!remote) return { local, cloud: null };
         return { local, cloud: { ...summarizeRoot(importRootSave(remote.data)), revision: remote.revision, updatedAt: remote.updatedAt || null } };
       } catch (error) {
