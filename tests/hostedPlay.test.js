@@ -105,6 +105,31 @@ test("end to end through settleHosted: one real day = 20 real games, settled onc
   assert.equal(again.days.length, 0);
 });
 
+test("a five-card squad has no bench and still plays full hosted games (B47 note c)", () => {
+  const five = account(teamIds("LAL", 2001).slice(0, 5));
+  const squad = play.hostedSquad(five, POOL);
+  assert.equal(squad.players.length, 5, "exactly five people, no bench to draw on");
+  assert.equal(squad.starterIds.length, 5);
+  assert.equal(play.hostedReady(five, POOL), true);
+  const game = play.createHostedPlayGame(five, { pool: POOL });
+  const played = [];
+  for (const seed of [1, 42, 12345, 999983]) {
+    const r = game({ seed });
+    assert.ok(r.score.me > 40 && r.score.opponent > 40 && r.score.me !== r.score.opponent,
+      `seed ${seed} plays a real game (${r.score.me}-${r.score.opponent} vs ${r.opponent})`);
+    played.push(r);
+  }
+  assert.deepEqual(game({ seed: 42 }), played[1], "still deterministic with no bench");
+  // End to end: a whole settle day (20 games) with no bench at all.
+  const acc = account(five.playerIds);
+  const T0 = Date.UTC(2026, 10, 23, 12, 0);
+  hosted.setHostedPlan(acc, { playerId: five.playerIds[0], attr: "three" }, { now: T0, save: () => {} });
+  const day = hosted.settleHosted(acc, { now: T0 + 2 * 86400000, playGame: game, pool: POOL, save: () => {} });
+  assert.equal(day.days.length, 1);
+  assert.equal(day.days[0].games, 20);
+  assert.ok(acc.gold > 0, "the bench-less day still pays");
+});
+
 test("an opponent's starters are worked out on first use, not for every team up front (eager, it froze the Training Center ~4 s on every cold open)", async () => {
   const { bestStarters } = await import("../js/engine/lineupSlots.js");
   const { performance } = await import("node:perf_hooks");
