@@ -70,7 +70,9 @@ test("every mode card legend token in index.html has real art too", () => {
   // 8, not 9: the 3+1 Career entry's photo cards use the concept-mock
   // portraits (assets/career/*.jpg, pinned by careerEntry.test.js),
   // not legend tokens — the Player card no longer carries jordami01:1991.
-  assert.ok(tokens.length >= 8);
+  // 7, not 8: the standalone Clutch Challenge card (curryst01:2016) left the home screen (B159). The floor only guards against the
+  // token parser reading nothing; the loop below is the real assertion (every token that exists must have real art).
+  assert.ok(tokens.length >= 7);
   for (const token of tokens) {
     const url = legendPhotoFromToken(token);
     assert.ok(url && isRealArt(url), `${token} has no usable art`);

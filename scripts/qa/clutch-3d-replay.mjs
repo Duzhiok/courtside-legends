@@ -6,6 +6,13 @@
 // Playwright Chromium shell); the node tests (court3dReplay) are the ones
 // that run on the VM.
 // Usage: node scripts/qa/clutch-3d-replay.mjs /tmp/cls-qa/clutch-3d [http://127.0.0.1:5173/]
+// RETIRED (B159): the standalone clutch challenge has no home entry any more -- its moment lives in every game now
+// (scripts/qa/critical-moments.mjs). The engine tests (clutchController / clutchDecision) still cover the dormant code.
+if (!process.env.CLUTCH_LEGACY_ENTRY) {
+  console.log("SKIP: standalone clutch entry retired (owner decision 2026-11-26); see scripts/qa/critical-moments.mjs and scripts/qa/clutch-entry-removed.mjs");
+  process.exit(0);
+}
+
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { CJK, homeActive, noOverflow, shoot, text } from "./lib/page.mjs";

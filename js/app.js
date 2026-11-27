@@ -2442,6 +2442,9 @@ $("#btn-clutch-3d-back")?.addEventListener("click", () => closeClutch3dReplay())
 $("#btn-clutch-3d-again")?.addEventListener("click", () => replayClutch3dAgain());
 
 $("#btn-clutch-back")?.addEventListener("click", () => goBack());
+// RETIRED from the home screen (owner decision 2026-11-26: the clutch challenge moves INTO every game as Critical Moments, B159).
+// The card is gone; the preset single-possession scenario, its screens and clutchController stay as dormant code (no entry
+// point, nothing links here), so this listener finds no button and does nothing. Delete the whole block only with an owner OK.
 $("#btn-clutch-entry")?.addEventListener("click", () => startMode("clutch"));
 $("#btn-clutch-start")?.addEventListener("click", () => startClutchChallenge());
 $("#btn-clutch-play-back")?.addEventListener("click", () => { cancelClutchChallenge(); goBack(); });
