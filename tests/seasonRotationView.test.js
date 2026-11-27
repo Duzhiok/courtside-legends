@@ -105,6 +105,18 @@ test("names are escaped on the way out", () => {
   assert.ok(html.includes("&lt;img src=x onerror"), "and the name is still shown, escaped");
 });
 
+test("a hostile player id cannot break out of the ball-handler option value", () => {
+  const you = bulls();
+  const hostile = 'x" onmouseover="alert(1)';
+  you.players[0].id = hostile;
+  you.gameplan = { offenseFocusId: hostile };
+  const html = draw(you);
+  assert.ok(!html.includes(`value="${hostile}"`), "no raw id in the attribute");
+  assert.ok(!html.includes('onmouseover="alert(1)"'), "no injected attribute");
+  assert.ok(html.includes('value="x&quot; onmouseover=&quot;alert(1)"'), "and the id is still shown, escaped");
+  assert.deepEqual(selectedIn(html, "rot-focus"), ['x&quot; onmouseover=&quot;alert(1)'], "the escaped option still selects");
+});
+
 test("drawing reads the team and writes nothing", () => {
   const you = bulls({ gameplan: { offenseFocusId: "x" }, rotation: { starterIds: ["a"] } });
   const before = JSON.stringify(you);

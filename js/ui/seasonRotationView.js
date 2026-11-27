@@ -88,7 +88,7 @@ export function rotationBoardHtml(you, { lang, learnedOf }) {
           <select id="rot-focus">
             <option value="">${TL(lang, "（不指定）", "(none)")}</option>
             ${sorted
-              .map((p) => `<option value="${p.id}" ${p.id === focusId ? "selected" : ""}>${esc(p.name)}</option>`)
+              .map((p) => `<option value="${esc(p.id)}" ${p.id === focusId ? "selected" : ""}>${esc(p.name)}</option>`)
               .join("")}
           </select>
         </label>
