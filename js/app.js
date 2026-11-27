@@ -2648,6 +2648,15 @@ $("#btn-again").onclick = async () => {
   startMode(state.lastMode || "quick");
 };
 
+// B98 ③: result-page next steps — point a new player at a meaningful next choice instead of
+// leaving only "Play Again / Home". Same destinations as the home screen (My Team tab, gold
+// ladder mode card); no new screens, no account gate beyond what those entries already have.
+$("#btn-result-my-team").onclick = () => {
+  show("home");
+  activateHomeTab?.("players");
+};
+$("#btn-result-gold").onclick = () => startMode("career");
+
 // —— Account binder (persistent collection) ——
 function activeAccount() {
   return getAccount(getActiveAccountId());
@@ -10649,7 +10658,7 @@ function wireSeasonResultContinue(st, snap, { summaryExtra = "", viewingHistory 
 async function simRestOfSeason() {
   const st = state.season;
   if (!st || st.phase !== "regular") return;
-  const buttons = ["#btn-result-sim-season", "#btn-result-sim5", "#btn-result-play-next", "#btn-again", "#btn-result-continue", "#btn-home"]
+  const buttons = ["#btn-result-sim-season", "#btn-result-sim5", "#btn-result-play-next", "#btn-again", "#btn-result-continue", "#btn-home", "#btn-result-my-team", "#btn-result-gold"]
     .map((sel) => $(sel))
     .filter(Boolean);
   for (const b of buttons) b.disabled = true;

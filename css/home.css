@@ -97,6 +97,10 @@ html[lang="en"] .topbar .brand-name { display: none; }
   color: rgba(248, 244, 234, .85);
   line-height: 1.6;
 }
+/* B97 ②: one-line "what is this game" intro. A direct child of .hero — NOT inside
+   .home-banner-copy — so the compact-header rule (which hides .home-banner-copy > p
+   on every non-career tab) can never hide it. Base type comes from .hero > p. */
+.home-intro { margin: 0 2px 12px; }
 .home-banner-facts {
   display: flex;
   flex-direction: column;

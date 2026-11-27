@@ -127,6 +127,10 @@
             <li><strong>32</strong><span>队淘汰赛</span></li>
           </ul>
         </div>
+        <!-- B97 ②: one-line "what is this game" intro. A direct child of .hero — NOT inside .home-banner-copy —
+             so the compact-header rule (which hides .home-banner-copy > p on every non-career tab, and the
+             topbar tagline is display:none on phones) can never hide it. Bilingual via PHRASES. -->
+        <p class="home-intro" id="home-intro">篮球卡牌经理游戏：抽历史球星卡，组队打比赛，临场指挥争冠军。</p>
         <div class="account-home-bar save-home-bar" id="save-home-bar" hidden>
           <div class="account-home-text">
             <strong>有未完成的进度</strong>
@@ -988,6 +992,10 @@
           <button class="btn" id="btn-result-sim5" hidden>模拟五场</button>
           <button class="btn" id="btn-result-sim-season" hidden>模拟整个赛季</button>
           <button class="btn ghost" id="btn-home">回主页</button>
+          <!-- B98 ③: next-step guidance — the result page used to offer only "Play Again / Home". -->
+          <span class="tiny result-next-label" id="result-next-label">下一步可以：</span>
+          <button class="btn ghost" id="btn-result-my-team">组建自己的阵容</button>
+          <button class="btn ghost" id="btn-result-gold">金币挑战</button>
         </div>
       </section>
     </main>

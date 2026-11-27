@@ -416,6 +416,11 @@ export const PHRASES = [
   ["模拟五场", "Sim 5 Games"],
   ["模拟整个赛季", "Sim Rest of Season"],
   ["回主页", "Home"],
+  // B97 ② + B98 ③: first-time-player next steps (home intro + result-page CTAs). Static HTML defaults; applyStaticLang covers them.
+  ["篮球卡牌经理游戏：抽历史球星卡，组队打比赛，临场指挥争冠军。", "A basketball card-manager game: draft historic star cards, build your team, and coach live for the title."],
+  ["下一步可以：", "Next up:"],
+  ["组建自己的阵容", "Build your own roster"],
+  ["金币挑战", "Gold Challenge"],
   ["设置 2–8 名本地玩家。每过一轮每人多一次选人机会，直到总决赛。", "Set up 2–8 local players. Each round everyone gets one more pick, until the Finals."],
   ["玩家数", "Players"],
   ["生成席位", "Create Seats"],
