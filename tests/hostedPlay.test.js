@@ -24,6 +24,41 @@ test("opponents are real team-seasons from the pool, built once and in a stable 
   assert.deepEqual(a.map((t) => t.name), [...a.map((t) => t.name)].sort(), "stable order");
 });
 
+test("an in-place content swap at the same length rebuilds the opponents instead of serving the stale cache (B47 note b)", () => {
+  const freshPool = POOL.filter((c) => c.season === 1996);
+  const len = freshPool.length;
+  const before = play.hostedOpponents(freshPool);
+  assert.ok(before.some((t) => t.name === "CHI|1996"));
+  assert.ok(!before.some((t) => t.name === "LAL|2001"));
+  // Swap every 1996 Bulls card for a 2001 Lakers card, in place, without changing the pool's length.
+  const lal2001 = ROWS.filter((r) => r.season === 2001 && r.team === "LAL" && r.gp >= 20).map(seasonToCard);
+  let i = 0;
+  for (let k = 0; k < freshPool.length; k++) {
+    if (freshPool[k].team === "CHI" && freshPool[k].season === 1996) freshPool[k] = lal2001[i++ % lal2001.length];
+  }
+  assert.equal(freshPool.length, len, "same length, different contents");
+  const after = play.hostedOpponents(freshPool);
+  assert.notEqual(after, before, "same length must not mean the same cached teams");
+  assert.ok(!after.some((t) => t.name === "CHI|1996"), "the swapped-out club is gone");
+  assert.ok(after.some((t) => t.name === "LAL|2001"), "the swapped-in club is there");
+  assert.ok(before.some((t) => t.name === "CHI|1996"), "the old list is untouched");
+  assert.equal(play.hostedOpponents(freshPool), after, "the rebuilt list is cached again");
+  freshPool.pop();
+  assert.notEqual(play.hostedOpponents(freshPool), after, "a shorter pool rebuilds too");
+});
+
+test("an in-place reorder rebuilds too, with identical values (teams sort by name, players by overall)", () => {
+  const freshPool = POOL.filter((c) => c.season === 2001);
+  const before = play.hostedOpponents(freshPool);
+  const beforeNames = before.map((t) => t.name);
+  const beforePlayers = before.map((t) => t.players.map((p) => p.id));
+  [freshPool[0], freshPool[1]] = [freshPool[1], freshPool[0]];
+  const after = play.hostedOpponents(freshPool);
+  assert.notEqual(after, before, "a reordered pool must not reuse the cached list");
+  assert.deepEqual(after.map((t) => t.name), beforeNames, "same teams");
+  assert.deepEqual(after.map((t) => t.players.map((p) => p.id)), beforePlayers, "same players in the same order");
+});
+
 test("the squad is the account's own best people, position-balanced; fewer than 5 distinct people cannot play", () => {
   const squad = play.hostedSquad(STRONG, POOL);
   assert.equal(squad.players.length, 10);

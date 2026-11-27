@@ -14,10 +14,16 @@ export const OPPONENT_MIN_SEASON = 1985;
 const SQUAD_SIZE = 10;
 const opponentCache = new WeakMap();
 
+/** Same cards in the same order? The cache is keyed by pool identity, but a pool is a plain array: the caller
+ *  (or a test) can swap its contents in place without changing its length, and a length-only check would then
+ *  keep serving the stale teams (B47 note b). Comparing references element-wise is exact for this — the teams
+ *  are built from these very card objects — and costs one cheap pointer pass, far less than rebuilding. */
+const sameCards = (a, b) => a.length === b.length && a.every((card, i) => card === b[i]);
+
 /** Every real team-season of the pool with a playable roster, built once per pool, in a stable order. */
 export function hostedOpponents(pool = PLAYERS) {
-  let found = opponentCache.get(pool);
-  if (found && found.size === pool.length) return found.teams;
+  const found = opponentCache.get(pool);
+  if (found && sameCards(found.cards, pool)) return found.teams;
   const groups = new Map();
   for (const card of pool) {
     if (!card?.team || !(card.season >= OPPONENT_MIN_SEASON)) continue;
@@ -35,7 +41,7 @@ export function hostedOpponents(pool = PLAYERS) {
       let starters = null;
       return { ...t, get starterIds() { return (starters ??= bestStarters(t.players, overall).map((p) => p.id)); } };
     });
-  opponentCache.set(pool, { size: pool.length, teams });
+  opponentCache.set(pool, { cards: pool.slice(), teams });
   return teams;
 }
 
