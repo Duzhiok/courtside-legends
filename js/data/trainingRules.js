@@ -54,7 +54,7 @@ export const ATTR_CEILING = 99;
 /** A skill breakthrough needs a real base in the camp's discipline. */
 export const SKILL_GATE_MIN = 65;
 
-/** XP to go from `value` to `value + 1`: higher ratings cost more (≈30 at 50, ≈113 at 80, ≈217 at 95). */
+/** XP to go from `value` to `value + 1`: higher ratings cost more (≈30 at 50, ≈112 at 80, ≈217 at 95). */
 export function xpRequired(value) {
   return Math.round(30 * Math.pow(1.045, Math.max(0, value - 50)));
 }
