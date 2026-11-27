@@ -443,6 +443,62 @@ test("exported root save imports to the same state", () => {
   assert.deepEqual(importRootSave(exportRootSave(root)), root);
 });
 
+test("exporting a memory-state root compacts it like storage does (B156)", () => {
+  const root = createRootState({
+    savedAt: 123,
+    activeMode: "franchise",
+    leagueCareer: {
+      careerId: "career-1",
+      kind: "franchise",
+      phase: "regular",
+      season: validSeason({
+        resultsLog: [{ day: 1, box: { huge: true }, snapshot: { huge: true }, feed: [{ huge: true }], score: 101 }],
+        schedule: [[{ homeId: "POR", awayId: "LAL", played: true, _lastSnap: { huge: true }, box: { huge: true }, snapshot: { huge: true }, feed: [{ huge: true }] }]],
+        finalsAllTeam: { huge: true },
+      }),
+      history: [],
+      manualOverrides: {},
+      recommendations: {},
+    },
+    liveGame: {
+      context: { gameId: "1991-LAL-POR-1", homeId: "LAL", awayId: "POR", youSide: "away" },
+      seasonPendingGame: { homeId: "LAL", awayId: "POR", played: false },
+      sim: { v: 1, quarter: 3, clock: 421, score: { home: 71, away: 74 } },
+      feed: Array.from({ length: 30 }, (_, i) => ({ type: "score", text: `event ${i}` })),
+      manualOverrides: {},
+    },
+  });
+
+  const before = JSON.stringify(root);
+  const exported = JSON.parse(exportRootSave(root));
+  // The export carries the compacted form, not the in-memory snapshots: a full season of
+  // _lastSnap data is ~53 MB in memory vs ~0.5 MB stored (B156 measurement).
+  assert.equal(exported.root.leagueCareer.season.resultsLog[0].box, undefined);
+  assert.equal(exported.root.leagueCareer.season.resultsLog[0].snapshot, undefined);
+  assert.equal(exported.root.leagueCareer.season.resultsLog[0].feed, undefined);
+  assert.equal(exported.root.leagueCareer.season.resultsLog[0].score, 101);
+  assert.equal(exported.root.leagueCareer.season.schedule[0][0]._lastSnap, undefined);
+  assert.equal(exported.root.leagueCareer.season.schedule[0][0].box, undefined);
+  assert.equal(exported.root.leagueCareer.season.schedule[0][0].snapshot, undefined);
+  assert.equal(exported.root.leagueCareer.season.schedule[0][0].feed, undefined);
+  assert.equal(exported.root.leagueCareer.season.schedule[0][0].homeId, "POR");
+  assert.equal(exported.root.leagueCareer.season.finalsAllTeam, undefined);
+  assert.equal(exported.root.liveGame.feed.length, 24);
+  assert.equal(exported.root.liveGame.feed[0].text, "event 6");
+  // The export still round-trips (export keeps the root's own savedAt stamp).
+  const imported = importRootSave(exportRootSave(root));
+  assert.equal(imported.savedAt, 123);
+  // The caller's in-memory root is untouched (export compacts a clone).
+  assert.equal(JSON.stringify(root), before);
+  // And the compacted parts match what storage holds (writeRootSave re-stamps savedAt
+  // on the passed-in root, so the storage comparison runs last and only over season/liveGame).
+  const storage = createMemoryStorage();
+  writeRootSave(root, storage);
+  const stored = readRootSave(storage);
+  assert.deepEqual(imported.leagueCareer.season, stored.leagueCareer.season);
+  assert.deepEqual(imported.liveGame, stored.liveGame);
+});
+
 for (const version of [1, 2]) {
   test(`legacy season v${version} becomes a franchise career and remains stored`, () => {
     const legacy = validSeason({ v: version, phase: "playoffs", seasonNumber: 4 });

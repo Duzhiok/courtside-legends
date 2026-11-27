@@ -957,8 +957,15 @@ export function purgeOrphanedLegacySaves(storage) {
   return removeLegacySeason(getStorage(storage));
 }
 
+/**
+ * Export a root for download / cloud upload. The export carries the same compacted form storage
+ * holds (B156): a memory-state root still has every played game's full `_lastSnap` snapshot,
+ * which measured 53,894,103 characters after one played season -- 13.5x the 4,000,000-char
+ * cloud limit -- while the stored root is ~0.5 MB. Both real export callers (the manual
+ * #btn-long-career-export download and the save-failure fallback) hand over the in-memory root.
+ */
 export function exportRootSave(root) {
-  const exportedRoot = validateRoot(cloneJson(root));
+  const exportedRoot = validateRoot(compactRootForStorage(cloneJson(root)));
   return JSON.stringify({
     format: EXPORT_FORMAT,
     schemaVersion: ROOT_SAVE_VERSION,
