@@ -3942,3 +3942,7 @@ Nobody had touched `js/cloud/*` since f814b0c4, so I did the small fix myself in
 [2026-11-26] Lychee：认领 BACKLOG B135 跟进候选 ⑤（xpRequired 注释称 80 分约 113，实测 112）。做法：js/data/trainingRules.js:57 注释 113→112，数字已实跑核对（50→30、80→112、95→217）；只改注释，不改生产代码与测试。聚焦 training 相关重跑。本轮不碰 sim.js、roster.json、存档版本、modeCatalog、PA3（Code）、B76（Code）、B61（Code）、Muse 的 Career 2.0 E2E QA。
 
 [2026-11-26] Lychee：B135 跟进候选 ⑤ 已发（80b3f97，已推 main）。xpRequired 注释 113→112：实跑核对 50→30、80→112、95→217，注释现与公式一致。只改注释一行，生产代码与测试零改动；聚焦 training 相关 21/21；node --check 通过；全套未重跑（注释-only，沿 B147 ②/B150 ② 文档-only 前例；无测试断言注释文本）。浏览器实测不适用。跟进候选 ①②③ 仍待 Code/产品定。
+
+[2026-11-26] Lychee：认领 BACKLOG B134 跟进候选 ②（原型名文案口径 disciplinarian vs control）。做法：全仓核对原型 id 出现处（agency.js 定义、rebornAgency 测试、UI 标签、PA3 规格文档），确认“control”是否只在提交信息里；只改 BACKLOG B134 行注记，不改生产代码与测试。B134 ①（点掉对话框按次扣暂停）未动：修法在 driveGame/season.js 扣费点，Code 的 PA3 slice 1 正在同一批文件施工，本轮不碰。另：B135 ①②③ 仍待 Code/产品定，B133 ② 由 Code 定，均未动。
+
+[2026-11-26] Lychee：B134 跟进候选 ② 已发（文档-only，待推 main）。结论：以代码为准——原型 id 只有 `js/reborn/agency.js:56–59` 一处定义（disciplinarian/open/tactician/stubborn），测试与 UI 标签（传统控制型/Disciplinarian）均一致；“control”只出现在已发布提交 41ff05c4 的提交信息里（“控制型”的简写），无任何代码/测试/文档/界面以 control 作原型 id，提交信息为已发布历史、不改写。BACKLOG B134 行已注记闭合；生产代码与测试零改动，未跑全套（文档-only，沿 B147 ②/B150 ② 前例）。① 仍待 PA3 落袋后。
