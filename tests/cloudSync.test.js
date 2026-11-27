@@ -176,6 +176,42 @@ test("sync bookkeeping is per cloud user: what A's browser remembers is invisibl
   assert.deepEqual(asUser(a.storage, createFakeCloud(), "user-B", "acc-B").state(), { revision: 0, hash: null });
 });
 
+// Interleaved syncs on ONE browser (B153 follow-up 1: the per-slot mutation M2 turned only this one test red,
+// because no test made two users' remembered states diverge). Both users sync the SAME local save — B links the
+// same local account (acc-A), which is the designed "link follows the save" semantics — to their OWN clouds.
+test("P4c: B uploading the edited save to B's cloud must not swallow A's edit on A's cloud", async () => {
+  const cloudA = createFakeCloud();
+  const cloudB = createFakeCloud();
+  const a = device({ n: 1 }, cloudA, { userId: "user-A", linkedAccountId: "acc-A", accountId: "acc-A" });
+  assert.equal((await a.sync.sync()).status, "uploaded"); // A remembers { rev 1, hash H1 }
+  edit(a.storage, { n: 2 }); // the save moves to H2
+  const asB = asUser(a.storage, cloudB, "user-B", "acc-A");
+  assert.deepEqual(await asB.sync(), { status: "uploaded", revision: 1 }, "B uploads H2 to B's own cloud");
+  assert.equal(cloudB.rows.get("career").revision, 1);
+  // A signs back in: A's remembered hash is still H1, so the edit must reach A's cloud as revision 2 —
+  // with per-slot bookkeeping B's upload overwrote A's memory with H2 and this comes back "up-to-date".
+  assert.deepEqual(await a.sync.sync(), { status: "uploaded", revision: 2 });
+  assert.equal(cloudA.rows.get("career").revision, 2);
+  assert.match(cloudA.rows.get("career").data, /"n":2/);
+});
+
+test("P4d: A's intervening upload must not make B misread B's own cloud as newer", async () => {
+  const cloudA = createFakeCloud();
+  const cloudB = createFakeCloud();
+  const a = device({ n: 1 }, cloudA, { userId: "user-A", linkedAccountId: "acc-A", accountId: "acc-A" });
+  await a.sync.sync(); // A remembers { rev 1, hash H1 }
+  edit(a.storage, { n: 2 });
+  const asB = asUser(a.storage, cloudB, "user-B", "acc-A");
+  await asB.sync(); // B remembers { rev 1, hash H2 } on B's cloud
+  edit(a.storage, { n: 3 });
+  assert.deepEqual(await a.sync.sync(), { status: "uploaded", revision: 2 }, "A uploads the second edit to A's cloud");
+  // B's local save is H3 and B's cloud is still H2 at rev 1, so B must upload revision 2 to B's cloud.
+  // With per-slot bookkeeping A's upload overwrote the shared entry with rev 2 and B is told "cloud-newer".
+  assert.deepEqual(await asB.sync(), { status: "uploaded", revision: 2 });
+  assert.equal(cloudB.rows.get("career").revision, 2);
+  assert.match(cloudB.rows.get("career").data, /"n":3/);
+});
+
 test("a guest save (no account) never leaves the device, and nothing is even asked of the server", async () => {
   const cloud = createFakeCloud();
   let calls = 0;
