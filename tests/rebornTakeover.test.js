@@ -18,7 +18,7 @@ import {
   describeTakeoverOutcome,
 } from "../js/ui/reborn/takeover.js";
 import { createRebornState, buildPlayerCard, REBORN_TEAM_IDS } from "../js/reborn/identity.js";
-import { rosterCards, attemptTakeover } from "../js/reborn/season.js";
+import { CHOICE_IDS, rosterCards, attemptTakeover } from "../js/reborn/season.js";
 
 const ROWS = JSON.parse(
   readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8"),
@@ -177,4 +177,13 @@ test("R7: a coach or GM root is refused at the takeover entry, before any dialog
   // no root: the Classic GM+Coach holds everything, as before
   const classic = await askTakeover({ sim, playerId: clone.id, onAsk: async () => "drive" });
   assert.equal(classic.actionHint, "attack");
+});
+
+test("every choice the season can play is one the player can answer with (the UI reads the season's list, not its own copy)", async () => {
+  const { sim, clone } = eligibleSim();
+  const context = { decisionId: "x|1", options: [] };
+  for (const id of CHOICE_IDS) {
+    assert.deepEqual(await askTakeover({ sim, playerId: clone.id, onAsk: async () => id, context }), { choiceId: id }, `answering ${id}`);
+  }
+  assert.ok(CHOICE_IDS.includes("feed") && CHOICE_IDS.includes("gamble"), "the PA3 choices are in");
 });

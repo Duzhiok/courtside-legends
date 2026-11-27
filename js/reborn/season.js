@@ -28,7 +28,7 @@ import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, teamCoach } from "./agency.js";
 import { askTier, createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
 import { DEFENSE_COOLDOWN, MIN_DEFENSE_STAKES, buildDefenseContext, defenseExecution, playGamblePossession } from "./defense.js";
-import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
+import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleFeed, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
 import { rosterCode } from "./franchises.js";
 import { applyGameGrowth } from "./training.js";
 import { activeSpecialty, earnFromGame, fragmentLedger, intensiveMultiplier } from "./fragments.js";
@@ -104,8 +104,10 @@ export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW
 }
 
 /** Which kind of possession each non-shot agency choice plays (anything else is "keep reading"). */
-const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen", spot: "spot", gamble: "defense", stay: "defense" };
-const PLAYED_KINDS = ["plan", "audible", "pass", "screen", "spot", "defense"];
+const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen", spot: "spot", feed: "feed", gamble: "defense", stay: "defense" };
+/** Every choice a decision can be answered with besides the two personal moves. The UI's answer check reads THIS list (one source). */
+export const CHOICE_IDS = Object.freeze(["pass", ...Object.keys(CHOICE_KIND)]);
+const PLAYED_KINDS = ["plan", "audible", "pass", "screen", "spot", "feed", "defense"];
 
 /**
  * Ask the hook for a takeover decision and submit it through the M2b
@@ -147,7 +149,7 @@ export async function attemptTakeover(sim, playerId, onTakeover, window = DEFAUL
 function playChoicePossession(sim, takeover) {
   const youKey = sim.youSide;
   const before = sim.score[youKey];
-  const call = takeover.kind === "plan" ? takeover.context.coachInstruction : takeover.kind === "audible" ? takeover.context.audible : null;
+  const call = { plan: takeover.context?.coachInstruction, audible: takeover.context?.audible, feed: takeover.context?.feedOffer }[takeover.kind] || null;
   const saved = { auto: sim.autoOffense, focusPlay: sim.focusPlay ? { ...sim.focusPlay } : null, offenseFocusId: sim.offenseFocusId };
   if (call) {
     sim.autoOffense = false;
@@ -212,6 +214,22 @@ function playSpotChoice(sim, t, playerId, agency) {
 }
 
 /**
+ * PA3.1: a teammate asked for the ball and you gave it to him: the same engine play as your own call-up (`setFocusPlay` +
+ * `setOffenseFocus`, restored), with his own shot read back from the sim as the evidence.
+ */
+function playFeedChoice(sim, t) {
+  const offer = t.context.feedOffer;
+  const you = sim.youSide === "home" ? sim.home : sim.away;
+  const mate = you.roster.find((p) => p.id === offer.teammateId);
+  const stat = (k) => mate?.stats?.[k] || 0;
+  const before = { fga: stat("fga"), fgm: stat("fgm"), pts: stat("pts") };
+  const points = playChoicePossession(sim, t);
+  t.run = { shot: stat("fga") > before.fga, made: stat("fgm") > before.fgm, points: stat("pts") - before.pts };
+  t.teammate = { offer, proposed: false };
+  return points;
+}
+
+/**
  * S3a: the defensive gamble. "Stay home" runs nothing (the possession plays on the team's own defense at the next step);
  * "gamble" runs ONE opposing possession with his focus all-out, then restores it. The evidence is his own steal / foul.
  */
@@ -226,7 +244,7 @@ function playDefenseChoice(sim, t, playerId) {
 /** Play the possession a non-shot agency choice covers and record its points on the choice (the evidence it is graded on). */
 function playChoice(sim, t, playerId, agency) {
   if (!PLAYED_KINDS.includes(t?.kind)) return;
-  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : t.kind === "spot" ? playSpotChoice(sim, t, playerId, agency) : t.kind === "defense" ? playDefenseChoice(sim, t, playerId) : playChoicePossession(sim, t);
+  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : t.kind === "spot" ? playSpotChoice(sim, t, playerId, agency) : t.kind === "defense" ? playDefenseChoice(sim, t, playerId) : t.kind === "feed" ? playFeedChoice(sim, t) : playChoicePossession(sim, t);
 }
 
 /**
@@ -462,10 +480,12 @@ export async function playGame(
   next.player.rotationRole = roleAfter;
   // PA3: what the screens you called really did (GameSim's points / turnover), settled into the run once per game and
   // teammate. A teammate who said no is reported but moves nothing.
-  const screens = [takeover, ...extras].filter((t) => (t?.kind === "screen" || t?.kind === "spot") && t.teammate);
+  const screens = [takeover, ...extras].filter((t) => (t?.kind === "screen" || t?.kind === "spot" || t?.kind === "feed") && t.teammate);
   const mateEvidence = screens
     .filter((t) => t.accepted)
-    .map((t) => (t.kind === "spot"
+    .map((t) => (t.kind === "feed"
+      ? settleFeed({ decisionId: t.context.decisionId, offer: t.teammate.offer, run: t.run, critical: !t.context.routine })
+      : t.kind === "spot"
       ? settleSpot({ decisionId: t.context.decisionId, offer: t.teammate.offer, run: t.run, critical: !t.context.routine })
       : settleScreen({ decisionId: t.context.decisionId, offer: t.teammate.offer, points: t.points || 0, turnover: !!t.turnover, critical: !t.context.routine, proposed: t.teammate.proposed })));
   const mates = recordTeammateEvidence(reborn, gameId, mateEvidence);

@@ -18,6 +18,7 @@ import { requireCapability } from "../../career/careerGuards.js";
 import { mountScreen } from "../screenShell.js";
 import { agencyDialogHtml, participationBarHtml } from "./agencyView.js";
 import { showAskBubble } from "./bubble.js";
+import { CHOICE_IDS } from "../../reborn/season.js";
 
 /** The three takeover options. `pass` declines the moment (no decision). */
 export const TAKEOVER_OPTIONS = Object.freeze([
@@ -85,7 +86,7 @@ export async function askTakeover({ sim, playerId, onAsk, root, context = null }
   if (!opened.ok) return null;
   const choice = await onAsk({ sim, playerId, options: TAKEOVER_OPTIONS, context });
   // Player Agency: the coach's call and patience are choices the driver plays through the offense (season.js).
-  if (context && ["follow", "pass", "setup", "screen", "screenAlt", "spot", "gamble", "stay"].includes(choice)) return { choiceId: choice };
+  if (context && CHOICE_IDS.includes(choice)) return { choiceId: choice };
   const decision = takeoverDecisionFor(choice);
   if (!decision) return null;
   const selected = controller.select(playerId, decision.actionHint);
@@ -178,7 +179,7 @@ export function showTakeoverDialog({ sim, playerId, lang = "zh", context = null,
       else if (event.target === shell.el || event.target === shell.body) done(null);
     });
     document.addEventListener("keydown", onKey, true);
-    if (context?.tier === "L2") shell.el.dataset.tier = "L2"; // docks to the bottom (css/screenShell.css)
+    if (context?.tier) shell.el.dataset.tier = context.tier; // L2 docks to the bottom, L3 centres; both scroll when taller than the screen (css/reborn.css)
     // Set the body before opening: the shell focuses the first option on activation.
     shell.body.innerHTML = takeoverDialogHtml({ sim, playerId, lang, context, mode });
     shell.open();

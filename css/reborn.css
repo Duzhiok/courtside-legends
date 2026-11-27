@@ -44,7 +44,12 @@
 
 /* PA3 levels. L2: the compact panel docks to the bottom instead of centring a full card. L1: the bubble, a small floating line
    that never covers the court and never takes focus. */
-.screen-shell-modal.active[data-tier="L2"] { align-items: flex-end; }
+/* The overlay host scrolls on its own, but flex centring / end-aligning puts the overflow ABOVE the top edge, where no scroll can reach
+   it (the teammate card's title was cut off on a phone). Auto margins do the same job when it fits - centred (L3) or docked to the
+   bottom (L2) - and start at the top, scrollable, when it does not. Never align-items: center | flex-end on a tier modal. */
+.screen-shell-modal.active[data-tier] { flex-direction: column; justify-content: flex-start; align-items: stretch; }
+.screen-shell-modal[data-tier] .screen-shell-body { margin: auto; }
+.screen-shell-modal[data-tier="L2"] .screen-shell-body { margin: auto auto 0; }
 .screen-shell-modal[data-tier="L2"] .reborn-agency { max-width: 520px; margin: 0 auto; padding: 14px 16px; }
 .reborn-agency-readline { margin: 6px 0 0; color: var(--muted); font-weight: 600; line-height: 1.35; }
 

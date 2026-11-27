@@ -131,6 +131,7 @@ async function session(width, height, tag, seedNo, ev) {
     localStorage.clear();
     sessionStorage.clear();
     localStorage.setItem("courtside.lang", l);
+    localStorage.setItem("cls_guide_first_run_v1", "seen"); // a clean profile opens the first-run guide, which covers the page
     const account = { id: "qa-tiers", name: "QA", createdAt: Date.now(), playerIds: [], coachIds: [], cardMods: {}, coachId: null, tacticId: "balanced", lastDailyDraw: null, drawHistory: [], gold: 0, rankedWins: 0, rankedLosses: 0 };
     localStorage.setItem("cls_accounts_v1", JSON.stringify({ accounts: [account] }));
     localStorage.setItem("cls_active_account", "qa-tiers");

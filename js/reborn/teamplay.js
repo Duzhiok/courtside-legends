@@ -27,7 +27,7 @@ export const REL_DELTA = Object.freeze({ screenScored: 0.5, highLeverageScored: 
  * The two PA3 options. They are GRADED like any other option but are never part of the baseline the old options are graded
  * against (the median, the blurred read, PA2's "is there a real opening" gap): adding teammates must not move PA1/PA2.
  */
-export const TEAM_OPTIONS = Object.freeze(["screen", "screenAlt", "spot"]);
+export const TEAM_OPTIONS = Object.freeze(["screen", "screenAlt", "spot", "feed"]);
 export const withoutTeamOptions = (values) => Object.fromEntries(Object.entries(values || {}).filter(([k]) => !TEAM_OPTIONS.includes(k)));
 
 /** No time left to run a pick and roll (the same cut-off agency.js uses for "keep reading"). */
@@ -231,6 +231,29 @@ export function settleSpot({ decisionId, offer, run, critical = false }) {
     made: run.made,
     turnover: false,
     delta: fed ? (critical ? REL_DELTA.highLeverageScored : REL_DELTA.screenScored) : 0,
+    reason,
+  };
+}
+
+/**
+ * PA3.1: a teammate asked for the ball and you gave it. He asked, so there is no acceptance roll. Only a real score by him moves
+ * chemistry (+0.5, +1.0 in a clutch possession); a miss or no touch costs nothing - the read was still fair.
+ */
+export function settleFeed({ decisionId, offer, run, critical = false }) {
+  const reason = run.made ? "scored" : run.shot ? "missed" : "none";
+  return {
+    id: `${decisionId}|feed|${offer.personId}`,
+    kind: "feed",
+    teammateId: offer.teammateId,
+    personId: offer.personId,
+    name: offer.name,
+    nameEn: offer.nameEn,
+    pos: offer.pos,
+    points: run.points,
+    shot: run.shot,
+    made: run.made,
+    turnover: false,
+    delta: run.made ? (critical ? REL_DELTA.highLeverageScored : REL_DELTA.screenScored) : 0,
     reason,
   };
 }

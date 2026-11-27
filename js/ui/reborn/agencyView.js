@@ -60,8 +60,23 @@ function mateCard(offer, lang) {
   return `<div class="reborn-agency-card reborn-agency-mate" data-testid="teammate-offer"><b>${T("队友交流", "Teammate", lang)} · ${name}${T(`（${esc(offer.pos || "")}）`, ` (${esc(offer.pos || "")})`, lang)}</b><p>「${mateLine(offer, lang)}」</p><small>${T("他愿意为你掩护；也可以提出另一种打法，但他不一定答应。", "He is ready to screen for you; you can ask for another way, but he may say no.", lang)}</small></div>`;
 }
 
+/** What a big says when his post matchup beats the rest of the floor's. The only "why" is a rating comparison against his actual defender. */
+function feedLine(offer, lang) {
+  const against = offer.against ? esc(lang === "en" ? offer.against.nameEn || offer.against.name : offer.against.name) : null;
+  return against ? T(`${against} 防我吃力，禁区这边我占优，把球给我。`, `${against} struggles with me inside - give me the ball.`, lang) : T("禁区对位我占优，把球给我。", "I've got the matchup inside - give me the ball.", lang);
+}
+function feedCard(offer, lang) {
+  if (!offer) return "";
+  const name = esc(lang === "en" ? offer.nameEn || offer.name : offer.name);
+  return `<div class="reborn-agency-card reborn-agency-mate" data-testid="feed-offer"><b>${T("队友要球", "A teammate wants it", lang)} · ${name}${T(`（${esc(offer.pos || "")}）`, ` (${esc(offer.pos || "")})`, lang)}</b><p>「${feedLine(offer, lang)}」</p><small>${T("给他球，他的出手机会会多很多；不保证进，也不保证全队得分更高。", "Give it to him and he shoots far more; it is no promise it falls, or that the team scores more.", lang)}</small></div>`;
+}
+
 function optionLabel(id, context, lang) {
   const offer = context.offer;
+  if (id === "feed") {
+    const who = esc(lang === "en" ? context.feedOffer.nameEn || context.feedOffer.name : context.feedOffer.name);
+    return [T("队友要球", "A teammate wants it", lang), T(`把球交给 ${who}（禁区对位占优），不保证进`, `Get the ball to ${who} (he has the matchup inside), no promise it falls`, lang)];
+  }
   if (id === "spot") {
     const who = esc(lang === "en" ? context.spotOffer.nameEn || context.spotOffer.name : context.spotOffer.name);
     return [T("无球要球", "Off the ball", lang), T(`站到外线要球，请 ${who} 找你（他可能不答应，也不保证传给你）`, `Spot up and ask ${who} to find you (he may say no, and the ball is not guaranteed)`, lang)];
@@ -139,7 +154,7 @@ export function agencyDialogHtml({ sim, lang = "zh", context, mode = null, compa
   return `<div class="reborn-takeover-dialog reborn-agency" role="dialog" aria-modal="true" aria-label="${T("关键回合", "Takeover moment", lang)}">`
     + `<h2>${context.routine ? T("这一回合，你想怎么打", "This possession: your call", lang) : T("关键回合，你决定怎么打", "Clutch possession: your call", lang)}</h2>`
     + `<p class="reborn-takeover-situation">${q <= 4 ? `Q${q}` : `OT${q - 4}`} ${mmss} · ${score[youSide]} – ${score[oppSide]}</p>`
-    + (compact ? `<p class="reborn-agency-readline">${observationLine(context.observation, lang)}</p>` : coachCard) + mateCard(context.offer, lang) + (compact ? "" : readCard)
+    + (compact ? `<p class="reborn-agency-readline">${observationLine(context.observation, lang)}</p>` : coachCard) + mateCard(context.offer, lang) + feedCard(context.feedOffer, lang) + (compact ? "" : readCard)
     + `<div class="reborn-takeover-options">${buttons}</div>`
     + (mode ? participationBarHtml(mode, lang) : "")
     + (compact ? "" : `<p class="reborn-takeover-hint">${T(`你的战术自主权：${tier.zh}。好判断会赢得更多自由；盲目出手失败会让教练收紧。`, `Your autonomy: ${tier.en}. Good reads earn freedom; reckless misses make the coach tighten up.`, lang)}</p>`)
@@ -148,7 +163,7 @@ export function agencyDialogHtml({ sim, lang = "zh", context, mode = null, compa
 
 const BUBBLE_SHORT = {
   follow: ["执行战术", "Run the call"], drive: ["突破", "Drive"], pullup: ["跳投", "Pull-up"], pass: ["传球", "Pass"],
-  setup: ["自己布置", "Set one up"], screen: ["接受挡拆", "Take the screen"], screenAlt: ["换种打法", "Another way"], spot: ["要球", "Ask for it"],
+  setup: ["自己布置", "Set one up"], feed: ["给他球", "Feed him"], screen: ["接受挡拆", "Take the screen"], screenAlt: ["换种打法", "Another way"], spot: ["要球", "Ask for it"],
   gamble: ["赌抢断", "Gamble"], stay: ["稳守", "Stay home"],
 };
 
@@ -158,7 +173,7 @@ const BUBBLE_SHORT = {
  */
 export function agencyBubbleHtml({ lang = "zh", context }) {
   const defense = context.side === "defense";
-  const line = defense ? defenseFactsLine(context.facts, lang) : context.offer ? `「${mateLine(context.offer, lang)}」` : observationLine(context.observation, lang);
+  const line = defense ? defenseFactsLine(context.facts, lang) : context.feedOffer ? `「${feedLine(context.feedOffer, lang)}」` : context.offer ? `「${mateLine(context.offer, lang)}」` : observationLine(context.observation, lang);
   const chips = context.options.map((id, i) => {
     const [zh, en] = BUBBLE_SHORT[id] || [id, id];
     const label = defense ? defenseOptionList(lang).find(([k]) => k === id)?.[2] : optionLabel(id, context, lang)[1];
@@ -212,6 +227,11 @@ export function describeTeamplayFeedback(teamplay, lang = "zh") {
   const nameOf = (x) => esc(lang === "en" ? x.nameEn || x.name : x.name);
   const lines = teamplay.items.map((i) => {
     const who = nameOf(i);
+    if (i.kind === "feed") {
+      if (i.reason === "scored") return T(`你把球交给了 ${who}，他打成了（${i.points} 分）。`, `You got the ball to ${who} and he finished it (${i.points} pts).`, lang);
+      if (i.reason === "missed") return T(`你把球交给了 ${who}，他没有投进，这个判断本身没有问题。`, `You got the ball to ${who}; it did not fall, but it was a fair read.`, lang);
+      return T(`你把球交给了 ${who} 的位置，这一回合他没有拿到出手机会。`, `You went to ${who}; he did not get a shot off this possession.`, lang);
+    }
     if (i.kind === "spot" && !i.rejected) {
       if (i.reason === "fed") return T(`你站好位置，${who} 把球给了你，打成了（${i.points} 分）。`, `You spotted up, ${who} found you and it fell (${i.points} pts).`, lang);
       if (i.reason === "shot") return T(`你要到了球，拿到出手机会，${i.made ? `打成了（${i.points} 分）` : "没有投进"}。`, `You got the ball and a shot${i.made ? ` (${i.points} pts)` : ", it did not fall"}.`, lang);

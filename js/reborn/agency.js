@@ -134,8 +134,45 @@ function bestSetup(sim, playerId, two) {
   return top;
 }
 
+/**
+ * PA3.1 "mismatch inside": a BIG asks for the post touch when his matchup is better than the rest of the floor's and his look is
+ * better than yours. Why only bigs: the engine's focus plays boost by category, not by man (`iso_star` the top scorer, `hunt_mismatch`
+ * only 80+ scorers, `post_up` C/PF x1.45 and the paint), so for a wing "give me the ball" measured as nothing (shot rate .26 -> .28)
+ * and is NOT offered. For a big in the post it is real: measured over 8380 possessions, in the 4.2% where it is asked he shoots on
+ * 18% of possessions without it and 35% with it, and scores 0.25 -> 0.57 points a possession. The team's total is not promised.
+ * A rating gap against his defender is positive for almost everybody (the median is +20), so "mismatch" is relative: his gap must beat
+ * the average of the other four's (strictly, so a floor of equals asks for nothing). Null otherwise: a teammate who always asks says
+ * nothing (first cut: every possession, and one star every time, until the numbers were read).
+ */
+export const FEED_MARGIN = 0;
+export const FEED_EDGE = 0.1;
+function feedOffer(sim, playerId, two) {
+  const { you, opp } = sides(sim);
+  if (!you.onCourt.some((p) => p.id === playerId) || sim.clock < 8) return null;
+  const rows = you.onCourt.map((t) => {
+    const l = looks(t, opp);
+    const inside = Math.max(l.rim * two, l.post * two);
+    return { t, l, inside, post: l.three < inside, own: Math.max(l.three, l.rim * two), gap: r(t, "paint") - r(l.defender, "defense") };
+  });
+  const mine = rows.find((x) => x.t.id === playerId);
+  let top = null;
+  for (const x of rows) {
+    if (x.t === mine.t || !x.post || !["C", "PF"].includes(x.t.pos)) continue;
+    const others = rows.filter((y) => y !== x);
+    const margin = x.gap - others.reduce((sum, y) => sum + y.gap, 0) / others.length;
+    if (margin > FEED_MARGIN && x.inside >= mine.own + FEED_EDGE && (!top || margin > top.margin)) top = { ...x, margin };
+  }
+  if (!top) return null;
+  const { t, l } = top;
+  return {
+    kind: "feed", teammateId: t.id, targetId: t.id, personId: t.bref || t.id, name: t.name, nameEn: t.nameEn || t.name, pos: t.pos, iq: Number(t.iq) || 50,
+    value: top.inside, focusId: "post_up",
+    against: l.defender ? { name: l.defender.name, nameEn: l.defender.nameEn || l.defender.name } : null,
+  };
+}
+
 /** Expected points per option, from the floor as it stands before anyone moves. `offer` = a teammate's screen (PA3). */
-export function optionValues(sim, playerId, instruction, offer = null, spot = null) {
+export function optionValues(sim, playerId, instruction, offer = null, spot = null, feed = null) {
   const { you, opp } = sides(sim);
   const me = you.onCourt.find((p) => p.id === playerId);
   const two = twoDiscount(sim);
@@ -161,6 +198,8 @@ export function optionValues(sim, playerId, instruction, offer = null, spot = nu
   values.pass = sim.clock < 8 ? 0.7 : 1.0 * (two < 1 ? 0.8 : 1);
   // S2: asking for the catch lifts his share of the touches (measured 14.7% -> 19.6%), so it is mostly the normal flow plus a slice of his own look.
   if (spot) values.spot = 0.8 * values.pass + 0.2 * mine.three;
+  // PA3.1: the ball goes to the man who asked: his own look (what the engine's own matchup says it is worth).
+  if (feed) values.feed = feed.value;
   return values;
 }
 
@@ -190,8 +229,10 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
   const instruction = calls ? coachInstruction(sim, coach, playerId) : null;
   const offer = screenOffer(sim, playerId); // PA3: a teammate who can set a real screen right now (null when none / no time)
   const spot = spotOffer(sim, playerId); // S2: a teammate he can ask to find him (null when no time)
-  const values = optionValues(sim, playerId, instruction, offer, spot);
-  const audible = autonomy >= AUDIBLE_AT ? bestSetup(sim, playerId, twoDiscount(sim)) : null;
+  const feed = feedOffer(sim, playerId, twoDiscount(sim)); // PA3.1: a teammate who is clearly better placed asks for the ball (null when nobody is)
+  const values = optionValues(sim, playerId, instruction, offer, spot, feed);
+  const own = autonomy >= AUDIBLE_AT ? bestSetup(sim, playerId, twoDiscount(sim)) : null;
+  const audible = own && feed && own.targetId === feed.targetId ? null : own; // the same man twice would be two buttons for one play: his voice wins
   if (audible) values.setup = audible.value;
   const { you } = sides(sim);
   const target = instruction ? you.onCourt.find((p) => p.id === instruction.targetId) : null;
@@ -204,7 +245,8 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
     audible: audible ? { targetId: audible.targetId, targetName: audible.targetName, focusId: audible.focusId } : null,
     offer: values.screen != null ? offer : null,
     spotOffer: values.spot != null ? spot : null,
-    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), ...(values.screen != null ? ["screen", "screenAlt"] : []), ...(values.spot != null ? ["spot"] : []), "pass"],
+    feedOffer: values.feed != null ? feed : null,
+    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), ...(values.feed != null ? ["feed"] : []), ...(values.screen != null ? ["screen", "screenAlt"] : []), ...(values.spot != null ? ["spot"] : []), "pass"],
     values,
     playerState: { trust, autonomy, iq },
   };

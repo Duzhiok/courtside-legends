@@ -4,6 +4,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { GameSim } from "../js/engine/sim.js";
 import { seededStream } from "../js/core/seededRandom.js";
 import { realTeam } from "./helpers/realGame.js";
@@ -196,4 +197,12 @@ test("9. WCAG 2.2.1: hovering pauses the countdown, leaving restarts it; typing 
 
 test("10. with no document (headless) a bubble resolves null at once and never hangs a game", async () => {
   assert.equal(await showAskBubble({ context: ctxFor(), doc: null }), null);
+});
+
+test("a tier modal never aligns with flex-end / center: overflow above the top edge cannot be scrolled to (a card title was cut off on a phone)", () => {
+  const css = readFileSync(new URL("../css/reborn.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [...css.matchAll(/([^{}]*\[data-tier[^{}]*)\{([^}]*)\}/g)];
+  assert.ok(rules.length >= 3, `the tier rules are found (${rules.length})`);
+  for (const [, selector, body] of rules) assert.ok(!/align-items:\s*(center|flex-end)/.test(body), `${selector.trim()} must use auto margins`);
+  assert.ok(rules.some(([, selector, body]) => /\[data-tier\] \.screen-shell-body/.test(selector) && /margin:\s*auto/.test(body)), "the body centres with an auto margin");
 });
