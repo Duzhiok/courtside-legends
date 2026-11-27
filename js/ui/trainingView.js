@@ -122,6 +122,17 @@ export function createTrainingScreen({ root, getAccount, pool, getLang = () => "
   /** 1 Hz: update countdown text/bars in place (a full repaint would eat clicks); repaint only when a session finishes. */
   let readyCount = 0;
   function tick() {
+    // B135 follow-up (4): the timer is only disposed on the back button, so
+    // leaving via any other path (Escape / top-left back go through
+    // handleBack -> goBack with no training case) used to leave it ticking
+    // forever — screens are hidden by dropping .active, never removed from
+    // the DOM, so the [data-tc-slots] guard below never fires off-screen.
+    // Stop ourselves on the first tick after the screen went inactive.
+    if (!root.classList.contains("active")) {
+      clearInterval(timer);
+      timer = null;
+      return;
+    }
     const acc = getAccount();
     if (!acc || !$("[data-tc-slots]")) return;
     const { now: at, lang } = ctx();
