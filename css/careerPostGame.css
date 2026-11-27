@@ -29,7 +29,11 @@
   background: var(--paper);
   border: 1px solid var(--line);
 }
-.pg-rank { font-family: var(--font-display); font-size: 1.2rem; color: var(--accent); text-align: center; }
+/* B133 follow-up ①: the rank digit is 1.2rem (19.2px) at weight 400, so it is normal text under
+   WCAG — the 3:1 large-text bar does not apply and the accent orange #e85d04 scores only 3.05:1
+   on the paper row (#f3efe4). This scoped darker orange (#a33f00, 5.59:1) keeps the orange
+   identity; --accent itself is untouched (used by buttons/outlines elsewhere). */
+.pg-rank { font-family: var(--font-display); font-size: 1.2rem; color: #a33f00; text-align: center; }
 .pg-who { display: grid; min-width: 0; font-size: .82rem; }
 .pg-who strong { font-size: .92rem; overflow-wrap: anywhere; }
 .pg-who span { color: #374151; }

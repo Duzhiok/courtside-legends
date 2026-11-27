@@ -151,7 +151,7 @@ async function looks(page, tag, label, c) {
   check(`[${tag}] ${label}: no horizontal overflow`, await noOverflow(page), (await overflowers(page)).join(" | "));
   check(`[${tag}] ${label}: stars, then highlights, then growth`, c.ordered);
   check(`[${tag}] ${label}: every section title has air above it (>= 8px)`, c.gaps.every((g) => g >= 8), c.gaps.map((g) => Math.round(g)).join(","));
-  const lows = await lowContrast(page, "#result-rewards", [".pg-buzz", ".pg-hotnote", ".pg-hl .pg-who span", ".pg-more", ".pg-section-title", ".pg-who strong", ".pg-verdict strong", ".pg-kicker"]);
+  const lows = await lowContrast(page, "#result-rewards", [".pg-buzz", ".pg-hotnote", ".pg-hl .pg-who span", ".pg-more", ".pg-section-title", ".pg-who strong", ".pg-verdict strong", ".pg-kicker", ".pg-rank"]);
   check(`[${tag}] ${label}: text in the new blocks is AA contrast (>= 4.5)`, lows.length === 0, lows.join(" | "));
   check(`[${tag}] ${label}: the card settled fully visible`, c.opacity === "1", c.opacity);
 }
