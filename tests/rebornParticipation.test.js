@@ -55,7 +55,18 @@ test("the gate paces non-clutch asks (gap + cap) and follows a mode changed mid-
   assert.equal(gate.ask({}), true);
   const capped = P.createDecisionGate({ getMode: () => "key" });
   let n = 0; for (let i = 0; i < 200; i++) if (capped.ask({ critical: true })) n++;
-  assert.equal(n, P.MODE_PACING.key.max);
+  assert.equal(n, 7); // literal: key.max — the old read of MODE_PACING.key.max stayed green when max moved
+});
+
+test("MODE_PACING's four tiers are pinned by literal value, so a silent retune turns red", () => {
+  // B154 note (c): key.max=7 was only covered by a test that read the constant back,
+  // so max 7→3 passed the suite. Pin gap/max/target for every tier as literals.
+  assert.deepEqual(P.MODE_PACING, {
+    auto: { gap: Infinity, max: 0, target: "0" },
+    key: { gap: 6, max: 7, target: "3–8" },
+    high: { gap: 3, max: 25, target: "12–25" },
+    full: { gap: 0, max: 90, target: "∞" },
+  });
 });
 
 async function asksPerGame(mode, { onTakeover, seeds = [1, 2, 3, 4] } = {}) {
@@ -75,7 +86,7 @@ test("on real games the modes are ordered auto < key < high < full, and auto ask
   const [auto, key, high, full] = [await mean("auto"), await mean("key"), await mean("high"), await mean("full")];
   assert.equal(auto, 0);
   assert.ok(auto < key && key < high && high < full, JSON.stringify({ auto, key, high, full }));
-  assert.ok(key <= P.MODE_PACING.key.max && high <= P.MODE_PACING.high.max);
+  assert.ok(key <= 7 && high <= 25); // literal caps: key.max 7, high.max 25
 });
 
 test("a game without participation is the classic one clutch ask (old callers and saves)", async () => {
