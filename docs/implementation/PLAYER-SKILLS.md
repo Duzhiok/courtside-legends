@@ -70,11 +70,22 @@ Cooldowns in **own possessions**, not real time (the game pauses, speeds up and 
 7. **Where the player sees it.** Reborn has no live court, so a stamina / meter HUD has no screen. M1 puts a ready move into the existing decision prompts (L1 bubble / L2 / L3) as one option, e.g. "Dream Shake · stamina −8"; cooldown and stamina show on the identity card. A live HUD is a separate product decision.
 8. **Naming.** Do not call the meter "Takeover" inside Reborn.
 
-## 5. Proposed M1 slice (after Critical Moments)
+## 4b. Who could use an active move today — almost nobody (measured)
+
+Reborn identities are 70% historical bench players (mpg < 12) and 30% generated prospects; a card's skills are its innate roster skills plus what it awakens. Measured over 400 drawn identities (`drawIdentity` + `buildPlayerCard` on `roster.json`): **5 (1.3%) carry any offensive signature move, all `teardrop`.** The awakening path grants `rim_protector`, `glass_cleaner`, `dime_dropper`, `clutch_killer` (none is a signature move) and `stepback` — the only offensive signature it could grant, and the one blocked for lack of shot-type evidence.
+
+**So an "activate your signature move" M1 would be invisible to ~99% of Reborn players.** Acquisition has to come before activation:
+
+- **M1a — evidence + earning (first):** engine counters a career can read (per-player shot zone attempts/makes, signature uses/makes), which unblock `stepback` and allow 2–3 evidence-based offensive awakenings (for example a post move from real paint makes against a defender, a mid-range move from real mid makes). Rules follow the awakening principle: the action's own stat, never points. Needs the owner's call on which moves and which evidence.
+- **M1b — activation:** the slice below, once a meaningful share of players can own a move.
+
+## 5. Proposed M1b slice (after M1a and Critical Moments)
 
 One move end to end, then widen to 6–8: the Reborn player owns `dream_shake` (or whichever awakening gives him) → when ready, the decision prompt offers it → the seam fires it for that possession through the normal shot code → fatigue cost and cooldown in own possessions → real result in the post-game report → per-game cap holds. Tests: seam off = identical games, seam on fires exactly once and clears, cap and cooldown hold, random proc is off for an equipped move, measured uses/game and pts/game within the agreed budget; one desktop + mobile smoke.
 
 ## 6. Decisions for the owner
+
+0. **Re-sequence: M1a (earn moves from real evidence) before M1b (activate them)** — because today ~99% of Reborn players own no offensive signature move. Which 2–3 moves to make earnable first, and from which evidence.
 
 1. Budget factor over today's 1.26 uses per owner-game (suggest ≤ 2×) and whether it is charges per game or a long cooldown.
 2. Lv1 strength relative to today's proc (suggest weaker; Lv5 = today).
