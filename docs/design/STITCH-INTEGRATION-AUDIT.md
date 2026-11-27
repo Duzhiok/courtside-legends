@@ -29,7 +29,7 @@ Status: audit done; **partially unblocked 2026-11-26** — the Stitch token expo
 ## First screen: Starting Lineup + Tactics (`#screen-setup`)
 Contracts to preserve (JS reads them): `#setup-roster`, `#setup-pos-note`, `#setup-ball-note`, `#setup-scout-wrap`,
 `#setup-goals`, `#setup-matchup-board`, `#setup-rotation-bar`, `#setup-skill-panel` (+ shop/inventory/hint),
-`#setup-tactics-board` (mounted by `js/ui/tactics/tacticsBoardView.js`, styled by `css/tacticsBoard.css`, 69 lines),
+`#setup-tactics-board` (mounted by `app.js` `mountSetupTacticsBoard()` — gold gate + `#setup-tactics-board` lookup + destroy/re-mount + `syncStarters` — which calls `mountTacticsBoard(root, …)` from `js/ui/tactics/tacticsBoardView.js`; styled by `css/tacticsBoard.css`, 69 lines),
 `#btn-start-game` / confirm bar, drag/drop seat targets, `data-*` hooks of `setupRosterView.js`. Seating logic
 (`lineupSlots.js`), tactical draft state (`tacticalDraft.js`), PnR plan (`gameplan.pnr`) and GameSim are untouched by a
 visual pass. All numbers on screen (OVR, fit/"化学反应", minutes, prices) come from the live model, never from Stitch samples.
