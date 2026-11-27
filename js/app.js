@@ -426,6 +426,7 @@ import { mountTacticsBoard } from "./ui/tactics/tacticsBoardView.js";
 import { createMatch3dController } from "./ui/match3dController.js";
 import { createArenaCues } from "./match/presentation/arenaCues.js";
 import { PLAY_NOW_TIP_KEY, markTipSeen, shouldShowTip } from "./ui/firstRunTip.js";
+import { openFirstRunGuide, shouldShowGuide } from "./ui/firstRunGuide.js";
 import {
   SEASON_MAX_ROSTER,
   SEASON_MIN_ROSTER,
@@ -1905,6 +1906,14 @@ $("#btn-play-now-tip-ok")?.addEventListener("click", () => {
   if (tip) tip.hidden = true;
 });
 
+// First-run game guide (B97 follow-up): re-open from the home utility row.
+// Auto-show on first entry is driven from boot(), after home paints.
+$("#btn-open-guide")?.addEventListener("click", () => {
+  openFirstRunGuide($("#first-run-guide-dialog"), globalThis.localStorage, {
+    howtoDialog: $("#howto-dialog"),
+  });
+});
+
 /** A new play flow (mode start): its saves are stamped with this id, see sessionSaveIsCurrentFlow. */
 let flowSeq = 0;
 function beginFlow() {
@@ -3022,6 +3031,12 @@ function cancelOnboarding() {
 }
 
 function startOnboarding(acc) {
+  // The first-run guide is modal, so the wizard cannot open under it through
+  // the UI — but close it defensively so two first-run overlays never stack.
+  // Closing marks the guide seen (its close handler); it stays re-openable
+  // from the home "新手指南" button.
+  const guide = $("#first-run-guide-dialog");
+  if (guide?.open) guide.close();
   const from = activeScreenName();
   if (from !== "onboard") onboardReturnScreen = from === "account" ? accountReturnScreen : from;
   // Opening draws: 5 cards, one per position, pure random, no pity. Drawn
@@ -12180,10 +12195,24 @@ async function boot() {
       "draft-gamble": { later: () => draftGambleView.open() },
       network: { later: (board) => networkView.open(board) },
     };
-    for (const { key, arg } of devEntriesFromSearch(location.search)) {
+    const devEntries = devEntriesFromSearch(location.search);
+    for (const { key, arg } of devEntries) {
       devEntryActions[key].now?.();
       setTimeout(() => { devEntryActions[key].later(arg); }, DEV_ENTRY_DELAY_MS);
     }
+    // First-run game guide: one quick intro the first time the player lands
+    // on home. Home paints at 200ms and dev entries at 250ms, so 400ms is
+    // safely after both. Never over a dev entry, the account onboarding
+    // wizard, or any other screen — if anything else took over, skip it and
+    // let the home "新手指南" button be the way back in.
+    setTimeout(() => {
+      if (devEntries.length) return;
+      if (activeScreenName() !== "home") return;
+      if (!shouldShowGuide(globalThis.localStorage)) return;
+      openFirstRunGuide($("#first-run-guide-dialog"), globalThis.localStorage, {
+        howtoDialog: $("#howto-dialog"),
+      });
+    }, 400);
   } catch (e) {
     console.error(e);
     const quotaError = /quota|storage quota|存储空间/i.test(e?.message || "");

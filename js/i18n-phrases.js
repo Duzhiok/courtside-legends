@@ -557,6 +557,7 @@ export const PHRASES = [
   ["均衡角色（推荐）", "Balanced Roles (recommended)"],
   ["完全随机", "Fully Random"],
   // Legends Gallery footer cleanup: How to Play / About dialogs on the home screen.
+  ["新手指南", "New Player Guide"],
   ["玩法说明", "How to Play"],
   ["关于", "About"],
   ["商城", "Shop"],

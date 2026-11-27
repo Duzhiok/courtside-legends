@@ -298,6 +298,7 @@
           </div>
         </div>
         <div class="home-utility-row">
+          <button type="button" class="btn small ghost" id="btn-open-guide">新手指南</button>
           <button type="button" class="btn small ghost" id="btn-how-to-play">玩法说明</button>
           <button type="button" class="btn small ghost" id="btn-about">关于</button>
         </div>
@@ -1342,6 +1343,9 @@
       </section>
     </main>
   </div>
+
+  <!-- First-run game guide (B97 follow-up): empty shell, rendered by js/ui/firstRunGuide.js on open. -->
+  <dialog id="first-run-guide-dialog" class="info-dialog guide-dialog" aria-label="新手指南"></dialog>
 
   <dialog id="howto-dialog" class="info-dialog" aria-label="玩法说明">
     <div class="panel-head">
