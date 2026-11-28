@@ -28,7 +28,8 @@ import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, signatureOption, teamCoach } from "./agency.js";
 import { AUTO_MAX_REFUSALS, autoFires, signaturesLeft, signaturesOf } from "./signature.js";
-import { equippedOf } from "./loadout.js";
+import { equippedOf, loadoutOf } from "./loadout.js";
+import { levelOf, levelsMap } from "./proficiency.js";
 import { askTier, createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
 import { DEFENSE_COOLDOWN, MIN_DEFENSE_STAKES, buildDefenseContext, defenseExecution, playGamblePossession } from "./defense.js";
 import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleFeed, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
@@ -392,7 +393,13 @@ export async function playGame(
   // Skills M1b/M1c: a move he has EQUIPPED is set to fire on purpose, so it no longer procs at random for him (the autopilot covers
   // a possession nobody asked him about). An owned move he left in the collection keeps its original random proc. Only his card
   // carries this: every other player's moves are untouched.
-  const signatureMoves = equippedOf(reborn.player, signaturesOf(playerCard));
+  const ownedMoves = signaturesOf(playerCard);
+  const signatureMoves = equippedOf(reborn.player, ownedMoves);
+  // Skills M2: a move he has leveled hits a little better, whether it is fired on purpose or procs at random (one engine builder).
+  // Only his card carries this; with no XP the card is exactly what it was.
+  const proficiency = loadoutOf(reborn.player).xp;
+  const levels = levelsMap(proficiency, ownedMoves);
+  if (Object.keys(levels).length) playerCard.signatureLevels = levels;
   if (signatureMoves.length) playerCard.activeSignatures = signatureMoves;
 
   const teamOf = (code) => {
@@ -542,7 +549,7 @@ export async function playGame(
   // listed as such and spent nothing.
   const signatureRuns = [...[takeover, ...extras].filter((t) => t?.kind === "signature" && t.run).map((t) => ({ ...t.run, auto: false })), ...autoSignatures];
   const signature = signatureRuns.length || signatureMoves.length
-    ? { used: sim.activeSignatureUses || 0, left: signaturesLeft(sim), runs: signatureRuns }
+    ? { used: sim.activeSignatureUses || 0, left: signaturesLeft(sim), runs: signatureRuns, levels: Object.fromEntries(signatureMoves.map((id) => [id, levelOf(proficiency[id])])) }
     : null;
   const teamplay = screens.length
     ? {

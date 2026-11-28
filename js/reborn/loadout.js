@@ -11,7 +11,11 @@
  * - Old saves have no loadout: every owned move is "new", so the first sync equips them in card order, up to the slots, which is
  *   exactly what M1b did for anyone owning three or fewer.
  * - A move he has never used has NO usage record (unknown, never a fabricated zero); the numbers are the engine's own shot log.
+ * - M2: the same record carries proficiency XP per move (`xp`, rules in proficiency.js), settled in the SAME once-per-game call as the
+ *   usage counts, so one idempotency ledger (`settled`) guards both.
  */
+import { addGameXp, clampXp } from "./proficiency.js";
+
 export const LOADOUT_SLOTS = 3;
 /** Bounded memory of settled games so the usage ledger stays idempotent without growing forever. */
 const SETTLED_KEEP = 120;
@@ -25,7 +29,9 @@ export function loadoutOf(player) {
   for (const [id, s] of Object.entries(l?.stats && typeof l.stats === "object" ? l.stats : {})) {
     if (Number.isFinite(s?.u) && Number.isFinite(s?.m)) stats[id] = { u: Math.max(0, s.u), m: Math.max(0, Math.min(s.m, s.u)) };
   }
-  return { version: 1, equipped: [...new Set(list(l?.equipped))], known: [...new Set(list(l?.known))], stats, settled: list(l?.settled) };
+  const xp = {};
+  for (const [id, v] of Object.entries(l?.xp && typeof l.xp === "object" ? l.xp : {})) if (clampXp(v) > 0) xp[id] = clampXp(v);
+  return { version: 1, equipped: [...new Set(list(l?.equipped))], known: [...new Set(list(l?.known))], stats, xp, settled: list(l?.settled) };
 }
 
 /**
@@ -74,7 +80,7 @@ export function recordUsage(loadout, gameKey, sig) {
     const before = stats[id] || { u: 0, m: 0 };
     stats[id] = { u: before.u + s.u, m: before.m + Math.max(0, Math.min(s.m || 0, s.u)) };
   }
-  return { ...loadout, stats, settled: [...loadout.settled, gameKey].slice(-SETTLED_KEEP) };
+  return { ...loadout, stats, xp: addGameXp(loadout.xp, sig), settled: [...loadout.settled, gameKey].slice(-SETTLED_KEEP) };
 }
 
 /** What the engine has counted for one move, or null when it has never been used (unknown, not zero). */

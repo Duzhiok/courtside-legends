@@ -162,6 +162,36 @@ Owner approved M1a + M1b and ordered: collection and equip slots first, then pro
 - Equipping is allowed any time on the career screen, including after the last game of a season; there is no "before this specific game" gate beyond that.
 - Only offensive signature moves are loadout moves; defensive / passing / rebounding signatures keep their random proc (M6).
 
-## 9. Next (owner order)
+## 9. Shipped: M2 - proficiency (2026-11-28, Code)
+
+Owner order: five levels (Novice / Proficient / Expert / Master / Legend), XP from real use, a per-game cap, idempotent settlement, a top level, no big hit-rate gain, the 2-a-game budget unchanged, thresholds from real usage frequency.
+
+### 9.1 Pace measured first (`scripts/measure/proficiency-pace.mjs`, 16 real seasons, awakened dream_shake, autopilot)
+- A regular who plays uses the move **1.84 times and makes 1.12 a game, 151 uses and 92 makes a season**. Playing time is bimodal: 12 of 16 seasons played all 82 games, two played none (0 games >= 8 min), so playing time stays the bottleneck.
+- **Observation, not tuned (owner said leave the autopilot):** the autopilot spends BOTH uses in 1,178 of 1,313 games, almost always early, because the move's boost (~0.25 = ~0.5 expected points) always clears the margin it needs (0.2 early / 0.05 in Q4). A budget of 2 is effectively always spent, never "saved for the moment".
+
+### 9.2 Rules (`js/reborn/proficiency.js`, pure)
+- XP per game per move = **2 per fired use + 1 per make, capped at 6** (the most one game can honestly give: 2 uses, 2 makes). A refused attempt (no fired use) gives nothing; makes are clamped to uses; garbage in -> 0.
+- Levels at **0 / 100 / 300 / 700 / 1500 XP** (the owner's initial table, which the measured pace fits): one regular carrying ONE move reaches Lv2 in ~21 games, Lv3 ~0.75 season, Lv4 ~1.8, Lv5 ~3.8. With three moves equipped the shared budget makes each ~3x slower, so specialising is the choice. Hard top: XP is clamped at 1500.
+- Stored in the same record as the loadout (`reborn.player.loadout.xp`), settled in the SAME once-per-`gameId` call as the usage counts: one idempotency ledger. No retroactive XP for an existing run (everything starts at Lv1 / 0).
+- **A level changes exactly one thing:** +0.01 per level above 1 on the move's make boost (Lv5 = +0.04, on a move that already adds +0.22..0.30). In the engine that boost is added straight to the make probability, so a level is +1 percentage point, Lv5 +4. About 1.8 fires a game means **at most about +0.17 points a game at Lv5, before the probability caps (analytic, not measured: it is far below a single game's noise).** It does not touch the budget, stamina, or anything else.
+- Engine change is ONE optional argument on the shared `signatureEffect` builder (`baller.signatureLevels`, set only on his card), so a purposeful fire and a random proc cannot differ. No levels = the catalogue boost byte for byte.
+
+### 9.3 Screen
+Each owned move shows `Lv.2 Proficient - 101 XP - 199 to Expert - +1% to make` (top level: "max level"). The long rule text is folded in a closed-by-default "How proficiency works".
+
+### 9.4 Verification
+- 20 focused tests (`tests/proficiency.test.js` + `tests/loadout.test.js`), 11 mutations all caught (engine ignores the level, both paths; no per-game cap; no top cap; makes without a fired use; ledger guard removed; the game never gets his levels; every owned move armed; boost 10x).
+- **Two test gaps found and closed.** Three mutants survived the first pass: "the game never gets his levels", "the card is armed with every owned move" and a no-op. Cause: the tests read the REPORT, not the card the engine plays. New helper `tests/helpers/captureHero.js` steps through a real day and inspects every card on every GameSim; it must find exactly ONE player in the whole day (the hero) carrying wiring. (A Reborn day also plays the rest of the league's games on the same class; my first capture kept only the last sim and looked at a league game.)
+- Default path: 60 seeded games / 231,534 steps hash-identical to `origin/main`; full suite **4487/4487** (shared engine data changed, so the one full run was due).
+- Real browser (`scripts/qa/reborn-proficiency.mjs`, desktop 1440 + mobile 390, zh + en): 98 XP -> one Auto game -> **+3 = exactly 2x1 use + 1 make as the screen reports**, Lv.2 with +1%, a reload keeps it and settles nothing twice. The first version of the "XP equals the engine's count" check was vacuous (an `or <= 36` fallback); it is now exact. Real-viewport screenshots read; a cramped summary row and a small tap target fixed.
+
+### 9.5 Limits
+- **No level-up announcement.** The game that took Dream Shake to Lv.2 says nothing in the post-game report; the player sees it only on the career screen. Not built (not in the brief); the likely small fix is a line in the report computed from the same pure functions.
+- No progress bar yet, only text ("199 to Expert").
+- XP comes only from real games. Training and mentors (M3 / M4) are not wired.
+- Level only affects offensive signature moves he owns; the autopilot's early-game spending (9.1) is unchanged.
+
+## 10. Next (owner order)
 M2 proficiency (five levels, per-game cap, idempotent, no big hit-rate gain, budget stays 2), M3 specialised training on the existing Offline Training Camp (stable learning progress + rare insight, existing coins, no new currency), then Career playing time (B160). Legendary mentor, 3D animation, defensive / playmaking active moves stay later.
 

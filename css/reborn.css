@@ -76,3 +76,6 @@
 .reborn-loadout .reborn-loadout-status { font-weight: 700; }
 .reborn-loadout li .btn { margin-left: auto; min-height: 44px; }
 .reborn-loadout li .btn[disabled] { opacity: .55; cursor: not-allowed; }
+.reborn-loadout details { margin: 4px 0 6px; }
+.reborn-loadout summary { cursor: pointer; padding: 10px 0; min-height: 24px; } /* a thumb-sized target for "how it works" */
+.reborn-loadout details[open] > p { margin-top: 0; }

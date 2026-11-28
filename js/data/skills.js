@@ -2331,12 +2331,17 @@ function bullyProcChance(baller, defender, base) {
  * Random signature offense proc among all owned signature moves.
  */
 /** What a fired offensive signature move changes. ONE builder for the random proc and a player-fired move, so they can never differ. */
-function signatureEffect(m, zone = signatureZone(m)) {
+/** Skills M2: each proficiency level above 1 adds this to the move's make boost (Lv5 = +0.04). The only thing a level changes. */
+export const PROFICIENCY_BOOST_PER_LEVEL = 0.01;
+
+function signatureEffect(m, zone = signatureZone(m), level = 1) {
+  const lv = Number.isFinite(level) ? Math.max(1, Math.min(5, Math.floor(level))) : 1;
   return {
     id: m.id,
     name: m.name,
     shot: { zone, pts: zone === "three" ? 3 : 2 },
-    makeBoost: m.makeBoost,
+    // A card with no proficiency (every other player, every old run) is level 1: exactly the boost the catalogue says.
+    makeBoost: lv > 1 ? Math.round((m.makeBoost + PROFICIENCY_BOOST_PER_LEVEL * (lv - 1)) * 1000) / 1000 : m.makeBoost,
     openBoost: m.openBoost || 0,
     guaranteed: !!m.guaranteed,
     label: m.name,
@@ -2351,7 +2356,7 @@ function signatureEffect(m, zone = signatureZone(m)) {
 export function fireSignature(baller, id) {
   const m = SKILL_PACKS[id];
   if (!m?.signature || m.kind !== "offense" || !(baller?.skills || []).includes(id)) return null;
-  return signatureEffect(m);
+  return signatureEffect(m, undefined, baller.signatureLevels?.[id]);
 }
 
 export function trySignatureOffense(baller, defender, gameCtx = {}) {
@@ -2399,7 +2404,7 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
     // not match is skipped and the next signature is tried. No zone passed →
     // unfiltered (tests, duel).
     if (gameCtx.zone && zone !== gameCtx.zone) continue;
-    return signatureEffect(m, zone);
+    return signatureEffect(m, zone, baller.signatureLevels?.[m.id]);
   }
   return null;
 }

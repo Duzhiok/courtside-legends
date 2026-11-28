@@ -9,6 +9,7 @@ import { skillNameL } from "../../i18n.js";
 import { skillSourceOf } from "../../career/player/signatureAwakening.js";
 import { SIGNATURE_BUDGET, signaturesOf } from "../../reborn/signature.js";
 import { LOADOUT_SLOTS, equipSkill, loadoutOf, syncLoadout, unequipSkill, usageOf } from "../../reborn/loadout.js";
+import { PROFICIENCY_BOOST_PER_LEVEL, MAX_LEVEL, XP_GAME_CAP, progressOf } from "../../reborn/proficiency.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
 const ZONE = { paint: ["禁区", "Paint"], mid: ["中距离", "Mid-range"], three: ["三分", "Three"] };
@@ -33,6 +34,11 @@ export function loadoutHtml({ reborn, card, lang = "zh" }) {
     const on = loadout.equipped.includes(id);
     const use = usageOf(loadout, id);
     const [srcZh, srcEn] = SOURCE[sourceOf(id)];
+    const pr = progressOf(loadout.xp[id]);
+    const bonus = pr.boost > 0 ? L(` · 命中 +${Math.round(pr.boost * 100)}%`, ` · +${Math.round(pr.boost * 100)}% to make`, lang) : "";
+    const prof = pr.maxed
+      ? L(`Lv.${pr.level} ${pr.name.zh} · 已满级${bonus}`, `Lv.${pr.level} ${pr.name.en} · max level${bonus}`, lang)
+      : L(`Lv.${pr.level} ${pr.name.zh} · ${pr.xp} 经验 · 距${pr.next.zh}还差 ${pr.toNext}${bonus}`, `Lv.${pr.level} ${pr.name.en} · ${pr.xp} XP · ${pr.toNext} to ${pr.next.en}${bonus}`, lang);
     const usage = use
       ? L(`使用 ${use.u} 次 · 命中 ${use.m}`, `Used ${use.u}× · ${use.m} made`, lang)
       : L("还没有使用记录", "No uses on record yet", lang);
@@ -42,7 +48,7 @@ export function loadoutHtml({ reborn, card, lang = "zh" }) {
     return `<li data-skill="${esc(id)}" data-equipped="${on}"><strong>${esc(skillNameL(pack.name, lang))}</strong> `
       + `<small>${typeLine(pack, lang)} · ${L(srcZh, srcEn, lang)}</small> `
       + `<span class="reborn-loadout-status">${on ? L("已装备", "Equipped", lang) : L("未装备", "In collection", lang)}</span> `
-      + `<small>${usage}</small> ${button}</li>`;
+      + `<small>${usage}</small> <small data-testid="proficiency" data-level="${pr.level}">${prof}</small> ${button}</li>`;
   };
   const empty = Array.from({ length: LOADOUT_SLOTS - loadout.equipped.length }, () => `<li class="reborn-loadout-empty" data-empty="true">${L("空技能槽", "Empty slot", lang)}</li>`);
   const collection = owned.filter((id) => !loadout.equipped.includes(id));
@@ -50,6 +56,7 @@ export function loadoutHtml({ reborn, card, lang = "zh" }) {
   const others = (card.skills || []).filter((id) => !owned.includes(id) && SKILL_PACKS[id]).map((id) => esc(skillNameL(SKILL_PACKS[id].name, lang)));
   return `<section class="reborn-loadout" data-testid="loadout"><h3>${L("我的招牌动作", "My signature moves", lang)} · ${loadout.equipped.length}/${LOADOUT_SLOTS} ${L("已装备", "equipped", lang)}</h3>`
     + `<p>${L(`每场所有已装备的动作共享 ${SIGNATURE_BUDGET} 次主动发动机会。换装免费，但比赛中不能更换。没装备的招牌动作仍按原来的概率随机触发。`, `All equipped moves share ${SIGNATURE_BUDGET} on-purpose uses a game. Swapping is free but not allowed mid-game. A move left in the collection still fires at random as before.`, lang)}</p>`
+    + `<details data-testid="proficiency-rules"><summary>${L("熟练度怎么算", "How proficiency works", lang)}</summary><p>${L(`每次发动 +2 经验、命中再 +1，单场每个动作最多 ${XP_GAME_CAP}；共 ${MAX_LEVEL} 级，每升一级这个动作的命中 +${Math.round(PROFICIENCY_BOOST_PER_LEVEL * 100)}%（满级 +${Math.round(PROFICIENCY_BOOST_PER_LEVEL * (MAX_LEVEL - 1) * 100)}%）。不改变每场 ${SIGNATURE_BUDGET} 次的预算。`, `+2 XP per use and +1 per make, at most ${XP_GAME_CAP} a game per move; ${MAX_LEVEL} levels, each adds +${Math.round(PROFICIENCY_BOOST_PER_LEVEL * 100)}% to that move's make chance (max +${Math.round(PROFICIENCY_BOOST_PER_LEVEL * (MAX_LEVEL - 1) * 100)}%). The ${SIGNATURE_BUDGET}-a-game budget does not change.`, lang)}</p></details>`
     + `<h4>${L("装备中", "Equipped", lang)}</h4><ul data-testid="loadout-slots">${loadout.equipped.map(row).join("")}${empty.join("")}</ul>`
     + (collection.length ? `<h4>${L("技能收藏", "Collection", lang)} · ${collection.length}</h4><ul data-testid="loadout-collection">${collection.map(row).join("")}</ul>` : "")
     + (others.length ? `<p data-testid="loadout-others">${L("其他技能（自动生效）：", "Other skills (automatic): ", lang)}${others.join(L("、", ", ", lang))}</p>` : "")

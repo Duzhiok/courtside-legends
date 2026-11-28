@@ -9,6 +9,7 @@ import { LOADOUT_SLOTS, equipSkill, equippedOf, loadoutOf, recordUsage, syncLoad
 import { createRebornState } from "../js/reborn/identity.js";
 import { buildSeason, playGame } from "../js/reborn/season.js";
 import { loadoutClick, loadoutHtml } from "../js/ui/reborn/loadoutView.js";
+import { captureHero } from "./helpers/captureHero.js";
 
 const ROWS = JSON.parse(readFileSync(new URL("../js/data/roster.json", import.meta.url), "utf8")).players;
 const OWNED = ["dream_shake", "fadeaway", "stepback", "teardrop"];
@@ -61,7 +62,7 @@ test("4. the usage ledger is the engine's own counts, once per game, never above
   let many = l0;
   for (let i = 0; i < 300; i++) many = recordUsage(many, `g${i}`, { dream_shake: { u: 1, m: 0 } });
   assert.ok(many.settled.length <= 120, "the idempotency memory is bounded");
-  assert.deepEqual(loadoutOf({ loadout: { equipped: "nope", stats: { x: { u: "a" } }, known: [1] } }), { version: 1, equipped: [], known: [], stats: {}, settled: [] }, "a damaged record is just empty");
+  assert.deepEqual(loadoutOf({ loadout: { equipped: "nope", stats: { x: { u: "a" } }, known: [1] } }), { version: 1, equipped: [], known: [], stats: {}, xp: {}, settled: [] }, "a damaged record is just empty");
 });
 
 // A real Reborn run that owns an awakened dream_shake: the wiring into an actual game.
@@ -77,6 +78,21 @@ test("5. only an EQUIPPED move is set to fire on purpose in a real game; an owne
   assert.equal(equipped.report.signature.used + equipped.report.signature.left, 2);
   const benched = await play(withMove("m1c-a", { version: 1, equipped: [], known: ["dream_shake"], stats: {}, settled: [] }));
   assert.equal(benched.report.signature, null, "owned but not equipped: nothing is armed, no signature section");
+});
+
+test("5a. the engine REALLY gets only the equipped moves: the card on the sim, not the report", async () => {
+  // fadeaway is KNOWN but left unequipped (a move that is not in `known` would count as newly won and take the free slot: tested below)
+  const two = { ...withMove("m1c-a", { version: 1, equipped: ["dream_shake"], known: ["dream_shake", "fadeaway"], stats: {}, settled: [] }) };
+  two.player.awakening.awakened.push({ skillId: "fadeaway", source: "awakened", game: 2, season: 1997, evidence: {} });
+  const armed = await captureHero(() => play(two));
+  assert.equal(armed.wired.length, 1, "only the hero carries signature wiring");
+  assert.deepEqual(armed.hero.activeSignatures, ["dream_shake"], "fadeaway is owned but left in the collection: it is NOT armed, it keeps its random proc");
+  assert.ok(armed.hero.skills.includes("fadeaway"), "...and he still owns it");
+  const none = await captureHero(() => play(withMove("m1c-a", { version: 1, equipped: [], known: ["dream_shake"], stats: {}, settled: [] })));
+  assert.equal(none.hero, null, "nothing equipped: no card carries any wiring");
+  // ...and a move he has just won DOES take the free slot, all the way into the engine's card
+  const won = await captureHero(() => play({ ...two, player: { ...two.player, loadout: { version: 1, equipped: ["dream_shake"], known: ["dream_shake"], stats: {}, settled: [] } } }));
+  assert.deepEqual(won.hero.activeSignatures, ["dream_shake", "fadeaway"], "a newly won move takes the free slot");
 });
 
 test("6. an old save with no loadout still plays exactly as M1b did: the owned move is armed", async () => {
