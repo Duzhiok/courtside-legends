@@ -15,6 +15,7 @@
 import { COACHES } from "../data/coaches.js";
 import { clamp, hashSeed, seededStream } from "../core/seededRandom.js";
 import { screenOffer, spotOffer, withoutTeamOptions } from "./teamplay.js";
+import { SKILL_PACKS } from "../data/skills.js";
 
 export const AUTONOMY_START = 10;
 export const AUTONOMY_TIERS = [
@@ -171,6 +172,35 @@ function feedOffer(sim, playerId, two) {
   };
 }
 
+/**
+ * Skills M1b: the move he owns that is worth most right now, or null. Same look model as every other option: his own look in the
+ * move's zone against the man guarding him, plus the move's own make boost (the exact boost the engine applies when it fires).
+ * `margin` = what it adds over his best normal look; the autopilot and the grade both read it. Pure, reads the live sim only.
+ */
+function zoneLook(me, opp, zone, two, mine) {
+  if (zone === "three") return mine.three;
+  if (zone === "paint") return Math.max(mine.rim, mine.post) * two;
+  const d = defenderOf(me, opp);
+  return 2 * clamp(0.38 + (r(me, "mid") - 50) * 0.0055 - (r(d, "defense") - 50) * 0.0025, 0.2, 0.55);
+}
+export function signatureOption(sim, playerId, moves, two = twoDiscount(sim)) {
+  const { you, opp } = sides(sim);
+  const me = you.onCourt.find((p) => p.id === playerId);
+  if (!me || !moves?.length || sim.clock < 8) return null;
+  const mine = looks(me, opp);
+  const own = Math.max(mine.three, mine.rim * two);
+  let top = null;
+  for (const id of moves) {
+    const pack = SKILL_PACKS[id];
+    if (!pack?.signature || pack.kind !== "offense") continue;
+    const zone = pack.zone || "paint";
+    const pts = zone === "three" ? 3 : 2;
+    const value = pts * Math.min(0.95, zoneLook(me, opp, zone, two, mine) / pts + (pack.makeBoost || 0));
+    if (!top || value > top.value) top = { id, name: pack.name, zone, value, margin: value - own };
+  }
+  return top;
+}
+
 /** Expected points per option, from the floor as it stands before anyone moves. `offer` = a teammate's screen (PA3). */
 export function optionValues(sim, playerId, instruction, offer = null, spot = null, feed = null) {
   const { you, opp } = sides(sim);
@@ -224,7 +254,7 @@ export function observe(values, { iq = 50, decisionId = "" } = {}) {
 /** A coach only stops play for a call when it matters; on an everyday possession he calls it only in a close game. */
 const ROUTINE_CALL_IMPORTANCE = 0.4;
 
-export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, decisionId, trust = 0, autonomy = AUTONOMY_START, routine = false, importance = 1 } = {}) {
+export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, decisionId, trust = 0, autonomy = AUTONOMY_START, routine = false, importance = 1, signatureMoves = null, signatureLeft = 0 } = {}) {
   const calls = coachCallsPlay(sim, coach) && (!routine || importance >= ROUTINE_CALL_IMPORTANCE);
   const instruction = calls ? coachInstruction(sim, coach, playerId) : null;
   const offer = screenOffer(sim, playerId); // PA3: a teammate who can set a real screen right now (null when none / no time)
@@ -234,6 +264,9 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
   const own = autonomy >= AUDIBLE_AT ? bestSetup(sim, playerId, twoDiscount(sim)) : null;
   const audible = own && feed && own.targetId === feed.targetId ? null : own; // the same man twice would be two buttons for one play: his voice wins
   if (audible) values.setup = audible.value;
+  // Skills M1b: the move he may fire on purpose (only while the game's shared budget has a use left).
+  const signature = signatureLeft > 0 ? signatureOption(sim, playerId, signatureMoves, twoDiscount(sim)) : null;
+  if (signature) values.signature = signature.value;
   const { you } = sides(sim);
   const target = instruction ? you.onCourt.find((p) => p.id === instruction.targetId) : null;
   return {
@@ -246,7 +279,8 @@ export function buildDecisionContext(sim, playerId, { coach = null, iq = 50, dec
     offer: values.screen != null ? offer : null,
     spotOffer: values.spot != null ? spot : null,
     feedOffer: values.feed != null ? feed : null,
-    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), ...(values.feed != null ? ["feed"] : []), ...(values.screen != null ? ["screen", "screenAlt"] : []), ...(values.spot != null ? ["spot"] : []), "pass"],
+    signature: signature ? { id: signature.id, name: signature.name, zone: signature.zone, left: signatureLeft } : null,
+    options: [...(instruction ? ["follow"] : []), "drive", "pullup", ...(audible ? ["setup"] : []), ...(values.feed != null ? ["feed"] : []), ...(signature ? ["signature"] : []), ...(values.screen != null ? ["screen", "screenAlt"] : []), ...(values.spot != null ? ["spot"] : []), "pass"],
     values,
     playerState: { trust, autonomy, iq },
   };

@@ -16,6 +16,7 @@ import {
   recordGame,
   skillSourceOf,
   MIN_EVIDENCE_MINUTES,
+  ZONE_MOVES,
 } from "../js/career/player/signatureAwakening.js";
 import { skillSlotsFull } from "../js/data/skills.js";
 
@@ -99,11 +100,15 @@ test("a 40-point scoring explosion awakens nothing by itself", () => {
   assert.equal("pts" in extracted, false);
 });
 
-test("stepback has no rule and no measurable evidence", () => {
-  assert.equal(AWAKENING_RULES.some((r) => r.skillId === "stepback"), false);
-  const missing = MISSING_EVIDENCE.find((m) => m.skillId === "stepback");
-  assert.ok(missing, "stepback is listed as missing evidence, not faked");
-  assert.match(missing.needed, /动作类型/);
+test("stepback is earnable only from self-created three evidence - never from points, and never faked from an old report", () => {
+  // M1a: the engine now logs self-created attempts per zone, so the old "no measurable evidence" gap is closed - on the proxy it can really see.
+  const rule = AWAKENING_RULES.find((r) => r.skillId === "stepback");
+  assert.ok(rule, "stepback has a rule");
+  assert.equal(MISSING_EVIDENCE.some((m) => m.skillId === "stepback"), false);
+  assert.ok(!rule.qualifies(ev(1, { min: 36, pts: 50, tpm: 9 })), "nine catch-and-shoot threes in a 50-point game: no self-created data, no stepback");
+  assert.ok(!rule.qualifies(ev(1, { min: 30 })), "an old report with no zone log is unknown, never a zero that counts");
+  assert.ok(rule.qualifies(ev(1, { min: 30, threeSelfAtt: 1, threeSelfMade: 0 })));
+  assert.match(ZONE_MOVES.stepback.evidence, /自己创造/);
 });
 
 test("rim protector awakens on repeated blocks plus a 4-block key game", () => {

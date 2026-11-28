@@ -42,6 +42,7 @@ import {
   applySkillAttributeBoosts,
   trySignatureBlock,
   trySignatureOffense,
+  fireSignature,
   trySignatureSteal,
   signatureFeedFlavor,
   paintFinishFeedLabel,
@@ -97,6 +98,7 @@ import {
   pickScreener,
 } from "./grade.js";
 import { clamp } from "../core/seededRandom.js";
+import { tallyShot, tallySignature } from "./shotLog.js";
 import { compatibleFirst, nearestToSlot, positionGap, reseatLineup } from "./lineupSlots.js";
 
 const QUARTER_SEC = 12 * 60;
@@ -194,6 +196,10 @@ export class GameSim {
     this.offenseFocusId = null;
     /** PA3: set by a player's request for ONE possession only (see step()); transient, never saved. */
     this.requestedBallHandlerId = null;
+    /** Skills M1b: `{ playerId, id, fired }` fires one of the player's signature moves in ONE possession (default null = nothing changes). */
+    this.requestedSignature = null;
+    /** Skills M1b: how many of the shared per-game signature uses are spent. Saved with the game: pauses, subs, OT and a reload cannot refund it. */
+    this.activeSignatureUses = 0;
     /** M2b-1 clutch decision: armed by submitDecision(), consumed by your next offensive possession. */
     this.clutchDecision = null;
     /** Structured outcomes of every consumed clutch decision (also sent as a `coach` event's meta). */
@@ -255,6 +261,7 @@ export class GameSim {
       paused: true,
       breakReason: this.breakReason || "manual",
       _pendingQuarterStart: !!this._pendingQuarterStart,
+      activeSignatureUses: this.activeSignatureUses || 0,
       speed: this.speed,
       timeouts: { ...this.timeouts },
       defensePlan: this.defensePlan
@@ -319,6 +326,7 @@ export class GameSim {
     sim.paused = true;
     sim.breakReason = data.breakReason || "manual";
     sim._pendingQuarterStart = !!data._pendingQuarterStart;
+    sim.activeSignatureUses = Number.isFinite(data.activeSignatureUses) ? data.activeSignatureUses : 0; // an older save has none: a fresh budget
     sim.speed = clamp(Number(data.speed) || 1, 1, 3);
     sim.timeouts = data.timeouts || { home: 7, away: 7 };
     sim.defensePlan = data.defensePlan || { scheme: null, targetId: null };
@@ -831,6 +839,11 @@ export class GameSim {
       if (requested) baller = requested;
       this.requestedBallHandlerId = null;
     }
+    // Skills M1b: he chose to fire a move he owns, so HE shoots it. Neither "pass first" reflex (the organizer's kick below, the
+    // low-appetite re-pass further down) may take the ball away. Both conditions test `!wantsSig` BEFORE they roll, so a game with no
+    // request draws exactly the dice it always did. (Measured: without this ~80% of fired moves were refused, the ball already passed on.)
+    const chosenSig = this.requestedSignature;
+    const wantsSig = !!(chosenSig && off === this.you() && baller && chosenSig.playerId === baller.id && (baller.skills || []).includes(chosenSig.id));
     let kickedOut = false;
     let organizerId = null;
     // 终场需要三分：高概率直接把球给最稳射手
@@ -902,7 +915,7 @@ export class GameSim {
         schemeKick = true;
       }
     }
-    if (schemeKick && rnd() < kickChance) {
+    if (schemeKick && !wantsSig && rnd() < kickChance) {
       const organizer = baller;
       const kicked = kickToTeammate(off, baller, offenseFocusId, pnrPlay?.ghost ? null : initAction, pnrPlay);
       if (kicked) {
@@ -1159,7 +1172,7 @@ export class GameSim {
     // so ordinary possessions roll nothing extra.
     const pressuredPick =
       !!pick && onBallPick && baller.id === pick.shooterId && aggNow > 0.4 && (open < openNeed || doubled) && rnd() < kickChance;
-    if (((aggNow <= 0.4 && open < openNeed) || pressuredPick) && !calledSpecialist) {
+    if (((aggNow <= 0.4 && open < openNeed) || pressuredPick) && !calledSpecialist && !(wantsSig && baller.id === chosenSig.playerId)) {
       const passer = baller;
       const kicked2 = kickToTeammate(off, baller, offenseFocusId, sideCtx.scheme || (sideCtx.pnr?.ghost ? null : initAction), sideCtx.pnr);
       if (kicked2 && kicked2.id !== baller.id) {
@@ -1214,7 +1227,11 @@ export class GameSim {
       shotGateLevel(baller) >= 0.35 ||
       open >= shotOpenThreshold(baller) ||
       (lobWindow && fromPasser);
-    sigOff = sigOk
+    // Skills M1b: a move the player fired on purpose goes first, with no roll. It only counts as fired when that man really
+    // has the ball and the shot happens; otherwise (the ball moved on, a turnover) `fired` stays false and nothing is spent.
+    const firedOnPurpose = wantsSig && baller.id === chosenSig.playerId ? fireSignature(baller, chosenSig.id) : null;
+    if (firedOnPurpose) chosenSig.fired = true;
+    sigOff = firedOnPurpose || (sigOk
       ? trySignatureOffense(baller, defender, {
           quarter: this.quarter,
           scoreDiff: this.score[off.side] - this.score[def.side],
@@ -1223,8 +1240,9 @@ export class GameSim {
           fromPasser,
           zone: shot.zone,
         })
-      : null;
+      : null);
     if (sigOff) {
+      tallySignature(baller, sigOff.id);
       shot = sigOff.shot;
       open = clamp(open + (sigOff.openBoost || 0), 0.08, 0.95);
       baller._sigMakeBoost = sigOff.makeBoost || 0;
@@ -1259,6 +1277,7 @@ export class GameSim {
     if (rnd() < blkChance) {
       baller.stats.fga += 1;
       if (shot.pts === 3) baller.stats.tpa += 1;
+      tallyShot(baller, shot.zone, { made: false, selfCreated: !sideCtx.kickedOut });
       defender.stats.blk += 1;
       gradeBlock(defender);
       gradeMiss(baller, { pts: shot.pts, open });
@@ -1337,6 +1356,7 @@ export class GameSim {
       baller.stats.pts += pts;
       baller.stats.fgm += 1;
       baller.stats.fga += 1;
+      tallyShot(baller, shot.zone, { made: true, selfCreated: !sideCtx.kickedOut, sigId: sigOff?.id || null });
       if (shot.pts === 3) {
         baller.stats.tpm += 1;
         baller.stats.tpa += 1;
@@ -1468,6 +1488,7 @@ export class GameSim {
       if (!fouled) {
         baller.stats.fga += 1;
         if (shot.pts === 3) baller.stats.tpa += 1;
+        tallyShot(baller, shot.zone, { made: false, selfCreated: !sideCtx.kickedOut });
       }
       registerShotFeel(baller, false);
       gradeMiss(baller, { pts: shot.pts, open });

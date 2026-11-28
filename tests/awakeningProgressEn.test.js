@@ -50,3 +50,13 @@ test("awakening progress panel keeps Chinese ability labels in Chinese mode", ()
   for (const label of ZH_LABELS) assert.ok(html.includes(label), `zh panel must show ${label}`);
   for (const label of EN_LABELS) assert.ok(!html.includes(label), `zh panel must not show ${label}`);
 });
+
+test("'Skills held' names every skill in English in English mode (a pack carries only the Chinese name)", () => {
+  const card = { ...BIG, skills: ["glove", "iron_lungs", "dream_shake"] }; // an awakened move is merged onto the card
+  const state = { ...createAwakeningState(1997), awakened: [{ skillId: "dream_shake", source: "awakened", game: 1, season: 1997, evidence: {} }] };
+  const en = awakeningProgressHtml({ awakening: state, card, lang: "en" });
+  const held = en.slice(en.indexOf("Skills held"));
+  assert.match(held, /Dream Shake/, "the awakened move is named in English");
+  assert.ok(!/[\u4e00-\u9fff]/.test(held), `no Chinese in the English held list: ${held.replace(/<[^>]+>/g, " ").slice(0, 160)}`);
+  assert.match(awakeningProgressHtml({ awakening: state, card, lang: "zh" }), /梦幻脚步/);
+});

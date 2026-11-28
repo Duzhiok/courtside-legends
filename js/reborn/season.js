@@ -22,10 +22,12 @@ import { GameSim } from "../engine/sim.js";
 import { gameScore } from "../engine/matchExplain.js";
 import { overall } from "../data/players.js";
 import { awakenedSkillIds } from "../career/player/signatureAwakening.js";
+import { shotLogOf } from "../engine/shotLog.js";
 import { seededStream, hashSeed } from "../core/seededRandom.js";
 import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
-import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, teamCoach } from "./agency.js";
+import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, signatureOption, teamCoach } from "./agency.js";
+import { AUTO_MAX_REFUSALS, autoFires, signaturesLeft, signaturesOf } from "./signature.js";
 import { askTier, createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
 import { DEFENSE_COOLDOWN, MIN_DEFENSE_STAKES, buildDefenseContext, defenseExecution, playGamblePossession } from "./defense.js";
 import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleFeed, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
@@ -104,10 +106,10 @@ export function takeoverEligible(sim, playerId, window = DEFAULT_TAKEOVER_WINDOW
 }
 
 /** Which kind of possession each non-shot agency choice plays (anything else is "keep reading"). */
-const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen", spot: "spot", feed: "feed", gamble: "defense", stay: "defense" };
+const CHOICE_KIND = { follow: "plan", setup: "audible", screen: "screen", screenAlt: "screen", spot: "spot", feed: "feed", signature: "signature", gamble: "defense", stay: "defense" };
 /** Every choice a decision can be answered with besides the two personal moves. The UI's answer check reads THIS list (one source). */
 export const CHOICE_IDS = Object.freeze(["pass", ...Object.keys(CHOICE_KIND)]);
-const PLAYED_KINDS = ["plan", "audible", "pass", "screen", "spot", "feed", "defense"];
+const PLAYED_KINDS = ["plan", "audible", "pass", "screen", "spot", "feed", "signature", "defense"];
 
 /**
  * Ask the hook for a takeover decision and submit it through the M2b
@@ -214,6 +216,32 @@ function playSpotChoice(sim, t, playerId, agency) {
 }
 
 /**
+ * Skills M1b: ONE fired move, shared by the decision and the autopilot. The engine's seam makes him the ball handler and fires the
+ * move through the same effect as a random proc. If the engine never fires it (the ball was moved on, a turnover came first) the
+ * attempt is refused and NOTHING is spent; if it fires, the use is spent whether or not the shot goes in.
+ */
+export function fireSignatureOnce(sim, playerId, id) {
+  const you = sim.youSide === "home" ? sim.home : sim.away;
+  const me = you.roster.find((p) => p.id === playerId);
+  const stat = (k) => me?.stats?.[k] || 0;
+  const before = { fga: stat("fga"), fgm: stat("fgm"), pts: stat("pts") };
+  sim.requestedBallHandlerId = playerId;
+  sim.requestedSignature = { playerId, id, fired: false };
+  sim.step();
+  const request = sim.requestedSignature;
+  sim.requestedSignature = null;
+  sim.requestedBallHandlerId = null;
+  if (request.fired) sim.activeSignatureUses = (sim.activeSignatureUses || 0) + 1;
+  return { id, fired: request.fired, shot: stat("fga") > before.fga, made: stat("fgm") > before.fgm, points: stat("pts") - before.pts };
+}
+
+function playSignatureChoice(sim, t, playerId) {
+  t.run = fireSignatureOnce(sim, playerId, t.context.signature.id);
+  if (!t.run.fired) t.accepted = false; // refused by the engine: no use spent, nothing graded
+  return t.run.points;
+}
+
+/**
  * PA3.1: a teammate asked for the ball and you gave it to him: the same engine play as your own call-up (`setFocusPlay` +
  * `setOffenseFocus`, restored), with his own shot read back from the sim as the evidence.
  */
@@ -244,7 +272,7 @@ function playDefenseChoice(sim, t, playerId) {
 /** Play the possession a non-shot agency choice covers and record its points on the choice (the evidence it is graded on). */
 function playChoice(sim, t, playerId, agency) {
   if (!PLAYED_KINDS.includes(t?.kind)) return;
-  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : t.kind === "spot" ? playSpotChoice(sim, t, playerId, agency) : t.kind === "defense" ? playDefenseChoice(sim, t, playerId) : t.kind === "feed" ? playFeedChoice(sim, t) : playChoicePossession(sim, t);
+  t.points = t.kind === "screen" ? playScreenChoice(sim, t, playerId, agency) : t.kind === "spot" ? playSpotChoice(sim, t, playerId, agency) : t.kind === "defense" ? playDefenseChoice(sim, t, playerId) : t.kind === "feed" ? playFeedChoice(sim, t) : t.kind === "signature" ? playSignatureChoice(sim, t, playerId) : playChoicePossession(sim, t);
 }
 
 /**
@@ -268,12 +296,21 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
   let eggIncident = null;
   let defenseCooldown = 0; // opposing possessions left before the defense may be asked again
   const watcher = egg ? createEggWatcher({ sim, rivalBrefs: egg.rivalBrefs, rng: egg.rng }) : null;
+  const autoSignatures = []; // moves the autopilot fired when he was not asked
   let guard = 0;
   while (sim.running && guard++ < 8000) {
+    // Skills M1b: a possession nobody asked him about (Auto mode, a skipped question, an unanswered bubble): his move still gets
+    // used when it is a clear edge. Deterministic, no dice, and the same shared budget.
+    const mine = sim.possession === sim.youSide && youSide().onCourt?.some((p) => p.id === playerId);
+    const option = mine && agency?.signatureMoves?.length && signaturesLeft(sim) > 0 ? signatureOption(sim, playerId, agency.signatureMoves) : null;
+    if (option && autoSignatures.filter((r) => !r.fired).length < AUTO_MAX_REFUSALS && autoFires({ margin: option.margin, quarter: sim.quarter, left: signaturesLeft(sim) })) {
+      autoSignatures.push({ ...fireSignatureOnce(sim, playerId, option.id), auto: true });
+      continue;
+    }
     sim.step();
     const mayAsk = !gate || gate.mode() !== "auto";
     if (mayAsk && !takeover && onTakeover && takeoverEligible(sim, playerId, window)) {
-      const context = agency ? { ...buildDecisionContext(sim, playerId, agency), tier: askTier({ critical: true }) } : null;
+      const context = agency ? { ...buildDecisionContext(sim, playerId, { ...agency, signatureLeft: signaturesLeft(sim) }), tier: askTier({ critical: true }) } : null;
       takeover = await attemptTakeover(sim, playerId, onTakeover, window, context);
       // B134 ①: the call costs the timeout he spent drawing it up — but only when the player actually makes a choice
       // and it is accepted. Dismissing the dialog (Esc / backdrop) or letting an L1 bubble time out unanswered costs
@@ -286,7 +323,7 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
       const critical = takeoverEligible(sim, playerId, window);
       // Auto mode never builds a context; the other modes build one (cheap) to learn whether the coach disagrees.
       const built = onCourt && gate.mode() !== "auto" && agency
-        ? buildDecisionContext(sim, playerId, { ...agency, decisionId: `${agency.decisionId}|r${extras.length + 1}`, routine: !critical, importance })
+        ? buildDecisionContext(sim, playerId, { ...agency, signatureLeft: signaturesLeft(sim), decisionId: `${agency.decisionId}|r${extras.length + 1}`, routine: !critical, importance })
         : null;
       const opportunity = built ? opportunityOf(built.values) : 0;
       const context = built ? { ...built, importance, tier: askTier({ critical, conflict: !!built.coachInstruction, importance, opportunity }) } : null;
@@ -317,7 +354,7 @@ export async function driveGame(sim, playerId, { onTakeover = null, window = DEF
     }
     if (watcher && !eggIncident) eggIncident = watcher.maybeFire();
   }
-  return { takeover, extras, egg: eggIncident };
+  return { takeover, extras, egg: eggIncident, autoSignatures };
 }
 
 /**
@@ -351,6 +388,10 @@ export async function playGame(
   });
   playerCard.roleExpectation = role === "starter" ? "starter" : role === "rotation" ? "role" : "bench";
   playerCard.targetMinutes = ROLE_MINUTES[role];
+  // Skills M1b: a move he owns is set to fire on purpose, so it no longer procs at random for him (the autopilot covers a
+  // possession nobody asked him about). Only his card carries this: every other player's moves are untouched.
+  const signatureMoves = signaturesOf(playerCard);
+  if (signatureMoves.length) playerCard.activeSignatures = signatureMoves;
 
   const teamOf = (code) => {
     let cards = rosterCards(players, code, year);
@@ -411,8 +452,9 @@ export async function playGame(
     // PA3: plain data (no functions) so a teammate's answer can read how close he is to you and how much you carry.
     role,
     mateStrength: Object.fromEntries(Object.entries(teamplayOf(reborn).mates).map(([id, m]) => [id, m.strength])),
+    signatureMoves, // Skills M1b: the offensive signature moves he owns (plain ids)
   };
-  const { takeover, extras, egg: eggIncident } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx, agency: agencyCtx, participation });
+  const { takeover, extras, egg: eggIncident, autoSignatures } = await driveGame(sim, playerCard.id, { onTakeover, window: takeoverWindowFor(rivalryLedger(reborn), oppCards), egg: eggCtx, agency: agencyCtx, participation });
 
   const youSide = sim.youSide === "home" ? sim.home : sim.away;
   const stats = youSide.roster.find((p) => p.id === playerCard.id)?.stats || {};
@@ -432,6 +474,8 @@ export async function playGame(
     ftm: stats.ftm || 0,
     fta: stats.fta || 0,
     pf: stats.pf || 0,
+    // Skills M1a: the engine's own shot-zone log (null when he never took a shot: nothing to count, not a fabricated zero).
+    zones: shotLogOf(youSide.roster.find((p) => p.id === playerCard.id)),
   };
   const gs = Math.round(gameScore(stats) * 10) / 10;
   const trustBefore = reborn.player.coachTrust;
@@ -492,6 +536,12 @@ export async function playGame(
   next.teamplay = mates.teamplay;
   const gambles = [takeover, ...extras].filter((t) => t?.kind === "defense" && t.choiceId === "gamble" && t.run);
   const defense = gambles.length ? gambles.map((t) => ({ steal: t.run.steal, foul: t.run.foul, fouls: t.run.fouls, forcedTurnover: t.run.forcedTurnover })) : null;
+  // Skills M1b: every move fired this game (his own choices and the autopilot's), for the post-game line. A refused attempt is
+  // listed as such and spent nothing.
+  const signatureRuns = [...[takeover, ...extras].filter((t) => t?.kind === "signature" && t.run).map((t) => ({ ...t.run, auto: false })), ...autoSignatures];
+  const signature = signatureRuns.length || signatureMoves.length
+    ? { used: sim.activeSignatureUses || 0, left: signaturesLeft(sim), runs: signatureRuns }
+    : null;
   const teamplay = screens.length
     ? {
         items: [
@@ -605,6 +655,7 @@ export async function playGame(
       agency: agency ? { ...agency, trustApplied: Math.round(agency.trustDelta), autonomyBefore, autonomyAfter } : null,
       teamplay,
       defense,
+      signature,
       weekBoundary: isWeekBoundary(season.index, REBORN_GAMES_PER_WEEK),
       enforcerEgg: eggIncident || null,
       jersey: { offers: jerseys.created.map((o) => ({ id: o.id, fromBref: o.fromBref, fromName: o.fromName, fromNameEn: o.fromNameEn, reasons: o.reasons, respect: o.respect })) },

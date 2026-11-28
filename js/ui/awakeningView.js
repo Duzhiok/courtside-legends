@@ -14,6 +14,7 @@ import {
   skillSourceOf,
 } from "../career/player/signatureAwakening.js";
 import { SKILL_PACKS } from "../data/skills.js";
+import { skillNameL } from "../i18n.js";
 import { esc } from "../core/html.js";
 
 const L = (zh, en, lang) => (lang === "en" ? en : zh);
@@ -21,7 +22,8 @@ const L = (zh, en, lang) => (lang === "en" ? en : zh);
 const skillName = (skillId, lang) => {
   const pack = SKILL_PACKS[skillId];
   if (!pack) return skillId;
-  return lang === "en" ? pack.nameEn || pack.name : pack.name;
+  // SKILL_PACKS carries only the Chinese name; the English one lives in the i18n table (there is no `nameEn` on a pack).
+  return skillNameL(pack.name, lang);
 };
 
 /**

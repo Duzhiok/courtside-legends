@@ -27,7 +27,7 @@ export const REL_DELTA = Object.freeze({ screenScored: 0.5, highLeverageScored: 
  * The two PA3 options. They are GRADED like any other option but are never part of the baseline the old options are graded
  * against (the median, the blurred read, PA2's "is there a real opening" gap): adding teammates must not move PA1/PA2.
  */
-export const TEAM_OPTIONS = Object.freeze(["screen", "screenAlt", "spot", "feed"]);
+export const TEAM_OPTIONS = Object.freeze(["screen", "screenAlt", "spot", "feed", "signature"]);
 export const withoutTeamOptions = (values) => Object.fromEntries(Object.entries(values || {}).filter(([k]) => !TEAM_OPTIONS.includes(k)));
 
 /** No time left to run a pick and roll (the same cut-off agency.js uses for "keep reading"). */

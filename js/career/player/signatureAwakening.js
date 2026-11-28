@@ -42,6 +42,60 @@ const MAX_AWAKENED_PER_SEASON = 2;
 
 const per36 = (stat, min) => (min > 0 ? (stat / min) * 36 : 0);
 
+// ---------------------------------------------------------------------------------------------------------- Skills M1a
+// Three offensive signature moves, earned from the engine's own shot-zone log (`engine/shotLog.js`). The engine records no shot
+// TYPE, so the evidence is the real fact that separates a move from a fed finish: SELF-CREATED makes in the zone (nobody passed him
+// the ball this possession). That is a proxy for the move, not proof of it, and the UI says so. Fed dunks, catch-and-shoot threes
+// and a single lucky bucket in a ten-minute game do not count; a rating gate keeps a low-rated scorer from earning the move.
+// The numbers come from `scripts/measure/zone-evidence.mjs` and `scripts/measure/awakening-reach.mjs` (see PLAYER-SKILLS.md).
+const isBig = (card) => ["C", "PF"].includes(card?.playPos || card?.pos);
+const bestOf = (card, ...keys) => Math.max(...keys.map((k) => Number(card?.[k]) || 0));
+/** Per zone: the per-game evidence, the key game, and the rating that makes him a specialist of this kind. */
+export const ZONE_MOVES = Object.freeze({
+  dream_shake: {
+    zone: "paint", name: "梦幻脚步", nameEn: "Dream Shake",
+    on: "SelfMade", minCount: 2, minPer36: 0, keyMakes: 3,
+    gate: (card) => (Number(card?.paint) || 0) >= 66 && (isBig(card) || (Number(card?.strength) || 0) >= 55),
+    gateLabel: (card) => `禁区 ${card?.paint ?? "?"} / 66，且是内线或力量 ≥ 55`, gateLabelEn: (card) => `Paint ${card?.paint ?? "?"} / 66, and a big or strength ≥ 55`,
+    evidence: "单场自己创造的禁区命中（没人传球给他）≥ 2，最近 5 场中 3 场达标 + 一场 3+",
+    evidenceEn: "≥ 2 SELF-CREATED paint makes (nobody passed him the ball), 3 of the last 5 games + one game with 3+",
+    unlocks: "解锁梦幻脚步：禁区连续虚晃，把防守人晃开再出手", unlocksEn: "Unlocks Dream Shake: a string of fakes in the paint that shakes the defender off",
+  },
+  fadeaway: {
+    zone: "mid", name: "后仰杀手", nameEn: "Fadeaway",
+    on: "SelfMade", minCount: 2, minPer36: 0, keyMakes: 4,
+    gate: (card) => (Number(card?.mid) || 0) >= 64,
+    gateLabel: (card) => `中投 ${card?.mid ?? "?"} / 64`, gateLabelEn: (card) => `Mid-range ${card?.mid ?? "?"} / 64`,
+    evidence: "单场自己创造的中距离命中（没人传球给他）≥ 2，最近 5 场中 3 场达标 + 一场 4+",
+    evidenceEn: "≥ 2 SELF-CREATED mid-range makes, 3 of the last 5 games + one game with 4+",
+    unlocks: "解锁后仰杀手：中距离单打创造出手空间", unlocksEn: "Unlocks Fadeaway: mid-range isolation that creates its own shooting room",
+  },
+  stepback: {
+    zone: "three", name: "后撤步大师", nameEn: "Stepback Specialist",
+    on: "SelfAtt", minCount: 1, minPer36: 0, keyMakes: 1, keyAtt: 2,
+    gate: (card) => (Number(card?.three) || 0) >= 56 && bestOf(card, "handle", "offDribble") >= 56,
+    gateLabel: (card) => `三分 ${card?.three ?? "?"} / 56，持球 ${bestOf(card, "handle", "offDribble")} / 56`, gateLabelEn: (card) => `Three ${card?.three ?? "?"} / 56, handle ${bestOf(card, "handle", "offDribble")} / 56`,
+    evidence: "单场自己创造的三分出手（运球后自己投，不是接球就投）≥ 1，最近 5 场中 3 场 + 一场自创三分出手 2+ 且命中 1+",
+    evidenceEn: "≥ 1 SELF-CREATED three attempt (off the dribble, not a catch-and-shoot), 3 of the last 5 games + one game with 2+ attempts and one that falls",
+    unlocks: "解锁后撤步：持球拉开空间的三分", unlocksEn: "Unlocks Stepback: the off-the-dribble three that makes its own space",
+  },
+});
+
+function zoneRules() {
+  return Object.entries(ZONE_MOVES).map(([skillId, m]) => {
+    const count = (ev, kind) => (Number.isFinite(ev[`${m.zone}${kind}`]) ? ev[`${m.zone}${kind}`] : null); // null = unknown (an old report): never a zero
+    return {
+      id: skillId, skillId, name: m.name, nameEn: m.nameEn, window: "last5",
+      unlocks: m.unlocks, unlocksEn: m.unlocksEn, evidenceLabel: m.evidence, evidenceLabelEn: m.evidenceEn,
+      abilityMet: m.gate, abilityLabel: m.gateLabel, abilityLabelEn: m.gateLabelEn,
+      // `on`: what makes a game count - his self-created MAKES, or (for the stepback, whose makes are rare) his self-created ATTEMPTS: the
+      // habit of creating that shot. The key game is always a real make.
+      qualifies: (ev) => count(ev, m.on) !== null && count(ev, m.on) >= m.minCount && per36(count(ev, m.on), ev.min) >= m.minPer36,
+      keyGame: (ev) => count(ev, "SelfMade") !== null && count(ev, "SelfMade") >= m.keyMakes && (!m.keyAtt || (count(ev, "SelfAtt") ?? 0) >= m.keyAtt),
+    };
+  });
+}
+
 /**
  * One rule per shippable skill, in fixed firing order (also the tie-break
  * when several complete on the same game). `window` is "last5" (rolling) or
@@ -112,6 +166,7 @@ export const AWAKENING_RULES = [
     qualifies: (ev) => ev.clutchMade === true,
     keyGame: (ev) => ev.clutchGameWinner === true,
   },
+  ...zoneRules(),
 ];
 
 /**
@@ -122,15 +177,7 @@ export const AWAKENING_RULES = [
  * today (raw emits are coach/dunk/miss/reb/score; per-player stats are
  * totals only).
  */
-export const MISSING_EVIDENCE = [
-  {
-    skillId: "stepback",
-    name: "后撤步大师",
-    nameEn: "Stepback Specialist",
-    needed: "引擎需记录每次出手的动作类型（后撤步）与防守压力；当前 sim.js 只有出手总数，没有动作类型。",
-    neededEn: "The engine must record a shot type (stepback) and defensive pressure per shot; sim.js today records only shot totals, no shot types.",
-  },
-];
+export const MISSING_EVIDENCE = [];
 
 /**
  * Extract the awakening evidence from one playGame report. Only the fields
@@ -160,6 +207,13 @@ export function evidenceFromReport(report) {
     tov: line.tov || 0,
     clutchMade,
     clutchGameWinner,
+    // Skills M1a: self-created makes per zone. Absent (not zero) when the report has no shot log: an old report, or a game he never shot in.
+    ...(line.zones
+      ? {
+          paintSelfMade: line.zones.paint?.sm ?? 0, midSelfMade: line.zones.mid?.sm ?? 0, threeSelfMade: line.zones.three?.sm ?? 0,
+          paintSelfAtt: line.zones.paint?.sa ?? 0, midSelfAtt: line.zones.mid?.sa ?? 0, threeSelfAtt: line.zones.three?.sa ?? 0,
+        }
+      : {}),
   };
 }
 

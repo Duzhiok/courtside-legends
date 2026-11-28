@@ -1,6 +1,6 @@
 # Player Skills (signature moves as a career growth system) — S0 audit + measurement
 
-- **Status:** PROPOSED. The owner proposed the feature on 2026-11-27 (four tiers, cooldown counted in possessions, five levels, phases M1–M5). This file is S0: what the engine already has, what one use of a signature move really does today, and the constraints any design must respect. **No game code has been changed.**
+- **Status:** M1a + M1b SHIPPED 2026-11-27 (see §7). The rest of the proposal (levels, cooldown growth, HUD, more moves) is still PROPOSED. The owner proposed the feature on 2026-11-27 (four tiers, cooldown counted in possessions, five levels, phases M1–M5). This file is S0: what the engine already has, what one use of a signature move really does today, and the constraints any design must respect. **No game code has been changed.**
 - **Scope:** Player careers (Player Reborn line). Not Coach / GM.
 - **Ordering (owner):** finish the Critical Moments QA first, then develop this as its own feature, never mixed with unaccepted changes. Critical Moments is blocked on locating its code (uncommitted in another session's worktree; not on this machine).
 
@@ -92,3 +92,47 @@ One move end to end, then widen to 6–8: the Reborn player owns `dream_shake` (
 3. Approve the shared GameSim seam + counters (full regression).
 4. M1 UI inside decision prompts (no HUD) — yes / no.
 5. Name for the meter.
+
+## 7. Shipped: M1a + M1b (2026-11-27, Code)
+
+Owner approved both in one pass; no new currency, no HUD, no skill levels or cooldown growth.
+
+### 7.1 What a player can do now
+- **Earn** `dream_shake` (paint), `fadeaway` (mid-range), `stepback` (three) from real games. A move needs the rating gate AND a hot streak: 3 of his last 5 games qualify, one of them a key game. Only the move's own shot zone counts; points never do.
+- **Fire it on purpose.** A move he owns shows up in the decision prompts (L1 bubble / L2 / L3) as one option, "Signature move · 2/2". **2 uses per game, shared by all his moves**, across the whole game (substitutions, timeouts, overtime, a reload do not refund it; an old save without the field gets a fresh budget). Fired = the possession is his, with the move's real make boost; **a miss still spends the use**.
+- **A refused attempt spends nothing** (the engine never fired it: putback possession, a turnover or a foul before the shot).
+- **An owned move no longer procs at random for him**; every other player's moves are untouched (`card.activeSignatures`, set only on his card in `playGame`).
+- **Auto mode / an unanswered bubble:** a deterministic autopilot (no dice) fires the move on a clear edge (`js/reborn/signature.js`, early game needs a big edge, Q4 a small one) inside the same budget. It never blocks the game and gives up after 3 refusals a game.
+- Post-game: one honest line per use ("you fired / the autopilot used", fell or not, "the use is spent"), or "no signature move this game (2/2); unused uses do not carry over".
+
+### 7.2 Evidence (what the engine now records; no RNG consumed)
+`js/engine/shotLog.js`: per player `paint|mid|three: { a, m, sa, sm }` (attempts, makes, SELF-CREATED attempts, makes: a shot with no pass this possession) and `sig: { [move]: { u, m } }`. A player who never shot has **no** log: an old report is unknown, never a fabricated zero. Test 2 asserts the log equals the engine's own box score (fga, fgm, tpa, tpm) for every player in real games.
+**Self-created is a proxy, not proof of the move.** The engine has no shot type, distance or defender position, so "a self-created make in the paint" qualifies him to LEARN `dream_shake`; it does not claim he did one.
+
+### 7.3 Final rules and the reach they give (measured, not guessed)
+Measured on 1,230 real player-games (>= 8 min, avg 28 min) of 20 Reborn identities whose rating gate was met, then bootstrapped through the real `recordGame` (800 trials each, ~47 played games a season):
+
+| move | gate (card) | a game counts when | key game | earned in season 1 | within 2 seasons |
+|---|---|---|---|---|---|
+| dream_shake | paint >= 66 and (big or strength >= 55) | >= 2 self-created paint makes | >= 3 | 42% | 63% |
+| fadeaway | mid >= 64 | >= 2 self-created mid makes | >= 4 | 45% | 69% |
+| stepback | three >= 56 and handle/dribble >= 56 | >= 1 self-created three ATTEMPT (makes are too rare: 90% of games have none) | 2+ attempts and 1+ make | 68% | 90% |
+
+- The first thresholds I wrote (per-36 floors, key games of 5 / 4 / 3 makes) earned the move for **0 of 59** gated identities over 83 full seasons. Real distribution: paint self-made 0/1/2/3/4+ = 55/28/12/3/1.5%; stepback self-created threes 0 in 90% of games. Fixed from the data, not by feel.
+- Population: the rating gate is met at the start by 13.8% (dream_shake), 17.5% (fadeaway), 28.1% (stepback) of drawn identities. **A player must also actually play**: gated players get >= 8 min in 57% of games; a default rookie only 17%, and a 46-OVR "starter" is benched again within a few games as trust falls. Playing time is the real bottleneck, and that is the game's own design.
+- Not yet a reach number for the general population: the shipped measure (`scripts/measure/awakening-reach.mjs`, sharded) is the tool to re-run it.
+
+### 7.4 Engine change (shared GameSim; default path proven unchanged)
+Counters in the shot-resolution paths, `sim.requestedSignature` / `activeSignatureUses`, and two guards that stop a move he chose from being taken away: the organizer's pre-shot kick and the low-appetite re-pass both test `!wantsSig` **before** they roll the dice. **Measured:** without those guards ~80% of fired moves were refused because the ball had been passed on (71 of 400 attempts fired); with them 271 of 400 (68%) fire; the rest are putbacks, turnovers and fouls before the shot.
+**Regression proof:** 60 seeded games (5 era pairings, injuries on, 231,534 steps), full box scores hashed on `origin/main` and on this branch: **identical** (`sha256 267d2834d893...`).
+
+### 7.5 Limits (not done, on purpose)
+- Only these three moves are earnable; the other 39 are unchanged (random proc for everyone).
+- No equipment slots: owning = armed. No upgrade, cooldown or stamina cost; no HUD.
+- An attempt that the engine refuses still makes him the ball handler for that possession (the autopilot is capped at 3 per game for that reason).
+- The refusal rate (~32%) is a property of the engine's possession flow, not a UI choice.
+- Tablet / landscape / overtime in a real browser, and Gold / My Team / Coach modes: not exercised.
+- **Browser smoke** (`scripts/qa/reborn-signature.mjs`, desktop 1440 + mobile 390, zh + en): owned move offered, taken by click and by key, the engine's own report says 2 fired (never 3), a refused attempt costs nothing, Auto mode finishes with no question, a finger can reach the option (hit-test), real-viewport screenshot checked. It found and fixed two real things: the L1 bubble chip said only "Signature" (no move, no uses left; a phone has no hover) and the awakening panel's "Skills held" listed every skill in Chinese in the English UI (packs have no `nameEn`; a pre-existing leak, now `skillNameL`).
+- **Not mine, seen on the screenshot, left alone:** the L1 bubble shows ONE quote (the feed offer) while the options also include "Take the screen / Another way", so the teammate's screen line is not visible in the bubble; and the bubble footer says "Hover to pause", which is mouse language on a touch screen.
+- One run showed the option as unreachable (a 1,348 px static panel) and one game as "3 taken"; neither reproduced in 6 further runs on both viewports. Likely a frame of the dismissing dialog / a refused attempt; **not proven**. The check stays strict and screenshots on recurrence.
+

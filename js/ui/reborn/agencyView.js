@@ -4,6 +4,9 @@
  * the player believes he sees (blurred by his basketball IQ), never the grader's numbers.
  */
 import { esc } from "../../core/html.js";
+import { SKILL_PACKS } from "../../data/skills.js";
+import { skillNameL } from "../../i18n.js";
+import { SIGNATURE_BUDGET } from "../../reborn/signature.js";
 import { autonomyTier } from "../../reborn/agency.js";
 import { MODE_LABELS, MODE_PACING, PARTICIPATION_MODES, sanitizeMode } from "../../reborn/participation.js";
 
@@ -71,8 +74,23 @@ function feedCard(offer, lang) {
   return `<div class="reborn-agency-card reborn-agency-mate" data-testid="feed-offer"><b>${T("队友要球", "A teammate wants it", lang)} · ${name}${T(`（${esc(offer.pos || "")}）`, ` (${esc(offer.pos || "")})`, lang)}</b><p>「${feedLine(offer, lang)}」</p><small>${T("给他球，他的出手机会会多很多；不保证进，也不保证全队得分更高。", "Give it to him and he shoots far more; it is no promise it falls, or that the team scores more.", lang)}</small></div>`;
 }
 
+const ZONE_WORD = { paint: ["禁区", "the paint"], mid: ["中距离", "mid-range"], three: ["三分", "the three"] };
+const zoneWord = (zone, lang) => T(...(ZONE_WORD[zone] || ZONE_WORD.paint), lang);
+
+/** Skills M1b: the move he may fire. Plain about what firing does: the engine's real boost, never a promise, a miss still costs the use. */
+function signatureCard(sig, lang) {
+  if (!sig) return "";
+  const name = esc(skillNameL(sig.name, lang));
+  return `<div class="reborn-agency-card reborn-agency-signature" data-testid="signature-offer"><b>${T("招牌动作", "Signature move", lang)} · ${sig.left}/${SIGNATURE_BUDGET}</b>`
+    + `<p>${T(`「${name}」· ${zoneWord(sig.zone, lang)}。发动后这一回合由你来打，用它的真实命中和空位加成；不保证进球，投丢也算一次。`, `"${name}" · ${zoneWord(sig.zone, lang)}. Firing it hands you this possession with the move's real shooting and openness boost; it is no promise, and a miss still spends the use.`, lang)}</p></div>`;
+}
+
 function optionLabel(id, context, lang) {
   const offer = context.offer;
+  if (id === "signature") {
+    const sig = context.signature;
+    return [T("招牌动作", "Signature move", lang), T(`发动「${esc(skillNameL(sig.name, lang))}」（${zoneWord(sig.zone, lang)}）· 本场还剩 ${sig.left}/${SIGNATURE_BUDGET} 次，不保证进`, `Fire "${esc(skillNameL(sig.name, lang))}" (${zoneWord(sig.zone, lang)}) · ${sig.left}/${SIGNATURE_BUDGET} left this game, no promise it falls`, lang)];
+  }
   if (id === "feed") {
     const who = esc(lang === "en" ? context.feedOffer.nameEn || context.feedOffer.name : context.feedOffer.name);
     return [T("队友要球", "A teammate wants it", lang), T(`把球交给 ${who}（禁区对位占优），不保证进`, `Get the ball to ${who} (he has the matchup inside), no promise it falls`, lang)];
@@ -154,7 +172,7 @@ export function agencyDialogHtml({ sim, lang = "zh", context, mode = null, compa
   return `<div class="reborn-takeover-dialog reborn-agency" role="dialog" aria-modal="true" aria-label="${T("关键回合", "Takeover moment", lang)}">`
     + `<h2>${context.routine ? T("这一回合，你想怎么打", "This possession: your call", lang) : T("关键回合，你决定怎么打", "Clutch possession: your call", lang)}</h2>`
     + `<p class="reborn-takeover-situation">${q <= 4 ? `Q${q}` : `OT${q - 4}`} ${mmss} · ${score[youSide]} – ${score[oppSide]}</p>`
-    + (compact ? `<p class="reborn-agency-readline">${observationLine(context.observation, lang)}</p>` : coachCard) + mateCard(context.offer, lang) + feedCard(context.feedOffer, lang) + (compact ? "" : readCard)
+    + (compact ? `<p class="reborn-agency-readline">${observationLine(context.observation, lang)}</p>` : coachCard) + mateCard(context.offer, lang) + feedCard(context.feedOffer, lang) + signatureCard(context.signature, lang) + (compact ? "" : readCard)
     + `<div class="reborn-takeover-options">${buttons}</div>`
     + (mode ? participationBarHtml(mode, lang) : "")
     + (compact ? "" : `<p class="reborn-takeover-hint">${T(`你的战术自主权：${tier.zh}。好判断会赢得更多自由；盲目出手失败会让教练收紧。`, `Your autonomy: ${tier.en}. Good reads earn freedom; reckless misses make the coach tighten up.`, lang)}</p>`)
@@ -163,7 +181,7 @@ export function agencyDialogHtml({ sim, lang = "zh", context, mode = null, compa
 
 const BUBBLE_SHORT = {
   follow: ["执行战术", "Run the call"], drive: ["突破", "Drive"], pullup: ["跳投", "Pull-up"], pass: ["传球", "Pass"],
-  setup: ["自己布置", "Set one up"], feed: ["给他球", "Feed him"], screen: ["接受挡拆", "Take the screen"], screenAlt: ["换种打法", "Another way"], spot: ["要球", "Ask for it"],
+  setup: ["自己布置", "Set one up"], feed: ["给他球", "Feed him"], signature: ["发动招牌", "Signature"], screen: ["接受挡拆", "Take the screen"], screenAlt: ["换种打法", "Another way"], spot: ["要球", "Ask for it"],
   gamble: ["赌抢断", "Gamble"], stay: ["稳守", "Stay home"],
 };
 
@@ -177,7 +195,10 @@ export function agencyBubbleHtml({ lang = "zh", context }) {
   const chips = context.options.map((id, i) => {
     const [zh, en] = BUBBLE_SHORT[id] || [id, id];
     const label = defense ? defenseOptionList(lang).find(([k]) => k === id)?.[2] : optionLabel(id, context, lang)[1];
-    return `<button type="button" class="reborn-bubble-option" data-option="${id}" data-key="${i + 1}" title="${label || ""}"><kbd>${i + 1}</kbd> ${T(zh, en, lang)}</button>`;
+    // A bubble has no hover on a phone, so the signature chip itself must say WHICH move and how many uses are left.
+    const sig = id === "signature" ? context.signature : null;
+    const text = sig ? `${T("招牌", "Signature", lang)} ${esc(skillNameL(sig.name, lang))} ${sig.left}/${SIGNATURE_BUDGET}` : T(zh, en, lang);
+    return `<button type="button" class="reborn-bubble-option" data-option="${id}" data-key="${i + 1}" title="${label || ""}"><kbd>${i + 1}</kbd> ${text}</button>`;
   }).join("");
   return `<div class="reborn-bubble" role="status" aria-live="polite" data-tier="L1">`
     + `<p class="reborn-bubble-line">${line}</p>`
@@ -244,6 +265,23 @@ export function describeTeamplayFeedback(teamplay, lang = "zh") {
   });
   const sign = (v) => (v > 0 ? `+${v}` : `${v}`);
   for (const m of teamplay.moved || []) lines.push(T(`你和 ${nameOf(m)} 的默契 ${sign(m.delta)}`, `Chemistry with ${nameOf(m)} ${sign(m.delta)}`, lang));
+  return lines;
+}
+
+/**
+ * After the game: the signature moves fired, from the engine's own shot result. Says what really happened: a miss still spent the use,
+ * an autopilot use was not his choice, a refused attempt spent nothing, and an unused budget does not carry to the next game.
+ */
+export function describeSignatureFeedback(signature, lang = "zh") {
+  if (!signature) return [];
+  const nm = (id) => esc(skillNameL(SKILL_PACKS[id]?.name || id, lang));
+  const lines = (signature.runs || []).map((r) => {
+    if (!r.fired) return T(`「${nm(r.id)}」这次没能发动（球没到你手里），次数没扣。`, `"${nm(r.id)}" could not be fired (the ball never reached you); nothing was spent.`, lang);
+    const how = r.auto ? T("这一回合没问你，自动用了", "Nobody asked you this possession; the autopilot used", lang) : T("你发动了", "You fired", lang);
+    const result = r.made ? T(`，打成了（${r.points} 分）`, `, and it fell (${r.points} pts)`, lang) : T("，没有投进，次数照扣", ", it did not fall, and the use is spent", lang);
+    return `${how}${lang === "en" ? ` "${nm(r.id)}"` : `「${nm(r.id)}」`}${result}。`;
+  });
+  if (!lines.length && signature.left > 0) lines.push(T(`本场没有用招牌动作（${signature.left}/${SIGNATURE_BUDGET}）。没用的次数不会带到下一场。`, `No signature move this game (${signature.left}/${SIGNATURE_BUDGET}). Unused uses do not carry over.`, lang));
   return lines;
 }
 

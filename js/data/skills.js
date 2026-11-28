@@ -2330,10 +2330,36 @@ function bullyProcChance(baller, defender, base) {
 /**
  * Random signature offense proc among all owned signature moves.
  */
+/** What a fired offensive signature move changes. ONE builder for the random proc and a player-fired move, so they can never differ. */
+function signatureEffect(m, zone = signatureZone(m)) {
+  return {
+    id: m.id,
+    name: m.name,
+    shot: { zone, pts: zone === "three" ? 3 : 2 },
+    makeBoost: m.makeBoost,
+    openBoost: m.openBoost || 0,
+    guaranteed: !!m.guaranteed,
+    label: m.name,
+  };
+}
+
+/**
+ * Skills M1b: the move a player FIRES on purpose (the engine's `requestedSignature` seam). Same effect as the random proc, with no
+ * chance roll, no zone filter (he chose the move, the move chooses the zone as it always does), and no clutch gate other than
+ * the move's own. Null when he does not own it / it is not an offensive signature move.
+ */
+export function fireSignature(baller, id) {
+  const m = SKILL_PACKS[id];
+  if (!m?.signature || m.kind !== "offense" || !(baller?.skills || []).includes(id)) return null;
+  return signatureEffect(m);
+}
+
 export function trySignatureOffense(baller, defender, gameCtx = {}) {
+  // Skills M1b: a move the player has set to "fire on purpose" no longer procs at random (the property exists only on his card).
+  const manual = baller?.activeSignatures;
   let sigs = (baller?.skills || [])
     .map((id) => SKILL_PACKS[id])
-    .filter((m) => m?.signature && m.kind === "offense");
+    .filter((m) => m?.signature && m.kind === "offense" && !(manual && manual.includes(m.id)));
   if (!sigs.length) return null;
   sigs = shuffle(sigs, rand);
   const late = (gameCtx.quarter || 1) >= 4;
@@ -2373,15 +2399,7 @@ export function trySignatureOffense(baller, defender, gameCtx = {}) {
     // not match is skipped and the next signature is tried. No zone passed →
     // unfiltered (tests, duel).
     if (gameCtx.zone && zone !== gameCtx.zone) continue;
-    return {
-      id: m.id,
-      name: m.name,
-      shot: { zone, pts: zone === "three" ? 3 : 2 },
-      makeBoost: m.makeBoost,
-      openBoost: m.openBoost || 0,
-      guaranteed: !!m.guaranteed,
-      label: m.name,
-    };
+    return signatureEffect(m, zone);
   }
   return null;
 }
