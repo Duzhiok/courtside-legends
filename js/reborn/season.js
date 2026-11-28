@@ -28,6 +28,7 @@ import { isWeekBoundary, GAMES_PER_WEEK } from "../career/calendar.js";
 import { roleForTrust, updateTrust, ROLE_MINUTES } from "./trust.js";
 import { AUTONOMY_START, buildDecisionContext, clampAutonomy, combineGrades, gradeTakeover, signatureOption, teamCoach } from "./agency.js";
 import { AUTO_MAX_REFUSALS, autoFires, signaturesLeft, signaturesOf } from "./signature.js";
+import { equippedOf } from "./loadout.js";
 import { askTier, createDecisionGate, importanceOf, opportunityOf } from "./participation.js";
 import { DEFENSE_COOLDOWN, MIN_DEFENSE_STAKES, buildDefenseContext, defenseExecution, playGamblePossession } from "./defense.js";
 import { REL_START, acceptanceChance, playScreenPossession, playSpotPossession, recordTeammateEvidence, requestOpportunity, respondToRequest, roleInfluence, settleFeed, settleScreen, settleSpot, teamplayOf } from "./teamplay.js";
@@ -388,9 +389,10 @@ export async function playGame(
   });
   playerCard.roleExpectation = role === "starter" ? "starter" : role === "rotation" ? "role" : "bench";
   playerCard.targetMinutes = ROLE_MINUTES[role];
-  // Skills M1b: a move he owns is set to fire on purpose, so it no longer procs at random for him (the autopilot covers a
-  // possession nobody asked him about). Only his card carries this: every other player's moves are untouched.
-  const signatureMoves = signaturesOf(playerCard);
+  // Skills M1b/M1c: a move he has EQUIPPED is set to fire on purpose, so it no longer procs at random for him (the autopilot covers
+  // a possession nobody asked him about). An owned move he left in the collection keeps its original random proc. Only his card
+  // carries this: every other player's moves are untouched.
+  const signatureMoves = equippedOf(reborn.player, signaturesOf(playerCard));
   if (signatureMoves.length) playerCard.activeSignatures = signatureMoves;
 
   const teamOf = (code) => {

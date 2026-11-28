@@ -66,3 +66,13 @@
 .reborn-bubble-host.paused .reborn-bubble-timer { opacity: .35; }
 @keyframes reborn-bubble-count { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .reborn-bubble-host.running .reborn-bubble-timer { animation: none; } }
+
+/* Skills M1c: the signature-move collection and its three slots (career screen, between games) */
+.reborn-loadout ul, #screen-reborn.arena #reborn-body > .reborn-loadout ul { list-style: none; padding-left: 0; display: grid; gap: 8px; } /* the arena theme's generic section-list indent must not win */
+.reborn-loadout h4 { margin: 12px 0 6px; font-size: .95rem; opacity: .85; }
+.reborn-loadout li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; }
+.reborn-loadout li[data-equipped="true"] { border-color: var(--gold, #f2c14e); background: rgba(242, 193, 78, .08); }
+.reborn-loadout .reborn-loadout-empty { justify-content: center; border-style: dashed; color: var(--text-mid, #b8c4b8); min-height: 40px; }
+.reborn-loadout .reborn-loadout-status { font-weight: 700; }
+.reborn-loadout li .btn { margin-left: auto; min-height: 44px; }
+.reborn-loadout li .btn[disabled] { opacity: .55; cursor: not-allowed; }

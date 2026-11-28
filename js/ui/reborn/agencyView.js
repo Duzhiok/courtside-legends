@@ -75,7 +75,7 @@ function feedCard(offer, lang) {
 }
 
 const ZONE_WORD = { paint: ["禁区", "the paint"], mid: ["中距离", "mid-range"], three: ["三分", "the three"] };
-const zoneWord = (zone, lang) => T(...(ZONE_WORD[zone] || ZONE_WORD.paint), lang);
+const zoneWord = (zone, lang) => T(...(ZONE_WORD[zone] || ["进攻", "offense"]), lang); // a few moves carry no zone: claim none
 
 /** Skills M1b: the move he may fire. Plain about what firing does: the engine's real boost, never a promise, a miss still costs the use. */
 function signatureCard(sig, lang) {

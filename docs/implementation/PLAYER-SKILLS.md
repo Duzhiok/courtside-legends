@@ -136,3 +136,32 @@ Counters in the shot-resolution paths, `sim.requestedSignature` / `activeSignatu
 - **Not mine, seen on the screenshot, left alone:** the L1 bubble shows ONE quote (the feed offer) while the options also include "Take the screen / Another way", so the teammate's screen line is not visible in the bubble; and the bubble footer says "Hover to pause", which is mouse language on a touch screen.
 - One run showed the option as unreachable (a 1,348 px static panel) and one game as "3 taken"; neither reproduced in 6 further runs on both viewports. Likely a frame of the dismissing dialog / a refused attempt; **not proven**. The check stays strict and screenshots on recurrence.
 
+## 8. Shipped: M1c - collection and three slots (2026-11-28, Code)
+
+Owner approved M1a + M1b and ordered: collection and equip slots first, then proficiency (M2), then specialised training (M3); no more tuning of the three awakening thresholds until real players have played them.
+
+### 8.1 Rules
+- **3 active slots.** Owning is unlimited. `reborn.player.loadout = { equipped, known, stats, settled }` sits next to `awakening`; the catalogue is still `data/skills.js` and ownership is still the card's skills (no second skill system). Module: `js/reborn/loadout.js` (pure), screen: `js/ui/reborn/loadoutView.js`.
+- **Only an EQUIPPED move is armed** (`card.activeSignatures`): fired on purpose, offered in decisions, no random proc. **An owned move left in the collection keeps its original random proc.**
+- The shared budget is still 2 uses a game, whatever is equipped.
+- **Changing is free and only on the career screen**, never in a decision prompt (a game is atomic, so nothing can be swapped mid-game). Equip fails with a plain reason when slots are full, the move is not owned or it is already equipped; nothing mutates its input.
+- **Old saves:** no loadout -> every owned move is "new", so the first sync equips them in card order up to 3. That is exactly what M1b armed for anyone owning 3 or fewer. A newly owned move takes a free slot; with full slots it waits in the collection. A move he took off does not sneak back in.
+- Note: M1b armed ALL 31 offensive signature moves (innate ones too, e.g. `teardrop`), so the cap can bind for anyone owning more than 3; it is not a dead rule.
+- **Usage numbers are the engine's own** (`zones.sig` of the game report: random procs and purposeful uses alike), settled once per `gameId`, makes never above uses, the idempotency memory bounded (120). A move never used shows "No uses on record yet": unknown, not zero.
+
+### 8.2 What the player sees (career screen, between games)
+"My signature moves - n/3 equipped", a plain rule line, **Equipped** group (his moves, then empty slots), **Collection** group (unequipped moves), and an "Other skills (automatic)" line. Each move: name (English too: all 31 have one), type (Offense + zone only when the catalogue has one), source (Innate / Awakened / Purchased), status, real counts, an Equip / Unequip button (disabled with a reason when the slots are full).
+
+### 8.3 Verification
+- 9 focused tests (`tests/loadout.test.js`): legacy sync, slot rules, usage ledger, real-game wiring (equipped -> armed, not equipped -> no signature section, legacy save still armed), view, click helper. 6 mutations, all caught (arm everything / usage twice / ignore the cap / taken-off move returns / makes above uses / unknown shown as zero).
+- Real browser (`scripts/qa/reborn-loadout.mjs`, desktop 1440 + mobile 390, zh + en, REAL clicks): Unequip x2 -> 1/3 and two empty slots; a reload keeps it; in Full control every signature offer names only the equipped move; Equip by click -> 2/3; unequip all -> 0/3, no signature option in a game, no signature line in the report. The real-viewport screenshots were read: grouping fixed (equipped first, then collection), an inherited list indent removed (the arena theme's generic section-list padding beat the panel's own).
+- No shared GameSim change in M1c, so no full regression and no new hash comparison (the M1a/M1b proof stands).
+
+### 8.4 Limits
+- On a phone the panel is ~600 px tall and pushes weekly training down; a collapsible version is a product call, not done.
+- Equipping is allowed any time on the career screen, including after the last game of a season; there is no "before this specific game" gate beyond that.
+- Only offensive signature moves are loadout moves; defensive / passing / rebounding signatures keep their random proc (M6).
+
+## 9. Next (owner order)
+M2 proficiency (five levels, per-game cap, idempotent, no big hit-rate gain, budget stays 2), M3 specialised training on the existing Offline Training Camp (stable learning progress + rare insight, existing coins, no new currency), then Career playing time (B160). Legendary mentor, 3D animation, defensive / playmaking active moves stay later.
+

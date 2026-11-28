@@ -35,6 +35,9 @@ import { chooseFocus, TRAINING_FOCI, TRAINING_FOCUS_LABEL, describeGrowth } from
 import { fragmentsPanelHtml, fragmentsReportLines, intensiveClick, legacyClick, specializeClick, unlockClick } from "./fragmentsView.js";
 import { mirrorUnlocksToAccount, runUnlockIds } from "../../collectibles/legacyCosmetics.js";
 import { readParticipation, writeParticipation } from "../../reborn/participation.js";
+import { loadoutOf, recordUsage, syncLoadout } from "../../reborn/loadout.js";
+import { signaturesOf } from "../../reborn/signature.js";
+import { loadoutClick, loadoutHtml } from "./loadoutView.js";
 import { createTakeoverHook, describeTakeoverOutcome } from "./takeover.js";
 import { describeAgencyFeedback, describeDefenseFeedback, describeSignatureFeedback, describeTeamplayFeedback, participationBarHtml } from "./agencyView.js";
 import { mirrorTeammatesToAccount, teamplayOf } from "../../reborn/teamplay.js";
@@ -310,6 +313,9 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       card,
     });
     rebornState.player.awakening = out.state;
+    // Skills M1c: keep the loadout in step with what he now owns (a new move takes a free slot) and add this game's real usage, once.
+    const synced = syncLoadout(loadoutOf(rebornState.player), signaturesOf(playerCardFor(rebornState, report.year)));
+    rebornState.player.loadout = recordUsage(synced, report.gameId, report.line?.zones?.sig);
     if (out.awakened.length) {
       const events = [...(rebornState.timeline?.events || [])];
       for (const a of out.awakened) {
@@ -371,6 +377,7 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
       revealBanner,
       awakeningBannerHtml({ awakened: lastAwakened, lang: lang() }),
       promiseBannerHtml({ settled: lastPromises, lang: lang() }),
+      loadoutHtml({ reborn, card, lang: lang() }),
       awakeningProgressHtml({ awakening: reborn.player.awakening, card, lang: lang() }),
       `<p>${L("赛季", "Season", lang)} ${season.year} · ${L("第", "Game ", lang)}${Math.min(season.index + 1, season.games.length)}/${season.games.length} ${L("场", "", lang)} · ${summary.wins}${L("胜", "W", lang)}${summary.games - summary.wins}${L("负", "L", lang)}</p>`,
       canTrain
@@ -590,6 +597,8 @@ export function createRebornView({ getLang, readRootSave, writeRootSave, show, g
         render();
         return;
       }
+      const swapped = loadoutClick(event, reborn, playerCardFor(reborn, season.year));
+      if (swapped) { reborn = swapped; persist(); render(); return; }
       const bought = intensiveClick(event, reborn, currentWeek())
         || specializeClick(event, reborn, currentWeek(), playerCardFor(reborn, season.year));
       if (bought) { reborn = bought; persist(); render(); return; }
